@@ -413,13 +413,13 @@ describe('the seeded world has something at every level of the matrix', () => {
     for (const a of accepted) {
       expect(a.byId).not.toBe(colleen.id)
       expect(a).toMatchObject({ auto: true, note: says })
-      // At the moment of the signature it stands on: Halcyon's, above it.
+      // A second after the signature it stands behind, Halcyon's, as the route writes them.
       const above = await prisma.workAssertion.findFirstOrThrow({
         where: { timesheetId: a.timesheetId, companyId: halcyon.id, role: 'PASS_THROUGH', state: 'LIVE' },
         select: { byId: true, at: true },
       })
       expect(a.byId).toBe(above.byId)
-      expect(a.at.getTime()).toBe(above.at.getTime())
+      expect(a.at.getTime()).toBe(above.at.getTime() + 1000)
     }
     // And the week's own column, which payroll reads, says the same.
     const sheets = await prisma.timesheet.findMany({

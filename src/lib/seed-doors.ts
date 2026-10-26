@@ -733,7 +733,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // signed by Harlow Health only and waits on Halcyon.
   //
   // Byrne's acceptance is written the way the approve route writes it
-  // (2026-10-26): automatic, by whoever signed above, at the same moment,
+  // (2026-10-26): automatic, by whoever signed above, a second after them,
   // with the stand-in note (`standsAsAcceptanceSays`), never as her own
   // signature. The row stays because payroll reads `employerAcceptedAt`.
   const halcyonName = (await db.company.findUniqueOrThrow({ where: { id: co('halcyon').id }, select: { name: true } })).name
@@ -750,6 +750,9 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     const sign = signingDays(week.start, await weekDueOf(co('harlow-health').id))
     const clientAt = sign.signedAt(0)
     const middleAt = sign.signedAt(1)
+    // Byrne's stand-in is written after the signature it stands behind, a
+    // second later, the order the approve route writes them in.
+    const standsAt = new Date(middleAt.getTime() + 1000)
     // A world seeded before this has the week on Halcyon's line; it moves
     // to Byrne's, the same sheet, never a second one.
     const onHalcyon = await db.timesheet.findFirst({
@@ -768,7 +771,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
           status: standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED', submittedAt: week.end,
           clientApprovedAt: clientAt, clientApprovedById: seat('harlow-health'),
           ...(standing === 'SIGNED'
-            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: middleAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs }
+            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: standsAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs }
             : {}),
         },
         select: { id: true, sellContractId: true },
@@ -799,7 +802,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     if (standing === 'SIGNED' && onHalcyon) {
       await db.timesheet.update({
         where: { id: sheet.id },
-        data: { employerAcceptedAt: middleAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs },
+        data: { employerAcceptedAt: standsAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs },
       })
     }
     const has = (companyId: string, role: string) => live.some((x) => x.companyId === companyId && x.role === role)
@@ -820,13 +823,13 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       // reads the column.
       if (!has(nurseCorp.id, 'EMPLOYER_ACCEPTANCE')) {
         rows.push({ timesheetId: sheet.id, companyId: nurseCorp.id, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
-          rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), auto: true, note: standsAs, at: middleAt })
+          rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), auto: true, note: standsAs, at: standsAt })
       }
     }
     if (rows.length) await db.workAssertion.createMany({ data: rows })
     if (standing === 'SIGNED') {
       if (!onHalcyon) {
-        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: middleAt })
+        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: standsAt })
       }
       signedWeeks.push({ id: sheet.id, start: week.start, end: week.end, hours: week.hours })
     }

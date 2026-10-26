@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
-import { signersOf, topDown, turnOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
+import { signersOf, topDown, turnOf, standsAsAcceptanceSays, type LadderRung } from '@/app/api/timesheets/chain-turn'
 import { acceptedByPayer } from '@/lib/money/payers-acceptance-read'
 
 /**
@@ -145,7 +145,9 @@ describe('a seeded week on a chain is signed down the chain', () => {
   it('every seeded signature is made by somebody seated at the firm that signs', async () => {
     const all = await prisma.workAssertion.findMany({
       select: {
-        id: true, companyId: true, byId: true, auto: true, role: true, company: { select: { slug: true } },
+        id: true, companyId: true, byId: true, auto: true, role: true, note: true, at: true, state: true, timesheetId: true,
+        company: { select: { slug: true, name: true } },
+        timesheet: { select: { person: { select: { name: true } } } },
         weekApproval: { select: { approverName: true, approverEmail: true } },
       },
     })
@@ -155,14 +157,31 @@ describe('a seeded week on a chain is signed down the chain', () => {
       select: { personId: true, companyId: true },
     })
     const seated = new Set(seats.map((c) => `${c.personId}:${c.companyId}`))
+    // A one-person firm's acceptance is never its worker's own signature:
+    // the approve route writes it automatically, by the person who signed
+    // the rung above, with the stand-in note (`standsAsAcceptanceSays`).
+    // That shape, and only that shape, names somebody seated at the firm
+    // above rather than at the firm it accepts for.
+    const companyNames = new Map((await prisma.company.findMany({ select: { id: true, name: true } })).map((c) => [c.id, c.name]))
+    const standsIn = (a: (typeof all)[number]): boolean => {
+      if (!a.auto || a.role !== 'EMPLOYER_ACCEPTANCE' || !a.byId || !a.note || !a.timesheetId) return false
+      const above = all
+        .filter((x) => x.timesheetId === a.timesheetId && x.state === 'LIVE' && x.companyId !== a.companyId && x.at < a.at)
+        .sort((x, y) => y.at.getTime() - x.at.getTime())[0]
+      if (!above || above.byId !== a.byId || !seated.has(`${a.byId}:${above.companyId}`)) return false
+      return a.note === standsAsAcceptanceSays({
+        signedBy: companyNames.get(above.companyId) ?? '', firmName: a.company.name, personName: a.timesheet?.person.name ?? '',
+      })
+    }
     const invented = all.filter((a) =>
       // A signature with nobody behind it is the system approving on its
       // own, and says so; or a client's approval given outside Etyme (by
       // email, CLAUDE.md 2026-09-30), whose WeekApproval names the person
-      // and their address. One with a person names somebody at that firm.
+      // and their address. One with a person names somebody at that firm,
+      // or is the one-person firm's stand-in above.
       a.byId == null
         ? !a.auto && !(a.role === 'CLIENT_APPROVAL' && a.weekApproval?.approverName && a.weekApproval.approverEmail)
-        : !seated.has(`${a.byId}:${a.companyId}`)
+        : !seated.has(`${a.byId}:${a.companyId}`) && !standsIn(a)
     )
     expect(
       invented.map((a) => `${a.company.slug} ${a.role}`),
