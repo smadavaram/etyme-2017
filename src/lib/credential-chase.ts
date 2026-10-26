@@ -346,11 +346,13 @@ export async function lookAtCredentials(now: Date): Promise<Finding[]> {
   for (const [personId, theirs] of byPerson) {
     const person = theirs[0].person!
     const keys = [...new Set(theirs.map((r) => r.type))]
-    const chases = credentialsToChase(heldFrom(theirs), keys, now)
-    if (chases.length === 0) continue
-
+    // Who asks is read first, so the sentence names that firm and never
+    // says "us" (credentialsToChase's last argument, regulatory, c979d5f1b).
     const chaser = await whoChases(personId)
     if (!chaser) continue
+
+    const chases = credentialsToChase(heldFrom(theirs), keys, now, undefined, chaser.name)
+    if (chases.length === 0) continue
 
     for (const chase of chases) out.push(findingFor(person, chaser.id, chase))
   }
@@ -420,14 +422,16 @@ export async function askForRenewal(
   const theirs = rows.filter(isCredential)
   if (theirs.length === 0) return { done: null, because: null }
 
-  const chases = credentialsToChase(heldFrom(theirs), [...new Set(theirs.map((r) => r.type))], now)
-  if (chases.length === 0) return { done: null, because: null }
-
   const company = await prisma.company.findUnique({
     where: { id: input.askingCompanyId },
     select: { id: true, name: true },
   })
   if (!company) return { done: null, because: null }
+
+  // The firm asking is named in the sentence stored on the request, never
+  // "us" (credentialsToChase's last argument, regulatory, c979d5f1b).
+  const chases = credentialsToChase(heldFrom(theirs), [...new Set(theirs.map((r) => r.type))], now, undefined, company.name)
+  if (chases.length === 0) return { done: null, because: null }
 
   // Somebody to record as having asked. The desk that looks after
   // contractors' paperwork, not the one that looks after suppliers':

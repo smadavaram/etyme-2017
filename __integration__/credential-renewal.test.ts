@@ -78,6 +78,13 @@ describe('the nightly chase asking a nurse for her renewal', () => {
     expect(packet!.reopenedReason).toMatch(/runs out in \d+ days/)
   })
 
+  it('the renewal request stored for her names the firm asking, never “us”', async () => {
+    const packet = await herPacket()
+    expect(packet!.reopenedReason).toContain(packet!.company.name)
+    expect(packet!.reopenedReason).not.toMatch(/\bus\b/)
+    expect(packet!.reopenedReason).not.toContain('the firm placing you')
+  })
+
   it('sends the ask to her own address, so the link is hers rather than her agency’s', async () => {
     const packet = await herPacket()
     expect(packet!.recipientEmail).toBe(HER)
