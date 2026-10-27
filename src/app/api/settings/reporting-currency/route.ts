@@ -34,7 +34,7 @@ async function current(companyId: string) {
   const [company, rates] = await Promise.all([
     prisma.company.findUniqueOrThrow({
       where: { id: companyId },
-      select: { homeCurrency: true, reportingCurrency: true, reportingCurrencySetAt: true, reportingCurrencySetBy: { select: { name: true } } },
+      select: { homeCurrency: true, reportingCurrency: true, reportingCurrencySetAt: true, reportingCurrencySetById: true },
     }),
     prisma.fxRate.findMany({
       where: { companyId },
@@ -42,10 +42,14 @@ async function current(companyId: string) {
       select: { fromCurrency: true, toCurrency: true, rate: true, effectiveOn: true, source: true, createdAt: true, setBy: { select: { name: true } } },
     }),
   ])
+  // Who set it is a recorded id, not a relation (lib/seed-rebuild deletes people before companies).
+  const setBy = company.reportingCurrencySetById
+    ? await prisma.person.findUnique({ where: { id: company.reportingCurrencySetById }, select: { name: true } })
+    : null
   return {
     reportingCurrency: company.reportingCurrency ?? company.homeCurrency,
     homeCurrency: company.homeCurrency,
-    setBy: company.reportingCurrencySetBy?.name ?? null,
+    setBy: setBy?.name ?? null,
     setAt: company.reportingCurrencySetAt,
     rates: rates.map((r) => ({ ...r, rate: Number(r.rate), setBy: r.setBy?.name ?? null })),
   }

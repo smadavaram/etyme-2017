@@ -233,17 +233,16 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash           String?
+  passwordHash        String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt        DateTime?
-  emailTokens            EmailToken[]
-  signInFailures         SignInFailure[]
-  adverseActionsGiven    AdverseAction[]
-  // Who set a company's reporting currency, and an exchange rate (2026-10-27).
-  reportingCurrenciesSet Company[]       @relation("reportingCurrencySetBy")
-  fxRatesSet             FxRate[]        @relation("fxRateSetBy")
+  emailVerifiedAt     DateTime?
+  emailTokens         EmailToken[]
+  signInFailures      SignInFailure[]
+  adverseActionsGiven AdverseAction[]
+  // Who set an exchange rate (2026-10-27).
+  fxRatesSet          FxRate[]        @relation("fxRateSetBy")
 
   @@index([name])
   @@index([createdAt])
@@ -568,8 +567,9 @@ model Company {
   /// by choosing how to report. Written by PATCH /api/settings/reporting-currency
   /// with who and when; read by lib/money/reporting-currency.
   reportingCurrency        String?
+  /// Who set it, kept as a record of a person and never followed, like
+  /// weekSettingsSetById: the demo world's rebuild deletes people before companies.
   reportingCurrencySetById String?
-  reportingCurrencySetBy   Person?   @relation("reportingCurrencySetBy", fields: [reportingCurrencySetById], references: [id])
   reportingCurrencySetAt   DateTime?
 
   /// Who here may see the market outside this company.
@@ -975,7 +975,6 @@ model Company {
   adverseActions   AdverseAction[]
 
   @@index([listedById])
-  @@index([reportingCurrencySetById])
 }
 
 /// Where a submission actually gets decided.

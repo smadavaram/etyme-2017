@@ -232,6 +232,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Company.weekSettingsSetById': { as: 'RECORD' },
   // Who last answered the company's payroll questions (lib/payroll-settings). A record of a person, never followed.
   'Company.paySettingsSetById': { as: 'RECORD' },
+  // Who last chose the company's reporting currency (PATCH /api/settings/reporting-currency). A record of a person, never followed.
+  'Company.reportingCurrencySetById': { as: 'RECORD' },
   'Interview.requestedById': { as: 'RECORD' },
   'Interview.noShowBy': { as: 'RECORD' },
   'Interview.decidedById': { as: 'RECORD' },
