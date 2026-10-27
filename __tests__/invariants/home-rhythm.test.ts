@@ -143,8 +143,14 @@ describe('The home page is four short sections in one column, at every width', (
   it('never waits on anything: no frame, no request, every step written into the page', () => {
     expect(DEMO).not.toMatch(/<iframe|fetch\(|loading=/)
     expect(DEMO).toContain('hidden={i !== cur}')
-    // The page itself is a server page with no data to wait for.
-    expect(PAGE).not.toMatch(/export const dynamic|await /)
+    // The page itself is a server page with no data to wait for, but one:
+    // since the release walk of 2026-10-27 it asks whether Corvane is
+    // seeded, so the map draws no demo link to a door that would answer
+    // 404. That read is bounded (SEEDED_WAIT_MS) and reads "no" when late,
+    // so the map and the panel are never held for it.
+    expect(PAGE).not.toMatch(/export const dynamic/)
+    expect(PAGE.match(/await /g) ?? []).toEqual(['await '])
+    expect(PAGE).toContain('await corvaneIsSeeded()')
   })
 
   it('draws every color from the site’s tokens, so the page and the panel follow one theme', () => {

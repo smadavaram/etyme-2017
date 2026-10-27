@@ -49,9 +49,10 @@ import { DESKS, DESK_ROLES } from '@/lib/demo-desks'
 import { check, verdict, namedCompanies, gridsWithoutBreakpoint } from '@/lib/positioning'
 import {
   corvaneMap, copyOfCorvaneMap, seatOf, seatHref, MAP_SEATS, DEFAULT_SEAT, PLANT_ROWS,
-  type MapView, type SeatKey,
+  type MapView, type MapCell, type SeatKey,
 } from '@/lib/public-site/corvane-map'
-import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
+import { CorvaneMapView, DEMO_BEING_SET_UP } from '@/lib/public-site/corvane-map-view'
+import { corvaneIsSeeded, SEEDED_WAIT_MS } from '@/lib/public-site/corvane-seeded'
 import { demoRequest } from '@/lib/public-site/demo-link'
 
 const ROOT = process.cwd()
@@ -65,6 +66,7 @@ const column = (v: MapView, title: string) => {
   return v.rows.map((r) => r[j])
 }
 const stat = (v: MapView, label: string) => v.stats.find((s) => s.label === label)!
+const seatHrefsFor = () => Object.fromEntries(MAP_SEATS.map((m) => [m.key, seatHref(m.key)])) as Record<SeatKey, string>
 
 // ── The seed, worked out a second way ─────────────────────────────────
 
@@ -129,6 +131,20 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     // the check says: six clear it and one is held.
     for (const w of copyOfCorvaneMap(MAP)) expect(w, w).not.toMatch(/\bpaid\b/i)
     expect(read('src/lib/seed-corvane.ts')).toMatch(/paid: 0,[\s\S]*status: 'SUBMITTED'/)
+  })
+
+  it('every invoice receipt is on its region’s Money cell, held and clean, so the rows add to 6 of 7: the US reads "1 held · $42" over "1 clears the check"', () => {
+    const cfo = view('cfo')
+    const cells = column(cfo, 'Money')
+    const heldN = (c: MapCell) => Number(c.t.match(/^(\d+) held\b/)?.[1] ?? 0)
+    const cleanN = (c: MapCell) => Number(`${c.t} ${c.sub ?? ''}`.match(/(\d+) clears? the check/)?.[1] ?? 0)
+    expect(cells.reduce((n, c) => n + heldN(c), 0)).toBe(CORVANE_RECEIPTS.filter((r) => r.held).length)
+    expect(cells.reduce((n, c) => n + cleanN(c), 0)).toBe(CORVANE_RECEIPTS.filter((r) => !r.held).length)
+    expect(cells.reduce((n, c) => n + heldN(c) + cleanN(c), 0)).toBe(CORVANE_RECEIPTS.length)
+    expect(stat(cfo, 'Invoice receipts').value).toBe('6 of 7')
+    const us = cells[cfo.rows.findIndex((r) => r[0].t === CORVANE_REGIONS.find((g) => g.key === heldPlant.region)!.label)]
+    expect(us.t).toBe('1 held · $42')
+    expect(us.sub).toBe('1 clears the check')
   })
 
   it('every region’s row adds up to the whole: 359 contractors, 48 open jobs and 48 weeks to sign', () => {
@@ -256,7 +272,7 @@ describe('The map’s four roles are tabs at their own addresses', () => {
 
   it('the server sends all four seats in the HTML, shows the one the address asks for, and every tab works with no script', () => {
     const hrefs = Object.fromEntries(MAP_SEATS.map((m) => [m.key, seatHref(m.key)])) as Record<SeatKey, string>
-    const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'region', hrefs }))
+    const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'region', hrefs, doorsOpen: true }))
     for (const s of MAP_SEATS) {
       expect(html).toContain(`href="${seatHref(s.key).replace(/&/g, '&amp;')}"`)
       expect(html).toContain(`data-map-seat="${s.key}"`)
@@ -267,6 +283,35 @@ describe('The map’s four roles are tabs at their own addresses', () => {
     expect(html).toContain(view('region').headline)
     // The page reads the seat on the server, the way the doors read their tab.
     expect(read('src/app/page.tsx')).toMatch(/seatOf\(searchParams\?\.seat\)/)
+  })
+
+  it('with no Corvane company on this deployment the map draws no link to a demo door that would refuse, and says the demo is being set up', () => {
+    const closed = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: false }))
+    expect(closed).not.toContain('data-map-door="open"')
+    expect(closed).not.toContain('Open the demo as')
+    expect(closed).not.toContain('href="/demo"')
+    expect((closed.match(/data-map-door="closed"/g) ?? []).length).toBe(MAP.views.length)
+    expect(closed).toContain(DEMO_BEING_SET_UP)
+    // With Corvane seeded, every seat has its link.
+    const open = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: true }))
+    expect((open.match(/data-map-door="open"/g) ?? []).length).toBe(MAP.views.length)
+    expect(open).toContain('Open the demo as Margaret Osei')
+    expect(open).not.toContain(DEMO_BEING_SET_UP)
+  })
+
+  it('the page asks the database once whether world-corvane exists, waits at most 800 milliseconds, and anything but a found company in time reads as not set up', async () => {
+    const asked: unknown[] = []
+    const db = (answer: () => Promise<{ id: string } | null>) => ({ company: { findUnique: (a: unknown) => { asked.push(a); return answer() } } })
+    expect(await corvaneIsSeeded(db(async () => ({ id: 'c1' })))).toBe(true)
+    expect(await corvaneIsSeeded(db(async () => null))).toBe(false)
+    expect(await corvaneIsSeeded(db(async () => { throw new Error('P1001') }))).toBe(false)
+    expect(asked[0]).toEqual({ where: { slug: 'world-corvane' }, select: { id: true } })
+    // A database slower than the bound reads as not set up, so the page is never held for it.
+    expect(SEEDED_WAIT_MS).toBeLessThanOrEqual(800)
+    expect(await corvaneIsSeeded(db(() => new Promise((r) => setTimeout(() => r({ id: 'c1' }), 50))), 5)).toBe(false)
+    const page = read('src/app/page.tsx')
+    expect(page).toMatch(/const doorsOpen = await corvaneIsSeeded\(\)/)
+    expect(page).toContain('doorsOpen={doorsOpen}')
   })
 
   it('each role’s demo link seats the reader at Corvane in that role, naming the person where several hold it', () => {
@@ -313,13 +358,37 @@ describe('The map says what the home page may say', () => {
     }
   })
 
-  it('on a phone the figures stack, the tabs wrap, and the table scrolls inside its own box so the page never does', () => {
+  it('on a phone the figures stack, the tabs wrap, and each row is a short block with nothing behind a sideways scroll; the table is drawn from md up', () => {
     const drawn = read('src/lib/public-site/corvane-map-view.tsx')
     expect(gridsWithoutBreakpoint(drawn)).toEqual([])
     expect(drawn).toContain('grid grid-cols-1 border-t border-etyme-rule sm:grid-cols-3 lg:grid-cols-5')
     expect(drawn).toMatch(/aria-label="Read it as" className="flex flex-wrap/)
-    expect(drawn).toMatch(/<div className="overflow-x-auto[^"]*">\s*<table className="w-full min-w-\[/)
+    // The stacked rows are the phone's; the wide table is hidden below md.
+    expect(drawn).toMatch(/data-map-stacked="" className="[^"]*\bmd:hidden\b/)
+    expect(drawn).toMatch(/<div className="overflow-x-auto hidden [^"]*md:block">\s*<table className="w-full min-w-\[/)
     expect(read('src/app/page.tsx')).toContain('min-h-screen overflow-x-hidden')
+    // Every cell of every row is in the stacked form: nothing is hidden on a phone.
+    const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: true }))
+    const stacked = html.slice(html.indexOf('data-map-stacked'), html.indexOf('<table'))
+    for (const r of view('cfo').rows) for (const c of r) expect(stacked, c.t).toContain(c.t.replace(/&/g, '&amp;'))
+    for (const c of view('cfo').columns.slice(1)) expect(stacked, c.t).toContain(c.t)
+  })
+
+  it('on a phone the CFO reads each region’s hold and held receipt first, Papers and Money before Open jobs and Weeks to sign', () => {
+    const v = view('cfo')
+    const order = v.phoneOrder!.map((j) => v.columns[j].t)
+    expect(order[0]).toBe('Region')
+    expect(order.slice(1, 3)).toEqual(['Papers', 'Money'])
+    expect(order.indexOf('Papers')).toBeLessThan(order.indexOf('Open jobs'))
+    expect(order.indexOf('Money')).toBeLessThan(order.indexOf('Weeks to sign'))
+    // Every column once, none dropped.
+    expect([...v.phoneOrder!].sort((a, b) => a - b)).toEqual(v.columns.map((_, j) => j))
+    // The stacked block draws the columns in that order.
+    const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: true }))
+    const seatHtml = html.slice(html.indexOf('data-map-seat="cfo"'))
+    const block = seatHtml.slice(seatHtml.indexOf('data-map-stacked'), seatHtml.indexOf('</li>'))
+    expect(block.indexOf('>Papers<')).toBeLessThan(block.indexOf('>Open jobs<'))
+    expect(block.indexOf('>Money<')).toBeLessThan(block.indexOf('>Weeks to sign<'))
   })
 })
 
@@ -328,7 +397,10 @@ describe('The map says what the home page may say', () => {
 import { PROGRAMMES } from '@/lib/seed-programmes'
 import { NORTHBEND_TWIN_RECEIPTS } from '@/lib/twin/seed-demo'
 import { priceClaims, unverifiableClaims } from '@/lib/positioning'
-import { whyDrawings, FOUR_LINES, copyOfWhy } from '@/lib/public-site/why-words'
+import { whyDrawings, FOUR_LINES, copyOfWhy, piecesOf } from '@/lib/public-site/why-words'
+import { BAND, BAND_FOR_SELF } from '@/lib/public-site/skeleton-words'
+import { SECURITY as SECURITY_PAGE } from '@/lib/public-site/company'
+import { referenceAt, docSlugs } from '@/lib/public-site/docs/index'
 import { WhyBelow } from '@/lib/public-site/why-below'
 import { TALK } from '@/lib/public-site/talk'
 
@@ -338,14 +410,16 @@ const northbend = PROGRAMMES.find((p) => p.client === 'nike')!
 
 describe('Under the panel, two drawings and four lines, every name and figure the seed’s', () => {
 
-  it('the papers drawing is the start Northbend’s seed holds without an I-9: Ingrid Sørensen, starting next week, refused until the I-9 is on file', () => {
+  it('the papers drawing is the start Northbend’s seed holds without an I-9: Ingrid Sørensen, the cybersecurity analyst starting next week, named by first name and job, refused until the I-9 is on file', () => {
     // The drawing said Priya Raman; the seed holds no start of hers. The
     // one awarded start at Northbend with no I-9 is Ingrid Sørensen's.
     const held = northbend.placements.filter((p) => p.papers === 'NO_I9' && p.state === 'DRAFT')
     expect(held.map((p) => p.person)).toEqual(['Ingrid Sørensen'])
     expect(held[0].startedDaysAgo).toBe(-7)
     const d = drawing('papers')
-    expect(d.who).toEqual(['Ingrid Sørensen starts next week', 'Compliance checks the set'])
+    expect(held[0].role).toBe('Cybersecurity analyst')
+    // By first name and job only, so the page does not show two full Ingrids.
+    expect(d.who).toEqual(['Ingrid, cybersecurity analyst', 'starts next week; compliance checks the set'])
     expect(d.cards).toEqual(['I-9', 'insurance', 'agreement'])
     expect(d.stop).toEqual(['No I-9 → start refused', 'Get it on file, then start.'])
     expect(d.ok).toBeNull()
@@ -383,12 +457,50 @@ describe('Under the panel, two drawings and four lines, every name and figure th
       'Security: what is done and what is not, on one page. No SOC 2 yet; it is next.',
       'Talk to a person: support@etyme.com. One sentence is enough.',
     ])
-    expect(FOUR_LINES[2].link).toEqual({ words: 'on one page', href: '/security' })
-    expect(FOUR_LINES[3].link).toEqual({ words: 'support@etyme.com', href: 'mailto:support@etyme.com' })
+    expect(FOUR_LINES[2].links).toEqual([{ words: 'on one page', href: '/security' }])
+    expect(FOUR_LINES[3].links).toEqual([{ words: 'support@etyme.com', href: 'mailto:support@etyme.com' }])
     // Each claim in "In it" stands on something built: the work-account
     // sign-in and the accounting export.
     expect(read('src/lib/auth.ts')).toContain('AzureADProvider')
     expect(read('src/lib/erp-profiles.ts')).toContain("'QUICKBOOKS'")
+  })
+
+  it('the sign-up band promises no speed, and each claim in "In it" opens the page where a reader checks it: the work-account sign-in on the security page, the export in the documentation', () => {
+    // "Two minutes." was a promised speed nobody measured (release walk, 2026-10-27).
+    for (const line of [BAND.line, BAND_FOR_SELF.line]) {
+      expect(line, line).not.toMatch(/minute/i)
+      expect(unverifiableClaims(line), line).toEqual([])
+    }
+    expect(unverifiableClaims('Two minutes. Free while we are testing.')).not.toEqual([])
+    const inIt = FOUR_LINES[0]
+    expect(inIt.links).toEqual([
+      { words: 'Signs in with your work account', href: '/security' },
+      { words: 'Exports to your accounting system', href: '/docs/integrations' },
+    ])
+    for (const l of inIt.links!) expect(inIt.text).toContain(l.words)
+    // What each link lands on says the same thing, under the heading it names.
+    const done = SECURITY_PAGE.blocks.find((b) => b.id === 'done')!
+    expect(done.lines!.map((l) => l.t)).toContain('Sign in with your company’s work account, or a password.')
+    expect(referenceAt('integrations')!.lines).toContain('Journal entries go to your books once. An entry already sent never goes again.')
+    expect(docSlugs()).toContain('integrations')
+    // And the page draws each as a link, in reading order.
+    expect(piecesOf(inIt).filter((p) => p.href).map((p) => p.t)).toEqual(['Signs in with your work account', 'Exports to your accounting system'])
+    expect(piecesOf(inIt).map((p) => p.t).join('')).toBe(inIt.text)
+    const html = renderToStaticMarkup(createElement(WhyBelow))
+    expect(html).toContain('href="/security"')
+    expect(html).toContain('href="/docs/integrations"')
+  })
+
+  it('one Ingrid at a time: Ingrid Solberg is named once, in the head of operations’ signed-in line, and the papers drawing names its start by first name and job', () => {
+    const solberg = CORVANE_PEOPLE.find((p) => p.desk === 'operations')!.name
+    expect(solberg).toBe('Ingrid Solberg')
+    const said = copyOfCorvaneMap(MAP).filter((w) => w.includes(solberg))
+    expect(said).toEqual([view('operations').signed])
+    expect(view('operations').demo.label).toBe('Open the demo as the head of operations')
+    // The demo door still seats her by desk: one person holds it.
+    expect(view('operations').demo.target).toMatchObject({ as: 'world-corvane', desk: 'operations' })
+    expect(copyOfWhy().join(' ')).not.toContain('Ingrid Sørensen')
+    expect(drawing('papers').who[0]).toBe('Ingrid, cybersecurity analyst')
   })
 
   it('"Talk to a person" is a mail to support@etyme.com beside the demo button in the hero and beside Sign up in the home page’s band, and no door carries it yet', () => {

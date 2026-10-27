@@ -1816,18 +1816,27 @@ function whyWords(): number {
 // 2026-10-27: 125 → 127, for the map the founder said "Build it" to
 // ("This is the vision of Etyme"). Its lede (25 words) replaced the line
 // under the question (13), measured at 127 with it; nothing else moved.
-const CEILING = 127
+// 2026-10-27, release walk: 127 → 125. "Two minutes." left the sign-up
+// band, a promised speed nobody measured; the ceiling follows it down so
+// the two words cannot come back as two others.
+const CEILING = 125
 // The map itself, measured at 321 words for the CFO's seat as drawn. The
 // other three seats are in the HTML and hidden until a tab is pressed,
 // so they are not counted here.
-const MAP_CEILING = 321
+// 2026-10-27, release walk: 321 → 324. The US Money cell now says its
+// clean receipt under the held one ("1 clears the check"), so every
+// region's receipts are on its row and the rows add to "6 of 7".
+const MAP_CEILING = 324
 // The same day: the two drawings (their labels, claims and the sentence
 // under each) and the four lines, "about ninety words" in CLAUDE.md,
 // measured at 188 as the counter counts them: the four lines and the two
 // claims with their sentences are about the ninety, and the rest is the
 // words drawn inside the two pictures (who, the three papers, what stops)
 // and "Talk to a person" twice. The page's own ceiling does not move.
-const WHY_CEILING = 188
+// 2026-10-27, release walk: 188 → 189. The papers drawing names its
+// start by first name and job ("Ingrid, cybersecurity analyst"), so the
+// page does not carry two full Ingrids; the job is one word more.
+const WHY_CEILING = 189
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -2185,6 +2194,7 @@ describe('The site says what it does and shows it, and claims nothing a reader c
       'Onboard every supplier in minutes.',
       'Cut contractor spend by 20%.',
       'Never miss a timesheet again!',
+      'Two minutes. Your suppliers and contractors go where the sample ones are.',
     ]) {
       expect(unverifiableClaims(hype), hype).not.toEqual([])
     }
@@ -2194,6 +2204,7 @@ describe('The site says what it does and shows it, and claims nothing a reader c
       'Say where the guarantee stops.',
       'A named person sends back one page inside five working days.',
       'The client signs the week and pays only matched invoices.',
+      'Aoife Kelly reaches the time limit in 14 days.',
     ]) {
       expect(unverifiableClaims(plain), plain).toEqual([])
     }

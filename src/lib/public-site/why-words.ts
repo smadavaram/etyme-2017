@@ -22,6 +22,16 @@
  *   40 h, invoice 40 h, Pay $3,920;      accepted at Pinnacle's $98; PR-2026-0442
  *   41.5 h billed → held"                bills 41.5 against 40 and is held
  *
+ * ── One Ingrid on the default page (release walk, 2026-10-27) ────────
+ *
+ * Corvane's head of operations is Ingrid Solberg and Northbend's start
+ * is Ingrid Sørensen: two Ingrids on one page. Neither seed is this
+ * file's to rename, so the drawing names the start by her first name and
+ * her job, as the check drawing names Renata by her job, and the full
+ * name "Ingrid Solberg" appears once, in the map's signed-in line behind
+ * the Head of operations tab. The clean fix is a seed change, named in
+ * the hand-back: `lib/seed-corvane`'s `operations` person.
+ *
  * No customer, no number of days, no certification held, no vendor's
  * name: "No SOC 2 yet; it is next" says one that is not.
  *
@@ -67,7 +77,7 @@ export function whyDrawings(): WhyDrawing[] {
   return [
     {
       key: 'papers',
-      who: [`${noI9.person} ${startsIn(-noI9.startedDaysAgo)}`, 'Compliance checks the set'],
+      who: [`${noI9.person.split(' ')[0]}, ${noI9.role.toLowerCase()}`, `${startsIn(-noI9.startedDaysAgo)}; compliance checks the set`],
       cards: ['I-9', 'insurance', 'agreement'],
       ok: null,
       stop: ['No I-9 → start refused', 'Get it on file, then start.'],
@@ -86,24 +96,58 @@ export function whyDrawings(): WhyDrawing[] {
   ]
 }
 
-/** The four lines, word for word from the drawing. `link` is the words that open `href`. */
-export const FOUR_LINES: readonly { lead: string; text: string; link?: { words: string; href: string } }[] = [
+/**
+ * The four lines, from the drawing. Each of `links` is words in `text`
+ * that open `href`.
+ *
+ * "Signs in with your work account" and "Exports to your accounting
+ * system" are claims, and a claim on a public page is one the reader can
+ * check (release walk, 2026-10-27), so each opens the page that says it:
+ * the security page, whose first list, Done, says "Sign in with your
+ * company's work account" (its top, not an anchor: no link lands in the
+ * middle of a page), and the documentation's Integrations page, which
+ * says journal entries go to your books once and that no named connector
+ * is built.
+ */
+export interface FourLine { lead: string; text: string; links?: readonly { words: string; href: string }[] }
+
+export const FOUR_LINES: readonly FourLine[] = [
   {
     lead: 'In it:',
     text: 'Jobs · Candidates · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+    links: [
+      { words: 'Signs in with your work account', href: '/security' },
+      { words: 'Exports to your accounting system', href: '/docs/integrations' },
+    ],
   },
   { lead: 'Price:', text: 'free while we test. Founding firms keep their terms.' },
   {
     lead: 'Security:',
     text: 'what is done and what is not, on one page. No SOC 2 yet; it is next.',
-    link: { words: 'on one page', href: '/security' },
+    links: [{ words: 'on one page', href: '/security' }],
   },
   {
     lead: `${TALK.t}:`,
     text: `${TALK.address}. One sentence is enough.`,
-    link: { words: TALK.address, href: TALK.href },
+    links: [{ words: TALK.address, href: TALK.href }],
   },
 ]
+
+/** A line cut at its links, in reading order: plain words, and words that open an address. */
+export function piecesOf(l: FourLine): { t: string; href?: string }[] {
+  const out: { t: string; href?: string }[] = []
+  let rest = l.text
+  const links = [...(l.links ?? [])].sort((a, b) => l.text.indexOf(a.words) - l.text.indexOf(b.words))
+  for (const k of links) {
+    const at = rest.indexOf(k.words)
+    if (at < 0) continue
+    if (at > 0) out.push({ t: rest.slice(0, at) })
+    out.push({ t: k.words, href: k.href })
+    rest = rest.slice(at + k.words.length)
+  }
+  if (rest) out.push({ t: rest })
+  return out
+}
 
 /** Every word the section shows, for the guards that count and read a page. */
 export function copyOfWhy(): string[] {

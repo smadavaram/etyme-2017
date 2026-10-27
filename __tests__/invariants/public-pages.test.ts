@@ -792,7 +792,7 @@ describe('Four doors for the parties who are not the client, reached by link and
   it('the contractors door’s band asks a person to set up their own page, with the candidate sign-up and the doors line', () => {
     const c = all(copyOfPartyPage(doorAt('contractors')!))
     expect(c).toContain('Seen enough? Set up your own page.')
-    expect(c).toContain('Two minutes. Your weeks, your pay and your paperwork in one place. Free.')
+    expect(c).toContain('Your weeks, your pay and your paperwork in one place. Free.')
     expect(c).not.toContain('Set up your company')
     expect(c).not.toMatch(/spend audit/i)
     expect(c).toContain('Your door:')

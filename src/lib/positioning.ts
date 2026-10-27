@@ -1015,6 +1015,11 @@ const UNVERIFIABLE: { pattern: RegExp; says: string }[] = [
     says: 'a badge nobody has awarded' },
   { pattern: /\b(?:in|within|under) (?:minutes|seconds|hours|days|a few (?:minutes|hours|days)|an (?:afternoon|hour)|\d+ (?:minutes|seconds))\b/i,
     says: 'a speed nobody has measured' },
+  // A duration said as a sentence of its own ("Two minutes."), which is
+  // how the sign-up band promised a set-up time until the release walk
+  // of 2026-10-27 found it: no "in" for the pattern above to catch.
+  { pattern: /(?:^|[.?]\s+)(?:one|two|three|five|ten|a few|a couple of|\d+) (?:seconds?|minutes?|hours?|days?)\./i,
+    says: 'a speed nobody has measured' },
   { pattern: /\b(?:set ?up|live|up and running|onboard(?:ed)?|deploy(?:ed)?) (?:in|within) \w+/i,
     says: 'a set-up time nobody has measured' },
   { pattern: /\b(?:save|cut|reduce|lower)s?\b[^.]{0,40}?\d+\s*%|\b\d+x (?:faster|cheaper|more)\b/i,

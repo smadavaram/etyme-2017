@@ -107,6 +107,12 @@ export interface MapView {
   stats: MapStat[]
   columns: { t: string; right?: boolean }[]
   rows: MapCell[][]
+  /**
+   * On a phone the table becomes one short block per row, and this is the
+   * order its columns are read in: the row's name first, then what stopped.
+   * Absent, the table's own order.
+   */
+  phoneOrder?: number[]
   caption: string
   demo: { target: SeatTarget; label: string }
 }
@@ -258,13 +264,20 @@ export function corvaneMap(): CorvaneMap {
       { t: String(g.jobs) },
       { t: String(g.weeks) },
       g.onHold ? { t: `${g.onHold} start on hold`, chip: 'att' } : { t: 'none blocking', chip: 'ok' },
+      // Every receipt in the region is on its row, held and clean, so the
+      // rows add to the "6 of 7" above (release walk, 2026-10-27).
       g.held.length
-        ? { t: `${plural(g.held.length, 'receipt')} held · ${heldMoney(g.held)}`, chip: 'att' }
+        ? {
+            t: `${g.held.length} held · ${heldMoney(g.held)}`, chip: 'att',
+            sub: g.clean ? `${g.clean} ${g.clean === 1 ? 'clears' : 'clear'} the check` : undefined,
+          }
         : { t: `${g.clean} ${g.clean === 1 ? 'clears' : 'clear'} the check`, chip: 'ok' },
       { t: plural(daysToLimit(g.nearest), 'day'), sub: `${g.nearest.name}, ${g.nearest.plant.city}`, att: daysToLimit(g.nearest) <= NEAR_LIMIT_DAYS },
       // In dollars, with the region's own money under it where that is not dollars.
       { t: dollars(g.usd), sub: spendByCurrency(g.people).some((x) => x.currency !== 'USD') ? ownMoney(g.people) : undefined },
     ]),
+    // On a phone: the region, then the hold and the held receipt, then the counts.
+    phoneOrder: [0, 4, 5, 6, 7, 1, 2, 3],
     caption: 'Four flows per region: who is on site, who waits on papers, what clears the check, what is held.',
     demo: { target: { as: CORVANE_DEMO_AS, desk: 'cfo', seat: cfo.name }, label: `Open the demo as ${cfo.name}` },
   }
@@ -304,7 +317,9 @@ export function corvaneMap(): CorvaneMap {
       { t: dollars(g.usd) },
     ]),
     caption: 'Every plant, every supplier, one list. Pick a region to see its hiring managers.',
-    demo: { target: { as: CORVANE_DEMO_AS, desk: 'operations', seat: ops.name }, label: `Open the demo as ${ops.name}` },
+    // Named once, in the signed-in line: Northbend's drawing below holds
+    // an Ingrid too (release walk, 2026-10-27; see ./why-words).
+    demo: { target: { as: CORVANE_DEMO_AS, desk: 'operations', seat: ops.name }, label: 'Open the demo as the head of operations' },
   }
 
   // ── Regional manager ──

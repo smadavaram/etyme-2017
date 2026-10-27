@@ -80,10 +80,16 @@ export const FOOTER_LINKS: { t: string; href: string }[] = [
   { t: 'Contact', href: '/contact' },
 ]
 
-/** The sign-up band's words, the same on every page. */
+/**
+ * The sign-up band's words, the same on every page.
+ *
+ * "Two minutes." left both lines on 2026-10-27 (release walk): it is a
+ * promised speed, which the page may not make, and nothing on the page
+ * lets a reader check it.
+ */
 export const BAND = {
   heading: 'Seen enough? Set up your company.',
-  line: 'Two minutes. Your suppliers and contractors go where the sample ones are. Free while we are testing.',
+  line: 'Your suppliers and contractors go where the sample ones are. Free while we are testing.',
   doorsLead: 'Your door:',
 }
 /**
@@ -93,7 +99,7 @@ export const BAND = {
  */
 export const BAND_FOR_SELF = {
   heading: 'Seen enough? Set up your own page.',
-  line: 'Two minutes. Your weeks, your pay and your paperwork in one place. Free.',
+  line: 'Your weeks, your pay and your paperwork in one place. Free.',
 }
 
 /** Which band a page draws: a company's, or a person's own. */

@@ -6,6 +6,7 @@ import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
 import { SEE_IT } from '@/lib/public-site/funnel'
 import { corvaneMap, seatOf, seatHrefs } from '@/lib/public-site/corvane-map'
 import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
+import { corvaneIsSeeded } from '@/lib/public-site/corvane-seeded'
 import { TalkToAPerson } from '@/lib/public-site/talk'
 import { WhyBelow } from '@/lib/public-site/why-below'
 
@@ -122,8 +123,11 @@ function OpenTheDemo() {
   )
 }
 
-export default function LandingPage({ searchParams }: HomeParams) {
+export default async function LandingPage({ searchParams }: HomeParams) {
   const seat = seatOf(searchParams?.seat)
+  // One read: is Corvane on this deployment? Where it is not, the map draws
+  // no link to a demo door that would answer 404 (release walk, 2026-10-27).
+  const doorsOpen = await corvaneIsSeeded()
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
       <SiteHeader />
@@ -147,7 +151,7 @@ export default function LandingPage({ searchParams }: HomeParams) {
 
         {/* ── The map: one record, read from four roles ─────────── */}
         <section id="map" aria-label="One record, read from four roles" className="scroll-mt-20 pb-8">
-          <CorvaneMapView map={MAP} seat={seat} hrefs={SEAT_HREFS} />
+          <CorvaneMapView map={MAP} seat={seat} hrefs={SEAT_HREFS} doorsOpen={doorsOpen} />
           <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{MAP.under}</p>
         </section>
 

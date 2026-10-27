@@ -16,9 +16,20 @@ import type { CorvaneMap, MapCell, SeatKey, Tone } from './corvane-map'
  * place and the address follows it, so a copied link opens the same seat.
  * All four seats are in the HTML; the three not chosen are hidden.
  *
- * On a phone the tabs wrap, the figures stack, and the table scrolls
- * sideways inside its own box, so the page itself never does.
+ * On a phone the tabs wrap, the figures stack, and the table becomes one
+ * short block per row, read in the view's `phoneOrder` (the CFO's: the
+ * region, then the hold and the held receipt, then the counts), so
+ * nothing hides behind a sideways scroll and the page never scrolls
+ * sideways (release walk, 2026-10-27). From md up it is the table.
+ *
+ * `doorsOpen` is the page's one read of whether Corvane is seeded on this
+ * deployment (`./corvane-seeded`). Where it is not, no "Open the demo as …"
+ * link is drawn, because the door behind it would answer 404; the reader
+ * is told the demo is being set up instead.
  */
+
+/** Said where a seat's demo link would be, while the demo company is not seeded. */
+export const DEMO_BEING_SET_UP = 'The demo is being set up.'
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
 
@@ -39,7 +50,7 @@ function Cell({ c }: { c: MapCell }) {
   )
 }
 
-export function CorvaneMapView({ map, seat, hrefs }: { map: CorvaneMap; seat: SeatKey; hrefs: Record<SeatKey, string> }) {
+export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMap; seat: SeatKey; hrefs: Record<SeatKey, string>; doorsOpen: boolean }) {
   const [cur, setCur] = useState<SeatKey>(seat)
 
   function pick(key: SeatKey) {
@@ -93,7 +104,26 @@ export function CorvaneMapView({ map, seat, hrefs }: { map: CorvaneMap; seat: Se
             ))}
           </dl>
 
-          <div className="overflow-x-auto border-t border-etyme-rule">
+          <ul data-map-stacked="" className="m-0 list-none divide-y divide-etyme-rule border-t border-etyme-rule p-0 md:hidden">
+            {v.rows.map((r, i) => {
+              const [head, ...rest] = v.phoneOrder ?? r.map((_, j) => j)
+              return (
+                <li key={i} className="px-3.5 py-2.5 text-[13px] text-etyme-ink">
+                  <Cell c={r[head]} />
+                  <dl className="mt-1.5 space-y-1">
+                    {rest.map((j) => (
+                      <div key={j} className="flex items-baseline justify-between gap-3">
+                        <dt className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-etyme-muted">{v.columns[j].t}</dt>
+                        <dd className="m-0 min-w-0 text-right"><Cell c={r[j]} /></dd>
+                      </div>
+                    ))}
+                  </dl>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="overflow-x-auto hidden border-t border-etyme-rule md:block">
             <table className="w-full min-w-[640px] border-collapse text-[13px] tabular-nums">
               <thead>
                 <tr>
@@ -120,11 +150,17 @@ export function CorvaneMapView({ map, seat, hrefs }: { map: CorvaneMap; seat: Se
 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5 text-[12px] text-etyme-muted">
             <span>{v.caption}</span>
-            <DemoLink
-              target={v.demo.target}
-              label={v.demo.label}
-              className={`font-semibold text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`}
-            />
+            {doorsOpen ? (
+              <span data-map-door="open">
+                <DemoLink
+                  target={v.demo.target}
+                  label={v.demo.label}
+                  className={`font-semibold text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`}
+                />
+              </span>
+            ) : (
+              <span data-map-door="closed">{DEMO_BEING_SET_UP}</span>
+            )}
           </div>
         </div>
       ))}

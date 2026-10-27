@@ -1,4 +1,4 @@
-import { whyDrawings, FOUR_LINES, type WhyDrawing } from './why-words'
+import { whyDrawings, FOUR_LINES, piecesOf, type WhyDrawing } from './why-words'
 
 /**
  * Under the Northbend panel on the home page: the two drawings and the
@@ -110,16 +110,12 @@ export function WhyBelow() {
         {whyDrawings().map((d) => <Drawing key={d.key} d={d} />)}
       </div>
       <div className="mt-8 grid max-w-[70ch] gap-2 text-[14px] leading-snug text-etyme-ink">
-        {FOUR_LINES.map((l) => {
-          const [before, after] = l.link ? l.text.split(l.link.words) : [l.text, '']
-          return (
-            <p key={l.lead} className="m-0">
-              <b className="font-semibold">{l.lead}</b>{' '}{before}
-              {l.link && <a href={l.link.href} className={TEXT_LINK}>{l.link.words}</a>}
-              {after}
-            </p>
-          )
-        })}
+        {FOUR_LINES.map((l) => (
+          <p key={l.lead} className="m-0">
+            <b className="font-semibold">{l.lead}</b>{' '}
+            {piecesOf(l).map((p, i) => (p.href ? <a key={i} href={p.href} className={TEXT_LINK}>{p.t}</a> : p.t))}
+          </p>
+        ))}
       </div>
     </section>
   )
