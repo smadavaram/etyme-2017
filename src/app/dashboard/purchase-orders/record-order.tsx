@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
+import { firmsToPick, LINK_FIRST_SAYS, LINK_FIRST_HREF } from '@/lib/money/firm-picker'
 import type { OrderTerms } from '@/lib/money/order-terms'
 import { Field, Input, Panel, Select, SubmitButton, ErrorState } from '@/components/ui'
 
@@ -38,7 +40,7 @@ export function RecordOrder({
   onRecorded: (order: RecordedOrder) => void
   onClose: () => void
 }) {
-  const [clients, setClients] = useState<{ id: string; name: string; onEtyme: boolean }[]>([])
+  const [clients, setClients] = useState<{ id: string; name: string; onEtyme: boolean }[] | null>(null)
   const [buyerId, setBuyerId] = useState('')
   const [number, setNumber] = useState('')
   const [sellerNumber, setSellerNumber] = useState('')
@@ -54,13 +56,22 @@ export function RecordOrder({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/clients')
+    // The firms on this firm's Companies list, read the way that page
+    // reads them, so a firm linked there is offered here (lib/money/firm-picker).
+    fetch('/api/companies')
       .then((r) => r.json())
-      .then((b) => setClients((b.data?.clients ?? []).map((c: any) => ({ id: c.id, name: c.name, onEtyme: Boolean(c.onEtyme) }))))
+      .then((b) =>
+        setClients(
+          firmsToPick(
+            (b.data?.companies ?? []).map((c: any) => ({ id: c.id, name: c.name, onEtyme: Boolean(c.onEtyme) })),
+            sellerCompanyId
+          )
+        )
+      )
       .catch(() => setClients([]))
-  }, [])
+  }, [sellerCompanyId])
 
-  const buyer = clients.find((c) => c.id === buyerId) ?? null
+  const buyer = clients?.find((c) => c.id === buyerId) ?? null
 
   async function save() {
     setBusy(true)
@@ -120,10 +131,16 @@ export function RecordOrder({
       {error && <div className="mb-3"><ErrorState says={error} /></div>}
       <div className="grid sm:grid-cols-2 gap-3">
         <Field label="From">
-          <Select value={buyerId} onChange={(e) => setBuyerId(e.target.value)}>
-            <option value="">Choose…</option>
-            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
+          {clients && clients.length === 0 ? (
+            <p className="text-[13px] text-etyme-muted py-2">
+              Nobody to record it from yet. <Link href={LINK_FIRST_HREF} className="text-etyme-action underline">{LINK_FIRST_SAYS}</Link>
+            </p>
+          ) : (
+            <Select value={buyerId} onChange={(e) => setBuyerId(e.target.value)}>
+              <option value="">{clients ? 'Choose…' : 'Reading your companies…'}</option>
+              {(clients ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          )}
         </Field>
         <Field label="Their order number">
           <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="PO-2026-0412" className="font-mono" />

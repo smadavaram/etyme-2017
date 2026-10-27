@@ -214,6 +214,32 @@ describe('the order a prime gives a sub-vendor', () => {
   })
 })
 
+describe('the buyer\u2019s own line on the order it raised', () => {
+  it('a buyer that bills a client above it writes its first line on the purchase order it raised, and not on another firm\u2019s', async () => {
+    const northwind = await prisma.company.create({
+      data: { name: 'Northwind Grocers', slug: 'northwind-grocers', kind: 'CLIENT', currency: 'USD', claimedAt: null, listedById: co.cs },
+    })
+    await prisma.counterparty.create({ data: { companyId: co.cs, otherCompanyId: northwind.id, relationship: 'CLIENT' } })
+    const start = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+
+    as(CS)
+    const elsewhere = await json(await writeContract(req('POST', '/api/contracts', {
+      personId: who.omar, companyId: co.cs, clientCompanyId: northwind.id, billRate: 12000,
+      boughtFromId: co.tp, payRate: 9000, buyPurchaseOrderId: ids.halvardOrder, startDate: start,
+    })))
+    expect(elsewhere.status).toBe(422)
+    expect(elsewhere.body.error.message).toContain('not a purchase order Computer Systems raised')
+
+    const line = await json(await writeContract(req('POST', '/api/contracts', {
+      personId: who.omar, companyId: co.cs, clientCompanyId: northwind.id, billRate: 12000,
+      boughtFromId: co.tp, payRate: 9000, buyPurchaseOrderId: ids.csOrder, startDate: start,
+    })))
+    expect(line.body?.error, JSON.stringify(line.body)).toBeUndefined()
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: line.body.data.buyContract.id } })
+    expect(buy.workOrderId).toBe(ids.csOrder)
+  })
+})
+
 describe('the Sell and Buy contracts tabs', () => {
   it('the Buy contracts tab shows buy lines and the Sell contracts tab sell lines, never the other', async () => {
     as(CS)

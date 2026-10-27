@@ -17,7 +17,7 @@ import { PaperSet } from './paper-set'
 import { FirstLine, AfterHeaderNote } from './first-line'
 import { RecordOrder, type RecordedOrder } from './record-order'
 import { Agreements } from './agreements'
-import { afterHeader } from '@/lib/money/order-first-line'
+import { afterHeader, type FirstLineSide } from '@/lib/money/order-first-line'
 import { hasPermission } from '@/lib/permissions'
 
 /**
@@ -129,7 +129,11 @@ export default function PurchaseOrdersPage() {
   // After a header: the sentence that says where its lines come from.
   const [nextNote, setNextNote] = useState<string | null>(null)
   // The order whose first line is being asked for, on this screen.
-  const [lineFor, setLineFor] = useState<{ order: RecordedOrder; says: string } | null>(null)
+  const [lineFor, setLineFor] = useState<{
+    order: { id: string; number: string; currency: string; counterparty: { id: string; name: string } }
+    line: FirstLineSide
+    says: string
+  } | null>(null)
 
   // Whose orders are on screen. A program office in a client's seat
   // reads the client's, and the switch is how it gets back to its own.
@@ -200,15 +204,28 @@ export default function PurchaseOrdersPage() {
       })
       const body = await readJson(res)
       setFlash(body.data.message)
-      // A header with no line is a ceiling nobody can bill from: say where
-      // its lines come from (lib/money/order-first-line).
-      setNextNote(afterHeader({
+      // A header with no line is a ceiling nobody can pay from: the buyer
+      // who raised it knows the person, the rate and the site, so its
+      // first line is asked for here (lib/money/order-first-line).
+      const supplierName = suppliers.find((s) => s.id === supplierId)?.name ?? 'the supplier'
+      const next = afterHeader({
         end: 'BUYER',
-        counterpartyName: suppliers.find((s) => s.id === supplierId)?.name ?? 'the supplier',
+        isClient: company?.kind === 'CLIENT',
+        counterpartyName: supplierName,
         noun: body.data.noun ?? 'purchase order',
         number,
         linesAttached: body.data.contractsAttached ?? 0,
-      }).says)
+      })
+      if (next.kind === 'ASK_FIRST_LINE') {
+        setLineFor({
+          order: { id: body.data.order.id, number, currency: body.data.order.currency, counterparty: { id: supplierId, name: supplierName } },
+          line: next.line,
+          says: next.says,
+        })
+        setNextNote(null)
+      } else {
+        setNextNote(next.says)
+      }
       setNumber(''); setSupplierId(''); setAmount(''); setEndDate(''); setAdding(false)
       load()
     } catch (e: any) {
@@ -244,22 +261,34 @@ export default function PurchaseOrdersPage() {
     setFlash(order.message)
     const next = afterHeader({
       end: 'SELLER',
+      isClient: false,
       counterpartyName: order.buyer.name,
       noun: order.noun,
       number: order.number,
       linesAttached: order.contractsAttached,
     })
-    if (next.kind === 'ASK_FIRST_LINE') setLineFor({ order, says: next.says })
+    if (next.kind === 'ASK_FIRST_LINE') {
+      setLineFor({
+        order: { id: order.id, number: order.number, currency: order.currency, counterparty: order.buyer },
+        line: next.line,
+        says: next.says,
+      })
+    }
     else setNextNote(next.says)
     load()
   }
 
-  function addLine(po: PO) {
+  /** Which line this firm writes on an order, or null where it writes none (a client). */
+  function lineSideOn(po: PO): FirstLineSide | null {
+    if (po.side === 'SELLER') return 'SELL'
+    if (po.side === 'BUYER' && !isClient && !reading?.inASeat) return 'BUY'
+    return null
+  }
+
+  function addLine(po: PO, line: FirstLineSide) {
     setLineFor({
-      order: {
-        id: po.id, number: po.number, currency: po.currency, buyer: po.counterparty,
-        contractsAttached: po.lines.length, noun: po.noun, message: '',
-      },
+      order: { id: po.id, number: po.number, currency: po.currency, counterparty: po.counterparty },
+      line,
       says: `A line on ${po.number}: who works on it, at what rate, at which site, from when.`,
     })
   }
@@ -324,7 +353,8 @@ export default function PurchaseOrdersPage() {
       {lineFor && (
         <FirstLine
           order={lineFor.order}
-          sellerCompanyId={company.id}
+          line={lineFor.line}
+          selfCompanyId={company.id}
           says={lineFor.says}
           onDone={(message) => { setLineFor(null); setFlash(message); setNextNote(null); load() }}
           onClose={() => setLineFor(null)}
@@ -383,13 +413,16 @@ export default function PurchaseOrdersPage() {
           defaultPageSize={50}
           searchPlaceholder="Search by number or firm…"
           searchFilter={(po, q) => `${po.number} ${po.counterparty.name}`.toLowerCase().includes(q)}
-          card={(po) => <Row po={po} onAddLine={canRaise && po.side === 'SELLER' ? () => addLine(po) : null} />}
+          card={(po) => {
+            const line = canRaise ? lineSideOn(po) : null
+            return <Row po={po} writesLines={line != null} onAddLine={line ? () => addLine(po, line) : null} />
+          }}
         />
       )}
 
       {/* The agreements this firm signed, either end, and the door to
           record one. A client keeps its own Agreements tab. */}
-      {!isClient && !reading?.inASeat && <Agreements mayRecord={mayRecordAgreement} />}
+      {!isClient && !reading?.inASeat && <Agreements mayRecord={mayRecordAgreement} selfCompanyId={company.id} />}
     </>
   )
 }
@@ -455,13 +488,13 @@ function rate(cents: number, ccy: string): string {
  * it has billed rather than the header's total divided by the headcount,
  * which would be a figure nobody could stand behind.
  */
-function Lines({ po }: { po: PO }) {
+function Lines({ po, writesLines }: { po: PO; writesLines: boolean }) {
   if (po.lines.length === 0) {
     return (
       <p className="text-[12px] text-etyme-faint mt-2">
-        {po.side === 'SELLER'
-          ? 'No lines on it yet. Add the first one, so there is something to bill from.'
-          : 'No lines on it yet. Lines come from the award: each person you award from this supplier is a line on it.'}
+        {writesLines
+          ? `No lines on it yet. Add the first one, so there is something to ${po.side === 'SELLER' ? 'bill' : 'pay'} from.`
+          : `No lines on it yet. ${po.counterparty.name} adds a line for each person on it from its side.`}
       </p>
     )
   }
@@ -500,7 +533,7 @@ function Lines({ po }: { po: PO }) {
   )
 }
 
-function Row({ po, onAddLine }: { po: PO; onAddLine: (() => void) | null }) {
+function Row({ po, writesLines, onAddLine }: { po: PO; writesLines: boolean; onAddLine: (() => void) | null }) {
   return (
     <Panel as="article">
       {po.offSystem && (
@@ -532,7 +565,7 @@ function Row({ po, onAddLine }: { po: PO; onAddLine: (() => void) | null }) {
         {po.endDate && <span className="text-etyme-faint"> · runs to {po.endDate}</span>}
       </p>
 
-      <Lines po={po} />
+      <Lines po={po} writesLines={writesLines} />
       {onAddLine && (
         <button type="button" onClick={onAddLine} className="mt-2 text-[12px] text-etyme-action underline">
           {po.lines.length === 0 ? 'Add the first line' : 'Add a line'}

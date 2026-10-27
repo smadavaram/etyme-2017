@@ -14,10 +14,10 @@
  *   - **The seller recording paper it was handed** writes its own line:
  *     it bills from it, it knows the person, the rate and the site. So
  *     the screen asks for the first line straight away.
- *   - **The buyer raising an order** does not write the seller's line,
- *     and its own buy line is written by the award, with the person it
- *     buys. So the screen says plainly that the lines come from the
- *     award, and names the supplier.
+ *   - **A buyer raising an order** that bills somebody above it writes
+ *     its own buy line: it knows the person, the rate and the site. So
+ *     it is asked for the first line too. A client bills nobody, so it
+ *     is told its supplier adds each line from its side.
  *   - **Either, where running placements joined it**, already has lines,
  *     and is told so rather than asked for another.
  *
@@ -28,14 +28,30 @@
 
 export type ReaderEnd = 'BUYER' | 'SELLER'
 
+/** Which line the person writing it would add: the seller bills from a sell line, a buyer pays from a buy line. */
+export type FirstLineSide = 'SELL' | 'BUY'
+
 export type AfterHeader =
   | { kind: 'HAS_LINES'; says: string }
-  | { kind: 'ASK_FIRST_LINE'; says: string }
-  | { kind: 'LINES_FROM_AWARD'; says: string }
+  | { kind: 'ASK_FIRST_LINE'; line: FirstLineSide; says: string }
+  | { kind: 'SUPPLIER_ADDS'; says: string }
 
+/**
+ * What the screen says right after an order's header is written.
+ *
+ * Corrected by the second onboarding walk, 2026-10-27: a buyer raising a
+ * purchase order to a supplier knows the person, the rate and the site,
+ * so it is asked for the first line too, on the same screen. The only
+ * buyer that is not is a client: it bills nobody, so it has no line of
+ * its own to write, and each line on its order is the supplier's, added
+ * from the supplier's side. "Lines come from the award" is not said here:
+ * an order written by hand has no award behind it.
+ */
 export function afterHeader(input: {
   /** Which end of the order the person who wrote it stands at. */
   end: ReaderEnd
+  /** True where that end is a client, which bills nobody and so writes no line of its own. */
+  isClient: boolean
   /** The other firm on it, by name. */
   counterpartyName: string
   /** The reader's word for the document: "purchase order" or "sales order". */
@@ -54,20 +70,20 @@ export function afterHeader(input: {
         `${n === 1 ? 'is' : 'are'} on ${number} now, one line each. Nothing more to add.`,
     }
   }
-  if (end === 'SELLER') {
+  if (end === 'BUYER' && input.isClient) {
     return {
-      kind: 'ASK_FIRST_LINE',
+      kind: 'SUPPLIER_ADDS',
       says:
-        `Add the first line on ${number}: who works on it, at what rate, at which site, from when. ` +
-        `A ${noun} with no line has nothing to bill from.`,
+        `${number} has no lines yet. ${them} adds a line for each person on it from its side, ` +
+        `and each appears here with the person, the rate and the site.`,
     }
   }
   return {
-    kind: 'LINES_FROM_AWARD',
+    kind: 'ASK_FIRST_LINE',
+    line: end === 'SELLER' ? 'SELL' : 'BUY',
     says:
-      `${number} has no lines yet. Lines come from the award: when you award a person from ${them} ` +
-      `on a job, their line goes on this ${noun}. A placement ${them} records for you finds it ` +
-      `on its own, because it is the order open between you.`,
+      `Add the first line on ${number}: who works on it, at what rate, at which site, from when. ` +
+      `A ${noun} with no line has nothing to ${end === 'SELLER' ? 'bill' : 'pay'} from.`,
   }
 }
 
@@ -117,6 +133,34 @@ export function mayPinToOrder(
       field: 'workOrderId',
       says: `${order.number} is ${order.status === 'CLOSED' ? 'closed' : 'cancelled'}, so nothing more can be billed on it. Ask ${line.buyerName} for a new order, or record the one they gave you.`,
     }
+  }
+  return { ok: true }
+}
+
+/**
+ * May a buy line this firm pays go on this order? The buyer's side of the
+ * same rule: only an open order this firm issued, to the supplier the
+ * line pays.
+ */
+export function mayPinBuyLine(
+  order: PinOrder | null,
+  line: { buyerId: string; buyerName: string; supplierId: string; supplierName: string; issuedToName?: string | null }
+): PinVerdict {
+  if (!order) {
+    return { ok: false, field: 'workOrderId', says: 'That purchase order is not on file. Pick one your firm raised.' }
+  }
+  if (order.issuedById !== line.buyerId) {
+    return { ok: false, field: 'workOrderId', says: `${order.number} is not a purchase order ${line.buyerName} raised, so a line it pays cannot go on it.` }
+  }
+  if (order.issuedToId !== line.supplierId) {
+    return {
+      ok: false,
+      field: 'workOrderId',
+      says: `${order.number} is to ${line.issuedToName ?? 'another firm'}, not to ${line.supplierName}. A line goes on the order to the firm it pays.`,
+    }
+  }
+  if (order.status === 'CLOSED' || order.status === 'CANCELLED') {
+    return { ok: false, field: 'workOrderId', says: `${order.number} is ${order.status === 'CLOSED' ? 'closed' : 'cancelled'}, so nothing more can be paid on it. Raise a new one to ${line.supplierName}.` }
   }
   return { ok: true }
 }

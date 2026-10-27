@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
+import { firmsToPick, LINK_FIRST_SAYS, LINK_FIRST_HREF } from '@/lib/money/firm-picker'
 import type { OrderTerms } from '@/lib/money/order-terms'
 import { Chip, Field, FormMessage, Input, Lbl, Panel, Select, SubmitButton, ErrorState } from '@/components/ui'
 
@@ -16,9 +18,10 @@ import { Chip, Field, FormMessage, Input, Lbl, Panel, Select, SubmitButton, Erro
  * and records a signed one through POST /api/contracts/agreements. The
  * other firm reads the same row on its own page.
  *
- * The firm on the other side is picked from this firm's own register
- * (Companies). Finding a firm already on Etyme by its name or Etyme
- * address is the architect's `findFirm`, wired here when it lands.
+ * The firm on the other side is picked from this firm's Companies list,
+ * read through the same route that page reads (lib/money/firm-picker), so
+ * a firm linked from Companies is offered here. Where there is nobody, the
+ * form says to link with the firm first, with the link.
  */
 
 interface AgreementRow {
@@ -37,7 +40,7 @@ const FROM_WORDS: Record<string, string> = {
   APPROVAL_DATE: 'the day the invoice is approved',
 }
 
-export function Agreements({ mayRecord }: { mayRecord: boolean }) {
+export function Agreements({ mayRecord, selfCompanyId }: { mayRecord: boolean; selfCompanyId: string }) {
   const [rows, setRows] = useState<AgreementRow[] | null>(null)
   const [readSaid, setReadSaid] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -75,6 +78,7 @@ export function Agreements({ mayRecord }: { mayRecord: boolean }) {
       {flash && <div className="mb-4"><FormMessage tone="ok">{flash}</FormMessage></div>}
       {adding && (
         <RecordAgreement
+          selfCompanyId={selfCompanyId}
           onRecorded={(says) => { setFlash(says); setAdding(false); load() }}
         />
       )}
@@ -110,8 +114,8 @@ export function Agreements({ mayRecord }: { mayRecord: boolean }) {
   )
 }
 
-function RecordAgreement({ onRecorded }: { onRecorded: (says: string) => void }) {
-  const [firms, setFirms] = useState<{ id: string; name: string; relationship: string }[]>([])
+function RecordAgreement({ onRecorded, selfCompanyId }: { onRecorded: (says: string) => void; selfCompanyId: string }) {
+  const [firms, setFirms] = useState<{ id: string; name: string; kind: string }[] | null>(null)
   const [otherId, setOtherId] = useState('')
   const [direction, setDirection] = useState<'' | 'sell' | 'buy'>('')
   const [paymentTerms, setPaymentTerms] = useState('30')
@@ -125,28 +129,22 @@ function RecordAgreement({ onRecorded }: { onRecorded: (says: string) => void })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/counterparties')
+    // The firms on this firm's Companies list, read the way that page
+    // reads them, so a firm linked there is offered here (lib/money/firm-picker).
+    fetch('/api/companies')
       .then((r) => r.json())
-      .then((b) => {
-        const seen = new Map<string, { id: string; name: string; relationship: string }>()
-        for (const r of b.data?.rows ?? []) {
-          if (r.otherCompanyId && !seen.has(r.otherCompanyId)) {
-            seen.set(r.otherCompanyId, { id: r.otherCompanyId, name: r.otherCompanyName, relationship: r.relationship })
-          }
-        }
-        setFirms([...seen.values()].sort((x, y) => x.name.localeCompare(y.name)))
-      })
+      .then((b) => setFirms(firmsToPick((b.data?.companies ?? []).map((c: any) => ({ id: c.id, name: c.name, kind: String(c.kind ?? '') })), selfCompanyId)))
       .catch(() => setFirms([]))
-  }, [])
+  }, [selfCompanyId])
 
-  const other = firms.find((f) => f.id === otherId) ?? null
+  const other = firms?.find((f) => f.id === otherId) ?? null
 
   function pick(id: string) {
     setOtherId(id)
-    const f = firms.find((x) => x.id === id)
-    // The register already says which way the trade runs; the person may change it.
-    if (f?.relationship === 'CLIENT') setDirection('sell')
-    else if (f?.relationship === 'SUPPLIER') setDirection('buy')
+    const f = firms?.find((x) => x.id === id)
+    // A client only buys, so an agreement with one is one this firm sells
+    // under; anybody else, the person says which way it runs.
+    if (f?.kind === 'CLIENT') setDirection('sell')
   }
 
   async function save() {
@@ -182,10 +180,16 @@ function RecordAgreement({ onRecorded }: { onRecorded: (says: string) => void })
       {error && <div className="mb-3"><ErrorState says={error} /></div>}
       <div className="grid sm:grid-cols-2 gap-3">
         <Field label="With">
-          <Select value={otherId} onChange={(e) => pick(e.target.value)}>
-            <option value="">Choose…</option>
-            {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </Select>
+          {firms && firms.length === 0 ? (
+            <p className="text-[13px] text-etyme-muted py-2">
+              Nobody to record an agreement with yet. <Link href={LINK_FIRST_HREF} className="text-etyme-action underline">{LINK_FIRST_SAYS}</Link>
+            </p>
+          ) : (
+            <Select value={otherId} onChange={(e) => pick(e.target.value)}>
+              <option value="">{firms ? 'Choose…' : 'Reading your companies…'}</option>
+              {(firms ?? []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </Select>
+          )}
         </Field>
         <Field label="Which way">
           <Select value={direction} onChange={(e) => setDirection(e.target.value as any)}>

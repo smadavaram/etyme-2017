@@ -23,7 +23,7 @@ import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { chooseHeader } from '@/lib/award'
-import { mayPinToOrder } from '@/lib/money/order-first-line'
+import { mayPinToOrder, mayPinBuyLine } from '@/lib/money/order-first-line'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
 import {
   payFiguresFor, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
@@ -215,6 +215,21 @@ export async function POST(request: NextRequest) {
     if (!po.allowed) {
       return errResponse(po.reason, 'buyPurchaseOrderId')
     }
+    // And it is this firm's own open order to the firm the line pays:
+    // nothing checked that before, so a buy line could hang off another
+    // firm's purchase order (lib/money/order-first-line).
+    const named = await prisma.workOrder.findUnique({
+      where: { id: String(buyPurchaseOrderId) },
+      select: { id: true, number: true, issuedById: true, issuedToId: true, status: true, issuedTo: { select: { name: true } } },
+    })
+    const onIt = mayPinBuyLine(named, {
+      buyerId: String(companyId),
+      buyerName: caller.company?.name ?? 'Your company',
+      supplierId: pay.vendorCompanyId ?? '',
+      supplierName: supplier?.name ?? 'the supplier',
+      issuedToName: named?.issuedTo.name ?? null,
+    })
+    if (!onIt.ok) return errResponse(onIt.says, 'buyPurchaseOrderId')
   }
 
   // ── A line created under a document is created on its terms ────────

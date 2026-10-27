@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { sideFromQuery, sideHref, answerFits, rowsOfSide } from '@/lib/money/contract-side'
-import { afterHeader, mayPinToOrder } from '@/lib/money/order-first-line'
+import { afterHeader, mayPinToOrder, mayPinBuyLine } from '@/lib/money/order-first-line'
+import { firmsToPick, LINK_FIRST_SAYS, LINK_FIRST_HREF } from '@/lib/money/firm-picker'
 import { linesForReader, ownLineSide } from '@/lib/money/order-lines-read'
 import { readAgreementTerms, mayRecordAgreement, isPlaceholder, readByTheCascade, type ExistingAgreement } from '@/lib/money/agreement-record'
 import { termsFor } from '@/lib/money/order-terms'
@@ -45,31 +46,42 @@ describe('the Sell and Buy contracts tabs', () => {
 })
 
 describe('an order and its first line', () => {
-  it('an order raised by hand asks for its first line or says where lines come from', () => {
-    for (const end of ['BUYER', 'SELLER'] as const) {
-      const next = afterHeader({ end, counterpartyName: 'Computer Systems', noun: 'order', number: 'PO-1', linesAttached: 0 })
-      expect(['ASK_FIRST_LINE', 'LINES_FROM_AWARD']).toContain(next.kind)
-      expect(next.says.length).toBeGreaterThan(20)
+  it('an order raised by hand, by either end, asks for its first line on the same screen', () => {
+    const seller = afterHeader({ end: 'SELLER', isClient: false, counterpartyName: 'Computer Systems', noun: 'sales order', number: 'CS-PO-77', linesAttached: 0 })
+    expect(seller).toMatchObject({ kind: 'ASK_FIRST_LINE', line: 'SELL' })
+    const buyer = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Techpeple', noun: 'purchase order', number: 'BM-PO-W18', linesAttached: 0 })
+    expect(buyer).toMatchObject({ kind: 'ASK_FIRST_LINE', line: 'BUY' })
+    for (const next of [seller, buyer]) {
+      expect(next.says).toContain('who works on it, at what rate, at which site, from when')
+      // No award stands behind an order written by hand, so none is promised.
+      expect(next.says).not.toMatch(/award/i)
     }
   })
 
-  it('an order a supplier records from the paper it was handed asks for its first line: the person, the rate, the site and the dates', () => {
-    const next = afterHeader({ end: 'SELLER', counterpartyName: 'Computer Systems', noun: 'sales order', number: 'CS-PO-77', linesAttached: 0 })
-    expect(next.kind).toBe('ASK_FIRST_LINE')
-    expect(next.says).toContain('who works on it, at what rate, at which site, from when')
-  })
-
-  it('an order a buyer raises says its lines come from the award, naming the supplier', () => {
-    const next = afterHeader({ end: 'BUYER', counterpartyName: 'Techpeple', noun: 'purchase order', number: 'PO-9', linesAttached: 0 })
-    expect(next.kind).toBe('LINES_FROM_AWARD')
-    expect(next.says).toContain('Lines come from the award')
-    expect(next.says).toContain('Techpeple')
+  it('a client\u2019s order, which it pays from no line of its own, says its supplier adds each line from its side', () => {
+    const next = afterHeader({ end: 'BUYER', isClient: true, counterpartyName: 'Brightmoor', noun: 'purchase order', number: 'PO-9', linesAttached: 0 })
+    expect(next.kind).toBe('SUPPLIER_ADDS')
+    expect(next.says).toContain('Brightmoor adds a line for each person')
+    expect(next.says).not.toMatch(/award/i)
   })
 
   it('an order that picked up running placements says they are its lines now and asks for nothing', () => {
-    const next = afterHeader({ end: 'BUYER', counterpartyName: 'Techpeple', noun: 'purchase order', number: 'PO-9', linesAttached: 2 })
+    const next = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Techpeple', noun: 'purchase order', number: 'PO-9', linesAttached: 2 })
     expect(next.kind).toBe('HAS_LINES')
     expect(next.says).toContain('2 placements')
+  })
+
+  it('a buy line goes only on an open purchase order this firm raised to the firm it pays, and is refused in a sentence otherwise', () => {
+    const line = { buyerId: 'bm', buyerName: 'Brightmoor', supplierId: 'tp', supplierName: 'Techpeple' }
+    const order = { id: 'o', number: 'BM-PO-W18', issuedById: 'bm', issuedToId: 'tp', status: 'OPEN' }
+    expect(mayPinBuyLine(order, line).ok).toBe(true)
+    const notOurs = mayPinBuyLine({ ...order, issuedById: 'x' }, line)
+    if (!notOurs.ok) expect(notOurs.says).toContain('not a purchase order Brightmoor raised')
+    else throw new Error('should refuse')
+    const otherSupplier = mayPinBuyLine({ ...order, issuedToId: 'y' }, { ...line, issuedToName: 'Veritan' })
+    if (!otherSupplier.ok) expect(otherSupplier.says).toContain('to Veritan, not to Techpeple')
+    else throw new Error('should refuse')
+    expect(mayPinBuyLine({ ...order, status: 'CANCELLED' }, line).ok).toBe(false)
   })
 
   it('a line pinned to an order lands on that order, and an order between other firms, or closed, is refused in a sentence', () => {
@@ -195,5 +207,26 @@ describe('recording an agreement', () => {
         expect(r.says).toMatch(/^[A-Z][a-z]* .+\.$/)
       }
     }
+  })
+})
+
+describe('who an agreement or an order can be recorded with', () => {
+  it('with nobody to record an agreement with, the form says to link with the firm first', () => {
+    expect(firmsToPick([{ id: 'self', name: 'Techpeple' }], 'self')).toEqual([])
+    expect(LINK_FIRST_SAYS).toBe('Ask the firm to link with you first, from Companies.')
+    expect(LINK_FIRST_HREF).toBe('/dashboard/companies')
+    for (const file of ['src/app/dashboard/purchase-orders/agreements.tsx', 'src/app/dashboard/purchase-orders/record-order.tsx']) {
+      const src = read(file)
+      // The same read the Companies page draws from, and the sentence with its link where it is empty.
+      expect(src, file).toContain("fetch('/api/companies')")
+      expect(src, file).toContain('LINK_FIRST_SAYS')
+      expect(src, file).toContain('href={LINK_FIRST_HREF}')
+      expect(src, file).not.toContain('/api/counterparties')
+    }
+  })
+
+  it('a firm is offered once, by name, and never itself', () => {
+    const rows = [{ id: 'b', name: 'Computer Systems' }, { id: 'self', name: 'Techpeple' }, { id: 'a', name: 'Brightmoor' }, { id: 'b', name: 'Computer Systems' }]
+    expect(firmsToPick(rows, 'self').map((r) => r.name)).toEqual(['Brightmoor', 'Computer Systems'])
   })
 })
