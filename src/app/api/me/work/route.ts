@@ -23,7 +23,7 @@ import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { hoursInMonth } from '@/lib/periods'
 import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/paid-through'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
-import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
+import { personNotice, cityOf, dayOf, holdStands, releaseFrom } from '@/lib/internal-moves'
 import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approval'
 import { requirementsFor } from '@/lib/document-requirements'
 import { credentialKeys } from '@/lib/contract-clearance'
@@ -138,14 +138,15 @@ async function movesFor(personId: string, now: Date) {
     if (placed && r.rollsOffOn < today) continue
     const n = personNotice(r.confirmedAt ? 'CONFIRM' : 'FLAG', {
       personName: '', firmName: r.company.name, actorName: names.get(r.releasedById) ?? 'Your manager',
-      fromClient: r.sellContract.endClientCompany?.name ?? r.sellContract.clientCompany.name,
-      fromCity: cityOf(r.sellContract.workLocation) ?? cityOf(r.sellContract.requirement?.location ?? null),
+      // Null-safe: a release flagged on the employee record has no line.
+      fromClient: releaseFrom(r.sellContract).client,
+      fromCity: releaseFrom(r.sellContract).city,
       rollsOffOn: r.rollsOffOn, keepUntil: r.keepUntil,
     })
     out.push({ kind: 'COMING_OFF', title: n.title, body: n.body, cityChange: false })
   }
   for (const h of holds) {
-    const fromCity = h.release ? cityOf(h.release.sellContract.workLocation) ?? cityOf(h.release.sellContract.requirement?.location ?? null) : null
+    const fromCity = h.release ? releaseFrom(h.release.sellContract).city : null
     if (h.endedHow === 'PLACED') {
       const line = placedLines.find((l) => l.id === h.placedSellContractId)
       const req = forReqs.find((r) => r.id === h.forRequirementId) ?? null

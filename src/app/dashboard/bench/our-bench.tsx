@@ -41,12 +41,13 @@ interface Row {
 }
 
 interface TeamRow {
-  sellContractId: string
+  /** Null for one of the firm's own employees with no project line recorded yet. */
+  sellContractId: string | null
   personId: string
   name: string
   client: string | null
   city: string | null
-  startsOn: string
+  startsOn: string | null
   endsOn: string | null
   release: { id: string; rollsOffOn: string; keepUntil: string | null; confirmed: boolean } | null
 }
@@ -186,8 +187,13 @@ export function OurBench({ firmName }: { firmName: string }) {
 
   const teamColumns: Column<TeamRow>[] = [
     { key: 'name', label: 'Person', render: (t) => <span className="text-[13px] font-medium text-etyme-ink">{t.name}</span>, sortValue: (t) => t.name },
-    { key: 'client', label: 'Project', render: (t) => <span className="text-[12px] text-etyme-muted">{[t.client, t.city].filter(Boolean).join(', ')}</span> },
-    { key: 'endsOn', label: 'Contract ends', render: (t) => <span className="text-[12px] tabular-nums">{day(t.endsOn) ?? 'No end date'}</span>, sortValue: (t) => t.endsOn ?? '9999' },
+    {
+      key: 'client', label: 'Project',
+      render: (t) => t.sellContractId
+        ? <span className="text-[12px] text-etyme-muted">{[t.client, t.city].filter(Boolean).join(', ')}</span>
+        : <span className="text-[12px] text-etyme-faint">No project line</span>,
+    },
+    { key: 'endsOn', label: 'Contract ends', render: (t) => <span className="text-[12px] tabular-nums">{t.sellContractId ? day(t.endsOn) ?? 'No end date' : '—'}</span>, sortValue: (t) => t.endsOn ?? '9999' },
     {
       key: 'release', label: 'Rolling off',
       render: (t) => t.release
@@ -267,16 +273,16 @@ export function OurBench({ firmName }: { firmName: string }) {
       {manager && (
         <section>
           <h2 className="headline-serif text-[18px] text-etyme-ink mb-1">Your project team</h2>
-          <p className="text-[12px] text-etyme-muted mb-3">People on the projects you manage. Flag who comes off, and when; they appear on Our bench for the firm&rsquo;s other managers.</p>
+          <p className="text-[12px] text-etyme-muted mb-3">People on the projects you manage, and the firm&rsquo;s own people with no project line recorded yet. Flag who comes off, and when; they appear on Our bench for the firm&rsquo;s other managers.</p>
           <ListSurface
             name="our-bench-team"
             columns={teamColumns}
             data={data?.team ?? []}
-            rowKey={(t) => t.sellContractId}
+            rowKey={(t) => t.sellContractId ?? `person:${t.personId}`}
             loading={loading}
             error={null}
-            emptyMessage="Nobody is on a project you manage."
-            emptyDetail="Your seat sits on a project, or names your team; the lines under it are listed here."
+            emptyMessage="Nobody here to flag."
+            emptyDetail="The people on projects you manage, and the firm’s own employees with no project line yet, are listed here."
             exportName="etyme-our-bench-team"
             feedOmit={['act']}
           />
@@ -315,7 +321,7 @@ function ActPanel({ act, data, onClose, onDone }: {
   }
 
   const title =
-    act.kind === 'FLAG' ? `${act.team.name} rolls off ${act.team.client ?? 'the project'}`
+    act.kind === 'FLAG' ? (act.team.sellContractId ? `${act.team.name} rolls off ${act.team.client ?? 'the project'}` : `${act.team.name} rolls off`)
       : act.kind === 'ASK' ? `Ask ${act.row.releaser?.name ?? 'the releasing manager'} about ${act.row.name}`
         : act.kind === 'RESERVE' ? `Reserve ${act.row.name}`
           : `Place ${act.row.name}`
@@ -332,7 +338,14 @@ function ActPanel({ act, data, onClose, onDone }: {
           className="grid gap-3 sm:grid-cols-3 items-end"
           onSubmit={(e) => {
             e.preventDefault()
-            go('/api/bench/ours/flag', 'POST', { sellContractId: act.team.sellContractId, rollsOffOn, keepUntil: keepUntil || undefined }, (j) => j.data.says)
+            go(
+              '/api/bench/ours/flag', 'POST',
+              act.team.sellContractId
+                ? { sellContractId: act.team.sellContractId, rollsOffOn, keepUntil: keepUntil || undefined }
+                // No project line recorded: flagged on the employee record.
+                : { personId: act.team.personId, rollsOffOn, keepUntil: keepUntil || undefined },
+              (j) => j.data.says
+            )
           }}
         >
           <label className="text-[12px] text-etyme-muted">Rolls off on
@@ -343,7 +356,10 @@ function ActPanel({ act, data, onClose, onDone }: {
           </label>
           <button disabled={busy} className="btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Put on Our bench'}</button>
           <p className="sm:col-span-3 text-[12px] text-etyme-muted">
-            The contract ends on {day(act.team.endsOn) ?? 'no set day'}. {act.team.name} and HR are told; no client sees this.
+            {act.team.sellContractId
+              ? `The contract ends on ${day(act.team.endsOn) ?? 'no set day'}. `
+              : 'No project line is recorded, so nothing is billed or shortened; they read as free from the day after. '}
+            {act.team.name} and HR are told; no client sees this.
           </p>
         </form>
       )}

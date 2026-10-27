@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { checkFlag, managesLine, cityOf, onDay, dayOf, isoDay } from '@/lib/internal-moves'
+import { Prisma } from '@prisma/client'
+import { checkFlag, checkFlagWithoutLine, managesLine, cityOf, onDay, dayOf, isoDay } from '@/lib/internal-moves'
+import type { CallerContext } from '@/lib/api-context'
 import { seatFacts, refuse, trail, tellStep, employs, standingHold } from '../facts'
 
 function day(v: unknown): Date | null {
@@ -20,6 +22,13 @@ function day(v: unknown): Date | null {
  *
  * Flagging again moves the day: one release per line. Only a manager of
  * the project the line belongs to may flag it (`managesLine`).
+ *
+ * Or `{ personId, rollsOffOn, keepUntil? }` (onboarding walk, 2026-10-27):
+ * a delivery manager flags one of the firm's own employees where no
+ * project line is recorded yet. Where the person has a running line here,
+ * that line is used and the line's own rules apply; where they have none,
+ * `checkFlagWithoutLine` decides and the flag says "no project line, free
+ * from <date>".
  */
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -33,7 +42,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const rollsOffOn = day(body.rollsOffOn)
   const keepUntil = body.keepUntil ? day(body.keepUntil) : null
-  if (typeof body.sellContractId !== 'string' || !rollsOffOn || (body.keepUntil && !keepUntil)) {
+  const named = typeof body.sellContractId === 'string' || typeof body.personId === 'string'
+  if (!named || !rollsOffOn || (body.keepUntil && !keepUntil)) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'Say whose placement, and the day they come off (and, if you keep them, until when).' } },
       { status: 422 }
@@ -41,8 +51,21 @@ export async function POST(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
+  // The line where there is one: named, or the person's running line here.
+  let lineId: string | null = typeof body.sellContractId === 'string' ? body.sellContractId : null
+  if (!lineId) {
+    const running = await prisma.sellContract.findFirst({
+      where: { companyId, personId: body.personId, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+      orderBy: { endDate: 'desc' },
+      select: { id: true },
+    })
+    lineId = running?.id ?? null
+  }
+  if (!lineId) {
+    return flagWithoutLine({ caller, seat, personId: body.personId, rollsOffOn, keepUntil })
+  }
   const line = await prisma.sellContract.findUnique({
-    where: { id: body.sellContractId },
+    where: { id: lineId },
     select: {
       id: true, companyId: true, personId: true, state: true, startDate: true, endDate: true, deliveryUnitId: true,
       person: { select: { name: true } },
@@ -164,4 +187,100 @@ export async function DELETE(request: NextRequest) {
     },
   })
   return NextResponse.json({ data: { releaseId: id, withdrawn: true } })
+}
+
+/**
+ * Whether a release may be kept with no project line yet. Read off the
+ * schema at run time, so the day `ProjectRelease.sellContractId` becomes
+ * optional this branch starts writing without a release of its own.
+ */
+function linelessReleasesStored(): boolean {
+  const model = Prisma.dmmf.datamodel.models.find((m) => m.name === 'ProjectRelease')
+  const field = model?.fields.find((f) => f.name === 'sellContractId')
+  return field != null && !field.isRequired
+}
+
+/** The release's line, absent. Typed through today's required column. */
+const NO_LINE = null as unknown as string
+
+async function flagWithoutLine(o: {
+  caller: CallerContext
+  seat: Parameters<typeof managesLine>[0]
+  personId: string
+  rollsOffOn: Date
+  keepUntil: Date | null
+}) {
+  const { caller, personId } = o
+  const companyId = caller.company!.id
+  const firmName = caller.company!.name
+  const person = await prisma.person.findUnique({ where: { id: personId }, select: { name: true } })
+  if (!person) return refuse('NOT_FOUND', 'That person is not one of yours.', 404)
+
+  const check = checkFlagWithoutLine({
+    personName: person.name,
+    firmName,
+    rollsOffOn: o.rollsOffOn,
+    keepUntil: o.keepUntil,
+    today: new Date(),
+    // With no line there is no project to sit on: any manager may (`managesLine`).
+    manages: managesLine(o.seat, { personId, deliveryUnitId: null }),
+    employed: await employs(companyId, personId),
+  })
+  if (!check.ok) {
+    await trail(caller, personId, 'CONTRACT_VIEW', `Refused a roll-off flag with no project line: ${check.message}`, false)
+    return refuse(check.code, check.message, check.code === 'NOT_YOUR_PROJECT' ? 403 : 409)
+  }
+  if (!linelessReleasesStored()) {
+    return refuse(
+      'NO_LINE_YET',
+      `${person.name} has no project line on the record, and a roll-off without one cannot be kept yet. Record the project line, then flag the day from it.`,
+      409
+    )
+  }
+
+  const existing = await prisma.projectRelease.findFirst({
+    where: { companyId, personId, sellContractId: NO_LINE, withdrawnAt: null },
+  })
+  if (existing && existing.releasedById !== caller.person.id) {
+    const who = await prisma.person.findUnique({ where: { id: existing.releasedById }, select: { name: true } })
+    return refuse('RELEASED_BY_ANOTHER', `${who?.name ?? 'Another manager'} already flagged ${person.name} to come off on ${onDay(existing.rollsOffOn)}. They move the day.`, 409)
+  }
+  const day = dayOf(o.rollsOffOn)
+  const keep = o.keepUntil ? dayOf(o.keepUntil) : null
+  const release = existing
+    ? await prisma.projectRelease.update({
+        where: { id: existing.id },
+        data: { rollsOffOn: day, keepUntil: keep, confirmedAt: null, confirmedById: null },
+      })
+    : await prisma.projectRelease.create({
+        data: { companyId, personId, sellContractId: NO_LINE, releasedById: caller.person.id, rollsOffOn: day, keepUntil: keep },
+      })
+
+  const told = await tellStep({
+    caller,
+    companyId,
+    personId,
+    step: 'FLAG',
+    entityId: release.id,
+    facts: {
+      personName: person.name, firmName, actorName: caller.person.name,
+      fromClient: null, fromCity: null, rollsOffOn: release.rollsOffOn, keepUntil: release.keepUntil,
+    },
+  })
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: 'PROJECT_RELEASE_FLAGGED',
+      summary: check.says,
+      reason: `${caller.person.name} flagged one of ${firmName}’s own employees with no project line recorded. HR and ${person.name} are told; nobody approves it.`,
+      payload: { releaseId: release.id, sellContractId: null, rollsOffOn: isoDay(release.rollsOffOn), keepUntil: release.keepUntil ? isoDay(release.keepUntil) : null, moved: Boolean(existing), personId, hrTold: told.hr, personTold: told.personTold } as object,
+      reversible: true,
+    },
+  })
+  await trail(caller, personId, 'CONTRACT_VIEW', 'Flagged to come off, with no project line, on Our bench.')
+
+  return NextResponse.json(
+    { data: { releaseId: release.id, says: check.says, freeOn: isoDay(check.freeOn), early: false, lineless: true, hrTold: told.hr.length } },
+    { status: existing ? 200 : 201 }
+  )
 }

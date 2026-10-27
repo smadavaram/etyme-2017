@@ -330,8 +330,39 @@ export function checkFlagWithoutLine(f: LinelessFlagFacts): FlagVerdict {
     ok: true,
     freeOn,
     early: false,
-    says: `${who} comes off on ${onDay(day)}: no project line, free from ${onDay(freeOn)}.`,
+    says: `${who} comes off on ${onDay(day)}: ${noLineSays({ rollsOffOn: day, keepUntil: f.keepUntil })}.`,
   }
+}
+
+// ── A release's project line, read where there may be none ───────────
+
+/** What a release's project line carries, as the routes select it. */
+export interface ReleaseLine {
+  clientCompany?: { name: string } | null
+  endClientCompany?: { name: string } | null
+  workLocation?: { city?: string | null } | null
+  requirement?: { location?: string | null } | null
+}
+
+/**
+ * Where somebody is coming off, read off the release's line — or nothing,
+ * for a release with no line (onboarding walk, 2026-10-27). Every route
+ * that reads a release's line goes through this, so a release flagged on
+ * the firm's employee record alone never breaks a notice, a confirmation,
+ * a hold or the worker's own page: the sentences already say "the
+ * project" where no client is named.
+ */
+export function releaseFrom(line: ReleaseLine | null | undefined): { client: string | null; city: string | null } {
+  if (!line) return { client: null, city: null }
+  return {
+    client: line.endClientCompany?.name ?? line.clientCompany?.name ?? null,
+    city: cityOf(line.workLocation ?? null) ?? cityOf(line.requirement?.location ?? null),
+  }
+}
+
+/** "no project line, free from Nov 15, 2026" — said wherever a release has no line. */
+export function noLineSays(r: ReleaseDates): string {
+  return `no project line, free from ${onDay(freeFrom(r))}`
 }
 
 /**
@@ -745,6 +776,8 @@ export interface OurBenchFacts {
     confirmedAt: Date | null
     releaserId: string
     releaserName: string
+    /** Flagged on the employee record, with no project line under it. */
+    lineless?: boolean
   } | null
   /** The project they are on now: client and city, where the reader may be told it, and the day its contract ends. */
   current: { client: string | null; city: string | null; endsOn?: Date | null } | null
@@ -814,7 +847,9 @@ export function ourBenchRow(f: OurBenchFacts, viewer: ViewerFacts): OurBenchRow 
   if (f.moving) {
     says = `Moving to ${f.moving.toClient ?? 'a new project'} from ${onDay(f.moving.startsOn)}.`
   } else if (f.release) {
-    const off = `Comes off${project ? ` ${project}` : ''} on ${onDay(f.release.rollsOffOn)}`
+    const off = f.release.lineless && !project
+      ? `Comes off on ${onDay(f.release.rollsOffOn)}: ${noLineSays(f.release)}`
+      : `Comes off${project ? ` ${project}` : ''} on ${onDay(f.release.rollsOffOn)}`
     const keep = f.release.keepUntil ? `; staying with ${f.release.releaserName} until ${onDay(f.release.keepUntil)}` : ''
     const conf = f.release.confirmedAt ? ', confirmed' : ''
     const gap = keptPastContract(f.release.keepUntil, f.current?.endsOn ?? null)

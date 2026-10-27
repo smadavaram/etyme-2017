@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
-import { checkConfirm, cityOf, isoDay } from '@/lib/internal-moves'
+import { checkConfirm, releaseFrom, isoDay } from '@/lib/internal-moves'
 import { seatFacts, refuse, tellStep, nameOf } from '../../../facts'
 
 /**
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     where: { id },
     data: { confirmedAt: new Date(), confirmedById: caller.person.id },
   })
-  const sc = release.sellContract
+  // Null-safe: a release flagged on the employee record has no line.
+  const from = releaseFrom(release.sellContract)
   const told = await tellStep({
     caller,
     companyId: release.companyId,
@@ -59,8 +60,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     entityId: id,
     facts: {
       personName: release.person.name, firmName: caller.company!.name, actorName: caller.person.name,
-      fromClient: sc.endClientCompany?.name ?? sc.clientCompany.name,
-      fromCity: cityOf(sc.workLocation) ?? cityOf(sc.requirement?.location ?? null),
+      fromClient: from.client,
+      fromCity: from.city,
       rollsOffOn: release.rollsOffOn,
     },
   })

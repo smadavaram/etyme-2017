@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
-import { checkHold, managesLine, cityOf, isoDay, freeFrom } from '@/lib/internal-moves'
+import { checkHold, managesLine, cityOf, isoDay, freeFrom, releaseFrom } from '@/lib/internal-moves'
 import { seatFacts, refuse, trail, tellStep, standingHold, standingRelease, employs, nameOf } from '../facts'
 
 function day(v: unknown): Date | null {
@@ -134,7 +134,8 @@ export async function POST(request: NextRequest) {
     facts: {
       personName: name, firmName: caller.company!.name, actorName: caller.person.name,
       forTitle: position!.title, toClient: position!.client, toCity: position!.city, until: hold.until,
-      fromClient: releaser?.sellContract.endClientCompany?.name ?? releaser?.sellContract.clientCompany.name ?? null,
+      // Null-safe: a release flagged on the employee record has no line.
+      fromClient: releaseFrom(releaser?.sellContract).client,
     },
   })
   await prisma.automationLog.create({

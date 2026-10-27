@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
+import { standingOf, isStaffSeat, type RosterLine } from '@/lib/consultant-portfolio'
 import {
   ourBenchRow, byFreeDate, managesLine, cityOf, dayOf, isoDay, holdStands, onePerJob,
   type OurBenchRow,
@@ -44,11 +44,14 @@ export async function GET(request: NextRequest) {
     },
     select: {
       personId: true,
-      role: { select: { name: true } },
+      role: { select: { name: true, permissions: true } },
       person: { select: { name: true, consultant: { select: { skills: true, location: true } } } },
     },
   })
   const people = new Map<string, { name: string; seat: string | null; skills: string[]; place: string | null }>()
+  // Every permission a person's seats here hold, to tell staff from the firm's people.
+  const deskOf = new Map<string, string[]>()
+  for (const s of seats) deskOf.set(s.personId, [...(deskOf.get(s.personId) ?? []), ...(s.role?.permissions ?? [])])
   for (const s of seats) {
     if (people.has(s.personId)) continue
     people.set(s.personId, {
@@ -157,6 +160,8 @@ export async function GET(request: NextRequest) {
                 id: release.id, rollsOffOn: release.rollsOffOn, keepUntil: release.keepUntil,
                 confirmedAt: release.confirmedAt, releaserId: release.releasedById,
                 releaserName: managers.get(release.releasedById) ?? 'A manager',
+                // Null-safe: flagged on the employee record, with no line under it.
+                lineless: !release.sellContractId,
               }
             : null,
           current: current ? { ...site(current), endsOn: current.endDate ?? null } : null,
@@ -195,6 +200,34 @@ export async function GET(request: NextRequest) {
             ...site(c),
             startsOn: isoDay(c.startDate),
             endsOn: c.endDate ? isoDay(c.endDate) : null,
+            release: r
+              ? { id: r.id, rollsOffOn: isoDay(r.rollsOffOn), keepUntil: r.keepUntil ? isoDay(r.keepUntil) : null, confirmed: r.confirmedAt != null }
+              : null,
+          }
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : []
+  // The firm's own employees with no running line here (onboarding walk,
+  // 2026-10-27): an imported W2 has none yet, and a delivery manager still
+  // says who comes off. Staff — a seat that does something and that no
+  // work names — are not offered. Flagged by person; the flag says "no
+  // project line, free from <date>".
+  const onALine = new Set(team.map((t) => t.personId))
+  const unlined = manager
+    ? [...people.entries()]
+        .filter(([personId]) => !onALine.has(personId))
+        .filter(([personId]) => !isStaffSeat({ permissions: deskOf.get(personId) ?? [], listed: false, lines: linesOf.get(personId) ?? [] }))
+        .filter(([personId]) => !sells.some((c) => c.personId === personId && (c.state === 'IN_PROGRESS' || c.state === 'PAUSED')))
+        .map(([personId, p]) => {
+          const r = releases.find((x) => x.personId === personId && !x.sellContractId) ?? null
+          return {
+            sellContractId: null as string | null,
+            personId,
+            name: p.name,
+            client: null as string | null,
+            city: null as string | null,
+            startsOn: null as string | null,
+            endsOn: null as string | null,
             release: r
               ? { id: r.id, rollsOffOn: isoDay(r.rollsOffOn), keepUntil: r.keepUntil ? isoDay(r.keepUntil) : null, confirmed: r.confirmedAt != null }
               : null,
@@ -278,7 +311,7 @@ export async function GET(request: NextRequest) {
     data: {
       viewer: { personId: caller.person.id, as: verdict.as, maySubmit },
       rows,
-      team,
+      team: [...team, ...unlined],
       positions,
       summary: {
         rollingOff: rows.filter((r) => r.status === 'ROLLING_OFF').length,

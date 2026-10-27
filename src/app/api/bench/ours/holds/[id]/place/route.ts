@@ -80,7 +80,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const latestLineEnd = lines.reduce<Date | null>((a, l) => (l.endDate && (!a || l.endDate > a) ? l.endDate : a), null)
   const current = [...lines].filter((l) => l.state === 'IN_PROGRESS' || l.state === 'PAUSED')
     .sort((a, b) => (b.endDate?.getTime() ?? Infinity) - (a.endDate?.getTime() ?? Infinity))[0]
-    ?? (release ? await prisma.sellContract.findUnique({
+    // A release flagged on the employee record has no line; the place
+    // then works from the employee record and the last line anywhere.
+    ?? (release?.sellContractId ? await prisma.sellContract.findUnique({
       where: { id: release.sellContractId },
       select: {
         id: true, state: true, endDate: true, billRate: true,

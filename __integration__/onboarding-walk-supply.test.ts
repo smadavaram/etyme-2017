@@ -3,6 +3,8 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 import { POST as addConsultant } from '@/app/api/consultants/route'
 import { GET as bench } from '@/app/api/bench/route'
 import { GET as myBenches, PATCH as myBenchesPATCH } from '@/app/api/me/benches/route'
+import { POST as flag } from '@/app/api/bench/ours/flag/route'
+import { GET as ours } from '@/app/api/bench/ours/route'
 
 /**
  * The onboarding walk's supply faults (2026-10-27), through the real
@@ -98,5 +100,30 @@ describe('a worker names a client she will not be sent to', () => {
     expect(r.status).toBe(200)
     expect(r.body.data.saved).toBe(false)
     expect(await prisma.doNotSubmit.count({ where: { personId: mayaId } })).toBe(before)
+  })
+})
+
+describe('a roll-off with no project line', () => {
+  it('a delivery manager is offered an employee with no project line, and the flag is refused in a sentence until a release may be kept without one', async () => {
+    as(OWNER)
+    const page = await json(await ours(req('GET', '/api/bench/ours')))
+    expect(page.status, JSON.stringify(page.body)).toBe(200)
+    const ezra = page.body.data.team.find((t: any) => t.name === 'Ezra Lund')
+    expect(ezra).toMatchObject({ sellContractId: null, client: null })
+    // The owner is staff and is not offered.
+    expect(page.body.data.team.map((t: any) => t.name)).not.toContain('Odile Varga')
+
+    const day = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+    const r = await json(await flag(req('POST', '/api/bench/ours/flag', { personId: ezra.personId, rollsOffOn: day })))
+    const { Prisma } = await import('@prisma/client')
+    const required = Prisma.dmmf.datamodel.models.find((m) => m.name === 'ProjectRelease')!.fields.find((f) => f.name === 'sellContractId')!.isRequired
+    if (required) {
+      expect(r.status).toBe(409)
+      expect(r.body.error.message).toBe('Ezra Lund has no project line on the record, and a roll-off without one cannot be kept yet. Record the project line, then flag the day from it.')
+      expect(await prisma.projectRelease.count({ where: { personId: ezra.personId } })).toBe(0)
+    } else {
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      expect(r.body.data.says).toMatch(/^Ezra Lund comes off on .*: no project line, free from /)
+    }
   })
 })

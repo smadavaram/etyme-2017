@@ -5,7 +5,7 @@ import {
   addPath, addRefusalSays, askedExistingSays, afterYes, isStaffSeat,
   firmsToOffer, noFirmByThatNameSays, rosterSummary, type RosterPerson,
 } from '@/lib/consultant-portfolio'
-import { checkFlagWithoutLine } from '@/lib/internal-moves'
+import { checkFlagWithoutLine, releaseFrom, noLineSays, ourBenchRow, hrNotice, personNotice } from '@/lib/internal-moves'
 
 /**
  * Onboarding fix wave from the release walk (2026-10-27), supply's parts.
@@ -173,5 +173,69 @@ describe('6 · Your paperwork has an add button', () => {
     const code = page.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
     expect(code).toContain("import { OwnPapers } from '../../documents/own-papers'")
     expect(code).toContain('<OwnPapers about="ME" heading="Your own papers" />')
+  })
+})
+
+describe('7 · a roll-off with no project line, read everywhere', () => {
+  const ROUTES = [
+    'src/app/api/bench/ours/flag/route.ts',
+    'src/app/api/bench/ours/holds/route.ts',
+    'src/app/api/bench/ours/holds/[id]/place/route.ts',
+    'src/app/api/bench/ours/releases/[id]/confirm/route.ts',
+    'src/app/api/me/work/route.ts',
+  ]
+
+  it('every read of a roll-off’s project line survives a release with none', () => {
+    expect(releaseFrom(null)).toEqual({ client: null, city: null })
+    expect(releaseFrom(undefined)).toEqual({ client: null, city: null })
+    expect(releaseFrom({ clientCompany: { name: 'Teleworld Client' }, endClientCompany: { name: 'Corveldt Aerospace' }, workLocation: null, requirement: { location: 'Portland, Oregon' } }))
+      .toEqual({ client: 'Corveldt Aerospace', city: 'Portland' })
+    for (const f of ROUTES) {
+      const src = read(f)
+      // No route reaches through a release's line without the null-safe reader.
+      expect(src, f).not.toMatch(/\b(r|sc|releaser\?|release|h\.release)\.sellContract\.(clientCompany|endClientCompany|workLocation|requirement)/)
+      expect(src, f).not.toMatch(/const sc = release\.sellContract/)
+    }
+    const place = read('src/app/api/bench/ours/holds/[id]/place/route.ts')
+    expect(place).toContain('release?.sellContractId ? await prisma.sellContract.findUnique({')
+  })
+
+  it('a release with no line reads "no project line, free from <date>" on Our bench', () => {
+    const row = ourBenchRow({
+      personId: 'p', name: 'Rahul Deshpande', seat: null, skills: [], place: null,
+      release: { id: 'r', rollsOffOn: day('2026-11-14'), keepUntil: null, confirmedAt: null, releaserId: 'm', releaserName: 'Ingrid Solberg', lineless: true },
+      current: null, mayNameProject: true, lastEnded: null, hold: null, moving: null, today: day('2026-10-27'),
+    }, { personId: 'm', as: 'MANAGER' })
+    expect(row.says).toBe('Comes off on Nov 14, 2026: no project line, free from Nov 15, 2026. Released by Ingrid Solberg.')
+    expect(noLineSays({ rollsOffOn: day('2026-11-14'), keepUntil: day('2026-11-30') })).toBe('no project line, free from Nov 30, 2026')
+  })
+
+  it('HR and the person are told of a release with no line in whole sentences, "the project" standing for the client nobody named', () => {
+    const facts = { personName: 'Rahul Deshpande', firmName: 'Teleworld Solutions', actorName: 'Ingrid Solberg', fromClient: null, fromCity: null, rollsOffOn: day('2026-11-14') }
+    expect(hrNotice('FLAG', facts).title).toBe('Rahul Deshpande rolls off the project on Nov 14, 2026')
+    expect(hrNotice('CONFIRM', facts).body).toBe('From the project. Nothing is asked of you.')
+    expect(personNotice('FLAG', facts).title).not.toMatch(/undefined|null/)
+  })
+
+  it('the flag route takes a person with no line, uses the running line where there is one, and keeps a lineless release only once the column admits it', () => {
+    const route = read('src/app/api/bench/ours/flag/route.ts')
+    expect(route).toContain("typeof body.personId === 'string'")
+    expect(route).toContain("state: { in: ['IN_PROGRESS', 'PAUSED'] }")
+    expect(route).toContain('return flagWithoutLine({')
+    expect(route).toContain('checkFlagWithoutLine({')
+    expect(route).toContain("f.name === 'sellContractId'")
+    expect(route).toContain('return field != null && !field.isRequired')
+    expect(route.indexOf('if (!linelessReleasesStored())')).toBeLessThan(route.indexOf('prisma.projectRelease.create({'))
+    expect(route).toContain('a roll-off without one cannot be kept yet. Record the project line, then flag the day from it.')
+  })
+
+  it('a delivery manager is offered the firm’s own employees with no running line, and never its staff', () => {
+    const route = read('src/app/api/bench/ours/route.ts')
+    expect(route).toContain('team: [...team, ...unlined],')
+    expect(route).toContain('!isStaffSeat({ permissions: deskOf.get(personId) ?? [], listed: false, lines: linesOf.get(personId) ?? [] })')
+    expect(route).toContain('lineless: !release.sellContractId,')
+    const page = read('src/app/dashboard/bench/our-bench.tsx')
+    expect(page).toContain(': { personId: act.team.personId, rollsOffOn, keepUntil: keepUntil || undefined },')
+    expect(page).toContain('No project line')
   })
 })
