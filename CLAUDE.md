@@ -1956,6 +1956,18 @@ follows:
      drawings stay.
   Release pass, preview, production, and a walk as the CFO, a regional
   manager and a hiring manager at Corvane before it is called done.
+- **The map is the vision, and it is the home page. Decided by the
+  founder, 2026-10-27:** *"This type of home page will sell with clients
+  and system integrators big time. This is the vision of Etyme."* So the
+  map is not a second screen under the panel; it is the picture the home
+  page is built around, drawn from Corvane's seeded figures, with the
+  hero's question and the demo button above it and the panel beside or
+  below it, and the same map for integrators on their door, drawn from
+  an integrator's own people across client sites and regions. The
+  integrator's map needs a seeded integrator at that scale (Teleworld
+  has four people on site), which is the architect's next seed after
+  Corvane. The seven doors' two drawings stay under the fold. The home
+  page is drawn before it is built, as every home-page change is.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
