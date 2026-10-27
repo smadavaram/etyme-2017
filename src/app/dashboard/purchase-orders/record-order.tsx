@@ -137,7 +137,7 @@ export function RecordOrder({
         <Field label="Currency (blank: the agreement's)">
           <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} placeholder="USD" maxLength={3} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Starts">
             <Input value={startDate} onChange={(e) => setStartDate(e.target.value)} type="date" />
           </Field>

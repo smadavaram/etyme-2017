@@ -105,7 +105,7 @@ export function FirstLine({
             {sites.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </Select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Starts">
             <Input value={startDate} onChange={(e) => setStartDate(e.target.value)} type="date" />
           </Field>

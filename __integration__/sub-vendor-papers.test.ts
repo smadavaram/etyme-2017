@@ -169,6 +169,25 @@ describe('the order a prime gives a sub-vendor', () => {
     expect(ours.lines.map((l: any) => [l.personName, l.side])).toEqual([['Omar Haddad', 'BUY']])
   })
 
+  it('the firm\u2019s own line on an order shows what it bills at only to a desk that prices or bills it', async () => {
+    const role = await prisma.role.create({ data: { companyId: co.tp, name: 'Reads orders', permissions: ['invoices.read'] } })
+    const p = await prisma.person.create({ data: { name: 'Tess Reader', primaryEmail: 'reader@techpeple.test' } })
+    await prisma.context.create({ data: { personId: p.id, companyId: co.tp, roleId: role.id, type: 'EMPLOYEE', grantReason: 'reads orders only' } })
+
+    as('reader@techpeple.test')
+    const seen = (await json(await listOrders(req('GET', '/api/purchase-orders')))).body.data.orders
+      .find((o: any) => o.id === ids.csOrder)
+    const omar = seen.lines.find((l: any) => l.personName === 'Omar Haddad')
+    expect(omar.rate).toBeNull()
+    expect(omar.payWithheld).toBe(true)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: p.id, subjectId: who.omar } })).toBeGreaterThan(0)
+
+    as(TP)
+    const owner = (await json(await listOrders(req('GET', '/api/purchase-orders')))).body.data.orders
+      .find((o: any) => o.id === ids.csOrder)
+    expect(owner.lines.find((l: any) => l.personName === 'Omar Haddad').rate).toBe(9000)
+  })
+
   it('a line pinned to an order lands on that order, and an order from another client is refused in a sentence', async () => {
     as(TP)
     const recorded = await json(await writeOrder(req('POST', '/api/purchase-orders', {

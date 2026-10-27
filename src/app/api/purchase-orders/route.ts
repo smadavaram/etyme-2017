@@ -157,14 +157,19 @@ export async function GET(request: NextRequest) {
     companyKind: reading.seated ? 'CLIENT' : (caller.company?.kind ?? null),
     personId: caller.person.id,
   }
-  const otherEnd = pos.flatMap((po) => {
+  // Every sell line is gated, the firm's own included: an account
+  // manager reading this page for the ceiling is not shown what each
+  // person bills at unless the desk prices or bills it. A buy line from
+  // the other end carries the same figure and the same gate.
+  const billRead = pos.flatMap((po) => {
     const end = sideOf(po, companyId)
     const deal = { sellerId: po.issuedToId, clientId: po.issuedById }
-    return end === 'BUYER'
-      ? po.sellContracts.map((sc) => ({ ...deal, personId: sc.person.id }))
-      : po.buyContracts.flatMap((bc) => bc.candidates.map((c) => ({ ...deal, personId: c.person.id })))
+    return [
+      ...po.sellContracts.map((sc) => ({ ...deal, personId: sc.person.id })),
+      ...(end === 'BUYER' ? [] : po.buyContracts.flatMap((bc) => bc.candidates.map((c) => ({ ...deal, personId: c.person.id })))),
+    ]
   })
-  if (otherEnd.length > 0) await writeBillTrail(caller, billTrail(billViewer, otherEnd))
+  if (billRead.length > 0) await writeBillTrail(caller, billTrail(billViewer, billRead))
 
   const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
   const billedByLine = new Map<string, number>()
@@ -253,8 +258,9 @@ export async function GET(request: NextRequest) {
           personId: sc.person.id,
           personName: sc.person.name,
           siteName: siteOf(sc.workLocation) ?? sc.clientCompany.name,
-          /** Cents per hour. */
-          rate: sc.billRate,
+          /** Cents per hour, null where this desk may not read what the line bills at. */
+          rate: (mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById }) ? sc.billRate : null) as number | null,
+          payWithheld: !mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById }),
           currency: sc.billCurrency,
           state: sc.state,
           startDate: sc.startDate.toISOString().slice(0, 10),

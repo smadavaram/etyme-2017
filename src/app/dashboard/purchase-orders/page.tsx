@@ -482,7 +482,7 @@ function Lines({ po }: { po: PO }) {
               </span>
             </span>
             <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
-              {l.payWithheld && l.fromOtherEnd
+              {l.payWithheld && (l.fromOtherEnd || l.side === 'SELL')
                 ? <span title="What this line bills at is shown only to the people who price and bill it.">Rate not shown</span>
                 : l.payWithheld
                 ? <span title="What each person is paid is shown only to the people who run payroll.">Pay not shown</span>
