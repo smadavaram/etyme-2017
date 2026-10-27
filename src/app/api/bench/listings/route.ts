@@ -3,10 +3,10 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { send } from '@/lib/messages'
+import { askByEmail } from '@/app/api/consultants/ask-by-email'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { listingTermsFrom, termsShown, notAtACompany } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS } from '@/lib/bench-filter'
 
 /**
  * POST /api/bench/listings
@@ -221,25 +221,19 @@ export async function POST(request: NextRequest) {
     // Sent in the vendor's name. A consultant on two benches never
     // learns that from us.
     const url = inviteUrl(result.id)
-    if (url && consultant.person.primaryEmail) {
-      const msg = inviteText({
-        personName: consultant.person.name,
-        vendorName: caller.company!.name,
-        url,
-        // The terms stated on the listing, so the email names what a yes agrees.
-        terms: termsShown(result, caller.company!.name),
-      })
-      void send({
-        companyId,
-        personId: consultant.personId,
-        kind: 'LINK',
-        to: consultant.person.primaryEmail,
-        subject: msg.subject,
-        body: msg.body,
-        aboutType: 'LISTING',
-        aboutId: result.id,
-      })
-    }
+    const msg = inviteText({
+      personName: consultant.person.name,
+      vendorName: caller.company!.name,
+      url,
+      // The terms stated on the listing, so the email names what a yes agrees.
+      terms: termsShown(result, caller.company!.name),
+    })
+    // The same sender as Add consultant: where no email can leave, the link
+    // is kept on the notice for staff, and the answer says so.
+    const mail = await askByEmail({
+      companyId, personId: consultant.personId, to: consultant.person.primaryEmail, url,
+      subject: msg.subject, body: msg.body, listingId: result.id,
+    })
 
     return NextResponse.json(
       {
@@ -260,7 +254,9 @@ export async function POST(request: NextRequest) {
           },
           message:
             `Bench listing created for "${consultant.person.name}". Consultant must grant it before submissions can be made.` +
+            (mail === 'KEPT' ? ` ${INVITE_LINK_KEPT_SAYS}` : '') +
             (terms.says ? ` ${terms.says}` : ''),
+          mail,
         },
       },
       { status: 201 }

@@ -8,7 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
-import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags } from '@/lib/bench-filter'
+import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
@@ -44,6 +44,8 @@ interface Consultant {
   rateMax: number | null
   /** Cents an hour, where this seat reads pay. */
   rateFloor?: number | null
+  /** What the firm stated it would pay them, cents an hour, where this seat reads pay. Never a bill rate. */
+  payRateCents?: number | null
 }
 
 // ── Add Consultant Modal ───────────────────────────────────
@@ -983,6 +985,9 @@ export default function ConsultantsPage() {
         tier: c.listings?.[0]?.tier ?? c.tier ?? null,
         rateMin: c.listings?.[0]?.rateMin ?? c.rateMin ?? null,
         rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
+        // Pay is the pay the firm stated, never the listing's rate range,
+        // which is what a client is billed (second onboarding walk).
+        payRateCents: payShown(c.listings?.[0]),
       }))
       setConsultants(mapped)
       setCounted(true)
@@ -1074,9 +1079,9 @@ export default function ConsultantsPage() {
       label: 'Pay rate',
       render: (row) => (
         hasCostPermission ? (
-          row.rateMin != null ? (
+          row.payRateCents != null ? (
             <span className="tabular-nums">
-              ${Math.round(row.rateMin / 100)}<span className="text-etyme-faint">/hr</span>
+              ${Math.round(row.payRateCents / 100)}<span className="text-etyme-faint">/hr</span>
             </span>
           ) : (
             <span className="text-etyme-faint">—</span>
@@ -1085,7 +1090,7 @@ export default function ConsultantsPage() {
           <span className="text-etyme-faint text-[11px]">Read by payroll and finance</span>
         )
       ),
-      sortValue: (row) => row.rateMin ?? 0,
+      sortValue: (row) => row.payRateCents ?? 0,
       align: 'right' as const,
     },
     {

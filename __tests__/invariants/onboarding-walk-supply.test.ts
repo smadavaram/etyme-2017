@@ -239,3 +239,51 @@ describe('7 · a roll-off with no project line, read everywhere', () => {
     expect(page).toContain('No project line')
   })
 })
+
+describe('8 · second walk: refusals shown, pay never a bill rate, mail said as it went', () => {
+  it('a refusal on the do-not-send page is shown, never silent', () => {
+    const page = read('src/app/dashboard/my-benches/page.tsx')
+    // An answer that saved nothing is drawn as a refusal, not in the green of a done thing.
+    expect(page).toContain('if (body.data?.saved === false) {\n        setError(says)\n        return false\n      }')
+    // And beside the form that asked, keeping what she typed.
+    expect(page).toContain('{error && <p role="alert" className="text-[13px] text-etyme-attention">{error}</p>}')
+    expect(page).toContain('if (saved) {')
+    const route = read('src/app/api/me/benches/route.ts')
+    expect(route).toContain('return NextResponse.json({ data: { saved: false, message: noFirmByThatNameSays(name) } })')
+  })
+
+  it('the Pay column never shows a bill rate', async () => {
+    const { payShown } = await import('@/lib/bench-filter')
+    // Maya: listed at $50 to $60 billed, stated pay $42.
+    expect(payShown({ termsPayRateCents: 4200 })).toBe(4200)
+    expect(payShown({ termsPayRateCents: null })).toBeNull()
+    expect(payShown(undefined)).toBeNull()
+    const page = read('src/app/dashboard/consultants/page.tsx')
+    const col = page.slice(page.indexOf("label: 'Pay rate'"), page.indexOf("key: 'availability'"))
+    expect(col).toContain('row.payRateCents')
+    expect(col).not.toContain('rateMin')
+    expect(page).toContain('payRateCents: payShown(c.listings?.[0]),')
+  })
+
+  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says so', async () => {
+    const { inviteMail, addedSays, INVITE_LINK_KEPT_SAYS } = await import('@/lib/bench-filter')
+    expect(inviteMail({ url: 'https://x/bench-invite/t', email: 'ike@example.com', mailOn: false })).toBe('KEPT')
+    expect(inviteMail({ url: 'https://x/bench-invite/t', email: 'ike@example.com', mailOn: true })).toBe('EMAILED')
+    expect(inviteMail({ url: 'https://x/bench-invite/t', email: null, mailOn: true })).toBe('NO_ADDRESS')
+    expect(inviteMail({ url: '', email: 'ike@example.com', mailOn: true })).toBe('NO_LINK')
+    expect(addedSays({ name: 'Ike Danso', firm: 'Benchwarm Labs', tier: 'MARKETING', emailed: false, kept: true }))
+      .toBe(`Ike Danso is added. Benchwarm Labs asked them to join its bench. ${INVITE_LINK_KEPT_SAYS} Once they say yes they are shown to your partners. Nobody is put forward until they say yes.`)
+    const existing = askedExistingSays({ name: 'Maya Okafor', firm: 'Benchwarm Labs', emailed: false, kept: true, again: false })
+    expect(existing).toContain(INVITE_LINK_KEPT_SAYS)
+    expect(existing).not.toContain('went by email')
+    const sender = read('src/app/api/consultants/ask-by-email.ts')
+    expect(sender).toContain("body: recordedBody(lines, o.url, 'NOT_CONFIGURED'),")
+    expect(sender).toContain('mailOn: configured()')
+    for (const f of ['src/app/api/consultants/route.ts', 'src/app/api/bench/listings/route.ts']) {
+      const src = read(f)
+      expect(src, f).toContain('await askByEmail({')
+      expect(src, f).not.toContain('void send({')
+    }
+    expect(read('src/app/api/consultants/route.ts')).toContain("emailed: mail === 'EMAILED',")
+  })
+})

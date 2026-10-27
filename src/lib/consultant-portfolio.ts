@@ -32,6 +32,7 @@ import { amount, compact } from '@/lib/money-display'
 import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
 import { canReadBillRate } from '@/lib/permissions'
 import { OWN_WORK_READS } from '@/lib/console-home'
+import { INVITE_LINK_KEPT_SAYS } from '@/lib/bench-filter'
 
 export type Visibility = 'INTERNAL' | 'FEED' | 'CLIENT_VISIBLE' | 'VERIFIED'
 
@@ -997,9 +998,14 @@ export function addRefusalSays(path: AddPath, name: string, firm: string): strin
 }
 
 /** What adding somebody who already has a record did, in a sentence. */
-export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean }): string {
+export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean; kept?: boolean }): string {
   const first = o.again ? `${o.firm} asked ${o.name} onto its bench again` : `${o.name} already has an account, so ${o.firm} asked them onto its bench`
-  const sent = o.emailed ? ' The invitation went by email.' : ' The invitation is recorded; it can be sent from Bench.'
+  // "Went by email" only where an email could leave (second onboarding walk).
+  const sent = o.emailed
+    ? ' The invitation went by email.'
+    : o.kept
+      ? ` ${INVITE_LINK_KEPT_SAYS}`
+      : ' The invitation is recorded; it can be sent from Bench.'
   return `${first}, on the record they already have.${sent} Nothing reaches past ${o.firm} until ${o.name} says yes.`
 }
 

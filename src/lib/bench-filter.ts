@@ -951,10 +951,45 @@ export const TIER_WORD = { RETAINED: 'Kept to us', MARKETING: 'Shown to our part
  * default, and nothing reaches past the firm until they say yes — so the
  * sentence says the invitation went, where it went, and what follows.
  */
-export function addedSays(f: { name: string; firm: string; tier: 'RETAINED' | 'MARKETING'; emailed: boolean }): string {
+/**
+ * How a bench invitation went out (second onboarding walk, 2026-10-27).
+ * "The invitation went by email" was said where no email can leave this
+ * deployment; the link was then kept nowhere a person could pass it on.
+ *
+ *  - EMAILED     an email provider is set up and the address is on record
+ *  - KEPT        no provider is set up: the link is kept on the notice for
+ *                staff to pass on (`recordedBody` in lib/notify/account-mail)
+ *  - NO_ADDRESS  nobody to send it to
+ *  - NO_LINK     the link could not be built here
+ */
+export type InviteMail = 'EMAILED' | 'KEPT' | 'NO_ADDRESS' | 'NO_LINK'
+
+export function inviteMail(f: { url: string; email: string | null; mailOn: boolean }): InviteMail {
+  if (!f.url) return 'NO_LINK'
+  if (!f.email) return 'NO_ADDRESS'
+  return f.mailOn ? 'EMAILED' : 'KEPT'
+}
+
+/** Said where no email can be sent and the link was kept for staff. */
+export const INVITE_LINK_KEPT_SAYS =
+  'No email can be sent from here yet, so the invitation link is kept on the notice for staff to pass on.'
+
+/**
+ * The Pay rate column's figure: what the firm stated it would pay the
+ * person, in cents an hour, or null. Never a listing's rate range, which
+ * is what a client is billed (Maya read "$50/hr" under Pay where her pay
+ * was $42, second onboarding walk).
+ */
+export function payShown(listing: { termsPayRateCents?: number | null } | null | undefined): number | null {
+  return listing?.termsPayRateCents ?? null
+}
+
+export function addedSays(f: { name: string; firm: string; tier: 'RETAINED' | 'MARKETING'; emailed: boolean; kept?: boolean }): string {
   const asked = f.emailed
     ? `${f.firm} has emailed them to ask if they will join its bench.`
-    : `${f.firm} will ask them to join its bench; no email address is on record to send the ask, so copy the link from Bench.`
+    : f.kept
+      ? `${f.firm} asked them to join its bench. ${INVITE_LINK_KEPT_SAYS}`
+      : `${f.firm} will ask them to join its bench; no email address is on record to send the ask, so copy the link from Bench.`
   const reach =
     f.tier === 'MARKETING'
       ? 'Once they say yes they are shown to your partners.'

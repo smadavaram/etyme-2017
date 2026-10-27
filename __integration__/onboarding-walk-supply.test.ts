@@ -59,12 +59,30 @@ describe('a firm asks somebody who already has an account', () => {
     expect(listing.state).toBe('INVITED')
   })
 
+  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says so', async () => {
+    const { LINK_KEPT } = await import('@/lib/notify/account-mail')
+    const { INVITE_LINK_KEPT_SAYS } = await import('@/lib/bench-filter')
+    const listing = await prisma.benchListing.findFirstOrThrow({ where: { companyId, consultant: { personId: mayaId } } })
+    const kept = await prisma.notification.findFirst({ where: { personId: mayaId, entityId: listing.id } })
+    expect(kept, 'no notice kept the link').toBeTruthy()
+    expect(kept!.body).toContain(LINK_KEPT)
+    expect(kept!.body).toMatch(/\/bench-invite\//)
+    expect(kept!.deliveryState).toBe('NOT_CONFIGURED')
+
+    // A person with no account at all reads the same, and is never told it went by email.
+    as(OWNER)
+    const r = await json(await addConsultant(req('POST', '/api/consultants', { name: 'Ike Danso', email: 'ike.danso@walk-bench.test' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.message).toContain(INVITE_LINK_KEPT_SAYS)
+    expect(r.body.data.message).not.toContain('has emailed them')
+  })
+
   it('asking her a second time is refused in a sentence and makes nothing', async () => {
     as(OWNER)
     const r = await json(await addConsultant(req('POST', '/api/consultants', { name: 'Maya Brooks', email: MAYA })))
     expect(r.status).toBe(409)
     expect(r.body.error.message).toBe('Walk Bench Staffing already asked Maya Brooks and is waiting on the answer. Nothing new was sent; the invitation can be sent again from Bench.')
-    expect(await prisma.benchListing.count({ where: { companyId } })).toBe(1)
+    expect(await prisma.benchListing.count({ where: { companyId, consultant: { personId: mayaId } } })).toBe(1)
   })
 })
 

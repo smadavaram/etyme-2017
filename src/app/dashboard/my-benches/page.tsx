@@ -146,7 +146,13 @@ export default function MyBenchesPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function send(payload: unknown) {
+  /**
+   * One PATCH, and its answer drawn either way. An answer that saved
+   * nothing ("No company called Kettering Molding is on Etyme… Nothing was
+   * saved.") is a refusal and reads as one, never in the green of a done
+   * thing (second onboarding walk, 2026-10-27). Returns whether it saved.
+   */
+  async function send(payload: unknown): Promise<boolean> {
     setBusy(true)
     setError(null)
     setFlash(null)
@@ -157,10 +163,17 @@ export default function MyBenchesPage() {
         body: JSON.stringify(payload),
       })
       const body = await readJson(res)
-      setFlash(body.data?.message ?? 'Saved.')
+      const says = body.data?.message ?? 'Saved.'
+      if (body.data?.saved === false) {
+        setError(says)
+        return false
+      }
+      setFlash(says)
       await load()
+      return true
     } catch (e: any) {
       setError(e.message)
+      return false
     } finally {
       setBusy(false)
     }
@@ -524,11 +537,15 @@ export default function MyBenchesPage() {
             onSubmit={async (e) => {
               e.preventDefault()
               const note = notNote.trim() || undefined
-              if (notPick) await send({ doNotSubmitTo: notPick, note })
-              else await send({ doNotSubmitName: notName, note })
-              setNotPick('')
-              setNotName('')
-              setNotNote('')
+              const saved = notPick
+                ? await send({ doNotSubmitTo: notPick, note })
+                : await send({ doNotSubmitName: notName, note })
+              // A refusal keeps what she typed, so she can correct it.
+              if (saved) {
+                setNotPick('')
+                setNotName('')
+                setNotNote('')
+              }
             }}
           >
             <p className="text-[13px] text-etyme-muted">Name a client you will not be sent to.</p>
@@ -567,6 +584,8 @@ export default function MyBenchesPage() {
             <button type="submit" className={primary} disabled={busy || (!notPick && notName.trim().length < 2)}>
               Do not send me there
             </button>
+            {/* The answer beside the form that asked, as well as at the top. */}
+            {error && <p role="alert" className="text-[13px] text-etyme-attention">{error}</p>}
           </form>
         </Panel>
 

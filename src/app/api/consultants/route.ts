@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { send } from '@/lib/messages'
+import { askByEmail } from './ask-by-email'
 import { addedSays, benchClosedSays, listingTermsFrom, termsShown, notAtACompany } from '@/lib/bench-filter'
 import { addPath, addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
@@ -466,25 +466,19 @@ export async function POST(request: NextRequest) {
     // consultant who was correctly created. The invitation is recorded
     // either way and can be resent.
     const url = inviteUrl(result.listing.id)
-    if (url && result.person.primaryEmail) {
-      const msg = inviteText({
-        personName: result.person.name,
-        vendorName: caller.company!.name,
-        url,
-        // The terms stated on the listing, so the email names what a yes agrees.
-        terms: termsShown(result.listing, caller.company!.name),
-      })
-      void send({
-        companyId,
-        personId: result.person.id,
-        kind: 'LINK',
-        to: result.person.primaryEmail,
-        subject: msg.subject,
-        body: msg.body,
-        aboutType: 'LISTING',
-        aboutId: result.listing.id,
-      })
-    }
+    const msg = inviteText({
+      personName: result.person.name,
+      vendorName: caller.company!.name,
+      url,
+      // The terms stated on the listing, so the email names what a yes agrees.
+      terms: termsShown(result.listing, caller.company!.name),
+    })
+    // Said as it went: emailed only where an email could leave; where none
+    // can, the link is kept on the notice for staff and the screen says so.
+    const mail = await askByEmail({
+      companyId, personId: result.person.id, to: result.person.primaryEmail, url,
+      subject: msg.subject, body: msg.body, listingId: result.listing.id,
+    })
 
     return NextResponse.json(
       {
@@ -521,7 +515,8 @@ export async function POST(request: NextRequest) {
             name: result.person.name,
             firm: caller.company!.name,
             tier: result.listing.tier,
-            emailed: Boolean(url && result.person.primaryEmail),
+            emailed: mail === 'EMAILED',
+            kept: mail === 'KEPT',
           }) + (terms.says ? ` ${terms.says}` : ''),
         },
       },
@@ -649,20 +644,11 @@ async function askExisting(o: {
     })
 
     const url = inviteUrl(asked.id)
-    const emailed = Boolean(url && person.primaryEmail)
-    if (url && person.primaryEmail) {
-      const msg = inviteText({ personName: person.name, vendorName: firm, url, terms: termsShown(asked, firm) })
-      void send({
-        companyId,
-        personId: person.id,
-        kind: 'LINK',
-        to: person.primaryEmail,
-        subject: msg.subject,
-        body: msg.body,
-        aboutType: 'LISTING',
-        aboutId: asked.id,
-      })
-    }
+    const msg = inviteText({ personName: person.name, vendorName: firm, url, terms: termsShown(asked, firm) })
+    const mail = await askByEmail({
+      companyId, personId: person.id, to: person.primaryEmail, url,
+      subject: msg.subject, body: msg.body, listingId: asked.id,
+    })
 
     return NextResponse.json(
       {
@@ -680,7 +666,7 @@ async function askExisting(o: {
             termsStatedAt: asked.termsStatedAt?.toISOString() ?? null,
             termsAgreedAt: null,
           },
-          message: askedExistingSays({ name: person.name, firm, emailed, again }) + (terms.says ? ` ${terms.says}` : ''),
+          message: askedExistingSays({ name: person.name, firm, emailed: mail === 'EMAILED', kept: mail === 'KEPT', again }) + (terms.says ? ` ${terms.says}` : ''),
         },
       },
       { status: again ? 200 : 201 }
