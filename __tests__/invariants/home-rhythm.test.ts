@@ -37,16 +37,18 @@ const DEMO = read('src/lib/public-site/story-panel.tsx')
 /** The opening tag of every section written on the page, in order. */
 const sections = [...PAGE.matchAll(/<section[\s\S]*?>/g)].map((m) => m[0])
 
-describe('The home page is three short sections in one column, at every width', () => {
+describe('The home page is four short sections in one column, at every width', () => {
 
   it('is one column with a 16px gutter on a phone, and every section sits inside it', () => {
     const main = OWN.slice(OWN.indexOf('<main'), OWN.indexOf('</main>'))
     expect(OWN).toContain('<main className="mx-auto max-w-6xl px-4 sm:px-6">')
-    expect(sections.map((s) => s.match(/id="([\w-]+)"/)![1])).toEqual(['top', 'demo', 'sign-up'])
-    // The hero is the page's own; the frame, the band and the security
-    // line are the skeleton's, drawn inside the same column.
+    expect(sections.map((s) => s.match(/id="([\w-]+)"/)![1])).toEqual(['top', 'map', 'demo', 'sign-up'])
+    // The hero and the map are the page's own (the map since 2026-10-27);
+    // the panel, the band and the security line are the skeleton's, drawn
+    // inside the same column.
     expect(main).toContain(sections[0])
-    expect(main).toMatch(/<LiveDemo>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
+    expect(main).toContain(sections[1])
+    expect(main).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
     // Nothing is wider than the screen: the page clips any stray overflow
     // rather than scrolling sideways at 375.
     expect(PAGE).toContain('overflow-x-hidden')
@@ -121,9 +123,16 @@ describe('The home page is three short sections in one column, at every width', 
     expect(SKELETON).toContain('className={`grid md:hidden [&_a]:w-full [&_a]:whitespace-normal ${className}`}')
     expect(SKELETON.indexOf('<PhoneButton>')).toBeLessThan(SKELETON.indexOf('<StoryPanel'))
     expect(DEMO).toContain('{i === cur && children && <div className="hidden md:block">{children}</div>}')
-    // The home page draws no button of its own in the hero; the skeleton's sits under it.
-    const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('<LiveDemo'))
+    // The home page draws no button inside the hero. Since the map came
+    // under the hero (2026-10-27) the page draws the phone's button itself,
+    // straight under the hero and above the map, and tells the panel not to
+    // draw a second; the same one button is in the panel's footer from md up.
+    const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('</section>', OWN.indexOf('id="top"')))
     expect(hero).not.toMatch(/<a\b|<CountedLink|PhoneButton/)
+    expect(OWN).toContain('<PhoneButton><OpenTheDemo /></PhoneButton>')
+    expect(OWN.indexOf('<PhoneButton>')).toBeGreaterThan(OWN.indexOf('id="top"'))
+    expect(OWN.indexOf('<PhoneButton>')).toBeLessThan(OWN.indexOf('id="map"'))
+    expect(OWN).toContain('<LiveDemo phoneButton={false}><OpenTheDemo /></LiveDemo>')
     // A step page, with Today and With Etyme between its lede and the panel, draws it under its lede.
     const step = read('src/lib/public-site/module-page.tsx')
     expect(step).toContain('<PhoneButton className="mt-5"><StepButton m={m} /></PhoneButton>')

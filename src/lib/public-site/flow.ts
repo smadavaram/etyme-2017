@@ -70,6 +70,21 @@ export interface PersonTarget {
   seat: string
 }
 
+/**
+ * A named seat at a desk, with no screen of its own: `POST /api/demo
+ * {"as","desk","who"}`, where `who` picks the person when several hold
+ * the desk (Corvane's regional and hiring managers). The door answers
+ * with where that seat lands, as for a person.
+ */
+export interface SeatTarget {
+  as: string
+  desk: string
+  /** The person to sit as, where more than one holds the desk. */
+  who?: string
+  /** Who the reader sits as, said plainly. */
+  seat: string
+}
+
 /** The words of a chart, for the guard. */
 export function flowWords(boxes: FlowBox[]): string[] {
   return boxes.map((b) => {

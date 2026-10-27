@@ -63,6 +63,9 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
+import { defaultCopyOfCorvaneMap } from '@/lib/public-site/corvane-map'
+/** The line under the question since the map, 2026-10-27, the drawing's own words. */
+const MAP_LEDE = 'Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.'
 import { BAND, CATEGORY, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
@@ -709,28 +712,26 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('trusted control layer')
     expect(unverifiableClaims(all)).toEqual([])
   })
-  it('keeps the hero to the category and the question, with the live product straight under them', () => {
+  it('keeps the hero to the category, the question and the map’s lede, with the map straight under them', () => {
     // The page the founder approved on 2026-10-14: the question, the
     // category line, and then the product itself. No buttons in the hero,
-    // no screenshot beside it: the one button is under the product, and on
-    // a phone the skeleton draws the same button above the panel, straight
-    // under the hero (2026-10-19). Since
-    // the founder's drawing of 2026-10-19, one line under the question
-    // says what not knowing costs today, and the category sits on top.
+    // no screenshot beside it: on a phone the one button sits straight
+    // under the hero (2026-10-19), and from md up it is in the panel's
+    // footer. Since the founder's "Build it" on the map, 2026-10-27, the
+    // line under the question is the drawing's lede, and the map follows.
     expect(live.hero).toHaveLength(3)
-    expect(live.hero[2]).toBe('Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.')
-    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
+    expect(live.hero[2]).toBe(MAP_LEDE)
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<PhoneButton'))
     expect(copyFrom(top)).toEqual([
-      'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.',
-      'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
+      'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.', MAP_LEDE,
     ])
     expect(top).not.toContain('<CountedLink')
-    expect(at('demo')).toBeGreaterThan(at('top'))
+    expect(at('map')).toBeGreaterThan(at('top'))
+    expect(at('demo')).toBeGreaterThan(at('map'))
     expect(PAGE).not.toContain('const GLANCE')
-    // "Three weeks" left the hero on 2026-09-28 as a claim a reader could
-    // not check; the founder drew it back on 2026-10-19 as the one line
-    // under the question, and it is held to that one line, word for word.
-    expect(hero.split('three weeks').length - 1).toBe(1)
+    // "Three weeks" was the line under the question from 2026-10-19 until
+    // the map's lede replaced it on 2026-10-27.
+    expect(hero).not.toContain('three weeks')
   })
   it('still passes the four positioning rules after the rewrite', () => {
     expect(verdict(live).ok).toBe(true)
@@ -1135,14 +1136,17 @@ const PANEL = readFileSync(join(process.cwd(), 'src/lib/public-site/story-panel.
 
 describe('The page shows the product before it describes it', () => {
 
-  it('shows the product before it describes it: the panel showing it working sits straight under the question', () => {
+  it('shows the product before it describes it: the map sits straight under the question, and the panel showing it working under the map', () => {
     // Screens before sentences (2026-09-20) still holds. Since the
     // founder's "Build it" later on 2026-10-14 the product is shown working
     // in one compact panel, from the seeded demo's own names and figures,
     // in place of the live frame he found blank or a wall of tables.
-    expect(PAGE).toContain('<LiveDemo>')
+    // Since 2026-10-27 the map comes first: Corvane's record read from four
+    // roles, then the panel showing Northbend's people at work.
+    expect(PAGE).toContain('<LiveDemo phoneButton={false}>')
     expect(PAGE).toContain('<StoryPanel start={storyIndex(step)} story={story}>')
-    expect(PAGE.indexOf('<LiveDemo')).toBeGreaterThan(PAGE.indexOf('<h1'))
+    expect(PAGE.indexOf('<CorvaneMapView')).toBeGreaterThan(PAGE.indexOf('<h1'))
+    expect(PAGE.indexOf('<LiveDemo')).toBeGreaterThan(PAGE.indexOf('<CorvaneMapView'))
     expect(PAGE.indexOf('<LiveDemo')).toBeLessThan(PAGE.indexOf('<SignUpBand'))
     expect(PAGE).not.toContain('<SampleDesk')
   })
@@ -1197,15 +1201,15 @@ describe('The page shows the product before it describes it', () => {
     }
   })
 
-  it('the top of the page reads in seconds: the category on top, the question, and then the product', () => {
-    // Since 2026-10-19 the category sits above the question, and between
-    // the question and the live product a reader meets one line: the
-    // founder's line on what not knowing costs today. Nothing else.
-    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
+  it('the top of the page reads in seconds: the category on top, the question, the map’s lede, and then the product', () => {
+    // Since 2026-10-19 the category sits above the question. Between the
+    // question and the map a reader meets one line, the drawing's lede of
+    // 2026-10-27, which says what the map under it is. Nothing else.
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="map"'))
     expect(copyFrom(top)).toEqual([
       'Enterprise contingent workforce management',
       'Know what every contractor costs, across every supplier.',
-      'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
+      MAP_LEDE,
     ])
   })
   it('names the category, no size of company, and no company at all', () => {
@@ -1775,6 +1779,18 @@ function readerWords(): number {
   return countWords([...own, ...copyOfSkeleton({ button: OPEN_DEMO })])
 }
 
+/**
+ * The words of the map a reader meets with no tab pressed: the bar, the
+ * four tabs, the CFO's seat — who is signed in, the headline, five
+ * figures, the table of six regions — and the line under the map. Data,
+ * not prose, drawn from the seed (`lib/public-site/corvane-map`), so it
+ * is counted apart from the page's own words: the page's ceiling does
+ * not move for it, and the map has a ceiling of its own.
+ */
+function mapWords(): number {
+  return countWords(defaultCopyOfCorvaneMap())
+}
+
 /** The most words the home page may carry between its header and footer. */
 // 2026-10-14: 1,385 → 110. The founder approved a page of three sections
 // and about a hundred and ten words ("Build it", on the drawing he
@@ -1783,7 +1799,14 @@ function readerWords(): number {
 // The history of the old ceilings is in git.
 // 2026-10-19: 110 → 125, for the founder's drawing of that day: one line
 // under the category and the line under the panel naming its three people.
-const CEILING = 125
+// 2026-10-27: 125 → 127, for the map the founder said "Build it" to
+// ("This is the vision of Etyme"). Its lede (25 words) replaced the line
+// under the question (13), measured at 127 with it; nothing else moved.
+const CEILING = 127
+// The map itself, measured at 321 words for the CFO's seat as drawn. The
+// other three seats are in the HTML and hidden until a tab is pressed,
+// so they are not counted here.
+const MAP_CEILING = 321
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1796,16 +1819,20 @@ function band(id: string): string {
 
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
-  it('the home page is three sections and about a hundred words: the question, the live product, and the sign-up band', () => {
-    // The founder's page of 2026-10-14. Every band that left is listed in
+  it('the home page is four sections, about a hundred words of its own and the map: the question, the map, the live product, and the sign-up band', () => {
+    // The founder's page of 2026-10-14, with the map of 2026-10-27 under the
+    // question. Every band that left is listed in
     // the page's own header comment with where it went, and the sentences
     // below this one hold that each is gone.
     const words = readerWords()
     expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(CEILING)
     expect(words).toBeGreaterThan(90)
+    const map = mapWords()
+    expect(map, `${map} words on the map as a reader first meets it`).toBeLessThanOrEqual(MAP_CEILING)
+    expect(map).toBeGreaterThan(200)
     const ids = [...PAGE.matchAll(/<section\s+id="([\w-]+)"/g)].map((m) => m[1])
-    expect(ids).toEqual(['top', 'demo', 'sign-up'])
-    expect(readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')).toMatch(/<LiveDemo>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
+    expect(ids).toEqual(['top', 'map', 'demo', 'sign-up'])
+    expect(readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
     expect((PAGE.match(/<h2/g) ?? []).length, 'one headline under the hero, the sign-up band’s').toBe(1)
     expect(PAGE).not.toContain('<CloseBand')
     for (const gone of ['problem', 'platform', 'specialist-teams', 'solutions', 'how-it-works', 'audit', 'close', 'gap', 'ways', 'join', 'steps']) {

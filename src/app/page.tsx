@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
 import { CountedLink } from '@/lib/public-site/counted-link'
-import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
+import { CategoryLine, LiveDemo, PhoneButton, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
 import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
 import { SEE_IT } from '@/lib/public-site/funnel'
+import { corvaneMap, seatOf, seatHrefs } from '@/lib/public-site/corvane-map'
+import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
 
 /**
  * The front door.
@@ -37,6 +39,16 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *               three people at a demo company on one morning. On a
  *               phone the panel's button is also drawn straight under the
  *               hero (`LiveDemo`), so the first screen has one button
+ *   #map        the map, since the founder's "Build it" of 2026-10-27 ("This
+ *               is the vision of Etyme"): Corvane Packaging, a demo company,
+ *               every contractor, supplier and site in eight countries on one
+ *               record, read from four roles — CFO, Head of operations,
+ *               Regional manager, Hiring manager — each a tab at its own
+ *               address (`/?seat=operations`), read on the server so an
+ *               advertisement can open one. Every name and figure is read
+ *               from the seed (`lib/public-site/corvane-map`). The hero's
+ *               line under the question became the drawing's lede the same
+ *               day; the Northbend panel follows the map unchanged
  *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
  *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
@@ -82,7 +94,27 @@ export const metadata: Metadata = {
   title: { absolute: 'Etyme | Enterprise contingent workforce management' },
 }
 
-export default function LandingPage() {
+/** The map's four seats, worked out once from the seed: plain data, the same on every request. */
+const MAP = corvaneMap()
+const SEAT_HREFS = seatHrefs()
+
+/** What Next hands the page: the address's query, of which `seat` is read. */
+interface HomeParams { searchParams?: { seat?: string | string[] } }
+
+/**
+ * The page's one button, drawn twice: under the hero on a phone, in the
+ * panel's footer from md up, each hidden at the other's widths.
+ */
+function OpenTheDemo() {
+  return (
+    <CountedLink href={SEE_IT.href} event="demo_cta_clicked" className={PRIMARY_BUTTON}>
+      {OPEN_DEMO}
+    </CountedLink>
+  )
+}
+
+export default function LandingPage({ searchParams }: HomeParams) {
+  const seat = seatOf(searchParams?.seat)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
       <SiteHeader />
@@ -95,16 +127,21 @@ export default function LandingPage() {
             Know what every contractor costs, across every supplier.
           </h1>
           <p className="mt-3 text-[16px] leading-snug text-etyme-muted">
-            Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.
+            Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.
           </p>
         </section>
 
+        {/* ── On a phone, the one button, straight under the hero ── */}
+        <PhoneButton><OpenTheDemo /></PhoneButton>
+
+        {/* ── The map: one record, read from four roles ─────────── */}
+        <section id="map" aria-label="One record, read from four roles" className="scroll-mt-20 pb-8">
+          <CorvaneMapView map={MAP} seat={seat} hrefs={SEAT_HREFS} />
+          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{MAP.under}</p>
+        </section>
+
         {/* ── The product, live and read-only, at the overview ──── */}
-        <LiveDemo>
-          <CountedLink href={SEE_IT.href} event="demo_cta_clicked" className={PRIMARY_BUTTON}>
-            {OPEN_DEMO}
-          </CountedLink>
-        </LiveDemo>
+        <LiveDemo phoneButton={false}><OpenTheDemo /></LiveDemo>
 
         {/* ── Sign-up, right under the product ──────────────────── */}
         <SignUpBand />

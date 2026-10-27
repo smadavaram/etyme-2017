@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DemoTarget, PersonTarget } from './flow'
+import type { DemoTarget, PersonTarget, SeatTarget } from './flow'
 import { count } from './count'
 
 /**
@@ -29,13 +29,22 @@ export function demoRequest(target: DemoTarget): { url: '/api/demo'; body: { as:
  * door says that person lands, so `then` is null here.
  */
 export function demoRequest(target: PersonTarget): { url: '/api/demo'; body: { person: string }; then: null }
-export function demoRequest(target: DemoTarget | PersonTarget): { url: '/api/demo'; body: { as: string; desk: string } | { person: string }; then: string | null }
-export function demoRequest(target: DemoTarget | PersonTarget) {
+/**
+ * A named seat at a desk (2026-10-27, the map's four roles at Corvane
+ * Packaging): the body names the desk and, where several hold it, the
+ * person; the click goes where the door says that seat lands.
+ */
+export function demoRequest(target: SeatTarget): { url: '/api/demo'; body: { as: string; desk: string; who?: string }; then: null }
+export function demoRequest(target: DemoTarget | PersonTarget | SeatTarget): { url: '/api/demo'; body: { as: string; desk: string; who?: string } | { person: string }; then: string | null }
+export function demoRequest(target: DemoTarget | PersonTarget | SeatTarget) {
   if ('person' in target) return { url: '/api/demo' as const, body: { person: target.person }, then: null }
+  if (!('screen' in target)) {
+    return { url: '/api/demo' as const, body: { as: target.as, desk: target.desk, ...(target.who ? { who: target.who } : {}) }, then: null }
+  }
   return { url: '/api/demo' as const, body: { as: target.as, desk: target.desk }, then: target.screen }
 }
 
-export function DemoLink({ target, label, className }: { target: DemoTarget | PersonTarget; label: string; className?: string }) {
+export function DemoLink({ target, label, className }: { target: DemoTarget | PersonTarget | SeatTarget; label: string; className?: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
