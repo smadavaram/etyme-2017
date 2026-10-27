@@ -689,8 +689,9 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
               <div>
                 <p className="eyebrow mb-1">Rate range</p>
                 <p className="text-sm tabular-nums">
-                  ${consultant.rateMin}/hr
-                  {consultant.rateMax != null && ` – $${consultant.rateMax}/hr`}
+                  {/* Minor units, through the one formatter: "$5000/hr" was cents printed as dollars. */}
+                  {compact(consultant.rateMin)}/hr
+                  {consultant.rateMax != null && ` – ${compact(consultant.rateMax)}/hr`}
                 </p>
               </div>
             )}
