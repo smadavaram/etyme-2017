@@ -1461,7 +1461,9 @@ sub-vendor's agreement and sales order on screen, the Buy tab;
 conversation: the invited colleague lands in, every first greeting's
 next act, the rescue link where no email can be sent; market: the
 footer's Clients). Then the checklist with its fill sources, **drawn
-first** (https://claude.ai/artifact/… to be published under this line)
+first** (https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq: the ten
+items with their state, and Your company, Addresses and Papers you
+require open, every answer carrying where it came from)
 and built on "build it": the schema for the profile, the addresses and
 the company-level paper sets (architect), the screens, the reminder on
 every page until the list is empty, and the refusals that name the
