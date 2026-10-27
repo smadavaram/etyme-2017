@@ -218,3 +218,49 @@ export function filledSays(
 export function stillOpen(r: { status: string; archivedAt?: string | null }): boolean {
   return (r.status === 'OPEN' || r.status === 'DRAFT') && !r.archivedAt
 }
+
+// ── A new client's first job (release walk, 2026-10-27) ───────────────
+
+/**
+ * Who is interviewing, before anybody has typed a name: the hiring
+ * manager the job is for. A new client's manager raising her first job
+ * was asked to type her own name into an empty box; she is the room's
+ * first name in nearly every case, and the chips let her drop it.
+ */
+export function defaultPanel(hiringManager: string | null | undefined): string[] {
+  const n = (hiringManager ?? '').trim()
+  return n ? [n] : []
+}
+
+/**
+ * The budget field, as a new client reads it.
+ *
+ * With no budget set up there is nothing to pick, and the old hint
+ * ("without one it goes for approval") was false: the job cleared with
+ * a note, because nobody was named to ask. So the field is not drawn
+ * and the line says what is true.
+ */
+export function budgetField(costCentersOffered: boolean): { show: boolean; says: string } {
+  return costCentersOffered
+    ? { show: true, says: 'Without one, nobody owns the spend and it goes for approval.' }
+    : { show: false, says: 'No budget is set up here yet, so this job needs none. Once one is set up, you pick it here.' }
+}
+
+/**
+ * The next step on a published job that nobody can be sent: the client
+ * has no approved supplier. "0 suppliers asked" with nothing beside it
+ * left a new client looking at a number with no door.
+ *
+ * Null where the job is not open, where the register could not be read
+ * (a refused read is not "none"), or where there is somebody to send it
+ * to. A supplier on the register that the client blocked is not one.
+ */
+export function nobodyToSendTo(input: {
+  open: boolean
+  /** The client's register, or null where it was not read. */
+  suppliers: readonly { blocked?: boolean }[] | null
+}): { says: string; href: string; link: string } | null {
+  if (!input.open || input.suppliers === null) return null
+  if (input.suppliers.some((s) => !s.blocked)) return null
+  return { says: 'Nobody to send it to yet.', href: '/dashboard/suppliers', link: 'Recommend a supplier.' }
+}

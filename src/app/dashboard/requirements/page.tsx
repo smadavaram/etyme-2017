@@ -8,7 +8,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { range as showRange } from '@/lib/money-display'
-import { statusWord, statusWordLower, stageWordFor, stageReason, ARCHIVED_WORD } from './words'
+import { statusWord, statusWordLower, stageWordFor, stageReason, ARCHIVED_WORD, ownJobsAddress, readsMarginClass } from './words'
 import { stageOf } from '@/lib/requisition-stage'
 
 /**
@@ -370,6 +370,13 @@ export default function RequirementsPage() {
     sidebarPropsFrom(session)
   )
 
+  // A client's own jobs are its job requests: the supplier's form, with
+  // its margin class, is never drawn for one (release walk, 2026-10-27).
+  const elsewhere = ownJobsAddress(company?.kind)
+  useEffect(() => {
+    if (elsewhere) router.replace(elsewhere as any)
+  }, [elsewhere, router])
+
   // Open the new modal when navigated with ?new=1
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -589,6 +596,8 @@ export default function RequirementsPage() {
     { key: 'OPEN', label: statusWord('OPEN') },
     { key: 'ARCHIVED', label: ARCHIVED_WORD },
   ]
+
+  if (elsewhere) return <LoadingState says="Opening your jobs…" />
 
   if (refused) {
     return <RefusedState says={refused} />

@@ -630,3 +630,137 @@ describe('every certificate in the seeded world is one a desk could have written
     expect(refused, refused.join('\n')).toEqual([])
   }, 120_000)
 })
+
+/**
+ * The release walk of 2026-10-27, on a client with one person.
+ *
+ * Brackenridge Tools signed up with one Owner, Ruth, who recommended
+ * Quarrybrook Staffing and was told to "invite a second person". She
+ * invited a Procurement Lead, and he was told the same. A desk nobody
+ * named falls back and never refuses; the recommender never decides.
+ */
+describe('a client with one person, and a firm applying to its second client', () => {
+  const RUTH = 'ruth@brackenridge-tools.example'
+  const IAN = 'ian@brackenridge-tools.example'
+  const AMARA = 'amara@brackenridge-tools.example'
+  const HARBOR_OPS = 'ops@harborstaffing.com'
+  const b: Record<string, any> = {}
+  const seat = async (email: string, name: string, companyId: string, role: string) => {
+    const person = await prisma.person.upsert({ where: { primaryEmail: email }, update: {}, create: { primaryEmail: email, name } })
+    const r = await prisma.role.findFirstOrThrow({ where: { companyId, name: role } })
+    await prisma.context.create({ data: { personId: person.id, companyId, roleId: r.id, type: 'EMPLOYEE' } })
+    return person
+  }
+  const quarry = async () => (await json(await listRequests(req('GET', '/api/supplier-requests')))).body.data.requests.find((x: any) => x.name === 'Quarrybrook Staffing')
+
+  beforeAll(async () => {
+    const { createCompany } = await import('@/lib/company-create')
+    const ruth = await prisma.person.upsert({ where: { primaryEmail: RUTH }, update: {}, create: { primaryEmail: RUTH, name: 'Ruth Okonjo' } })
+    const made = await createCompany({
+      name: 'Brackenridge Tools', kind: 'CLIENT', slug: 'brackenridge-tools-walk', domain: null,
+      byPersonId: ruth.id, seatAsOwner: true, claimDomain: false, startsSetup: true,
+    })
+    b.companyId = made.company.id
+  })
+
+  it('a client with one person is told which role to invite to approve a supplier, and that person can decide the moment they are seated', async () => {
+    as(RUTH)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Quarrybrook Staffing', contactEmail: 'ops@quarrybrook.example', contactName: 'Theo Marsh',
+      skills: 'Machinists, CNC operators', reason: 'They staffed our Dayton line before.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    b.requestId = r.body.data.request.id
+    const alone = await quarry()
+    expect(alone.mayAct).toBe(false)
+    expect(alone.whyNot).toContain('Invite somebody as Program Manager or Approver')
+    expect(alone.whyNot).toContain('The person who recommended a firm cannot approve it')
+    expect(alone.whyNot).not.toContain('a second person')
+
+    // A Procurement Lead invited first is told whom to invite, not "a second person".
+    await seat(IAN, 'Ian Doyle', b.companyId, 'Procurement Lead')
+    as(IAN)
+    const ian = await quarry()
+    expect(ian.mayAct).toBe(false)
+    expect(ian.whyNot).toContain('Invite somebody as Program Manager or Approver')
+
+    // The Approver she invites decides on arrival: on his queue, and his yes moves it on.
+    await seat(AMARA, 'Amara Bello', b.companyId, 'Approver')
+    as(AMARA)
+    const amara = await quarry()
+    expect(amara.mayAct, amara.whyNot).toBe(true)
+    const queue = await json(await decisions(req('GET', '/api/decisions')))
+    expect(queue.body.data.decisions.some((d: any) => d.type === 'SUPPLIER_REVIEW' && d.entityId === b.requestId)).toBe(true)
+    const yes = await call(review, 'PATCH', `/api/supplier-requests/${b.requestId}`, b.requestId, { action: 'approve', note: 'We need a second machining supplier.' })
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    expect(yes.body.data.request.stage).toBe('PROCUREMENT')
+  })
+
+  it('the chip and the heading on a pending supplier name the same role', async () => {
+    as(RUTH)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Lathe & Line Staffing', contactEmail: 'hello@latheline.example', skills: 'Toolmakers', reason: 'A second bid for the tool room.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const list = (await json(await listRequests(req('GET', '/api/supplier-requests')))).body.data.requests
+    const row = list.find((x: any) => x.name === 'Lathe & Line Staffing')
+    const now = row.steps.find((s: any) => s.status === 'now')
+    expect(row.stageWord).toBe('Program manager')
+    expect(now.word).toBe(row.stageWord)
+  })
+
+  it('a supplier applying to a second client finds its papers and references filled from the first, and re-sends them in one click', async () => {
+    // Harbor Staffing applied to Northbend Athletic above and was approved.
+    const northbend = await prisma.supplierRequest.findFirstOrThrow({ where: { name: 'Harbor Staffing', contactEmail: HARBOR_OPS, supplierCompanyId: { not: null } } })
+    // Lena takes Harbor's account, as the claim link does: the roles of its kind, and her seat.
+    const { ensureDefaultRoles } = await import('@/lib/company-roles')
+    await ensureDefaultRoles(northbend.supplierCompanyId!, 'VENDOR')
+    await seat(HARBOR_OPS, 'Lena Ortiz', northbend.supplierCompanyId!, 'Owner')
+    as(RUTH)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Harbor Staffing', contactEmail: HARBOR_OPS, contactName: 'Lena Ortiz', skills: 'Planners', reason: 'Northbend speaks well of them.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const second = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: r.body.data.request.id } })
+
+    // The client's own desk opening the link sees nothing sent to another client.
+    const asClient = await viaToken(applyGet, 'GET', second.token)
+    expect(asClient.body.data.prefill.signedInAtFirm).toBe(false)
+    expect(asClient.body.data.prefill.sentBefore).toEqual([])
+    expect(asClient.body.data.prefill.references).toEqual([])
+    expect(asClient.body.data.prefill.skills).toBe('Planners')
+    const refused = await viaToken(applyPost, 'POST', second.token, { reuse: [{ requestId: northbend.id, key: 'TAX_FORM' }] })
+    expect(refused.status).toBe(403)
+
+    // Harbor, signed in, finds its papers and references from Northbend.
+    as(HARBOR_OPS)
+    const page = await viaToken(applyGet, 'GET', second.token)
+    const p = page.body.data.prefill
+    expect(p.signedInAtFirm).toBe(true)
+    expect(p.legalName).toBe('Harbor Staffing')
+    expect(p.sentBefore.map((s: any) => s.key).sort()).toEqual(['GOOD_STANDING', 'INSURANCE', 'TAX_FORM'])
+    expect(p.sentBefore.every((s: any) => s.says.startsWith('Sent before to Northbend Athletic on '))).toBe(true)
+    expect(p.references.map((x: any) => x.name)).toEqual(['A', 'B'])
+    expect(p.bank.last4).toBe('9921')
+
+    // One click: every paper sent again, the bytes copied onto Brackenridge's own paper.
+    const sent = await viaToken(applyPost, 'POST', second.token, {
+      reuse: p.sentBefore.map((s: any) => ({ requestId: s.requestId, key: s.key })),
+      references: p.references,
+    })
+    expect(sent.status, JSON.stringify(sent.body)).toBe(201)
+    const after = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: second.id } })
+    const w9 = (after.checklist as any[]).find((i) => i.key === 'TAX_FORM')
+    expect(w9.state).toBe('PROVIDED')
+    expect(w9.fileName).toBe('Harbor-W9.pdf')
+    const kept = await prisma.docFile.findUniqueOrThrow({ where: { docInstanceId: w9.fileUrl.split('/')[3] }, include: { docInstance: { include: { template: true } } } })
+    expect(kept.bytes.toString()).toContain('Harbor Staffing W-9')
+    expect(kept.docInstance.template.companyId).toBe(b.companyId)
+    expect((after.checklist as any[]).find((i) => i.key === 'REFERENCES').state).toBe('PROVIDED')
+
+    // A paper from an application this firm did not make is refused.
+    const other = await prisma.supplierRequest.findFirstOrThrow({ where: { name: 'Veritan Talent' } })
+    const stranger = await viaToken(applyPost, 'POST', second.token, { reuse: [{ requestId: other.id, key: 'INSURANCE' }] })
+    expect(stranger.status).toBe(422)
+  })
+})

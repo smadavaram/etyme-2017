@@ -3,11 +3,11 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
-import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import { hasPermission } from '@/lib/permissions'
 import {
-  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, STAGE_WORD,
+  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, stageWordOf,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
@@ -70,12 +70,13 @@ export async function GET(request: NextRequest) {
           stage, permissions: caller.permissions, callerId: caller.person.id,
           recommendedById: r.recommendedById, decisions, desks, firmName: r.name,
           deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
+          inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
           companyName: caller.company!.name,
         })
         const application = (r.application ?? null) as Record<string, unknown> | null
         return {
           id: r.id, name: r.name, domain: r.domain, contactName: r.contactName, contactEmail: r.contactEmail,
-          reason: r.reason, skills: r.skills, state, stage, stageWord: stage === 'DONE' ? STATE_WORD_OF(state) : STAGE_WORD[stage],
+          reason: r.reason, skills: r.skills, state, stage, stageWord: stage === 'DONE' ? STATE_WORD_OF(state) : stageWordOf(stage, desks.leadId != null),
           checklist, decisions, steps: stepsOf(stage, state, decisions, desks.leadId != null),
           leadNamed: desks.leadId != null,
           recommendedBy: nameOf.get(r.recommendedById) ?? 'somebody',

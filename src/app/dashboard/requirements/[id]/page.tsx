@@ -5,7 +5,7 @@ import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
-import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord } from '../words'
+import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord, readsMarginClass } from '../words'
 import { useSession } from '@/components/session-provider'
 import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
@@ -345,7 +345,7 @@ export default function RequirementDetailPage() {
             <DetailField label="Start" value={new Date(requirement.startDate).toLocaleDateString()} />
           )}
           <DetailField label="How it came in" value={sourceWord(requirement.source)} />
-          {requirement.marginClass && (
+          {requirement.marginClass && readsMarginClass(company?.kind) && (
             <DetailField label="Margin" value={requirement.marginClass === 'EXPERTISE' ? 'Expertise' : 'Arbitrage'} />
           )}
         </div>

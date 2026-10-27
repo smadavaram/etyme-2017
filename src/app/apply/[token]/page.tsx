@@ -35,7 +35,33 @@ interface Apply {
   claim: { says: string; url: string } | null
   asks: Ask[]
   application: Record<string, any> | null
+  /** What the form opens with (`applyPrefill` in lib/supplier-link). */
+  prefill: {
+    legalName: string; address: string; website: string; skills: string
+    bank: { bankName: string; accountName: string; last4: string } | null
+    references: { name: string; company: string; email: string; phone: string }[]
+    sentBefore: { key: string; fileName: string; requestId: string; clientName: string; at: string; says: string }[]
+    referencesSays: string | null
+    signedInAtFirm: boolean
+  } | null
 }
+
+/**
+ * A field with its label above it, always: a placeholder is gone the
+ * moment somebody types, and a filled form of twenty-five boxes with no
+ * words beside them cannot be checked (release walk, 2026-10-27).
+ */
+function Labelled({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1 block text-[11px] font-medium text-etyme-muted">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+const BOX = 'w-full rounded border border-etyme-rule px-3 py-2 text-[13px]'
+const EMPTY_REF = { name: '', company: '', email: '', phone: '' }
 
 /**
  * The three things a firm answers with something other than a file.
@@ -72,16 +98,43 @@ export default function ApplyPage() {
     try {
       const body = await readJson(await fetch(`/api/supplier-apply/${token}`))
       setData(body.data)
-      const a = body.data.application
-      if (a) {
-        setForm((f) => ({ ...f, legalName: a.legalName ?? '', address: a.address ?? '', duns: a.duns ?? '', website: a.website ?? '', experience: a.experience ?? '', skills: (a.skills ?? []).join(', '), bankName: a.bank?.bankName ?? '', accountName: a.bank?.accountName ?? '', last4: a.bank?.last4 ?? '' }))
-        if (Array.isArray(a.references) && a.references.length) setRefs([...a.references, { name: '', company: '', email: '', phone: '' }].slice(0, Math.max(2, a.references.length)))
+      const a = body.data.application ?? {}
+      const p = body.data.prefill
+      if (p) {
+        setForm((f) => ({
+          ...f,
+          legalName: p.legalName, address: p.address, website: p.website, skills: p.skills,
+          duns: a.duns ?? '', experience: a.experience ?? '',
+          bankName: p.bank?.bankName ?? '', accountName: p.bank?.accountName ?? '', last4: p.bank?.last4 ?? '',
+        }))
+        if (p.references.length) setRefs([...p.references, EMPTY_REF].slice(0, Math.max(2, p.references.length)))
       }
     } catch (err: any) {
       setError(err.message)
     }
   }, [token])
   useEffect(() => { load() }, [load])
+
+  /** The papers sent to another client, sent again here in one click. */
+  async function sendAgain() {
+    if (!data?.prefill?.sentBefore.length) return
+    setBusy(true); setSaid(null); setError(null)
+    try {
+      const body = await readJson(await fetch(`/api/supplier-apply/${token}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          reuse: data.prefill.sentBefore.map((b) => ({ requestId: b.requestId, key: b.key })),
+          references: refs.filter((r) => r.name || r.company),
+        }),
+      }))
+      setSaid(body.data.says)
+      load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function send() {
     setBusy(true); setSaid(null); setError(null)
@@ -161,15 +214,34 @@ export default function ApplyPage() {
 
                 <section className="panel space-y-3">
                   <p className="stat-label">Your firm</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} placeholder="Legal name" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="Website" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Registered address" className="rounded border border-etyme-rule px-3 py-2 text-[13px] sm:col-span-2" />
-                    <input value={form.duns} onChange={(e) => setForm({ ...form, duns: e.target.value })} placeholder="D-U-N-S number (if you have one)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} placeholder="What you supply — jobs, skills" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Labelled label="Legal name"><input value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="Website"><input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="Registered address" className="sm:col-span-2"><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="D-U-N-S number, if you have one"><input value={form.duns} onChange={(e) => setForm({ ...form, duns: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="What you supply — jobs, skills"><input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} className={BOX} /></Labelled>
                   </div>
-                  <textarea value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} rows={4} placeholder="Past experience and delivery — who you have placed, where, how long they stayed" className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                  <Labelled label="Past experience and delivery — who you placed, where, how long they stayed">
+                    <textarea value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} rows={4} className={BOX} />
+                  </Labelled>
                 </section>
+
+                {data.prefill && data.prefill.sentBefore.length > 0 && (
+                  <section className="panel space-y-3">
+                    <p className="stat-label">Sent before</p>
+                    <ul className="divide-y divide-etyme-rule">
+                      {data.prefill.sentBefore.map((b) => (
+                        <li key={b.key} className="py-2 text-[13px]">
+                          {data.asks.find((a) => a.key === b.key)?.label ?? b.key} — {b.fileName}
+                          <span className="block text-[11px] text-etyme-faint">{b.says}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button onClick={sendAgain} disabled={busy} className="rounded-lg border border-etyme-action px-4 py-2 text-[13px] font-semibold text-etyme-action disabled:opacity-40">
+                      {busy ? 'Sending…' : `Send these to ${data.client}`}
+                    </button>
+                  </section>
+                )}
 
                 <section className="panel space-y-3">
                   <p className="stat-label">Documents</p>
@@ -215,23 +287,25 @@ export default function ApplyPage() {
 
                 <section className="panel space-y-3">
                   <p className="stat-label">Bank details for payment</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="Bank" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} placeholder="Account name" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.last4} onChange={(e) => setForm({ ...form, last4: e.target.value })} placeholder="Last four digits" inputMode="numeric" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Labelled label="Bank"><input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="Account name"><input value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} className={BOX} /></Labelled>
+                    <Labelled label="Last four digits"><input value={form.last4} onChange={(e) => setForm({ ...form, last4: e.target.value })} inputMode="numeric" className={BOX} /></Labelled>
                   </div>
                   <p className="text-[12px] text-etyme-faint">Only the bank, the account name and the last four digits are kept here. Full details go on the payment form {data.client} sends once you are approved.</p>
                 </section>
 
                 <section className="panel space-y-3">
                   <p className="stat-label">Two references</p>
+                  {data.prefill?.referencesSays && <p className="text-[11px] text-etyme-faint">{data.prefill.referencesSays}</p>}
                   {refs.map((r, i) => (
-                    <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                      <input value={r.name} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder="Name" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                      <input value={r.company} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, company: e.target.value } : x)))} placeholder="Company" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                      <input value={r.email} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} placeholder="Email" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                      <input value={r.phone} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)))} placeholder="Phone" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    </div>
+                    <fieldset key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                      <legend className="mb-1 text-[11px] text-etyme-faint">Reference {i + 1}</legend>
+                      <Labelled label="Name"><input value={r.name} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className={BOX} /></Labelled>
+                      <Labelled label="Company"><input value={r.company} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, company: e.target.value } : x)))} className={BOX} /></Labelled>
+                      <Labelled label="Email"><input value={r.email} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className={BOX} /></Labelled>
+                      <Labelled label="Phone"><input value={r.phone} onChange={(e) => setRefs(refs.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)))} className={BOX} /></Labelled>
+                    </fieldset>
                   ))}
                 </section>
 

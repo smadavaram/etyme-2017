@@ -184,3 +184,24 @@ export function sourceWord(source: string | null | undefined): string {
     default: return 'Came in another way'
   }
 }
+
+// ── A client on the supplier's address (release walk, 2026-10-27) ─────
+
+/**
+ * Where a reader of this kind of company finds its own jobs, when it is
+ * not here. A client typing the supplier's address was shown the
+ * supplier's job form, margin class and all; its own Jobs are the job
+ * requests it raised. Null for everybody this page is for.
+ */
+export function ownJobsAddress(kind: string | null | undefined): string | null {
+  return kind === 'CLIENT' ? '/dashboard/requisitions' : null
+}
+
+/**
+ * Whether this reader is ever shown a margin class. It is how a supplier
+ * earns its margin (Addendum D: arbitrage or expertise), the supplier's
+ * own book; a client never reads it, on any job, under any address.
+ */
+export function readsMarginClass(kind: string | null | undefined): boolean {
+  return kind !== 'CLIENT'
+}

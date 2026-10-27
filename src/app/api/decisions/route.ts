@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
-import { hasAnyPermission } from '@/lib/permissions'
+import { hasAnyPermission, hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, payerRung, viaPhrase } from '@/lib/chain-top'
@@ -11,8 +11,8 @@ import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { weekTurns } from '@/app/api/timesheets/ladder'
 import type { LadderRung } from '@/app/api/timesheets/chain-turn'
 import { clientDecidedFor, clientDecidedSentence } from '@/app/api/timesheets/client-decided'
-import { desksForMany } from '@/lib/supplier-desks'
-import { mayActAt, STAGE_WORD, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { desksForMany, deskPeople } from '@/lib/supplier-desks'
+import { mayActAt, stageWordOf, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { seatFor } from '@/lib/program-seat'
@@ -553,10 +553,17 @@ export async function GET(request: NextRequest) {
         desksForMany(companyId, waiting.map((w) => w.recommendedById)),
       ])
       const nameOf = new Map(names.map((n) => [n.id, n.name]))
+      const holdersBy = new Map<string, string[]>()
       for (const w of waiting) {
         const stage = w.stage as Stage
         const desks = desksBy.get(w.recommendedById)!
-        const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: w.recommendedById, decisions: (w.decisions as unknown as Decision[]) ?? [], desks, firmName: w.name })
+        // An Approver or HR Partner stands in at an unnamed lead or HR
+        // step without holding governance.write, so the queue asks who
+        // sits there — once per step and named holder, never per firm.
+        const standIn = (stage === 'LEAD' || stage === 'HR') && !hasPermission(caller.permissions, 'governance.write')
+        const holderKey = `${stage}:${desks.leadId}:${desks.hrId}`
+        if (standIn && !holdersBy.has(holderKey)) holdersBy.set(holderKey, await deskPeople(companyId, stage as 'LEAD' | 'HR', desks))
+        const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: w.recommendedById, decisions: (w.decisions as unknown as Decision[]) ?? [], desks, firmName: w.name, deskHolders: standIn ? holdersBy.get(holderKey) : undefined })
         if (!verdict.ok) continue
         const items = ((w.checklist as any[]) ?? []).filter((i) => i.desk === stage)
         const required = items.filter((i) => i.required)
@@ -568,8 +575,8 @@ export async function GET(request: NextRequest) {
           title: `Review supplier — ${w.name}`,
           named: { whose: w.name, what: 'supplier review', whats: 'supplier reviews' },
           subtitle: required.length > 0
-            ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]}: ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
-            : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · with ${STAGE_WORD[stage]}: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
+            ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${stageWordOf(stage, desks.leadId != null)}: ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
+            : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · with ${stageWordOf(stage, desks.leadId != null)}: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
           urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
           entityType: 'SUPPLIER_REQUEST',
           entityId: w.id,

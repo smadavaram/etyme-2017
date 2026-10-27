@@ -18,7 +18,7 @@ import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
-import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen } from '../facts'
+import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
 import { Lbl, Chip, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 import { DetailHead } from '@/components/ui/detail-head'
@@ -453,6 +453,8 @@ export default function RequisitionDetail() {
   /** The desks for this unit, for placing rows and for naming people. */
   const [team, setTeam] = useState<any | null>(null)
   const [suppliers, setSuppliers] = useState<{ companyId: string; name: string; blocked?: boolean }[]>([])
+  // Whether the register was read at all: a refused read is not "none".
+  const [suppliersRead, setSuppliersRead] = useState(false)
   const [deciding, setDeciding] = useState<'approve' | 'reject' | 'changes' | null>(null)
 
   const load = useCallback(async () => {
@@ -478,9 +480,11 @@ export default function RequisitionDetail() {
       .then(j => { if (j?.data?.company) setTeam(j.data) })
       .catch(() => {})
     fetch('/api/suppliers').then(r => r.json())
-      .then(j => setSuppliers(
-        (j?.data?.suppliers ?? []).map((s: any) => ({ companyId: s.companyId, name: s.name, blocked: !!s.blocked }))
-      ))
+      .then(j => {
+        if (!Array.isArray(j?.data?.suppliers)) return
+        setSuppliers(j.data.suppliers.map((s: any) => ({ companyId: s.companyId, name: s.name, blocked: !!s.blocked })))
+        setSuppliersRead(true)
+      })
       .catch(() => {})
   }, [])
 
@@ -551,6 +555,7 @@ export default function RequisitionDetail() {
   const clearedFor = clearedForSentence(r.clearedSupplierIds, supplierNames)
   const filled = filledSays(r, data.candidates)
   const jobOpen = stillOpen(r)
+  const nobody = nobodyToSendTo({ open: jobOpen && r.status === 'OPEN', suppliers: suppliersRead ? suppliers : null })
 
   return (
     <div className="max-w-3xl">
@@ -654,6 +659,15 @@ export default function RequisitionDetail() {
         )}
         <div><Lbl>Candidates</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.candidates}</div></div>
       </div>
+
+      {/* A client with no approved supplier yet: the number is 0 and the
+          next step is to recommend one (release walk, 2026-10-27). */}
+      {nobody && (
+        <p className="-mt-4 mb-8 text-sm text-etyme-muted">
+          {nobody.says}{' '}
+          <Link href={nobody.href as any} className="text-etyme-action hover:underline">{nobody.link}</Link>
+        </p>
+      )}
 
       {/* 1 — Approval, read by desk */}
       <ListSection title="Approval">

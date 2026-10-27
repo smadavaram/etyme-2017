@@ -11,7 +11,7 @@ import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
-import { missingForApproval, missingSays } from './facts'
+import { missingForApproval, missingSays, budgetField, defaultPanel } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
   headlineRow, myRow, whoFor, whoWillBeAsked,
@@ -230,7 +230,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
   /** Who is interviewing. Names, on the requirement, from the start. */
-  const [panel, setPanel] = useState<string[]>([])
+  const [typedPanel, setPanel] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -242,6 +242,12 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     .filter((p: any) => p?.id)
   const ownerId = form.ownerId || me?.id || ''
   const asked = whoWillBeAsked(form.costCenterId, team)
+  const budget = budgetField(costCenters.length > 0)
+  // The panel opens with the hiring manager the job is for, and follows
+  // a change of whose job it is until somebody edits the panel by hand.
+  const ownerName = ownerId === me?.id ? me?.name : people.find(p => p.id === ownerId)?.name
+  const [panelEdited, setPanelEdited] = useState(false)
+  const panel = panelEdited ? typedPanel : defaultPanel(ownerName)
 
   useEffect(() => {
     // The budgets themselves. This asked /api/program/org, which returns
@@ -390,19 +396,23 @@ function RaiseModal({ onClose, onRaised, team, me }: {
             </p>
           </label>
 
-          <label className="block">
-            <Lbl>Which budget pays for it</Lbl>
-            <select value={form.costCenterId} onChange={e => setForm({ ...form, costCenterId: e.target.value })}
-              className={`${field} mt-1`}>
-              <option value="">— not stated —</option>
-              {costCenters.map(c => (
-                <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
-              ))}
-            </select>
-            <p className="text-xs text-etyme-muted mt-1">
-              Without one, nobody owns the spend and it goes for approval.
-            </p>
-          </label>
+          {/* A new client has no budget yet: the field is not drawn and
+              the line says the job needs none (release walk, 2026-10-27). */}
+          {budget.show ? (
+            <label className="block">
+              <Lbl>Which budget pays for it</Lbl>
+              <select value={form.costCenterId} onChange={e => setForm({ ...form, costCenterId: e.target.value })}
+                className={`${field} mt-1`}>
+                <option value="">— not stated —</option>
+                {costCenters.map(c => (
+                  <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-etyme-muted mt-1">{budget.says}</p>
+            </label>
+          ) : (
+            <p className="text-xs text-etyme-muted">{budget.says}</p>
+          )}
 
           {/* Whose need it is, which is not always who is typing.
               A program coordinator raising four roles for four managers
@@ -463,7 +473,9 @@ function RaiseModal({ onClose, onRaised, team, me }: {
                   <span className="text-etyme-ink">The money — the lead.</span>{' '}
                   {asked.lead
                     ? `${asked.lead.name}, who owns this budget — if it is over budget.`
-                    : (asked.leadNote ?? 'Pick the budget and this says who would be asked.')}
+                    : !budget.show && asked.money.length === 0
+                      ? 'No budget is set up yet, so nobody is asked about the money.'
+                      : (asked.leadNote ?? 'Pick the budget and this says who would be asked.')}
                 </li>
                 {asked.money.map(m => (
                   <li key={m.id} className="text-[13px] text-etyme-muted">
@@ -512,7 +524,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           {/* The room, before there is anybody to put in it. The manager
               knows who will interview long before a CV arrives, and every
               round then starts with those names instead of retyping them. */}
-          <PanelField names={panel} onChange={setPanel} />
+          <PanelField names={panel} onChange={(names) => { setPanelEdited(true); setPanel(names) }} />
         </div>
 
         {error && <div className="mt-4 text-sm text-etyme-attention">{error}</div>}

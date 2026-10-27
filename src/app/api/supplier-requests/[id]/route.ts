@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
-import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
 import {
@@ -122,6 +122,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
     deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
+    inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
     companyName: desk!.companyName,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })

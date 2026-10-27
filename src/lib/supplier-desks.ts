@@ -98,14 +98,72 @@ export async function deskPeople(
   const free = (id: string | null): boolean => id !== null && !barred.includes(id)
   if (stage === 'LEAD' && free(desks.leadId)) return [desks.leadId!]
   if (stage === 'HR' && free(desks.hrId)) return [desks.hrId!]
-  const permission = stage === 'PROCUREMENT' ? 'vendors.manage' : stage === 'FINANCE' ? 'payments.record' : 'governance.write'
+  const permission = STAND_IN_PERMISSION[stage]
+  const named = STAND_IN_ROLE[stage]
   const rows = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, role: { permissions: { hasSome: [permission, '*'] } }, ...NOT_THE_SAMPLE_SEAT },
+    where: {
+      companyId, revokedAt: null,
+      OR: [
+        { role: { permissions: { hasSome: [permission, '*'] } }, ...NOT_THE_SAMPLE_SEAT },
+        ...(named.length ? [{ role: { name: { in: [...named] } }, ...NOT_THE_SAMPLE_SEAT }] : []),
+      ],
+    },
     select: { personId: true },
   })
   const ids = new Set(rows.map((r) => r.personId))
   if (stage === 'PROCUREMENT' && free(desks.procurementId)) ids.add(desks.procurementId!)
   return [...ids]
+}
+
+// ── Who stands in, and whom to invite ─────────────────────────────────
+
+type Step = 'LEAD' | 'PROCUREMENT' | 'HR' | 'FINANCE'
+
+/** The permission that lets a seat stand in at a step nobody is named to. */
+export const STAND_IN_PERMISSION: Record<Step, string> = {
+  LEAD: 'governance.write',
+  PROCUREMENT: 'vendors.manage',
+  HR: 'governance.write',
+  FINANCE: 'payments.record',
+}
+
+/**
+ * A role named for the step stands in too, with no rule naming the
+ * person. A client's Approver "sits in the approval chain" and an HR
+ * Partner "reads the role"; a firm of one that invites either was
+ * still refused, because neither holds `governance.write` and nobody
+ * had written an approval rule in the first week (release walk,
+ * 2026-10-27). CLAUDE.md, 2026-09-13: a desk nobody has named falls
+ * back; it never refuses.
+ */
+export const STAND_IN_ROLE: Record<Step, readonly string[]> = {
+  LEAD: ['Approver'],
+  PROCUREMENT: [],
+  HR: ['HR Partner'],
+  FINANCE: [],
+}
+
+/**
+ * The roles at this firm a newcomer could be given to decide this step,
+ * in the firm's own names: those holding the stand-in permission (never
+ * the everything role, which is the Owner's) and the role named for the
+ * step. Read from the firm's roles, so a renamed role is said as renamed
+ * and a role the firm does not have is never suggested.
+ */
+export async function inviteRolesFor(companyId: string, stage: Step): Promise<string[]> {
+  const roles = await prisma.role.findMany({ where: { companyId }, select: { name: true, permissions: true } })
+  return inviteRolesFrom(roles, stage)
+}
+
+/** `inviteRolesFor` over roles already read. Pure. */
+export function inviteRolesFrom(roles: readonly { name: string; permissions: readonly string[] }[], stage: Step): string[] {
+  const permission = STAND_IN_PERMISSION[stage]
+  // The Owner holds everything (spelled out, or as '*'), and a firm has
+  // one: it is never the role somebody is invited to.
+  const invitable = roles.filter((r) => r.name !== 'Owner' && !r.permissions.includes('*'))
+  const byPermission = invitable.filter((r) => r.permissions.includes(permission)).map((r) => r.name)
+  const byName = invitable.filter((r) => STAND_IN_ROLE[stage].includes(r.name)).map((r) => r.name)
+  return [...new Set([...byPermission, ...byName])]
 }
 
 // ── What this client's own orders ask of a supplier ───────────────────

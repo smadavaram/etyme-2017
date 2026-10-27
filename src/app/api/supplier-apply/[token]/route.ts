@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
-import { approvedSays, claimUrl, sentSays } from '@/lib/supplier-link'
+import { applyPrefill, approvedSays, claimUrl, sentSays, type EarlierApplication } from '@/lib/supplier-link'
+import { earlierApplications, firmOnRecord, paperIdOf, sessionEmail, signedInAt } from './firm'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 
@@ -56,8 +57,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       claim = { says: approvedSays({ clientName: row.company.name, firmName: invite.company.name }), url: claimUrl(invite.token) }
     }
   }
+  // What the form opens with: the firm's own answers on this link, its
+  // record, the skills the client typed; and, for a person signed in at
+  // the firm, what it sent other clients (lib/supplier-link says why only
+  // them). Nothing here is read once the client has decided.
+  const decided = row.state === 'APPROVED' || row.state === 'DECLINED'
+  const prefill = decided ? null : await prefillFor(row, checklist)
   return NextResponse.json({
     data: {
+      prefill,
       client: row.company.name,
       firm: row.name,
       contactName: row.contactName,
@@ -72,6 +80,35 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       application: app,
     },
   })
+}
+
+const NOT_A_FILE = new Set(['BANK', 'EXPERIENCE', 'REFERENCES'])
+
+type Found = NonNullable<Awaited<ReturnType<typeof find>>>
+
+/** The firm on this link, whether the visitor sits at it, and what it sent before. */
+async function whoApplies(row: Found): Promise<{ firm: Awaited<ReturnType<typeof firmOnRecord>>; atFirm: boolean; earlier: EarlierApplication[] }> {
+  const email = await sessionEmail()
+  const firm = await firmOnRecord(row, email)
+  const atFirm = await signedInAt(firm?.id ?? null, email)
+  const earlier = firm && atFirm ? await earlierApplications(row, firm.id, email) : []
+  return { firm, atFirm, earlier }
+}
+
+async function prefillFor(row: Found, checklist: ChecklistItem[]) {
+  const { firm, atFirm, earlier } = await whoApplies(row)
+  return {
+    ...applyPrefill({
+      application: (row.application ?? null) as Record<string, any> | null,
+      recommendedSkills: row.skills,
+      firm: firm?.record ?? null,
+      earlier,
+      signedInAtFirm: atFirm,
+      // Only an item still waiting for a file is offered a paper sent before.
+      fileKeys: vendorItems(checklist).filter((i) => !NOT_A_FILE.has(i.key) && i.state === 'MISSING').map((i) => i.key),
+    }),
+    signedInAtFirm: atFirm,
+  }
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -119,6 +156,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ? { bankName: String(body.bank.bankName ?? '').trim(), accountName: String(body.bank.accountName ?? '').trim(), last4: String(body.bank.last4 ?? '').replace(/\D/g, '').slice(-4) }
     : null
   const skills: string[] = typeof body?.skills === 'string' ? body.skills.split(/[,;]/).map((x: string) => x.trim()).filter(Boolean) : Array.isArray(body?.skills) ? body.skills : []
+
+  // Papers this firm sent another client, sent again in one click. Only
+  // for a person signed in at the firm, only from an application that
+  // firm made, and the bytes are copied from the paper kept then — the
+  // page never holds them. A reuse naming anything else is refused.
+  const reuse: { requestId: string; key: string }[] = Array.isArray(body?.reuse)
+    ? body.reuse.filter((r: any) => typeof r?.requestId === 'string' && typeof r?.key === 'string').map((r: any) => ({ requestId: r.requestId, key: r.key }))
+    : []
+  if (reuse.length) {
+    const { atFirm, earlier } = await whoApplies(row)
+    if (!atFirm) {
+      return NextResponse.json({ error: { code: 'SIGN_IN', message: `Sign in as ${row.name} to send papers you sent another client. Or pick the files again.` } }, { status: 403 })
+    }
+    for (const r of reuse) {
+      const from = earlier.find((e) => e.requestId === r.requestId)?.docs.find((d) => d.key === r.key && d.fileUrl)
+      const paperId = paperIdOf(from?.fileUrl)
+      // The paper must be the one kept for that request's item, nothing else.
+      const kept = paperId
+        ? await prisma.docFile.findFirst({
+            where: { docInstanceId: paperId, docInstance: { subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId: `${r.requestId}:${r.key}` } },
+            select: { fileName: true, contentType: true, bytes: true },
+          })
+        : null
+      if (!from || !kept) {
+        return NextResponse.json({ error: { code: 'NOT_YOURS', message: `That paper is not one ${row.name} sent before. Pick the file again.` } }, { status: 422 })
+      }
+      if (docs.some((d) => d.key === r.key)) continue
+      docs.push({ key: r.key, fileName: kept.fileName, size: kept.bytes.byteLength, type: kept.contentType, bytes: Buffer.from(kept.bytes), validFrom: null, validUntil: null })
+    }
+  }
 
   const ordered = withOrderedItems(row.checklist as unknown as ChecklistItem[], await orderedOfSuppliers(row.companyId), row.company.name)
   const labelOf = new Map(ordered.map((i) => [i.key, i.label]))

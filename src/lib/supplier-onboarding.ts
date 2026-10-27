@@ -585,6 +585,15 @@ export function mayActAt(input: {
   deskHolders?: readonly string[]
   /** The firm doing the buying, for the sentence. */
   companyName?: string
+  /**
+   * The roles at this firm that could decide this step if somebody held
+   * them (`inviteRolesFor` in lib/supplier-desks). Where nobody free
+   * holds the step, the refusal names them, so a firm of one is told
+   * exactly whom to invite rather than "a second person" (release walk,
+   * 2026-10-27: Brackenridge Tools invited a Procurement Lead and he was
+   * told to invite a second person too).
+   */
+  inviteRoles?: readonly string[]
 }): ActVerdict {
   const { stage, permissions, callerId, firmName } = input
   if (stage === 'DONE') return { ok: false, code: 'DONE', message: `${firmName} has already been decided.` }
@@ -595,14 +604,19 @@ export function mayActAt(input: {
 
   if (input.deskHolders && input.deskHolders.every((id) => barred(id))) {
     const here = input.companyName ?? 'this company'
+    const word = stageWordOf(stage, !barred(input.desks.leadId))
+    const roles = [...new Set(input.inviteRoles ?? [])]
     return {
       ok: false,
       code: 'NOBODY_ELSE',
-      message:
-        `Nobody else at ${here} can approve ${firmName} for ${STAGE_WORD[stage]}. ` +
-        'Everybody who could either recommended the firm or has already decided an ' +
-        'earlier step, and nobody signs their own. Invite a second person under Users ' +
-        'and permissions, or have somebody else recommend the firm.',
+      message: roles.length
+        ? `Nobody else at ${here} can approve ${firmName} for ${word} yet. ` +
+          `Invite somebody as ${orWords(roles)} under Users and permissions; they can decide it the moment they are seated. ` +
+          'The person who recommended a firm cannot approve it, and nobody decides two steps.'
+        : `Nobody else at ${here} can approve ${firmName} for ${word}. ` +
+          'Everybody who could either recommended the firm or has already decided an ' +
+          'earlier step, and nobody signs their own. Invite a second person under Users ' +
+          'and permissions, or have somebody else recommend the firm.',
     }
   }
 
@@ -612,14 +626,17 @@ export function mayActAt(input: {
   if (input.decisions.some((d) => d.byId === callerId)) {
     return { ok: false, code: 'DECIDED_BEFORE', message: `You already decided an earlier step on ${firmName}. Somebody else takes this one.` }
   }
-  const pmo = hasPermission(permissions, 'governance.write')
+  // The program office stands in for an unnamed or barred lead or HR
+  // desk — and so does anybody this firm seated on a role named for the
+  // step (an Approver, an HR Partner), who arrives on `deskHolders`.
+  const pmo = hasPermission(permissions, 'governance.write') || (input.deskHolders?.includes(callerId) ?? false)
   const onDesk =
     stage === 'LEAD' ? (barred(input.desks.leadId) ? pmo : callerId === input.desks.leadId)
     : stage === 'PROCUREMENT' ? callerId === input.desks.procurementId || hasPermission(permissions, 'vendors.manage')
     : stage === 'HR' ? (barred(input.desks.hrId) ? pmo : callerId === input.desks.hrId)
     : hasPermission(permissions, 'payments.record')
   if (!onDesk) {
-    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is with ${stage === 'LEAD' ? 'the department lead' : STAGE_WORD[stage]} now. You will be told what they decide.` }
+    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is with ${stage === 'LEAD' ? `the ${stageWordOf(stage, !barred(input.desks.leadId)).toLowerCase()}` : STAGE_WORD[stage]} now. You will be told what they decide.` }
   }
   return { ok: true }
 }
@@ -852,6 +869,23 @@ export function vendorItems(checklist: ChecklistItem[]): ChecklistItem[] {
   return checklist.filter((i) => i.by === 'VENDOR')
 }
 
+/**
+ * The step's name as every surface says it. Where no department lead is
+ * named the program manager stands in, and the chip, the heading, the
+ * walk and a refusal all say "Program manager" — the release walk of
+ * 2026-10-27 found the chip reading "Department lead" over a walk that
+ * said "Program manager", for one step.
+ */
+export function stageWordOf(stage: Stage, leadNamed = true): string {
+  if (stage === 'DONE') return 'Supplier'
+  return stage === 'LEAD' && !leadNamed ? 'Program manager' : STAGE_WORD[stage]
+}
+
+function orWords(xs: readonly string[]): string {
+  if (xs.length <= 1) return xs[0] ?? ''
+  return `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`
+}
+
 /** The whole walk, in words, for the stepper. */
 export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[], leadNamed = true): { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[] {
   const order: Stage[] = [...STAGES]
@@ -864,7 +898,7 @@ export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]
       : i < idx || state === 'APPROVED' ? 'done'
       : i === idx && state !== 'DECLINED' ? 'now'
       : 'next'
-    const word = s === 'DONE' ? 'Supplier' : s === 'LEAD' && !leadNamed ? 'Program manager' : STAGE_WORD[s]
+    const word = s === 'DONE' ? 'Supplier' : stageWordOf(s, leadNamed)
     return { stage: s, word, status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
   })
 }

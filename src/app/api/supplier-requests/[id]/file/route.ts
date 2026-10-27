@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { desksFor, deskPeople, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 import {
   mayActAt, withOrderedItems, attachToItem, STAGE_WORD,
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
     deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
+    inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
     companyName: desk!.companyName,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
