@@ -2081,6 +2081,39 @@ One rule the walk itself broke and discarded: a first pass ran the
 browser with certificate checks off; every screenshot kept came from
 a run that pinned the proxy's certificate.
 
+**Fixed the same day, with four coordinator's calls, each reversible
+by the founder in a sentence.** (1) **The mark counts decisions
+only.** "N things need you" and the mark are demand's one list (a held
+receipt, a start on hold, weeks waiting), read by By region and by Ask
+Etyme from the same `greeting()` data, so one person never sees two
+numbers; a time limit is not a decision, so the greeting names it as
+its own line after the counted things ("Aoife Kelly in Belfast reaches
+the time limit in 14 days") and never counts it. (2) **The pay card
+was missing on production because the twin refused itself:** the
+twin's own older "approve" question on a receipt made the ledger's
+segregation guard refuse every night's "pay" question as the twin
+deciding what it drafted (money's diagnosis, reproduced on a copy). An
+act may now name the question it replaces (`invoice_receipt.pay`
+replaces `invoice_receipt.approve`); the guard ignores the twin's own
+earlier questions of a replaced act, and the run closes them as
+overtaken. The next nightly run repairs production on its own. And **a
+pay question put off with "Not now" is asked once more, the day before
+the receipt falls due, and never a third time**; a no with a reason is
+a no. (3) **The home page asks the database once whether Corvane is
+seeded** and waits at most 800 ms; where it is not, each role's link
+reads "The demo is being set up" and leads nowhere, so a buyer never
+meets an empty door; a slow answer reads as not seeded on that visit.
+(4) **Corvane's head of operations is Astrid Berge**, so one page never
+shows two Ingrids. Also: "Two minutes" left the sign-up band (a
+promised speed, and `lib/positioning` now refuses one written as a
+sentence); the two claims in "In it" link to the page where a reader
+checks them; on a phone each region is a short block with the hold and
+the held receipt first. Open: a region's order on the record (schema
+request: `OrgUnit.position` on REGION units, written in the seed's
+order; until then the home region leads and the rest follow by
+contractor count); the head of operations' "within 30 days" line
+counts regions, not people, until demand's figures carry that count.
+
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
 back a paper that arrived; the I-9, a provider's verdict and the
