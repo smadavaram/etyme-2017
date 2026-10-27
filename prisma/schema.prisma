@@ -32,6 +32,8 @@ model Person {
   accessedBy               AccessLog[]               @relation("subject")
   programSeatsGranted      ProgramSeat[]             @relation("seatGrantedBy")
   programSeatsRevoked      ProgramSeat[]             @relation("seatRevokedBy")
+  seatAsksMade             ProgramSeatRequest[]      @relation("seatAskedBy")
+  seatAsksClosed           ProgramSeatRequest[]      @relation("seatAskClosedBy")
   /// The twin's role contracts this person set, one row per version.
   roleContractsSet         RoleContract[]            @relation("roleContractSetBy")
   /// The twin's rule sets this person set, one row per version.
@@ -486,6 +488,39 @@ model ProgramSeat {
   @@index([revokedById])
 }
 
+/// An MSP asking a client for a seat in its program (2026-10-27, the
+/// onboarding walk). Until this, an MSP with no seat read "ask an owner at
+/// that client" and had no way to ask from inside Etyme. The seat itself
+/// is still the client's to grant (`ProgramSeat`, `mayGrantSeat`): this row
+/// is only the ask, so the client's Owner sees who asked and why, and the
+/// grant form opens on it. Answered by a grant (read off a live seat made
+/// after `createdAt`, never a second flag) or closed with "Not now".
+model ProgramSeatRequest {
+  id String @id @default(cuid())
+
+  officeCompanyId String
+  officeCompany   Company @relation("seatAskOffice", fields: [officeCompanyId], references: [id], onDelete: Cascade)
+
+  clientCompanyId String
+  clientCompany   Company @relation("seatAskClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+
+  askedById String
+  askedBy   Person   @relation("seatAskedBy", fields: [askedById], references: [id])
+  /// In the asker's words: what they would run for the client.
+  note      String?
+  createdAt DateTime @default(now())
+
+  /// Set by "Not now" at the client; a grant needs no stamp here.
+  closedAt   DateTime?
+  closedById String?
+  closedBy   Person?   @relation("seatAskClosedBy", fields: [closedById], references: [id])
+
+  @@index([officeCompanyId, closedAt])
+  @@index([clientCompanyId, closedAt])
+  @@index([askedById])
+  @@index([closedById])
+}
+
 // Every read of a person's data, including refusals. The subject can see this.
 model AccessLog {
   id             String   @id @default(cuid())
@@ -760,6 +795,8 @@ model Company {
   accessLogs            AccessLog[]
   programSeatsGranted   ProgramSeat[]           @relation("seatClient")
   programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
+  seatAsksMade          ProgramSeatRequest[]    @relation("seatAskOffice")
+  seatAsksReceived      ProgramSeatRequest[]    @relation("seatAskClient")
   roleContracts         RoleContract[]
   twinRuleSets          RuleSet[]
   twinActions           TwinAction[]

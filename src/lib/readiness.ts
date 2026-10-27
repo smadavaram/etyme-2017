@@ -156,9 +156,7 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
     ? ''
     : ' The password door cannot confirm emails without an email sender, so it is off.'
   const passwordFix = passwordOn ? '' : ' Set RESEND_API_KEY and NOTIFY_FROM_EMAIL to turn on sign-up with a password.'
-  const providers = [
-    f.env.microsoft && 'Microsoft', f.env.google && 'Google', f.env.emailLink && 'an email link', passwordOn && 'password',
-  ].filter(Boolean) as string[]
+  const providers = signInDoors({ ...f.env, password: passwordOn })
   if (!f.env.nextauthSecret) {
     edges.push({
       key: 'signin', name: 'Sign-in', state: 'MISSING', required: true,
@@ -438,4 +436,23 @@ function daysAgo(then: Date, now: Date): string {
   if (h < 36) return `${h} hour${h === 1 ? '' : 's'} ago`
   const d = Math.round(h / 24)
   return `${d} day${d === 1 ? '' : 's'} ago`
+}
+
+/**
+ * The ways in that work on this deployment, in the order a person meets
+ * them. One answer for `/ready` and `/api/health`: until 2026-10-27 health
+ * kept its own list without the password door, and said "the only way in
+ * is the demo button" on a deployment where anybody could sign up.
+ */
+export function signInDoors(env: { microsoft: boolean; google: boolean; emailLink: boolean; password: boolean }): string[] {
+  return [
+    env.microsoft && 'Microsoft', env.google && 'Google', env.emailLink && 'an email link', env.password && 'password',
+  ].filter(Boolean) as string[]
+}
+
+/** Health's one line on signing in, from the same doors. */
+export function signInLine(doors: string[]): string {
+  return doors.length > 0
+    ? `Sign-in with ${list(doors)}.`
+    : 'No way to sign in is set up \u2014 the only way in is the demo button.'
 }

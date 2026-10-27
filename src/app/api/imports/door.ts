@@ -69,12 +69,12 @@ export async function ownImport(
   caller: CallerContext,
   id: string
 ): Promise<
-  | { import: { id: string; companyId: string; kind: string; committedAt: Date | null; rowCount: number; issueCount: number; mapping: unknown }; error: null }
+  | { import: { id: string; companyId: string; kind: string; committedAt: Date | null; rowCount: number; issueCount: number; mapping: unknown; fileName: string | null }; error: null }
   | { import: null; error: NextResponse }
 > {
   const found = await prisma.import.findUnique({
     where: { id },
-    select: { id: true, companyId: true, kind: true, committedAt: true, rowCount: true, issueCount: true, mapping: true },
+    select: { id: true, companyId: true, kind: true, committedAt: true, rowCount: true, issueCount: true, mapping: true, fileName: true },
   })
   const mine = caller.company?.id
   if (!found || found.companyId !== mine) {

@@ -76,16 +76,6 @@ function kindTone(kind: Company['kind']): ChipTone {
   }
 }
 
-// ── Slug helper ───────────────────────────────────────────
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48)
-}
-
 // ── Toast ─────────────────────────────────────────────────
 
 function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
@@ -142,10 +132,10 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Auto-generate slug from name
-  useEffect(() => {
-    setForm((prev) => ({ ...prev, slug: slugify(prev.name) }))
-  }, [form.name])
+  // The Etyme address box is theirs, never guessed from the name: the
+  // route uses it to find a firm already on Etyme (findFirm), and a guess
+  // could name a stranger who happens to hold it (onboarding walk,
+  // 2026-10-27).
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -162,6 +152,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               contactName: form.contactName.trim() || undefined,
               email: form.email.trim() || undefined,
               domain: form.domain.trim() || undefined,
+              address: form.slug.trim() || undefined,
               invite: form.invite && form.email.trim() !== '',
             }),
           })
@@ -172,6 +163,8 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               name: form.name,
               kind: form.kind,
               relationship: form.relationship,
+              domain: form.domain.trim() || undefined,
+              address: form.slug.trim() || undefined,
             }),
           })
 
@@ -335,14 +328,13 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 placeholder="techpeple.example"
               />
             </div>
-            {!isClient && (
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Etyme address</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Their Etyme address, if they have one</label>
               <div className="flex items-center">
                 <input
                   type="text"
                   value={form.slug}
-                  onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
                   className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                              focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                              text-etyme-muted"
@@ -353,7 +345,6 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <p className="text-[10px] text-etyme-faint mt-1">{form.slug}.etyme.com</p>
               )}
             </div>
-            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

@@ -1,9 +1,14 @@
 /**
  * The password door's sentences and the two path rules a page needs, with
- * no imports at all, so a page drawn in the browser can read them without
- * pulling the hashing and the token code into the bundle. `lib/password`
- * re-exports everything here.
+ * no server import, so a page drawn in the browser can read them without
+ * pulling the hashing and the token code into the bundle. It reads only
+ * plain modules (company defaults, setup's country list, the consumer
+ * domain list). `lib/password` re-exports what it needs from here.
  */
+import { countryFromDomain } from '@/lib/company-defaults'
+import { COUNTRIES, currencyFor, countryGuessSentence } from '@/lib/setup-steps'
+import { isConsumerDomain } from '@/lib/company-domains'
+
 
 /** Without an email sender nobody can prove a mailbox, so these doors say so before any form. */
 export const SIGNUP_SHUT = 'Sign-up is off on this deployment until an email sender is set up.'
@@ -88,4 +93,63 @@ export const PASSWORD_HINT_PERSON = 'At least 12 characters. Not your email.'
 export function underHeading(heading: string, says: string): string {
   const lead = heading.trim().replace(/\.$/, '')
   return says.startsWith(`${lead}. `) ? says.slice(lead.length + 2) : says
+}
+
+// ── The address, the country and the currency, guessed at sign-up ────
+//
+// The onboarding walk of 2026-10-27: the company form asked for an Etyme
+// address with an empty box and started every firm in the United States,
+// while the Microsoft and Google door guessed both. The form now guesses
+// the same way, says each is a guess, and a person changes any of them.
+
+/** Etyme addresses are at most forty characters. */
+export const ADDRESS_MAX = 40
+
+/**
+ * A company's name as an Etyme address: lower case, letters and digits
+ * joined by single hyphens, at most forty characters. Null where nothing
+ * of three characters or more is left. The one rule, read by the sign-up
+ * form and by the door that checks the address (lib/password).
+ */
+export function addressFromName(name: string | null | undefined): string | null {
+  const v = String(name ?? '')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, ADDRESS_MAX)
+    .replace(/-+$/, '')
+  return v.length >= 3 ? v : null
+}
+
+export interface SignUpGuesses {
+  /** The address suggested from the company's name, or null. */
+  address: string | null
+  /** Two letters, always one the form offers. */
+  country: string
+  currency: string
+  /** The guess said as a guess, under the country. Null before an email is typed. */
+  says: string | null
+}
+
+/**
+ * What the company form fills in for a person, from the work email and
+ * the company's name. The country follows the web address the way the
+ * Microsoft and Google door reads it (`countryFromDomain`), the currency
+ * follows the country, and the address follows the name. A guess is only
+ * a starting point: the form stops replacing a field once the person has
+ * changed it.
+ */
+export function signUpGuesses(email: string, companyName: string): SignUpGuesses {
+  const at = email.lastIndexOf('@')
+  const raw = at > 0 ? email.slice(at + 1).trim().toLowerCase() : ''
+  const domain = raw.includes('.') && !isConsumerDomain(raw) ? raw : null
+  const guessed = countryFromDomain(domain)
+  const country = COUNTRIES.some((c) => c.code === guessed) ? guessed : 'US'
+  return {
+    address: addressFromName(companyName),
+    country,
+    currency: currencyFor(country),
+    says: raw.includes('.') ? countryGuessSentence(country, domain) : null,
+  }
 }

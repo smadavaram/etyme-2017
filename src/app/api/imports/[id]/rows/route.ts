@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { importRefusal, ownImport } from '../../door'
+import { importPlan } from '@/lib/import-mapper'
 import { prisma } from '@/lib/db'
 
 /**
@@ -82,6 +83,9 @@ export async function GET(
         issueCount: importRecord.issueCount,
         committed: !!importRecord.committedAt,
       },
+      // What committing will write, over every row and not this page of
+      // them, said before anything is written (onboarding walk, 2026-10-27).
+      plan: importPlan(allRows.map((r) => ({ parsed: r.parsed as Record<string, unknown> })), caller.company!.kind),
     },
   })
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { findFirm, workTogether } from '@/lib/company-create'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -143,11 +144,35 @@ export async function POST(request: NextRequest) {
   // record of a tenant is two histories and a name on a row they cannot
   // see. Demo companies are kept to their own world, the same way the
   // supplier path does it.
-  const claimedAtDomain = domain
-    ? await prisma.company.findFirst({
-        where: { domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo },
-        select: { id: true, name: true, claimedAt: true, listedById: true },
-      })
+  //
+  // Asked through `findFirm` since the onboarding walk of 2026-10-27: a
+  // firm made by the password door has no verified domain, so a lookup by
+  // domain alone never found it. Its Etyme address, or its exact name on a
+  // firm run from the contact's email domain, finds it too.
+  const contactDomain = body.email ? String(body.email).trim().toLowerCase().split('@')[1] ?? null : null
+  const firm = await findFirm({
+    emailDomain: domain ?? contactDomain,
+    etymeAddress: body.address ? String(body.address) : null,
+    name,
+    isDemo: caller.company!.isDemo,
+  })
+  // Already working together: the register row points at the real firm.
+  if (firm && firm.id !== companyId && (await workTogether(companyId, firm.id))) {
+    await prisma.counterparty.upsert({
+      where: { companyId_otherCompanyId_relationship: { companyId, otherCompanyId: firm.id, relationship: 'CLIENT' } },
+      update: {},
+      create: { companyId, otherCompanyId: firm.id, relationship: 'CLIENT', status: 'ACTIVE', createdById: caller.person.id },
+    })
+    return NextResponse.json({
+      data: {
+        client: { id: firm.id, name: firm.name },
+        linked: true,
+        message: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
+      },
+    })
+  }
+  const claimedAtDomain = firm
+    ? { id: firm.id, name: firm.name, slug: firm.slug, claimedAt: new Date(), listedById: null }
     : null
 
   // One firm listing the same client twice is one client.

@@ -6,7 +6,7 @@ import { COMPANY_TYPES } from '@/lib/onboarding'
 import { COUNTRIES, CURRENCIES, currencyFor } from '@/lib/setup-steps'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-frame'
 import { AccountDoors, useKnownDoors } from '../account-doors'
-import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading } from '@/lib/password-words'
+import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading, signUpGuesses } from '@/lib/password-words'
 
 /**
  * Signing up with an email and a password.
@@ -50,12 +50,28 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   const [country, setCountry] = useState('US')
   const [currency, setCurrency] = useState('USD')
   const [address, setAddress] = useState('')
+  // Which of the three guessed fields the person has changed. A guess
+  // fills a field until the person touches it, and never after.
+  const [touched, setTouched] = useState({ address: false, country: false, currency: false })
+  const guesses = signUpGuesses(email, name)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<string | null>(null)
   const [joins, setJoins] = useState<Joins>(null)
   const [claim, setClaim] = useState<{ company: string; invitedBy: string } | null>(null)
   const available = useKnownDoors()
+
+  // The address from the company's name, the country from the work
+  // email's web address, the currency from the country: the same guesses
+  // the Microsoft and Google door makes (onboarding walk, 2026-10-27).
+  useEffect(() => {
+    if (!touched.address && guesses.address) setAddress(guesses.address)
+    if (!touched.country) {
+      setCountry(guesses.country)
+      if (!touched.currency) setCurrency(guesses.currency)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guesses.address, guesses.country, guesses.currency])
 
   const chosen = COMPANY_TYPES.find((t) => t.key === type)
   const personal = Boolean((chosen as { personalEmail?: boolean } | undefined)?.personalEmail)
@@ -199,12 +215,14 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
               <DoorLabel htmlFor="address">Etyme address</DoorLabel>
               <div className="flex items-center gap-2">
                 <input id="address" required value={address}
-                  onChange={(e) => setAddress(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  onChange={(e) => { setTouched((t) => ({ ...t, address: true })); setAddress(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')) }}
                   placeholder="acme" maxLength={40} className={doorField} />
                 <span className="text-sm text-etyme-muted whitespace-nowrap">.etyme.com</span>
               </div>
               <p className="text-xs text-etyme-muted mt-1">
-                Letters, numbers and hyphens. Your colleagues use the same address to join you.
+                {!touched.address && guesses.address && address === guesses.address
+                  ? 'Suggested from your company name. Change it if you like: letters, numbers and hyphens. Your colleagues use the same address to join you.'
+                  : 'Letters, numbers and hyphens. Your colleagues use the same address to join you.'}
               </p>
             </div>
 
@@ -222,16 +240,19 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
               <div>
                 <DoorLabel htmlFor="country">Country</DoorLabel>
                 <select id="country" value={country} className={doorField}
-                  onChange={(e) => { setCountry(e.target.value); setCurrency(currencyFor(e.target.value)) }}>
+                  onChange={(e) => { setTouched((t) => ({ ...t, country: true })); setCountry(e.target.value); if (!touched.currency) setCurrency(currencyFor(e.target.value)) }}>
                   {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                 </select>
               </div>
               <div>
                 <DoorLabel htmlFor="currency">Currency</DoorLabel>
-                <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className={doorField}>
+                <select id="currency" value={currency} onChange={(e) => { setTouched((t) => ({ ...t, currency: true })); setCurrency(e.target.value) }} className={doorField}>
                   {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+              {!touched.country && guesses.says && (
+                <p className="sm:col-span-2 text-xs text-etyme-muted">{guesses.says}</p>
+              )}
             </div>
           </>
         )}

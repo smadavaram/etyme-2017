@@ -46,6 +46,8 @@ export interface CompanyStanding {
   claimedAt: Date | null
   /** The firm that put them on the register, where that is how it began. */
   listedById?: string | null
+  /** Its Etyme address, where it has one worth printing. */
+  slug?: string | null
 }
 
 /** On the register, not on the system. */
@@ -71,6 +73,24 @@ export function shellNotice(company: CompanyStanding): string | null {
 // ═════════════════════════════════════════════════════════════════════
 // LISTING A COMPANY THAT IS NOT HERE
 // ═════════════════════════════════════════════════════════════════════
+
+/**
+ * What a firm is told when the company it is adding is on Etyme already
+ * and the two do not work together yet (onboarding walk, 2026-10-27).
+ *
+ * No copy is made: a second record of a real firm is two histories. No
+ * link is made either, on the adder's word alone — a row on the adder's
+ * register counts as a relationship wherever a contract names a client
+ * (`mayNameCounterparty`), so linking on request would let any firm name
+ * any firm. The firm being added links the two by adding the other.
+ */
+export function alreadyOnEtyme(them: { name: string; slug?: string | null }, as: string): string {
+  const where = them.slug ? `, at ${them.slug}.etyme.com` : ''
+  return (
+    `${them.name} is already on Etyme${where}, so no copy of them was made. ` +
+    `Ask them to add you instead, as their ${as}, and your two records link.`
+  )
+}
 
 /**
  * May this firm list a counterparty under this name?
@@ -107,10 +127,7 @@ export function mayList(input: {
       reuse: null,
       create: false,
       says:
-        `${them.name} is already on Etyme under that domain. Listing a second copy would ` +
-        `give them two histories and let anybody put a real firm's name on a record they ` +
-        `cannot see. Ask them to add you instead, or work from the relationship you ` +
-        `already have with them here.`,
+        alreadyOnEtyme(them, 'client'),
     }
   }
   if (input.alreadyListed) {

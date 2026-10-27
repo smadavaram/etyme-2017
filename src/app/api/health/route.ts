@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { senderStatus } from '@/lib/senders'
+import { senderStatus, emailSender } from '@/lib/senders'
+import { signInDoors, signInLine } from '@/lib/readiness'
 import { teamsFacts } from '@/lib/readiness-facts'
 
 /**
@@ -77,10 +78,14 @@ export async function GET() {
 
   // How somebody signs in, which on a fresh deployment is usually
   // "they cannot, and that is expected".
-  const providers: string[] = []
-  if (process.env.GOOGLE_CLIENT_ID) providers.push('Google')
-  if (process.env.AZURE_AD_CLIENT_ID) providers.push('Microsoft')
-  if (process.env.EMAIL_SERVER) providers.push('Email link')
+  // The same doors /ready lists, the password door among them: it needs
+  // no key of its own, only a sender to confirm an email with.
+  const providers = signInDoors({
+    microsoft: Boolean(process.env.AZURE_AD_CLIENT_ID),
+    google: Boolean(process.env.GOOGLE_CLIENT_ID),
+    emailLink: Boolean(process.env.EMAIL_SERVER),
+    password: emailSender() !== null,
+  })
 
   // Whether an invitation or a notification actually goes anywhere. This
   // was missing from here entirely — RESEND_API_KEY and NOTIFY_FROM_EMAIL
@@ -126,10 +131,7 @@ export async function GET() {
             ? `Serving ${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}${process.env.VERCEL_GIT_COMMIT_REF ? ` from ${process.env.VERCEL_GIT_COMMIT_REF}` : ''}.`
             : 'Not a Vercel build, so there is no commit to name — this is a local or self-hosted run.',
         },
-        signIn:
-          providers.length > 0
-            ? `Sign-in via ${providers.join(', ')}.`
-            : 'No sign-in provider configured — the only way in is the demo button.',
+        signIn: signInLine(providers),
         notifications: senders,
         // The one line worth reading first if invitations seem to vanish.
         email: senders.find((s) => s.channel === 'EMAIL')!.note,

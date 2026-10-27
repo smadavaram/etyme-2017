@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { fieldWords, cellWords } from '@/lib/import-mapper'
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -43,7 +44,17 @@ interface Pagination {
   totalPages: number
 }
 
+interface Plan {
+  employees: number
+  contractors: number
+  skipped: number
+  says: string
+  button: string
+}
+
 interface CommitResult {
+  employees?: number
+  invited?: number
   importId: string
   committed: boolean
   created: number
@@ -224,7 +235,7 @@ function UploadStep({ onUploaded }: { onUploaded: (imp: ImportRecord) => void })
           </li>
           <li className="flex items-start gap-2">
             <span className="pill bg-etyme-action/10 text-etyme-action text-[10px] mt-0.5">4</span>
-            <span><strong>Commit.</strong> Creates real records. Rows with issues import at INTERNAL visibility — they will not appear on the bench until enriched.</span>
+            <span><strong>Import.</strong> The page says what will be written first. Your own W2 employees go on your payroll; anybody else is asked to join your bench, and nobody outside your firm sees them until they say yes.</span>
           </li>
         </ol>
       </div>
@@ -420,6 +431,12 @@ function ReviewStep({
   const [filter, setFilter] = useState<'all' | 'issues' | 'clean'>('all')
   const [committing, setCommitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // What committing will write, read from the rows route before anything
+  // is written; and whether the person has pressed Import once and is now
+  // reading that sentence with the button under it (never a pop-up).
+  const [plan, setPlan] = useState<Plan | null>(null)
+  const [asked, setAsked] = useState(false)
+  const [notYet, setNotYet] = useState(false)
 
   const fetchRows = useCallback(async (page = 1) => {
     setLoading(true)
@@ -433,6 +450,7 @@ function ReviewStep({
       const body = await res.json()
       setRows(body.data.rows)
       setPagination(body.data.pagination)
+      if (body.data.plan) setPlan(body.data.plan)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -444,7 +462,13 @@ function ReviewStep({
   useState(() => { fetchRows() })
 
   async function handleCommit() {
-    if (!confirm(`This will create records from ${importRecord.rowCount} rows. Rows with issues will import at INTERNAL visibility. Continue?`)) {
+    // The first press shows what will be written, in a sentence on the
+    // page, with the one button under it (onboarding walk, 2026-10-27: a
+    // browser pop-up named a visibility level in capitals, and dismissing
+    // it said nothing at all).
+    if (!asked) {
+      setAsked(true)
+      setNotYet(false)
       return
     }
 
@@ -523,7 +547,7 @@ function ReviewStep({
                 </th>
                 {visibleFields.map((f) => (
                   <th key={f.target} className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
-                    {f.target}
+                    {fieldWords(f.target)}
                   </th>
                 ))}
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
@@ -558,8 +582,7 @@ function ReviewStep({
                         {(pagination.page - 1) * pagination.limit + idx + 1}
                       </td>
                       {visibleFields.map((f) => {
-                        const value = row.parsed[f.target]
-                        const displayValue = Array.isArray(value) ? value.join(', ') : String(value ?? '')
+                        const displayValue = cellWords(f.target, row.parsed[f.target])
                         return (
                           <td key={f.target} className="px-4 py-2 max-w-[180px] truncate">
                             {displayValue || <span className="text-etyme-muted">—</span>}
@@ -626,20 +649,33 @@ function ReviewStep({
         </div>
       )}
 
-      {/* Commit */}
-      <div className="flex items-center justify-between pt-2 border-t border-etyme-rule">
-        <p className="text-xs text-etyme-muted max-w-md">
-          Committing creates People, ConsultantProfiles, and Assignments.
-          Rows with issues import at INTERNAL visibility. Assignments ending within 8 weeks create rolloff events.
-        </p>
-        <button
-          onClick={handleCommit}
-          disabled={committing}
-          className="px-5 py-2.5 text-sm font-medium rounded-lg bg-etyme-ink text-white
-                     hover:bg-etyme-navy transition-colors disabled:opacity-50 flex-shrink-0"
-        >
-          {committing ? 'Committing...' : `Commit ${importRecord.rowCount} rows`}
-        </button>
+      {/* Commit: what will be written, in a sentence, and one button */}
+      <div className="pt-2 border-t border-etyme-rule space-y-3">
+        {asked && plan && (
+          <p className="text-sm text-etyme-ink max-w-2xl">{plan.says}</p>
+        )}
+        {notYet && (
+          <p className="text-sm text-etyme-muted">Nothing was written. The file stays here until you import it.</p>
+        )}
+        <div className="flex items-center justify-end gap-3">
+          {asked && (
+            <button
+              type="button"
+              onClick={() => { setAsked(false); setNotYet(true) }}
+              disabled={committing}
+              className="btn-secondary"
+            >
+              Not yet
+            </button>
+          )}
+          <button
+            onClick={handleCommit}
+            disabled={committing || (asked && plan != null && plan.employees + plan.contractors === 0)}
+            className="btn-primary disabled:opacity-50 flex-shrink-0"
+          >
+            {committing ? 'Importing…' : asked && plan ? plan.button : 'Review what will be imported'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -656,7 +692,7 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
         </svg>
       </div>
 
-      <h2 className="text-lg font-semibold mb-2">Import committed</h2>
+      <h2 className="text-lg font-semibold mb-2">Imported</h2>
       <p className="text-sm text-etyme-muted mb-6 max-w-md mx-auto">{result.message}</p>
 
       <div className="flex justify-center gap-4 mb-8">
@@ -673,7 +709,7 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
         {result.rolloffCount > 0 && (
           <div className="text-center">
             <p className="text-2xl font-semibold tabular-nums text-etyme-attention">{result.rolloffCount}</p>
-            <p className="text-xs text-etyme-muted mt-0.5">Rolloff events</p>
+            <p className="text-xs text-etyme-muted mt-0.5">Ending within 8 weeks</p>
           </div>
         )}
       </div>
@@ -687,11 +723,11 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
           Import another file
         </button>
         <a
-          href="/dashboard/consultants"
+          href="/dashboard/bench"
           className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-ink text-white
                      hover:bg-etyme-navy transition-colors inline-block"
         >
-          View consultants
+          See them on Bench
         </a>
       </div>
     </div>

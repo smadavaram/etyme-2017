@@ -429,9 +429,80 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
  */
 export function noSeatYet(officeName: string): string {
   return (
-    `${officeName} is not tied to a client yet. A role belongs to the company that is hiring, and a ` +
+    `${officeName} is not tied to a client yet. A role belongs to the company that is hiring, and ` +
     `an MSP runs a client's program rather than supplying people — it places nobody by design, ` +
     `and it acts in a seat the client grants it, under the client's own rules and with every read logged. ` +
     `Ask an owner or the program manager at that client to grant ${officeName} a seat in their program.`
   )
+}
+
+// ── Asking for a seat ────────────────────────────────────────────────
+//
+// The onboarding walk of 2026-10-27: an MSP that signed up read "ask an
+// owner or the program manager at that client to grant a seat" and had no
+// way to ask from inside Etyme. Now it asks here, and the client's owner
+// and program manager are told. The ask changes nothing about who may
+// read what: the seat is still the client's to grant (`mayGrantSeat`).
+
+export interface SeatAsk {
+  /** The firm asking: the caller's own company. */
+  office: { id: string; kind: string; name: string }
+  /** The client it names, or null where nobody by that name is on Etyme. */
+  client: { id: string; kind: string; name: string } | null
+  /** It already sits in that program. */
+  seated: boolean
+  /** It asked before and nobody has answered. */
+  openAsk: { createdAt: Date } | null
+}
+
+export type AskVerdict =
+  | { ok: true }
+  | { ok: false; code: string; says: string }
+
+/**
+ * May this firm ask this client for a seat, and if not, what is it told.
+ * Pure. An ask is cheap and grants nothing, so the only refusals are the
+ * ones where the ask cannot mean anything.
+ */
+export function mayAskForSeat(ask: SeatAsk): AskVerdict {
+  if (ask.office.kind === 'CLIENT') {
+    return {
+      ok: false, code: 'A_CLIENT',
+      says: `${ask.office.name} runs its own program. A seat is for a firm that runs a client\u2019s program for it, and is granted from Settings, under MSPs.`,
+    }
+  }
+  if (!ask.client) {
+    return { ok: false, code: 'NO_SUCH_CLIENT', says: 'No client by that name is on Etyme. Check the spelling, or type its Etyme address.' }
+  }
+  if (ask.client.id === ask.office.id) {
+    return { ok: false, code: 'SELF', says: `${ask.office.name} cannot ask itself for a seat.` }
+  }
+  if (ask.client.kind !== 'CLIENT') {
+    return {
+      ok: false, code: 'NOT_A_CLIENT',
+      says: `${ask.client.name} is not a client on Etyme, so it has no program to seat you in. A seat is asked of the company that is hiring.`,
+    }
+  }
+  if (ask.seated) {
+    return { ok: false, code: 'ALREADY_SEATED', says: `${ask.office.name} already sits in ${ask.client.name}\u2019s program.` }
+  }
+  return { ok: true }
+}
+
+/** What the asker reads once the ask is made, or made again. */
+export function askedSentence(o: { client: string; office: string; again: boolean; on: string }): string {
+  return o.again
+    ? `You asked ${o.client} on ${o.on}, and they have not answered yet. Nothing more was sent.`
+    : `${o.client}\u2019s owner and program manager are told that ${o.office} asked for a seat. Nothing opens until one of them grants it.`
+}
+
+/** The notice the client's owner and program manager read. */
+export function askNotice(o: { office: string; asker: string; note: string | null }): { title: string; body: string } {
+  return {
+    title: `${o.office} asks for a seat in your program`,
+    body:
+      `${o.asker} at ${o.office} asks to run your program from a seat you grant` +
+      (o.note ? `: \u201c${o.note}\u201d.` : '.') +
+      ` Grant it, with the role it holds, from Settings, under MSPs, or answer Not now.`,
+  }
 }

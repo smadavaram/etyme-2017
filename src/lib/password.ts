@@ -29,7 +29,7 @@ import { checkSubdomain, RESERVED_SUBDOMAINS } from '@/lib/domains-owned'
 import { reservedAddress } from '@/lib/demo-session'
 
 export * from '@/lib/password-words'
-import { SUPERSEDED } from '@/lib/password-words'
+import { SUPERSEDED, ADDRESS_MAX, addressFromName } from '@/lib/password-words'
 
 // ── Passwords ─────────────────────────────────────────────────────────
 
@@ -216,7 +216,7 @@ export function waitSentence(seconds: number): string {
 
 // ── The Etyme address ─────────────────────────────────────────────────
 
-export const ADDRESS_MAX = 40
+export { ADDRESS_MAX } from '@/lib/password-words'
 
 /** Prefixes the seeded demo world uses. A real company never holds one. */
 const DEMO_PREFIXES = ['world-', 'demo-']
@@ -259,21 +259,8 @@ export function checkAddress(raw: string, taken: Set<string>, companyName?: stri
   return { ok: v.ok, value: v.value, says: v.reason }
 }
 
-/**
- * A company's name as an Etyme address: lower case, letters and digits
- * joined by single hyphens, at most forty characters. Null where nothing
- * of three characters or more is left.
- */
-export function addressFromName(name: string | null | undefined): string | null {
-  const v = String(name ?? '')
-    .toLowerCase()
-    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, ADDRESS_MAX)
-    .replace(/-+$/, '')
-  return v.length >= 3 ? v : null
-}
+/** One rule for an address from a name, shared with the sign-up form (lib/password-words). */
+export { addressFromName } from '@/lib/password-words'
 
 /** The next free numbered address, for the rare case two people verified one name in the same minute. */
 export function numberedAddress(value: string, taken: Set<string>): string {

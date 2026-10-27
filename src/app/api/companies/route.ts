@@ -7,7 +7,8 @@ import { prisma } from '@/lib/db'
 import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
 import { dealingsOf } from './dealings'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
-import { createCompany } from '@/lib/company-create'
+import { createCompany, findFirm, workTogether } from '@/lib/company-create'
+import { alreadyOnEtyme } from '@/lib/off-system'
 import { mayAddCompany } from '@/lib/counterparty'
 import { speaksForItself } from '@/lib/public-site/speaks'
 
@@ -146,6 +147,79 @@ export async function POST(request: NextRequest) {
       { error: { code: 'NOT_YOURS_TO_ADD', message: adding.says } },
       { status: 403 }
     )
+  }
+
+  // ── A firm already on Etyme is found, never written down again ─────
+  //
+  // The onboarding walk of 2026-10-27: a sub-vendor added its prime, which
+  // had signed up the same morning, and this route made a third
+  // Quarrybrook Staffing on the sub's register. Recording a counterparty
+  // asks first whether the firm is here — by its domain, its Etyme
+  // address, or its exact name on a firm run from that domain
+  // (`findFirm`). Where it is, no copy is made. Where the two already work
+  // together, the register row points at the real firm; where they do
+  // not, the caller is told who they are and to ask them, because a row on
+  // one's own register is what lets a contract name a client
+  // (`mayNameCounterparty`), and that is not one side's to give itself.
+  if (!adding.ownsIt && seatedCaller?.company) {
+    const mine = seatedCaller.company
+    const as = String(body?.relationship ?? 'SUPPLIER')
+    const asWord = ({ CLIENT: 'supplier', SUPPLIER: 'client', PRIME: 'sub-vendor', MSP: 'supplier' } as Record<string, string>)[as] ?? 'partner'
+    const firm = await findFirm({
+      emailDomain: body?.domain ? String(body.domain) : null,
+      etymeAddress: body?.address ? String(body.address) : null,
+      name,
+      isDemo: mine.isDemo === true,
+    })
+    if (firm && firm.id === mine.id) {
+      return NextResponse.json(
+        { error: { code: 'OWN_COMPANY', message: `${firm.name} is your own company, so it cannot be your ${as.toLowerCase()} too.` } },
+        { status: 422 }
+      )
+    }
+    if (firm) {
+      if (!(await workTogether(mine.id, firm.id))) {
+        return NextResponse.json(
+          { error: { code: 'ALREADY_ON_ETYME', message: alreadyOnEtyme(firm, asWord), companyId: firm.id, address: firm.slug } },
+          { status: 409 }
+        )
+      }
+      await prisma.counterparty.upsert({
+        where: { companyId_otherCompanyId_relationship: { companyId: mine.id, otherCompanyId: firm.id, relationship: as } },
+        update: {},
+        create: { companyId: mine.id, otherCompanyId: firm.id, relationship: as, status: 'ACTIVE', createdById: seatedCaller.person.id },
+      })
+      return NextResponse.json({
+        data: {
+          company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
+          linked: true,
+          says: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
+          message: `${firm.name} is on your register.`,
+        },
+      })
+    }
+    // A name and nothing else, and a firm on Etyme holds that name: say so
+    // rather than guess either way. A domain or an address tells them apart.
+    if (!body?.domain && !body?.address) {
+      const namesake = await prisma.company.findFirst({
+        where: { claimedAt: { not: null }, isDemo: mine.isDemo === true, name: { equals: name.trim(), mode: 'insensitive' }, id: { not: mine.id } },
+        select: { name: true, slug: true },
+      })
+      if (namesake) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'SAME_NAME',
+              field: 'domain',
+              message:
+                `A company called ${namesake.name} is on Etyme already, at ${namesake.slug}.etyme.com. If that is them, ` +
+                `ask them to add you as their ${asWord}. If it is a different company, give their domain so the two are told apart.`,
+            },
+          },
+          { status: 409 }
+        )
+      }
+    }
   }
 
   const baseSlug = slugify(name)

@@ -10,6 +10,7 @@
  */
 
 import { sortsByOrigin, originRefusal } from '@/lib/work-authorisation'
+import { formatDay } from '@/lib/format-date'
 
 export interface ColumnMapping {
   sourceColumn: string
@@ -295,4 +296,104 @@ export function parseRow(
   }
 
   return { parsed, issues }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// THE TRADE'S WORDS ON THE REVIEW, AND WHAT A COMMIT WILL WRITE
+// ═════════════════════════════════════════════════════════════════════
+//
+// The onboarding walk of 2026-10-27, at an integrator: the review's
+// columns read CONTRACTTYPE and STARTDATE over ISO timestamps, the commit
+// asked through a browser pop-up about "INTERNAL visibility", and two W2
+// rows became bench listings nobody had agreed to. A person reads the
+// field in their own words, a date the way every page prints one, and
+// what the commit will write before it writes it.
+
+/** Each field as a column heading a recruiter or HR would write. */
+export const FIELD_WORDS: Record<string, string> = {
+  name: 'Name', firstName: 'First name', lastName: 'Last name', email: 'Email', phone: 'Phone',
+  headline: 'Title', skills: 'Skills', location: 'Location', workAuth: 'Work authorization',
+  availableFrom: 'Available from', payRate: 'Pay rate', billRate: 'Bill rate',
+  startDate: 'Start date', endDate: 'End date', contractType: 'Contract type',
+  clientName: 'Client', vendorName: 'Supplier', projectName: 'Project',
+}
+
+/** A field's heading: its words, or the field as a sentence-case phrase where it has none. */
+export function fieldWords(field: string): string {
+  if (FIELD_WORDS[field]) return FIELD_WORDS[field]
+  const spaced = field.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+const CONTRACT_WORDS: Record<string, string> = {
+  W2: 'W2', C2C: 'Corp-to-corp', '1099': '1099', C2H_W2: 'Contract to hire (W2)', CDD: 'CDD',
+  FIXED_TERM: 'Fixed term', LIMITED_COMPANY: 'Limited company', UMBRELLA: 'Umbrella', PAYE: 'PAYE',
+}
+
+const AUTH_WORDS: Record<string, string> = {
+  US_CITIZEN: 'US citizen', GC: 'Green card', H1B: 'H-1B', OPT: 'OPT', GBP_SW: 'UK skilled worker',
+  EAD: 'EAD', TN: 'TN', L1: 'L-1',
+}
+
+/** A parsed cell as the review prints it. Dates as every page prints them; codes in words. */
+export function cellWords(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return ''
+  if (Array.isArray(value)) return value.join(', ')
+  if (field === 'startDate' || field === 'endDate' || field === 'availableFrom') {
+    try { return formatDay(String(value)) ?? String(value) } catch { return String(value) }
+  }
+  if (field === 'contractType') return CONTRACT_WORDS[String(value)] ?? String(value)
+  if (field === 'workAuth') return AUTH_WORDS[String(value)] ?? String(value)
+  if (field === 'payRate' || field === 'billRate') return `$${Number(value).toLocaleString('en-US')}/hr`
+  return String(value)
+}
+
+/**
+ * Whether a row is the importing firm's own employee.
+ *
+ * A W2 row at a firm that employs people — an integrator, a supplier, a
+ * bench firm — is somebody it pays on its own payroll. You do not ask
+ * your own W2 for a bench listing: the employment is the consent
+ * (CLAUDE.md, "Who sells and who buys"). A client's W2 rows are its
+ * suppliers' people, never its own, and a contract-to-hire is a
+ * contractor until the hire.
+ */
+export function isOwnEmployeeRow(parsed: Record<string, unknown>, companyKind: string): boolean {
+  return parsed.contractType === 'W2' && companyKind !== 'CLIENT'
+}
+
+export interface ImportPlan {
+  employees: number
+  contractors: number
+  skipped: number
+  /** One sentence the page shows above its one button. */
+  says: string
+  /** The button's own words. */
+  button: string
+}
+
+/** What committing these rows will write, said before anything is written. */
+export function importPlan(rows: { parsed: Record<string, unknown> }[], companyKind: string): ImportPlan {
+  let employees = 0, contractors = 0, skipped = 0
+  for (const r of rows) {
+    if (!r.parsed.name && !r.parsed.email) skipped++
+    else if (isOwnEmployeeRow(r.parsed, companyKind)) employees++
+    else contractors++
+  }
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const parts: string[] = []
+  if (employees) parts.push(`${n(employees, 'person goes', 'people go')} on your payroll as your own employee${employees === 1 ? '' : 's'} (W2), with no bench listing`)
+  if (contractors) {
+    parts.push(
+      `${n(contractors, 'person is', 'people are')} added to your records and asked to join your bench; ` +
+      `nobody outside your firm sees them until each says yes, and you send each ask from Bench`,
+    )
+  }
+  if (skipped) parts.push(`${n(skipped, 'row has', 'rows have')} no name and no email and ${skipped === 1 ? 'is' : 'are'} skipped`)
+  const total = employees + contractors
+  return {
+    employees, contractors, skipped,
+    says: total === 0 ? 'No row has a name or an email, so nothing can be imported.' : `${parts.join('. ')}.`,
+    button: total === 0 ? 'Nothing to import' : `Import ${n(total, 'person', 'people')}`,
+  }
 }
