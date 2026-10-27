@@ -515,10 +515,9 @@ export async function POST(request: NextRequest) {
             kind: company.kind as any,
             permissions: company.contexts[0]?.role?.permissions ?? null,
             seatedAtClient: seatedAt ?? null,
-          }) === ASK_ETYME_HREF && !regionOf(company.contexts[0]) ? ASK_ETYME_HREF
-          // A seat that reads one region lands on it, never on Ask Etyme,
-          // which reads the whole program.
-          : regionOf(company.contexts[0]) ? landingFor({ kind: company.kind as any, region: regionOf(company.contexts[0]) })
+            // A region seat's menu is its region's (lib/region-scope); it lands in Ask Etyme too.
+            region: regionOf(company.contexts[0]),
+          }) === ASK_ETYME_HREF ? ASK_ETYME_HREF
           : desk ? deskLanding(desk, company.kind)
           // An integrator lands on Submissions rather than on its own
           // Today: putting somebody off its own payroll in front of a

@@ -233,14 +233,17 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash        String?
+  passwordHash           String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt     DateTime?
-  emailTokens         EmailToken[]
-  signInFailures      SignInFailure[]
-  adverseActionsGiven AdverseAction[]
+  emailVerifiedAt        DateTime?
+  emailTokens            EmailToken[]
+  signInFailures         SignInFailure[]
+  adverseActionsGiven    AdverseAction[]
+  // Who set a company's reporting currency, and an exchange rate (2026-10-27).
+  reportingCurrenciesSet Company[]       @relation("reportingCurrencySetBy")
+  fxRatesSet             FxRate[]        @relation("fxRateSetBy")
 
   @@index([name])
   @@index([createdAt])
@@ -556,9 +559,18 @@ model Company {
   /// The client issues its own invoices against approved work.
   selfBills Boolean @default(false)
 
-  homeCurrency     String  @default("USD")
+  homeCurrency             String    @default("USD")
   /// A second reporting currency, kept alongside rather than instead of.
-  parallelCurrency String?
+  parallelCurrency         String?
+  /// The one currency spend across every currency is rolled up into, where
+  /// it is not the home currency (2026-10-27, the region map). Null reads
+  /// as `homeCurrency`, which also prices bench profit and so is not moved
+  /// by choosing how to report. Written by PATCH /api/settings/reporting-currency
+  /// with who and when; read by lib/money/reporting-currency.
+  reportingCurrency        String?
+  reportingCurrencySetById String?
+  reportingCurrencySetBy   Person?   @relation("reportingCurrencySetBy", fields: [reportingCurrencySetById], references: [id])
+  reportingCurrencySetAt   DateTime?
 
   /// Who here may see the market outside this company.
   ///
@@ -963,6 +975,7 @@ model Company {
   adverseActions   AdverseAction[]
 
   @@index([listedById])
+  @@index([reportingCurrencySetById])
 }
 
 /// Where a submission actually gets decided.
@@ -4925,9 +4938,14 @@ model FxRate {
   effectiveOn  DateTime
   source       String? // "manual" · a provider name · a contract clause
   createdAt    DateTime @default(now())
+  /// Who set it, so the rollup can say whose rates it used (2026-10-27).
+  /// Null on a rate written before the column, or by a feed.
+  setById      String?
+  setBy        Person?  @relation("fxRateSetBy", fields: [setById], references: [id])
 
   @@unique([companyId, fromCurrency, toCurrency, effectiveOn])
   @@index([companyId, fromCurrency, toCurrency, effectiveOn])
+  @@index([setById])
 }
 
 // ─────────────────────────────────────────────

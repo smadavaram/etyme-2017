@@ -359,12 +359,12 @@ export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
  * click from the chat.
  */
 export function landingFor(reader: Reader & { seatedAtClient?: string | null; region?: string | null }): string {
-  // A region seat lands on its region: Ask Etyme reads the whole program.
-  if (reader.region && reader.kind === 'CLIENT') return BY_REGION_HREF
   const menu = getNavForKind(reader.kind ?? null, Boolean(reader.isConsultant), {
     worker: reader.worker,
     permissions: reader.permissions ?? undefined,
     seatedAtClient: reader.seatedAtClient ?? (reader.seated ? 'a client' : null),
+    // A region seat lands in Ask Etyme too, which narrows to its region (conversation, d0f8d2161).
+    region: reader.region ?? null,
   })
   return pinnedOn(menu).length > 0 ? ASK_ETYME_HREF : consoleHome(reader).href
 }
@@ -392,9 +392,14 @@ const BY_REGION: NavItem = { label: 'By region', href: BY_REGION_HREF, icon: '�
  * The whole menu of a seat that reads one region. Every other link opens
  * a page whose route reads every region, and the region door refuses
  * those (lib/region-scope), so offering them would be a menu that lies.
- * Grows as routes declare that they narrow to a region.
+ * It grows as routes declare that they narrow to a region: Ask Etyme
+ * (conversation, d0f8d2161), first as on every menu; Today and By region
+ * (demand, f451be56e).
  */
-const REGION_NAV: NavSection[] = [{ label: 'Today', tabbed: true, items: [BY_REGION] }]
+const REGION_NAV: NavSection[] = [
+  ASK_ETYME_SECTION,
+  { label: 'Today', tabbed: true, items: [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION] },
+]
 
 /** The firm's own tables. "Needs attention" and "Notifications" left the menu on 2026-10-12 and 10-13: Ask Etyme's greeting is that list, and its mark carries the number. */
 const TODAY_PAGE: NavItem = { label: 'Today', href: '/dashboard', icon: '◉' }

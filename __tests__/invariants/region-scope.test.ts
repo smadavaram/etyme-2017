@@ -101,13 +101,14 @@ describe('By region on the menu', () => {
     expect(openBecause(BY_REGION_HREF)).toBeTruthy()
   })
 
-  it('a region seat’s menu is By region alone, because every other page reads every region', () => {
+  it('a region seat’s menu is Ask Etyme first, then Today and By region, the pages whose routes narrow to a region, and nothing that reads every region', () => {
     const menu = getNavForKind('CLIENT', false, { permissions: clientPerms, region: 'Latin America' })
-    expect(menu.flatMap((s) => s.items.map((i) => i.href))).toEqual([BY_REGION_HREF])
+    expect(menu.map((s) => s.label)).toEqual(['Ask Etyme', 'Today'])
+    expect(menu.flatMap((s) => s.items.map((i) => i.href))).toEqual([ASK_ETYME_HREF, '/dashboard/conversations', '/dashboard/program', BY_REGION_HREF])
   })
 
-  it('a region seat lands on its region, and every other client seat still lands in Ask Etyme', () => {
-    expect(landingFor({ kind: 'CLIENT', permissions: clientPerms, region: 'Latin America' })).toBe(BY_REGION_HREF)
+  it('a region seat lands in Ask Etyme like every client seat, now that Ask Etyme narrows to its region', () => {
+    expect(landingFor({ kind: 'CLIENT', permissions: clientPerms, region: 'Latin America' })).toBe(ASK_ETYME_HREF)
     expect(landingFor({ kind: 'CLIENT', permissions: clientPerms })).toBe(ASK_ETYME_HREF)
   })
 })

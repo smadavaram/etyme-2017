@@ -25,8 +25,7 @@
  * plant's contractors on site at the drawing's count, at the site's own
  * rate in the site's own currency; the drawing's open jobs and weeks to
  * sign; the nearest time limit at each plant, against an 18-month limit;
- * six invoice receipts, one held over the hours at Dayton (none in
- * Vietnam: see CORVANE_RECEIPTS); one start
+ * seven invoice receipts, one held over the hours at Dayton; one start
  * on hold for papers at Dayton.
  *
  * Not seeded, on purpose: matches, interviews and hires (the drawing
@@ -68,6 +67,7 @@ import { REGION_UNIT_KIND, SITE_UNIT_KIND } from '@/lib/region-scope'
 import { periodFor } from '@/lib/periods'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
+import { postAssertion } from '@/lib/order-postings'
 
 // ── The drawing, as data ─────────────────────────────────────────────
 
@@ -358,19 +358,15 @@ export function payRateMinor(cc: CountryKey): number {
 }
 
 /**
- * The invoice receipts: one clean at the first plant of every region but
- * Vietnam, and at Dayton a second, billed 41.5 hours against 40 accepted,
- * which the three-way check holds. The weeks are the first contractor's
- * two weeks before last, signed by the plant's hiring manager.
- *
- * Not Vietnam: the dong has no minor unit, and whether an invoice's
- * `total` and its lines' `amountCents` agree for such a currency is read
- * today as "total × 100 = the lines' cents" (reseed-across-days), which is
- * false for the dong. That is money's to settle; until then no Vietnamese
- * receipt is seeded rather than one whose figure nobody can stand behind.
+ * The invoice receipts: one clean at the first plant of every region, and
+ * at Dayton a second, billed 41.5 hours against 40 accepted, which the
+ * three-way check holds. The weeks are the first contractor's two weeks
+ * before last, signed by the plant's hiring manager. A receipt's total is
+ * read by its currency's own minor unit (money, 53597f3f3), so the dong's
+ * reads 3,000,000 on the header and on the line.
  */
 export const CORVANE_RECEIPTS: readonly { plant: string; week: number; billed: number; accepted: number; held: boolean }[] = [
-  ...CORVANE_REGIONS.filter((r) => r.key !== 'vn')
+  ...CORVANE_REGIONS
     .map((r) => ({ plant: CORVANE_PLANTS.find((p) => p.region === r.key)!.key, week: 3, billed: 40, accepted: 40, held: false })),
   { plant: 'dayton', week: 2, billed: 41.5, accepted: 40, held: true },
 ]
@@ -725,6 +721,15 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
     }),
     skipDuplicates: true,
   })
+
+  // Each signature posted to the books, through the function the route that
+  // signs a week calls, so a rebuild of the postings finds nothing to change
+  // (hop-ledger-books). A signature already posted is left as it is.
+  for (const { r, w } of receipts) {
+    const ts = `cv_ts_${w.key}_w${r.week}`
+    await postAssertion(`${ts}_client`, manager(w.plant))
+    await postAssertion(`${ts}_employer`, ownerOf(w.supplier))
+  }
 
   // ── The receipts: what each supplier sent for those weeks ──
   // One whole billing period under the terms of the document the line is

@@ -9,7 +9,7 @@ import {
   seedCorvane, corvaneSteps, corvaneSeatEmail, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE,
 } from '@/lib/seed-corvane'
 import { regionScopeFor, regionContracts, regionRequirements } from '@/lib/region-scope'
-import { BY_REGION_HREF } from '@/lib/nav-table'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
 /**
  * Corvane Packaging on the seeded world (founder, 2026-10-27, the region
@@ -145,10 +145,10 @@ describe('every Corvane seat opens through the demo door', () => {
     expect(other.status, other.body.error?.message).toBe(200)
   })
 
-  it('a regional manager opens by name and lands on their region', async () => {
+  it('a regional manager opens by name and lands in Ask Etyme, which reads their region', async () => {
     const r = await sit({ desk: 'region', who: 'Valeria Montes' })
     expect(r.status, r.body.error?.message).toBe(200)
-    expect(r.body.data.landing).toBe(BY_REGION_HREF)
+    expect(r.body.data.landing).toBe(ASK_ETYME_HREF)
   })
 })
 

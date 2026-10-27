@@ -92,14 +92,12 @@ describe('Corvane Packaging is the drawing, plant for plant', () => {
     expect(CORVANE_COUNTRIES.NI.iso).toBe('GB')
   })
 
-  it('Dayton holds one invoice receipt over the accepted hours, and every region but Vietnam one clean receipt', () => {
+  it('Dayton holds one invoice receipt over the accepted hours, and every region one clean receipt', () => {
     const held = CORVANE_RECEIPTS.filter((r) => r.held)
     expect(held).toEqual([{ plant: 'dayton', week: 2, billed: 41.5, accepted: 40, held: true }])
     const clean = CORVANE_RECEIPTS.filter((r) => !r.held)
     const regions = clean.map((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region)
-    expect(new Set(regions).size).toBe(5)
-    // No receipt in dong until money settles how a currency with no minor unit is totalled.
-    expect(regions).not.toContain('vn')
+    expect(new Set(regions).size).toBe(6)
     for (const r of clean) expect(r.billed).toBe(r.accepted)
   })
 

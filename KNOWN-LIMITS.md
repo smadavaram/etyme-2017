@@ -887,3 +887,24 @@ every unconfirmed line. What the founder should know:
    No paper here is in any required set yet; making them the floor for a
    site in that country is the next piece, after the seeded multi-site
    client lands.
+
+## Regions, Corvane and the reporting currency — etyme-architect (2026-10-27)
+
+- **`Invoice.total` stays `Decimal(12, 2)` this wave.** Money asked to widen it
+  to `Decimal(16, 3)` so a three-decimal currency (KWD, BHD) and a large
+  no-minor-unit total (VND, COP) are held exactly. Widening a column type is
+  not an additive change, so it waits for a wave that can take a migration
+  on a quiet tree. Until then a total past 9,999,999,999.99 or with a third
+  decimal cannot be stored; no seeded bill comes near either.
+- **`Company.reportingCurrency` and `FxRate.setById` are written and not yet
+  read.** `PATCH /api/settings/reporting-currency` writes both with who and
+  when; `lib/money/reporting-currency` still reads `homeCurrency` as the
+  reporting currency and reports `setBy: null`. Money's next change reads
+  `reportingCurrency ?? homeCurrency` and the rate's `setBy`.
+- **A region seat is refused every route that has not declared it narrows
+  to a region** (`getCallerContext(request, { narrowsToRegion: true })`).
+  That is on purpose — a refusal, never a leak — and it means Ask Etyme,
+  Today and the mark refuse a regional manager until their routes narrow.
+- **Corvane has no card on `/demo`.** Its seats open through
+  `POST /api/demo {"as":"world-corvane", "desk": …, "who": …}`; the three
+  desks with no chip are named in `demo-door.test.ts`.

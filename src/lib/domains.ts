@@ -531,6 +531,9 @@ export const DOMAINS: Domain[] = [
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.
       'lib/region-scope',
+      // A company's reporting currency and exchange rates, recorded with who
+      // and when (2026-10-27); the rollup over them is money's.
+      'lib/reporting-currency-setting',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
       // Which of the seller's dashboard panels a seat may read, asked the
