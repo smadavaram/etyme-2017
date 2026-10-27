@@ -13,6 +13,7 @@ import {
   deskLine, desksOffered, assessDeskChange, waitingLine, inviteLetter,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
   MEMBER_DESK, INVITE_LINK_HOURS, type DeskChange, type InviteLetter,
+  inviteSays, mayHoldOutsideSeat,
 } from '@/lib/access-grant'
 import { MEMBER_ROLE, rolesFor } from '@/lib/company-defaults'
 import { TEMPLATE_PACKS } from '@/lib/template-packs'
@@ -310,5 +311,48 @@ describe('sign-up walk, round seven: the heading over Your data and Users & perm
     expect(mine).toContain("usePageSection('/dashboard/my-data')")
     expect(mine).not.toMatch(/font-medium">You</)
     expect(sectionForReader({ ...reader('CLIENT', owner('CLIENT')), pending: true }, '/dashboard/access')).toBeNull()
+  })
+})
+
+describe('what the inviter is told', () => {
+  const base = { personName: 'Dana Whitfield', email: 'dana@northbend.example', roleName: 'Program Manager', login: 'https://app.etyme.example/login' }
+
+  it('an invitation never claims an email went when none could, and never hands out a sign-in address the person cannot use', () => {
+    const none = inviteSays({ ...base, door: 'PASSWORD', mail: 'NOT_CONFIGURED' })
+    expect(none).toBe('Dana Whitfield has been invited as Program Manager. The seat is theirs when they sign in with dana@northbend.example. No email can be sent from here yet; the one-time link is kept with Etyme staff.')
+    expect(none).not.toContain('emailed')
+    expect(none).not.toContain('/login')
+
+    const failed = inviteSays({ ...base, door: 'PASSWORD', mail: 'FAILED' })
+    expect(failed).toContain('the email to dana@northbend.example did not go')
+    expect(failed).not.toContain('/login')
+
+    const sent = inviteSays({ ...base, door: 'PASSWORD', mail: 'SENT' })
+    expect(sent).toBe('Dana Whitfield has been invited as Program Manager and emailed. The seat is theirs when they sign in with dana@northbend.example. The email has a link to set their password.')
+
+    // Somebody who already holds a password, or a work-account door, can use the address.
+    expect(inviteSays({ ...base, door: 'NONE', mail: 'NOT_CONFIGURED' })).toContain('send them the sign-in address yourself: https://app.etyme.example/login.')
+    expect(inviteSays({ ...base, door: 'WORK_ACCOUNT', mail: 'NOT_CONFIGURED' })).toContain('https://app.etyme.example/login')
+  })
+})
+
+describe('the seat a client grants an outside firm', () => {
+  const roles = Object.fromEntries(rolesFor('CLIENT').map((r: any) => [r.name, { name: r.name, permissions: r.permissions as string[] }]))
+  const ask = (name: string) => mayHoldOutsideSeat({ role: roles[name], clientName: 'Cavanaugh Glassworks', firmName: 'Aptiva Workforce' })
+
+  it('an outside firm never holds the client\'s Owner, its Approver, or a role that signs hours or grants seats', () => {
+    for (const name of ['Owner', 'Approver', 'Hiring Manager']) {
+      const v = ask(name)
+      expect(v.ok, name).toBe(false)
+      if (!v.ok) expect(v.says).toContain(`Aptiva Workforce cannot hold Cavanaugh Glassworks’s ${name} role`)
+    }
+    // A client's own role that can change seats is refused whatever it is called.
+    expect(mayHoldOutsideSeat({ role: { name: 'Ops lead', permissions: ['requirements.read', 'team.manage'] }, clientName: 'C', firmName: 'F' }).ok).toBe(false)
+  })
+
+  it('an outside firm may run the program as Program Manager and hold the program office\'s other desks', () => {
+    for (const name of ['Program Manager', 'Procurement Lead', 'HR Partner', 'AP Clerk', 'Compliance Officer', 'Viewer']) {
+      expect(ask(name), name).toEqual({ ok: true })
+    }
   })
 })

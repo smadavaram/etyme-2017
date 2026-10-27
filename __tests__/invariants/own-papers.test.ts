@@ -7,6 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { BUILT_IN } from '@/lib/document-type'
 import { mayFileOwnPaper, ownPaperMenu, whyNotOwn } from '@/lib/document-stages/own-papers'
 import { licenseGate, credentialsToChase } from '@/lib/document-stages'
@@ -122,6 +124,23 @@ describe('a one-person firm’s own papers', () => {
     expect(books.whole).toBe(true)
     // A staff answer this page cannot read says so rather than shortening the list quietly.
     expect(peopleOnBooks({ ok: true, rows: [] } as any, { data: { roster: [] } }, {}, null, { data: {} }).whole).toBe(false)
+  })
+
+  it('a one-person firm\'s paperwork speaks to her as the firm, never as a client\'s supplier', () => {
+    const menu = ownPaperMenu({ firm: true })
+    for (const m of menu) {
+      expect(m.hint, m.key).toBeTruthy()
+      // A client's voice: "us", "our sites", "we set you up".
+      expect(m.hint!, m.key).not.toMatch(/\b(us|our|we|Our|We)\b/)
+    }
+    expect(menu.find((m) => m.key === 'W9')?.hint).toBe('Your W-9, so a client can pay you. Signed, on the current edition.')
+    expect(menu.find((m) => m.key === 'INSURANCE_GL')?.hint).toContain('naming the client as certificate holder')
+
+    // On her page she is never offered the ask form, the library or the requests list.
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/documents/page.tsx'), 'utf8')
+    expect(page).toContain('{!onePersonFirm && <section className="mb-8">\n        <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>')
+    expect(page).toContain('{!onePersonFirm && <section className="mb-8">\n        <h2 className="font-serif text-lg text-etyme-ink mb-3">Requests')
+    expect(page).toContain('{!onePersonFirm && <section>\n        <h2 className="font-serif text-lg text-etyme-ink mb-3">The library')
   })
 
   it('only a one-person firm files a firm’s papers from its own page', () => {

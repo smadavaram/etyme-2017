@@ -9,7 +9,7 @@ import { checkInvite } from '@/lib/account-lifecycle'
 import { doorOpen, issueSetPassword } from '@/lib/password-door'
 import { emailSender } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
-import { inviteLetter, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
+import { inviteLetter, inviteSays, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
 
 /** Whether Microsoft or Google sign-in is set up here, read the way lib/auth reads it. */
 function workAccountOn(): boolean {
@@ -203,6 +203,9 @@ export async function POST(request: NextRequest) {
         : 'NONE'
   const title = `${caller.person.name} invited you to ${company?.name ?? 'their company'}`
 
+  // How the email went, so the inviter is never told it went when it did not.
+  let mail: AccountMailState = emailSender() ? 'SENT' : 'NOT_CONFIGURED'
+
   if (door === 'PASSWORD') {
     // One door mints the link, and it kills any older one for this person.
     const setPasswordUrl = await issueSetPassword(person.id, INVITE_LINK_HOURS, now)
@@ -238,6 +241,7 @@ export async function POST(request: NextRequest) {
         deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? new Date() : null,
       },
     })
+    mail = state
   } else {
     const letter = inviteLetter({
       door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
@@ -254,21 +258,14 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // What the inviter is told about the way in. Where no email can leave
-  // this deployment, they are the way in, and the sentence says so.
-  const wayIn = !emailSender()
-    ? (login
-        ? ` No email can be sent from here yet, so send them the sign-in address yourself: ${login}.`
-        : ' No email can be sent from here yet, and this deployment does not know its own address. Send them the sign-in address yourself.')
-    : door === 'PASSWORD' ? ' The email has a link to set their password.'
-      : ''
+  // What the inviter is told, from what happened to the email
+  // (`inviteSays` in lib/access-grant).
+  const says = inviteSays({ personName: person.name, email, roleName: role?.name ?? null, door, mail, login: login || null })
 
   return NextResponse.json(
     {
       data: {
-        says: role
-          ? `${person.name} has been invited as ${role.name} and emailed. The seat is theirs when they sign in with ${email}.${wayIn}`
-          : `${person.name} has been invited and emailed. Give them a role when they arrive.${wayIn}`,
+        says,
         contextId: context.id,
         email,
         role: role?.name ?? null,

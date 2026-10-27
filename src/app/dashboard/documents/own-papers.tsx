@@ -78,7 +78,9 @@ export function OwnPapers({ about, heading }: { about?: OwnPaperAbout; heading?:
     <section className="mb-8">
       {heading && <h2 className="font-serif text-lg text-etyme-ink mb-1">{heading}</h2>}
       <p className="text-sm text-etyme-muted mb-3">
-        Put a paper on file once. The firm that asks for it looks at it and records what it saw.
+        {view.firm
+          ? 'Put each paper on file once. A client that asks for one looks at it and records what it saw.'
+          : 'Put a paper on file once. The firm that asks for it looks at it and records what it saw.'}
       </p>
       {view.says && <p className="text-xs text-etyme-attention mb-3">{view.says}</p>}
       {said && <div className="mb-3"><FormMessage tone="ok">{said}</FormMessage></div>}

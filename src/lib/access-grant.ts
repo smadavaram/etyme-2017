@@ -534,3 +534,113 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
     link: null,
   }
 }
+
+
+// ── What the inviter is told ──────────────────────────────────────────
+//
+// The second onboarding walk (2026-10-27): with no email able to leave,
+// the inviter read "…has been invited as Program Manager and emailed…
+// send them the sign-in address yourself: …/login". Nothing was emailed,
+// and the colleague has no password, so the sign-in address was a door
+// they could not open. The sentence now follows what actually happened
+// to the email, and offers a sign-in address only to somebody who can
+// use it: a person who already has a password, or a work-account door.
+
+/** How the invitation email went: SENT, FAILED, or NOT_CONFIGURED (no provider here). */
+export type InviteMailState = 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
+
+export function inviteSays(i: {
+  personName: string
+  email: string
+  roleName: string | null
+  door: InviteDoor
+  mail: InviteMailState
+  /** The sign-in address, where this deployment knows it. */
+  login: string | null
+}): string {
+  const head = i.roleName ? `${i.personName} has been invited as ${i.roleName}` : `${i.personName} has been invited`
+  const seat = i.roleName
+    ? ` The seat is theirs when they sign in with ${i.email}.`
+    : ' Give them a role when they arrive.'
+
+  if (i.mail === 'SENT') {
+    return `${head} and emailed.${seat}${i.door === 'PASSWORD' ? ' The email has a link to set their password.' : ''}`
+  }
+  if (i.mail === 'FAILED') {
+    return `${head}, and the email to ${i.email} did not go.${seat} Invite them again to send a new link.`
+  }
+  // No email can leave this deployment.
+  if (i.door === 'PASSWORD') {
+    return `${head}.${seat} No email can be sent from here yet; the one-time link is kept with Etyme staff.`
+  }
+  if (i.login) {
+    // They already hold a password, or sign in with their work account:
+    // the address is a door they can open.
+    return `${head}.${seat} No email can be sent from here yet, so send them the sign-in address yourself: ${i.login}.`
+  }
+  return `${head}.${seat} No email can be sent from here yet, and this deployment does not know its own address. Send them the sign-in address yourself.`
+}
+
+// ── What an outside firm's seat may never hold ─────────────────────────
+//
+// Decided by regulatory, 2026-10-27, on the coordinator's question after
+// the second onboarding walk: may the seat a client grants an MSP ever
+// carry a role above the program manager's? The coordinator's call was
+// "never the client's Owner". The rule is narrower than that, for three
+// reasons that each stand on their own:
+//
+//   **Seats and rules are the client's.** A role that grants or changes
+//   seats (`team.manage`, `settings.manage`) would let the outside firm
+//   widen its own seat or seat others. "Under the client's rules" means
+//   the client holds the pen. The Owner is the plainest case of this.
+//
+//   **An MSP is paid a share of what is billed** (CLAUDE.md, "Pricing is
+//   unchanged": supplier-funded, a percentage on billings). So it never
+//   signs the hours its fee is counted from (`timesheets.approve`, the
+//   Hiring Manager's), and never signs the client's money in the approval
+//   chain (the Approver). Each is a segregation-of-duties BLOCK, the same
+//   as nobody signing their own: it is not a judgment about the firm.
+//
+//   Everything else — Program Manager, Procurement Lead, HR Partner,
+//   AP Clerk, Compliance Officer, Viewer — is the program office's work
+//   (CLAUDE.md, "The MSP desks are Etyme's own") and may be granted.
+//
+// Data, keyed on what a role can do rather than only on its name, so a
+// client that renames a role or builds its own cannot slip past it.
+
+/** Roles an outside firm's seat never holds, by name. */
+export const OUTSIDE_SEAT_NEVER_ROLES: Record<string, string> = {
+  Owner: 'it holds everything, seats included',
+  Approver: 'it signs the client’s own money in the approval chain, and an MSP is paid a share of what is billed',
+}
+
+/** What a role may not carry for an outside firm to hold it, and why. */
+export const OUTSIDE_SEAT_NEVER_PERMISSIONS: Record<string, string> = {
+  'team.manage': 'it grants and changes seats, so the firm could widen its own',
+  'settings.manage': 'it changes the client’s settings and seats, which are the client’s to keep',
+  'timesheets.approve': 'it signs the hours an MSP’s fee is counted from',
+}
+
+export type OutsideSeatVerdict = { ok: true } | { ok: false; code: 'NEVER_FOR_AN_OUTSIDE_FIRM'; says: string }
+
+/**
+ * Whether a client may grant this role to an outside firm's seat. Pure.
+ * `clientName` and `firmName` are said in the refusal.
+ */
+export function mayHoldOutsideSeat(input: {
+  role: { name: string; permissions: readonly string[] }
+  clientName: string
+  firmName: string
+}): OutsideSeatVerdict {
+  const byName = OUTSIDE_SEAT_NEVER_ROLES[input.role.name]
+  const perm = input.role.permissions.find((p) => p === '*' || p in OUTSIDE_SEAT_NEVER_PERMISSIONS)
+  const why = byName ?? (perm === '*' ? OUTSIDE_SEAT_NEVER_ROLES.Owner : perm ? OUTSIDE_SEAT_NEVER_PERMISSIONS[perm] : null)
+  if (!why) return { ok: true }
+  return {
+    ok: false,
+    code: 'NEVER_FOR_AN_OUTSIDE_FIRM',
+    says:
+      `${input.firmName} cannot hold ${input.clientName}’s ${input.role.name} role: ${why}. ` +
+      `Choose the role it runs the program in, Program Manager most often.`,
+  }
+}

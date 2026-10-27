@@ -4,7 +4,7 @@ import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN, builtInType } from '@/lib/document-type'
-import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate } from '@/lib/document-request'
+import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 
 /**
@@ -79,6 +79,9 @@ export async function GET(request: NextRequest) {
           ],
         }
       : { template: { companyId } }
+    // A paper its holder kept on her own file is not a request anybody
+    // made; it is listed under her own papers (GET /api/me/papers?view=own).
+    if (status !== KEPT_BY_HOLDER) where.status = { not: KEPT_BY_HOLDER }
     if (subjectId) where.subjectId = subjectId
     if (status) where.status = status.toUpperCase()
 

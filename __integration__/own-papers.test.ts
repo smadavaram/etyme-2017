@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { NextRequest } from 'next/server'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as myPapers, PUT as putOwn } from '@/app/api/me/papers/route'
-import { POST as documents } from '@/app/api/documents/route'
+import { POST as documents, GET as documentsGet } from '@/app/api/documents/route'
 
 /**
  * A paper put on file by its holder before anybody asks (release walk,
@@ -67,6 +67,11 @@ describe('papers put on file by their holder', () => {
       ['PROFESSIONAL_LICENSE', 'ME', 'On file, not examined'],
       ['W9', 'MY_FIRM', 'On file, not examined'],
     ])
+
+    // What she kept is never listed as a request her firm made.
+    const asked = await json(await documentsGet(req('GET', '/api/documents?view=instances')))
+    expect(asked.status, JSON.stringify(asked.body)).toBe(200)
+    expect(asked.body.data.instances.map((x: any) => x.id)).not.toContain(gl.body.data.docId)
 
     // Her asks list is unchanged by what she kept: a kept paper answers no ask.
     const asks = await json(await myPapers(req('GET', '/api/me/papers')))

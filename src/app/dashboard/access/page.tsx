@@ -361,7 +361,7 @@ export default function AccessPage() {
         ) : (
         <>
         <p className="text-sm text-etyme-muted mb-3">
-          Name, email, and what they do here. They are emailed, and the seat is theirs the moment they sign in.
+          Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-2 items-center">
           <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" aria-label="Name" />

@@ -83,12 +83,34 @@ export interface OwnPaperNeeds {
   year: boolean
 }
 
+/**
+ * What each paper is for, said to her as the firm.
+ *
+ * The dictionary's hints are written in a client's voice ("This is how we
+ * set you up to be paid", "Naming us as certificate holder"), because a
+ * client asks for them. On her own page she is the firm, and the second
+ * onboarding walk (2026-10-27) read those lines as a client talking to
+ * her. So her page says what the paper does for her.
+ */
+export const OWN_PAPER_SAYS: Record<string, string> = {
+  W9: 'Your W-9, so a client can pay you. Signed, on the current edition.',
+  INSURANCE_GL: 'Your general liability certificate, naming the client as certificate holder. Your broker issues it.',
+  INSURANCE_WC: 'Your workers’ compensation certificate, for work on a client’s site. Your broker issues it.',
+  GOOD_STANDING: 'Your certificate of good standing, from the state your firm is registered in, dated inside the last year.',
+  BUSINESS_PARTNER: 'Your firm’s registration: the incorporation certificate, or its DUNS number.',
+  INSURANCE_EO: 'Your errors and omissions certificate, where you advise a client rather than deliver work.',
+  PROFESSIONAL_LICENSE: 'Your license to do this work, with its number and the day it runs out.',
+  CERTIFICATION: 'A certification you hold, who issued it, and the day it runs out.',
+  DEGREE: 'Your degree certificate and transcripts, with the school and the year.',
+  EDUCATION_EVALUATION: 'Your credential evaluation (WES or ECE), for a degree earned outside the US.',
+}
+
 function needsOf(t: DocumentTypeSpec, about: OwnPaperAbout): OwnPaperNeeds {
   const license = t.key === 'PROFESSIONAL_LICENSE' || (t.purpose === 'COMPLIANCE' && t.blocks && t.suppliedBy === 'CANDIDATE')
   return {
     key: t.key,
     label: t.label,
-    hint: t.hint ?? null,
+    hint: OWN_PAPER_SAYS[t.key] ?? t.hint ?? null,
     about,
     file: true,
     number: license,

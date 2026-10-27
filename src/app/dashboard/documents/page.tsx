@@ -222,7 +222,8 @@ export default function DocumentsPage() {
         </form>
       </section>}
 
-      <section className="mb-8">
+      {/* A firm of one asks nobody: her own filings are under "Your firm’s papers". */}
+      {!onePersonFirm && <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Requests <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span></h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {loading && <LoadingState compact says="Reading what was asked for…" />}
@@ -266,7 +267,7 @@ export default function DocumentsPage() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {examining && (
         <ExaminePaper
