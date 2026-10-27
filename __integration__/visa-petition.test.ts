@@ -116,10 +116,22 @@ describe('a visa petition on the bench, filing to running out', () => {
     const tariq = reading.people.find((x) => x.personId === it_.worker)
     expect(tariq?.because).toContain('on your bench')
 
-    // And Pinnacle's own staff are offered, having granted nothing — a
-    // firm files a petition for somebody it employs, and a BenchListing
-    // is consent to be marketed, which is a different question.
-    expect(reading.people.some((x) => x.because === 'on your payroll')).toBe(true)
+    // Pinnacle's seats are all staff — its owner, AP & Payroll clerk,
+    // recruiter and account manager, named by no placement, pay line or
+    // listing — and staff are not its payroll (onboarding walk,
+    // 2026-10-27), so none of them is offered as "on your payroll".
+    expect(reading.people.some((x) => x.name === 'Ruth Calloway' && x.because === 'on your payroll')).toBe(false)
+
+    // The payroll half still offers the people a firm employs and the work
+    // names, having granted nothing: a firm files a petition for somebody
+    // it employs, and a BenchListing is consent to be marketed, which is a
+    // different question. Teleworld's W2s are on placements.
+    as('world-teleworld@demo.etyme.local')
+    const twBench = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const twPayroll = await json(await bench(req('GET', '/api/bench?scope=payroll')))
+    const tw = peopleOnBooks(readBench(twBench.body), twPayroll.body)
+    expect(tw.why).toBeNull()
+    expect(tw.people.find((x) => x.name === 'Karthik Menon')?.because).toBe('on your payroll')
   })
 
   it('every name the picker offers is a name the petition route accepts', async () => {
