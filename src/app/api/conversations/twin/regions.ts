@@ -2,11 +2,12 @@ import type { CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { format, fromMinor } from '@/lib/money'
+import { possessive } from '@/lib/requisition-approval'
 import { BY_REGION_HREF } from '@/lib/nav-table'
 import { regionsView, type RegionsData } from '@/app/api/program/regions/read'
 import { readerScope } from '@/app/api/program/reader-scope'
-import type { SpendLine, ManagerRow, RegionRow, ContractorRow } from '@/app/api/program/regions/rollup'
-import { readAsk, type Answer, type Link, type ListTable } from './ask'
+import { heldOverSays, type SpendLine, type ManagerRow, type RegionRow, type ContractorRow, type GreetingItem } from '@/app/api/program/regions/rollup'
+import { readAsk, type Answer, type Link, type ListTable, type QueueRead } from './ask'
 
 /**
  * Ask Etyme over the program by region (founder, 2026-10-27, "go ahead
@@ -49,8 +50,24 @@ export type MapReach = 'PROGRAM' | 'REGION' | 'SITE'
 /** A site as Ask Etyme needs it: what a person may name in a question. */
 export interface Place { name: string; city: string | null; region: string | null }
 
+/**
+ * Which line a program seat is greeted with, the home page's own two
+ * (lib/public-site/corvane-map): FINANCE, the CFO's exceptions (what is
+ * held, what waits on papers, who is nearest the time limit), for a seat
+ * that reads the program and runs no job request; OPERATIONS, the weeks
+ * waiting and the time limit, for a seat that runs the program's jobs
+ * (`requirements.write`): the head of operations.
+ */
+export type ProgramLine = 'FINANCE' | 'OPERATIONS'
+
+export function programLine(permissions: readonly string[]): ProgramLine {
+  return hasPermission(permissions, 'requirements.write') ? 'OPERATIONS' : 'FINANCE'
+}
+
 export interface MapSeat {
   reach: MapReach
+  /** A program seat's line; null for a region or a plant. */
+  line?: ProgramLine | null
   /** The region's label, the plant's name, or the client's name. */
   label: string
   /** The client's name, for a sentence. */
@@ -111,12 +128,13 @@ export function mapChips(reach: MapReach, own: readonly string[] = []): readonly
 
 // ── What was asked ───────────────────────────────────────────────────
 
-export type MapAsk = 'NEEDS' | 'PLANT_WEEKS' | 'LIMIT' | 'PAST' | 'HELD' | 'HELD_RECEIPTS' | 'SPEND' | 'COUNTRIES' | 'HELP'
+export type MapAsk = 'I9' | 'NEEDS' | 'PLANT_WEEKS' | 'LIMIT' | 'PAST' | 'HELD' | 'HELD_RECEIPTS' | 'SPEND' | 'COUNTRIES' | 'HELP'
 
 /** One of the map's questions, or null. Case and punctuation do not matter. */
 export function readMapAsk(raw: string): MapAsk | null {
   const lower = raw.trim().replace(/\s+/g, ' ').toLowerCase()
   if (!lower) return 'HELP'
+  if (/\bi-?9s?\b/.test(lower)) return 'I9'
   if (/\bcountr(y|ies)\b/.test(lower)) return 'COUNTRIES'
   if (/\btime[- ]limits?\b|\btenure\b|\b18[- ]months?\b/.test(lower)) {
     return /\b(past|over|beyond|reached|passed)\b/.test(lower) ? 'PAST' : 'LIMIT'
@@ -144,12 +162,14 @@ export function answeredByMap(reach: MapReach, ask: MapAsk | null, text: string)
   const lower = text.toLowerCase()
   const plants = /\b(plants?|sites?|regions?)\b/.test(lower)
   if (reach === 'PROGRAM') {
-    if (!ask || ask === 'HELP') return false
+    if (!ask || ask === 'HELP' || ask === 'I9') return false
     if (ask === 'SPEND') return /\bregions?\b/.test(lower)
     if (ask === 'PLANT_WEEKS') return plants
     return true
   }
   if (ask === 'COUNTRIES') return true
+  // Who is missing an I-9 at the plant: the start on hold By region already shows it.
+  if (ask === 'I9') return true
   return (ask === 'LIMIT' || ask === 'PAST' || ask === 'PLANT_WEEKS') && plants
 }
 
@@ -234,25 +254,226 @@ function openLink(data: RegionsData): Link {
 
 // ── The answers, from By region's own read ───────────────────────────
 
+// ── The first line, the home page's own for each seat ─────────────────
+//
+// The founder's rule (2026-10-27, the release walk): the Ask Etyme
+// greeting for a seat at a client read by region says what the home
+// page's tab for that role says (lib/public-site/corvane-map), names not
+// counts, and the mark carries the greeting's own number. Every item is
+// read from By region's answer for this seat — its first line's things
+// as data (`greeting.held`), the nearest time limit and the money a held
+// receipt bills over the signed hours (`total`), each plant
+// (`region.managers`) — and nothing is counted a second way.
+
+/** "an I-9", or "papers": what a start on hold waits on, from By region's own phrase for it. */
+export function startWaitsOn(item: Pick<GreetingItem, 'says'>): string {
+  const m = /\bwaits on (.+)$/.exec(item.says)
+  return m ? m[1].replace(/\s*\([^)]*\)\s*$/, '').trim() : 'papers'
+}
+
+/** "Maria Lee cannot start without an I-9. Get it on file, then start." */
+export function startSentence(item: Pick<GreetingItem, 'says' | 'person'>): string {
+  const doc = startWaitsOn(item)
+  const who = item.person ?? 'Somebody'
+  return doc === 'papers'
+    ? `${who} cannot start until the papers are on file. Open the start to see which.`
+    : `${who} cannot start without ${doc}. Get it on file, then start.`
+}
+
+/** By region's phrase for a held receipt with the money over the signed hours beside the hours. */
+export function receiptPhrase(item: Pick<GreetingItem, 'says'>, over: string | null): string {
+  if (!over) return item.says
+  const m = /^(.*\bis held)(?:, (.+))?$/.exec(item.says)
+  if (!m) return item.says
+  return `${m[1]}, ${over} over the signed hours${m[2] ? ` (${m[2]})` : ''}`
+}
+
+/** The short name of a plant inside a sentence: "Campinas", not "Campinas, Brazil". */
+function town(plant: string): string {
+  return plant.split(',')[0].trim()
+}
+
+/** "reaches the time limit in 14 days", "reaches the time limit today", "is 3 days past the time limit". */
+function limitVerb(days: number): string {
+  if (days === 0) return 'reaches the time limit today'
+  if (days < 0) return `is ${count(-days, 'day')} past the time limit`
+  return `reaches the time limit in ${count(days, 'day')}`
+}
+
+/** "Aoife Kelly in Belfast reaches the time limit in 14 days". */
+export function limitPhrase(n: { days: number; personName: string; plant: string }): string {
+  return `${n.personName} in ${town(n.plant)} ${limitVerb(n.days)}`
+}
+
+/** How far ahead the head of operations' line looks at the time limit: the home page's own 30 days. */
+export const OPERATIONS_LIMIT_DAYS = 30
+
+export interface SeatLine {
+  /** The things named, which is the mark's number. */
+  total: number
+  says: string
+}
+
 /**
- * The greeting, or "what needs me": By region's own first line, its own
- * number. `greeting` marks the first message of the chat.
+ * "Three things need you: A; B; C. <after>" — `n` is By region's own
+ * count (`greeting.total`), never recounted here: the things are the
+ * decisions By region names (a held receipt, a start on hold, the weeks
+ * waiting). A time limit is not a decision, so it is said after them as
+ * its own line, and never counted.
  */
-export function mapNeeds(data: RegionsData, reach: MapReach, greeting: boolean, boundary?: string): Answer {
+function lead(n: number, parts: readonly string[], after: readonly string[] = []): SeatLine {
+  const tail = after.filter(Boolean).join(' ')
+  if (n === 0 || parts.length === 0) return { total: 0, says: tail ? `Nothing needs you today. ${tail}` : 'Nothing needs you today.' }
+  return { total: n, says: `${upper(word(n))} ${n === 1 ? 'thing needs' : 'things need'} you: ${parts.join('; ')}.${tail ? ` ${tail}` : ''}` }
+}
+
+const heldOf = (data: RegionsData, kind: GreetingItem['kind']) => (data.greeting.held ?? []).filter((i) => i.kind === kind)
+
+/** "Fernanda Albuquerque has 2 weeks to sign in Campinas", or the weeks at a plant with nobody named. */
+function weeksAt(m: ManagerRow): string {
+  return m.managerId
+    ? `${m.manager} has ${count(m.weeksToSign, 'week')} to sign in ${town(m.plant)}`
+    : `${count(m.weeksToSign, 'week')} ${m.weeksToSign === 1 ? 'waits' : 'wait'} to be signed in ${town(m.plant)}`
+}
+
+/**
+ * The first line for a seat that reads the rollup. Its number is By
+ * region's `greeting.total`; its items are By region's `greeting.held`,
+ * said the way the home page's tab for the role says them.
+ *
+ *   CFO (FINANCE)   what is held, with the money over the signed hours; each
+ *                   start waiting on papers; the weeks. Then the nearest
+ *                   time limit, by name.
+ *   OPERATIONS      the weeks first, then what is held. Then who is within
+ *                   30 days of the time limit.
+ *   REGION          what is held; the weeks said by the hiring manager at
+ *                   the plant nearest the time limit (else the one with the
+ *                   most), with the rest as a count. Then the nearest person.
+ */
+export function seatLine(data: RegionsData, reach: MapReach, opts: { line?: ProgramLine | null } = {}): SeatLine {
+  const held = heldOf(data, 'receipt')
+  // The money over is said beside the one held receipt By region names.
+  const over = held.length === 1 && held[0].count === 1 ? heldOverSays(data.total.heldOver) || null : null
+  const receipts = held.map((i) => receiptPhrase(i, over))
+  const starts = heldOf(data, 'start').map((i) => i.says)
+  const weeks = heldOf(data, 'weeks')[0] ?? null
+  const nearest = data.limitSays ? null : data.total.nearestLimit
+  const total = data.greeting.total
+
+  if (reach === 'PROGRAM' && (opts.line ?? 'FINANCE') === 'OPERATIONS') {
+    // By region carries the nearest person in each region, not every
+    // person, so it counts the regions with somebody inside the line and
+    // names the nearest; it never counts people it does not read.
+    const near = data.regions.filter((r) => r.nearestLimit && r.nearestLimit.days <= OPERATIONS_LIMIT_DAYS)
+    const limit = nearest && near.length > 0
+      ? near.length === 1
+        ? `${limitPhrase(nearest)}.`
+        : `${count(near.length, 'region')} have somebody within ${OPERATIONS_LIMIT_DAYS} days of the time limit, the nearest ${nearest.personName} in ${town(nearest.plant)}, ${daysWords(nearest.days)}.`
+      : ''
+    return lead(total, [...(weeks ? [weeks.says] : []), ...receipts, ...starts], [limit])
+  }
+
+  if (reach === 'REGION') {
+    const managers = data.region?.managers ?? []
+    const parts = [...receipts, ...starts]
+    if (weeks) {
+      const byLimit = managers.filter((m) => m.nearestLimit && m.weeksToSign > 0).sort((a, b) => a.nearestLimit!.days - b.nearestLimit!.days)
+      const most = [...managers].filter((m) => m.weeksToSign > 0).sort((a, b) => b.weeksToSign - a.weeksToSign || a.plant.localeCompare(b.plant))[0]
+      const named = (byLimit[0] && nearest && byLimit[0].nearestLimit!.days === nearest.days ? byLimit[0] : most) ?? null
+      if (named) {
+        const rest = weeks.count - named.weeksToSign
+        const restPlants = managers.filter((m) => m.weeksToSign > 0 && m !== named).length
+        parts.push(rest > 0 ? `${weeksAt(named)}, and ${count(rest, 'more week')} ${rest === 1 ? 'waits' : 'wait'} at ${count(restPlants, 'plant')}` : weeksAt(named))
+      } else {
+        parts.push(weeks.says)
+      }
+    }
+    const limit = nearest && nearest.days <= NEAR_DAYS ? `${limitPhrase(nearest)}.` : ''
+    return lead(total, parts, [limit])
+  }
+
+  // The CFO's: exceptions first, then the weeks.
+  const limit = nearest && nearest.days <= NEAR_DAYS ? `${limitPhrase(nearest)}.` : ''
+  return lead(total, [...receipts, ...starts, ...(weeks ? [weeks.says] : [])], [limit])
+}
+
+/**
+ * A hiring manager's line on his plant, By region's count and things: a
+ * held receipt, each start on hold said as the start's own sentence, and
+ * the weeks he signs by the names on them where his queue carries them.
+ */
+export function siteLine(data: RegionsData, queue: QueueRead | null): SeatLine {
+  const receipts = heldOf(data, 'receipt').map((i) => i.says)
+  const starts = heldOf(data, 'start')
+  const weeks = heldOf(data, 'weeks')[0] ?? null
+  const parts = [...receipts, ...starts.map((s) => (s.person ? cannotStart(s) : s.says))]
+  if (weeks) {
+    const people = [...new Set((queue?.items ?? []).filter((d) => d.type === 'TIMESHEET_APPROVAL').map((d) => d.whose?.trim() || d.title.split(' — ').slice(1).join(' — ').trim()).filter(Boolean))]
+    const named = weeks.person ? [weeks.person] : people.length > 0 && people.length <= 3 && (queue?.items ?? []).filter((d) => d.type === 'TIMESHEET_APPROVAL').length === weeks.count ? people : []
+    parts.push(named.length === 1 && weeks.count === 1
+      ? `${possessive(named[0], '’')} week waits for you to sign it`
+      : named.length > 0
+        ? `${listed(named)} have weeks waiting for you`
+        : `${count(weeks.count, 'week')} ${weeks.count === 1 ? 'waits' : 'wait'} for you to sign`)
+  }
+  const after = starts.filter((s) => s.person).map((s) => {
+    const doc = startWaitsOn(s)
+    return doc === 'papers' ? 'Open the start to see which papers.' : `Get ${doc.replace(/^an? /, 'the ')} on file, then start.`
+  })
+  return lead(data.greeting.total, parts, after)
+}
+
+function listed(xs: readonly string[]): string {
+  return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+/** "Maria Lee cannot start without an I-9", from By region's phrase for the start. */
+function cannotStart(item: Pick<GreetingItem, 'says' | 'person'>): string {
+  const doc = startWaitsOn(item)
+  return doc === 'papers' ? `${item.person} cannot start until the papers are on file` : `${item.person} cannot start without ${doc}`
+}
+
+/**
+ * The greeting, or "what needs me": the home page's line for this seat
+ * (`seatLine`), its own number. `greeting` marks the first message of the chat.
+ */
+export function mapNeeds(
+  data: RegionsData, reach: MapReach, greeting: boolean, boundary?: string,
+  opts: { line?: ProgramLine | null } = {},
+): Answer {
   const where = scopeOf(data)
   const close = reach === 'PROGRAM'
     ? `Ask me what ${data.client.name} spends by region, what is held and why, and who is past the time limit. I answer from the record, and I never move money without a person.`
     : `Ask me about ${where}: its plants, its weeks, the time limit, its invoice receipts and how each country runs. I read ${where} only, and I answer from the record.`
   return {
-    kind: 'NEEDS', greeting, says: data.greeting.says, items: [],
+    kind: 'NEEDS', greeting, says: seatLine(data, reach, opts).says, items: [],
     more: [{ says: close }, ...(boundary ? [{ says: boundary }] : [])],
     links: [openLink(data)],
   }
 }
 
 /** The mark's number for a map seat: the greeting's own. */
-export function mapOwed(data: RegionsData): number {
-  return data.greeting.total
+export function mapOwed(data: RegionsData, reach: MapReach = 'PROGRAM', line: ProgramLine | null = null): number {
+  return seatLine(data, reach, { line }).total
+}
+
+/** Who is missing an I-9: the starts on hold By region shows this seat, said as each start's own sentence. */
+export function mapI9(data: RegionsData): Answer {
+  const where = scopeOf(data)
+  const starts = heldOf(data, 'start')
+  const one = starts.filter((s) => s.person && /\bI-9\b/.test(s.says))
+  if (starts.length === 0) return { kind: 'TEXT', says: `Nobody about to start at ${where} is held for an I-9. Checked just now.`, links: [openLink(data)] }
+  if (one.length === starts.length) {
+    return { kind: 'TEXT', says: `${one.map(startSentence).join(' ')} Checked just now.`, links: [openLink(data)] }
+  }
+  const several = starts.find((s) => !s.person)
+  return {
+    kind: 'TEXT',
+    says: several
+      ? `${upper(several.says)}. Open By region to see whose papers are missing.`
+      : `${starts.map(startSentence).join(' ')} Nobody at ${where} is held for an I-9.`,
+    links: [openLink(data)],
+  }
 }
 
 /** Which plants have weeks waiting: a region's plants, a plant's own row, or the program's regions. */
@@ -490,7 +711,7 @@ export async function mapSeatOf(caller: CallerContext): Promise<MapSeat | null> 
   })
   if (!reach) return null
   const label = reach === 'REGION' ? caller.region!.label : reach === 'SITE' ? plant! : company.name
-  return { reach, label, client: company.name, places }
+  return { reach, line: reach === 'PROGRAM' ? programLine(caller.permissions) : null, label, client: company.name, places }
 }
 
 /** By region's read for this caller; null where it refused or failed. */
@@ -527,7 +748,8 @@ export async function mapAnswer(caller: CallerContext, seat: MapSeat, text: stri
   if (!data) return { kind: 'TEXT', says: 'By region could not be read just now, so there is no answer. Try again in a minute.' }
 
   switch (ask) {
-    case 'NEEDS': return mapNeeds(data, seat.reach, false)
+    case 'NEEDS': return mapNeeds(data, seat.reach, false, undefined, { line: seat.line })
+    case 'I9': return mapI9(data)
     case 'PLANT_WEEKS': return mapWeeks(data)
     case 'LIMIT':
     case 'PAST': {

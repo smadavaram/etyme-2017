@@ -110,7 +110,7 @@ describe('every decision in the count is a card, and none offers to pay what fai
   it('a card no single route can say yes to — a held start, a missing agreement, a roll-off — still has Not now beside Open', () => {
     const tsx = src('src/app/dashboard/conversations/ask-etyme.tsx')
     const view = tsx.slice(tsx.indexOf('function QueueCardView('), tsx.indexOf('function QueueCardView(') + 4000)
-    const open = view.slice(view.indexOf('className="btn-primary text-[13px]">Open</Link>'))
+    const open = view.slice(view.indexOf('className="btn-primary text-[13px]">{card.open ?? \'Open\'}</Link>'))
     expect(open.slice(0, 400)).toContain('onClick={() => onLater(card)}>Not now</button>')
   })
 

@@ -881,7 +881,7 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
             // where it is decided, and Not now sets it aside for now, as on
             // every card in the count (founder, 2026-10-19).
             <>
-              <Link href={card.href as Route} className="btn-primary text-[13px]">Open</Link>
+              <Link href={card.href as Route} className="btn-primary text-[13px]">{card.open ?? 'Open'}</Link>
               <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(card)}>Not now</button>
             </>
           )}

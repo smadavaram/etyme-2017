@@ -1139,7 +1139,7 @@ function deskWords(desks: readonly string[]): { subject: string; object: string;
   if (desks.length === 0) return null
   const raw = twoDesks(desks)
   const words = roleWords(raw)
-  const person = PERSON_ROLES.has(words.split(' ').pop()!.toLowerCase())
+  const person = namesAPerson(words)
   return person
     ? { subject: `Your ${words}`, object: `your ${words}`, beside: words }
     : { subject: raw, object: raw, beside: raw }
@@ -1431,7 +1431,21 @@ export function partOfDay(hour: number): string {
 }
 
 /** The last word of a role that names a person; any other role is a desk ("Finance", "AP & Payroll"). */
-const PERSON_ROLES = new Set(['manager', 'clerk', 'officer', 'lead', 'partner', 'recruiter', 'owner', 'admin', 'coordinator', 'approver', 'viewer', 'desk', 'consultant'])
+const PERSON_ROLES = new Set(['manager', 'clerk', 'officer', 'lead', 'partner', 'recruiter', 'owner', 'admin', 'coordinator', 'approver', 'viewer', 'desk', 'consultant', 'director', 'president', 'executive', 'controller', 'head'])
+
+/** A role's first word that names a person whatever follows: "Head of Operations", "Chief Financial Officer", "Vice President, Finance". */
+const PERSON_FIRST = new Set(['head', 'chief', 'director', 'vice', 'vp', 'president'])
+
+/**
+ * Whether a role, as a sentence says it, names one person ("the head of
+ * operations") rather than a team ("in Finance"). The release walk of
+ * 2026-10-27 read "You are in head of operations".
+ */
+export function namesAPerson(words: string): boolean {
+  const all = words.trim().toLowerCase().split(/[\s,]+/).filter(Boolean)
+  if (all.length === 0) return false
+  return PERSON_ROLES.has(all[all.length - 1]) || PERSON_FIRST.has(all[0])
+}
 
 /** A role as a sentence says it: lower case, except an acronym ("AP Clerk" reads "AP clerk"). */
 function roleWords(role: string): string {
@@ -1458,8 +1472,7 @@ export function seatSays(seat: { role: string | null; company: string | null; sa
   const role = seat.role?.trim()
   if (!role) return `You are signed in at ${at}`
   const words = roleWords(role)
-  const last = words.split(' ').pop()!.toLowerCase()
-  return PERSON_ROLES.has(last) ? `You are the ${words} at ${at}` : `You are in ${words} at ${at}`
+  return namesAPerson(words) ? `You are the ${words} at ${at}` : `You are in ${words} at ${at}`
 }
 
 /**
@@ -2610,7 +2623,12 @@ export interface QueueCard {
   href: string
   /** Null where no single route performs the act: the card's button is "Open". */
   act: QueueAct | null
+  /** The words on the button that opens `href` where `act` is null: "Open", or "Pay" on a receipt to pay. */
+  open?: string
 }
+
+/** What a receipt to pay says where no card of Etyme's pays it here: the button opens the receipt. */
+export const PAY_OPENS_THE_RECEIPT = 'Pay opens the receipt, where you enter the bank reference.'
 
 /**
  * The name after the dash: "Approve timesheet — Helena Marsh" reads
@@ -2807,14 +2825,25 @@ export function queueCards(q: QueueRead | null | undefined, twin: readonly Waiti
   if (!q) return []
   return q.items
     .filter((d) => d.type !== 'TWIN_QUESTION' && !carriedByTwin(d, twin))
-    .map((d) => ({
-      key: `${d.type}:${d.entityId}`,
-      type: d.type,
-      title: `${queueName(d)}.`,
-      fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle) : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim() : factOf(d.subtitle),
-      href: d.actionUrl ?? DECISIONS_HREF,
-      act: queueAct(d),
-    }))
+    .map((d) => {
+      // A receipt to pay that no Pay card of Etyme's carries (the twin has
+      // not asked this seat, or asked another desk): never a dangling
+      // "waits for you to pay it" — its button is Pay, to the receipt's own
+      // page, where the payment and its bank reference are recorded.
+      const pay = d.type === 'INVOICE_RECEIPT_TO_PAY'
+      return {
+        key: `${d.type}:${d.entityId}`,
+        type: d.type,
+        title: `${queueName(d)}.`,
+        fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle)
+          : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim()
+          : pay ? `${factOf(d.subtitle)} ${PAY_OPENS_THE_RECEIPT}`.trim()
+          : factOf(d.subtitle),
+        href: d.actionUrl ?? (pay ? RECEIPTS_HREF : DECISIONS_HREF),
+        act: queueAct(d),
+        ...(pay ? { open: 'Pay' } : {}),
+      }
+    })
 }
 
 /** "Your professional license is asked of you" read inside a sentence: "your professional license …". An acronym or a name keeps its capital. */

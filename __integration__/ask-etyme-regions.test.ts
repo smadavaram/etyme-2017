@@ -24,7 +24,7 @@ const CFO = seat('cfo')
 const OPS = seat('operations')
 const AP = seat('ap')
 
-const { onSite } = corvaneContractors()
+const { onSite, onHold } = corvaneContractors()
 const latam = CORVANE_PLANTS.filter((p) => p.region === 'latam')
 const us = CORVANE_PLANTS.filter((p) => p.region === 'us')
 const sum = (ps: readonly { [k: string]: any }[], k: string) => ps.reduce((n, p) => n + p[k], 0)
@@ -56,12 +56,18 @@ beforeAll(async () => {
 }, 600_000)
 
 describe('Valeria Montes asks Ask Etyme about Latin America', () => {
-  it('her greeting is By region’s first line, word for word, and the mark carries its number', async () => {
+  it('her greeting names the hiring manager at the plant nearest the time limit and the rest of the weeks as a count, then the person there, and the mark is By region’s count', async () => {
     const g = await greeting(VALERIA)
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     const p = await page(VALERIA)
     expect(g.body.data.answer.kind).toBe('NEEDS')
-    expect(g.body.data.answer.says).toBe(p.body.data.greeting.says)
+    const campinas = latam.find((x) => x.key === 'campinas')!
+    const juliana = onSite.find((c) => c.plant.key === 'campinas' && c.nearest)!
+    const rest = sum(latam, 'weeksToSign') - campinas.weeksToSign
+    const restPlants = latam.filter((x) => x.weeksToSign > 0 && x.key !== 'campinas').length
+    expect(g.body.data.answer.says).toBe(
+      `One thing needs you: ${campinas.manager} has ${campinas.weeksToSign} weeks to sign in Campinas, and ${rest} more weeks wait at ${restPlants} plants. ` +
+      `${juliana.name} in Campinas reaches the time limit in 22 days.`)
     const mark = await greeting(VALERIA, '?only=owed')
     expect(mark.status).toBe(200)
     expect(mark.body.data.total).toBe(p.body.data.greeting.total)
@@ -126,12 +132,26 @@ describe('Valeria Montes asks Ask Etyme about Latin America', () => {
 })
 
 describe('Marcus Hollins asks about Dayton', () => {
-  it('his greeting keeps his own queue, and his chips ask about the time limit at his plant', async () => {
+  it('his greeting keeps his own cards, carries By region’s count on the mark, and says Maria Lee cannot start without an I-9', async () => {
     const g = await greeting(MARCUS)
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     expect(g.body.data.answer.kind).toBe('NEEDS')
+    const p = await page(MARCUS)
+    const says: string = g.body.data.answer.says
+    expect(says.startsWith('Two things need you: ')).toBe(true)
+    expect(p.body.data.greeting.total).toBe(2)
+    expect(says).toContain(`${onHold.name} cannot start without an I-9`)
+    expect(says).toContain('Get the I-9 on file, then start.')
+    const mark = await greeting(MARCUS, '?only=owed')
+    expect(mark.body.data.total).toBe(p.body.data.greeting.total)
     expect(g.body.data.chips).toContain(PLANT_LIMIT_CHIP)
     expect(g.body.data.chips.length).toBeLessThanOrEqual(4)
+  })
+
+  it('who is missing an I-9 at his plant is answered from the start on hold his By region page shows, never refused', async () => {
+    const r = await asked(MARCUS, 'Who is missing an I-9?')
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.answer.says).toBe(`${onHold.name} cannot start without an I-9. Get it on file, then start. Checked just now.`)
   })
 
   it('which plants have weeks waiting: Dayton’s 14 contractors and 3 weeks, and no other plant', async () => {
@@ -158,23 +178,31 @@ describe('Marcus Hollins asks about Dayton', () => {
 })
 
 describe('the CFO and the head of operations read the rollup', () => {
-  it('the CFO’s greeting is the rollup’s first line, naming the receipt held at Dayton, and the mark is its three', async () => {
+  it('the CFO’s greeting names the receipt held at Dayton with the dollars over the signed hours, Maria Lee’s start waiting on an I-9 and the weeks, then Belfast’s nearest time limit by name; the mark is its three', async () => {
     const g = await greeting(CFO)
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     const p = await page(CFO)
     const says: string = g.body.data.answer.says
-    expect(says).toBe(p.body.data.greeting.says)
     expect(says.startsWith('Three things need you: ')).toBe(true)
-    expect(says).toMatch(/invoice receipt for .+ at Dayton is held, 41\.5 hours billed, 40 hours signed/)
+    expect(says).toMatch(/invoice receipt for .+ at Dayton is held, \$42 over the signed hours \(41\.5 hours billed, 40 hours signed\)/)
+    expect(says).toContain(`${onHold.name}’s start at Dayton waits on an I-9`)
+    expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} plants`)
+    const belfast = onSite.find((c) => c.plant.key === 'belfast' && c.nearest)!
+    expect(says.endsWith(`${belfast.name} in Belfast reaches the time limit in 14 days.`)).toBe(true)
     const mark = await greeting(CFO, '?only=owed')
     expect(mark.body.data.total).toBe(3)
+    expect(mark.body.data.total).toBe(p.body.data.greeting.total)
     expect(g.body.data.chips).toEqual([...PROGRAM_CHIPS])
   })
 
-  it('the head of operations is greeted with the same rollup line By region gives her', async () => {
+  it('the head of operations is greeted with the weeks across the plants first and who is within 30 days of the time limit, not the CFO’s line', async () => {
     const g = await greeting(OPS)
+    const c = await greeting(CFO)
     const p = await page(OPS)
-    expect(g.body.data.answer.says).toBe(p.body.data.greeting.says)
+    const says: string = g.body.data.answer.says
+    expect(says).not.toBe(c.body.data.answer.says)
+    expect(says).toMatch(new RegExp(`^Three things need you: ${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} plants; `))
+    expect(says).toMatch(/within 30 days of the time limit, the nearest .+ in Belfast, in 14 days\.$/)
     expect((await greeting(OPS, '?only=owed')).body.data.total).toBe(p.body.data.greeting.total)
   })
 

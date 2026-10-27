@@ -8,6 +8,7 @@ import { EtymeMark } from '@/components/logo'
 import { AskEtyme } from './ask-etyme'
 import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
+import { openThread } from './open-thread'
 import { conversationsFraming } from '@/lib/page-framing'
 import { usePageSection } from '@/components/page-section'
 import {
@@ -281,6 +282,9 @@ export default function ConversationsPage() {
   // It was swallowed, so a refused reply looked like a reply that sent.
   const [sendError, setSendError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // The route's own refusal when a link opens a thread this seat may not
+  // read (release walk, 2026-10-27): said in place of "Select a conversation".
+  const [openRefused, setOpenRefused] = useState<string | null>(null)
 
   // Open the new-conversation modal when navigated with ?new=1
   useEffect(() => {
@@ -298,24 +302,23 @@ export default function ConversationsPage() {
     if (!openId || loading) return
     const inList = conversations.find((c) => c.id === openId)
     if (inList) {
+      setOpenRefused(null)
       setActiveConvo(inList)
       return
     }
-    fetch(`/api/conversations/messages?conversationId=${openId}&limit=1`)
-      .then(readJson)
-      .then((j) => {
-        const t = j?.data?.thread
-        if (!t) return
-        const mine = t.company?.id === company?.id
-        setActiveConvo({
-          id: t.id, topic: t.topic, topicId: t.topicId, title: t.title ?? 'Conversation',
-          participants: [], messageCount: 0, lastMessage: null,
-          otherCompany: mine ? t.withCompany ?? null : t.company ?? null,
-          side: t.withCompany ? (mine ? 'OPENED' : 'ANSWERS') : null,
-          createdAt: '', updatedAt: '',
-        })
+    void openThread(openId).then((got) => {
+      if (!got.ok) { setOpenRefused(got.says); return }
+      const t = got.thread
+      const mine = t.company?.id === company?.id
+      setOpenRefused(null)
+      setActiveConvo({
+        id: t.id, topic: t.topic, topicId: t.topicId, title: t.title ?? 'Conversation',
+        participants: [], messageCount: 0, lastMessage: null,
+        otherCompany: mine ? t.withCompany ?? null : t.company ?? null,
+        side: t.withCompany ? (mine ? 'OPENED' : 'ANSWERS') : null,
+        createdAt: '', updatedAt: '',
       })
-      .catch(() => {})
+    })
     // conversations is read once the list has loaded; re-running per item would re-open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, loading])
@@ -365,6 +368,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     setSendError(null)
     if (activeConvo) {
+      setOpenRefused(null)
       fetchMessages(activeConvo.id)
     }
   }, [activeConvo, fetchMessages])
@@ -570,7 +574,9 @@ export default function ConversationsPage() {
               <AskEtyme />
             ) : !activeConvo ? (
               <div className="flex-1 flex items-center justify-center">
-                <EmptyState compact says="Select a conversation" detail="Choose a thread from the list to view messages." />
+                {openRefused
+                  ? <ErrorState says={openRefused} />
+                  : <EmptyState compact says="Select a conversation" detail="Choose a thread from the list to view messages." />}
               </div>
             ) : (
               <>

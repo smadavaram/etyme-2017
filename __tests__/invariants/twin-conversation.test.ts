@@ -1537,9 +1537,10 @@ describe('every first screen names a person and the step in front of them (found
       }],
     })
     expect(card.title).toBe('Brightmoor Staffing’s invoice receipt BRS-0412 waits for you to pay it.')
-    expect(card.fact).toBe('Invoice BRS-0412, $6,400.00, due in 3 days.')
-    // Paying is the payment route's question, through the three-way check: the card opens the receipt.
+    expect(card.fact).toBe('Invoice BRS-0412, $6,400.00, due in 3 days. Pay opens the receipt, where you enter the bank reference.')
+    // Paying is the payment route's question, through the three-way check: the card's Pay opens the receipt.
     expect(card.act).toBeNull()
+    expect(card.open).toBe('Pay')
     expect(card.href).toBe('/dashboard/invoices/inv-412')
     expect(voiceBreaks(card.title)).toEqual([])
   })

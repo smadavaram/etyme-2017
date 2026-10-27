@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest'
 import {
   mapReach, mapChips, readMapAsk, answeredByMap, outOfReach, mapNeeds, mapOwed, mapWeeks, mapLimit,
   mapHeld, mapHeldReceipts, mapSpend, mapCountries, mapHelp, REGION_CHIPS, PROGRAM_CHIPS, PLANT_LIMIT_CHIP, NEAR_DAYS,
+  seatLine, siteLine, mapI9, programLine, startSentence, receiptPhrase,
   type Place,
 } from '@/app/api/conversations/twin/regions'
-import { readAsk, VOICE_BANNED } from '@/app/api/conversations/twin/ask'
+import { readAsk, VOICE_BANNED, seatSays, queueCards, PAY_OPENS_THE_RECEIPT, RECEIPT_PAY, type QueueItem, type WaitingItem } from '@/app/api/conversations/twin/ask'
+import { openThread } from '@/app/dashboard/conversations/open-thread'
 import type { RegionsData } from '@/app/api/program/regions/read'
-import type { Figures, ManagerRow, RegionRow } from '@/app/api/program/regions/rollup'
+import type { Figures, ManagerRow, RegionRow, GreetingItem } from '@/app/api/program/regions/rollup'
 
 /**
  * Ask Etyme over the program by region (founder, 2026-10-27, the region
@@ -47,7 +49,10 @@ const latam = (): RegionsData => {
   const total = fig({ plants: 3, contractors: 41, weeksToSign: 6, receipts: { paid: 0, ready: 1, held: 0 }, nearestLimit: { days: 22, personName: 'Bia', plant: 'Campinas, Brazil' } })
   return data({
     reader: { reach: 'REGION', label: 'Latin America' }, level: 'REGION',
-    greeting: { total: 1, says: 'One thing needs you: 6 weeks wait to be signed at 2 plants.', items: ['6 weeks wait to be signed at 2 plants'] },
+    greeting: {
+      total: 1, says: 'One thing needs you: 6 weeks wait to be signed at 2 plants.', items: ['6 weeks wait to be signed at 2 plants'],
+      held: [{ kind: 'weeks', count: 6, plant: '2 plants', plants: ['Monterrey', 'Campinas'], person: null, supplier: null, says: '6 weeks wait to be signed at 2 plants' }],
+    },
     regions: [region('Latin America', total)], total,
     region: { label: 'Latin America', leads: ['Valeria Montes'], figures: total, managers, countries: [] },
   })
@@ -68,6 +73,11 @@ const cfo = (): RegionsData => {
         'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed',
         'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work)',
         '14 weeks wait to be signed at 9 plants',
+      ],
+      held: [
+        { kind: 'receipt', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Ray Penn', supplier: 'Hollow Creek Staffing', says: 'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed' },
+        { kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Tom Ash', supplier: null, says: 'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work)' },
+        { kind: 'weeks', count: 14, plant: '9 plants', plants: ['Dayton', 'Fresno', 'Joliet', 'El Paso', 'Belfast', 'Newry', 'Craigavon', 'Antrim', 'Lisburn'], person: null, supplier: null, says: '14 weeks wait to be signed at 9 plants' },
       ],
     },
     regions: [us, ni], total, currenciesSays: 'in 2 currencies',
@@ -173,15 +183,95 @@ describe('a region seat reads its region only', () => {
 })
 
 describe('the answers are By region’s own read', () => {
-  it('the greeting is By region’s own first line, and its number is By region’s', () => {
+  it('the CFO’s greeting names the held receipt with the money over the signed hours, the start waiting on an I-9 and the weeks, then the nearest time limit by name, uncounted; the mark is By region’s count', () => {
     const d = cfo()
-    const a = mapNeeds(d, 'PROGRAM', true) as Extract<ReturnType<typeof mapNeeds>, { kind: 'NEEDS' }>
+    d.total.heldOver = [{ currency: 'USD', minor: 4200 }]
+    const a = mapNeeds(d, 'PROGRAM', true, undefined, { line: 'FINANCE' }) as Extract<ReturnType<typeof mapNeeds>, { kind: 'NEEDS' }>
     expect(a.kind).toBe('NEEDS')
     expect(a.greeting).toBe(true)
-    expect(a.says).toBe(d.greeting.says)
+    expect(a.says).toBe(
+      'Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, $42 over the signed hours (41.5 hours billed, 40 hours signed); ' +
+      'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 plants. Orla in Belfast reaches the time limit in 14 days.')
     expect(a.items).toEqual([])
-    expect(mapOwed(d)).toBe(3)
+    expect(mapOwed(d, 'PROGRAM', 'FINANCE')).toBe(d.greeting.total)
     expect(a.links?.[0].href).toBe('/dashboard/program?view=regions')
+  })
+
+  it('the CFO’s line names nobody against the time limit when the nearest is past the twin’s 90 days, and the count does not move', () => {
+    const d = cfo()
+    d.total.nearestLimit = { days: 120, personName: 'Orla', plant: 'Belfast' }
+    expect(seatLine(d, 'PROGRAM', { line: 'FINANCE' }).total).toBe(3)
+    expect(seatLine(d, 'PROGRAM', { line: 'FINANCE' }).says).not.toContain('Orla')
+  })
+
+  it('the head of operations is greeted with the weeks first and who is within 30 days of the time limit, never the CFO’s line', () => {
+    const d = cfo()
+    const ops = seatLine(d, 'PROGRAM', { line: 'OPERATIONS' })
+    expect(ops.says).toBe('Three things need you: 14 weeks wait to be signed at 9 plants; Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed; Tom Ash’s start at Dayton waits on an I-9 (proof of right to work). 2 regions have somebody within 30 days of the time limit, the nearest Orla in Belfast, in 14 days.')
+    expect(ops.says).not.toBe(seatLine(d, 'PROGRAM', { line: 'FINANCE' }).says)
+    expect(mapOwed(d, 'PROGRAM', 'OPERATIONS')).toBe(d.greeting.total)
+  })
+
+  it('a seat that runs the program’s jobs reads the operations line, and a seat that reads its money and runs no job reads the CFO’s', () => {
+    expect(programLine(['utilization.read', 'requirements.read', 'requirements.write', 'invoices.read'])).toBe('OPERATIONS')
+    expect(programLine(['utilization.read', 'requirements.read', 'invoices.read'])).toBe('FINANCE')
+  })
+
+  it('a regional manager’s greeting names the hiring manager at the plant nearest the time limit and counts the rest of the weeks, then names the person nearest the limit, uncounted', () => {
+    const d = latam()
+    d.region!.managers[1] = { ...d.region!.managers[1], manager: 'Fernanda Albuquerque', weeksToSign: 2, nearestLimit: { days: 22, personName: 'Juliana Lima', plant: 'Campinas, Brazil' } }
+    d.total.nearestLimit = { days: 22, personName: 'Juliana Lima', plant: 'Campinas, Brazil' }
+    const line = seatLine(d, 'REGION')
+    expect(line.says).toBe('One thing needs you: Fernanda Albuquerque has 2 weeks to sign in Campinas, and 4 more weeks wait at 1 plant. Juliana Lima in Campinas reaches the time limit in 22 days.')
+    expect(mapOwed(d, 'REGION')).toBe(d.greeting.total)
+    expect((mapNeeds(d, 'REGION', true) as { says: string }).says).toBe(line.says)
+  })
+
+  it('a regional manager whose nearest plant has no weeks hears the manager with the most weeks', () => {
+    const d = latam()
+    d.region!.managers[1] = { ...d.region!.managers[1], weeksToSign: 0 }
+    d.greeting.held![0] = { ...d.greeting.held![0], count: 4 }
+    expect(seatLine(d, 'REGION').says).toBe('One thing needs you: Manager of Monterrey, Mexico has 4 weeks to sign in Monterrey. Bia in Campinas reaches the time limit in 22 days.')
+  })
+
+  it('a hiring manager’s greeting carries By region’s count, says the start on hold as the start’s own sentence, and names whose weeks wait', () => {
+    const d = data({
+      reader: { reach: 'SITE', label: 'Dayton, Ohio' },
+      greeting: {
+        total: 2, says: 'Two things need you: Maria Lee’s start at Dayton waits on an I-9 (proof of right to work); 3 weeks wait to be signed at Dayton.', items: [],
+        held: [
+          { kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Maria Lee', supplier: null, says: 'Maria Lee’s start at Dayton waits on an I-9 (proof of right to work)' },
+          { kind: 'weeks', count: 3, plant: 'Dayton', plants: ['Dayton'], person: null, supplier: null, says: '3 weeks wait to be signed at Dayton' },
+        ],
+      },
+    })
+    const weeks: QueueItem[] = ['Tyler Brooks', 'Keisha Monroe', 'Brandon Lee'].map((n, i) => ({ type: 'TIMESHEET_APPROVAL', title: `Approve timesheet — ${n}`, whose: n, entityId: `t${i}` }))
+    const line = siteLine(d, { total: 3, items: weeks })
+    expect(line.says).toBe('Two things need you: Maria Lee cannot start without an I-9; Tyler Brooks, Keisha Monroe and Brandon Lee have weeks waiting for you. Get the I-9 on file, then start.')
+    expect(line.total).toBe(d.greeting.total)
+    expect(siteLine(d, null).says).toContain('3 weeks wait for you to sign')
+  })
+
+  it('who is missing an I-9 at a plant is answered from the start on hold By region shows it', () => {
+    const d = data({
+      reader: { reach: 'SITE', label: 'Dayton, Ohio' },
+      greeting: { total: 1, says: '', items: [], held: [{ kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Maria Lee', supplier: null, says: 'Maria Lee’s start at Dayton waits on an I-9 (proof of right to work)' }] },
+    })
+    expect((mapI9(d) as { says: string }).says).toBe('Maria Lee cannot start without an I-9. Get it on file, then start. Checked just now.')
+    expect((mapI9(latam()) as { says: string }).says).toBe('Nobody about to start at Latin America is held for an I-9. Checked just now.')
+    expect(readMapAsk('Who is missing an I-9?')).toBe('I9')
+    expect(answeredByMap('SITE', 'I9', 'Who is missing an I-9?')).toBe(true)
+    expect(answeredByMap('PROGRAM', 'I9', 'Who is missing an I-9?')).toBe(false)
+  })
+
+  it('a start waiting on papers other than an I-9 says to open the start, never a form it does not wait on', () => {
+    const item: Pick<GreetingItem, 'says' | 'person'> = { person: 'Maria Lee', says: 'Maria Lee’s start at Dayton waits on papers' }
+    expect(startSentence(item)).toBe('Maria Lee cannot start until the papers are on file. Open the start to see which.')
+  })
+
+  it('a held receipt with no money worked out keeps By region’s phrase word for word', () => {
+    const item = { says: 'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed' }
+    expect(receiptPhrase(item, null)).toBe(item.says)
   })
 
   it('a region seat’s greeting opens By region on its region', () => {
@@ -300,7 +390,50 @@ describe('the answers are By region’s own read', () => {
     }
   })
 
+  it('every role is said as the person it names: “You are the head of operations”, never “You are in head of operations”', () => {
+    expect(seatSays({ role: 'Head of Operations', company: 'Corvane Packaging', sample: true })).toBe('You are the head of operations at Corvane Packaging, a sample company.')
+    expect(seatSays({ role: 'Chief Financial Officer', company: 'Corvane Packaging', sample: true })).toBe('You are the chief financial officer at Corvane Packaging, a sample company.')
+    expect(seatSays({ role: 'Regional Manager', company: 'Corvane Packaging', sample: false })).toBe('You are the regional manager at Corvane Packaging.')
+    expect(seatSays({ role: 'Finance', company: 'Brightmoor', sample: false })).toBe('You are in finance at Brightmoor.')
+  })
+
   it('the map’s questions are not mistaken for anything the queue acts on', () => {
     for (const q of [...REGION_CHIPS, ...PROGRAM_CHIPS]) expect(readAsk(q).kind, q).not.toBe('DECIDE')
+  })
+})
+
+describe('an invoice receipt to pay is a card with a way to pay it', () => {
+  const row: QueueItem = {
+    type: 'INVOICE_RECEIPT_TO_PAY', title: 'Pay invoice receipt — Pinnacle Resourcing', whose: 'Pinnacle Resourcing',
+    subtitle: 'Invoice PR-2026-0441 · $6,000 · due Nov 3', entityId: 'inv1', actionUrl: '/dashboard/invoices/inv1',
+  }
+
+  it('a receipt to pay that no Pay card of Etyme’s carries has a Pay button to the receipt’s own page, never a dangling “waits for you to pay it”', () => {
+    const [card] = queueCards({ total: 1, items: [row] })
+    expect(card.act).toBeNull()
+    expect(card.open).toBe('Pay')
+    expect(card.href).toBe('/dashboard/invoices/inv1')
+    expect(card.fact.endsWith(PAY_OPENS_THE_RECEIPT)).toBe(true)
+  })
+
+  it('a receipt row whose twin question is a pay act is drawn once, as the Pay card with its bank reference box, not beside it', () => {
+    const pay: WaitingItem = {
+      n: 1, approvalId: 'ap1', entryId: 'e1', says: 'Pay it', title: 'PR-2026-0441', ruleCited: '', rationale: '', href: '/dashboard/invoices/inv1',
+      action: RECEIPT_PAY, entity: { type: 'Invoice', id: 'inv1' }, pay: { supplier: 'Pinnacle Resourcing', number: 'PR-2026-0441' },
+    }
+    expect(queueCards({ total: 1, items: [{ ...row, twinApprovalId: 'ap1' }] }, [pay])).toEqual([])
+  })
+})
+
+describe('a link to a thread opens it, or says why not', () => {
+  it('a link to a thread the seat may not open shows the route’s own refusal, never “Select a conversation”', async () => {
+    const says = 'That conversation is about a plant outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.'
+    const got = await openThread('t1', async () => new Response(JSON.stringify({ error: { code: 'OUT_OF_REGION', message: says } }), { status: 403 }))
+    expect(got).toEqual({ ok: false, says })
+  })
+
+  it('a link to a thread the seat may open returns the thread', async () => {
+    const got = await openThread('t1', async () => new Response(JSON.stringify({ data: { thread: { id: 't1', title: 'Hi' } } }), { status: 200 }))
+    expect(got).toEqual({ ok: true, thread: { id: 't1', title: 'Hi' } })
   })
 })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
 import { respond, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
-import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, REGION_BOUNDARY, type MapSeat } from './regions'
+import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
@@ -216,9 +216,16 @@ function needsFor(request: NextRequest, caller: Caller): () => Promise<number | 
     const map = await mapOf(caller)
     if (readsTheRollup(map)) {
       const data = await mapView(caller, { trail: 'Ask Etyme mark' })
-      return data ? mapOwed(data) : null
+      return data ? mapOwed(data, map!.reach, map!.line ?? null) : null
     }
     if (caller.region) return null
+    // A hiring manager on a plant: By region's things for the plant, and
+    // any other decision in his queue, so the mark, the greeting and his
+    // By region page carry one number.
+    if (map?.reach === 'SITE') {
+      const data = await mapView(caller, { trail: 'Ask Etyme mark' })
+      if (data) return siteLine(data, await queue()).total
+    }
     return (await queue())?.total ?? null
   }
 }
@@ -377,11 +384,27 @@ export async function GET(request: NextRequest) {
     // A hiring manager on a plant asks about the time limit at the plant too.
     const own = questionsFor(who.party, await judgedBy(caller), company.kind)
     const chips = map?.reach === 'SITE' ? mapChips('SITE', own) : own
-    return NextResponse.json({ data: { answer, model, party: who.party, client: who.client, chips, thread: await thread } })
+    return NextResponse.json({ data: { answer: await onThePlant(caller, map, answer, queue), model, party: who.party, client: who.client, chips, thread: await thread } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
+}
+
+/**
+ * A hiring manager on a plant keeps his own cards, and his headline is
+ * his plant's line on By region (`siteLine`): the start on hold said as
+ * the start's own sentence, the weeks he signs, and any other decision in
+ * his queue — one number with the mark. Where By region cannot be read,
+ * the queue's own headline stands.
+ */
+async function onThePlant(caller: Caller, map: MapSeat | null, answer: Answer, queue: () => Promise<QueueRead | null>): Promise<Answer> {
+  if (map?.reach !== 'SITE' || answer.kind !== 'NEEDS') return answer
+  const data = await mapView(caller, { trail: 'Ask Etyme greeting' }).catch(() => null)
+  if (!data) return answer
+  const line = siteLine(data, await queue())
+  const { saysLinks: _dropped, ...rest } = answer
+  return { ...rest, says: `${line.says} Checked just now.` }
 }
 
 /**
@@ -398,7 +421,7 @@ async function mapGreeting(caller: Caller, map: MapSeat, take: number | undefine
     const model = map.reach === 'REGION' ? 'OFF' : modelState((await modelSwitchFor(caller.company!.id)).on, process.env)
     const boundary = map.reach === 'REGION' ? REGION_BOUNDARY : boundarySays(model)
     return NextResponse.json({
-      data: { answer: mapNeeds(data, map.reach, true, boundary), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
+      data: { answer: mapNeeds(data, map.reach, true, boundary, { line: map.line }), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
     })
   } catch (err) {
     await reportError('Ask Etyme could not greet a seat by region', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
@@ -528,6 +551,7 @@ export async function POST(request: NextRequest) {
         ownCompany: caller.company.name, client: seat?.clientCompany.name ?? null, ownKind: caller.company.kind,
         role: await roleOf(caller), ownPay: () => ownPayOf(caller, request, text),
       })
+    if (!solo) answer = await onThePlant(caller, map, answer, queueFor(request, caller))
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
