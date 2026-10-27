@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import type { NextRequest } from 'next/server'
 import { freshWorld, as, req, json, prisma } from './harness'
 import { GET as threadList } from '@/app/api/conversations/route'
+import { GET as readThread, POST as writeThread } from '@/app/api/conversations/messages/route'
 import { GET as greet, POST as ask } from '@/app/api/conversations/twin/route'
 import { GET as byRegion } from '@/app/api/program/regions/route'
 import { corvaneSeatEmail, corvaneContractors, CORVANE_PLANTS } from '@/lib/seed-corvane'
@@ -252,5 +253,41 @@ describe('the thread column beside Valeria Montes’s chat', () => {
     const m = await json(await threadList(req('GET', '/api/conversations?limit=50') as NextRequest))
     expect(m.status).toBe(200)
     expect(m.body.data.conversations.map((c: any) => c.id)).toContain(inUs.id)
+  })
+
+  it('a regional manager opens her own thread and reads its messages, and a thread outside her region is refused in a sentence', async () => {
+    const valeria = await prisma.person.findFirstOrThrow({ where: { primaryEmail: VALERIA }, select: { id: true, name: true } })
+    const marcus = await prisma.person.findFirstOrThrow({ where: { primaryEmail: MARCUS }, select: { id: true, name: true } })
+    const companyId = (await prisma.context.findFirstOrThrow({ where: { personId: valeria.id, revokedAt: null, companyId: { not: null } }, select: { companyId: true } })).companyId!
+    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({ where: { companyId, orgUnitId: `cv_unit_site_${plant.key}` }, select: { id: true } })
+    const on = (...ps: { id: string; name: string }[]) => ps.map((p) => ({ personId: p.id, name: p.name, companyId, joinedAt: new Date().toISOString() }))
+    const thread = async (title: string, topicId: string, participants: object, body: string) => {
+      const t = await prisma.conversation.create({ data: { companyId, topic: 'REQUIREMENT', topicId, title, participants }, select: { id: true } })
+      await prisma.message.create({ data: { conversationId: t.id, authorId: valeria.id, body, type: 'TEXT' } })
+      return t
+    }
+    const mine = await thread('Regions test: read Latin America', (await jobAt(latam[0])).id, on(valeria), 'Monterrey needs two more welders.')
+    const away = await thread('Regions test: read United States', (await jobAt(us[0])).id, on(valeria, marcus), 'Dayton note.')
+    const notOn = await thread('Regions test: read not hers', (await jobAt(latam[0])).id, on(marcus), 'Not hers.')
+
+    as(VALERIA)
+    const r = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${mine.id}`) as NextRequest))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.messages.map((m: any) => m.body)).toEqual(['Monterrey needs two more welders.'])
+
+    const w = await json(await writeThread(req('POST', '/api/conversations/messages', { conversationId: mine.id, body: 'Approved, send the job.' }) as NextRequest))
+    expect(w.status, JSON.stringify(w.body)).toBe(201)
+
+    const x = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${away.id}`) as NextRequest))
+    expect(x.status).toBe(403)
+    expect(x.body.error.message).toBe('That conversation is about a plant outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.')
+    expect(JSON.stringify(x.body)).not.toContain('Dayton note.')
+
+    const xw = await json(await writeThread(req('POST', '/api/conversations/messages', { conversationId: away.id, body: 'hello' }) as NextRequest))
+    expect(xw.status).toBe(403)
+
+    const n = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${notOn.id}`) as NextRequest))
+    expect(n.status).toBe(403)
+    expect(n.body.error.message).toBe('You are not on that conversation, and your seat reads only your own conversations in Latin America.')
   })
 })

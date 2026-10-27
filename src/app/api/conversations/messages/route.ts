@@ -6,6 +6,8 @@ import { canRead, isOnThread, readsOnlyOwnThreads, holdsNoThreadDesk, type Parti
 import { seatFor } from '@/lib/program-seat'
 import { noDeskYet } from '@/lib/no-desk'
 import { tellThread } from '@/lib/thread-notices'
+import { regionScopeFor } from '@/lib/region-scope'
+import { threadsInRegion } from '../region-threads'
 
 /**
  * Who may read a thread: both companies on it, and nobody else. A
@@ -15,9 +17,14 @@ import { tellThread } from '@/lib/thread-notices'
  *
  * Returns the row, or a refusal. To a stranger the refusal is a 404 rather than a 403:
  * a thread that is not yours is not yours to know exists.
+ *
+ * A regional manager (a seat on a REGION unit, lib/region-scope) opens a
+ * thread of her own company only where she is on it and it sits inside
+ * her region (../region-threads, the same check her thread list makes).
+ * Anything else is refused in a sentence before a message is read.
  */
 async function open(request: NextRequest, conversationId: string) {
-  const { caller, error } = await getCallerContext(request)
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return { ok: false as const, error }
 
   const conversation = await prisma.conversation.findUnique({
@@ -41,6 +48,26 @@ async function open(request: NextRequest, conversationId: string) {
   }
 
   if (!conversation || !canRead(conversation, caller.company?.id)) return notHere
+
+  if (caller.region) {
+    const label = caller.region.label
+    const refuse = (message: string) => ({
+      ok: false as const,
+      error: NextResponse.json({ error: { code: 'OUT_OF_REGION', message } }, { status: 403 }),
+    })
+    if (!inIt) {
+      return refuse(`You are not on that conversation, and your seat reads only your own conversations in ${label}.`)
+    }
+    const me = caller.company?.id ?? null
+    const scope = (me ? await regionScopeFor(me, caller.region.unitId) : null)
+      ?? { unitId: caller.region.unitId, label, unitIds: [], siteIds: [] }
+    const [kept] = await threadsInRegion([conversation], scope)
+    if (!kept) {
+      return refuse(`That conversation is about a plant outside ${label}, and your seat reads ${label} only. Open By region on Today for ${label}.`)
+    }
+    return { ok: true as const, caller, conversation, participants }
+  }
+
   if (inIt) return { ok: true as const, caller, conversation, participants }
   if (isConsultantSeat(caller)) return notHere
 
