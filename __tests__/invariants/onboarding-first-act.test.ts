@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { today, voiceBreaks, type Readers } from '@/app/api/conversations/twin/ask'
 import { firstActFor, welcomeFor, FIRST_ACT_HREF, NEW_ARRIVAL_DAYS } from '@/app/api/conversations/twin/first-act'
@@ -63,6 +63,25 @@ describe('every new party’s first greeting names its one next act', () => {
     expect(act?.links?.[0].href).toBe(FIRST_ACT_HREF.companies)
   })
 
+  it('a bench vendor’s first act is its bench', () => {
+    const act = firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, clients: 0 })
+    expect(act?.says).toBe('Add the people on your bench and ask each to say yes. A client’s job lands here when one invites you.')
+    expect(act?.links).toEqual([{ text: 'Add the people on your bench', href: '/dashboard/consultants' }])
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 3 })).toBeNull()
+  })
+
+  it('every first-act link opens the screen that does the act', () => {
+    expect(FIRST_ACT_HREF).toMatchObject({
+      suppliers: '/dashboard/suppliers', jobs: '/dashboard/requisitions', companies: '/dashboard/companies',
+      importPeople: '/dashboard/import', people: '/dashboard/consultants', askForSeat: '/dashboard/program',
+      bench: '/dashboard/consultants', contracts: '/dashboard/contracts', companyPaperwork: '/dashboard/documents',
+    })
+    // Every address is a page in the app.
+    for (const href of Object.values(FIRST_ACT_HREF)) {
+      expect(existsSync(join(process.cwd(), 'src/app', href, 'page.tsx')), href).toBe(true)
+    }
+  })
+
   it('a new integrator is told to add its people, by a file or one by one, before a delivery manager flags who rolls off', () => {
     const act = firstActFor({ party: 'FIRM', companyKind: 'GSI', people: 0 })
     expect(act?.says).toBe('Add your people: import a file, or add them one by one. Then a delivery manager can flag who rolls off.')
@@ -109,6 +128,7 @@ describe('every new party’s first greeting names its one next act', () => {
       firstActFor({ party: 'MSP', companyKind: 'MSP', seats: 0 }),
       firstActFor({ party: 'FIRM', companyKind: 'VENDOR', clients: 0 }),
       firstActFor({ party: 'FIRM', companyKind: 'GSI', people: 0 }),
+      firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0 }),
       firstActFor({ party: 'SOLO', companyKind: 'CONSULTANT_CORP', contracts: 0, firmPapers: 0 }),
       newWorkerAct({ seat: 'CONSULTANT', pageOn: false }),
       newWorkerAct({ seat: 'CONSULTANT', pageOn: true }),
@@ -150,25 +170,45 @@ describe('a colleague who came in by invitation', () => {
   const invitedAt = new Date('2026-10-27T09:00:00Z')
 
   it('a colleague who arrives from the invitation gets a greeting that names her company and her first thing to do', () => {
-    expect(welcomeFor({ company: 'Brightmoor Staffing', role: 'Account Manager', invitedAt, asked: false, recommended: true, now: NOW }))
-      .toEqual({ says: 'Welcome to Brightmoor Staffing, as Account Manager. Your first thing to do is the recommendation above.' })
-    const nothing = welcomeFor({ company: 'Northbend Athletic', role: 'AP Clerk', invitedAt, asked: false, recommended: false, now: NOW, today: '/dashboard/program' })
-    expect(nothing?.says).toBe('Welcome to Northbend Athletic, as AP Clerk. Nothing waits on you yet. Start on Today: the company’s work is there, and anything for you arrives here first.')
-    expect(nothing?.links).toEqual([{ text: 'Today', href: '/dashboard/program' }])
-    expect(voiceBreaks(nothing!.says)).toEqual([])
+    // Something waits: the welcome says only where she is, and the greeting's own recommendation is her first thing.
+    expect(welcomeFor({ company: 'Brightmoor Staffing', role: 'Account Manager', invitedAt, asked: false, waiting: true, now: NOW }))
+      .toEqual({ first: 'Welcome to Brightmoor Staffing, as Account Manager.', today: null })
+    const nothing = welcomeFor({ company: 'Northbend Athletic', role: 'AP Clerk', invitedAt, asked: false, waiting: false, now: NOW, today: '/dashboard/program' })
+    expect(nothing?.first).toBe('Welcome to Northbend Athletic, as AP Clerk.')
+    expect(nothing?.today?.links).toEqual([{ text: 'Today', href: '/dashboard/program' }])
+    expect(voiceBreaks(nothing!.today!.says)).toEqual([])
+  })
+
+  it('the welcome says nothing waits only when nothing waits', () => {
+    const busy = welcomeFor({ company: 'Northbend Athletic', role: 'Program Manager', invitedAt, asked: false, waiting: true, now: NOW })
+    expect(JSON.stringify(busy)).not.toContain('Nothing waits')
+    const idle = welcomeFor({ company: 'Northbend Athletic', role: 'Program Manager', invitedAt, asked: false, waiting: false, now: NOW })
+    expect(idle?.today?.says).toMatch(/^Nothing waits on you yet\./)
+    // The route reads "waiting" from the greeting itself: the recommendation, the cards, the items and the holds.
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
+    expect(src).toContain("const waiting = Boolean(answer.recommend) || answer.items.length > 0 || (answer.queue?.length ?? 0) > 0 || (answer.held?.length ?? 0) > 0")
   })
 
   it('the welcome is said only until she asks something, and only for two weeks after the invitation', () => {
-    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt, asked: true, recommended: false, now: NOW })).toBeNull()
+    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt, asked: true, waiting: false, now: NOW })).toBeNull()
     const late = new Date(invitedAt.getTime() + (NEW_ARRIVAL_DAYS + 1) * 86_400_000)
-    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt, asked: false, recommended: false, now: late })).toBeNull()
-    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt: null, asked: false, recommended: false, now: NOW })).toBeNull()
+    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt, asked: false, waiting: false, now: late })).toBeNull()
+    expect(welcomeFor({ company: 'Brightmoor Staffing', role: null, invitedAt: null, asked: false, waiting: false, now: NOW })).toBeNull()
   })
 
-  it('the greeting route says the welcome first under the headline, never for a demo seat or a seat that keeps no thread', () => {
+  it('an invited colleague’s first screen is Ask Etyme with her welcome, never a blank list', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/page.tsx'), 'utf8')
+    // On a desktop, nothing chosen draws Ask Etyme in the pane; "Select a conversation" is gone.
+    expect(page).toContain('askOpen || (wide && !activeConvo && !openId && !openRefused) ? (')
+    expect(page).not.toContain('says="Select a conversation"')
+    // The welcome leads the greeting, before its headline.
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
+    expect(src).toContain('says: `${w.first} ${answer.says}`')
+  })
+
+  it('the greeting route never greets a demo seat or a seat that keeps no thread as new', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
     expect(src).toMatch(/caller\.company\.isDemo \|\| !thread\.saved\) return answer/)
-    expect(src).toContain('more: [line, ...(answer.more ?? [])]')
   })
 })
 

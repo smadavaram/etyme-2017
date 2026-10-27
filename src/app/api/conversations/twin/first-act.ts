@@ -14,6 +14,7 @@
  *   client        no supplier yet     recommend your first supplier, then post a job
  *                 no job yet          post your first job
  *   supplier      no client yet       nothing from a client yet; record one you work with
+ *   bench firm    nobody on its bench add the people on its bench, each asked to say yes
  *   integrator    nobody of its own   add your people, then a delivery manager flags who rolls off
  *   MSP           no seat             ask a client for a seat
  *   one-person    no contract         record the contract you already have, and your papers
@@ -35,14 +36,13 @@ export const FIRST_ACT_HREF = {
   suppliers: '/dashboard/suppliers',
   jobs: '/dashboard/requisitions',
   companies: '/dashboard/companies',
-  importPeople: '/dashboard/data',
+  /** The people import, which files an integrator's rows as its own employees; not the generic importer. */
+  importPeople: '/dashboard/import',
   people: '/dashboard/consultants',
-  /**
-   * An MSP's own Today, where the architect's "Ask for a seat" sits beside
-   * the seats it holds (onboarding walk, decision 3). Today is the page
-   * that already says a program office has no seat yet.
-   */
-  askForSeat: '/dashboard',
+  /** The program page, where an MSP with no seat asks a client for one (onboarding walk, decision 3). */
+  askForSeat: '/dashboard/program',
+  /** A bench firm's people: add one, and the invitation asks them to say yes. */
+  bench: '/dashboard/consultants',
   contracts: '/dashboard/contracts',
   companyPaperwork: '/dashboard/documents',
 } as const
@@ -58,6 +58,10 @@ export interface FirstActFacts {
   jobs?: number
   /** A supplier: clients it trades with, invitations it received, lines it sells on. */
   clients?: number
+  /** Whether the firm said it supplies through a bench (`Company.supplierPosture` BENCH). */
+  bench?: boolean
+  /** A bench firm: people on its bench, asked or agreed. */
+  benchPeople?: number
   /** An integrator: people it brought in, by import, on its bench, or on a line it sells. */
   people?: number
   /** An MSP: live seats a client granted it. */
@@ -103,6 +107,15 @@ export function firstActFor(f: FirstActFacts): RichLine | null {
             }
           : null
       }
+      // A bench firm's business is its bench, so its first act is its people, not a client.
+      if (f.bench) {
+        return f.benchPeople === 0
+          ? {
+              says: 'Add the people on your bench and ask each to say yes. A client’s job lands here when one invites you.',
+              links: [{ text: 'Add the people on your bench', href: FIRST_ACT_HREF.bench }],
+            }
+          : null
+      }
       return f.clients === 0
         ? {
             says: 'Nothing from a client yet; when a client invites you, it lands here. Record a client you already work with.',
@@ -133,29 +146,35 @@ export const NEW_ARRIVAL_DAYS = 14
 const DAY = 86_400_000
 
 /**
- * The line that tells a colleague who came in by invitation where she is
- * and what to do first. Said while the invitation is under two weeks old
- * and she has asked Ask Etyme nothing; null otherwise.
+ * What tells a colleague who came in by an invitation where she is and
+ * what to do first. Said while the invitation is under two weeks old and
+ * she has asked Ask Etyme nothing; null otherwise.
  *
- * Her first thing is the recommendation above it where there is one;
- * where there is none, Today, where the company's work is listed and
- * where anything for her desk arrives first.
+ * `first` leads the greeting, before its headline, and says only where
+ * she is: "Welcome to Brightmoor Staffing, as Account Manager." Her first
+ * thing to do is then the greeting's own: what waits on her, as the
+ * recommendation and the cards. Only where nothing waits on her does
+ * `today` say so and send her to Today (second walk, 2026-10-27: "Nothing
+ * waits on you yet" was said under "One thing needs you").
  */
 export function welcomeFor(w: {
   company: string
   role: string | null
   invitedAt: Date | null
   asked: boolean
-  recommended: boolean
+  /** Anything waits on her: a recommendation, a card, an item or a hold. */
+  waiting: boolean
   now: Date
   /** The seat's own Today: a client's program page, any other firm's dashboard. */
   today?: string
-}): RichLine | null {
+}): { first: string; today: RichLine | null } | null {
   if (!w.invitedAt || w.asked) return null
   const age = w.now.getTime() - w.invitedAt.getTime()
   if (age < 0 || age > NEW_ARRIVAL_DAYS * DAY) return null
-  const where = `Welcome to ${w.company}${w.role?.trim() ? `, as ${w.role.trim()}` : ''}.`
-  return w.recommended
-    ? { says: `${where} Your first thing to do is the recommendation above.` }
-    : { says: `${where} Nothing waits on you yet. Start on Today: the company’s work is there, and anything for you arrives here first.`, links: [{ text: 'Today', href: w.today ?? '/dashboard' }] }
+  return {
+    first: `Welcome to ${w.company}${w.role?.trim() ? `, as ${w.role.trim()}` : ''}.`,
+    today: w.waiting
+      ? null
+      : { says: 'Nothing waits on you yet. Start on Today: the company’s work is there, and anything for you arrives here first.', links: [{ text: 'Today', href: w.today ?? '/dashboard' }] },
+  }
 }

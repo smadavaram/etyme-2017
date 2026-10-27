@@ -399,19 +399,22 @@ export async function GET(request: NextRequest) {
 /**
  * A colleague who came in by an invitation, and has asked nothing yet, is
  * told where she is and what to do first (onboarding walk, 2026-10-27),
- * as the first line under the headline. A demo seat, or one that keeps
+ * before the headline. A demo seat, or one that keeps
  * no thread, is never greeted as new: nothing says whether it asked.
  */
 async function withWelcome(caller: Caller, answer: Answer, party: Party, thread: ThreadOut): Promise<Answer> {
   if (answer.kind !== 'NEEDS' || !caller.company || caller.company.isDemo || !thread.saved) return answer
   const ctx = await prisma.context.findUnique({ where: { id: caller.context.id }, select: { invitedAt: true } }).catch(() => null)
   if (!ctx?.invitedAt) return answer
-  const line = welcomeFor({
+  const waiting = Boolean(answer.recommend) || answer.items.length > 0 || (answer.queue?.length ?? 0) > 0 || (answer.held?.length ?? 0) > 0
+  const w = welcomeFor({
     company: caller.company.name, role: await roleOf(caller), invitedAt: ctx.invitedAt,
-    asked: thread.earlier || thread.turns.length > 0, recommended: Boolean(answer.recommend), now: new Date(),
+    asked: thread.earlier || thread.turns.length > 0, waiting, now: new Date(),
     today: party === 'CLIENT' ? '/dashboard/program' : '/dashboard',
   })
-  return line ? { ...answer, more: [line, ...(answer.more ?? [])] } : answer
+  if (!w) return answer
+  // The welcome leads, before the headline; "nothing waits" only where nothing does.
+  return { ...answer, says: `${w.first} ${answer.says}`, more: w.today ? [w.today, ...(answer.more ?? [])] : answer.more }
 }
 
 /**

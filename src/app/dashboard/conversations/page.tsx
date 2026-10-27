@@ -298,6 +298,17 @@ export default function ConversationsPage() {
   // if it is there, else by asking for it — a thread older than the first
   // page is still the one the bell rang about.
   const openId = searchParams.get('open')
+  // Whether the message pane shows beside the list (md and up). Only there
+  // is Ask Etyme drawn when nothing is chosen: a hidden pane must not read
+  // the greeting, which marks the notices it says as read.
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const set = () => setWide(mq.matches)
+    set()
+    mq.addEventListener('change', set)
+    return () => mq.removeEventListener('change', set)
+  }, [])
   useEffect(() => {
     if (!openId || loading) return
     const inList = conversations.find((c) => c.id === openId)
@@ -570,13 +581,20 @@ export default function ConversationsPage() {
 
           {/* Right: message pane */}
           <div className={`${activeConvo || askOpen ? 'flex' : 'hidden md:flex'} flex-col flex-1 min-w-0`}>
-            {askOpen ? (
+            {/* Nothing chosen is never a blank pane (onboarding walk, 2026-10-27:
+                an invited colleague landed on "Select a conversation"): on a
+                desktop the pane is Ask Etyme until a thread is opened. On a
+                phone the pane is hidden until something is chosen, so the
+                list with Ask Etyme pinned first is the screen. */}
+            {askOpen || (wide && !activeConvo && !openId && !openRefused) ? (
               <AskEtyme />
             ) : !activeConvo ? (
               <div className="flex-1 flex items-center justify-center">
                 {openRefused
                   ? <ErrorState says={openRefused} />
-                  : <EmptyState compact says="Select a conversation" detail="Choose a thread from the list to view messages." />}
+                  : openId
+                    ? <EmptyState compact says="Opening the conversation" detail="It opens here in a moment." />
+                    : null}
               </div>
             ) : (
               <>
