@@ -10,6 +10,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
+import { AskForSeat } from '@/components/settings/ask-for-seat'
+import { useSession } from '@/components/session-provider'
+import { asksForSeat } from './own-refusal'
 import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named } from './needs-you'
 import { formatDay } from '@/lib/format-date'
 import { ExtendForm } from './extend-form'
@@ -280,6 +283,8 @@ export default function ProgramPage() {
 }
 
 function ProgramToday() {
+  // The reader's kind, for the one refusal that is answered on this page (an MSP with no seat).
+  const sessionKind = useSession().company?.kind ?? null
   const [data, setData] = useState<ProgramData | null>(null)
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
@@ -444,7 +449,11 @@ function ProgramToday() {
   }
 
   if (refused) {
-    return <RefusedState says={refused} />
+    // An MSP no client has seated yet asks for a seat right here, under
+    // the sentence that says it needs one.
+    return asksForSeat(sessionKind, refused)
+      ? <div className="space-y-6"><RefusedState says={refused} /><AskForSeat /></div>
+      : <RefusedState says={refused} />
   }
 
   if (error || !data) {

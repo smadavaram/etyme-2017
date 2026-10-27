@@ -22,7 +22,7 @@
 
 import { hasPermission } from '@/lib/permissions'
 import { verificationFromChecklistItem } from '@/lib/onboarding-evidence'
-import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
+import { checkKindOf, whoRendersCheck, deskEvidenceShortfall, deskEvidenceFor, type DeskEvidence } from '@/lib/attestation'
 import { builtInType } from '@/lib/document-type'
 
 export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
@@ -65,6 +65,15 @@ export const STATE_WORD: Record<RequestState, string> = {
 export type ItemState = 'MISSING' | 'PROVIDED' | 'HELD' | 'WAIVED'
 
 export interface ChecklistItem {
+  /**
+   * What the desk typed or attached when it put an item on file whose
+   * "on file" is somebody else's result — a vendor screening (provider,
+   * reference, date, verdict), a D&B report (the file, or its number and
+   * date), a reference check (who, and when). Rules in lib/attestation
+   * (`deskEvidenceFor`). Kept on the item in the checklist JSON, so no
+   * schema; the file itself stays on `fileUrl`.
+   */
+  deskEvidence?: DeskEvidence | null
   key: string
   label: string
   /** The desk's yes is refused while a required item of its own is not HELD or WAIVED. */
@@ -769,8 +778,10 @@ export function markItem(
   at: Date,
   dates?: { validFrom?: string | null; validUntil?: string | null },
   /** The edition printed on a reissued form, where the desk read it. */
-  edition?: string | null
-): { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string; code?: 'NEEDS_SIGNED_COPY' | 'NEEDS_EDITION' } {
+  edition?: string | null,
+  /** What backs "on file" for an item that is somebody else's result (`deskEvidenceFor`). */
+  evidence?: DeskEvidence | null
+): { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string; code?: 'NEEDS_SIGNED_COPY' | 'NEEDS_EDITION' | 'NEEDS_EVIDENCE'; field?: string } {
   const item = checklist.find((i) => i.key === key)
   if (!item) return { ok: false, message: 'That is not on the checklist.' }
   if (state === 'WAIVED' && !note?.trim()) return { ok: false, message: `Waiving ${shortLabel(key, item.label)} needs a reason written down.` }
@@ -789,12 +800,23 @@ export function markItem(
       message: `Say which edition of ${shortLabel(key, item.label)} was signed before you verify it. ${editionHelp(item)}`,
     }
   }
+  // A vendor screening, a D&B report or a reference check is on file only
+  // with what stands behind it: the provider's result, the report or its
+  // number and date, who was spoken to and when (lib/attestation). A tick
+  // with nothing behind it is the desk rendering a verdict it does not own.
+  const needsEvidence = deskEvidenceFor(key)
+  const ev: DeskEvidence | null = needsEvidence ? { ...(item.deskEvidence ?? {}), ...(evidence ?? {}), fileUrl: item.fileUrl ?? null } : null
+  if (state === 'HELD' && ev) {
+    const short = deskEvidenceShortfall(key, ev, at)
+    if (short) return { ok: false, code: 'NEEDS_EVIDENCE', field: short.field, message: short.message }
+  }
   return {
     ok: true,
     checklist: checklist.map((i) =>
       i.key === key
         ? {
             ...i,
+            ...(ev ? { deskEvidence: state === 'MISSING' ? null : ev } : {}),
             state,
             note: note?.trim() || null,
             at: state === 'MISSING' ? null : at.toISOString(),

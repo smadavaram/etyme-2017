@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { findFirm } from '@/lib/company-create'
+import { domainOfEmail } from '@/lib/company-domains'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
@@ -18,7 +20,8 @@ import { actingDesk } from '@/lib/program-seat'
  * PATCH /api/supplier-requests/[id]
  *   { action: 'approve', note? }     — the desk it is on says yes; it moves to the next desk, or becomes a supplier
  *   { action: 'decline', note }      — with a reason the recommender reads
- *   { action: 'mark', key, state, note?, edition? }   — the desk verifies (HELD), waives with a reason, or unmarks;
+ *   { action: 'mark', key, state, note?, edition?, evidence? } — the desk verifies (HELD), waives with a reason, or unmarks;
+ *                                    a screening, a D&B report or a reference check needs its evidence (lib/attestation)
  *                                    an agreement needs its signed copy attached first (POST ./file),
  *                                    and a reissued form (the W-9) the edition printed on it
  *   { action: 'resend' }             — send the firm its link again
@@ -150,10 +153,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       validUntil: typeof body?.validUntil === 'string' && body.validUntil.trim() ? body.validUntil.trim() : null,
     }
     const edition = typeof body?.edition === 'string' && body.edition.trim() ? body.edition.trim().slice(0, 80) : null
-    const marked = markItem(checklist, key, state, note || null, now, dates, edition)
+    // What stands behind "on file" for somebody else's result (lib/attestation).
+    const ev = body?.evidence && typeof body.evidence === 'object' ? body.evidence : {}
+    const text = (k: string, max = 120) => (typeof ev[k] === 'string' && ev[k].trim() ? ev[k].trim().slice(0, max) : undefined)
+    const evidence = {
+      provider: text('provider'), reference: text('reference'), on: text('on', 10),
+      outcome: text('outcome', 20)?.toUpperCase(), reportNumber: text('reportNumber'), contactName: text('contactName', 160),
+    }
+    const given = Object.fromEntries(Object.entries(evidence).filter(([, v]) => v !== undefined))
+    const marked = markItem(checklist, key, state, note || null, now, dates, edition, given)
     if (!marked.ok) {
       return NextResponse.json(
-        { error: { code: marked.code ?? 'VALIDATION', message: marked.message, ...(marked.code === 'NEEDS_EDITION' ? { field: 'edition' } : marked.code === 'NEEDS_SIGNED_COPY' ? { field: 'file' } : {}) } },
+        { error: { code: marked.code ?? 'VALIDATION', message: marked.message, ...(marked.code === 'NEEDS_EDITION' ? { field: 'edition' } : marked.code === 'NEEDS_SIGNED_COPY' ? { field: 'file' } : marked.field ? { field: marked.field } : {}) } },
         { status: 422 }
       )
     }
@@ -311,11 +322,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Finance's yes: the last desk, and the one that writes the supplier.
     // A request opened from a match names the firm already on Etyme; that
     // company is joined, never a second one made from its name.
-    const claimed = row.firmCompanyId
-      ? await prisma.company.findUnique({ where: { id: row.firmCompanyId }, select: { id: true, name: true, claimedAt: true } })
-      : row.domain
-        ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true, claimedAt: true } })
-        : null
+    //
+    // A firm that signed up on its own is found the one way every door
+    // finds it (`findFirm`: its verified domain, its Etyme address, or its
+    // exact name run by people on the contact's domain), so a supplier
+    // that signed up and is then approved is one company, not two.
+    const found = row.firmCompanyId
+      ? null
+      : await findFirm({
+          emailDomain: (row.contactEmail ? domainOfEmail(row.contactEmail) : null) ?? row.domain,
+          name: row.name,
+          isDemo: caller.company!.isDemo,
+        })
+    const firmId = row.firmCompanyId ?? (found && found.id !== companyId ? found.id : null)
+    const claimed = firmId
+      ? await prisma.company.findUnique({ where: { id: firmId }, select: { id: true, name: true, claimedAt: true } })
+      : null
     const supplier = claimed ?? (await prisma.company.create({
       data: {
         name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',

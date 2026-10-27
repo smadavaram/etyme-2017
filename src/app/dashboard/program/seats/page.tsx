@@ -4,6 +4,8 @@ import { usePageSection } from '@/components/page-section'
 import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { PageHead, Chip, FormMessage, RefusedState, LoadingState, EmptyState } from '@/components/ui'
+import { GrantSeat } from '@/components/settings/grant-seat'
+import { AskForSeat } from '@/components/settings/ask-for-seat'
 
 /**
  * Program office — the desks this client has given to firms that are
@@ -66,9 +68,16 @@ export default function ProgramSeatsPage() {
     setReadOnce(true)
   }
 
+  // Taking a role back asks why in a box on the page, never a browser
+  // prompt (onboarding walk, 2026-10-27): the reason is kept on the seat.
+  const [taking, setTaking] = useState<string | null>(null)
+  const [why, setWhy] = useState('')
+
   async function revoke(seat: Seat) {
-    const why = window.prompt(`Why is ${seat.office.name} losing the ${seat.role.name} role?`)
-    if (why === null) return
+    if (!why.trim()) {
+      setError(`Say why ${seat.office.name} is losing the ${seat.role.name} role.`)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -79,6 +88,8 @@ export default function ProgramSeatsPage() {
       })
       const body = await readJson(res)
       if (!res.ok) throw new Error(body?.error?.message ?? 'That seat could not be taken back.')
+      setTaking(null)
+      setWhy('')
       await reload()
     } catch (err: any) {
       setError(err.message)
@@ -129,6 +140,12 @@ export default function ProgramSeatsPage() {
         </div>
       )}
 
+      {/* An MSP with no seat asks for one under the sentence saying so. */}
+      {side === 'OFFICE' && nothingYet && <AskForSeat />}
+
+      {/* A client grants a seat here, from its own Settings, never by the API alone. */}
+      {side === 'CLIENT' && <GrantSeat onGranted={() => { void reload() }} />}
+
       {live.length === 0 && !nothingYet && (
         <EmptyState
           says={<>Nobody outside {side === 'CLIENT' ? 'this company' : 'your own firm'} sits in this program.</>}
@@ -171,14 +188,35 @@ export default function ProgramSeatsPage() {
             </div>
           </dl>
 
-          {side === 'CLIENT' && (
+          {side === 'CLIENT' && taking !== seat.id && (
             <button
-              onClick={() => revoke(seat)}
+              onClick={() => { setTaking(seat.id); setWhy(''); setError(null) }}
               disabled={busy}
               className="mt-4 btn-secondary text-[13px]"
             >
               Take the role back
             </button>
+          )}
+          {side === 'CLIENT' && taking === seat.id && (
+            <div className="mt-4 space-y-2">
+              <label className="block">
+                <span className="lbl">Why is {seat.office.name} losing the {seat.role.name} role?</span>
+                <textarea
+                  value={why}
+                  onChange={(e) => setWhy(e.target.value)}
+                  rows={2}
+                  className="mt-1 w-full max-w-xl rounded border border-etyme-rule px-3 py-2 text-[13px]"
+                />
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => revoke(seat)} disabled={busy || !why.trim()} className="btn-secondary text-[13px]">
+                  {busy ? 'Taking it back…' : 'Take the role back'}
+                </button>
+                <button onClick={() => { setTaking(null); setWhy('') }} disabled={busy} className="text-[13px] text-etyme-muted hover:text-etyme-ink">
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ))}

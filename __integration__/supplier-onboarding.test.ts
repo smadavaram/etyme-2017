@@ -5,6 +5,8 @@ import { GET as listRequests, POST as recommend } from '@/app/api/supplier-reque
 import { PATCH as review } from '@/app/api/supplier-requests/[id]/route'
 import { POST as attachFile } from '@/app/api/supplier-requests/[id]/file/route'
 import { NextRequest } from 'next/server'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { GET as applyGet, POST as applyPost } from '@/app/api/supplier-apply/[token]/route'
 import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
@@ -233,7 +235,11 @@ describe('a supplier walks four desks', () => {
     // row — so the dates are held and the sentence says when they land.
     expect(insured.body.data.says).toContain('the moment Finance approves the firm')
 
-    const screened = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'VENDOR_SCREENING', state: 'HELD' })
+    // A vendor screening is the screening company's result, never a tick.
+    const bare = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'VENDOR_SCREENING', state: 'HELD' })
+    expect(bare.status).toBe(422)
+    expect(bare.body.error.code).toBe('NEEDS_EVIDENCE')
+    const screened = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'VENDOR_SCREENING', state: 'HELD', evidence: { provider: 'Sterling', reference: 'VS-4471', on: iso(-2), outcome: 'CLEAR' } })
     expect(screened.status, JSON.stringify(screened.body)).toBe(200)
     const early = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
     expect(early.status).toBe(409)
@@ -491,7 +497,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
     expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve' })).status).toBe(200)
     as(PROCUREMENT)
     for (const key of ['EXPERIENCE', 'REFERENCES', 'DNB_REPORT']) {
-      const m = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD' })
+      const m = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD', ...(key === 'DNB_REPORT' ? { evidence: { reportNumber: '06-112-4471', on: iso(-10) } } : {}) })
       expect(m.status, JSON.stringify(m.body)).toBe(200)
     }
     expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve' })).status).toBe(200)
@@ -537,7 +543,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
 
   it('an approval says which items it did not put on the compliance record, and whose opinion each of them is', async () => {
     as(HR)
-    for (const [key, dates] of [['GOOD_STANDING', { validFrom: iso(-60), validUntil: iso(305) }], ['VENDOR_SCREENING', {}]] as const) {
+    for (const [key, dates] of [['GOOD_STANDING', { validFrom: iso(-60), validUntil: iso(305) }], ['VENDOR_SCREENING', { evidence: { provider: 'Sterling', reference: 'VS-4471', on: iso(-2), outcome: 'CLEAR' } }]] as const) {
       const m = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD', ...dates })
       expect(m.status, JSON.stringify(m.body)).toBe(200)
     }
@@ -639,6 +645,65 @@ describe('every certificate in the seeded world is one a desk could have written
  * invited a Procurement Lead, and he was told the same. A desk nobody
  * named falls back and never refuses; the recommender never decides.
  */
+describe('a firm already on Etyme, approved by a client', () => {
+  it('a supplier that signed up and is then approved by a client is one company, not two', async () => {
+    const { createCompany } = await import('@/lib/company-create')
+    const owner = await prisma.person.upsert({ where: { primaryEmail: 'nadia@pellucidstaffing.com' }, update: {}, create: { primaryEmail: 'nadia@pellucidstaffing.com', name: 'Nadia Pell' } })
+    const made = await createCompany({
+      name: 'Pellucid Staffing', kind: 'VENDOR', slug: 'pellucid-staffing-walk', domain: 'pellucidstaffing.com',
+      byPersonId: owner.id, seatAsOwner: true, claimDomain: true, startsSetup: true,
+    })
+    await prisma.company.update({ where: { id: made.company.id }, data: { claimedAt: new Date() } })
+    as(HIRING)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Pellucid Staffing', contactEmail: 'ops@pellucidstaffing.com', skills: 'Merchandisers', reason: 'Signed up on Etyme last week.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const id = r.body.data.request.id
+    // Walked to Finance with every item settled, so the approval path is what is under test.
+    const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id } })
+    const settled = (row.checklist as any[]).map((i) => ({ ...i, state: 'WAIVED', note: 'Walked in the test.' }))
+    await prisma.supplierRequest.update({ where: { id }, data: { stage: 'FINANCE', state: 'IN_REVIEW', checklist: settled } })
+    as(AP)
+    const yes = await call(review, 'PATCH', `/api/supplier-requests/${id}`, id, { action: 'approve', note: 'One firm.' })
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    expect(yes.body.data.supplier.id).toBe(made.company.id)
+    expect(await prisma.company.count({ where: { name: 'Pellucid Staffing' } })).toBe(1)
+  })
+})
+
+describe('what stands behind a vendor screening on the walk screen', () => {
+  it('a vendor screening cannot be put on file from the walk screen without the provider, reference, date and verdict', async () => {
+    as(HIRING)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Tallis Workforce', contactEmail: 'ops@tallisworkforce.com', skills: 'Forklift operators', reason: 'Cover for peak season.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const id = r.body.data.request.id
+    await prisma.supplierRequest.update({ where: { id }, data: { stage: 'HR', state: 'IN_REVIEW' } })
+    as(HR)
+    const mark = (evidence: Record<string, string>) =>
+      call(review, 'PATCH', `/api/supplier-requests/${id}`, id, { action: 'mark', key: 'VENDOR_SCREENING', state: 'HELD', evidence })
+    const noRef = await mark({ provider: 'Sterling', on: iso(-1), outcome: 'CLEAR' })
+    expect(noRef.status).toBe(422)
+    expect(noRef.body.error).toMatchObject({ code: 'NEEDS_EVIDENCE', field: 'reference' })
+    const notBack = await mark({ provider: 'Sterling', reference: 'VS-1', on: iso(-1), outcome: 'ORDERED' })
+    expect(notBack.status).toBe(422)
+    expect(notBack.body.error.message).toContain('has not come back')
+    const ok = await mark({ provider: 'Sterling', reference: 'VS-1', on: iso(-1), outcome: 'CLEAR' })
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id } })
+    const item = (row.checklist as any[]).find((i) => i.key === 'VENDOR_SCREENING')
+    expect(item.state).toBe('HELD')
+    expect(item.deskEvidence).toMatchObject({ provider: 'Sterling', reference: 'VS-1', outcome: 'CLEAR' })
+    // The walk screen draws the fields beside "On file" and the sentence under the item.
+    const page = readFileSync(join(__dirname, '..', 'src/app/dashboard/suppliers/page.tsx'), 'utf8')
+    expect(page).toContain('deskEvidenceFor(item.key)!.fields')
+    expect(page).toContain('deskEvidenceSays(item.key, item.deskEvidence)')
+    expect(page).toContain('Attach the report')
+  })
+})
+
 describe('a client with one person, and a firm applying to its second client', () => {
   const RUTH = 'ruth@brackenridge-tools.example'
   const IAN = 'ian@brackenridge-tools.example'

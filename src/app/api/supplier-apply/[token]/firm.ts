@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getSessionEmail } from '@/lib/api-context'
+import { findFirm } from '@/lib/company-create'
 import { domainOfEmail, isConsumerDomain, isPlatformDomain } from '@/lib/company-domains'
 import type { EarlierApplication, FirmRecord } from '@/lib/supplier-link'
 
@@ -9,11 +10,9 @@ import type { EarlierApplication, FirmRecord } from '@/lib/supplier-link'
  *
  * ── Which firm ───────────────────────────────────────────────────────
  *
- * Matched by the contact address's own domain (never a consumer mailbox,
- * never Etyme's) to a firm with somebody seated at it, or by the firm the
- * request already points at. The architect is exporting `findFirm` from
- * lib/company-create for the same question; this reads the same two
- * facts until it lands, and moves to it then.
+ * The firm the request already points at, else whatever `findFirm` in
+ * lib/company-create answers for the contact's domain and the firm's
+ * name — the one door every sign-up and approval asks.
  *
  * ── Signed in at the firm ────────────────────────────────────────────
  *
@@ -22,7 +21,9 @@ import type { EarlierApplication, FirmRecord } from '@/lib/supplier-link'
  * for that person only (see lib/supplier-link).
  */
 
-type Row = { id: string; companyId: string; name: string; domain: string | null; contactEmail: string | null; supplierCompanyId: string | null }
+type Row = { id: string; companyId: string; name: string; domain: string | null; contactEmail: string | null; supplierCompanyId: string | null
+  /** The client's world: a demo client's link finds only demo firms. */
+  isDemo?: boolean }
 
 /** The firm's domain as the link knows it, or null where it is nobody's. */
 export function firmDomain(row: Pick<Row, 'domain' | 'contactEmail'>): string | null {
@@ -49,14 +50,12 @@ export async function sessionEmail(): Promise<string | null> {
 export async function firmOnRecord(row: Row, email: string | null): Promise<{ id: string; record: FirmRecord } | null> {
   const domain = firmDomain(row)
   const select = { id: true, name: true, domain: true } as const
-  let firm = row.supplierCompanyId
-    ? await prisma.company.findUnique({ where: { id: row.supplierCompanyId }, select })
-    : domain
-      ? await prisma.company.findFirst({
-          where: { domain, id: { not: row.companyId }, contexts: { some: { revokedAt: null } } },
-          select,
-        })
-      : null
+  // The architect's one door for "is this firm on Etyme" (lib/company-create).
+  const onEtyme = row.supplierCompanyId
+    ? null
+    : await findFirm({ emailDomain: domain, name: row.name, isDemo: row.isDemo ?? false })
+  const firmId = row.supplierCompanyId ?? (onEtyme && onEtyme.id !== row.companyId ? onEtyme.id : null)
+  let firm = firmId ? await prisma.company.findUnique({ where: { id: firmId }, select }) : null
   if (!firm && email) {
     firm = await prisma.company.findFirst({
       where: {

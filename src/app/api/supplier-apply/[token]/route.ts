@@ -26,7 +26,7 @@ import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/documen
 async function find(token: string) {
   return prisma.supplierRequest.findUnique({
     where: { token },
-    include: { company: { select: { name: true } } },
+    include: { company: { select: { name: true, isDemo: true } } },
   })
 }
 
@@ -89,7 +89,7 @@ type Found = NonNullable<Awaited<ReturnType<typeof find>>>
 /** The firm on this link, whether the visitor sits at it, and what it sent before. */
 async function whoApplies(row: Found): Promise<{ firm: Awaited<ReturnType<typeof firmOnRecord>>; atFirm: boolean; earlier: EarlierApplication[] }> {
   const email = await sessionEmail()
-  const firm = await firmOnRecord(row, email)
+  const firm = await firmOnRecord({ ...row, isDemo: row.company.isDemo }, email)
   const atFirm = await signedInAt(firm?.id ?? null, email)
   const earlier = firm && atFirm ? await earlierApplications(row, firm.id, email) : []
   return { firm, atFirm, earlier }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { offeredForWork } from './who'
+import { isStaffSeat } from '@/lib/consultant-portfolio'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
@@ -72,7 +72,13 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
-          consultant: { select: { skills: true } },
+          consultant: {
+            select: {
+              skills: true,
+              // A listing granted to THIS firm: work that names them, as the Bench page reads it.
+              listings: { where: { companyId: caller.company.id, revokedAt: null, state: 'GRANTED' }, select: { id: true } },
+            },
+          },
         },
       },
       role: { select: { name: true, permissions: true } },
@@ -88,11 +94,21 @@ export async function GET(request: NextRequest) {
   // manager once placed by another firm is that firm's history, not
   // somebody this firm staffs (supply's check, 2026-10-06).
   const firmId = caller.company.id
-  const [lines, subs] = await Promise.all([
-    prisma.sellContract.findMany({ where: { personId: { in: ids }, companyId: firmId }, select: { personId: true }, distinct: ['personId'] }),
-    prisma.submission.findMany({ where: { personId: { in: ids }, fromCompanyId: firmId }, select: { personId: true }, distinct: ['personId'] }),
+  //
+  // Staff are not on the payroll count (onboarding walk, 2026-10-27): the
+  // same reading the Bench page makes (`isStaffSeat`, supply's), from the
+  // same facts — a contract line it sells or a pay line it runs, papered
+  // or past, and a listing granted to it — so the two screens never
+  // disagree about who is roster.
+  const papered = { in: ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED', 'ENDED'] as ('PENDING_VERIFICATION' | 'VERIFIED' | 'IN_PROGRESS' | 'PAUSED' | 'ENDED')[] }
+  const [lines, buys] = await Promise.all([
+    prisma.sellContract.findMany({ where: { personId: { in: ids }, companyId: firmId, state: papered }, select: { personId: true }, distinct: ['personId'] }),
+    prisma.buyContractCandidate.findMany({
+      where: { personId: { in: ids }, state: { in: ['ACTIVE', 'ENDED'] }, buyContract: { companyId: firmId, state: papered } },
+      select: { personId: true }, distinct: ['personId'],
+    }),
   ])
-  const works = new Set<string>([...lines, ...subs].map((r) => r.personId))
+  const works = new Set<string>([...lines, ...buys].map((r) => r.personId))
   const permsOf = new Map<string, string[]>()
   for (const seat of seats) {
     permsOf.set(seat.personId, [...(permsOf.get(seat.personId) ?? []), ...(seat.role?.permissions ?? [])])
@@ -102,9 +118,10 @@ export async function GET(request: NextRequest) {
   // desk — is ordinary and is still one employee.
   const byPerson = new Map<string, { personId: string; name: string; role: string | null; skills: string[] }>()
   for (const seat of seats) {
-    if (!offeredForWork({
+    if (isStaffSeat({
       permissions: permsOf.get(seat.personId) ?? [],
-      worksHere: works.has(seat.personId) || !!seat.person.consultant,
+      listed: (seat.person.consultant?.listings.length ?? 0) > 0,
+      lines: works.has(seat.personId) ? [seat.personId] : [],
     })) continue
     const existing = byPerson.get(seat.personId)
     if (existing) {

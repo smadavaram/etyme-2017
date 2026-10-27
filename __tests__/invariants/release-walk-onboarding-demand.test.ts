@@ -171,3 +171,27 @@ describe('a client on the supplier’s jobs address', () => {
     expect(read('src/app/dashboard/requirements/[id]/page.tsx')).toMatch(/requirement\.marginClass && readsMarginClass\(company\?\.kind\)/)
   })
 })
+
+import { asksForSeat } from '@/app/dashboard/program/own-refusal'
+import { noSeatYet } from '@/lib/program-seat'
+
+describe('a seat for an MSP, granted and asked for on the screens', () => {
+  it('a client grants an MSP a seat from its Settings page, never by the API alone', () => {
+    const page = read('src/app/dashboard/program/seats/page.tsx')
+    expect(page).toContain("import { GrantSeat } from '@/components/settings/grant-seat'")
+    expect(page).toMatch(/side === 'CLIENT' && <GrantSeat onGranted=/)
+    // Taking the role back asks why in a box on the page, never a browser prompt.
+    expect(page).not.toContain('window.prompt')
+    expect(page).toContain('Why is {seat.office.name} losing the {seat.role.name} role?')
+  })
+
+  it('an MSP with no seat sees Ask for a seat on its first screen', () => {
+    expect(asksForSeat('MSP', noSeatYet('Palliser MSP'))).toBe(true)
+    expect(asksForSeat('MSP', 'Palliser MSP is not tied to a client yet. A client’s program …')).toBe(true)
+    expect(asksForSeat('VENDOR', noSeatYet('Brightmoor'))).toBe(false)
+    expect(asksForSeat('MSP', 'Something else entirely.')).toBe(false)
+    const program = read('src/app/dashboard/program/page.tsx')
+    expect(program).toMatch(/asksForSeat\(sessionKind, refused\)[\s\S]{0,120}<AskForSeat \/>/)
+    expect(read('src/app/dashboard/program/seats/page.tsx')).toMatch(/side === 'OFFICE' && nothingYet && <AskForSeat \/>/)
+  })
+})

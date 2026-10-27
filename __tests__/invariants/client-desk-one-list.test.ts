@@ -223,10 +223,18 @@ describe('The Submit dialog offers a client’s job once, never the firm’s own
     expect(src('src/app/dashboard/submissions/page.tsx')).toContain('onePerJob<RequirementOption & { mirroredFromId: string | null }>(')
   })
 
-  it('the people offered are the ones this firm has staffed — a line it sells or a submission it made — never somebody else’s history', () => {
+  it('the people offered are the ones this firm has staffed — a line it sells or a pay line it runs — never somebody else’s history', () => {
     const route = src('src/app/api/submissions/own-people/route.ts')
-    expect(route).toContain("where: { personId: { in: ids }, companyId: firmId }")
-    expect(route).toContain("where: { personId: { in: ids }, fromCompanyId: firmId }")
+    expect(route).toContain("where: { personId: { in: ids }, companyId: firmId, state: papered }")
+    expect(route).toContain("buyContract: { companyId: firmId, state: papered }")
+  })
+
+  it('the own-people count never includes staff seats', () => {
+    // The same reading the Bench page makes, so "on your payroll" and Our bench agree.
+    const route = src('src/app/api/submissions/own-people/route.ts')
+    expect(route).toContain("import { isStaffSeat } from '@/lib/consultant-portfolio'")
+    expect(route).toMatch(/if \(isStaffSeat\(\{/)
+    expect(src('src/app/api/bench/route.ts')).toMatch(/!isStaffSeat\(\{/)
   })
 })
 

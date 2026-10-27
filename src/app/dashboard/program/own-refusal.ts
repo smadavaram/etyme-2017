@@ -36,3 +36,13 @@ export async function refusedBy(res: Response, pageName: string): Promise<string
   const body = await res.json().catch(() => null)
   return refusalFor(body?.error ?? null, pageName)
 }
+
+/**
+ * Whether a refusal is the one an MSP reads before any client has seated
+ * it ("… is not tied to a client yet …", `noSeatYet` and the program
+ * read's own), so the page draws "Ask for a seat" under it. The onboarding
+ * walk of 2026-10-27 found that sentence with nowhere to act on it.
+ */
+export function asksForSeat(kind: string | null | undefined, refusal: string | null | undefined): boolean {
+  return kind === 'MSP' && /is not tied to a client yet\./.test(refusal ?? '')
+}

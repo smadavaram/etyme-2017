@@ -298,7 +298,7 @@ describe('a verdict at onboarding reaches the compliance record', () => {
     let c = newChecklist()
     c = (markItem(c, 'INSURANCE', 'HELD', null, now, { validFrom: iso(-30), validUntil: iso(335) }) as any).checklist
     c = (markItem(c, 'GOOD_STANDING', 'HELD', null, now) as any).checklist
-    c = (markItem(c, 'VENDOR_SCREENING', 'HELD', null, now) as any).checklist
+    c = (markItem(c, 'VENDOR_SCREENING', 'HELD', null, now, undefined, undefined, { provider: 'Sterling', reference: 'VS-1', on: '2026-01-02', outcome: 'CLEAR' }) as any).checklist
 
     const out = verificationsFromChecklist(c, 'brightmoor', { at: now })
     expect(out.rows.map((r) => r.type).sort()).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
@@ -469,7 +469,7 @@ describe('a desk is never told nothing when its click recorded nothing', () => {
   })
 
   it('a desk’s own check says nothing either, because nobody expected a compliance record from it', () => {
-    const c = (markItem(newChecklist(), 'VENDOR_SCREENING', 'HELD', null, now) as any).checklist
+    const c = (markItem(newChecklist(), 'VENDOR_SCREENING', 'HELD', null, now, undefined, undefined, { provider: 'Sterling', reference: 'VS-1', on: '2026-01-02', outcome: 'CLEAR' }) as any).checklist
     expect(evidenceNoteFor(c.find((i: ChecklistItem) => i.key === 'VENDOR_SCREENING'), 'veritan', now)).toBeNull()
     const bank = (markItem(newChecklist(), 'BANK', 'HELD', null, now) as any).checklist
     expect(evidenceNoteFor(bank.find((i: ChecklistItem) => i.key === 'BANK'), 'veritan', now)).toBeNull()

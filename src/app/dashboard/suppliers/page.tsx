@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
+import { deskEvidenceFor, deskEvidenceSays, SCREENING_OUTCOMES, type DeskEvidence } from '@/lib/attestation'
 import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, needsSignedCopy, needsEdition, editionHelp, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -187,6 +188,10 @@ export default function SuppliersPage() {
    */
   const [editionFor, setEditionFor] = useState<string | null>(null)
   const [editionText, setEditionText] = useState('')
+  // What stands behind "on file" for somebody else's result: a vendor
+  // screening, a D&B report, a reference check (lib/attestation).
+  const [evidenceFor, setEvidenceFor] = useState<string | null>(null)
+  const [evidenceForm, setEvidenceForm] = useState<DeskEvidence>({})
   const [view, setView] = useState<View>('feed')
   const [filter, setFilter] = useState<NetworkFilter>('ALL')
   const [place, setPlace] = useState<string | null>(null)
@@ -311,6 +316,7 @@ export default function SuppliersPage() {
       setNoteFor(null); setNoteText('')
       setDatesFor(null); setDateForm({ validFrom: '', validUntil: '' })
       setEditionFor(null); setEditionText('')
+      setEvidenceFor(null); setEvidenceForm({})
       await loadRequests()
       if (payload.action === 'approve') load()
     } catch (err: any) {
@@ -657,6 +663,10 @@ export default function SuppliersPage() {
                               {item.evidence.says}
                             </span>
                           )}
+                          {/* What stands behind it, once on file: the provider's result, the report, who was spoken to. */}
+                          {item.state === 'HELD' && item.deskEvidence && deskEvidenceSays(item.key, item.deskEvidence) && (
+                            <span className="block text-[11px] text-etyme-faint">{deskEvidenceSays(item.key, item.deskEvidence)}</span>
+                          )}
                         </span>
                         {r.mayAct && (item.state === 'MISSING' || item.state === 'PROVIDED') && (
                           <span className="flex gap-1">
@@ -675,9 +685,25 @@ export default function SuppliersPage() {
                                 />
                               </label>
                             ) : (
+                            <>
+                            {/* A D&B report is on file as the report itself: attach it. */}
+                            {deskEvidenceFor(item.key)?.fields.some((f) => f.name === 'fileUrl') && (
+                              <label className="cursor-pointer rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">
+                                {item.fileUrl ? 'Replace the report' : 'Attach the report'}
+                                <input
+                                  type="file"
+                                  className="sr-only"
+                                  aria-label={`${item.label} file`}
+                                  disabled={busy}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) attach(r.id, item.key, f); e.target.value = '' }}
+                                />
+                              </label>
+                            )}
                             <button
                               onClick={() =>
-                                wantsDates(item)
+                                deskEvidenceFor(item.key)
+                                  ? (setEvidenceFor(`${r.id}:${item.key}`), setEvidenceForm({ ...(item.deskEvidence ?? {}) }))
+                                  : wantsDates(item)
                                   ? (setDatesFor(`${r.id}:${item.key}`),
                                      setDateForm({
                                        validFrom: item.validFrom ? item.validFrom.slice(0, 10) : '',
@@ -689,6 +715,7 @@ export default function SuppliersPage() {
                               }
                               disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">{item.state === 'PROVIDED' ? 'Verified' : 'On file'}</button>
+                            </>
                             )}
                             <button onClick={() => { setNoteFor(`${r.id}:${item.key}`); setNoteText('') }} disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-muted hover:border-etyme-action">Waive…</button>
@@ -749,6 +776,34 @@ export default function SuppliersPage() {
                             <button type="submit" disabled={!editionText.trim() || busy}
                               className="rounded bg-etyme-action px-2 py-1 text-[11px] text-white disabled:opacity-40">Verified</button>
                             <button type="button" onClick={() => setEditionFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
+                          </form>
+                        )}
+                        {/* The fields "on file" needs for this item, beside it:
+                            never a tick with nothing behind it. */}
+                        {evidenceFor === `${r.id}:${item.key}` && deskEvidenceFor(item.key) && (
+                          <form
+                            className="flex w-full flex-wrap items-end gap-2 pl-7"
+                            onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'mark', key: item.key, state: 'HELD', evidence: evidenceForm }) }}
+                          >
+                            <span className="w-full text-[11px] text-etyme-faint">{deskEvidenceFor(item.key)!.says}</span>
+                            {deskEvidenceFor(item.key)!.fields.filter((f) => f.name !== 'fileUrl').map((f) => (
+                              <label key={f.name} className="flex flex-col gap-0.5 text-[11px] text-etyme-muted" title={f.help}>
+                                {f.label}
+                                {f.name === 'outcome' ? (
+                                  <select value={evidenceForm.outcome ?? ''} onChange={(e) => setEvidenceForm((v) => ({ ...v, outcome: e.target.value }))}
+                                    className="rounded border border-etyme-rule px-2 py-1 text-[12px]">
+                                    <option value="">—</option>
+                                    {SCREENING_OUTCOMES.map((o) => <option key={o} value={o}>{o === 'CLEAR' ? 'Clear' : o === 'CONDITIONAL' ? 'Clear with conditions' : o === 'FLAGGED' ? 'Flagged' : 'Not clear'}</option>)}
+                                  </select>
+                                ) : (
+                                  <input type={f.name === 'on' ? 'date' : 'text'} value={(evidenceForm[f.name] as string | null | undefined) ?? ''}
+                                    onChange={(e) => setEvidenceForm((v) => ({ ...v, [f.name]: e.target.value }))}
+                                    className="rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                                )}
+                              </label>
+                            ))}
+                            <button type="submit" disabled={busy} className="rounded bg-etyme-action px-2 py-1 text-[11px] text-white disabled:opacity-40">On file</button>
+                            <button type="button" onClick={() => setEvidenceFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
                           </form>
                         )}
                         {noteFor === `${r.id}:${item.key}` && (
