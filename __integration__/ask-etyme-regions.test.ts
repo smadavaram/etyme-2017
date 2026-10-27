@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import type { NextRequest } from 'next/server'
-import { freshWorld, as, req, json } from './harness'
+import { freshWorld, as, req, json, prisma } from './harness'
+import { GET as threadList } from '@/app/api/conversations/route'
 import { GET as greet, POST as ask } from '@/app/api/conversations/twin/route'
 import { GET as byRegion } from '@/app/api/program/regions/route'
 import { corvaneSeatEmail, corvaneContractors, CORVANE_PLANTS } from '@/lib/seed-corvane'
@@ -214,5 +215,42 @@ describe('the CFO and the head of operations read the rollup', () => {
     const r = await asked(CFO, 'What did we spend by supplier this month?')
     expect(r.status).toBe(200)
     expect(r.body.data.answer.table?.caption ?? '').not.toBe('Spend this month, by region')
+  })
+})
+
+describe('the thread column beside Valeria Montes’s chat', () => {
+  it('a regional manager’s thread list opens, and holds no thread from a plant outside her region', async () => {
+    const valeria = await prisma.person.findFirstOrThrow({ where: { primaryEmail: VALERIA }, select: { id: true, name: true } })
+    const marcus = await prisma.person.findFirstOrThrow({ where: { primaryEmail: MARCUS }, select: { id: true, name: true } })
+    const corvane = await prisma.context.findFirstOrThrow({ where: { personId: valeria.id, revokedAt: null, companyId: { not: null } }, select: { companyId: true } })
+    const companyId = corvane.companyId!
+    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({
+      where: { companyId: companyId, orgUnitId: `cv_unit_site_${plant.key}` }, select: { id: true },
+    })
+    const latamJob = await jobAt(latam[0])
+    const usJob = await jobAt(us[0])
+    const on = (...ps: { id: string; name: string }[]) => ps.map((p) => ({ personId: p.id, name: p.name, companyId: companyId, joinedAt: new Date().toISOString() }))
+    const thread = (title: string, topic: string, topicId: string | null, participants: object) =>
+      prisma.conversation.create({ data: { companyId: companyId, topic, topicId, title, participants }, select: { id: true } })
+    const inLatam = await thread('Regions test: Latin America job', 'REQUIREMENT', latamJob.id, on(valeria))
+    const inUs = await thread('Regions test: United States job', 'REQUIREMENT', usJob.id, on(valeria, marcus))
+    const notHers = await thread('Regions test: not hers', 'REQUIREMENT', latamJob.id, on(marcus))
+    const ownNote = await thread('Regions test: her own note', 'GENERAL', null, on(valeria))
+
+    as(VALERIA)
+    const r = await json(await threadList(req('GET', '/api/conversations?limit=50') as NextRequest))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const ids = r.body.data.conversations.map((c: any) => c.id)
+    expect(ids).toContain(inLatam.id)
+    expect(ids).toContain(ownNote.id)
+    expect(ids).not.toContain(inUs.id)
+    expect(ids).not.toContain(notHers.id)
+    noUnitedStates(JSON.stringify(r.body.data))
+
+    // Marcus, on Dayton, is no region seat: his list is unchanged by this.
+    as(MARCUS)
+    const m = await json(await threadList(req('GET', '/api/conversations?limit=50') as NextRequest))
+    expect(m.status).toBe(200)
+    expect(m.body.data.conversations.map((c: any) => c.id)).toContain(inUs.id)
   })
 })

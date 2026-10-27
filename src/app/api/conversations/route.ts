@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { whoMayOpen, sideOf, readsOnlyOwnThreads, holdsNoThreadDesk, isOnThread, type TopicFacts, type Participant } from '@/lib/threads'
 import { seatFor } from '@/lib/program-seat'
 import { tellThread } from '@/lib/thread-notices'
+import { regionScopeFor } from '@/lib/region-scope'
+import { threadsInRegion } from './region-threads'
 
 /**
  * GET /api/conversations
@@ -25,9 +27,15 @@ import { tellThread } from '@/lib/thread-notices'
  * `side` says which end of an across-thread the reader is on: OPENED
  * (they started it) or ANSWERS (they were written to). The rule for who
  * may open one is lib/threads and is enforced in POST below.
+ *
+ * A regional manager (a seat on a REGION unit, lib/region-scope) reads
+ * only the threads she is on, and of those only the ones about a job
+ * request, a candidate, a contract, a bill or an expense at one of her
+ * region's plants (./region-threads). Where her region cannot be read,
+ * she reads her own threads about nothing in particular and no more.
  */
 export async function GET(request: NextRequest) {
-  const { caller, error } = await getCallerContext(request)
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
 
   const url = request.nextUrl
@@ -54,7 +62,7 @@ export async function GET(request: NextRequest) {
   // there, not because the company's inbox is theirs (lib/threads,
   // readsOnlyOwnThreads). A firm holding a program-office seat reads under
   // the client's role, so it is asked only for a seat with no desk.
-  const onlyMine = readsOnlyOwnThreads({
+  const onlyMine = Boolean(caller.region) || readsOnlyOwnThreads({
     consultant: isConsultantSeat(caller),
     permissions: caller.permissions,
     holdsProgramSeat: holdsNoThreadDesk(caller.permissions) && !isConsultantSeat(caller)
@@ -62,7 +70,7 @@ export async function GET(request: NextRequest) {
       : false,
   })
 
-  const conversations = (await prisma.conversation.findMany({
+  const mine = (await prisma.conversation.findMany({
     where,
     include: {
       company: { select: { id: true, name: true } },
@@ -81,7 +89,18 @@ export async function GET(request: NextRequest) {
     // reader on two threads must not lose them behind twenty-five they
     // are not on.
     ...(onlyMine ? {} : { take: limit }),
-  })).filter((c) => !onlyMine || isOnThread(c.participants, caller.person.id)).slice(0, limit)
+  })).filter((c) => !onlyMine || isOnThread(c.participants, caller.person.id))
+
+  // A region seat: her own threads, narrowed to her region's plants. Fail
+  // closed: a scope that cannot be read places nothing.
+  const shown = caller.region
+    ? await threadsInRegion(
+        mine,
+        (me ? await regionScopeFor(me, caller.region.unitId) : null)
+          ?? { unitId: caller.region.unitId, label: caller.region.label, unitIds: [], siteIds: [] },
+      )
+    : mine
+  const conversations = shown.slice(0, limit)
 
   return NextResponse.json({
     data: {
