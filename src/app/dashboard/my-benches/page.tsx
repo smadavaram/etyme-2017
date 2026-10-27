@@ -73,6 +73,8 @@ interface Data {
   /** Firms that employ them. They need no listing to staff somebody. */
   employers: string[]
   note: string
+  /** The clients on their own record, offered first when they name one. */
+  mayName?: { id: string; name: string }[]
 }
 
 
@@ -123,6 +125,10 @@ export default function MyBenchesPage() {
   // The stay and the matches choice beside each yes, per invitation.
   const [stayFor, setStayFor] = useState<Record<string, number | null>>({})
   const [showFor, setShowFor] = useState<Record<string, boolean>>({})
+  // Naming a client they will not be sent to: one off their record, or any name.
+  const [notPick, setNotPick] = useState('')
+  const [notName, setNotName] = useState('')
+  const [notNote, setNotNote] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -513,6 +519,55 @@ export default function MyBenchesPage() {
               ))}
             </div>
           )}
+          <form
+            className="mt-4 space-y-2 border-t border-etyme-rule pt-3"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const note = notNote.trim() || undefined
+              if (notPick) await send({ doNotSubmitTo: notPick, note })
+              else await send({ doNotSubmitName: notName, note })
+              setNotPick('')
+              setNotName('')
+              setNotNote('')
+            }}
+          >
+            <p className="text-[13px] text-etyme-muted">Name a client you will not be sent to.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {(data.mayName ?? []).length > 0 && (
+                <select
+                  aria-label="A client on your record"
+                  value={notPick}
+                  disabled={busy}
+                  onChange={(e) => { setNotPick(e.target.value); if (e.target.value) setNotName('') }}
+                  className="rounded border border-etyme-rule bg-etyme-raised px-2 py-1 text-[13px] text-etyme-ink"
+                >
+                  <option value="">A client on your record…</option>
+                  {(data.mayName ?? []).map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              )}
+              <input
+                aria-label="Or type the client's name"
+                placeholder={(data.mayName ?? []).length > 0 ? 'or type a name' : 'The client’s name'}
+                value={notName}
+                disabled={busy || Boolean(notPick)}
+                onChange={(e) => setNotName(e.target.value)}
+                className="min-w-[12rem] flex-1 rounded border border-etyme-rule bg-etyme-raised px-2 py-1 text-[13px] text-etyme-ink"
+              />
+            </div>
+            <input
+              aria-label="Your reason, for you only"
+              placeholder="Your reason (only you see it)"
+              value={notNote}
+              disabled={busy}
+              onChange={(e) => setNotNote(e.target.value)}
+              className="w-full rounded border border-etyme-rule bg-etyme-raised px-2 py-1 text-[13px] text-etyme-ink"
+            />
+            <button type="submit" className={primary} disabled={busy || (!notPick && notName.trim().length < 2)}>
+              Do not send me there
+            </button>
+          </form>
         </Panel>
 
         {/* ── Everything done in their name ────────────────────────── */}

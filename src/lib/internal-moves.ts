@@ -273,6 +273,68 @@ export function checkFlag(f: FlagFacts): FlagVerdict {
 }
 
 /**
+ * The flag where no project line is recorded yet (onboarding walk,
+ * 2026-10-27).
+ *
+ * A firm that imported its employees has nobody on a line, so the flag
+ * read "Nobody is on a project you manage" and the delivery manager could
+ * say nothing about who comes off. A delivery manager knows who is coming
+ * off whether or not the line is on the record. So any manager (one who
+ * holds `assignments.write`) may flag any of the firm's own employees on a
+ * day, today or later, and the flag says plainly that there is no line:
+ * nothing is checked against a contract that is not there, nothing is
+ * billed or shortened, and the person reads as free from the day after.
+ *
+ * Not stored yet: `ProjectRelease.sellContractId` is required, so the
+ * route that writes this waits on that column becoming optional
+ * (architect's).
+ */
+export interface LinelessFlagFacts {
+  personName: string
+  rollsOffOn: Date
+  keepUntil: Date | null
+  today: Date
+  /** The seat holds `assignments.write`. */
+  manages: boolean
+  /** The firm employs the person. */
+  employed: boolean
+  firmName: string
+}
+
+export function checkFlagWithoutLine(f: LinelessFlagFacts): FlagVerdict {
+  const who = f.personName
+  if (!f.employed) {
+    return {
+      ok: false, code: 'NOT_YOUR_PROJECT',
+      message: `${who} is not employed at ${f.firmName}. Our bench moves the firm’s own people; somebody on a listing is moved with their consent, from Bench.`,
+    }
+  }
+  if (!f.manages) {
+    return {
+      ok: false, code: 'NOT_YOUR_PROJECT',
+      message: `Flagging who comes off a project is for a delivery or project manager at ${f.firmName}. HR is told; it does not flag.`,
+    }
+  }
+  const day = dayOf(f.rollsOffOn)
+  if (day.getTime() < dayOf(f.today).getTime()) {
+    return { ok: false, code: 'IN_THE_PAST', message: `${onDay(day)} has passed. Say the day ${who} comes off, today or later.` }
+  }
+  if (f.keepUntil && dayOf(f.keepUntil).getTime() < day.getTime()) {
+    return {
+      ok: false, code: 'KEEP_BEFORE_ROLLOFF',
+      message: `"Staying with me until" ${onDay(f.keepUntil)} is before ${who} comes off on ${onDay(day)}. Pick a later day, or leave it empty.`,
+    }
+  }
+  const freeOn = freeFrom({ rollsOffOn: day, keepUntil: f.keepUntil })
+  return {
+    ok: true,
+    freeOn,
+    early: false,
+    says: `${who} comes off on ${onDay(day)}: no project line, free from ${onDay(freeOn)}.`,
+  }
+}
+
+/**
  * Said where a manager keeps somebody past the day their contract ends.
  *
  * Amara was "kept until Nov 15" on a contract ending Oct 26, which is

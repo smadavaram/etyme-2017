@@ -31,6 +31,7 @@ import { weekStart, weekEnd } from '@/lib/overtime'
 import { amount, compact } from '@/lib/money-display'
 import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
 import { canReadBillRate } from '@/lib/permissions'
+import { OWN_WORK_READS } from '@/lib/console-home'
 
 export type Visibility = 'INTERNAL' | 'FEED' | 'CLIENT_VISIBLE' | 'VERIFIED'
 
@@ -915,6 +916,158 @@ function rosterSentence(f: {
       : ''
 
   return `${head}${middle}${tail}.`
+}
+
+// ── Staff, not roster (onboarding walk, 2026-10-27) ──────────────────
+
+/**
+ * Whether a seat at the firm is staff rather than somebody it staffs.
+ *
+ * The walk found the bench firm's owner read as "1 person is on your
+ * payroll", and an integrator's Owner and Delivery Manager listed under
+ * Our bench · employed. Every staffer holds an EMPLOYEE context, so the
+ * seat cannot say who is roster; the work can, the way `ownPage` reads it.
+ *
+ * Staff is a seat that holds a desk (any permission beyond the reads of
+ * its own work, the same line `holdsADesk` draws in the nav table) and
+ * that no work names: no contract line — a placement or a pay line — and
+ * no bench listing it granted. A seat with no role, or one that reads only
+ * its own work, is an employee the firm may staff, contract or not, so an
+ * imported engineer with nothing on the record yet stays on the roster.
+ * And a manager on a placement is on the roster, because the work says so.
+ */
+export function isStaffSeat(p: {
+  permissions: readonly string[] | null | undefined
+  listed: boolean
+  lines: readonly unknown[]
+}): boolean {
+  const desk = Array.isArray(p.permissions) && p.permissions.some((x) => !OWN_WORK_READS.has(x))
+  return desk && !p.listed && p.lines.length === 0
+}
+
+// ── Adding somebody who already has a record (onboarding walk) ───────
+
+/**
+ * What "Add consultant" does with an email address.
+ *
+ * Maya Brooks signed up herself with a Gmail address, so she already has
+ * a profile, and adding her was refused "A consultant profile already
+ * exists for this person" with no other way to ask her. A person has one
+ * record; a firm that wants her asks her onto its bench with the same
+ * invitation and the same yes as anybody else, and never makes a second
+ * record of her.
+ *
+ *  - NEW           nobody by that address has a profile: one is made, and
+ *                  the listing is an invitation.
+ *  - ASK_EXISTING  she has a profile and this firm has never listed her:
+ *                  the invitation only, on her own record.
+ *  - ASK_AGAIN     she took a listing at this firm back: asked afresh,
+ *                  never silently restored.
+ *  - ALREADY_ASKED the firm asked and she has not answered.
+ *  - ALREADY_ON    she said yes.
+ *  - SAID_NO       she said no, and the invitation told her a no is the
+ *                  end of it.
+ */
+export type AddPath = 'NEW' | 'ASK_EXISTING' | 'ASK_AGAIN' | 'ALREADY_ASKED' | 'ALREADY_ON' | 'SAID_NO'
+
+export function addPath(f: {
+  profileExists: boolean
+  listing: { state: string; revokedAt: Date | null } | null
+}): AddPath {
+  if (!f.profileExists) return 'NEW'
+  if (!f.listing) return 'ASK_EXISTING'
+  if (f.listing.revokedAt) return 'ASK_AGAIN'
+  if (f.listing.state === 'GRANTED') return 'ALREADY_ON'
+  if (f.listing.state === 'DECLINED') return 'SAID_NO'
+  return 'ALREADY_ASKED'
+}
+
+/** The sentence for a path that asks nobody, or null where an ask goes. */
+export function addRefusalSays(path: AddPath, name: string, firm: string): string | null {
+  switch (path) {
+    case 'ALREADY_ON':
+      return `${name} is already on ${firm}’s bench. Nothing was sent.`
+    case 'ALREADY_ASKED':
+      return `${firm} already asked ${name} and is waiting on the answer. Nothing new was sent; the invitation can be sent again from Bench.`
+    case 'SAID_NO':
+      return `${name} said no to ${firm}’s bench, and the invitation said a no is the end of it. ${name} can change that from their own page.`
+    default:
+      return null
+  }
+}
+
+/** What adding somebody who already has a record did, in a sentence. */
+export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean }): string {
+  const first = o.again ? `${o.firm} asked ${o.name} onto its bench again` : `${o.name} already has an account, so ${o.firm} asked them onto its bench`
+  const sent = o.emailed ? ' The invitation went by email.' : ' The invitation is recorded; it can be sent from Bench.'
+  return `${first}, on the record they already have.${sent} Nothing reaches past ${o.firm} until ${o.name} says yes.`
+}
+
+// ── After a yes (onboarding walk) ────────────────────────────────────
+
+/**
+ * What a person reads after saying yes from the emailed link.
+ *
+ * Ike Danso said yes for 60 days with no account and landed on a page
+ * with no way onward. The yes needs no account and never will; what it
+ * gives her is a next step she can take in one click: her own page, the
+ * candidate sign-up with her address already in it — or, where she
+ * already has an account, signing in, never a second sign-up.
+ */
+export function afterYes(o: {
+  firm: string
+  email: string | null
+  hasAccount: boolean
+}): { next: string; label: string; href: string } {
+  const email = (o.email ?? '').trim()
+  if (o.hasAccount) {
+    return {
+      next:
+        `${o.firm} can now put you forward. You are told each time it does, and you can see ` +
+        'every firm that has you, and take any of them back, from your own page.',
+      label: 'Sign in to your page',
+      // The sign-in page reads no address; signing in is one click either way.
+      href: '/login',
+    }
+  }
+  return {
+    next:
+      `${o.firm} can now put you forward, and it tells you each time. You need no account for that. ` +
+      'With your own page you see every firm that has you, choose who may send you where, and file your own week once you start.',
+    label: 'Make your own page',
+    href: `/signup?as=candidate${email ? `&email=${encodeURIComponent(email)}` : ''}`,
+  }
+}
+
+// ── Clients she will not be sent to (onboarding walk) ────────────────
+
+/**
+ * The firms offered first when a worker names a client she will not be
+ * sent to: every firm on her own record, by name, once, in order, less
+ * the ones already on her list. Firms she knows already; nothing here
+ * shows her a firm she has not dealt with.
+ */
+export function firmsToOffer(
+  onRecord: readonly { id: string; name: string }[],
+  alreadyListed: readonly string[]
+): { id: string; name: string }[] {
+  const listed = new Set(alreadyListed)
+  const seen = new Set<string>()
+  const out: { id: string; name: string }[] = []
+  for (const f of onRecord) {
+    if (!f.id || listed.has(f.id) || seen.has(f.id)) continue
+    seen.add(f.id)
+    out.push({ id: f.id, name: f.name })
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** Said when a name she typed matches no company on Etyme. Nothing is stored. */
+export function noFirmByThatNameSays(name: string): string {
+  return (
+    `No company called ${name.trim()} is on Etyme, so no firm can send you there through Etyme. ` +
+    'Nothing was saved. If they join, name them again here.'
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────

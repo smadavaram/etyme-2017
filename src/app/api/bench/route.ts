@@ -13,6 +13,7 @@ import { logBulkAccess } from '@/lib/access-log'
 import {
   standingOf,
   rosterSummary,
+  isStaffSeat,
   mayMarket,
   type RosterPerson,
 } from '@/lib/consultant-portfolio'
@@ -512,7 +513,7 @@ async function rosterFor(companyId: string) {
     select: {
       personId: true,
       grantReason: true,
-      role: { select: { name: true } },
+      role: { select: { name: true, permissions: true } },
       person: {
         select: {
           id: true,
@@ -536,6 +537,12 @@ async function rosterFor(companyId: string) {
       },
     },
   })
+
+  // Every permission a person's seats here hold, to tell staff from roster.
+  const deskOf = new Map<string, string[]>()
+  for (const seat of seats) {
+    deskOf.set(seat.personId, [...(deskOf.get(seat.personId) ?? []), ...(seat.role?.permissions ?? [])])
+  }
 
   // One row per person. Two seats at one firm — a delivery seat and a
   // desk — is ordinary and is still one employee.
@@ -633,7 +640,14 @@ async function rosterFor(companyId: string) {
     }
   }
 
-  const rows = [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name))
+  // Staff are not roster (onboarding walk, 2026-10-27): the owner and the
+  // managers hold a seat that does something and no work names them — no
+  // placement, no pay line, no listing — so they are neither "on your
+  // payroll" nor on Our bench · employed. Read off the work, the way
+  // `ownPage` reads it; a manager on a placement stays.
+  const rows = [...byPerson.values()]
+    .filter((r) => !isStaffSeat({ permissions: deskOf.get(r.personId) ?? [], listed: r.listed, lines: r.lines }))
+    .sort((a, b) => a.name.localeCompare(b.name))
   const summary = rosterSummary(rows, now)
 
   return {

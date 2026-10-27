@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { whoHasMe, endHold } from '@/lib/holds'
-import { whoHasYouNote, plainDate } from '@/lib/consultant-portfolio'
+import { whoHasYouNote, plainDate, firmsToOffer, noFirmByThatNameSays } from '@/lib/consultant-portfolio'
 import { workingLifeOf } from '@/lib/portfolio-data'
 import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
@@ -125,6 +125,37 @@ export async function GET(_request: NextRequest) {
     mayRenew: renewFields(l, now).ok,
   }))
 
+  // The clients on their own record, offered first when they name one
+  // they will not be sent to (onboarding walk, 2026-10-27): who they were
+  // put forward to and where they worked. Never a firm they have not dealt
+  // with; any other name is typed.
+  const [sentTo, workedAt] = await Promise.all([
+    prisma.submission.findMany({
+      where: { personId: person.id },
+      select: {
+        toCompany: { select: { id: true, name: true, kind: true } },
+        requirement: { select: { endClientCompany: { select: { id: true, name: true } } } },
+      },
+      take: 200,
+    }),
+    prisma.sellContract.findMany({
+      where: { personId: person.id },
+      select: {
+        clientCompany: { select: { id: true, name: true, kind: true } },
+        endClientCompany: { select: { id: true, name: true } },
+      },
+      take: 200,
+    }),
+  ])
+  const clientsOnRecord = [
+    ...sentTo.flatMap((s) => [
+      s.requirement.endClientCompany,
+      s.toCompany.kind === 'CLIENT' ? s.toCompany : null,
+    ]),
+    ...workedAt.flatMap((c) => [c.endClientCompany, c.clientCompany.kind === 'CLIENT' ? c.clientCompany : null]),
+  ].filter((f): f is { id: string; name: string } => Boolean(f))
+  const mayName = firmsToOffer(clientsOnRecord, data.notThese.map((n) => n.companyId))
+
   return NextResponse.json({
     data: {
       ...data,
@@ -140,6 +171,7 @@ export async function GET(_request: NextRequest) {
       invited: invitedToo,
       employers: life.employers,
       note: whoHasYouNote({ benches: data.benches.length, employers: life.employers }),
+      mayName,
     },
   })
 }
@@ -312,6 +344,43 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: { code: renewed.code, message: renewed.says } }, { status: 409 })
     }
     return NextResponse.json({ data: { listingId: mine.id, message: renewed.says } })
+  }
+
+  // ── A client named in words, not picked ────────────────────────────
+  // Matched by its exact name, any capitals. Two firms on Etyme with one
+  // name are both kept off: the safer reading for the person. A name that
+  // matches nobody stores nothing and says so, because a firm not on
+  // Etyme cannot be sent anybody through it.
+  if (typeof body.doNotSubmitName === 'string') {
+    const name = body.doNotSubmitName.trim().slice(0, 200)
+    if (name.length < 2) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Type the client’s name.', field: 'doNotSubmitName' } },
+        { status: 422 }
+      )
+    }
+    const firms = await prisma.company.findMany({
+      where: { name: { equals: name, mode: 'insensitive' } },
+      select: { id: true, name: true },
+      take: 5,
+    })
+    if (firms.length === 0) {
+      return NextResponse.json({ data: { saved: false, message: noFirmByThatNameSays(name) } })
+    }
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 500) : null
+    for (const f of firms) {
+      await prisma.doNotSubmit.upsert({
+        where: { personId_companyId: { personId: person.id, companyId: f.id } },
+        create: { personId: person.id, companyId: f.id, note },
+        update: { note },
+      })
+    }
+    return NextResponse.json({
+      data: {
+        saved: true,
+        message: `No agency can submit you to ${firms[0].name}. None of them is told why, or by whom.`,
+      },
+    })
   }
 
   if (typeof body.doNotSubmitTo === 'string') {
