@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
 import { CountedLink } from '@/lib/public-site/counted-link'
-import { CategoryLine, LiveDemo, PhoneButton, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
+import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
 import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
 import { SEE_IT } from '@/lib/public-site/funnel'
 import { corvaneMap, seatOf, seatHrefs } from '@/lib/public-site/corvane-map'
 import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
+import { TalkToAPerson } from '@/lib/public-site/talk'
+import { WhyBelow } from '@/lib/public-site/why-below'
 
 /**
  * The front door.
@@ -49,6 +51,12 @@ import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
  *               from the seed (`lib/public-site/corvane-map`). The hero's
  *               line under the question became the drawing's lede the same
  *               day; the Northbend panel follows the map unchanged
+ *   #why        under the panel, since the same "Build it": two drawings —
+ *               a start refused on the I-9, and a receipt held over the
+ *               signed hours — each a named person from the seed, then
+ *               four lines: In it, Price, Security, Talk to a person
+ *               (`lib/public-site/why-below`). "Talk to a person" also
+ *               sits beside the demo button in the hero and beside Sign up
  *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
  *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
@@ -102,8 +110,9 @@ const SEAT_HREFS = seatHrefs()
 interface HomeParams { searchParams?: { seat?: string | string[] } }
 
 /**
- * The page's one button, drawn twice: under the hero on a phone, in the
- * panel's footer from md up, each hidden at the other's widths.
+ * The page's demo button: in the hero beside "Talk to a person", as the
+ * founder's drawing of 2026-10-27 has it, and again in the panel's footer
+ * from md up.
  */
 function OpenTheDemo() {
   return (
@@ -129,10 +138,12 @@ export default function LandingPage({ searchParams }: HomeParams) {
           <p className="mt-3 text-[16px] leading-snug text-etyme-muted">
             Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.
           </p>
+          {/* ── The two calls, as drawn: the demo, and a person ── */}
+          <div data-hero-calls="" className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+            <OpenTheDemo />
+            <TalkToAPerson />
+          </div>
         </section>
-
-        {/* ── On a phone, the one button, straight under the hero ── */}
-        <PhoneButton><OpenTheDemo /></PhoneButton>
 
         {/* ── The map: one record, read from four roles ─────────── */}
         <section id="map" aria-label="One record, read from four roles" className="scroll-mt-20 pb-8">
@@ -143,8 +154,11 @@ export default function LandingPage({ searchParams }: HomeParams) {
         {/* ── The product, live and read-only, at the overview ──── */}
         <LiveDemo phoneButton={false}><OpenTheDemo /></LiveDemo>
 
-        {/* ── Sign-up, right under the product ──────────────────── */}
-        <SignUpBand />
+        {/* ── Why, in two drawings and four lines ───────────────── */}
+        <WhyBelow />
+
+        {/* ── Sign-up, with a person beside it ──────────────────── */}
+        <SignUpBand talk />
 
         {/* ── Security: one line and the link ───────────────────── */}
         <SecurityLine />

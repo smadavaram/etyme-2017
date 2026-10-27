@@ -48,7 +48,7 @@ describe('The home page is four short sections in one column, at every width', (
     // inside the same column.
     expect(main).toContain(sections[0])
     expect(main).toContain(sections[1])
-    expect(main).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
+    expect(main).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<WhyBelow \/>[\s\S]*<SignUpBand talk \/>[\s\S]*<SecurityLine \/>/)
     // Nothing is wider than the screen: the page clips any stray overflow
     // rather than scrolling sideways at 375.
     expect(PAGE).toContain('overflow-x-hidden')
@@ -114,7 +114,7 @@ describe('The home page is four short sections in one column, at every width', (
     expect(DEMO).toContain('<div className="min-w-0 bg-etyme-surface p-3.5">')
   })
 
-  it('shows the page’s one button above the fold on a phone, full width under the hero, and from md up only in the panel’s footer, so one is shown at each width', () => {
+  it('shows the demo button and "Talk to a person" in the hero at every width, stacked full width on a phone, and the demo button again in the panel’s footer from md up', () => {
     // The founder, 2026-10-19: no button above the fold on a phone; it sat
     // in the panel's footer two screens down. The same button is drawn
     // twice and each copy is display:none at the other's widths, so a
@@ -123,15 +123,15 @@ describe('The home page is four short sections in one column, at every width', (
     expect(SKELETON).toContain('className={`grid md:hidden [&_a]:w-full [&_a]:whitespace-normal ${className}`}')
     expect(SKELETON.indexOf('<PhoneButton>')).toBeLessThan(SKELETON.indexOf('<StoryPanel'))
     expect(DEMO).toContain('{i === cur && children && <div className="hidden md:block">{children}</div>}')
-    // The home page draws no button inside the hero. Since the map came
-    // under the hero (2026-10-27) the page draws the phone's button itself,
-    // straight under the hero and above the map, and tells the panel not to
-    // draw a second; the same one button is in the panel's footer from md up.
+    // Since the founder's "Build it" on the home-page drawing, 2026-10-27,
+    // the hero carries its two calls, as drawn: "Open the demo, no account"
+    // and "Talk to a person", stacked full width on a phone and side by side
+    // from sm. So the page draws no phone-only button, and the panel draws
+    // none above itself; it keeps the demo button in its footer from md up.
     const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('</section>', OWN.indexOf('id="top"')))
-    expect(hero).not.toMatch(/<a\b|<CountedLink|PhoneButton/)
-    expect(OWN).toContain('<PhoneButton><OpenTheDemo /></PhoneButton>')
-    expect(OWN.indexOf('<PhoneButton>')).toBeGreaterThan(OWN.indexOf('id="top"'))
-    expect(OWN.indexOf('<PhoneButton>')).toBeLessThan(OWN.indexOf('id="map"'))
+    expect(hero).toContain('className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center"')
+    expect(hero).toMatch(/<OpenTheDemo \/>\s*<TalkToAPerson \/>/)
+    expect(OWN).not.toContain('<PhoneButton')
     expect(OWN).toContain('<LiveDemo phoneButton={false}><OpenTheDemo /></LiveDemo>')
     // A step page, with Today and With Etyme between its lede and the panel, draws it under its lede.
     const step = read('src/lib/public-site/module-page.tsx')

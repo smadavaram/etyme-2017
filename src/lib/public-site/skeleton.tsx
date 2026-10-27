@@ -2,6 +2,7 @@ import type { EmbedStep } from '@/lib/sample-seat'
 import { StoryPanel } from './story-panel'
 import { storyIndex, type StoryKey } from './story'
 import { HomeFooter } from './frame'
+import { TalkToAPerson } from './talk'
 import {
   CATEGORY, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
   type BandKind,
@@ -87,9 +88,11 @@ export function PhoneButton({ children, className = 'mb-4' }: { children: React.
  * Sign-up, right under the product, with one button: Sign up. A party
  * door names its own sign-up; the contractors' door draws a person's band
  * (`BAND_FOR_SELF`) with the candidate's sign-up. The audit that stood
- * beside it left every page on 2026-10-14.
+ * beside it left every page on 2026-10-14. On the home page "Talk to a
+ * person" sits beside Sign up (`talk`, founder, 2026-10-27); the doors
+ * keep the one button until their own drawings are built.
  */
-export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY' }: { primary?: { t: string; href: string }; band?: BandKind }) {
+export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY', talk = false }: { primary?: { t: string; href: string }; band?: BandKind; talk?: boolean }) {
   const words = band === 'SELF' ? BAND_FOR_SELF : BAND
   return (
     <section
@@ -113,6 +116,7 @@ export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY' }: { pri
       </div>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
         <a href={primary.href} className={PRIMARY_BUTTON}>{primary.t}</a>
+        {talk && <TalkToAPerson />}
       </div>
     </section>
   )

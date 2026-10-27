@@ -322,3 +322,113 @@ describe('The map says what the home page may say', () => {
     expect(read('src/app/page.tsx')).toContain('min-h-screen overflow-x-hidden')
   })
 })
+
+// ── Under the panel: two drawings and four lines (founder, "Build it", 2026-10-27) ──
+
+import { PROGRAMMES } from '@/lib/seed-programmes'
+import { NORTHBEND_TWIN_RECEIPTS } from '@/lib/twin/seed-demo'
+import { priceClaims, unverifiableClaims } from '@/lib/positioning'
+import { whyDrawings, FOUR_LINES, copyOfWhy } from '@/lib/public-site/why-words'
+import { WhyBelow } from '@/lib/public-site/why-below'
+import { TALK } from '@/lib/public-site/talk'
+
+const WHY = whyDrawings()
+const drawing = (k: 'papers' | 'check') => WHY.find((d) => d.key === k)!
+const northbend = PROGRAMMES.find((p) => p.client === 'nike')!
+
+describe('Under the panel, two drawings and four lines, every name and figure the seed’s', () => {
+
+  it('the papers drawing is the start Northbend’s seed holds without an I-9: Ingrid Sørensen, starting next week, refused until the I-9 is on file', () => {
+    // The drawing said Priya Raman; the seed holds no start of hers. The
+    // one awarded start at Northbend with no I-9 is Ingrid Sørensen's.
+    const held = northbend.placements.filter((p) => p.papers === 'NO_I9' && p.state === 'DRAFT')
+    expect(held.map((p) => p.person)).toEqual(['Ingrid Sørensen'])
+    expect(held[0].startedDaysAgo).toBe(-7)
+    const d = drawing('papers')
+    expect(d.who).toEqual(['Ingrid Sørensen starts next week', 'Compliance checks the set'])
+    expect(d.cards).toEqual(['I-9', 'insurance', 'agreement'])
+    expect(d.stop).toEqual(['No I-9 → start refused', 'Get it on file, then start.'])
+    expect(d.ok).toBeNull()
+  })
+
+  it('the check drawing is Renata Kowal paying PR-2026-0441, 40 hours at Pinnacle’s $98 for $3,920, and holding PR-2026-0442 at 41.5 hours against 40', () => {
+    const [clean, held] = NORTHBEND_TWIN_RECEIPTS.filter((r) => r.number)
+    expect(clean).toMatchObject({ number: 'PR-2026-0441', hoursBilled: 40, hoursAccepted: 40, supplier: 'pinnacle' })
+    expect(held).toMatchObject({ number: 'PR-2026-0442', hoursBilled: 41.5, hoursAccepted: 40, supplier: 'pinnacle' })
+    const rate = northbend.placements.find((p) => p.person === clean.person && p.via[1] === 'pinnacle' && p.state === 'IN_PROGRESS')!.rates[0]
+    expect(rate).toBe(9800)
+    expect(northbend.people.ap).toBe('Renata Kowal')
+    const d = drawing('check')
+    expect(d.who).toEqual(['Renata Kowal, AP clerk', 'pays what the three agree on'])
+    expect(d.cards).toEqual(['order $98', 'week 40 h', 'invoice 40 h'])
+    expect(d.ok).toBe(`Pay $${((clean.hoursAccepted * rate) / 100).toLocaleString('en-US')}`)
+    expect(d.ok).toBe('Pay $3,920')
+    expect(d.stop).toEqual(['41.5 h billed → held', 'the 1.5 h wait for a signature'])
+  })
+
+  it('the two claims and the sentence under each are the drawing’s, word for word', () => {
+    expect(WHY.map((d) => d.claim)).toEqual(['Nobody starts without papers.', 'Nothing is paid on hours nobody signed.'])
+    expect(WHY.map((d) => d.sub)).toEqual([
+      'The set is asked for, sent, and checked before day one. A lapsed insurance certificate blocks the supplier the same way.',
+      'The order, the signed week and the invoice must agree. When they do not, the invoice is held and the supplier is told why.',
+    ])
+    // "The supplier is told why" is what the hold route does, with the reason.
+    expect(read('src/app/api/invoices/[id]/hold/route.ts')).toContain('The supplier is told, with the reason')
+  })
+
+  it('the four lines are the drawing’s, word for word, and the security line opens the security page', () => {
+    expect(FOUR_LINES.map((l) => `${l.lead} ${l.text}`)).toEqual([
+      'In it: Jobs · Candidates · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+      'Price: free while we test. Founding firms keep their terms.',
+      'Security: what is done and what is not, on one page. No SOC 2 yet; it is next.',
+      'Talk to a person: support@etyme.com. One sentence is enough.',
+    ])
+    expect(FOUR_LINES[2].link).toEqual({ words: 'on one page', href: '/security' })
+    expect(FOUR_LINES[3].link).toEqual({ words: 'support@etyme.com', href: 'mailto:support@etyme.com' })
+    // Each claim in "In it" stands on something built: the work-account
+    // sign-in and the accounting export.
+    expect(read('src/lib/auth.ts')).toContain('AzureADProvider')
+    expect(read('src/lib/erp-profiles.ts')).toContain("'QUICKBOOKS'")
+  })
+
+  it('"Talk to a person" is a mail to support@etyme.com beside the demo button in the hero and beside Sign up in the home page’s band, and no door carries it yet', () => {
+    expect(TALK).toEqual({ t: 'Talk to a person', href: 'mailto:support@etyme.com', address: 'support@etyme.com' })
+    const page = read('src/app/page.tsx')
+    expect(page).toMatch(/<OpenTheDemo \/>\s*<TalkToAPerson \/>/)
+    expect(page).toContain('<SignUpBand talk />')
+    expect(read('src/lib/public-site/skeleton.tsx')).toContain('{talk && <TalkToAPerson />}')
+    expect(read('src/lib/public-site/sub-page.tsx')).not.toContain('talk')
+  })
+
+  it('names no customer, no number of days, no certification held and no price', () => {
+    const words = copyOfWhy()
+    const all = words.join(' ')
+    expect(namedCompanies(all)).toEqual([])
+    expect(all).not.toMatch(/\b\d+\s*(?:business\s+)?days?\b/i)
+    expect(priceClaims(all)).toEqual([])
+    expect(unverifiableClaims(all)).toEqual([])
+    // SOC 2 is named once, as what is not done yet.
+    expect(all.match(/SOC 2/g)).toHaveLength(1)
+    expect(all).toContain('No SOC 2 yet; it is next.')
+    const rules = check({ hero: ['Enterprise contingent workforce management'], body: words }).map((f) => f.rule)
+    expect(rules).not.toContain('neutrality')
+    expect(rules).not.toContain('never-lead-with-ai')
+    for (const w of words) expect(w, w).not.toMatch(/\b(program(?:me)?\s+offices?|desks?)\b/i)
+  })
+
+  it('the drawings are inline lines in the brand’s colors, no image and no library, side by side from md and stacked on a phone', () => {
+    const src = read('src/lib/public-site/why-below.tsx')
+    expect(src).not.toMatch(/<img|<Image|from '(?!\.\/|@\/)/)
+    expect(src).not.toMatch(/#[0-9A-Fa-f]{6}\b/)
+    expect(gridsWithoutBreakpoint(src)).toEqual([])
+    expect(src).toContain('grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2')
+    const html = renderToStaticMarkup(createElement(WhyBelow))
+    expect((html.match(/<svg /g) ?? []).length).toBe(2)
+    for (const d of WHY) {
+      expect(html).toContain(`aria-label="${d.claim}"`)
+      for (const t of [...d.who, ...d.cards, ...d.stop]) expect(html, t).toContain(t.replace(/&/g, '&amp;'))
+    }
+    expect(html).toContain('href="/security"')
+    expect(html).toContain('href="mailto:support@etyme.com"')
+  })
+})

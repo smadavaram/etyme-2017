@@ -64,6 +64,8 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
 import { defaultCopyOfCorvaneMap } from '@/lib/public-site/corvane-map'
+import { copyOfWhy } from '@/lib/public-site/why-words'
+import { TALK } from '@/lib/public-site/talk'
 /** The line under the question since the map, 2026-10-27, the drawing's own words. */
 const MAP_LEDE = 'Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.'
 import { BAND, CATEGORY, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
@@ -714,18 +716,20 @@ describe('Below the hero, the page says what the business is', () => {
   })
   it('keeps the hero to the category, the question and the map’s lede, with the map straight under them', () => {
     // The page the founder approved on 2026-10-14: the question, the
-    // category line, and then the product itself. No buttons in the hero,
-    // no screenshot beside it: on a phone the one button sits straight
-    // under the hero (2026-10-19), and from md up it is in the panel's
-    // footer. Since the founder's "Build it" on the map, 2026-10-27, the
-    // line under the question is the drawing's lede, and the map follows.
+    // category line, and then the product itself, no screenshot beside
+    // it. Since the founder's "Build it" on the map, 2026-10-27, the line
+    // under the question is the drawing's lede, under it the drawing's two
+    // calls ("Open the demo, no account" and "Talk to a person"), and the
+    // map follows.
     expect(live.hero).toHaveLength(3)
     expect(live.hero[2]).toBe(MAP_LEDE)
-    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<PhoneButton'))
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="map"'))
     expect(copyFrom(top)).toEqual([
       'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.', MAP_LEDE,
     ])
-    expect(top).not.toContain('<CountedLink')
+    // The two calls the drawing puts under the lede: the demo, and a person.
+    expect(top).toContain('<OpenTheDemo />')
+    expect(top).toContain('<TalkToAPerson />')
     expect(at('map')).toBeGreaterThan(at('top'))
     expect(at('demo')).toBeGreaterThan(at('map'))
     expect(PAGE).not.toContain('const GLANCE')
@@ -1791,6 +1795,16 @@ function mapWords(): number {
   return countWords(defaultCopyOfCorvaneMap())
 }
 
+/**
+ * The two drawings and the four lines under the panel (founder, "Build
+ * it", 2026-10-27), and "Talk to a person" beside the demo button and
+ * beside Sign up. Data from `lib/public-site/why-words`, counted apart
+ * like the map, with a ceiling of their own.
+ */
+function whyWords(): number {
+  return countWords([...copyOfWhy(), TALK.t, TALK.t])
+}
+
 /** The most words the home page may carry between its header and footer. */
 // 2026-10-14: 1,385 → 110. The founder approved a page of three sections
 // and about a hundred and ten words ("Build it", on the drawing he
@@ -1807,6 +1821,13 @@ const CEILING = 127
 // other three seats are in the HTML and hidden until a tab is pressed,
 // so they are not counted here.
 const MAP_CEILING = 321
+// The same day: the two drawings (their labels, claims and the sentence
+// under each) and the four lines, "about ninety words" in CLAUDE.md,
+// measured at 188 as the counter counts them: the four lines and the two
+// claims with their sentences are about the ninety, and the rest is the
+// words drawn inside the two pictures (who, the three papers, what stops)
+// and "Talk to a person" twice. The page's own ceiling does not move.
+const WHY_CEILING = 188
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1830,9 +1851,12 @@ describe('The home page reads as a product page, and every band leads deeper', (
     const map = mapWords()
     expect(map, `${map} words on the map as a reader first meets it`).toBeLessThanOrEqual(MAP_CEILING)
     expect(map).toBeGreaterThan(200)
+    const why = whyWords()
+    expect(why, `${why} words in the two drawings, the four lines and the calls to a person`).toBeLessThanOrEqual(WHY_CEILING)
+    expect(why).toBeGreaterThan(80)
     const ids = [...PAGE.matchAll(/<section\s+id="([\w-]+)"/g)].map((m) => m[1])
     expect(ids).toEqual(['top', 'map', 'demo', 'sign-up'])
-    expect(readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
+    expect(readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')).toMatch(/id="map"[\s\S]*<LiveDemo phoneButton=\{false\}>[\s\S]*<WhyBelow \/>[\s\S]*<SignUpBand talk \/>[\s\S]*<SecurityLine \/>/)
     expect((PAGE.match(/<h2/g) ?? []).length, 'one headline under the hero, the sign-up band’s').toBe(1)
     expect(PAGE).not.toContain('<CloseBand')
     for (const gone of ['problem', 'platform', 'specialist-teams', 'solutions', 'how-it-works', 'audit', 'close', 'gap', 'ways', 'join', 'steps']) {
