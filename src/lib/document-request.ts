@@ -543,7 +543,13 @@ export function peopleOnBooks(
    * route's refusal, not "the bench did not answer" — CLAUDE.md: a
    * refusal says what is missing and what to do.
    */
-  refused: { bench?: string | null; payroll?: string | null } = {}
+  refused: { bench?: string | null; payroll?: string | null } = {},
+  /**
+   * The reader herself. Nobody asks herself for a document: a one-person
+   * firm whose owner is on her own payroll was offered "Theresa Quaye ·
+   * on your payroll" (release walk, 2026-10-27).
+   */
+  exceptPersonId?: string | null
 ): BooksReading {
   const troubles: string[] = []
   if (refused.bench) troubles.push(refused.bench)
@@ -568,6 +574,8 @@ export function peopleOnBooks(
     else byPerson.set(r.personId, r)
   }
 
+  if (exceptPersonId) byPerson.delete(exceptPersonId)
+
   return {
     people: [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name)),
     why: troubles.length > 0 ? troubles.join(' ') : null,
@@ -585,7 +593,7 @@ export function peopleOnBooks(
  * A side that refuses keeps its own sentence: a desk without
  * `consultants.read` reads why rather than seeing an empty dropdown.
  */
-export async function askTheBooks(): Promise<BooksReading> {
+export async function askTheBooks(exceptPersonId?: string | null): Promise<BooksReading> {
   const ask = async (url: string): Promise<{ payload: unknown; refused: string | null }> => {
     try {
       const res = await fetch(url)
@@ -613,7 +621,7 @@ export async function askTheBooks(): Promise<BooksReading> {
   return peopleOnBooks(readBench(bench.payload), payroll.payload, {
     bench: bench.refused,
     payroll: payroll.refused,
-  })
+  }, exceptPersonId)
 }
 
 /**
@@ -631,9 +639,18 @@ export function booksSays(reading: BooksReading): string | null {
   return null
 }
 
+/**
+ * A paper its holder put on her own file before anybody asked: on file,
+ * examined by nobody. Deliberately not in `ON_FILE`, so it answers no
+ * ask and clears no start until a firm that asks for it examines it
+ * (release walk, 2026-10-27; `lib/document-stages/own-papers`).
+ */
+export const KEPT_BY_HOLDER = 'KEPT'
+
 /** The word a row shows: what is true, not the enum. */
 export function statusWord(status: string): string {
   switch (status) {
+    case KEPT_BY_HOLDER: return 'On file, not examined'
     case 'PENDING': return 'Not asked yet'
     case 'SENT': return 'Asked for'
     case 'SIGNED': return 'Signed'

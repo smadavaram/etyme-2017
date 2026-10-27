@@ -6,6 +6,7 @@ import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { ExaminePaper, type ExamineRow } from './examine'
+import { OwnPapers, readOwnPapers } from './own-papers'
 
 /**
  * Paperwork — what the company asks people and firms for, and where
@@ -77,6 +78,9 @@ export default function DocumentsPage() {
   const [newTemplate, setNewTemplate] = useState({ name: '', audience: 'CANDIDATE', needsSignature: false })
   const [ask, setAsk] = useState({ templateId: '', personId: '' })
   const [examining, setExamining] = useState<ExamineRow | null>(null)
+  // A one-person firm: her firm's papers and her license go on file here,
+  // and she is never offered herself to ask (release walk, 2026-10-27).
+  const [onePersonFirm, setOnePersonFirm] = useState(false)
   const [record, setRecord] = useState<{ id: string; kind: 'upload' | 'sign'; fileUrl: string; note: string } | null>(null)
 
   const load = useCallback(async () => {
@@ -84,11 +88,13 @@ export default function DocumentsPage() {
     setError(null)
     setUnread(null)
     try {
-      const [t, r, whoWeMayAsk] = await Promise.all([
+      const [t, r, whoWeMayAsk, own] = await Promise.all([
         fetch('/api/documents').then(readJson),
         fetch('/api/documents?view=instances').then(readJson),
         askTheBooks(),
+        readOwnPapers(),
       ])
+      setOnePersonFirm(!!own?.firm)
       setTemplates(t?.data?.templates ?? [])
       setRequests(r?.data?.instances ?? [])
       setBooks(whoWeMayAsk)
@@ -166,7 +172,9 @@ export default function DocumentsPage() {
       <PageHead
         eyebrow={eyebrow}
         title="Paperwork"
-        subtitle="What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer."
+        subtitle={onePersonFirm
+          ? 'Your firm’s own papers, and your license. Put each on file once; a client that asks looks at it.'
+          : 'What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer.'}
       />
 
       {said && (
@@ -177,7 +185,9 @@ export default function DocumentsPage() {
       )}
       {error && <div className="mb-4"><FormMessage tone="error">{error}</FormMessage></div>}
 
-      <section className="mb-8">
+      {onePersonFirm && <OwnPapers heading="Your firm’s papers" />}
+
+      {!onePersonFirm && <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>
         <form onSubmit={askFor} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
           <label className="flex-1 min-w-[200px]">
@@ -210,7 +220,7 @@ export default function DocumentsPage() {
             Ask for it
           </button>
         </form>
-      </section>
+      </section>}
 
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Requests <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span></h2>
@@ -288,7 +298,7 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      <section>
+      {!onePersonFirm && <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">The library <span className="text-xs text-etyme-faint tabular-nums font-sans">{templates.length}</span></h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule mb-3">
           {templates.length === 0 && <EmptyState compact says="Nothing in the library yet." detail="A W-9, an NDA, a certificate of insurance — add what you ask for." />}
@@ -319,7 +329,7 @@ export default function DocumentsPage() {
           </label>
           <button type="submit" className="px-4 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
         </form>
-      </section>
+      </section>}
     </div>
   )
 }

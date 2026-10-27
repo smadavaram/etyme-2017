@@ -16,6 +16,10 @@ import { orderedNotCollected } from '@/lib/attestation'
 import { credentialChaseNow } from '@/lib/contract-clearance'
 import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
+import { mayFileOwnPaper, ownPaperMenu, type OwnPaperAbout } from '@/lib/document-stages/own-papers'
+import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid, KEPT_BY_HOLDER, statusWord } from '@/lib/document-request'
+import { plainDate } from '@/lib/plain-date'
+import { Prisma, VerificationType } from '@prisma/client'
 
 /**
  * GET /api/me/papers — the documents asked of me, by whom, and what each needs.
@@ -48,9 +52,14 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const me = caller.person.id
 
+  if (new URL(request.url).searchParams.get('view') === 'own') return ownView(caller)
+
   const [instances, packets, held] = await Promise.all([
     prisma.docInstance.findMany({
       where: {
+        // A paper she kept on her own file before anybody asked is listed
+        // under ?view=own, never as an answer to an ask.
+        status: { not: KEPT_BY_HOLDER },
         OR: [
           { subjectType: 'PERSON', subjectId: me },
           { sellContract: { personId: me } },
@@ -689,4 +698,237 @@ async function templateFor(companyId: string, label: string) {
     data: { companyId, name, audience: 'CANDIDATE', needsSignature: false },
     select: { id: true },
   })
+}
+
+
+// ── Her own papers, put on file before anybody asks ────────────────────
+//
+// Found by the release walk, 2026-10-27: a one-person firm had nowhere to
+// put her own W-9, insurance or license, and a candidate who signed up
+// herself read "no document is asked of you" with no way to keep the
+// license she holds. What may be filed, and what it needs, is
+// `lib/document-stages/own-papers`; this writes it.
+//
+// Two rows, each the existing home for its half:
+//
+//   a `DocInstance` with the file, under her own firm's template, at
+//   status KEPT — on file, examined by nobody, so it answers no ask and
+//   clears no start (`ON_FILE` does not include it). Only where she has a
+//   firm of her own: a template belongs to a company, and an employer's
+//   template is not hers to keep her papers under.
+//
+//   a `Verification` at PENDING, where the type is one the compliance
+//   record knows, carrying the number, the issuer and the dates. PENDING
+//   because nobody examined it: no gate reads it as held.
+
+type Caller = NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>
+
+const VERIFICATION_TYPES = new Set<string>(Object.values(VerificationType))
+
+/** Her own firm, where she is a one-person firm. Never an employer's. */
+function ownFirm(caller: Caller): { id: string; name: string } | null {
+  const c = caller.company
+  return c && c.kind === 'CONSULTANT_CORP' ? { id: c.id, name: c.name } : null
+}
+
+async function ownView(caller: Caller) {
+  const me = caller.person.id
+  const firm = ownFirm(caller)
+  const rows = await prisma.verification.findMany({
+    where: {
+      OR: [{ personId: me }, ...(firm ? [{ companyId: firm.id }] : [])],
+      uploadedById: me,
+      result: { path: ['selfFiled'], equals: true },
+    },
+    select: {
+      id: true, type: true, status: true, personId: true, provider: true, referenceId: true,
+      validFrom: true, expiresAt: true, formEdition: true, createdAt: true,
+      documents: { select: { fileName: true, fileUrl: true }, take: 1 },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  const kept = await prisma.docInstance.findMany({
+    where: {
+      status: KEPT_BY_HOLDER,
+      signedById: me,
+      OR: [{ subjectType: 'PERSON', subjectId: me }, ...(firm ? [{ subjectType: 'COMPANY', subjectId: firm.id }] : [])],
+    },
+    select: { id: true, subjectType: true, fileName: true, validFrom: true, expiresAt: true, edition: true, signedAt: true, note: true, template: { select: { name: true } } },
+    orderBy: { signedAt: 'desc' },
+  })
+  // A kept file with a verification behind it is one paper, not two rows.
+  const linked = new Set(rows.flatMap((r) => r.documents.map((d) => d.fileUrl)))
+
+  const onFile = [
+    ...rows.map((r) => ({
+      id: r.id,
+      key: r.type,
+      label: labelFor(r.type),
+      about: (r.personId ? 'ME' : 'MY_FIRM') as OwnPaperAbout,
+      number: r.referenceId,
+      issuer: r.provider,
+      validFrom: r.validFrom?.toISOString().slice(0, 10) ?? null,
+      expiresAt: r.expiresAt?.toISOString().slice(0, 10) ?? null,
+      edition: r.formEdition,
+      fileName: r.documents[0]?.fileName ?? null,
+      fileUrl: r.documents[0]?.fileUrl ?? null,
+      examined: r.status === 'CLEAR' || r.status === 'CONDITIONAL',
+      says: r.status === 'CLEAR' || r.status === 'CONDITIONAL' ? 'On file and examined' : statusWord(KEPT_BY_HOLDER),
+    })),
+    ...kept
+      .filter((k) => !linked.has(`/api/documents/${k.id}/file`))
+      .map((k) => ({
+        id: k.id,
+        key: null as string | null,
+        label: k.template.name,
+        about: (k.subjectType === 'COMPANY' ? 'MY_FIRM' : 'ME') as OwnPaperAbout,
+        number: null, issuer: null,
+        validFrom: k.validFrom?.toISOString().slice(0, 10) ?? null,
+        expiresAt: k.expiresAt?.toISOString().slice(0, 10) ?? null,
+        edition: k.edition,
+        fileName: k.fileName,
+        fileUrl: `/api/documents/${k.id}/file`,
+        examined: false,
+        says: statusWord(KEPT_BY_HOLDER),
+      })),
+  ]
+
+  return NextResponse.json({
+    data: {
+      firm,
+      canKeepCopy: !!firm,
+      menu: ownPaperMenu({ firm: !!firm }),
+      onFile,
+      says: firm
+        ? null
+        : 'A copy of your paper cannot be kept on your own page yet. A license goes on file by its number, issuer and expiry; the firm that asks for it keeps the copy.',
+    },
+  })
+}
+
+/**
+ * PUT /api/me/papers — put a paper of my own on file, before anybody asks.
+ *
+ * Multipart: `key`, `about` (ME · MY_FIRM), `file`, and what is printed on
+ * it — `number`, `issuer`, `validFrom`, `validUntil`, `edition`. JSON with
+ * the same fields and no file is accepted where no copy can be kept.
+ */
+export async function PUT(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const me = caller.person.id
+  const firm = ownFirm(caller)
+
+  const isForm = (request.headers.get('content-type') ?? '').includes('multipart/form-data')
+  const fields: Record<string, string | null> = {}
+  let file: { name: string; type: string; bytes: Buffer } | null = null
+  if (isForm) {
+    const form = await request.formData().catch(() => null)
+    if (!form) return refuse('That did not arrive. Pick the file again and send it.', 422, 'FILE_REQUIRED')
+    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition']) {
+      const v = form.get(k)
+      fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
+    }
+    const picked = form.get('file')
+    if (picked instanceof File) {
+      const verdict = checkDocumentUpload({ name: picked.name, type: picked.type, size: picked.size })
+      if (!verdict.ok) return refuse(verdict.says, 422, 'FILE_REFUSED')
+      const bytes = Buffer.from(await picked.arrayBuffer())
+      if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
+        return refuse(`That arrived as ${sizeSaid(bytes.byteLength)} and ten megabytes is the limit. Send a smaller copy.`, 413, 'FILE_REFUSED')
+      }
+      file = { name: picked.name.slice(0, 200), type: picked.type, bytes }
+    }
+  } else {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition']) {
+      const v = body[k]
+      fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
+    }
+  }
+
+  const about: OwnPaperAbout = fields.about === 'MY_FIRM' ? 'MY_FIRM' : 'ME'
+  const on = new Date()
+  const verdict = mayFileOwnPaper({
+    key: fields.key ?? '',
+    about,
+    isOnePersonFirm: !!firm,
+    canKeepCopy: !!firm,
+    fileName: file?.name ?? null,
+    number: fields.number,
+    issuer: fields.issuer,
+    validFrom: fields.validFrom,
+    validUntil: fields.validUntil,
+    edition: fields.edition,
+  }, on)
+  if (!verdict.ok) {
+    return NextResponse.json({ error: { code: verdict.code, message: verdict.message, field: verdict.field ?? null } }, { status: 422 })
+  }
+  const row = verdict.row
+  const label = labelFor(row.key)
+
+  const written = await prisma.$transaction(async (tx) => {
+    let docId: string | null = null
+    if (file && firm) {
+      const name = label.charAt(0).toUpperCase() + label.slice(1)
+      const template =
+        (await tx.docTemplate.findFirst({ where: { companyId: firm.id, name }, select: { id: true } })) ??
+        (await tx.docTemplate.create({ data: { companyId: firm.id, name, audience: 'GENERAL', needsSignature: false }, select: { id: true } }))
+      const doc = await tx.docInstance.create({
+        data: {
+          templateId: template.id,
+          subjectType: about === 'MY_FIRM' ? 'COMPANY' : 'PERSON',
+          subjectId: about === 'MY_FIRM' ? firm.id : me,
+          status: KEPT_BY_HOLDER,
+          signedById: me,
+          signedAt: on,
+          fileName: file.name,
+          note: 'Put on file by its holder. Not examined.',
+          validFrom: row.validFrom,
+          expiresAt: row.expiresAt,
+          edition: row.edition,
+          file: { create: { fileName: file.name, contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedById: me } },
+        },
+        select: { id: true },
+      })
+      docId = doc.id
+    }
+    let verificationId: string | null = null
+    if (VERIFICATION_TYPES.has(row.key)) {
+      const v = await tx.verification.create({
+        data: {
+          ...(about === 'MY_FIRM' ? { companyId: firm!.id } : { personId: me }),
+          type: row.key as VerificationType,
+          status: 'PENDING',
+          provider: row.issuer,
+          referenceId: row.number,
+          validFrom: row.validFrom,
+          expiresAt: row.expiresAt,
+          formEdition: row.edition,
+          uploadedById: me,
+          // `credentialDetail` in lib/contract-clearance reads the number
+          // and the state from here, so the renewal sentence can name them.
+          result: {
+            selfFiled: true,
+            ...(row.number ? { license: row.number } : {}),
+            ...(row.issuer ? { state: row.issuer } : {}),
+          } as Prisma.InputJsonValue,
+          ...(docId && file ? { documents: { create: { fileName: file.name, fileUrl: `/api/documents/${docId}/file` } } } : {}),
+        },
+        select: { id: true },
+      })
+      verificationId = v.id
+    }
+    return { docId, verificationId }
+  })
+
+  return NextResponse.json({
+    data: {
+      ...written,
+      key: row.key,
+      about,
+      expiresAt: row.expiresAt ? plainDate(row.expiresAt.toISOString()) : null,
+      says: row.says,
+    },
+  }, { status: 201 })
 }

@@ -190,6 +190,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Nobody asks herself for a document. A one-person firm's owner is on
+    // her own payroll, and the picker offered her to herself (release
+    // walk, 2026-10-27). Her own papers go on file from her own page.
+    if (subjectType === 'PERSON' && subjectId === caller.person.id) {
+      return NextResponse.json(
+        { error: { code: 'ASKING_YOURSELF', message: 'You cannot ask yourself for a document. Put your own papers on file from Paperwork instead.' } },
+        { status: 409 }
+      )
+    }
+
     // Verify template exists and belongs to caller's company
     const template = await prisma.docTemplate.findUnique({
       where: { id: templateId },
