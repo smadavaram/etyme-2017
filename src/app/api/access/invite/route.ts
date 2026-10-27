@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, inWords } from '@/lib/permissions'
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
     // and the token must live in the mailbox and nowhere else — the same
     // rule lib/password-door keeps for its own links.
     const sender = emailSender()
-    let state = 'NOT_CONFIGURED'
+    let state: AccountMailState = 'NOT_CONFIGURED'
     let note: string | null = 'No email provider set up, so this was recorded and not sent.'
     if (sender) {
       try {
@@ -229,7 +230,10 @@ export async function POST(request: NextRequest) {
     await prisma.notification.create({
       data: {
         personId: person.id, companyId: caller.company.id, type: 'SYSTEM', channel: 'EMAIL',
-        title, body: letter.lines.join('\n') + '\n\n[the one-time link was in the email and is not kept]',
+        // Where no email can be sent, the link is kept on the notice so staff
+        // can pass it on and a stuck invitation can be rescued; sent or
+        // failed, it lives in the mailbox only (lib/notify/account-mail).
+        title, body: recordedBody(letter.lines, letter.link, state),
         entityId: context.id,
         deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? new Date() : null,
       },

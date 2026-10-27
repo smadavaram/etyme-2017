@@ -1773,7 +1773,7 @@ export function deskEvidenceShortfall(itemKey: string, ev: DeskEvidence, on: Dat
           code: 'NEEDS_PROVIDER_VERDICT', field: missing[0][0],
           message:
             `A vendor screening is on file only as the screening company’s result. Enter ${listOf(missing.map((m) => m[1]))}. ` +
-            `The screening company renders it; this desk records what came back.`,
+            `The screening company renders it; the person examining it records what came back.`,
         }
       }
       break

@@ -100,6 +100,28 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     expect(row.said).toBe('Invited today, not yet signed in')
   })
 
+  it('where an invitation email is tried and fails, its link is not kept on the notice', async () => {
+    // The other half — no email provider at all, link kept for staff — is
+    // unreachable until the password door opens without an email key
+    // (doorOpen in lib/password-door, the architect's change). The route
+    // records through recordedBody, so it holds the moment the door opens.
+    process.env.RESEND_API_KEY = 're_test'
+    process.env.NOTIFY_FROM_EMAIL = 'notices@etyme.example'
+    process.env.NEXTAUTH_URL = 'https://app.etyme.example'
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"message":"down"}', { status: 500 })))
+    as(OWNER)
+    const email = 'kemi@nowhere-works-fixture.com'
+    const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Kemi Adeyemi', email, roleId: it_.roles['HR'] })))
+    vi.unstubAllGlobals()
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.wayIn).toBe('PASSWORD')
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, select: { id: true } })
+    const stored = await prisma.notification.findFirstOrThrow({ where: { personId: person.id, channel: 'EMAIL' } })
+    expect(stored.deliveryState).toBe('FAILED')
+    expect(stored.body).toContain('[the one-time link was in the email and is not kept]')
+    expect(stored.body).not.toMatch(/\/reset\//)
+  })
+
   it('an invited teammate’s email carries a way in, never only an instruction', async () => {
     process.env.RESEND_API_KEY = 're_test'
     process.env.NOTIFY_FROM_EMAIL = 'notices@etyme.example'
@@ -120,7 +142,7 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     expect(r.body.data.wayIn).toBe('PASSWORD')
 
     const mail = sent.find((m) => m.to === email)!
-    expect(mail.text).toContain('Set your password to sign in. You are in Brightmoor Staffing as HR.')
+    expect(mail.text).toContain('Set your password and you are signed in. You are in Brightmoor Staffing as HR.')
     const token = mail.text.match(/https:\/\/app\.etyme\.example\/reset\/([A-Za-z0-9_-]+)/)![1]
 
     // The stored copy holds no link: the token lives in the mailbox only.

@@ -507,7 +507,7 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
   if (l.door === 'PASSWORD' && l.setPasswordUrl) {
     return {
       lines: [
-        `Set your password to sign in. ${youAre}`,
+        `Set your password and you are signed in. ${youAre}`,
         `The link works once, for ${days}. After that, use "Forgot password" on the sign-in page.`,
         ...(l.workAccount && l.loginUrl ? [`Or sign in with your work account at ${l.loginUrl}.`] : []),
       ],

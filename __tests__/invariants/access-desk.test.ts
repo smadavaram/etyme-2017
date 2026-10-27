@@ -112,9 +112,9 @@ describe('the invitation email', () => {
     }
   })
 
-  it('with the password door on, it says "Set your password to sign in. You are in Walk Co as HR." and carries the link', () => {
+  it('with the password door on, it says "Set your password and you are signed in. You are in Walk Co as HR." and carries the link', () => {
     const l = inviteLetter(base)
-    expect(l.lines[0]).toBe('Set your password to sign in. You are in Walk Co as HR.')
+    expect(l.lines[0]).toBe('Set your password and you are signed in. You are in Walk Co as HR.')
     expect(l.link).toBe('https://app.example/reset/abc')
     expect(l.lines.join(' ')).toContain('for 3 days')
   })
@@ -130,8 +130,9 @@ describe('the invitation email', () => {
     // One door mints the set-password link, and it kills older ones.
     expect(route).toContain('issueSetPassword(person.id, INVITE_LINK_HOURS')
     expect(route).not.toContain('prisma.emailToken.create')
-    // The token lives in the mailbox and nowhere else.
-    expect(route).toContain('[the one-time link was in the email and is not kept]')
+    // The token lives in the mailbox and nowhere else, except where no email
+    // can be sent: the one door (lib/notify/account-mail) keeps it for staff.
+    expect(route).toContain('recordedBody(letter.lines, letter.link, state)')
   })
 })
 
