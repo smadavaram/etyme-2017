@@ -2198,10 +2198,12 @@ export async function sendDocumentLapses(
     people++
     if (note) findingsTold++
 
-    // One row per paper, written together once the letter is written.
+    // One row per paper, once the letter is written. The first is written
+    // on its own, naming its action beside the write, because the
+    // automation ladder's scan reads `automationLog.create` calls for the
+    // acts the code performs; the rest of the letter's rows go together.
     const rows = night.facts.map((l) => ({
       companyId: l.companyId,
-      action: 'DOCUMENT_LAPSE_TOLD',
       summary: l.logSummary,
       reason: l.logReason,
       payload: {
@@ -2219,7 +2221,11 @@ export async function sendDocumentLapses(
       },
       reversible: false,
     }))
-    await db.automationLog.createMany({ data: rows })
+    const [first, ...rest] = rows
+    await db.automationLog.create({ data: { ...first, action: 'DOCUMENT_LAPSE_TOLD' } })
+    if (rest.length > 0) {
+      await db.automationLog.createMany({ data: rest.map((r) => ({ ...r, action: 'DOCUMENT_LAPSE_TOLD' as const })) })
+    }
     sent.push(...night.facts)
     logged += rows.length
   }
