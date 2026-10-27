@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { minorFromWhole } from '@/lib/money'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { allocateAmount, formatShare, type AllocationShare } from '@/lib/cost-allocation'
@@ -178,7 +179,7 @@ export async function GET(
   let uncoded = 0
 
   for (const line of lines) {
-    const amountCents = Math.round(Number(line.amount ?? 0) * 100)
+    const amountCents = minorFromWhole(line.amount ?? 0, invoice.currency)
     const allocations = allocationsByContract.get(line.sellContractId) ?? []
 
     const base = {
@@ -247,8 +248,8 @@ export async function GET(
     poState = {
       number: invoice.workOrder.number,
       ...poBalance({
-        amountCents: Math.round(Number(invoice.workOrder.amount) * 100),
-        invoicedCents: Math.round(Number(drawn._sum.total ?? 0) * 100),
+        amountCents: minorFromWhole(invoice.workOrder.amount, invoice.currency),
+        invoicedCents: minorFromWhole(drawn._sum.total ?? 0, invoice.currency),
         status: invoice.workOrder.status as any,
         endDate: invoice.workOrder.endDate,
       }),

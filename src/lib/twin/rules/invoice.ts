@@ -446,7 +446,7 @@ export async function pendingReceiptsFor(
     const parties = partiesOf({ agreement: head.engagement.msa, order: head.workOrder })
     if (directionFrom(parties, companyId) !== 'PAYABLE') return []
     // Settled to the cent is not pending, whatever the status says.
-    if (decimalToCents(head.total) - decimalToCents(head.paid) <= 1) return []
+    if (decimalToCents(head.total, head.currency) - decimalToCents(head.paid, head.currency) <= 1) return []
     return [{ head, parties }]
   })
   // Every pending receipt checked in one pass rather than one receipt at a

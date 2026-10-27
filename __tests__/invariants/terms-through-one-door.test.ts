@@ -86,6 +86,11 @@ const MAY_COPY_THE_COLUMNS = [
   // placement's. One writer of the terms, copied once, at creation.
   /^src\/lib\/seed-scale\/frame\.ts$/,
   /^src\/lib\/seed-scale\/people\//,
+  // Corvane Packaging's order headers carry the award's own rhythm
+  // (`ORDER_RHYTHM` in lib/award), written once as each header is
+  // created, the way the award writes one. A constant, never another
+  // row's copy (money, 2026-10-27).
+  /^src\/lib\/seed-corvane\.ts$/,
 ]
 
 /** Copying one of the four from one row onto another. */

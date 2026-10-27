@@ -85,6 +85,25 @@ export function fromPrismaDecimal(d: { toString(): string }, currency: string): 
   return fromDecimal(parseFloat(d.toString()), currency)
 }
 
+/**
+ * A whole-currency figure as the database keeps it on `Invoice.total`,
+ * `Invoice.paid` and `Expense.total` (Decimals in whole currency), read
+ * as minor units by the currency's own exponent.
+ *
+ * This is the boundary every "total × 100 = the lines' cents" check got
+ * wrong for the dong and the yen: 3,000,000 VND is 3,000,000 minor units,
+ * not 300,000,000. The three-way check, invoice totals and the bill-shape
+ * test all read it here, so the exponent is decided once.
+ */
+export function minorFromWhole(d: { toString(): string } | number, currency: string): number {
+  return Math.round(parseFloat(d.toString()) * minorPerUnit(currency))
+}
+
+/** The other way: minor units to the whole-currency figure a Decimal column stores. */
+export function wholeFromMinor(minor: number, currency: string): number {
+  return minor / minorPerUnit(currency)
+}
+
 /** Back to whole currency units, for arithmetic that has to leave here. */
 export function toDecimal(m: Money): number {
   return m.minor / minorPerUnit(m.currency)

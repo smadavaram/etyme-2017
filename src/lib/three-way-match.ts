@@ -22,6 +22,7 @@
  */
 
 import { amount } from '@/lib/money-display'
+import { minorFromWhole } from '@/lib/money'
 
 export type MatchCode =
   | 'RECEIPT'       // every line is backed by an approved timesheet
@@ -750,12 +751,19 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 }
 
 /**
- * Invoice.total is a Decimal in whole currency; lines are cents. Convert in
- * one marked place so the boundary is greppable, and round rather than
- * truncate — truncation loses a cent per invoice and finance notices.
+ * Invoice.total is a Decimal in whole currency; lines are minor units.
+ * Convert in one marked place so the boundary is greppable, and round
+ * rather than truncate — truncation loses a cent per invoice and finance
+ * notices.
+ *
+ * The currency decides the exponent (`minorFromWhole` in lib/money): a
+ * dong or a yen total is its own minor units, never × 100. A caller that
+ * passes no currency is read as a two-decimal currency, which is what
+ * every caller meant before 2026-10-27; a caller that may meet a dong
+ * passes the invoice's currency.
  */
-export function decimalToCents(d: { toString(): string }): number {
-  return Math.round(parseFloat(d.toString()) * 100)
+export function decimalToCents(d: { toString(): string }, currency: string = 'USD'): number {
+  return minorFromWhole(d, currency)
 }
 
 // ═════════════════════════════════════════════════════════════════════

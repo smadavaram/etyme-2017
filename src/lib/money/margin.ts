@@ -40,6 +40,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { minorFromWhole } from '@/lib/money'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, priceSheets, type PlacementEarned } from '@/lib/money/placement-earned'
 import { placementPayTermsMany, payTermsKey, readRungs } from '@/lib/money/placement-pay-terms'
@@ -461,8 +462,8 @@ export async function placementBooks(
         .map((l) => ({
           amountCents: l.amountCents,
           timesheetId: l.timesheetId,
-          invoiceTotalCents: Math.round(Number(l.invoice.total) * 100),
-          invoicePaidCents: Math.round(Number(l.invoice.paid) * 100),
+          invoiceTotalCents: minorFromWhole(l.invoice.total, l.invoice.currency ?? billCurrency),
+          invoicePaidCents: minorFromWhole(l.invoice.paid, l.invoice.currency ?? billCurrency),
           currency: l.invoice.currency ?? billCurrency,
         })),
     })

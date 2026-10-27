@@ -53,7 +53,7 @@ async function deskFor(request: NextRequest, caller: CallerContext, id: string) 
   const invoice = await prisma.invoice.findFirst({
     where: { id, ...scope },
     select: {
-      id: true, number: true, total: true,
+      id: true, number: true, total: true, currency: true,
       workOrder: { select: { issuedById: true, issuedToId: true } },
       engagement: {
         select: {
@@ -159,12 +159,12 @@ export async function POST(
       code,
       reason,
       byId: caller.person.id,
-      invoiceTotalCentsAtOverride: decimalToCents(invoice.total),
+      invoiceTotalCentsAtOverride: decimalToCents(invoice.total, invoice.currency),
     },
     update: {
       reason,
       byId: caller.person.id,
-      invoiceTotalCentsAtOverride: decimalToCents(invoice.total),
+      invoiceTotalCentsAtOverride: decimalToCents(invoice.total, invoice.currency),
       // Recorded again, it is a new judgment, dated today.
       createdAt: new Date(),
     },

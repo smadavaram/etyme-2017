@@ -299,7 +299,7 @@ type LoadedInvoice = Prisma.InvoiceGetPayload<{ include: typeof MATCH_INCLUDE }>
 /** What several invoices share and is read once for all of them. */
 interface SharedFacts {
   /** Every standing invoice on each order the invoices draw on. */
-  onOrders: Array<{ id: string; workOrderId: string | null; total: { toString(): string } }>
+  onOrders: Array<{ id: string; workOrderId: string | null; total: { toString(): string }; currency: string }>
   /** What typed-in invoice receipts drew on each order, in the order's currency. */
   receiptsDrawn: Map<string, number>
   rateRows: Array<{ id: string; contractId: string; rate: number; fromDate: Date; toDate: Date | null; approvalState: string }>
@@ -335,7 +335,7 @@ export async function matchInvoices(invoiceIds: readonly string[]): Promise<Map<
     orderIds.length
       ? prisma.invoice.findMany({
           where: { workOrderId: { in: orderIds }, status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] } },
-          select: { id: true, workOrderId: true, total: true },
+          select: { id: true, workOrderId: true, total: true, currency: true },
         })
       : Promise.resolve([]),
     // And the invoice receipts the payer typed in against each order
@@ -370,7 +370,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
   let consumedCents = 0
   if (invoice.workOrderId) {
     const others = facts.onOrders.filter((o) => o.workOrderId === invoice.workOrderId && o.id !== invoice.id)
-    consumedCents = others.reduce((s, i) => s + decimalToCents(i.total), 0)
+    consumedCents = others.reduce((s, i) => s + decimalToCents(i.total, i.currency), 0)
     // And the invoice receipts the payer typed in against the same order.
     if (invoice.workOrder) consumedCents += facts.receiptsDrawn.get(invoice.workOrder.id) ?? 0
   }
@@ -470,7 +470,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
       at: o.createdAt,
       totalCentsAtOverride: o.invoiceTotalCentsAtOverride,
     })),
-    decimalToCents(invoice.total),
+    decimalToCents(invoice.total, invoice.currency),
     invoice.currency,
     'invoice'
   )
@@ -497,7 +497,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
-      totalCents: decimalToCents(invoice.total),
+      totalCents: decimalToCents(invoice.total, invoice.currency),
       periodStart: invoice.periodStart,
       periodEnd: invoice.periodEnd,
       contractPeriod,
@@ -532,7 +532,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
       invoice.invoiceLines
         .flatMap(l => (l.expense ? [l.expense] : []))
         .map(e => [e.id, {
-          id: e.id, status: e.status, totalCents: decimalToCents(e.total),
+          id: e.id, status: e.status, totalCents: decimalToCents(e.total, invoice.currency),
           ...(expenseReceipt.has(e.id) ? { acceptedCents: expenseReceipt.get(e.id)!.cents } : {}),
         }])
     ),
@@ -575,7 +575,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
           id: invoice.workOrder.id,
           number: invoice.workOrder.number,
           status: invoice.workOrder.status,
-          amountCents: decimalToCents(invoice.workOrder.amount),
+          amountCents: decimalToCents(invoice.workOrder.amount, invoice.currency),
           consumedCents,
           startDate: invoice.workOrder.startDate,
           endDate: invoice.workOrder.endDate,

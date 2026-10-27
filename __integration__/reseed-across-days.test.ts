@@ -5,6 +5,7 @@ import { day } from '@/lib/seed-days'
 import { iso, isAPeriod } from '@/lib/periods'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
+import { minorFromWhole } from '@/lib/money'
 
 /**
  * Seeding the same world twice, on two different days.
@@ -170,17 +171,19 @@ describe('the bills the seeded world carries are shaped like the bills productio
 
   it('makes each invoice total agree with the lines under it, to the cent', async () => {
     const invoices = await prisma.invoice.findMany({
-      select: { number: true, total: true, invoiceLines: { select: { amountCents: true } } },
+      select: { number: true, total: true, currency: true, invoiceLines: { select: { amountCents: true } } },
     })
     expect(invoices.length).toBeGreaterThan(10)
+    // The total is whole currency and the lines minor units; the currency's
+    // own exponent joins them, never a hundred (a dong has no minor unit).
     const wrong = invoices
       .map((i) => ({
         number: i.number,
-        header: Math.round(Number(i.total) * 100),
+        header: minorFromWhole(i.total, i.currency),
         lines: i.invoiceLines.reduce((sum, l) => sum + l.amountCents, 0),
       }))
       .filter((i) => i.header !== i.lines)
-      .map((i) => `${i.number}: header ${i.header}c, lines ${i.lines}c`)
+      .map((i) => `${i.number}: header ${i.header}, lines ${i.lines} (minor units)`)
     expect(wrong).toEqual([])
   })
 

@@ -9,7 +9,7 @@ import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, moneyTermsFor } from '@/lib/money/order-terms'
 import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
-import { fromPrismaDecimal } from '@/lib/money'
+import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
@@ -189,7 +189,10 @@ export async function GET(
     },
     orderBy: { receivedAt: 'asc' },
   })
-  const paidCents = payments.reduce((sum, p) => sum + decimalToCents(p.amount), 0)
+  const paidCents = payments.reduce((sum, p) => sum + decimalToCents(p.amount, p.currency ?? invoice.currency), 0)
+  // Minor units per whole unit of this bill's currency: 100 for dollars, 1
+  // for the dong and the yen. Every figure below leaves in whole currency.
+  const per = minorPerUnit(invoice.currency)
 
   // ── When it is due, and what settles it sooner ──────────────────────
   //
@@ -233,7 +236,7 @@ export async function GET(
     order: invoice.workOrder?.earlyPaymentDiscounts ?? [],
   })
 
-  const grossMinor = decimalToCents(invoice.total)
+  const grossMinor = decimalToCents(invoice.total, invoice.currency)
   const taxMinor = invoice.taxTotalCents ?? 0
   const offer = discountOn({
     ladder,
@@ -304,8 +307,8 @@ export async function GET(
         periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
         dueAt: invoice.dueAt.toISOString().slice(0, 10),
         currency: invoice.currency,
-        total: decimalToCents(invoice.total) / 100,
-        paid: paidCents / 100,
+        total: decimalToCents(invoice.total, invoice.currency) / per,
+        paid: paidCents / per,
         // What the due date counts from, and whether that day has
         // happened. An invoice whose clock has not started is not late
         // however long it has been sitting there.
@@ -323,8 +326,8 @@ export async function GET(
           source: ladder.source,
           rungs: ladder.rungs,
           ladderSays: ladder.says,
-          discount: offer.discountMinor / 100,
-          pay: offer.payMinor / 100,
+          discount: offer.discountMinor / per,
+          pay: offer.payMinor / per,
           says: offer.says,
           by: deadline?.by.toISOString().slice(0, 10) ?? null,
           taxNeedsAThought: offer.taxNeedsAThought,
@@ -342,7 +345,7 @@ export async function GET(
             id: invoice.workOrder.id,
             number: invoice.workOrder.number,
             status: invoice.workOrder.status,
-            amount: decimalToCents(invoice.workOrder.amount) / 100,
+            amount: decimalToCents(invoice.workOrder.amount, invoice.currency) / per,
             endDate: invoice.workOrder.endDate?.toISOString().slice(0, 10) ?? null,
           }
         : null,
@@ -353,8 +356,8 @@ export async function GET(
         id: l.id,
         person: l.person,
         hours: Number(l.hours),
-        rate: l.rateCents / 100,
-        amount: l.amountCents / 100,
+        rate: l.rateCents / per,
+        amount: l.amountCents / per,
         description: l.description,
         // ── The working ───────────────────────────────────────────────
         //
@@ -373,8 +376,8 @@ export async function GET(
           .map(b => ({
             kind: b.kind,
             hours: b.hours,
-            rate: b.rateCents / 100,
-            amount: b.amountCents / 100,
+            rate: b.rateCents / per,
+            amount: b.amountCents / per,
             says: b.says,
           })),
         receipt: l.timesheet
@@ -410,7 +413,7 @@ export async function GET(
             })),
             workOrder: match.poAfter
               ? {
-                  remaining: match.poAfter.remainingCents / 100,
+                  remaining: match.poAfter.remainingCents / per,
                   utilisationPercent: match.poAfter.utilisationPercent,
                 }
               : null,
@@ -421,9 +424,9 @@ export async function GET(
         reason: o.reason,
         by: o.by,
         at: o.createdAt.toISOString(),
-        totalAtOverride: o.invoiceTotalCentsAtOverride / 100,
+        totalAtOverride: o.invoiceTotalCentsAtOverride / per,
         // Whether it still covers the invoice at its total now.
-        stillCovers: o.invoiceTotalCentsAtOverride === decimalToCents(invoice.total),
+        stillCovers: o.invoiceTotalCentsAtOverride === decimalToCents(invoice.total, invoice.currency),
       })),
     },
   })

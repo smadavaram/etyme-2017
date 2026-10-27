@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { minorFromWhole } from '@/lib/money'
 import { fromUnits } from '@/lib/money-display'
 import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
       autoApproveTimesheets: true, approvalWindowDays: true,
       issuedBy: { select: { id: true, name: true, claimedAt: true } },
       issuedTo: { select: { id: true, name: true, claimedAt: true } },
-      invoices: { select: { total: true, status: true } },
+      invoices: { select: { total: true, status: true, currency: true } },
       // The lines on it. A document is a header and its lines, and an
       // order screen that shows only headers is half the paper: five
       // people on one order is one ceiling and five names, and which
@@ -167,10 +168,10 @@ export async function GET(request: NextRequest) {
     // would show a PO as exhausted while money remained authorized on it.
     const invoicedCents = po.invoices
       .filter((i) => !['VOID', 'CANCELLED'].includes(i.status))
-      .reduce((sum, i) => sum + Math.round(Number(i.total) * 100), 0)
+      .reduce((sum, i) => sum + minorFromWhole(i.total, i.currency ?? po.currency), 0)
 
     const balance = poBalance({
-      amountCents: Math.round(Number(po.amount) * 100),
+      amountCents: minorFromWhole(po.amount, po.currency),
       invoicedCents,
       status: po.status as any,
       endDate: po.endDate,
