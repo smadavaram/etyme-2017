@@ -347,7 +347,14 @@ describe('asking to add the firm behind a suggestion', () => {
           await attachFile(new NextRequest(`http://localhost:3000/api/supplier-requests/${s.request}/file`, { method: 'POST', body: form }), withId(s.request))
         }
         // The W-9 is a reissued form, verified with the edition printed on it.
-        const m = await call({ action: 'mark', key: item.key, state: 'HELD', validFrom: iso(-30), validUntil: iso(300), edition: 'Rev. March 2024' })
+        // A screening, a D&B report and a reference check are on file only
+        // with what stands behind them (lib/attestation): the provider's
+        // result, the report's number and date, who was spoken to and when.
+        const evidence = {
+          provider: 'Meridian Risk Screening', reference: 'MRS-00412', outcome: 'CLEAR',
+          reportNumber: '06-112-4471', contactName: 'Dana Roy, Halden Foods', on: iso(-3),
+        }
+        const m = await call({ action: 'mark', key: item.key, state: 'HELD', validFrom: iso(-30), validUntil: iso(300), edition: 'Rev. March 2024', evidence })
         expect([200, 403, 409, 422], JSON.stringify(m.body)).toContain(m.status)
       }
       const r = await call({ action: 'approve' })
