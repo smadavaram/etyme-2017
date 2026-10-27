@@ -7,6 +7,7 @@ import { GET as watch } from '@/app/api/cron/visa-watch/route'
 import { GET as bench } from '@/app/api/bench/route'
 import { readBench } from '@/lib/bench-filter'
 import { peopleOnBooks } from '@/lib/document-request'
+import { GET as documents } from '@/app/api/documents/route'
 
 /**
  * Pinnacle files an H-1B for Tariq, records the request for evidence,
@@ -146,6 +147,31 @@ describe('a visa petition on the bench, filing to running out', () => {
       const r = await json(await file(req('POST', '/api/compliance/petitions', { personId: person.personId, type: 'H1B', country: 'US' })))
       expect(r.status, `${person.name} is offered by the picker and the route said: ${JSON.stringify(r.body)}`).toBe(201)
     }
+  })
+
+  it('a firm\'s own staff are offered as on your staff, and the petition route accepts every one', async () => {
+    // Payroll no longer lists staff, and an owner or a recruiter on an
+    // H-1B is still somebody the firm files for. The picker reads the
+    // firm's seats beside its books (/api/documents?view=staff).
+    as(PINNACLE)
+    const listings = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const payroll = await json(await bench(req('GET', '/api/bench?scope=payroll')))
+    const staff = await json(await documents(req('GET', '/api/documents?view=staff')))
+    expect(staff.status, JSON.stringify(staff.body)).toBe(200)
+    const reading = peopleOnBooks(readBench(listings.body), payroll.body, {}, null, staff.body)
+    expect(reading.why).toBeNull()
+    // Ruth Calloway is the seat reading it, and nobody is offered herself.
+    expect(reading.people.some((x) => x.name === 'Ruth Calloway')).toBe(false)
+    const offered = reading.people.filter((x) => x.because === 'on your staff')
+    expect(offered.length).toBeGreaterThan(0)
+
+    for (const person of offered) {
+      const r = await json(await file(req('POST', '/api/compliance/petitions', { personId: person.personId, type: 'H1B', country: 'US' })))
+      expect(r.status, `${person.name} is offered as staff and the route said: ${JSON.stringify(r.body)}`).toBe(201)
+    }
+    // Every name read is in the trail.
+    const me = await prisma.person.findFirstOrThrow({ where: { primaryEmail: PINNACLE }, select: { id: true } })
+    expect(await prisma.accessLog.count({ where: { actorPersonId: me.id, subjectId: offered[0].personId, action: 'PROFILE_VIEW' } })).toBeGreaterThan(0)
   })
 
   it('a firm that cannot read the bench is told so rather than shown an empty picker', async () => {

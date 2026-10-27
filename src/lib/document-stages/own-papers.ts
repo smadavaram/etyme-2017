@@ -79,6 +79,8 @@ export interface OwnPaperNeeds {
   validFrom: boolean
   validUntil: boolean
   edition: boolean
+  /** The year it was awarded: a degree says when, and never runs out. */
+  year: boolean
 }
 
 function needsOf(t: DocumentTypeSpec, about: OwnPaperAbout): OwnPaperNeeds {
@@ -90,11 +92,13 @@ function needsOf(t: DocumentTypeSpec, about: OwnPaperAbout): OwnPaperNeeds {
     about,
     file: true,
     number: license,
-    // A certification is named by who issued it, the way a license is.
-    issuer: license || t.key === 'CERTIFICATION',
+    // A certification is named by who issued it, the way a license is, and
+    // a degree by the school that awarded it.
+    issuer: license || t.key === 'CERTIFICATION' || t.key === 'DEGREE',
     validFrom: t.validityShape === 'START_AND_END',
     validUntil: t.validityShape === 'END_ONLY' || t.validityShape === 'START_AND_END',
     edition: t.reissued === true,
+    year: t.key === 'DEGREE',
   }
 }
 
@@ -178,6 +182,8 @@ export interface OwnPaperInput {
   validFrom?: string | null
   validUntil?: string | null
   edition?: string | null
+  /** The year a degree was awarded, as four digits. */
+  year?: string | null
   jurisdiction?: Jurisdiction
   defined?: DefinedType[]
 }
@@ -195,6 +201,8 @@ export interface OwnPaperRow {
   number: string | null
   /** The board or body that issued it. */
   issuer: string | null
+  /** The day it was awarded, where only the year is known: 1 January of it. */
+  issuedAt: Date | null
   /** The sentence the screen shows once it is filed. */
   says: string
 }
@@ -259,6 +267,16 @@ export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict
   if (needs.issuer && !filled(input.issuer)) {
     return { ok: false, code: 'NEEDS_ISSUER', field: 'issuer', message: `Enter who issued your ${lower}, such as the state board.` }
   }
+  let awarded: Date | null = null
+  if (needs.year) {
+    const y = (input.year ?? '').trim()
+    const n = /^\d{4}$/.test(y) ? Number(y) : NaN
+    if (!y) return { ok: false, code: 'NEEDS_YEAR', field: 'year', message: `Enter the year your ${lower} was awarded.` }
+    if (!(n >= 1940 && n <= on.getUTCFullYear())) {
+      return { ok: false, code: 'BAD_YEAR', field: 'year', message: `Enter the year as four digits, no later than ${on.getUTCFullYear()}.` }
+    }
+    awarded = new Date(Date.UTC(n, 0, 1))
+  }
   if (needs.edition && !filled(input.edition)) {
     return {
       ok: false, code: 'NEEDS_EDITION', field: 'edition',
@@ -309,8 +327,9 @@ export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict
       edition: needs.edition ? input.edition!.trim() : null,
       number: needs.number ? input.number!.trim() : null,
       issuer: needs.issuer ? input.issuer!.trim() : null,
+      issuedAt: awarded,
       says:
-        `${input.about === 'MY_FIRM' ? 'Your firm’s' : 'Your'} ${lower} is on file${tail}. Nobody has examined it yet: ` +
+        `${input.about === 'MY_FIRM' ? 'Your firm’s' : 'Your'} ${lower} ${/s$/.test(lower) ? 'are' : 'is'} on file${tail}. Nobody has examined it yet: ` +
         `the firm that asks for it looks at it and records what it saw.`,
     },
   }

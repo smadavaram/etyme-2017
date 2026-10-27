@@ -15,7 +15,7 @@ import { peopleOnBooks, heldFromDocInstances, KEPT_BY_HOLDER, statusWord } from 
 const ON = new Date('2026-10-27T15:00:00Z')
 
 describe('what a person keeps about her own work', () => {
-  it('a worker adds her own license or certificate from Your paperwork', () => {
+  it('a worker adds her own license, certificate or degree from Your paperwork', () => {
     const menu = ownPaperMenu({ firm: false }).map((n) => n.key)
     expect(menu).toEqual(['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'DEGREE', 'EDUCATION_EVALUATION'])
 
@@ -30,7 +30,12 @@ describe('what a person keeps about her own work', () => {
       expect(r.row.expiresAt?.toISOString().slice(0, 10)).toBe('2027-02-28')
       expect(r.row.says).toBe('Your professional license is on file, runs out Feb 28, 2027. Nobody has examined it yet: the firm that asks for it looks at it and records what it saw.')
     }
-    expect(mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf' }, ON).ok).toBe(true)
+    const degree = { key: 'DEGREE', about: 'ME' as const, isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf' }
+    expect(mayFileOwnPaper(degree, ON)).toMatchObject({ ok: false, code: 'NEEDS_ISSUER' })
+    expect(mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin' }, ON)).toMatchObject({ ok: false, code: 'NEEDS_YEAR' })
+    expect(mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', year: '2031' }, ON)).toMatchObject({ ok: false, code: 'BAD_YEAR' })
+    const ok = mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', year: '2019' }, ON)
+    expect(ok.ok && [ok.row.issuedAt?.toISOString().slice(0, 10), ok.row.expiresAt]).toEqual(['2019-01-01', null])
   })
 
   it('a license put on file by its holder needs its number, issuer and expiry', () => {
@@ -68,7 +73,7 @@ describe('what a person keeps about her own work', () => {
   })
 
   it('a paper a person files herself is on file and not examined, so it clears no start', () => {
-    const r = mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf' }, ON)
+    const r = mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf', issuer: 'UW', year: '2019' }, ON)
     expect(r.ok && r.row.status).toBe('PENDING')
     const paper = (status: string) => ({
       status, validFrom: new Date('2026-09-01'), expiresAt: new Date('2027-08-31'), signedAt: ON, countersignedAt: null,
@@ -103,6 +108,20 @@ describe('a one-person firm’s own papers', () => {
       'p-theresa',
     )
     expect(books.people).toEqual([])
+  })
+
+  it('a firm\'s own staff are offered to ask for papers and to file petitions for, as on your staff', () => {
+    const books = peopleOnBooks(
+      { ok: true, rows: [] } as any,
+      { data: { roster: [{ personId: 'p-karthik', name: 'Karthik Menon' }] } },
+      {},
+      'p-ruth',
+      { data: { staff: [{ personId: 'p-ruth', name: 'Ruth Calloway' }, { personId: 'p-dev', name: 'Dev Anand' }, { personId: 'p-karthik', name: 'Karthik Menon' }] } },
+    )
+    expect(books.people.map((p) => [p.name, p.because])).toEqual([['Dev Anand', 'on your staff'], ['Karthik Menon', 'on your payroll']])
+    expect(books.whole).toBe(true)
+    // A staff answer this page cannot read says so rather than shortening the list quietly.
+    expect(peopleOnBooks({ ok: true, rows: [] } as any, { data: { roster: [] } }, {}, null, { data: {} }).whole).toBe(false)
   })
 
   it('only a one-person firm files a firm’s papers from its own page', () => {

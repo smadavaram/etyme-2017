@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
+import { logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN, builtInType } from '@/lib/document-type'
 import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
@@ -37,6 +38,29 @@ export async function GET(request: NextRequest) {
     // name the clients it was drafted for.
     const notStaff = staffOnly(caller, 'The document library')
     if (notStaff) return notStaff
+  }
+
+  // ── The firm's own staff, for a picker ─────────────────────────────
+  //
+  // The payroll answer stopped listing a firm's own staff (onboarding
+  // walk, 2026-10-27): an owner or a recruiter with no placement is staff,
+  // not payroll. A firm still asks its staff for papers and files their
+  // petitions (an owner on an H-1B), and both routes accept anybody seated
+  // here. So the pickers read the seats themselves: names only, every
+  // name read logged.
+  if (view === 'staff') {
+    const seats = await prisma.context.findMany({
+      where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' } },
+      select: { person: { select: { id: true, name: true } } },
+      orderBy: { person: { name: 'asc' } },
+    })
+    const staff = [...new Map(seats.map((s) => [s.person.id, s.person])).values()]
+      .filter((p) => p.id !== caller.person.id)
+    logBulkAccess(staff.map((p) => p.id), {
+      actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'PROFILE_VIEW',
+      reason: 'Named on the firm’s own staff list, to ask for a paper or file a petition',
+    })
+    return NextResponse.json({ data: { staff: staff.map((p) => ({ personId: p.id, name: p.name })) } })
   }
 
   if (view === 'instances') {

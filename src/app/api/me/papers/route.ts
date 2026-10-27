@@ -867,7 +867,7 @@ export async function PUT(request: NextRequest) {
   if (isForm) {
     const form = await request.formData().catch(() => null)
     if (!form) return refuse('That did not arrive. Pick the file again and send it.', 422, 'FILE_REQUIRED')
-    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition']) {
+    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year']) {
       const v = form.get(k)
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -883,7 +883,7 @@ export async function PUT(request: NextRequest) {
     }
   } else {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition']) {
+    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year']) {
       const v = body[k]
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -902,6 +902,7 @@ export async function PUT(request: NextRequest) {
     validFrom: fields.validFrom,
     validUntil: fields.validUntil,
     edition: fields.edition,
+    year: fields.year,
   }, on)
   if (!verdict.ok) {
     return NextResponse.json({ error: { code: verdict.code, message: verdict.message, field: verdict.field ?? null } }, { status: 422 })
@@ -944,6 +945,7 @@ export async function PUT(request: NextRequest) {
           status: 'PENDING',
           provider: row.issuer,
           referenceId: row.number,
+          issuedAt: row.issuedAt,
           validFrom: row.validFrom,
           expiresAt: row.expiresAt,
           formEdition: row.edition,

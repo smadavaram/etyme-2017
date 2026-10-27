@@ -86,8 +86,7 @@ describe('papers put on file by their holder', () => {
     const view = await json(await myPapers(req('GET', '/api/me/papers?view=own')))
     expect(view.status, JSON.stringify(view.body)).toBe(200)
     expect(view.body.data.firm).toBeNull()
-    // A degree has nowhere to keep its copy for a person with no firm yet, so it is not offered.
-    expect(view.body.data.menu.map((m: any) => m.key)).toEqual(['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'EDUCATION_EVALUATION'])
+    expect(view.body.data.menu.map((m: any) => m.key)).toEqual(['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'DEGREE', 'EDUCATION_EVALUATION'])
 
     const rn = await json(await putOwn(form(
       { key: 'PROFESSIONAL_LICENSE', about: 'ME', number: 'RN-88', issuer: 'Ohio Board of Nursing', validUntil: '2028-01-31' },
@@ -104,6 +103,17 @@ describe('papers put on file by their holder', () => {
     expect(await mine.text()).toBe('%PDF-1.4 ohio')
     as(it_.colleen.primaryEmail)
     expect((await myPapers(req('GET', `/api/me/papers?file=${v.id}`))).status).toBe(404)
+
+    // Her degree keeps its copy too, with the school and the year.
+    as(it_.nina.primaryEmail)
+    const bsn = await json(await putOwn(form(
+      { key: 'DEGREE', about: 'ME', issuer: 'Ohio State University', year: '2018' },
+      { name: 'bsn.pdf', type: 'application/pdf', text: '%PDF-1.4 bsn' },
+    )))
+    expect(bsn.status, JSON.stringify(bsn.body)).toBe(201)
+    expect(bsn.body.data.says).toBe('Your degree certificate and transcripts are on file. Nobody has examined it yet: the firm that asks for it looks at it and records what it saw.')
+    const d = await prisma.verification.findUniqueOrThrow({ where: { id: bsn.body.data.verificationId }, include: { documents: true } })
+    expect([d.type, d.provider, d.issuedAt?.toISOString().slice(0, 10), d.expiresAt, d.documents[0].sizeBytes]).toEqual(['DEGREE', 'Ohio State University', '2018-01-01', null, 12])
 
     // No copy, no paper on file.
     as(it_.nina.primaryEmail)

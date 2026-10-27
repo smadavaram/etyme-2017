@@ -480,6 +480,7 @@ export interface BooksReading {
 const ON_BENCH = 'on your bench'
 const ON_PAYROLL = 'on your payroll'
 const ON_BOTH = 'on your payroll and your bench'
+const ON_STAFF = 'on your staff'
 
 /**
  * The firm's own payroll, as `/api/bench?scope=payroll` answers it.
@@ -543,13 +544,20 @@ export function peopleOnBooks(
    * route's refusal, not "the bench did not answer" — CLAUDE.md: a
    * refusal says what is missing and what to do.
    */
-  refused: { bench?: string | null; payroll?: string | null } = {},
+  refused: { bench?: string | null; payroll?: string | null; staff?: string | null } = {},
   /**
    * The reader herself. Nobody asks herself for a document: a one-person
    * firm whose owner is on her own payroll was offered "Theresa Quaye ·
    * on your payroll" (release walk, 2026-10-27).
    */
-  exceptPersonId?: string | null
+  exceptPersonId?: string | null,
+  /**
+   * The firm's own seats, as `/api/documents?view=staff` answers it.
+   * The payroll answer no longer lists staff (an owner, a recruiter), and
+   * a firm still asks them for papers and files their petitions. Optional:
+   * a caller that does not pass it reads exactly as before.
+   */
+  staff?: unknown
 ): BooksReading {
   const troubles: string[] = []
   if (refused.bench) troubles.push(refused.bench)
@@ -573,6 +581,16 @@ export function peopleOnBooks(
     if (seen) seen.because = ON_BOTH
     else byPerson.set(r.personId, r)
   }
+
+  if (staff !== undefined) {
+    const rows = (staff as any)?.data?.staff
+    if (!Array.isArray(rows) || rows.some((r: any) => !r?.personId || typeof r?.name !== 'string' || !r.name)) {
+      if (!refused.staff) troubles.push('Your staff list did not answer in a shape this page understands, so your own staff are missing from this list.')
+    } else {
+      for (const r of rows) if (!byPerson.has(String(r.personId))) byPerson.set(String(r.personId), { personId: String(r.personId), name: r.name, because: ON_STAFF })
+    }
+  }
+  if (refused.staff) troubles.push(refused.staff)
 
   if (exceptPersonId) byPerson.delete(exceptPersonId)
 
@@ -611,17 +629,20 @@ export async function askTheBooks(exceptPersonId?: string | null): Promise<Books
     }
   }
 
-  const [bench, payroll] = await Promise.all([
+  const [bench, payroll, staff] = await Promise.all([
     ask('/api/bench?scope=company'),
     // The firm's own people. At an integrator the whole answer is here
     // and none of it is a listing — see `rosterFor` in `app/api/bench`.
     ask('/api/bench?scope=payroll'),
+    // The firm's own staff, which payroll no longer lists.
+    ask('/api/documents?view=staff'),
   ])
 
   return peopleOnBooks(readBench(bench.payload), payroll.payload, {
     bench: bench.refused,
     payroll: payroll.refused,
-  }, exceptPersonId)
+    staff: staff.refused,
+  }, exceptPersonId, staff.refused ? undefined : staff.payload)
 }
 
 /**

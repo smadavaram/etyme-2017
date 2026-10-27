@@ -124,7 +124,7 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
   onDone: (says: string) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
-  const [f, setF] = useState({ number: '', issuer: '', validFrom: '', validUntil: '', edition: '' })
+  const [f, setF] = useState({ number: '', issuer: '', validFrom: '', validUntil: '', edition: '', year: '' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -165,7 +165,11 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
         )}
         {needs.issuer && (
           <label className="block"><span className={lbl}>Issued by</span>
-            <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder="Wisconsin Board of Nursing" className={box} /></label>
+            <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder={needs.key === 'DEGREE' ? 'University of Wisconsin' : 'Wisconsin Board of Nursing'} className={box} /></label>
+        )}
+        {needs.year && (
+          <label className="block"><span className={lbl}>Year awarded</span>
+            <input value={f.year} onChange={(e) => setF({ ...f, year: e.target.value })} required inputMode="numeric" placeholder="2019" className={box} /></label>
         )}
         {needs.edition && (
           <label className="block"><span className={lbl}>Edition printed on it</span>
