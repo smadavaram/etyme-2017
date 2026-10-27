@@ -1506,6 +1506,31 @@ inbound email door 404 to a POST, health names the password door. The
 second onboarding walk as the same eight strangers runs on a local
 copy of this source and records its verdict under this line.
 
+**The second walk, on the same source, said: six of eight parties
+eased, two still blocked.** Eased: the client (address, country and
+currency guessed; the first act named; the invited Program Manager
+decides on arrival), the bench vendor, the integrator (W2s on the
+roster, a roll-off flagged with no line), the MSP (asks, is granted,
+reads the program), the worker (her page, her papers, a bench ask on
+her own record), the one-person firm (her own papers). Mostly eased:
+the prime supplier (first apply 23 fields; the second client one click).
+Blocked: **a prime and its sub-vendor cannot link**: "one firm, one
+tenant" stopped the copy, and each side is now told to ask the other
+to add it, with no door that does; so the sub-vendor's agreement and
+order pickers stay empty. And **an invited colleague lands on "Select
+a conversation"**, not her welcome, and the welcome contradicts the
+line above it. Three coordinator's calls, reversible in a sentence:
+(1) **two firms already on Etyme link by a request one side sends and
+the other accepts in one click**, the way a seat is asked and granted;
+the request names the relationship (your client / your sub-vendor);
+nothing is recorded until the other side's yes; a vendor adding its own
+sub-vendor checks the sub-vendor's papers (W-9, insurance, good
+standing, the agreement) and never walks a client's four roles.
+(2) **An outside firm is never granted a client's Owner role** on a
+seat. (3) **A worker may name a client not yet on Etyme**, as text,
+matched the day that company joins. The rest of the walk's list is
+wording and wrong doors, routed with the three.
+
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
 The founder: *"Can you integrate user business email, like Muse, and
