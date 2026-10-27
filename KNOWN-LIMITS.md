@@ -940,13 +940,12 @@ every unconfirmed line. What the founder should know:
   written. An ask answered Not now can be asked again; nothing expires an
   ask nobody answers. The seat's Owner refusal reads the role by its name,
   `Owner`, because the grant route does not load a role's permissions.
-- **`DoNotSubmit.companyId` is still required, and `companyName` does not
-  exist yet.** Loosening it breaks regulatory's `lib/holds.ts` (lines
-  442–445 read `companyId` and `company.name` as always present), and
-  supply's in-flight `me/benches`, `consultant-portfolio` and
-  `onboarding-walk-supply` already read the new columns. The schema, the
-  fill in `createCompany` (exactly one name match, ignoring case) and both
-  domains' changes land in one commit.
+- **A client a worker names before it is on Etyme is kept by name**
+  (`DoNotSubmit.companyName`, `companyId` empty). The day exactly one
+  company of that name is made, `createCompany` moves it onto the record;
+  where two of that name exist it stays by name, and nothing renames it
+  later if one of the two leaves. The fill sits in `lib/company-create`
+  beside supply's `honorNamedClients`, which states the same rule.
 - **The seat grant applies regulatory's rule by the role's name only**
   where the grant route does not load the role's permissions (demand's
   route). The form offers only passing roles, read with their permissions.

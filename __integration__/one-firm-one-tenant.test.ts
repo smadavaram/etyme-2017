@@ -430,3 +430,21 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     expect(await prisma.programSeat.count({ where: { officeCompanyId: co.ostrander } })).toBe(0)
   })
 })
+
+describe('a client a worker named before it was on Etyme', () => {
+  it('is on her list by its record the day exactly one company of that name joins, and stays by name where two would match', async () => {
+    // One "Twin Pines Care" is on Etyme already; she names it by name anyway.
+    await signedUp('Twin Pines Care', 'twin-pines-a', 'VENDOR', 'a@twin-pines-a.example')
+    const her = await prisma.person.create({ data: { name: 'Mireille Okonjo', primaryEmail: 'mireille.okonjo@named-clients.example' } })
+    await prisma.doNotSubmit.create({ data: { personId: her.id, companyName: 'harrowgate health', note: 'Left on bad terms' } })
+    await prisma.doNotSubmit.create({ data: { personId: her.id, companyName: 'Twin Pines Care' } })
+
+    const made = await signedUp('Harrowgate Health', 'harrowgate', 'VENDOR', 'owner@harrowgate.example')
+    // A second of that name joins: two now match, so nobody guesses which she meant.
+    await signedUp('Twin Pines Care', 'twin-pines-b', 'VENDOR', 'b@twin-pines-b.example')
+
+    const rows = await prisma.doNotSubmit.findMany({ where: { personId: her.id }, orderBy: { createdAt: 'asc' } })
+    expect(rows[0]).toMatchObject({ companyId: made.companyId, companyName: null, note: 'Left on bad terms' })
+    expect(rows[1]).toMatchObject({ companyId: null, companyName: 'Twin Pines Care' })
+  })
+})

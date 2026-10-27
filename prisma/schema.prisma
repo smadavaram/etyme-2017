@@ -3435,16 +3435,21 @@ model Representation {
 /// you" and "they have blocked somebody" are both more than a vendor needs
 /// and enough to start an argument the person should not have to have.
 model DoNotSubmit {
-  id        String   @id @default(cuid())
-  personId  String
-  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company  @relation("doNotSubmitCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  personId    String
+  person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation("doNotSubmitCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  /// The client as she typed it, where it is not on Etyme yet
+  /// (2026-10-27). Moved into `companyId` the day exactly one company of
+  /// that name is made (`createCompany`).
+  companyName String?
   /// Their own note to themselves. Never leaves their own screen.
-  note      String?
-  createdAt DateTime @default(now())
+  note        String?
+  createdAt   DateTime @default(now())
 
   @@unique([personId, companyId])
+  @@unique([personId, companyName])
   @@index([personId])
 }
 

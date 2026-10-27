@@ -257,6 +257,10 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     holidaysSeeded = made.count
   }
 
+  // A worker who named this firm before it was on Etyme ("never send me to
+  // them") has it on her list by its record from today (2026-10-27).
+  await honorNamedClientsAt(company.id, name, db)
+
   return {
     company: { ...company, kind: company.kind as CompanyKind },
     roles,
@@ -671,4 +675,36 @@ export async function workTogether(aId: string, bId: string, db: Db = prisma): P
       select: { id: true },
     }))
   return hit !== null
+}
+
+/**
+ * Move every "never send me to" a worker typed by name onto the company
+ * the day it is made. Only where exactly one company on Etyme carries the
+ * name, any capitals: two firms of one name and nobody guesses which she
+ * meant. A worker who already has the company on her list by its record
+ * keeps that row and loses the typed one. Supply's `honorNamedClients`
+ * (lib/consultant-portfolio) states the same rule; this is the call
+ * `createCompany` makes, inside its own transaction where it has one.
+ */
+async function honorNamedClientsAt(companyId: string, name: string, db: Db): Promise<number> {
+  const wanted = name.trim()
+  if (!wanted) return 0
+  if ((await db.company.count({ where: { name: { equals: wanted, mode: 'insensitive' } } })) !== 1) return 0
+  const named = await db.doNotSubmit.findMany({
+    where: { companyId: null, companyName: { equals: wanted, mode: 'insensitive' } },
+    select: { id: true, personId: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  const done = new Set<string>()
+  let reached = 0
+  for (const row of named) {
+    if (done.has(row.personId) || (await db.doNotSubmit.findFirst({ where: { personId: row.personId, companyId }, select: { id: true } }))) {
+      await db.doNotSubmit.delete({ where: { id: row.id } })
+      continue
+    }
+    await db.doNotSubmit.update({ where: { id: row.id }, data: { companyId, companyName: null } })
+    done.add(row.personId)
+    reached++
+  }
+  return reached
 }
