@@ -45,9 +45,15 @@ export const ON_SCREEN_DOOR = 'Every firm on this screen is a demo company, not 
 /** The button in the panel's footer. */
 export const OPEN_DEMO = 'Open the demo, no account'
 
-/** Every party's door, on one small line in the sign-up band. Clients first. */
+/**
+ * Every party's door, on one small line in the sign-up band. Clients first,
+ * and Clients is the home page, the same as in the footer (founder,
+ * 2026-10-15: "Footer is missing clients which links to home page"). The
+ * client's sign-up is the band's own button beside it, so the door is not
+ * a second sign-up (onboarding walk, 2026-10-27).
+ */
 export const DOORS: { t: string; href: string }[] = [
-  { t: 'Clients', href: '/signup' },
+  { t: 'Clients', href: '/' },
   { t: 'MSPs', href: '/for/program-offices' },
   { t: 'Integrators', href: '/for/integrators' },
   { t: 'Suppliers', href: '/for/suppliers' },

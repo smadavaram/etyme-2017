@@ -546,8 +546,8 @@ describe('Below the hero, the page says what the business is', () => {
     // leads the line of doors; the supplier's door comes after. On About,
     // what the client gets comes before what Etyme never does to a supplier.
     expect(at('sign-up')).toBeGreaterThan(at('demo'))
-    expect(PAGE.indexOf("{ t: 'Clients', href: '/signup' }")).toBeGreaterThan(0)
-    expect(PAGE.indexOf("{ t: 'Clients', href: '/signup' }")).toBeLessThan(PAGE.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }"))
+    expect(PAGE.indexOf("{ t: 'Clients', href: '/' }")).toBeGreaterThan(0)
+    expect(PAGE.indexOf("{ t: 'Clients', href: '/' }")).toBeLessThan(PAGE.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }"))
     expect(ABOUT_PAGE.indexOf('What we build.')).toBeLessThan(ABOUT_PAGE.indexOf('What we never do.'))
   })
 
@@ -1327,7 +1327,7 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
 
   it('keeps the supplier door after the client’s, and quieter than the sign-up button', () => {
     // A supplier is welcome and is not who this page is written to.
-    expect(PAGE.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }")).toBeGreaterThan(PAGE.indexOf("{ t: 'Clients', href: '/signup' }"))
+    expect(PAGE.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }")).toBeGreaterThan(PAGE.indexOf("{ t: 'Clients', href: '/' }"))
     expect(PAGE.indexOf('{SEE_IT.href}')).toBeLessThan(PAGE.indexOf('Your door:'))
     expect(PAGE).not.toMatch(/\/for\/suppliers[\s\S]{0,120}bg-etyme-action/)
   })

@@ -30,7 +30,7 @@ import {
 import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, tabHref } from '@/lib/public-site/parties'
 import { storyChromeCopy } from '@/lib/public-site/story'
-import { BAND, CATEGORY, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
+import { BAND, CATEGORY, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
 import { companyPage } from '@/lib/public-site/company-page'
@@ -744,7 +744,7 @@ describe('Four doors for the parties who are not the client, reached by link and
       expect(SKELETON_FOOTER.map((d) => d.href), p.route).toContain(p.route)
       expect(SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)), p.route).toContain(p.route)
     }
-    expect(DOORS[0]).toEqual({ t: 'Clients', href: '/signup' })
+    expect(DOORS[0]).toEqual({ t: 'Clients', href: '/' })
     const view = read('src/lib/public-site/sub-page.tsx')
     expect(view).toContain('<SignUpBand primary={signUp} band={band} />')
     expect(view).toContain('<SkeletonFooter />')
@@ -771,6 +771,35 @@ describe('Four doors for the parties who are not the client, reached by link and
       expect(all(copyOfPartyPage(v, v.tab?.key)), v.href).toContain(v.label!)
     }
     expect(ON_SCREEN_DOOR).toBe('Every firm on this screen is a demo company, not a customer.')
+  })
+
+  it('the footer’s Clients link opens the home page', () => {
+    // Founder, 2026-10-15: "Footer is missing clients which links to home
+    // page". The onboarding walk of 2026-10-27 found the band's Clients door
+    // going to the sign-up form instead; both now open the home page, on
+    // every page that draws them.
+    const clients = (links: { t: string; href: string }[]) => links.filter((l) => l.t === 'Clients').map((l) => l.href)
+    expect(clients(SKELETON_FOOTER)).toEqual(['/'])
+    expect(SITE_FOOTER.flatMap((g) => g.links).filter((l) => l.label === 'Clients').map((l) => l.href)).toEqual(['/'])
+    expect(clients(DOORS)).toEqual(['/'])
+  })
+
+  it('Sign up on the Workers door opens the candidate form, and on every other door the company form', () => {
+    // The sign-up page opens on the candidate tab only for `?as=candidate`;
+    // every other address opens the company form (src/app/(auth)/signup/page.tsx).
+    const page = read('src/app/(auth)/signup/page.tsx')
+    expect(page).toContain("searchParams?.as === 'candidate'")
+    const candidateForm = (href: string) => new URL(href, 'https://x.invalid').searchParams.get('as') === 'candidate'
+    for (const v of everyDoorView()) {
+      const worker = v.href === '/for/contractors'
+      expect(v.signUp.href.startsWith('/signup'), v.href).toBe(true)
+      expect(candidateForm(v.signUp.href), v.href).toBe(worker)
+    }
+    // The Solopreneur tab sits on the Workers door and is a firm of one, so
+    // it opens the company form on the one-person kind, never the candidate's.
+    expect(everyDoorView().find((v) => v.href === '/for/contractors?tab=solo')!.signUp.href).toBe('/signup?type=solo')
+    // The home page and the step pages sign up a client company.
+    expect(candidateForm(CLIENT_SIGN_UP.href)).toBe(false)
   })
 
   it('each door’s filled button is its own sign-up, the rest of the band is the home page’s, and a contractor signs up on the same form as a candidate', () => {
