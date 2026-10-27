@@ -271,7 +271,8 @@ export function corvaneSeatEmail(desk: string, domain: string): string {
 /** The five seats over the whole program, by desk key and role. */
 export const CORVANE_PEOPLE = [
   { desk: 'owner', name: 'Graham Ellery', role: 'Owner' },
-  { desk: 'operations', name: 'Ingrid Solberg', role: 'Head of Operations' },
+  // Not Ingrid: Teleworld's delivery manager is Ingrid Solberg and Northbend's held start is Ingrid Sørensen.
+  { desk: 'operations', name: 'Astrid Berge', role: 'Head of Operations' },
   { desk: 'cfo', name: 'Margaret Osei', role: 'Chief Financial Officer' },
   { desk: 'ap', name: 'Lucas Fairbairn', role: 'AP Clerk' },
   { desk: 'compliance', name: 'Yvette Marchetti', role: 'Compliance Officer' },

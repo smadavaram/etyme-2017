@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import {
-  CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_SUPPLIERS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, CORVANE_TIME_LIMIT_MONTHS,
+  CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE, CORVANE_SUPPLIERS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, CORVANE_TIME_LIMIT_MONTHS,
   corvaneContractors, plantSuppliers, billRateMinor, corvaneSteps, contractorName, corvaneSellId, corvanePlaces,
 } from '@/lib/seed-corvane'
 import { sharedTails } from '@/lib/seed-scale/kit'
@@ -25,6 +25,13 @@ describe('Corvane Packaging is the drawing, plant for plant', () => {
     const count = (k: string) => CORVANE_PLANTS.filter((p) => p.region === k).length
     expect([count('us'), count('latam'), count('vn'), count('in'), count('be'), count('ni')]).toEqual([6, 6, 5, 6, 4, 4])
     for (const p of CORVANE_PLANTS) expect(p.timeZone, p.plant).toMatch(/^[A-Z][a-z]+\/[A-Za-z_]+$/)
+  })
+
+  it('no two people seated at Corvane share a first name, so one page never shows two of one name', () => {
+    const seats = [...CORVANE_PEOPLE.map((p) => p.name), ...CORVANE_REGIONS.map((r) => r.lead), ...CORVANE_PLANTS.map((p) => p.manager)]
+    const first = seats.map((n) => n.split(' ')[0])
+    expect(first.filter((f, i) => first.indexOf(f) !== i)).toEqual([])
+    expect(CORVANE_PEOPLE.find((p) => p.desk === 'operations')!.name).toBe('Astrid Berge')
   })
 
   it('every plant has a hiring manager of its own, and each region a manager of its own', () => {

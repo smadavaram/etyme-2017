@@ -1992,7 +1992,7 @@ follows:
   Margaret Osei, CFO. Reads every region. Signs nothing a plant's own
   people sign." (*"Clicking on CFO, hiring managers like in the link was
   better … this highlighting tells the story."*) The head of operations
-  is Ingrid Solberg, every plant on one list: 48 weeks waiting across
+  is Astrid Berge, every plant on one list: 48 weeks waiting across
   22 plants, six people within 30 days of the limit, one row per region
   with its regional manager. And **every party's door gets the same map
   in its own roles** (*"Do it for all parties like those"*): the four
