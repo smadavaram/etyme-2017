@@ -1654,9 +1654,11 @@ export async function lineExtras(
         type: true, status: true, issuedAt: true, validFrom: true,
         expiresAt: true, verifiedAt: true,
       },
+      orderBy: { id: 'asc' },
     }),
     db.documentType.findMany({
       where: { companyId: { in: [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v) } },
+      orderBy: { id: 'asc' },
     }).catch(() => []),
     // Papers signed against this line, or about this person, or about
     // either firm. A signed NDA is a fact about the person and the firm,
@@ -1675,6 +1677,7 @@ export async function lineExtras(
         id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
         countersignedAt: true, template: { select: { name: true, needsSignature: true } },
       },
+      orderBy: { id: 'asc' },
     }),
     // The agreement between the two firms. An MSA is not a `DocInstance`
     // in this system and never has been — it is its own row, with its own
@@ -1684,39 +1687,21 @@ export async function lineExtras(
       ? db.masterAgreement.findMany({
           where: { vendorId: supplierCompanyId, clientId: customerCompanyId },
           select: { status: true, effectiveDate: true, expiresAt: true, signedAt: true },
+          orderBy: { id: 'asc' },
         })
       : Promise.resolve([]),
   ])
-
-  const known = (types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label }))
-  const extraHeld: HeldDocument[] = heldFromDocInstances(instances, known)
-
-  for (const a of agreements) {
-    // DRAFT is a paper nobody has executed and EXPIRED is one that ran
-    // out; neither is an agreement in force. EXPIRING still is — that is
-    // the point of the word.
-    if (!['ACTIVE', 'EXPIRING'].includes(a.status)) continue
-    extraHeld.push({
-      key: 'MSA',
-      validFrom: a.effectiveDate ?? a.signedAt ?? null,
-      expiresAt: a.expiresAt ?? null,
-      accepted: true,
-    })
-  }
 
   // The line that employs the person, for what she owes on it. The start
   // is pressed on the sell line, whose own set is the customer's paper;
   // the worker's NDA lives on the buy line that pays her, and her own page
   // reads it there. Read here too, so the two cannot disagree.
-  let items = set.items as LineRequirement[]
+  const workerSets: LineRequirement[][] = []
   if (isSell) {
-    const links = await db.contractLink.findMany({ where: { sellContractId: sellContractId! }, select: { buyContractId: true } })
+    const links = await db.contractLink.findMany({ where: { sellContractId: sellContractId! }, select: { buyContractId: true }, orderBy: { id: 'asc' } })
     for (const l of links) {
       const buy = await requirementsFor({ buyContractId: l.buyContractId } as Parameters<typeof requirementsFor>[0], db as never)
-      const hers = ((buy?.items ?? []) as LineRequirement[]).filter((i) => i.owedBy === 'WORKER')
-      if (hers.length === 0) continue
-      const keys = new Set(hers.map((h) => h.key))
-      items = [...items.filter((i) => !keys.has(i.key)), ...hers]
+      workerSets.push(((buy?.items ?? []) as LineRequirement[]).filter((i) => i.owedBy === 'WORKER'))
     }
   }
 
@@ -1729,15 +1714,197 @@ export async function lineExtras(
         where: { id: buyContractId! },
         select: { sellLinks: { select: { sellContract: { select: { workLocation: { select: { country: true, state: true } } } } }, take: 1 } },
       }))?.sellLinks[0]?.sellContract ?? null)
-  items = withoutVoidNonCompete(items, siteOf?.workLocation ?? null)
 
   void now
+  return extrasFrom({
+    setItems: set.items as LineRequirement[],
+    workerSets,
+    site: siteOf?.workLocation ?? null,
+    certificates, types, instances, agreements,
+  })
+}
+
+/**
+ * What one line's reads amount to, once they are read.
+ *
+ * The one place the answer is put together, so the line-by-line read and
+ * the nightly read of every line at once cannot disagree: both hand their
+ * rows here and nothing else decides.
+ */
+function extrasFrom(input: {
+  setItems: LineRequirement[]
+  /** The WORKER items of each buy line linked to this sell line, in link order. */
+  workerSets: LineRequirement[][]
+  site: { country: string | null; state: string | null } | null
+  certificates: unknown[]
+  types: unknown[]
+  instances: Parameters<typeof heldFromDocInstances>[0]
+  agreements: { status: string; effectiveDate: Date | null; expiresAt: Date | null; signedAt: Date | null }[]
+}): {
+  requirements: LineRequirement[]
+  extraHeld: HeldDocument[]
+  supplierCertificates: CoverCertificate[]
+  documentTypes: DefinedType[]
+} {
+  const known = (input.types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label }))
+  const extraHeld: HeldDocument[] = heldFromDocInstances(input.instances, known)
+
+  for (const a of input.agreements) {
+    // DRAFT is a paper nobody has executed and EXPIRED is one that ran
+    // out; neither is an agreement in force. EXPIRING still is — that is
+    // the point of the word.
+    if (!['ACTIVE', 'EXPIRING'].includes(a.status)) continue
+    extraHeld.push({
+      key: 'MSA',
+      validFrom: a.effectiveDate ?? a.signedAt ?? null,
+      expiresAt: a.expiresAt ?? null,
+      accepted: true,
+    })
+  }
+
+  let items = input.setItems
+  for (const hers of input.workerSets) {
+    if (hers.length === 0) continue
+    const keys = new Set(hers.map((h) => h.key))
+    items = [...items.filter((i) => !keys.has(i.key)), ...hers]
+  }
+  items = withoutVoidNonCompete(items, input.site)
+
   return {
     requirements: items,
     extraHeld,
-    supplierCertificates: certificates as CoverCertificate[],
-    documentTypes: types as DefinedType[],
+    supplierCertificates: input.certificates as CoverCertificate[],
+    documentTypes: input.types as DefinedType[],
   }
+}
+
+/**
+ * `lineExtras` for many sell lines at once, for the nightly check.
+ *
+ * Found by the release pass of 2026-10-27: the nightly read asked eight
+ * questions of the database for every running line, one line at a time,
+ * and a seeded client with three hundred and sixty people took it past
+ * half a minute. Here the firms' standing, their dictionaries, the signed
+ * papers, the agreements, the links and the sites are each read once for
+ * every line, and handed to the same `extrasFrom` the single read uses,
+ * so the answer per line is the same answer. What a line requires is
+ * still read line by line through `requirementsFor`, a few at a time,
+ * because that door is the platform's and has no read of many lines yet.
+ *
+ * A line that does not exist, or that requires nothing, is left out of
+ * the map, which is what `lineExtras` answering `{}` means.
+ */
+export async function lineExtrasForSellLines(
+  sellContractIds: string[],
+  db: LineDb = prisma,
+  now: Date = new Date()
+): Promise<Map<string, Awaited<ReturnType<typeof lineExtras>>>> {
+  void now
+  const out = new Map<string, Awaited<ReturnType<typeof lineExtras>>>()
+  const ids = [...new Set(sellContractIds.filter(Boolean))]
+  if (ids.length === 0) return out
+
+  const lines = await db.sellContract.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, companyId: true, personId: true, clientCompanyId: true,
+      workLocation: { select: { country: true, state: true } },
+    },
+  })
+  if (lines.length === 0) return out
+  const lineIds = lines.map((l) => l.id)
+  const supplierIds = [...new Set(lines.map((l) => l.companyId))]
+  const customerIds = [...new Set(lines.map((l) => l.clientCompanyId).filter((v): v is string => !!v))]
+  const personIds = [...new Set(lines.map((l) => l.personId).filter((v): v is string => !!v))]
+  const firmIds = [...new Set([...supplierIds, ...customerIds])]
+
+  const [sets, certificates, types, instances, agreements, links] = await Promise.all([
+    fewAtATime(lineIds, (id) => requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never)),
+    db.verification.findMany({
+      where: { companyId: { in: supplierIds }, type: { in: [...FIRM_STANDING] } },
+      select: {
+        companyId: true,
+        type: true, status: true, issuedAt: true, validFrom: true,
+        expiresAt: true, verifiedAt: true,
+      },
+      orderBy: { id: 'asc' },
+    }),
+    db.documentType.findMany({ where: { companyId: { in: firmIds } }, orderBy: { id: 'asc' } }).catch(() => []),
+    db.docInstance.findMany({
+      where: {
+        status: { in: ['SIGNED', 'UPLOADED'] },
+        OR: [
+          { sellContractId: { in: lineIds } },
+          ...(personIds.length ? [{ subjectType: 'PERSON', subjectId: { in: personIds } }] : []),
+          { subjectType: 'COMPANY', subjectId: { in: firmIds } },
+        ],
+      },
+      select: {
+        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
+        countersignedAt: true, template: { select: { name: true, needsSignature: true } },
+        sellContractId: true, subjectType: true, subjectId: true,
+      },
+      orderBy: { id: 'asc' },
+    }),
+    customerIds.length
+      ? db.masterAgreement.findMany({
+          where: { vendorId: { in: supplierIds }, clientId: { in: customerIds } },
+          select: { vendorId: true, clientId: true, status: true, effectiveDate: true, expiresAt: true, signedAt: true },
+          orderBy: { id: 'asc' },
+        })
+      : Promise.resolve([] as { vendorId: string; clientId: string; status: string; effectiveDate: Date | null; expiresAt: Date | null; signedAt: Date | null }[]),
+    db.contractLink.findMany({ where: { sellContractId: { in: lineIds } }, select: { sellContractId: true, buyContractId: true }, orderBy: { id: 'asc' } }),
+  ])
+
+  const buyIds = [...new Set(links.map((l) => l.buyContractId))]
+  const buySets = await fewAtATime(buyIds, (id) => requirementsFor({ buyContractId: id } as Parameters<typeof requirementsFor>[0], db as never))
+  const workerOf = new Map<string, LineRequirement[]>()
+  buyIds.forEach((id, i) => {
+    workerOf.set(id, ((buySets[i]?.items ?? []) as LineRequirement[]).filter((it) => it.owedBy === 'WORKER'))
+  })
+
+  lines.forEach((line) => {
+    const set = sets[lineIds.indexOf(line.id)]
+    if (!set) return
+    const firms = new Set([line.companyId, line.clientCompanyId].filter((v): v is string => !!v))
+    out.set(line.id, extrasFrom({
+      setItems: set.items as LineRequirement[],
+      workerSets: links.filter((l) => l.sellContractId === line.id).map((l) => workerOf.get(l.buyContractId) ?? []),
+      site: line.workLocation ?? null,
+      certificates: certificates
+        .filter((c) => c.companyId === line.companyId)
+        .map(({ companyId: _c, ...rest }) => { void _c; return rest }),
+      types: (types as { companyId: string | null }[]).filter((t) => !!t.companyId && firms.has(t.companyId)),
+      instances: instances
+        .filter((d) =>
+          d.sellContractId === line.id ||
+          (!!line.personId && d.subjectType === 'PERSON' && d.subjectId === line.personId) ||
+          (d.subjectType === 'COMPANY' && (d.subjectId === line.companyId || (!!line.clientCompanyId && d.subjectId === line.clientCompanyId)))
+        )
+        .map(({ sellContractId: _s, subjectType: _t, subjectId: _i, ...rest }) => { void _s; void _t; void _i; return rest }),
+      agreements: line.clientCompanyId
+        ? agreements
+            .filter((a) => a.vendorId === line.companyId && a.clientId === line.clientCompanyId)
+            .map(({ vendorId: _v, clientId: _c, ...rest }) => { void _v; void _c; return rest })
+        : [],
+    }))
+  })
+  return out
+}
+
+/** Run one read per id, a few at a time, answers in the order of the ids. */
+async function fewAtATime<T>(ids: string[], read: (id: string) => Promise<T>, width = 6): Promise<T[]> {
+  const out: T[] = new Array(ids.length)
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(width, ids.length) }, async () => {
+      while (next < ids.length) {
+        const i = next++
+        out[i] = await read(ids[i])
+      }
+    })
+  )
+  return out
 }
 
 // ── Papers that end before an extension's new end date ────────────────

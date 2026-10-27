@@ -14,6 +14,7 @@ import {
   type LapseLetter,
 } from '@/lib/notify/documents'
 import { hasPermission } from '@/lib/permissions'
+import { lineExtras, lineExtrasForSellLines } from '@/lib/contract-clearance'
 
 /**
  * The last crack in the loop, closed on the seeded world.
@@ -426,4 +427,28 @@ describe('when a document a line depends on runs out, every party it costs is to
     const decided = await documentsNeverFiled(now, { sellContractIds: [line.id] })
     expect(decided.find((d) => d.key === 'BACKGROUND_CHECK'), 'a decided report is not chased').toBeUndefined()
   })
+  it('reading every running line\u2019s papers at once gives each line the same answer as reading it alone', async () => {
+    const now = new Date()
+    // The nightly check reads every running line; one at a time it asked
+    // eight questions per line and a client of three hundred and sixty
+    // people took it past half a minute. The bulk read must not change a
+    // single answer, so it is compared line by line, in order.
+    const lines = await prisma.sellContract.findMany({
+      where: { state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      take: 80,
+    })
+    const ids = [...lines.map((l) => l.id), cavanaughLine]
+    const many = await lineExtrasForSellLines(ids, prisma, now)
+    let withSets = 0
+    for (const id of ids) {
+      const alone = await lineExtras({ sellContractId: id }, prisma, now)
+      const together = many.get(id) ?? {}
+      expect(JSON.stringify(together), `line ${id} reads the same either way`).toBe(JSON.stringify(alone))
+      if (alone.requirements?.length) withSets++
+    }
+    expect(withSets, 'the lines compared actually require papers').toBeGreaterThan(20)
+    expect(many.get(cavanaughLine)?.requirements?.some((r) => r.key === 'MSA'), 'Cavanaugh\u2019s order still asks for its agreement').toBe(true)
+  }, 120_000)
 })
