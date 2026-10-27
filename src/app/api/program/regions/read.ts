@@ -19,7 +19,7 @@ import { startPaperwork } from '../desk-findings'
 import { readerScope, type ReaderScope } from '../reader-scope'
 import {
   cells, regionRows, managerRows, contractorRows, greeting, factsWhere, inRegion, sumFigures,
-  countryCodeFor, waitingOn, regionOfSite, currenciesSays,
+  countryCodeFor, waitingOn, regionOfSite, currenciesSays, greetingTotal,
   NO_REGION,
   type Facts, type Manager, type OnSite, type Site, type Receipt, type Figures, type RegionRow,
   type ManagerRow, type ContractorRow, type Greeting,
@@ -101,7 +101,84 @@ const refuse = (status: number, code: string, message: string): Result => ({
 /** The live states of a line, as the program page reads them. */
 const LIVE = ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] as const
 
+export type CountResult = { data: { total: number }; error: null } | { data: null; error: NextResponse }
+
 export async function regionsView(
+  caller: CallerContext,
+  ask: { requestedClientId: string | null; region: string | null; manager: string | null; trail?: string; countOnly?: false }
+): Promise<Result>
+export async function regionsView(
+  caller: CallerContext,
+  ask: { requestedClientId: string | null; region?: string | null; manager?: string | null; trail?: string; countOnly: true }
+): Promise<CountResult>
+export async function regionsView(
+  caller: CallerContext,
+  ask: { requestedClientId: string | null; region?: string | null; manager?: string | null; trail?: string; countOnly?: boolean }
+): Promise<Result | CountResult> {
+  if (ask.countOnly) return regionsOwed(caller, ask.requestedClientId)
+  return regionsRead(caller, { requestedClientId: ask.requestedClientId, region: ask.region ?? null, manager: ask.manager ?? null, trail: ask.trail })
+}
+
+/**
+ * The number the first line would say, and nothing else: for the owed
+ * mark, which asks every minute (conversation, d0f8d2161).
+ *
+ * The same scope and the same three questions as the greeting — is a
+ * receipt held, is a start on hold, does a week wait — answered with
+ * counts and ids. No name is selected and nothing about a person leaves
+ * this function but a number, so it writes no access log row: logging
+ * every contractor once a minute per open tab is a log nobody can read.
+ * The start's clearance still reads the person's papers to decide the
+ * verdict, as activation does; only the verdict's outcome is kept.
+ */
+async function regionsOwed(caller: CallerContext, requestedClientId: string | null): Promise<CountResult> {
+  const { client, seat, acting, error } = await resolveProgram(caller, requestedClientId)
+  if (error) return { data: null, error }
+  const now = new Date()
+  const reach = await readerScope(caller, client.id)
+  const seatUnits = await unitsReachedBy(seat)
+  const unitWall: Record<string, unknown> = seatUnits ? { orgUnitId: { in: seatUnits } } : {}
+  const wall = await accountFilterFor(acting)
+  const inReach = reach ? regionContracts(reach.scope) : {}
+
+  const [weeks, rungs] = await Promise.all([
+    prisma.timesheet.count({
+      where: { status: 'SUBMITTED', clientApprovedAt: null, sellContract: andAll(endClientFilter(client.id), unitWall, inReach) },
+    }),
+    prisma.sellContract.findMany({
+      where: andAll(endClientFilter(client.id), wall.where, unitWall, inReach, { state: { in: [...LIVE] } }),
+      select: {
+        id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true,
+        requirement: { select: { title: true } },
+      },
+    }),
+  ])
+
+  // Stop at the first start on hold: one is enough to say "a start".
+  let heldStarts = 0
+  for (const c of chainTop(rungs).filter((x) => x.state !== 'IN_PROGRESS')) {
+    const papers = await startPaperwork({ ...c, person: { name: '' } }, { supplierPhrase: '', clientName: client.name, now })
+    if (papers.outcome === 'BLOCK') { heldStarts = 1; break }
+  }
+
+  let heldReceipts = 0
+  if (hasAnyPermission(acting.permissions, ['invoices.read', 'payments.record'])) {
+    const rows = await prisma.invoice.findMany({
+      where: andAll(
+        { status: { notIn: ['DRAFT', 'ISSUED', 'CANCELLED', 'VOID', 'PAID'] } },
+        { invoiceLines: { some: { sellContract: andAll({ clientCompanyId: client.id }, unitWall) } } },
+        reach ? regionReceipts(reach.scope) : {},
+      ),
+      select: { id: true, number: true, status: true },
+    })
+    const matches = await matchInvoices(rows.map((r) => r.id))
+    heldReceipts = rows.filter((r) => !payGate(r, matches.get(r.id) ?? null).ok).length
+  }
+
+  return { data: { total: greetingTotal({ heldReceipts, heldStarts, weeks }) }, error: null }
+}
+
+async function regionsRead(
   caller: CallerContext,
   ask: { requestedClientId: string | null; region: string | null; manager: string | null; trail?: string }
 ): Promise<Result> {

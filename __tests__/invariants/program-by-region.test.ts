@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  cells, regionRows, managerRows, contractorRows, greeting, sumFigures, spendOf, countryCodeFor, waitingOn,
+  cells, regionRows, managerRows, contractorRows, greeting, greetingTotal, sumFigures, spendOf, countryCodeFor, waitingOn,
   NO_REGION, NO_MANAGER, type Facts, type Site, type OnSite,
 } from '@/app/api/program/regions/rollup'
 
@@ -155,6 +155,41 @@ describe('the first line names, not counts', () => {
     expect(waitingOn('Cannot start without an I-9 (proof of right to work). Get it on file, then activate.')).toBe('an I-9 (proof of right to work)')
     expect(waitingOn('RN 154-882, WI expired.')).toBe('papers')
     expect(waitingOn(null)).toBe('papers')
+  })
+})
+
+describe('the first line’s things are data too', () => {
+  it('each thing named carries its kind, plant, person and supplier, so nobody reads them out of the sentence', () => {
+    expect(greeting(world()).held).toEqual([
+      { kind: 'receipt', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Worker 1', supplier: 'Ridgeline Staffing',
+        says: 'Ridgeline Staffing’s invoice receipt for Worker 1 at Dayton is held, 41.5 hours billed, 40 hours signed' },
+      { kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Tanya Ruiz', supplier: null,
+        says: 'Tanya Ruiz’s start at Dayton waits on an I-9 (proof of right to work)' },
+      { kind: 'weeks', count: 3, plant: '2 plants', plants: ['Dayton', 'Monterrey'], person: null, supplier: null,
+        says: '3 weeks wait to be signed at 2 plants' },
+    ])
+  })
+
+  it('the sentence is made of the items’ own phrases, in the same order', () => {
+    const g = greeting(world())
+    expect(g.items).toEqual(g.held!.map((i) => i.says))
+    expect(g.total).toBe(g.held!.length)
+  })
+
+  it('several held receipts are one item with every plant and no single person', () => {
+    const f = world()
+    f.receipts = [f.receipts![0], { ...f.receipts![0], id: 'i4', siteId: 'monterrey' }]
+    expect(greeting(f).held![0]).toMatchObject({ kind: 'receipt', count: 2, plants: ['Dayton', 'Monterrey'], person: null, supplier: null })
+  })
+})
+
+describe('the owed count without the names', () => {
+  it('the count is the number the first line says, from whether a receipt is held, a start is on hold and a week waits', () => {
+    const f = world()
+    const g = greeting(f)
+    expect(greetingTotal({ heldReceipts: 1, heldStarts: 1, weeks: f.weeks.length })).toBe(g.total)
+    expect(greetingTotal({ heldReceipts: 2, heldStarts: 0, weeks: 5 })).toBe(2)
+    expect(greetingTotal({ heldReceipts: 0, heldStarts: 0, weeks: 0 })).toBe(0)
   })
 })
 

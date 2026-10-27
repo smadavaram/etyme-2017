@@ -4,6 +4,8 @@ import { freshWorld, prisma, as, req } from './harness'
 import { GET as byRegion } from '@/app/api/program/regions/route'
 import { GET as program } from '@/app/api/program/route'
 import { GET as decisions } from '@/app/api/decisions/route'
+import { regionsView } from '@/app/api/program/regions/read'
+import { getCallerContext } from '@/lib/api-context'
 import { corvaneSeatEmail, corvaneContractors, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, billRateMinor } from '@/lib/seed-corvane'
 
 /**
@@ -254,5 +256,45 @@ describe('a hiring manager’s first screen is their plant', () => {
     expect(data.summary.monthlySpendByCurrency).toHaveLength(8)
     if (data.summary.monthlySpend !== null) expect(data.summary.monthlySpendCurrency).toBe('USD')
     expect(data.summary.monthlySpendSays).toMatch(/sample|rate/i)
+  })
+})
+
+describe('the owed mark asks for the count alone', () => {
+  async function both(who: string) {
+    as(who)
+    const { caller } = await getCallerContext(req('GET', '/api/program/regions') as NextRequest, { narrowsToRegion: true })
+    const full = await regionsView(caller!, { requestedClientId: null, region: null, manager: null })
+    const count = await regionsView(caller!, { requestedClientId: null, countOnly: true })
+    return { caller: caller!, full: full.data!, count: count.data! }
+  }
+
+  it('the count equals the first line’s number for the CFO, Valeria Montes and Marcus Hollins', async () => {
+    for (const who of [cfo, valeria, marcus]) {
+      const { full, count } = await both(who)
+      expect(count.total, who).toBe(full.greeting.total)
+    }
+    expect((await both(cfo)).count.total).toBe(3)
+  })
+
+  it('the count reads no name and writes no access log row', async () => {
+    as(cfo)
+    const { caller } = await getCallerContext(req('GET', '/api/program/regions') as NextRequest, { narrowsToRegion: true })
+    await new Promise((r) => setTimeout(r, 300))
+    const before = await prisma.accessLog.count({ where: { actorPersonId: caller!.person.id } })
+    const count = await regionsView(caller!, { requestedClientId: null, countOnly: true })
+    await new Promise((r) => setTimeout(r, 300))
+    expect(Object.keys(count.data!)).toEqual(['total'])
+    expect(await prisma.accessLog.count({ where: { actorPersonId: caller!.person.id } })).toBe(before)
+  })
+
+  it('the first line’s things come as data: the held Dayton receipt with its supplier, the Dayton start with its person', async () => {
+    const { body } = await read(cfo)
+    const held = body.data.greeting.held
+    expect(held.map((i: any) => i.kind)).toEqual(['receipt', 'start', 'weeks'])
+    expect(held[0]).toMatchObject({ kind: 'receipt', count: 1, plant: 'Dayton' })
+    expect(held[0].supplier).toBeTruthy()
+    expect(held[1]).toMatchObject({ kind: 'start', count: 1, plant: 'Dayton' })
+    expect(held[1].person).toBeTruthy()
+    expect(held[2]).toMatchObject({ kind: 'weeks', count: sum(CORVANE_PLANTS, 'weeksToSign') })
   })
 })

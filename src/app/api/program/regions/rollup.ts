@@ -433,11 +433,37 @@ function joinPlants(names: string[]): string {
   return `${u[0]}, ${u[1]} and ${u.length - 2} more plants`
 }
 
+/**
+ * One thing the first line names, as data, so a reader (Ask Etyme) never
+ * picks it out of the sentence by its words.
+ */
+export interface GreetingItem {
+  kind: 'receipt' | 'start' | 'weeks'
+  /** How many: held receipts, starts on hold, or weeks waiting. */
+  count: number
+  /** The plants, as said: "Dayton", "Dayton and Monterrey", "4 plants". */
+  plant: string
+  /** Every plant, short, once each. */
+  plants: string[]
+  /** The person, where the item is one person's; null where it is several. */
+  person: string | null
+  /** The supplier, on one held receipt; null otherwise. */
+  supplier: string | null
+  /** The item's phrase, exactly as the sentence says it. */
+  says: string
+}
+
 export interface Greeting {
   /** The things named, which is the number in the sentence. */
   total: number
   says: string
+  /** Each phrase of the sentence, in order. */
   items: string[]
+  /**
+   * The same things as data, in the same order. Always set by `greeting`;
+   * optional only so a greeting written by hand in a test still types.
+   */
+  held?: GreetingItem[]
 }
 
 /**
@@ -452,32 +478,62 @@ export interface Greeting {
 export function greeting(f: Facts): Greeting {
   const siteById = new Map(f.sites.map((s) => [s.id, s]))
   const at = (siteId: string | null) => plantShort(siteId ? siteById.get(siteId) : undefined)
-  const items: string[] = []
+  const held: GreetingItem[] = []
+  const uniq = (xs: string[]) => [...new Set(xs)]
 
   const heldReceipts = (f.receipts ?? []).filter((r) => r.state === 'HELD')
   if (heldReceipts.length === 1) {
     const r = heldReceipts[0]
-    items.push(`${possessive(r.supplier)} invoice receipt for ${r.personName} at ${at(r.siteId)} is held${r.heldSays ? `, ${r.heldSays}` : ''}`)
+    held.push({
+      kind: 'receipt', count: 1, plant: at(r.siteId), plants: [at(r.siteId)], person: r.personName, supplier: r.supplier,
+      says: `${possessive(r.supplier)} invoice receipt for ${r.personName} at ${at(r.siteId)} is held${r.heldSays ? `, ${r.heldSays}` : ''}`,
+    })
   } else if (heldReceipts.length > 1) {
-    items.push(`${countWord(heldReceipts.length)} invoice receipts are held, at ${joinPlants(heldReceipts.map((r) => at(r.siteId)))}`)
+    const plants = uniq(heldReceipts.map((r) => at(r.siteId)))
+    held.push({
+      kind: 'receipt', count: heldReceipts.length, plant: joinPlants(plants), plants, person: null, supplier: null,
+      says: `${countWord(heldReceipts.length)} invoice receipts are held, at ${joinPlants(plants)}`,
+    })
   }
 
   if (f.held.length === 1) {
     const h = f.held[0]
-    items.push(`${possessive(h.personName)} start at ${at(h.siteId)} waits on ${h.waitingOn}`)
+    held.push({
+      kind: 'start', count: 1, plant: at(h.siteId), plants: [at(h.siteId)], person: h.personName, supplier: null,
+      says: `${possessive(h.personName)} start at ${at(h.siteId)} waits on ${h.waitingOn}`,
+    })
   } else if (f.held.length > 1) {
-    items.push(`${countWord(f.held.length)} starts are on hold for papers, at ${joinPlants(f.held.map((h) => at(h.siteId)))}`)
+    const plants = uniq(f.held.map((h) => at(h.siteId)))
+    held.push({
+      kind: 'start', count: f.held.length, plant: joinPlants(plants), plants, person: null, supplier: null,
+      says: `${countWord(f.held.length)} starts are on hold for papers, at ${joinPlants(plants)}`,
+    })
   }
 
   if (f.weeks.length > 0) {
-    const plants = [...new Set(f.weeks.map((w) => at(w.siteId)))]
-    const where = plants.length === 1 ? `at ${plants[0]}` : `at ${plants.length} plants`
-    items.push(`${f.weeks.length} ${f.weeks.length === 1 ? 'week waits' : 'weeks wait'} to be signed ${where}`)
+    const plants = uniq(f.weeks.map((w) => at(w.siteId)))
+    const people = uniq(f.weeks.map((w) => w.personName))
+    const where = plants.length === 1 ? plants[0] : `${plants.length} plants`
+    held.push({
+      kind: 'weeks', count: f.weeks.length, plant: where, plants, person: people.length === 1 ? people[0] : null, supplier: null,
+      says: `${f.weeks.length} ${f.weeks.length === 1 ? 'week waits' : 'weeks wait'} to be signed at ${where}`,
+    })
   }
 
-  if (items.length === 0) return { total: 0, says: 'Nothing needs you today.', items }
+  const items = held.map((i) => i.says)
+  if (items.length === 0) return { total: 0, says: 'Nothing needs you today.', items, held }
   const lead = `${countWord(items.length).replace(/^./, (c) => c.toUpperCase())} ${items.length === 1 ? 'thing needs' : 'things need'} you`
-  return { total: items.length, says: `${lead}: ${items.join('; ')}.`, items }
+  return { total: items.length, says: `${lead}: ${items.join('; ')}.`, items, held }
+}
+
+/**
+ * The number the first line would say, from three facts and nothing
+ * else: whether any receipt is held, any start is on hold, any week
+ * waits. `greeting(f).total` is this number; the owed mark reads it
+ * without reading anybody's name (`regionsOwed` in ./read).
+ */
+export function greetingTotal(f: { heldReceipts: number; heldStarts: number; weeks: number }): number {
+  return (f.heldReceipts > 0 ? 1 : 0) + (f.heldStarts > 0 ? 1 : 0) + (f.weeks > 0 ? 1 : 0)
 }
 
 /**
