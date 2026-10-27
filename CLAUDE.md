@@ -1469,6 +1469,43 @@ the company-level paper sets (architect), the screens, the reminder on
 every page until the list is empty, and the refusals that name the
 step.
 
+**Shipped to production 2026-10-27, evening (5a0eb15e9 on the deploy
+branch, source 483e96b34):** the whole onboarding fix wave, every trust
+break above closed on the record. One firm, one tenant (`findFirm`,
+`claimOrJoin`; the supplier's approval attaches to the firm that signed
+up; a counterparty already on Etyme is linked where the two trade and
+never copied); a one-person client is told which role to invite and the
+invited person decides on arrival; an MSP asks a client for a seat from
+its first screen and the client grants one from Settings naming the
+role (`ProgramSeatRequest`, additive); an integrator's W2 rows import as
+its own employees, the import commits from the page in the trade's
+words, and a roll-off can be flagged with no project line
+(`ProjectRelease.sellContractId` optional); a firm asks a person who
+already has an account onto its bench on her own record, and the
+thank-you page offers her own page; the apply form has labels that stay,
+is filled from the firm's record, and a second client reuses its papers
+in one click; nothing is "On file" without the file or the verdict; a
+one-person firm files its own W-9, insurance and license, a worker her
+own license, certification or degree with the copy kept on her record
+(`VerificationDoc` bytes, `CERTIFICATION`, `DEGREE`); a firm's own
+staff are offered for petitions and papers as "on your staff"; a
+sub-vendor records its agreement and the prime's order on screen, the
+Buy tab shows buy lines, and an order raised by hand asks for its first
+line; every new party's first greeting names its one next act; an
+invited colleague lands signed in; sign-up stays open with no email
+key, the confirmation link kept on the notice for staff (a reset link
+never is); the sign-up form guesses the Etyme address, country and
+currency; owners and managers are staff, never "on your payroll"; the
+band's Clients door is the home page. Release pass on a quiet copy of
+6e1825fc3: type check clean, 12,164 unit (the one red the posture's
+route count, a docs-only fix after), 2,538 integration, build clean.
+Gates: no source difference, no Ruby, brand kit present, the seven
+"removed" schema lines re-aligned whitespace and the one column going
+nullable. Smoke: every public page and both sign-up forms 200, the
+inbound email door 404 to a POST, health names the password door. The
+second onboarding walk as the same eight strangers runs on a local
+copy of this source and records its verdict under this line.
+
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
 The founder: *"Can you integrate user business email, like Muse, and
