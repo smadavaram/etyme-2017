@@ -22,15 +22,12 @@
  *   40 h, invoice 40 h, Pay $3,920;      accepted at Pinnacle's $98; PR-2026-0442
  *   41.5 h billed → held"                bills 41.5 against 40 and is held
  *
- * ── One Ingrid on the default page (release walk, 2026-10-27) ────────
+ * ── The start named by first name and job (release walk, 2026-10-27) ──
  *
- * Corvane's head of operations is Ingrid Solberg and Northbend's start
- * is Ingrid Sørensen: two Ingrids on one page. Neither seed is this
- * file's to rename, so the drawing names the start by her first name and
- * her job, as the check drawing names Renata by her job, and the full
- * name "Ingrid Solberg" appears once, in the map's signed-in line behind
- * the Head of operations tab. The clean fix is a seed change, named in
- * the hand-back: `lib/seed-corvane`'s `operations` person.
+ * The walk found two Ingrids on one page: this start, and Corvane's head
+ * of operations. The seed renamed the head of operations (Astrid Berge,
+ * 60aa99f6e), and the drawing keeps naming the start by first name and
+ * job, as the check drawing names Renata by her job.
  *
  * No customer, no number of days, no certification held, no vendor's
  * name: "No SOC 2 yet; it is next" says one that is not.

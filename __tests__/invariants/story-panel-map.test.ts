@@ -491,12 +491,12 @@ describe('Under the panel, two drawings and four lines, every name and figure th
     expect(html).toContain('href="/docs/integrations"')
   })
 
-  it('one Ingrid at a time: Ingrid Solberg is named once, in the head of operations’ signed-in line, and the papers drawing names its start by first name and job', () => {
-    const solberg = CORVANE_PEOPLE.find((p) => p.desk === 'operations')!.name
-    expect(solberg).toBe('Ingrid Solberg')
-    const said = copyOfCorvaneMap(MAP).filter((w) => w.includes(solberg))
-    expect(said).toEqual([view('operations').signed])
-    expect(view('operations').demo.label).toBe('Open the demo as the head of operations')
+  it('one Ingrid on the page: the head of operations is named from the Corvane seed, in her signed-in line and her demo link, and is not an Ingrid; the papers drawing names its start by first name and job', () => {
+    const head = CORVANE_PEOPLE.find((p) => p.desk === 'operations')!.name
+    expect(head).not.toMatch(/^Ingrid\b/)
+    expect(view('operations').signed).toContain(head)
+    expect(view('operations').demo.label).toBe(`Open the demo as ${head}`)
+    expect(copyOfCorvaneMap(MAP).join(' ')).not.toMatch(/\bIngrid\b/)
     // The demo door still seats her by desk: one person holds it.
     expect(view('operations').demo.target).toMatchObject({ as: 'world-corvane', desk: 'operations' })
     expect(copyOfWhy().join(' ')).not.toContain('Ingrid Sørensen')

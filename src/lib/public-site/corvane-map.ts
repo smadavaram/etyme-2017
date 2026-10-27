@@ -317,9 +317,7 @@ export function corvaneMap(): CorvaneMap {
       { t: dollars(g.usd) },
     ]),
     caption: 'Every plant, every supplier, one list. Pick a region to see its hiring managers.',
-    // Named once, in the signed-in line: Northbend's drawing below holds
-    // an Ingrid too (release walk, 2026-10-27; see ./why-words).
-    demo: { target: { as: CORVANE_DEMO_AS, desk: 'operations', seat: ops.name }, label: 'Open the demo as the head of operations' },
+    demo: { target: { as: CORVANE_DEMO_AS, desk: 'operations', seat: ops.name }, label: `Open the demo as ${ops.name}` },
   }
 
   // ── Regional manager ──
