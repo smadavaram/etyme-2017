@@ -4,8 +4,9 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
+import { useSession } from '@/components/session-provider'
 import { deskEvidenceFor, deskEvidenceSays, SCREENING_OUTCOMES, type DeskEvidence } from '@/lib/attestation'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, needsSignedCopy, needsEdition, editionHelp, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { stageWordOf, stageAsks, stageVerb, recommendSays, linkSays, walkFor, type Walk, wantsDates, datesHelp, suppliedByWords, optionalWord, needsSignedCopy, needsEdition, editionHelp, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { usePageSection } from '@/components/page-section'
@@ -53,7 +54,7 @@ interface Supplier {
   where: string
   tier: string | null
   // A firm still in the pipeline, shown on the list with the desk it is on.
-  pending?: { requestId: string; stageWord: string }
+  pending?: { requestId: string; stageWord: string; recommendedAt: string }
   // The Network questions
   onSiteCount: number
   onSite: boolean
@@ -103,6 +104,8 @@ interface SupplierRequest {
   mayAct: boolean
   whyNot: string | null
   leadNamed: boolean
+  /** A client's four roles, or a vendor's papers check of its own sub-vendor. */
+  walk?: Walk
   createdAt: string
   readiness: { ok: boolean; held: number; of: number; missing: string[]; toVerify: string[]; says: string }
   link: string | null
@@ -123,6 +126,8 @@ const STANDING: { value: string; word: string }[] = [
 ]
 
 export default function SuppliersPage() {
+  // The reader's own kind decides the walk a firm it recommends takes.
+  const { company } = useSession()
   const [text, setText] = useState('')
 
   /** A word from a short list, saved on the register row for that firm. */
@@ -220,8 +225,9 @@ export default function SuppliersPage() {
       companyId: `pending-${r.id}`, name: r.name, joined: false, agreement: false,
       contacts: r.contactEmail ? [{ email: r.contactEmail, name: r.contactName, state: 'PENDING' }] : [],
       invitedAt: null, where: `Pending · ${r.stageWord}. Recommended by ${r.recommendedBy}.`, tier: null,
-      pending: { requestId: r.id, stageWord: r.stageWord },
-      onSiteCount: 0, onSite: false, lastEngagement: r.createdAt, favorite: false, blocked: false, blockedReason: null, location: null,
+      pending: { requestId: r.id, stageWord: r.stageWord, recommendedAt: r.createdAt },
+      // A pending firm has no engagement yet: its date is the day it was recommended.
+      onSiteCount: 0, onSite: false, lastEngagement: null, favorite: false, blocked: false, blockedReason: null, location: null,
       // A firm still walking the desks owes its paperwork to the
       // checklist, item by item, on the card below — not to this column,
       // which would say the same thing twice in weaker words.
@@ -477,7 +483,7 @@ export default function SuppliersPage() {
     },
     { key: 'tier', label: 'Standing', render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span> : standingSelect(s)), sortValue: (s) => s.tier ?? '' },
     { key: 'onSiteCount', label: 'On site', align: 'right', render: (s) => <span className="tabular-nums">{s.onSiteCount}</span> },
-    { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? '', hideOnMobile: true },
+    { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{s.pending ? `Recommended ${when(s.pending.recommendedAt)}` : when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? s.pending?.recommendedAt ?? '', hideOnMobile: true },
     { key: 'location', label: 'Location', render: (s) => <span className="text-etyme-muted">{s.location ?? '—'}</span>, hideOnMobile: true },
     {
       key: 'owes', label: 'Owes on your orders',
@@ -525,9 +531,7 @@ export default function SuppliersPage() {
         <section className="panel space-y-3">
           <Lbl>Recommend a supplier</Lbl>
           <p className="text-[13px] text-etyme-muted">
-            It needs four approvals: your department lead confirms the need, Procurement qualifies the firm — experience,
-            references, revenue and delivery proofs, proposal, D&amp;B — HR clears compliance and screening, and Finance
-            checks the W-9 and bank details. The firm gets a link of its own to supply its side. You are told at each step.
+            {recommendSays(walkFor(company?.kind))}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Firm">
@@ -589,13 +593,13 @@ export default function SuppliersPage() {
               {r.decisions.length > 0 && (
                 <ul className="space-y-0.5">
                   {r.decisions.map((d, i) => (
-                    <li key={i} className="text-[12px] text-etyme-muted">{d.byName} ({STAGE_WORD[d.stage]}) {d.outcome === 'APPROVED' ? 'said yes' : 'declined'}{d.note ? `: ${d.note.replace(/\.$/, '')}` : ''}.</li>
+                    <li key={i} className="text-[12px] text-etyme-muted">{d.byName} ({stageWordOf(d.stage, r.leadNamed, r.walk)}) {d.outcome === 'APPROVED' ? 'said yes' : 'declined'}{d.note ? `: ${d.note.replace(/\.$/, '')}` : ''}.</li>
                   ))}
                 </ul>
               )}
 
               {/* What this desk is asked, and what it can see */}
-              {r.stage !== 'DONE' && <p className="text-[13px] text-etyme-ink">{STAGE_ASKS[r.stage]}</p>}
+              {r.stage !== 'DONE' && <p className="text-[13px] text-etyme-ink">{stageAsks(r.stage, r.walk)}</p>}
 
               {(r.stage === 'LEAD' || r.stage === 'PROCUREMENT') && (
                 <div className="rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[12.5px]">
@@ -608,7 +612,7 @@ export default function SuppliersPage() {
                 <>
                   <div className="flex flex-wrap items-center gap-3 text-[12px] text-etyme-muted">
                     <span>
-                      {r.applied ? `The firm supplied its side ${when(r.applied)}.` : r.linkSentAt ? `Link sent ${when(r.linkSentAt)}; nothing back yet.` : 'No link sent — add a contact email.'}
+                      {linkSays(r, (iso) => when(iso))}
                     </span>
                     {r.contactEmail && r.mayAct && (
                       <button onClick={() => act(r.id, { action: 'resend' })} disabled={busy} className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] hover:border-etyme-action">Send the link again</button>
@@ -623,7 +627,7 @@ export default function SuppliersPage() {
                       {r.stage === 'PROCUREMENT' && <p className="sm:col-span-2"><span className="text-etyme-faint">References</span> <span className="text-etyme-ink">{(r.application.references ?? []).map((x: any) => `${x.name}, ${x.company}`).join(' · ') || '—'}</span></p>}
                     </div>
                   )}
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint">{STAGE_WORD[r.stage]} verifies</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint">{stageWordOf(r.stage, r.leadNamed, r.walk)} verifies</p>
                   <ul className="divide-y divide-etyme-rule rounded-lg border border-etyme-rule bg-etyme-surface">
                     {r.checklist.filter((item) => item.desk === r.stage).map((item) => {
                       // An item this desk marked verified that no desk in
@@ -823,7 +827,7 @@ export default function SuppliersPage() {
               )}
               {r.stage === 'LEAD' && (
                 <div className="flex flex-wrap items-center gap-3 text-[12px] text-etyme-muted">
-                  <span>{r.applied ? `The firm supplied its side ${when(r.applied)}.` : r.linkSentAt ? `Link sent to the firm ${when(r.linkSentAt)}.` : 'No link sent — add a contact email.'}</span>
+                  <span>{linkSays(r, (iso) => when(iso))}</span>
                   {r.link && <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>}
                 </div>
               )}
@@ -836,7 +840,7 @@ export default function SuppliersPage() {
                       <input autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="A line for the record (optional)"
                         className="min-w-[260px] rounded border border-etyme-rule px-2 py-1 text-[12px]" />
                       <button type="submit" disabled={busy || !r.readiness.ok} className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
-                        {r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}
+                        {r.stage === 'DONE' ? 'Done' : stageVerb(r.stage, r.walk)}
                       </button>
                       <button type="button" onClick={() => setNoteFor(null)} className="text-[12px] text-etyme-muted">Not now</button>
                     </form>
@@ -844,7 +848,7 @@ export default function SuppliersPage() {
                     <button onClick={() => { setNoteFor(`${r.id}:approve`); setNoteText('') }} disabled={busy || !r.readiness.ok}
                       title={!r.readiness.ok ? r.readiness.says : undefined}
                       className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
-                      {r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}
+                      {r.stage === 'DONE' ? 'Done' : stageVerb(r.stage, r.walk)}
                     </button>
                   )}
                   {noteFor === `${r.id}:decline` ? (
@@ -1053,7 +1057,7 @@ export default function SuppliersPage() {
             </div>
             <p className="mt-2 text-[12px] text-etyme-muted">
               {s.onSiteCount > 0 ? `${s.onSiteCount} ${s.onSiteCount === 1 ? 'person' : 'people'} on site now. ` : ''}
-              {s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : ''}
+              {s.pending ? `Recommended ${when(s.pending.recommendedAt)}. ` : s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : ''}
               {s.where}
             </p>
             {!s.pending && !s.agreement && (

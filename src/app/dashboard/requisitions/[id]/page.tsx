@@ -323,10 +323,16 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }
 
+  // With no supplier at all the section says "Nobody to send it to yet.
+  // Recommend a supplier." instead of drawing this panel; empty here means
+  // the register could not be read, which is not the same as none.
+  if (vendors.length === 0) {
+    return <div className="p-4 text-sm text-etyme-muted">Your suppliers could not be read here.</div>
+  }
   if (available.length === 0) {
     return (
       <div className="p-4 text-sm text-etyme-muted">
-        {vendors.length === 0 ? 'No suppliers on file yet. Add one from Suppliers first.' : 'Every supplier you can send this to has already been asked.'}
+        Every supplier you can send this to has already been asked.
       </div>
     )
   }
@@ -660,15 +666,6 @@ export default function RequisitionDetail() {
         <div><Lbl>Candidates</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.candidates}</div></div>
       </div>
 
-      {/* A client with no approved supplier yet: the number is 0 and the
-          next step is to recommend one (release walk, 2026-10-27). */}
-      {nobody && (
-        <p className="-mt-4 mb-8 text-sm text-etyme-muted">
-          {nobody.says}{' '}
-          <Link href={nobody.href as any} className="text-etyme-action hover:underline">{nobody.link}</Link>
-        </p>
-      )}
-
       {/* 1 — Approval, read by desk */}
       <ListSection title="Approval">
         <div className="p-4">
@@ -741,6 +738,13 @@ export default function RequisitionDetail() {
               {r.status === 'CANCELLED'
                   ? 'Called off, so it goes to no more suppliers.'
                   : 'Put away, so it goes to no more suppliers.'}
+            </div>
+          : nobody
+          // A client with no approved supplier yet: one sentence and the
+          // next step, said once, where a supplier would be picked.
+          ? <div className="p-4 text-sm text-etyme-muted">
+              {nobody.says}{' '}
+              <Link href={nobody.href as any} className="text-etyme-action hover:underline">{nobody.link}</Link>
             </div>
           : approved
           ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds}

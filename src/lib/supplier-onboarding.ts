@@ -74,6 +74,12 @@ export interface ChecklistItem {
    * schema; the file itself stays on `fileUrl`.
    */
   deskEvidence?: DeskEvidence | null
+  /**
+   * On a vendor's check of its own sub-vendor (`walkFor`): one step, the
+   * papers, so the item keeps the desk and the requirement the papers
+   * check gave it rather than the client walk's.
+   */
+  papers?: boolean
   key: string
   label: string
   /** The desk's yes is refused while a required item of its own is not HELD or WAIVED. */
@@ -173,6 +179,40 @@ export function newChecklist(): ChecklistItem[] {
     ...c, state: 'MISSING' as ItemState, note: null, at: null, fileName: null, says: null,
     validFrom: null, validUntil: null,
   }))
+}
+
+// ── A vendor's own sub-vendor: the papers, not a client's four roles ──
+//
+// The second onboarding walk (2026-10-27) found a staffing firm adding
+// its own sub-vendor through "Recommend a supplier" walked through a
+// client's department lead, Procurement, HR and Finance, and a firm of
+// one told to "invite somebody as Admin". A client's four roles are a
+// client's governance. A firm buying from a sub-vendor checks its papers
+// — the W-9, the insurance, the good standing and the agreement — and
+// that check is its HR's, its Compliance Officer's or its Owner's. One
+// person may do it, the one who brought the firm in included, because a
+// paper is examined, not approved (coordinator's call, reversible).
+
+/** Which walk a firm's supplier request takes, by the kind of firm buying. */
+export type Walk = 'FOUR' | 'PAPERS'
+
+export function walkFor(buyerKind: string | null | undefined): Walk {
+  return buyerKind === 'CLIENT' ? 'FOUR' : 'PAPERS'
+}
+
+/** The papers a vendor checks on its own sub-vendor. */
+export const PAPERS_KEYS = ['TAX_FORM', 'INSURANCE', 'GOOD_STANDING', 'AGREEMENT'] as const
+
+/** The papers check: four items, one step (`HR`, read as "Papers"), every one required. */
+export function papersChecklist(): ChecklistItem[] {
+  return newChecklist()
+    .filter((i) => (PAPERS_KEYS as readonly string[]).includes(i.key))
+    .map((i) => ({ ...i, desk: 'HR' as const, required: true, papers: true }))
+}
+
+/** Who checks the papers: HR, the Compliance Officer, the Owner or an Admin — whoever reads the firm's rules. */
+export function mayCheckPapers(permissions: readonly string[]): boolean {
+  return hasPermission(permissions, 'governance.read')
 }
 
 /**
@@ -353,9 +393,9 @@ export function refreshed(checklist: ChecklistItem[]): ChecklistItem[] {
     return {
       ...i,
       label: c.label,
-      required: c.required,
+      required: i.papers ? i.required : c.required,
       by: c.by,
-      desk: c.desk,
+      desk: i.papers ? i.desk : c.desk,
       answers: c.answers,
     }
   })
@@ -603,9 +643,16 @@ export function mayActAt(input: {
    * told to invite a second person too).
    */
   inviteRoles?: readonly string[]
+  /** A vendor's check of its own sub-vendor is one step, the papers (`walkFor`). */
+  walk?: Walk
 }): ActVerdict {
   const { stage, permissions, callerId, firmName } = input
   if (stage === 'DONE') return { ok: false, code: 'DONE', message: `${firmName} has already been decided.` }
+  if (input.walk === 'PAPERS') {
+    return mayCheckPapers(permissions)
+      ? { ok: true }
+      : { ok: false, code: 'NOT_THIS_DESK', message: `${firmName}’s papers are checked by HR, the Compliance Officer or the Owner. You will be told when it is a supplier.` }
+  }
 
   /** Barred from this desk, whoever they are: they recommended it, or they decided an earlier one. */
   const barred = (id: string | null): boolean =>
@@ -650,7 +697,8 @@ export function mayActAt(input: {
   return { ok: true }
 }
 
-export function nextStage(stage: Stage): Stage {
+export function nextStage(stage: Stage, walk: Walk = 'FOUR'): Stage {
+  if (walk === 'PAPERS') return 'DONE'
   const i = STAGES.indexOf(stage)
   return STAGES[Math.min(i + 1, STAGES.length - 1)]
 }
@@ -898,8 +946,9 @@ export function vendorItems(checklist: ChecklistItem[]): ChecklistItem[] {
  * 2026-10-27 found the chip reading "Department lead" over a walk that
  * said "Program manager", for one step.
  */
-export function stageWordOf(stage: Stage, leadNamed = true): string {
+export function stageWordOf(stage: Stage, leadNamed = true, walk: Walk = 'FOUR'): string {
   if (stage === 'DONE') return 'Supplier'
+  if (walk === 'PAPERS') return 'Papers'
   return stage === 'LEAD' && !leadNamed ? 'Program manager' : STAGE_WORD[stage]
 }
 
@@ -909,8 +958,8 @@ function orWords(xs: readonly string[]): string {
 }
 
 /** The whole walk, in words, for the stepper. */
-export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[], leadNamed = true): { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[] {
-  const order: Stage[] = [...STAGES]
+export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[], leadNamed = true, walk: Walk = 'FOUR'): { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[] {
+  const order: Stage[] = walk === 'PAPERS' ? ['HR', 'DONE'] : [...STAGES]
   const idx = order.indexOf(stage)
   return order.map((s, i) => {
     const d = decisions.find((x) => x.stage === s)
@@ -920,7 +969,7 @@ export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]
       : i < idx || state === 'APPROVED' ? 'done'
       : i === idx && state !== 'DECLINED' ? 'now'
       : 'next'
-    const word = s === 'DONE' ? 'Supplier' : stageWordOf(s, leadNamed)
+    const word = s === 'DONE' ? 'Supplier' : stageWordOf(s, leadNamed, walk)
     return { stage: s, word, status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
   })
 }
@@ -950,4 +999,38 @@ export function yourClientsSays(clientNames: readonly string[]): string | null {
   if (names.length === 1) return `${names[0]} is your client. Jobs it sends you appear here.`
   const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
   return `${list} are your clients. Jobs they send you appear here.`
+}
+
+// ── The words on a pending firm (second onboarding walk, 2026-10-27) ──
+
+/** What the step is deciding, in a sentence, on either walk. */
+export function stageAsks(stage: Exclude<Stage, 'DONE'>, walk: Walk = 'FOUR'): string {
+  return walk === 'PAPERS'
+    ? 'Are its papers in order — the W-9, the insurance, the good standing and the signed agreement?'
+    : STAGE_ASKS[stage]
+}
+
+/** The word on the button at the step, on either walk. */
+export function stageVerb(stage: Exclude<Stage, 'DONE'>, walk: Walk = 'FOUR'): string {
+  return walk === 'PAPERS' ? 'Its papers are in order' : STAGE_VERB[stage]
+}
+
+/** The line under "Recommend a supplier", for the firm doing the recommending. */
+export function recommendSays(walk: Walk): string {
+  return walk === 'PAPERS'
+    ? 'You check its papers — the W-9, the insurance, the good standing and the signed agreement — and it is your supplier. HR, the Compliance Officer or the Owner checks them; one person may. The firm gets a link of its own to send them.'
+    : 'It needs four approvals: your department lead confirms the need, Procurement qualifies the firm — experience, references, revenue and delivery proofs, proposal, D&B — HR clears compliance and screening, and Finance checks the W-9 and bank details. The firm gets a link of its own to supply its side. You are told at each step.'
+}
+
+/**
+ * Where the firm's link is, said truly. "Link sent" is said only where an
+ * email left (`linkSentAt` is written on a sent email and nothing else);
+ * a link that could not be mailed is kept for staff to send, and the card
+ * says so rather than "sent".
+ */
+export function linkSays(input: { applied: string | null; linkSentAt: string | null; contactEmail: string | null }, when: (iso: string) => string): string {
+  if (input.applied) return `The firm supplied its side ${when(input.applied)}.`
+  if (input.linkSentAt) return `Link sent to the firm ${when(input.linkSentAt)}; nothing back yet.`
+  if (input.contactEmail) return 'Link kept for staff to send: no email left. Copy it and send it to the firm.'
+  return 'No link sent — add a contact email.'
 }

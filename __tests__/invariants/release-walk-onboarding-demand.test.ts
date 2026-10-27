@@ -70,8 +70,8 @@ describe('a client with one person approving a supplier', () => {
     expect(stageWordOf('LEAD', true)).toBe('Department lead')
     expect(stepsOf('LEAD', 'RECOMMENDED', [], true)[0].word).toBe('Department lead')
     // The list route and the queue read the one function, never STAGE_WORD for the chip.
-    expect(read('src/app/api/supplier-requests/route.ts')).toMatch(/stageWord: stage === 'DONE' \? STATE_WORD_OF\(state\) : stageWordOf\(stage, desks\.leadId != null\)/)
-    expect(read('src/app/api/decisions/route.ts')).toMatch(/stageWordOf\(stage, desks\.leadId != null\)/)
+    expect(read('src/app/api/supplier-requests/route.ts')).toMatch(/stageWord: stage === 'DONE' \? STATE_WORD_OF\(state\) : stageWordOf\(stage, desks\.leadId != null, walk\)/)
+    expect(read('src/app/api/decisions/route.ts')).toMatch(/stageWordOf\(stage, desks\.leadId != null, walk\)/)
   })
 })
 
@@ -193,5 +193,79 @@ describe('a seat for an MSP, granted and asked for on the screens', () => {
     const program = read('src/app/dashboard/program/page.tsx')
     expect(program).toMatch(/<RefusedWithWayForward wayForward=\{asksForSeat\(sessionKind, refused\) \? <AskForSeat \/> : null\}><RefusedState says=\{refused\} \/>/)
     expect(read('src/app/dashboard/program/seats/page.tsx')).toMatch(/side === 'OFFICE' && nothingYet && <AskForSeat \/>/)
+  })
+})
+
+import { walkFor, papersChecklist, nextStage, linkSays, stageAsks, stageVerb, recommendSays } from '@/lib/supplier-onboarding'
+import { checkedSays } from '@/app/dashboard/requisitions/facts'
+
+describe('the second onboarding walk, on a vendor and its own sub-vendor', () => {
+  it('a vendor adding its own sub-vendor checks its papers and never walks a client’s four roles', () => {
+    expect(walkFor('CLIENT')).toBe('FOUR')
+    expect(walkFor('VENDOR')).toBe('PAPERS')
+    expect(walkFor('GSI')).toBe('PAPERS')
+    const papers = papersChecklist()
+    expect(papers.map((i) => i.key).sort()).toEqual(['AGREEMENT', 'GOOD_STANDING', 'INSURANCE', 'TAX_FORM'])
+    expect(papers.every((i) => i.desk === 'HR' && i.required && i.papers)).toBe(true)
+    // One person may do it, the one who brought the firm in included.
+    const owner = mayActAt({ ...base, stage: 'HR', permissions: ['*'], walk: 'PAPERS' })
+    expect(owner.ok).toBe(true)
+    const hr = mayActAt({ ...base, stage: 'HR', permissions: ['governance.read'], callerId: 'p-hr', walk: 'PAPERS' })
+    expect(hr.ok).toBe(true)
+    const recruiter = mayActAt({ ...base, stage: 'HR', permissions: ['consultants.write', 'submissions.create'], callerId: 'p-rec', walk: 'PAPERS' })
+    expect(recruiter.ok === false && recruiter.message).toContain('checked by HR, the Compliance Officer or the Owner')
+    expect(recruiter.ok === false && recruiter.message).not.toMatch(/Invite|Department lead|Procurement|Finance/)
+    expect(nextStage('HR', 'PAPERS')).toBe('DONE')
+    expect(stepsOf('HR', 'RECOMMENDED', [], true, 'PAPERS').map((s) => s.word)).toEqual(['Papers', 'Supplier'])
+    expect(stageWordOf('HR', true, 'PAPERS')).toBe('Papers')
+    expect(stageAsks('HR', 'PAPERS')).toContain('the W-9, the insurance, the good standing and the signed agreement')
+    expect(stageVerb('HR', 'PAPERS')).toBe('Its papers are in order')
+    expect(recommendSays('PAPERS')).not.toMatch(/four approvals|department lead/)
+  })
+
+  it('a second client’s apply form carries every answer the firm gave the first, the certificate dates included', () => {
+    const first: EarlierApplication = {
+      requestId: 'sr-1', clientName: 'Northbend Athletic', at: '2026-10-02T15:00:00.000Z',
+      docs: [{ key: 'INSURANCE', fileName: 'coi.pdf', fileUrl: '/api/documents/d2/file', validFrom: '2026-09-01', validUntil: '2027-08-31' }],
+      references: [], bank: null,
+      legalName: 'Quarrybrook Staffing LLC', address: '12 Mill St, Dayton, OH', website: 'https://quarrybrook.example',
+      experience: 'Nine years placing machinists.',
+    }
+    const p = applyPrefill({ application: null, recommendedSkills: [], firm: null, earlier: [first], signedInAtFirm: true, fileKeys: ['INSURANCE'] })
+    expect(p).toMatchObject({ legalName: 'Quarrybrook Staffing LLC', address: '12 Mill St, Dayton, OH', website: 'https://quarrybrook.example', experience: 'Nine years placing machinists.' })
+    expect(p.sentBefore[0]).toMatchObject({ validFrom: '2026-09-01', validUntil: '2027-08-31' })
+    // Nobody but a person at the firm reads what it told another client.
+    expect(applyPrefill({ application: null, recommendedSkills: [], firm: null, earlier: [first], signedInAtFirm: false, fileKeys: ['INSURANCE'] }).experience).toBe('')
+    // And the page puts the carried dates in the boxes and sends them again.
+    const page = read('src/app/apply/[token]/page.tsx')
+    expect(page).toContain('setDates((cur) => ({ ...carried, ...cur }))')
+    expect(page).toMatch(/reuse: data\.prefill\.sentBefore\.map[\s\S]{0,120}dates,/)
+  })
+
+  it('HR confirms the dates the supplier gave and never re-types them', () => {
+    // The dates reach the item with or without a new file this time.
+    expect(read('src/app/api/supplier-apply/[token]/route.ts')).toContain('validFrom: day(t.validFrom) ?? i.validFrom ?? null')
+    // And HR's Verified panel opens with them in the boxes.
+    expect(read('src/app/dashboard/suppliers/page.tsx')).toContain("validFrom: item.validFrom ? item.validFrom.slice(0, 10) : ''")
+  })
+
+  it('a pending firm reads the day it was recommended, one name for its step, and a link sent only when an email left', () => {
+    const page = read('src/app/dashboard/suppliers/page.tsx')
+    expect(page).toContain('`Recommended ${when(s.pending.recommendedAt)}. `')
+    expect(page).toContain('({stageWordOf(d.stage, r.leadNamed, r.walk)})')
+    const when = (iso: string) => iso.slice(0, 10)
+    expect(linkSays({ applied: null, linkSentAt: null, contactEmail: 'ops@q.example' }, when)).toBe('Link kept for staff to send: no email left. Copy it and send it to the firm.')
+    expect(linkSays({ applied: null, linkSentAt: '2026-10-27', contactEmail: 'ops@q.example' }, when)).toBe('Link sent to the firm 2026-10-27; nothing back yet.')
+    expect(read('src/app/api/supplier-requests/route.ts')).toContain("if (delivery.state === 'SENT') await prisma.supplierRequest.update")
+  })
+
+  it('a job that cleared by rule never says it needs a person, and a job with no supplier says so once', () => {
+    const checked = { basis: 'RECORDED' as const, at: '2026-10-27T00:00:00Z', checks: [{ outcome: 'ROUTE', reason: 'No cost center named — nobody owns this spend' }] }
+    expect(checkedSays(checked, 'AUTO_APPROVED').routeSuffix).toBe(' — nobody is named to ask, so it cleared with this note')
+    expect(checkedSays(checked, 'PENDING_APPROVAL').routeSuffix).toBe(' — needs a person')
+    const job = read('src/app/dashboard/requisitions/[id]/page.tsx')
+    expect(job).not.toContain('No suppliers on file yet. Add one from Suppliers first.')
+    // The Job requests list says the same sentence beside a published job.
+    expect(read('src/app/dashboard/requisitions/page.tsx')).toMatch(/nobodyToSendTo\(\{ open: r\.status === 'OPEN' && !r\.archivedAt/)
   })
 })

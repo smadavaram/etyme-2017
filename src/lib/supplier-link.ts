@@ -62,8 +62,19 @@ export async function sendClaim(input: { to: string; contactName: string | null;
   return { state: out.state, note: out.note }
 }
 
-export function linkLetter(input: { contactName: string | null; firmName: string; clientName: string; token: string }): { subject: string; body: string } {
+export function linkLetter(input: { contactName: string | null; firmName: string; clientName: string; token: string; papersOnly?: boolean }): { subject: string; body: string } {
   const hello = input.contactName ? `${input.contactName.split(' ')[0]},` : 'Hello,'
+  // A vendor adding its own sub-vendor asks for papers only (`walkFor`).
+  if (input.papersOnly) {
+    return {
+      subject: `${input.clientName}: the papers it needs from ${input.firmName}`,
+      body:
+        `${hello}\n\n${input.clientName} is adding ${input.firmName} as a supplier. ` +
+        `It needs your W-9, your certificate of insurance and your certificate of good standing.\n\n` +
+        `Send them here: ${applyUrl(input.token)}\n\n` +
+        `Nothing to sign up for. The link is yours; it stops working once ${input.clientName} has decided.`,
+    }
+  }
   return {
     subject: `${input.clientName}: what Procurement needs from ${input.firmName}`,
     body:
@@ -75,7 +86,7 @@ export function linkLetter(input: { contactName: string | null; firmName: string
   }
 }
 
-export async function sendLink(input: { to: string; contactName: string | null; firmName: string; clientName: string; token: string }): Promise<{ state: string; note: string }> {
+export async function sendLink(input: { to: string; contactName: string | null; firmName: string; clientName: string; token: string; papersOnly?: boolean }): Promise<{ state: string; note: string }> {
   const letter = linkLetter(input)
   const out = await attemptDelivery(
     routeFor({ isConsultant: false, email: input.to, teamsWebhookUrl: null }),
@@ -118,9 +129,14 @@ export interface EarlierApplication {
   clientName: string
   /** When it was sent, ISO. */
   at: string
-  docs: { key: string; fileName: string; fileUrl: string | null; at?: string | null }[]
+  docs: { key: string; fileName: string; fileUrl: string | null; at?: string | null; validFrom?: string | null; validUntil?: string | null }[]
   references: { name: string; company: string; email: string; phone: string }[]
   bank: { bankName: string; accountName: string; last4: string } | null
+  /** The firm's own words on that application: every one is carried, not only papers and references. */
+  legalName?: string | null
+  address?: string | null
+  website?: string | null
+  experience?: string | null
 }
 
 export interface SentBefore {
@@ -129,6 +145,9 @@ export interface SentBefore {
   requestId: string
   clientName: string
   at: string
+  /** The two dates the firm typed off the certificate for that client, carried with it. */
+  validFrom: string | null
+  validUntil: string | null
   /** "Sent before to Northbend Athletic on Oct 2, 2026." */
   says: string
 }
@@ -137,6 +156,7 @@ export interface ApplyPrefill {
   legalName: string
   address: string
   website: string
+  experience: string
   skills: string
   bank: { bankName: string; accountName: string; last4: string } | null
   references: { name: string; company: string; email: string; phone: string }[]
@@ -175,7 +195,11 @@ export function applyPrefill(input: {
       const d = e.docs.find((x) => x.key === key && x.fileUrl)
       if (!d) continue
       const at = d.at ?? e.at
-      sentBefore.push({ key, fileName: d.fileName, requestId: e.requestId, clientName: e.clientName, at, says: `Sent before to ${e.clientName} on ${day(at)}.` })
+      sentBefore.push({
+        key, fileName: d.fileName, requestId: e.requestId, clientName: e.clientName, at,
+        validFrom: d.validFrom ?? null, validUntil: d.validUntil ?? null,
+        says: `Sent before to ${e.clientName} on ${day(at)}.`,
+      })
       break
     }
   }
@@ -184,10 +208,15 @@ export function applyPrefill(input: {
   const refsFrom = ownRefs.length ? null : earlier.find((e) => e.references.length > 0) ?? null
   const bankFrom = a.bank?.last4 ? a.bank : input.signedInAtFirm ? input.firm?.bank ?? earlier.find((e) => e.bank?.last4)?.bank ?? null : null
 
+  // The firm's own words to an earlier client, newest first, for every
+  // field it answered there (second onboarding walk: website, address and
+  // experience were dropped while bank and references carried).
+  const said = (k: 'legalName' | 'address' | 'website' | 'experience') => earlier.find((e) => (e[k] ?? '').trim() !== '')?.[k]
   return {
-    legalName: pick(a.legalName, input.firm?.legalName, input.firm?.name),
-    address: pick(a.address, input.firm?.address),
-    website: pick(a.website, input.firm?.website),
+    legalName: pick(a.legalName, input.firm?.legalName, said('legalName'), input.firm?.name),
+    address: pick(a.address, input.firm?.address, said('address')),
+    website: pick(a.website, input.firm?.website, said('website')),
+    experience: pick(a.experience, said('experience')),
     skills: pick(Array.isArray(a.skills) ? a.skills.join(', ') : null, input.recommendedSkills.join(', ')),
     bank: bankFrom ? { bankName: bankFrom.bankName ?? '', accountName: bankFrom.accountName ?? '', last4: bankFrom.last4 ?? '' } : null,
     references: ownRefs.length ? ownRefs : refsFrom?.references ?? [],

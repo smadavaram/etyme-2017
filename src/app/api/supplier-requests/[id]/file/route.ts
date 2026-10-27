@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf, keepSupplierPaper } from '@/lib/supplier-desks'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 import {
   mayActAt, withOrderedItems, attachToItem, STAGE_WORD,
@@ -43,12 +43,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const stage = row.stage as Stage
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
+  // A client walks its four roles; a vendor checks its own sub-vendor's papers.
+  const walk = await walkOf(companyId)
   const verdict = mayActAt({
     stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
-    deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
-    inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
+    deskHolders: stage === 'DONE' || walk === 'PAPERS' ? undefined : await deskPeople(companyId, stage, desks),
+    inviteRoles: stage === 'DONE' || walk === 'PAPERS' ? undefined : await inviteRolesFor(companyId, stage),
     companyName: desk!.companyName,
+    walk,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 

@@ -7,7 +7,7 @@ import { domainOfEmail } from '@/lib/company-domains'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
-import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf } from '@/lib/supplier-desks'
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
 import {
@@ -113,6 +113,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   )
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
+  // A client walks its four roles; a vendor checks its own sub-vendor's papers.
+  const walk = await walkOf(companyId)
 
   // Who cannot take this desk, whoever they are: the recommender, and
   // anybody who decided an earlier one.
@@ -124,17 +126,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const verdict = mayActAt({
     stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
-    deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
-    inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
+    deskHolders: stage === 'DONE' || walk === 'PAPERS' ? undefined : await deskPeople(companyId, stage, desks),
+    inviteRoles: stage === 'DONE' || walk === 'PAPERS' ? undefined : await inviteRolesFor(companyId, stage),
     companyName: desk!.companyName,
+    walk,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'resend') {
     if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
-    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: desk!.companyName, token: row.token })
-    await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
-    return NextResponse.json({ data: { delivery, says: `${row.name} has been sent its link again.` } })
+    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: desk!.companyName, token: row.token, papersOnly: walk === 'PAPERS' })
+    // Sent means an email left; where none did, the link is still kept for staff to send.
+    if (delivery.state === 'SENT') await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
+    return NextResponse.json({ data: { delivery, says: delivery.state === 'SENT' ? `${row.name} has been sent its link again.` : `No email left. Copy the link and send it to ${row.name} yourself.` } })
   }
 
   if (action === 'mark') {
@@ -297,7 +301,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const ready = readiness(row.name, checklist, stage)
     if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing, toVerify: ready.toVerify } }, { status: 409 })
     const decision: Decision = { stage, outcome: 'APPROVED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note: note || null }
-    const next = nextStage(stage)
+    const next = nextStage(stage, walk)
 
     if (next !== 'DONE') {
       const updated = await prisma.supplierRequest.update({
@@ -420,12 +424,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
-      title: `${row.name} is approved`, body: `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a job now.`, data: { href: '/dashboard/suppliers' },
+      title: `${row.name} is approved`, body: walk === 'PAPERS'
+        ? `${caller.person.name} checked ${row.name}’s papers. It is your supplier now.`
+        : `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a job now.`, data: { href: '/dashboard/suppliers' },
     })
     await prisma.automationLog.create({
       data: {
         companyId, action: 'SUPPLIER_APPROVED',
-        summary: `${row.name} approved as a supplier by ${caller.person.name} (Finance), after the department lead, Procurement and HR.`,
+        summary: walk === 'PAPERS'
+          ? `${row.name} became a supplier when ${caller.person.name} checked its papers: the W-9, the insurance, the good standing and the agreement.`
+          : `${row.name} approved as a supplier by ${caller.person.name} (Finance), after the department lead, Procurement and HR.`,
         reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
         payload: { requestId: id, supplierCompanyId: supplier.id, checklist: checklist as unknown as object, decisions: [...decisions, decision] as unknown as object },
         reversible: true,

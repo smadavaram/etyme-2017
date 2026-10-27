@@ -3,11 +3,11 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
-import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf } from '@/lib/supplier-desks'
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import { hasPermission } from '@/lib/permissions'
 import {
-  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, stageWordOf,
+  mayRecommend, mayActAt, newChecklist, papersChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, stageWordOf,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
   // recommendation, so a firm recommended before the client wrote the
   // requirement on its orders is still asked for it.
   const ordered = await orderedOfSuppliers(companyId)
+  // A client walks its four roles; a vendor checks its own sub-vendor's papers.
+  const walk = await walkOf(companyId)
   return NextResponse.json({
     data: {
       requests: await Promise.all(rows.map(async (r) => {
@@ -69,15 +71,16 @@ export async function GET(request: NextRequest) {
         const verdict = mayActAt({
           stage, permissions: caller.permissions, callerId: caller.person.id,
           recommendedById: r.recommendedById, decisions, desks, firmName: r.name,
-          deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
-          inviteRoles: stage === 'DONE' ? undefined : await inviteRolesFor(companyId, stage),
+          deskHolders: stage === 'DONE' || walk === 'PAPERS' ? undefined : await deskPeople(companyId, stage, desks),
+          inviteRoles: stage === 'DONE' || walk === 'PAPERS' ? undefined : await inviteRolesFor(companyId, stage),
           companyName: caller.company!.name,
+          walk,
         })
         const application = (r.application ?? null) as Record<string, unknown> | null
         return {
           id: r.id, name: r.name, domain: r.domain, contactName: r.contactName, contactEmail: r.contactEmail,
-          reason: r.reason, skills: r.skills, state, stage, stageWord: stage === 'DONE' ? STATE_WORD_OF(state) : stageWordOf(stage, desks.leadId != null),
-          checklist, decisions, steps: stepsOf(stage, state, decisions, desks.leadId != null),
+          reason: r.reason, skills: r.skills, state, stage, stageWord: stage === 'DONE' ? STATE_WORD_OF(state) : stageWordOf(stage, desks.leadId != null, walk),
+          checklist, decisions, steps: stepsOf(stage, state, decisions, desks.leadId != null, walk), walk,
           leadNamed: desks.leadId != null,
           recommendedBy: nameOf.get(r.recommendedById) ?? 'somebody',
           decidedBy: r.decidedById ? nameOf.get(r.decidedById) ?? null : null,
@@ -147,16 +150,19 @@ export async function POST(request: NextRequest) {
   })
   if (open) return NextResponse.json({ error: { code: 'ALREADY_RECOMMENDED', message: `${name} is already in the pipeline.` } }, { status: 409 })
 
+  // A client walks its four roles; a vendor adding its own sub-vendor
+  // checks its papers, one step, and one person may do it.
+  const walk = await walkOf(companyId)
   const row = await prisma.supplierRequest.create({
     data: {
       companyId, name, domain, contactEmail, skills,
       contactName: typeof body?.contactName === 'string' && body.contactName.trim() ? body.contactName.trim() : null,
-      reason, recommendedById: caller.person.id, stage: 'LEAD', decisions: [],
+      reason, recommendedById: caller.person.id, stage: walk === 'PAPERS' ? 'HR' : 'LEAD', decisions: [],
       // The walk's own eleven items, plus whatever this client's orders
       // require of a supplier — read through `lib/document-requirements`,
       // never a second list. A client asking for a hot floor induction on
       // every purchase order asks this firm for it on the way in.
-      checklist: withOrderedItems(newChecklist(), await orderedOfSuppliers(companyId), desk!.companyName) as unknown as object,
+      checklist: withOrderedItems(walk === 'PAPERS' ? papersChecklist() : newChecklist(), await orderedOfSuppliers(companyId), desk!.companyName) as unknown as object,
       token: newApplyToken(),
     },
   })
@@ -165,8 +171,23 @@ export async function POST(request: NextRequest) {
   // Procurement's desk comes round.
   let delivery: { state: string; note: string } | null = null
   if (contactEmail) {
-    delivery = await sendLink({ to: contactEmail, contactName: row.contactName, firmName: name, clientName: desk!.companyName, token: row.token })
-    await prisma.supplierRequest.update({ where: { id: row.id }, data: { linkSentAt: new Date() } })
+    delivery = await sendLink({ to: contactEmail, contactName: row.contactName, firmName: name, clientName: desk!.companyName, token: row.token, papersOnly: walk === 'PAPERS' })
+    // Sent means an email left. Where none did (no mail account set up),
+    // the link is kept for staff to send and the card says so.
+    if (delivery.state === 'SENT') await prisma.supplierRequest.update({ where: { id: row.id }, data: { linkSentAt: new Date() } })
+  }
+
+  if (walk === 'PAPERS') {
+    return NextResponse.json({
+      data: {
+        request: { id: row.id, stage: row.stage, link: applyUrl(row.token) },
+        delivery,
+        says:
+          `${name} is in. Check its papers — the W-9, the insurance, the good standing and the agreement — and it is your supplier. ` +
+          'HR, the Compliance Officer or the Owner checks them; one person may.' +
+          (contactEmail ? (delivery?.state === 'SENT' ? ` ${name} has been sent a link to send them.` : ` No email left, so the link is kept here for you to send.`) : ' Add a contact email and they can be sent a link to send them.'),
+      },
+    }, { status: 201 })
   }
 
   // The recommender's own lead hears, by email as well as in the app.
@@ -185,7 +206,7 @@ export async function POST(request: NextRequest) {
     data: {
       request: { id: row.id, stage: row.stage, link: applyUrl(row.token) },
       delivery,
-      says: `${name} is with ${leadWord}. It needs four approvals — ${desks.leadId ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? ` ${name} has been sent a link to supply its paperwork.` : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
+      says: `${name} is with ${leadWord}. It needs four approvals — ${desks.leadId ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? (delivery?.state === 'SENT' ? ` ${name} has been sent a link to supply its paperwork.` : ' No email left, so the link is kept here for staff to send.') : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
     },
   }, { status: 201 })
 }

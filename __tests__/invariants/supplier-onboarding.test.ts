@@ -119,7 +119,7 @@ describe('the routes and the pages', () => {
     expect(list).toContain("channel: 'EMAIL',\n      title: `Supplier recommended — ${name}`")
   })
   it('each yes moves it to the next desk by email, and no desk marks another desk’s items', () => {
-    expect(one).toContain('const next = nextStage(stage)')
+    expect(one).toContain('const next = nextStage(stage, walk)')
     expect(one).toContain("channel: 'EMAIL',\n          title: `Supplier to review — ${row.name}`")
     expect(one).toContain("code: 'NOT_YOUR_ITEM'")
     expect(one).toContain("const ready = readiness(row.name, checklist, stage)")
@@ -144,7 +144,7 @@ describe('the routes and the pages', () => {
     expect(page).toContain("pending:")
     expect(page).toContain("Pending · ")
     expect(page).toContain("r.checklist.filter((item) => item.desk === r.stage)")
-    expect(page).toContain("{r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}")
+    expect(page).toContain("{r.stage === 'DONE' ? 'Done' : stageVerb(r.stage, r.walk)}")
   })
 })
 

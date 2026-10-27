@@ -37,10 +37,10 @@ interface Apply {
   application: Record<string, any> | null
   /** What the form opens with (`applyPrefill` in lib/supplier-link). */
   prefill: {
-    legalName: string; address: string; website: string; skills: string
+    legalName: string; address: string; website: string; experience: string; skills: string
     bank: { bankName: string; accountName: string; last4: string } | null
     references: { name: string; company: string; email: string; phone: string }[]
-    sentBefore: { key: string; fileName: string; requestId: string; clientName: string; at: string; says: string }[]
+    sentBefore: { key: string; fileName: string; requestId: string; clientName: string; at: string; validFrom: string | null; validUntil: string | null; says: string }[]
     referencesSays: string | null
     signedInAtFirm: boolean
   } | null
@@ -104,10 +104,16 @@ export default function ApplyPage() {
         setForm((f) => ({
           ...f,
           legalName: p.legalName, address: p.address, website: p.website, skills: p.skills,
-          duns: a.duns ?? '', experience: a.experience ?? '',
+          duns: a.duns ?? '', experience: p.experience ?? a.experience ?? '',
           bankName: p.bank?.bankName ?? '', accountName: p.bank?.accountName ?? '', last4: p.bank?.last4 ?? '',
         }))
         if (p.references.length) setRefs([...p.references, EMPTY_REF].slice(0, Math.max(2, p.references.length)))
+        // The certificate dates it gave the first client, in the boxes, for papers sent again.
+        const carried: Record<string, { validFrom: string; validUntil: string }> = {}
+        for (const b of p.sentBefore) {
+          if (b.validFrom || b.validUntil) carried[b.key] = { validFrom: (b.validFrom ?? '').slice(0, 10), validUntil: (b.validUntil ?? '').slice(0, 10) }
+        }
+        setDates((cur) => ({ ...carried, ...cur }))
       }
     } catch (err: any) {
       setError(err.message)
@@ -124,7 +130,9 @@ export default function ApplyPage() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           reuse: data.prefill.sentBefore.map((b) => ({ requestId: b.requestId, key: b.key })),
+          dates,
           references: refs.filter((r) => r.name || r.company),
+          legalName: form.legalName, address: form.address, website: form.website, experience: form.experience, skills: form.skills,
         }),
       }))
       setSaid(body.data.says)
@@ -145,6 +153,8 @@ export default function ApplyPage() {
           legalName: form.legalName, address: form.address, duns: form.duns, website: form.website, experience: form.experience, skills: form.skills,
           bank: { bankName: form.bankName, accountName: form.accountName, last4: form.last4 },
           references: refs.filter((r) => r.name || r.company),
+          // Every date typed, with or without a new file this time.
+          dates,
           docs: Object.entries(files).map(([key, f]) => ({
             key, fileName: f.fileName, size: f.size, type: f.type, content: f.content,
             validFrom: dates[key]?.validFrom || null,
@@ -188,7 +198,7 @@ export default function ApplyPage() {
                   ? data.claim
                     ? <>{data.claim.says} <a href={data.claim.url} className="text-etyme-action underline">{data.claim.url}</a></>
                     : `${data.client} has ${data.state === 'APPROVED' ? 'approved' : 'decided on'} ${data.firm}. This link has done its job.`
-                  : `${data.contactName ? `${data.contactName.split(' ')[0]}, ` : ''}Procurement at ${data.client} needs a few things before they can say yes. Supply them here — in one sitting or several. Nothing to sign up for.`}
+                  : `${data.contactName ? `${data.contactName.split(' ')[0]}, ` : ''}${data.client} needs a few things before they can say yes. Supply them here — in one sitting or several. Nothing to sign up for.`}
               </p>
             </header>
 

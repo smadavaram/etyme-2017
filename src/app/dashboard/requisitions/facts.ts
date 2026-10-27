@@ -115,7 +115,14 @@ export interface CheckedBasis {
 export function checkedSays(checked: CheckedBasis, approvalState: string): { intro: string; routeSuffix: string } {
   const decided = approvalState === 'AUTO_APPROVED' || approvalState === 'APPROVED'
   if (checked.basis === 'RECORDED') {
-    return { intro: `As checked on ${day(checked.at)}, when the job request was raised.`, routeSuffix: ' — needs a person' }
+    // A job that cleared because nobody was named to ask never "needs a
+    // person": it cleared with the note, and the line says so (second
+    // onboarding walk, 2026-10-27, on a new client's first job).
+    const routeSuffix =
+      approvalState === 'AUTO_APPROVED' ? ' — nobody is named to ask, so it cleared with this note'
+      : approvalState === 'APPROVED' ? ' — a person was asked and said yes'
+      : ' — needs a person'
+    return { intro: `As checked on ${day(checked.at)}, when the job request was raised.`, routeSuffix }
   }
   const wouldRoute = checked.checks.some((c) => c.outcome === 'ROUTE')
   if (decided && wouldRoute) {

@@ -74,7 +74,13 @@ describe('a supplier walks four desks', () => {
     expect(r.body.data.says).toContain('is with your department lead')
     const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: it_.id } })
     it_.token = row.token
-    expect(row.linkSentAt).not.toBeNull()
+    // "Sent" is written only when an email left; with no mail account set
+    // up here, the link is kept for staff to send, and the card says so.
+    if (r.body.data.delivery?.state === 'SENT') expect(row.linkSentAt).not.toBeNull()
+    else {
+      expect(row.linkSentAt).toBeNull()
+      expect(r.body.data.says).toContain('the link is kept here for staff to send')
+    }
     const lead = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: LEAD }, select: { id: true } })
     let told = null
     for (let i = 0; i < 20 && !told; i++) {
@@ -645,6 +651,43 @@ describe('every certificate in the seeded world is one a desk could have written
  * invited a Procurement Lead, and he was told the same. A desk nobody
  * named falls back and never refuses; the recommender never decides.
  */
+describe('a vendor and its own sub-vendor', () => {
+  it('a vendor adding its own sub-vendor checks its papers and never walks a client\u2019s four roles', async () => {
+    const { createCompany } = await import('@/lib/company-create')
+    const owner = await prisma.person.upsert({ where: { primaryEmail: 'omar@kestrelstaffing.example' }, update: {}, create: { primaryEmail: 'omar@kestrelstaffing.example', name: 'Omar Haddad' } })
+    await createCompany({
+      name: 'Kestrel Staffing', kind: 'VENDOR', slug: 'kestrel-staffing-walk', domain: null,
+      byPersonId: owner.id, seatAsOwner: true, claimDomain: false, startsSetup: true,
+    })
+    as('omar@kestrelstaffing.example')
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Lindqvist Talent', contactEmail: 'ops@lindqvisttalent.example', skills: 'Welders', reason: 'Our sub for the Toledo plant.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.says).toContain('Check its papers')
+    expect(r.body.data.says).not.toMatch(/four approvals|department lead|Invite somebody/)
+    const id = r.body.data.request.id
+    const list = (await json(await listRequests(req('GET', '/api/supplier-requests')))).body.data.requests
+    const row = list.find((x: any) => x.id === id)
+    expect(row.walk).toBe('PAPERS')
+    expect(row.stageWord).toBe('Papers')
+    expect(row.steps.map((x: any) => x.word)).toEqual(['Papers', 'Supplier'])
+    expect(row.checklist.map((i: any) => i.key).sort()).toEqual(['AGREEMENT', 'GOOD_STANDING', 'INSURANCE', 'TAX_FORM'])
+    // The one person who brought the firm in checks its papers.
+    expect(row.mayAct, row.whyNot).toBe(true)
+    const mark = (body: Record<string, unknown>) => call(review, 'PATCH', `/api/supplier-requests/${id}`, id, { action: 'mark', state: 'HELD', ...body })
+    expect((await mark({ key: 'TAX_FORM', edition: 'Rev. March 2024' })).status).toBe(200)
+    expect((await mark({ key: 'INSURANCE', validFrom: iso(-30), validUntil: iso(335) })).status).toBe(200)
+    expect((await mark({ key: 'GOOD_STANDING', validFrom: iso(-60), validUntil: iso(305) })).status).toBe(200)
+    expect((await attach(id, 'AGREEMENT', 'kestrel-lindqvist-msa.pdf', 'Signed by both firms')).status).toBe(201)
+    expect((await mark({ key: 'AGREEMENT' })).status).toBe(200)
+    const yes = await call(review, 'PATCH', `/api/supplier-requests/${id}`, id, { action: 'approve', note: 'Papers in order.' })
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    const done = await prisma.supplierRequest.findUniqueOrThrow({ where: { id } })
+    expect(done.state).toBe('APPROVED')
+  })
+})
+
 describe('a firm already on Etyme, approved by a client', () => {
   it('a supplier that signed up and is then approved by a client is one company, not two', async () => {
     const { createCompany } = await import('@/lib/company-create')
@@ -802,11 +845,15 @@ describe('a client with one person, and a firm applying to its second client', (
     const page = await viaToken(applyGet, 'GET', second.token)
     const p = page.body.data.prefill
     expect(p.signedInAtFirm).toBe(true)
-    expect(p.legalName).toBe('Harbor Staffing')
+    expect(p.legalName).toBe('Harbor Staffing LLC')
     expect(p.sentBefore.map((s: any) => s.key).sort()).toEqual(['GOOD_STANDING', 'INSURANCE', 'TAX_FORM'])
     expect(p.sentBefore.every((s: any) => s.says.startsWith('Sent before to Northbend Athletic on '))).toBe(true)
     expect(p.references.map((x: any) => x.name)).toEqual(['A', 'B'])
     expect(p.bank.last4).toBe('9921')
+    // Every answer it gave Northbend, the certificate dates included.
+    expect(p.legalName).toBe('Harbor Staffing LLC')
+    expect(p.experience).toBe('Nine years placing planners across CPG.')
+    expect(p.sentBefore.find((x: any) => x.key === 'INSURANCE')).toMatchObject({ validFrom: iso(-30), validUntil: iso(335) })
 
     // One click: every paper sent again, the bytes copied onto Brackenridge's own paper.
     const sent = await viaToken(applyPost, 'POST', second.token, {
@@ -822,6 +869,8 @@ describe('a client with one person, and a firm applying to its second client', (
     expect(kept.bytes.toString()).toContain('Harbor Staffing W-9')
     expect(kept.docInstance.template.companyId).toBe(b.companyId)
     expect((after.checklist as any[]).find((i) => i.key === 'REFERENCES').state).toBe('PROVIDED')
+    // HR confirms the dates the supplier gave Northbend; nobody types them again.
+    expect((after.checklist as any[]).find((i) => i.key === 'INSURANCE')).toMatchObject({ validFrom: iso(-30), validUntil: iso(335) })
 
     // A paper from an application this firm did not make is refused.
     const other = await prisma.supplierRequest.findFirstOrThrow({ where: { name: 'Veritan Talent' } })

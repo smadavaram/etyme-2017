@@ -11,7 +11,7 @@ import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
-import { missingForApproval, missingSays, budgetField, defaultPanel } from './facts'
+import { missingForApproval, missingSays, budgetField, defaultPanel, nobodyToSendTo } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
   headlineRow, myRow, whoFor, whoWillBeAsked,
@@ -597,7 +597,9 @@ export default function RequisitionsPage() {
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
   /** The program: the desks per unit, the budgets and their owners. */
   const [team, setTeam] = useState<any | null>(null)
-  const [suppliers, setSuppliers] = useState<{ companyId: string; name: string }[]>([])
+  const [suppliers, setSuppliers] = useState<{ companyId: string; name: string; blocked?: boolean }[]>([])
+  // Whether the register was read: a refused read is not "none".
+  const [suppliersRead, setSuppliersRead] = useState(false)
   const [deciding, setDeciding] = useState<
     { req: Requisition; action: 'approve' | 'reject' | 'changes'; sourcing: boolean } | null
   >(null)
@@ -637,11 +639,17 @@ export default function RequisitionsPage() {
       .then(j => { if (j?.data?.company) setTeam(j.data) })
       .catch(() => {})
     fetch('/api/suppliers').then(r => r.json())
-      .then(j => setSuppliers(
-        (j?.data?.suppliers ?? []).map((s: any) => ({ companyId: s.companyId, name: s.name }))
-      ))
+      .then(j => {
+        if (!Array.isArray(j?.data?.suppliers)) return
+        setSuppliers(j.data.suppliers.map((s: any) => ({ companyId: s.companyId, name: s.name, blocked: !!s.blocked })))
+        setSuppliersRead(true)
+      })
       .catch(() => {})
   }, [])
+
+  /** "Nobody to send it to yet", on a published job, exactly as the job's own page says it. */
+  const nobodyFor = (r: Requisition) =>
+    nobodyToSendTo({ open: r.status === 'OPEN' && !r.archivedAt, suppliers: suppliersRead ? suppliers : null })
 
   /** Supplier names, so a cleared list reads as firms and not as ids. */
   const supplierNames: Record<string, string> = Object.fromEntries(
@@ -889,6 +897,13 @@ export default function RequisitionsPage() {
                   <div className="text-xs text-etyme-muted">
                     {r.counts.invitations} supplier{r.counts.invitations === 1 ? '' : 's'} asked
                     {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
+                    {/* The same sentence the job's own page says, beside a
+                        published job this client has nobody to send to. */}
+                    {nobodyFor(r) && (
+                      <> · {nobodyFor(r)!.says}{' '}
+                        <a href={nobodyFor(r)!.href} className="text-etyme-action hover:underline">{nobodyFor(r)!.link}</a>
+                      </>
+                    )}
                   </div>
                   {/* Change it, call it off, or put it away.
                       Editing used to hide the moment a job request went

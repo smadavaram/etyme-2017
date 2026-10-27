@@ -134,8 +134,15 @@ export async function earlierApplications(row: Row, firmId: string, email: strin
       clientName: o.company.name,
       at: String(a.submittedAt),
       docs: Array.isArray(a.docs)
-        ? a.docs.filter((d: any) => typeof d?.key === 'string').map((d: any) => ({ key: d.key, fileName: String(d.fileName ?? ''), fileUrl: d.fileUrl ?? null, at: d.at ?? null }))
+        ? a.docs.filter((d: any) => typeof d?.key === 'string').map((d: any) => ({
+            key: d.key, fileName: String(d.fileName ?? ''), fileUrl: d.fileUrl ?? null, at: d.at ?? null,
+            validFrom: typeof d.validFrom === 'string' ? d.validFrom : null, validUntil: typeof d.validUntil === 'string' ? d.validUntil : null,
+          }))
         : [],
+      legalName: typeof a.legalName === 'string' ? a.legalName : null,
+      address: typeof a.address === 'string' ? a.address : null,
+      website: typeof a.website === 'string' ? a.website : null,
+      experience: typeof a.experience === 'string' ? a.experience : null,
       references: Array.isArray(a.references) ? a.references : [],
       bank: a.bank?.last4 ? a.bank : null,
     })

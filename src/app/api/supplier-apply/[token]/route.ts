@@ -183,7 +183,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         return NextResponse.json({ error: { code: 'NOT_YOURS', message: `That paper is not one ${row.name} sent before. Pick the file again.` } }, { status: 422 })
       }
       if (docs.some((d) => d.key === r.key)) continue
-      docs.push({ key: r.key, fileName: kept.fileName, size: kept.bytes.byteLength, type: kept.contentType, bytes: Buffer.from(kept.bytes), validFrom: null, validUntil: null })
+      // The dates it typed for the first client travel with the paper, unless typed again now.
+      const typed = (body?.dates ?? {})[r.key] ?? {}
+      docs.push({
+        key: r.key, fileName: kept.fileName, size: kept.bytes.byteLength, type: kept.contentType, bytes: Buffer.from(kept.bytes),
+        validFrom: (typeof typed.validFrom === 'string' && typed.validFrom.trim()) || from.validFrom || null,
+        validUntil: (typeof typed.validUntil === 'string' && typed.validUntil.trim()) || from.validUntil || null,
+      })
     }
   }
 
@@ -216,7 +222,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ],
     submittedAt: now.toISOString(),
   }
-  const checklist = provideItems(ordered, provided, now)
+  // Dates typed for a certificate already on file (no new file this time)
+  // still reach the item, so HR confirms what the firm gave and never
+  // re-types it (second onboarding walk, 2026-10-27).
+  const typedDates = body?.dates && typeof body.dates === 'object' ? body.dates as Record<string, { validFrom?: unknown; validUntil?: unknown }> : {}
+  const day = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v.trim()) ? v.trim().slice(0, 10) : null)
+  const checklist = provideItems(ordered, provided, now).map((i) => {
+    const t = typedDates[i.key]
+    if (!t || i.by !== 'VENDOR' || i.state === 'HELD' || i.state === 'WAIVED') return i
+    return { ...i, validFrom: day(t.validFrom) ?? i.validFrom ?? null, validUntil: day(t.validUntil) ?? i.validUntil ?? null }
+  })
   await prisma.supplierRequest.update({
     where: { id: row.id },
     data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },

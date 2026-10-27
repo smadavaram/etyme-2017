@@ -397,3 +397,18 @@ export async function keepSupplierPaper(clientId: string, requestId: string, key
   })
   return `/api/documents/${id}/file`
 }
+
+// ── Which walk ────────────────────────────────────────────────────────
+
+import { walkFor, type Walk } from '@/lib/supplier-onboarding'
+
+/**
+ * The walk a supplier request at this firm takes: a client's four roles,
+ * or a vendor's papers check of its own sub-vendor. Read off the buying
+ * firm's kind — under a seat that is the client's, so an MSP acting for
+ * a client walks the client's four roles.
+ */
+export async function walkOf(companyId: string): Promise<Walk> {
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
+  return walkFor(c?.kind ?? null)
+}
