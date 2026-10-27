@@ -1,3 +1,4 @@
+import { minorFromWhole } from '@/lib/money'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
       // The ceiling, in the minor units every other figure on this
       // screen is in. `amount` is a decimal on the row because that is
       // what a purchase order is written in.
-      ceilingCents: Math.round(Number(o.amount) * 100),
+      ceilingCents: minorFromWhole(o.amount, o.currency),
       seller: o.issuedTo,
       client: o.issuedBy,
       /** Which side of this order the reader is on. */

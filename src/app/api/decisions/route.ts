@@ -26,7 +26,7 @@ import { receiptToPayDecision, heldReceiptDecision } from './receipt-to-pay'
 import { matchInvoices, payGate } from '@/lib/invoice-match'
 import { daysSays, hoursSays, agoSays, rollsOffTitle, signedWeekTitle } from './words'
 import { invoiceBetween, partiesOf, directionFrom } from '@/lib/money/invoice-parties'
-import { decimalToCents } from '@/lib/three-way-match'
+import { minorFromWhole } from '@/lib/money'
 import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptance'
 import { expensesWaitingOn } from '@/lib/money/expense-acceptance-read'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
@@ -38,6 +38,8 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
 import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'
+import { readerScope } from '@/app/api/program/reader-scope'
+import { regionContracts } from '@/lib/region-scope'
 
 /**
  * GET /api/decisions
@@ -100,6 +102,12 @@ export async function GET(request: NextRequest) {
   const now = new Date()
   const decisions: any[] = []
 
+  // A client's seat on a plant signs that plant's weeks (founder,
+  // 2026-10-27, the region map: a hiring manager's first screen is their
+  // plant). Every other seat reads its weeks as before. A seat on a region
+  // never reaches here: the region door refuses this route to it.
+  const plant = caller.company?.kind === 'CLIENT' ? await readerScope(caller, companyId) : null
+
   // ── 1. Timesheets pending approval ────────────────
   if (hasAnyPermission(caller.permissions, ['timesheets.approve'])) {
     // Two signatures, two desks. The sheet lives on the employer's
@@ -114,6 +122,7 @@ export async function GET(request: NextRequest) {
         // owner of a one-person firm was put on her own week and refused
         // when she pressed it (simulation, 2026-10-20).
         personId: { not: caller.person.id },
+        ...(plant ? { sellContract: regionContracts(plant.scope) } : {}),
         OR: [
           // The employer, accepting what it will pay for.
           { sellContract: { companyId }, employerAcceptedAt: null },
@@ -1087,7 +1096,7 @@ export async function GET(request: NextRequest) {
       const parties = partiesOf({ agreement: inv.engagement.msa, order: inv.workOrder })
       if (directionFrom(parties, companyId) !== 'PAYABLE') return []
       // Settled to the cent is not waiting, whatever the status says.
-      const outstandingCents = decimalToCents(inv.total) - decimalToCents(inv.paid)
+      const outstandingCents = minorFromWhole(inv.total, inv.currency) - minorFromWhole(inv.paid, inv.currency)
       if (outstandingCents <= 1) return []
       return [{ inv, outstandingCents, vendorName: parties.vendor?.name ?? 'Your supplier' }]
     })

@@ -19,6 +19,10 @@ import { deskItems, deskRows } from '@/app/dashboard/program/needs-you'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { formatDay } from '@/lib/format-date'
 import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
+import { regionContracts, regionRequirements } from '@/lib/region-scope'
+import { readerScope } from './reader-scope'
+import { spendOf } from './regions/rollup'
+import { reportingRatesFor, spendInReporting } from '@/lib/money/reporting-currency'
 
 /**
  * GET /api/program
@@ -62,6 +66,15 @@ export async function programView(
   const seatUnits = await unitsReachedBy(seat)
   const unitWall: Record<string, unknown> = seatUnits ? { orgUnitId: { in: seatUnits } } : {}
 
+  // A seat on a region reads that region's sites, and a seat on a plant
+  // that plant (founder, 2026-10-27, the region map; `./reader-scope`).
+  // Applied to every read below that names a person, a week or a job, so
+  // a regional manager's Today is their region and a hiring manager's is
+  // their plant. Null for every seat over the whole program.
+  const reach = await readerScope(caller, clientCompany.id)
+  const reachWall: Record<string, unknown> = reach ? regionContracts(reach.scope) : {}
+  const reachJobs: Record<string, unknown> = reach ? regionRequirements(reach.scope) : {}
+
   // Active contracts placed at this end client
   // Uses endClientFilter to include contracts where the paying customer differs
   // Inside a firm that separates its accounts, this is also filtered to
@@ -70,7 +83,7 @@ export async function programView(
   const wall = await accountFilterFor(acting)
 
   const everyRung = await prisma.sellContract.findMany({
-    where: andAll(endClientFilter(clientCompany.id), wall.where, unitWall, {
+    where: andAll(endClientFilter(clientCompany.id), wall.where, unitWall, reachWall, {
       state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     }),
     include: {
@@ -110,7 +123,7 @@ export async function programView(
   // chain is the rung below the one this client pays.
   const pendingTimesheets = await prisma.timesheet.findMany({
     where: {
-      sellContract: andAll(endClientFilter(clientCompany.id), unitWall),
+      sellContract: andAll(endClientFilter(clientCompany.id), unitWall, reachWall),
       status: 'SUBMITTED',
       clientApprovedAt: null,
     },
@@ -127,7 +140,7 @@ export async function programView(
 
   const pendingExpenses = await prisma.expense.findMany({
     where: {
-      sellContract: andAll(endClientFilter(clientCompany.id), unitWall),
+      sellContract: andAll(endClientFilter(clientCompany.id), unitWall, reachWall),
       status: 'SUBMITTED',
     },
     include: {
@@ -419,25 +432,29 @@ export async function programView(
   dayStart.setUTCHours(0, 0, 0, 0)
   const [signedToday, claimsToday, awardedToday, asksToday] = await Promise.all([
     prisma.timesheet.findMany({
-      where: { sellContract: endClientFilter(clientCompany.id), clientApprovedAt: { gte: dayStart } },
+      where: { sellContract: andAll(endClientFilter(clientCompany.id), reachWall), clientApprovedAt: { gte: dayStart } },
       select: { id: true, totalHours: true, clientApprovedAt: true, person: { select: { name: true } } },
       orderBy: { clientApprovedAt: 'desc' }, take: 10,
     }),
     prisma.expense.findMany({
-      where: { sellContract: endClientFilter(clientCompany.id), approvedAt: { gte: dayStart } },
+      where: { sellContract: andAll(endClientFilter(clientCompany.id), reachWall), approvedAt: { gte: dayStart } },
       select: { id: true, total: true, approvedAt: true, person: { select: { name: true } } },
       orderBy: { approvedAt: 'desc' }, take: 10,
     }),
     prisma.submission.findMany({
-      where: { toCompanyId: clientCompany.id, status: 'PLACED', decidedAt: { gte: dayStart } },
+      where: { toCompanyId: clientCompany.id, status: 'PLACED', decidedAt: { gte: dayStart }, ...(reach ? { requirement: reachJobs } : {}) },
       select: { id: true, decidedAt: true, person: { select: { name: true } }, requirement: { select: { title: true } } },
       orderBy: { decidedAt: 'desc' }, take: 10,
     }),
-    prisma.message.findMany({
-      where: { type: 'ASK', conversation: { companyId: clientCompany.id }, createdAt: { gte: dayStart } },
-      select: { id: true, createdAt: true, metadata: true },
-      orderBy: { createdAt: 'desc' }, take: 10,
-    }),
+    // An ask carries its names in a note with no site behind it, so a
+    // seat narrowed to a region or a plant is not shown the program's.
+    reach
+      ? Promise.resolve([] as { id: string; createdAt: Date; metadata: unknown }[])
+      : prisma.message.findMany({
+          where: { type: 'ASK', conversation: { companyId: clientCompany.id }, createdAt: { gte: dayStart } },
+          select: { id: true, createdAt: true, metadata: true },
+          orderBy: { createdAt: 'desc' }, take: 10,
+        }),
   ])
   const today = [
     ...signedToday.map((t) => ({ id: `t-${t.id}`, what: 'Hours signed', who: `${t.person.name}, ${Number(t.totalHours)}h`, at: t.clientApprovedAt!.toISOString() })),
@@ -474,6 +491,7 @@ export async function programView(
         { msa: { clientId: clientCompany.id } },
       ],
       ...unitWall,
+      ...reachJobs,
     },
     include: {
       submissions: {
@@ -505,7 +523,19 @@ export async function programView(
   // their top rung is a head and not a price, and `spend` counts them
   // apart rather than as a zero.
   const spend = programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))
-  const totalMonthlySpend = spend.totalMinor
+  // Per currency. A program on sites in eight countries bills in eight
+  // currencies, and minor units of a rupee added to cents of a dollar is
+  // a figure nobody can stand behind: where there is more than one, the
+  // single figure is null and the currencies are carried apart (By region
+  // shows each). One currency for the whole is money's to compute.
+  const byCurrency = spendOf(onSite.map((c) => ({ rateMinor: (c.billRate ?? 0) > 0 ? c.billRate : null, currency: c.billCurrency })))
+  const oneCurrency = byCurrency.spend.length <= 1
+  // Several currencies roll up through money's one door, at the rates the
+  // company set or the labeled sample, and the sentence says which; a
+  // currency with no rate leaves the figure null rather than guessed.
+  const rates = oneCurrency ? null : await reportingRatesFor(clientCompany.id, now)
+  const inOne = rates ? spendInReporting(byCurrency.spend, rates.reportingCurrency, rates, now) : null
+  const totalMonthlySpend = oneCurrency ? spend.totalMinor : inOne?.total?.minor ?? null
 
   // People, not rows: one person is one contractor however many lines
   // they hold. Somebody on site with a later line signed is on site.
@@ -582,6 +612,12 @@ export async function programView(
       mayRaise,
       /** True where the reader is in a seat this client granted another company. */
       seated: seat != null,
+      /**
+       * Where the reader's own seat reaches less than the whole program: a
+       * region ("Latin America") or a plant ("Dayton, Ohio"). Null for every
+       * seat over the whole program.
+       */
+      reach: reach ? { kind: reach.kind, label: reach.label } : null,
       /** Under a seat, what in this program needs somebody; null for the client's own seats. */
       programQueue,
       summary: {
@@ -595,6 +631,12 @@ export async function programView(
         notStarted: listedPeople.size - onSitePeople.size,
         vendors: vendors.length,
         monthlySpend: totalMonthlySpend,
+        /** The currency `monthlySpend` is in; null where it is null. */
+        monthlySpendCurrency: oneCurrency
+          ? (byCurrency.spend[0]?.currency ?? onSite[0]?.billCurrency ?? 'USD')
+          : inOne?.total ? inOne.reportingCurrency : null,
+        /** A month at current rates, per currency, for a program billed in several. */
+        monthlySpendByCurrency: byCurrency.spend,
         // What the figure rests on, as the one line under the figure
         // (founder, 2026-10-19: the paragraph under the six figures
         // becomes one line under the figure it explains). 160 hours a
@@ -602,7 +644,7 @@ export async function programView(
         // seats with no rate on the rung this client pays are named, so
         // the total of some seats is never presented as the total of all
         // of them (`spendLine`).
-        monthlySpendSays: spendLine(spend),
+        monthlySpendSays: inOne ? `${spendLine(spend)}. ${inOne.says}` : spendLine(spend),
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,

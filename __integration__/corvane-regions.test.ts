@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import type { NextRequest } from 'next/server'
 import { freshWorld, prisma, as, req } from './harness'
 import { GET as program } from '@/app/api/program/route'
+import { GET as timesheets } from '@/app/api/timesheets/route'
 import { GET as me } from '@/app/api/me/route'
 import { POST as demo } from '@/app/api/demo/route'
 import {
@@ -99,7 +100,9 @@ describe('a regional manager reads one region', () => {
   it('a regional manager is refused a page that reads every region, in a sentence naming the region, with the refused read logged first', async () => {
     as(corvaneSeatEmail('region-latam', DOMAIN))
     const before = await prisma.accessLog.count({ where: { allowed: false, reason: { contains: 'reads Latin America only' } } })
-    const res = await program(req('GET', '/api/program') as NextRequest)
+    // The program page narrows to a region since 2026-10-27 (demand's By
+    // region); the timesheets list still reads every region.
+    const res = await timesheets(req('GET', '/api/timesheets') as NextRequest)
     const body = await res.json()
     expect(res.status).toBe(403)
     expect(body.error.code).toBe('OUT_OF_REGION')

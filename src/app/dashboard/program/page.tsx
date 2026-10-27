@@ -6,13 +6,14 @@ import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named } from './needs-you'
 import { formatDay } from '@/lib/format-date'
 import { ExtendForm } from './extend-form'
+import { ByRegion } from './by-region'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -34,6 +35,8 @@ interface ProgramData {
   mayRaise?: boolean
   /** True where the reader is in a seat this client granted another company. */
   seated?: boolean
+  /** Where the reader's seat reaches a region or a plant, not the whole program. */
+  reach?: { kind: 'REGION' | 'SITE'; label: string } | null
   /**
    * Under a seat, what in this program needs somebody — the page's queue
    * in place of the reader's own firm's, which is never shown here.
@@ -46,7 +49,10 @@ interface ProgramData {
     /** Signed and not started yet. */
     notStarted?: number
     vendors: number
-    monthlySpend: number // cents, at 160 hours a month
+    /** Minor units of `monthlySpendCurrency`, at 160 hours a month; null where the program bills in several currencies. */
+    monthlySpend: number | null
+    monthlySpendCurrency?: string | null
+    monthlySpendByCurrency?: { currency: string; minor: number }[]
     /** The one line under that figure, saying what it rests on. From `lib/program-spend`. */
     monthlySpendSays?: string
     pendingApprovals: number
@@ -263,7 +269,17 @@ const TENURE_WORD: Record<string, string> = {
  * (prototypes/client-console.tsx) opens with one sentence, the things
  * that need you, and the picture underneath. So does this.
  */
+/**
+ * Today, or Today read by region (founder, 2026-10-27, the region map):
+ * one page, two tabs, picked by the address the menu's tab opens.
+ */
 export default function ProgramPage() {
+  const params = useSearchParams()
+  if (params.get('view') === 'regions') return <ByRegion />
+  return <ProgramToday />
+}
+
+function ProgramToday() {
   const [data, setData] = useState<ProgramData | null>(null)
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
@@ -296,6 +312,10 @@ export default function ProgramPage() {
       }
       const body = await readJson(res)
       setData(body.data)
+      // A seat on a region reads its region on By region; the queue and
+      // the tenure ledger read every region and refuse it, so they are
+      // not asked for here.
+      if (body.data?.reach?.kind === 'REGION') return
       // A seat in another company's program reads that program and
       // nothing else (founder, 2026-10-19). The decision queue answers for
       // the reader's own firm, so under a seat it is not read here at all:
@@ -436,6 +456,9 @@ export default function ProgramPage() {
     )
   }
 
+  // A regional manager's Today is their region.
+  if (data.reach?.kind === 'REGION') return <ByRegion />
+
   const s = data.summary
   const queue = decisions ?? []
   const urgent = queue.filter((d) => d.urgency === 'HIGH').length
@@ -468,14 +491,14 @@ export default function ProgramPage() {
       {/* ── The sentence ─────────────────────────── */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
         <div className="max-w-2xl">
-          <p className="eyebrow">Workforce · {data.client.name}</p>
+          <p className="eyebrow">Workforce · {data.client.name}{data.reach ? ` · ${data.reach.label}` : ''}</p>
           <h1 className="mt-1 font-serif text-3xl md:text-4xl leading-tight tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
             {decisions === null ? 'Reading what needs you…' : queueSays ? 'Your queue could not be read.' : said.says}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
             {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}
             {(s.notStarted ?? 0) > 0 ? `, and ${s.notStarted} more signed who ${s.notStarted === 1 ? 'has' : 'have'} not started yet` : ''}.
-            {' '}{compact(s.monthlySpend)} this month.
+            {' '}{spendThisMonth(s)}.
             {s.endingSoon > 0 && ` ${plural(s.endingSoon, 'contract')} ending within 60 days.`}
             {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the time limit.`}
             {urgent > 0 && ` ${urgent} of yours ${urgent === 1 ? 'has' : 'have'} waited more than five days.`}
@@ -566,6 +589,19 @@ export default function ProgramPage() {
       )}
     </>
   )
+}
+
+/**
+ * "$135,200 this month", or, for a program billed in several currencies,
+ * where each is: never a sum across currencies.
+ */
+function spendThisMonth(s: ProgramData['summary']): string {
+  const several = (s.monthlySpendByCurrency?.length ?? 0) > 1
+  if (s.monthlySpend != null) {
+    return `${compact(s.monthlySpend, s.monthlySpendCurrency ?? undefined)} this month${several ? `, from ${s.monthlySpendByCurrency!.length} currencies at the rates under This month` : ''}`
+  }
+  const n = s.monthlySpendByCurrency?.length ?? 0
+  return `A month’s spend is in ${n} currencies, each under By region`
 }
 
 function plural(n: number, one: string, many = `${one}s`): string {
@@ -762,7 +798,14 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
             line: 160 hours a month at current rates, not signed time, and
             any seat with no rate named (`spendLine`). The paragraph that
             sat under the six figures was this one fact said at length. */}
-        <Stat label="This month" value={compact(s.monthlySpend)} sub={s.monthlySpendSays ?? 'estimate from current rates, 160 hours a month, not signed time'} href="/dashboard/program/budget" />
+        <Stat
+          label="This month"
+          value={s.monthlySpend != null ? compact(s.monthlySpend, s.monthlySpendCurrency ?? undefined) : `in ${s.monthlySpendByCurrency?.length ?? 0} currencies`}
+          sub={s.monthlySpend != null
+            ? s.monthlySpendSays ?? 'estimate from current rates, 160 hours a month, not signed time'
+            : (s.monthlySpendByCurrency ?? []).map((x) => compact(x.minor, x.currency)).join(' · ')}
+          href="/dashboard/program/budget"
+        />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
         {/* A refused tenure read draws no tile: a dash over "reading"
             is a spinner that never ends. */}

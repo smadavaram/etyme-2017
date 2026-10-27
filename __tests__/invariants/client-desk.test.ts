@@ -76,7 +76,9 @@ describe('what the client desk is told', () => {
     expect(program).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
     expect(program).toContain("from '@/lib/program-spend'")
     expect(program).not.toContain('/ 100, // cents to dollars')
-    expect(page).toContain('compact(s.monthlySpend)')
+    // In its own currency (2026-10-27, the region map: a program billed
+    // in eight currencies is never one sum of their minor units).
+    expect(page).toContain('compact(s.monthlySpend, s.monthlySpendCurrency ?? undefined)')
   })
 
   it('a week the client has signed leaves the client’s approvals; it is the employer’s to accept now', () => {
@@ -184,11 +186,13 @@ describe('what the client desk is told', () => {
     // line under the figure it explains (`spendLine`).
     const spend = read('src/lib/program-spend.ts')
     expect(spend).toContain('`estimate from current rates, ${HOURS_PER_MONTH} hours a month, not signed time`')
-    expect(program).toContain('monthlySpendSays: spendLine(spend),')
+    // Where the program bills in several currencies the line also carries
+    // money's sentence on the rates the one figure used (2026-10-27).
+    expect(program).toContain('monthlySpendSays: inOne ? `${spendLine(spend)}. ${inOne.says}` : spendLine(spend),')
     // And the heads with no rate are named, so the total of some seats is
     // never presented as the total of all of them.
     expect(spend).toContain('if (spend.unpriced <= 0) return line')
-    expect(page).toContain('sub={s.monthlySpendSays ??')
+    expect(page).toContain("s.monthlySpendSays ?? 'estimate from current rates, 160 hours a month, not signed time'")
     // The paragraph has left the page.
     expect(page).not.toContain('monthlySpendBasis')
     expect(program).not.toContain('This month counts')
