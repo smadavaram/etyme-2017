@@ -2045,6 +2045,8 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
     (held.length ? heldAskSays(held) : null) ??
     sendAskSays(sendable) ??
     (near.length ? { says: planSays(near[0]), links: [{ text: near[0].name, href: near[0].href }] } : null) ??
+    // A new party's one next act, where nothing else is (./first-act).
+    (opts.greeting && opts.firstAct ? opts.firstAct : null) ??
     undefined
 
   // Then the facts, each read at the moment of the question. A one-person
@@ -2146,6 +2148,12 @@ export interface TodayOptions {
   client?: string | null
   /** The reader's own name: a notice about her own week says "your week", and never asks her to approve it. */
   self?: string | null
+  /**
+   * A new party's first act (`firstActFor` in ./first-act): recommended in
+   * the greeting only where nothing else is, so a decision waiting always
+   * comes first.
+   */
+  firstAct?: RichLine | null
 }
 
 /**

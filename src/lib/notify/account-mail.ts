@@ -27,6 +27,30 @@ export const ACCOUNT_MAIL_SUBJECTS = ['Confirm your email for Etyme', 'Set your 
 /** The line the door adds where it cut the one-time link out of the copy. */
 export const LINK_NOT_KEPT = '[the one-time link was in the email and is not kept]'
 
+/**
+ * The line the door adds where no email provider is set up here, so the
+ * link was kept on the row instead (onboarding walk, 2026-10-27): with no
+ * email key the token is hashed and the link kept nowhere, so a sign-up
+ * on a local walk or a first morning could not be rescued. Staff read the
+ * row and pass the link on. Only there: where a provider is set up, the
+ * link lives in the mailbox and nowhere else, sent or failed.
+ */
+export const LINK_KEPT = '[no email could be sent from here, so the one-time link is kept below for staff to pass on]'
+
+/** How the send went, in the delivery states the account emails write. */
+export type AccountMailState = 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
+
+/**
+ * The body an account email is recorded with: the lines, and the link only
+ * where no email provider is configured (`NOT_CONFIGURED`). Sent or failed,
+ * the link is cut out and the row says so, exactly as before.
+ */
+export function recordedBody(lines: readonly string[], link: string | null, state: AccountMailState): string {
+  const said = lines.join('\n')
+  if (!link) return said
+  return state === 'NOT_CONFIGURED' ? `${said}\n\n${LINK_KEPT}\n${link}` : `${said}\n\n${LINK_NOT_KEPT}`
+}
+
 export interface NoticeFacts {
   type: string
   title: string
@@ -37,7 +61,7 @@ export interface NoticeFacts {
 export function isAccountMail(n: NoticeFacts): boolean {
   if (n.type === ACCOUNT_MAIL) return true
   if (n.type !== 'SYSTEM') return false
-  return (ACCOUNT_MAIL_SUBJECTS as readonly string[]).includes(n.title) || n.body.includes(LINK_NOT_KEPT)
+  return (ACCOUNT_MAIL_SUBJECTS as readonly string[]).includes(n.title) || n.body.includes(LINK_NOT_KEPT) || n.body.includes(LINK_KEPT)
 }
 
 /**
@@ -51,6 +75,8 @@ export function bellShows() {
         { type: ACCOUNT_MAIL },
         { type: 'SYSTEM', title: { in: [...ACCOUNT_MAIL_SUBJECTS] } },
         { type: 'SYSTEM', body: { contains: LINK_NOT_KEPT } },
+        // A kept link is for staff to pass on, never a line in anybody's list.
+        { body: { contains: LINK_KEPT } },
       ],
     },
   }

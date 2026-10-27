@@ -316,7 +316,7 @@ describe('a bulk notice whose single write fails', () => {
 
 import { readFileSync as readSource } from 'node:fs'
 import { join as joinPath } from 'node:path'
-import { isAccountMail, bellShows, ACCOUNT_MAIL } from '@/lib/notify/account-mail'
+import { isAccountMail, bellShows, ACCOUNT_MAIL, LINK_KEPT } from '@/lib/notify/account-mail'
 
 describe('the bell and the account\'s own emails', () => {
   it('the bell never counts the account\'s own sign-up or reset emails as something to read', () => {
@@ -359,10 +359,11 @@ describe('the bell and the account\'s own emails', () => {
     expect(isAccountMail({ type: 'TIMESHEET', title: 'Set your Etyme password', body: '' })).toBe(false)
   })
 
-  it('the database filter hides the same three shapes the rule names', () => {
+  it('the database filter hides the same four shapes the rule names, a link kept for staff among them', () => {
     const f = bellShows()
-    expect(f.NOT.OR).toHaveLength(3)
+    expect(f.NOT.OR).toHaveLength(4)
     expect(f.NOT.OR[0]).toEqual({ type: ACCOUNT_MAIL })
+    expect(f.NOT.OR[3]).toEqual({ body: { contains: LINK_KEPT } })
   })
 })
 

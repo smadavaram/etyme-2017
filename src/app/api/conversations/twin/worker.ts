@@ -268,6 +268,12 @@ export interface WorkerFacts {
   limits?: Array<{ site: string; months: number; capMonths: number; past: boolean }>
   /** Parts of her record that could not be read just now; never said as "nothing". */
   unread: Array<'weeks' | 'papers' | 'interviews' | 'consent'>
+  /**
+   * Whether Your page is on, where she has one to read (off by default:
+   * nothing is public until she turns it on). Absent where not read, and
+   * then never said either way.
+   */
+  pageOn?: boolean | null
 }
 
 // ── The answer ───────────────────────────────────────────────────────
@@ -671,6 +677,25 @@ function nothingYet(f: WorkerFacts): string {
     : `Nothing on the record is about you as a worker yet. Ask ${f.seatAt ? `${possessive(f.seatAt)} owner` : 'your company’s owner'} for the work you need.`
 }
 
+const YOUR_PAGE = '/dashboard/my-page'
+
+/**
+ * A new worker's one next act (onboarding walk, 2026-10-27): Your page is
+ * off by default, so the greeting says it is off and offers to turn it on,
+ * with a paper to put on file beside it. Null for a firm's own employee,
+ * whose work comes from her firm, and where whether the page is on was
+ * not read.
+ */
+export function newWorkerAct(f: Pick<WorkerFacts, 'seat' | 'pageOn'>): RichLine | null {
+  if (f.seat !== 'CONSULTANT' || f.pageOn == null) return null
+  return f.pageOn
+    ? { says: 'Nobody has placed you yet. Your page is on, so firms can find you. Put a paper on file next.', links: [{ text: 'Put a paper on file', href: YOUR_PAPERWORK }] }
+    : {
+        says: 'Your page is off. Turn on Your page so firms can find you, and put a paper on file.',
+        links: [{ text: 'Turn on Your page', href: YOUR_PAGE }, { text: 'put a paper on file', href: YOUR_PAPERWORK }],
+      }
+}
+
 /** No week, placement, listing, paper or interview names her. */
 function noWork(f: WorkerFacts): boolean {
   return f.placements.length === 0 && f.sent.length === 0 && f.toFile.length === 0 && f.returned.length === 0 &&
@@ -757,7 +782,9 @@ export function workerToday(
   const booked = f.interviews.find((i) => i.booked)
   if (booked) lines.push({ says: `Your interview with ${booked.with} for ${booked.role} is booked. The time is on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
   if (first.length > shown.length) lines.push({ says: `${numberWord(first.length - shown.length)} more ${first.length - shown.length === 1 ? 'is' : 'are'} on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
-  if (noWork(f)) lines.push({ says: nothingYet(f) })
+  // A new worker is recommended her one next act; the old sentence stays only where that could not be read.
+  const firstAct = noWork(f) ? newWorkerAct(f) : null
+  if (noWork(f) && !firstAct) lines.push({ says: nothingYet(f) })
 
   const more = lines.slice(0, WORKER_LINES)
   const tail: RichLine[] = []
@@ -772,7 +799,7 @@ export function workerToday(
   return {
     kind: 'WORKER',
     ...(opts.greeting ? { greeting: true, where: chainsToSay(f.placements) } : {}),
-    ...(lead ? { recommend: recommendFor(lead) } : {}),
+    ...(lead ? { recommend: recommendFor(lead) } : firstAct ? { recommend: firstAct } : {}),
     says: `${needNamesSays([...first, ...later])} Checked just now.`,
     cards: shown,
     more,

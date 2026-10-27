@@ -650,7 +650,9 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(r.status).toBe(200)
     expect(r.body.data.answer.kind).toBe('WORKER')
     expect(r.body.data.answer.says).toBe('Nothing needs you today. Checked just now.')
-    expect(r.body.data.answer.more.map((l: any) => l.says)).toContain('Nobody has placed you yet. Firms find you through Your page.')
+    // Her page is off by default: she is told so, and offered to turn it on (onboarding walk, 2026-10-27).
+    expect(r.body.data.answer.recommend.says).toBe('Your page is off. Turn on Your page so firms can find you, and put a paper on file.')
+    expect(r.body.data.answer.more.map((l: any) => l.says)).not.toContain('Nobody has placed you yet. Firms find you through Your page.')
     expect(r.body.data.thread).toMatchObject({ saved: true, notKeptBecause: null, turns: [] })
     const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What am I owed?' })))
     expect(asked.body.data).toMatchObject({ kept: true, notKeptBecause: null })

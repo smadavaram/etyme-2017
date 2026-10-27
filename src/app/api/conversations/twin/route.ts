@@ -16,6 +16,8 @@ import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat
 import { programQueue } from '@/app/api/program/queue'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
+import { firstActFor, welcomeFor } from './first-act'
+import { firstActFacts } from './first-act-read'
 
 /**
  * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
@@ -371,10 +373,13 @@ export async function GET(request: NextRequest) {
     // The boundary line reads the company's own switch, so it says what is
     // true for this company; it is the greeting's last line.
     const model = modelState(modelSwitch.on, process.env)
-    const answer = await today(readersFor(caller, company.id, request, { seat: await seatOf(caller) }), {
+    // A new party's one next act, read off its own rows; a read that fails says nothing rather than a guess.
+    const firstAct = await firstActFacts(company.id, company.kind, who.party).then(firstActFor).catch(() => null)
+    const greeted = await today(readersFor(caller, company.id, request, { seat: await seatOf(caller) }), {
       greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client, ownWeek: week,
-      self: caller.person.name,
+      self: caller.person.name, firstAct,
     })
+    const answer = await withWelcome(caller, greeted, who.party, await thread)
     // Said, so read: the section empties itself on the next greeting.
     await Promise.all([
       markNoticesSeen(caller, notices.shown.map((n) => n.id)),
@@ -389,6 +394,24 @@ export async function GET(request: NextRequest) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
+}
+
+/**
+ * A colleague who came in by an invitation, and has asked nothing yet, is
+ * told where she is and what to do first (onboarding walk, 2026-10-27),
+ * as the first line under the headline. A demo seat, or one that keeps
+ * no thread, is never greeted as new: nothing says whether it asked.
+ */
+async function withWelcome(caller: Caller, answer: Answer, party: Party, thread: ThreadOut): Promise<Answer> {
+  if (answer.kind !== 'NEEDS' || !caller.company || caller.company.isDemo || !thread.saved) return answer
+  const ctx = await prisma.context.findUnique({ where: { id: caller.context.id }, select: { invitedAt: true } }).catch(() => null)
+  if (!ctx?.invitedAt) return answer
+  const line = welcomeFor({
+    company: caller.company.name, role: await roleOf(caller), invitedAt: ctx.invitedAt,
+    asked: thread.earlier || thread.turns.length > 0, recommended: Boolean(answer.recommend), now: new Date(),
+    today: party === 'CLIENT' ? '/dashboard/program' : '/dashboard',
+  })
+  return line ? { ...answer, more: [line, ...(answer.more ?? [])] } : answer
 }
 
 /**

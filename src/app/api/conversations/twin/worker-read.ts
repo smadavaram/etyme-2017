@@ -116,6 +116,11 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
         select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true } } },
       })
     : Promise.resolve([])
+  // Whether Your page is on: her own profile row, by her person id.
+  const pageRead = prisma.consultantProfile
+    .findUnique({ where: { personId: me }, select: { pageLiveAt: true } })
+    .then((p) => (p ? p.pageLiveAt !== null : false))
+    .catch(() => null)
   const employersRead = benches
     ? prisma.context.findMany({
         where: { personId: me, type: 'EMPLOYEE', revokedAt: null, company: { kind: { not: 'CONSULTANT_CORP' } } },
@@ -336,5 +341,6 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
       employers: [...new Set(employers)],
     },
     unread,
+    pageOn: await pageRead,
   }
 }
