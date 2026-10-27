@@ -810,3 +810,52 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   The copy can still be found on the onboarding request. The fix is to
   carry the item's file onto those two columns at the same yes. That is
   demand's route; no schema is needed. Not built yet.
+
+## Papers and pay per country — etyme-regulatory (2026-10-27)
+
+`src/lib/document-stages/countries.ts`: one row per country on the
+region drawing, each line with its source, the day it was read and
+whether it was confirmed. A screen reads `shownAt`, which leaves out
+every unconfirmed line. What the founder should know:
+
+1. **Not confirmed, so not shown.** Each was researched on 2026-10-27
+   and could not be stood behind:
+   - `IN.rule` — the drawing's "contract labour licence for the plant"
+     is the Contract Labour Act 1970, which the OSH Code 2020 replaced on
+     21 Nov 2025. The Code gives a five-year or a work-specific license
+     (and, per the government, one PAN-India license). The Code's own
+     sections, its worker threshold and the state rules under it were not
+     read: India Code timed out or returned an error page.
+   - `IN.paper.CONTRACTOR_LICENSE` — the same reason.
+   - `IN.paper.PF_ESI_NUMBERS` — the Code on Social Security 2020 was
+     not read; when enrollment falls due is unconfirmed.
+   - `IN.pay` — the Code on Wages 2019 s.17 was not reachable. The
+     government release of 21 Nov 2025 says "salary by the 7th" under its
+     IT and ITES heading only. CLAUDE.md's 2026-09-26 research (7th, 10th
+     at 1,000 or more) was not re-read. So India shows nothing yet.
+   - `MX.paper.IMSS_NUMBER` — the Ley del Seguro Social was not read.
+     The registration is believed due within five working days of the
+     start, not before day one as the drawing says.
+   - `CO.paper.SOCIAL_SECURITY_ENROLLMENT` — Ley 100 de 1993 was not
+     read; the Colombian government sites refused the connection.
+2. **Six of the drawing's lines were corrected by the law, not dropped.**
+   Belgium has six allowed reasons, not three. Northern Ireland's
+   week-12 right is equal basic pay *and conditions*. Colombia's 6 + 6
+   months applies to a rise in work only; covering a leave runs with the
+   leave. Brazil adds a 90-day break before the same client, and a new
+   contract inside it makes the worker the client's employee. Vietnam's
+   12 months is per lease, and the translation does not say whether a
+   new lease restarts it. The US time limit is the client's own rule.
+3. **Pay defaults are checked as lawful, not as common.** Each pay line
+   is confirmed against what the law allows. That the default is also
+   what workers there are commonly paid on is the drawing's claim and is
+   not sourced.
+4. **Vietnam was read in translation.** LuatVietnam's English text of
+   the Official Gazette; the official text is Vietnamese and its effect
+   status sits behind a subscription.
+5. **Nothing reads it yet.** `timeLimitAt` exposes Brazil's, Colombia's
+   and Vietnam's limits for the time-limit rule; it is not wired, so a
+   client is still held only to its own TENURE_CAP and BREAK_IN_SERVICE.
+   No paper here is in any required set yet; making them the floor for a
+   site in that country is the next piece, after the seeded multi-site
+   client lands.
