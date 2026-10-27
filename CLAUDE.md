@@ -1907,6 +1907,15 @@ follows:
   seat and the rollup wait for a paying client with sites in two
   regions. The rules per country shown on it are research, confirmed by
   regulatory before any is built.
+- **Corrected by the founder, 2026-10-27:** *"This can be gold. I
+  haven't tested, but it was easy to make, but [a] decision."* The
+  no-CFO-page verdict above rests on invented buyers, which is the
+  borrowed confidence this file warns about. So the verdict is
+  **undecided, not rejected**: the drawing
+  (https://claude.ai/artifact/52bAUEWcdtehZHJw2r8kmo) is kept and shown
+  to three real people who hold those jobs, one question each ("would
+  you open this on a Monday, and what would you do after?"), and the
+  build or the cut follows their answers, not the simulation's.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
