@@ -1596,3 +1596,255 @@ export function adverseStep(input: AdverseInput, on: Date): AdverseVerdict {
 
   return { ok: false, status: 422, code: 'VALIDATION', field: 'step', message: 'Say which step this is: the pre-adverse action notice, the final notice, or a decision not to act on the report.' }
 }
+
+// ── What a desk's own check must carry before it is on file ────────────
+//
+// Found by the release walk, 2026-10-27, in a client's supplier
+// onboarding: Procurement ticked the Dun & Bradstreet report "On file" in
+// one click with no file behind it, and HR ticked "Vendor screening
+// (sanctions, litigation)" "On file" with no screening company, no
+// reference and no date. Both read as green on the four-desk walk, and
+// neither said anything a reader could check.
+//
+// The 2026-09-22 rule, applied to the firm rather than the person:
+//
+//   **A verdict a third party renders** — a sanctions and litigation
+//   screening — is recorded the way it came back: their name, their
+//   reference, their date and their word. A desk that clicks "on file"
+//   with none of those has written a box somebody ticked, and a reader
+//   cannot tell it from a report.
+//
+//   **A document somebody else issued** — a D&B report — is held as the
+//   file, or at least as the report's number and the date printed on it,
+//   so somebody can go and pull the same report again.
+//
+//   **A reference taken up** is a conversation, and what is on file is
+//   who was spoken to and on what day.
+//
+// One list here, read by `lib/supplier-onboarding`'s `markItem` (demand)
+// before an item goes to HELD, so the walk screen and the rule cannot
+// disagree. Pure: no database, the clock handed in.
+
+/** The three shapes a desk's own check comes in. */
+export type DeskEvidenceShape =
+  /** A screening company's (or a published list's) result, recorded verbatim. */
+  | 'PROVIDER_VERDICT'
+  /** A report somebody else issued: the file, or its number and date. */
+  | 'ISSUED_REPORT'
+  /** A reference spoken to: who and when. */
+  | 'CONTACTED'
+
+/** What the desk typed or attached when it said "on file". */
+export interface DeskEvidence {
+  /** Where the kept file is, through the one file door. */
+  fileUrl?: string | null
+  /** The screening company, or the list searched. */
+  provider?: string | null
+  /** Their case or report reference. */
+  reference?: string | null
+  /** The day on the report, or the day the reference was spoken to. YYYY-MM-DD. */
+  on?: string | null
+  /** The provider's word: CLEAR · CONDITIONAL · FLAGGED · FAILED. */
+  outcome?: string | null
+  /** The report's own number (a D&B report number, or the firm's D-U-N-S). */
+  reportNumber?: string | null
+  /** The person contacted, as a name a reader could ring back. */
+  contactName?: string | null
+}
+
+export interface DeskEvidenceField {
+  name: keyof DeskEvidence
+  label: string
+  help: string
+}
+
+export interface DeskEvidenceNeeds {
+  key: string
+  shape: DeskEvidenceShape
+  /** The fields a screen draws beside "On file", in order. */
+  fields: DeskEvidenceField[]
+  /** One line under the item saying what "on file" means for it. */
+  says: string
+}
+
+/** The provider's words a screening result may carry. ORDERED is not one: it has not come back. */
+const SCREENING_WORD: Record<string, string> = {
+  CLEAR: 'clear', CONDITIONAL: 'clear with conditions', FLAGGED: 'it flagged', FAILED: 'not clear',
+}
+
+export const SCREENING_OUTCOMES = ['CLEAR', 'CONDITIONAL', 'FLAGGED', 'FAILED'] as const
+
+const DESK_EVIDENCE: Record<string, DeskEvidenceNeeds> = {
+  VENDOR_SCREENING: {
+    key: 'VENDOR_SCREENING',
+    shape: 'PROVIDER_VERDICT',
+    fields: [
+      { name: 'provider', label: 'Screening company', help: 'Who ran it, or the list searched, as written on the result.' },
+      { name: 'reference', label: 'Their reference', help: 'The case or report number on the result.' },
+      { name: 'on', label: 'Date on the result', help: 'The day the result was issued.' },
+      { name: 'outcome', label: 'What it says', help: 'Clear, clear with conditions, flagged, or not clear — their word, not ours.' },
+    ],
+    says: 'On file means the screening company’s result: its name, its reference, its date and its word.',
+  },
+  DNB_REPORT: {
+    key: 'DNB_REPORT',
+    shape: 'ISSUED_REPORT',
+    fields: [
+      { name: 'fileUrl', label: 'The report', help: 'Attach the report as Dun & Bradstreet issued it.' },
+      { name: 'reportNumber', label: 'Report number or D-U-N-S', help: 'Where no file is attached, the number on the report.' },
+      { name: 'on', label: 'Date on the report', help: 'Where no file is attached, the day printed on the report.' },
+    ],
+    says: 'On file means the report itself, or its number and the date printed on it.',
+  },
+  REFERENCE_CHECK: {
+    key: 'REFERENCE_CHECK',
+    shape: 'CONTACTED',
+    fields: [
+      { name: 'contactName', label: 'Who you spoke to', help: 'The name, and the firm they are at.' },
+      { name: 'on', label: 'When', help: 'The day you spoke to them.' },
+    ],
+    says: 'On file means who was contacted, and on what day.',
+  },
+}
+
+/** What "on file" needs for this checklist item, or null where the item has no rule here. */
+export function deskEvidenceFor(itemKey: string): DeskEvidenceNeeds | null {
+  return DESK_EVIDENCE[itemKey] ?? null
+}
+
+export interface DeskEvidenceShortfall {
+  code: 'NEEDS_PROVIDER_VERDICT' | 'NOT_BACK_YET' | 'NEEDS_REPORT' | 'NEEDS_CONTACT' | 'DATE_AHEAD' | 'BAD_DATE'
+  /** The first field to fill, so a screen can put the cursor there. */
+  field: keyof DeskEvidence
+  message: string
+}
+
+function filled(v: string | null | undefined): boolean {
+  return typeof v === 'string' && v.trim().length > 0
+}
+
+/** A YYYY-MM-DD day as a UTC midnight, or null where it is not one. */
+function dayOf(v: string | null | undefined): Date | null {
+  if (!filled(v)) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v!.trim())
+  if (!m) return null
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  return Number.isNaN(d.getTime()) || d.getUTCDate() !== Number(m[3]) ? null : d
+}
+
+/** True where `d` is a day after `on`, counted in whole UTC days. */
+function ahead(d: Date, on: Date): boolean {
+  const today = Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate())
+  return d.getTime() > today
+}
+
+/**
+ * Why this item may not be put on file with this evidence, or null where
+ * it may. Only asked when the desk is marking the item on file: waiving
+ * still needs only its reason, and unmarking needs nothing.
+ *
+ * An item with no rule here returns null, so a client's own item is
+ * never refused by a list it is not on.
+ */
+export function deskEvidenceShortfall(itemKey: string, ev: DeskEvidence, on: Date): DeskEvidenceShortfall | null {
+  const needs = deskEvidenceFor(itemKey)
+  if (!needs) return null
+
+  const date = dayOf(ev.on)
+  const badDate = filled(ev.on) && !date
+  const dateAhead = !!date && ahead(date, on)
+
+  switch (needs.shape) {
+    case 'PROVIDER_VERDICT': {
+      const outcome = (ev.outcome ?? '').trim().toUpperCase()
+      if (outcome === 'ORDERED') {
+        return {
+          code: 'NOT_BACK_YET', field: 'outcome',
+          message: 'The vendor screening has not come back, so nothing is on file yet. Record it when the screening company sends the result.',
+        }
+      }
+      const missing: [keyof DeskEvidence, string][] = []
+      if (!filled(ev.provider)) missing.push(['provider', 'the screening company’s name'])
+      if (!filled(ev.reference)) missing.push(['reference', 'their reference'])
+      if (!filled(ev.on)) missing.push(['on', 'the date on the result'])
+      if (!(SCREENING_OUTCOMES as readonly string[]).includes(outcome)) missing.push(['outcome', 'what the result says'])
+      if (missing.length > 0) {
+        return {
+          code: 'NEEDS_PROVIDER_VERDICT', field: missing[0][0],
+          message:
+            `A vendor screening is on file only as the screening company’s result. Enter ${listOf(missing.map((m) => m[1]))}. ` +
+            `The screening company renders it; this desk records what came back.`,
+        }
+      }
+      break
+    }
+    case 'ISSUED_REPORT': {
+      if (filled(ev.fileUrl)) {
+        if (badDate) break
+        if (dateAhead) break
+        return null
+      }
+      if (!filled(ev.reportNumber) || !filled(ev.on)) {
+        return {
+          code: 'NEEDS_REPORT', field: filled(ev.reportNumber) ? 'on' : 'fileUrl',
+          message:
+            'A D&B report is on file only as the report itself, or its number and the date printed on it. ' +
+            'Attach the report, or enter its number and date.',
+        }
+      }
+      break
+    }
+    case 'CONTACTED': {
+      if (!filled(ev.contactName) || !filled(ev.on)) {
+        return {
+          code: 'NEEDS_CONTACT', field: filled(ev.contactName) ? 'on' : 'contactName',
+          message: 'References are on file only as who was contacted and on what day. Enter the name and the date.',
+        }
+      }
+      break
+    }
+  }
+
+  if (badDate) {
+    return { code: 'BAD_DATE', field: 'on', message: 'Enter the date as a day on the calendar, such as 2026-03-12.' }
+  }
+  if (dateAhead) {
+    return { code: 'DATE_AHEAD', field: 'on', message: 'That date has not happened yet. Enter the day printed on it, or the day it happened.' }
+  }
+  return null
+}
+
+function listOf(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+/**
+ * The line a reader sees under an item on file, in the words that came
+ * back. Null where the item has no rule here or nothing is recorded.
+ *
+ *   Dow Jones reported clear on Mar 12, 2026, reference 4471.
+ *   D&B report 07-112-4471, dated Mar 2, 2026.
+ *   Spoke to Dana Whitfield at Northbend on Mar 9, 2026.
+ */
+export function deskEvidenceSays(itemKey: string, ev: DeskEvidence): string | null {
+  const needs = deskEvidenceFor(itemKey)
+  if (!needs) return null
+  const date = dayOf(ev.on)
+  const when = date ? plainDate(date.toISOString()) : null
+  switch (needs.shape) {
+    case 'PROVIDER_VERDICT': {
+      if (!filled(ev.provider)) return null
+      const word = SCREENING_WORD[(ev.outcome ?? '').trim().toUpperCase()]
+      if (!word) return null
+      const ref = filled(ev.reference) ? `, reference ${ev.reference!.trim()}` : ''
+      return `${ev.provider!.trim()} reported ${word}${when ? ` on ${when}` : ''}${ref}.`
+    }
+    case 'ISSUED_REPORT': {
+      if (filled(ev.reportNumber)) return `D&B report ${ev.reportNumber!.trim()}${when ? `, dated ${when}` : ''}${filled(ev.fileUrl) ? ', file kept' : ''}.`
+      return filled(ev.fileUrl) ? `D&B report kept as a file${when ? `, dated ${when}` : ''}.` : null
+    }
+    case 'CONTACTED':
+      return filled(ev.contactName) ? `Spoke to ${ev.contactName!.trim()}${when ? ` on ${when}` : ''}.` : null
+  }
+}
