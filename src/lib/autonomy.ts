@@ -797,6 +797,13 @@ export interface TwinAct {
   decides: boolean
   /** Prepares something a person may later decide. */
   drafts: boolean
+  /**
+   * The acts whose questions this one replaces (2026-10-27). The twin's own
+   * earlier questions of these acts on a record are not drafts of it: a
+   * receipt the twin once asked a person to approve may still be put to a
+   * person to pay.
+   */
+  replaces?: readonly string[]
   /** Never leaves the never tier. */
   floor: boolean
   /** The permission of the desk that answers when the act needs approval. */
@@ -862,6 +869,7 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
     approverNeeds: 'payments.record',
     byHand: 'Pay it from the invoice receipt\u2019s page.',
+    replaces: ['invoice_receipt.approve'],
   },
   'tenure.warning.notify_supplier': {
     kinds: ['PROGRAM_MANAGER'],

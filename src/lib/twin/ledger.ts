@@ -252,6 +252,13 @@ export async function requestApproval(
 export interface ActInput {
   /** The company whose program the twin works in. */
   companyId: string
+  /**
+   * The twin's own open question this ask is put in place of, by its ledger
+   * entry id: the nightly run asking a receipt's pay question once more the
+   * day before it falls due (lib/twin/run). That one question does not count
+   * as the twin having drafted the record; the run closes it once this is asked.
+   */
+  replacesQuestion?: string | null
   twin?: TwinKindName
   /** A name from `TWIN_ACTS` in lib/autonomy. */
   action: string
@@ -392,15 +399,27 @@ async function refuse(base: Omit<LedgerEntry, 'outcome'>, says: string, rule: st
   }
 }
 
-/** Did the twin itself draft or ask for this record? Then it may not decide it. */
-async function twinDrafted(companyId: string, entityType: string, entityId: string): Promise<boolean> {
+/**
+ * Did the twin itself draft or ask for this record? Then it may not decide it.
+ *
+ * Two of its own questions are not drafts (2026-10-27): one of an act this
+ * act replaces (`TWIN_ACTS[action].replaces`) — asking a person to pay a
+ * receipt it once asked a person to approve is the question put again, not
+ * the twin deciding what it drew up (found on production: the old approve
+ * question refused every pay question) — and the one question the caller
+ * names as the one this ask replaces (`replacesQuestion`). Any other open
+ * question of its own, the same act asked twice included, still refuses.
+ */
+async function twinDrafted(companyId: string, entityType: string, entityId: string, action: string, replacesQuestion?: string | null): Promise<boolean> {
   const drafting = Object.keys(TWIN_ACTS).filter((a) => TWIN_ACTS[a].drafts)
+  const replaced = [...(TWIN_ACTS[action]?.replaces ?? [])]
   const prior = await prisma.twinAction.findFirst({
     where: {
       companyId, actorType: 'TWIN', entityType, entityId,
+      ...(replacesQuestion ? { id: { not: replacesQuestion } } : {}),
       OR: [
         { outcome: 'PERFORMED', action: { in: drafting } },
-        { outcome: 'AWAITING_APPROVAL' },
+        { outcome: 'AWAITING_APPROVAL', action: { notIn: replaced } },
       ],
     },
     select: { id: true },
@@ -472,7 +491,7 @@ async function actOnce(input: ActInput): Promise<ActResult> {
     if (input.requestedByPersonId && input.requestedByPersonId === input.authority.personId) {
       return no('OWN_AUTHORITY', 'Segregation of duties: nobody signs their own')
     }
-    if (await twinDrafted(input.companyId, input.entity.type, input.entity.id)) {
+    if (await twinDrafted(input.companyId, input.entity.type, input.entity.id, input.action, input.replacesQuestion)) {
       return no('OWN_DRAFT', 'Segregation of duties: the twin that asks never approves')
     }
   }
@@ -985,6 +1004,8 @@ export async function closeOvertaken(
     entity: { type: string; id: string }
     /** Only questions about this act; every open question on the record where omitted. */
     action?: string
+    /** A question to leave open: the one just asked in its place. */
+    keepTwinActionId?: string
     /** What overtook it, as a sentence: "Sent from the Bills page by Dana Whitfield." */
     what: string
     by: { personId: string | null; name: string }
@@ -997,6 +1018,7 @@ export async function closeOvertaken(
     where: {
       companyId: a.companyId, decision: 'PENDING',
       twinAction: { companyId: a.companyId, entityType: a.entity.type, entityId: a.entity.id, ...(a.action ? { action: a.action } : {}) },
+      ...(a.keepTwinActionId ? { twinActionId: { not: a.keepTwinActionId } } : {}),
     },
     select: {
       id: true,

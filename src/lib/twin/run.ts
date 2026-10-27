@@ -169,6 +169,48 @@ async function approveQuestions(companyId: string, invoiceIds: readonly string[]
   return { open, declined }
 }
 
+const PAY_ASKED_AGAIN =
+  'Asked again the day before it falls due: the earlier question was put off, and this one replaces it.'
+
+/**
+ * Which receipts hold a `pay` question, by its state (2026-10-27): open
+ * ones with the day they were asked, and ones a person said no to. "Not
+ * now" changes nothing on the record, so a question put off reads open.
+ */
+async function payQuestions(companyId: string, invoiceIds: readonly string[]): Promise<{ open: Map<string, { since: Date; entryId: string }>; declined: Set<string> }> {
+  const open = new Map<string, { since: Date; entryId: string }>()
+  const declined = new Set<string>()
+  if (invoiceIds.length === 0) return { open, declined }
+  const rows = await prisma.twinApproval.findMany({
+    where: {
+      companyId, decision: { in: ['PENDING', 'REJECTED'] },
+      twinAction: { companyId, action: RECEIPT_PAY, entityType: 'Invoice', entityId: { in: [...invoiceIds] } },
+    },
+    select: { decision: true, requestedAt: true, twinActionId: true, twinAction: { select: { entityId: true } } },
+  })
+  for (const r of rows) {
+    if (r.decision === 'REJECTED') declined.add(r.twinAction.entityId)
+    else open.set(r.twinAction.entityId, { since: r.requestedAt, entryId: r.twinActionId })
+  }
+  return { open, declined }
+}
+
+/** Midnight UTC of the day before a date. */
+function dayBefore(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - 1))
+}
+
+/**
+ * Whether a receipt's open pay question is asked once more tonight: it was
+ * asked before the day before the receipt falls due, and that day has come.
+ * Pure. Never a third time: the second question has its own key.
+ */
+export function askPayAgain(o: { openSince: Date | null | undefined; dueAt: Date | null | undefined; now: Date }): boolean {
+  if (!o.openSince || !o.dueAt) return false
+  const eve = dayBefore(o.dueAt)
+  return o.now.getTime() >= eve.getTime() && o.openSince.getTime() < eve.getTime()
+}
+
 export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
   const surface = opts.surface ?? 'CRON'
   const authority = await programManagerAt(companyId)
@@ -209,6 +251,11 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
   const asksPay = tierIn(memo.contract, RECEIPT_PAY) !== 'NEVER'
   const toPay = verdicts.filter((v) => v.verdict === 'CLEAN' && v.payable).map((v) => v.invoiceId)
   const approves = asksPay ? await approveQuestions(companyId, toPay) : { open: new Set<string>(), declined: new Set<string>() }
+  const pays = asksPay ? await payQuestions(companyId, toPay) : { open: new Map<string, { since: Date; entryId: string }>(), declined: new Set<string>() }
+  const dueAt = new Map(
+    toPay.length === 0 ? [] : (await prisma.invoice.findMany({ where: { id: { in: toPay } }, select: { id: true, dueAt: true } })).map((i) => [i.id, i.dueAt])
+  )
+  const now = opts.now ?? new Date()
   for (const v of verdicts) {
     const supplier = suppliers.get(v.invoiceId) ?? null
     const entity = { type: 'Invoice', id: v.invoiceId, partyCompanyIds: supplier ? [companyId, supplier] : [companyId] }
@@ -223,6 +270,8 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
     // that already holds an `approve` question gets its `pay` question once.
     if (asksPay && v.verdict === 'CLEAN' && v.payable && (recorded.outcome === 'PERFORMED' || recorded.outcome === 'ALREADY')) {
       if (approves.declined.has(v.invoiceId)) continue
+      // A no to paying, with its reason, is a no: never asked again.
+      if (pays.declined.has(v.invoiceId)) continue
       const asked = tally(await act({
         companyId, action: RECEIPT_PAY, entity, rule: v.ruleCited, rationale: v.rationale,
         surface, authority, payload, dedupKey: v.invoiceId, memo,
@@ -235,6 +284,23 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
           companyId, entity: { type: 'Invoice', id: v.invoiceId }, action: RECEIPT_APPROVE,
           what: APPROVE_SUPERSEDED, by: { personId: null, name: 'the twin' }, surface,
         })).catch((err) => reportError(`twin/approve-superseded ${v.invoiceId}`, err, { companyId }).catch(() => undefined))
+      }
+      // Put off with Not now, the question is asked once more the day
+      // before the receipt falls due (coordinator's call, 2026-10-27,
+      // reversible by the founder), and the earlier one closes, so the
+      // person still reads one card for the receipt.
+      const open = pays.open.get(v.invoiceId)
+      if (asked.outcome === 'ALREADY' && open && askPayAgain({ openSince: open.since, dueAt: dueAt.get(v.invoiceId), now })) {
+        const again = tally(await act({
+          companyId, action: RECEIPT_PAY, entity, rule: v.ruleCited, rationale: v.rationale, replacesQuestion: open.entryId,
+          surface, authority, payload: { ...payload, askedAgain: true }, dedupKey: `${v.invoiceId}:day-before-due`, memo,
+        }))
+        if (again.outcome === 'AWAITING_APPROVAL') {
+          await prisma.$transaction((tx) => closeOvertaken(tx, {
+            companyId, entity: { type: 'Invoice', id: v.invoiceId }, action: RECEIPT_PAY, keepTwinActionId: again.entryId,
+            what: PAY_ASKED_AGAIN, by: { personId: null, name: 'the twin' }, surface,
+          })).catch((err) => reportError(`twin/pay-asked-again ${v.invoiceId}`, err, { companyId }).catch(() => undefined))
+        }
       }
       continue
     }

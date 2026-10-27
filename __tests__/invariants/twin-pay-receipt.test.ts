@@ -308,7 +308,7 @@ describe('one card per receipt: pay replaces approve on a supplier’s invoice',
     T().twinAction.push(
       { id: 'rec-old', companyId: CLIENT, action: 'invoice_receipt.record', dedupKey: `${RECEIPT}:CLEAN`, entityType: 'Invoice', entityId: RECEIPT, outcome: 'PERFORMED' },
       {
-        id: 'ask-old', companyId: CLIENT, twinKind: 'PROGRAM_MANAGER', action: 'invoice_receipt.approve', dedupKey: RECEIPT, entityType: 'Invoice', entityId: RECEIPT,
+        id: 'ask-old', companyId: CLIENT, actorType: 'TWIN', twinKind: 'PROGRAM_MANAGER', action: 'invoice_receipt.approve', dedupKey: RECEIPT, entityType: 'Invoice', entityId: RECEIPT,
         outcome: 'AWAITING_APPROVAL', partyCompanyIds: [CLIENT, 'pinnacle'], onAuthorityOfRole: 'Program Manager', authorityPersonId: 'dana',
         roleContractId: null, roleContractVersion: 0, tier: 'NEEDS_APPROVAL', ruleCited: 'r', rationale: 'r',
       },
@@ -327,6 +327,47 @@ describe('one card per receipt: pay replaces approve on a supplier’s invoice',
     await runTwin(CLIENT)
     expect(asked('invoice_receipt.pay')).toHaveLength(1)
     expect(T().twinAction.filter((e) => e.outcome === 'OVERTAKEN')).toHaveLength(1)
+  })
+
+  it('a receipt the twin once asked to approve, whether the question is open or answered yes, still gets its pay question once on the next night', async () => {
+    for (const decision of ['PENDING', 'APPROVED']) {
+      fresh()
+      anOpenApproveQuestion()
+      T().twinApproval[0].decision = decision
+      await runTwin(CLIENT)
+      expect(asked('invoice_receipt.pay').map((q) => q.decision), decision).toEqual(['PENDING'])
+      expect(T().twinAction.filter((e) => e.action === 'invoice_receipt.pay' && e.outcome === 'REFUSED'), decision).toEqual([])
+      await runTwin(CLIENT)
+      expect(asked('invoice_receipt.pay'), decision).toHaveLength(1)
+    }
+  })
+
+  it('a receipt put off with Not now is asked once more the day before it falls due, and a no is never asked again', async () => {
+    const due = new Date(Date.UTC(2026, 10, 20))
+    T().invoice = [{ id: RECEIPT, dueAt: due }]
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 1)) })
+    const first = asked('invoice_receipt.pay')
+    expect(first.map((q) => q.decision)).toEqual(['PENDING'])
+    first[0].requestedAt = new Date(Date.UTC(2026, 10, 1))
+
+    // Not now changes nothing on the record; nights before the eve ask nothing new.
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 10)) })
+    expect(asked('invoice_receipt.pay')).toHaveLength(1)
+
+    // The day before it falls due: asked once more, the earlier question closed.
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 19, 6)) })
+    expect(asked('invoice_receipt.pay').map((q) => q.decision).sort()).toEqual(['OVERTAKEN', 'PENDING'])
+    // Never a third time.
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 20, 6)) })
+    expect(asked('invoice_receipt.pay')).toHaveLength(2)
+
+    // A no, with its reason, is a no.
+    fresh()
+    T().invoice = [{ id: RECEIPT, dueAt: due }]
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 1)) })
+    Object.assign(asked('invoice_receipt.pay')[0], { decision: 'REJECTED', requestedAt: new Date(Date.UTC(2026, 10, 1)) })
+    await runTwin(CLIENT, { now: new Date(Date.UTC(2026, 10, 19, 6)) })
+    expect(asked('invoice_receipt.pay')).toHaveLength(1)
   })
 
   it('a receipt somebody already said no to approving is not asked again as a payment', async () => {
