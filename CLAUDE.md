@@ -2129,6 +2129,21 @@ production repairs itself at the twin's next nightly run (06:00 UTC,
 2026-10-28), when PR-2026-0441 gets its Pay question and the old
 "Approve IN-FMDSDT-20260901" card closes as overtaken.
 
+**The phone keeps the drawing's shape. Decided 2026-10-27, on the
+founder's "Why doesn't home look like this website"** (the drawing).
+On a desktop the built page matched; on his phone it did not, because
+the walk's fix for the hidden columns had turned each region into a
+stacked block of eleven lines and the five figures into one per row,
+so the map ran several screens long. Reverted: the five figures sit
+two to a row on a phone, the one table scrolls inside its own box with
+the Region cell pinned on the left, the page never scrolls sideways,
+exactly as the drawing renders at 390 wide. Shipped to production the
+same hour (73ade6358 on the deploy branch, source 9f2790db4; type
+check, the public-site unit files and the build green on the quiet
+copy; smoke clean). The lesson, so it holds: a fix to a drawn page
+that changes its shape goes back through the drawing, not straight to
+code.
+
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
 back a paper that arrived; the I-9, a provider's verdict and the
