@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { contractsEmpty } from '@/lib/money/contracts-empty'
 import { scopeOf, ownContractsSay, type ListScope } from '@/lib/money/own-scope'
 import { compact, rate as rateText } from '@/lib/money-display'
 import { activeRateTotals } from '@/lib/money/rate-totals'
+import { sideFromQuery, sideHref, answerFits, rowsOfSide } from '@/lib/money/contract-side'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
@@ -1221,7 +1222,19 @@ function ContractDetailDrawer({
 export default function ContractsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
+  // The side lives in the address and nowhere else. Sell contracts and
+  // Buy contracts are two tabs of this one page, so following one tab's
+  // link from the other keeps the page mounted: a side seeded into state
+  // once kept the side it was born with, and the Buy contracts tab drew
+  // Sell's heading and rows (release walk, 2026-10-27).
+  const tab: ViewTab = sideFromQuery(searchParams.get('side'))
+  const setTab = useCallback(
+    (next: ViewTab) => router.replace(sideHref(next) as any, { scroll: false }),
+    [router]
+  )
+  // The side on screen right now, read by an answer that comes back late.
+  const sideOnScreen = useRef<ViewTab>(tab)
+  sideOnScreen.current = tab
 
   const session = useSession()
   const { company, permissions, loading: sessionLoading } = session
@@ -1247,7 +1260,6 @@ export default function ContractsPage() {
   // has read yet (sign-up walk, round seven, #2), so the page draws
   // "Loading…" and nothing else.
   const [readOnce, setReadOnce] = useState(false)
-  const [tab, setTab] = useState<ViewTab>(initialSide)
   // Whose book these lines are, as the route that returned them said it.
   //
   // `/api/contracts` has answered with this block since the money
@@ -1280,9 +1292,9 @@ export default function ContractsPage() {
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       if (mayRecord) setShowCreate(true)
-      router.replace('/dashboard/contracts', { scroll: false })
+      router.replace(sideHref(tab) as any, { scroll: false })
     }
-  }, [searchParams, router, mayRecord])
+  }, [searchParams, router, mayRecord, tab])
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -1293,10 +1305,14 @@ export default function ContractsPage() {
   }, [toast])
 
   const fetchContracts = useCallback(async () => {
+    const asked = tab
+    // A slow answer for the side the reader has left is never drawn.
+    const stale = () => !answerFits(asked, sideOnScreen.current)
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/contracts?side=${tab}`)
+      const res = await fetch(`/api/contracts?side=${asked}`)
+      if (stale()) return
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         // A refusal is not an empty book: the page draws the sentence
@@ -1312,13 +1328,14 @@ export default function ContractsPage() {
       }
 
       const body = await res.json()
+      if (stale()) return
       setRefusedSaid(null)
       setScope(scopeOf(body))
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
       setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
 
-      setContracts(rawContracts.map((c: any) => {
+      setContracts(rowsOfSide(rawContracts.map((c: any) => {
         // Resolve the display name: end client if set, otherwise paying customer
         const endClientName = tab === 'sell'
           ? (c.endClientCompany?.name ?? c.clientCompany?.name ?? null)
@@ -1360,13 +1377,16 @@ export default function ContractsPage() {
             ? Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
             : null,
         }
-      }))
+      }), asked))
     } catch (err: any) {
+      if (stale()) return
       setError(err.message)
       setContracts([])
     } finally {
-      setLoading(false)
-      setReadOnce(true)
+      if (!stale()) {
+        setLoading(false)
+        setReadOnce(true)
+      }
     }
   }, [tab])
 

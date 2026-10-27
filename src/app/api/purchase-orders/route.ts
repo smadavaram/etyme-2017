@@ -6,8 +6,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk, moneyTrailFor } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
-import { writePayTrail } from '@/lib/money/pay-trail'
+import { mayReadPayOf, payTrail, mayReadBillRate, billTrail } from '@/lib/money/pay-visibility'
+import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
+import { linesForReader } from '@/lib/money/order-lines-read'
 import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
@@ -145,6 +146,26 @@ export async function GET(request: NextRequest) {
     'a purchase order line'
   )
 
+  // Who may read a bill rate written at the other end of an order: the
+  // sub's sell line is the prime's cost, and the prime's buy line is the
+  // sub's bill rate. The rule is the sell line's (lib/money/pay-visibility),
+  // and every person whose rate is read or withheld that way is on the
+  // trail before the answer goes out.
+  const billViewer = {
+    permissions: reading.caller.permissions,
+    companyId,
+    companyKind: reading.seated ? 'CLIENT' : (caller.company?.kind ?? null),
+    personId: caller.person.id,
+  }
+  const otherEnd = pos.flatMap((po) => {
+    const end = sideOf(po, companyId)
+    const deal = { sellerId: po.issuedToId, clientId: po.issuedById }
+    return end === 'BUYER'
+      ? po.sellContracts.map((sc) => ({ ...deal, personId: sc.person.id }))
+      : po.buyContracts.flatMap((bc) => bc.candidates.map((c) => ({ ...deal, personId: c.person.id })))
+  })
+  if (otherEnd.length > 0) await writeBillTrail(caller, billTrail(billViewer, otherEnd))
+
   const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
   const billedByLine = new Map<string, number>()
   if (sellIds.length > 0) {
@@ -222,11 +243,14 @@ export async function GET(request: NextRequest) {
       endDate: po.endDate?.toISOString().slice(0, 10) ?? null,
       contractsAgainst: po._count.sellContracts,
       // Each line on this document, with what it has billed. A line is
-      // a person at a site, never a row id.
-      lines: [
+      // a person at a site, never a row id. Read from this reader's own
+      // end, so a person the prime pays and the sub bills is one line to
+      // each of them, not two (lib/money/order-lines-read).
+      lines: linesForReader([
         ...po.sellContracts.map((sc) => ({
           id: sc.id,
           side: 'SELL' as const,
+          personId: sc.person.id,
           personName: sc.person.name,
           siteName: siteOf(sc.workLocation) ?? sc.clientCompany.name,
           /** Cents per hour. */
@@ -243,6 +267,7 @@ export async function GET(request: NextRequest) {
           bc.candidates.map((cand) => ({
             id: `${bc.id}:${cand.person.id}`,
             side: 'BUY' as const,
+            personId: cand.person.id,
             personName: cand.person.name,
             siteName: null as string | null,
             // What the firm pays below it is the payroll desks' figure,
@@ -261,7 +286,7 @@ export async function GET(request: NextRequest) {
             paidToName: bc.vendorCompany?.name ?? null,
           }))
         ),
-      ],
+      ], side, (line) => mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById, ...line })),
     }
   })
 

@@ -147,7 +147,10 @@ describe('money pages wait until they know whose page it is', () => {
       const src = whole.slice(whole.indexOf('export default function'))
       // The first read marks itself answered whatever it returned —
       // figures, a refusal or an error — so the page never waits forever.
-      expect(src, page).toMatch(/\} finally \{\s*setLoading\(false\)\s*setReadOnce\(true\)/)
+      // Contracts may skip it only for an answer to a side the reader has
+      // already left (`answerFits`, lib/money/contract-side), whose own
+      // read then marks itself answered.
+      expect(src, page).toMatch(/\} finally \{\s*(if \(!stale\(\)\) \{\s*)?setLoading\(false\)\s*setReadOnce\(true\)/)
       const gate = src.search(READ_GATE)
       expect(gate, page).toBeGreaterThan(-1)
       // Every tile on the page is drawn after the gate, never before it.

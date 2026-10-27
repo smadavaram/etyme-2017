@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import type { Prisma } from '@prisma/client'
 import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
@@ -22,6 +23,7 @@ import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { chooseHeader } from '@/lib/award'
+import { mayPinToOrder } from '@/lib/money/order-first-line'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
 import {
   payFiguresFor, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
@@ -351,6 +353,35 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── A line written onto the order it was asked for ──────────────────
+  //
+  // The orders screen offers an order's first line straight after its
+  // header (release walk, 2026-10-27: "It has no lines"), and that line
+  // goes on that order, not on whichever one `chooseHeader` would find.
+  // It goes only on an open order this firm received from the client it
+  // bills (`mayPinToOrder` in lib/money/order-first-line).
+  let pinned: (Prisma.WorkOrderGetPayload<{ select: typeof HEADER_SELECT }>) | null = null
+  if (body.workOrderId) {
+    const order = await prisma.workOrder.findUnique({
+      where: { id: String(body.workOrderId) },
+      select: { ...HEADER_SELECT, issuedBy: { select: { name: true } } },
+    })
+    const pin = mayPinToOrder(
+      order ? { ...order, issuedByName: order.issuedBy.name } : null,
+      { sellerId: companyId, sellerName: company.name, buyerId: clientCompany.id, buyerName: clientCompany.name }
+    )
+    if (!pin.ok) {
+      return NextResponse.json(
+        { error: { code: 'NOT_THIS_ORDER', message: pin.says, field: pin.field } },
+        { status: 422 }
+      )
+    }
+    if (order) {
+      const { issuedBy: _issuer, ...header } = order
+      pinned = header
+    }
+  }
+
   // A line booked past the end client's time limit is refused (founder's
   // decision, 2026-10-06). An open-ended line at a client with a limit is
   // refused too. Where the client only warns, a reason is asked for.
@@ -515,8 +546,10 @@ export async function POST(request: NextRequest) {
         start,
         end,
       })
-      const found = choice.id ? openOrders.find((o) => o.id === choice.id) ?? null : null
-      const header = found ? { ...found, raised: false, says: choice.says } : null
+      const found = pinned ?? (choice.id ? openOrders.find((o) => o.id === choice.id) ?? null : null)
+      const header = found
+        ? { ...found, raised: false, says: pinned ? `On ${pinned.number}, the order you named.` : choice.says }
+        : null
 
       // Joining a document somebody else agreed is not license to
       // rewrite its terms onto the line: the line keeps what the
@@ -748,7 +781,9 @@ export async function POST(request: NextRequest) {
         // — in which case the placement cannot start until somebody does.
         terms: { says: line.says, payLine: Boolean(pay) },
         message: result.header
-          ? `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}. ` +
+          ? (pinned
+              ? `Recorded as a line on ${result.header.number}, from ${clientCompany.name}. `
+              : `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}. `) +
             `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`
           : `Recorded. No order between you and ${clientCompany.name} yet — record the purchase ` +
             `order they gave you and this line attaches to it. ` +

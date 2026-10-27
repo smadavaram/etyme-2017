@@ -14,6 +14,11 @@ import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ordersStance, ordersWords } from '@/lib/money/po-words'
 import { PaperSet } from './paper-set'
+import { FirstLine, AfterHeaderNote } from './first-line'
+import { RecordOrder, type RecordedOrder } from './record-order'
+import { Agreements } from './agreements'
+import { afterHeader } from '@/lib/money/order-first-line'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -46,6 +51,8 @@ interface POLine {
   billed: number | null
   /** The firm we pay on a buy line. Null where we employ them. */
   paidToName: string | null
+  /** Written at the other end of the order; its rate is a bill rate this reader may not read. */
+  fromOtherEnd?: boolean
 }
 
 interface PO {
@@ -103,7 +110,7 @@ function Consumed({ po }: { po: PO }) {
 export default function PurchaseOrdersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { company, loading: sessionLoading } = useSession()
+  const { company, permissions, loading: sessionLoading } = useSession()
   // The section of the reader's own menu, read off the identity the
   // sidebar is drawn from; null while unknown, and then nothing is drawn.
   const eyebrow = usePageSection('/dashboard/purchase-orders')
@@ -117,6 +124,12 @@ export default function PurchaseOrdersPage() {
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
+  // Recording the order a client or a prime handed this firm.
+  const [recording, setRecording] = useState(false)
+  // After a header: the sentence that says where its lines come from.
+  const [nextNote, setNextNote] = useState<string | null>(null)
+  // The order whose first line is being asked for, on this screen.
+  const [lineFor, setLineFor] = useState<{ order: RecordedOrder; says: string } | null>(null)
 
   // Whose orders are on screen. A program office in a client's seat
   // reads the client's, and the switch is how it gets back to its own.
@@ -187,6 +200,15 @@ export default function PurchaseOrdersPage() {
       })
       const body = await readJson(res)
       setFlash(body.data.message)
+      // A header with no line is a ceiling nobody can bill from: say where
+      // its lines come from (lib/money/order-first-line).
+      setNextNote(afterHeader({
+        end: 'BUYER',
+        counterpartyName: suppliers.find((s) => s.id === supplierId)?.name ?? 'the supplier',
+        noun: body.data.noun ?? 'purchase order',
+        number,
+        linesAttached: body.data.contractsAttached ?? 0,
+      }).says)
       setNumber(''); setSupplierId(''); setAmount(''); setEndDate(''); setAdding(false)
       load()
     } catch (e: any) {
@@ -213,6 +235,35 @@ export default function PurchaseOrdersPage() {
   // The reader's end of the orders, in the same words the rows use (#9).
   const words = ordersWords(ordersStance({ kind: company.kind, sides: pos.map((p) => p.side), inASeat: !!reading?.inASeat }))
 
+  const isClient = company.kind === 'CLIENT'
+  // The desk that records an agreement is the desk that may amend one.
+  const mayRecordAgreement = hasPermission(permissions, 'rates.write') || hasPermission(permissions, 'settings.manage')
+
+  function recorded(order: RecordedOrder) {
+    setRecording(false)
+    setFlash(order.message)
+    const next = afterHeader({
+      end: 'SELLER',
+      counterpartyName: order.buyer.name,
+      noun: order.noun,
+      number: order.number,
+      linesAttached: order.contractsAttached,
+    })
+    if (next.kind === 'ASK_FIRST_LINE') setLineFor({ order, says: next.says })
+    else setNextNote(next.says)
+    load()
+  }
+
+  function addLine(po: PO) {
+    setLineFor({
+      order: {
+        id: po.id, number: po.number, currency: po.currency, buyer: po.counterparty,
+        contractsAttached: po.lines.length, noun: po.noun, message: '',
+      },
+      says: `A line on ${po.number}: who works on it, at what rate, at which site, from when.`,
+    })
+  }
+
   const attention = pos.filter((p) => p.overdrawn || p.expired || p.consumedPercent >= 90)
   const rest = pos.filter((p) => !attention.includes(p))
 
@@ -224,12 +275,24 @@ export default function PurchaseOrdersPage() {
         title={words.title}
         subtitle={words.subtitle}
         actions={canRaise && (
-          <button
-            onClick={() => setAdding(!adding)}
-            className="btn-secondary text-[13px]"
-          >
-            {adding ? 'Cancel' : 'Raise one'}
-          </button>
+          <div className="flex gap-2">
+            {/* A supplier is handed orders as often as it raises them: the
+                prime's purchase order is its sales order. */}
+            {!isClient && (
+              <button
+                onClick={() => { setRecording(!recording); setAdding(false) }}
+                className="btn-secondary text-[13px]"
+              >
+                {recording ? 'Cancel' : 'Record an order you were given'}
+              </button>
+            )}
+            <button
+              onClick={() => { setAdding(!adding); setRecording(false) }}
+              className="btn-secondary text-[13px]"
+            >
+              {adding ? 'Cancel' : 'Raise one'}
+            </button>
+          </div>
         )}
       />
 
@@ -251,7 +314,22 @@ export default function PurchaseOrdersPage() {
       )}
 
       {flash && <div className="mb-5"><FormMessage tone="ok">{flash}</FormMessage></div>}
+      {nextNote && <AfterHeaderNote says={nextNote} />}
       {error && <div className="mb-5"><ErrorState says={error} /></div>}
+
+      {recording && (
+        <RecordOrder sellerCompanyId={company.id} onRecorded={recorded} onClose={() => setRecording(false)} />
+      )}
+
+      {lineFor && (
+        <FirstLine
+          order={lineFor.order}
+          sellerCompanyId={company.id}
+          says={lineFor.says}
+          onDone={(message) => { setLineFor(null); setFlash(message); setNextNote(null); load() }}
+          onClose={() => setLineFor(null)}
+        />
+      )}
 
       {adding && (
         <Panel title="Raise a purchase order" className="mb-5">
@@ -274,7 +352,8 @@ export default function PurchaseOrdersPage() {
           </div>
           <p className="text-[12px] text-etyme-muted mt-3">
             Any contract already running with this supplier and no purchase order will be attached
-            to this one, so their invoices start matching.
+            to this one, so their invoices start matching. Its other lines come from the award: each
+            person you award from this supplier is a line on it.
           </p>
           <SubmitButton
             type="button"
@@ -304,9 +383,13 @@ export default function PurchaseOrdersPage() {
           defaultPageSize={50}
           searchPlaceholder="Search by number or firm…"
           searchFilter={(po, q) => `${po.number} ${po.counterparty.name}`.toLowerCase().includes(q)}
-          card={(po) => <Row po={po} />}
+          card={(po) => <Row po={po} onAddLine={canRaise && po.side === 'SELLER' ? () => addLine(po) : null} />}
         />
       )}
+
+      {/* The agreements this firm signed, either end, and the door to
+          record one. A client keeps its own Agreements tab. */}
+      {!isClient && !reading?.inASeat && <Agreements mayRecord={mayRecordAgreement} />}
     </>
   )
 }
@@ -376,7 +459,9 @@ function Lines({ po }: { po: PO }) {
   if (po.lines.length === 0) {
     return (
       <p className="text-[12px] text-etyme-faint mt-2">
-        No lines on it yet. Nothing has been billed against this ceiling.
+        {po.side === 'SELLER'
+          ? 'No lines on it yet. Add the first one, so there is something to bill from.'
+          : 'No lines on it yet. Lines come from the award: each person you award from this supplier is a line on it.'}
       </p>
     )
   }
@@ -397,7 +482,9 @@ function Lines({ po }: { po: PO }) {
               </span>
             </span>
             <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
-              {l.payWithheld
+              {l.payWithheld && l.fromOtherEnd
+                ? <span title="What this line bills at is shown only to the people who price and bill it.">Rate not shown</span>
+                : l.payWithheld
                 ? <span title="What each person is paid is shown only to the people who run payroll.">Pay not shown</span>
                 : l.rate == null ? "—" : rate(l.rate, l.currency)}
               {l.billed != null && (
@@ -413,7 +500,7 @@ function Lines({ po }: { po: PO }) {
   )
 }
 
-function Row({ po }: { po: PO }) {
+function Row({ po, onAddLine }: { po: PO; onAddLine: (() => void) | null }) {
   return (
     <Panel as="article">
       {po.offSystem && (
@@ -446,6 +533,11 @@ function Row({ po }: { po: PO }) {
       </p>
 
       <Lines po={po} />
+      {onAddLine && (
+        <button type="button" onClick={onAddLine} className="mt-2 text-[12px] text-etyme-action underline">
+          {po.lines.length === 0 ? 'Add the first line' : 'Add a line'}
+        </button>
+      )}
 
       {/* What this order asks for on paper, read-only here; the change is
           offered only to a desk the document-set route would let make it. */}
