@@ -28,8 +28,10 @@ const TELEWORLD = `world-teleworld${D}`
 
 const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karthik Menon']
 // The two delivery managers and the HR desk the internal-moves story
-// seats (lib/seed-internal-moves, 2026-09-30) are on the payroll too, and
-// so is the AP & Payroll clerk who pays the firms below it (2026-10-19).
+// seats (lib/seed-internal-moves, 2026-09-30), and the AP & Payroll clerk
+// who pays the firms below it (2026-10-19). Staff, not roster, since the
+// onboarding walk (2026-10-27): a seat that does something and that no
+// placement, pay line or listing names is neither payroll nor bench.
 const TELEWORLD_STAFF = ['Ingrid Solberg', 'Rahul Deshpande', 'Farah Haddad', 'Ravi Kalathil']
 const SUNDARA = `world-sundara${D}`
 const TECHPEPLE_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
@@ -89,14 +91,15 @@ describe('a firm’s bench and its training page agree about how many of its peo
 })
 
 describe('a firm sees the people it employs even where none of them has agreed to be marketed', () => {
-  it('names all nine of Teleworld’s own people on its own roster, its managers, HR and its AP & Payroll clerk among them', async () => {
+  it('names Teleworld’s four engineers on its own roster, and leaves its managers, HR and its AP & Payroll clerk off it because no work names them', async () => {
     as(TELEWORLD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const names = r.body.data.roster.map((x: any) => x.name)
-    for (const name of [...TELEWORLD_PAYROLL, ...TELEWORLD_STAFF]) expect(names).toContain(name)
-    expect(r.body.data.summary.total).toBe(9)
+    for (const name of TELEWORLD_PAYROLL) expect(names).toContain(name)
+    for (const name of TELEWORLD_STAFF) expect(names).not.toContain(name)
+    expect(r.body.data.summary.total).toBe(4)
     // Not one of them granted a listing, and every one of them is here.
     expect(r.body.data.summary.marketable).toBe(0)
   })
@@ -112,15 +115,11 @@ describe('a firm sees the people it employs even where none of them has agreed t
     expect(r.body.data.summary.betweenProjects).toBe(1)
   })
 
-  it('the firm’s owner is on the roster as the owner, and is never counted as free', async () => {
+  it('the firm’s owner is staff: never on the roster, and never counted as free', async () => {
     as(TELEWORLD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
-    const owner = r.body.data.roster.find((x: any) => x.seat === 'Owner')
-    expect(owner).toBeTruthy()
-    expect(owner.standing).toBe('NOT_ON_THE_RECORD')
-    expect(owner.free).toBe(false)
-    expect(owner.says).toContain('Their seat says Owner')
-    // The only figure a delivery manager can act on excludes him.
+    expect(r.body.data.roster.find((x: any) => x.seat === 'Owner')).toBeUndefined()
+    // The only figure a delivery manager can act on excludes the owner.
     expect(r.body.data.summary.betweenProjects).toBe(1)
   })
 
@@ -175,7 +174,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
       as(TELEWORLD)
       const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
       expect(r.body.data.roster.map((x: any) => x.name)).not.toContain('Felix Brenner')
-      expect(r.body.data.summary.total).toBe(8)
+      expect(r.body.data.summary.total).toBe(3)
     } finally {
       await prisma.context.update({ where: { id: seat!.id }, data: { revokedAt: null } })
     }
@@ -191,7 +190,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
     expect(c.body.data.consultants).toHaveLength(0)
 
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
-    expect(r.body.data.summary.total).toBe(9)
+    expect(r.body.data.summary.total).toBe(4)
   })
 })
 

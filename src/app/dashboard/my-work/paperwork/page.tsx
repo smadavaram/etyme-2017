@@ -1,6 +1,7 @@
 'use client'
 
 import { YourPapers } from '../papers'
+import { OwnPapers } from '../../documents/own-papers'
 
 /**
  * The page a chase letter names.
@@ -33,6 +34,14 @@ export default function PaperworkPage() {
       </p>
 
       <YourPapers standalone />
+
+      {/* Papers she keeps on her own file before anybody asks — a license,
+          a certificate — with "Put on file" on each (onboarding walk,
+          2026-10-27). Regulatory's section and route; drawn here so a
+          worker or a candidate has the add button. */}
+      <div className="mb-6">
+        <OwnPapers about="ME" heading="Your own papers" />
+      </div>
 
       <a href="/dashboard/my-work" className="text-sm text-etyme-action hover:underline">
         Back to your work

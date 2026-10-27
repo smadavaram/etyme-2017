@@ -166,3 +166,12 @@ describe('5 · clients a worker will not be sent to', () => {
     )
   })
 })
+
+describe('6 · Your paperwork has an add button', () => {
+  it('a worker adds her own license or certificate from Your paperwork', () => {
+    const page = read('src/app/dashboard/my-work/paperwork/page.tsx')
+    const code = page.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(code).toContain("import { OwnPapers } from '../../documents/own-papers'")
+    expect(code).toContain('<OwnPapers about="ME" heading="Your own papers" />')
+  })
+})
