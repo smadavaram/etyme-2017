@@ -16,11 +16,11 @@ import type { CorvaneMap, MapCell, SeatKey, Tone } from './corvane-map'
  * place and the address follows it, so a copied link opens the same seat.
  * All four seats are in the HTML; the three not chosen are hidden.
  *
- * On a phone the tabs wrap, the figures stack, and the table becomes one
- * short block per row, read in the view's `phoneOrder` (the CFO's: the
- * region, then the hold and the held receipt, then the counts), so
- * nothing hides behind a sideways scroll and the page never scrolls
- * sideways (release walk, 2026-10-27). From md up it is the table.
+ * On a phone the drawing's shape holds (coordinator's call, 2026-10-27,
+ * reversing the stacked blocks of the release walk): the tabs wrap, the
+ * five figures sit two to a row, and the one table is drawn at every
+ * width inside its own box that scrolls sideways, the row's name pinned
+ * on the left. The page itself never scrolls sideways.
  *
  * `doorsOpen` is the page's one read of whether Corvane is seeded on this
  * deployment (`./corvane-seeded`). Where it is not, no "Open the demo as …"
@@ -32,6 +32,9 @@ import type { CorvaneMap, MapCell, SeatKey, Tone } from './corvane-map'
 export const DEMO_BEING_SET_UP = 'The demo is being set up.'
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
+
+/** The row's name stays on the left while the table scrolls sideways on a phone. */
+const STICKY = 'sticky left-0 z-10 bg-etyme-surface'
 
 const CHIP: Record<Tone, string> = {
   att: 'bg-etyme-attention-wash text-etyme-attention',
@@ -94,9 +97,9 @@ export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMa
           <p className="px-3.5 pt-3 text-[13px] text-etyme-muted">{v.signed}</p>
           <p className="text-balance px-3.5 pt-1.5 font-serif text-[17px] leading-snug tracking-[-0.01em] text-etyme-ink">{v.headline}</p>
 
-          <dl className="mt-3 grid grid-cols-1 border-t border-etyme-rule sm:grid-cols-3 lg:grid-cols-5">
+          <dl className="mt-3 grid grid-cols-1 gap-px border-t border-etyme-rule bg-etyme-rule min-[340px]:grid-cols-2 lg:grid-cols-5">
             {v.stats.map((s) => (
-              <div key={s.label} className="border-b border-etyme-rule px-3.5 py-2.5 sm:border-r lg:border-b-0 lg:last:border-r-0">
+              <div key={s.label} className="bg-etyme-surface px-3.5 py-2.5 min-[340px]:last:odd:col-span-2 lg:last:odd:col-span-1">
                 <dt className="text-[10px] uppercase tracking-[0.06em] text-etyme-muted">{s.label}</dt>
                 <dd className={`font-serif text-[22px] leading-tight tracking-[-0.02em] tabular-nums ${s.att ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{s.value}</dd>
                 {s.sub && <dd className="text-[11px] text-etyme-muted">{s.sub}</dd>}
@@ -104,31 +107,12 @@ export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMa
             ))}
           </dl>
 
-          <ul data-map-stacked="" className="m-0 list-none divide-y divide-etyme-rule border-t border-etyme-rule p-0 md:hidden">
-            {v.rows.map((r, i) => {
-              const [head, ...rest] = v.phoneOrder ?? r.map((_, j) => j)
-              return (
-                <li key={i} className="px-3.5 py-2.5 text-[13px] text-etyme-ink">
-                  <Cell c={r[head]} />
-                  <dl className="mt-1.5 space-y-1">
-                    {rest.map((j) => (
-                      <div key={j} className="flex items-baseline justify-between gap-3">
-                        <dt className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-etyme-muted">{v.columns[j].t}</dt>
-                        <dd className="m-0 min-w-0 text-right"><Cell c={r[j]} /></dd>
-                      </div>
-                    ))}
-                  </dl>
-                </li>
-              )
-            })}
-          </ul>
-
-          <div className="overflow-x-auto hidden border-t border-etyme-rule md:block">
+          <div data-map-scroll="" className="overflow-x-auto border-t border-etyme-rule">
             <table className="w-full min-w-[640px] border-collapse text-[13px] tabular-nums">
               <thead>
                 <tr>
                   {v.columns.map((c) => (
-                    <th key={c.t} scope="col" className={`whitespace-nowrap border-b border-etyme-rule px-3 py-2 text-[10px] font-medium uppercase tracking-[0.06em] text-etyme-muted ${c.right ? 'text-right' : 'text-left'}`}>
+                    <th key={c.t} scope="col" className={`${c === v.columns[0] ? STICKY : ''} whitespace-nowrap border-b border-etyme-rule px-3 py-2 text-[10px] font-medium uppercase tracking-[0.06em] text-etyme-muted ${c.right ? 'text-right' : 'text-left'}`}>
                       {c.t}
                     </th>
                   ))}
@@ -138,7 +122,7 @@ export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMa
                 {v.rows.map((r, i) => (
                   <tr key={i}>
                     {r.map((c, j) => (
-                      <td key={j} className={`border-b border-etyme-rule px-3 py-2 align-top text-etyme-ink ${v.columns[j]?.right ? 'text-right' : ''}`}>
+                      <td key={j} className={`${j === 0 ? STICKY : ''} border-b border-etyme-rule px-3 py-2 align-top text-etyme-ink ${v.columns[j]?.right ? 'text-right' : ''}`}>
                         <Cell c={c} />
                       </td>
                     ))}

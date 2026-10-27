@@ -107,12 +107,6 @@ export interface MapView {
   stats: MapStat[]
   columns: { t: string; right?: boolean }[]
   rows: MapCell[][]
-  /**
-   * On a phone the table becomes one short block per row, and this is the
-   * order its columns are read in: the row's name first, then what stopped.
-   * Absent, the table's own order.
-   */
-  phoneOrder?: number[]
   caption: string
   demo: { target: SeatTarget; label: string }
 }
@@ -276,8 +270,6 @@ export function corvaneMap(): CorvaneMap {
       // In dollars, with the region's own money under it where that is not dollars.
       { t: dollars(g.usd), sub: spendByCurrency(g.people).some((x) => x.currency !== 'USD') ? ownMoney(g.people) : undefined },
     ]),
-    // On a phone: the region, then the hold and the held receipt, then the counts.
-    phoneOrder: [0, 4, 5, 6, 7, 1, 2, 3],
     caption: 'Four flows per region: who is on site, who waits on papers, what clears the check, what is held.',
     demo: { target: { as: CORVANE_DEMO_AS, desk: 'cfo', seat: cfo.name }, label: `Open the demo as ${cfo.name}` },
   }

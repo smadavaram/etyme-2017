@@ -358,37 +358,32 @@ describe('The map says what the home page may say', () => {
     }
   })
 
-  it('on a phone the figures stack, the tabs wrap, and each row is a short block with nothing behind a sideways scroll; the table is drawn from md up', () => {
+  it('on a phone the five figures sit two to a row and the table scrolls inside its own box; the page never scrolls sideways', () => {
     const drawn = read('src/lib/public-site/corvane-map-view.tsx')
     expect(gridsWithoutBreakpoint(drawn)).toEqual([])
-    expect(drawn).toContain('grid grid-cols-1 border-t border-etyme-rule sm:grid-cols-3 lg:grid-cols-5')
+    // The drawing's .stats grid: two to a row on a phone, five across on a desktop.
+    expect(drawn).toContain('grid grid-cols-1 gap-px border-t border-etyme-rule bg-etyme-rule min-[340px]:grid-cols-2 lg:grid-cols-5')
     expect(drawn).toMatch(/aria-label="Read it as" className="flex flex-wrap/)
-    // The stacked rows are the phone's; the wide table is hidden below md.
-    expect(drawn).toMatch(/data-map-stacked="" className="[^"]*\bmd:hidden\b/)
-    expect(drawn).toMatch(/<div className="overflow-x-auto hidden [^"]*md:block">\s*<table className="w-full min-w-\[/)
+    // One table at every width, in a box of its own that scrolls sideways; no stacked blocks.
+    expect(drawn).toMatch(/data-map-scroll="" className="overflow-x-auto border-t border-etyme-rule">\s*<table className="w-full min-w-\[/)
+    expect(drawn).not.toContain('data-map-stacked')
+    expect(drawn).not.toMatch(/\bmd:hidden\b|\bhidden md:block\b/)
+    // The page itself never scrolls sideways.
     expect(read('src/app/page.tsx')).toContain('min-h-screen overflow-x-hidden')
-    // Every cell of every row is in the stacked form: nothing is hidden on a phone.
-    const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: true }))
-    const stacked = html.slice(html.indexOf('data-map-stacked'), html.indexOf('<table'))
-    for (const r of view('cfo').rows) for (const c of r) expect(stacked, c.t).toContain(c.t.replace(/&/g, '&amp;'))
-    for (const c of view('cfo').columns.slice(1)) expect(stacked, c.t).toContain(c.t)
+    // The row's name stays pinned on the left while the table scrolls.
+    expect(drawn).toContain("const STICKY = 'sticky left-0 z-10 bg-etyme-surface'")
   })
 
-  it('on a phone the CFO reads each region’s hold and held receipt first, Papers and Money before Open jobs and Weeks to sign', () => {
+  it('the CFO’s table reads in the drawing’s order, every column once, and every cell is in it', () => {
     const v = view('cfo')
-    const order = v.phoneOrder!.map((j) => v.columns[j].t)
-    expect(order[0]).toBe('Region')
-    expect(order.slice(1, 3)).toEqual(['Papers', 'Money'])
-    expect(order.indexOf('Papers')).toBeLessThan(order.indexOf('Open jobs'))
-    expect(order.indexOf('Money')).toBeLessThan(order.indexOf('Weeks to sign'))
-    // Every column once, none dropped.
-    expect([...v.phoneOrder!].sort((a, b) => a - b)).toEqual(v.columns.map((_, j) => j))
-    // The stacked block draws the columns in that order.
+    expect(v.columns.map((c) => c.t)).toEqual([
+      'Region', 'Contractors', 'Open jobs', 'Weeks to sign', 'Papers', 'Money', 'Nearest time limit', 'Spend this month',
+    ])
     const html = renderToStaticMarkup(createElement(CorvaneMapView, { map: MAP, seat: 'cfo', hrefs: seatHrefsFor(), doorsOpen: true }))
     const seatHtml = html.slice(html.indexOf('data-map-seat="cfo"'))
-    const block = seatHtml.slice(seatHtml.indexOf('data-map-stacked'), seatHtml.indexOf('</li>'))
-    expect(block.indexOf('>Papers<')).toBeLessThan(block.indexOf('>Open jobs<'))
-    expect(block.indexOf('>Money<')).toBeLessThan(block.indexOf('>Weeks to sign<'))
+    const table = seatHtml.slice(seatHtml.indexOf('<table'), seatHtml.indexOf('</table>'))
+    for (const r of v.rows) for (const c of r) expect(table, c.t).toContain(c.t.replace(/&/g, '&amp;'))
+    for (const c of v.columns) expect(table, c.t).toContain(`>${c.t}<`)
   })
 })
 
