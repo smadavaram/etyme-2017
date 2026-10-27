@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { rolesFor, RENAMED_ROLES, MEMBER_ROLE } from '@/lib/company-defaults'
 import { readsOnlyOwnWork } from '@/lib/console-home'
+import { inviteSays } from '@/lib/access-grant'
 
 /**
  * "Can Brightmoor add or onboard their team — account managers, HR,
@@ -77,6 +78,12 @@ describe('inviting the team', () => {
   it('the invitation is emailed and says when the seat becomes theirs', () => {
     const route = read('src/app/api/access/invite/route.ts')
     expect(route).toContain("channel: 'EMAIL'")
-    expect(route).toContain('The seat is theirs when they sign in with ${email}.')
+    // The inviter's sentence is written by inviteSays (lib/access-grant),
+    // whether or not an email could leave.
+    expect(route).toContain('inviteSays(')
+    for (const mail of ['SENT', 'FAILED', 'NOT_CONFIGURED'] as const) {
+      const says = inviteSays({ personName: 'Imelda Santoro', email: 'imelda@brightmoor.example', roleName: 'Accounts Receivable', door: 'PASSWORD', mail, login: null })
+      expect(says, mail).toContain('The seat is theirs when they sign in with imelda@brightmoor.example.')
+    }
   })
 })
