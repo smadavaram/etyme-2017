@@ -2055,6 +2055,32 @@ does not hold; the walk as the CFO, a regional manager and a hiring
 manager runs on a local copy of the seeded world meanwhile. The four
 doors' maps wait on "build it" on their drawings.
 
+**The walk as the CFO and an indirect procurement director, 2026-10-27,
+said: the home page ships, the first screens behind it do not yet.**
+On production the procurement director understands the product in
+twenty seconds, every figure on the map adds up, and the four tabs
+re-read one company convincingly; but "Open the demo as Margaret Osei"
+lands on an unseeded door until the founder reseeds. On a local copy
+of the seeded world, the figures agree on every screen and the region
+wall holds (Valeria Montes is refused United States, Dayton and a
+Dayton thread in a sentence); what disagrees is the words and the
+counts: the CFO's greeting names the weeks instead of the $42 and
+Aoife Kelly; the head of operations gets the CFO's greeting and "You
+are in head of operations"; Valeria is given a count where the home
+page names Fernanda Albuquerque; Marcus Hollins hears "three things"
+in the chat and "two" on By region, and the chat refuses him the I-9
+his own page shows; By region shows local money only, no dollars per
+region, a footnote that contradicts its card, "0 paid" in attention
+color, and its spend column off the edge at 1440 wide. On production
+the Northbend AP clerk's PR-2026-0441 card has Open and Not now and
+no Pay. Each is routed: conversation (the greetings, the refusal, the
+card shape), demand (By region), market (the demo link until Corvane
+exists, the US money cell, "Two minutes" and two unverifiable claims,
+the phone table), money (why the pay card is missing on production).
+One rule the walk itself broke and discarded: a first pass ran the
+browser with certificate checks off; every screenshot kept came from
+a run that pinned the proxy's certificate.
+
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
 back a paper that arrived; the I-9, a provider's verdict and the
