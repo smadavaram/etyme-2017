@@ -164,6 +164,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     const bottom = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: sub.id, clientCompanyId: prime.id, state: 'IN_PROGRESS' },
       select: { personId: true },
+      orderBy: { id: 'asc' },
     })
     // Every letter about that person, whichever row it came off.
     const theirs = await prisma.verification.findMany({

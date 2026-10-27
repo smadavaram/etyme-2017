@@ -74,7 +74,7 @@ import { hasPermission, type Permission } from '@/lib/permissions'
 import { mayNameSubVendors, nameForClient, type ChainRung, type SeenName } from '@/lib/chain-names'
 import { documentsToChase, type DocumentWatch, type LapsingDocument } from '@/lib/document-request'
 import { baseUrl } from '@/lib/signed-link'
-import { ADVERSE_STEPS, contractClearance, lineExtras, newestReports } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, contractClearance, lineExtrasForSellLines, newestReports } from '@/lib/contract-clearance'
 import { adverseRecordFrom } from '@/lib/attestation'
 import type { OwedBy } from '@/lib/document-requirements'
 import { typeByKey } from '@/lib/document-type'
@@ -1030,19 +1030,24 @@ const SEAT_SELECT = {
   role: { select: { permissions: true } },
 } as const
 
-/** Whoever at these firms holds one of these permissions. */
-async function desksAt(
-  db: Db,
+type Seat = { personId: string; companyId: string | null; role: { permissions: unknown } | null }
+
+/**
+ * Whoever at these firms holds one of these permissions, from seats
+ * already read.
+ *
+ * Pure, so a night's run reads every firm's seats once and answers each
+ * paper from them; the answer for one firm is the same whichever other
+ * firms were read beside it.
+ */
+function desksFrom(
+  seats: readonly Seat[],
   companyIds: string[],
   permissions: readonly Permission[]
-): Promise<Map<string, string[]>> {
+): Map<string, string[]> {
   const out = new Map<string, string[]>()
-  const ids = [...new Set(companyIds.filter(Boolean))]
-  if (ids.length === 0) return out
-  const seats = await db.context.findMany({
-    where: { companyId: { in: ids }, revokedAt: null },
-    select: SEAT_SELECT,
-  })
+  const ids = new Set(companyIds.filter(Boolean))
+  if (ids.size === 0) return out
   // Named first, everything-holders only where nobody is named. An
   // owner's role is the wildcard, so it "holds" every desk at every firm;
   // at a client with a compliance officer and a program manager the
@@ -1055,7 +1060,7 @@ async function desksAt(
   for (const s of seats) {
     // A context with no company is a consultant's own seat, which is
     // nobody's desk. It cannot be asked for a firm's paperwork.
-    if (!s.companyId) continue
+    if (!s.companyId || !ids.has(s.companyId)) continue
     const held = (s.role?.permissions ?? []) as string[]
     if (!permissions.some((p) => hasPermission(held, p))) continue
     const into = permissions.some((p) => held.includes(p)) ? named : everything
@@ -1077,58 +1082,82 @@ interface LineFacts {
   holderCompanyId: string | null
 }
 
-/** The two firms and the person on the line a document hangs off. */
-async function factsOfLine(db: Db, line: { side: 'SELL' | 'BUY'; id: string } | null): Promise<LineFacts> {
-  if (!line) return { personId: null, supplierCompanyId: null, customerCompanyId: null, holderCompanyId: null }
+const NO_LINE: LineFacts = { personId: null, supplierCompanyId: null, customerCompanyId: null, holderCompanyId: null }
 
-  if (line.side === 'SELL') {
-    const row = await db.sellContract.findUnique({
-      where: { id: line.id },
-      select: { personId: true, companyId: true, clientCompanyId: true },
-    })
-    return {
-      personId: row?.personId ?? null,
+/** The two firms and the person on every line these documents hang off, in two reads. */
+async function factsOfLines(
+  db: Db,
+  lines: ({ side: 'SELL' | 'BUY'; id: string } | null)[]
+): Promise<Map<string, LineFacts>> {
+  const out = new Map<string, LineFacts>()
+  const sellIds = [...new Set(lines.filter((l) => l?.side === 'SELL').map((l) => l!.id))]
+  const buyIds = [...new Set(lines.filter((l) => l?.side === 'BUY').map((l) => l!.id))]
+
+  const [sells, buys] = await Promise.all([
+    sellIds.length
+      ? db.sellContract.findMany({
+          where: { id: { in: sellIds } },
+          select: { id: true, personId: true, companyId: true, clientCompanyId: true },
+        })
+      : Promise.resolve([]),
+    buyIds.length
+      ? db.buyContract.findMany({
+          where: { id: { in: buyIds } },
+          select: {
+            id: true,
+            companyId: true,
+            vendorCompanyId: true,
+            candidates: { select: { personId: true }, take: 1 },
+            sellLinks: {
+              select: { sellContract: { select: { personId: true, clientCompanyId: true } } },
+              take: 1,
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ])
+
+  for (const row of sells) {
+    out.set(`SELL:${row.id}`, {
+      personId: row.personId ?? null,
       // On a sell line the firm holding it is the supplier — it is the
       // one being paid — and the client is the customer.
-      supplierCompanyId: row?.companyId ?? null,
-      customerCompanyId: row?.clientCompanyId ?? null,
-      holderCompanyId: row?.companyId ?? null,
-    }
+      supplierCompanyId: row.companyId ?? null,
+      customerCompanyId: row.clientCompanyId ?? null,
+      holderCompanyId: row.companyId ?? null,
+    })
   }
+  for (const row of buys) {
+    const sell = row.sellLinks[0]?.sellContract ?? null
+    out.set(`BUY:${row.id}`, {
+      personId: row.candidates[0]?.personId ?? sell?.personId ?? null,
+      // On a buy line the supplier is the firm below, where there is one.
+      // Where there is none we employ the person, and the firm being paid
+      // for the work is us.
+      supplierCompanyId: row.vendorCompanyId ?? row.companyId ?? null,
+      customerCompanyId: sell?.clientCompanyId ?? null,
+      holderCompanyId: row.companyId ?? null,
+    })
+  }
+  return out
+}
 
-  const row = await db.buyContract.findUnique({
-    where: { id: line.id },
-    select: {
-      companyId: true,
-      vendorCompanyId: true,
-      candidates: { select: { personId: true }, take: 1 },
-      sellLinks: {
-        select: { sellContract: { select: { personId: true, clientCompanyId: true } } },
-        take: 1,
-      },
-    },
-  })
-  const sell = row?.sellLinks[0]?.sellContract ?? null
-  return {
-    personId: row?.candidates[0]?.personId ?? sell?.personId ?? null,
-    // On a buy line the supplier is the firm below, where there is one.
-    // Where there is none we employ the person, and the firm being paid
-    // for the work is us.
-    supplierCompanyId: row?.vendorCompanyId ?? row?.companyId ?? null,
-    customerCompanyId: sell?.clientCompanyId ?? null,
-    holderCompanyId: row?.companyId ?? null,
-  }
+function factsOf(facts: Map<string, LineFacts>, line: { side: 'SELL' | 'BUY'; id: string } | null): LineFacts {
+  if (!line) return NO_LINE
+  return facts.get(`${line.side}:${line.id}`) ?? NO_LINE
 }
 
 interface Rung extends ChainRung {
   state: string
 }
 
-/** Every rung of every chain this person is standing on today. */
-async function rungsFor(db: Db, personId: string | null): Promise<Rung[]> {
-  if (!personId) return []
+/** Every rung of every chain each of these people is standing on today, in one read. */
+async function rungsForPeople(db: Db, personIds: (string | null)[]): Promise<Map<string, Rung[]>> {
+  const out = new Map<string, Rung[]>()
+  const ids = [...new Set(personIds.filter((v): v is string => !!v))]
+  if (ids.length === 0) return out
   const rows = await db.sellContract.findMany({
-    where: { personId, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+    where: { personId: { in: ids }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
     select: {
       id: true,
       personId: true,
@@ -1138,16 +1167,20 @@ async function rungsFor(db: Db, personId: string | null): Promise<Rung[]> {
       state: true,
     },
   })
-  return rows
-    .filter((r) => !!r.clientCompanyId)
-    .map((r) => ({
+  for (const r of rows) {
+    if (!r.clientCompanyId || !r.personId) continue
+    const theirs = out.get(r.personId) ?? []
+    theirs.push({
       id: r.id,
-      personId: r.personId!,
+      personId: r.personId,
       companyId: r.companyId,
       companyName: r.company.name,
-      clientCompanyId: r.clientCompanyId!,
+      clientCompanyId: r.clientCompanyId,
       state: r.state,
-    }))
+    })
+    out.set(r.personId, theirs)
+  }
+  return out
 }
 
 /**
@@ -1188,15 +1221,42 @@ function seenBy(
   return seen.masked ? seen : { ...seen, name: own.name, phrase: own.phrase, says: own.says }
 }
 
+type Term = { clientId: string; vendorId: string; disclosesSubVendors: boolean; status: string }
+
 /**
- * The cast for one document: who to chase, who to tell, and what each
- * of them may read.
+ * Everything a night's casts are read from, read once for the whole
+ * night rather than once per paper.
+ *
+ * The first nights read every paper's line, chain, seats, agreements and
+ * names one paper at a time; once the seeded world held four hundred
+ * running lines that was nine seconds of the same reads repeated. Every
+ * answer below is the answer the per-paper reads gave, because each one
+ * is looked up by the same id the per-paper read asked for.
  */
-async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
-  if (d.cover) return castForCover(db, d)
-  const line = await factsOfLine(db, d.line)
+interface CastBook {
+  seats: Seat[]
+  terms: Term[]
+  companyName: Map<string, string>
+  personName: Map<string, string>
+}
+
+/** One paper's chain and firms, before any name or desk is read. */
+interface CastShape {
+  personId: string | null
+  rungs: Rung[]
+  line: LineFacts
+  owingCompanyId: string | null
+  aboutCompanyId: string | null
+  bottom: Rung | null
+  top: Rung | null
+  exposedIds: string[]
+  employsCompanyId: string | null
+}
+
+/** Which firms one paper concerns, from its line and the chains its person stands on. Pure. */
+function shapeOf(d: OwedDocument, line: LineFacts, rungsOf: Map<string, Rung[]>): CastShape {
   const personId = d.personId ?? line.personId
-  const rungs = await rungsFor(db, personId)
+  const rungs = personId ? (rungsOf.get(personId) ?? []) : []
 
   const owingCompanyId =
     d.owedBy === 'SUPPLIER'
@@ -1244,75 +1304,113 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
   const employsCompanyId = d.owedBy === 'WORKER' ? aboutCompanyId : null
   if (employsCompanyId) buyers.delete(employsCompanyId)
 
-  const exposedIds = [...buyers]
-
-  const [names, chaseDesks, exposedDesks, terms, person] = await Promise.all([
-    db.company.findMany({
-      where: { id: { in: [...exposedIds, owingCompanyId, aboutCompanyId].filter((v): v is string => !!v) } },
-      select: { id: true, name: true },
-    }),
-    desksAt(db, [owingCompanyId, employsCompanyId].filter((v): v is string => !!v), CHASE_DESK),
-    desksAt(db, exposedIds, EXPOSED_DESK),
-    exposedIds.length
-      ? db.masterAgreement.findMany({
-          where: { clientId: { in: exposedIds } },
-          select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
-        })
-      : Promise.resolve([]),
-    personId ? db.person.findUnique({ where: { id: personId }, select: { name: true } }) : Promise.resolve(null),
-  ])
-
-  const nameOf = new Map(names.map((n) => [n.id, n.name]))
-  const owedByName = d.owedByName ?? (owingCompanyId ? (nameOf.get(owingCompanyId) ?? null) : null)
-
-  const aboutFirmName = aboutCompanyId
-    ? (nameOf.get(aboutCompanyId) ?? (await companyName(db, aboutCompanyId)))
-    : (bottom?.companyName ?? null)
-
   // The site the work is at: the top of the chain, which is the buyer
-  // nobody else buys from. Null where the chain does not say, and the
-  // sentence is written without it rather than around a guess.
-  const top = rungs.find((r) => !sellers.has(r.clientCompanyId))
-  const clientName = top
-    ? (nameOf.get(top.clientCompanyId) ?? (await companyName(db, top.clientCompanyId)))
-    : line.customerCompanyId
-      ? (nameOf.get(line.customerCompanyId) ?? (await companyName(db, line.customerCompanyId)))
+  // nobody else buys from.
+  const top = rungs.find((r) => !sellers.has(r.clientCompanyId)) ?? null
+
+  return {
+    personId,
+    rungs,
+    line,
+    owingCompanyId,
+    aboutCompanyId,
+    bottom,
+    top,
+    exposedIds: [...buyers],
+    employsCompanyId,
+  }
+}
+
+/**
+ * The cast for one document: who to chase, who to tell, and what each
+ * of them may read. Pure, from the shape and the night's book.
+ */
+function castFrom(d: OwedDocument, s: CastShape, book: CastBook): Cast {
+  const nameOf = (id: string | null): string | null => (id ? (book.companyName.get(id) ?? null) : null)
+  const chaseDesks = desksFrom(
+    book.seats,
+    [s.owingCompanyId, s.employsCompanyId].filter((v): v is string => !!v),
+    CHASE_DESK
+  )
+  const exposedDesks = desksFrom(book.seats, s.exposedIds, EXPOSED_DESK)
+
+  const owedByName = d.owedByName ?? nameOf(s.owingCompanyId)
+  const aboutFirmName = s.aboutCompanyId ? nameOf(s.aboutCompanyId) : (s.bottom?.companyName ?? null)
+
+  // Null where the chain does not say, and the sentence is written
+  // without it rather than around a guess.
+  const clientName = s.top
+    ? nameOf(s.top.clientCompanyId)
+    : s.line.customerCompanyId
+      ? nameOf(s.line.customerCompanyId)
       : null
 
   const chase: Cast['chase'] = []
   if (d.owedBy === 'WORKER') {
-    if (personId) chase.push({ personId, companyId: d.tellCompanyId ?? line.holderCompanyId, audience: 'candidate' })
-  } else if (owingCompanyId) {
-    for (const p of chaseDesks.get(owingCompanyId) ?? []) {
-      chase.push({ personId: p, companyId: owingCompanyId, audience: 'business' })
+    if (s.personId) chase.push({ personId: s.personId, companyId: d.tellCompanyId ?? s.line.holderCompanyId, audience: 'candidate' })
+  } else if (s.owingCompanyId) {
+    for (const p of chaseDesks.get(s.owingCompanyId) ?? []) {
+      chase.push({ personId: p, companyId: s.owingCompanyId, audience: 'business' })
     }
   }
 
   const exposed: Cast['exposed'] = []
-  for (const companyId of exposedIds) {
+  for (const companyId of s.exposedIds) {
     const people = exposedDesks.get(companyId) ?? []
     if (people.length === 0) continue
     exposed.push({
       companyId,
       people,
-      sees: seenBy(rungs, aboutCompanyId, aboutFirmName, companyId, terms),
+      sees: seenBy(s.rungs, s.aboutCompanyId, aboutFirmName, companyId, book.terms),
     })
   }
 
   // The desk that chases a person for their paper is the desk that
   // chases a firm for its own — the same permissions, because it is the
   // same job seen from the employer's side.
-  const employsPeople = employsCompanyId ? (chaseDesks.get(employsCompanyId) ?? []) : []
+  const employsPeople = s.employsCompanyId ? (chaseDesks.get(s.employsCompanyId) ?? []) : []
 
   return {
-    personName: person?.name ?? null,
+    personName: s.personId ? (book.personName.get(s.personId) ?? null) : null,
     clientName,
     owedByName,
     aboutFirmName,
     chase,
     exposed,
-    employs: employsCompanyId && employsPeople.length > 0 ? { companyId: employsCompanyId, people: employsPeople } : null,
+    employs:
+      s.employsCompanyId && employsPeople.length > 0 ? { companyId: s.employsCompanyId, people: employsPeople } : null,
   }
+}
+
+/** The people on a supplier's running lines, in line order, for its cover. */
+type CoverLine = { personId: string | null; name: string | null }
+
+/** Reader → the people on its site through this supplier, and one chain to read its name through. */
+type CoverReaders = Map<string, { names: string[]; rungs: Rung[] }>
+
+/**
+ * Every firm above a supplier on a live chain, with who stands on its
+ * site through that supplier. Pure.
+ */
+function coverReadersOf(supplierId: string, lines: CoverLine[], rungsOf: Map<string, Rung[]>): CoverReaders {
+  const nameOfPerson = new Map(lines.map((l) => [l.personId, l.name]))
+  const readers: CoverReaders = new Map()
+  for (const personId of nameOfPerson.keys()) {
+    const rungs = personId ? (rungsOf.get(personId) ?? []) : []
+    const seen = new Set<string>([supplierId])
+    let at = supplierId
+    for (;;) {
+      const up = rungs.find((r) => r.companyId === at)
+      if (!up || seen.has(up.clientCompanyId)) break
+      seen.add(up.clientCompanyId)
+      const entry = readers.get(up.clientCompanyId) ?? { names: [], rungs }
+      const name = nameOfPerson.get(personId)
+      if (name && !entry.names.includes(name)) entry.names.push(name)
+      readers.set(up.clientCompanyId, entry)
+      at = up.clientCompanyId
+    }
+  }
+  return readers
 }
 
 /**
@@ -1329,50 +1427,16 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
  * the prime as "the firm supplied through" the prime unless its
  * agreement discloses sub-vendors.
  */
-async function castForCover(db: Db, d: OwedDocument): Promise<Cast> {
+function castForCoverFrom(d: OwedDocument, readers: CoverReaders | null, book: CastBook): Cast {
   const supplierId = d.companyId
   const none: Cast = {
     personName: null, clientName: null, owedByName: d.owedByName, aboutFirmName: d.owedByName,
     chase: [], exposed: [], employs: null,
   }
-  if (!supplierId) return none
+  if (!supplierId || !readers || readers.size === 0) return none
 
-  const lines = await db.sellContract.findMany({
-    where: { companyId: supplierId, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
-    select: { personId: true, person: { select: { name: true } } },
-    orderBy: { id: 'asc' },
-  })
-  const nameOfPerson = new Map(lines.map((l) => [l.personId, l.person?.name ?? null]))
-
-  // Reader → the people on its site through this supplier, and one chain
-  // to read the supplier's name through.
-  const readers = new Map<string, { names: string[]; rungs: Rung[] }>()
-  for (const personId of nameOfPerson.keys()) {
-    const rungs = await rungsFor(db, personId)
-    const seen = new Set<string>([supplierId])
-    let at = supplierId
-    for (;;) {
-      const up = rungs.find((r) => r.companyId === at)
-      if (!up || seen.has(up.clientCompanyId)) break
-      seen.add(up.clientCompanyId)
-      const entry = readers.get(up.clientCompanyId) ?? { names: [], rungs }
-      const name = nameOfPerson.get(personId)
-      if (name && !entry.names.includes(name)) entry.names.push(name)
-      readers.set(up.clientCompanyId, entry)
-      at = up.clientCompanyId
-    }
-  }
-  const readerIds = [...readers.keys()]
-  if (readerIds.length === 0) return none
-
-  const [desks, terms] = await Promise.all([
-    desksAt(db, readerIds, EXPOSED_DESK),
-    db.masterAgreement.findMany({
-      where: { clientId: { in: readerIds } },
-      select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
-    }),
-  ])
-  const supplierName = d.owedByName ?? (await companyName(db, supplierId))
+  const desks = desksFrom(book.seats, [...readers.keys()], EXPOSED_DESK)
+  const supplierName = d.owedByName ?? book.companyName.get(supplierId) ?? null
 
   const exposed: Cast['exposed'] = []
   for (const [companyId, r] of readers) {
@@ -1381,11 +1445,113 @@ async function castForCover(db: Db, d: OwedDocument): Promise<Cast> {
     exposed.push({
       companyId,
       people,
-      sees: seenBy(r.rungs, supplierId, supplierName, companyId, terms),
+      sees: seenBy(r.rungs, supplierId, supplierName, companyId, book.terms),
       onSite: r.names,
     })
   }
   return { ...none, owedByName: supplierName, aboutFirmName: supplierName, exposed }
+}
+
+/**
+ * Every paper's cast, read in a fixed number of queries however many
+ * papers there are: the lines, the chains every person stands on, the
+ * seats at every firm involved, the agreements, and the names.
+ */
+async function castsFor(db: Db, documents: OwedDocument[]): Promise<Map<OwedDocument, Cast>> {
+  const plain = documents.filter((d) => !d.cover)
+  const covers = documents.filter((d) => d.cover)
+  const supplierIds = [...new Set(covers.map((d) => d.companyId).filter((v): v is string => !!v))]
+
+  const [lineFacts, coverRows] = await Promise.all([
+    factsOfLines(db, plain.map((d) => d.line)),
+    supplierIds.length
+      ? db.sellContract.findMany({
+          where: { companyId: { in: supplierIds }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+          select: { companyId: true, personId: true, person: { select: { name: true } } },
+          orderBy: { id: 'asc' },
+        })
+      : Promise.resolve([]),
+  ])
+  const coverLinesOf = new Map<string, CoverLine[]>()
+  for (const r of coverRows) {
+    const at = coverLinesOf.get(r.companyId) ?? []
+    at.push({ personId: r.personId, name: r.person?.name ?? null })
+    coverLinesOf.set(r.companyId, at)
+  }
+
+  const rungsOf = await rungsForPeople(db, [
+    ...plain.map((d) => d.personId ?? factsOf(lineFacts, d.line).personId),
+    ...coverRows.map((r) => r.personId),
+  ])
+
+  const shapes = new Map<OwedDocument, CastShape>()
+  for (const d of plain) shapes.set(d, shapeOf(d, factsOf(lineFacts, d.line), rungsOf))
+  const readersOf = new Map<string, CoverReaders>()
+  for (const id of supplierIds) readersOf.set(id, coverReadersOf(id, coverLinesOf.get(id) ?? [], rungsOf))
+
+  const seatIds = new Set<string>()
+  const termIds = new Set<string>()
+  const nameIds = new Set<string>(supplierIds)
+  const personIds = new Set<string>()
+  const add = (into: Set<string>, id: string | null | undefined) => {
+    if (id) into.add(id)
+  }
+  for (const s of shapes.values()) {
+    add(seatIds, s.owingCompanyId)
+    add(seatIds, s.employsCompanyId)
+    for (const id of s.exposedIds) {
+      seatIds.add(id)
+      termIds.add(id)
+      nameIds.add(id)
+    }
+    add(nameIds, s.owingCompanyId)
+    add(nameIds, s.aboutCompanyId)
+    add(nameIds, s.top?.clientCompanyId)
+    add(nameIds, s.line.customerCompanyId)
+    add(personIds, s.personId)
+  }
+  for (const readers of readersOf.values()) {
+    for (const id of readers.keys()) {
+      seatIds.add(id)
+      termIds.add(id)
+    }
+  }
+
+  const [seats, terms, companies, people] = await Promise.all([
+    seatIds.size
+      ? db.context.findMany({ where: { companyId: { in: [...seatIds] }, revokedAt: null }, select: SEAT_SELECT })
+      : Promise.resolve([]),
+    termIds.size
+      ? db.masterAgreement.findMany({
+          where: { clientId: { in: [...termIds] } },
+          select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+        })
+      : Promise.resolve([]),
+    nameIds.size
+      ? db.company.findMany({ where: { id: { in: [...nameIds] } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    personIds.size
+      ? db.person.findMany({ where: { id: { in: [...personIds] } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ])
+
+  const book: CastBook = {
+    seats: seats as Seat[],
+    terms: terms as Term[],
+    companyName: new Map(companies.map((c) => [c.id, c.name])),
+    personName: new Map(people.filter((p) => p.name != null).map((p) => [p.id, p.name as string])),
+  }
+
+  const out = new Map<OwedDocument, Cast>()
+  for (const d of documents) {
+    out.set(
+      d,
+      d.cover
+        ? castForCoverFrom(d, d.companyId ? (readersOf.get(d.companyId) ?? null) : null, book)
+        : castFrom(d, shapes.get(d)!, book)
+    )
+  }
+  return out
 }
 
 /** The supplier papers whose lapse stops work, read off the dictionary. */
@@ -1451,11 +1617,6 @@ export async function supplierCoverLapses(
   return out
 }
 
-async function companyName(db: Db, id: string): Promise<string | null> {
-  const c = await db.company.findUnique({ where: { id }, select: { name: true } })
-  return c?.name ?? null
-}
-
 // ── The one door the nightly job calls ────────────────────────────────
 
 export interface LapseTelling {
@@ -1518,8 +1679,10 @@ export async function tellAbout(
     for (const d of mine) if (by.has(d.id)) d.provider = by.get(d.id) ?? null
   }
 
+  // Every paper's cast in a fixed number of reads, then each one from the maps.
+  const casts = await castsFor(db, mine)
   for (const d of mine) {
-    const cast = await castFor(db, d)
+    const cast = casts.get(d)!
     const letters = lettersFor(d, cast, said)
     // Nobody to chase is a gap, except a supplier's own cover, which the
     // nightly finding tells the supplier itself.
@@ -1733,15 +1896,17 @@ export async function documentsNeverFiled(
     orderBy: { id: 'asc' },
   })
 
-  const out: OwedDocument[] = []
-  for (const line of lines) {
-    const extras = await lineExtras({ sellContractId: line.id }, db as never, now)
-    if (!extras.requirements || extras.requirements.length === 0) continue
-
-    const personVerifications = line.personId
-      ? await db.verification.findMany({
-          where: { personId: line.personId },
+  // What every line requires and what is in hand, read for all the lines
+  // at once — the same answer per line as `lineExtras`, a line requiring
+  // nothing left out — and every person's verifications in one read.
+  const personIds = [...new Set(lines.map((l) => l.personId).filter((v): v is string => !!v))]
+  const [extrasOf, allVerifications] = await Promise.all([
+    lineExtrasForSellLines(lines.map((l) => l.id), db as never, now),
+    personIds.length
+      ? db.verification.findMany({
+          where: { personId: { in: personIds } },
           select: {
+            personId: true,
             type: true, status: true, issuedAt: true, validFrom: true,
             expiresAt: true, verifiedAt: true, provider: true, result: true,
             // The firm's steps after a flagged report, so one it decided
@@ -1749,7 +1914,22 @@ export async function documentsNeverFiled(
             ...ADVERSE_STEPS,
           },
         })
-      : []
+      : Promise.resolve([]),
+  ])
+  const verificationsOf = new Map<string, typeof allVerifications>()
+  for (const v of allVerifications) {
+    if (!v.personId) continue
+    const theirs = verificationsOf.get(v.personId) ?? []
+    theirs.push(v)
+    verificationsOf.set(v.personId, theirs)
+  }
+
+  const out: OwedDocument[] = []
+  for (const line of lines) {
+    const extras = extrasOf.get(line.id) ?? {}
+    if (!extras.requirements || extras.requirements.length === 0) continue
+
+    const personVerifications = line.personId ? (verificationsOf.get(line.personId) ?? []) : []
     const newest = newestReports(personVerifications as never)
 
     const verdict = contractClearance({
@@ -2018,32 +2198,30 @@ export async function sendDocumentLapses(
     people++
     if (note) findingsTold++
 
-    for (const l of night.facts) {
-      sent.push(l)
-      await db.automationLog.create({
-        data: {
-          companyId: l.companyId,
-          action: 'DOCUMENT_LAPSE_TOLD',
-          summary: l.logSummary,
-          reason: l.logReason,
-          payload: {
-            documentId: l.data.documentId,
-            documentKey: l.data.documentKey,
-            milestone: l.data.milestone,
-            daysLeft: l.data.daysLeft,
-            side: l.side,
-            stopsWork: l.data.stopsWork,
-            told: DESK_WORDS[l.side],
-            // How many papers shared the one letter it went out in.
-            inOneLetterWith: night.facts.length,
-            ...(note ? { withFindings: true } : {}),
-            at: now.toISOString(),
-          },
-          reversible: false,
-        },
-      })
-      logged++
-    }
+    // One row per paper, written together once the letter is written.
+    const rows = night.facts.map((l) => ({
+      companyId: l.companyId,
+      action: 'DOCUMENT_LAPSE_TOLD',
+      summary: l.logSummary,
+      reason: l.logReason,
+      payload: {
+        documentId: l.data.documentId,
+        documentKey: l.data.documentKey,
+        milestone: l.data.milestone,
+        daysLeft: l.data.daysLeft,
+        side: l.side,
+        stopsWork: l.data.stopsWork,
+        told: DESK_WORDS[l.side],
+        // How many papers shared the one letter it went out in.
+        inOneLetterWith: night.facts.length,
+        ...(note ? { withFindings: true } : {}),
+        at: now.toISOString(),
+      },
+      reversible: false,
+    }))
+    await db.automationLog.createMany({ data: rows })
+    sent.push(...night.facts)
+    logged += rows.length
   }
 
   return { letters: sent, people, logged, findingsTold }
