@@ -396,6 +396,7 @@ export const MATRIX: L1[] = [
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
         { code: 'L3.1.4.1', name: 'What we say we are', owner: 'Etyme', status: B,
           tasks: [
+            'BUILT 2026-10-27: the home page is the map: Corvane read as CFO, head of operations, regional manager, hiring manager (market, 64a1f6606)',
             'Category before cleverness: say what kind of thing it is first',
             'Never one module describing itself',
             'Never lead with AI, and never claim we place anybody',
@@ -439,7 +440,7 @@ export const MATRIX: L1[] = [
             'BUILT 2026-10-19 by etyme-market (792366883): every public panel names its person \u2014 the home page plays Marcus Oyelaran, Helena Marsh and Renata Kowal at Northbend Athletic over the four steps, each door and tab plays its own party\u2019s person from the seed at the step it acts on and the line under the panel names them, the flow chart\u2019s role pills wrap instead of being cut short, and the public header is the logo and Sign in',
             'BUILT 2026-10-20 by etyme-market (8b5c239ac): every step page, door and tab opens on the home page\u2019s own first line, \u201cEnterprise contingent workforce management\u201d, drawn once from one constant; the step eyebrow reads \u201cStep 1 of 4 · Job\u201d; every door\u2019s button is \u201cOpen the demo, no account\u201d; and the phone bar fits one line at 375 for every story. The sign-in door draws the same line with no period (architect)',
           ],
-          implementedBy: ['src/app/(auth)/door-frame.tsx', 'src/lib/public-site/flow-chart.tsx', 'src/lib/public-site/sub-page.tsx', 'src/lib/public-site/folded.ts', 'src/lib/public-site/parties.ts', 'src/lib/public-site/party-page.tsx', 'src/app/(site)/for/suppliers/page.tsx', 'src/app/(site)/for/program-offices/page.tsx', 'src/app/(site)/for/integrators/page.tsx', 'src/app/(site)/for/contractors/page.tsx',
+          implementedBy: ['src/lib/public-site/corvane-map.ts', 'src/lib/public-site/corvane-map-view.tsx', 'src/app/(auth)/door-frame.tsx', 'src/lib/public-site/flow-chart.tsx', 'src/lib/public-site/sub-page.tsx', 'src/lib/public-site/folded.ts', 'src/lib/public-site/parties.ts', 'src/lib/public-site/party-page.tsx', 'src/app/(site)/for/suppliers/page.tsx', 'src/app/(site)/for/program-offices/page.tsx', 'src/app/(site)/for/integrators/page.tsx', 'src/app/(site)/for/contractors/page.tsx',
             'src/lib/positioning.ts', 'src/app/page.tsx', 'src/lib/public-site/close-band.tsx', 'src/lib/public-site/funnel.ts',
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'public/screens',
             'src/lib/public-site/pages.ts', 'src/lib/public-site/nav.ts', 'src/lib/public-site/frame.tsx',
@@ -456,7 +457,7 @@ export const MATRIX: L1[] = [
             'src/lib/public-site/market-events.ts', 'src/app/api/market/events/route.ts', 'src/lib/public-site/story.ts', 'src/lib/public-site/story-panel.tsx',
             'src/lib/public-site/skeleton.tsx', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/sub-page.tsx', 'src/lib/public-site/docs/process.ts', 'src/lib/public-site/docs/topics.ts',
             'src/app/demo/desk-picker.tsx', 'src/app/api/demo/route.ts', 'src/lib/demo-session.ts', 'src/lib/events.ts'],
-          testedBy: ['__tests__/invariants/positioning.test.ts', '__tests__/invariants/demo-names.test.ts',
+          testedBy: ['__tests__/invariants/story-panel-map.test.ts', '__tests__/invariants/positioning.test.ts', '__tests__/invariants/demo-names.test.ts',
             '__tests__/invariants/public-pages.test.ts', '__tests__/invariants/public-funnel.test.ts',
             '__tests__/invariants/site-description.test.ts', '__tests__/invariants/public-example-names.test.ts',
             '__tests__/invariants/story-panel.test.ts',
