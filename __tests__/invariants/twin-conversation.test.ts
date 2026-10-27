@@ -1384,7 +1384,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
     const branch = route.indexOf("if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)")
     expect(branch).toBeGreaterThan(0)
-    expect(branch).toBeLessThan(route.indexOf('if (asWorker(caller)) return workerGreeting(caller, request)'))
+    expect(branch).toBeLessThan(route.indexOf('if (asWorker(caller) && !caller.region) return workerGreeting(caller, request)'))
     const body = route.slice(route.indexOf('async function owedCount('), route.indexOf("/** The worker's greeting and her saved thread."))
     expect(body).toContain('return NextResponse.json({ data: { total } })')
     expect(body).not.toMatch(/markNoticesSeen|unreadNotices|appendTurn|markCard|clearThread|prisma\./)

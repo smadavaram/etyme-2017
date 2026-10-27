@@ -603,6 +603,34 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   a row, some once per row; etyme-demand), and the mark asks the same
   queue again on every page load and once a minute (shell).
 
+### Ask Etyme by region — etyme-conversation, 2026-10-27
+
+- **A regional manager cannot reach Ask Etyme from the menu.** The route
+  answers a region seat now, but its menu is Today and By region and it
+  lands on By region (`lib/nav-table`, architect's). Pinning Ask Etyme on
+  a region seat's menu is the architect's call. By its address,
+  `/dashboard/conversations/etyme`, the chat answers, but the list of
+  other threads beside it reads `GET /api/conversations`, which does not
+  narrow to a region and refuses the seat. Not walked in a browser.
+- **The mark reads a whole region every minute.** For a region seat, the
+  CFO and the head of operations the mark's number is By region's
+  greeting, so each poll is a full `regionsView` and logs every person it
+  reads. Correct, and heavy; a count without the person rows is demand's.
+- **"What is held and why" reuses By region's own sentences**
+  (`greeting.items`), picked by their words ("invoice receipt", "start").
+  If demand rewords them the answer changes with them, which is the point,
+  but a held item worded without either word would be left out. A
+  structured list of held items on the read would end this.
+- **The time limit for a region or the program is the nearest person per
+  plant or per region**, said so in the answer; everybody at a plant is
+  one click behind on By region. A plant seat reads all of its own.
+- **Which seats read the rollup is decided by permission, not by title:**
+  a client seat on no unit, at a client whose sites carry two or more
+  regions, holding `utilization.read` and not `payments.record`. An
+  owner or an AP clerk keeps their queue and its pay cards.
+- **A region seat's "Since you last looked" is not shown.** Its greeting
+  is By region's line alone, so no notice is marked read for it.
+
 ### Before 2026-10-12, as the panel on the twin's page
 
 - **The route is `POST /api/conversations/twin`, not `/api/twin-chat`.**

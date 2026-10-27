@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { respond, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
@@ -67,6 +68,16 @@ import { owedTotal } from './owed'
  * Her thread is kept exactly as any seat's. A candidate with no company
  * seat at all keeps one thread of her own, keyed on her alone by the door
  * (`threadKey` in lib/ask-etyme-thread), and Clear clears it.
+ *
+ * A seat that reads the program by region (./regions, founder 2026-10-27):
+ * a regional manager is greeted and answered from By region's own read
+ * (`regionsView`), narrowed to its region, and nothing else is read for
+ * it — not the decisions queue, not the readers, not the model — which is
+ * why this route asks for the caller with `{ narrowsToRegion: true }`. The
+ * head of operations and the CFO over a program in several regions are
+ * greeted with the rollup's first line, and the mark carries its number;
+ * a hiring manager on a plant keeps its own queue and is answered about
+ * its plant from the same read.
  */
 /**
  * People on site today and the suppliers they come through, as the
@@ -98,6 +109,26 @@ async function pictureFor(request: NextRequest): Promise<Picture | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * Which map this caller reads (./regions), read once per request. A
+ * region seat whose map cannot be read is answered by nothing else: the
+ * caller is told, never handed an unnarrowed read.
+ */
+const maps = new WeakMap<object, Promise<MapSeat | null>>()
+function mapOf(caller: Caller): Promise<MapSeat | null> {
+  let got = maps.get(caller)
+  if (!got) {
+    got = mapSeatOf(caller).catch(() => null)
+    maps.set(caller, got)
+  }
+  return got
+}
+
+/** A map seat greeted with the rollup's line rather than its own queue: a region, or the whole program. */
+function readsTheRollup(map: MapSeat | null): boolean {
+  return !!map && map.reach !== 'SITE'
 }
 
 /**
@@ -179,7 +210,17 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
 
 function needsFor(request: NextRequest, caller: Caller): () => Promise<number | null> {
   const queue = queueFor(request, caller)
-  return async () => (await queue())?.total ?? null
+  return async () => {
+    // A region or a program read by region: the rollup's own number, so
+    // the mark, the greeting and By region carry one figure.
+    const map = await mapOf(caller)
+    if (readsTheRollup(map)) {
+      const data = await mapView(caller, { trail: 'Ask Etyme mark' })
+      return data ? mapOwed(data) : null
+    }
+    if (caller.region) return null
+    return (await queue())?.total ?? null
+  }
 }
 
 /**
@@ -286,12 +327,12 @@ function takeOf(request: NextRequest): number | undefined {
 }
 
 export async function GET(request: NextRequest) {
-  const { caller, error } = await getCallerContext(request)
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
   // The mark's number: the greeting's own count, read with no notice
   // marked seen and no line kept, so polling it changes nothing.
   if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)
-  if (asWorker(caller)) return workerGreeting(caller, request)
+  if (asWorker(caller) && !caller.region) return workerGreeting(caller, request)
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -300,6 +341,9 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get('only') === 'thread') {
     return NextResponse.json({ data: { thread: await threadFor(caller, take) } })
   }
+  const map = await mapOf(caller)
+  if (map && readsTheRollup(map)) return mapGreeting(caller, map, take)
+  if (caller.region) return notReadByRegion(caller)
   try {
     // Every read starts at once (founder's walk, 2026-10-19: the AP clerk's
     // first screen sat on "Reading the record…"). The program's picture and
@@ -330,7 +374,9 @@ export async function GET(request: NextRequest) {
       markNoticesSeen(caller, threads.noticeIds),
     ])
     // The chips are the desk's own: only questions this seat gets an answer to.
-    const chips = questionsFor(who.party, await judgedBy(caller), company.kind)
+    // A hiring manager on a plant asks about the time limit at the plant too.
+    const own = questionsFor(who.party, await judgedBy(caller), company.kind)
+    const chips = map?.reach === 'SITE' ? mapChips('SITE', own) : own
     return NextResponse.json({ data: { answer, model, party: who.party, client: who.client, chips, thread: await thread } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
@@ -339,11 +385,41 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * The greeting of a seat that reads the program by region: By region's
+ * own first line and its number, read through `regionsView` for this
+ * caller. A region seat's boundary line says nothing it asks leaves to a
+ * model, because nothing does.
+ */
+async function mapGreeting(caller: Caller, map: MapSeat, take: number | undefined) {
+  try {
+    const thread = threadFor(caller, take)
+    const data = await mapView(caller, { trail: 'Ask Etyme greeting' })
+    if (!data) return notReadByRegion(caller)
+    const model = map.reach === 'REGION' ? 'OFF' : modelState((await modelSwitchFor(caller.company!.id)).on, process.env)
+    const boundary = map.reach === 'REGION' ? REGION_BOUNDARY : boundarySays(model)
+    return NextResponse.json({
+      data: { answer: mapNeeds(data, map.reach, true, boundary), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
+    })
+  } catch (err) {
+    await reportError('Ask Etyme could not greet a seat by region', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+    return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+  }
+}
+
+const NOT_READ_BY_REGION = 'Etyme could not read your region just now, so there is no answer. Open By region on Today, or try again in a minute.'
+
+/** A region seat whose region could not be read: told so, and nothing unnarrowed is read in its place. */
+function notReadByRegion(caller: Caller) {
+  void reportError('Ask Etyme could not read a region seat’s region', new Error('regionsView refused or failed'), { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+  return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_READ_BY_REGION } }, { status: 500 })
+}
+
+/**
  * `{ data: { total } }` for the Ask Etyme mark: a worker's cards, or a
  * firm seat's decisions total; null where it could not be read. Reads only.
  */
 async function owedCount(caller: Caller, request: NextRequest) {
-  const worker = asWorker(caller)
+  const worker = asWorker(caller) && !caller.region
   if (!worker && !caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -399,9 +475,9 @@ async function keep(caller: Caller, question: string, answer: Answer): Promise<{
 }
 
 export async function POST(request: NextRequest) {
-  const { caller, error } = await getCallerContext(request)
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
-  if (asWorker(caller)) {
+  if (asWorker(caller) && !caller.region) {
     const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
     let answer: Answer
@@ -426,6 +502,17 @@ export async function POST(request: NextRequest) {
 
   let answer: Answer
   try {
+    // A seat that reads the program by region: its questions about the
+    // map are answered from By region's read; a region seat's are all
+    // answered there or told what it may ask, never sent further.
+    const map = await mapOf(caller)
+    if (caller.region && !map) return notReadByRegion(caller)
+    const byRegion = map ? await mapAnswer(caller, map, text) : null
+    if (byRegion || map?.reach === 'REGION') {
+      answer = byRegion ?? mapHelp(map!)
+      const kept = text.trim() ? await keep(caller, text.trim(), answer) : { kept: false, turnId: null, notKeptBecause: null }
+      return NextResponse.json({ data: { answer, ...kept } })
+    }
     const who = await partyFor(caller)
     // A one-person firm is the firm and the worker at once: her week, her
     // papers and her contract are answered from her own pages, as a
@@ -473,7 +560,8 @@ function replyOf(raw: unknown): Answer | null {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { caller, error } = await getCallerContext(request)
+  // Records a card's answer on the seat's own thread; reads nobody's work.
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
@@ -520,7 +608,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const { caller, error } = await getCallerContext(request)
+  // Clears the seat's own thread; reads nobody's work.
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
   // A candidate with no company seat clears her own thread, keyed on her alone.
   if (!caller.company && !asWorker(caller)) {
