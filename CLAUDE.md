@@ -1531,6 +1531,42 @@ seat. (3) **A worker may name a client not yet on Etyme**, as text,
 matched the day that company joins. The rest of the walk's list is
 wording and wrong doors, routed with the three.
 
+**Shipped to production 2026-10-27, night (42085f3b1 on the deploy
+branch, source aa890b891):** the second wave. Two firms already on
+Etyme link by one ask and one yes (`TradeLinkRequest`,
+`POST /api/trade-links`; a yes writes the counterparty record on both
+sides in one transaction; "Add company" for a firm on Etyme offers
+"Ask them to link"); a firm never lists itself among its companies; a
+vendor adding its own sub-vendor checks its papers (W-9, insurance,
+good standing, the agreement) by one person and never walks a client's
+four roles; a second client's apply form carries every answer the firm
+gave the first, dates included, and HR confirms the supplier's dates
+rather than re-typing them; an order raised by hand, by either end,
+asks for its first line, and a buy line goes only on an open order
+this firm raised to the firm it pays; with nobody to record an
+agreement with, the form says to link first; an invited colleague
+lands in Ask Etyme itself with her welcome first, and "nothing waits"
+is said only when nothing does; every first-act link opens the screen
+that does the act; a bench vendor's first act is its bench; an
+invitation never claims an email went when none could and never hands
+out a sign-in address the person cannot use; a one-person firm's
+paperwork speaks to her as the firm; an outside firm's seat never
+holds the Owner, the Approver, a role that grants seats or one that
+signs hours (regulatory's rule, read from permissions); a worker names
+a client not yet on Etyme and it is honored the day exactly one
+company of that name joins (`DoNotSubmit.companyName`); the Pay column
+never shows a bill rate; a bench invitation's link is kept on the
+notice for staff where no email can leave; a pending firm reads the
+day it was recommended and one name for its step. Release pass on a
+quiet copy of aa890b891, fully green: type check, 12,187 unit, 2,547
+integration, build. Gates: no source difference, no Ruby, brand kit
+present, the seven "removed" schema lines re-aligned whitespace and
+one column going nullable. Smoke: every public page and both sign-up
+forms 200, the inbound email door 404 to a POST. Still waiting on
+"build it": the setup checklist with its fill sources
+(https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq) and the four doors'
+maps.
+
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
 The founder: *"Can you integrate user business email, like Muse, and
