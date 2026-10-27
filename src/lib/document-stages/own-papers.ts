@@ -62,7 +62,7 @@ export type OwnPaperAbout = 'ME' | 'MY_FIRM'
 export const FIRM_PAPERS = ['W9', 'INSURANCE_GL', 'INSURANCE_WC', 'GOOD_STANDING', 'BUSINESS_PARTNER', 'INSURANCE_EO'] as const
 
 /** What a person keeps about her own work, ahead of any ask. */
-export const PERSON_PAPERS = ['PROFESSIONAL_LICENSE', 'DEGREE', 'EDUCATION_EVALUATION'] as const
+export const PERSON_PAPERS = ['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'DEGREE', 'EDUCATION_EVALUATION'] as const
 
 /** Kept on a profile rather than as a paper on file. */
 const NOT_A_PAPER = ['RESUME', 'REFERENCE_CHECK']
@@ -90,7 +90,8 @@ function needsOf(t: DocumentTypeSpec, about: OwnPaperAbout): OwnPaperNeeds {
     about,
     file: true,
     number: license,
-    issuer: license,
+    // A certification is named by who issued it, the way a license is.
+    issuer: license || t.key === 'CERTIFICATION',
     validFrom: t.validityShape === 'START_AND_END',
     validUntil: t.validityShape === 'END_ONLY' || t.validityShape === 'START_AND_END',
     edition: t.reissued === true,
@@ -239,19 +240,17 @@ export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict
   const needs = needsOf(t, input.about)
   const lower = /^[A-Z][a-z]/.test(t.label) ? t.label.charAt(0).toLowerCase() + t.label.slice(1) : t.label
 
-  // The copy. Where the record cannot keep one for this caller, a license
-  // may still go on file by its number, issuer and expiry, which is what
-  // the board's register is checked against; nothing else is on file
-  // with no copy behind it.
-  if (!filled(input.fileName)) {
-    if (input.canKeepCopy || !needs.number) {
-      return {
-        ok: false, code: 'NEEDS_FILE', field: 'file',
-        message: input.canKeepCopy
-          ? `Attach the ${lower} as it was issued.`
-          : `A copy of your ${lower} cannot be kept on your own page yet. The firm that asks for it keeps the copy.`,
-      }
+  // The copy. Nothing is on file with no copy behind it. Where the record
+  // has nowhere to keep one for this caller (a degree, for a person with
+  // no firm of her own), it says so rather than filing the facts alone.
+  if (!input.canKeepCopy) {
+    return {
+      ok: false, code: 'NO_COPY_HOME', field: 'file',
+      message: `A copy of your ${lower} cannot be kept on your own page yet. The firm that asks for it keeps the copy.`,
     }
+  }
+  if (!filled(input.fileName)) {
+    return { ok: false, code: 'NEEDS_FILE', field: 'file', message: `Attach the ${lower} as it was issued.` }
   }
 
   if (needs.number && !filled(input.number)) {

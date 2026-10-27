@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import { BUILT_IN } from '@/lib/document-type'
 import { mayFileOwnPaper, ownPaperMenu, whyNotOwn } from '@/lib/document-stages/own-papers'
+import { licenseGate, credentialsToChase } from '@/lib/document-stages'
 import { peopleOnBooks, heldFromDocInstances, KEPT_BY_HOLDER, statusWord } from '@/lib/document-request'
 
 const ON = new Date('2026-10-27T15:00:00Z')
@@ -16,7 +17,7 @@ const ON = new Date('2026-10-27T15:00:00Z')
 describe('what a person keeps about her own work', () => {
   it('a worker adds her own license or certificate from Your paperwork', () => {
     const menu = ownPaperMenu({ firm: false }).map((n) => n.key)
-    expect(menu).toEqual(['PROFESSIONAL_LICENSE', 'DEGREE', 'EDUCATION_EVALUATION'])
+    expect(menu).toEqual(['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'DEGREE', 'EDUCATION_EVALUATION'])
 
     const r = mayFileOwnPaper({
       key: 'PROFESSIONAL_LICENSE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true,
@@ -40,13 +41,17 @@ describe('what a person keeps about her own work', () => {
     expect(mayFileOwnPaper({ ...base, number: 'RN-1', issuer: 'WI', validUntil: '2026-10-01' }, ON)).toMatchObject({ ok: false, code: 'ALREADY_LAPSED' })
   })
 
-  it('a paper is never on file with no copy, except a license by its number where the record cannot keep her copy yet', () => {
+  it('a worker\'s own paper keeps its copy on her record, and is never on file with no copy', () => {
     expect(mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true }, ON)).toMatchObject({ ok: false, code: 'NEEDS_FILE' })
-    expect(mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: false }, ON)).toMatchObject({ ok: false, code: 'NEEDS_FILE' })
     expect(mayFileOwnPaper({
-      key: 'PROFESSIONAL_LICENSE', about: 'ME', isOnePersonFirm: false, canKeepCopy: false,
+      key: 'PROFESSIONAL_LICENSE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true,
       number: 'RN-1', issuer: 'WI', validUntil: '2027-01-01',
-    }, ON).ok).toBe(true)
+    }, ON)).toMatchObject({ ok: false, code: 'NEEDS_FILE' })
+    const cert = { key: 'CERTIFICATION', about: 'ME' as const, isOnePersonFirm: false, canKeepCopy: true, fileName: 'bls.pdf', validUntil: '2027-05-01' }
+    expect(mayFileOwnPaper(cert, ON)).toMatchObject({ ok: false, code: 'NEEDS_ISSUER' })
+    expect(mayFileOwnPaper({ ...cert, issuer: 'American Heart Association' }, ON).ok).toBe(true)
+    // Where the record has nowhere to keep the copy, it says so.
+    expect(mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: false, fileName: 'bsn.pdf' }, ON)).toMatchObject({ ok: false, code: 'NO_COPY_HOME' })
   })
 
   it('an I-9 and a background check are never collected before an offer, even offered freely', () => {
@@ -104,5 +109,24 @@ describe('a one-person firm’s own papers', () => {
     expect(mayFileOwnPaper({ key: 'W9', about: 'MY_FIRM', isOnePersonFirm: false, canKeepCopy: true, fileName: 'w9.pdf', edition: 'Rev. March 2024' }, ON))
       .toMatchObject({ ok: false, code: 'NOT_YOUR_FIRM' })
     expect(whyNotOwn('NDA', 'MY_FIRM')).toContain('not one of your firm’s own papers')
+  })
+})
+
+describe('a license its holder filed', () => {
+  it('a license its holder filed is chased for renewal and never clears the license gate', () => {
+    const own = {
+      type: 'PROFESSIONAL_LICENSE', status: 'PENDING', selfFiled: true,
+      expiresAt: new Date('2026-11-20T00:00:00Z'), number: 'RN-88', state: 'OH',
+    }
+    const chases = credentialsToChase([own], ['PROFESSIONAL_LICENSE'], ON, undefined, 'Halcyon Talent')
+    expect(chases.length).toBe(1)
+    // An ordinary PENDING row is a check not back yet: nothing to renew.
+    expect(credentialsToChase([{ ...own, selfFiled: false }], ['PROFESSIONAL_LICENSE'], ON)).toEqual([])
+
+    // The gate reads her own filing exactly as it reads no license at all:
+    // nobody examined it, so it stands behind no start.
+    const gate = licenseGate({ personName: 'Nina Okafor', credentials: [own], keys: ['PROFESSIONAL_LICENSE'], on: ON })
+    const none = licenseGate({ personName: 'Nina Okafor', credentials: [], keys: ['PROFESSIONAL_LICENSE'], on: ON })
+    expect(gate).toEqual(none)
   })
 })

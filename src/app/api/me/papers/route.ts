@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const me = caller.person.id
 
-  if (new URL(request.url).searchParams.get('view') === 'own') return ownView(caller)
+  const params = new URL(request.url).searchParams
+  if (params.get('view') === 'own') return ownView(caller)
+  if (params.get('file')) return ownFile(caller, params.get('file')!)
 
   const [instances, packets, held] = await Promise.all([
     prisma.docInstance.findMany({
@@ -717,6 +719,10 @@ async function templateFor(companyId: string, label: string) {
 //   firm of her own: a template belongs to a company, and an employer's
 //   template is not hers to keep her papers under.
 //
+//   where she has no firm, the copy is kept on the verification itself
+//   (`VerificationDoc.bytes`, 2026-10-27) and read back through
+//   GET ?file=<verification id>, by her and nobody else.
+//
 //   a `Verification` at PENDING, where the type is one the compliance
 //   record knows, carrying the number, the issuer and the dates. PENDING
 //   because nobody examined it: no gate reads it as held.
@@ -724,6 +730,43 @@ async function templateFor(companyId: string, label: string) {
 type Caller = NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>
 
 const VERIFICATION_TYPES = new Set<string>(Object.values(VerificationType))
+
+/**
+ * Where the copy of this paper lives for this caller: under her firm's
+ * template (DOC), on the verification itself (VERIFICATION), or nowhere.
+ * A degree has no verification type, so with no firm it has no home yet.
+ */
+function copyHome(key: string, hasFirm: boolean): 'DOC' | 'VERIFICATION' | null {
+  if (hasFirm) return 'DOC'
+  return VERIFICATION_TYPES.has(key) ? 'VERIFICATION' : null
+}
+
+/**
+ * GET /api/me/papers?file=<verification id> — the copy of a paper she
+ * filed herself, kept on her record. Hers alone: anybody else is told it
+ * is not here, the same refusal the file door gives, which confirms
+ * nothing. Reading her own file is not a read of somebody else's data, so
+ * no access log row (see the GET above).
+ */
+async function ownFile(caller: Caller, verificationId: string) {
+  const firm = ownFirm(caller)
+  const doc = await prisma.verificationDoc.findFirst({
+    where: {
+      verificationId,
+      bytes: { not: null },
+      verification: { uploadedById: caller.person.id, OR: [{ personId: caller.person.id }, ...(firm ? [{ companyId: firm.id }] : [])] },
+    },
+    select: { fileName: true, contentType: true, bytes: true },
+  })
+  if (!doc?.bytes) return refuse('That document is not here.', 404, 'NOT_FOUND')
+  return new NextResponse(new Uint8Array(doc.bytes), {
+    headers: {
+      'content-type': doc.contentType ?? 'application/octet-stream',
+      'content-disposition': `inline; filename="${doc.fileName.replace(/"/g, '')}"`,
+      'cache-control': 'private, no-store',
+    },
+  })
+}
 
 /** Her own firm, where she is a one-person firm. Never an employer's. */
 function ownFirm(caller: Caller): { id: string; name: string } | null {
@@ -796,12 +839,11 @@ async function ownView(caller: Caller) {
   return NextResponse.json({
     data: {
       firm,
-      canKeepCopy: !!firm,
-      menu: ownPaperMenu({ firm: !!firm }),
+      canKeepCopy: true,
+      // A paper with nowhere to keep its copy for her is not offered.
+      menu: ownPaperMenu({ firm: !!firm }).filter((m) => copyHome(m.key, !!firm) !== null),
       onFile,
-      says: firm
-        ? null
-        : 'A copy of your paper cannot be kept on your own page yet. A license goes on file by its number, issuer and expiry; the firm that asks for it keeps the copy.',
+      says: null,
     },
   })
 }
@@ -810,8 +852,8 @@ async function ownView(caller: Caller) {
  * PUT /api/me/papers — put a paper of my own on file, before anybody asks.
  *
  * Multipart: `key`, `about` (ME · MY_FIRM), `file`, and what is printed on
- * it — `number`, `issuer`, `validFrom`, `validUntil`, `edition`. JSON with
- * the same fields and no file is accepted where no copy can be kept.
+ * it — `number`, `issuer`, `validFrom`, `validUntil`, `edition`. The file
+ * is required: nothing goes on file with no copy behind it.
  */
 export async function PUT(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -853,7 +895,7 @@ export async function PUT(request: NextRequest) {
     key: fields.key ?? '',
     about,
     isOnePersonFirm: !!firm,
-    canKeepCopy: !!firm,
+    canKeepCopy: copyHome(fields.key ?? '', !!firm) !== null,
     fileName: file?.name ?? null,
     number: fields.number,
     issuer: fields.issuer,
@@ -918,6 +960,15 @@ export async function PUT(request: NextRequest) {
         select: { id: true },
       })
       verificationId = v.id
+      // No firm of her own: the copy is kept on her record itself.
+      if (!docId && file) {
+        await tx.verificationDoc.create({
+          data: {
+            verificationId: v.id, fileName: file.name, fileUrl: `/api/me/papers?file=${v.id}`,
+            contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes,
+          },
+        })
+      }
     }
     return { docId, verificationId }
   })

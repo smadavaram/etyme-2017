@@ -1265,6 +1265,13 @@ export interface HeldCredential {
   state?: string | null
   /** The board or registry that issued it, in its own name. */
   issuer?: string | null
+  /**
+   * Put on file by its holder and examined by nobody (PENDING, marked
+   * selfFiled; `lib/document-stages/own-papers`). Counted by the renewal
+   * chase, because a reminder to renew is not a verdict; never by
+   * `licenseGate`, because nobody has looked at it.
+   */
+  selfFiled?: boolean
 }
 
 export interface LicenseStanding extends DocStanding {
@@ -1292,6 +1299,11 @@ export interface LicenseGate {
 
 /** A credential somebody has actually produced, whatever its dates say. */
 const A_CREDENTIAL = ['CLEAR', 'CONDITIONAL', 'EXPIRED']
+
+/** What the renewal chase counts as produced: a credential, or one its holder filed herself. */
+function producedForChase(c: HeldCredential): boolean {
+  return A_CREDENTIAL.includes(c.status) || (c.status === 'PENDING' && c.selfFiled === true)
+}
 
 function sayKey(key: string): string {
   return key.toLowerCase().replace(/_/g, ' ')
@@ -1563,7 +1575,7 @@ export function credentialsToChase(
   const asker = askerName?.trim() || 'the firm placing you'
 
   for (const kind of [...new Set(credentials.map((c) => c.type).filter((t) => keys.includes(t)))]) {
-    const produced = credentials.filter((c) => c.type === kind && A_CREDENTIAL.includes(c.status))
+    const produced = credentials.filter((c) => c.type === kind && producedForChase(c))
     if (produced.length === 0) continue
 
     // The one that runs longest, which on a person who has already

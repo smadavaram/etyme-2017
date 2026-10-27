@@ -81,17 +81,34 @@ describe('papers put on file by their holder', () => {
     }
   })
 
-  it('a worker adds her own license or certificate from Your paperwork', async () => {
+  it('a worker\'s own paper keeps its copy on her record', async () => {
     as(it_.nina.primaryEmail)
     const view = await json(await myPapers(req('GET', '/api/me/papers?view=own')))
     expect(view.status, JSON.stringify(view.body)).toBe(200)
     expect(view.body.data.firm).toBeNull()
-    expect(view.body.data.menu.map((m: any) => m.key)).toEqual(['PROFESSIONAL_LICENSE', 'DEGREE', 'EDUCATION_EVALUATION'])
+    // A degree has nowhere to keep its copy for a person with no firm yet, so it is not offered.
+    expect(view.body.data.menu.map((m: any) => m.key)).toEqual(['PROFESSIONAL_LICENSE', 'CERTIFICATION', 'EDUCATION_EVALUATION'])
 
-    const rn = await json(await putOwn(req('PUT', '/api/me/papers', { key: 'PROFESSIONAL_LICENSE', number: 'RN-88', issuer: 'Ohio Board of Nursing', validUntil: '2028-01-31' })))
+    const rn = await json(await putOwn(form(
+      { key: 'PROFESSIONAL_LICENSE', about: 'ME', number: 'RN-88', issuer: 'Ohio Board of Nursing', validUntil: '2028-01-31' },
+      { name: 'rn.pdf', type: 'application/pdf', text: '%PDF-1.4 ohio' },
+    )))
     expect(rn.status, JSON.stringify(rn.body)).toBe(201)
-    const v = await prisma.verification.findUniqueOrThrow({ where: { id: rn.body.data.verificationId } })
+    const v = await prisma.verification.findUniqueOrThrow({ where: { id: rn.body.data.verificationId }, include: { documents: true } })
     expect([v.personId, v.status, v.referenceId, v.provider]).toEqual([it_.nina.id, 'PENDING', 'RN-88', 'Ohio Board of Nursing'])
+    expect([v.documents[0].fileUrl, v.documents[0].sizeBytes]).toEqual([`/api/me/papers?file=${v.id}`, 13])
+
+    // She reads her copy back; nobody else finds it.
+    const mine = await myPapers(req('GET', `/api/me/papers?file=${v.id}`))
+    expect(mine.status).toBe(200)
+    expect(await mine.text()).toBe('%PDF-1.4 ohio')
+    as(it_.colleen.primaryEmail)
+    expect((await myPapers(req('GET', `/api/me/papers?file=${v.id}`))).status).toBe(404)
+
+    // No copy, no paper on file.
+    as(it_.nina.primaryEmail)
+    const bare = await json(await putOwn(req('PUT', '/api/me/papers', { key: 'CERTIFICATION', issuer: 'American Heart Association', validUntil: '2027-05-01' })))
+    expect(bare.body.error.code).toBe('NEEDS_FILE')
   })
 
   it('an I-9 and a background check are never collected before an offer, even offered freely', async () => {

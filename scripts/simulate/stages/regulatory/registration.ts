@@ -355,7 +355,12 @@ async function registerOne(ctx: Ctx, client: { slug: string; name: string }, i: 
   }
   await held(hr, 'INSURANCE', { validFrom: iso(plusDays(-30)), validUntil: iso(plusDays(335)) })
   await held(hr, 'GOOD_STANDING', { validFrom: iso(plusDays(-20)), validUntil: iso(plusDays(345)) })
-  await mark(hr, 'VENDOR_SCREENING', 'HELD', { note: 'Sanctions and litigation screening clear, run by Procurement’s screening service.' })
+  // A screening is on file only as the screening company's result: their
+  // name, their reference, their date and their word (lib/attestation).
+  await held(hr, 'VENDOR_SCREENING', {
+    note: 'Sanctions and litigation screening, as the screening company returned it.',
+    evidence: { provider: 'Meridian Risk Screening', reference: `MRS-${String(4400 + i).padStart(5, '0')}`, on: iso(plusDays(-3)), outcome: 'CLEAR' },
+  })
   // An agreement is on file only with its signed copy: HR attaches the
   // signed MSA (and the NDA, where this client's orders ask for one),
   // then marks it on file.
