@@ -49,7 +49,14 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     const list = await json(await listCompanies(req('GET', '/api/companies')))
     expect(list.status, JSON.stringify(list.body)).toBe(200)
     expect(list.body.data.companies.find((c: { id: string }) => c.id === written.id)).toMatchObject({ onEtyme: false, hasPage: false })
-    expect(list.body.data.companies.find((c: { id: string }) => c.id === brightmoor.id)).toMatchObject({ onEtyme: true })
+    // A firm it trades with that is on Etyme reads as on Etyme; the firm
+    // itself is never among its own companies (2026-10-27).
+    const partner = await prisma.counterparty.findFirstOrThrow({
+      where: { companyId: brightmoor.id, otherCompany: { claimedAt: { not: null } } },
+      select: { otherCompanyId: true },
+    })
+    expect(list.body.data.companies.find((c: { id: string }) => c.id === partner.otherCompanyId)).toMatchObject({ onEtyme: true })
+    expect(list.body.data.companies.map((c: { id: string }) => c.id)).not.toContain(brightmoor.id)
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/companies/page.tsx'), 'utf8')
     expect(page).toContain("if (!c.onEtyme) return 'Not on Etyme yet'")
     expect(page).not.toMatch(/\{(row|company)\.slug\}\.etyme\.com/)
