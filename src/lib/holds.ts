@@ -313,7 +313,7 @@ export interface WhoHasMe {
   /** Agencies asking permission for a client, waiting on them. */
   asking: { id: string; company: string; client: string; role: string | null; askedAt: string }[]
   /** Clients they have ruled out. */
-  notThese: { id: string; company: string; companyId: string; note: string | null }[]
+  notThese: { id: string; company: string; companyId: string | null; note: string | null }[]
   /** Every submission made in their name, whoever made it. */
   history: {
     company: string
@@ -441,8 +441,11 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       })),
     notThese: blocked.map((b) => ({
       id: b.id,
-      companyId: b.companyId,
-      company: b.company.name,
+      companyId: b.companyId ?? null,
+      // A client not on Etyme is kept by name (DoNotSubmit.companyName). Read
+      // through a cast until the architect's column lands, so this compiles
+      // before and after it does.
+      company: b.company?.name ?? (b as { companyName?: string | null }).companyName ?? '',
       note: b.note,
     })),
     history: submissions.map((s) => {
