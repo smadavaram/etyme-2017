@@ -1916,6 +1916,46 @@ follows:
   to three real people who hold those jobs, one question each ("would
   you open this on a Monday, and what would you do after?"), and the
   build or the cut follows their answers, not the simulation's.
+- **Built, on the founder's "go ahead and build this", 2026-10-27**, after
+  he said the drawing *"explains the product the best, like a beast, and
+  nothing else"*. Why it does: it is the only picture of the whole product
+  at once from the seat of the person who signs the order — a company's
+  every contractor and supplier across every country on one record, the
+  four flows (matched, hired, papers, money) side by side, what is stuck
+  named, and three seats (CFO, regional manager, hiring manager) reading
+  one record at three altitudes. Everything else shows one person at one
+  step. The map sells; the engine keeps them. What is built, in order:
+  1. **A seeded multi-site client, Corvane Packaging** (architect, with
+     money for rates and regulatory for the per-country sets): sites in
+     the US, Mexico, Brazil, Colombia, Vietnam, India, Belgium and
+     Northern Ireland, grouped in six regions, ten or more hiring
+     managers, each plant's suppliers and contractors with rates in the
+     site's own currency, a few weeks, receipts (one held), and starts
+     (one on hold), so every figure the map shows is on the demo and read
+     against the seed. Reached from `/demo` like the other clients.
+  2. **A region on a site, and a seat scoped to a region** (architect):
+     `CompanyLocation.region`, an org unit of kind REGION, and a program
+     seat that reads only its region's sites, through the existing
+     isolation at the query. Nothing a regional manager reads crosses
+     regions.
+  3. **The three views** (demand, with money for the figures): the
+     hiring manager's own list exists; the regional manager's list of
+     hiring managers (contractors, open jobs, weeks to sign, papers,
+     receipts, nearest time limit, spend in the plant's currency); and
+     the head-of-operations / CFO rollup, one row per region, the four
+     flows with what stopped, spend in one currency. One route, one read,
+     the program page's own tabs ("By region"); never a second
+     dashboard. The CFO's weekly exception line stays the decision for
+     daily use; this is the map.
+  4. **Papers and pay per country as data** (regulatory): the rules the
+     drawing shows are research; each is confirmed with its source before
+     it is shown, and an unconfirmed one is not shown.
+  5. **The map on the home page's second screen** (market, after the
+     seed lands): drawn from Corvane's seeded figures, inline, checked by
+     the story-panel test like every other figure. The seven doors' two
+     drawings stay.
+  Release pass, preview, production, and a walk as the CFO, a regional
+  manager and a hiring manager at Corvane before it is called done.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
