@@ -2001,6 +2001,26 @@ follows:
   home page is built first, from the corrected drawing
   (https://claude.ai/artifact/VBYzE7NFTtJxTyebWSzirp, version 2); the
   doors follow their drawings.
+- **The four doors' maps are drawn, 2026-10-27, waiting on "build it"**,
+  each in that party's own roles, every name and figure from the seed
+  (the scout's read of `seed-world`, `seed-programmes`, `seed-doors`,
+  `seed-internal-moves`, `seed-rate-change`): MSPs
+  (https://claude.ai/artifact/CPJviSYK5Uws6bFXLkMgL7): Aptiva Workforce
+  in Cavanaugh Glassworks' program as Program manager (Rashida Coleman),
+  Supplier manager, Coordinator and AP clerk; the last three seats are
+  not seeded at Aptiva and the drawing says so, a seed addition for the
+  architect on "build it". Integrators
+  (https://claude.ai/artifact/AYzwwuCAYXSHj9KS5FosgT): Teleworld as
+  Ingrid Solberg and Rahul Deshpande (delivery managers), Farah Haddad
+  (HR), Ravi Kalathil (AP & Payroll). Suppliers
+  (https://claude.ai/artifact/3teoAA3AMXxo1d6GSYpfGq): Brightmoor as
+  Jenna Okafor (Owner), Marisa Delacroix (Account manager), Imelda
+  Santoro (Accounts receivable), Desmond Achebe (AP & Payroll); the
+  sub-vendor and bench tabs read Techpeple the same way. Workers
+  (https://claude.ai/artifact/6LHDsk2pMnj1aPBNMZCKT8): Helena Marsh
+  (Worker) and Colleen Byrne (Solopreneur). Two figures in them are
+  computed at seeding (Rosa Delgado's weeks to bill, the bill from
+  Nimbus) and the build reads them live, never as literals.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
