@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { createCompany, findFirm, claimOrJoin } from '@/lib/company-create'
 
-import { POST as addCompany } from '@/app/api/companies/route'
+import { POST as addCompany, GET as listCompanies } from '@/app/api/companies/route'
+import { GET as linkAsks, POST as askToLink } from '@/app/api/trade-links/route'
+import { POST as answerLink } from '@/app/api/trade-links/[id]/route'
+import { workTogether } from '@/lib/company-create'
 import { GET as findFirmRoute } from '@/app/api/firms/route'
 import { GET as seatAsks, POST as askForSeat } from '@/app/api/seat-requests/route'
 import { POST as answerAsk } from '@/app/api/seat-requests/[id]/route'
@@ -171,7 +174,7 @@ describe('one firm, one tenant', () => {
     expect(refused.status).toBe(409)
     expect(refused.body.error.code).toBe('ALREADY_ON_ETYME')
     expect(refused.body.error.message).toContain('Quarrybrook Staffing is already on Etyme, at quarrybrook.etyme.com')
-    expect(refused.body.error.message).toContain('Ask them to add you instead')
+    expect(refused.body.error.message).toContain('Ask them to link, as your prime')
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
     // A name and nothing else, and a firm on Etyme holds it: asked, never guessed.
@@ -349,5 +352,76 @@ describe('the claim route joins a firm already on Etyme', () => {
     expect(r.status).toBe(409)
     expect(r.body.error.message).toContain('Nothing was changed')
     expect(await prisma.context.count({ where: { personId: who.quarryOwner, companyId: shellId } })).toBe(0)
+  })
+})
+
+describe('two firms already on Etyme link by one ask and one yes', () => {
+  const OSTRANDER_OWNER = 'lena.ostrander@ostrander-talent.example'
+
+  it('a prime and its sub-vendor already on Etyme link by one ask and one yes, and nothing is recorded until the yes', async () => {
+    const sub = await signedUp('Ostrander Talent', 'ostrander', 'VENDOR', OSTRANDER_OWNER)
+    co.ostrander = sub.companyId
+
+    // The sub adds its prime; Quarrybrook is on Etyme, so it is offered the link.
+    as(OSTRANDER_OWNER)
+    const add = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME', address: 'quarrybrook' })
+    expect(add.status).toBe(409)
+    expect(add.body.error.message).toContain('Ask them to link, as your prime')
+    const asked = await call(askToLink, 'POST', '/api/trade-links', undefined, { companyId: add.body.error.companyId, relationship: add.body.error.relationship })
+    expect(asked.status, JSON.stringify(asked.body)).toBe(201)
+    expect(asked.body.data.says).toContain('Nothing is on either register until they say yes')
+
+    // Nothing recorded yet, either way, and asking again is one ask.
+    expect(await prisma.counterparty.count({ where: { OR: [{ companyId: co.ostrander, otherCompanyId: co.quarrybrook }, { companyId: co.quarrybrook, otherCompanyId: co.ostrander }] } })).toBe(0)
+    expect(await workTogether(co.ostrander, co.quarrybrook)).toBe(false)
+    expect((await call(askToLink, 'POST', '/api/trade-links', undefined, { companyId: co.quarrybrook, relationship: 'PRIME' })).body.error.code).toBe('ALREADY_ASKED')
+    expect(await eventually(() => prisma.notification.count({ where: { personId: who.quarryOwner, title: 'Ostrander Talent asks to link as your sub-vendor' } }), 1)).toBe(1)
+
+    // Quarrybrook says yes in one click.
+    as(QUARRY_OWNER)
+    const open = await call(linkAsks, 'GET', '/api/trade-links')
+    const mine = open.body.data.received.find((r: any) => r.company.id === co.ostrander)
+    const yes = await call(answerLink, 'POST', `/api/trade-links/${mine.id}`, mine.id, { action: 'accept' })
+    expect(yes.status).toBe(200)
+    expect(yes.body.data.says).toBe('Ostrander Talent is on your companies as your sub-vendor, and you are on theirs.')
+
+    // Each side has its own row, in its own words, and they work together.
+    expect(await prisma.counterparty.count({ where: { companyId: co.ostrander, otherCompanyId: co.quarrybrook, relationship: 'PRIME' } })).toBe(1)
+    expect(await prisma.counterparty.count({ where: { companyId: co.quarrybrook, otherCompanyId: co.ostrander, relationship: 'SUPPLIER' } })).toBe(1)
+    expect(await workTogether(co.ostrander, co.quarrybrook)).toBe(true)
+    as(OSTRANDER_OWNER)
+    const list = await call(listCompanies, 'GET', '/api/companies')
+    expect(list.body.data.companies.map((c: any) => c.id)).toContain(co.quarrybrook)
+  })
+
+  it('a link request names the relationship from the asker\u2019s side and the other side reads it from theirs', async () => {
+    as(QUARRY_OWNER)
+    const r = await call(askToLink, 'POST', '/api/trade-links', undefined, { companyId: co.palliser, relationship: 'MSP' })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.says).toContain('to link as your MSP')
+    as(PALLISER_OWNER)
+    const seen = await call(linkAsks, 'GET', '/api/trade-links')
+    const ask = seen.body.data.received.find((x: any) => x.company.id === co.quarrybrook)
+    expect(ask.relationship).toBe('SUPPLIER')
+    expect(ask.says).toContain('asks to link as your sub-vendor')
+    const no = await call(answerLink, 'POST', `/api/trade-links/${ask.id}`, ask.id, { action: 'not-now' })
+    expect(no.body.data.says).toContain('Nothing was recorded')
+    expect(await workTogether(co.quarrybrook, co.palliser)).toBe(false)
+  })
+
+  it('a firm never appears among its own companies', async () => {
+    as(QUARRY_OWNER)
+    const list = await call(listCompanies, 'GET', '/api/companies')
+    expect(list.status).toBe(200)
+    expect(list.body.data.companies.map((c: any) => c.id)).not.toContain(co.quarrybrook)
+  })
+
+  it('an outside firm is never granted a client\u2019s Owner role on a seat', async () => {
+    as(NORTHBEND_OWNER)
+    const owner = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Owner' }, select: { id: true } })
+    const r = await call(grantSeat, 'POST', '/api/program/seats', undefined, { officeCompanyId: co.ostrander, roleId: owner.id, reason: 'Testing that the owner role is never handed over' })
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('OWNER_ROLE')
+    expect(await prisma.programSeat.count({ where: { officeCompanyId: co.ostrander } })).toBe(0)
   })
 })

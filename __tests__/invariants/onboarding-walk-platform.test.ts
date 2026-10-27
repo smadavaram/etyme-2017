@@ -7,6 +7,8 @@ import { signInDoors, signInLine } from '@/lib/readiness'
 import { mayAskForSeat, askNotice, askedSentence, noSeatYet } from '@/lib/program-seat'
 import { alreadyOnEtyme } from '@/lib/off-system'
 import { addressOf } from '@/lib/company-create'
+import { mirrorOf, wordFor, readerReads, askerReads, mayAskToLink } from '@/lib/trade-link'
+import { mayGrantSeat } from '@/lib/program-seat'
 
 /**
  * The onboarding walk of 2026-10-27, platform's half, as sentences. The
@@ -136,10 +138,11 @@ describe('an MSP asks a client for a seat', () => {
 
 describe('a firm already on Etyme', () => {
   it('adding a counterparty that is already on Etyme says who they are and how the two records link', () => {
-    expect(alreadyOnEtyme({ name: 'Quarrybrook Staffing', slug: 'quarrybrook' }, 'sub-vendor')).toBe(
+    expect(alreadyOnEtyme({ name: 'Quarrybrook Staffing', slug: 'quarrybrook' }, 'prime')).toBe(
       'Quarrybrook Staffing is already on Etyme, at quarrybrook.etyme.com, so no copy of them was made. ' +
-      'Ask them to add you instead, as their sub-vendor, and your two records link.',
+      'Ask them to link, as your prime: once they say yes, each of you has the other on your companies.',
     )
+    expect(src('app/dashboard/companies/page.tsx')).toContain('Ask them to link</button>')
   })
 
   it('an Etyme address is read however it is typed', () => {
@@ -147,5 +150,48 @@ describe('a firm already on Etyme', () => {
     expect(addressOf('quarrybrook.etyme.com')).toBe('quarrybrook')
     expect(addressOf('https://quarrybrook.etyme.com/jobs')).toBe('quarrybrook')
     expect(addressOf('Quarrybrook Staffing')).toBeNull()
+  })
+})
+
+describe('two firms already on Etyme link', () => {
+  it('a link request names the relationship from the asker\u2019s side and the other side reads it from theirs', () => {
+    // Teleworld says Quarrybrook is its prime; Quarrybrook reads Teleworld as its sub-vendor.
+    const sides = { asker: { name: 'Teleworld Solutions', kind: 'GSI' }, other: { name: 'Quarrybrook Staffing', kind: 'VENDOR' }, relationship: 'PRIME' as const }
+    expect(askerReads(sides)).toBe('You asked Quarrybrook Staffing to link as your prime. Nothing is on either register until they say yes.')
+    expect(readerReads({ ...sides, askedBy: 'Ravi Kalathil' }).title).toBe('Teleworld Solutions asks to link as your sub-vendor')
+    // A client asking a supplier is that supplier's client; a prime asking its sub is its prime.
+    expect(mirrorOf('SUPPLIER', 'CLIENT')).toBe('CLIENT')
+    expect(mirrorOf('SUPPLIER', 'VENDOR')).toBe('PRIME')
+    expect(mirrorOf('CLIENT', 'VENDOR')).toBe('SUPPLIER')
+    expect(wordFor('SUPPLIER', 'CLIENT')).toBe('supplier')
+    expect(wordFor('SUPPLIER', 'VENDOR')).toBe('sub-vendor')
+  })
+
+  it('a link is asked once per pair, never of oneself, and only by whoever keeps the list of companies', () => {
+    const base = { asker: { id: 'a', kind: 'VENDOR', name: 'Teleworld' }, other: { id: 'b', kind: 'VENDOR', name: 'Quarrybrook' }, relationship: 'PRIME', mayManage: true, linked: false, open: null }
+    expect(mayAskToLink(base).ok).toBe(true)
+    const code = (o: Partial<typeof base> & Record<string, unknown>) => { const v = mayAskToLink({ ...base, ...o } as any); return v.ok ? 'OK' : v.code }
+    expect(code({ mayManage: false })).toBe('NOT_YOURS_TO_ASK')
+    expect(code({ other: { id: 'a', kind: 'VENDOR', name: 'Teleworld' } })).toBe('OWN_COMPANY')
+    expect(code({ open: { fromCompanyId: 'a' } })).toBe('ALREADY_ASKED')
+    expect(code({ open: { fromCompanyId: 'b' } })).toBe('THEY_ASKED')
+    expect(code({ linked: true })).toBe('ALREADY_LINKED')
+    expect(code({ relationship: 'FRIEND' })).toBe('VALIDATION')
+  })
+})
+
+describe('a seat never hands over the client', () => {
+  it('an outside firm is never granted a client\u2019s Owner role on a seat', () => {
+    const v = mayGrantSeat({
+      grantorCompany: { id: 'n', kind: 'CLIENT', name: 'Northbend Athletic' }, grantorPermissions: ['*'],
+      officeCompany: { id: 'p', kind: 'MSP', name: 'Palliser MSP' }, role: { id: 'r', companyId: 'n', name: 'Owner' },
+      reason: 'They run our program from January', alreadyHas: false,
+    })
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('OWNER_ROLE')
+      expect(v.says).toContain('never given Northbend Athletic\u2019s Owner role')
+    }
+    expect(src('components/settings/grant-seat.tsx')).toContain("x.name !== 'Owner'")
   })
 })

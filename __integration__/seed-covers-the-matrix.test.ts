@@ -64,6 +64,9 @@ const RUNTIME: Record<string, string> = {
   // An MSP asking a client for a seat (2026-10-27). Nothing writes one
   // until an MSP asks; a seeded ask would claim somebody asked.
   programSeatRequest: 'written when an MSP asks a client for a seat in its program',
+  // Two firms on Etyme asking to link (2026-10-27): nothing writes one
+  // until a firm asks; a seeded ask would claim somebody asked.
+  tradeLinkRequest: 'written when a firm asks another firm already on Etyme to link',
   // The job twin (2026-10-12). Its ledger and its questions are what the
   // nightly run or a person wrote, each with the moment it happened; a
   // seeded entry would claim the twin acted on a night it did not run.

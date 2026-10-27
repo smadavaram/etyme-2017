@@ -33,6 +33,8 @@ model Person {
   programSeatsGranted      ProgramSeat[]             @relation("seatGrantedBy")
   programSeatsRevoked      ProgramSeat[]             @relation("seatRevokedBy")
   seatAsksMade             ProgramSeatRequest[]      @relation("seatAskedBy")
+  tradeAsksMade            TradeLinkRequest[]        @relation("tradeAskedBy")
+  tradeAsksAnswered        TradeLinkRequest[]        @relation("tradeAnsweredBy")
   seatAsksClosed           ProgramSeatRequest[]      @relation("seatAskClosedBy")
   /// The twin's role contracts this person set, one row per version.
   roleContractsSet         RoleContract[]            @relation("roleContractSetBy")
@@ -521,6 +523,41 @@ model ProgramSeatRequest {
   @@index([closedById])
 }
 
+/// Two firms already on Etyme asking to link (coordinator's call, 2026-10-27,
+/// after the second onboarding walk). "Add company" for a firm that is
+/// already here makes no copy and may not write a register row on one
+/// side's word (`mayNameCounterparty`), so one side asks and the other says
+/// yes. Nothing is recorded on either register until the yes; then each side
+/// gets its own `Counterparty` row, in its own words.
+model TradeLinkRequest {
+  id String @id @default(cuid())
+
+  fromCompanyId String
+  fromCompany   Company @relation("tradeAskFrom", fields: [fromCompanyId], references: [id], onDelete: Cascade)
+  toCompanyId   String
+  toCompany     Company @relation("tradeAskTo", fields: [toCompanyId], references: [id], onDelete: Cascade)
+
+  /// What the other firm is to the asker, in the register's words:
+  /// CLIENT · SUPPLIER · PRIME · MSP. The other side's row is its mirror.
+  relationship String
+
+  askedById String
+  askedBy   Person   @relation("tradeAskedBy", fields: [askedById], references: [id])
+  note      String?
+  createdAt DateTime @default(now())
+
+  /// ACCEPTED or NOT_NOW, with who and when. Null while open.
+  answer       String?
+  answeredAt   DateTime?
+  answeredById String?
+  answeredBy   Person?   @relation("tradeAnsweredBy", fields: [answeredById], references: [id])
+
+  @@index([fromCompanyId, answeredAt])
+  @@index([toCompanyId, answeredAt])
+  @@index([askedById])
+  @@index([answeredById])
+}
+
 // Every read of a person's data, including refusals. The subject can see this.
 model AccessLog {
   id             String   @id @default(cuid())
@@ -796,6 +833,8 @@ model Company {
   programSeatsGranted   ProgramSeat[]           @relation("seatClient")
   programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
   seatAsksMade          ProgramSeatRequest[]    @relation("seatAskOffice")
+  tradeAsksMade         TradeLinkRequest[]      @relation("tradeAskFrom")
+  tradeAsksReceived     TradeLinkRequest[]      @relation("tradeAskTo")
   paperSet              DocumentRequirement[]   @relation("companyPaperSet")
   seatAsksReceived      ProgramSeatRequest[]    @relation("seatAskClient")
   roleContracts         RoleContract[]

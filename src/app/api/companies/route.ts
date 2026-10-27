@@ -9,6 +9,8 @@ import { dealingsOf } from './dealings'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany, findFirm, workTogether } from '@/lib/company-create'
 import { alreadyOnEtyme } from '@/lib/off-system'
+import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
+import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany } from '@/lib/counterparty'
 import { speaksForItself } from '@/lib/public-site/speaks'
 
@@ -164,7 +166,8 @@ export async function POST(request: NextRequest) {
   if (!adding.ownsIt && seatedCaller?.company) {
     const mine = seatedCaller.company
     const as = String(body?.relationship ?? 'SUPPLIER')
-    const asWord = ({ CLIENT: 'supplier', SUPPLIER: 'client', PRIME: 'sub-vendor', MSP: 'supplier' } as Record<string, string>)[as] ?? 'partner'
+    // What they are to the caller, in the caller's own register words.
+    const asWord = (LINK_RELATIONSHIPS as string[]).includes(as) ? wordFor(as as Relationship, mine.kind) : 'partner'
     const firm = await findFirm({
       emailDomain: body?.domain ? String(body.domain) : null,
       etymeAddress: body?.address ? String(body.address) : null,
@@ -180,7 +183,7 @@ export async function POST(request: NextRequest) {
     if (firm) {
       if (!(await workTogether(mine.id, firm.id))) {
         return NextResponse.json(
-          { error: { code: 'ALREADY_ON_ETYME', message: alreadyOnEtyme(firm, asWord), companyId: firm.id, address: firm.slug } },
+          { error: { code: 'ALREADY_ON_ETYME', message: alreadyOnEtyme(firm, asWord), companyId: firm.id, company: firm.name, address: firm.slug, relationship: as } },
           { status: 409 }
         )
       }
@@ -213,7 +216,7 @@ export async function POST(request: NextRequest) {
               field: 'domain',
               message:
                 `A company called ${namesake.name} is on Etyme already, at ${namesake.slug}.etyme.com. If that is them, ` +
-                `ask them to add you as their ${asWord}. If it is a different company, give their domain so the two are told apart.`,
+                `type their Etyme address and ask them to link, as your ${asWord}. If it is a different company, give their domain so the two are told apart.`,
             },
           },
           { status: 409 }

@@ -632,7 +632,7 @@ export const DOMAINS: Domain[] = [
       'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
       // One firm, one tenant (2026-10-27): finding a firm already on Etyme by
       // name or address, and an MSP asking a client for a seat.
-      'app/api/firms', 'app/api/seat-requests',
+      'app/api/firms', 'app/api/seat-requests', 'app/api/trade-links', 'lib/trade-link',
       // Ready for a real company: the edges, judged and shown.
       'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
       // The map of the memory (founder, 2026-10-08): one picture of how the

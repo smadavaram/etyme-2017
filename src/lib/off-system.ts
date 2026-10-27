@@ -82,13 +82,14 @@ export function shellNotice(company: CompanyStanding): string | null {
  * link is made either, on the adder's word alone — a row on the adder's
  * register counts as a relationship wherever a contract names a client
  * (`mayNameCounterparty`), so linking on request would let any firm name
- * any firm. The firm being added links the two by adding the other.
+ * any firm. The adder asks to link (`lib/trade-link`) and the other side
+ * says yes.
  */
 export function alreadyOnEtyme(them: { name: string; slug?: string | null }, as: string): string {
   const where = them.slug ? `, at ${them.slug}.etyme.com` : ''
   return (
     `${them.name} is already on Etyme${where}, so no copy of them was made. ` +
-    `Ask them to add you instead, as their ${as}, and your two records link.`
+    `Ask them to link, as your ${as}: once they say yes, each of you has the other on your companies.`
   )
 }
 

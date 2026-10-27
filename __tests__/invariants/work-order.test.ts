@@ -127,7 +127,7 @@ describe('a firm that is on the register without being on the system', () => {
     expect(verdict.create).toBe(false)
     expect(verdict.says).toContain('already on Etyme')
     // A refusal says what to do next, never just no.
-    expect(verdict.says).toContain('Ask them to add you instead')
+    expect(verdict.says).toContain('Ask them to link, as your client')
   })
 
   it('listing the same client twice reuses the record rather than making a second one', () => {

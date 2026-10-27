@@ -935,3 +935,8 @@ every unconfirmed line. What the founder should know:
   (conversation's), and `findFirm` is not yet called by the supplier
   approval (demand's). Until both land, the walk's second Quarrybrook can
   still be founded by an approval.
+- **A link between two firms writes register rows only.** The yes gives
+  each side its `Counterparty` row; no agreement, terms or order is
+  written. An ask answered Not now can be asked again; nothing expires an
+  ask nobody answers. The seat's Owner refusal reads the role by its name,
+  `Owner`, because the grant route does not load a role's permissions.

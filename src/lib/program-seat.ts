@@ -3,6 +3,9 @@ import { logBulkAccess } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
 import type { CallerContext } from '@/lib/api-context'
 
+/** The name of the role that holds everything at a company (lib/company-defaults). */
+const OWNER_ROLE = 'Owner'
+
 /**
  * A desk a client grants a program office that is not the client.
  *
@@ -382,6 +385,19 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       ok: false,
       code: 'NO_SUCH_ROLE',
       says: 'No such role at this company. A seat holds one of your own roles — Program Manager, most often.',
+    }
+  }
+
+  // Never the client's Owner role: it holds everything, including the
+  // right to grant and revoke seats, and an outside firm holding it would
+  // own the client (second onboarding walk, 2026-10-27).
+  if (ask.role.name === OWNER_ROLE) {
+    return {
+      ok: false,
+      code: 'OWNER_ROLE',
+      says:
+        `An outside firm is never given ${ask.grantorCompany.name}\u2019s Owner role: it would hold everything, ` +
+        `seats included. Choose the role it runs the program in, Program Manager most often.`,
     }
   }
 

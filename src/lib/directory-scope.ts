@@ -97,7 +97,9 @@ export function directoryScope(reader: Reader): Verdict {
     case 'COMPANY':
       return {
         reach: 'NAMED',
-        includesOwn: true,
+        // A firm is never among its own companies (second onboarding walk,
+        // 2026-10-27: Quarrybrook's list read "Quarrybrook Staffing · Supplier").
+        includesOwn: false,
         says: reader.isDemo
           ? 'This is a sandbox. You see your own companies and nobody else’s.'
           : 'You see the firms you trade with: on your register, under an agreement, ' +
@@ -141,7 +143,7 @@ export function directoryCopy(kind: CompanyKind | null): { title: string; subtit
     case 'CONSULTANT_CORP':
       return {
         title: 'Companies',
-        subtitle: 'The firms you contract with, and your own company.',
+        subtitle: 'The firms you contract with.',
       }
     case 'VENDOR':
       return {

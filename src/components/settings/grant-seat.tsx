@@ -41,7 +41,11 @@ export function GrantSeat({ onGranted }: { onGranted?: () => void }) {
       fetch('/api/roles').then(readJson).catch(() => null),
     ])
     setAsks(Array.isArray(a?.data?.asks) ? a.data.asks : [])
-    const list: Role[] = Array.isArray(r?.data?.roles) ? r.data.roles.map((x: Role) => ({ id: x.id, name: x.name })) : []
+    // Never the Owner role: an outside firm never holds everything here
+    // (mayGrantSeat refuses it too).
+    const list: Role[] = Array.isArray(r?.data?.roles)
+      ? r.data.roles.filter((x: Role) => x.name !== 'Owner').map((x: Role) => ({ id: x.id, name: x.name }))
+      : []
     setRoles(list)
     // Program Manager is the seat an MSP holds most often.
     setRoleId((prev) => prev || list.find((x) => x.name === 'Program Manager')?.id || '')

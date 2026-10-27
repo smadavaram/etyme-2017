@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
           code: claimedAtDomain ? 'ALREADY_HERE' : 'VALIDATION',
           message: verdict.says,
           field: claimedAtDomain ? 'domain' : 'name',
-          ...(claimedAtDomain ? { companyId: claimedAtDomain.id } : {}),
+          ...(claimedAtDomain ? { companyId: claimedAtDomain.id, company: claimedAtDomain.name, relationship: 'CLIENT' } : {}),
         },
       },
       { status: claimedAtDomain ? 409 : 422 }

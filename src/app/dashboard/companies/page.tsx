@@ -131,14 +131,37 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const isClient = form.relationship === 'CLIENT'
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A firm already on Etyme: no copy, one click to ask them to link
+  // (lib/trade-link, 2026-10-27).
+  const [linkable, setLinkable] = useState<{ companyId: string; relationship: string } | null>(null)
 
   // The Etyme address box is theirs, never guessed from the name: the
   // route uses it to find a firm already on Etyme (findFirm), and a guess
   // could name a stranger who happens to hold it (onboarding walk,
   // 2026-10-27).
 
+  async function askToLink() {
+    if (!linkable) return
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/trade-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(linkable),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setError(body.error?.message ?? 'The ask could not be sent.'); setLinkable(null); return }
+      onCreated(body.data?.says ?? 'Asked. Nothing is on either list until they say yes.')
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setLinkable(null)
     setSubmitting(true)
     setError(null)
 
@@ -174,6 +197,10 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
         // ran.
         const body = await res.json().catch(() => ({}) as any)
         setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
+        const e = body.error ?? {}
+        setLinkable((e.code === 'ALREADY_ON_ETYME' || e.code === 'ALREADY_HERE') && e.companyId
+          ? { companyId: e.companyId, relationship: e.relationship ?? form.relationship }
+          : null)
         return
       }
 
@@ -211,6 +238,11 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
         {error && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
             {error}
+            {linkable && (
+              <div className="mt-3">
+                <button type="button" className="btn-primary" disabled={submitting} onClick={askToLink}>Ask them to link</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -789,6 +821,8 @@ export default function CompaniesPage() {
         }
       />
 
+      <LinkAsks onAnswered={handleCreated} />
+
       {/* Stats row */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Total" value={companies.length} sub="companies" />
@@ -832,5 +866,56 @@ export default function CompaniesPage() {
       {/* Toast */}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </>
+  )
+}
+
+// ── Asks to link, from firms already on Etyme ─────────────
+
+/**
+ * The asks other firms on Etyme made of this one (lib/trade-link,
+ * 2026-10-27): who, as what in this firm's own words, Yes or Not now.
+ * Nothing is on either list until the yes. Draws nothing where there is
+ * no open ask.
+ */
+function LinkAsks({ onAnswered }: { onAnswered: (msg: string) => void }) {
+  const [asks, setAsks] = useState<{ id: string; says: string }[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const load = useCallback(async () => {
+    const body = await fetch('/api/trade-links').then((r) => r.json()).catch(() => null)
+    setAsks(Array.isArray(body?.data?.received) ? body.data.received : [])
+  }, [])
+  useEffect(() => { void load() }, [load])
+  async function answer(id: string, action: 'accept' | 'not-now') {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch(`/api/trade-links/${encodeURIComponent(id)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setError(body.error?.message ?? 'That answer did not go through.'); return }
+      onAnswered(body.data?.says ?? 'Answered.')
+      await load()
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (asks.length === 0) return null
+  return (
+    <div className="panel p-5 mb-6">
+      <h2 className="font-serif text-[17px] text-etyme-ink">Asks to link</h2>
+      {error && <p className="mt-2 text-sm text-etyme-danger">{error}</p>}
+      <ul className="mt-3 space-y-2">
+        {asks.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-[14px] text-etyme-ink">
+            <span>{a.says}</span>
+            <span className="flex gap-2">
+              <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => answer(a.id, 'accept')}>Yes, link</button>
+              <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => answer(a.id, 'not-now')}>Not now</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

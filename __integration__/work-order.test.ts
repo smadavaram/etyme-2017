@@ -155,7 +155,7 @@ describe('a staffing firm arrives before its clients do', () => {
     )
     expect(r.status).toBe(409)
     expect(r.body.error.message).toContain('already on Etyme')
-    expect(r.body.error.message).toContain('Ask them to add you instead')
+    expect(r.body.error.message).toContain('Ask them to link')
   })
 
   it('a firm can record the placements it is already running against a client that is not here', async () => {

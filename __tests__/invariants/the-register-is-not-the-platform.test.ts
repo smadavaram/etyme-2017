@@ -34,11 +34,14 @@ describe('a company sees the firms it trades with, and no stranger', () => {
 
   it('a one-person corporation sees the firms it contracts with, not a market', () => {
     expect(directoryScope({ as: 'COMPANY', kind: 'CONSULTANT_CORP', isDemo: false }).reach).toBe('NAMED')
-    expect(directoryCopy('CONSULTANT_CORP').subtitle).toContain('your own company')
+    expect(directoryCopy('CONSULTANT_CORP').subtitle).toBe('The firms you contract with.')
   })
 
-  it('a company always sees itself', () => {
-    expect(directoryScope({ as: 'COMPANY', kind: 'VENDOR', isDemo: false }).includesOwn).toBe(true)
+  it('a firm never appears among its own companies', () => {
+    // Decided 2026-10-27, after the second onboarding walk read
+    // "Quarrybrook Staffing · Supplier" on Quarrybrook's own list.
+    expect(directoryScope({ as: 'COMPANY', kind: 'VENDOR', isDemo: false }).includesOwn).toBe(false)
+    expect(directoryScope({ as: 'COMPANY', kind: 'CLIENT', isDemo: true }).includesOwn).toBe(false)
   })
 
   it('a consultant sees the benches that list them, and is not shown the market', () => {
