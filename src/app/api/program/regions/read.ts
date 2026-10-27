@@ -14,6 +14,7 @@ import { matchInvoices, payGate } from '@/lib/invoice-match'
 import { regionContracts, regionRequirements, regionReceipts } from '@/lib/region-scope'
 import { shownAt, type ShownRow } from '@/lib/document-stages/countries'
 import { spendLine } from '@/lib/program-spend'
+import { formatDayLong } from '@/lib/format-date'
 import { reportingRatesFor, spendInReporting, SAMPLE_RATES_WRITTEN_ON, type RateTable } from '@/lib/money/reporting-currency'
 import { startPaperwork } from '../desk-findings'
 import { readerScope, type ReaderScope } from '../reader-scope'
@@ -265,7 +266,7 @@ async function regionsRead(
         converted: rolled.byCurrency.some((l) => l.currency !== rolled.reportingCurrency && l.rate !== null && l.minor !== 0),
         sample: rolled.sampleRates,
         sampleWritten: rolled.sampleRates
-          ? SAMPLE_RATES_WRITTEN_ON.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+          ? formatDayLong(SAMPLE_RATES_WRITTEN_ON)
           : null,
         missing: rolled.missing,
       }),
