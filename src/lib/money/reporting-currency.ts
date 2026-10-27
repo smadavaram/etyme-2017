@@ -44,9 +44,9 @@ export interface ReportingRate {
   /** When it was recorded. */
   recordedAt: Date | null
   /**
-   * Who set it. Null until `FxRate` carries who set it (a schema request
-   * for the architect): the reader says "not recorded" rather than
-   * naming somebody it cannot.
+   * Who set it: the person's name from `FxRate.setById`. Null on a rate
+   * written before the column existed, by a feed, or in the sample: the
+   * reader says nothing about who rather than naming somebody it cannot.
    */
   setBy: string | null
 }
@@ -215,7 +215,7 @@ export function spendInReporting(
     ? 'No rate was needed.'
     : table.sample
       ? `At ${table.label.charAt(0).toLowerCase()}${table.label.slice(1)}`
-      : `At the rates you set: ${converted.map((l) => `${l.currency} ${l.rate} from ${l.rateFrom!.effectiveOn.toISOString().slice(0, 10)}`).join(', ')}.`
+      : `At the rates you set: ${converted.map((l) => `${l.currency} ${l.rate} from ${l.rateFrom!.effectiveOn.toISOString().slice(0, 10)}${l.rateFrom!.setBy ? ` (set by ${l.rateFrom!.setBy})` : ''}`).join(', ')}.`
 
   const says = missing.length
     ? `No one figure in ${into}: there is no rate for ${list(missing)}${table.sample ? ' in the sample table' : ''}. ` +
@@ -230,33 +230,85 @@ function list(xs: string[]): string {
 }
 
 /**
- * A company's reporting currency and the rates it reports at, read from
- * the record: its home currency, and every `FxRate` it keeps taking effect
- * on or before `on`. A company with no rates of its own reads the shipped
- * sample, labeled; one with any rates reads only its own.
+ * The shipped sample, said in the currency a company reports in.
+ *
+ * The sample is one table written in dollars. A company reporting in
+ * euros reads the same table divided through by the sample's own euro
+ * rate, so every sample figure still comes from the one table written on
+ * the one day, and is still labeled sample. This is not a chain through a
+ * third currency over somebody's rates: it is the sample restated, and a
+ * company's own rates are never rebased this way. A reporting currency
+ * the sample does not price reads the dollar table as it stands, so every
+ * other currency is named as missing rather than guessed.
  */
-export async function reportingRatesFor(companyId: string, on: Date = new Date()): Promise<RateTable> {
-  const [company, rows] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId }, select: { homeCurrency: true } }),
-    prisma.fxRate.findMany({
-      where: { companyId, effectiveOn: { lte: on } },
-      select: { fromCurrency: true, toCurrency: true, rate: true, effectiveOn: true, source: true, createdAt: true },
-      orderBy: { effectiveOn: 'desc' },
-    }),
-  ])
-  const reportingCurrency = up(company?.homeCurrency || DEFAULT_REPORTING_CURRENCY)
-  if (rows.length === 0) {
-    return reportingCurrency === SAMPLE_RATE_TABLE.reportingCurrency
-      ? SAMPLE_RATE_TABLE
-      : { ...SAMPLE_RATE_TABLE, reportingCurrency }
+export function sampleTableIn(reportingCurrency: string): RateTable {
+  const into = up(reportingCurrency)
+  if (into === SAMPLE_RATE_TABLE.reportingCurrency) return SAMPLE_RATE_TABLE
+  const usdPerInto = SAMPLE_USD_PER_UNIT[into]
+  if (!usdPerInto) return { ...SAMPLE_RATE_TABLE, reportingCurrency: into }
+  const restated: Record<string, number> = { USD: 1 / usdPerInto }
+  for (const [from, usd] of Object.entries(SAMPLE_USD_PER_UNIT)) {
+    if (from !== into) restated[from] = usd / usdPerInto
   }
+  return {
+    ...SAMPLE_RATE_TABLE,
+    reportingCurrency: into,
+    rates: Object.entries(restated).map(([from, rate]) => ({
+      from, to: into, rate, effectiveOn: SAMPLE_RATES_WRITTEN_ON, source: 'sample', recordedAt: SAMPLE_RATES_WRITTEN_ON, setBy: null,
+    })),
+  }
+}
+
+/** What `reportingRatesFor` reads off the record, before any database. */
+export interface RateTableInputs {
+  company: { homeCurrency: string | null; reportingCurrency: string | null } | null
+  rows: readonly {
+    fromCurrency: string; toCurrency: string; rate: number | string | { toString(): string }
+    effectiveOn: Date; source: string | null; createdAt: Date | null
+    setBy: { name: string } | null
+  }[]
+}
+
+/**
+ * The rate table from what the record holds. The reporting currency is
+ * the one the company chose, else its home currency, else dollars. Any
+ * rate the company set means only its own rates are read, labeled "Rates
+ * you set." and each naming who set it; none means the sample, in the
+ * reporting currency, labeled as sample.
+ */
+export function rateTableFrom({ company, rows }: RateTableInputs): RateTable {
+  const reportingCurrency = up(company?.reportingCurrency || company?.homeCurrency || DEFAULT_REPORTING_CURRENCY)
+  if (rows.length === 0) return sampleTableIn(reportingCurrency)
   return {
     reportingCurrency,
     rates: rows.map((r) => ({
       from: r.fromCurrency, to: r.toCurrency, rate: Number(r.rate), effectiveOn: r.effectiveOn,
-      source: r.source, recordedAt: r.createdAt, setBy: null,
+      source: r.source, recordedAt: r.createdAt, setBy: r.setBy?.name ?? null,
     })),
     sample: false,
     label: 'Rates you set.',
   }
+}
+
+/**
+ * A company's reporting currency and the rates it reports at, read from
+ * the record: the currency it chose (`Company.reportingCurrency`, null
+ * meaning its home currency), and every `FxRate` it keeps taking effect
+ * on or before `on`, with who set each. A company with no rates of its
+ * own reads the shipped sample, labeled; one with any rates reads only
+ * its own.
+ */
+export async function reportingRatesFor(companyId: string, on: Date = new Date()): Promise<RateTable> {
+  const [company, rows] = await Promise.all([
+    prisma.company.findUnique({ where: { id: companyId }, select: { homeCurrency: true, reportingCurrency: true } }),
+    prisma.fxRate.findMany({
+      where: { companyId, effectiveOn: { lte: on } },
+      select: {
+        fromCurrency: true, toCurrency: true, rate: true, effectiveOn: true, source: true, createdAt: true,
+        setBy: { select: { name: true } },
+      },
+      orderBy: { effectiveOn: 'desc' },
+    }),
+  ])
+  return rateTableFrom({ company, rows })
 }

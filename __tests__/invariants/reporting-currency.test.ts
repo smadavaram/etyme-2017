@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { spendInReporting, rateFor, SAMPLE_RATE_TABLE, type ReportingRate, type RateTable } from '@/lib/money/reporting-currency'
+import { spendInReporting, rateFor, rateTableFrom, SAMPLE_RATE_TABLE, type ReportingRate, type RateTable } from '@/lib/money/reporting-currency'
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
 const r = (from: string, to: string, rate: number, on = '2026-09-01', source: string | null = 'manual'): ReportingRate =>
@@ -107,5 +107,68 @@ describe('the rollup in one currency', () => {
 
   it('an amount that is not whole minor units is refused, never rounded in silently', () => {
     expect(() => spendInReporting([{ currency: 'USD', minor: 10.5 }], 'USD')).toThrow(/whole minor units/)
+  })
+})
+
+// What `reportingRatesFor` reads off the record, without the database.
+const fx = (from: string, to: string, rate: number, setBy: string | null = null, on = '2026-09-01') =>
+  ({ fromCurrency: from, toCurrency: to, rate, effectiveOn: d(on), source: 'manual', createdAt: d(on), setBy: setBy ? { name: setBy } : null })
+
+describe('the currency a company chose to report in', () => {
+  it('a company that chose to report in euros reads its spend in euros, not its home currency', () => {
+    const own = rateTableFrom({
+      company: { homeCurrency: 'USD', reportingCurrency: 'EUR' },
+      rows: [fx('USD', 'EUR', 0.9, 'Ana Ruiz'), fx('INR', 'EUR', 0.011, 'Ana Ruiz')],
+    })
+    expect(own.reportingCurrency).toBe('EUR')
+    const spend = [{ currency: 'USD', minor: 1_000_000 }, { currency: 'INR', minor: 50_000_000 }, { currency: 'EUR', minor: 2_000_000 }]
+    const out = spendInReporting(spend, own.reportingCurrency, own, d('2026-10-27'))
+    // $10,000 at 0.9 is €9,000; ₹500,000 at 0.011 is €5,500; plus €20,000.
+    expect(out.total).toEqual({ minor: 3_450_000, currency: 'EUR' })
+    expect(out.says).toContain('in EUR')
+
+    // With no rates of its own, the sample is said in euros too, still labeled sample.
+    const sample = rateTableFrom({ company: { homeCurrency: 'USD', reportingCurrency: 'EUR' }, rows: [] })
+    expect(sample.reportingCurrency).toBe('EUR')
+    expect(sample.sample).toBe(true)
+    const viaSample = spendInReporting([{ currency: 'USD', minor: 108_000 }], sample.reportingCurrency, sample, d('2026-10-27'))
+    expect(viaSample.total).toEqual({ minor: 100_000, currency: 'EUR' })
+    expect(viaSample.sampleRates).toBe(true)
+  })
+
+  it('a rate the company set names who set it and beats the sample rate', () => {
+    const table = rateTableFrom({
+      company: { homeCurrency: 'USD', reportingCurrency: null },
+      rows: [fx('INR', 'USD', 0.0125, 'Ana Ruiz')],
+    })
+    expect(table.sample).toBe(false)
+    expect(table.label).toBe('Rates you set.')
+    expect(table.label).not.toBe(SAMPLE_RATE_TABLE.label)
+    expect(table.rates[0].setBy).toBe('Ana Ruiz')
+    const out = spendInReporting([{ currency: 'INR', minor: 50_000_000 }], table.reportingCurrency, table, d('2026-10-27'))
+    // ₹500,000 at the company's 0.0125 is $6,250, not the sample's $6,000.
+    expect(out.total).toEqual({ minor: 625_000, currency: 'USD' })
+    expect(out.byCurrency[0].rateFrom).toMatchObject({ source: 'manual', setBy: 'Ana Ruiz' })
+    expect(out.sampleRates).toBe(false)
+    expect(out.says).toContain('At the rates you set')
+    expect(out.says).toContain('set by Ana Ruiz')
+    // A rate written before anybody was recorded names nobody.
+    const unnamed = rateTableFrom({ company: { homeCurrency: 'USD', reportingCurrency: null }, rows: [fx('INR', 'USD', 0.0125)] })
+    expect(unnamed.rates[0].setBy).toBeNull()
+  })
+
+  it('a company that chose nothing reports in its home currency at sample rates, labeled as sample', () => {
+    const table = rateTableFrom({ company: { homeCurrency: 'GBP', reportingCurrency: null }, rows: [] })
+    expect(table.reportingCurrency).toBe('GBP')
+    expect(table.sample).toBe(true)
+    expect(table.label).toBe(SAMPLE_RATE_TABLE.label)
+    const out = spendInReporting([{ currency: 'USD', minor: 127_000 }, { currency: 'GBP', minor: 50_000 }], table.reportingCurrency, table, d('2026-10-27'))
+    // $1,270 at the sample's 1.27 dollars to the pound is £1,000, plus £500.
+    expect(out.total).toEqual({ minor: 150_000, currency: 'GBP' })
+    expect(out.sampleRates).toBe(true)
+    expect(out.says).toContain('sample rates written October 1, 2026, not market rates')
+    for (const r of table.rates) expect(r.source).toBe('sample')
+    // And a company with no record of its own reads dollars.
+    expect(rateTableFrom({ company: null, rows: [] })).toBe(SAMPLE_RATE_TABLE)
   })
 })
