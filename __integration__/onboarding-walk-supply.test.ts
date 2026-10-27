@@ -111,13 +111,35 @@ describe('a worker names a client she will not be sent to', () => {
     expect(page.body.data.notThese.map((n: { company: string }) => n.company)).toContain('Northbend Walk Athletic')
   })
 
-  it('a name that matches no company on Etyme is answered honestly, and nothing is stored', async () => {
+  it('a worker names a client not yet on Etyme and it is honored the day that company joins', async () => {
+    const { honorNamedClients } = await import('@/lib/consultant-portfolio')
     as(MAYA)
-    const before = await prisma.doNotSubmit.count({ where: { personId: mayaId } })
-    const r = await json(await myBenchesPATCH(req('PATCH', '/api/me/benches', { doNotSubmitName: 'Halvard Freight' })))
-    expect(r.status).toBe(200)
-    expect(r.body.data.saved).toBe(false)
-    expect(await prisma.doNotSubmit.count({ where: { personId: mayaId } })).toBe(before)
+    const r = await json(await myBenchesPATCH(req('PATCH', '/api/me/benches', { doNotSubmitName: 'Kettering Molding', note: 'my old boss' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data).toMatchObject({ saved: true, kept: true })
+    expect(r.body.data.message).toContain('Kettering Molding is not on Etyme yet. It is kept on your list')
+    // Typed again in other capitals: still one row.
+    await myBenchesPATCH(req('PATCH', '/api/me/benches', { doNotSubmitName: 'kettering molding' }))
+    expect(await prisma.doNotSubmit.count({ where: { personId: mayaId, companyName: { equals: 'Kettering Molding', mode: 'insensitive' } } })).toBe(1)
+    let page = await json(await myBenches(req('GET', '/api/me/benches')))
+    expect(page.body.data.notThese.find((n: any) => n.company.toLowerCase() === 'kettering molding')).toMatchObject({ notOnEtyme: true, companyId: null })
+
+    // The company joins: one company of that name, so her list holds it by its record.
+    const kettering = await prisma.company.create({ data: { name: 'Kettering Molding', slug: 'walk-kettering', kind: 'CLIENT', currency: 'USD' } })
+    expect(await honorNamedClients(kettering.id, 'Kettering Molding')).toBe(1)
+    expect(await prisma.doNotSubmit.findUnique({ where: { personId_companyId: { personId: mayaId, companyId: kettering.id } } })).toBeTruthy()
+    page = await json(await myBenches(req('GET', '/api/me/benches')))
+    expect(page.body.data.notThese.find((n: any) => n.companyId === kettering.id)).toMatchObject({ company: 'Kettering Molding', notOnEtyme: false })
+  })
+
+  it('a name two companies share on joining is left as she typed it, never guessed', async () => {
+    const { honorNamedClients } = await import('@/lib/consultant-portfolio')
+    as(MAYA)
+    await myBenchesPATCH(req('PATCH', '/api/me/benches', { doNotSubmitName: 'Halvard Freight' }))
+    const a = await prisma.company.create({ data: { name: 'Halvard Freight', slug: 'walk-halvard-a', kind: 'CLIENT', currency: 'USD' } })
+    await prisma.company.create({ data: { name: 'Halvard Freight', slug: 'walk-halvard-b', kind: 'CLIENT', currency: 'USD' } })
+    expect(await honorNamedClients(a.id, 'Halvard Freight')).toBe(0)
+    expect(await prisma.doNotSubmit.findFirst({ where: { personId: mayaId, companyName: 'Halvard Freight', companyId: null } })).toBeTruthy()
   })
 })
 

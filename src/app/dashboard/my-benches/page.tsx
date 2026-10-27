@@ -57,7 +57,8 @@ interface Bench {
 interface Data {
   benches: Bench[]
   asking: { id: string; company: string; client: string; role: string | null; askedAt: string }[]
-  notThese: { id: string; company: string; companyId: string; note: string | null }[]
+  /** `notOnEtyme`: a name she typed for a client not on Etyme yet, honored the day it joins. */
+  notThese: { id: string; company: string; companyId: string | null; note: string | null; notOnEtyme?: boolean }[]
   history: {
     company: string; client: string; role: string; when: string
     status: string; sentOnTo: string | null
@@ -519,6 +520,7 @@ export default function MyBenchesPage() {
                 <div key={n.id} className="flex items-baseline justify-between gap-4">
                   <span className="text-[14px] text-etyme-ink">
                     {n.company}
+                    {n.notOnEtyme && <span className="text-etyme-muted"> · not on Etyme yet</span>}
                     {n.note && <span className="text-etyme-faint"> · {n.note}</span>}
                   </span>
                   <button

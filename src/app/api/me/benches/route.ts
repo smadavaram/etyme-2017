@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { whoHasMe, endHold } from '@/lib/holds'
-import { whoHasYouNote, plainDate, firmsToOffer, noFirmByThatNameSays } from '@/lib/consultant-portfolio'
+import { whoHasYouNote, plainDate, firmsToOffer, notSentToRow, keptNameSays } from '@/lib/consultant-portfolio'
 import { workingLifeOf } from '@/lib/portfolio-data'
 import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
@@ -154,7 +154,16 @@ export async function GET(_request: NextRequest) {
     ]),
     ...workedAt.flatMap((c) => [c.endClientCompany, c.clientCompany.kind === 'CLIENT' ? c.clientCompany : null]),
   ].filter((f): f is { id: string; name: string } => Boolean(f))
-  const mayName = firmsToOffer(clientsOnRecord, data.notThese.map((n) => n.companyId))
+  // Her list, read here rather than from `whoHasMe`, so a client she named
+  // before it was on Etyme is on it too, said as "not on Etyme yet".
+  const notThese = (
+    await prisma.doNotSubmit.findMany({
+      where: { personId: person.id },
+      select: { id: true, companyId: true, companyName: true, note: true, company: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+  ).map(notSentToRow)
+  const mayName = firmsToOffer(clientsOnRecord, notThese.map((n) => n.companyId).filter((x): x is string => x != null))
 
   return NextResponse.json({
     data: {
@@ -171,6 +180,7 @@ export async function GET(_request: NextRequest) {
       invited: invitedToo,
       employers: life.employers,
       note: whoHasYouNote({ benches: data.benches.length, employers: life.employers }),
+      notThese,
       mayName,
     },
   })
@@ -349,8 +359,9 @@ export async function PATCH(request: NextRequest) {
   // ── A client named in words, not picked ────────────────────────────
   // Matched by its exact name, any capitals. Two firms on Etyme with one
   // name are both kept off: the safer reading for the person. A name that
-  // matches nobody stores nothing and says so, because a firm not on
-  // Etyme cannot be sent anybody through it.
+  // matches nobody is kept as she typed it and honored the day exactly
+  // one company of that name joins (`honorNamedClients`, called by
+  // createCompany; second onboarding walk, 2026-10-27).
   if (typeof body.doNotSubmitName === 'string') {
     const name = body.doNotSubmitName.trim().slice(0, 200)
     if (name.length < 2) {
@@ -364,10 +375,17 @@ export async function PATCH(request: NextRequest) {
       select: { id: true, name: true },
       take: 5,
     })
-    if (firms.length === 0) {
-      return NextResponse.json({ data: { saved: false, message: noFirmByThatNameSays(name) } })
-    }
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 500) : null
+    if (firms.length === 0) {
+      // One row per name, whatever the capitals she typed it in.
+      const had = await prisma.doNotSubmit.findFirst({
+        where: { personId: person.id, companyId: null, companyName: { equals: name, mode: 'insensitive' } },
+        select: { id: true },
+      })
+      if (had) await prisma.doNotSubmit.update({ where: { id: had.id }, data: { note } })
+      else await prisma.doNotSubmit.create({ data: { personId: person.id, companyName: name, note } })
+      return NextResponse.json({ data: { saved: true, kept: true, message: keptNameSays(name) } })
+    }
     for (const f of firms) {
       await prisma.doNotSubmit.upsert({
         where: { personId_companyId: { personId: person.id, companyId: f.id } },

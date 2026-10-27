@@ -1068,13 +1068,75 @@ export function firmsToOffer(
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Said when a name she typed matches no company on Etyme. Nothing is stored. */
-export function noFirmByThatNameSays(name: string): string {
+/**
+ * One row of "Clients you will not be sent to", as she reads it: a company
+ * on Etyme by its name, or the name she typed for one that is not on Etyme
+ * yet (second onboarding walk, 2026-10-27), said so.
+ */
+export function notSentToRow(r: {
+  id: string
+  companyId: string | null
+  companyName: string | null
+  company: { name: string } | null
+  note: string | null
+}): { id: string; companyId: string | null; company: string; note: string | null; notOnEtyme: boolean } {
+  const onEtyme = r.companyId != null && r.company != null
+  return {
+    id: r.id,
+    companyId: onEtyme ? r.companyId : null,
+    company: onEtyme ? r.company!.name : (r.companyName ?? '').trim(),
+    note: r.note,
+    notOnEtyme: !onEtyme,
+  }
+}
+
+/** Said when a name she typed is not on Etyme yet: kept, and honored when they join. */
+export function keptNameSays(name: string): string {
   return (
-    `No company called ${name.trim()} is on Etyme, so no firm can send you there through Etyme. ` +
-    'Nothing was saved. If they join, name them again here.'
+    `${name.trim()} is not on Etyme yet. It is kept on your list, and the day they join, ` +
+    'no agency can submit you there. None of them is told why, or by whom.'
   )
 }
+
+/**
+ * The day a company joins, every worker who named it before it was on
+ * Etyme has it on her list by its record (second onboarding walk). Called
+ * by `createCompany` (lib/company-create, the architect's) with the new
+ * company's id and name.
+ *
+ * Matched by exact name, any capitals, and only where exactly one company
+ * on Etyme carries that name — two firms of one name, and nobody guesses
+ * which she meant; the name stays on her list as she typed it. A worker
+ * who typed the name twice, in two spellings of capitals, gets one row.
+ * Returns how many lists it reached.
+ */
+export async function honorNamedClients(companyId: string, name: string): Promise<number> {
+  const { prisma } = await import('@/lib/db')
+  const wanted = name.trim()
+  if (!wanted) return 0
+  const sameName = await prisma.company.count({ where: { name: { equals: wanted, mode: 'insensitive' } } })
+  if (sameName !== 1) return 0
+  const named = await prisma.doNotSubmit.findMany({
+    where: { companyId: null, companyName: { equals: wanted, mode: 'insensitive' } },
+    select: { id: true, personId: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  let reached = 0
+  const done = new Set<string>()
+  for (const row of named) {
+    const already = done.has(row.personId) ||
+      (await prisma.doNotSubmit.findFirst({ where: { personId: row.personId, companyId }, select: { id: true } })) != null
+    if (already) {
+      await prisma.doNotSubmit.delete({ where: { id: row.id } })
+      continue
+    }
+    await prisma.doNotSubmit.update({ where: { id: row.id }, data: { companyId, companyName: null } })
+    done.add(row.personId)
+    reached++
+  }
+  return reached
+}
+
 
 // ─────────────────────────────────────────────────────────────────────
 // The worker files their own week

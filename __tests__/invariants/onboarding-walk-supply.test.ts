@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   addPath, addRefusalSays, askedExistingSays, afterYes, isStaffSeat,
-  firmsToOffer, noFirmByThatNameSays, rosterSummary, type RosterPerson,
+  firmsToOffer, keptNameSays, notSentToRow, rosterSummary, type RosterPerson,
 } from '@/lib/consultant-portfolio'
 import { checkFlagWithoutLine, releaseFrom, noLineSays, ourBenchRow, hrNotice, personNotice } from '@/lib/internal-moves'
 
@@ -160,10 +160,24 @@ describe('5 · clients a worker will not be sent to', () => {
     expect(offered).toEqual([{ id: 'cg', name: 'Cavanaugh Glassworks' }, { id: 'nb', name: 'Northbend Athletic' }])
   })
 
-  it('a name that matches no company on Etyme is answered honestly, and nothing is stored', () => {
-    expect(noFirmByThatNameSays(' Halvard Freight ')).toBe(
-      'No company called Halvard Freight is on Etyme, so no firm can send you there through Etyme. Nothing was saved. If they join, name them again here.'
+  it('a worker names a client not yet on Etyme and it is honored the day that company joins', () => {
+    expect(keptNameSays(' Kettering Molding ')).toBe(
+      'Kettering Molding is not on Etyme yet. It is kept on your list, and the day they join, no agency can submit you there. None of them is told why, or by whom.'
     )
+    // Listed as she typed it, said as not on Etyme yet; once honored, by its record.
+    expect(notSentToRow({ id: 'd1', companyId: null, companyName: 'Kettering Molding', company: null, note: 'old boss' }))
+      .toEqual({ id: 'd1', companyId: null, company: 'Kettering Molding', note: 'old boss', notOnEtyme: true })
+    expect(notSentToRow({ id: 'd1', companyId: 'c9', companyName: null, company: { name: 'Kettering Molding' }, note: null }))
+      .toEqual({ id: 'd1', companyId: 'c9', company: 'Kettering Molding', note: null, notOnEtyme: false })
+    const route = read('src/app/api/me/benches/route.ts')
+    expect(route).toContain('prisma.doNotSubmit.create({ data: { personId: person.id, companyName: name, note } })')
+    expect(route).toContain('message: keptNameSays(name)')
+    const lib = read('src/lib/consultant-portfolio.ts')
+    const honor = lib.slice(lib.indexOf('export async function honorNamedClients'))
+    // Only where exactly one company carries the name.
+    expect(honor).toContain('if (sameName !== 1) return 0')
+    expect(honor).toContain('data: { companyId, companyName: null }')
+    expect(read('src/app/dashboard/my-benches/page.tsx')).toContain(' · not on Etyme yet')
   })
 })
 
@@ -249,7 +263,6 @@ describe('8 · second walk: refusals shown, pay never a bill rate, mail said as 
     expect(page).toContain('{error && <p role="alert" className="text-[13px] text-etyme-attention">{error}</p>}')
     expect(page).toContain('if (saved) {')
     const route = read('src/app/api/me/benches/route.ts')
-    expect(route).toContain('return NextResponse.json({ data: { saved: false, message: noFirmByThatNameSays(name) } })')
   })
 
   it('the Pay column never shows a bill rate', async () => {
@@ -259,6 +272,9 @@ describe('8 · second walk: refusals shown, pay never a bill rate, mail said as 
     expect(payShown({ termsPayRateCents: null })).toBeNull()
     expect(payShown(undefined)).toBeNull()
     const page = read('src/app/dashboard/consultants/page.tsx')
+    // The detail panel's range, in minor units through the one formatter.
+    expect(page).toContain('{compact(consultant.rateMin)}/hr')
+    expect(page).not.toContain('${consultant.rateMin}/hr')
     const col = page.slice(page.indexOf("label: 'Pay rate'"), page.indexOf("key: 'availability'"))
     expect(col).toContain('row.payRateCents')
     expect(col).not.toContain('rateMin')
