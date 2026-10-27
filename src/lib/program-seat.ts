@@ -1,10 +1,8 @@
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
+import { mayHoldOutsideSeat } from '@/lib/access-grant'
 import type { CallerContext } from '@/lib/api-context'
-
-/** The name of the role that holds everything at a company (lib/company-defaults). */
-const OWNER_ROLE = 'Owner'
 
 /**
  * A desk a client grants a program office that is not the client.
@@ -304,8 +302,11 @@ export interface GrantAsk {
   grantorPermissions: readonly string[]
   /** The firm the seat is being granted to. */
   officeCompany: { id: string; kind: string; name: string } | null
-  /** The client role the seat would hold. */
-  role: { id: string; companyId: string; name: string } | null
+  /**
+   * The client role the seat would hold. `permissions` where the caller
+   * loaded them; without them the rule is applied by the role's name only.
+   */
+  role: { id: string; companyId: string; name: string; permissions?: readonly string[] } | null
   reason: string
   /** A seat this firm already holds at this client, live right now. */
   alreadyHas: boolean
@@ -388,18 +389,15 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
     }
   }
 
-  // Never the client's Owner role: it holds everything, including the
-  // right to grant and revoke seats, and an outside firm holding it would
-  // own the client (second onboarding walk, 2026-10-27).
-  if (ask.role.name === OWNER_ROLE) {
-    return {
-      ok: false,
-      code: 'OWNER_ROLE',
-      says:
-        `An outside firm is never given ${ask.grantorCompany.name}\u2019s Owner role: it would hold everything, ` +
-        `seats included. Choose the role it runs the program in, Program Manager most often.`,
-    }
-  }
+  // Only a role an outside firm may hold: never the Owner, never a role
+  // that grants seats, never the Approver, never one that signs hours
+  // (regulatory's rule, `mayHoldOutsideSeat` in lib/access-grant).
+  const outside = mayHoldOutsideSeat({
+    role: { name: ask.role.name, permissions: ask.role.permissions ?? [] },
+    clientName: ask.grantorCompany.name,
+    firmName: ask.officeCompany.name,
+  })
+  if (!outside.ok) return { ok: false, code: outside.code, says: outside.says }
 
   if (ask.role.companyId !== ask.grantorCompany.id) {
     return {
@@ -521,4 +519,11 @@ export function askNotice(o: { office: string; asker: string; note: string | nul
       (o.note ? `: \u201c${o.note}\u201d.` : '.') +
       ` Grant it, with the role it holds, from Settings, under MSPs, or answer Not now.`,
   }
+}
+
+/** The roles a client may offer an outside firm on a seat: those regulatory's rule lets it hold. */
+export function rolesAnOutsideFirmMayHold<R extends { name: string; permissions: readonly string[] }>(
+  roles: R[], clientName: string, firmName = 'An outside firm',
+): R[] {
+  return roles.filter((r) => mayHoldOutsideSeat({ role: r, clientName, firmName }).ok)
 }

@@ -11,6 +11,7 @@ import {
 } from '@/lib/password'
 import { possessive } from '@/lib/requisition-approval'
 import { recordedBody } from '@/lib/notify/account-mail'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { linkWithStaff, NO_EMAIL_HERE } from '@/lib/password-words'
 import { assess, type ReadinessFacts } from '@/lib/readiness'
 
@@ -142,7 +143,9 @@ describe('a password is stored as a slow hash and never returned or logged', () 
     const door = read('src/lib/password-door.ts')
     expect(door).toContain("payload: { invitation: true }")
     expect(door).toContain("says: 'Your password is set. Signing you in.'")
-    expect(read('src/app/api/auth/password/reset/confirm/route.ts')).toContain("'/dashboard/conversations'")
+    // Into Ask Etyme itself, so a phone opens the chat and not the thread list.
+    expect(ASK_ETYME_HREF).toBe('/dashboard/conversations/etyme')
+    expect(read('src/app/api/auth/password/reset/confirm/route.ts')).toContain('landing: a.invitation ? ASK_ETYME_HREF')
     const form = read('src/app/(auth)/reset/[token]/form.tsx')
     expect(form).toContain("signIn('credentials', { email: j.data.email, password, redirect: false })")
     expect(form).toContain('window.location.assign(j.data.landing')

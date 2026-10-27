@@ -7,8 +7,8 @@ import { signInDoors, signInLine } from '@/lib/readiness'
 import { mayAskForSeat, askNotice, askedSentence, noSeatYet } from '@/lib/program-seat'
 import { alreadyOnEtyme } from '@/lib/off-system'
 import { addressOf } from '@/lib/company-create'
-import { mirrorOf, wordFor, readerReads, askerReads, mayAskToLink } from '@/lib/trade-link'
-import { mayGrantSeat } from '@/lib/program-seat'
+import { mirrorOf, wordFor, readerReads, askerReads, mayAskToLink, type LinkAsk } from '@/lib/trade-link'
+import { mayGrantSeat, rolesAnOutsideFirmMayHold } from '@/lib/program-seat'
 
 /**
  * The onboarding walk of 2026-10-27, platform's half, as sentences. The
@@ -125,7 +125,7 @@ describe('an MSP asks a client for a seat', () => {
   it('a client grants an MSP a seat from Settings through the one grant route, naming one of its own roles', () => {
     const grant = src('components/settings/grant-seat.tsx')
     expect(grant).toContain("fetch('/api/program/seats'")
-    expect(grant).toContain("fetch('/api/roles')")
+    expect(grant).toContain("fetch('/api/seat-requests')")
     expect(grant).toContain('/api/firms?as=MSP&q=')
     expect(grant).not.toMatch(/window\.(confirm|prompt)\(/)
   })
@@ -168,9 +168,9 @@ describe('two firms already on Etyme link', () => {
   })
 
   it('a link is asked once per pair, never of oneself, and only by whoever keeps the list of companies', () => {
-    const base = { asker: { id: 'a', kind: 'VENDOR', name: 'Teleworld' }, other: { id: 'b', kind: 'VENDOR', name: 'Quarrybrook' }, relationship: 'PRIME', mayManage: true, linked: false, open: null }
+    const base: LinkAsk = { asker: { id: 'a', kind: 'VENDOR', name: 'Teleworld' }, other: { id: 'b', kind: 'VENDOR', name: 'Quarrybrook' }, relationship: 'PRIME', mayManage: true, linked: false, open: null }
     expect(mayAskToLink(base).ok).toBe(true)
-    const code = (o: Partial<typeof base> & Record<string, unknown>) => { const v = mayAskToLink({ ...base, ...o } as any); return v.ok ? 'OK' : v.code }
+    const code = (o: Partial<LinkAsk>) => { const v = mayAskToLink({ ...base, ...o }); return v.ok ? 'OK' : v.code }
     expect(code({ mayManage: false })).toBe('NOT_YOURS_TO_ASK')
     expect(code({ other: { id: 'a', kind: 'VENDOR', name: 'Teleworld' } })).toBe('OWN_COMPANY')
     expect(code({ open: { fromCompanyId: 'a' } })).toBe('ALREADY_ASKED')
@@ -181,17 +181,36 @@ describe('two firms already on Etyme link', () => {
 })
 
 describe('a seat never hands over the client', () => {
+  const grant = (role: { name: string; permissions?: string[] }) => mayGrantSeat({
+    grantorCompany: { id: 'n', kind: 'CLIENT', name: 'Northbend Athletic' }, grantorPermissions: ['*'],
+    officeCompany: { id: 'p', kind: 'MSP', name: 'Palliser MSP' }, role: { id: 'r', companyId: 'n', ...role },
+    reason: 'They run our program from January', alreadyHas: false,
+  })
+
   it('an outside firm is never granted a client\u2019s Owner role on a seat', () => {
-    const v = mayGrantSeat({
-      grantorCompany: { id: 'n', kind: 'CLIENT', name: 'Northbend Athletic' }, grantorPermissions: ['*'],
-      officeCompany: { id: 'p', kind: 'MSP', name: 'Palliser MSP' }, role: { id: 'r', companyId: 'n', name: 'Owner' },
-      reason: 'They run our program from January', alreadyHas: false,
-    })
+    const v = grant({ name: 'Owner' })
     expect(v.ok).toBe(false)
     if (!v.ok) {
-      expect(v.code).toBe('OWNER_ROLE')
-      expect(v.says).toContain('never given Northbend Athletic\u2019s Owner role')
+      expect(v.code).toBe('NEVER_FOR_AN_OUTSIDE_FIRM')
+      expect(v.says).toContain('Palliser MSP cannot hold Northbend Athletic\u2019s Owner role')
     }
-    expect(src('components/settings/grant-seat.tsx')).toContain("x.name !== 'Owner'")
+  })
+
+  it('the seat grant offers only the roles an outside firm may hold', () => {
+    // Regulatory's rule (mayHoldOutsideSeat): never the Owner, a role that
+    // grants seats, the Approver, or one that signs hours.
+    expect(grant({ name: 'Program Manager', permissions: ['requirements.read'] }).ok).toBe(true)
+    expect(grant({ name: 'Renamed Admin', permissions: ['*'] }).ok).toBe(false)
+    expect(grant({ name: 'Hours desk', permissions: ['timesheets.approve'] }).ok).toBe(false)
+    const offered = rolesAnOutsideFirmMayHold([
+      { name: 'Owner', permissions: ['*'] },
+      { name: 'Program Manager', permissions: ['requirements.read'] },
+      { name: 'Hours desk', permissions: ['timesheets.approve'] },
+    ], 'Northbend Athletic')
+    expect(offered.map((r) => r.name)).toEqual(['Program Manager'])
+    // The form offers what the route sends, and reads no other role list.
+    const form = src('components/settings/grant-seat.tsx')
+    expect(form).toContain('a?.data?.roles')
+    expect(form).not.toContain("fetch('/api/roles')")
   })
 })

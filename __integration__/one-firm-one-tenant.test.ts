@@ -421,7 +421,12 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     const owner = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Owner' }, select: { id: true } })
     const r = await call(grantSeat, 'POST', '/api/program/seats', undefined, { officeCompanyId: co.ostrander, roleId: owner.id, reason: 'Testing that the owner role is never handed over' })
     expect(r.status).toBe(422)
-    expect(r.body.error.code).toBe('OWNER_ROLE')
+    expect(r.body.error.code).toBe('NEVER_FOR_AN_OUTSIDE_FIRM')
+    // And the grant form is never offered it, nor any role that signs hours or grants seats.
+    const asks = await call(seatAsks, 'GET', '/api/seat-requests')
+    const offered: string[] = asks.body.data.roles.map((x: any) => x.name)
+    expect(offered).not.toContain('Owner')
+    expect(offered).toContain('Program Manager')
     expect(await prisma.programSeat.count({ where: { officeCompanyId: co.ostrander } })).toBe(0)
   })
 })

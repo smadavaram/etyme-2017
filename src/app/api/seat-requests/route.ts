@@ -6,7 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { findFirmByWord } from '@/lib/company-create'
 import { formatDay } from '@/lib/format-date'
-import { liveSeatWhere, mayAskForSeat, askedSentence, askNotice } from '@/lib/program-seat'
+import { liveSeatWhere, mayAskForSeat, askedSentence, askNotice, rolesAnOutsideFirmMayHold } from '@/lib/program-seat'
 
 /**
  * GET  /api/seat-requests — the asks this company made, or the open asks
@@ -66,9 +66,16 @@ export async function GET(request: NextRequest) {
     })
     const open = []
     for (const r of rows) if (await stillOpen(r)) open.push(r)
+    // The roles the grant form may offer: only those an outside firm may hold.
+    const roles = rolesAnOutsideFirmMayHold(
+      (await prisma.role.findMany({ where: { companyId: company.id }, select: { id: true, name: true, permissions: true }, orderBy: { name: 'asc' } }))
+        .map((r) => ({ id: r.id, name: r.name, permissions: r.permissions as string[] })),
+      company.name,
+    ).map(({ id, name }) => ({ id, name }))
     return NextResponse.json({
       data: {
         side: 'CLIENT',
+        roles,
         asks: open.map((r) => ({
           id: r.id,
           office: r.officeCompany,

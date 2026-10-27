@@ -12,7 +12,7 @@ import { Panel, Lbl } from './panel-bits'
  * company sits in this program" and offered no way to change that, while
  * `POST /api/program/seats` already granted one. This is that route's
  * form, and nothing more: the MSP by its name or its Etyme address
- * (`GET /api/firms`), one of the client's own roles (`GET /api/roles`),
+ * (`GET /api/firms`), one of the client's own roles an outside firm may hold,
  * and the reason the route requires. The asks MSPs made of this client
  * are listed above the form; choosing one fills it in, and Not now
  * answers it. The route decides, and its sentence is shown as it is.
@@ -36,16 +36,12 @@ export function GrantSeat({ onGranted }: { onGranted?: () => void }) {
   const [done, setDone] = useState<string | null>(null)
 
   async function load() {
-    const [a, r] = await Promise.all([
-      fetch('/api/seat-requests').then(readJson).catch(() => null),
-      fetch('/api/roles').then(readJson).catch(() => null),
-    ])
+    // One read: the open asks, and only the roles an outside firm may hold
+    // here (never the Owner, a role that grants seats, the Approver, or one
+    // that signs hours; regulatory's rule, applied by the route).
+    const a = await fetch('/api/seat-requests').then(readJson).catch(() => null)
     setAsks(Array.isArray(a?.data?.asks) ? a.data.asks : [])
-    // Never the Owner role: an outside firm never holds everything here
-    // (mayGrantSeat refuses it too).
-    const list: Role[] = Array.isArray(r?.data?.roles)
-      ? r.data.roles.filter((x: Role) => x.name !== 'Owner').map((x: Role) => ({ id: x.id, name: x.name }))
-      : []
+    const list: Role[] = Array.isArray(a?.data?.roles) ? a.data.roles : []
     setRoles(list)
     // Program Manager is the seat an MSP holds most often.
     setRoleId((prev) => prev || list.find((x) => x.name === 'Program Manager')?.id || '')

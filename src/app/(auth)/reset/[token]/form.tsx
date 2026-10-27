@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { readJson } from '@/lib/read-response'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../../door-frame'
 
@@ -31,7 +32,7 @@ export function ResetWithLinkForm({ token }: { token: string }) {
       // door as the sign-in page. Where that fails, the Sign in link stays.
       if (j.data.invitation) {
         const r = await signIn('credentials', { email: j.data.email, password, redirect: false })
-        if (r?.ok && !r.error) { window.location.assign(j.data.landing ?? '/dashboard/conversations'); return }
+        if (r?.ok && !r.error) { window.location.assign(j.data.landing ?? ASK_ETYME_HREF); return }
         setDone('Your password is set. Sign in with it now.')
       }
     } catch (err: any) {
