@@ -2114,6 +2114,21 @@ order; until then the home region leads and the rest follow by
 contractor count); the head of operations' "within 30 days" line
 counts regions, not people, until demand's figures carry that count.
 
+**Shipped to production 2026-10-27, afternoon (ccdc8bde9 on the deploy
+branch, source fa7195340):** the whole fix wave above. Release pass on
+a quiet copy of 60aa99f6e: type check clean, 12,052 of 12,054 unit
+(the two reds, a date formatted by hand in By region's note and the
+map test's literal "Ingrid Solberg", fixed in the two commits after and
+their files re-run green with the type check and the build on
+fa7195340), 2,493 integration, build clean. Gates: no source
+difference, no Ruby, brand kit present, no schema line removed. Smoke:
+every public page 200, the inbound email door 404 to a POST; production's
+home page says "The demo is being set up" under each role, because
+Corvane is not in its world until the founder reseeds. The pay card on
+production repairs itself at the twin's next nightly run (06:00 UTC,
+2026-10-28), when PR-2026-0441 gets its Pay question and the old
+"Approve IN-FMDSDT-20260901" card closes as overtaken.
+
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
 back a paper that arrived; the I-9, a provider's verdict and the
