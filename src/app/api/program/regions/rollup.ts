@@ -1,4 +1,5 @@
 import { programMonthlySpend } from '@/lib/program-spend'
+import { compact } from '@/lib/money-display'
 import { countWord, possessive } from '@/app/dashboard/program/needs-you'
 
 /**
@@ -42,6 +43,8 @@ export interface Site {
   state: string | null
   country: string
   region: string | null
+  /** The client's primary site: its region is read first. */
+  primary?: boolean
 }
 
 /** Who manages a line or a job. A null id is nobody named. */
@@ -117,6 +120,13 @@ export interface Receipt {
   state: ReceiptState
   /** Why it is held, in a line: "41.5 hours billed, 40 signed". */
   heldSays: string | null
+  /**
+   * What a held receipt bills past the signed hours, at the line's own
+   * rate, in `currency`'s minor units. Null where it is not held, or held
+   * for something other than hours.
+   */
+  overMinor?: number | null
+  currency?: string
 }
 
 export interface Facts {
@@ -144,8 +154,12 @@ export interface Figures {
   openJobs: number
   weeksToSign: number
   papers: { asked: number; onHold: number }
+  /** What the starts on hold wait on, short and once each: "an I-9". */
+  holdsOn?: string[]
   /** Null where the reader may not read invoice receipts. */
   receipts: { paid: number; ready: number; held: number } | null
+  /** What the held receipts bill past the signed hours, per currency. */
+  heldOver?: SpendLine[]
   /** The nearest anybody here is to the time limit; null where nobody is counted. */
   nearestLimit: { days: number; personName: string; plant: string } | null
   /** A month at current rates, per currency, largest first. */
@@ -209,8 +223,8 @@ function cellKey(region: string, siteId: string | null, managerId: string | null
 
 const EMPTY = (receipts: boolean): Figures => ({
   plants: 0, hiringManagers: 0, contractors: 0, openJobs: 0, weeksToSign: 0,
-  papers: { asked: 0, onHold: 0 },
-  receipts: receipts ? { paid: 0, ready: 0, held: 0 } : null,
+  papers: { asked: 0, onHold: 0 }, holdsOn: [],
+  receipts: receipts ? { paid: 0, ready: 0, held: 0 } : null, heldOver: [],
   nearestLimit: null, spend: [], spendOneCurrency: null, unpriced: 0,
 })
 
@@ -236,6 +250,8 @@ function sortSpend(spend: SpendLine[]): SpendLine[] {
 export function addFigures(a: Figures, b: Figures): Figures {
   const spend = new Map<string, number>()
   for (const s of [...a.spend, ...b.spend]) spend.set(s.currency, (spend.get(s.currency) ?? 0) + s.minor)
+  const over = new Map<string, number>()
+  for (const s of [...(a.heldOver ?? []), ...(b.heldOver ?? [])]) over.set(s.currency, (over.get(s.currency) ?? 0) + s.minor)
   const nearest = [a.nearestLimit, b.nearestLimit].filter((n): n is NonNullable<typeof n> => n !== null)
     .sort((x, y) => x.days - y.days)[0] ?? null
   return {
@@ -245,9 +261,11 @@ export function addFigures(a: Figures, b: Figures): Figures {
     openJobs: a.openJobs + b.openJobs,
     weeksToSign: a.weeksToSign + b.weeksToSign,
     papers: { asked: a.papers.asked + b.papers.asked, onHold: a.papers.onHold + b.papers.onHold },
+    holdsOn: [...new Set([...(a.holdsOn ?? []), ...(b.holdsOn ?? [])])],
     receipts: a.receipts && b.receipts
       ? { paid: a.receipts.paid + b.receipts.paid, ready: a.receipts.ready + b.receipts.ready, held: a.receipts.held + b.receipts.held }
       : null,
+    heldOver: sortSpend([...over].map(([currency, minor]) => ({ currency, minor }))),
     nearestLimit: nearest,
     spend: sortSpend([...spend].map(([currency, minor]) => ({ currency, minor }))),
     spendOneCurrency: null,
@@ -297,7 +315,12 @@ export function cells(f: Facts): ManagerRow[] {
       c.nearestLimit = { days: p.daysLeft, personName: p.personName, plant: c.plant }
     }
   }
-  for (const h of f.held) cell(h).papers.onHold++
+  for (const h of f.held) {
+    const c = cell(h)
+    c.papers.onHold++
+    const on = shortPaper(h.waitingOn)
+    if (!(c.holdsOn ?? []).includes(on)) c.holdsOn = [...(c.holdsOn ?? []), on]
+  }
   for (const j of f.open) cell(j, j.region).openJobs++
   for (const w of f.weeks) cell(w).weeksToSign++
   for (const a of f.asked) cell(a).papers.asked++
@@ -305,8 +328,16 @@ export function cells(f: Facts): ManagerRow[] {
     const c = cell(r)
     if (!c.receipts) continue
     if (r.state === 'PAID') c.receipts.paid++
-    else if (r.state === 'HELD') c.receipts.held++
-    else c.receipts.ready++
+    else if (r.state === 'HELD') {
+      c.receipts.held++
+      if (r.overMinor && r.currency) {
+        const was = c.heldOver ?? []
+        const had = was.find((x) => x.currency === r.currency)
+        c.heldOver = had
+          ? was.map((x) => (x === had ? { ...x, minor: x.minor + r.overMinor! } : x))
+          : sortSpend([...was, { currency: r.currency, minor: r.overMinor }])
+      }
+    } else c.receipts.ready++
   }
 
   // A plant with nobody and nothing on it is still one of the region's plants.
@@ -345,8 +376,13 @@ function busy(r: Figures): boolean {
 }
 
 /**
- * One row per region, most contractors first, "No region set" last. Each
- * is the sum of its cells.
+ * One row per region, each the sum of its cells. The client's home region
+ * (where its primary site is) first, the way the home page's map reads a
+ * company from where it is run; then most contractors first; "No region
+ * set" last.
+ *
+ * The record keeps no order of its own for regions, so the regions after
+ * the first are ordered by size, not by the order the client listed them.
  *
  * A hiring manager is counted once per region they manage in: two plants
  * of one manager in one region are one manager.
@@ -359,8 +395,10 @@ export function regionRows(f: Facts, all: ManagerRow[] = cells(f)): RegionRow[] 
     const managers = new Set(mine.map((c) => c.managerId).filter((id): id is string => id !== null))
     return { ...sum, hiringManagers: managers.size, label, leads: f.leads.get(label) ?? [] }
   })
-  return rows.sort((a, b) =>
-    (a.label === NO_REGION ? 1 : 0) - (b.label === NO_REGION ? 1 : 0) || b.contractors - a.contractors || a.label.localeCompare(b.label))
+  const primary = f.sites.find((s) => s.primary)
+  const home = primary ? regionOfSite(primary) : null
+  const rank = (label: string) => (label === NO_REGION ? 2 : label === home ? 0 : 1)
+  return rows.sort((a, b) => rank(a.label) - rank(b.label) || b.contractors - a.contractors || a.label.localeCompare(b.label))
 }
 
 /**
@@ -421,6 +459,117 @@ export function inRegion(f: Pick<Facts, 'sites'>, region: string) {
  */
 export function currenciesSays(spend: readonly SpendLine[]): string {
   return spend.length > 1 ? `in ${spend.length} currencies` : ''
+}
+
+// ── What a figure says, the same words on every row and card ─────────
+//
+// The home page's map (`lib/public-site/corvane-map`) is the reference
+// for every word here: a receipt that passed the three-way check is "to
+// pay" or "clears the check", never "paid" until a payment is recorded;
+// a start on hold names the paper it waits on.
+
+const n = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`
+
+/** "an I-9 (proof of right to work)" said short: "an I-9". */
+export function shortPaper(waitingOn: string): string {
+  return waitingOn.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'papers'
+}
+
+function andList(xs: readonly string[]): string {
+  return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+/** Held over the hours, in each currency's own money: "$42". */
+export function heldOverSays(over: readonly SpendLine[] = []): string {
+  return over.map((s) => compact(s.minor, s.currency)).join(' · ')
+}
+
+/**
+ * A row's invoice receipts: "1 held · 1 to pay", "1 to pay", "none".
+ * "Paid" only where a payment is recorded.
+ */
+export function receiptsCell(r: Figures['receipts']): string | null {
+  if (!r) return null
+  const parts = [
+    r.held > 0 ? `${r.held} held` : null,
+    r.ready > 0 ? `${r.ready} to pay` : null,
+    r.paid > 0 ? `${r.paid} paid` : null,
+  ].filter((x): x is string => x !== null)
+  return parts.length ? parts.join(' · ') : 'none'
+}
+
+export interface CardWords { value: string; sub: string; attention: boolean }
+
+/**
+ * The invoice receipts card. Where one is held, the headline is what is
+ * held and by how much ("1 held · $42"), with how many clear the check
+ * under it; otherwise how many clear it. Never a zero in the attention
+ * color.
+ */
+export function receiptsCard(f: Pick<Figures, 'receipts' | 'heldOver'>): CardWords | null {
+  const r = f.receipts
+  if (!r) return null
+  const all = r.held + r.ready + r.paid
+  if (all === 0) return { value: 'none', sub: 'no invoice receipts in yet', attention: false }
+  const clear = `${r.ready + r.paid} of ${all} clear the check${r.paid > 0 ? ` · ${r.paid} paid` : ''}`
+  if (r.held === 0) return { value: `${r.ready + r.paid} of ${all}`, sub: 'clear the check', attention: false }
+  const over = heldOverSays(f.heldOver)
+  return { value: `${r.held} held${over ? ` · ${over}` : ''}`, sub: clear, attention: true }
+}
+
+/** A row's papers: "1 start on hold", "2 asked, not in yet", "none blocking". */
+export function papersCell(p: Figures['papers']): string {
+  if (p.onHold > 0) return `${n(p.onHold, 'start')} on hold`
+  if (p.asked > 0) return `${n(p.asked, 'paper')} asked, not in yet`
+  return 'none blocking'
+}
+
+/** The starts card's line: "1 start waiting on an I-9". Never "0 papers asked". */
+export function papersCard(f: Pick<Figures, 'papers' | 'holdsOn'>): CardWords {
+  const parts: string[] = []
+  if (f.papers.onHold > 0) parts.push(`${n(f.papers.onHold, 'start')} waiting on ${andList(f.holdsOn?.length ? f.holdsOn : ['papers'])}`)
+  if (f.papers.asked > 0) parts.push(`${n(f.papers.asked, 'paper')} asked, not in yet`)
+  return { value: String(f.papers.onHold), sub: parts.join(' · ') || 'none blocking', attention: f.papers.onHold > 0 }
+}
+
+/**
+ * A row's spend: the one figure in the reporting currency on top, each
+ * plant's own money under it where that is another currency. Where there
+ * is no one figure (a currency with no rate), the own money is the figure.
+ */
+export function spendCell(f: Pick<Figures, 'spend' | 'spendOneCurrency'>): { main: string; under: string | null } {
+  if (f.spend.length === 0) return { main: '—', under: null }
+  const own = f.spend.map((s) => compact(s.minor, s.currency)).join(' · ')
+  if (!f.spendOneCurrency) return { main: f.spend.length === 1 ? own : `in ${f.spend.length} currencies`, under: f.spend.length === 1 ? null : own }
+  const one = f.spendOneCurrency
+  const foreign = f.spend.some((s) => s.currency !== one.currency)
+  return { main: compact(one.minor, one.currency), under: foreign ? own : null }
+}
+
+/**
+ * The one sentence under the page: what spend rests on, and what is
+ * converted at which rates. `estimate` is `spendLine`'s words.
+ */
+export function spendNote(a: {
+  estimate: string
+  into: string
+  /** Whether any currency was converted. */
+  converted: boolean
+  sample: boolean
+  /** The day the sample rates were written, said in words. */
+  sampleWritten: string | null
+  /** Currencies with spend and no rate. */
+  missing: readonly string[]
+}): string {
+  const head = `Spend this month is an ${a.estimate}`
+  if (a.missing.length) {
+    return `${head}; it is shown in each plant’s own money and not converted, because there is no rate to ${a.into} for ${andList(a.missing)}.`
+  }
+  if (!a.converted) return `${head}.`
+  const rates = a.sample
+    ? `sample rates${a.sampleWritten ? ` written ${a.sampleWritten}` : ''}, not market rates`
+    : 'the rates you set'
+  return `${head}; each plant’s own money is converted to ${a.into} at ${rates}, and shown under it.`
 }
 
 // ── The greeting ─────────────────────────────────────────────────────

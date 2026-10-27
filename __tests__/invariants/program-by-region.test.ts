@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   cells, regionRows, managerRows, contractorRows, greeting, greetingTotal, sumFigures, spendOf, countryCodeFor, waitingOn,
+  receiptsCell, receiptsCard, papersCell, papersCard, spendCell, spendNote, shortPaper,
   NO_REGION, NO_MANAGER, type Facts, type Site, type OnSite,
 } from '@/app/api/program/regions/rollup'
 
@@ -50,7 +51,7 @@ function world(): Facts {
     ],
     asked: [{ personId: 'w3', manager: ana, siteId: 'monterrey' }],
     receipts: [
-      { id: 'i1', number: 'RS-1', supplier: 'Ridgeline Staffing', personName: 'Worker 1', manager: marcus, siteId: 'dayton', state: 'HELD', heldSays: '41.5 hours billed, 40 hours signed' },
+      { id: 'i1', number: 'RS-1', supplier: 'Ridgeline Staffing', personName: 'Worker 1', manager: marcus, siteId: 'dayton', state: 'HELD', heldSays: '41.5 hours billed, 40 hours signed', overMinor: 4200, currency: 'USD' },
       { id: 'i2', number: 'RS-2', supplier: 'Ridgeline Staffing', personName: 'Worker 2', manager: marcus, siteId: 'dayton', state: 'READY', heldSays: null },
       { id: 'i3', number: 'GT-1', supplier: 'Grupo Talenta Norte', personName: 'Worker 3', manager: ana, siteId: 'monterrey', state: 'PAID', heldSays: null },
     ],
@@ -215,5 +216,82 @@ describe('every cell is placed once', () => {
     const c = cells(f).find((x) => x.siteId === null && x.contractors > 0)!
     expect(c.plant).toBe('No site named')
     expect(c.region).toBe(NO_REGION)
+  })
+})
+
+describe('By region reads the way the home page’s map reads', () => {
+  const noPaid = () => {
+    const f = world()
+    f.receipts = f.receipts!.map((r) => (r.state === 'PAID' ? { ...r, state: 'READY' as const } : r))
+    return f
+  }
+
+  it('a region with a held receipt and a clean one reads “1 held · 1 to pay”, and a clean region “1 to pay”, never “0 paid”', () => {
+    const rows = regionRows(noPaid())
+    expect(receiptsCell(rows.find((r) => r.label === 'United States')!.receipts)).toBe('1 held · 1 to pay')
+    expect(receiptsCell(rows.find((r) => r.label === 'Latin America')!.receipts)).toBe('1 to pay')
+    for (const r of rows) expect(receiptsCell(r.receipts) ?? '').not.toMatch(/\b0 paid\b/)
+  })
+
+  it('“paid” is said only where a payment is recorded', () => {
+    expect(receiptsCell({ paid: 2, ready: 0, held: 0 })).toBe('2 paid')
+    expect(receiptsCell({ paid: 0, ready: 0, held: 0 })).toBe('none')
+    expect(receiptsCell(null)).toBeNull()
+  })
+
+  it('the invoice receipts card leads on what is held and by how much, with how many clear the check under it', () => {
+    const total = sumFigures(regionRows(noPaid()), true)
+    expect(receiptsCard(total)).toEqual({ value: '1 held · $42', sub: '2 of 3 clear the check', attention: true })
+  })
+
+  it('with nothing held the card says how many clear the check, and is not in the attention color', () => {
+    expect(receiptsCard({ receipts: { paid: 0, ready: 6, held: 0 }, heldOver: [] })).toEqual({ value: '6 of 6', sub: 'clear the check', attention: false })
+    expect(receiptsCard({ receipts: { paid: 0, ready: 0, held: 0 }, heldOver: [] })!.attention).toBe(false)
+  })
+
+  it('the starts card names the paper a start waits on: “1 start waiting on an I-9”', () => {
+    const f = world()
+    f.asked = []
+    expect(papersCard(sumFigures(regionRows(f), true))).toEqual({ value: '1', sub: '1 start waiting on an I-9', attention: true })
+  })
+
+  it('a region with no start on hold and nothing asked reads “none blocking”, never “0 asked”', () => {
+    expect(papersCell({ onHold: 0, asked: 0 })).toBe('none blocking')
+    expect(papersCell({ onHold: 1, asked: 3 })).toBe('1 start on hold')
+    expect(papersCard({ papers: { onHold: 0, asked: 0 }, holdsOn: [] }).sub).toBe('none blocking')
+  })
+
+  it('a held start’s paper is said short: “an I-9 (proof of right to work)” is “an I-9”', () => {
+    expect(shortPaper('an I-9 (proof of right to work)')).toBe('an I-9')
+    expect(shortPaper('papers')).toBe('papers')
+  })
+
+  it('a row’s spend shows the one figure in the reporting currency, with the region’s own money under it', () => {
+    expect(spendCell({ spend: [{ currency: 'INR', minor: 651_840_000 }], spendOneCurrency: { currency: 'USD', minor: 7_822_080 } }))
+      .toEqual({ main: '$78,220.80', under: '₹6,518,400' })
+    expect(spendCell({ spend: [{ currency: 'USD', minor: 26_432_000 }], spendOneCurrency: { currency: 'USD', minor: 26_432_000 } }))
+      .toEqual({ main: '$264,320', under: null })
+  })
+
+  it('where no one figure can be made, a row shows its own money and never a sum across currencies', () => {
+    expect(spendCell({ spend: [{ currency: 'INR', minor: 100 }, { currency: 'XYZ', minor: 5 }], spendOneCurrency: null }).main).toBe('in 2 currencies')
+  })
+
+  it('the note under the page says what is converted and at which rates, in one sentence', () => {
+    const said = spendNote({ estimate: 'estimate from current rates, 160 hours a month, not signed time', into: 'USD', converted: true, sample: true, sampleWritten: 'October 1, 2026', missing: [] })
+    expect(said).toBe('Spend this month is an estimate from current rates, 160 hours a month, not signed time; each plant’s own money is converted to USD at sample rates written October 1, 2026, not market rates, and shown under it.')
+    expect(said).not.toMatch(/nothing is converted/)
+    expect(spendNote({ estimate: 'estimate', into: 'USD', converted: false, sample: false, sampleWritten: null, missing: [] })).toBe('Spend this month is an estimate.')
+    expect(spendNote({ estimate: 'estimate', into: 'USD', converted: false, sample: false, sampleWritten: null, missing: ['XYZ'] }))
+      .toMatch(/not converted, because there is no rate to USD for XYZ\.$/)
+  })
+
+  it('the region where the client’s primary site is comes first, whatever its size', () => {
+    const f = world()
+    f.sites = f.sites.map((s) => (s.id === 'dayton' ? { ...s, primary: true } : s))
+    f.onSite.push(...[11, 12, 13].map((i) => person(i, { siteId: 'monterrey', manager: ana, currency: 'MXN' })))
+    const labels = regionRows(f).map((r) => r.label)
+    expect(labels[0]).toBe('United States')
+    expect(labels[labels.length - 1]).toBe(NO_REGION)
   })
 })

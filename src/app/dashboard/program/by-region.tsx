@@ -5,11 +5,14 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
-import { compact, rate } from '@/lib/money-display'
+import { rate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, Chip, Panel, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import type { RegionsData } from '@/app/api/program/regions/read'
-import type { Figures, RegionRow, ManagerRow, ContractorRow, SpendLine } from '@/app/api/program/regions/rollup'
+import {
+  receiptsCell, receiptsCard, papersCell, papersCard, spendCell,
+  type Figures, type RegionRow, type ManagerRow, type ContractorRow,
+} from '@/app/api/program/regions/rollup'
 
 /**
  * The program by region — a tab of the client's Today, never a second
@@ -107,7 +110,7 @@ export function ByRegion() {
       {data.level === 'MANAGER' && data.manager && <ManagerView data={data} />}
 
       <p className="mt-6 text-[12px] text-etyme-muted">
-        Spend this month is an {data.spendSays}, in each plant’s own money; nothing is converted.
+        {data.spendNote ?? `Spend this month is an ${data.spendSays}.`}
         {data.receiptsSays ? ` ${data.receiptsSays}` : ''}
         {data.limitSays ? ` ${data.limitSays}` : ''}
       </p>
@@ -150,13 +153,21 @@ function Trail({ data, wholeProgram }: { data: RegionsData; wholeProgram: boolea
 function Rollup({ data, onRegion }: { data: RegionsData; onRegion: (label: string) => void }) {
   const t = data.total
   const columns: Column<RegionRow>[] = [
-    { key: 'label', label: 'Region', render: (r) => <span className="font-medium text-etyme-ink">{r.label}</span> },
-    { key: 'leads', label: 'Regional manager', render: (r) => r.leads.join(', ') || '—', sortValue: (r) => r.leads.join(', '), exportValue: (r) => r.leads.join(', ') },
-    ...figureColumns<RegionRow>(data.total.receipts !== null),
+    {
+      key: 'label', label: 'Region',
+      render: (r) => (
+        <span className="flex flex-col">
+          <span className="font-medium text-etyme-ink">{r.label}</span>
+          <span className="text-[12px] text-etyme-muted">{[r.leads.join(', '), plural(r.plants, 'plant')].filter(Boolean).join(' · ')}</span>
+        </span>
+      ),
+      exportValue: (r) => (r.leads.length ? `${r.label} (${r.leads.join(', ')})` : r.label),
+    },
+    ...figureColumns<RegionRow>(data.total.receipts !== null, data.oneCurrency.sampleRates),
   ]
   return (
     <>
-      <FlowStats f={t} says={data.oneCurrency.says} />
+      <FlowStats f={t} />
       <ListSurface
         name="program-by-region"
         exportName="program-by-region"
@@ -179,11 +190,11 @@ function RegionView({ data, onManager }: { data: RegionsData; onManager: (id: st
   const columns: Column<ManagerRow>[] = [
     { key: 'manager', label: 'Hiring manager', render: (m) => <span className="font-medium text-etyme-ink">{m.manager}</span> },
     { key: 'plant', label: 'Plant' },
-    ...figureColumns<ManagerRow>(r.figures.receipts !== null),
+    ...figureColumns<ManagerRow>(r.figures.receipts !== null, data.oneCurrency.sampleRates),
   ]
   return (
     <>
-      <FlowStats f={r.figures} says={data.oneCurrency.says} />
+      <FlowStats f={r.figures} />
       <ListSurface
         name="program-region-managers"
         exportName="region-hiring-managers"
@@ -256,45 +267,30 @@ function ManagerView({ data }: { data: RegionsData }) {
 
 // ── The figures, the same on every level ─────────────────────────────
 
-function FlowStats({ f, says }: { f: Figures; says: string }) {
+function FlowStats({ f }: { f: Figures }) {
+  const papers = papersCard(f)
+  const receipts = receiptsCard(f)
+  const spend = spendCell(f)
+  // Three to a row on a desktop, so a full dollar figure never meets its card's edge.
   return (
-    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Stat label="Contractors on site" value={f.contractors} sub={`${plural(f.plants, 'plant')}, ${plural(f.hiringManagers, 'hiring manager')}`} />
       <Stat label="Open jobs" value={f.openJobs} />
       <Stat label="Weeks to sign" value={f.weeksToSign} tone={f.weeksToSign > 0 ? 'attention' : 'default'} />
-      <Stat label="Starts waiting on papers" value={f.papers.onHold} tone={f.papers.onHold > 0 ? 'attention' : 'default'} sub={`${plural(f.papers.asked, 'paper')} asked, not in yet`} />
+      <Stat label="Starts waiting on papers" value={papers.value} tone={papers.attention ? 'attention' : 'default'} sub={papers.sub} />
       <Stat
         label="Invoice receipts"
-        value={f.receipts ? `${f.receipts.paid} paid` : null}
-        tone={f.receipts && f.receipts.held > 0 ? 'attention' : 'default'}
-        sub={f.receipts ? `${f.receipts.held} held over the hours · ${f.receipts.ready} ready to pay` : 'read by the AP clerk and finance'}
+        value={receipts ? receipts.value : null}
+        tone={receipts?.attention ? 'attention' : 'default'}
+        sub={receipts ? receipts.sub : 'read by the AP clerk and finance'}
       />
-      <Stat
-        label="Spend this month"
-        value={<SpendValue spend={f.spend} one={f.spendOneCurrency} />}
-        sub={f.spend.length > 1 ? <>{spendSub(f.spend)}{f.spendOneCurrency ? <><br />{says}</> : null}</> : undefined}
-      />
+      <Stat label="Spend this month" value={spend.main} sub={spend.under ?? undefined} />
     </div>
   )
 }
 
-function SpendValue({ spend, one }: { spend: SpendLine[]; one: SpendLine | null }) {
-  if (one) return <>{compact(one.minor, one.currency)}</>
-  if (spend.length === 0) return <>—</>
-  if (spend.length === 1) return <>{compact(spend[0].minor, spend[0].currency)}</>
-  // No rate for one of them: money's rollup leaves the figure blank, and
-  // the figure says how many currencies it is in, never a sum across them.
-  return <>in {spend.length} currencies</>
-}
-
-function spendSub(spend: SpendLine[]): string | undefined {
-  if (spend.length <= 1) return undefined
-  return spend.map((s) => compact(s.minor, s.currency)).join(' · ')
-}
-
-function figureColumns<T extends Figures>(withReceipts: boolean): Column<T>[] {
+function figureColumns<T extends Figures>(withReceipts: boolean, sampleRates: boolean): Column<T>[] {
   const cols: Column<T>[] = [
-    { key: 'plants', label: 'Plants', align: 'right' },
     { key: 'contractors', label: 'Contractors', align: 'right' },
     { key: 'openJobs', label: 'Open jobs', align: 'right' },
     {
@@ -304,18 +300,14 @@ function figureColumns<T extends Figures>(withReceipts: boolean): Column<T>[] {
     {
       key: 'papers', label: 'Papers', sortValue: (r) => r.papers.onHold * 1000 + r.papers.asked,
       exportValue: (r) => `${r.papers.asked} asked, ${r.papers.onHold} on hold`,
-      render: (r) => r.papers.onHold > 0
-        ? <Chip tone="attention">{plural(r.papers.onHold, 'start')} on hold</Chip>
-        : <Chip tone="verified">{r.papers.asked} asked</Chip>,
+      render: (r) => <Chip tone={r.papers.onHold > 0 ? 'attention' : r.papers.asked > 0 ? 'passive' : 'verified'}>{papersCell(r.papers)}</Chip>,
     },
   ]
   if (withReceipts) {
     cols.push({
       key: 'receipts', label: 'Invoice receipts', sortValue: (r) => (r.receipts?.held ?? 0) * 1000 + (r.receipts?.paid ?? 0),
-      exportValue: (r) => r.receipts ? `${r.receipts.paid} paid, ${r.receipts.held} held, ${r.receipts.ready} ready` : '',
-      render: (r) => !r.receipts ? '—' : r.receipts.held > 0
-        ? <Chip tone="attention">{r.receipts.held} held</Chip>
-        : <Chip tone="verified">{r.receipts.paid} paid{r.receipts.ready > 0 ? ` · ${r.receipts.ready} to pay` : ''}</Chip>,
+      exportValue: (r) => receiptsCell(r.receipts) ?? '',
+      render: (r) => !r.receipts ? '—' : <Chip tone={r.receipts.held > 0 ? 'attention' : 'verified'}>{receiptsCell(r.receipts)}</Chip>,
     })
   }
   cols.push(
@@ -324,15 +316,26 @@ function figureColumns<T extends Figures>(withReceipts: boolean): Column<T>[] {
       sortValue: (r) => r.nearestLimit?.days ?? Number.MAX_SAFE_INTEGER,
       exportValue: (r) => r.nearestLimit ? `${r.nearestLimit.days} days, ${r.nearestLimit.personName}` : '',
       render: (r) => r.nearestLimit
-        ? <span title={`${r.nearestLimit.personName}, ${r.nearestLimit.plant}`}><LimitChip days={r.nearestLimit.days} /></span>
+        ? (
+          <span className="flex flex-col items-start">
+            <LimitChip days={r.nearestLimit.days} />
+            <span className="text-[12px] text-etyme-muted">{r.nearestLimit.personName}</span>
+          </span>
+        )
         : '—',
     },
     {
-      key: 'spend', label: 'Spend this month', align: 'right', sortable: false,
-      exportValue: (r) => r.spend.map((s) => compact(s.minor, s.currency)).join('; '),
-      render: (r) => r.spend.length === 0 ? '—' : (
-        <span className="inline-flex flex-col items-end">{r.spend.map((s) => <span key={s.currency}>{compact(s.minor, s.currency)}</span>)}</span>
-      ),
+      key: 'spend', label: sampleRates ? 'Spend this month, sample rates' : 'Spend this month', align: 'right', sortable: false,
+      exportValue: (r) => { const c = spendCell(r); return c.under ? `${c.main} (${c.under})` : c.main },
+      render: (r) => {
+        const c = spendCell(r)
+        return (
+          <span className="inline-flex flex-col items-end whitespace-nowrap">
+            <span>{c.main}</span>
+            {c.under && <span className="text-[12px] text-etyme-muted">{c.under}</span>}
+          </span>
+        )
+      },
     },
   )
   return cols

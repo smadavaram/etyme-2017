@@ -6,6 +6,8 @@ import { GET as program } from '@/app/api/program/route'
 import { GET as decisions } from '@/app/api/decisions/route'
 import { regionsView } from '@/app/api/program/regions/read'
 import { getCallerContext } from '@/lib/api-context'
+import { corvaneMap } from '@/lib/public-site/corvane-map'
+import { receiptsCell, receiptsCard, papersCard, spendCell } from '@/app/api/program/regions/rollup'
 import { corvaneSeatEmail, corvaneContractors, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, billRateMinor } from '@/lib/seed-corvane'
 
 /**
@@ -296,5 +298,98 @@ describe('the owed mark asks for the count alone', () => {
     expect(held[1]).toMatchObject({ kind: 'start', count: 1, plant: 'Dayton' })
     expect(held[1].person).toBeTruthy()
     expect(held[2]).toMatchObject({ kind: 'weeks', count: sum(CORVANE_PLANTS, 'weeksToSign') })
+  })
+})
+
+describe('By region reads the way the home page’s map reads (the release walk, 2026-10-27)', () => {
+  const map = corvaneMap()
+  const cfoMap = map.views.find((v) => v.key === 'cfo')!
+
+  it('the United States row reads “1 held · 1 to pay”, every other region “1 to pay”, and no row says “paid”', async () => {
+    const { body } = await read(cfo)
+    for (const r of body.data.regions) {
+      expect(receiptsCell(r.receipts), r.label).toBe(r.label === 'United States' ? '1 held · 1 to pay' : '1 to pay')
+    }
+  })
+
+  it('the CFO’s invoice receipts card reads “1 held · $42” over “6 of 7 clear the check”, the dollars over from the receipt’s hours at the line’s rate', async () => {
+    const { body } = await read(cfo)
+    expect(receiptsCard(body.data.total)).toEqual({ value: '1 held · $42', sub: '6 of 7 clear the check', attention: true })
+    const held = body.data.greeting.held.find((i: any) => i.kind === 'receipt')
+    expect(held.says).toMatch(/41\.5 hours billed, 40 hours signed$/)
+  })
+
+  it('the CFO’s starts card reads “1 start waiting on an I-9”', async () => {
+    const { body } = await read(cfo)
+    expect(papersCard(body.data.total)).toEqual({ value: '1', sub: '1 start waiting on an I-9', attention: true })
+  })
+
+  it('every region’s spend is the home page’s figure in dollars, with the region’s own money under it', async () => {
+    const { body } = await read(cfo)
+    expect(body.data.oneCurrency.sampleRates).toBe(true)
+    for (const row of cfoMap.rows) {
+      const label = row[0].t
+      const r = body.data.regions.find((x: any) => x.label === label)
+      const cell = spendCell(r)
+      const home = row[row.length - 1]
+      expect(cell.main, label).toBe(home.t)
+      // The same figures; the map lists them in plant order, the read by currency code.
+      const parts = (x: string | null | undefined) => (x ? x.split(' · ').sort() : [])
+      expect(parts(cell.under), label).toEqual(parts(home.sub))
+    }
+    expect(spendCell(body.data.total).main).toBe(cfoMap.stats.find((s) => s.label === 'Spend this month')!.value)
+  })
+
+  it('the note under the page says each plant’s money is converted to USD at sample rates, and never that nothing is converted', async () => {
+    const { body } = await read(cfo)
+    expect(body.data.spendNote).toMatch(/converted to USD at sample rates written October 1, 2026, not market rates/)
+    expect(body.data.spendNote).not.toMatch(/nothing is converted/)
+  })
+
+  it('the regions read with the United States first, as on the home page', async () => {
+    const { body } = await read(cfo)
+    expect(body.data.regions[0].label).toBe(cfoMap.rows[0][0].t)
+    expect(body.data.regions[0].label).toBe('United States')
+  })
+
+  it('Marcus Hollins opens By region straight on his 14 contractors at Dayton, not on a region to pick from', async () => {
+    const m = await prisma.person.findFirstOrThrow({ where: { primaryEmail: marcus } })
+    const { body } = await read(marcus)
+    expect(body.data.level).toBe('MANAGER')
+    expect(body.data.manager.id).toBe(m.id)
+    expect(body.data.manager.contractors).toHaveLength(14)
+  })
+})
+
+describe('one count: By region’s first line, the owed mark and the greeting', () => {
+  async function count(who: string) {
+    as(who)
+    const { caller } = await getCallerContext(req('GET', '/api/program/regions') as NextRequest, { narrowsToRegion: true })
+    return (await regionsView(caller!, { requestedClientId: null, countOnly: true })).data!.total
+  }
+
+  it('the first line carries the mark’s number for the CFO, the head of operations, Valeria Montes and Marcus Hollins, at every level they open', async () => {
+    const m = await prisma.person.findFirstOrThrow({ where: { primaryEmail: marcus } })
+    const opens: [string, string[]][] = [
+      [cfo, ['', '?region=Latin%20America', `?region=United%20States&manager=${m.id}`]],
+      [ops, ['', '?region=India']],
+      [valeria, ['']],
+      [marcus, ['']],
+    ]
+    for (const [who, queries] of opens) {
+      const owed = await count(who)
+      for (const q of queries) {
+        const { status, body } = await read(who, q)
+        expect(status, `${who}${q}`).toBe(200)
+        expect(body.data.greeting.total, `${who}${q}`).toBe(owed)
+      }
+    }
+  })
+
+  it('opening Latin America does not change what the CFO’s first line names: the Dayton receipt, the Dayton start and the weeks', async () => {
+    const all = await read(cfo)
+    const latam = await read(cfo, '?region=Latin%20America')
+    expect(latam.body.data.greeting.says).toBe(all.body.data.greeting.says)
+    expect(latam.body.data.greeting.held.map((i: any) => i.kind)).toEqual(['receipt', 'start', 'weeks'])
   })
 })

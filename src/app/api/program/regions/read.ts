@@ -14,12 +14,12 @@ import { matchInvoices, payGate } from '@/lib/invoice-match'
 import { regionContracts, regionRequirements, regionReceipts } from '@/lib/region-scope'
 import { shownAt, type ShownRow } from '@/lib/document-stages/countries'
 import { spendLine } from '@/lib/program-spend'
-import { reportingRatesFor, spendInReporting, type RateTable } from '@/lib/money/reporting-currency'
+import { reportingRatesFor, spendInReporting, SAMPLE_RATES_WRITTEN_ON, type RateTable } from '@/lib/money/reporting-currency'
 import { startPaperwork } from '../desk-findings'
 import { readerScope, type ReaderScope } from '../reader-scope'
 import {
-  cells, regionRows, managerRows, contractorRows, greeting, factsWhere, inRegion, sumFigures,
-  countryCodeFor, waitingOn, regionOfSite, currenciesSays, greetingTotal,
+  cells, regionRows, managerRows, contractorRows, greeting, sumFigures,
+  countryCodeFor, waitingOn, regionOfSite, currenciesSays, greetingTotal, spendNote,
   NO_REGION,
   type Facts, type Manager, type OnSite, type Site, type Receipt, type Figures, type RegionRow,
   type ManagerRow, type ContractorRow, type Greeting,
@@ -62,6 +62,12 @@ export interface RegionsData {
   greeting: Greeting
   regions: RegionRow[]
   total: Figures
+  /**
+   * The first line. Always over everything this reader reads, at every
+   * level, so its number is the owed mark's and Ask Etyme's greeting's:
+   * one list, one count. Opening a region or a manager narrows the
+   * tables, never what needs the reader.
+   */
   /** Set at the region and manager levels. */
   region: {
     label: string
@@ -79,6 +85,8 @@ export interface RegionsData {
   limitSays: string | null
   /** What a spend figure rests on. */
   spendSays: string
+  /** The one sentence under the page: what spend rests on, and what is converted at which rates. */
+  spendNote?: string
   /** "in 8 currencies": how many currencies the program's spend is in. */
   currenciesSays: string
   /**
@@ -201,14 +209,17 @@ async function regionsRead(
   const total = inOne(sumFigures(regions, facts.receipts !== null))
   const rolled = spendInReporting(total.spend, rates.reportingCurrency, rates, now)
 
-  // The level asked for. A seat that reads one region opens on it.
+  // The level asked for. A seat that reads one region opens on it; a
+  // hiring manager's seat on a plant opens on their own contractors.
   const regionAsked = ask.region ?? (reach && regions.length === 1 ? regions[0].label : null)
-  const managerAsked = ask.manager
+  const ownList = reach?.kind === 'SITE' && !ask.region && !ask.manager && all.some((c) => c.managerId === caller.person.id)
+  const managerAsked = ask.manager ?? (ownList ? caller.person.id : null)
 
   let level: RegionsData['level'] = 'PROGRAM'
   let region: RegionsData['region'] = null
   let manager: RegionsData['manager'] = null
-  let said = greeting(facts)
+  // One list for the first line, whatever level is open (see `greeting` above).
+  const said = greeting(facts)
 
   if (managerAsked) {
     const id = managerAsked === 'none' ? null : managerAsked
@@ -216,8 +227,6 @@ async function regionsRead(
     if (theirs.length === 0) {
       return refuse(404, 'NOT_FOUND', 'Nobody by that name manages a plant you read.')
     }
-    const keep = (p: { manager: Manager }) => p.manager.id === id
-    const scoped = factsWhere(facts, keep)
     level = 'MANAGER'
     manager = {
       id, name: theirs[0].manager,
@@ -226,14 +235,12 @@ async function regionsRead(
     }
     const label = ask.region ?? theirs[0].region
     region = regionPanel(facts, all.map(inOne), regions, label)
-    said = greeting(scoped)
   } else if (regionAsked) {
     if (!regions.some((r) => r.label === regionAsked)) {
       return refuse(404, 'NOT_FOUND', `${client.name} has no region called ${regionAsked}.`)
     }
     level = 'REGION'
     region = regionPanel(facts, all.map(inOne), regions, regionAsked)
-    said = greeting(factsWhere(facts, inRegion(facts, regionAsked)))
   }
 
   return {
@@ -252,6 +259,16 @@ async function regionsRead(
         : null,
       limitSays: facts.limitMonths === null ? `${client.name} has set no time limit, so nobody is counted against one.` : null,
       spendSays: spendLine({ priced: 1, unpriced: total.unpriced }),
+      spendNote: spendNote({
+        estimate: spendLine({ priced: 1, unpriced: total.unpriced }),
+        into: rolled.reportingCurrency,
+        converted: rolled.byCurrency.some((l) => l.currency !== rolled.reportingCurrency && l.rate !== null && l.minor !== 0),
+        sample: rolled.sampleRates,
+        sampleWritten: rolled.sampleRates
+          ? SAMPLE_RATES_WRITTEN_ON.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+          : null,
+        missing: rolled.missing,
+      }),
       currenciesSays: currenciesSays(total.spend),
       oneCurrency: { reportingCurrency: rolled.reportingCurrency, says: rolled.says, sampleRates: rolled.sampleRates },
     },
@@ -310,7 +327,7 @@ async function readFacts(
   const [siteRows, units, leadSeats, rules, everyRung] = await Promise.all([
     prisma.companyLocation.findMany({
       where: { companyId: client.id, ...(reach ? { id: { in: reach.scope.siteIds } } : {}) },
-      select: { id: true, name: true, city: true, state: true, country: true, region: true },
+      select: { id: true, name: true, city: true, state: true, country: true, region: true, isPrimary: true },
       orderBy: { name: 'asc' },
     }),
     prisma.orgUnit.findMany({ where: { companyId: client.id }, select: { id: true, name: true, kind: true, parentId: true } }),
@@ -334,7 +351,7 @@ async function readFacts(
       },
     }),
   ])
-  const sites: Site[] = siteRows
+  const sites: Site[] = siteRows.map(({ isPrimary, ...s }) => ({ ...s, primary: isPrimary }))
   const siteIds = new Set(sites.map((s) => s.id))
   const siteByName = new Map(sites.map((s) => [s.name, s.id]))
 
@@ -464,7 +481,7 @@ async function readFacts(
         reach ? regionReceipts(reach.scope) : {},
       ),
       select: {
-        id: true, number: true, status: true,
+        id: true, number: true, status: true, currency: true,
         invoiceLines: {
           select: {
             personId: true, person: { select: { name: true } },
@@ -480,6 +497,8 @@ async function readFacts(
       const match = matches.get(r.id) ?? null
       const gate = r.status === 'PAID' ? null : payGate({ number: r.number, status: r.status }, match)
       const over = match?.lines.find((l) => l.hoursSigned !== null && l.hoursBilled > l.hoursSigned)
+      // What the hours past the signed ones bill, at the line's own rate.
+      const overMinor = gate && !gate.ok && over ? Math.round((over.hoursBilled - over.hoursSigned!) * over.rateCents) : null
       if (line?.personId) receiptPeople.push(line.personId)
       return {
         id: r.id, number: r.number,
@@ -490,6 +509,7 @@ async function readFacts(
         heldSays: gate && !gate.ok
           ? over ? `${hours(over.hoursBilled)} billed, ${hours(over.hoursSigned!)} signed` : null
           : null,
+        overMinor, currency: r.currency,
       }
     })
     receiptPeople = [...new Set(receiptPeople)]
