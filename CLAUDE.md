@@ -1968,6 +1968,23 @@ follows:
   has four people on site), which is the architect's next seed after
   Corvane. The seven doors' two drawings stay under the fold. The home
   page is drawn before it is built, as every home-page change is.
+- **Drawn 2026-10-27, waiting on "build it"**
+  (https://claude.ai/artifact/VBYzE7NFTtJxTyebWSzirp). The question and
+  the category line stay. The lede under them becomes "Every contractor,
+  every supplier, every site and every country, on one record. Read it
+  as the CFO, a regional manager or a plant's hiring manager." Under the
+  buttons, the map: Corvane Packaging's 359 contractors, 25 suppliers and
+  31 sites in 8 countries, with three seat tabs that re-read the same
+  record (Margaret Osei, CFO, one row per region; Valeria Montes, Latin
+  America, her six plants and their hiring managers; Marcus Hollins,
+  Dayton, his fourteen contractors and the start on hold). Each seat's
+  first line names what stopped: the held Dayton receipt, $42 over the
+  signed hours; Maria Lee's start waiting on an I-9; Aoife Kelly in
+  Belfast fourteen days from the time limit. Every figure is read from
+  `lib/seed-corvane` (`programMonthlySpend` at 160 hours a month,
+  `spendInReporting` at the sample rates, labelled as sample). The
+  Northbend panel, the two drawings, the four lines, the band and the
+  footer follow unchanged. The integrator's map waits for its seed.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
