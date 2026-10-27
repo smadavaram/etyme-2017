@@ -153,3 +153,20 @@ export function signUpGuesses(email: string, companyName: string): SignUpGuesses
     says: raw.includes('.') ? countryGuessSentence(country, domain) : null,
   }
 }
+
+// ── Where no email can be sent ───────────────────────────────────────
+//
+// Decided 2026-10-27 (coordinator, after the onboarding walk): a
+// deployment with no email key keeps sign-up open, and the confirmation
+// link is kept on the notice for Etyme staff to pass on
+// (`recordedBody` in lib/notify/account-mail). The page and the answer
+// say so, rather than "check your email" for an email that never left.
+
+/** Said on the sign-up page, above the form, where no email can leave this deployment. */
+export const NO_EMAIL_HERE =
+  'This deployment cannot send email yet. You can still sign up: your confirmation link is kept with Etyme staff, who pass it on to you.'
+
+/** The answer after signing up where no email could be sent. */
+export function linkWithStaff(email: string): string {
+  return `No email could be sent from here, so the link for ${email} is kept with Etyme staff. They pass it on to you; it works for 24 hours.`
+}

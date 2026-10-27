@@ -39,7 +39,8 @@
 
 import { prisma } from '@/lib/db'
 import { landingFor } from '@/lib/nav-table'
-import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
+import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
+import { linkWithStaff } from '@/lib/password-words'
 import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
 import { appUrl } from '@/lib/supplier-link'
@@ -90,9 +91,29 @@ export type Answer =
 
 const refuse = (says: string, field?: string, status = 422): Answer => ({ ok: false, status, field, says })
 
-/** Whether the door can work at all here: without a sender nobody can prove a mailbox. */
+/**
+ * Whether sign-up is open here. Always, since 2026-10-27: where no email
+ * can be sent, the confirmation link is kept on the notice for staff to
+ * pass on (`recordedBody`, NOT_CONFIGURED), which is the whole point of
+ * that rescue. Kept as a function so the pages ask one place.
+ */
 export function doorOpen(): boolean {
+  return true
+}
+
+/**
+ * Whether an email can leave this deployment. Reset asks this and stays
+ * shut without it: a password-reset link held in the database and passed
+ * on by hand is a way into somebody's existing account, which a sign-up
+ * confirmation is not.
+ */
+export function mailLeaves(): boolean {
   return emailSender() !== null
+}
+
+/** What a person is told once a link is on its way: their mailbox, or staff where no email can leave. */
+function toldWhere(email: string): string {
+  return mailLeaves() ? checkYourEmail(email) : linkWithStaff(email)
 }
 
 export const DOOR_SHUT = SIGNUP_SHUT
@@ -122,14 +143,14 @@ function demoRefusal(email: string): Answer | null {
  * Send one email, and write down that it went.
  *
  * The Notification row carries the subject and a body with the link cut
- * out: the token lives in the mailbox and nowhere else, so neither the
- * database nor a log can open the account.
+ * out where the email left: the token lives in the mailbox and nowhere
+ * else. Where no email could be sent, the link is kept on the row for
+ * staff to pass on (`recordedBody`).
  */
 async function mail(personId: string, to: string, subject: string, lines: string[], link: string | null): Promise<boolean> {
   const sender = emailSender()
   const body = [...lines, ...(link ? ['', link] : [])].join('\n')
-  const recorded = lines.join('\n') + (link ? '\n\n[the one-time link was in the email and is not kept]' : '')
-  let state = 'NOT_CONFIGURED'
+  let state: AccountMailState = 'NOT_CONFIGURED'
   let note: string | null = 'No email provider set up, so this was recorded and not sent.'
   if (sender) {
     try {
@@ -148,7 +169,9 @@ async function mail(personId: string, to: string, subject: string, lines: string
   await prisma.notification.create({
     data: {
       personId, companyId: null, type: ACCOUNT_MAIL, channel: 'EMAIL',
-      title: subject, body: recorded,
+      // The link is cut out once the email left; kept for staff only where
+      // no email could be sent (conversation's rule, lib/notify/account-mail).
+      title: subject, body: recordedBody(lines, link, state),
       deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? at : null,
       status: 'READ', readAt: at,
     },
@@ -240,7 +263,8 @@ export async function issueSetPassword(personId: string, hours: number, now: Dat
   await supersede(personId, 'RESET', now)
   const { token, tokenHash } = newToken()
   await prisma.emailToken.create({
-    data: { personId, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(hours, now) },
+    // Marked, so setting the password from it starts her session (2026-10-27).
+    data: { personId, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(hours, now), payload: { invitation: true } },
   })
   return link(`/reset/${token}`)
 }
@@ -323,14 +347,14 @@ async function begin(email: string, name: string, pending: Pending, typed?: stri
     if (founding && !(await ownsAFirm(existing.id))
       && (existing.passwordHash === null || (typed !== undefined && (await passwordMatches(existing.passwordHash, typed))))) {
       await sendVerify(existing, pending, soloFromCandidate(pending.name!, existing.passwordHash !== null))
-      return { ok: true, says: checkYourEmail(email) }
+      return { ok: true, says: toldWhere(email) }
     }
     if (firmMade(existing)) {
       await sendVerify(existing, pending, firmAddedYou(await firmThatAdded(existing.id)))
-      return { ok: true, says: checkYourEmail(email) }
+      return { ok: true, says: toldWhere(email) }
     }
     await tellAlreadyHere(existing)
-    return { ok: true, says: checkYourEmail(email) }
+    return { ok: true, says: toldWhere(email) }
   }
   // New, or a sign-up nobody confirmed yet: either way a fresh link goes,
   // and only the newest link works.
@@ -339,7 +363,7 @@ async function begin(email: string, name: string, pending: Pending, typed?: stri
     select: { id: true, primaryEmail: true },
   }))
   await sendVerify(person, pending)
-  return { ok: true, says: checkYourEmail(email) }
+  return { ok: true, says: toldWhere(email) }
 }
 
 /** Live addresses: companies that hold one, and sign-ups still waiting on their link. */
@@ -562,7 +586,7 @@ export async function resendVerification(rawEmail: unknown): Promise<Answer> {
     })
     if (last?.payload) await sendVerify(person, last.payload as unknown as Pending)
   }
-  return { ok: true, says: checkYourEmail(email) }
+  return { ok: true, says: toldWhere(email) }
 }
 
 // ── The link is clicked ───────────────────────────────────────────────
@@ -833,7 +857,7 @@ export function unverifiedError(email: string): string {
 
 export async function requestReset(rawEmail: unknown): Promise<Answer> {
   const email = cleanEmail(rawEmail)
-  if (!doorOpen()) return refuse(RESET_SHUT, undefined, 503)
+  if (!mailLeaves()) return refuse(RESET_SHUT, undefined, 503)
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
   const demo = demoRefusal(email)
   if (demo) return demo
@@ -847,7 +871,7 @@ export async function requestReset(rawEmail: unknown): Promise<Answer> {
   return { ok: true, says: `If there is an account for ${email}, we sent a link. It works for ${RESET_HOURS} hour.` }
 }
 
-export async function resetPassword(token: unknown, password: unknown, now: Date = new Date()): Promise<Answer & { email?: string }> {
+export async function resetPassword(token: unknown, password: unknown, now: Date = new Date()): Promise<Answer & { email?: string; invitation?: boolean }> {
   const row = await prisma.emailToken.findUnique({
     where: { tokenHash: hashToken(String(token ?? '')) },
     include: { person: { select: { id: true, primaryEmail: true, emailVerifiedAt: true } } },
@@ -869,7 +893,12 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
     data: { passwordHash: await hashPassword(pw), emailVerifiedAt: row!.person.emailVerifiedAt ?? now },
   })
   await prisma.signInFailure.deleteMany({ where: { email: row!.person.primaryEmail } })
-  return { ok: true, says: 'Your password is set. Sign in with it now.', email: row!.person.primaryEmail }
+  // An invitation's link: she has just proved the mailbox and chosen the
+  // password, so the page signs her in with it rather than asking again.
+  const invitation = (row!.payload as { invitation?: boolean } | null)?.invitation === true
+  return invitation
+    ? { ok: true, says: 'Your password is set. Signing you in.', email: row!.person.primaryEmail, invitation: true }
+    : { ok: true, says: 'Your password is set. Sign in with it now.', email: row!.person.primaryEmail }
 }
 
 /**

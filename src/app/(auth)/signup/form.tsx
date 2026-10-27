@@ -35,14 +35,18 @@ import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading, signUpGuesse
 type Tab = 'company' | 'candidate'
 type Joins = { address: string; company: string; says: string } | null
 
-export function SignUpForm({ claimToken, initialType = null, initialTab = 'company' }: {
+export function SignUpForm({ claimToken, initialType = null, initialTab = 'company', initialEmail = '', noEmailHere = null }: {
   claimToken: string | null
   initialType?: string | null
+  /** `?email=`, handed over by a link that already knows the address. */
+  initialEmail?: string
+  /** Said above the form where no email can leave this deployment. */
+  noEmailHere?: string | null
   /** `?as=candidate` opens on the candidate tab: the contractors' door lands here. */
   initialTab?: Tab
 }) {
   const [tab, setTab] = useState<Tab>(initialTab)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(initialEmail)
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [personName, setPersonName] = useState('')
@@ -134,8 +138,8 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   if (sent) {
     return (
       <DoorFrame>
-        <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-3">Check your email</h1>
-        <p className="text-sm text-etyme-ink">{underHeading('Check your email', sent)}</p>
+        <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-3">{noEmailHere ? 'Your link is with Etyme staff' : 'Check your email'}</h1>
+        <p className="text-sm text-etyme-ink">{noEmailHere ? sent : underHeading('Check your email', sent)}</p>
         <p className="text-sm text-etyme-muted mt-3">Nothing is set up until you click the link.</p>
         <DoorError says={error} />
         <button type="button" onClick={again} disabled={busy}
@@ -161,6 +165,8 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
         Already have an account?{' '}
         <a href={claimToken ? `/login?next=/claim/${claimToken}` : '/login'} className="text-etyme-action-press hover:underline">Sign in</a>
       </p>
+
+      {noEmailHere && <p className="text-sm text-etyme-ink mb-6">{noEmailHere}</p>}
 
       {claimToken && (
         <p className="text-sm text-etyme-ink mb-6">

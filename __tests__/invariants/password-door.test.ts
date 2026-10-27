@@ -10,6 +10,8 @@ import {
   memberWelcome, colleagueSentence, claimTokenIn, safeNext,
 } from '@/lib/password'
 import { possessive } from '@/lib/requisition-approval'
+import { recordedBody } from '@/lib/notify/account-mail'
+import { linkWithStaff, NO_EMAIL_HERE } from '@/lib/password-words'
 import { assess, type ReadinessFacts } from '@/lib/readiness'
 
 /**
@@ -115,12 +117,41 @@ describe('a password is stored as a slow hash and never returned or logged', () 
     }
   })
 
-  it('a link keeps only the hash of its token, and the email is the only place the token lives', () => {
+  it('a link keeps only the hash of its token, and once the email left the email is the only place the token lives', () => {
     const { token, tokenHash } = newToken()
     expect(token.length).toBeGreaterThanOrEqual(40)
     expect(tokenHash).toBe(hashToken(token))
     expect(tokenHash).not.toContain(token)
-    expect(read('src/lib/password-door.ts')).toContain('[the one-time link was in the email and is not kept]')
+    // The notice cuts the link out wherever the email left, through
+    // conversation's one rule; it keeps it only where no email could be sent.
+    expect(read('src/lib/password-door.ts')).toContain('body: recordedBody(lines, link, state)')
+    expect(recordedBody(['Confirm.'], 'https://x/verify/abc', 'SENT')).not.toContain('abc')
+    expect(recordedBody(['Confirm.'], 'https://x/verify/abc', 'FAILED')).not.toContain('abc')
+  })
+
+  it('where no email can be sent, sign-up still works and the confirmation link is kept on the notice', () => {
+    expect(read('src/lib/password-door.ts')).toMatch(/export function doorOpen\(\): boolean \{\s*return true\s*\}/)
+    expect(recordedBody(['Confirm.'], 'https://x/verify/abc', 'NOT_CONFIGURED')).toContain('https://x/verify/abc')
+    expect(linkWithStaff('ana@firm.example')).toContain('kept with Etyme staff')
+    const page = read('src/app/(auth)/signup/page.tsx')
+    expect(page).toContain('noEmailHere={mailLeaves() ? null : NO_EMAIL_HERE}')
+    expect(NO_EMAIL_HERE).toContain('your confirmation link is kept with Etyme staff')
+  })
+
+  it('a colleague who sets her password from the invitation lands signed in', () => {
+    const door = read('src/lib/password-door.ts')
+    expect(door).toContain("payload: { invitation: true }")
+    expect(door).toContain("says: 'Your password is set. Signing you in.'")
+    expect(read('src/app/api/auth/password/reset/confirm/route.ts')).toContain("'/dashboard/conversations'")
+    const form = read('src/app/(auth)/reset/[token]/form.tsx')
+    expect(form).toContain("signIn('credentials', { email: j.data.email, password, redirect: false })")
+    expect(form).toContain('window.location.assign(j.data.landing')
+  })
+
+  it('the candidate sign-up pre-fills an email it was handed', () => {
+    const page = read('src/app/(auth)/signup/page.tsx')
+    expect(page).toContain('initialEmail={email}')
+    expect(read('src/app/(auth)/signup/form.tsx')).toContain('useState(initialEmail)')
   })
 })
 
@@ -291,15 +322,13 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(SUPERSEDED).toBe('A newer link replaced this one. Use the newest link you were given.')
   })
 
-  it('with no email sender, sign-up and reset say so before any form', () => {
-    expect(SIGNUP_SHUT).toBe('Sign-up is off on this deployment until an email sender is set up.')
+  it('with no email sender, reset says so before any form, because a reset link kept for staff would open an existing account', () => {
     expect(RESET_SHUT).toBe('Password reset is off on this deployment until an email sender is set up.')
-    for (const [page, words] of [['src/app/(auth)/signup/page.tsx', 'SIGNUP_SHUT'], ['src/app/(auth)/reset/page.tsx', 'RESET_SHUT']] as const) {
-      const src = read(page)
-      expect(src.indexOf('doorOpen()'), page).toBeGreaterThan(0)
-      expect(src.indexOf(`{${words}}`), page).toBeGreaterThan(src.indexOf('doorOpen()'))
-      expect(src.indexOf(`{${words}}`), page).toBeLessThan(src.lastIndexOf('Form'))
-    }
+    const src = read('src/app/(auth)/reset/page.tsx')
+    expect(src.indexOf('mailLeaves()')).toBeGreaterThan(0)
+    expect(src.indexOf('{RESET_SHUT}')).toBeGreaterThan(src.indexOf('mailLeaves()'))
+    expect(src.indexOf('{RESET_SHUT}')).toBeLessThan(src.lastIndexOf('Form'))
+    expect(read('src/lib/password-door.ts')).toContain('if (!mailLeaves()) return refuse(RESET_SHUT, undefined, 503)')
   })
 
   it('the Etyme address "demo" is kept for Etyme, and the refusal suggests the company name the person typed', () => {

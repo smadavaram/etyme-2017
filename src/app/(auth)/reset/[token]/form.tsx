@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { signIn } from 'next-auth/react'
 import { readJson } from '@/lib/read-response'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../../door-frame'
 
@@ -25,6 +26,14 @@ export function ResetWithLinkForm({ token }: { token: string }) {
         body: JSON.stringify({ token, password }),
       }))
       setDone(j.data.says)
+      // A colleague setting her password from the invitation lands signed
+      // in: the password she just chose is the sign-in, through the same
+      // door as the sign-in page. Where that fails, the Sign in link stays.
+      if (j.data.invitation) {
+        const r = await signIn('credentials', { email: j.data.email, password, redirect: false })
+        if (r?.ok && !r.error) { window.location.assign(j.data.landing ?? '/dashboard/conversations'); return }
+        setDone('Your password is set. Sign in with it now.')
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {

@@ -908,3 +908,31 @@ every unconfirmed line. What the founder should know:
 - **Corvane has no card on `/demo`.** Its seats open through
   `POST /api/demo {"as":"world-corvane", "desk": …, "who": …}`; the three
   desks with no chip are named in `demo-door.test.ts`.
+
+## The onboarding walk's follow-ups — etyme-architect (2026-10-27)
+
+- **`DocumentRequirement.companyId` has no writer yet.** It is the home for
+  "Papers you require", a company's own floor every order inherits. The
+  setup step and regulatory's default sets write it; until then every set
+  still belongs to an order or a line, and no reader looks for one here.
+- **`VerificationDoc.bytes`, `contentType` and `sizeBytes` have no writer
+  yet.** They hold a paper filed by somebody with no firm. Regulatory's
+  own-papers route is the writer; until then such a file has a name and a
+  `fileUrl` and nothing behind it.
+- **`CERTIFICATION` is a type and an enum value with no packet asking for
+  it.** It is chased like a license and stops nobody; which client set
+  requires one is regulatory's rule.
+- **`ProjectRelease.sellContractId` is still required.** Making it optional
+  breaks the type check in five of supply's routes (`bench/ours/holds`,
+  `holds/[id]/place`, `releases/[id]/confirm`, `me/work`), so it lands in
+  one commit with supply's null branches, not before.
+- **A self-filed license reaches the renewal judge as CONDITIONAL.** The
+  judge in `lib/document-stages` counts only produced papers; the chase
+  bridges a self-filed PENDING row until regulatory accepts it there.
+- **With no email sender, sign-up confirmation links sit on the notice for
+  staff.** Anybody who can read `Notification.body` for that person can
+  confirm the sign-up. Reset stays shut without a sender for that reason.
+- **`claimOrJoin` is built and not yet called by the claim route**
+  (conversation's), and `findFirm` is not yet called by the supplier
+  approval (demand's). Until both land, the walk's second Quarrybrook can
+  still be founded by an approval.

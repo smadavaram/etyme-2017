@@ -506,6 +506,11 @@ const RULE_ATTRIBUTED = [
   'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED', 'ROLLOFF_RESOLVED',
   'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED', 'SUPPLIER_DECLINED',
   'SUPPLIER_ITEM_MARKED', 'SUPPLIER_RECORDS_JOINED', 'TEMPLATE_PACK_APPLIED', 'TIMESHEET_APPROVED',
+  // A person took a claim link while already running the firm on that
+  // domain; the rule folds the client's record into her firm rather than
+  // seating her on a second one (claimOrJoin, 2026-10-27). She started it,
+  // so it has no rung; the row says why and that it cannot be undone.
+  'FIRM_JOINED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }

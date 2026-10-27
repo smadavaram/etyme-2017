@@ -1,5 +1,6 @@
-import { doorOpen } from '@/lib/password-door'
+import { doorOpen, mailLeaves } from '@/lib/password-door'
 import { SIGNUP_SHUT, safeNext, claimTokenIn } from '@/lib/password'
+import { NO_EMAIL_HERE } from '@/lib/password-words'
 import { DoorFrame } from '../door-frame'
 import { SignUpForm } from './form'
 import { COMPANY_TYPES } from '@/lib/onboarding'
@@ -16,7 +17,7 @@ import { COMPANY_TYPES } from '@/lib/onboarding'
  */
 export const dynamic = 'force-dynamic'
 
-export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string; as?: string } }) {
+export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string; as?: string; email?: string } }) {
   if (!doorOpen()) {
     return (
       <DoorFrame>
@@ -35,5 +36,12 @@ export default function SignUpPage({ searchParams }: { searchParams: { claim?: s
   // contractors' door (/for/contractors) offers. A claim is a company's
   // record, so it keeps the company tab whatever the link says.
   const tab = searchParams?.as === 'candidate' && !claimToken ? 'candidate' : 'company'
-  return <SignUpForm claimToken={claimToken} initialType={type} initialTab={tab} />
+  // `?email=` pre-fills the address: supply's link after a person says yes
+  // to a bench hands it over, so she does not type it twice (2026-10-27).
+  const email = typeof searchParams?.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(searchParams.email.trim())
+    ? searchParams.email.trim().toLowerCase().slice(0, 200)
+    : ''
+  // Where no email can leave this deployment, sign-up still works and the
+  // confirmation link waits with staff; the page says so before the form.
+  return <SignUpForm claimToken={claimToken} initialType={type} initialTab={tab} initialEmail={email} noEmailHere={mailLeaves() ? null : NO_EMAIL_HERE} />
 }

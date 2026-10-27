@@ -63,6 +63,24 @@ const LINK_DAYS = 45
  */
 const PRODUCED = ['CLEAR', 'CONDITIONAL', 'EXPIRED']
 
+/**
+ * A license its holder filed herself from her own page is PENDING until a
+ * firm examines it, and the chase used to read past it: a worker who put
+ * her own nursing license on file was never reminded it was running out
+ * (2026-10-27). She produced it, so its dates are chased like any other.
+ */
+const PRODUCED_OR_SELF_FILED = {
+  OR: [
+    { status: { in: PRODUCED as any } },
+    { status: 'PENDING' as any, result: { path: ['selfFiled'], equals: true } },
+  ],
+}
+
+/** Whether a row is a paper its holder filed and nobody has examined yet. */
+function selfFiled(row: { status: string; result: unknown }): boolean {
+  return row.status === 'PENDING' && (row.result as { selfFiled?: boolean } | null)?.selfFiled === true
+}
+
 /** What the desk that hears about it must be able to do about it. */
 export const CREDENTIAL_FINDING_NEEDS = 'consultants.write'
 
@@ -129,7 +147,11 @@ function heldFrom(rows: CredentialRow[]): HeldCredential[] {
     return {
       type: row.type,
       label: row.documentType?.label ?? labelFor(row.type),
-      status: row.status,
+      // The judge (credentialsToChase) counts only papers somebody
+      // produced. A self-filed one was produced, and not yet examined,
+      // which is what CONDITIONAL already means to it; only its dates decide
+      // the chase. Asked of regulatory: accept self-filed PENDING there.
+      status: selfFiled(row) ? 'CONDITIONAL' : row.status,
       issuedAt: row.issuedAt,
       validFrom: row.validFrom,
       expiresAt: row.expiresAt,
@@ -318,7 +340,7 @@ export async function lookAtCredentials(now: Date): Promise<Finding[]> {
   const rows = (await prisma.verification.findMany({
     where: {
       personId: { not: null },
-      status: { in: PRODUCED as any },
+      AND: [PRODUCED_OR_SELF_FILED],
       OR: [
         { type: { in: credentialKeys() as any } },
         {
@@ -416,7 +438,7 @@ export async function askForRenewal(
   if (already) return { done: null, because: null }
 
   const rows = (await prisma.verification.findMany({
-    where: { personId: person.id, status: { in: PRODUCED as any } },
+    where: { personId: person.id, ...PRODUCED_OR_SELF_FILED },
     select: SELECT,
   })) as unknown as CredentialRow[]
   const theirs = rows.filter(isCredential)

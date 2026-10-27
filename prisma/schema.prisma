@@ -796,6 +796,7 @@ model Company {
   programSeatsGranted   ProgramSeat[]           @relation("seatClient")
   programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
   seatAsksMade          ProgramSeatRequest[]    @relation("seatAskOffice")
+  paperSet              DocumentRequirement[]   @relation("companyPaperSet")
   seatAsksReceived      ProgramSeatRequest[]    @relation("seatAskClient")
   roleContracts         RoleContract[]
   twinRuleSets          RuleSet[]
@@ -6219,6 +6220,12 @@ model VerificationDoc {
   fileUrl        String
   fileHash       String? // SHA-256 for dedup — same file uploaded twice is stored once
   uploadedAt     DateTime     @default(now())
+  /// The file itself, for a paper filed by somebody with no firm to hold
+  /// it (a worker on her own page, 2026-10-27). A firm's paper keeps its
+  /// bytes on DocFile; this holds them where there is no DocInstance.
+  contentType    String?
+  sizeBytes      Int?
+  bytes          Bytes?
 
   @@index([verificationId])
 }
@@ -6422,6 +6429,11 @@ enum VerificationType {
   // lapsed one blocks a start, is a rule with a legal consequence and
   // belongs to etyme-regulatory rather than to a seed.
   PROFESSIONAL_LICENSE
+
+  // A certification a person holds: a vendor exam, BLS, a safety card.
+  // Has an end date, is chased like a license, stops nobody by default
+  // (2026-10-27).
+  CERTIFICATION
 }
 
 enum VerificationStatus {
@@ -6884,6 +6896,12 @@ model DocFile {
 model DocumentRequirement {
   id String @id @default(cuid())
 
+  /// The company's own floor, "Papers you require" at setup (2026-10-27),
+  /// which every order inherits. A fourth owner beside the order and the
+  /// two lines; a row has exactly one.
+  companyId String?
+  company   Company? @relation("companyPaperSet", fields: [companyId], references: [id], onDelete: Cascade)
+
   /// The header's default set. The buyer's own rules, inherited by every
   /// line under the order.
   workOrderId    String?
@@ -6936,6 +6954,7 @@ model DocumentRequirement {
 
   /// One row per type per owner. Two rows asking for the same document on
   /// one line is two answers to one question.
+  @@unique([companyId, documentTypeKey])
   @@unique([workOrderId, documentTypeKey])
   @@unique([sellContractId, documentTypeKey])
   @@unique([buyContractId, documentTypeKey])

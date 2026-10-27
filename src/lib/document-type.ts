@@ -341,6 +341,19 @@ export const BUILT_IN: DocumentTypeSpec[] = [
     suppliedBy: 'CANDIDATE',
     blocks: true,
   }),
+  // A certification a person holds: a vendor exam, BLS, a forklift or
+  // safety card (2026-10-27). It runs out and is chased like a license,
+  // and stops nobody by default: a client that needs one before a start
+  // puts it in its paper set, which is regulatory's rule to set.
+  spec({
+    key: 'CERTIFICATION',
+    label: 'Certification',
+    hint: 'The certificate, who issued it, and the date it runs out.',
+    purpose: 'COMPLIANCE',
+    validityShape: 'END_ONLY',
+    suppliedBy: 'CANDIDATE',
+    blocks: false,
+  }),
   spec({
     key: 'W9',
     label: 'W-9',

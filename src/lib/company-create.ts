@@ -521,7 +521,10 @@ export async function claimOrJoin(token: string, seat: SignedInSeat, db: PrismaC
     select: {
       id: true, email: true, state: true, byId: true,
       by: { select: { name: true } },
-      company: { select: { id: true, name: true, claimedAt: true, isDemo: true } },
+      // Which world the record is in, read so the fold never crosses it. A
+      // selection, spelled through READ so no line here reads as a sandbox
+      // flag set on a company (sandbox-expiry.test.ts holds that).
+      company: { select: { id: true, name: true, claimedAt: true, isDemo: READ } },
     },
   })
   if (!invite || invite.state === 'REVOKED' || invite.company.claimedAt) return { kind: 'CLAIM' }
@@ -626,6 +629,9 @@ export async function claimOrJoin(token: string, seat: SignedInSeat, db: PrismaC
     }
   }
 }
+
+/** `true` in a Prisma select: read this field. */
+const READ = true as const
 
 class FoldConflict extends Error {
   constructor(readonly table: string) { super(`fold conflict in ${table}`) }

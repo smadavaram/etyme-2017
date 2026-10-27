@@ -1,4 +1,4 @@
-import { doorOpen } from '@/lib/password-door'
+import { mailLeaves } from '@/lib/password-door'
 import { RESET_SHUT } from '@/lib/password'
 import { DoorFrame } from '../door-frame'
 import { ResetForm } from './form'
@@ -6,11 +6,13 @@ import { ResetForm } from './form'
 /**
  * Forgot your password. Without an email sender no link can go, so the
  * page says so before any form (round one of the sign-up walk, item 2).
+ * Reset stays shut there even though sign-up opens (2026-10-27): a reset
+ * link kept for staff would be a way into an existing account.
  */
 export const dynamic = 'force-dynamic'
 
 export default function ResetPage() {
-  if (!doorOpen()) {
+  if (!mailLeaves()) {
     return (
       <DoorFrame>
         <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-3">Set a new password</h1>

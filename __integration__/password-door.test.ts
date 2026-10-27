@@ -201,7 +201,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(weak.body.error.message).toBe('Use at least 12 characters. This one has 5.')
 
     const done = await json(await confirmReset(req('POST', '/api/auth/password/reset/confirm', { token, password: 'harbor lantern stays lit' })))
-    expect(done.body.data).toEqual({ says: 'Your password is set. Sign in with it now.', email: OWNER })
+    expect(done.body.data).toEqual({ says: 'Your password is set. Sign in with it now.', email: OWNER, invitation: false, landing: '/login' })
     expect(JSON.stringify(done.body)).not.toMatch(/argon2/)
 
     const twice = await json(await confirmReset(req('POST', '/api/auth/password/reset/confirm', { token, password: 'another long phrase here' })))
@@ -556,20 +556,24 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(await prisma.company.count({ where: { domain: 'etyme.com' } })).toBe(0)
   })
 
-  it('with no email sender, sign-up, reset and asking for the link again say so', async () => {
+  it('where no email can be sent, sign-up still works and the confirmation link is kept on the notice; reset says it is off', async () => {
     const key = process.env.RESEND_API_KEY
     delete process.env.RESEND_API_KEY
     try {
-      const up = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'x@nosender.test', address: 'nosender' }))))
-      expect(up.status).toBe(503)
-      expect(up.body.error.message).toBe(SIGNUP_SHUT)
+      const up = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'x@nosender-firm.com', address: 'nosender-firm' }))))
+      expect(up.status, JSON.stringify(up.body)).toBe(200)
+      expect(up.body.data.says).toContain('kept with Etyme staff')
+      const kept = await prisma.notification.findFirstOrThrow({
+        where: { personId: (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'x@nosender-firm.com' } })).id, title: 'Confirm your email for Etyme' },
+        orderBy: { createdAt: 'desc' },
+      })
+      expect(kept.deliveryState).toBe('NOT_CONFIGURED')
+      expect(kept.body).toMatch(/\/verify\/[A-Za-z0-9_-]+/)
       const reset = await json(await askReset(req('POST', '/api/auth/password/reset', { email: OWNER })))
-      expect(reset.body.error.message).toBe('Password reset is off on this deployment until an email sender is set up.')
+      expect(reset.status).toBe(503)
       expect(RESET_SHUT).toBe(reset.body.error.message)
-      const again = await json(await resend(req('POST', '/api/auth/password/resend', { email: OWNER })))
-      expect(again.body.error.message).toBe(SIGNUP_SHUT)
-      const p = await json(await probe(req('GET', '/api/auth/password/signup?email=x@nosender.test')))
-      expect(p.body.data).toMatchObject({ open: false })
+      const p = await json(await probe(req('GET', '/api/auth/password/signup?email=x@nosender-firm.com')))
+      expect(p.body.data.open).not.toBe(false)
     } finally {
       process.env.RESEND_API_KEY = key
     }
