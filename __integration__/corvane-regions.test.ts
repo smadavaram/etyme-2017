@@ -84,6 +84,21 @@ describe('Corvane Packaging, as the drawing has it', () => {
     for (const e of entries) for (const l of e.lines) expect(l.currency).toBe(home.get(e.companyId))
   })
 
+  it('no Corvane worker’s pay reads overdue on the day the world is born, and a line running past next month has its next pay day', async () => {
+    const born = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corvane' }, select: { createdAt: true } })
+    const lines = await prisma.buyContract.findMany({
+      where: { id: { startsWith: 'cv_buy_' }, state: 'IN_PROGRESS' },
+      select: { id: true, endDate: true, buyCycles: { where: { kind: 'SALARY_PAY' }, select: { dueOn: true, completedAt: true } } },
+    })
+    expect(lines.length).toBeGreaterThan(300)
+    for (const l of lines) {
+      expect(l.buyCycles.filter((c) => c.dueOn < born.createdAt && !c.completedAt), l.id).toEqual([])
+      if (l.endDate && l.endDate.getTime() > born.createdAt.getTime() + 45 * 86_400_000) {
+        expect(l.buyCycles.some((c) => c.dueOn >= born.createdAt), l.id).toBe(true)
+      }
+    }
+  })
+
   it('every US contractor on site has an I-9 backed by a named passport, and no paper is seeded abroad', async () => {
     const us = await prisma.sellContract.findMany({ where: { clientCompanyId: corvaneId, state: 'IN_PROGRESS', workLocation: { country: 'US' } }, select: { personId: true } })
     const i9s = await prisma.verification.findMany({ where: { personId: { in: us.map((c) => c.personId) }, type: 'I9_EVERIFY' }, select: { id: true } })

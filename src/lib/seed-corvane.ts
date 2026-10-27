@@ -729,6 +729,20 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   // as the other programs write them: the seeds' pack and the demo's monthly
   // pay, the shipped weekend rule, no company payroll. A line that already
   // has its dates is left as it is, so a second seeding writes nothing.
+  //
+  // Pay dates only from the world's day on. No payroll was ever run for
+  // Corvane's suppliers' workers on the record, so a pay date before the
+  // world was born is neither paid (nothing says it was) nor owed today
+  // (seeded-worker-pay): it is not written. The base world runs real
+  // payroll over its own workers' past periods (lib/seed-payroll-runs);
+  // doing that for 359 lines in seven currencies is money's to price.
+  // A world seeded before this rule loses its undone past pay dates here,
+  // once. The bill side keeps its whole series.
+  const PAY_KINDS = ['SALARY_CALCULATE', 'SALARY_PAY'] // as lib/contract-cycles names them
+  const born = day(0)
+  await db.cycle.deleteMany({
+    where: { buyContractId: { in: workers.map((w) => `cv_buy_${w.key}`) }, kind: { in: PAY_KINDS as never }, dueOn: { lt: born }, completedAt: null },
+  })
   const dated = new Set((await db.cycle.findMany({
     where: { sellContractId: { in: workers.map(sid) } }, select: { sellContractId: true }, distinct: ['sellContractId'],
   })).map((c) => c.sellContractId))
@@ -740,7 +754,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       buy: { id: `cv_buy_${w.key}`, contractType: w.plant.cc === 'US' ? 'W2' : 'FIXED_TERM', vendorCompanyId: null },
       packId: 'US_IT', pay: DEMO_MONTHLY_PAY, policy: policyFrom(null), payroll: null,
     })
-    cycles.push(...planned.rows)
+    cycles.push(...planned.rows.filter((c) => !('buyContractId' in c && PAY_KINDS.includes(c.kind) && c.dueOn < born)))
   }
   if (cycles.length) await db.cycle.createMany({ data: cycles })
 
