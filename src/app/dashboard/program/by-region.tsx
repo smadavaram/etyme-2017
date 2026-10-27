@@ -258,7 +258,7 @@ function ManagerView({ data }: { data: RegionsData }) {
 
 function FlowStats({ f, says }: { f: Figures; says: string }) {
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
       <Stat label="Contractors on site" value={f.contractors} sub={`${plural(f.plants, 'plant')}, ${plural(f.hiringManagers, 'hiring manager')}`} />
       <Stat label="Open jobs" value={f.openJobs} />
       <Stat label="Weeks to sign" value={f.weeksToSign} tone={f.weeksToSign > 0 ? 'attention' : 'default'} />

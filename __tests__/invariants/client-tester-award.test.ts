@@ -322,7 +322,11 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
   })
 
   it('the This month tile opens the spend behind the number', () => {
-    expect(src('src/app/dashboard/program/page.tsx')).toContain("not signed time'} href=\"/dashboard/program/budget\"")
+    // The tile's line under the figure reads in the program's own currency
+    // since 2026-10-27 (By region); the tile still opens the budget.
+    const page = src('src/app/dashboard/program/page.tsx')
+    expect(page).toMatch(/label="This month"[\s\S]{0,600}href="\/dashboard\/program\/budget"/)
+    expect(page).toContain("'estimate from current rates, 160 hours a month, not signed time'")
   })
 
   it('one month on site reads "1 month", never "1 months"', () => {
