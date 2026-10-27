@@ -922,13 +922,12 @@ every unconfirmed line. What the founder should know:
 - **`CERTIFICATION` is a type and an enum value with no packet asking for
   it.** It is chased like a license and stops nobody; which client set
   requires one is regulatory's rule.
-- **`ProjectRelease.sellContractId` is still required.** Making it optional
-  breaks the type check in five of supply's routes (`bench/ours/holds`,
-  `holds/[id]/place`, `releases/[id]/confirm`, `me/work`), so it lands in
-  one commit with supply's null branches, not before.
-- **A self-filed license reaches the renewal judge as CONDITIONAL.** The
-  judge in `lib/document-stages` counts only produced papers; the chase
-  bridges a self-filed PENDING row until regulatory accepts it there.
+- **`ProjectRelease.sellContractId` is optional since 2026-10-27**, landed
+  after supply's dd56c9d47 made every read of a release's line null-safe.
+  A release with no line names no client and no project end; a release
+  with a line is still one per line (the unique key stays).
+- **`DEGREE` is a `VerificationType` value only**, so a person with no firm
+  keeps her degree's copy (regulatory's ask). Nothing else reads it yet.
 - **With no email sender, sign-up confirmation links sit on the notice for
   staff.** Anybody who can read `Notification.body` for that person can
   confirm the sign-up. Reset stays shut without a sender for that reason.

@@ -147,11 +147,10 @@ function heldFrom(rows: CredentialRow[]): HeldCredential[] {
     return {
       type: row.type,
       label: row.documentType?.label ?? labelFor(row.type),
-      // The judge (credentialsToChase) counts only papers somebody
-      // produced. A self-filed one was produced, and not yet examined,
-      // which is what CONDITIONAL already means to it; only its dates decide
-      // the chase. Asked of regulatory: accept self-filed PENDING there.
-      status: selfFiled(row) ? 'CONDITIONAL' : row.status,
+      // Its own status; the judge counts a self-filed PENDING row as
+      // produced (regulatory, 710b7affe) and never as cleared.
+      status: row.status,
+      selfFiled: selfFiled(row),
       issuedAt: row.issuedAt,
       validFrom: row.validFrom,
       expiresAt: row.expiresAt,

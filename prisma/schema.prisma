@@ -5974,15 +5974,18 @@ model RolloffEvent {
 
 /// A manager's flag that one of the firm's own people comes off a project.
 model ProjectRelease {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   /// The employer. Only its own managers and HR read this row.
   companyId      String
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   personId       String
-  person         Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  person         Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
   /// The line they come off. One release per line; a second flag moves this one.
-  sellContractId String       @unique
-  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  /// Optional since 2026-10-27: a person can be flagged as rolling off
+  /// with no project line on the record yet. Still one release per line
+  /// where there is one.
+  sellContractId String?       @unique
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
   /// The releasing manager.
   releasedById   String
   /// The day they come off. Never after the line's own last day.
@@ -5994,8 +5997,8 @@ model ProjectRelease {
   confirmedById  String?
   /// Taken back by the releasing manager: they are not coming off after all.
   withdrawnAt    DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   holds ProjectHold[]
 
@@ -6434,6 +6437,9 @@ enum VerificationType {
   // Has an end date, is chased like a license, stops nobody by default
   // (2026-10-27).
   CERTIFICATION
+  // A degree's copy, kept for a person with no firm to hold it
+  // (regulatory's ask, 2026-10-27). Proof, never expires.
+  DEGREE
 }
 
 enum VerificationStatus {
