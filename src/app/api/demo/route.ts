@@ -1,5 +1,6 @@
 import { SAMPLE_PERSON_EMAIL, NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { deskAsked, deskRefusal, whoAsked, whoRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
+import { REGION_UNIT_KIND } from '@/lib/region-scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { randomBytes } from 'node:crypto'
@@ -13,7 +14,7 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/l
 import { countDemoStarted } from '@/lib/events'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
 import { consoleHome } from '@/lib/console-home'
-import { landingFor, ASK_ETYME_HREF } from '@/lib/nav-table'
+import { landingFor, ASK_ETYME_HREF, BY_REGION_HREF } from '@/lib/nav-table'
 import { seatsHeldBy } from '@/lib/program-seat'
 
 /**
@@ -89,6 +90,11 @@ const CLIENT_LANDING: Partial<Record<Desk, string>> = {
   vp: '/dashboard/requisitions',
   ap: '/dashboard/invoices',
   compliance: '/dashboard/compliance',
+  // The program by region (lib/nav-table, BY_REGION_HREF): where a seat
+  // that answers for regions has no Ask Etyme to land in.
+  region: BY_REGION_HREF,
+  operations: BY_REGION_HREF,
+  cfo: BY_REGION_HREF,
 }
 
 /** And at a firm that sells: the same question, a different morning. */
@@ -107,6 +113,11 @@ const SUPPLIER_LANDING: Partial<Record<Desk, string>> = {
   // Our bench, the firm's own people: where a delivery manager flags,
   // reserves and places.
   delivery: '/dashboard/bench?scope=payroll',
+}
+
+/** The region a seat reads, where it sits on a REGION unit; else null. */
+function regionOf(seat: { orgUnit?: { name: string; kind: string } | null } | undefined): string | null {
+  return seat?.orgUnit?.kind === REGION_UNIT_KIND ? seat.orgUnit.name : null
 }
 
 function deskLanding(desk: Desk, kind: string): string {
@@ -355,7 +366,11 @@ export async function POST(request: NextRequest) {
             // read-only by the sample door alone (`lib/sample-seat`).
             person: { primaryEmail: { not: SAMPLE_PERSON_EMAIL }, ...(who ? { name: who } : {}) },
           },
-          select: { person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } } },
+          select: {
+            person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } },
+            // A seat on a REGION unit lands on its region (lib/region-scope).
+            orgUnit: { select: { name: true, kind: true } },
+          },
           orderBy: { grantedAt: 'asc' },
           take: 1,
         },
@@ -500,7 +515,10 @@ export async function POST(request: NextRequest) {
             kind: company.kind as any,
             permissions: company.contexts[0]?.role?.permissions ?? null,
             seatedAtClient: seatedAt ?? null,
-          }) === ASK_ETYME_HREF ? ASK_ETYME_HREF
+          }) === ASK_ETYME_HREF && !regionOf(company.contexts[0]) ? ASK_ETYME_HREF
+          // A seat that reads one region lands on it, never on Ask Etyme,
+          // which reads the whole program.
+          : regionOf(company.contexts[0]) ? landingFor({ kind: company.kind as any, region: regionOf(company.contexts[0]) })
           : desk ? deskLanding(desk, company.kind)
           // An integrator lands on Submissions rather than on its own
           // Today: putting somebody off its own payroll in front of a

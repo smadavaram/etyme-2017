@@ -253,6 +253,10 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/packets': SCOPED,
   '/dashboard/outbound-pack': SCOPED,
   '/dashboard/program': SCOPED,
+  // The program by region (founder, 2026-10-27, the region map): the same
+  // page and route, one tab over. A region seat reads its own region only
+  // (lib/region-scope); every other seat reads every region.
+  '/dashboard/program?view=regions': SCOPED,
   '/dashboard/requisitions': SCOPED,
   '/dashboard/people': SCOPED,
   '/dashboard/program/budget': SCOPED_TO_A_DESK,
@@ -354,7 +358,9 @@ export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
  * Today, the second of the nine, still opens the firm's own tables, one
  * click from the chat.
  */
-export function landingFor(reader: Reader & { seatedAtClient?: string | null }): string {
+export function landingFor(reader: Reader & { seatedAtClient?: string | null; region?: string | null }): string {
+  // A region seat lands on its region: Ask Etyme reads the whole program.
+  if (reader.region && reader.kind === 'CLIENT') return BY_REGION_HREF
   const menu = getNavForKind(reader.kind ?? null, Boolean(reader.isConsultant), {
     worker: reader.worker,
     permissions: reader.permissions ?? undefined,
@@ -370,6 +376,25 @@ export function landingFor(reader: Reader & { seatedAtClient?: string | null }):
 // reached from. The permission beside each is read off the GET handler
 // of the route behind it; `__tests__/invariants/sidebar-nav.test.ts`
 // reads every one back out of that route.
+
+/**
+ * The program by region (founder, 2026-10-27, "go ahead and build this",
+ * on the region map). A tab of the client's Today, because it is the
+ * program page read a different way, never a second dashboard: one row
+ * per region for a reader over the whole program, and the hiring
+ * managers of one region for a seat scoped to it. The view is demand's
+ * (app/dashboard/program); the scope is lib/region-scope.
+ */
+export const BY_REGION_HREF = '/dashboard/program?view=regions'
+const BY_REGION: NavItem = { label: 'By region', href: BY_REGION_HREF, icon: '◫' }
+
+/**
+ * The whole menu of a seat that reads one region. Every other link opens
+ * a page whose route reads every region, and the region door refuses
+ * those (lib/region-scope), so offering them would be a menu that lies.
+ * Grows as routes declare that they narrow to a region.
+ */
+const REGION_NAV: NavSection[] = [{ label: 'Today', tabbed: true, items: [BY_REGION] }]
 
 /** The firm's own tables. "Needs attention" and "Notifications" left the menu on 2026-10-12 and 10-13: Ask Etyme's greeting is that list, and its mark carries the number. */
 const TODAY_PAGE: NavItem = { label: 'Today', href: '/dashboard', icon: '◉' }
@@ -632,7 +657,7 @@ const SOLO_NAV: NavSection[] = [
  */
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
-  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }]),
+  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION]),
   // One entry for a job, at every stage: the stage is a filter on the
   // screen, never a fork in the menu (raised twice by the founder).
   tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞' }]),
@@ -749,6 +774,11 @@ export type SeatFacts = {
    * to once the terms are agreed.
    */
   termsHref?: string | null
+  /**
+   * The region this seat reads, where it sits on a REGION unit
+   * (lib/region-scope). Such a seat reads `REGION_NAV` and nothing else.
+   */
+  region?: string | null
 }
 
 /**
@@ -802,6 +832,9 @@ export function getNavForKind(
   isConsultant: boolean,
   seat: SeatFacts = {}
 ): NavSection[] {
+  // A seat that reads one region of a client's program: its region and
+  // nothing the region door would refuse.
+  if (seat.region && kind === 'CLIENT' && !isConsultant) return REGION_NAV
   // A consultant is a context type, not an absent company. Somebody on a
   // vendor's bench HAS a company — that is what a bench is — and keying on
   // the company would show them their agency's payroll and buy contracts.

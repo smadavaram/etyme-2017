@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { REGION_UNIT_KIND } from '@/lib/region-scope'
 import { emit } from '@/lib/events'
 import { getSessionEmail } from '@/lib/api-context'
 import {
@@ -64,7 +65,11 @@ export async function GET(request: NextRequest) {
     include: {
       contexts: {
         where: { revokedAt: null },
-        include: { company: { select: { id: true, name: true, slug: true, kind: true } } },
+        include: {
+          company: { select: { id: true, name: true, slug: true, kind: true } },
+          // A seat on a REGION unit lands on its region (lib/region-scope).
+          orgUnit: { select: { name: true, kind: true } },
+        },
       },
     },
   })
@@ -91,7 +96,10 @@ export async function GET(request: NextRequest) {
         action: 'ALREADY_IN',
         company: c.company,
         message: `You are already in ${c.company?.name}.`,
-        seat: { type: c.type, role: role?.name ?? null, permissions },
+        seat: {
+          type: c.type, role: role?.name ?? null, permissions,
+          region: c.orgUnit?.kind === REGION_UNIT_KIND ? c.orgUnit.name : null,
+        },
         setup,
       },
     })

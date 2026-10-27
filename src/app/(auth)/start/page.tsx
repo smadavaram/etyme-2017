@@ -106,6 +106,7 @@ export default function StartPage() {
       isConsultant: state.seat?.type === 'CONSULTANT',
       role: state.seat?.role ?? null,
       permissions: state.seat?.permissions ?? [],
+      region: state.seat?.region ?? null,
     })
   }, [state])
 

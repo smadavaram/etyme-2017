@@ -67,6 +67,7 @@ import { ownSeatGrantReason } from '@/lib/own-seat'
 import { periodFor, iso, type Period } from '@/lib/periods'
 import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
+import { seedCorvane, corvaneSteps, CORVANE_SLUG, CORVANE_SUPPLIER_SLUGS } from '@/lib/seed-corvane'
 
 /** `n` days after a UTC midnight, still at UTC midnight. */
 function plusDays(d: Date, n: number): Date {
@@ -185,9 +186,23 @@ export const WORLD_CLIENTS: readonly { slug: string; name: string; owner: string
   (f) => f.kind === 'CLIENT'
 ).map(({ slug, name, who }) => ({ slug, name, owner: who, vp: VP_NAMES[slug] ?? null }))
 
-export const WORLD_SLUGS: readonly string[] = [
+/**
+ * The firms the base steps walk: everything above. Corvane Packaging and
+ * its suppliers are not on it, because their own steps write all of their
+ * rows (lib/seed-corvane) and a base step re-walked on a deploy must not
+ * sweep three hundred plant workers into its payroll runs or its books.
+ */
+const BASE_ROSTER: readonly string[] = [
   ...FIRMS.map((f) => PREFIX + f.slug),
   PREFIX + NURSE_CORP_SLUG,
+]
+
+export const WORLD_SLUGS: readonly string[] = [
+  ...BASE_ROSTER,
+  // Corvane Packaging, its 25 suppliers (lib/seed-corvane): on the roster
+  // the rebuild deletes and the sweeps read, off the one the base steps walk.
+  PREFIX + CORVANE_SLUG,
+  ...CORVANE_SUPPLIER_SLUGS.map((s) => PREFIX + s),
 ]
 
 // ── The placements ───────────────────────────────────────────────────
@@ -262,6 +277,8 @@ export function worldStepNames(): string[] {
     'pipeline',
     'document-requirements', 'sector-papers',
     ...payrollRunSteps().map((st) => st.name),
+    // Corvane Packaging, a plant company in eight countries (lib/seed-corvane).
+    ...corvaneSteps(),
     'own-seats',
     'claim',
   ]
@@ -2073,7 +2090,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   //
   // Order matters once: the orders need somewhere to ship to, so standing
   // writes the locations first.
-  const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX, roster: [...WORLD_SLUGS] }
+  const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX, roster: [...BASE_ROSTER] }
   // A pay rise in the middle of a placement (lib/seed-rate-change).
   // Before the order-to-cash layer rather than after it, because that
   // layer reads every running line: it raises the order her line sits
@@ -2170,6 +2187,15 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // weeks were paid on the second seeding instead of the first.
   for (const { name, share } of payrollRunSteps()) {
     await step(name, () => seedPayrollRuns(ctx, share))
+  }
+
+  // ── Corvane Packaging: 31 plants in six regions ────────────────────
+  //
+  // After every base step, because it touches none of their rows and none
+  // of them may touch its (BASE_ROSTER). Each step is bulk writes, so a
+  // region of a hundred workers stays a few dozen queries.
+  for (const name of corvaneSteps()) {
+    await step(name, () => seedCorvane({ domain: DOMAIN, prefix: PREFIX }, name))
   }
 
   // ── Everybody on their own work holds their own seat ───────────────

@@ -34,6 +34,7 @@ export function Sidebar({
   permissions,
   seatedAtClient = null,
   termsHref = null,
+  region = null,
   pending = false,
   sheet = false,
   onDismiss,
@@ -61,6 +62,8 @@ export function Sidebar({
   seatedAtClient?: string | null
   /** Where this person's own terms wait on them, if anywhere. */
   termsHref?: string | null
+  /** The region this seat reads, if it sits on a REGION unit. */
+  region?: string | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -78,7 +81,7 @@ export function Sidebar({
   const searchParams = useSearchParams()
   const sections = pending
     ? []
-    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref })
+    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region })
 
   // Where this seat's own front door is. One answer, in lib/console-home,
   // shared with /dashboard's own redirect and the demo door — three

@@ -96,6 +96,13 @@ export interface SessionState {
    * for the reason `isWorker` is.
    */
   filesAWeek: boolean
+  /**
+   * The region this seat reads, where it sits on a REGION unit
+   * (lib/region-scope), or null. Read on the server for the reason `seat`
+   * is: the menu is drawn before any fetch, and a region seat's menu is
+   * its region alone.
+   */
+  region: string | null
   loading: boolean
   error: string | null
 }
@@ -111,6 +118,7 @@ const EMPTY: SessionState = {
   isDemo: false,
   termsHref: null,
   filesAWeek: false,
+  region: null,
   loading: true,
   error: null,
 }
@@ -135,6 +143,7 @@ export function SessionProvider({
   demo = false,
   termsHref = null,
   filesAWeek = false,
+  region = null,
 }: {
   children: ReactNode
   /**
@@ -151,8 +160,10 @@ export function SessionProvider({
   termsHref?: string | null
   /** A live line to file a week on. Read on the server. */
   filesAWeek?: boolean
+  /** The region this seat reads, if it sits on a REGION unit. Read on the server. */
+  region?: string | null
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, region })
 
   useEffect(() => {
     let cancelled = false
@@ -196,6 +207,7 @@ export function SessionProvider({
           isDemo: demo,
           termsHref,
           filesAWeek,
+          region,
           loading: false,
           error: null,
         })
@@ -203,7 +215,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, region, loading: false, error: err.message })
       }
     }
 

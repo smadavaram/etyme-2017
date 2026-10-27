@@ -22,6 +22,11 @@ export const DESKS = [
   // An integrator's delivery manager: flags who rolls off a project,
   // reserves people for another, and places them (CLAUDE.md, 2026-09-30).
   'delivery',
+  // A client with plants in several regions (founder, 2026-10-27, the
+  // region map): the manager who answers for one region, the head of
+  // operations over every region, and the CFO. Seated at Corvane
+  // Packaging (lib/seed-corvane).
+  'region', 'operations', 'cfo',
 ] as const
 export type Desk = (typeof DESKS)[number]
 
@@ -51,6 +56,9 @@ export const DESK_ROLES: Record<Desk, string[]> = {
   payroll: ['AP & Payroll'],
   finance: ['Finance'],
   delivery: ['Delivery Manager'],
+  region: ['Regional Manager'],
+  operations: ['Head of Operations'],
+  cfo: ['Chief Financial Officer'],
 }
 
 /** A desk key from a request body, or null where it is not one of ours. */

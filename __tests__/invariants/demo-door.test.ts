@@ -103,6 +103,9 @@ describe('the demo door opens on the client', () => {
   })
 })
 
+/** Desks the route seats that no chip opens yet, each with its reason above the test that reads it. */
+const WAITING_FOR_A_DOOR: readonly string[] = ['region', 'operations', 'cfo']
+
 describe('the desks on a client door', () => {
   /** The desk suffixes POST /api/demo will actually answer to. */
   // The list moved from the route to lib/demo-desks on 2026-09-30, and
@@ -136,9 +139,20 @@ describe('the desks on a client door', () => {
       // Teleworld's delivery manager since 2026-10-03.
       ...[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS].flatMap((f) => (f.desks ?? []).map((d) => d.desk)),
     ])
-    for (const desk of known) {
+    for (const desk of known.filter((d) => !WAITING_FOR_A_DOOR.includes(d))) {
       expect(onThePage, `the route seats a "${desk}" desk that no chip on the page opens`).toContain(desk)
     }
+  })
+
+  it('the only desks with no chip yet are Corvane Packaging’s three, and the list only shrinks', () => {
+    // Corvane Packaging (lib/seed-corvane, 2026-10-27) is seated and opens
+    // through POST /api/demo {"as":"world-corvane","desk":…}, and has no
+    // card on /demo: a fourth card is a public page change the founder sees
+    // drawn first (market). Until then these three are reachable by the
+    // door and by no chip, and this list says so rather than hiding it.
+    expect(WAITING_FOR_A_DOOR).toEqual(['region', 'operations', 'cfo'])
+    const onThePage = new Set([...CLIENT_DESKS.map((d) => d.desk), ...SUPPLIER_DESKS.map((d) => d.desk)])
+    for (const d of WAITING_FOR_A_DOOR) expect(onThePage.has(d), `${d} has a chip now; take it off this list`).toBe(false)
   })
 
   it('every desk a supplier door offers is one the route seats', () => {

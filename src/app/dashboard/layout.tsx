@@ -212,6 +212,22 @@ async function readerFilesAWeek(): Promise<boolean> {
   }
 }
 
+/**
+ * The region this seat reads, where it sits on a REGION unit
+ * (lib/region-scope), or null. Asked here for the reason `seat` is: a
+ * region seat's menu is its region alone, and the menu is drawn before
+ * any fetch comes back. Never throws; null is the ordinary menu, which
+ * the region door still refuses route by route.
+ */
+async function readersRegion(): Promise<string | null> {
+  try {
+    const { caller } = await getCallerContext()
+    return caller?.region?.label ?? null
+  } catch {
+    return null
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -223,12 +239,12 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref, filesAWeek] = await Promise.all([
-    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(),
+  const [worker, seat, demo, termsHref, filesAWeek, region] = await Promise.all([
+    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to

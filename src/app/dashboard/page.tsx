@@ -164,6 +164,7 @@ export default function DashboardPage() {
         seated: Boolean(session.seat),
         worker: deskOf(session).worker,
         permissions: deskOf(session).permissions,
+        region: session.region,
       }) as any)
       return
     }

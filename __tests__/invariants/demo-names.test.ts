@@ -65,6 +65,7 @@ const SURFACES: Record<string, string> = {
   'src/lib/readiness.ts': read('src/lib/readiness.ts'),
   'src/lib/seed-world.ts': read('src/lib/seed-world.ts'),
   'src/lib/seed-programmes.ts': read('src/lib/seed-programmes.ts'),
+  'src/lib/seed-corvane.ts': read('src/lib/seed-corvane.ts'),
   // What each door opens onto: the four people the demo seats a visitor
   // as, and the two firms whose door led to an empty book.
   'src/lib/seed-doors.ts': read('src/lib/seed-doors.ts'),
@@ -243,6 +244,7 @@ const PRODUCTS = [
 const SEEDS = [
   'src/lib/seed-world.ts',
   'src/lib/seed-programmes.ts',
+  'src/lib/seed-corvane.ts',
   'src/lib/seed-doors.ts',
   'src/lib/seed-pipeline.ts',
   'src/lib/seed-calendar.ts',

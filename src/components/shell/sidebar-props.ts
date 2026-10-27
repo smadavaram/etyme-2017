@@ -38,11 +38,14 @@ export type SidebarIdentity = {
   demo?: boolean
   /** Where this person's own terms wait on them — "Your terms" under "You". */
   termsHref?: string | null
+  /** The region this seat reads, where it sits on a REGION unit. Its menu is that region alone. */
+  region?: string | null
   pending: boolean
 }
 
 export function sidebarPropsFrom(
   session: Pick<SessionState, 'company' | 'contextType' | 'loading' | 'isWorker' | 'permissions'> &
+    Partial<Pick<SessionState, 'region'>> &
     // Optional, so a fixture that describes a seat without naming the
     // person still type-checks. Only ever read where there is no
     // company to name.
@@ -100,6 +103,7 @@ export function sidebarPropsFrom(
     permissions: deskOf(session).permissions,
     // Their own terms, while a placement of theirs waits on them.
     termsHref: session.termsHref ?? null,
+    region: session.region ?? null,
     pending: false,
   }
 }
@@ -137,6 +141,8 @@ export interface Desk {
   filesAWeek: boolean
   permissions: readonly string[]
   seatedAtClient: string | null
+  /** The region this seat reads, or null (lib/region-scope). */
+  region: string | null
   /**
    * The role this desk is held under, as the header says it: the client's
    * own role where a client granted the office a seat — the role whose
@@ -150,7 +156,7 @@ export interface Desk {
 
 export function deskOf(
   session: Pick<SessionState, 'company' | 'contextType' | 'isWorker' | 'permissions'> &
-    Partial<Pick<SessionState, 'seat' | 'filesAWeek' | 'roleName'>>
+    Partial<Pick<SessionState, 'seat' | 'filesAWeek' | 'roleName' | 'region'>>
 ): Desk {
   const companyKind = session.company?.kind ?? null
   const isConsultant = session.contextType === 'CONSULTANT'
@@ -163,6 +169,7 @@ export function deskOf(
     filesAWeek: !isConsultant && session.isWorker && session.filesAWeek === true,
     permissions: seat ? seat.permissions : session.permissions,
     seatedAtClient: seat?.clientName ?? null,
+    region: session.region ?? null,
     roleName: seat ? seat.roleName : (session.roleName ?? null),
   }
 }

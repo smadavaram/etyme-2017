@@ -11,7 +11,9 @@ import {
 } from '@/lib/sample-seat'
 import { DESK_ROLES } from '@/lib/demo-desks'
 import { staffAddresses, reportError } from '@/lib/alerts'
-import { desklessDoor, recordNamedBy, type RecordFamily } from '@/lib/deskless-door'
+import { desklessDoor, recordNamedBy, READS_PEOPLE, type RecordFamily } from '@/lib/deskless-door'
+import { regionDoor, REGION_UNIT_KIND } from '@/lib/region-scope'
+import { pageNameOf, type CompanyKind } from '@/lib/nav-table'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
@@ -69,6 +71,15 @@ export interface CallerContext {
    * the company has turned account walls on.
    */
   orgUnitId?: string | null
+  /**
+   * The region this seat reads, where its org unit is a REGION unit
+   * (founder, 2026-10-27, the region map). Null or absent for every other
+   * seat. A region seat is refused by every route that does not ask for
+   * the caller with `{ narrowsToRegion: true }`, and a route that does
+   * reads `regionScopeFor(companyId, region.unitId)` from lib/region-scope
+   * and applies it to every query it makes.
+   */
+  region?: { unitId: string; label: string } | null
   permissions: readonly string[]
   /**
    * True when the caller is a machine holding an API key rather than a
@@ -427,7 +438,13 @@ async function sampleCaller(
  * Returns null + a NextResponse on failure (401 / 404 / 403).
  */
 export async function getCallerContext(
-  request?: NextRequest
+  request?: NextRequest,
+  /**
+   * `narrowsToRegion`: this route applies `lib/region-scope` to every read
+   * it makes, so a seat scoped to one region may open it. Absent, a region
+   * seat is refused here in a sentence before the route reads anything.
+   */
+  opts: { narrowsToRegion?: boolean } = {}
 ): Promise<
   | { caller: CallerContext; error: null }
   | { caller: null; error: NextResponse }
@@ -498,6 +515,8 @@ export async function getCallerContext(
   const seatInclude = {
     company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
     role: { select: { id: true, name: true, permissions: true } },
+    // Read with the seat so a region seat is known without a second query.
+    orgUnit: { select: { id: true, name: true, kind: true } },
   } as const
 
   let context = contextId
@@ -626,6 +645,8 @@ export async function getCallerContext(
     // Where they sit in the firm. Null is firm-wide, and that absence is
     // the deliberate act rather than an oversight.
     orgUnitId: context.orgUnitId,
+    // A seat on a REGION unit reads that region and nothing else (lib/region-scope).
+    region: context.orgUnit?.kind === REGION_UNIT_KIND ? { unitId: context.orgUnit.id, label: context.orgUnit.name } : null,
     // Staff who do hold a seat somewhere are still staff. Read the same
     // way whether or not they have one, so a route asking `caller.staff`
     // gets one answer rather than two.
@@ -635,7 +656,57 @@ export async function getCallerContext(
   const refused = await desklessRefusal(caller, request)
   if (refused) return { caller: null, error: refused }
 
+  const outOfRegion = await regionRefusalFor(caller, request, Boolean(opts.narrowsToRegion))
+  if (outOfRegion) return { caller: null, error: outOfRegion }
+
   return { caller, error: null }
+}
+
+/**
+ * The one door for a seat that reads one region (founder, 2026-10-27).
+ *
+ * A route that applies the region scope says so when it asks for the
+ * caller; every other route refuses a region seat here, before it reads
+ * anything, in a sentence naming the region. Where the route answers about
+ * people, the refused read of each person on the client's contracts is
+ * logged before the 403, as the desk-less door does.
+ *
+ * Only asked where there is a request path: the dashboard layout resolves
+ * its caller with none, to draw the menu.
+ */
+async function regionRefusalFor(
+  caller: CallerContext,
+  request: NextRequest | undefined,
+  narrows: boolean
+): Promise<NextResponse | null> {
+  const path = request?.nextUrl?.pathname
+  if (!path || !caller.company || !caller.region) return null
+  const verdict = regionDoor({
+    path,
+    region: caller.region,
+    narrows,
+    pageName: pageNameOf(path, caller.company.kind as CompanyKind),
+  })
+  if (verdict.open) return null
+
+  const first = path.replace(/^\/api\/?/, '').split('/')[0]
+  if (READS_PEOPLE.includes(first)) {
+    const companyId = caller.company.id
+    const lines = await prisma.sellContract.findMany({
+      where: { OR: [{ clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+      select: { personId: true },
+      distinct: ['personId'],
+      take: 500,
+    })
+    await recordRefusal(lines.map((l) => l.personId).filter((id) => id !== caller.person.id), {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'PROFILE_VIEW',
+      allowed: false,
+      reason: `${path} at ${caller.company.name} refused to a seat that reads ${caller.region.label} only: ${verdict.says}`,
+    })
+  }
+  return NextResponse.json({ error: { code: 'OUT_OF_REGION', message: verdict.says } }, { status: 403 })
 }
 
 /**

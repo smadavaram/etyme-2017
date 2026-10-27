@@ -38,6 +38,7 @@ import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { RESERVED_SUFFIXES } from '@/lib/demo-session'
 import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
+import { CORVANE_EMAIL_PREFIX } from '@/lib/seed-corvane'
 import { EVENT_FOR } from '@/lib/visa-petition'
 
 export interface SeedContext {
@@ -96,7 +97,12 @@ const seededPerson: Prisma.PersonWhereInput = {
   // Never the generated world's people (lib/seed-scale): it writes their
   // papers itself, and a base step re-walked on a deploy must not sweep
   // two thousand people into the hand-written world's stories.
-  NOT: { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX, mode: 'insensitive' as const } },
+  // Nor Corvane Packaging's (lib/seed-corvane), which writes its own US
+  // papers and, by regulatory's word, none it cannot stand behind abroad.
+  NOT: [
+    { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX, mode: 'insensitive' as const } },
+    { primaryEmail: { startsWith: CORVANE_EMAIL_PREFIX, mode: 'insensitive' as const } },
+  ],
 }
 
 export async function seedStanding(ctx: SeedContext, parts: readonly StandingPart[] = STANDING_PARTS): Promise<Standing> {

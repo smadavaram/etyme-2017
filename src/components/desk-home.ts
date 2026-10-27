@@ -26,8 +26,11 @@ export function deskHome(seat: {
   isConsultant: boolean
   role: string | null
   permissions: readonly string[]
+  /** The region this seat reads, where it sits on a REGION unit; it lands there. */
+  region?: string | null
 }): string {
-  const landing = landingFor({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions })
+  const landing = landingFor({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions, region: seat.region })
+  if (seat.region && seat.kind === 'CLIENT') return landing
   if (landing === ASK_ETYME_HREF) return landing
   const home = consoleHome({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions }).href
   if (seat.isConsultant || !seat.kind) return home

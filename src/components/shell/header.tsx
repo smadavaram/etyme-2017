@@ -261,7 +261,7 @@ export function plusMenuFor(
    * `readerFilesAWeek`). `seatedAtClient`: the client whose desk this is,
    * so a desk-less seat's own menu is read the way the sidebar reads it.
    */
-  more: { filesAWeek?: boolean; seatedAtClient?: string | null } = {}
+  more: { filesAWeek?: boolean; seatedAtClient?: string | null; region?: string | null } = {}
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
   // The headings come from the reader's own menu, below; the sections
@@ -304,7 +304,7 @@ export function plusMenuFor(
   // on the reader's own menu, headed by the section that link sits
   // under, in the menu's order.
   const nav = getNavForKind(kind as Parameters<typeof getNavForKind>[0], false, {
-    worker, permissions, seatedAtClient: more.seatedAtClient ?? null,
+    worker, permissions, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null,
   })
   const sectionOf = (href: string): number => {
     const path = href.split('?')[0]
@@ -411,7 +411,7 @@ export function Header({ title }: HeaderProps) {
   // The role this desk is held under: the client's, at a client's desk.
   const { permissions, roleName } = desk
   const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
-    filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient,
+    filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient, region: desk.region,
   })
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -438,7 +438,7 @@ export function Header({ title }: HeaderProps) {
   // read once a minute for the whole shell.
   const pathname = usePathname()
   const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
-    worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient,
+    worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region,
   })).length > 0
   const owed = useOwedCount(asks)
   const onAskEtyme = pathname === ASK_ETYME_HREF || Boolean(pathname?.startsWith(ASK_ETYME_HREF + '/'))

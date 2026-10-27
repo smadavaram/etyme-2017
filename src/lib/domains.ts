@@ -485,6 +485,8 @@ export const DOMAINS: Domain[] = [
       'lib/your-terms',
       // The generated world at the founder's scale: the types, the frame and the steps (docs/seed-scale-brief.md).
       'lib/seed-scale',
+      // Corvane Packaging, the fourth client program: 31 plants in six regions (2026-10-27).
+      'lib/seed-corvane',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // One way to print a calendar day on a screen: UTC, American order,
       // the year shown. lib/when is its twin for a moment in somebody's zone.
@@ -525,6 +527,10 @@ export const DOMAINS: Domain[] = [
       // lib/resolve-client-company reads it; regulatory's access log
       // records it; nobody but the architect changes its shape.
       'lib/program-seat',
+      // A seat that reads one region of a client's program (founder,
+      // 2026-10-27, the region map): the scope, the where-fragments and the
+      // door, read by lib/api-context. The views over it are demand's.
+      'lib/region-scope',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
       // Which of the seller's dashboard panels a seat may read, asked the
