@@ -86,6 +86,8 @@ interface PO {
   /** BUYER · SELLER · BYSTANDER — which end of it the reader is at. */
   side: OrderSide
   lines: POLine[]
+  /** Whether this reader writes a line of its own on it: the seller, or a buyer that bills a client above it. Set on the screen, never by the route. */
+  writesLines?: boolean
 }
 
 function money(n: number, ccy: string): string {
@@ -415,7 +417,7 @@ export default function PurchaseOrdersPage() {
           searchFilter={(po, q) => `${po.number} ${po.counterparty.name}`.toLowerCase().includes(q)}
           card={(po) => {
             const line = canRaise ? lineSideOn(po) : null
-            return <Row po={po} writesLines={line != null} onAddLine={line ? () => addLine(po, line) : null} />
+            return <Row po={{ ...po, writesLines: line != null }} onAddLine={line ? () => addLine(po, line) : null} />
           }}
         />
       )}
@@ -488,11 +490,11 @@ function rate(cents: number, ccy: string): string {
  * it has billed rather than the header's total divided by the headcount,
  * which would be a figure nobody could stand behind.
  */
-function Lines({ po, writesLines }: { po: PO; writesLines: boolean }) {
+function Lines({ po }: { po: PO }) {
   if (po.lines.length === 0) {
     return (
       <p className="text-[12px] text-etyme-faint mt-2">
-        {writesLines
+        {po.writesLines
           ? `No lines on it yet. Add the first one, so there is something to ${po.side === 'SELLER' ? 'bill' : 'pay'} from.`
           : `No lines on it yet. ${po.counterparty.name} adds a line for each person on it from its side.`}
       </p>
@@ -533,7 +535,7 @@ function Lines({ po, writesLines }: { po: PO; writesLines: boolean }) {
   )
 }
 
-function Row({ po, writesLines, onAddLine }: { po: PO; writesLines: boolean; onAddLine: (() => void) | null }) {
+function Row({ po, onAddLine }: { po: PO; onAddLine: (() => void) | null }) {
   return (
     <Panel as="article">
       {po.offSystem && (
@@ -565,7 +567,7 @@ function Row({ po, writesLines, onAddLine }: { po: PO; writesLines: boolean; onA
         {po.endDate && <span className="text-etyme-faint"> · runs to {po.endDate}</span>}
       </p>
 
-      <Lines po={po} writesLines={writesLines} />
+      <Lines po={po} />
       {onAddLine && (
         <button type="button" onClick={onAddLine} className="mt-2 text-[12px] text-etyme-action underline">
           {po.lines.length === 0 ? 'Add the first line' : 'Add a line'}
