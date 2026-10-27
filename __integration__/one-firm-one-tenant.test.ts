@@ -323,3 +323,31 @@ describe('an integrator imports its people', () => {
     expect(dev.consultant!.visibility).toBe('INTERNAL')
   })
 })
+
+describe('the claim route joins a firm already on Etyme', () => {
+  it('a claim link taken by somebody already seated at a firm on the same domain joins that firm through the claim route', async () => {
+    const { POST: claim } = await import('@/app/api/claim/[token]/route')
+    const { shellId, token } = await approvalShell('world-teleworld')
+    as(QUARRY_OWNER)
+    const r = await json(await claim(req('POST', `/api/claim/${token}`), { params: Promise.resolve({ token }) }))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data).toMatchObject({ companyId: co.quarrybrook, joined: true, landing: '/dashboard' })
+    expect(r.body.data.says).toContain('No second company was made')
+    expect(await prisma.company.findUnique({ where: { id: shellId } })).toBeNull()
+    // Nobody was seated on the record: the owner holds one seat, at the firm she runs.
+    expect(await prisma.context.count({ where: { personId: who.quarryOwner, revokedAt: null } })).toBe(1)
+  })
+
+  it('a join the claim route cannot make safely is refused as a conflict in a sentence, and nobody is seated', async () => {
+    const { POST: claim } = await import('@/app/api/claim/[token]/route')
+    // A second invitation from the same client goes to a colleague's address on the same domain.
+    const { shellId, token } = await approvalShell('world-teleworld', 'billing@quarrybrook.example')
+    await prisma.costCenter.create({ data: { companyId: shellId, code: 'QB-200', name: 'Quarrybrook delivery' } })
+    await prisma.costCenter.create({ data: { companyId: co.quarrybrook, code: 'QB-200', name: 'Delivery two' } })
+    as(QUARRY_OWNER)
+    const r = await json(await claim(req('POST', `/api/claim/${token}`), { params: Promise.resolve({ token }) }))
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toContain('Nothing was changed')
+    expect(await prisma.context.count({ where: { personId: who.quarryOwner, companyId: shellId } })).toBe(0)
+  })
+})

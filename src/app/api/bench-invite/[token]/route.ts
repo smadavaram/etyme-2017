@@ -7,6 +7,7 @@ import { STAY_CHOICES, readStay, renewFields, stayFields, staySays } from '@/lib
 import { renewStay } from '@/lib/bench-stay-record'
 import { agreeingTerms } from '@/lib/bench-filter'
 import { inviteTerms } from './terms'
+import { afterYes } from '@/lib/consultant-portfolio'
 
 /**
  * GET  /api/bench-invite/:token — what is being asked, and the pay
@@ -31,6 +32,21 @@ import { inviteTerms } from './terms'
  * before the person does, and a GET that accepted on their behalf would
  * be fake consent produced by a spam filter. GET only reads.
  */
+
+/**
+ * What comes after a yes (onboarding walk, 2026-10-27): her own page in
+ * one click where she has no sign-in, signing in where she has one, in
+ * supply's words (`afterYes`). Reads only whether she has a way to sign
+ * in, and her own address to fill the sign-up with.
+ */
+async function nextAfterYes(personId: string, firm: string) {
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
+    select: { primaryEmail: true, passwordHash: true, _count: { select: { credentials: true } } },
+  })
+  const hasAccount = Boolean(person?.passwordHash) || (person?._count.credentials ?? 0) > 0
+  return afterYes({ firm, email: person?.primaryEmail ?? null, hasAccount })
+}
 
 async function load(token: string) {
   const t = readInvite(token)
@@ -115,7 +131,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!renewed.ok) {
       return NextResponse.json({ error: { code: renewed.code, message: renewed.says } }, { status: 409 })
     }
-    return NextResponse.json({ data: { state: 'GRANTED', says: renewed.says } })
+    return NextResponse.json({ data: { state: 'GRANTED', says: renewed.says, after: await nextAfterYes(listing.consultant.personId, listing.company.name) } })
   }
 
   // How long they stay, chosen in the same step as the yes. Nothing
@@ -189,6 +205,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: {
       state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED',
       termsAgreed: agreed?.agreed ?? false,
+      ...(said === 'ACCEPT' ? { after: await nextAfterYes(listing.consultant.personId, listing.company.name) } : {}),
       says: chosen
         ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}${agreed ? ` ${agreed.says}` : ''}`
         : outcome.reason,

@@ -51,6 +51,8 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<string | null>(null)
+  // What comes after a yes: her own page in one click, or signing in (supply's afterYes).
+  const [after, setAfter] = useState<{ next: string; label: string; href: string } | null>(null)
   const [note, setNote] = useState('')
   // Chosen with the yes, "until I cancel" already chosen.
   const [stayDays, setStayDays] = useState<number | null>(null)
@@ -92,6 +94,7 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
       }
       const b = await readJson(res)
       setDone(b.data.says)
+      setAfter(b.data.after ?? null)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -118,6 +121,16 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
             <>
               <h1 className="headline-serif text-[27px]">Thank you</h1>
               <p className="mt-2 text-[14px] text-etyme-ink">{done}</p>
+              {after && (
+                <>
+                  <p className="mt-3 text-[14px] text-etyme-ink">{after.next}</p>
+                  <div className="mt-4">
+                    <a href={after.href} className="inline-block rounded-md bg-etyme-action px-4 py-2 text-[13px] text-white">
+                      {after.label}
+                    </a>
+                  </div>
+                </>
+              )}
             </>
           ) : !ask.awaiting ? (
             <>

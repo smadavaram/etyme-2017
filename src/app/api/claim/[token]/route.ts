@@ -3,6 +3,7 @@ import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { rolesFor } from '@/lib/company-defaults'
 import { companyDomain, mayClaim } from '@/lib/supplier-list'
+import { claimOrJoin } from '@/lib/company-create'
 
 /**
  * GET  /api/claim/:token — who is this invitation for
@@ -132,6 +133,21 @@ export async function POST(
     return NextResponse.json({
       data: { companyId: invite.companyId, company: invite.company.name, already: true, landing: '/dashboard' },
     })
+  }
+
+  // A firm already on Etyme is found, never founded again (onboarding
+  // walk, 2026-10-27): where the person taking the link already runs a
+  // firm on the same domain, the client's record of it is folded into
+  // that firm and nobody is seated on the record. A join that could not
+  // be made safely changes nothing and says who settles it.
+  const join = await claimOrJoin(token, { personId: person.id, email })
+  if (join.kind === 'JOINED') {
+    return NextResponse.json({
+      data: { companyId: join.companyId, company: join.company, joined: true, says: join.says, landing: '/dashboard' },
+    })
+  }
+  if (join.kind === 'REFUSED') {
+    return NextResponse.json({ error: { code: 'NOT_JOINED', message: join.says } }, { status: 409 })
   }
 
   // A shell has no roles, because nobody has ever signed in to it. The

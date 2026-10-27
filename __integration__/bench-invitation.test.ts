@@ -187,3 +187,40 @@ describe('and the consultant answers without an account', () => {
     expect(item.status).not.toBe('error')
   }, 60_000)
 })
+
+describe('what comes after a yes', () => {
+  it('after a yes, a person with no account is offered her own page in one click, and one with an account is sent to sign in', async () => {
+    const { signInvite } = await import('@/lib/bench-invite')
+    // Two people asked onto the bench: one has never signed in, one has a password.
+    const fresh = await prisma.person.create({ data: { name: 'Noor Haddad', primaryEmail: 'noor@invite-flow.test' } })
+    const signed = await prisma.person.create({ data: { name: 'Ade Bello', primaryEmail: 'ade@invite-flow.test', passwordHash: 'argon2id$test' } })
+    const answers: any[] = []
+    for (const p of [fresh, signed]) {
+      const profile = await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' } })
+      as(VENDOR)
+      const made = await json(await createListing(req('POST', '/api/bench/listings', { consultantId: profile.id, tier: 'MARKETING' })))
+      expect(made.body?.error, JSON.stringify(made.body)).toBeUndefined()
+      const listing = await prisma.benchListing.findFirstOrThrow({ where: { consultantId: profile.id } })
+      const t = signInvite(listing.id)
+      const r = await json(await answerInvite(req('POST', `/api/bench-invite/${t}`, { said: 'ACCEPT' }), { params: Promise.resolve({ token: t }) }))
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+      answers.push(r.body.data.after)
+    }
+    expect(answers[0]).toMatchObject({ label: 'Make your own page', href: '/signup?as=candidate&email=noor%40invite-flow.test' })
+    expect(answers[0].next).toContain('Invite Flow Ltd can now put you forward')
+    expect(answers[1]).toMatchObject({ label: 'Sign in to your page', href: '/login' })
+  }, 60_000)
+
+  it('a no is never offered a page or a sign-in', async () => {
+    const { signInvite } = await import('@/lib/bench-invite')
+    const p = await prisma.person.create({ data: { name: 'Kofi Asante', primaryEmail: 'kofi@invite-flow.test' } })
+    const profile = await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' } })
+    as(VENDOR)
+    await createListing(req('POST', '/api/bench/listings', { consultantId: profile.id, tier: 'MARKETING' }))
+    const listing = await prisma.benchListing.findFirstOrThrow({ where: { consultantId: profile.id } })
+    const t = signInvite(listing.id)
+    const r = await json(await answerInvite(req('POST', `/api/bench-invite/${t}`, { said: 'DECLINE' }), { params: Promise.resolve({ token: t }) }))
+    expect(r.body.data.state).toBe('DECLINED')
+    expect(r.body.data.after).toBeUndefined()
+  }, 60_000)
+})
