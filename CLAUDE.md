@@ -2022,6 +2022,39 @@ follows:
   computed at seeding (Rosa Delgado's weeks to bill, the bill from
   Nimbus) and the build reads them live, never as literals.
 
+**Shipped to production 2026-10-27 (4bac05708 on the deploy branch,
+source e7a589ec7):** the map home page, built from the corrected
+drawing (the four role tabs, each a link at its own address, the
+"Signed in as" line, every figure read from `lib/seed-corvane` and
+checked by `story-panel-map.test.ts`; the seed overrode the drawing in
+three places and the test holds each: receipts "clear the three-way
+check" rather than "paid", because the seed pays none; Vietnam's spend
+is ₫924,000,000; Maria Lee starts in 5 days); under the panel the two
+drawings and the four lines, with "Talk to a person" in the hero and
+the band (the papers drawing names Ingrid Sørensen, the one start
+Northbend's seed holds for an I-9, not Priya Raman, who has no start in
+the seed: the founder's word if he wants Priya); Corvane Packaging
+seeded with a region on every site, a regional seat that reads only its
+region, Ask Etyme and the thread list for that seat, the By region
+views, a company's reporting currency and its own rates with who set
+each, Corvane's receipts in the books with a Vietnamese one, its orders'
+paper sets, its lines' due dates with pay dates from the world's day
+on; and the nightly paper letters reading each night's lines, chains,
+seats and names once (the night test went from over 30 s to under 10
+with 360 more people). Release pass: type check clean, 12,020 unit,
+2,483 integration, build clean, on a quiet copy; the last one-file
+commit (the ladder's view of the log write) re-ran its two unit files
+and the build. Gates: no source difference, no Ruby, brand kit present,
+the three "removed" schema lines re-aligned whitespace. Smoke: every
+public page 200, the inbound email door 404 to a POST.
+**Open for the founder:** production's world has no Corvane yet: the
+map reads the seed and shows, but "Open the demo as Margaret Osei"
+answers "There is no world-corvane in this deployment's world" until
+`POST /api/seed-world` runs with the cron secret, which the coordinator
+does not hold; the walk as the CFO, a regional manager and a hiring
+manager runs on a local copy of the seeded world meanwhile. The four
+doors' maps wait on "build it" on their drawings.
+
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
 back a paper that arrived; the I-9, a provider's verdict and the
