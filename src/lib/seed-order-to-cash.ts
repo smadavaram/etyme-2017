@@ -202,6 +202,134 @@ export type OrderToCashPart = (typeof ORDER_TO_CASH_PARTS)[number]
  */
 export const PART_SHARES: Partial<Record<OrderToCashPart, number>> = { postings: 16, books: 4 }
 
+/** One entry the books part writes, keyed the way the journal's unique key is. */
+interface Booking {
+  companyId: string
+  source: string
+  sourceId: string
+  /** The posting's own currency: an entry is booked in one currency, never translated here. USD where none is said. */
+  currency?: string | null
+  entry: Entry
+  dims: { projectOrderId?: string | null; personId?: string | null; clientCompanyId?: string | null }
+}
+
+/**
+ * Every firm's chart of accounts, by `${companyId}:${code}`: read once,
+ * the missing defaults written once, read again. An account a firm already
+ * has is left exactly as it is.
+ */
+async function chartFor(companyIds: readonly string[]): Promise<Map<string, string>> {
+  const accountOf = new Map<string, string>()
+  const read = async () => {
+    for (const a of await db.ledgerAccount.findMany({
+      where: { companyId: { in: [...companyIds] } }, select: { id: true, companyId: true, code: true },
+    })) {
+      accountOf.set(`${a.companyId}:${a.code}`, a.id)
+    }
+  }
+  await read()
+  const missing = companyIds.flatMap((companyId) =>
+    DEFAULT_ACCOUNTS.filter((a) => !accountOf.has(`${companyId}:${a.code}`)).map((a) => ({
+      companyId, code: a.code, name: a.name,
+      type: a.type as never, normalSide: a.normalSide as never,
+    }))
+  )
+  if (missing.length) {
+    await db.ledgerAccount.createMany({ data: missing, skipDuplicates: true })
+    await read()
+  }
+  return accountOf
+}
+
+/**
+ * Book what is not on the books yet: one read to find what is, then
+ * every new entry and every line under it in one transaction. Keyed on
+ * (source, sourceId), so a second seeding writes nothing. Returns how
+ * many entries it wrote.
+ */
+async function bookInto(items: Booking[], accountOf: Map<string, string>): Promise<number> {
+  if (items.length === 0) return 0
+  const onBooks = new Set(
+    (await db.journalEntry.findMany({
+      where: { sourceId: { in: items.map((i) => i.sourceId) } },
+      select: { source: true, sourceId: true },
+    })).map((e) => `${e.source}:${e.sourceId}`)
+  )
+  const fresh: { key: string; head: Prisma.JournalEntryCreateManyInput; lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] }[] = []
+  for (const it of items) {
+    const key = `${it.source}:${it.sourceId}`
+    if (onBooks.has(key)) continue
+    const lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] = []
+    for (const l of it.entry.lines) {
+      const accountId = accountOf.get(`${it.companyId}:${l.accountCode}`)
+      if (!accountId) break
+      lines.push({
+        accountId,
+        debitCents: l.debitCents, creditCents: l.creditCents, currency: it.currency ?? 'USD',
+        personId: it.dims.personId ?? null,
+        clientCompanyId: it.dims.clientCompanyId ?? null,
+        memo: l.memo ?? null,
+      })
+    }
+    // An entry with a line whose account is missing is not booked at
+    // all, rather than booked lopsided.
+    if (lines.length !== it.entry.lines.length) continue
+    onBooks.add(key)
+    fresh.push({
+      key,
+      head: {
+        companyId: it.companyId, postedAt: it.entry.postedAt, source: it.source as never, sourceId: it.sourceId,
+        memo: it.entry.memo,
+        projectOrderId: it.dims.projectOrderId ?? null,
+      },
+      lines,
+    })
+  }
+  if (fresh.length === 0) return 0
+  // Both inserts or neither: an entry on the books with no lines would
+  // read as booked to the next call and never be finished.
+  await db.$transaction(
+    async (tx) => {
+      const heads = await tx.journalEntry.createManyAndReturn({
+        data: fresh.map((f) => f.head),
+        select: { id: true, source: true, sourceId: true },
+      })
+      const idOf = new Map(heads.map((h) => [`${h.source}:${h.sourceId}`, h.id]))
+      await tx.journalLine.createMany({
+        data: fresh.flatMap((f) => f.lines.map((l) => ({ ...l, entryId: idOf.get(f.key)! }))),
+      })
+    },
+    // Two statements, however long the list. The allowance is for a
+    // database in another building, not for the work.
+    { maxWait: 10_000, timeout: 20_000 }
+  )
+  return fresh.length
+}
+
+/**
+ * These firms' postings, booked: a chart for each and one balanced entry
+ * per posting, in the posting's own currency. For a seed whose firms the
+ * base world's books part does not walk (lib/seed-corvane); invoices and
+ * receipts stay that part's. Returns the entries written.
+ */
+export async function bookPostings(companyIds: readonly string[]): Promise<number> {
+  const posted = await db.orderPosting.findMany({
+    where: { companyId: { in: [...companyIds] } },
+    select: {
+      id: true, companyId: true, kind: true, amountCents: true, currency: true,
+      postedAt: true, says: true, source: true, projectOrderId: true, personId: true, clientCompanyId: true,
+    },
+    orderBy: { id: 'asc' },
+  })
+  if (posted.length === 0) return 0
+  const accountOf = await chartFor([...new Set(posted.map((p) => p.companyId))])
+  return bookInto(posted.map((p): Booking => ({
+    companyId: p.companyId, source: p.source, sourceId: p.id, currency: p.currency,
+    entry: entryFor({ kind: p.kind as never, amountCents: p.amountCents, postedAt: p.postedAt, says: p.says }),
+    dims: { projectOrderId: p.projectOrderId, personId: p.personId, clientCompanyId: p.clientCompanyId },
+  })), accountOf)
+}
+
 export async function seedOrderToCash(
   ctx: SeedContext,
   parts: readonly OrderToCashPart[] = ORDER_TO_CASH_PARTS,
@@ -687,100 +815,9 @@ export async function seedOrderToCash(
     })
     const firmsWithBooks = new Set(posted.map((p) => p.companyId))
     const booksOf = [...firmsWithBooks]
-    const accountOf = new Map<string, string>() // `${companyId}:${code}` → id
-    // Read once, the missing ones written once, read again: three round
-    // trips for the whole chart rather than two per account per firm. An
-    // account a firm already has is left exactly as it is.
-    const readAccounts = async () => {
-      for (const a of await db.ledgerAccount.findMany({
-        where: { companyId: { in: booksOf } }, select: { id: true, companyId: true, code: true },
-      })) {
-        accountOf.set(`${a.companyId}:${a.code}`, a.id)
-      }
-    }
-    await readAccounts()
-    const missingAccounts = booksOf.flatMap((companyId) =>
-      DEFAULT_ACCOUNTS.filter((a) => !accountOf.has(`${companyId}:${a.code}`)).map((a) => ({
-        companyId, code: a.code, name: a.name,
-        type: a.type as never, normalSide: a.normalSide as never,
-      }))
-    )
-    if (missingAccounts.length) {
-      await db.ledgerAccount.createMany({ data: missingAccounts, skipDuplicates: true })
-      await readAccounts()
-    }
-
-    /** One entry this layer books, keyed the way the journal's unique key is. */
-    interface Booking {
-      companyId: string
-      source: string
-      sourceId: string
-      entry: Entry
-      dims: { projectOrderId?: string | null; personId?: string | null; clientCompanyId?: string | null }
-    }
-
-    /**
-     * Book what is not on the books yet: one read to find what is, then
-     * every new entry and every line under it in one transaction. Keyed
-     * on (source, sourceId), so a second seeding writes nothing.
-     */
-    async function book(items: Booking[]): Promise<void> {
-      if (items.length === 0) return
-      const onBooks = new Set(
-        (await db.journalEntry.findMany({
-          where: { sourceId: { in: items.map((i) => i.sourceId) } },
-          select: { source: true, sourceId: true },
-        })).map((e) => `${e.source}:${e.sourceId}`)
-      )
-      const fresh: { key: string; head: Prisma.JournalEntryCreateManyInput; lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] }[] = []
-      for (const it of items) {
-        const key = `${it.source}:${it.sourceId}`
-        if (onBooks.has(key)) continue
-        const lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] = []
-        for (const l of it.entry.lines) {
-          const accountId = accountOf.get(`${it.companyId}:${l.accountCode}`)
-          if (!accountId) break
-          lines.push({
-            accountId,
-            debitCents: l.debitCents, creditCents: l.creditCents, currency: 'USD',
-            personId: it.dims.personId ?? null,
-            clientCompanyId: it.dims.clientCompanyId ?? null,
-            memo: l.memo ?? null,
-          })
-        }
-        // An entry with a line whose account is missing is not booked at
-        // all, rather than booked lopsided.
-        if (lines.length !== it.entry.lines.length) continue
-        onBooks.add(key)
-        fresh.push({
-          key,
-          head: {
-            companyId: it.companyId, postedAt: it.entry.postedAt, source: it.source as never, sourceId: it.sourceId,
-            memo: it.entry.memo,
-            projectOrderId: it.dims.projectOrderId ?? null,
-          },
-          lines,
-        })
-      }
-      if (fresh.length === 0) return
-      // Both inserts or neither: an entry on the books with no lines would
-      // read as booked to the next call and never be finished.
-      await db.$transaction(
-        async (tx) => {
-          const heads = await tx.journalEntry.createManyAndReturn({
-            data: fresh.map((f) => f.head),
-            select: { id: true, source: true, sourceId: true },
-          })
-          const idOf = new Map(heads.map((h) => [`${h.source}:${h.sourceId}`, h.id]))
-          await tx.journalLine.createMany({
-            data: fresh.flatMap((f) => f.lines.map((l) => ({ ...l, entryId: idOf.get(f.key)! }))),
-          })
-        },
-        // Two statements, however long the list. The allowance is for a
-        // database in another building, not for the work.
-        { maxWait: 10_000, timeout: 20_000 }
-      )
-      out.journalEntries += fresh.length
+    const accountOf = await chartFor(booksOf)
+    const book = async (items: Booking[]): Promise<void> => {
+      out.journalEntries += await bookInto(items, accountOf)
     }
 
     const issued = booksOf.length === 0 ? [] : await db.invoice.findMany({
@@ -813,7 +850,7 @@ export async function seedOrderToCash(
     // postings, then the invoices, then the receipts.
     const all: Booking[] = [
       ...posted.map((p): Booking => ({
-        companyId: p.companyId, source: p.source, sourceId: p.id,
+        companyId: p.companyId, source: p.source, sourceId: p.id, currency: p.currency,
         entry: entryFor({ kind: p.kind as never, amountCents: p.amountCents, postedAt: p.postedAt, says: p.says }),
         dims: { projectOrderId: p.projectOrderId, personId: p.personId, clientCompanyId: p.clientCompanyId },
       })),

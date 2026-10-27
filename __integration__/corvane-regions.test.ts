@@ -69,6 +69,21 @@ describe('Corvane Packaging, as the drawing has it', () => {
     expect(await prisma.verification.count({ where: { personId: hold[0].personId, type: 'I9_EVERIFY' } })).toBe(0)
   })
 
+  it('every signed week behind a receipt is on the books, each line in its own firm’s home currency', async () => {
+    const firms = await prisma.company.findMany({
+      where: { OR: [{ slug: 'world-corvane' }, { slug: { startsWith: 'world-cv-' } }] }, select: { id: true, homeCurrency: true },
+    })
+    const home = new Map(firms.map((f) => [f.id, f.homeCurrency]))
+    const postings = await prisma.orderPosting.findMany({ where: { companyId: { in: [...home.keys()] } }, select: { id: true, companyId: true, currency: true } })
+    expect(postings.length).toBeGreaterThan(0)
+    for (const p of postings) expect(p.currency, `posting ${p.id}`).toBe(home.get(p.companyId))
+    const entries = await prisma.journalEntry.findMany({
+      where: { sourceId: { in: postings.map((p) => p.id) } }, select: { companyId: true, lines: { select: { currency: true } } },
+    })
+    expect(entries.length).toBe(postings.length)
+    for (const e of entries) for (const l of e.lines) expect(l.currency).toBe(home.get(e.companyId))
+  })
+
   it('every US contractor on site has an I-9 backed by a named passport, and no paper is seeded abroad', async () => {
     const us = await prisma.sellContract.findMany({ where: { clientCompanyId: corvaneId, state: 'IN_PROGRESS', workLocation: { country: 'US' } }, select: { personId: true } })
     const i9s = await prisma.verification.findMany({ where: { personId: { in: us.map((c) => c.personId) }, type: 'I9_EVERIFY' }, select: { id: true } })

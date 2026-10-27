@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import {
   CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_SUPPLIERS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, CORVANE_TIME_LIMIT_MONTHS,
-  corvaneContractors, plantSuppliers, billRateMinor, corvaneSteps, contractorName,
+  corvaneContractors, plantSuppliers, billRateMinor, corvaneSteps, contractorName, corvaneSellId, corvanePlaces,
 } from '@/lib/seed-corvane'
+import { sharedTails } from '@/lib/seed-scale/kit'
 import { anchorSeed, day } from '@/lib/seed-days'
 import { limitReachedOn } from '@/lib/tenure-days'
 import { worldStepNames, WORLD_SLUGS } from '@/lib/seed-world'
@@ -99,6 +100,12 @@ describe('Corvane Packaging is the drawing, plant for plant', () => {
     const regions = clean.map((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region)
     expect(new Set(regions).size).toBe(6)
     for (const r of clean) expect(r.billed).toBe(r.accepted)
+  })
+
+  it('no two Corvane sell lines share the six characters an invoice number is cut from', () => {
+    const ids = corvanePlaces().map((c, i) => corvaneSellId(c, i))
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(sharedTails(ids)).toEqual([])
   })
 
   it('a plant never has more weeks to sign than people to file them', () => {

@@ -46,7 +46,7 @@
  *
  * Three hundred and seventy people, written one row at a time, would be
  * thousands of queries; a step may make 350. So every row here has an id
- * of its own made from what it is (`cv_sell_dayton_3`), is written by
+ * of its own made from what it is (`cv_buy_dayton_3`), is written by
  * `createMany` with duplicates skipped, and a second seeding writes
  * nothing. People are read back by address, because a person is the one
  * row another seed could have made first.
@@ -68,6 +68,9 @@ import { periodFor } from '@/lib/periods'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
 import { postAssertion } from '@/lib/order-postings'
+import { bookPostings } from '@/lib/seed-order-to-cash'
+import { planCyclesFor, DEMO_MONTHLY_PAY } from '@/lib/contract-cycles'
+import { policyFrom } from '@/lib/cycle-shift'
 
 // ── The drawing, as data ─────────────────────────────────────────────
 
@@ -347,6 +350,22 @@ export function workerEmail(c: Pick<PlannedContractor, 'key'>, domain: string): 
   return `${CORVANE_EMAIL_PREFIX}w-${c.key}@${domain}`
 }
 
+/**
+ * A sell line's id. Its last six characters are `cv` and its place in the
+ * plan, so no two lines share the tail an invoice number is cut from
+ * (`sharedTails` in lib/seed-scale/kit). A world seeded before this
+ * (2026-10-27, `cv_sell_<key>`) keeps the id it has; see the region step.
+ */
+export function corvaneSellId(c: Pick<PlannedContractor, 'key'>, place: number): string {
+  return `cv_sell_${c.key}_cv${String(place).padStart(4, '0')}`
+}
+
+/** Every planned line in order, on site then on hold: a line's place is its index here. */
+export function corvanePlaces(): PlannedContractor[] {
+  const { onSite, onHold } = corvaneContractors()
+  return [...onSite, onHold]
+}
+
 /** The hourly bill rate, in the site currency's minor units. */
 export function billRateMinor(cc: CountryKey): number {
   const c = CORVANE_COUNTRIES[cc]
@@ -503,9 +522,10 @@ async function suppliers(ctx: Ctx): Promise<void> {
     const c = CORVANE_COUNTRIES[s.cc]
     await db.company.upsert({
       where: { slug: ctx.prefix + s.slug },
-      update: { name: s.name, kind: 'VENDOR' },
+      // Its books are kept in its own country's currency (JournalLine is in the home currency).
+      update: { name: s.name, kind: 'VENDOR', homeCurrency: c.currency },
       create: {
-        slug: ctx.prefix + s.slug, name: s.name, kind: 'VENDOR', currency: c.currency, country: c.iso,
+        slug: ctx.prefix + s.slug, name: s.name, kind: 'VENDOR', currency: c.currency, homeCurrency: c.currency, country: c.iso,
         defaultPaymentTerms: 30, createdAt: day(0), claimedAt: day(0), isDemo: false,
       },
     })
@@ -580,6 +600,26 @@ async function suppliers(ctx: Ctx): Promise<void> {
   // A header already written keeps its number; only new ones are added.
   const written = new Set((await db.workOrder.findMany({ where: { id: { in: headers.map((h) => h.id) } }, select: { id: true } })).map((w) => w.id))
   await db.workOrder.createMany({ data: headers.filter((h) => !written.has(h.id)) as never, skipDuplicates: true })
+
+  // What each order asks its supplier for (lib/document-requirements reads
+  // these as the order's set). A US order asks what every client program
+  // asks; an order abroad asks only the supplier's own papers, because an
+  // I-9 is a US form and no country's rule abroad is seeded until
+  // regulatory confirms it (lib/document-stages/countries).
+  const SUPPLIER_PAPERS: { key: string; owedBy: string }[] = [
+    { key: 'INSURANCE_GL', owedBy: 'SUPPLIER' }, { key: 'INSURANCE_WC', owedBy: 'SUPPLIER' },
+    { key: 'GOOD_STANDING', owedBy: 'SUPPLIER' }, { key: 'MSA', owedBy: 'SUPPLIER' },
+  ]
+  const US_PAPERS = [{ key: 'I9_EVERIFY', owedBy: 'WORKER' }, { key: 'BACKGROUND_CHECK', owedBy: 'US' }, ...SUPPLIER_PAPERS]
+  await db.documentRequirement.createMany({
+    data: all.flatMap((s) => headers.some((h) => h.id === `cv_wo_${s.slug}`)
+      ? (s.cc === 'US' ? US_PAPERS : SUPPLIER_PAPERS).map((a) => ({
+          id: `cv_docreq_${s.slug}_${a.key.toLowerCase()}`, workOrderId: `cv_wo_${s.slug}`,
+          documentTypeKey: a.key, required: true, owedBy: a.owedBy as never, createdAt: day(-600),
+        }))
+      : []),
+    skipDuplicates: true,
+  })
 }
 
 // ── 3. A region's plants: their people, jobs, weeks and receipts ─────
@@ -587,8 +627,13 @@ async function suppliers(ctx: Ctx): Promise<void> {
 async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   const co = await corvane(ctx)
   const here = CORVANE_PLANTS.filter((p) => p.region === region)
-  const { onSite, onHold } = corvaneContractors()
-  const workers = [...onSite, onHold].filter((c) => c.plant.region === region)
+  const places = corvanePlaces()
+  const workers = places.filter((c) => c.plant.region === region)
+  // A line's id: the one it already has where a world was seeded with the
+  // first form, else the one whose tail is unique (corvaneSellId).
+  const oldId = (w: PlannedContractor) => `cv_sell_${w.key}`
+  const had = new Set((await db.sellContract.findMany({ where: { id: { in: workers.map(oldId) } }, select: { id: true } })).map((r) => r.id))
+  const sid = (w: PlannedContractor) => (had.has(oldId(w)) ? oldId(w) : corvaneSellId(w, places.indexOf(w)))
 
   const supplierIds = new Map(
     (await db.company.findMany({ where: { slug: { in: uniq(workers.map((w) => ctx.prefix + supplierSlug(w.supplier))) } }, select: { id: true, slug: true } }))
@@ -652,7 +697,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   })
   await db.sellContract.createMany({
     data: lines.map(({ w, sup, supplierId, currency, start, end }) => ({
-      id: `cv_sell_${w.key}`, companyId: supplierId, clientCompanyId: co.id, endClientCompanyId: co.id, personId: who(w),
+      id: sid(w), companyId: supplierId, clientCompanyId: co.id, endClientCompanyId: co.id, personId: who(w),
       requirementId: `cv_req_${w.plant.key}_${CORVANE_JOBS.indexOf(w.job)}`, engagementId: `cv_eng_${sup}`, msaId: `cv_msa_${sup}`,
       workOrderId: `cv_wo_${sup}`, hiringManagerId: manager(w.plant), orgUnitId: `cv_unit_site_${w.plant.key}`,
       workLocationId: `cv_site_${w.plant.key}`, billRate: billRateMinor(w.plant.cc), billCurrency: currency,
@@ -676,9 +721,28 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
     skipDuplicates: true,
   })
   await db.contractLink.createMany({
-    data: lines.map(({ w, start, end }) => ({ id: `cv_link_${w.key}`, sellContractId: `cv_sell_${w.key}`, buyContractId: `cv_buy_${w.key}`, effectiveFrom: start, effectiveTo: end })),
+    data: lines.map(({ w, start, end }) => ({ id: `cv_link_${w.key}`, sellContractId: sid(w), buyContractId: `cv_buy_${w.key}`, effectiveFrom: start, effectiveTo: end })),
     skipDuplicates: true,
   })
+
+  // Due dates on both sides, through money's own planner (lib/contract-cycles),
+  // as the other programs write them: the seeds' pack and the demo's monthly
+  // pay, the shipped weekend rule, no company payroll. A line that already
+  // has its dates is left as it is, so a second seeding writes nothing.
+  const dated = new Set((await db.cycle.findMany({
+    where: { sellContractId: { in: workers.map(sid) } }, select: { sellContractId: true }, distinct: ['sellContractId'],
+  })).map((c) => c.sellContractId))
+  const cycles: Awaited<ReturnType<typeof planCyclesFor>>['rows'] = []
+  for (const { w, start, end } of lines) {
+    if (dated.has(sid(w))) continue
+    const planned = await planCyclesFor(db, {
+      sell: { id: sid(w), startDate: start, endDate: end, workOrder: null },
+      buy: { id: `cv_buy_${w.key}`, contractType: w.plant.cc === 'US' ? 'W2' : 'FIXED_TERM', vendorCompanyId: null },
+      packId: 'US_IT', pay: DEMO_MONTHLY_PAY, policy: policyFrom(null), payroll: null,
+    })
+    cycles.push(...planned.rows)
+  }
+  if (cycles.length) await db.cycle.createMany({ data: cycles })
 
   // ── Weeks: last week filed and not signed, at the drawing's count ──
   const live = workers.filter((w) => w.state === 'IN_PROGRESS')
@@ -691,7 +755,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   await db.timesheet.createMany({
     data: [
       ...toSign.map((w) => ({
-        id: `cv_ts_${w.key}_w1`, sellContractId: `cv_sell_${w.key}`, personId: who(w),
+        id: `cv_ts_${w.key}_w1`, sellContractId: sid(w), personId: who(w),
         periodStart: last.start, periodEnd: last.end, days: last.days, totalHours: totalOf(last.days),
         status: 'SUBMITTED', submittedAt: last.end,
       })),
@@ -699,7 +763,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
         const wk = seedWeek(r.week, r.accepted)
         const signed = signingDays(wk.start)
         return {
-          id: `cv_ts_${w.key}_w${r.week}`, sellContractId: `cv_sell_${w.key}`, personId: who(w),
+          id: `cv_ts_${w.key}_w${r.week}`, sellContractId: sid(w), personId: who(w),
           periodStart: wk.start, periodEnd: wk.end, days: wk.days, totalHours: r.accepted,
           status: 'APPROVED', submittedAt: wk.end,
           approvedAt: signed.signedAt(0), approvedById: manager(w.plant),
@@ -730,6 +794,9 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
     await postAssertion(`${ts}_client`, manager(w.plant))
     await postAssertion(`${ts}_employer`, ownerOf(w.supplier))
   }
+  // And booked, a balanced entry per posting in its own currency: the base
+  // world's books part does not walk Corvane's firms (seed-stays-in-its-world).
+  await bookPostings([co.id, ...new Set(receipts.map(({ w }) => supplierIds.get(supplierSlug(w.supplier))!))])
 
   // ── The receipts: what each supplier sent for those weeks ──
   // One whole billing period under the terms of the document the line is
@@ -738,7 +805,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   const initials = (name: string) => ascii(name).split('-').filter(Boolean).map((p) => p[0]).join('').toUpperCase().slice(0, 3)
   const terms = new Map(
     (await db.sellContract.findMany({
-      where: { id: { in: receipts.map(({ w }) => `cv_sell_${w.key}`) } },
+      where: { id: { in: receipts.map(({ w }) => sid(w)) } },
       select: {
         id: true, startDate: true, endDate: true, billFrequency: true, billAnchor: true, billStraddle: true,
         paymentTerms: true, paymentTermsFrom: true, workOrder: { select: ORDER_HEADER_SELECT },
@@ -748,7 +815,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   await db.invoice.createMany({
     data: receipts.map(({ r, w }, k) => {
       const wk = seedWeek(r.week, r.accepted)
-      const line = terms.get(`cv_sell_${w.key}`)!
+      const line = terms.get(sid(w))!
       const firstWorked = new Date(`${Object.keys(wk.days).sort()[0]}T00:00:00Z`)
       const period = periodFor(firstWorked, periodTermsFor('SELL', line))
       const billed = termsFor('SELL', line)
@@ -775,7 +842,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       const wk = seedWeek(r.week, r.accepted)
       return {
         id: `cv_line_${w.key}_w${r.week}`, invoiceId: `cv_inv_${w.key}_w${r.week}`, timesheetId: `cv_ts_${w.key}_w${r.week}`,
-        sellContractId: `cv_sell_${w.key}`, personId: who(w), hours: r.billed, rateCents: billRateMinor(w.plant.cc),
+        sellContractId: sid(w), personId: who(w), hours: r.billed, rateCents: billRateMinor(w.plant.cc),
         amountCents: Math.round(r.billed * billRateMinor(w.plant.cc)),
         description: `${w.name} — ${wk.start.toISOString().slice(0, 10)} to ${wk.end.toISOString().slice(0, 10)}`,
       }
