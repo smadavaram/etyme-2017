@@ -3056,7 +3056,7 @@ export const MATRIX: L1[] = [
             'src/app/api/firms/route.ts',
             'src/components/settings/grant-seat.tsx',
             'src/components/settings/ask-for-seat.tsx',
-            'src/app/dashboard/program/page.tsx', 'src/app/dashboard/program/own-refusal.ts'],
+            'src/app/dashboard/program/page.tsx', 'src/app/dashboard/program/own-refusal.ts', 'src/app/dashboard/program/refused-way.tsx'],
           testedBy: [
             '__tests__/invariants/release-walk-onboarding-demand.test.ts',
             '__tests__/invariants/program-seat.test.ts', '__tests__/invariants/signup-walk-demand-round-3.test.ts',

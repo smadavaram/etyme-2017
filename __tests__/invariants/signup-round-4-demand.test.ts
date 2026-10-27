@@ -18,8 +18,10 @@ const read = (p: string) => readFileSync(join(process.cwd(), 'src/app/dashboard'
 
 /** The page keeps the door's own sentence on a 403, and returns it alone. */
 const REFUSED_HELD = /res\.status === 403\)[\s\S]{0,200}setRefused\(/
-// The shared primitive takes the sentence and nothing else (components/ui/states).
-const REFUSED_ALONE = /if \(refused\) \{\s*return <RefusedState says=\{refused\} \/>\s*\}/
+// The shared primitive takes the sentence and nothing else (components/ui/states),
+// or the sentence and its one way forward drawn inside the refusal block — an
+// MSP with no seat asking a client for one (onboarding walk, 2026-10-27).
+const REFUSED_ALONE = /if \(refused\) \{\s*return (<RefusedState says=\{refused\} \/>|<RefusedWithWayForward wayForward=\{[^}]*\}><RefusedState says=\{refused\} \/><\/RefusedWithWayForward>)\s*\}/
 
 const REFUSING_PAGES = [
   'timesheets', 'program', 'requirements', 'submissions', 'requisitions', 'people',
@@ -32,7 +34,7 @@ describe('3: a page the door refused draws the refusal sentence and nothing else
     expect(missing).toEqual([])
   })
 
-  it('every one of those pages returns that sentence alone when refused, with no heading, tile or zero beside it', () => {
+  it('every one of those pages returns that sentence alone when refused, or the sentence and its one way forward, with no heading, tile or zero beside it', () => {
     const missing = REFUSING_PAGES.filter((p) => !REFUSED_ALONE.test(read(p)))
     expect(missing).toEqual([])
   })

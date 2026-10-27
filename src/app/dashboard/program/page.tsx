@@ -13,6 +13,7 @@ import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { AskForSeat } from '@/components/settings/ask-for-seat'
 import { useSession } from '@/components/session-provider'
 import { asksForSeat } from './own-refusal'
+import { RefusedWithWayForward } from './refused-way'
 import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named } from './needs-you'
 import { formatDay } from '@/lib/format-date'
 import { ExtendForm } from './extend-form'
@@ -448,12 +449,10 @@ function ProgramToday() {
     return <LoadingState says="Opening your dashboard…" />
   }
 
+  // An MSP no client has seated yet asks for a seat inside the refusal:
+  // the sentence and its one way forward, nothing else.
   if (refused) {
-    // An MSP no client has seated yet asks for a seat right here, under
-    // the sentence that says it needs one.
-    return asksForSeat(sessionKind, refused)
-      ? <div className="space-y-6"><RefusedState says={refused} /><AskForSeat /></div>
-      : <RefusedState says={refused} />
+    return <RefusedWithWayForward wayForward={asksForSeat(sessionKind, refused) ? <AskForSeat /> : null}><RefusedState says={refused} /></RefusedWithWayForward>
   }
 
   if (error || !data) {

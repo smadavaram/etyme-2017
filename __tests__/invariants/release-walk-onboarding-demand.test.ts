@@ -191,7 +191,7 @@ describe('a seat for an MSP, granted and asked for on the screens', () => {
     expect(asksForSeat('VENDOR', noSeatYet('Brightmoor'))).toBe(false)
     expect(asksForSeat('MSP', 'Something else entirely.')).toBe(false)
     const program = read('src/app/dashboard/program/page.tsx')
-    expect(program).toMatch(/asksForSeat\(sessionKind, refused\)[\s\S]{0,120}<AskForSeat \/>/)
+    expect(program).toMatch(/<RefusedWithWayForward wayForward=\{asksForSeat\(sessionKind, refused\) \? <AskForSeat \/> : null\}><RefusedState says=\{refused\} \/>/)
     expect(read('src/app/dashboard/program/seats/page.tsx')).toMatch(/side === 'OFFICE' && nothingYet && <AskForSeat \/>/)
   })
 })
