@@ -1985,6 +1985,22 @@ follows:
   `spendInReporting` at the sample rates, labelled as sample). The
   Northbend panel, the two drawings, the four lines, the band and the
   footer follow unchanged. The integrator's map waits for its seed.
+- **"Build it", 2026-10-27, with two corrections from the founder's
+  phone.** The tabs are the four roles, not people's names, as on the
+  region drawing he chose: **CFO · Head of operations · Regional
+  manager · Hiring manager**, and under them the line "Signed in as
+  Margaret Osei, CFO. Reads every region. Signs nothing a plant's own
+  people sign." (*"Clicking on CFO, hiring managers like in the link was
+  better … this highlighting tells the story."*) The head of operations
+  is Ingrid Solberg, every plant on one list: 48 weeks waiting across
+  22 plants, six people within 30 days of the limit, one row per region
+  with its regional manager. And **every party's door gets the same map
+  in its own roles** (*"Do it for all parties like those"*): the four
+  tabs on a door are that party's roles reading that party's own book,
+  drawn from the seed before each is built, one drawing per door. The
+  home page is built first, from the corrected drawing
+  (https://claude.ai/artifact/VBYzE7NFTtJxTyebWSzirp, version 2); the
+  doors follow their drawings.
 
 **Also in this wave, each with its owner and test sentences:** the
 screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
