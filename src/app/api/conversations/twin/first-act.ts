@@ -178,3 +178,20 @@ export function welcomeFor(w: {
       : { says: 'Nothing waits on you yet. Start on Today: the company’s work is there, and anything for you arrives here first.', links: [{ text: 'Today', href: w.today ?? '/dashboard' }] },
   }
 }
+
+// ── The setup checklist's one line (2026-10-28) ──────────────────────
+
+/**
+ * The checklist's reminder as a line of the greeting: "Finish setting up:
+ * addresses, bank details. Complete setup.", the last two words the link
+ * to the checklist. The sentence and the items are the checklist's own
+ * (`setupReminderFor` in lib/setup-checklist-state), which already says
+ * null to anybody who may not run setup, at a company that is not asked,
+ * or once nothing is owed; this only draws it. One line that stays until
+ * the list is empty: it is never a card, never counted in the mark, and
+ * never repeated as a notice.
+ */
+export function setupLineFor(r: { says: string; href: string; link: string } | null | undefined): RichLine | null {
+  if (!r || !r.says) return null
+  return { says: `${r.says} ${r.link}.`, links: [{ text: r.link, href: r.href }] }
+}

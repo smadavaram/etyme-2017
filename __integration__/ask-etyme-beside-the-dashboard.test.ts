@@ -6,6 +6,7 @@ import { firmTuesday } from '@/lib/money/firm-today'
 import { benchAt } from '@/app/api/today/reads'
 import { runTwin } from '@/lib/twin/run'
 import { POST as decideRoute } from '@/app/api/twin/approvals/[id]/route'
+import { setupReminderFor } from '@/lib/setup-checklist-state'
 
 /**
  * Ask Etyme runs beside the dashboard, on the seeded world (the founder's
@@ -206,5 +207,62 @@ describe('Ask Etyme says what the dashboard says', () => {
     expect(yes.status, JSON.stringify(yes.body)).toBe(200)
     const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { paid: true, total: true } })
     expect(Number(after.paid)).toBeGreaterThan(Number(before.paid))
+  })
+})
+
+/**
+ * The setup checklist's one line in the greeting (2026-10-28): said to the
+ * Owner or Admin while something is owed, to nobody else, and never in the
+ * number on the mark.
+ */
+describe('the setup line in the Ask Etyme greeting', () => {
+  beforeAll(async () => {
+    // Run alone (-t), the world above was never made.
+    if (!(await prisma.company.findUnique({ where: { slug: 'world-nike' } }).catch(() => null))) await freshWorld()
+  }, 240_000)
+  const lineOf = (answer: any) => (answer.more ?? []).filter((l: any) => /^Finish setting up:/.test(l.says))
+  const ownerOf = (slug: string) => prisma.context.findFirstOrThrow({
+    where: { company: { slug }, role: { name: 'Owner' }, revokedAt: null },
+    include: { person: true },
+  })
+  const emailOf = (o: { person: { primaryEmail: string | null } }) => o.person.primaryEmail!
+
+  it('a seeded client’s Owner is reminded only of what the seed does not hold', async () => {
+    const owner = await ownerOf('world-nike')
+    as(emailOf(owner))
+    const g = await json(await greet(req('GET', '/api/conversations/twin', undefined, { 'x-context-id': owner.id })))
+    expect(g.status, JSON.stringify(g.body)).toBe(200)
+    const want = await setupReminderFor(owner.companyId!, { mayRun: true })
+    const lines = lineOf(g.body.data.answer)
+    // The seed leaves at least one item to the Owner, so a line is owed.
+    expect(want, 'the checklist owes the seeded Owner something').not.toBeNull()
+    expect(lines).toHaveLength(1)
+    expect(lines[0].says).toMatch(/^Finish setting up: /)
+    expect(lines[0].says).toBe(`${want!.says} Complete setup.`)
+    expect(lines[0].links).toEqual([{ text: 'Complete setup', href: '/dashboard/settings/setup' }])
+    // What the seed holds is never asked again.
+    expect(lines[0].says).not.toMatch(/your company|addresses|your sites|papers you require|the people in charge|how you work/)
+  })
+
+  it('a seat that cannot run setup never reads the line', async () => {
+    as(`world-nike-ap${D}`)
+    const g = await json(await greet(req('GET', '/api/conversations/twin')))
+    expect(g.status, JSON.stringify(g.body)).toBe(200)
+    expect(JSON.stringify(g.body.data.answer)).not.toContain('Finish setting up')
+  })
+
+  it('the setup line is never counted in the mark', async () => {
+    const owner = await ownerOf('world-nike')
+    as(emailOf(owner))
+    const h = { 'x-context-id': owner.id }
+    const owed = await json(await greet(req('GET', '/api/conversations/twin?only=owed', undefined, h)))
+    const g = await json(await greet(req('GET', '/api/conversations/twin', undefined, h)))
+    expect(owed.status).toBe(200)
+    // The mark is the decisions queue's count; the greeting's cards are that count's rows, and the setup line is neither.
+    const cards = (g.body.data.answer.queue ?? []).filter((c: any) => /setup/i.test(`${c.title} ${c.fact ?? ''}`))
+    expect(cards).toHaveLength(0)
+    expect(g.body.data.answer.says).not.toContain('setting up')
+    expect(g.body.data.answer.recommend?.says ?? '').not.toContain('setting up')
+    expect(typeof owed.body.data.total).toBe('number')
   })
 })

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { respond, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
 import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
@@ -16,7 +16,9 @@ import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat
 import { programQueue } from '@/app/api/program/queue'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
-import { firstActFor, welcomeFor } from './first-act'
+import { firstActFor, welcomeFor, setupLineFor } from './first-act'
+import { setupReminderFor } from '@/lib/setup-checklist-state'
+import { hasPermission } from '@/lib/permissions'
 import { firstActFacts } from './first-act-read'
 
 /**
@@ -366,6 +368,8 @@ export async function GET(request: NextRequest) {
     // A one-person firm is the firm and the worker: her own week is read
     // from her own pages beside the rest, and said in her greeting.
     const ownWeek = ownFactsOf(caller, request).then((f) => (f ? latestWeekLine(f) : null)).catch(() => null)
+    // The setup checklist's one line, read beside the rest.
+    const setupLine = setupLineOf(caller)
     const [notices, threads, modelSwitch, who, week] = await Promise.all([
       seatOf(caller).then((seat) => unreadNotices(caller, { program: seat?.clientCompany.id ?? null })),
       unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller), ownWeek,
@@ -375,9 +379,10 @@ export async function GET(request: NextRequest) {
     const model = modelState(modelSwitch.on, process.env)
     // A new party's one next act, read off its own rows; a read that fails says nothing rather than a guess.
     const firstAct = await firstActFacts(company.id, company.kind, who.party).then(firstActFor).catch(() => null)
+    const setup = await setupLine
     const greeted = await today(readersFor(caller, company.id, request, { seat: await seatOf(caller) }), {
       greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client, ownWeek: week,
-      self: caller.person.name, firstAct,
+      self: caller.person.name, firstAct, setup,
     })
     const answer = await withWelcome(caller, greeted, who.party, await thread)
     // Said, so read: the section empties itself on the next greeting.
@@ -394,6 +399,20 @@ export async function GET(request: NextRequest) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
+}
+
+/**
+ * The setup checklist's one line, for the reader's own company, only where
+ * the reader's own seat may run setup (`settings.manage`: the Owner or
+ * Admin). A seat in another company's program reads that program for the
+ * whole session, and an outside firm never holds the client's settings, so
+ * it reads no setup line there. A read that fails says nothing.
+ */
+async function setupLineOf(caller: Caller): Promise<RichLine | null> {
+  if (!caller.company || asWorker(caller) || (await seatOf(caller))) return null
+  const mayRun = hasPermission(caller.permissions, 'settings.manage')
+  if (!mayRun) return null
+  return setupReminderFor(caller.company.id, { mayRun }).then(setupLineFor).catch(() => null)
 }
 
 /**

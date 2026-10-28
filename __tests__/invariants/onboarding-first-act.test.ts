@@ -10,7 +10,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { today, voiceBreaks, type Readers } from '@/app/api/conversations/twin/ask'
-import { firstActFor, welcomeFor, FIRST_ACT_HREF, NEW_ARRIVAL_DAYS } from '@/app/api/conversations/twin/first-act'
+import { firstActFor, welcomeFor, setupLineFor, FIRST_ACT_HREF, NEW_ARRIVAL_DAYS } from '@/app/api/conversations/twin/first-act'
 import { workerToday, newWorkerAct, type WorkerFacts } from '@/app/api/conversations/twin/worker'
 import { recordedBody, isAccountMail, bellShows, LINK_KEPT, LINK_NOT_KEPT, ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 
@@ -231,5 +231,45 @@ describe('the rescue link where no email can be sent', () => {
     expect(isAccountMail(kept)).toBe(true)
     expect(isAccountMail({ ...kept, type: ACCOUNT_MAIL })).toBe(true)
     expect(JSON.stringify(bellShows())).toContain(LINK_KEPT)
+  })
+})
+
+describe('the setup checklist’s one line in the greeting', () => {
+  const REMINDER = { says: 'Finish setting up: addresses, bank details.', href: '/dashboard/settings/setup', link: 'Complete setup', owed: ['ADDRESSES', 'BANK'] }
+
+  it('an Owner’s greeting carries one setup line naming what is outstanding, and the link', async () => {
+    const setup = setupLineFor(REMINDER)
+    expect(setup).toEqual({
+      says: 'Finish setting up: addresses, bank details. Complete setup.',
+      links: [{ text: 'Complete setup', href: '/dashboard/settings/setup' }],
+    })
+    const greeted = await today(quiet(), { now: NOW, greeting: true, party: 'FIRM', setup, model: 'OFF' })
+    if (greeted.kind !== 'NEEDS') throw new Error('expected a greeting')
+    const said = (greeted.more ?? []).map((l) => l.says)
+    expect(said.filter((s) => s.startsWith('Finish setting up:'))).toHaveLength(1)
+    // After what needs the reader, before the closing line and the boundary.
+    const at = said.indexOf(setup!.says)
+    expect(at).toBeLessThan(said.length - 2)
+    expect(said[said.length - 1]).toMatch(/^Your data stays in your company\./)
+  })
+
+  it('a seat that cannot run setup never reads the line', async () => {
+    // The checklist's own read says null to such a seat, and null draws nothing.
+    expect(setupLineFor(null)).toBeNull()
+    const greeted = await today(quiet(), { now: NOW, greeting: true, party: 'CLIENT', setup: setupLineFor(null) })
+    expect(JSON.stringify(greeted)).not.toContain('Finish setting up')
+    // And a reply that is not the greeting never carries it.
+    const asked = await today(quiet(), { now: NOW, party: 'CLIENT', setup: setupLineFor(REMINDER) })
+    expect(JSON.stringify(asked)).not.toContain('Finish setting up')
+  })
+
+  it('the setup line is never counted in the mark', async () => {
+    const greeted = await today(quiet(), { now: NOW, greeting: true, party: 'CLIENT', needs: async () => 0, setup: setupLineFor(REMINDER) })
+    if (greeted.kind !== 'NEEDS') throw new Error('expected a greeting')
+    // Nothing is a decision: the headline says nothing needs you, and the line is no card and no recommendation.
+    expect(greeted.says).toMatch(/^Nothing needs you today/)
+    expect(greeted.recommend).toBeUndefined()
+    expect(greeted.queue ?? []).toHaveLength(0)
+    expect(greeted.items).toHaveLength(0)
   })
 })

@@ -2096,6 +2096,11 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // ones it passed in here. A hold already drawn as a card is not said
   // again as a notice; the route still marks that notice read, because the
   // card said it.
+  // The setup line (lib/setup-checklist-state): after what needs the
+  // reader and before what was said since, once, outside the six lines so
+  // the cap never drops it, and never in the headline or the mark: setup is
+  // not a decision anybody else waits on.
+  if (opts.greeting && opts.setup) more.push(opts.setup)
   if (opts.greeting && (opts.notices || opts.threads)) {
     const said = heldNoticeTitles(held)
     // Nor is the twin's own question said again as the notice that told
@@ -2154,6 +2159,13 @@ export interface TodayOptions {
    * comes first.
    */
   firstAct?: RichLine | null
+  /**
+   * The setup checklist's one line, "Finish setting up: … Complete setup"
+   * (`setupLineFor` in ./first-act), for an Owner or Admin whose company
+   * still owes an item; null for everybody else. Said in the greeting
+   * only, and never counted.
+   */
+  setup?: RichLine | null
 }
 
 /**
