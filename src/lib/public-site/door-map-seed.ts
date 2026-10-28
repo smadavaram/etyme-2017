@@ -37,6 +37,10 @@ export const FIRM_NAMES = {
   'computer-systems': 'Computer Systems Inc',
   nimbus: 'Nimbus Talent',
   halcyon: 'Halcyon Talent',
+  aptiva: 'Aptiva Workforce',
+  'vertex-global': 'Vertex Global',
+  arcadia: 'Arcadia Tech Group',
+  wrenfield: 'Wrenfield Technical',
 } as const
 
 /** The person in each firm's first seat (`FIRMS[].who` in lib/seed-world): its owner. */
@@ -44,6 +48,7 @@ export const FIRST_SEAT = {
   teleworld: 'Sunil Raghavan',
   brightmoor: 'Jenna Okafor',
   techpeple: 'Bhavesh Nair',
+  aptiva: 'Rashida Coleman',
 } as const
 
 /** Brightmoor's seated people the map names (`SUPPLIER_TEAM` in lib/seed-world). */
@@ -56,6 +61,17 @@ export const BRIGHTMOOR_TEAM = {
 
 /** Techpeple's recruiter (`BENCH_FIRM_TEAM` in lib/seed-world). */
 export const TECHPEPLE_RECRUITER = 'Linnea Qadri'
+
+/**
+ * Aptiva Workforce's three people beside its program manager
+ * (`APTIVA_TEAM` in lib/seed-world, 2026-10-28), by the demo desk key the
+ * seed's address carries: `world-aptiva-<desk>@`.
+ */
+export const APTIVA_TEAM = {
+  suppliers: 'Delphine Castellanos',
+  coordinator: 'Tomasz Wierzbicki',
+  ap: 'Hollis Banerjee',
+} as const
 
 /** Teleworld's AP & Payroll clerk (`MIDDLE_FIRM_AP` in lib/seed-world). */
 export const TELEWORLD_PAYROLL = 'Ravi Kalathil'

@@ -729,8 +729,8 @@ describe('Four doors for the parties who are not the client, reached by link and
       // A door with tabs or a map hands the address's query to the view,
       // which reads the tab and the map's seat from it; a door whose map
       // has live figures reads them first, bounded (2026-10-28).
-      const handsQuery = Boolean(p.tabs) || p.slug === 'integrators'
-      const live = p.slug === 'integrators' || p.slug === 'suppliers' ? ` facts={await doorFacts('${p.slug}')}` : ''
+      const handsQuery = Boolean(p.tabs) || p.slug === 'integrators' || p.slug === 'program-offices'
+      const live = p.slug === 'integrators' || p.slug === 'suppliers' || p.slug === 'program-offices' ? ` facts={await doorFacts('${p.slug}')}` : ''
       expect(route).toContain(`<PartyPageView slug="${p.slug}"${handsQuery ? ' params={params}' : ''}${live} />`)
     }
   })

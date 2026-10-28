@@ -6,8 +6,8 @@
  * The founder, 2026-10-27, on the home page's map: "Do it for all parties
  * like those." Drawn the same day, one drawing per door, and "Build it"
  * on 2026-10-28 (CLAUDE.md, "The setup checklist and the four doors' maps
- * are built"). Three doors now; the MSPs' waits for Aptiva's three
- * missing seats to be seeded.
+ * are built"). All four doors: the MSPs' followed once Aptiva's three
+ * missing seats were seeded (lib/seed-world, `APTIVA_TEAM`).
  *
  *   Integrators  Teleworld Solutions, as its two delivery managers (Ingrid
  *                Solberg in Tualatin, Rahul Deshpande in San Jose), HR
@@ -21,6 +21,13 @@
  *                panel plays
  *   Workers      Helena Marsh on the Worker tab, Colleen Byrne on the
  *                Solopreneur tab: one seat each, her own page, no tab row
+ *   MSPs         Aptiva Workforce in Cavanaugh Glassworks' program, as its
+ *                program manager (Rashida Coleman), supplier manager
+ *                (Delphine Castellanos), coordinator (Tomasz Wierzbicki)
+ *                and AP clerk (Hollis Banerjee). The map is the client's
+ *                program read from the seat the client granted; Aptiva's
+ *                own book never appears. An MSP places nobody and pays
+ *                nobody, so the AP clerk checks and Cavanaugh pays
  *
  * Same view as the home page's (`./corvane-map-view`), same place on the
  * page (under the hero, before the panel), same phone shape.
@@ -66,6 +73,30 @@
  *   "Checked just now."                    left off; the live figures say "read
  *                                          when this page opened" in their own line
  *
+ * And on the MSPs' map (Aptiva in Cavanaugh's program):
+ *   Halcyon "cover on file" for every      left off: the program asks for
+ *   supplier, and its 12-day liability     Halcyon's cover to end in 12 days,
+ *   cover in the program's `cover`         but Halcyon's cover is written first
+ *                                          by its Meridian Bank chain (200
+ *                                          days) and the program's write is then
+ *                                          skipped; a map cannot say which won
+ *   "Standing: approved" per supplier      left off: the seed sets no standing
+ *   Felix Brandt "14", Elsa Thornquist     every row's months worked out from the
+ *   and Wendell Price "—"                  person's lines at the client, so Elsa
+ *                                          and Wendell read their own months
+ *   "Samuel Adeyinka's I-9 is asked"       "cannot start without an I-9": the
+ *                                          seed holds no ask, only no I-9
+ *   the receipts' $3,840, $15,360 and      read live: the seed writes one bill per
+ *   $9,520                                 billing period, so how many there are
+ *                                          and what each totals turns on the day
+ *                                          the world was born
+ *   "Ready to pay", "Pay $3,840"           "passes the three-way check": an MSP
+ *                                          pays nobody; Cavanaugh pays
+ *   "Open the demo as the supplier         the demo door has no key for those two
+ *   manager" and "as the coordinator"      roles (lib/demo-desks is the
+ *                                          architect's), so both open Rashida
+ *                                          Coleman's seat and the caption says so
+ *
  * Server only: it reads the seed modules, which reach the database client.
  */
 
@@ -77,21 +108,22 @@ import { RATE_CHANGE_PERSON, RATE_CHANGE_RATES, rateChangeDates } from '@/lib/se
 import { karthikWindow, nurseWeek } from '@/lib/seed-doors'
 import { seedToday } from '@/lib/seed-days'
 import { programMonthlySpend, HOURS_PER_MONTH } from '@/lib/program-spend'
-import { daysFor, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, type Period } from '@/lib/tenure-days'
+import { SECTOR_SUPPLIERS, sectorStart } from '@/lib/seed-sector-suppliers'
 import { format, fromMinor } from '@/lib/money'
 import { possessive } from '@/lib/requisition-approval'
 import type { MapCell, MapStat, MapView, RoleMap } from './corvane-map'
 import type { PersonTarget, SeatTarget } from './flow'
-import type { DoorFacts, FirmLive } from './door-map-facts'
+import type { DoorFacts, FirmLive, LiveProgramReceipt } from './door-map-facts'
 import {
-  FIRM_NAMES, FIRST_SEAT, BRIGHTMOOR_TEAM, TECHPEPLE_RECRUITER, TELEWORLD_PAYROLL, TELEWORLD_STAFF,
+  FIRM_NAMES, FIRST_SEAT, APTIVA_TEAM, BRIGHTMOOR_TEAM, TECHPEPLE_RECRUITER, TELEWORLD_PAYROLL, TELEWORLD_STAFF,
   TELEWORLD_LINES, KARTHIK_LINE, CORVELDT_JOB, MEERA, IFEOMA, ROSA_JOB, MARISOL, BYRNE, BILLS_FROM_BELOW,
   type TeleworldLine,
 } from './door-map-seed'
 
 // ── Which map, on which door and tab ─────────────────────────────────
 
-export type DoorMapKey = 'teleworld' | 'brightmoor' | 'techpeple' | 'helena' | 'byrne'
+export type DoorMapKey = 'teleworld' | 'brightmoor' | 'techpeple' | 'helena' | 'byrne' | 'aptiva'
 
 /** Each map's seats, in tab order. The first is the default unless the door's tab names another. */
 /** The city a delivery manager's project is in: the last part of its unit's name in the seed. */
@@ -118,6 +150,12 @@ export const DOOR_SEATS: Record<DoorMapKey, readonly { key: string; tab: string 
   ],
   helena: [{ key: 'worker', tab: 'Worker' }],
   byrne: [{ key: 'solo', tab: 'Solopreneur' }],
+  aptiva: [
+    { key: 'pm', tab: 'Program manager' },
+    { key: 'suppliers', tab: 'Supplier manager' },
+    { key: 'coordinator', tab: 'Coordinator' },
+    { key: 'ap', tab: 'AP clerk' },
+  ],
 }
 
 /**
@@ -132,6 +170,7 @@ export const DOOR_MAPS: Record<string, { map: DoorMapKey; seat: string }> = {
   '/for/suppliers?tab=bench': { map: 'techpeple', seat: 'recruiter' },
   '/for/contractors': { map: 'helena', seat: 'worker' },
   '/for/contractors?tab=solo': { map: 'byrne', seat: 'solo' },
+  '/for/program-offices': { map: 'aptiva', seat: 'pm' },
 }
 
 /** The seat an address asks for on a map, or the map's default for this tab. */
@@ -731,6 +770,282 @@ export function byrneMap(): RoleMap<string, PersonTarget> {
   }
 }
 
+// ── Aptiva Workforce in Cavanaugh Glassworks' program: the MSPs' door ─
+
+const CAVANAUGH = PROGRAMMES.find((p) => p.client === 'corning')!
+/** Wendell Price's line: Cavanaugh's one forming-line technician, from an industrial supplier. */
+const QUARRYSTONE = SECTOR_SUPPLIERS.find((s) => s.client === CAVANAUGH.client)!
+/** A supplier's name, by its seed slug. */
+const supplierName = (slug: string) =>
+  slug === QUARRYSTONE.slug ? QUARRYSTONE.name : FIRM_NAMES[slug as keyof typeof FIRM_NAMES]
+
+/** One contractor at Cavanaugh as the program reads them: on site, or awarded and not started. */
+interface ProgramLine {
+  person: string
+  job: string
+  supplier: string
+  bill: number
+  /** Weeks filed and waiting for the hiring manager's signature. */
+  awaiting: number
+  /** Days until the first day, for somebody not started; null once on site. */
+  startsIn: number | null
+  papers: 'CLEAR' | 'NO_I9' | 'BGC_EXPIRED' | 'BGC_MISSING'
+}
+
+/** Every line at the client a person has had, for the months they have served there across suppliers. */
+function periodsAt(person: string, today: Date): Period[] {
+  const at = (n: number) => new Date(today.getTime() + n * DAY)
+  const out: Period[] = CAVANAUGH.placements
+    .filter((x) => x.person === person && x.state !== 'DRAFT')
+    .map((x) => ({ startDate: at(-x.startedDaysAgo), endDate: x.state === 'ENDED' ? at(x.endsInDays) : null }))
+  const d = CAVANAUGH.direct
+  if (d && d.person === person) out.push({ startDate: at(-d.startedDaysAgo), endDate: null })
+  if (QUARRYSTONE.person.name === person) out.push({ startDate: sectorStart(QUARRYSTONE), endDate: null })
+  return out
+}
+
+function programLines(): ProgramLine[] {
+  const d = CAVANAUGH.direct!
+  return [
+    ...CAVANAUGH.placements.filter((x) => x.state === 'IN_PROGRESS').map((x): ProgramLine => ({
+      person: x.person, job: x.role, supplier: supplierName(x.via[1]), bill: x.rates[0],
+      awaiting: x.weeks?.awaiting ?? 0, startsIn: null, papers: x.papers,
+    })),
+    // A purchase order and one contractor, no agreement: her one week is signed.
+    { person: d.person, job: d.role, supplier: supplierName(d.supplier), bill: d.rates[0], awaiting: 0, startsIn: null, papers: 'CLEAR' },
+    {
+      person: QUARRYSTONE.person.name, job: QUARRYSTONE.role, supplier: QUARRYSTONE.name, bill: QUARRYSTONE.bill,
+      awaiting: QUARRYSTONE.lastWeekAwaiting ? 1 : 0, startsIn: null, papers: 'CLEAR',
+    },
+    ...CAVANAUGH.placements.filter((x) => x.state === 'DRAFT').map((x): ProgramLine => ({
+      person: x.person, job: x.role, supplier: supplierName(x.via[1]), bill: x.rates[0],
+      awaiting: 0, startsIn: -x.startedDaysAgo, papers: x.papers,
+    })),
+  ]
+}
+
+const PAPER_WORDS: Record<ProgramLine['papers'], string | null> = {
+  CLEAR: null,
+  NO_I9: 'no I-9',
+  BGC_EXPIRED: 'background check expired',
+  BGC_MISSING: 'background check missing',
+}
+
+/** One paper gap, said as a sentence's clause. */
+function gapClause(l: ProgramLine): string {
+  if (l.papers === 'NO_I9') return l.startsIn !== null ? `${l.person} cannot start without an I-9` : `${l.person} has no I-9 on file`
+  if (l.papers === 'BGC_MISSING') return `${possessive(l.person, '’')} background check is missing`
+  return `${possessive(l.person, '’')} background check has expired`
+}
+
+/** "Fab expansion — six automation engineers" → ["fab expansion", "six automation engineers"]. */
+function jobParts(title: string): [string, string] {
+  const [head, rest] = title.split(' — ')
+  return [head.charAt(0).toLowerCase() + head.slice(1), rest ?? '']
+}
+
+function receiptCheck(r: LiveProgramReceipt): MapCell {
+  if (r.state === 'PAID') return { t: `paid, ${money(r.totalMinor)}`, chip: 'ok' }
+  if (r.state === 'PASSES') return { t: `passes the check, ${money(r.totalMinor)}`, chip: 'ok' }
+  return { t: `held, ${money(r.totalMinor)}`, chip: 'att' }
+}
+
+export function aptivaMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
+  const today = seedToday()
+  const as = 'world-aptiva'
+  const aptiva = FIRM_NAMES.aptiva
+  const cavanaugh = clientName(CAVANAUGH.client)
+  const cavanaughs = possessive(cavanaugh, '’')
+  const shortCav = possessive(cavanaugh.split(' ')[0], '’')
+  const pm = FIRST_SEAT.aptiva
+  const open = CAVANAUGH.open
+  const routed = CAVANAUGH.routed
+  const hiring = CAVANAUGH.people.hiring
+  const vp = WORLD_CLIENTS.find((c) => c.slug === CAVANAUGH.client)!.vp!
+  const lines = programLines()
+  const onSite = lines.filter((l) => l.startsIn === null)
+  const starting = lines.filter((l) => l.startsIn !== null)
+  const suppliers = [...new Set(onSite.map((l) => l.supplier))]
+  const waiting = onSite.filter((l) => l.awaiting > 0)
+  const weeksToSign = waiting.reduce((a, l) => a + l.awaiting, 0)
+  const onHold = starting.filter((l) => l.papers !== 'CLEAR')
+  const held = onHold[0]
+  const [routedHead, routedRest] = jobParts(routed.title)
+  const [bandMin, bandMax] = open.band
+  const spend = money(monthOf(onSite.map((l) => l.bill)))
+  const months = (person: string) => monthsOf(daysOnSite(periodsAt(person, today), today))
+  // Rashida Coleman is Aptiva's first seat: the demo door seats her with no desk named, in Cavanaugh's program.
+  const pmDemo = { target: { as, desk: '', seat: pm }, label: `Open the demo as ${pm}` }
+  const openJobs = [open, routed].length
+  const NO_OWN_DOOR = `The demo opens this program as ${pm}.`
+  const round = open.candidates.find((c) => c.round?.state === 'PROPOSED')
+  const roundWith = round?.round?.interviewers.map((i) => i.split(',')[0]) ?? []
+  const missing = onSite.filter((l) => l.papers !== 'CLEAR')
+
+  const signedIn = (who: string, role: string, does: string) =>
+    `Signed in as ${who}, ${role}, ${aptiva}, in ${cavanaughs} program. ${does}`
+
+  const heldLine = held ? `${held.person} cannot start in ${plural(held.startsIn!, 'day')} without an I-9.` : null
+
+  const pmView: MapView<string, SeatTarget> = {
+    key: 'pm', tab: DOOR_SEATS.aptiva[0].tab,
+    signed: signedIn(pm, 'program manager', `Reads the program and nothing of ${shortCav} own business.`),
+    headline: [
+      heldLine,
+      weeksToSign ? `${plural(weeksToSign, 'week')} ${weeksToSign === 1 ? 'waits' : 'wait'} for ${hiring} to sign.` : null,
+      `The ${routedHead} job, ${routedRest}, waits for ${vp}.`,
+    ].filter(Boolean).join(' '),
+    stats: [
+      { label: 'Contractors on site', value: String(onSite.length), sub: plural(suppliers.length, 'supplier') },
+      { label: 'Open jobs', value: String(openJobs), sub: `1 waiting for ${vp}` },
+      { label: 'Weeks to sign', value: String(weeksToSign), sub: hiring, att: weeksToSign > 0 },
+      { label: 'Start on hold', value: String(onHold.length), sub: held ? `${held.person}, an I-9` : 'none', att: onHold.length > 0 },
+      { label: 'Spend this month', value: spend, sub: 'at current rates' },
+    ],
+    columns: [{ t: 'Contractor' }, { t: 'Job' }, { t: 'Supplier' }, { t: 'Rate', right: true }, { t: 'Months here', right: true }, { t: 'Newest week' }],
+    rows: lines.map((l): MapCell[] => [
+      l.startsIn === null ? { t: l.person, strong: true } : { t: l.person, strong: true, sub: `starts in ${plural(l.startsIn, 'day')}` },
+      { t: l.job },
+      { t: l.supplier },
+      { t: perHour(l.bill) },
+      { t: l.startsIn === null ? String(months(l.person)) : '—' },
+      l.startsIn !== null
+        ? { t: l.papers === 'CLEAR' ? 'starting' : `cannot start: ${PAPER_WORDS[l.papers]}`, chip: l.papers === 'CLEAR' ? 'ok' : 'att' }
+        : l.awaiting > 0 ? { t: `waiting for ${firstName(hiring)}`, chip: 'att' } : { t: 'signed', chip: 'ok' },
+    ]),
+    caption: 'Every supplier, every worker, every week of the program, from the seat the client granted. Every read is logged.',
+    demo: pmDemo,
+  }
+
+  const supplierRows: MapCell[][] = suppliers.map((name) => {
+    const own = lines.filter((l) => l.supplier === name)
+    const there = own.filter((l) => l.startsIn === null).length
+    const startingHere = own.filter((l) => l.startsIn !== null).length
+    const ins = open.candidates.filter((c) => supplierName(c.from) === name)
+    const gaps = own.filter((l) => l.papers !== 'CLEAR').map((l) => `${l.person}: ${PAPER_WORDS[l.papers]}`)
+    return [
+      { t: name, strong: true },
+      { t: String(there) },
+      { t: startingHere ? String(startingHere) : '—' },
+      { t: ins.length ? ins.map((c) => `${c.person}, ${perHour(c.rate)}`).join('; ') : '—' },
+      gaps.length ? { t: gaps.join('; '), chip: 'att' } : { t: 'on file', chip: 'ok' },
+    ]
+  })
+  const gapFirm = suppliers.find((n) => lines.some((l) => l.supplier === n && l.papers !== 'CLEAR'))
+  const gapLines = gapFirm ? lines.filter((l) => l.supplier === gapFirm && l.papers !== 'CLEAR') : []
+  const suppliersView: MapView<string, SeatTarget> = {
+    key: 'suppliers', tab: DOOR_SEATS.aptiva[1].tab,
+    signed: signedIn(APTIVA_TEAM.suppliers, 'supplier manager', 'Keeps the list of who may supply, and at what band.'),
+    headline: [
+      gapFirm ? `At ${gapFirm}, ${gapLines.map(gapClause).join(' and ')}.` : null,
+      `${open.candidates.map((c) => `${possessive(supplierName(c.from), '’')} ${c.person}`).join(' and ')} are in for the ${open.title.toLowerCase()} job.`,
+    ].filter(Boolean).join(' '),
+    stats: [
+      { label: 'Suppliers', value: String(suppliers.length), sub: 'with people on site' },
+      { label: 'Candidates in', value: String(open.candidates.length), sub: `${perHour(bandMin)}–${perHour(bandMax)} an hour` },
+      { label: 'Interviews', value: String(open.candidates.filter((c) => c.round).length), sub: round ? `${round.person}, proposed` : 'none' },
+      { label: 'Papers missing', value: String(missing.length), sub: missing.map((l) => `${l.person}, ${PAPER_WORDS[l.papers]}`).join('; ') || 'none', att: missing.length > 0 },
+      { label: 'Starts on hold', value: String(onHold.length), sub: onHold.map((l) => `${l.supplier}, ${l.person}`).join('; ') || 'none', att: onHold.length > 0 },
+    ],
+    columns: [{ t: 'Supplier' }, { t: 'On site', right: true }, { t: 'Starting', right: true }, { t: 'Candidates in' }, { t: 'Papers' }],
+    rows: supplierRows,
+    caption: `A supplier’s own suppliers stay its own to name. The program sees the firm it pays, its people and their papers. ${NO_OWN_DOOR}`,
+    demo: pmDemo,
+  }
+
+  const coordinatorView: MapView<string, SeatTarget> = {
+    key: 'coordinator', tab: DOOR_SEATS.aptiva[2].tab,
+    signed: signedIn(APTIVA_TEAM.coordinator, 'coordinator', 'Sends the jobs, books the interviews and chases the papers.'),
+    headline: [
+      round ? `${possessive(round.person, '’')} interview for the ${open.title.toLowerCase()} job is proposed for ${plural(round.round!.inDays, 'day')} from now, with ${roundWith.join(' and ')}, and not confirmed yet.` : null,
+      heldLine,
+    ].filter(Boolean).join(' '),
+    stats: [
+      { label: 'Jobs sent', value: String(openJobs - 1), sub: `to ${plural(open.to.length, 'supplier')}` },
+      { label: `Waiting for ${vp}`, value: String(openJobs - 1), sub: `${routedHead.charAt(0).toUpperCase()}${routedHead.slice(1)}, ${routed.headcount} people` },
+      { label: 'Interviews to confirm', value: String(open.candidates.filter((c) => c.round?.state === 'PROPOSED').length), sub: round?.person ?? 'none', att: Boolean(round) },
+      { label: 'Start on hold', value: String(onHold.length), sub: held ? `${held.person}, no I-9` : 'none', att: onHold.length > 0 },
+      { label: 'Weeks to sign', value: String(weeksToSign), sub: hiring },
+    ],
+    columns: [{ t: 'Job' }, { t: 'Candidate' }, { t: 'Supplier' }, { t: 'Rate', right: true }, { t: 'Step' }],
+    rows: [
+      ...open.candidates.map((c): MapCell[] => [
+        { t: open.title, strong: true },
+        { t: c.person },
+        { t: supplierName(c.from) },
+        { t: perHour(c.rate) },
+        c.round?.state === 'PROPOSED'
+          ? { t: `interview proposed, in ${plural(c.round.inDays, 'day')}`, chip: 'att' }
+          : { t: c.status === 'SHORTLISTED' ? 'shortlisted' : c.status === 'INTERVIEW' ? 'interviewing' : 'applied', chip: 'ok' },
+      ]),
+      [
+        { t: `${routedHead.charAt(0).toUpperCase()}${routedHead.slice(1)}, ${routedRest}`, strong: true },
+        { t: '—' },
+        { t: '—' },
+        { t: `up to ${perHour(routed.billMax)}` },
+        { t: `waiting for ${vp}`, chip: 'att' },
+      ],
+    ],
+    caption: `A job inside plan goes out on its own; one over plan waits for the person who owns the money. ${NO_OWN_DOOR}`,
+    demo: pmDemo,
+  }
+
+  // Which receipts the seed leaves in the check and which paid, by supplier: what is true whatever the day.
+  const inCheck = [
+    ...CAVANAUGH.placements.filter((x) => x.state === 'IN_PROGRESS' && x.invoice === 'SUBMITTED').map((x) => supplierName(x.via[1])),
+    supplierName(CAVANAUGH.direct!.supplier),
+  ]
+  const paidBy = CAVANAUGH.placements.filter((x) => x.state === 'IN_PROGRESS' && x.invoice === 'PAID').map((x) => supplierName(x.via[1]))
+  const pr = facts.program
+  const r = pr?.receipts ?? null
+  const passes = r?.filter((x) => x.state === 'PASSES') ?? []
+  const paid = r?.filter((x) => x.state === 'PAID') ?? []
+  const heldR = r?.filter((x) => x.state === 'HELD') ?? []
+  const forWhom = (x: LiveProgramReceipt) => x.people.join(' and ')
+  const forClause = (x: LiveProgramReceipt) => (x.people.length ? ` for ${forWhom(x)}` : '')
+  const apHeadline = r
+    ? [
+        passes[0] ? `${possessive(passes[0].from, '’')} invoice${forClause(passes[0])}, ${money(passes[0].totalMinor)}, passes the three-way check.` : null,
+        heldR[0] ? `${possessive(heldR[0].from, '’')} ${money(heldR[0].totalMinor)}${forClause(heldR[0])} is held by the check.` : null,
+        paid[0] ? `${possessive(paid[0].from, '’')} ${money(paid[0].totalMinor)}${forClause(paid[0])} is paid.` : null,
+      ].filter(Boolean).join(' ') || 'No invoice receipt is in the check.'
+    : `${inCheck.join(' and ')} have invoices in the check. ${possessive(paidBy[0], '’')} is paid.`
+  const apRows: MapCell[][] = r
+    ? r.slice(0, 4).map((x): MapCell[] => [
+        { t: x.from, strong: true, sub: x.number },
+        { t: forWhom(x) || '—' },
+        { t: `${x.hoursBilled} h` },
+        { t: x.hoursSigned === null ? '—' : `${x.hoursSigned} h` },
+        { t: x.rateMinor === null ? '—' : perHour(x.rateMinor) },
+        receiptCheck(x),
+      ])
+    : [[{ t: 'Invoice receipts', strong: true }, { t: '—' }, { t: '—' }, { t: '—' }, { t: '—' }, { t: ON_THE_DEMO }]]
+  const apView: MapView<string, SeatTarget> = {
+    key: 'ap', tab: DOOR_SEATS.aptiva[3].tab,
+    signed: signedIn(APTIVA_TEAM.ap, 'AP clerk', `Checks each invoice receipt against the order and the signed week. ${cavanaugh} pays.`),
+    headline: apHeadline,
+    stats: [
+      { label: 'Invoice receipts', value: r ? String(r.length) : '—', sub: r ? READ_LIVE : ON_THE_DEMO },
+      { label: 'Pass the check', value: r ? String(passes.length) : '—', sub: r ? (passes[0] ? `${passes[0].from}, ${money(passes[0].totalMinor)}` : 'none') : ON_THE_DEMO },
+      { label: 'Held by the check', value: r ? String(heldR.length) : '—', sub: r ? (heldR[0] ? `${heldR[0].from}, ${money(heldR[0].totalMinor)}` : 'none') : ON_THE_DEMO, att: heldR.length > 0 },
+      { label: 'Paid', value: r ? String(paid.length) : '—', sub: r ? (paid[0] ? `${paid[0].from}, ${money(paid[0].totalMinor)}` : 'none') : ON_THE_DEMO },
+      { label: 'Spend this month', value: spend, sub: 'at current rates' },
+    ],
+    columns: [{ t: 'Invoice receipt' }, { t: 'Contractor' }, { t: 'Billed', right: true }, { t: 'Signed', right: true }, { t: 'At', right: true }, { t: 'Check' }],
+    rows: apRows,
+    caption: `The order, the signed week and the invoice must agree before ${cavanaugh} pays. Nothing here is a report somebody built.`,
+    demo: { target: { as, desk: 'ap', seat: APTIVA_TEAM.ap }, label: `Open the demo as ${APTIVA_TEAM.ap}` },
+  }
+
+  return {
+    bar: `${aptiva} · a sample MSP · runs ${cavanaughs} program · ${plural(onSite.length, 'contractor')} · ${plural(suppliers.length, 'supplier')} · ${plural(openJobs, 'open job')}`,
+    views: [pmView, suppliersView, coordinatorView, apView],
+    under:
+      `${cavanaughs} program, read from ${possessive(aptiva, '’')} seat in it. Both are demo companies, not customers. ` +
+      `A month here is each bill rate at ${HOURS_PER_MONTH} hours.`,
+  }
+}
+
 // ── One door, one map ────────────────────────────────────────────────
 
 /** The map a door's tab draws, with its seats' addresses and the seat to open. Null for a door with no map yet. */
@@ -746,7 +1061,8 @@ export function doorMap(
       : at.map === 'brightmoor' ? brightmoorMap(facts)
         : at.map === 'techpeple' ? techpepleMap(facts)
           : at.map === 'helena' ? helenaMap()
-            : byrneMap()
+            : at.map === 'aptiva' ? aptivaMap(facts)
+              : byrneMap()
   const hrefs = Object.fromEntries(DOOR_SEATS[at.map].map((s) => [s.key, doorSeatHref(tabHref, s.key, at.seat)]))
   return { key: at.map, map, seat: doorSeatOf(at.map, at.seat, askedSeat), hrefs }
 }

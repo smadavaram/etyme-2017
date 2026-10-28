@@ -4,8 +4,8 @@
  * The founder said "Build it" on 2026-10-28 to the four doors' maps
  * (CLAUDE.md, "The setup checklist and the four doors' maps are built"):
  * each door draws the home page's map in its own party's roles, every
- * name and figure from the seed. Three are built; the MSPs' waits for
- * Aptiva's three missing seats.
+ * name and figure from the seed. All four are built: the MSPs' followed on
+ * the same day, once Aptiva's three missing seats were seeded.
  *
  * So this file does for the doors what `story-panel-map.test.ts` does for
  * the home page: it works each figure out again from the seed's exports,
@@ -29,7 +29,9 @@ import { RATE_CHANGE_PERSON, RATE_CHANGE_RATES, rateChangeDates } from '@/lib/se
 import { karthikWindow, nurseWeek } from '@/lib/seed-doors'
 import { seedToday } from '@/lib/seed-days'
 import { HOURS_PER_MONTH } from '@/lib/program-spend'
-import { daysFor, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { SECTOR_SUPPLIERS, sectorStart } from '@/lib/seed-sector-suppliers'
+import { reservedAddress } from '@/lib/demo-session'
 import { DESKS, DESK_ROLES } from '@/lib/demo-desks'
 import { check, verdict, namedCompanies, priceClaims, gridsWithoutBreakpoint } from '@/lib/positioning'
 import { countWords, MOST_WORDS } from '@/lib/public-site/skeleton-words'
@@ -38,10 +40,13 @@ import { everyDoorView, copyOfPartyPage } from '@/lib/public-site/parties'
 import type { MapView, RoleMap } from '@/lib/public-site/corvane-map'
 import type { FirmTuesday } from '@/lib/money/firm-today'
 import {
-  teleworldMap, brightmoorMap, techpepleMap, helenaMap, byrneMap, doorMap, doorSeatHref, doorSeatOf,
+  teleworldMap, brightmoorMap, techpepleMap, helenaMap, byrneMap, aptivaMap, doorMap, doorSeatHref, doorSeatOf,
   copyOfDoorMap, defaultCopyOfDoorMap, DOOR_MAPS, DOOR_SEATS, ON_THE_DEMO, READ_LIVE,
 } from '@/lib/public-site/door-maps'
-import { doorFacts, firmLive, mayReadLive, NO_FACTS, LIVE_READS, FACTS_WAIT_MS, type DoorFacts, type FactsReader, type CompanySeen } from '@/lib/public-site/door-map-facts'
+import {
+  doorFacts, firmLive, programLive, mayReadLive, NO_FACTS, LIVE_READS, PROGRAM_READS, SEEDED_SLUGS, FACTS_WAIT_MS,
+  type DoorFacts, type FactsReader, type CompanySeen, type ProgramInvoice,
+} from '@/lib/public-site/door-map-facts'
 import * as SEED from '@/lib/public-site/door-map-seed'
 
 const ROOT = process.cwd()
@@ -126,6 +131,25 @@ const FULL_TELEWORLD: DoorFacts = {
   receipt: { number: SEED.BILLS_FROM_BELOW.nimbus.number, from: 'Nimbus Talent', totalMinor: 464_000, dueInDays: 25 },
 }
 
+/** One hours line of a receipt, as the three-way check returns it. */
+const line = (person: string, billed: number, signed: number | null, rate: number) => ({
+  lineId: person, kind: 'HOURS' as const, personId: null, personName: person, jobTitle: null, requirementId: null,
+  periodStart: null, periodEnd: null, hoursBilled: billed, hoursSigned: signed, rateCents: rate, contractRateCents: rate,
+  amountCents: billed * rate,
+})
+const receiptOf = (o: { number: string; status: string; supplier: string; lines: ReturnType<typeof line>[]; matched?: boolean; currency?: string }): ProgramInvoice => ({
+  number: o.number, status: o.status, currency: o.currency ?? 'USD', supplier: o.supplier,
+  totalCents: o.lines.reduce((a, l) => a + l.amountCents, 0),
+  match: { matched: o.matched ?? true, summary: o.matched === false ? 'Bills 41.5 h; 40 h were signed' : 'Matches', voidedWaiver: null, lines: o.lines },
+})
+/** Cavanaugh's receipts as the drawing had them: Wrenfield in the check, Vertex in the check, Halcyon paid. */
+const PROGRAM_INVOICES: ProgramInvoice[] = [
+  receiptOf({ number: 'IN-W-1', status: 'SUBMITTED', supplier: 'Wrenfield Technical', lines: [line('Elsa Thornquist', 40, 40, 9_600)] }),
+  receiptOf({ number: 'IN-V-1', status: 'SUBMITTED', supplier: 'Vertex Global', lines: [line('Tomasz Nowak', 40, 40, 12_800), line('Tomasz Nowak', 40, 40, 12_800), line('Tomasz Nowak', 40, 40, 12_800)] }),
+  receiptOf({ number: 'IN-H-1', status: 'PAID', supplier: 'Halcyon Talent', lines: [line('Aisha Bello', 40, 40, 11_900), line('Aisha Bello', 40, 40, 11_900)] }),
+]
+const FULL_PROGRAM: DoorFacts = { ...NO_FACTS, program: programLive(PROGRAM_INVOICES) }
+
 // ── The seed's values the maps copy, read back out of the seed ────────
 
 describe('Every value a door map copies from the seed is the value the seed file writes', () => {
@@ -195,6 +219,23 @@ describe('Every value a door map copies from the seed is the value the seed file
     expect([...b.weeksBack]).toEqual([4, 3, 2, 1])
   })
 
+  it('Aptiva Workforce’s four people are the seed’s: Rashida Coleman in its first seat, Delphine Castellanos its supplier manager, Tomasz Wierzbicki its coordinator and Hollis Banerjee its AP clerk, every one at a reserved address', () => {
+    expect(SEED.FIRST_SEAT.aptiva).toBe('Rashida Coleman')
+    const team = WORLD.slice(WORLD.indexOf('const APTIVA_TEAM'), WORLD.indexOf('// ── A program office in a seat'))
+    const roles = { suppliers: 'Supplier Manager', coordinator: 'Coordinator', ap: 'AP Clerk' }
+    for (const [desk, name] of Object.entries(SEED.APTIVA_TEAM)) {
+      expect(team, desk).toMatch(new RegExp(`desk: '${desk}',\\s+role: '${roles[desk as keyof typeof roles]}',\\s+name: '${esc(name)}'`))
+    }
+    expect((team.match(/desk: '/g) ?? []).length, 'the map reads every Aptiva seat the seed writes').toBe(Object.keys(SEED.APTIVA_TEAM).length)
+    // Every seat the seed writes at Aptiva and at Cavanaugh is at the demo's own domain, which nobody can register.
+    expect(WORLD).toContain("const DOMAIN = 'demo.etyme.local'")
+    expect(WORLD).toContain('const email = `${PREFIX}aptiva-${d.desk}@${DOMAIN}`')
+    for (const desk of [...Object.keys(SEED.APTIVA_TEAM), 'programme', 'hiring', 'ap']) {
+      expect(reservedAddress(`world-aptiva-${desk}@demo.etyme.local`)).toBe(true)
+      expect(reservedAddress(`world-corning-${desk}@demo.etyme.local`)).toBe(true)
+    }
+  })
+
   it('no figure or name is typed into the door maps’ code: the seed’s values sit in door-map-seed, and door-maps holds none', () => {
     const code = read('src/lib/public-site/door-maps.ts').replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '')
     const page = read('src/lib/public-site/party-page.tsx')
@@ -203,6 +244,8 @@ describe('Every value a door map copies from the seed is the value the seed file
       'Felix', 'Amara', 'Deepa', 'Karthik', 'Rosa', 'Omar', 'Helena Marsh', 'Colleen', 'Marisol', 'Ifeoma', 'Meera',
       'Jenna', 'Marisa', 'Imelda', 'Desmond', 'Bhavesh', 'Linnea', 'Ingrid', 'Rahul', 'Farah', 'Ravi',
       'Tualatin', 'San Jose', 'Corveldt', 'Northbend', 'Nimbus', 'Brightmoor Staffing', 'Computer Systems', 'Halcyon', 'Wisconsin',
+      'Aptiva', 'Cavanaugh', 'Rashida', 'Delphine', 'Wierzbicki', 'Hollis', 'Samuel', 'Derek', 'Ashby', 'Yuki', 'Priyanka',
+      'Vertex', 'Arcadia', 'Wrenfield', 'Quarrystone', 'Elsa', 'Wendell', '84,000', '$128', 'world-corning',
     ]) {
       expect(code.includes(figure), `${figure} is typed into door-maps.ts`).toBe(false)
       expect(page.includes(figure), `${figure} is typed into party-page.tsx`).toBe(false)
@@ -346,6 +389,119 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Techpe
   })
 })
 
+// ── Aptiva Workforce in Cavanaugh Glassworks' program: the MSPs' door ─
+
+describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat it granted Aptiva Workforce, as Aptiva’s four roles', () => {
+  const M = aptivaMap(NO_FACTS)
+  const CAV = PROGRAMMES.find((p) => p.client === 'corning')!
+  const QUARRY = SECTOR_SUPPLIERS.find((x) => x.client === 'corning')!
+  const running = CAV.placements.filter((x) => x.state === 'IN_PROGRESS')
+  const samuel = CAV.placements.find((x) => x.state === 'DRAFT')!
+
+  it('the bar counts 5 contractors from 5 suppliers and 2 open jobs: three running lines, Elsa Thornquist on a purchase order from Wrenfield Technical, and Wendell Price from Quarrystone', () => {
+    expect(running.map((x) => x.person)).toEqual(['Tomasz Nowak', 'Aisha Bello', 'Felix Brandt'])
+    expect(CAV.direct!.person).toBe('Elsa Thornquist')
+    expect(QUARRY.person.name).toBe('Wendell Price')
+    expect(M.bar).toBe('Aptiva Workforce · a sample MSP · runs Cavanaugh Glassworks’ program · 5 contractors · 5 suppliers · 2 open jobs')
+  })
+
+  it('the four tabs are Aptiva’s program manager, supplier manager, coordinator and AP clerk, each the person the seed seats there, each in Cavanaugh’s program', () => {
+    expect(M.views.map((v) => v.tab)).toEqual(['Program manager', 'Supplier manager', 'Coordinator', 'AP clerk'])
+    expect(view(M, 'pm').signed).toMatch(/^Signed in as Rashida Coleman, program manager, Aptiva Workforce, in Cavanaugh Glassworks’ program\./)
+    expect(view(M, 'suppliers').signed).toMatch(/^Signed in as Delphine Castellanos, supplier manager, Aptiva Workforce,/)
+    expect(view(M, 'coordinator').signed).toMatch(/^Signed in as Tomasz Wierzbicki, coordinator, Aptiva Workforce,/)
+    expect(view(M, 'ap').signed).toMatch(/^Signed in as Hollis Banerjee, AP clerk, Aptiva Workforce,/)
+  })
+
+  it('the program manager reads Samuel Adeyinka unable to start in 10 days without an I-9, 2 weeks waiting for Derek Halvorsen, and the fab expansion waiting for Robert Ashby', () => {
+    expect([samuel.person, samuel.startedDaysAgo, samuel.papers]).toEqual(['Samuel Adeyinka', -10, 'NO_I9'])
+    expect(running.reduce((a, x) => a + (x.weeks?.awaiting ?? 0), 0)).toBe(2)
+    expect(QUARRY.lastWeekAwaiting).toBe(false)
+    expect(WORLD_CLIENTS.find((c) => c.slug === 'corning')!.vp).toBe('Robert Ashby')
+    expect(view(M, 'pm').headline).toBe(
+      'Samuel Adeyinka cannot start in 10 days without an I-9. 2 weeks wait for Derek Halvorsen to sign. ' +
+      'The fab expansion job, six automation engineers, waits for Robert Ashby.',
+    )
+  })
+
+  it('spend this month is $84,000: the five bill rates on site, $128, $119, $104, $96 and $78, at 160 hours', () => {
+    const rates = [...running.map((x) => x.rates[0]), CAV.direct!.rates[0], QUARRY.bill]
+    expect(rates).toEqual([12_800, 11_900, 10_400, 9_600, 7_800])
+    expect(rates.reduce((a, b) => a + b, 0) * HOURS_PER_MONTH).toBe(8_400_000)
+    expect(stat(view(M, 'pm'), 'Spend this month').value).toBe('$84,000')
+    expect(stat(view(M, 'ap'), 'Spend this month').value).toBe('$84,000')
+  })
+
+  it('Felix Brandt reads 14 months here, his Halcyon Talent line and his Arcadia line added up once per day, and every other row its own months the same way', () => {
+    const today = seedToday()
+    const at = (n: number) => new Date(today.getTime() + n * 86_400_000)
+    const felix = CAV.placements.filter((x) => x.person === 'Felix Brandt')
+    expect(felix.map((x) => x.via[1])).toEqual(['arcadia', 'halcyon'])
+    const felixDays = daysOnSite(felix.map((x) => ({ startDate: at(-x.startedDaysAgo), endDate: x.state === 'ENDED' ? at(x.endsInDays) : null })), today)
+    expect(monthsOf(felixDays)).toBe(14)
+    const months = Object.fromEntries(view(M, 'pm').rows.map((r) => [r[0].t, r[4].t]))
+    expect(months).toEqual({
+      'Tomasz Nowak': String(monthsOf(121)),
+      'Aisha Bello': String(monthsOf(61)),
+      'Felix Brandt': '14',
+      'Elsa Thornquist': String(monthsOf(CAV.direct!.startedDaysAgo + 1)),
+      'Wendell Price': String(monthsOf(daysOnSite([{ startDate: sectorStart(QUARRY), endDate: null }], today))),
+      'Samuel Adeyinka': '—',
+    })
+  })
+
+  it('the supplier manager reads Halcyon Talent with Aisha Bello’s background check missing and Samuel Adeyinka unable to start, and Yuki Tanaka at $106 and Priyanka Rao at $99 in for the EHS lead job', () => {
+    const v = view(M, 'suppliers')
+    expect(CAV.placements.find((x) => x.person === 'Aisha Bello')!.papers).toBe('BGC_MISSING')
+    expect(v.headline).toBe(
+      'At Halcyon Talent, Aisha Bello’s background check is missing and Samuel Adeyinka cannot start without an I-9. ' +
+      'Arcadia Tech Group’s Yuki Tanaka and Vertex Global’s Priyanka Rao are in for the environmental health and safety lead job.',
+    )
+    expect(v.rows.map((r) => r[0].t)).toEqual(['Vertex Global', 'Halcyon Talent', 'Arcadia Tech Group', 'Wrenfield Technical', 'Quarrystone Industrial Staffing'])
+    expect(cells(v)).toEqual(expect.arrayContaining(['Yuki Tanaka, $106', 'Priyanka Rao, $99', 'Aisha Bello: background check missing; Samuel Adeyinka: no I-9']))
+    expect(stat(v, 'Candidates in').sub).toBe('$90–$110 an hour')
+  })
+
+  it('no supplier’s liability cover is drawn, because Halcyon Talent’s is written first by its own Meridian Bank chain and the program’s twelve days never land', () => {
+    expect(CAV.cover.halcyon.gl).toBe(12)
+    expect(WORLD).toMatch(/via: \['meridian-bank', 'halcyon'\]/)
+    for (const w of copyOfDoorMap(M)) expect(w, w).not.toMatch(/\bcover\b|\binsur/i)
+  })
+
+  it('the coordinator reads Yuki Tanaka’s interview proposed in 5 days with Derek Halvorsen and not confirmed, and the fab expansion’s six automation engineers up to $115', () => {
+    const v = view(M, 'coordinator')
+    expect(CAV.open.candidates[0].round).toMatchObject({ state: 'PROPOSED', inDays: 5 })
+    expect(v.headline).toContain('Yuki Tanaka’s interview for the environmental health and safety lead job is proposed for 5 days from now, with Derek Halvorsen, and not confirmed yet.')
+    expect(stat(v, 'Waiting for Robert Ashby').sub).toBe('Fab expansion, 6 people')
+    expect(cells(v)).toEqual(expect.arrayContaining(['up to $115', 'interview proposed, in 5 days', 'applied']))
+  })
+
+  it('an MSP places nobody and pays nobody: the AP clerk checks each receipt and Cavanaugh Glassworks pays, and no map word says Aptiva pays or places', () => {
+    expect(view(M, 'ap').signed).toContain('Checks each invoice receipt against the order and the signed week. Cavanaugh Glassworks pays.')
+    for (const w of copyOfDoorMap(aptivaMap(FULL_PROGRAM))) {
+      expect(w, w).not.toMatch(/\b(?:Aptiva|you)\b[^.]*\b(?:pays?|places?|paid)\b/i)
+      expect(w, w).not.toMatch(/\bPay \$/)
+    }
+  })
+
+  it('with no live read, the AP clerk reads which suppliers’ invoices the seed leaves in the check and which it paid, and every count says it is on the demo', () => {
+    const v = view(M, 'ap')
+    expect(v.headline).toBe('Vertex Global and Wrenfield Technical have invoices in the check. Halcyon Talent’s is paid.')
+    for (const label of ['Invoice receipts', 'Pass the check', 'Held by the check', 'Paid']) expect(stat(v, label).sub).toBe(ON_THE_DEMO)
+    expect(v.rows).toHaveLength(1)
+  })
+
+  it('with a live read, the AP clerk reads each receipt’s supplier, contractor, hours billed and signed, rate, and what the check says, from the record', () => {
+    const v = view(aptivaMap(FULL_PROGRAM), 'ap')
+    expect(v.headline).toBe('Wrenfield Technical’s invoice for Elsa Thornquist, $3,840, passes the three-way check. Halcyon Talent’s $9,520 for Aisha Bello is paid.')
+    expect(v.rows[0].map((c) => c.t)).toEqual(['Wrenfield Technical', 'Elsa Thornquist', '40 h', '40 h', '$96', 'passes the check, $3,840'])
+    expect(v.rows[1].map((c) => c.t)).toEqual(['Vertex Global', 'Tomasz Nowak', '120 h', '120 h', '$128', 'passes the check, $15,360'])
+    expect(v.rows[0][0].sub).toBe('IN-W-1')
+    expect(stat(v, 'Pass the check').value).toBe('2')
+    expect(stat(v, 'Invoice receipts').sub).toBe(READ_LIVE)
+  })
+})
+
 // ── The workers' door ─────────────────────────────────────────────────
 
 describe('The workers’ map is one person’s own page per tab', () => {
@@ -448,6 +604,51 @@ describe('The live figures are read, bounded, and never guessed', () => {
     expect(f.firm).toBeNull()
   })
 
+  it('a program’s receipt reads paid when it is paid, passes when the payment route’s own gate would let it be paid, and held, with the check’s sentence, when it would not', () => {
+    const p = programLive([
+      ...PROGRAM_INVOICES,
+      receiptOf({ number: 'IN-V-2', status: 'SUBMITTED', supplier: 'Vertex Global', matched: false, lines: [line('Tomasz Nowak', 41.5, 40, 12_800)] }),
+      receiptOf({ number: 'IN-X-1', status: 'HELD', supplier: 'Arcadia Tech Group', lines: [line('Felix Brandt', 40, 40, 10_400)] }),
+    ])
+    expect(p.receipts.map((r) => [r.number, r.state])).toEqual([['IN-W-1', 'PASSES'], ['IN-V-1', 'PASSES'], ['IN-H-1', 'PAID'], ['IN-V-2', 'HELD'], ['IN-X-1', 'HELD']])
+    expect(p.receipts[3].why).toContain('Bills 41.5 h; 40 h were signed')
+    expect(p.receipts[4].why).toContain('is on hold')
+    expect(p.receipts[3].hoursSigned).toBe(40)
+  })
+
+  it('a receipt in another currency, with a line nobody signed, or at two rates, is never summed or priced as one dollar figure', () => {
+    const p = programLive([
+      receiptOf({ number: 'GBP-1', status: 'SUBMITTED', supplier: 'Vertex Global', currency: 'GBP', lines: [line('X', 40, 40, 100)] }),
+      receiptOf({ number: 'IN-2', status: 'SUBMITTED', supplier: 'Vertex Global', lines: [line('X', 40, null, 100), line('Y', 40, 40, 200)] }),
+    ])
+    expect(p.receipts.map((r) => r.number)).toEqual(['IN-2'])
+    expect(p.receipts[0].hoursSigned).toBeNull()
+    expect(p.receipts[0].rateMinor).toBeNull()
+  })
+
+  it('the MSPs’ door reads only Cavanaugh Glassworks’ program, by its demo slug, and only where it is the seed’s; anything slower, broken or real reads as on the demo', async () => {
+    expect(PROGRAM_READS['program-offices'].client).toBe('world-corning')
+    expect(SEEDED_SLUGS).toContain('world-corning')
+    expect(SEEDED_SLUGS).not.toContain('world-aptiva')
+    const asked: string[] = []
+    const reader: FactsReader = {
+      company: async (slug) => { asked.push(slug); return seededAs(slug) },
+      firm: async () => null,
+      receipt: async () => null,
+      program: async (id) => { asked.push(id); return PROGRAM_INVOICES },
+    }
+    const f = await doorFacts('program-offices', reader, 500)
+    expect(asked).toEqual(['world-corning', 'id-world-corning'])
+    expect(f.program!.receipts).toHaveLength(3)
+    expect(f.firm).toBeNull()
+    const real: FactsReader = { ...reader, company: async (slug) => seededAs(slug, { seatEmails: ['ap@cavanaugh-glass.com'] }), program: async () => { throw new Error('read a real firm') } }
+    expect(await doorFacts('program-offices', real, 500)).toEqual(NO_FACTS)
+    const slow: FactsReader = { ...reader, program: () => new Promise(() => {}) }
+    expect(await doorFacts('program-offices', slow, 20)).toEqual(NO_FACTS)
+    const broken: FactsReader = { ...reader, program: () => Promise.reject(new Error('down')) }
+    expect(await doorFacts('program-offices', broken, 200)).toEqual(NO_FACTS)
+  })
+
   it('a door’s map never reads a firm that is not the seed’s', async () => {
     // The seed's own firm passes: its slug, no registrable domain, every seat reserved.
     expect(mayReadLive(seededAs('world-brightmoor'), 'world-brightmoor')).toBe(true)
@@ -478,7 +679,7 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
   const draw = (slug: 'integrators' | 'suppliers' | 'contractors' | 'program-offices', q: { tab?: string; seat?: string } = {}) =>
     renderToStaticMarkup(createElement(PartyPageView, { slug, params: { searchParams: q } }))
 
-  it('the integrators’ door draws Teleworld, the suppliers’ door Brightmoor on Prime vendor and Techpeple on Sub-vendor and Bench vendor, the workers’ door one person per tab, and the MSPs’ door none yet', () => {
+  it('the integrators’ door draws Teleworld, the suppliers’ door Brightmoor on Prime vendor and Techpeple on Sub-vendor and Bench vendor, the workers’ door one person per tab, and the MSPs’ door Aptiva in Cavanaugh’s program', () => {
     expect(Object.fromEntries(Object.entries(DOOR_MAPS).map(([k, v]) => [k, v.map]))).toEqual({
       '/for/integrators': 'teleworld',
       '/for/suppliers': 'brightmoor',
@@ -486,13 +687,16 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
       '/for/suppliers?tab=bench': 'techpeple',
       '/for/contractors': 'helena',
       '/for/contractors?tab=solo': 'byrne',
+      '/for/program-offices': 'aptiva',
     })
     expect(draw('integrators')).toContain(teleworldMap(NO_FACTS).bar)
     expect(draw('suppliers')).toContain(brightmoorMap(NO_FACTS).bar.replace(/&/g, '&amp;'))
     expect(draw('suppliers', { tab: 'sub' })).toContain(techpepleMap(NO_FACTS).bar)
     expect(draw('contractors', { tab: 'solo' })).toContain(byrneMap().bar)
-    expect(draw('program-offices')).not.toContain('data-corvane-map')
-    expect(doorMap('/for/program-offices', NO_FACTS)).toBeNull()
+    expect(draw('program-offices')).toContain(aptivaMap(NO_FACTS).bar)
+    expect(draw('program-offices', { seat: 'ap' })).toMatch(/data-map-seat="ap" class=/)
+    expect(doorSeatHref('/for/program-offices', 'coordinator', 'pm')).toBe('/for/program-offices?seat=coordinator')
+    expect(doorMap('/for/nowhere', NO_FACTS)).toBeNull()
   })
 
   it('the map sits after the headline and before the panel, where the home page draws its own', () => {
@@ -544,6 +748,18 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
         }
       }
     }
+    // Aptiva: the program manager is its first seat, opened with no desk named, and the AP clerk its AP desk.
+    // The demo door has no key for a supplier manager or a coordinator, so those two tabs open the
+    // program manager's seat, and the caption under each says so.
+    const ap = aptivaMap(NO_FACTS)
+    expect(view(ap, 'pm').demo.target).toEqual({ as: 'world-aptiva', desk: '', seat: 'Rashida Coleman' })
+    expect(view(ap, 'ap').demo.target).toEqual({ as: 'world-aptiva', desk: 'ap', seat: 'Hollis Banerjee' })
+    expect(DESK_ROLES.ap).toContain('AP Clerk')
+    for (const k of ['suppliers', 'coordinator']) {
+      expect(view(ap, k).demo).toEqual(view(ap, 'pm').demo)
+      expect(view(ap, k).caption).toMatch(/The demo opens this program as Rashida Coleman\.$/)
+      for (const role of ['Supplier Manager', 'Coordinator']) expect(Object.values(DESK_ROLES).flat()).not.toContain(role)
+    }
     // The two delivery managers share a desk, so each link names its person.
     const tw = teleworldMap(NO_FACTS)
     expect((view(tw, 'tualatin').demo.target as { who: string }).who).toBe(MOVE_DESKS.portland.name)
@@ -562,6 +778,7 @@ const EVERY_MAP: [string, RoleMap, string][] = [
   ['/for/suppliers?tab=bench', techpepleMap(FULL_BRIGHTMOOR), 'recruiter'],
   ['/for/contractors', helenaMap(), 'worker'],
   ['/for/contractors?tab=solo', byrneMap(), 'solo'],
+  ['/for/program-offices', aptivaMap(FULL_PROGRAM), 'pm'],
 ]
 
 describe('The maps say what a door may say', () => {
@@ -608,6 +825,7 @@ describe('The maps say what a door may say', () => {
       '/for/suppliers?tab=bench': 190,
       '/for/contractors': 165,
       '/for/contractors?tab=solo': 187,
+      '/for/program-offices': 240,
     }
     for (const [href, m, seat] of EVERY_MAP) {
       const n = countWords(defaultCopyOfDoorMap(m, seat))
