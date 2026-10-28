@@ -1652,7 +1652,9 @@ buyer's word in manufacturing and is not a screen word.
   sentence: **a hiring manager's ticks send the job**, narrowed only,
   though that role never chose who sees a job before, because whoever
   named the site's suppliers under Settings → Sites already made the
-  choice; and **a job raised with no ticks or no site** (imports, older
+  choice (**confirmed by the founder, 2026-10-28: "Keep it"**; this
+  qualifies station 2 of Phase 1, "a hiring manager cannot": the
+  manager may remove names from the site's list and never add one); and **a job raised with no ticks or no site** (imports, older
   callers, the simulation) goes where it went before. Known gap:
   unticking every supplier saves an empty list, which reads as the
   site's default. Still on the free-text `location`: the matching
