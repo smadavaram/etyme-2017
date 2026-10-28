@@ -12,6 +12,7 @@ import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
 import { GET as complianceView } from '@/app/api/compliance/route'
 import { GET as openFile } from '@/app/api/documents/[id]/file/route'
+import { newChecklist, type Decision } from '@/lib/supplier-onboarding'
 
 /**
  * Northbend Athletic's hiring manager met a firm at a conference. It walks four desks
@@ -317,6 +318,9 @@ describe('a supplier walks four desks', () => {
     expect(w9.body.data.request.checklist.find((i: any) => i.key === 'TAX_FORM')).toMatchObject({ state: 'HELD', edition: 'Rev. March 2024' })
     const bank = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'BANK', state: 'HELD' })
     expect(bank.status, JSON.stringify(bank.body)).toBe(200)
+    // Harbor Staffing is not on Etyme yet, so it has no payment details to mark checked.
+    expect(bank.body.data.says).toContain('Harbor Staffing has no payment details on Etyme yet, so no bank is marked checked.')
+    expect(bank.body.data.says).toContain('Finance is waiting for Harbor Staffing to add its bank')
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'Bank details match the W-9 legal name.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toContain('is a supplier now')
@@ -353,6 +357,65 @@ describe('a supplier walks four desks', () => {
     expect(page.body.data.decided).toBe(true)
     expect(page.body.data.claim.says).toBe('Northbend Athletic approved Harbor Staffing as a supplier. Take your account:')
     expect(page.body.data.claim.url).toBe(it_.claim.url)
+  })
+})
+
+/**
+ * The walk's bank item, held by the client's Finance, is a check of the
+ * supplier's own payment details: it goes on them, with who checked and
+ * for which client, so the payment gate (`mayPayFirm`) reads it.
+ */
+describe('Finance’s check of the bank goes on the supplier’s payment details', () => {
+  /** A firm already on Etyme, with its own payment details, walked to Finance at Northbend. */
+  const atFinance = async (name: string, last4: string) => {
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const people = await prisma.person.findMany({ where: { primaryEmail: { in: [HIRING, LEAD, PROCUREMENT, HR] } }, select: { id: true, primaryEmail: true, name: true } })
+    const by = (e: string) => people.find((p) => p.primaryEmail === e)!
+    const firm = await prisma.company.create({ data: { name, slug: `${name.toLowerCase().replace(/\W+/g, '-')}-${Date.now()}`, kind: 'VENDOR', currency: 'USD', isDemo: true } as any, select: { id: true } })
+    const remit = await prisma.remitTo.create({ data: { companyId: firm.id, legalName: `${name} LLC`, addressLines: ['1 Main St'], country: 'US', bankName: 'Chase', accountLast4: last4, isDefault: true }, select: { id: true } })
+    const at = new Date().toISOString()
+    const decisions: Decision[] = (['LEAD', 'PROCUREMENT', 'HR'] as const).map((stage, i) => {
+      const p = by([LEAD, PROCUREMENT, HR][i])
+      return { stage, outcome: 'APPROVED', byId: p.id, byName: p.name, at, note: null }
+    })
+    const checklist = newChecklist().map((i) =>
+      i.desk === 'FINANCE' ? { ...i, state: 'PROVIDED' as const, fileName: i.key === 'BANK' ? `Chase ····${last4}` : 'w9.pdf' } : { ...i, state: 'HELD' as const, at }
+    )
+    const row = await prisma.supplierRequest.create({
+      data: {
+        companyId: client.id, name, reason: 'Already supplies us elsewhere.', recommendedById: by(HIRING).id, state: 'IN_REVIEW', stage: 'FINANCE',
+        decisions: decisions as unknown as object, checklist: checklist as unknown as object, token: `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`, firmCompanyId: firm.id,
+      },
+      select: { id: true },
+    })
+    return { id: row.id, clientId: client.id, remitId: remit.id }
+  }
+
+  it('Finance holding the bank item records who checked the supplier’s bank, and for which client', async () => {
+    const w = await atFinance('Lakeside Talent', '4471')
+    as(AP)
+    const r = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'mark', key: 'BANK', state: 'HELD' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.says).toContain("Lakeside Talent's bank, Chase ····4471, is recorded as checked by you, for Northbend Athletic.")
+    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: AP }, select: { id: true } })
+    const remit = await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })
+    expect(remit.verifiedAt).not.toBeNull()
+    expect(remit.verifiedById).toBe(ap.id)
+    expect(remit.verifiedByCompanyId).toBe(w.clientId)
+    // Unmarked, the check this client wrote is taken back.
+    const undo = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'mark', key: 'BANK', state: 'MISSING' })
+    expect(undo.status, JSON.stringify(undo.body)).toBe(200)
+    expect((await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })).verifiedAt).toBeNull()
+  })
+
+  it('a waived bank item checks nothing', async () => {
+    const w = await atFinance('Ridgeway Staffing', '0092')
+    as(AP)
+    const r = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'mark', key: 'BANK', state: 'WAIVED', note: 'Paid by check this quarter.' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.says).toContain("A waived bank item checks nothing: Ridgeway Staffing's payment details stay unchecked.")
+    const remit = await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })
+    expect(remit).toMatchObject({ verifiedAt: null, verifiedById: null, verifiedByCompanyId: null })
   })
 })
 

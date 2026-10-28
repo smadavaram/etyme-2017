@@ -11,7 +11,7 @@ import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf } from
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
 import {
-  mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, signedOnFile, STAGE_WORD,
+  mayActAt, markItem, bankCheckOnMark, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, signedOnFile, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
@@ -236,7 +236,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    const updated = await prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } })
+    // ── Finance's check of the bank is the supplier's to be paid on ────
+    //
+    // The walk's bank item held is a check of the supplier's own payment
+    // details, so it goes on them, with who checked and for which client,
+    // in the same write as the mark (`mayPayFirm` in lib/setup-gates reads
+    // it). A waiver checks nothing; an unmark takes this client's check back.
+    let bank: ReturnType<typeof bankCheckOnMark> | null = null
+    const firmId = row.supplierCompanyId ?? row.firmCompanyId ?? null
+    if (key === 'BANK') {
+      const remits = firmId && state !== 'WAIVED'
+        ? await prisma.remitTo.findMany({
+            where: { companyId: firmId },
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+            select: { id: true, bankName: true, accountLast4: true },
+          })
+        : []
+      bank = bankCheckOnMark({ state, firm: row.name, client: desk!.companyName, remits, sent: markedItem.fileName ?? null })
+      if (bank.says) recorded = recorded ? { ...recorded, says: `${recorded.says} ${bank.says}` } : { written: 0, onRecord: !!bank.remitToId, says: bank.says }
+    }
+    const [updated] = await prisma.$transaction([
+      prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } }),
+      ...(bank?.remitToId
+        ? [prisma.remitTo.update({ where: { id: bank.remitToId }, data: { verifiedAt: now, verifiedById: caller.person.id, verifiedByCompanyId: companyId } })]
+        : []),
+      ...(bank?.clear && firmId
+        ? [prisma.remitTo.updateMany({ where: { companyId: firmId, verifiedByCompanyId: companyId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })]
+        : []),
+    ])
 
     // Who verified it, and who waived it. The checklist carries the state,
     // the reason and the hour, but not the name — so a waived certificate
@@ -249,7 +276,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         action: 'SUPPLIER_ITEM_MARKED',
         summary: `${caller.person.name} (${STAGE_WORD[stage]}) ${WORD[state] ?? String(state).toLowerCase()} ${item.label} for ${row.name}`,
         reason: note || (state === 'HELD' ? 'Verified against what the firm supplied.' : 'No reason given.'),
-        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id, ...(markedItem.edition ? { edition: markedItem.edition } : {}), ...(markedItem.fileUrl ? { fileUrl: markedItem.fileUrl } : {}) },
+        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id, ...(markedItem.edition ? { edition: markedItem.edition } : {}), ...(markedItem.fileUrl ? { fileUrl: markedItem.fileUrl } : {}), ...(bank?.remitToId ? { bankCheckedRemitToId: bank.remitToId } : {}) },
         // An item can be marked again; a waiver can be taken back.
         reversible: true,
       },

@@ -1034,3 +1034,66 @@ export function linkSays(input: { applied: string | null; linkSentAt: string | n
   if (input.contactEmail) return 'Link kept for staff to send: no email left. Copy it and send it to the firm.'
   return 'No link sent — add a contact email.'
 }
+
+// ── Finance's check of the bank goes on the supplier's payment details ──
+
+/** One of the supplier's own payment details rows, as its Settings holds it. */
+export interface RemitOnFile {
+  id: string
+  bankName: string | null
+  accountLast4: string | null
+}
+
+/**
+ * What Finance marking the walk's bank item does to the supplier's own
+ * payment details (`RemitTo`), decided before anything is written.
+ *
+ * - **Held:** the row Finance checked is recorded as checked, by whom and
+ *   for which client, so `mayPayFirm` in lib/setup-gates passes on it. The
+ *   row is the one whose last four digits match what the firm sent through
+ *   its link, else the default with a bank and four digits on it. Where the
+ *   firm has none, or what it sent ends in different digits, nothing is
+ *   written and the sentence says what Finance is waiting for.
+ * - **Waived:** a waiver checks nothing, so nothing is written.
+ * - **Unmarked:** a check this client wrote is taken back (`clear`), so a
+ *   bank nobody stands behind any more is not paid on.
+ *
+ * `remits` is ordered default first. Only the last four digits are ever
+ * read or said; the full number is never stored.
+ */
+export function bankCheckOnMark(input: {
+  state: ItemState
+  firm: string
+  /** The client whose Finance is checking. */
+  client: string
+  remits: RemitOnFile[]
+  /** What the firm sent through its link, "Bank ····1234" (`provideItems`). */
+  sent?: string | null
+}): { remitToId: string | null; clear: boolean; says: string | null } {
+  if (input.state === 'WAIVED') {
+    return { remitToId: null, clear: false, says: `A waived bank item checks nothing: ${input.firm}'s payment details stay unchecked.` }
+  }
+  if (input.state !== 'HELD') return { remitToId: null, clear: input.state === 'MISSING', says: null }
+  const withBank = input.remits.filter((r) => r.bankName && r.accountLast4)
+  if (!withBank.length) {
+    return {
+      remitToId: null,
+      clear: false,
+      says:
+        `${input.firm} has no payment details on Etyme yet, so no bank is marked checked. ` +
+        `Finance is waiting for ${input.firm} to add its bank, the name on the account and the last four digits.`,
+    }
+  }
+  const sentLast4 = input.sent?.match(/(\d{4})\s*$/)?.[1] ?? null
+  const row = sentLast4 ? withBank.find((r) => r.accountLast4 === sentLast4) : withBank[0]
+  if (!row) {
+    return {
+      remitToId: null,
+      clear: false,
+      says:
+        `The account ${input.firm} sent ends in ${sentLast4}, and none of its payment details on Etyme do, so no bank is marked checked. ` +
+        `Finance is waiting for ${input.firm} to correct one or the other.`,
+    }
+  }
+  return { remitToId: row.id, clear: false, says: `${input.firm}'s bank, ${row.bankName} ····${row.accountLast4}, is recorded as checked by you, for ${input.client}.` }
+}

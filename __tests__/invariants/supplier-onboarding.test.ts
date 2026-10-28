@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, evidenceNoteFor, whoRendersItem, STAGE_VERB, type Decision, type OrderedItem, type ChecklistItem, CHECKLIST } from '@/lib/supplier-onboarding'
+import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, evidenceNoteFor, whoRendersItem, bankCheckOnMark, STAGE_VERB, type Decision, type OrderedItem, type ChecklistItem, CHECKLIST } from '@/lib/supplier-onboarding'
 import { verificationFromChecklistItem, verificationsFromChecklist } from '@/lib/onboarding-evidence'
 import { builtInType } from '@/lib/document-type'
 import { linkLetter, applyUrl } from '@/lib/supplier-link'
@@ -528,5 +528,49 @@ describe('a desk is never told nothing when its click recorded nothing', () => {
     // The approve replay carries the same sentence for every item it skipped.
     expect(one).toContain('notRecorded: notOurs')
     expect(one).toContain('notOurs.map((n) => n.says).join')
+  })
+})
+
+describe('Finance’s check of the bank goes on the supplier’s own payment details', () => {
+  const remits = [
+    { id: 'default', bankName: 'Chase', accountLast4: '4471' },
+    { id: 'second', bankName: 'Wells Fargo', accountLast4: '0092' },
+  ]
+  const at = { firm: 'Harbor Staffing', client: 'Northbend Athletic' }
+
+  it('Finance holding the bank item records who checked the supplier’s bank, and for which client', () => {
+    const r = bankCheckOnMark({ ...at, state: 'HELD', remits, sent: 'Wells Fargo ····0092' })
+    expect(r.remitToId).toBe('second')
+    expect(r.says).toBe("Harbor Staffing's bank, Wells Fargo ····0092, is recorded as checked by you, for Northbend Athletic.")
+    // Where the firm sent nothing through its link, the default row is the one checked.
+    expect(bankCheckOnMark({ ...at, state: 'HELD', remits }).remitToId).toBe('default')
+  })
+
+  it('a waived bank item checks nothing', () => {
+    const r = bankCheckOnMark({ ...at, state: 'WAIVED', remits })
+    expect(r.remitToId).toBeNull()
+    expect(r.clear).toBe(false)
+    expect(r.says).toContain('checks nothing')
+  })
+
+  it('a supplier with no bank details is told what Finance is waiting for', () => {
+    const none = bankCheckOnMark({ ...at, state: 'HELD', remits: [] })
+    expect(none.remitToId).toBeNull()
+    expect(none.says).toBe(
+      'Harbor Staffing has no payment details on Etyme yet, so no bank is marked checked. ' +
+        'Finance is waiting for Harbor Staffing to add its bank, the name on the account and the last four digits.'
+    )
+    // A row with no bank on it is not payment details.
+    expect(bankCheckOnMark({ ...at, state: 'HELD', remits: [{ id: 'x', bankName: null, accountLast4: null }] }).remitToId).toBeNull()
+  })
+
+  it('an account the firm sent that matches none of its payment details checks nothing, and says which digits', () => {
+    const r = bankCheckOnMark({ ...at, state: 'HELD', remits, sent: 'Chase ····9999' })
+    expect(r.remitToId).toBeNull()
+    expect(r.says).toContain('ends in 9999')
+  })
+
+  it('unmarking the bank item takes this client’s check back', () => {
+    expect(bankCheckOnMark({ ...at, state: 'MISSING', remits })).toEqual({ remitToId: null, clear: true, says: null })
   })
 })
