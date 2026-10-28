@@ -211,6 +211,22 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     expect(v.caption).toContain(`${dayton.length - PLANT_ROWS} more contractors below`)
   })
 
+  it('the hiring manager’s line says jobs at Dayton go to Dayton’s three suppliers, the ones the seed names at that site, and never Lakemont', () => {
+    // Sites, the founder's "Build it, sites sounds good", 2026-10-28: a job
+    // at a site goes to that site's approved suppliers by default.
+    const dayton = CORVANE_PLANTS[0]
+    expect(dayton.city).toBe('Dayton')
+    const named = plantSuppliers(dayton)
+    expect(named).toHaveLength(3)
+    expect(named.some((n) => /Lakemont/.test(n))).toBe(false)
+    const mine = onSite.filter((c) => c.plant.key === dayton.key)
+    expect(new Set(mine.map((c) => c.supplier)).size).toBeLessThanOrEqual(named.length)
+    for (const c of mine) expect(named, c.name).toContain(c.supplier)
+    expect(view('hiring').signed).toBe(
+      `Signed in as ${dayton.manager}, hiring manager, ${dayton.plant}. ` +
+      `Reads the ${mine.length} contractors at Dayton. Jobs here go to Dayton’s 3 suppliers.`)
+  })
+
   it('months here are whole months and never rounded up', () => {
     // Keisha Monroe has served 507 days: 16 whole months, where rounding
     // to the nearest month would say 17.

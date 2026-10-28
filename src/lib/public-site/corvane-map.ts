@@ -363,7 +363,7 @@ export function corvaneMap(): CorvaneMap {
     key: 'hiring', tab: 'Hiring manager',
     signed:
       `Signed in as ${plant.manager}, hiring manager, ${plant.plant}. ` +
-      `Reads the ${mine.length} contractors at ${plant.city} and their ${plural(plantSuppliers(plant).length, 'supplier')}.`,
+      `Reads the ${mine.length} contractors at ${plant.city}. Jobs here go to ${possessive(plant.city, '’')} ${plural(plantSuppliers(plant).length, 'supplier')}.`,
     headline:
       `${possessive(waiting[0].name, '’')} week is waiting for you, and ${waiting.length - 1} more. ` +
       `${onHold.name} cannot start without an I-9.`,

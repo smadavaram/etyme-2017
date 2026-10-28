@@ -67,7 +67,7 @@ import { defaultCopyOfCorvaneMap } from '@/lib/public-site/corvane-map'
 import { copyOfWhy } from '@/lib/public-site/why-words'
 import { TALK } from '@/lib/public-site/talk'
 /** The line under the question since the map, 2026-10-27, the drawing's own words. */
-const MAP_LEDE = 'Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.'
+const MAP_LEDE = 'Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a site’s hiring manager.'
 import { BAND, CATEGORY, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'

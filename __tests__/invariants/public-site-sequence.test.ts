@@ -498,6 +498,14 @@ describe('Every step page is the same one screen', () => {
     }
   })
 
+  it('the Job step says a job names its site and goes to that site’s approved suppliers by default, and no other step says it', () => {
+    // Sites, the founder's "Build it, sites sounds good", 2026-10-28.
+    const said = (slug: string) => STEP_PAGES.find((p) => p.slug === slug)!.rules.filter((r) => /site’s approved suppliers/.test(r))
+    expect(said('job')).toEqual(['Each job names a site. By default it goes to that site’s approved suppliers, and the placement is at that site.'])
+    for (const slug of ['candidates', 'timesheets', 'invoices', 'when-work-ends']) expect(said(slug), slug).toEqual([])
+    for (const p of STEP_PAGES) for (const r of p.rules) expect(r, p.slug).not.toMatch(/\bplants?\b|\bbranch|\blocations?\b/i)
+  })
+
   it('every step ends with “See this step in the demo” and one line saying whom the reader sits as', () => {
     for (const p of STEP_PAGES) {
       const page = html(createElement(StepPageView, { slug: p.slug }))

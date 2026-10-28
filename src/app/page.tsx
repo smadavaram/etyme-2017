@@ -140,7 +140,7 @@ export default async function LandingPage({ searchParams }: HomeParams) {
             Know what every contractor costs, across every supplier.
           </h1>
           <p className="mt-3 text-[16px] leading-snug text-etyme-muted">
-            Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a plant’s hiring manager.
+            Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a site’s hiring manager.
           </p>
           {/* ── The two calls, as drawn: the demo, and a person ── */}
           <div data-hero-calls="" className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">

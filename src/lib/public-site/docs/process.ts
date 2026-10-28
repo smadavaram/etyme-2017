@@ -92,6 +92,7 @@ export const STEP_PAGES: StepPage[] = [
     ],
     rules: [
       'Within the plan and the budget, the job goes out with no approval.',
+      'Each job names a site. By default it goes to that site’s approved suppliers, and the placement is at that site.',
       'Nobody approves their own job request.',
       'Only the program manager or Procurement sends the job. The hiring manager cannot.',
       'Each supplier sees its own rate range, never another’s.',
