@@ -423,7 +423,7 @@ function PapersItem(p: Props) {
           ))}
         </div>
       ))}
-      <Link href={'/dashboard/settings/documents' as any} className="text-[13px] text-etyme-action-press">Add a paper Etyme does not list</Link>
+      <Link href={'/dashboard/documents' as any} className="text-[13px] text-etyme-action-press">Add a paper Etyme does not list</Link>
     </Frame>
   )
 }

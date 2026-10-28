@@ -36,6 +36,10 @@ const FILES = execSync('find src/app -name "*.tsx"', { encoding: 'utf8' })
  * justify a line in.
  */
 const DELIBERATE: Record<string, string> = {
+  'src/app/dashboard/settings/setup/page.tsx':
+    'The setup checklist\'s list: a 22px done, skipped or to-do mark beside ' +
+    'the item\'s name. A mark that small sits beside its label on a phone ' +
+    'too; stacking it would put a lone circle above every line.',
   'src/app/dashboard/timesheets/page.tsx':
     'A week is seven days. Seven inputs at fifty pixels is not a week ' +
     'anybody can type into, so it is four across on a phone — two rows ' +

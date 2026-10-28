@@ -19,6 +19,8 @@
  * with a number on it was struck from the drawing.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 export type ItemKey =
   | 'COMPANY'
   | 'ADDRESSES'
@@ -371,8 +373,7 @@ export function savedStamp(by: string | null | undefined, at: Date | string | nu
 }
 
 function dayWords(at: Date | string): string {
-  const d = typeof at === 'string' ? new Date(at) : at
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDay(typeof at === 'string' ? new Date(at) : at)
 }
 
 // ── The people in charge ─────────────────────────────────────────────
