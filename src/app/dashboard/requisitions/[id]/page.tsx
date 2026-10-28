@@ -270,7 +270,7 @@ function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
 
 // ── Sending it to vendors ──────────────────────────────────
 
-function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSent, site }: {
+function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSent, site, ticked }: {
   reqId: string
   billMax: number | null
   invited: Set<string>
@@ -295,11 +295,15 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
    * always went. The release route refuses the same firms in a sentence.
    */
   site?: { ids: string[]; everyApproved: boolean; says: string } | null
+  /** The hiring manager's ticks on the form, kept on the job: ticked here first. */
+  ticked?: { ids: string[]; by: string | null; at: string | null } | null
 }) {
   const vendors = suppliers.filter(v => !v.blocked).map(v => ({ id: v.companyId, name: v.name }))
   const atSite = site && !site.everyApproved ? new Set(site.ids) : null
   const [picked, setPicked] = useState<Record<string, { on: boolean; min: string; max: string }>>(() =>
-    Object.fromEntries([...(atSite ?? [])].filter(id => !invited.has(id)).map(id => [id, { on: true, min: '', max: '' }]))
+    Object.fromEntries([...(ticked?.ids ?? atSite ?? [])]
+      .filter(id => !invited.has(id) && (!atSite || atSite.has(id)))
+      .map(id => [id, { on: true, min: '', max: '' }]))
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -360,6 +364,7 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
         {cleared.size > 0 && ' Only the suppliers Procurement cleared are listed.'}
       </p>
       {site && <p className="text-sm text-etyme-muted mb-3">{site.says}</p>}
+      {ticked?.by && <p className="text-sm text-etyme-muted mb-3">Ticked as {ticked.by} left them on the job request.</p>}
       <div className="divide-y divide-etyme-rule">
         {available.map(v => {
           const p = picked[v.id] ?? { on: false, min: '', max: '' }
@@ -763,7 +768,7 @@ export default function RequisitionDetail() {
           : approved
           ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds}
               clearedIds={r.clearedSupplierIds ?? []} suppliers={suppliers} onSent={load}
-              site={r.siteSuppliers ?? null} />
+              site={r.siteSuppliers ?? null} ticked={r.ticked ?? null} />
           : <div className="p-4 text-sm text-etyme-muted">
               {/* The column's own value, lower-cased, was not a sentence:
                   "This requisition is changes requested." A refusal says

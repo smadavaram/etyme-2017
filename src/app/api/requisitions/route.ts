@@ -8,11 +8,11 @@ import { emit } from '@/lib/events'
 import { ownPriceMedian } from '@/lib/chain-top'
 import { unitsReachedBy } from '@/lib/resolve-client-company'
 import { whoIsHiring } from './who-is-hiring'
-import { sendJobTo } from './send'
+import { sendTickedOnClearing } from './send'
 import { regionScopeFor } from '@/lib/region-scope'
 import { approvedSuppliersOf, siteSuppliers } from '@/lib/sites'
 import { mayFillAtSite, notApprovedForCompany } from '@/lib/site-rules'
-import { approvedAtWords, raisedSays, sentSays, placeOf } from '@/lib/job-site'
+import { raisedSays, sentSays, placeOf } from '@/lib/job-site'
 import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
 import { reportError } from '@/lib/alerts'
 import {
@@ -503,6 +503,11 @@ export async function POST(request: NextRequest) {
         // that still read it (lib/job-site's `placeOf` reads the site first).
         location: site ? site.name : (typeof location === 'string' && location.trim() ? location.trim() : null),
         locationId: site?.id ?? null,
+        // The hiring manager's ticks, kept with who and when, so a job that
+        // waits for approval still goes only to the ones left.
+        ...(sendTo && sendTo.length > 0
+          ? { sendToSupplierIds: sendTo, sendToSetById: caller.person.id, sendToSetAt: new Date() }
+          : {}),
         billMin: billMin ?? null,
         billMax: billMax ?? null,
         months: months ?? null,
@@ -600,20 +605,7 @@ export async function POST(request: NextRequest) {
   let sentTo: string[] = []
   if (requisition.status === 'OPEN' && sendTo && sendTo.length > 0) {
     try {
-      const results = await sendJobTo({
-        requisition: {
-          id: requisition.id, title: requisition.title, companyId: client.id, company: client,
-          headcount: requisition.headcount, location: requisition.location,
-          site: site ? { name: site.name } : null, startDate: requisition.startDate,
-        },
-        vendors: sendTo.map((companyId) => ({ companyId })),
-        vendorMap: sendNames,
-        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        caller,
-        reason: (names) =>
-          `Sent when it cleared by rule, to the suppliers ${caller.person.name} ticked` +
-          `${site ? ` ${approvedAtWords(site)}` : ''}: ${names.join(', ') || 'nobody'}`,
-      })
+      const results = await sendTickedOnClearing({ requirementId: requisition.id, caller, when: 'it cleared by rule' })
       sentTo = results.filter((r) => r.status === 'sent').map((r) => r.name)
     } catch (err) {
       // The job stands; it can still be sent from its own page.

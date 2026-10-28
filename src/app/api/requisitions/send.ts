@@ -3,7 +3,8 @@ import { emit } from '@/lib/events'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { reportError } from '@/lib/alerts'
-import { placeOf } from '@/lib/job-site'
+import { placeOf, approvedAtWords } from '@/lib/job-site'
+import { siteSuppliers } from '@/lib/sites'
 import type { Participant } from '@/lib/threads'
 import { jobApart, jobsSentNotice, jobSentThreadLine, toldPerFirm, SEATS_TOLD_PER_FIRM, JOB_BATCH_MS, type JobSentFacts } from './words'
 
@@ -264,4 +265,66 @@ export async function sendJobTo(input: {
   }
 
   return results
+}
+
+/**
+ * The job goes to the suppliers its hiring manager ticked, once it is
+ * cleared: on the raise where it clears by rule, and on the last approval
+ * where it waited for one (founder, 2026-10-28, the Sites drawing). The
+ * ticks are `Requirement.sendToSupplierIds`, written by the raise with
+ * who and when, so an untick survives the wait.
+ *
+ * Nothing is sent where nobody ticked anything (a job raised by an
+ * import or an older caller): those go out from the job's page, as
+ * before. Each tick is read again on the day it is sent, never trusted
+ * from the day it was made: a firm Procurement did not clear, or no
+ * longer approved at the site, is left out and said so in the log, and a
+ * firm already asked is not asked twice.
+ */
+export async function sendTickedOnClearing(input: {
+  requirementId: string
+  caller: { person: { id: string; name: string } }
+  /** "it cleared by rule" or "it was approved", for the log. */
+  when: string
+}): Promise<SendResult[]> {
+  const job = await prisma.requirement.findUnique({
+    where: { id: input.requirementId },
+    select: {
+      id: true, title: true, companyId: true, headcount: true, location: true, startDate: true, status: true,
+      sendToSupplierIds: true, clearedSupplierIds: true, locationId: true,
+      sendToSetBy: { select: { name: true } },
+      company: { select: { id: true, name: true } },
+      site: { select: { id: true, name: true, city: true, companyId: true } },
+      invitations: { select: { toCompanyId: true } },
+    },
+  })
+  if (!job || job.status !== 'OPEN' || job.sendToSupplierIds.length === 0) return []
+
+  const asked = new Set(job.invitations.map((i) => i.toCompanyId))
+  const cleared = job.clearedSupplierIds
+  const here = job.site && job.site.companyId === job.companyId ? await siteSuppliers(job.site.id) : null
+  const left: string[] = []
+  const targets = job.sendToSupplierIds.filter((id) => {
+    if (asked.has(id)) return false
+    if (cleared.length > 0 && !cleared.includes(id)) { left.push(id); return false }
+    if (here && !here.ids.includes(id)) { left.push(id); return false }
+    return true
+  })
+  if (targets.length === 0) return []
+
+  const firms = await prisma.company.findMany({ where: { id: { in: [...targets, ...left] } }, select: { id: true, name: true } })
+  const vendorMap = new Map(firms.map((f) => [f.id, f]))
+  const leftNames = left.map((id) => vendorMap.get(id)?.name ?? id)
+  const who = job.sendToSetBy?.name ?? 'the hiring manager'
+  const at = job.site ? ` ${approvedAtWords(job.site)}` : ''
+  return sendJobTo({
+    requisition: { ...job, site: job.site ? { name: job.site.name } : null },
+    vendors: targets.map((companyId) => ({ companyId })),
+    vendorMap,
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    caller: input.caller,
+    reason: (names) =>
+      `Sent when ${input.when}, to the suppliers ${who} ticked${at}: ${names.join(', ') || 'nobody'}` +
+      (leftNames.length > 0 ? `. Left out, no longer cleared for it: ${leftNames.join(', ')}` : ''),
+  })
 }

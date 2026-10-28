@@ -422,6 +422,13 @@ function DistributeModal({
   const [vendors, setVendors] = useState<VendorOption[]>([])
   const [loadingVendors, setLoadingVendors] = useState(true)
   const [selectedVendors, setSelectedVendors] = useState<Set<string>>(new Set())
+  // Who a job at its site may go to (founder, 2026-10-28, the Sites
+  // drawing): the site's suppliers only, the hiring manager's ticks first,
+  // and the form's sentence under them. A screen never offers a firm the
+  // release route would refuse. Null on a job with no site.
+  const [site, setSite] = useState<{ ids: string[]; everyApproved: boolean; says: string } | null>(null)
+  const [ticked, setTicked] = useState<string[] | null>(null)
+  const [siteRead, setSiteRead] = useState(false)
   const [payMin, setPayMin] = useState('')
   const [payMax, setPayMax] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
@@ -435,6 +442,27 @@ function DistributeModal({
     d.setDate(d.getDate() + 14)
     setExpiresAt(d.toISOString().split('T')[0])
   }, [])
+
+  useEffect(() => {
+    fetch(`/api/requisitions/${requirementId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const job = body?.data?.requisition
+        setSite(job?.siteSuppliers ?? null)
+        setTicked(job?.ticked?.ids ?? null)
+      })
+      .catch(() => {})
+      .finally(() => setSiteRead(true))
+  }, [requirementId])
+
+  // The site's suppliers are offered; the ticks start where the hiring manager left them.
+  const atSite = site && !site.everyApproved ? new Set(site.ids) : null
+  const offered = atSite ? vendors.filter((v) => atSite.has(v.id)) : vendors
+  useEffect(() => {
+    if (!siteRead || !atSite || loadingVendors) return
+    setSelectedVendors(new Set((ticked ?? [...atSite]).filter((id) => atSite.has(id))))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteRead, loadingVendors, site, ticked])
 
   // Fetch vendor companies
   useEffect(() => {
@@ -465,7 +493,7 @@ function DistributeModal({
   }
 
   const selectAll = () => {
-    setSelectedVendors(new Set(vendors.map((v) => v.id)))
+    setSelectedVendors(new Set(offered.map((v) => v.id)))
   }
 
   const handleDistribute = async () => {
@@ -540,16 +568,16 @@ function DistributeModal({
                 onClick={selectAll}
                 className="text-[11px] text-etyme-action hover:underline"
               >
-                Select all ({vendors.length})
+                Select all ({offered.length})
               </button>
             </div>
             {loadingVendors ? (
               <LoadingState compact says="Reading your suppliers…" />
-            ) : vendors.length === 0 ? (
+            ) : offered.length === 0 ? (
               <EmptyState compact says="No suppliers on file yet." detail="Add one from Suppliers first." />
             ) : (
               <div className="border border-etyme-rule rounded-lg max-h-48 overflow-y-auto">
-                {vendors.map((v) => (
+                {offered.map((v) => (
                   <label
                     key={v.id}
                     className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-etyme-canvas/50 border-b border-etyme-rule last:border-b-0 ${
@@ -568,8 +596,9 @@ function DistributeModal({
               </div>
             )}
             <p className="text-[10px] text-etyme-faint mt-1">
-              {selectedVendors.size} of {vendors.length} selected
+              {selectedVendors.size} of {offered.length} selected
             </p>
+            {site && <p className="text-[11px] text-etyme-muted mt-1">{site.says}</p>}
           </div>
 
           {/* Rate band — per CLAUDE.md: "Rate bands live on RequirementInvitation, never on Requirement" */}

@@ -80,7 +80,8 @@ describe('what the raise says back', () => {
 
   it('a job waiting on an approval is never said to be sent', () => {
     const says = sentSays({ open: false, sentTo: [], ticked: 3, site: DAYTON })
-    expect(says).toBe('Once it is approved, it is sent to suppliers from its page, with the suppliers approved at Dayton ticked.')
+    expect(says).toBe('Once it is approved, it goes to the three suppliers you ticked at Dayton.')
+    expect(sentSays({ open: false, sentTo: [], ticked: 1, site: null })).toBe('Once it is approved, it goes to the one supplier you ticked.')
     expect(says).not.toMatch(/^Sent/)
   })
 

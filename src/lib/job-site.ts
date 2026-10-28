@@ -105,8 +105,8 @@ export function pickSite<T extends SiteChoice>(offered: readonly T[], asked: str
 /**
  * Where a raised job went, in one sentence, or null where nothing was
  * ticked. The firms it was sent to by name; or, where it waits on an
- * approval, that it is sent from its page once approved, with the site's
- * suppliers ticked there. Never "sent" where nothing was.
+ * approval, that it goes to the ones ticked once approved (the ticks are
+ * kept on the job). Never "sent" where nothing was.
  */
 export function sentSays(input: {
   open: boolean
@@ -118,8 +118,11 @@ export function sentSays(input: {
   if (input.ticked === 0) return null
   if (input.open && input.sentTo.length > 0) return `Sent to ${namesList(input.sentTo)}.`
   if (input.open) return 'It was not sent to any supplier yet; send it from its page.'
-  const ticks = input.site ? `, with the suppliers approved at ${siteShortName(input.site)} ticked` : ''
-  return `Once it is approved, it is sent to suppliers from its page${ticks}.`
+  const n = input.ticked
+  const at = input.site ? ` at ${siteShortName(input.site)}` : ''
+  return n === 1
+    ? `Once it is approved, it goes to the one supplier you ticked${at}.`
+    : `Once it is approved, it goes to the ${countWord(n).toLowerCase()} suppliers you ticked${at}.`
 }
 
 /** What the raise says back: the decision's own summary, then where the job went. */

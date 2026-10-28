@@ -5,6 +5,9 @@ import { emit } from '@/lib/events'
 import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { advanceApprovalChain } from '@/lib/requisition-approval'
 import { approvalsToGo } from '@/app/api/requisitions/words'
+import { sendTickedOnClearing } from '@/app/api/requisitions/send'
+import { namesList } from '@/lib/job-site'
+import { reportError } from '@/lib/alerts'
 
 /**
  * POST /api/requisitions/:id/approve
@@ -199,6 +202,19 @@ export async function POST(
     },
   })
 
+  // The last yes sends the job to the suppliers its hiring manager ticked
+  // on the form, kept on the job while it waited (lib/job-site, 2026-10-28).
+  // A job nobody ticked for goes out from its page, as before.
+  let sentTo: string[] = []
+  if (result.fullyApproved) {
+    try {
+      const sent = await sendTickedOnClearing({ requirementId: id, caller, when: 'it was approved' })
+      sentTo = sent.filter((r) => r.status === 'sent').map((r) => r.name)
+    } catch (err) {
+      reportError(`${requisition.title} was approved and could not be sent to its suppliers:`, err)
+    }
+  }
+
   void emit({
     type: action === 'approve' ? 'requisition.approved' : 'requisition.rejected',
     companyId: requisition.companyId,
@@ -229,7 +245,7 @@ export async function POST(
         action === 'changes'
           ? `${caller.person.name} wants a change before approving: ${decisionReason}. Edit it and send it back — it returns to them, not to the start.`
           : result.fullyApproved
-            ? `${caller.person.name} approved it. It is now open to your suppliers.`
+            ? `${caller.person.name} approved it. ${sentTo.length > 0 ? `It went to ${namesList(sentTo)}.` : 'It is now open to your suppliers.'}`
             : action === 'approve'
               ? `${caller.person.name} approved it. ${approvalsToGo(result.remaining)}`
               : `${caller.person.name} rejected it: ${decisionReason}`,

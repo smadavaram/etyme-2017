@@ -4,6 +4,7 @@ import { GET as siteForm } from '@/app/api/requisitions/sites/route'
 import { POST as raise } from '@/app/api/requisitions/route'
 import { GET as readJob } from '@/app/api/requisitions/[id]/route'
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
+import { POST as approve } from '@/app/api/requisitions/[id]/approve/route'
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
 import { UNDER_WAY } from './hire-terms-walk'
 import { corvaneSeatEmail } from '@/lib/seed-corvane'
@@ -226,5 +227,51 @@ describe('posting for somebody else’s site', () => {
     const clientSites = await prisma.companyLocation.findMany({ where: { companyId: seat.clientCompanyId }, select: { id: true } })
     expect(r.body.data.sites.map((x: any) => x.id).sort()).toEqual(clientSites.map((x) => x.id).sort())
     expect(r.body.data.sites.length).toBeGreaterThan(0)
+  })
+})
+
+describe('a job that waits for approval', () => {
+  it('a hiring manager’s unticks survive the approval and the job goes only to the ones left', async () => {
+    // Somebody to ask: every job at Corvane over a dollar goes to its CFO.
+    const cfo = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: corvaneSeatEmail('cfo', DOMAIN) } })
+    const rule = await prisma.approvalRule.create({
+      data: { companyId: corvaneId, name: 'Every job — CFO', kind: 'VALUE', thresholdAmount: 1, approverId: cfo.id, rank: 1 },
+    })
+    try {
+      as(MARCUS)
+      const keep = [firm['Ridgeline Staffing'], firm['Keystone Crew Partners']]
+      const r = await json(await raise(req('POST', '/api/requisitions', job({
+        title: 'Forklift operator, relief shift', locationId: 'cv_site_dayton', sendTo: keep, budget: 9_000_000,
+      }))))
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      expect(r.body.data.decision.state).toBe('PENDING_APPROVAL')
+      expect(r.body.data.sentSays).toBe('Once it is approved, it goes to the two suppliers you ticked at Dayton.')
+      const id = r.body.data.requisition.id
+      const marcus = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARCUS } })
+      const kept = await prisma.requirement.findUniqueOrThrow({ where: { id } })
+      expect([...kept.sendToSupplierIds].sort()).toEqual([...keep].sort())
+      expect(kept.sendToSetById).toBe(marcus.id)
+      expect(kept.sendToSetAt).not.toBeNull()
+      expect(await prisma.requirementInvitation.count({ where: { requirementId: id } })).toBe(0)
+
+      // The job's page ticks his two, not the site's three.
+      as(OWNER)
+      const page = await json(await readJob(req('GET', `/api/requisitions/${id}`), params(id)))
+      expect([...page.body.data.requisition.ticked.ids].sort()).toEqual([...keep].sort())
+      expect(page.body.data.requisition.ticked.by).toBe('Marcus Hollins')
+
+      as(corvaneSeatEmail('cfo', DOMAIN))
+      const yes = await json(await approve(req('POST', `/api/requisitions/${id}/approve`, { action: 'approve' }), params(id)))
+      expect(yes.status, JSON.stringify(yes.body)).toBeLessThan(300)
+      const sent = await prisma.requirementInvitation.findMany({ where: { requirementId: id }, select: { toCompanyId: true } })
+      expect(sent.map((i) => i.toCompanyId).sort()).toEqual([...keep].sort())
+      expect(sent.map((i) => i.toCompanyId)).not.toContain(firm['Harbor Industrial Labor'])
+      const log = await prisma.automationLog.findFirstOrThrow({
+        where: { companyId: corvaneId, action: 'REQUISITION_DISTRIBUTED', payload: { path: ['requirementId'], equals: id } },
+      })
+      expect(log.reason).toMatch(/^Sent when it was approved, to the suppliers Marcus Hollins ticked approved at Dayton: /)
+    } finally {
+      await prisma.approvalRule.update({ where: { id: rule.id }, data: { isActive: false } })
+    }
   })
 })

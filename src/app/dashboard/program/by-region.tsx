@@ -81,7 +81,7 @@ export function ByRegion() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region, manager])
 
-  if (loading && !data) return <LoadingState says="Reading every plant…" />
+  if (loading && !data) return <LoadingState says="Reading every site…" />
   if (refused) return <RefusedState says={refused} />
   if (error || !data) {
     return <ErrorState says={<>The program by region could not be read.{error ? <> {error}</> : null}</>} action={{ label: 'Try again', onClick: load }} />
@@ -132,7 +132,7 @@ function Trail({ data, wholeProgram }: { data: RegionsData; wholeProgram: boolea
     <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
       {parts.length > 0 && <>{parts.reduce<ReactNode[]>((acc, p, i) => (i ? [...acc, ' · ', p] : [p]), [])}. </>}
       {data.level === 'PROGRAM' && t && (
-        <>Every plant, every supplier, one list: {plural(t.plants, 'plant')}, {plural(t.contractors, 'contractor')} on site. Pick a region to see its hiring managers.</>
+        <>Every site, every supplier, one list: {plural(t.plants, 'site')}, {plural(t.contractors, 'contractor')} on site. Pick a region to see its hiring managers.</>
       )}
       {data.level === 'REGION' && t && data.region && (
         <>
@@ -158,7 +158,7 @@ function Rollup({ data, onRegion }: { data: RegionsData; onRegion: (label: strin
       render: (r) => (
         <span className="flex flex-col">
           <span className="font-medium text-etyme-ink">{r.label}</span>
-          <span className="text-[12px] text-etyme-muted">{[r.leads.join(', '), plural(r.plants, 'plant')].filter(Boolean).join(' · ')}</span>
+          <span className="text-[12px] text-etyme-muted">{[r.leads.join(', '), plural(r.plants, 'site')].filter(Boolean).join(' · ')}</span>
         </span>
       ),
       exportValue: (r) => (r.leads.length ? `${r.label} (${r.leads.join(', ')})` : r.label),
@@ -176,7 +176,7 @@ function Rollup({ data, onRegion }: { data: RegionsData; onRegion: (label: strin
         rowKey={(r) => r.label}
         onRowClick={(r) => onRegion(r.label)}
         searchPlaceholder="Search regions…"
-        emptyMessage="No plant carries a region yet."
+        emptyMessage="No site carries a region yet."
         emptyDetail="A region is a label on a site. Name one on a site and it appears here."
       />
     </>
@@ -189,7 +189,7 @@ function RegionView({ data, onManager }: { data: RegionsData; onManager: (id: st
   const r = data.region!
   const columns: Column<ManagerRow>[] = [
     { key: 'manager', label: 'Hiring manager', render: (m) => <span className="font-medium text-etyme-ink">{m.manager}</span> },
-    { key: 'plant', label: 'Plant' },
+    { key: 'plant', label: 'Site' },
     ...figureColumns<ManagerRow>(r.figures.receipts !== null, data.oneCurrency.sampleRates),
   ]
   return (
@@ -202,8 +202,8 @@ function RegionView({ data, onManager }: { data: RegionsData; onManager: (id: st
         data={r.managers}
         rowKey={(m) => `${m.siteId ?? ''}|${m.managerId ?? ''}`}
         onRowClick={(m) => onManager(m.managerId)}
-        searchPlaceholder="Search managers and plants…"
-        emptyMessage={`Nobody manages a plant in ${r.label} yet.`}
+        searchPlaceholder="Search managers and sites…"
+        emptyMessage={`Nobody manages a site in ${r.label} yet.`}
       />
       <Countries rows={r.countries} region={r.label} />
     </>
@@ -274,7 +274,7 @@ function FlowStats({ f }: { f: Figures }) {
   // Three to a row on a desktop, so a full dollar figure never meets its card's edge.
   return (
     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <Stat label="Contractors on site" value={f.contractors} sub={`${plural(f.plants, 'plant')}, ${plural(f.hiringManagers, 'hiring manager')}`} />
+      <Stat label="Contractors on site" value={f.contractors} sub={`${plural(f.plants, 'site')}, ${plural(f.hiringManagers, 'hiring manager')}`} />
       <Stat label="Open jobs" value={f.openJobs} />
       <Stat label="Weeks to sign" value={f.weeksToSign} tone={f.weeksToSign > 0 ? 'attention' : 'default'} />
       <Stat label="Starts waiting on papers" value={papers.value} tone={papers.attention ? 'attention' : 'default'} sub={papers.sub} />

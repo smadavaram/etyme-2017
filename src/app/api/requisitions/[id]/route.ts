@@ -53,6 +53,7 @@ export async function GET(
       costCenter: { select: { id: true, code: true, name: true } },
       company: { select: { id: true, name: true } },
       site: { select: { id: true, name: true, city: true } },
+      sendToSetBy: { select: { name: true } },
       approvals: {
         include: { approver: { select: { id: true, name: true } } },
         orderBy: { rank: 'asc' },
@@ -196,6 +197,11 @@ export async function GET(
         // 2026-10-28, the Sites drawing).
         site: req.site,
         siteSuppliers: sendTo,
+        // The hiring manager's ticks, with who and when; empty means the
+        // site's default. The release panel ticks these first.
+        ticked: req.sendToSupplierIds.length > 0
+          ? { ids: req.sendToSupplierIds, by: req.sendToSetBy?.name ?? null, at: req.sendToSetAt?.toISOString() ?? null }
+          : null,
         headcount: req.headcount,
         billMin: req.billMin,
         billMax: req.billMax,
