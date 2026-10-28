@@ -2240,7 +2240,7 @@ follows:
   (https://claude.ai/artifact/VBYzE7NFTtJxTyebWSzirp). The question and
   the category line stay. The lede under them becomes "Every contractor,
   every supplier, every site and every country, on one record. Read it
-  as the CFO, a regional manager or a plant's hiring manager." Under the
+  as the CFO, a regional manager or a site's hiring manager ("plant's" until 2026-10-28)." Under the
   buttons, the map: Corvane Packaging's 359 contractors, 25 suppliers and
   31 sites in 8 countries, with three seat tabs that re-read the same
   record (Margaret Osei, CFO, one row per region; Valeria Montes, Latin
