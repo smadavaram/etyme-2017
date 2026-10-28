@@ -114,6 +114,10 @@ model Person {
   creditLimitsSet      CustomerCreditLimit[] @relation("creditLimitSetter")
   dunningLettersSent   DunningSend[]         @relation("dunningSender")
   counterpartiesAdded  Counterparty[]        @relation("counterpartyCreator")
+  sitesRecorded        CompanyLocation[]     @relation("siteRecordedBy")
+  siteSuppliersNamed   SiteSupplier[]        @relation("siteSupplierNamedBy")
+  sitesHiringAt        SiteHiringManager[]   @relation("siteHiringManager")
+  siteManagersNamed    SiteHiringManager[]   @relation("siteHiringManagerNamedBy")
   contactIdentities    CompanyContact[]      @relation("contactIdentity")
   contactsAdded        CompanyContact[]      @relation("contactCreator")
   creditNotesWritten   CreditNote[]          @relation("creditNoteAuthor")
@@ -849,6 +853,8 @@ model Company {
   inboundEmails         InboundEmail[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
+  /// The client sites this firm is named at as a supplier (SiteSupplier).
+  namedAtSites          SiteSupplier[]          @relation("siteSupplierFirm")
   contacts              CompanyContact[]        @relation("contactOwner")
   contactsAt            CompanyContact[]        @relation("contactAt")
   // Contract relations — each company manages their own buy and sell contracts
@@ -1666,13 +1672,89 @@ model CompanyLocation {
   isRemote  Boolean @default(false) // virtual location for remote-first work
   isPrimary Boolean @default(false) // the default location for this company
 
+  /// Where this site came from, said on the Sites screen under it
+  /// (founder, 2026-10-28, "Build it, sites sounds good"): the contractor
+  /// list import ("From your contractor list"), the company's own website
+  /// by the guarded read ("From your website"), or a person who typed it.
+  /// A person correcting it makes it PERSON, with their name and the time.
+  source       SiteSource @default(PERSON)
+  /// Who recorded the site as it now reads, and when. Null on a site
+  /// written before 2026-10-28 or by a seed, which the screen says as
+  /// "recorded before sites were kept with a name".
+  recordedById String?
+  recordedBy   Person?    @relation("siteRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  recordedAt   DateTime?
+
   sellContracts SellContract[] // contracts at this work site
 
   invoicesShipTo Invoice[]   @relation("invoiceShipTo")
   ordersShipTo   WorkOrder[] @relation("orderShipTo")
 
+  /// Job requests posted at this site (`Requirement.locationId`).
+  requirements   Requirement[]       @relation("requirementSite")
+  /// The approved suppliers this site names (lib/sites).
+  suppliers      SiteSupplier[]
+  /// Hiring managers named here by a person; the rest are read from the
+  /// jobs they posted and the placements they manage here.
+  hiringManagers SiteHiringManager[]
+
   @@index([companyId])
   @@index([companyId, region])
+  @@index([recordedById])
+}
+
+/// Where a site, or a supplier or a manager named at it, came from.
+enum SiteSource {
+  IMPORT
+  WEBSITE
+  PERSON
+}
+
+/// An approved supplier named at one of a client's sites: a job at the
+/// site goes to the firms named here by default (founder, 2026-10-28).
+///
+/// Approval is the company's first (Procurement, under Suppliers; read by
+/// `approvedSuppliersOf` in lib/sites) and the site's second. A firm not
+/// approved for the company is refused here in a sentence, never written.
+/// A site that names nobody reads as every approved supplier, so a client
+/// that never opened Sites still sends its jobs.
+model SiteSupplier {
+  id                String          @id @default(cuid())
+  locationId        String
+  location          CompanyLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  supplierCompanyId String
+  supplierCompany   Company         @relation("siteSupplierFirm", fields: [supplierCompanyId], references: [id], onDelete: Cascade)
+  source            SiteSource      @default(PERSON)
+  namedById         String?
+  namedBy           Person?         @relation("siteSupplierNamedBy", fields: [namedById], references: [id], onDelete: SetNull)
+  namedAt           DateTime        @default(now())
+
+  @@unique([locationId, supplierCompanyId])
+  @@index([locationId])
+  @@index([supplierCompanyId])
+  @@index([namedById])
+}
+
+/// A hiring manager named at a site by a person, for a manager who has
+/// posted nothing there yet. Everyone else is read from the record: who
+/// raised or owns a job at the site, and who manages a placement there
+/// (`siteManagersFrom` in lib/site-rules). Typed only where the record is
+/// silent.
+model SiteHiringManager {
+  id         String          @id @default(cuid())
+  locationId String
+  location   CompanyLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  personId   String
+  person     Person          @relation("siteHiringManager", fields: [personId], references: [id], onDelete: Cascade)
+  source     SiteSource      @default(PERSON)
+  namedById  String?
+  namedBy    Person?         @relation("siteHiringManagerNamedBy", fields: [namedById], references: [id], onDelete: SetNull)
+  namedAt    DateTime        @default(now())
+
+  @@unique([locationId, personId])
+  @@index([locationId])
+  @@index([personId])
+  @@index([namedById])
 }
 
 // Infosys India and Infosys US: one Company, two employers.
@@ -2640,9 +2722,17 @@ model Requirement {
   /// parsed out of an email or a VMS feed rather than typed.
   description String? @db.Text
 
-  location String?
-  billMin  Int?
-  billMax  Int?
+  /// The site as free text, from before a job named its site by id.
+  /// Kept while demand moves its readers to `locationId` (2026-10-28).
+  location   String?
+  /// The job's site, by id (founder, 2026-10-28, "Build it, sites sounds
+  /// good"). The placement inherits it; its suppliers default to the
+  /// site's (lib/sites). Null on a job posted before sites, or posted with
+  /// no site, which reads as the primary site.
+  locationId String?
+  site       CompanyLocation? @relation("requirementSite", fields: [locationId], references: [id], onDelete: SetNull)
+  billMin    Int?
+  billMax    Int?
 
   /// What finance actually committed, in cents. Not to exceed.
   ///
@@ -2898,6 +2988,7 @@ model Requirement {
   @@index([ownerId])
   @@index([reportsToId])
   @@index([orgUnitId])
+  @@index([locationId])
   @@index([costCenterId])
   @@index([endClientCompanyId])
   @@index([openingId])
