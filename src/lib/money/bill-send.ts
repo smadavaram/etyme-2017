@@ -38,12 +38,14 @@ import { closeOvertaken } from '@/lib/twin/ledger'
 import { writePayerNoticesIn } from '@/lib/notify/bill-delivery'
 import { hasPermission } from '@/lib/permissions'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { mayIssueBill } from '@/lib/setup-gates'
+import type { ItemKey } from '@/lib/setup-checklist'
 
 type Tx = Prisma.TransactionClient
 
 export type SendCheck =
   | { ok: true; invoice: { id: string; number: string; status: string; matchAttempt: number } }
-  | { ok: false; status: 404 | 409; code: string; says: string; checks?: { reason: string }[] }
+  | { ok: false; status: 404 | 409; code: string; says: string; checks?: { reason: string }[]; step?: ItemKey }
 
 /**
  * Whether this firm may send this bill now: it raised it, it is in a
@@ -66,6 +68,14 @@ export async function mayBeSent(invoiceId: string, companyId: string, from: read
         ? `Bill ${invoice.number} is still a draft.`
         : `Bill ${invoice.number} has already been sent, or is ${invoice.status.toLowerCase()}, so it cannot be sent again.`,
     }
+  }
+
+  // No bill leaves without an address to print on it: the setup
+  // checklist's Addresses step (`mayIssueBill`, 2026-10-28). A draft may
+  // still be written; only sending is refused, before the check writes.
+  const address = await mayIssueBill(companyId)
+  if (!address.ok) {
+    return { ok: false, status: 409, code: 'SETUP_INCOMPLETE', says: address.says, step: address.step }
   }
 
   // ── The control ──
@@ -394,6 +404,8 @@ export type MaySendBill =
       ownerException: string | null
     }
   | { ok: false; code: 'FORBIDDEN'; says: string }
+  /** Nobody at this firm may send any bill until the setup step it names is done. */
+  | { ok: false; code: 'SETUP_INCOMPLETE'; says: string; step: ItemKey }
 
 const OWNER_SENDS_SAYS =
   'Nobody else at the firm sends bills, so the owner Ask Etyme acts for may send its drafted bill (founder, 2026-10-19).'
@@ -440,7 +452,9 @@ export function sendVerdict(i: {
  * May this caller send these bills — one answer per bill, in a fixed
  * number of reads however many. For a list (Today) that draws Send per row.
  * Asks nothing about the bill's state or the three-way check: those are
- * `mayBeSent`'s, asked when Send is pressed.
+ * `mayBeSent`'s, asked when Send is pressed. It does ask the one thing
+ * that refuses every bill a firm sends, a billing address on file
+ * (`mayIssueBill`), so no door offers a Send the route would refuse.
  */
 export async function maySendBills(caller: BillSender, invoiceIds: readonly string[]): Promise<Map<string, MaySendBill>> {
   const ids = [...new Set(invoiceIds)]
@@ -474,8 +488,14 @@ export async function maySendBills(caller: BillSender, invoiceIds: readonly stri
       })
     : []
   const otherSenders = senders.map((s) => ({ personId: s.personId, name: s.person.name }))
+  // Whoever may send it, nobody sends it without a billing address on
+  // file (`mayIssueBill`, the setup checklist's Addresses step): read once,
+  // so Today's Send, the chat's card, the twin's yes and the routes all
+  // refuse in the same sentence, which names the step.
+  const address = permitted ? await mayIssueBill(caller.companyId) : ({ ok: true } as const)
   for (const id of ids) {
-    out.set(id, sendVerdict({ callerId: caller.personId, permitted, draftedFor: draftedFor.get(id) ?? null, otherSenders }))
+    const v = sendVerdict({ callerId: caller.personId, permitted, draftedFor: draftedFor.get(id) ?? null, otherSenders })
+    out.set(id, v.ok && !address.ok ? { ok: false, code: 'SETUP_INCOMPLETE', says: address.says, step: address.step } : v)
   }
   return out
 }

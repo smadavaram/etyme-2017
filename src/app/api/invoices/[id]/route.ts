@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { mayPayFirm } from '@/lib/setup-gates'
 import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
@@ -272,12 +273,22 @@ export async function GET(
   // (`payGate`, the core of `mayPayInvoiceReceipt`), over the match just
   // run. The page draws Pay only on a yes; a held receipt reads what holds
   // it, the hours and the way forward instead (lib/money/receipt-pay-panel).
-  const payPanel = receiptPayPanel({
+  let payPanel = receiptPayPanel({
     direction,
     invoice: { number: invoice.number, status: invoice.status },
     match,
     supplierName: parties.vendor?.name ?? 'the supplier',
   })
+  // Through the check, and still not paid to a firm whose bank details
+  // nobody checked (`mayPayFirm`, the setup checklist's Bank details
+  // step), which the payment write refuses too: no Pay drawn, the
+  // refusal's sentence instead.
+  if (payPanel.kind === 'PAY' && parties.vendor && parties.client) {
+    const bank = await mayPayFirm(parties.client.id, parties.vendor.id)
+    if (!bank.ok) {
+      payPanel = { kind: 'HELD', headline: 'Held: bank details not checked', says: bank.says, hours: [], wayForward: [bank.says] }
+    }
+  }
 
   return NextResponse.json({
     data: {

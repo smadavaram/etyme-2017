@@ -4,6 +4,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
+import { mayPayFirm } from '@/lib/setup-gates'
 import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
@@ -358,6 +359,30 @@ export async function PATCH(request: NextRequest) {
         },
       },
       { status: 422 }
+    )
+  }
+
+  // ── And no money to a firm whose bank details nobody checked ───────
+  //
+  // The setup checklist's Bank details step (`mayPayFirm`, 2026-10-28):
+  // one firm in the run whose details are not checked stops the release,
+  // in the gate's own sentence, for the same reason a held receipt does.
+  // Never payroll: a run pays firms only.
+  const unchecked: string[] = []
+  for (const vendor of [...new Set(run.items.map((i) => i.vendorBill.vendorCompanyId))]) {
+    const bank = await mayPayFirm(companyId, vendor)
+    if (!bank.ok) unchecked.push(bank.says)
+  }
+  if (unchecked.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'BANK_NOT_CHECKED',
+          step: 'BANK',
+          message: `This run is not released. ${unchecked.join(' ')} Cancel the run and assemble it again without them, or check their details first.`,
+        },
+      },
+      { status: 409 }
     )
   }
 

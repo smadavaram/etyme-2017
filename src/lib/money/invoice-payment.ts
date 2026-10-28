@@ -3,6 +3,8 @@ import { emit, type EmitParams } from '@/lib/events'
 import { fromUnits } from '@/lib/money-display'
 import { fromPrismaDecimal, toDecimal } from '@/lib/money'
 import { partiesOf } from '@/lib/money/invoice-parties'
+import { mayPayFirm } from '@/lib/setup-gates'
+import type { ItemKey } from '@/lib/setup-checklist'
 
 /**
  * The one payment write.
@@ -30,7 +32,11 @@ import { partiesOf } from '@/lib/money/invoice-parties'
  *   · a cancelled or already-paid invoice;
  *   · an amount that is not a whole positive number of cents;
  *   · more than the balance owed. Integer cents, so no rounding
- *     tolerance: a cent over is over.
+ *     tolerance: a cent over is over;
+ *   · on the paying side, a firm whose bank details nobody has checked
+ *     (`mayPayFirm` in lib/setup-gates, the setup checklist's Bank
+ *     details step, 2026-10-28). The refusal names the step. A supplier
+ *     recording money that arrived is not refused: nothing leaves it.
  *
  * An amount the caller does not pass is the balance owed.
  *
@@ -69,9 +75,11 @@ export interface InvoicePaymentInput {
 
 export type InvoicePaymentRefusal = {
   ok: false
-  code: 'NOT_FOUND' | 'NOT_ATTRIBUTED' | 'INVALID_STATE' | 'OVERPAYMENT' | 'VALIDATION'
+  code: 'NOT_FOUND' | 'NOT_ATTRIBUTED' | 'INVALID_STATE' | 'OVERPAYMENT' | 'VALIDATION' | 'BANK_NOT_CHECKED'
   says: string
   field?: 'amount'
+  /** The setup step the refusal names, where a skipped step is what refuses. */
+  step?: ItemKey
 }
 
 export type InvoicePaymentRecorded = {
@@ -152,6 +160,13 @@ export async function recordInvoicePayment(
   }
   if (invoice.status === 'PAID') {
     return { ok: false, code: 'INVALID_STATE', says: `${Doc} is already fully paid` }
+  }
+
+  // No money leaves for a firm whose bank details nobody checked. Only
+  // the paying side: a supplier recording what arrived moves no money.
+  if (payer) {
+    const bank = await mayPayFirm(billedTo.id, billedBy.id, tx as unknown as Parameters<typeof mayPayFirm>[2])
+    if (!bank.ok) return { ok: false, code: 'BANK_NOT_CHECKED', says: bank.says, step: bank.step }
   }
 
   const totalCents = fromPrismaDecimal(invoice.total, currency).minor

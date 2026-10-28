@@ -60,12 +60,15 @@ export async function POST(
   // of 2026-10-19). A bill a person drafted is sent by any seat that sends bills.
   const who = await maySendBill({ personId: caller.person.id, companyId, permissions: caller.permissions }, { id })
   if (!who.ok) {
-    return NextResponse.json({ error: { code: who.code, message: who.says } }, { status: 403 })
+    // A skipped setup step is not a missing permission: 409, with the step it names.
+    return who.code === 'SETUP_INCOMPLETE'
+      ? NextResponse.json({ error: { code: who.code, message: who.says, step: who.step } }, { status: 409 })
+      : NextResponse.json({ error: { code: who.code, message: who.says } }, { status: 403 })
   }
   const check = await mayBeSent(id, companyId, ['ISSUED', 'DRAFT'])
   if (!check.ok) {
     return NextResponse.json(
-      { error: { code: check.code, message: check.says, ...(check.checks ? { checks: check.checks } : {}) } },
+      { error: { code: check.code, message: check.says, ...(check.checks ? { checks: check.checks } : {}), ...(check.step ? { step: check.step } : {}) } },
       { status: check.status }
     )
   }

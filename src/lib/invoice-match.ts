@@ -12,6 +12,7 @@ import { carriedForLines } from '@/lib/money/client-overtime-read'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { payersOwn } from '@/lib/money/expense-acceptance'
 import { acceptancesOn } from '@/lib/money/expense-acceptance-read'
+import { payeeBankGate } from '@/lib/money/payee-bank'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -636,7 +637,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
 // says so, rather than whatever its re-run match says), then the hold,
 // then the match.
 
-export type PayRefusalCode = 'NOT_SUBMITTED' | 'HELD' | 'INVALID_STATE' | 'MATCH_FAILED'
+export type PayRefusalCode = 'NOT_SUBMITTED' | 'HELD' | 'INVALID_STATE' | 'MATCH_FAILED' | 'BANK_NOT_CHECKED'
 
 export type PayGate =
   | { ok: true }
@@ -723,5 +724,11 @@ export async function mayPayInvoiceReceipt(
   const byState = receiptStateRefusal(inv)
   if (byState) return { ...byState, match: null }
   const match = await matchInvoice(invoiceId)
-  return { ...payGate(inv, match), match }
+  const gate = payGate(inv, match)
+  if (!gate.ok) return { ...gate, match }
+  // Through the check, and still no money leaves for a firm whose bank
+  // details nobody checked (the setup checklist's Bank details step).
+  const bank = await payeeBankGate(invoiceId)
+  if (bank && !bank.ok) return { ok: false, code: 'BANK_NOT_CHECKED', says: bank.says, match }
+  return { ...gate, match }
 }
