@@ -111,7 +111,7 @@ const RECORDS_BY_ID: readonly { pattern: string; family: RecordFamily }[] = [
  * test reads the folders back off src/app/api and fails on a new one.
  */
 export const NOT_AN_ID: Readonly<Record<string, readonly string[]>> = {
-  requisitions: [],
+  requisitions: ['sites'],
   requirements: ['parse'],
   invoices: ['generate', 'submit'],
   timesheets: [],
