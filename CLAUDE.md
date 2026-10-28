@@ -1611,6 +1611,27 @@ buyer's word in manufacturing and is not a screen word.
   form's site and supplier defaults, the distribute refusal and the
   placement's site (demand); the words on the map and the documentation
   (market). A release pass, then production.
+- **Built, the first piece, 2026-10-28 (architect, 2ed499317 and
+  54fdd1d44).** `Requirement.locationId`, `SiteSupplier`,
+  `SiteHiringManager`, and `source` (IMPORT · WEBSITE · PERSON) with who
+  and when on every site; Settings → Sites in the drawing's shape;
+  `jobSiteDefaults` and `checkSiteSupplier` in `lib/sites` for every
+  reader; the Sites step in setup after Your company, skippable, with
+  the line saying what skipping stops; Corvane's plants name their
+  suppliers and each client names its approved suppliers at its primary
+  site. Four coordinator's calls made on the way, each reversible in a
+  sentence: a site that names no supplier reads as every approved
+  supplier, so a client that never opens Sites is not blocked; a site's
+  hiring managers are read from the jobs posted there first, and the
+  join row is only for somebody with nothing at the site yet; the
+  source is recorded once per site, not per field ("Guessed from the
+  state" is not built); and a supplier claimed from a client's
+  invitation now opens setup at Sites, then its week and payroll (this
+  moves the 2026-10-07 line that opened it at How you work). "Read
+  sites from our website" is left out until the guarded website read
+  exists. The `seed-step-size` test sits on its 350-query line at the
+  rate-change step with or without this change; cutting that step is
+  architect's.
 
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
@@ -3184,8 +3205,8 @@ them.
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Candidates. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Contracts, Ending soon, Past contractors, Tenure, Duplicate check → Contractors. Contacts, Agreements, Supplier scorecards → Suppliers. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import → Settings. |
-| Supplier | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → People. Suppliers, Contacts, Sell contracts, Buy contracts, POs → Companies. Users & permissions, Setup, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
+| Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Candidates. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Contracts, Ending soon, Past contractors, Tenure, Duplicate check → Contractors. Contacts, Agreements, Supplier scorecards → Suppliers. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import, Sites → Settings. |
+| Supplier | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → People. Suppliers, Contacts, Sell contracts, Buy contracts, POs → Companies. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
 | Integrator | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
 | MSP | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · Companies · Settings | The supplier's, with no People, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Supplier scorecards → Companies. |
 | One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
