@@ -385,10 +385,11 @@ describe('Finance’s check of the bank goes on the supplier’s payment details
       data: {
         companyId: client.id, name, reason: 'Already supplies us elsewhere.', recommendedById: by(HIRING).id, state: 'IN_REVIEW', stage: 'FINANCE',
         decisions: decisions as unknown as object, checklist: checklist as unknown as object, token: `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`, firmCompanyId: firm.id,
+        application: { bank: { bankName: 'Chase', accountName: `${name} LLC`, last4 } },
       },
-      select: { id: true },
+      select: { id: true, token: true },
     })
-    return { id: row.id, clientId: client.id, remitId: remit.id }
+    return { id: row.id, token: row.token, clientId: client.id, remitId: remit.id }
   }
 
   it('Finance holding the bank item records who checked the supplier’s bank, and for which client', async () => {
@@ -406,6 +407,25 @@ describe('Finance’s check of the bank goes on the supplier’s payment details
     const undo = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'mark', key: 'BANK', state: 'MISSING' })
     expect(undo.status, JSON.stringify(undo.body)).toBe(200)
     expect((await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })).verifiedAt).toBeNull()
+  })
+
+  it('a supplier changing its bank on the apply link clears the client’s check', async () => {
+    const w = await atFinance('Northgate Talent', '5521')
+    as(AP)
+    const held = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'mark', key: 'BANK', state: 'HELD' })
+    expect(held.status, JSON.stringify(held.body)).toBe(200)
+    // The same bank sent again changes nothing Finance checked.
+    const same = await viaToken(applyPost, 'POST', w.token, { bank: { bankName: 'Chase', accountName: 'Northgate Talent LLC', last4: '5521' } })
+    expect(same.status, JSON.stringify(same.body)).toBe(201)
+    expect(same.body.data.bankCheckCleared).toBe(false)
+    expect((await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })).verifiedAt).not.toBeNull()
+    // A different account takes the check back and reopens the item for Finance.
+    const moved = await viaToken(applyPost, 'POST', w.token, { bank: { bankName: 'Chase', accountName: 'Northgate Talent LLC', last4: '7788' } })
+    expect(moved.status, JSON.stringify(moved.body)).toBe(201)
+    expect(moved.body.data.bankCheckCleared).toBe(true)
+    expect(moved.body.data.says).toContain('Bank details changed; your client’s Finance checks them again before paying.')
+    expect(moved.body.data.asks.find((i: any) => i.key === 'BANK')).toMatchObject({ state: 'PROVIDED', fileName: 'Chase ····7788' })
+    expect(await prisma.remitTo.findUniqueOrThrow({ where: { id: w.remitId } })).toMatchObject({ verifiedAt: null, verifiedById: null, verifiedByCompanyId: null })
   })
 
   it('a waived bank item checks nothing', async () => {

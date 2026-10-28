@@ -4,6 +4,7 @@ import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
 import { applyPrefill, approvedSays, claimUrl, sentSays, type EarlierApplication } from '@/lib/supplier-link'
 import { earlierApplications, firmOnRecord, paperIdOf, sessionEmail, signedInAt } from './firm'
+import { bankChange } from '@/lib/money/remit-change'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 
@@ -193,7 +194,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  const ordered = withOrderedItems(row.checklist as unknown as ChecklistItem[], await orderedOfSuppliers(row.companyId), row.company.name)
+  // ── A bank changed on the link takes back the client's check of it ──
+  //
+  // Finance checked the bank the firm sent, not whatever it sends next.
+  // So a different bank, account name or last four (bankChange in
+  // lib/money/remit-change) reopens the walk's bank item for Finance and
+  // clears the check this client's Finance wrote on the firm's own
+  // payment details; a resend of the same bank changes nothing.
+  const priorBank = ((row.application ?? {}) as Record<string, any>).bank ?? null
+  const change = bank?.bankName && bank.accountName && bank.last4.length === 4
+    ? bankChange(
+        priorBank ? { bankName: priorBank.bankName, accountName: priorBank.accountName, accountLast4: priorBank.last4 } : null,
+        { bankName: bank.bankName, accountName: bank.accountName, accountLast4: bank.last4 }
+      )
+    : { cleared: false as const }
+  const heldBefore = (row.checklist as unknown as ChecklistItem[]).find((i) => i.key === 'BANK')?.state === 'HELD'
+  const reopened = change.cleared
+    ? (row.checklist as unknown as ChecklistItem[]).map((i) => (i.key === 'BANK' && i.state === 'HELD' ? { ...i, state: 'PROVIDED' as const, note: null } : i))
+    : (row.checklist as unknown as ChecklistItem[])
+  const firmId = row.supplierCompanyId ?? row.firmCompanyId ?? null
+  const ordered = withOrderedItems(reopened, await orderedOfSuppliers(row.companyId), row.company.name)
   const labelOf = new Map(ordered.map((i) => [i.key, i.label]))
   const provided: { key: string; fileName?: string | null; fileUrl?: string | null; validFrom?: string | null; validUntil?: string | null }[] = []
   for (const d of docs) {
@@ -232,10 +252,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!t || i.by !== 'VENDOR' || i.state === 'HELD' || i.state === 'WAIVED') return i
     return { ...i, validFrom: day(t.validFrom) ?? i.validFrom ?? null, validUntil: day(t.validUntil) ?? i.validUntil ?? null }
   })
-  await prisma.supplierRequest.update({
-    where: { id: row.id },
-    data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },
-  })
+  const [, uncheck] = await prisma.$transaction([
+    prisma.supplierRequest.update({
+      where: { id: row.id },
+      data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },
+    }),
+    ...(change.cleared && firmId
+      ? [prisma.remitTo.updateMany({ where: { companyId: firmId, verifiedByCompanyId: row.companyId }, data: change.data })]
+      : []),
+  ])
+  const bankSays = change.cleared && (heldBefore || (uncheck?.count ?? 0) > 0) ? change.says : null
 
   // Whichever desk it is on hears that the firm's side is in; before
   // the lead has decided, Procurement, whose desk comes first with paper.
@@ -258,9 +284,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         fileName: i.fileName ?? null, says: i.says ?? null,
         wantsDates: wantsDates(i), validFrom: i.validFrom ?? null, validUntil: i.validUntil ?? null,
       })),
-      says: still.length
-        ? `${sentSays(row.company.name)} ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
-        : sentSays(row.company.name),
+      says: [
+        still.length
+          ? `${sentSays(row.company.name)} ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
+          : sentSays(row.company.name),
+        bankSays,
+      ].filter(Boolean).join(' '),
+      bankCheckCleared: !!bankSays,
     },
   }, { status: 201 })
 }
