@@ -28,6 +28,7 @@
  */
 
 import { rank } from '@/lib/supplier-tier'
+import { formatDay } from '@/lib/format-date'
 
 // ── Where an answer came from ────────────────────────────────────────
 
@@ -43,9 +44,7 @@ export function sourceWords(source: SiteSource | string | null | undefined): str
 /** "Saved by Graham Ellery, Oct 28, 2026." Or nothing where nobody is on record. */
 export function savedByWords(name: string | null | undefined, at: Date | string | null | undefined): string | null {
   if (!name || !at) return null
-  const d = new Date(at)
-  const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-  return `Saved by ${name}, ${day}.`
+  return `Saved by ${name}, ${formatDay(at)}.`
 }
 
 // ── Approved for the company ─────────────────────────────────────────

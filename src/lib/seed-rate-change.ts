@@ -378,6 +378,11 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
     runWritten = true
   }
 
+  // Every sheet already on the line, read once: a week is skipped where
+  // one overlaps it. One read for the line, not one a week, which kept
+  // this step under the seed's 350-query line (seed-step-size).
+  const sheets = await db.timesheet.findMany({ where: { sellContractId: sellId }, select: { periodStart: true, periodEnd: true } })
+
   let weeks = 0
   for (const sunday of sundays) {
     const t = weekTimes(sunday, due)
@@ -397,9 +402,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
 
     // Any sheet on those days: a world seeded while weeks ran Monday to
     // Friday keeps its own rather than gaining a second over them.
-    if (await db.timesheet.findFirst({
-      where: { sellContractId: sellId, periodStart: { lte: saturday }, periodEnd: { gte: periodStart } },
-    })) continue
+    if (sheets.some((x) => x.periodStart <= saturday && x.periodEnd >= periodStart)) continue
 
     // The rate the employer's acceptance carries: her pay rate in force
     // on the first day worked, from the history as it stood that day.

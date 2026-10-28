@@ -118,7 +118,7 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     waiting: 'Someone starts in ten days with no US work form (I-9) on file.',
     about:
       'Another contractor works on a purchase order with no agreement behind it. A validation ' +
-      'engineer’s week is waiting for the plant to sign it. A past contractor has been gone ' +
+      'engineer’s week is waiting for the hiring manager to sign it. A past contractor has been gone ' +
       'long enough to be asked back.',
   },
   {
@@ -281,7 +281,7 @@ export const SUPPLIER_SEATS: Program[] = [
     where: 'Prime supplier',
     industry: 'Engineering and IT staffing',
     waiting:
-      'A validation engineer’s week is filed and waiting for the plant to sign it.',
+      'A validation engineer’s week is filed and waiting for the client’s hiring manager to sign it.',
     about:
       'Sells to Cavanaugh Glassworks and Talvern Medical. Buys that same engineer from a bench ' +
       'vendor below, and keeps the difference in rate.',

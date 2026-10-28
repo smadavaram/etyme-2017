@@ -213,6 +213,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'ContractorInvitation.supplierCompanyId': { as: 'LINK', to: ['Company'] },
   'ContractorInvitation.personId': { as: 'LINK', to: ['Person'] },
   'Requirement.clearedSupplierIds': { as: 'LINK', to: ['Company'] },
+  // The suppliers a hiring manager left ticked on a job waiting for approval (2026-10-28).
+  'Requirement.sendToSupplierIds': { as: 'LINK', to: ['Company'] },
   'Context.teamPersonIds': { as: 'LINK', to: ['Person'] },
   'SourcedContact.graduatedPersonId': { as: 'LINK', to: ['Person'] },
 
