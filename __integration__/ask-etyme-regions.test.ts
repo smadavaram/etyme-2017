@@ -66,7 +66,7 @@ describe('Valeria Montes asks Ask Etyme about Latin America', () => {
     const rest = sum(latam, 'weeksToSign') - campinas.weeksToSign
     const restPlants = latam.filter((x) => x.weeksToSign > 0 && x.key !== 'campinas').length
     expect(g.body.data.answer.says).toBe(
-      `One thing needs you: ${campinas.manager} has ${campinas.weeksToSign} weeks to sign in Campinas, and ${rest} more weeks wait at ${restPlants} plants. ` +
+      `One thing needs you: ${campinas.manager} has ${campinas.weeksToSign} weeks to sign in Campinas, and ${rest} more weeks wait at ${restPlants} sites. ` +
       `${juliana.name} in Campinas reaches the time limit in 22 days.`)
     const mark = await greeting(VALERIA, '?only=owed')
     expect(mark.status).toBe(200)
@@ -75,12 +75,12 @@ describe('Valeria Montes asks Ask Etyme about Latin America', () => {
     noUnitedStates(JSON.stringify(g.body.data.answer))
   })
 
-  it('which plants have weeks waiting: Latin America’s 6 plants and 68 contractors, and the weeks the seed filed at each', async () => {
-    const r = await asked(VALERIA, 'Which plants have weeks waiting?')
+  it('which sites have weeks waiting: Latin America’s 6 sites and 68 contractors, and the weeks the seed filed at each', async () => {
+    const r = await asked(VALERIA, 'Which sites have weeks waiting?')
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const a = r.body.data.answer
     const withWeeks = latam.filter((p) => p.weeksToSign > 0)
-    expect(a.says).toBe(`Latin America: 6 plants, 68 contractors on site. ${sum(latam, 'weeksToSign')} weeks wait to be signed at ${withWeeks.length} plants.`)
+    expect(a.says).toBe(`Latin America: 6 sites, 68 contractors on site. ${sum(latam, 'weeksToSign')} weeks wait to be signed at ${withWeeks.length} sites.`)
     expect(sum(latam, 'contractors')).toBe(68)
     const rows = a.table.rows.map((row: any) => row.cells)
     expect(rows.map((c: string[]) => c[0]).sort()).toEqual(withWeeks.map((p) => p.plant).sort())
@@ -154,8 +154,8 @@ describe('Marcus Hollins asks about Dayton', () => {
     expect(r.body.data.answer.says).toBe(`${onHold.name} cannot start without an I-9. Get it on file, then start. Checked just now.`)
   })
 
-  it('which plants have weeks waiting: Dayton’s 14 contractors and 3 weeks, and no other plant', async () => {
-    const r = await asked(MARCUS, 'Which plants have weeks waiting?')
+  it('which sites have weeks waiting: Dayton’s 14 contractors and 3 weeks, and no other site', async () => {
+    const r = await asked(MARCUS, 'Which sites have weeks waiting?')
     const a = r.body.data.answer
     expect(a.says).toBe('Dayton, Ohio: 14 contractors on site. 3 weeks wait to be signed.')
     expect(a.table.rows.map((row: any) => row.cells)).toEqual([['Dayton, Ohio', 'Marcus Hollins', '14', '3']])
@@ -308,7 +308,7 @@ describe('the thread column beside Valeria Montes’s chat', () => {
 
     const x = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${away.id}`) as NextRequest))
     expect(x.status).toBe(403)
-    expect(x.body.error.message).toBe('That conversation is about a plant outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.')
+    expect(x.body.error.message).toBe('That conversation is about a site outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.')
     expect(JSON.stringify(x.body)).not.toContain('Dayton note.')
 
     const xw = await json(await writeThread(req('POST', '/api/conversations/messages', { conversationId: away.id, body: 'hello' }) as NextRequest))

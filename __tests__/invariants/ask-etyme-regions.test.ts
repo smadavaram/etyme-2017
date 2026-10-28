@@ -100,7 +100,7 @@ describe('who reads Ask Etyme by region', () => {
   it('a seat on a region reads the map, and its chips are the four a regional manager asks', () => {
     expect(mapReach({ ...base, region: 'Latin America', onUnit: true, permissions: ['invoices.read'] })).toBe('REGION')
     expect(mapChips('REGION')).toEqual([
-      'Which plants have weeks waiting?', 'Who is near the time limit in my region?', 'Which invoice receipts are held?', 'How does each country here run?',
+      'Which sites have weeks waiting?', 'Who is near the time limit in my region?', 'Which invoice receipts are held?', 'How does each country here run?',
     ])
     expect(REGION_CHIPS).toHaveLength(4)
   })
@@ -133,7 +133,7 @@ describe('who reads Ask Etyme by region', () => {
 
 describe('what a map seat asks', () => {
   it('reads each chip as its own question', () => {
-    expect(readMapAsk('Which plants have weeks waiting?')).toBe('PLANT_WEEKS')
+    expect(readMapAsk('Which sites have weeks waiting?')).toBe('PLANT_WEEKS')
     expect(readMapAsk('Who is near the time limit in my region?')).toBe('LIMIT')
     expect(readMapAsk('Who is past the time limit?')).toBe('PAST')
     expect(readMapAsk('Which invoice receipts are held?')).toBe('HELD_RECEIPTS')
@@ -166,18 +166,18 @@ describe('a region seat reads its region only', () => {
   it('a region seat naming its own plants, with or without accents, is answered', () => {
     expect(outOfReach('Which weeks wait at Medellin?', valeria)).toBeNull()
     expect(outOfReach('Who is near the time limit in Monterrey?', valeria)).toBeNull()
-    expect(outOfReach('Which plants have weeks waiting?', valeria)).toBeNull()
+    expect(outOfReach('Which sites have weeks waiting?', valeria)).toBeNull()
   })
 
   it('a plant seat naming another plant is refused naming its own plant', () => {
     expect(outOfReach('Who is near the time limit at Fresno?', marcus)).toBe('Your seat reads Dayton, Ohio only, so Fresno, California is not on your page.')
-    expect(outOfReach('Who is near the time limit at my plant?', marcus)).toBeNull()
+    expect(outOfReach('Who is near the time limit at my site?', marcus)).toBeNull()
   })
 
   it('a question the map does not answer is told what it can ask, and never goes to the model', () => {
     const a = mapHelp(valeria)
     expect(a.kind).toBe('TEXT')
-    expect((a as { says: string }).says).toBe('I read Latin America only. Ask which plants have weeks waiting, who is near the time limit, which invoice receipts are held, or how each country here runs.')
+    expect((a as { says: string }).says).toBe('I read Latin America only. Ask which sites have weeks waiting, who is near the time limit, which invoice receipts are held, or how each country here runs.')
     expect(said(a)).not.toMatch(/model/i)
   })
 })
@@ -222,7 +222,7 @@ describe('the answers are By region’s own read', () => {
     d.region!.managers[1] = { ...d.region!.managers[1], manager: 'Fernanda Albuquerque', weeksToSign: 2, nearestLimit: { days: 22, personName: 'Juliana Lima', plant: 'Campinas, Brazil' } }
     d.total.nearestLimit = { days: 22, personName: 'Juliana Lima', plant: 'Campinas, Brazil' }
     const line = seatLine(d, 'REGION')
-    expect(line.says).toBe('One thing needs you: Fernanda Albuquerque has 2 weeks to sign in Campinas, and 4 more weeks wait at 1 plant. Juliana Lima in Campinas reaches the time limit in 22 days.')
+    expect(line.says).toBe('One thing needs you: Fernanda Albuquerque has 2 weeks to sign in Campinas, and 4 more weeks wait at 1 site. Juliana Lima in Campinas reaches the time limit in 22 days.')
     expect(mapOwed(d, 'REGION')).toBe(d.greeting.total)
     expect((mapNeeds(d, 'REGION', true) as { says: string }).says).toBe(line.says)
   })
@@ -280,11 +280,11 @@ describe('the answers are By region’s own read', () => {
     expect(a.more[0].says).toContain('I read Latin America only')
   })
 
-  it('which plants have weeks waiting names each plant, its hiring manager, contractors and weeks', () => {
+  it('which sites have weeks waiting names each site, its hiring manager, contractors and weeks', () => {
     const a = mapWeeks(latam()) as { kind: string; says: string; table: { head: string[]; rows: { cells: string[] }[] } }
     expect(a.kind).toBe('LIST')
-    expect(a.says).toBe('Latin America: 3 plants, 41 contractors on site. 6 weeks wait to be signed at 2 plants.')
-    expect(a.table.head).toEqual(['Plant', 'Hiring manager', 'Contractors', 'Weeks waiting'])
+    expect(a.says).toBe('Latin America: 3 sites, 41 contractors on site. 6 weeks wait to be signed at 2 sites.')
+    expect(a.table.head).toEqual(['Site', 'Hiring manager', 'Contractors', 'Weeks waiting'])
     expect(a.table.rows.map((r) => r.cells)).toEqual([
       ['Monterrey, Mexico', 'Manager of Monterrey, Mexico', '18', '4'],
       ['Campinas, Brazil', 'Manager of Campinas, Brazil', '15', '2'],
@@ -293,15 +293,15 @@ describe('the answers are By region’s own read', () => {
 
   it('a program seat reads weeks waiting by region', () => {
     const a = mapWeeks(cfo()) as { says: string; table: { rows: { cells: string[] }[] } }
-    expect(a.says).toBe('14 weeks wait to be signed across 2 regions. Open a region on By region for its plants.')
+    expect(a.says).toBe('14 weeks wait to be signed across 2 regions. Open a region on By region for its sites.')
     expect(a.table.rows.map((r) => r.cells[0])).toEqual(['United States', 'Northern Ireland'])
   })
 
-  it(`near the time limit lists the nearest person at each plant within ${NEAR_DAYS} days, nearest first, and says it is the nearest at each plant`, () => {
+  it(`near the time limit lists the nearest person at each site within ${NEAR_DAYS} days, nearest first, and says it is the nearest at each site`, () => {
     const a = mapLimit(latam(), 'NEAR') as { says: string; table: { rows: { cells: string[] }[] } }
     expect(a.table.rows.map((r) => r.cells.slice(0, 2))).toEqual([['Campinas, Brazil', 'Bia'], ['Monterrey, Mexico', 'Ana']])
     expect(a.says).toContain('Bia at Campinas, Brazil is nearest, in 22 days')
-    expect(a.says).toContain('the nearest person at each plant')
+    expect(a.says).toContain('the nearest person at each site')
   })
 
   it('a plant seat reads every one of its own contractors against the time limit', () => {
@@ -427,7 +427,7 @@ describe('an invoice receipt to pay is a card with a way to pay it', () => {
 
 describe('a link to a thread opens it, or says why not', () => {
   it('a link to a thread the seat may not open shows the route’s own refusal, never “Select a conversation”', async () => {
-    const says = 'That conversation is about a plant outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.'
+    const says = 'That conversation is about a site outside Latin America, and your seat reads Latin America only. Open By region on Today for Latin America.'
     const got = await openThread('t1', async () => new Response(JSON.stringify({ error: { code: 'OUT_OF_REGION', message: says } }), { status: 403 }))
     expect(got).toEqual({ ok: false, says })
   })

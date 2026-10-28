@@ -63,7 +63,7 @@ async function open(request: NextRequest, conversationId: string) {
       ?? { unitId: caller.region.unitId, label, unitIds: [], siteIds: [] }
     const [kept] = await threadsInRegion([conversation], scope)
     if (!kept) {
-      return refuse(`That conversation is about a plant outside ${label}, and your seat reads ${label} only. Open By region on Today for ${label}.`)
+      return refuse(`That conversation is about a site outside ${label}, and your seat reads ${label} only. Open By region on Today for ${label}.`)
     }
     return { ok: true as const, caller, conversation, participants }
   }

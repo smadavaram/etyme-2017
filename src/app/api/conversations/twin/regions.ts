@@ -80,7 +80,7 @@ export interface MapSeat {
 export const NEAR_DAYS = 90
 
 export const REGION_CHIPS: readonly string[] = [
-  'Which plants have weeks waiting?',
+  'Which sites have weeks waiting?',
   'Who is near the time limit in my region?',
   'Which invoice receipts are held?',
   'How does each country here run?',
@@ -92,7 +92,7 @@ export const PROGRAM_CHIPS: readonly string[] = [
   'Who is past the time limit?',
 ]
 
-export const PLANT_LIMIT_CHIP = 'Who is near the time limit at my plant?'
+export const PLANT_LIMIT_CHIP = 'Who is near the time limit at my site?'
 
 /**
  * Which map, if any, this seat reads. Pure: the facts are read by `mapSeatOf`.
@@ -383,7 +383,7 @@ export function seatLine(data: RegionsData, reach: MapReach, opts: { line?: Prog
       if (named) {
         const rest = weeks.count - named.weeksToSign
         const restPlants = managers.filter((m) => m.weeksToSign > 0 && m !== named).length
-        parts.push(rest > 0 ? `${weeksAt(named)}, and ${count(rest, 'more week')} ${rest === 1 ? 'waits' : 'wait'} at ${count(restPlants, 'plant')}` : weeksAt(named))
+        parts.push(rest > 0 ? `${weeksAt(named)}, and ${count(rest, 'more week')} ${rest === 1 ? 'waits' : 'wait'} at ${count(restPlants, 'site')}` : weeksAt(named))
       } else {
         parts.push(weeks.says)
       }
@@ -444,7 +444,7 @@ export function mapNeeds(
   const where = scopeOf(data)
   const close = reach === 'PROGRAM'
     ? `Ask me what ${data.client.name} spends by region, what is held and why, and who is past the time limit. I answer from the record, and I never move money without a person.`
-    : `Ask me about ${where}: its plants, its weeks, the time limit, its invoice receipts and how each country runs. I read ${where} only, and I answer from the record.`
+    : `Ask me about ${where}: its sites, its weeks, the time limit, its invoice receipts and how each country runs. I read ${where} only, and I answer from the record.`
   return {
     kind: 'NEEDS', greeting, says: seatLine(data, reach, opts).says, items: [],
     more: [{ says: close }, ...(boundary ? [{ says: boundary }] : [])],
@@ -476,7 +476,7 @@ export function mapI9(data: RegionsData): Answer {
   }
 }
 
-/** Which plants have weeks waiting: a region's plants, a plant's own row, or the program's regions. */
+/** Which sites have weeks waiting: a region's sites, a site's own row, or the program's regions. */
 export function mapWeeks(data: RegionsData): Answer {
   const where = scopeOf(data)
   if (data.region) {
@@ -484,15 +484,15 @@ export function mapWeeks(data: RegionsData): Answer {
     const f = data.total
     const head = data.reader.reach === 'SITE'
       ? `${where}: ${count(f.contractors, 'contractor')} on site.`
-      : `${where}: ${count(f.plants, 'plant')}, ${count(f.contractors, 'contractor')} on site.`
+      : `${where}: ${count(f.plants, 'site')}, ${count(f.contractors, 'contractor')} on site.`
     const weeks = rows.reduce((n, r) => n + r.weeksToSign, 0)
     const plants = new Set(rows.map((r) => r.plant)).size
     const says = weeks === 0
       ? `${head} No week waits to be signed.`
-      : `${head} ${count(weeks, 'week')} ${weeks === 1 ? 'waits' : 'wait'} to be signed${data.reader.reach === 'SITE' ? '' : ` at ${count(plants, 'plant')}`}.`
+      : `${head} ${count(weeks, 'week')} ${weeks === 1 ? 'waits' : 'wait'} to be signed${data.reader.reach === 'SITE' ? '' : ` at ${count(plants, 'site')}`}.`
     const table: ListTable = {
       caption: `Weeks waiting to be signed, ${where}`,
-      head: ['Plant', 'Hiring manager', 'Contractors', 'Weeks waiting'],
+      head: ['Site', 'Hiring manager', 'Contractors', 'Weeks waiting'],
       rows: rows.map((r: ManagerRow) => ({
         cells: [r.plant, r.manager, String(r.contractors), String(r.weeksToSign)],
         href: byRegionHref({ region: r.region, manager: r.managerId ?? 'none' }),
@@ -504,12 +504,12 @@ export function mapWeeks(data: RegionsData): Answer {
   const total = data.total.weeksToSign
   const says = total === 0
     ? `No week waits to be signed at ${where}.`
-    : `${count(total, 'week')} ${total === 1 ? 'waits' : 'wait'} to be signed across ${count(rows.length, 'region')}. Open a region on By region for its plants.`
+    : `${count(total, 'week')} ${total === 1 ? 'waits' : 'wait'} to be signed across ${count(rows.length, 'region')}. Open a region on By region for its sites.`
   return {
     kind: 'LIST', says,
     table: rows.length ? {
       caption: `Weeks waiting to be signed, by region`,
-      head: ['Region', 'Plants', 'Contractors', 'Weeks waiting'],
+      head: ['Region', 'Sites', 'Contractors', 'Weeks waiting'],
       rows: rows.map((r: RegionRow) => ({ cells: [r.label, String(r.plants), String(r.contractors), String(r.weeksToSign)], href: byRegionHref({ region: r.label }) })),
     } : undefined,
     links: [openLink(data)],
@@ -556,7 +556,7 @@ export function mapLimit(data: RegionsData, mode: 'NEAR' | 'PAST', people: reado
     if (!had || e.near.days < had.days) byPlace.set(e.place, e.near)
   }
   const rows = [...byPlace.entries()].filter(([, n]) => inScope(n.days)).sort((a, b) => a[1].days - b[1].days)
-  const unit = data.region ? 'plant' : 'region'
+  const unit = data.region ? 'site' : 'region'
   const nearest = data.total.nearestLimit
   let says: string
   if (rows.length === 0) {
@@ -571,7 +571,7 @@ export function mapLimit(data: RegionsData, mode: 'NEAR' | 'PAST', people: reado
     kind: 'LIST', says,
     table: rows.length ? {
       caption: `The nearest person at each ${unit}, ${what}`,
-      head: [upper(unit), 'Nearest', 'Plant', 'Time limit'],
+      head: [upper(unit), 'Nearest', 'Site', 'Time limit'],
       rows: rows.map(([place, n]) => ({ cells: [place, n.personName, n.plant, daysWords(n.days)], href: byRegionHref({ region: data.region ? data.region.label : place }) })),
     } : undefined,
     links: [openLink(data)],
@@ -680,7 +680,7 @@ export const REGION_BOUNDARY = 'Your data stays in your company. Every read is l
 export function mapHelp(seat: Pick<MapSeat, 'label'>): Answer {
   return {
     kind: 'TEXT',
-    says: `I read ${seat.label} only. Ask which plants have weeks waiting, who is near the time limit, which invoice receipts are held, or how each country here runs.`,
+    says: `I read ${seat.label} only. Ask which sites have weeks waiting, who is near the time limit, which invoice receipts are held, or how each country here runs.`,
     links: [{ label: 'Open By region', href: byRegionHref({ region: seat.label }) }],
   }
 }
