@@ -1632,6 +1632,34 @@ buyer's word in manufacturing and is not a screen word.
   exists. The `seed-step-size` test sits on its 350-query line at the
   rate-change step with or without this change; cutting that step is
   architect's.
+- **Built, the rest, the same night (demand 27491ce86 and 3f2550d36,
+  architect e1f7e9934 and f9c94f5b5, market b5b178cd2, e6457ecc2 and
+  1d7b44089, conversation 53442be64).** The job form opens on the
+  primary site with "Your site. Days off, the time limit and the pay
+  currency follow it."; "Send the job to" ticks the site's suppliers,
+  each "approved at Dayton", with the sentence under them; a firm not
+  approved at the site is refused on the raise and on distribute; the
+  award writes the placement's site from the job; "Who applied" shows
+  "supplier · Dayton, Ohio"; a seat in a client's program posts at the
+  client's sites, a region seat at its region's; **a hiring manager's
+  ticks are kept** (`Requirement.sendToSupplierIds`, who and when) and
+  the job goes only to the ones left when it clears by rule or on the
+  last yes, each firm checked again that day; every release panel
+  offers only the site's suppliers. By region, the region rollup, Ask
+  Etyme's region answers and the home page map's headings all say
+  "site"; Corvane's own sentences about its plants stay. Two
+  coordinator's calls on the way, each reversible by the founder in a
+  sentence: **a hiring manager's ticks send the job**, narrowed only,
+  though that role never chose who sees a job before, because whoever
+  named the site's suppliers under Settings → Sites already made the
+  choice; and **a job raised with no ticks or no site** (imports, older
+  callers, the simulation) goes where it went before. Known gap:
+  unticking every supplier saves an empty list, which reads as the
+  site's default. Still on the free-text `location`: the matching
+  checks, the consent text, the edit form and parse (demand); the
+  match engine, internal moves and the bench routes (supply);
+  `seed-standing` (architect), each reading the site's name the raise
+  writes there.
 
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
