@@ -1567,6 +1567,51 @@ forms 200, the inbound email door 404 to a POST. Still waiting on
 (https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq) and the four doors'
 maps.
 
+## Sites — where people work, who hires there, and which suppliers fill jobs there — decided by the founder, 2026-10-28
+
+The founder: *"Are you also setting up branch offices … Branch offices
+with plants where hirings and placements from suppliers can happen."*
+Then "Build it, sites sounds good" on the drawing
+(https://claude.ai/artifact/HqTdsPPMNSwxKyUjp2ynur), drawn as Corvane
+Packaging from the seed. The word is **Sites** on every screen (a plant,
+a branch office, a warehouse, a hospital are all sites); "plants" is a
+buyer's word in manufacturing and is not a screen word.
+
+- **A site is where a contractor works**, and it already exists
+  (`CompanyLocation`: country, time zone, region). What is new: **a job
+  request names its site by id**, never as free text; **a site names
+  which approved suppliers may fill jobs there** (a supplier is approved
+  for the company first, by Procurement, then named at sites; a job at a
+  site goes to that site's suppliers by default, and a supplier not
+  approved at the site is refused in a sentence that says to ask
+  Procurement); and **a site names its hiring managers**, read from the
+  jobs they posted where nobody typed it.
+- **The placement inherits the job's site**, so its week follows the
+  site's days off and time zone, the regional manager sees it under her
+  region, and the time limit still counts the person's days at the
+  company across every site.
+- **One screen, Settings → Sites**, in the drawing's shape: every site
+  grouped by region with its regional manager, country, time zone,
+  hiring managers, suppliers and contractors; one site open with its
+  address, days off, managers and the supplier ticks; every answer
+  saying where it came from (the contractor list import, the company's
+  website by the guarded read, a person). It is also the **Sites item
+  of the setup checklist**, the eleventh, after Addresses, and until the
+  checklist is built it is a line on the setup reminder.
+- **Skipping stops one thing only:** a job with no site is posted at the
+  primary site and goes to every approved supplier, and says so.
+- **Refused:** a site named by a supplier or a seated MSP; a regional
+  manager editing a site outside her region; a site deleted while a
+  placement is at it.
+- **Not built, on purpose:** the legal-entity layer per branch (own
+  currency, tax registration, bank), which waits for a client that bills
+  from two entities, per "One tenant is one domain name".
+- **Built in this order:** the schema and the Sites screen (architect,
+  with Corvane's per-site suppliers and managers in the seed); the job
+  form's site and supplier defaults, the distribute refusal and the
+  placement's site (demand); the words on the map and the documentation
+  (market). A release pass, then production.
+
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
 The founder: *"Can you integrate user business email, like Muse, and
