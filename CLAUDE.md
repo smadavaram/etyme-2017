@@ -1567,6 +1567,26 @@ forms 200, the inbound email door 404 to a POST. Still waiting on
 (https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq) and the four doors'
 maps.
 
+## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
+
+"Build it", on the two drawings waiting since 2026-10-27: the setup
+checklist with its fill sources
+(https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq, eleven items now,
+Sites after Addresses) and the four doors' maps (MSPs
+https://claude.ai/artifact/CPJviSYK5Uws6bFXLkMgL7, Integrators
+https://claude.ai/artifact/AYzwwuCAYXSHj9KS5FosgT, Suppliers
+https://claude.ai/artifact/3teoAA3AMXxo1d6GSYpfGq, Workers
+https://claude.ai/artifact/6LHDsk2pMnj1aPBNMZCKT8). Read as both,
+because both were listed under "waiting on your build it" in the same
+line; the checklist first. Built in this order: the checklist's schema
+(the company profile, the legal and billing addresses, the people in
+charge, the company-level paper sets) and its screens, the reminder on
+every page until the list is empty, and the refusals that name the
+step (architect, with regulatory for the paper sets as data); the
+Integrators, Suppliers and Workers maps from their drawings, every
+figure read from the seed (market), the MSP map after the architect
+seeds Aptiva's three missing seats. A release pass, then production.
+
 ## Sites — where people work, who hires there, and which suppliers fill jobs there — decided by the founder, 2026-10-28
 
 The founder: *"Are you also setting up branch offices … Branch offices
