@@ -1658,6 +1658,8 @@ import {
 } from '@/lib/document-requirements'
 import { labelFor } from '@/lib/document-type'
 import { possessive } from '@/lib/requisition-approval'
+import { gateChases, partyOfShape, workerPartyAt, withheldDetail, type WithheldChase } from '@/lib/document-stages/chase-gate'
+import type { Party } from '@/lib/document-stages/required-sets'
 
 /** How far ahead a lapse is worth telling somebody about. */
 export const CHASE_WINDOW_DAYS = 60
@@ -1699,6 +1701,12 @@ export interface LapsingDocument {
   stopsWork: boolean
   /** The fact, in one sentence. Never the letter — that is conversation's. */
   says: string
+  /**
+   * The party of the telling firm's own set this chase is about, which
+   * is the set it must have confirmed at setup before it is chased
+   * (`lib/document-stages/chase-gate`). Null where it cannot be placed.
+   */
+  party?: Party | null
 }
 
 export interface DocumentWatch {
@@ -1716,6 +1724,11 @@ export interface DocumentWatch {
     companyId: string | null
     items: LapsingDocument[]
   }[]
+  /**
+   * What was not chased, because the company never confirmed its set for
+   * that party. One row per company and party, with the sentence.
+   */
+  withheld?: WithheldChase[]
 }
 
 function daysBetween(a: Date, b: Date): number {
@@ -1794,6 +1807,7 @@ export async function lookAtDocInstances(
       lapsed: daysLeft < 0,
       stopsWork: item?.blocks ?? false,
       says: sentence(item?.label ?? r.template.name, item?.owedByName ?? null, daysLeft),
+      party: set ? partyOfShape(set.shape) : null,
     })
   }
 
@@ -1889,12 +1903,32 @@ export async function checksToRedo(
  */
 export async function documentsToChase(
   now: Date = new Date(),
-  opts: { windowDays?: number; db?: Db } = {}
+  opts: { windowDays?: number; db?: Db; ungated?: boolean } = {}
 ): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
   const [papers, checks, standing] = await Promise.all([lookAtDocInstances(now, opts), checksToRedo(now, opts), standingToRenew(now, opts)])
-  return assembleWatch(now, papers.windowDays, [
+  const all = [
     ...papers.lapsed, ...papers.lapsing, ...checks.lapsed, ...checks.lapsing, ...standing.lapsed, ...standing.lapsing,
-  ])
+  ]
+  if (opts.ungated) return assembleWatch(now, papers.windowDays, all)
+  // A check about a person is about the worker the telling firm pays:
+  // which of its sets that is depends on the line that pays them there.
+  for (const d of all) {
+    if (d.party === undefined && d.kind === 'CHECK' && d.personId && d.tellCompanyId) {
+      d.party = await workerPartyAt(d.personId, d.tellCompanyId, db)
+    }
+  }
+  // No paper is chased on a company's behalf for a party whose set it
+  // never confirmed at setup. The letters and the findings both read this
+  // list, so neither chases what the other holds back; what is held back
+  // is returned with the sentence, never dropped in silence.
+  const { chase, withheld } = await gateChases(
+    all,
+    (d) => ({ companyId: d.tellCompanyId, party: d.party ?? null }),
+    (d) => d.document,
+    db
+  )
+  return { ...assembleWatch(now, papers.windowDays, chase), withheld }
 }
 
 /**
@@ -1960,6 +1994,8 @@ export async function standingToRenew(
         owedBy: 'SUPPLIER', owedByName: r.company?.name ?? null, personId: null, companyId: r.companyId,
         tellCompanyId: line.clientCompanyId, expiresAt: r.expiresAt!, daysLeft, lapsed: daysLeft < 0,
         stopsWork: true, says: sentence(label, r.company?.name ?? null, daysLeft),
+        // The client buys from this firm: its set for the suppliers it buys from.
+        party: 'SUB_VENDORS',
       })
     }
   }
@@ -2017,13 +2053,26 @@ export function asFindings(watch: DocumentWatch): {
   daysUntil: number | null
 }[] {
   const rows = [...watch.lapsed, ...watch.lapsing]
-  return rows
+  // What the night did not chase, and why: one line per company and
+  // party, to that company, in the gate's own sentence.
+  const held = (watch.withheld ?? []).map((w) => ({
+    kind: 'PAPER_CHASE_WITHHELD',
+    urgency: 'WORTH_KNOWING' as const,
+    companyId: w.companyId,
+    subjectType: 'Company',
+    subjectId: w.companyId,
+    headline: w.says,
+    detail: withheldDetail(w),
+    action: 'NOTIFY_ONLY' as const,
+    daysUntil: null,
+  }))
+  const told = rows
     // A finding with no company has no desk to arrive at. Reported as a
     // gap in the return rather than sent to everybody.
     .filter((r) => !!r.tellCompanyId)
     .map((r) => ({
       kind: r.kind === 'CHECK' ? 'CHECK_DUE_AGAIN' : 'DOCUMENT_LAPSING',
-      urgency: r.lapsed && r.stopsWork ? 'BLOCKING' : r.daysLeft <= 14 ? 'SOON' : 'WORTH_KNOWING',
+      urgency: (r.lapsed && r.stopsWork ? 'BLOCKING' : r.daysLeft <= 14 ? 'SOON' : 'WORTH_KNOWING') as 'BLOCKING' | 'SOON' | 'WORTH_KNOWING',
       companyId: r.tellCompanyId!,
       subjectType: r.kind === 'CHECK' ? 'Verification' : 'DocInstance',
       subjectId: r.id,
@@ -2036,6 +2085,7 @@ export function asFindings(watch: DocumentWatch): {
       action: 'NOTIFY_ONLY' as const,
       daysUntil: r.daysLeft,
     }))
+  return [...told, ...held]
 }
 
 /** Everything running out tonight, in the watcher's shape. One line. */

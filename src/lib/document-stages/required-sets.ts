@@ -25,13 +25,19 @@
  *                    nobody, so it asks nothing of a worker
  *   One-person firm  the customers she bills
  *
- * ── What it is not yet ───────────────────────────────────────────────
+ * ── Where a company's answer lives ───────────────────────────────────
  *
- * A company-level set is not on the record: a `DocumentRequirement` row
- * belongs to an order, a sell line or a buy line, never to a company. So
- * this is the default the step shows, and what a company changes on it
- * has nowhere to live until the architect adds a company owner to that
- * table. Pure: no database.
+ * Since 2026-10-28 a company's own set is on the record: a
+ * `DocumentRequirement` row may belong to a company and one of these
+ * parties (`companyId`, `party`), written by the step, and every line of
+ * that party reads it as its floor (`companySet` in
+ * lib/document-requirements, through `PARTY_OF_SHAPE`). What this file
+ * returns is the shipped default the step shows before a company has
+ * answered, and what the seed confirms for its firms. A party with no
+ * confirmed set is not chased for papers (`mayChasePaper` in
+ * lib/setup-gates, asked by lib/document-stages/chase-gate); its lines
+ * still read the shipped floor, so nothing it must hold to start is
+ * lost. Pure: no database.
  */
 
 import { defaultItemsFor, owedByFor, CANNOT_BE_WAIVED, type LineShape, type OwedBy } from '@/lib/document-requirements'
