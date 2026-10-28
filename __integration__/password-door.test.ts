@@ -100,10 +100,10 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(made.claimedDomains).toEqual([])
     expect(made.contexts.map((c) => [c.personId, c.role?.name])).toEqual([[person.id, 'Owner']])
 
-    // Lands in the five steps with step 2 answered on the form.
+    // Lands in the steps with step 2 answered on the form; Sites is next (2026-10-28).
     as(OWNER)
     const e = await json(await entry(req('GET', '/api/onboarding')))
-    expect(e.body.data).toMatchObject({ action: 'ALREADY_IN', company: { slug: 'kestrel' }, setup: { shows: true, next: 'WORK' } })
+    expect(e.body.data).toMatchObject({ action: 'ALREADY_IN', company: { slug: 'kestrel' }, setup: { shows: true, next: 'SITES' } })
     expect(e.body.data.setup.record.COMPANY).toMatchObject({ outcome: 'DONE', byId: person.id })
   })
 

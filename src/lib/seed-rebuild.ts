@@ -123,6 +123,9 @@ export const DELETE_ORDER = [
   // A firm's acceptance of an expense (2026-10-19) goes before the expense,
   // the firm and the person who decided.
   'ExpenseAcceptance',
+  // A site's named suppliers and hiring managers (2026-10-28) go before the
+  // site, the firm and the person they name.
+  'SiteSupplier', 'SiteHiringManager',
   'OvertimeDecision', 'Invoice', 'Expense', 'VendorBill', 'LedgerAccount', 'JournalEntry', 'Conversation',
   'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',

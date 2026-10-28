@@ -20,8 +20,17 @@ import { postureWord } from '@/lib/parties'
 
 // ── The steps ─────────────────────────────────────────────────────────
 
-/** The four steps that are recorded. Signing in is the fifth, and it is done on arrival. */
-export type SetupStep = 'COMPANY' | 'WORK' | 'PEOPLE' | 'TEAM'
+/**
+ * The steps that are recorded. Signing in is done on arrival.
+ *
+ * SITES since 2026-10-28 (founder, "Build it, sites sounds good"): where
+ * people work, who hires there and which approved suppliers fill jobs
+ * there, confirmed once after the company. Never for a one-person firm,
+ * whose one site is herself. Skippable, and skipping stops one thing:
+ * a job with no site is posted at the primary site and goes to every
+ * approved supplier (`skipStops` in lib/site-rules says so).
+ */
+export type SetupStep = 'COMPANY' | 'SITES' | 'WORK' | 'PEOPLE' | 'TEAM'
 export type StepOutcome = 'DONE' | 'SKIPPED'
 
 export interface StepAnswer {
@@ -34,12 +43,13 @@ export interface StepAnswer {
 
 export type SetupRecord = Partial<Record<SetupStep, StepAnswer>>
 
-export const RECORDED_STEPS: readonly SetupStep[] = ['COMPANY', 'WORK', 'PEOPLE', 'TEAM']
+export const RECORDED_STEPS: readonly SetupStep[] = ['COMPANY', 'SITES', 'WORK', 'PEOPLE', 'TEAM']
 
 /** The rail, in the prototype's order and words. */
 export const SETUP_RAIL: readonly { key: 'SIGN_IN' | SetupStep; label: string }[] = [
   { key: 'SIGN_IN', label: 'Sign in' },
   { key: 'COMPANY', label: 'Your company' },
+  { key: 'SITES', label: 'Sites' },
   { key: 'WORK', label: 'How you work' },
   { key: 'PEOPLE', label: 'Your people' },
   { key: 'TEAM', label: 'Your team' },
@@ -59,7 +69,7 @@ export function stepsFor(kind?: string | null): readonly SetupStep[] {
   // A program office runs a client's program and places nobody, so it has
   // no contractor list of its own to bring in (sign-up walk, round four,
   // item 12). It still has a team to invite: its own desks.
-  if (kind === 'MSP') return ['COMPANY', 'WORK', 'TEAM']
+  if (kind === 'MSP') return ['COMPANY', 'SITES', 'WORK', 'TEAM']
   return RECORDED_STEPS
 }
 
@@ -109,13 +119,15 @@ export function noPayrollLine(kind?: string | null): string | null {
 /**
  * Which steps may be skipped. A company cannot exist without a name and a
  * type, and how it works always has an answer — the defaults are one —
- * so only the two that bring things in from outside may wait.
+ * so only what brings things in from outside may wait: the sites, the
+ * people and the team.
  */
-export const SKIPPABLE: readonly SetupStep[] = ['PEOPLE', 'TEAM']
+export const SKIPPABLE: readonly SetupStep[] = ['SITES', 'PEOPLE', 'TEAM']
 
 /** The step words a reminder uses, lower case after "Finish setting up:". */
 const REMINDER_WORDS: Record<SetupStep, string> = {
   COMPANY: 'your company',
+  SITES: 'your sites',
   WORK: 'how you work',
   PEOPLE: 'your people',
   TEAM: 'your team',
@@ -161,7 +173,9 @@ export function recordStep(
       ok: false,
       message: kind === 'MSP'
         ? 'An MSP places nobody, so it has no contractor list to bring in.'
-        : 'A one-person firm has no contractor list or team to set up.',
+        : step === 'SITES'
+          ? 'A one-person firm works where its client puts it, so it has no sites to confirm.'
+          : 'A one-person firm has no contractor list or team to set up.',
     }
   }
   if (outcome !== 'DONE' && outcome !== 'SKIPPED') {
@@ -261,11 +275,12 @@ export function showsSteps(input: {
 }
 
 /**
- * The line over "How you work" for a supplier that took its record from
- * a client's invitation: who the client is, and what comes next.
+ * The line over the first step a supplier that took its record from a
+ * client's invitation sees: who the client is, and what comes next. That
+ * step is Sites since 2026-10-28, then how it works.
  */
 export function claimedSentence(client: string): string {
-  return `${client} is your client. Next: your week and payroll.`
+  return `${client} is your client. Next: your sites, then your week and payroll.`
 }
 
 // ── Step 2: country, currency and the pack ───────────────────────────

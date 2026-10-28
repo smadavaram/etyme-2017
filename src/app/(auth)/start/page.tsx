@@ -211,7 +211,7 @@ export default function StartPage() {
   // Which step is on screen.
   const step: 'SIGN_IN' | SetupStep | null =
     state?.action === 'CREATE' || (state?.action === 'SUGGEST') ? 'COMPANY'
-      : showingSteps && welcome && setup.next === 'WORK' ? 'COMPANY'
+      : showingSteps && welcome && setup.record?.COMPANY && !setup.record?.SITES && !setup.record?.WORK && !passed.includes('COMPANY') ? 'COMPANY'
         : showingSteps ? ((setup.finishedAt ? (setup.owed as SetupStep[]).find((k) => !passed.includes(k)) : setup.next) ?? null)
           : null
 
@@ -386,12 +386,40 @@ export default function StartPage() {
           </div>
         )}
 
+        {/* ── Sites (2026-10-28): where people work, confirmed once ── */}
+        {step === 'SITES' && !solo && (
+          <div className="max-w-xl">
+            <Lbl>{stepLabel('SITES', kind)}</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Sites</h1>
+            {setup.claimedSays && <p className="text-etyme-ink mt-2">{setup.claimedSays}</p>}
+            <p className="text-etyme-muted mt-2">
+              Where people work. A job is posted at a site, a placement is at a site, and days off and the time zone follow the site.
+            </p>
+            {setup.sites.count > 0 && (
+              <ul className="mt-4 border-t border-etyme-rule text-sm text-etyme-ink">
+                {setup.sites.names.map((n: string) => <li key={n} className="py-2 border-b border-etyme-rule">{n}</li>)}
+                {setup.sites.count > setup.sites.names.length && (
+                  <li className="py-2 text-etyme-muted">{setup.sites.count - setup.sites.names.length} more</li>
+                )}
+              </ul>
+            )}
+            <p className="text-sm text-etyme-muted mt-3">
+              <a href="/dashboard/settings/sites" className="text-etyme-action-press">Open Sites</a> to add one, name its hiring managers and the suppliers who may fill jobs there.
+            </p>
+            {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
+            <div className="flex flex-wrap gap-2 mt-6">
+              <button onClick={() => answer('SITES', 'DONE')} disabled={busy} className={primary}>{setup.sites.confirmSays}</button>
+              <button onClick={() => answer('SITES', 'SKIPPED')} disabled={busy} className={secondary}>Skip for now</button>
+            </div>
+            <p className="text-xs text-etyme-faint mt-3">{setup.sites.skipSays} Each answer is saved with your name and the time.</p>
+          </div>
+        )}
+
         {/* ── Step 3: how you work ── */}
         {step === 'WORK' && (
           <div>
             <Lbl>{stepLabel('WORK', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">How you work</h1>
-            {setup.claimedSays && <p className="text-etyme-ink mt-2">{setup.claimedSays}</p>}
             <p className="text-etyme-muted mt-2 mb-6">
               {setup.company.packSays} The defaults are filled in. Change one and save it, or keep them all.
             </p>

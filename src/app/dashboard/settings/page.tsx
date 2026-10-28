@@ -504,7 +504,7 @@ function LocationsTab({ data, send, busy }: { data: Settings; send: SendFn; busy
     <Panel
       title="Where people work"
       subtitle="This matters more than it looks. Tenure is counted at a place and tax follows a place, so a contract with no location cannot answer either question."
-      action={null}
+      action={<a href="/dashboard/settings/sites" className="text-[12.5px] text-etyme-action-press hover:underline">Open Sites</a>}
     >
       <div className="divide-y divide-etyme-rule mb-4">
         {data.locations.map((l) => (

@@ -75,18 +75,20 @@ describe('a new company walks five steps, then stops', () => {
   it('a company may click through setup in five steps taking every default, and each answer is recorded with who and when', async () => {
     as(FOUNDER)
     let s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data).toMatchObject({ shows: true, next: 'WORK', finishedAt: null })
+    // Sites right after the company (2026-10-28): one site, made with the company.
+    expect(s.body.data).toMatchObject({ shows: true, next: 'SITES', finishedAt: null })
+    expect(s.body.data.sites).toMatchObject({ count: 1, confirmSays: 'Confirm this site and continue' })
     expect(s.body.data.record.COMPANY).toMatchObject({ outcome: 'DONE', byId: founderId })
 
     const before = Date.now()
-    for (const [step, outcome] of [['WORK', 'DONE'], ['PEOPLE', 'SKIPPED'], ['TEAM', 'SKIPPED']]) {
+    for (const [step, outcome] of [['SITES', 'DONE'], ['WORK', 'DONE'], ['PEOPLE', 'SKIPPED'], ['TEAM', 'SKIPPED']]) {
       const r = await json(await answer(req('POST', '/api/onboarding/setup', { step, outcome })))
       expect(r.status, JSON.stringify(r.body)).toBe(200)
     }
     const row = await prisma.company.findUniqueOrThrow({ where: { id: companyId } })
     expect(row.setupFinishedAt).not.toBeNull()
     const record = row.setupSteps as any
-    for (const step of ['WORK', 'PEOPLE', 'TEAM']) {
+    for (const step of ['SITES', 'WORK', 'PEOPLE', 'TEAM']) {
       expect(record[step].byId, step).toBe(founderId)
       expect(new Date(record[step].at).getTime()).toBeGreaterThanOrEqual(before - 1000)
     }
@@ -177,7 +179,7 @@ describe('a new company walks five steps, then stops', () => {
     expect(list.body.error.message).toBe('A one-person firm has no contractor list or team to set up.')
   })
 
-  it('a supplier that took its record from an invitation opens setup at how it works, with its client named', async () => {
+  it('a supplier that took its record from an invitation opens setup after its company, at its sites, with its client named', async () => {
     const { rolesFor } = await import('@/lib/company-defaults')
     const client = await prisma.company.create({ data: { name: 'Northbend Athletic Co', slug: 'nb-claim-client', kind: 'CLIENT' } })
     const shell = await prisma.company.create({ data: { name: 'Fenwick Staffing', slug: 'fenwick-claimed', kind: 'VENDOR', claimedAt: new Date() } })
@@ -189,12 +191,12 @@ describe('a new company walks five steps, then stops', () => {
     as(mara.primaryEmail)
     const got = (await json(await entry(req('GET', '/api/onboarding')))).body.data
     expect(got.action).toBe('ALREADY_IN')
-    expect(got.setup).toMatchObject({ shows: true, next: 'WORK', claimedSays: 'Northbend Athletic Co is your client. Next: your week and payroll.' })
+    expect(got.setup).toMatchObject({ shows: true, next: 'SITES', claimedSays: 'Northbend Athletic Co is your client. Next: your sites, then your week and payroll.' })
     expect(got.setup.record.COMPANY).toMatchObject({ outcome: 'DONE', byId: mara.id })
     expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)
     // Said in plain words about her own firm, never a log line in the third person (round four, item 18).
     const line = await prisma.automationLog.findFirstOrThrow({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })
-    expect(line.summary).toBe("Setup opened at How you work; the company step was filled from the client's invitation")
+    expect(line.summary).toBe("Setup opened at Sites; the company step was filled from the client's invitation")
     // Asked again, it is not begun twice.
     await entry(req('GET', '/api/onboarding'))
     expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)

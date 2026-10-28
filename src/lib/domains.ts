@@ -487,6 +487,8 @@ export const DOMAINS: Domain[] = [
       'lib/seed-scale',
       // Corvane Packaging, the fourth client program: 31 plants in six regions (2026-10-27).
       'lib/seed-corvane',
+      // The three programs' sites naming their approved suppliers (2026-10-28).
+      'lib/seed-sites',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // One way to print a calendar day on a screen: UTC, American order,
       // the year shown. lib/when is its twin for a moment in somebody's zone.
@@ -531,6 +533,11 @@ export const DOMAINS: Domain[] = [
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.
       'lib/region-scope',
+      // Sites (founder, 2026-10-28, "Build it, sites sounds good"): which
+      // approved suppliers fill jobs at a site and who hires there, the
+      // rules and sentences, and the reads demand's job form calls. The
+      // job form's own defaults and the distribute refusal are demand's.
+      'lib/site-rules', 'lib/sites',
       // A company's reporting currency and exchange rates, recorded with who
       // and when (2026-10-27); the rollup over them is money's.
       'lib/reporting-currency-setting',

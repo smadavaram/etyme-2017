@@ -68,6 +68,7 @@ import { periodFor, iso, type Period } from '@/lib/periods'
 import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
 import { seedCorvane, corvaneSteps, CORVANE_SLUG, CORVANE_SUPPLIER_SLUGS } from '@/lib/seed-corvane'
+import { seedProgramSites } from '@/lib/seed-sites'
 
 /** `n` days after a UTC midnight, still at UTC midnight. */
 function plusDays(d: Date, n: number): Date {
@@ -279,6 +280,8 @@ export function worldStepNames(): string[] {
     ...payrollRunSteps().map((st) => st.name),
     // Corvane Packaging, a plant company in eight countries (lib/seed-corvane).
     ...corvaneSteps(),
+    // The three programs' primary sites name their approved suppliers (2026-10-28).
+    'program-sites',
     'own-seats',
     'claim',
   ]
@@ -2197,6 +2200,14 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   for (const name of corvaneSteps()) {
     await step(name, () => seedCorvane({ domain: DOMAIN, prefix: PREFIX }, name))
   }
+
+  // ── The programs' sites name their suppliers ───────────────────────
+  //
+  // Settings → Sites on a seeded client never reads empty (lib/seed-sites).
+  // After every step that approves a supplier or writes a job.
+  await step('program-sites', async () => {
+    await seedProgramSites({ domain: DOMAIN, prefix: PREFIX })
+  })
 
   // ── Everybody on their own work holds their own seat ───────────────
   //

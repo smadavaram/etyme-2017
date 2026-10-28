@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
 import {
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
 
   // ── Commit ──────────────────────────────────────────────────────────
   const good = parsed.filter((r) => r.ok)
-  const written = await writeRows(spec, caller.company.id, good)
+  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller))
 
   await prisma.automationLog.create({
     data: {
@@ -337,7 +337,7 @@ interface WriteResult {
  * report of the two that were not — rolling everything back over two bad
  * rows means the file gets loaded by hand instead.
  */
-async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[]): Promise<WriteResult> {
+async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[], byId: string | null): Promise<WriteResult> {
   let created = 0
   let updated = 0
   const failures: { row: number; reason: string }[] = []
@@ -371,6 +371,10 @@ async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[])
             state: v.state ?? null,
             country: String(v.country ?? 'US').toUpperCase().slice(0, 2),
             address: v.address ?? null,
+            // Where the site came from, said on Settings → Sites (2026-10-28).
+            source: 'IMPORT' as const,
+            recordedById: byId,
+            recordedAt: new Date(),
           }
           if (existing) {
             await prisma.companyLocation.update({ where: { id: existing.id }, data })

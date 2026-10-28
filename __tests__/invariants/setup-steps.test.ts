@@ -70,8 +70,9 @@ describe('setup asks five things, then stops', () => {
 
   it('a company may click through setup in five steps taking every default, and each answer is recorded with who and when', () => {
     let r: SetupRecord = { COMPANY: { outcome: 'DONE', byId: 'p1', at: NOW.toISOString() } }
-    expect(nextStep(r)).toBe('WORK')
-    for (const [step, outcome] of [['WORK', 'DONE'], ['PEOPLE', 'SKIPPED'], ['TEAM', 'SKIPPED']] as const) {
+    // Sites since 2026-10-28, right after the company.
+    expect(nextStep(r)).toBe('SITES')
+    for (const [step, outcome] of [['SITES', 'DONE'], ['WORK', 'DONE'], ['PEOPLE', 'SKIPPED'], ['TEAM', 'SKIPPED']] as const) {
       const v = recordStep(r, step, outcome, 'p1', NOW)
       expect(v.ok, step).toBe(true)
       if (v.ok) r = v.record
@@ -92,6 +93,7 @@ describe('setup asks five things, then stops', () => {
   it('a company that skips its people and its team is reminded on the dashboard, once, with a link back', () => {
     const r: SetupRecord = {
       COMPANY: { outcome: 'DONE', byId: 'p1', at: NOW.toISOString() },
+      SITES: { outcome: 'DONE', byId: 'p1', at: NOW.toISOString() },
       WORK: { outcome: 'DONE', byId: 'p1', at: NOW.toISOString() },
       PEOPLE: { outcome: 'SKIPPED', byId: 'p1', at: NOW.toISOString() },
       TEAM: { outcome: 'SKIPPED', byId: 'p1', at: NOW.toISOString() },
@@ -122,7 +124,7 @@ describe('setup asks five things, then stops', () => {
     // Never to a seat that cannot change the company's setup, never to a company that never began.
     expect(showsSteps({ ...base, finishedAt: null, followedLinkBack: false, mayRun: false })).toBe(false)
     expect(showsSteps({ ...base, startedAt: null, finishedAt: null, followedLinkBack: false })).toBe(false)
-    expect(outstanding({}, { peopleImported: false, teammates: 0 })).toEqual(['COMPANY', 'WORK', 'PEOPLE', 'TEAM'])
+    expect(outstanding({}, { peopleImported: false, teammates: 0 })).toEqual(['COMPANY', 'SITES', 'WORK', 'PEOPLE', 'TEAM'])
   })
 
   it('a colleague joining on a claimed domain gets a seat with the Member role, and Member reads only their own work', () => {
@@ -202,7 +204,8 @@ describe('setup after round two of the sign-up walk', () => {
     expect(stepsFor('CONSULTANT_CORP')).toEqual(['COMPANY', 'WORK'])
     expect(railFor('CONSULTANT_CORP').map((s) => s.label)).toEqual(['Sign in', 'Your company', 'How you work'])
     expect(stepLabel('WORK', 'CONSULTANT_CORP')).toBe('Step 3 of 3')
-    expect(stepLabel('WORK', 'VENDOR')).toBe('Step 3 of 5')
+    // A firm with people confirms its sites before how it works (2026-10-28).
+    expect(stepLabel('WORK', 'VENDOR')).toBe('Step 4 of 6')
 
     // Her two steps finish setup, and nothing is owed or reminded after them.
     let record: SetupRecord = {}
@@ -216,8 +219,8 @@ describe('setup after round two of the sign-up walk', () => {
     const facts = { peopleImported: false, teammates: 0 }
     expect(outstanding(record, facts, 'CONSULTANT_CORP')).toEqual([])
     expect(reminderFor({ startedAt: NOW, record, facts, kind: 'CONSULTANT_CORP' })).toBeNull()
-    // The same record at a staffing firm still owes its people and its team.
-    expect(reminderFor({ startedAt: NOW, record, facts, kind: 'VENDOR' })?.says).toBe('Finish setting up: your people, your team.')
+    // The same record at a staffing firm still owes its sites, its people and its team.
+    expect(reminderFor({ startedAt: NOW, record, facts, kind: 'VENDOR' })?.says).toBe('Finish setting up: your sites, your people, your team.')
     // Asked for a list anyway, it says why not.
     expect(recordStep(record, 'PEOPLE', 'SKIPPED', by, NOW, 'CONSULTANT_CORP'))
       .toEqual({ ok: false, message: 'A one-person firm has no contractor list or team to set up.' })
@@ -235,8 +238,8 @@ describe('setup after round two of the sign-up walk', () => {
     expect(create).toMatch(/company\.kind === 'CONSULTANT_CORP'[\s\S]{0,200}consultantProfile\.upsert[\s\S]{0,200}ownCompanyId: company\.id/)
   })
 
-  it('a supplier that took its record from an invitation opens setup at how it works, with its client named', () => {
-    expect(claimedSentence('Northbend Athletic')).toBe('Northbend Athletic is your client. Next: your week and payroll.')
+  it('a supplier that took its record from an invitation opens setup after its company, at its sites, with its client named', () => {
+    expect(claimedSentence('Northbend Athletic')).toBe('Northbend Athletic is your client. Next: your sites, then your week and payroll.')
     const state = src('src/lib/setup-state.ts')
     expect(state).toContain('export async function beginClaimedSetup(')
     expect(state).toContain("recordStep(readRecord(c.setupSteps), 'COMPANY', 'DONE', personId, now)")

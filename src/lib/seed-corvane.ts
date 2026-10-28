@@ -473,8 +473,15 @@ async function frame(ctx: Ctx): Promise<void> {
     data: CORVANE_PLANTS.map((p, i) => ({
       id: `cv_site_${p.key}`, companyId: co.id, name: p.plant, city: p.city, state: p.state,
       country: CORVANE_COUNTRIES[p.cc].iso, timeZone: p.timeZone, region: regionOf(p.region).label, isPrimary: i === 0,
+      // Found in the contractor list, as the Sites screen says (2026-10-28).
+      source: 'IMPORT' as const, recordedAt: day(-1),
     })),
     skipDuplicates: true,
+  })
+  // A world seeded before sites said where they came from.
+  await db.companyLocation.updateMany({
+    where: { companyId: co.id, id: { in: CORVANE_PLANTS.map((p) => `cv_site_${p.key}`) }, source: 'PERSON', recordedById: null },
+    data: { source: 'IMPORT', recordedAt: day(-1) },
   })
 
   // The seats: five over the whole program, six over a region, one per plant.
@@ -670,7 +677,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
         const [key, job] = k.split('|')
         const p = here.find((x) => x.key === key)!
         return {
-          id: `cv_req_${key}_${CORVANE_JOBS.indexOf(job as never)}`, companyId: co.id, title: job, skills: [job], location: p.plant,
+          id: `cv_req_${key}_${CORVANE_JOBS.indexOf(job as never)}`, companyId: co.id, title: job, skills: [job], location: p.plant, locationId: `cv_site_${key}`,
           status: 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL', hoursPerWeek: 40, months: 12,
           headcount: workers.filter((w) => w.plant.key === key && w.job === job).length,
           raisedById: manager(p), ownerId: manager(p), orgUnitId: `cv_unit_site_${key}`, ...band(p),
@@ -679,7 +686,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       ...here.flatMap((p, pi) => Array.from({ length: p.openJobs }, (_, j) => {
         const job = CORVANE_JOBS[(pi + j + 3) % CORVANE_JOBS.length]
         return {
-          id: `cv_req_open_${p.key}_${j}`, companyId: co.id, title: job, skills: [job], location: p.plant,
+          id: `cv_req_open_${p.key}_${j}`, companyId: co.id, title: job, skills: [job], location: p.plant, locationId: `cv_site_${p.key}`,
           status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', hoursPerWeek: 40, months: 6, headcount: 1,
           neededBy: day(21), startDate: day(21), raisedById: manager(p), ownerId: manager(p), reportsToId: manager(p),
           workMode: 'ONSITE', orgUnitId: `cv_unit_site_${p.key}`, ...band(p),
@@ -687,6 +694,33 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
         }
       })),
     ] as never,
+    skipDuplicates: true,
+  })
+  // A world seeded before jobs named their site (2026-10-28) gets the site
+  // on its jobs here; one write per plant, and none once they carry it.
+  for (const p of here) {
+    await db.requirement.updateMany({
+      where: { companyId: co.id, orgUnitId: `cv_unit_site_${p.key}`, locationId: null },
+      data: { locationId: `cv_site_${p.key}` },
+    })
+  }
+
+  // The suppliers each plant names (Settings → Sites), from the contractor
+  // list like the plants themselves: the drawing's `plantSuppliers`, so
+  // Dayton names Ridgeline, Harbor and Keystone and not Lakemont. Every
+  // one has an agreement with Corvane, which is what approves it. The
+  // plant's hiring manager is not written: the jobs they posted at the
+  // site say who hires there (lib/site-rules).
+  const named = uniq(here.flatMap((p) => plantSuppliers(p)))
+  const firmIds = new Map(
+    (await db.company.findMany({ where: { slug: { in: named.map((n) => ctx.prefix + supplierSlug(n)) } }, select: { id: true, slug: true } }))
+      .map((c) => [c.slug.slice(ctx.prefix.length), c.id])
+  )
+  await db.siteSupplier.createMany({
+    data: here.flatMap((p) => plantSuppliers(p).map((n) => ({
+      id: `cv_sitesup_${p.key}_${supplierSlug(n)}`, locationId: `cv_site_${p.key}`, supplierCompanyId: firmIds.get(supplierSlug(n))!,
+      source: 'IMPORT' as const, namedAt: day(-1),
+    }))),
     skipDuplicates: true,
   })
 

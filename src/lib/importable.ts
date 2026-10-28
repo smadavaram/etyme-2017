@@ -73,7 +73,7 @@ export const IMPORTABLE: EntitySpec[] = [
   },
   {
     key: 'LOCATIONS',
-    label: 'Work sites',
+    label: 'Sites',
     owner: 'Operations',
     permission: 'settings.manage',
     naturalKey: 'name',

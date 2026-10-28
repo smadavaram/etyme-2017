@@ -14,6 +14,7 @@ import {
   type SetupRecord, type SetupFacts, type SetupStep, type Reminder,
 } from '@/lib/setup-steps'
 import { countryFromDomain } from '@/lib/company-defaults'
+import { skipStops, confirmAllWords } from '@/lib/site-rules'
 
 export interface SetupState {
   startedAt: Date | null
@@ -31,6 +32,11 @@ export interface SetupState {
    * line over "How you work" naming the client and the next step.
    */
   claimedSays: string | null
+  /**
+   * The Sites step (2026-10-28): how many sites the company has, the
+   * primary one, the button's words and the one thing skipping stops.
+   */
+  sites: { count: number; primary: string | null; names: string[]; confirmSays: string; skipSays: string }
   company: {
     id: string
     name: string
@@ -67,7 +73,15 @@ export async function setupStateFor(
     },
   })
   if (!c) return null
-  const claimedFrom = c.claimedAt ? await clientThatInvited(c.id) : null
+  const [claimedFrom, siteRows] = await Promise.all([
+    c.claimedAt ? clientThatInvited(c.id) : Promise.resolve(null),
+    prisma.companyLocation.findMany({
+      where: { companyId },
+      orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+      select: { name: true, isPrimary: true },
+    }),
+  ])
+  const primary = siteRows.find((r) => r.isPrimary)?.name ?? null
   const record = readRecord(c.setupSteps)
   const facts = await setupFactsFor(companyId)
   const owed = outstanding(record, facts, c.kind)
@@ -89,6 +103,13 @@ export async function setupStateFor(
     }),
     reminder: reader.mayRun ? reminderFor({ startedAt: c.setupStartedAt, record, facts, kind: c.kind }) : null,
     claimedSays: claimedFrom ? claimedSentence(claimedFrom) : null,
+    sites: {
+      count: siteRows.length,
+      primary,
+      names: siteRows.slice(0, 12).map((r) => r.name),
+      confirmSays: confirmAllWords(siteRows.length),
+      skipSays: skipStops(primary),
+    },
     company: {
       id: c.id,
       name: c.name,
@@ -147,7 +168,8 @@ async function clientThatInvited(companyId: string): Promise<string | null> {
 
 /**
  * A supplier that took its record from a client's invitation begins setup
- * at "How you work" (sign-up walk, round two, item 29).
+ * after "Your company" (sign-up walk, round two, item 29): at Sites since
+ * 2026-10-28, then "How you work".
  *
  * The record already holds its name and its client, so "Your company" is
  * recorded as done by the person who claimed it, and the next thing it
@@ -174,8 +196,8 @@ export async function beginClaimedSetup(companyId: string, personId: string, now
       companyId, action: 'SETUP_STARTED',
       // Plain words about the reader's own firm, not a log line about it in
       // the third person (sign-up walk, round four, item 18).
-      summary: "Setup opened at How you work; the company step was filled from the client's invitation",
-      reason: "Your client's invitation already gave your company's name and your client, so the next thing to answer is your week and payroll.",
+      summary: "Setup opened at Sites; the company step was filled from the client's invitation",
+      reason: "Your client's invitation already gave your company's name and your client, so the next things to answer are your sites, then your week and payroll.",
       payload: { personId, from: 'CLAIM', recorded: ['COMPANY'] },
       reversible: true,
     },

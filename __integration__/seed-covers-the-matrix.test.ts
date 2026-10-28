@@ -61,6 +61,10 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // A hiring manager named at a site by a person (2026-10-28). Every
+  // seeded site reads its managers from the jobs they posted there, which
+  // is the rule; a typed name is only for somebody who has posted nothing.
+  siteHiringManager: 'written when a person names a hiring manager at a site who has posted nothing there yet',
   // An MSP asking a client for a seat (2026-10-27). Nothing writes one
   // until an MSP asks; a seeded ask would claim somebody asked.
   programSeatRequest: 'written when an MSP asks a client for a seat in its program',

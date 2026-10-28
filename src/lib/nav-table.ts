@@ -465,6 +465,16 @@ const SUPPLIER_SCORECARDS: NavItem = { label: 'Supplier scorecards', href: '/das
  * opens the first of these tabs it may.
  */
 const SETTINGS: NavItem = { label: 'Settings', href: '/dashboard/settings', icon: '⚙', needs: ['settings.manage'] }
+/**
+ * Where people work, who hires there, and which approved suppliers fill
+ * jobs there (founder, 2026-10-28). Read by whoever sets the company up
+ * and by Procurement, who names the suppliers at each site; the route
+ * behind it asks for either.
+ */
+const SITES: NavItem = {
+  label: 'Sites', href: '/dashboard/settings/sites', icon: '⌖',
+  needs: ['settings.manage', 'vendors.manage'], api: 'settings/locations', pageCalls: ['settings/locations/**'],
+}
 // Who is seated here and what each may do; `/api/access` gates its read on governance.read.
 const USERS: NavItem = { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', needs: ['governance.read'] }
 // Five onboardings, derived live from what exists, read by the seats that bring each party on.
@@ -498,7 +508,7 @@ const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data'
 
 /** A supplier's Settings, every tab in the order a firm reaches for it. */
 const FIRM_SETTINGS: NavItem[] = [
-  SETTINGS, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION,
+  SETTINGS, SITES, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION,
   PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECK_QUEUE, DNR_LIST,
   DATA_REQUESTS, YOUR_DATA_HERE,
 ]
@@ -695,6 +705,7 @@ const CLIENT_NAV: NavSection[] = [
   ]),
   tabbed('Settings', [
     SETTINGS,
+    SITES,
     USERS,
     // Who runs the program: approvers, the lead, and who is answerable
     // for each budget. Read by whoever raises a job request, sets the
