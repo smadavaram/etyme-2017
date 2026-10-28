@@ -563,13 +563,13 @@ export function spendNote(a: {
 }): string {
   const head = `Spend this month is an ${a.estimate}`
   if (a.missing.length) {
-    return `${head}; it is shown in each plant’s own money and not converted, because there is no rate to ${a.into} for ${andList(a.missing)}.`
+    return `${head}; it is shown in each site’s own money and not converted, because there is no rate to ${a.into} for ${andList(a.missing)}.`
   }
   if (!a.converted) return `${head}.`
   const rates = a.sample
     ? `sample rates${a.sampleWritten ? ` written ${a.sampleWritten}` : ''}, not market rates`
     : 'the rates you set'
-  return `${head}; each plant’s own money is converted to ${a.into} at ${rates}, and shown under it.`
+  return `${head}; each site’s own money is converted to ${a.into} at ${rates}, and shown under it.`
 }
 
 // ── The greeting ─────────────────────────────────────────────────────
@@ -579,7 +579,7 @@ function joinPlants(names: string[]): string {
   if (u.length <= 1) return u.join('')
   if (u.length === 2) return `${u[0]} and ${u[1]}`
   if (u.length === 3) return `${u[0]}, ${u[1]} and ${u[2]}`
-  return `${u[0]}, ${u[1]} and ${u.length - 2} more plants`
+  return `${u[0]}, ${u[1]} and ${u.length - 2} more sites`
 }
 
 /**
@@ -662,7 +662,7 @@ export function greeting(f: Facts): Greeting {
   if (f.weeks.length > 0) {
     const plants = uniq(f.weeks.map((w) => at(w.siteId)))
     const people = uniq(f.weeks.map((w) => w.personName))
-    const where = plants.length === 1 ? plants[0] : `${plants.length} plants`
+    const where = plants.length === 1 ? plants[0] : `${plants.length} sites`
     held.push({
       kind: 'weeks', count: f.weeks.length, plant: where, plants, person: people.length === 1 ? people[0] : null, supplier: null,
       says: `${f.weeks.length} ${f.weeks.length === 1 ? 'week waits' : 'weeks wait'} to be signed at ${where}`,

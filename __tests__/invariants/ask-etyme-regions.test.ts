@@ -50,8 +50,8 @@ const latam = (): RegionsData => {
   return data({
     reader: { reach: 'REGION', label: 'Latin America' }, level: 'REGION',
     greeting: {
-      total: 1, says: 'One thing needs you: 6 weeks wait to be signed at 2 plants.', items: ['6 weeks wait to be signed at 2 plants'],
-      held: [{ kind: 'weeks', count: 6, plant: '2 plants', plants: ['Monterrey', 'Campinas'], person: null, supplier: null, says: '6 weeks wait to be signed at 2 plants' }],
+      total: 1, says: 'One thing needs you: 6 weeks wait to be signed at 2 sites.', items: ['6 weeks wait to be signed at 2 sites'],
+      held: [{ kind: 'weeks', count: 6, plant: '2 sites', plants: ['Monterrey', 'Campinas'], person: null, supplier: null, says: '6 weeks wait to be signed at 2 sites' }],
     },
     regions: [region('Latin America', total)], total,
     region: { label: 'Latin America', leads: ['Valeria Montes'], figures: total, managers, countries: [] },
@@ -68,16 +68,16 @@ const cfo = (): RegionsData => {
   return data({
     greeting: {
       total: 3,
-      says: 'Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed; Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 plants.',
+      says: 'Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed; Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 sites.',
       items: [
         'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed',
         'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work)',
-        '14 weeks wait to be signed at 9 plants',
+        '14 weeks wait to be signed at 9 sites',
       ],
       held: [
         { kind: 'receipt', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Ray Penn', supplier: 'Hollow Creek Staffing', says: 'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed' },
         { kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Tom Ash', supplier: null, says: 'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work)' },
-        { kind: 'weeks', count: 14, plant: '9 plants', plants: ['Dayton', 'Fresno', 'Joliet', 'El Paso', 'Belfast', 'Newry', 'Craigavon', 'Antrim', 'Lisburn'], person: null, supplier: null, says: '14 weeks wait to be signed at 9 plants' },
+        { kind: 'weeks', count: 14, plant: '9 sites', plants: ['Dayton', 'Fresno', 'Joliet', 'El Paso', 'Belfast', 'Newry', 'Craigavon', 'Antrim', 'Lisburn'], person: null, supplier: null, says: '14 weeks wait to be signed at 9 sites' },
       ],
     },
     regions: [us, ni], total, currenciesSays: 'in 2 currencies',
@@ -191,7 +191,7 @@ describe('the answers are By region’s own read', () => {
     expect(a.greeting).toBe(true)
     expect(a.says).toBe(
       'Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, $42 over the signed hours (41.5 hours billed, 40 hours signed); ' +
-      'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 plants. Orla in Belfast reaches the time limit in 14 days.')
+      'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 sites. Orla in Belfast reaches the time limit in 14 days.')
     expect(a.items).toEqual([])
     expect(mapOwed(d, 'PROGRAM', 'FINANCE')).toBe(d.greeting.total)
     expect(a.links?.[0].href).toBe('/dashboard/program?view=regions')
@@ -207,7 +207,7 @@ describe('the answers are By region’s own read', () => {
   it('the head of operations is greeted with the weeks first and who is within 30 days of the time limit, never the CFO’s line', () => {
     const d = cfo()
     const ops = seatLine(d, 'PROGRAM', { line: 'OPERATIONS' })
-    expect(ops.says).toBe('Three things need you: 14 weeks wait to be signed at 9 plants; Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed; Tom Ash’s start at Dayton waits on an I-9 (proof of right to work). 2 regions have somebody within 30 days of the time limit, the nearest Orla in Belfast, in 14 days.')
+    expect(ops.says).toBe('Three things need you: 14 weeks wait to be signed at 9 sites; Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed; Tom Ash’s start at Dayton waits on an I-9 (proof of right to work). 2 regions have somebody within 30 days of the time limit, the nearest Orla in Belfast, in 14 days.')
     expect(ops.says).not.toBe(seatLine(d, 'PROGRAM', { line: 'FINANCE' }).says)
     expect(mapOwed(d, 'PROGRAM', 'OPERATIONS')).toBe(d.greeting.total)
   })

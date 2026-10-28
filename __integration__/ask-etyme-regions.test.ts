@@ -186,7 +186,7 @@ describe('the CFO and the head of operations read the rollup', () => {
     expect(says.startsWith('Three things need you: ')).toBe(true)
     expect(says).toMatch(/invoice receipt for .+ at Dayton is held, \$42 over the signed hours \(41\.5 hours billed, 40 hours signed\)/)
     expect(says).toContain(`${onHold.name}’s start at Dayton waits on an I-9`)
-    expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} plants`)
+    expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} sites`)
     const belfast = onSite.find((c) => c.plant.key === 'belfast' && c.nearest)!
     expect(says.endsWith(`${belfast.name} in Belfast reaches the time limit in 14 days.`)).toBe(true)
     const mark = await greeting(CFO, '?only=owed')
@@ -201,7 +201,7 @@ describe('the CFO and the head of operations read the rollup', () => {
     const p = await page(OPS)
     const says: string = g.body.data.answer.says
     expect(says).not.toBe(c.body.data.answer.says)
-    expect(says).toMatch(new RegExp(`^Three things need you: ${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} plants; `))
+    expect(says).toMatch(new RegExp(`^Three things need you: ${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((x) => x.weeksToSign > 0).length} sites; `))
     expect(says).toMatch(/within 30 days of the time limit, the nearest .+ in Belfast, in 14 days\.$/)
     expect((await greeting(OPS, '?only=owed')).body.data.total).toBe(p.body.data.greeting.total)
   })

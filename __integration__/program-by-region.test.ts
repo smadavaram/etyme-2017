@@ -87,7 +87,7 @@ describe('the head of operations and the CFO read one row per region', () => {
     expect(says.startsWith('Three things need you: ')).toBe(true)
     expect(says).toMatch(/invoice receipt for .+ at Dayton is held, 41\.5 hours billed, 40 hours signed/)
     expect(says).toMatch(/start at Dayton waits on an I-9/)
-    expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((p) => p.weeksToSign > 0).length} plants`)
+    expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((p) => p.weeksToSign > 0).length} sites`)
   })
 
   it('the Dayton receipt is held, every other seeded receipt is ready to pay, and none is paid yet', async () => {

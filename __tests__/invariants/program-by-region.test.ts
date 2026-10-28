@@ -138,7 +138,7 @@ describe('the first line names, not counts', () => {
   it('names the held receipt by supplier, person and plant, the start on hold, and the weeks waiting', () => {
     expect(greeting(world()).says).toBe(
       'Three things need you: Ridgeline Staffing’s invoice receipt for Worker 1 at Dayton is held, 41.5 hours billed, 40 hours signed; ' +
-      'Tanya Ruiz’s start at Dayton waits on an I-9 (proof of right to work); 3 weeks wait to be signed at 2 plants.'
+      'Tanya Ruiz’s start at Dayton waits on an I-9 (proof of right to work); 3 weeks wait to be signed at 2 sites.'
     )
   })
 
@@ -166,8 +166,8 @@ describe('the first line’s things are data too', () => {
         says: 'Ridgeline Staffing’s invoice receipt for Worker 1 at Dayton is held, 41.5 hours billed, 40 hours signed' },
       { kind: 'start', count: 1, plant: 'Dayton', plants: ['Dayton'], person: 'Tanya Ruiz', supplier: null,
         says: 'Tanya Ruiz’s start at Dayton waits on an I-9 (proof of right to work)' },
-      { kind: 'weeks', count: 3, plant: '2 plants', plants: ['Dayton', 'Monterrey'], person: null, supplier: null,
-        says: '3 weeks wait to be signed at 2 plants' },
+      { kind: 'weeks', count: 3, plant: '2 sites', plants: ['Dayton', 'Monterrey'], person: null, supplier: null,
+        says: '3 weeks wait to be signed at 2 sites' },
     ])
   })
 
@@ -279,7 +279,7 @@ describe('By region reads the way the home page’s map reads', () => {
 
   it('the note under the page says what is converted and at which rates, in one sentence', () => {
     const said = spendNote({ estimate: 'estimate from current rates, 160 hours a month, not signed time', into: 'USD', converted: true, sample: true, sampleWritten: 'October 1, 2026', missing: [] })
-    expect(said).toBe('Spend this month is an estimate from current rates, 160 hours a month, not signed time; each plant’s own money is converted to USD at sample rates written October 1, 2026, not market rates, and shown under it.')
+    expect(said).toBe('Spend this month is an estimate from current rates, 160 hours a month, not signed time; each site’s own money is converted to USD at sample rates written October 1, 2026, not market rates, and shown under it.')
     expect(said).not.toMatch(/nothing is converted/)
     expect(spendNote({ estimate: 'estimate', into: 'USD', converted: false, sample: false, sampleWritten: null, missing: [] })).toBe('Spend this month is an estimate.')
     expect(spendNote({ estimate: 'estimate', into: 'USD', converted: false, sample: false, sampleWritten: null, missing: ['XYZ'] }))
