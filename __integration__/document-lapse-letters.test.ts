@@ -9,6 +9,8 @@ import {
   sendDocumentLapses,
   everyDocumentLetter,
   supplierCoverLapses,
+  gateTonight,
+  withheldFindings,
   CHASE_DESK,
   EXPOSED_DESK,
   type LapseLetter,
@@ -451,5 +453,58 @@ describe('when a document a line depends on runs out, every party it costs is to
     }
     expect(withSets, 'the lines compared actually require papers').toBeGreaterThan(20)
     expect(many.get(cavanaughLine)?.requirements?.some((r) => r.key === 'MSA'), 'Cavanaugh\u2019s order still asks for its agreement').toBe(true)
+  }, 120_000)
+
+  it('a never-filed or cover letter is not sent for a party whose set was never confirmed, and the night says so', async () => {
+    const now = new Date()
+    const wrenfield = await firm('world-wrenfield')
+    const pinnacle = await firm('world-pinnacle')
+    const msa = (await documentsNeverFiled(now, { sellContractIds: [cavanaughLine] })).find((m) => m.key === 'MSA')!
+    expect(msa, 'the agreement nobody papered').toBeTruthy()
+    const cover = (await supplierCoverLapses(now)).filter((d) => d.companyId === pinnacle.id)
+    expect(cover.length, 'Pinnacle\u2019s cover, lapsed above').toBeGreaterThan(0)
+    const buyers = [...new Set((await prisma.sellContract.findMany({
+      where: { companyId: pinnacle.id, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+      select: { clientCompanyId: true },
+    })).map((l) => l.clientCompanyId))]
+    expect(buyers.length, 'Pinnacle sells to somebody tonight').toBeGreaterThan(0)
+
+    // Every seeded firm confirmed its sets, so as seeded both are asked for.
+    const asSeeded = await gateTonight([msa], cover, prisma)
+    expect(asSeeded.chase).toHaveLength(1 + cover.length)
+    expect(asSeeded.withheld).toEqual([])
+
+    // Take Wrenfield's set for its customers away, and every buyer's set for its sub-vendors.
+    const taken = await prisma.documentRequirement.findMany({
+      where: { OR: [{ companyId: wrenfield.id, party: 'CUSTOMERS' }, { companyId: { in: buyers }, party: 'SUB_VENDORS' }] },
+    })
+    expect(taken.length).toBeGreaterThan(0)
+    await prisma.documentRequirement.deleteMany({ where: { id: { in: taken.map((r) => r.id) } } })
+    try {
+      const held = await gateTonight([msa], cover, prisma)
+      expect(held.chase, 'neither letter is asked for').toEqual([])
+      const wren = held.withheld.find((w) => w.companyId === wrenfield.id && w.party === 'CUSTOMERS')
+      expect(wren, 'what was held back is returned, never dropped').toBeTruthy()
+      expect(wren!.documents).toContain(msa.document)
+      expect(wren!.says).toMatch(/under Setup → Papers you require\.$/)
+      for (const b of buyers) {
+        const row = held.withheld.find((w) => w.companyId === b && w.party === 'SUB_VENDORS')
+        expect(row, `the buyer ${b} is told what it was not asked`).toBeTruthy()
+        expect(row!.documents).toEqual(expect.arrayContaining(cover.map((c) => c.document)))
+      }
+      // One row per company and party.
+      const keys = held.withheld.map((w) => `${w.companyId}:${w.party}`)
+      expect(new Set(keys).size).toBe(keys.length)
+
+      // The night carries it, and no letter tonight is about either paper.
+      const night = await everyDocumentLetter(now)
+      expect(night.letters.filter((l) => l.data.documentId === msa.id || cover.some((c) => c.id === l.data.documentId))).toEqual([])
+      const said = withheldFindings(night.withheld).filter((f) => f.companyId === wrenfield.id)
+      expect(said.map((f) => f.headline)).toContain(wren!.says)
+      expect(said[0].kind).toBe('PAPER_CHASE_WITHHELD')
+      expect(said[0].detail).toMatch(/^Not asked for tonight: /)
+    } finally {
+      await prisma.documentRequirement.createMany({ data: taken })
+    }
   }, 120_000)
 })

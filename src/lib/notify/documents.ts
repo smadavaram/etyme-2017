@@ -78,6 +78,7 @@ import { ADVERSE_STEPS, contractClearance, lineExtrasForSellLines, newestReports
 import { adverseRecordFrom } from '@/lib/attestation'
 import type { OwedBy } from '@/lib/document-requirements'
 import { typeByKey } from '@/lib/document-type'
+import { gateChases, partyOfShape, withheldDetail, type WithheldChase } from '@/lib/document-stages/chase-gate'
 
 type Db = typeof prisma
 
@@ -1631,6 +1632,16 @@ export interface LapseTelling {
    * is the state this whole file exists to make visible.
    */
   unaddressed: { document: string; because: string }[]
+  /**
+   * Papers never filed, and supplier cover, not asked for tonight because
+   * the company the chase is made for never confirmed its set for that
+   * party (`gateChases` in lib/document-stages/chase-gate). One row per
+   * company and party, with the gate's sentence. The dated half's rows are
+   * regulatory's (`documentsToChase`), already in the night's findings;
+   * these are the other half's, for the night to say beside them
+   * (`withheldFindings`). Absent where nothing was gated.
+   */
+  withheld?: WithheldChase[]
 }
 
 /**
@@ -2010,7 +2021,115 @@ export async function everyDocumentLetter(
   // back only their own half's record of having told somebody. The
   // dated half comes first, so the letter that survives is the one that
   // can name a day.
-  return tellAbout([...fromWatch(watch), ...missing, ...cover], now, db)
+  // No letter asks a party for a paper whose set the company never
+  // confirmed at setup (founder, 2026-10-22). The dated half was gated by
+  // regulatory in `documentsToChase`; these are the other two. What is
+  // held back is returned with the gate's sentence, never dropped quietly.
+  const gated = await gateTonight(missing, cover, db)
+  const telling = await tellAbout([...fromWatch(watch), ...gated.chase], now, db)
+  return gated.withheld.length ? { ...telling, withheld: gated.withheld } : telling
+}
+
+/**
+ * Papers never filed and supplier cover, split into what is asked for
+ * tonight and what is held back because the company the chase is made for
+ * never confirmed its set for that party, merged one row per company and
+ * party.
+ */
+export async function gateTonight(
+  missing: OwedDocument[],
+  cover: OwedDocument[],
+  db: Db = prisma
+): Promise<{ chase: OwedDocument[]; withheld: WithheldChase[] }> {
+  const gatedMissing = await gateChases(missing, neverFiledFor, (d) => d.document, db)
+  const gatedCover = await gateCover(cover, db)
+  return {
+    chase: [...gatedMissing.chase, ...gatedCover.chase],
+    withheld: mergeWithheld([...gatedMissing.withheld, ...gatedCover.withheld]),
+  }
+}
+
+/**
+ * A paper a line requires and nobody filed is chased on behalf of the firm
+ * holding the line, for the party of that line's shape. Every line read by
+ * `documentsNeverFiled` is a sell line, and a sell line's shape is always
+ * CUSTOMER (`shapeOf` in lib/document-requirements).
+ */
+function neverFiledFor(d: OwedDocument): { companyId: string | null; party: ReturnType<typeof partyOfShape> | null } {
+  if (!d.line) return { companyId: d.tellCompanyId, party: null }
+  return { companyId: d.tellCompanyId, party: d.line.side === 'SELL' ? partyOfShape('CUSTOMER') : null }
+}
+
+/**
+ * A supplier's cover is asked on behalf of every firm that buys from it
+ * directly, as that firm's sub-vendor. It goes where at least one of them
+ * confirmed its set for sub-vendors; where none did, it is held back, and
+ * the night says so to each of them. A supplier with no direct buyer read
+ * here passes as before: there is no set to read.
+ */
+async function gateCover(cover: OwedDocument[], db: Db): Promise<{ chase: OwedDocument[]; withheld: WithheldChase[] }> {
+  const supplierIds = [...new Set(cover.map((d) => d.companyId).filter((v): v is string => !!v))]
+  if (supplierIds.length === 0) return { chase: cover, withheld: [] }
+  const lines = await db.sellContract.findMany({
+    where: { companyId: { in: supplierIds }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+    select: { companyId: true, clientCompanyId: true },
+    distinct: ['companyId', 'clientCompanyId'],
+  })
+  const buyersOf = new Map<string, string[]>()
+  for (const l of lines) {
+    if (!l.clientCompanyId) continue
+    const at = buyersOf.get(l.companyId) ?? []
+    if (!at.includes(l.clientCompanyId)) at.push(l.clientCompanyId)
+    buyersOf.set(l.companyId, at)
+  }
+  const asked = cover.flatMap((d) => {
+    const buyers = d.companyId ? (buyersOf.get(d.companyId) ?? []) : []
+    return buyers.length ? buyers.map((buyer) => ({ d, buyer })) : [{ d, buyer: null as string | null }]
+  })
+  const gated = await gateChases(asked, (a) => ({ companyId: a.buyer, party: a.buyer ? 'SUB_VENDORS' : null }), (a) => a.d.document, db)
+  const going = new Set(gated.chase.map((a) => a.d))
+  const chase = cover.filter((d) => going.has(d))
+  // A certificate that goes tonight is not also said as held back.
+  const heldOnly = new Set(asked.filter((a) => !going.has(a.d)).map((a) => `${a.buyer}:${a.d.document}`))
+  const withheld = gated.withheld
+    .map((w) => ({ ...w, documents: w.documents.filter((doc) => heldOnly.has(`${w.companyId}:${doc}`)) }))
+    .filter((w) => w.documents.length > 0)
+  return { chase, withheld }
+}
+
+/** One row per company and party, however many halves held something back. */
+function mergeWithheld(rows: WithheldChase[]): WithheldChase[] {
+  const out = new Map<string, WithheldChase>()
+  for (const r of rows) {
+    const k = `${r.companyId}:${r.party}`
+    const at = out.get(k)
+    if (!at) {
+      out.set(k, { ...r, documents: [...r.documents] })
+      continue
+    }
+    for (const doc of r.documents) if (!at.documents.includes(doc)) at.documents.push(doc)
+  }
+  return [...out.values()]
+}
+
+/**
+ * What tonight's letters held back, as the night's findings: one line per
+ * company and party, to that company, in the gate's own sentence, the
+ * same shape and kind as the dated half's (`asFindings` in
+ * lib/document-request), so the night's report says both the same way.
+ */
+export function withheldFindings(withheld: readonly WithheldChase[] | undefined) {
+  return (withheld ?? []).map((w) => ({
+    kind: 'PAPER_CHASE_WITHHELD',
+    urgency: 'WORTH_KNOWING' as const,
+    companyId: w.companyId,
+    subjectType: 'Company',
+    subjectId: w.companyId,
+    headline: w.says,
+    detail: withheldDetail(w),
+    action: 'NOTIFY_ONLY' as const,
+    daysUntil: null,
+  }))
 }
 
 /**
