@@ -126,6 +126,10 @@ export const DELETE_ORDER = [
   // A site's named suppliers and hiring managers (2026-10-28) go before the
   // site, the firm and the person they name.
   'SiteSupplier', 'SiteHiringManager',
+  // The setup checklist (2026-10-28): each item's outcome, where each
+  // answer came from, the addresses and the people in charge, all before
+  // the company they belong to.
+  'SetupItem', 'SetupAnswer', 'CompanyAddress', 'CompanyInCharge',
   'OvertimeDecision', 'Invoice', 'Expense', 'VendorBill', 'LedgerAccount', 'JournalEntry', 'Conversation',
   'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',
@@ -216,6 +220,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // The suppliers a hiring manager left ticked on a job waiting for approval (2026-10-28).
   'Requirement.sendToSupplierIds': { as: 'LINK', to: ['Company'] },
   'Context.teamPersonIds': { as: 'LINK', to: ['Person'] },
+  // A person in charge of a duty at a company (2026-10-28), where seated.
+  'CompanyInCharge.personId': { as: 'LINK', to: ['Person'] },
   'SourcedContact.graduatedPersonId': { as: 'LINK', to: ['Person'] },
 
   // ── Record: history, kept as written ──
@@ -239,6 +245,16 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Company.paySettingsSetById': { as: 'RECORD' },
   // Who last chose the company's reporting currency (PATCH /api/settings/reporting-currency). A record of a person, never followed.
   'Company.reportingCurrencySetById': { as: 'RECORD' },
+  // The setup checklist (2026-10-28): who answered, who recorded, who
+  // typed the bank details and which firm's Finance checked them. Records
+  // of a person or a firm, never followed.
+  'SetupItem.answeredById': { as: 'RECORD' },
+  'SetupAnswer.answeredById': { as: 'RECORD' },
+  'CompanyAddress.recordedById': { as: 'RECORD' },
+  'CompanyInCharge.recordedById': { as: 'RECORD' },
+  'RemitTo.enteredById': { as: 'RECORD' },
+  'RemitTo.verifiedById': { as: 'RECORD' },
+  'RemitTo.verifiedByCompanyId': { as: 'RECORD' },
   'Interview.requestedById': { as: 'RECORD' },
   'Interview.noShowBy': { as: 'RECORD' },
   'Interview.decidedById': { as: 'RECORD' },

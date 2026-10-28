@@ -764,6 +764,35 @@ model Company {
   /// One entry per step answered: { COMPANY | WORK | PEOPLE | TEAM:
   /// { outcome: DONE | SKIPPED, byId, at } }. Who answered and when.
   setupSteps          Json?
+  // ── The admin's setup checklist (founder, 2026-10-22; "Build it",
+  // 2026-10-28) ─────────────────────────────────────────────────────
+  //
+  // After sign-in and "Your company" the Owner or Admin reads one
+  // checklist, every item skippable, and it comes back until it is done.
+  // The profile below is "Your company"; each answer says where it came
+  // from in `SetupAnswer`, and each item's DONE or SKIPPED is a
+  // `SetupItem`. Read and written only through src/lib/setup-checklist.ts
+  // (the rules) and src/lib/setup-checklist-state.ts (the record).
+  /// The name on the company's tax registration and its bills, where it
+  /// differs from the name people use. Null reads as `name`.
+  legalName           String?
+  /// "Doing business as": the trading name, where there is one.
+  dba                 String?
+  /// The year the company was established, as the company says it.
+  establishedYear     Int?
+  /// The company's own website, as somebody typed it. Never fetched in
+  /// this wave: the guarded website read is not built.
+  website             String?
+  /// Where the logo is kept, an address this deployment serves.
+  logoUrl             String?
+  /// The main phone number, as the company writes it.
+  phone               String?
+  /// The billing address is the legal address unless somebody says not.
+  /// A `CompanyAddress` of kind BILLING is read only when this is false.
+  billingSameAsLegal  Boolean   @default(true)
+  /// Where suppliers send invoices and clients send remittances: a shared
+  /// mailbox, not a person, so it is a column and not a person in charge.
+  accountsEmail       String?
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from
@@ -842,6 +871,12 @@ model Company {
   tradeAsksReceived     TradeLinkRequest[]      @relation("tradeAskTo")
   paperSet              DocumentRequirement[]   @relation("companyPaperSet")
   seatAsksReceived      ProgramSeatRequest[]    @relation("seatAskClient")
+  /// The setup checklist (2026-10-28): each item's outcome, where each
+  /// answer came from, the legal and billing addresses, the people in charge.
+  setupItems            SetupItem[]
+  setupAnswers          SetupAnswer[]
+  addresses             CompanyAddress[]
+  peopleInCharge        CompanyInCharge[]
   roleContracts         RoleContract[]
   twinRuleSets          RuleSet[]
   twinActions           TwinAction[]
@@ -5738,19 +5773,34 @@ model InvoiceMatchOverride {
 // Only the last four digits, for human confirmation on a remittance advice.
 // Full credentials belong in a payment provider's vault.
 model RemitTo {
-  id            String   @id @default(cuid())
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  legalName     String // the entity on the invoice, may differ from trading name
-  addressLines  String[]
-  country       String
-  taxId         String? // EIN / VAT / GST registration
-  paymentMethod String   @default("ACH") // ACH · WIRE · CHECK
-  bankName      String?
-  accountLast4  String? // display only — never the full number
-  routingLast4  String? // display only — never the full number
-  isDefault     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id                  String    @id @default(cuid())
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  legalName           String // the entity on the invoice, may differ from trading name
+  addressLines        String[]
+  country             String
+  taxId               String? // EIN / VAT / GST registration
+  paymentMethod       String    @default("ACH") // ACH · WIRE · CHECK
+  bankName            String?
+  accountLast4        String? // display only — never the full number
+  routingLast4        String? // display only — never the full number
+  isDefault           Boolean   @default(false)
+  /// The name on the bank account, as the bank holds it. Null reads as
+  /// `legalName`, which is what the supplier's apply form showed.
+  accountName         String?
+  /// Who typed these details, and when. A record of a person, never
+  /// followed (the demo world's rebuild deletes people before companies).
+  enteredById         String?
+  enteredAt           DateTime?
+  /// When a paying firm's Finance checked the details against the firm's
+  /// own proof (the same check a supplier walks at a client), who, and
+  /// at which firm. Null: not checked, and nobody pays this firm on them
+  /// (`mayPayFirm` in lib/setup-gates). Any change to the bank, the
+  /// account or the routing clears it.
+  verifiedAt          DateTime?
+  verifiedById        String?
+  verifiedByCompanyId String?
+  createdAt           DateTime  @default(now())
 
   invoices Invoice[]
 
@@ -7052,7 +7102,14 @@ model DocumentRequirement {
   /// which every order inherits. A fourth owner beside the order and the
   /// two lines; a row has exactly one.
   companyId String?
-  company   Company? @relation("companyPaperSet", fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company?    @relation("companyPaperSet", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Which party a company-level row is asked of, read from the setup
+  /// step "Papers you require" (2026-10-28): its own W2 employees, workers
+  /// paid through their own company, the suppliers it buys from, the
+  /// customers it bills. One company asks a W-9 of a sub-vendor and of a
+  /// corp-to-corp worker, so the set is per party. Null on every row that
+  /// belongs to an order or a line.
+  party     PaperParty?
 
   /// The header's default set. The buyer's own rules, inherited by every
   /// line under the order.
@@ -7106,7 +7163,7 @@ model DocumentRequirement {
 
   /// One row per type per owner. Two rows asking for the same document on
   /// one line is two answers to one question.
-  @@unique([companyId, documentTypeKey])
+  @@unique([companyId, party, documentTypeKey])
   @@unique([workOrderId, documentTypeKey])
   @@unique([sellContractId, documentTypeKey])
   @@unique([buyContractId, documentTypeKey])
@@ -7506,6 +7563,139 @@ model WebhookDelivery {
 /// Exact domains, never reduced. `us.infosys.com` is its own claim — if
 /// Infosys wants it under the same tenant they add it, and if they do not
 /// it stays separate. The company decides, not DNS.
+/// The eleven items of the admin's setup checklist, in the order they are
+/// read (founder, 2026-10-22; "Build it", 2026-10-28). Sites is the
+/// eleventh decided, read third, after Addresses.
+enum SetupItemKey {
+  COMPANY
+  ADDRESSES
+  SITES
+  PEOPLE_IN_CHARGE
+  HOW_YOU_WORK
+  PAPERS
+  BANK
+  COMPANIES
+  TEAM
+  DOMAIN
+  INTEGRATIONS
+}
+
+enum SetupOutcome {
+  DONE
+  SKIPPED
+}
+
+/// Where a setup answer came from, said under it so a person corrects it
+/// in a word ("Fetch from any source", 2026-10-27): the work email's
+/// domain, a paper the company uploaded, a file it imported, its own
+/// website (not read in this wave), or a person who typed it.
+enum SetupSource {
+  DOMAIN
+  PAPER
+  IMPORT
+  WEBSITE
+  PERSON
+}
+
+enum CompanyAddressKind {
+  LEGAL
+  BILLING
+}
+
+/// The people in charge a setup names. The accounts email is a mailbox,
+/// not a person, so it is `Company.accountsEmail`.
+enum InChargeDuty {
+  OWNER
+  HR
+  BILLING_CONTACT
+}
+
+/// The parties a company asks papers of, as `lib/document-stages/required-sets`
+/// names them.
+enum PaperParty {
+  WORKERS_W2
+  CORP_TO_CORP
+  SUB_VENDORS
+  CUSTOMERS
+}
+
+/// One checklist item answered: done or skipped, by whom, when. A skipped
+/// item comes back on Today until it is done, here or another way (an
+/// address saved on Settings finishes Addresses as surely as this does).
+model SetupItem {
+  id           String       @id @default(cuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  item         SetupItemKey
+  outcome      SetupOutcome
+  /// Who answered, a record of a person, never followed.
+  answeredById String?
+  answeredAt   DateTime     @default(now())
+
+  @@unique([companyId, item])
+}
+
+/// Where one setup answer came from, with the words it was read from. One
+/// row per field ("legalName", "legal.street", "ein"), replaced when the
+/// field is answered again, so the screen says the latest source.
+model SetupAnswer {
+  id           String      @id @default(cuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The field, in the setup's own keys (lib/setup-checklist).
+  field        String
+  source       SetupSource
+  /// The words the value was read from, quoted, where a paper or the
+  /// domain gave it. Null where a person typed it.
+  quote        String?
+  /// Who confirmed it. A value read from a paper is recorded only on a
+  /// person's yes, so this is never empty on a PAPER row.
+  answeredById String?
+  answeredAt   DateTime    @default(now())
+
+  @@unique([companyId, field])
+}
+
+/// The company's legal and billing address. Every bill names them; no bill
+/// is sent without a billing address (`mayIssueBill` in lib/setup-gates).
+model CompanyAddress {
+  id           String             @id @default(cuid())
+  companyId    String
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind         CompanyAddressKind
+  street       String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String             @default("US")
+  recordedById String?
+  recordedAt   DateTime           @default(now())
+
+  @@unique([companyId, kind])
+}
+
+/// A person in charge of one duty at the company: the owner, HR, the
+/// billing contact. A seated person by id; somebody not seated yet by name
+/// and email, invited with the same invitation a teammate gets.
+model CompanyInCharge {
+  id           String       @id @default(cuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  duty         InChargeDuty
+  /// The seated person, where there is one. A link, not a foreign key,
+  /// for the same reason the week's `weekSettingsSetById` is not.
+  personId     String?
+  name         String?
+  email        String?
+  /// When the invitation went to a person not seated yet.
+  invitedAt    DateTime?
+  recordedById String?
+  recordedAt   DateTime     @default(now())
+
+  @@unique([companyId, duty])
+  @@index([personId])
+}
+
 model CompanyDomain {
   id        String  @id @default(cuid())
   companyId String
