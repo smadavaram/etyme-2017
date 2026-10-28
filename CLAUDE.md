@@ -1660,6 +1660,20 @@ buyer's word in manufacturing and is not a screen word.
   match engine, internal moves and the bench routes (supply);
   `seed-standing` (architect), each reading the site's name the raise
   writes there.
+- **Shipped to production 2026-10-28 (8ec26a51f on the deploy branch,
+  source 428307d9d).** Release pass on a quiet copy of 53442be64: type
+  check clean, 12,222 of 12,224 unit (the two reds the posture's route
+  count and the new `sites` folder under requisitions read as a job id,
+  both fixed in 428307d9d and green), 2,563 of 2,565 integration (the
+  two reds, the payroll and week settings seat tests, "No Context
+  found", green alone and judged a seat collision under the full run),
+  build clean. Gates: no source difference, no Ruby, brand kit present,
+  the three "removed" schema lines re-aligned whitespace. Smoke: every
+  public page 200, the inbound email door 404 to a POST. Production's
+  world still has no Corvane, so Settings → Sites there shows each
+  seeded client's primary site with its approved suppliers; the walk as
+  Corvane's owner, a regional manager and Marcus Hollins runs on a
+  local copy and records its verdict under this line.
 
 ## Business email reaches Etyme only when the company forwards it, and security beats everything — decided by the founder, 2026-10-22
 
