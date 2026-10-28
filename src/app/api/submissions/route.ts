@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { placeOf } from '@/lib/job-site'
 import { whyNotOpen } from './words'
 import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
@@ -218,7 +219,7 @@ export async function POST(request: NextRequest) {
       skills: true, openingId: true,
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
-      location: true, startDate: true,
+      location: true, locationId: true, startDate: true,
       // The job's length, for whether it would carry somebody past the
       // client's time limit. Null is "nobody said", and is said so.
       months: true,
@@ -1018,6 +1019,9 @@ export async function POST(request: NextRequest) {
               title: requirement.title,
               skills: requirement.skills,
               location: requirement.location,
+              // The site, carried with the end client, so the line the award
+              // writes at this rung is at the same place.
+              locationId: requirement.locationId,
               // Whose site it is, carried, never inferred: tenure is the
               // person's at the client, and a null here reads as direct.
               endClientCompanyId: clientCompanyId,
@@ -1680,7 +1684,7 @@ export async function GET(request: NextRequest) {
         // companyId and the panel come back so the client's own side of
         // this list can open an interview form with the room already in
         // it. Neither is sent to a supplier — see the mapping below.
-        requirement: { select: { id: true, title: true, skills: true, companyId: true, interviewers: true } },
+        requirement: { select: { id: true, title: true, skills: true, companyId: true, interviewers: true, location: true, site: { select: { name: true } } } },
         fromCompany: { select: { id: true, name: true } },
         toCompany: { select: { id: true, name: true } },
         // The hop this row came up, so "how they came" is read off the
@@ -1729,6 +1733,9 @@ export async function GET(request: NextRequest) {
           // when a round is proposed to it, not before.
           interviewers:
             s.requirement.companyId === deskId ? s.requirement.interviewers : null,
+          // Where the person would work, shown beside the supplier ("Dayton,
+          // Ohio"). Both sides know it: the supplier was sent the job.
+          site: placeOf(s.requirement),
         },
         fromCompany: s.fromCompany,
         toCompany: s.toCompany,

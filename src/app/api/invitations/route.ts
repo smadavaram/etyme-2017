@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { placeOf } from '@/lib/job-site'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
       requirement: {
         include: {
           _count: { select: { invitations: true } },
+          site: { select: { name: true } },
         },
       },
     },
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
           id: inv.requirement.id,
           title: inv.requirement.title,
           skills: inv.requirement.skills,
-          location: inv.requirement.location,
+          location: placeOf(inv.requirement),
           headcount: inv.requirement.headcount,
           months: inv.requirement.months,
           neededBy: inv.requirement.neededBy,

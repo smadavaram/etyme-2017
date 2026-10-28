@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { siteSuppliers } from '@/lib/sites'
+import { placeOf, sendToSays } from '@/lib/job-site'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { waitingOnSays } from '../words'
@@ -50,6 +52,7 @@ export async function GET(
       orgUnit: { select: { id: true, name: true } },
       costCenter: { select: { id: true, code: true, name: true } },
       company: { select: { id: true, name: true } },
+      site: { select: { id: true, name: true, city: true } },
       approvals: {
         include: { approver: { select: { id: true, name: true } } },
         orderBy: { rank: 'asc' },
@@ -159,6 +162,24 @@ export async function GET(
         })).decision.checks,
       }
 
+  // Who a job at this site goes to by default, and the sentence. Null
+  // on a job with no site, which goes where it always went.
+  const here = req.site ? await siteSuppliers(req.site.id) : null
+  // Only on a site of the company sending it: a prime's copy of a client's
+  // job carries the client's site, whose list is not the prime's suppliers.
+  const sendTo = req.site && here && here.site.companyId === req.companyId
+    ? {
+        ids: here.ids,
+        everyApproved: here.everyApproved,
+        says: sendToSays({
+          site: req.site,
+          atSite: here.approved.filter((f) => here.ids.includes(f.id)).map((f) => f.name),
+          others: here.everyApproved ? [] : here.approved.filter((f) => !here.ids.includes(f.id)).map((f) => f.name),
+          everyApproved: here.everyApproved,
+        }),
+      }
+    : null
+
   return NextResponse.json({
     data: {
       // What each desk checked the job against, with the facts in the
@@ -169,7 +190,12 @@ export async function GET(
         id: req.id,
         title: req.title,
         skills: req.skills,
-        location: req.location,
+        location: placeOf(req),
+        // The job's site, and who a job there goes to by default: the
+        // release panel ticks these and offers no other (founder,
+        // 2026-10-28, the Sites drawing).
+        site: req.site,
+        siteSuppliers: sendTo,
         headcount: req.headcount,
         billMin: req.billMin,
         billMax: req.billMax,
@@ -225,7 +251,7 @@ export async function GET(
         fit: assessFit({
           required: {
             skills: req.skills,
-            location: req.location,
+            location: placeOf(req),
             ceilingCents: req.billMax,
             neededBy: req.neededBy,
           },
@@ -244,6 +270,8 @@ export async function GET(
           skills: s.person.consultant?.skills ?? [],
         },
         vendor: s.fromCompany,
+        // Beside the supplier, where the person would work.
+        site: req.site?.name ?? null,
         rate: s.rate,
         // The rate on the line the award wrote, once placed; null before.
         placedRate: placedLineOf(s)?.billRate ?? null,

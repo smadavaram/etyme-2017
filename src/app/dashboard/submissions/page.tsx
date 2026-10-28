@@ -52,7 +52,7 @@ interface Submission {
   id: string
   person: { id: string; name: string }
   /** The panel is the client's own; a supplier's copy of this row has null. */
-  requirement: { id: string; title: string; skills: string[]; interviewers?: string[] | null }
+  requirement: { id: string; title: string; skills: string[]; interviewers?: string[] | null; site?: string | null }
   fromCompany: { id: string; name: string }
   toCompany: { id: string; name: string }
   kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
@@ -1273,7 +1273,10 @@ export default function SubmissionsPage() {
           >
             {row.person.name}
           </Link>
-          <p className="text-[11px] text-etyme-faint">{row.kind === 'INTERNAL' && direction === 'sent' ? 'Our own employee' : row.fromCompany.name}</p>
+          <p className="text-[11px] text-etyme-faint">
+            {row.kind === 'INTERNAL' && direction === 'sent' ? 'Our own employee' : row.fromCompany.name}
+            {row.requirement.site ? ` · ${row.requirement.site}` : ''}
+          </p>
         </div>
       ),
       sortValue: (row) => row.person.name,

@@ -264,6 +264,9 @@ export const DOMAINS: Domain[] = [
       // The generated world's jobs, invitations, submissions and interviews.
       'lib/seed-scale/jobs',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      // A job's site as demand's screens say it: the Site line, the sentence
+      // under "Send the job to", where a job is (2026-10-28, the Sites drawing).
+      'lib/job-site',
       // What a program costs a month: the 160-hour assumption, said out
       // loud once and imported by the dashboard, the org view and the
       // census page rather than written out four times.

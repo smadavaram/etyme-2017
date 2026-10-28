@@ -92,7 +92,10 @@ describe('a job sent to a supplier is told by name, and opens a thread with it (
   })
 
   it('the send route opens the thread the client-writes-to-supplier flow opens, and an Owner holding every permission hears', () => {
-    const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/[id]/distribute/route.ts'), 'utf8')
+    // The sending itself is one door since 2026-10-28, read by the release
+    // route and by a job at a site that publishes itself on the raise.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/send.ts'), 'utf8')
+    expect(readFileSync(join(process.cwd(), 'src/app/api/requisitions/[id]/distribute/route.ts'), 'utf8')).toContain('await sendJobTo(')
     expect(route).toMatch(/prisma\.conversation\s*\.create\(/)
     expect(route).toContain("topic: 'REQUIREMENT', topicId: id")
     expect(route).toContain("hasSome: ['requirements.read', '*']")
@@ -162,8 +165,10 @@ describe('jobs of one title are told apart, and a batch is one notice (handoffs 
   })
 
   it('the send route asks for the client’s other jobs of the title and folds a send into an unread notice from the same minute', () => {
-    const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/[id]/distribute/route.ts'), 'utf8')
-    expect(route).toContain('apart: jobApart({ id, location: requisition.location, startDate: requisition.startDate }, sameTitle)')
+    const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/send.ts'), 'utf8')
+    // Told apart by where each job is: its site first, the old free text second (lib/job-site).
+    expect(route).toContain('{ id, location: placeOf(requisition), startDate: requisition.startDate }')
+    expect(route).toContain('sameTitle.map((o) => ({ id: o.id, location: placeOf(o), startDate: o.startDate }))')
     expect(route).toContain("createdAt: { gte: new Date(Date.now() - JOB_BATCH_MS) }")
     expect(route).toContain("data: { path: ['kind'], equals: 'JOB_SENT' }")
     expect(route).toContain('requirementIds: jobs.map((j) => j.requirementId)')

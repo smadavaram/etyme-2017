@@ -471,13 +471,17 @@ export async function POST(
           select: { id: true, fromCompanyId: true, rate: true, requirementId: true },
         })
       : Promise.resolve(null),
-    // Where the work is: the client's primary site. A holiday marked for
-    // another country on either calendar does not move this site's dates.
-    prisma.companyLocation.findFirst({
-      where: { companyId: payerId },
-      orderBy: [{ isPrimary: 'desc' }],
-      select: { id: true, country: true },
-    }),
+    // Where the work is: the job's own site where it names one (founder,
+    // 2026-10-28, the Sites drawing), else the client's primary site, as
+    // before. A holiday marked for another country on either calendar
+    // does not move this site's dates.
+    req.locationId
+      ? prisma.companyLocation.findUnique({ where: { id: req.locationId }, select: { id: true, country: true } })
+      : prisma.companyLocation.findFirst({
+          where: { companyId: payerId },
+          orderBy: [{ isPrimary: 'desc' }],
+          select: { id: true, country: true },
+        }),
   ])
   const engagement =
     foundEngagement ??
@@ -711,6 +715,10 @@ export async function POST(
         // payer's own site; it used to be set to the payer unconditionally,
         // which made every three-party placement look direct.
         endClientCompanyId: req.endClientCompanyId,
+        // The placement is at the job's site, so its week follows that
+        // site's days off and time zone and the region reads it under its
+        // own. Null where the job names none, as every older job does.
+        workLocationId: req.locationId ?? null,
         engagementId: engagement.id,
         // Null where the two firms have no agreement, which is ordinary:
         // the order authorizes the spend and the line carries the rate.

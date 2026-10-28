@@ -62,6 +62,8 @@ interface Candidate {
   fit: Fit
   person: { id: string; name: string; headline: string | null; skills: string[] }
   vendor: { id: string; name: string }
+  /** Where the person would work: the job's site, beside the supplier. */
+  site?: string | null
   rate: number
   /** The rate the award agreed, once placed — not what the supplier asked. */
   placedRate?: number | null
@@ -268,7 +270,7 @@ function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
 
 // ── Sending it to vendors ──────────────────────────────────
 
-function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSent }: {
+function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSent, site }: {
   reqId: string
   billMax: number | null
   invited: Set<string>
@@ -286,9 +288,19 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
    */
   suppliers: { companyId: string; name: string; blocked?: boolean }[]
   onSent: () => void
+  /**
+   * Who a job at its site goes to (founder, 2026-10-28, the Sites
+   * drawing): those firms are ticked, and a firm the site does not name
+   * is not offered. Null on a job with no site, which goes where it
+   * always went. The release route refuses the same firms in a sentence.
+   */
+  site?: { ids: string[]; everyApproved: boolean; says: string } | null
 }) {
   const vendors = suppliers.filter(v => !v.blocked).map(v => ({ id: v.companyId, name: v.name }))
-  const [picked, setPicked] = useState<Record<string, { on: boolean; min: string; max: string }>>({})
+  const atSite = site && !site.everyApproved ? new Set(site.ids) : null
+  const [picked, setPicked] = useState<Record<string, { on: boolean; min: string; max: string }>>(() =>
+    Object.fromEntries([...(atSite ?? [])].filter(id => !invited.has(id)).map(id => [id, { on: true, min: '', max: '' }]))
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -299,6 +311,7 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
   const available = vendors
     .filter(v => !invited.has(v.id))
     .filter(v => cleared.size === 0 || cleared.has(v.id))
+    .filter(v => !atSite || atSite.has(v.id))
 
   async function send() {
     const chosen = Object.entries(picked).filter(([, v]) => v.on)
@@ -346,6 +359,7 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
         {billMax != null && ` Your ceiling is ${money(billMax)}/hr.`}
         {cleared.size > 0 && ' Only the suppliers Procurement cleared are listed.'}
       </p>
+      {site && <p className="text-sm text-etyme-muted mb-3">{site.says}</p>}
       <div className="divide-y divide-etyme-rule">
         {available.map(v => {
           const p = picked[v.id] ?? { on: false, min: '', max: '' }
@@ -748,7 +762,8 @@ export default function RequisitionDetail() {
             </div>
           : approved
           ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds}
-              clearedIds={r.clearedSupplierIds ?? []} suppliers={suppliers} onSent={load} />
+              clearedIds={r.clearedSupplierIds ?? []} suppliers={suppliers} onSent={load}
+              site={r.siteSuppliers ?? null} />
           : <div className="p-4 text-sm text-etyme-muted">
               {/* The column's own value, lower-cased, was not a sentence:
                   "This requisition is changes requested." A refusal says
@@ -810,7 +825,7 @@ export default function RequisitionDetail() {
                 <div className="flex-1 min-w-0">
                   <div className="text-etyme-ink">{c.person.name}</div>
                   <div className="text-xs text-etyme-muted">
-                    {c.person.headline ?? c.person.skills.slice(0, 3).join(', ')} · via {c.vendor.name}
+                    {c.person.headline ?? c.person.skills.slice(0, 3).join(', ')} · via {c.vendor.name}{c.site ? ` · ${c.site}` : ''}
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="font-serif text-lg text-etyme-ink tabular-nums">

@@ -432,16 +432,18 @@ async function readFacts(
     where: andAll(
       { status: { in: ['OPEN', 'DRAFT'] }, OR: [{ companyId: client.id }, { msa: { clientId: client.id } }] },
       unitWall,
-      reach ? regionRequirements(reach.scope) : {},
+      // Charged to the region, or posted at one of its sites (2026-10-28).
+      reach ? { OR: [regionRequirements(reach.scope), { locationId: { in: reach.scope.siteIds } }] } : {},
     ),
     select: {
-      id: true, title: true, orgUnitId: true, location: true,
+      id: true, title: true, orgUnitId: true, location: true, locationId: true,
       owner: { select: { id: true, name: true } }, raisedBy: { select: { id: true, name: true } },
     },
   })
   const open = jobs.map((j) => {
     const unitName = j.orgUnitId ? unitById.get(j.orgUnitId)?.name : undefined
-    const siteId = (unitName && siteByName.get(unitName)) ?? (j.location ? siteByName.get(j.location) : undefined) ?? null
+    // The job's own site first; a job posted before sites is placed by its unit or its old free text.
+    const siteId = j.locationId ?? (unitName && siteByName.get(unitName)) ?? (j.location ? siteByName.get(j.location) : undefined) ?? null
     return { id: j.id, title: j.title, manager: managerOf(j.owner ?? j.raisedBy), siteId, region: regionUp(j.orgUnitId) }
   })
 

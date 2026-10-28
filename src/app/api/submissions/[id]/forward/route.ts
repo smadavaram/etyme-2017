@@ -57,7 +57,7 @@ export async function POST(
       requirement: {
         select: {
           id: true, title: true, companyId: true, endClientCompanyId: true,
-          openingId: true, skills: true, location: true, mirroredFromId: true,
+          openingId: true, skills: true, location: true, locationId: true, mirroredFromId: true,
         },
       },
     },
@@ -258,6 +258,9 @@ export async function POST(
             title: mirrored.title,
             skills: mirrored.skills,
             location: mirrored.location,
+            // The client's site, carried like the end client: every rung's
+            // line is at the same place, so each award writes it.
+            locationId: submission.requirement.locationId,
             // Carried, not inferred. Dropping it here made every forwarded
             // role look like a direct placement one hop down, and tenure
             // then aggregated against the prime instead of the client.

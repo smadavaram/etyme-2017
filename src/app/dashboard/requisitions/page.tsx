@@ -161,6 +161,8 @@ function DecisionPanel({ decision, onDismiss }: {
   decision: {
     state: string; summary: string; checks: Check[]; route: { name: string }[]
     steps?: { stage: string; rank: number; approverName: string | null; outcome: string; reason: string }[]
+    /** Where the job went on the raise, where anybody was ticked. */
+    sentSays?: string | null
   }
   onDismiss: () => void
 }) {
@@ -175,6 +177,7 @@ function DecisionPanel({ decision, onDismiss }: {
           <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">
             {decision.summary}
           </p>
+          {decision.sentSays && <p className="text-sm text-etyme-muted mt-1">{decision.sentSays}</p>}
         </div>
         <button onClick={onDismiss} className="text-etyme-faint hover:text-etyme-ink text-sm">
           ✕
@@ -217,6 +220,16 @@ function DecisionPanel({ decision, onDismiss }: {
   )
 }
 
+/** What the job form reads to draw Site and Send the job to (`/api/requisitions/sites`). */
+interface SiteRead {
+  sites: { id: string; name: string }[]
+  site: { id: string; name: string } | null
+  siteSays: string
+  suppliers: { id: string; name: string; says: string | null }[]
+  everyApproved: boolean
+  says: string
+}
+
 function RaiseModal({ onClose, onRaised, team, me }: {
   onClose: () => void
   onRaised: (decision: any) => void
@@ -229,6 +242,12 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     budget: '', hoursPerWeek: '', ownerId: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
+  // The site and who it goes to (founder, 2026-10-28, the Sites drawing):
+  // the form opens on the primary site with its suppliers ticked, and a
+  // firm not approved at the site is not offered a tick at all.
+  const [siteRead, setSiteRead] = useState<SiteRead | null>(null)
+  const [siteId, setSiteId] = useState<string>('')
+  const [ticked, setTicked] = useState<Set<string>>(new Set())
   /** Who is interviewing. Names, on the requirement, from the start. */
   const [typedPanel, setPanel] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -250,6 +269,19 @@ function RaiseModal({ onClose, onRaised, team, me }: {
   const panel = panelEdited ? typedPanel : defaultPanel(ownerName)
 
   useEffect(() => {
+    fetch(`/api/requisitions/sites${siteId ? `?locationId=${encodeURIComponent(siteId)}` : ''}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        const d = j?.data as SiteRead | undefined
+        if (!d) return
+        setSiteRead(d)
+        if (!siteId && d.site) setSiteId(d.site.id)
+        setTicked(new Set(d.suppliers.map(f => f.id)))
+      })
+      .catch(() => {})
+  }, [siteId])
+
+  useEffect(() => {
     // The budgets themselves. This asked /api/program/org, which returns
     // managers, vendors and spend and has never carried a cost center —
     // so the list was empty however many existed.
@@ -267,7 +299,8 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     // asked for here rather than discovered as a blank on the approver's
     // screen (`../facts`).
     const missing = missingSays(missingForApproval(
-      { ...form, hoursPerWeek: form.hoursPerWeek ?? '' },
+      // A picked site answers "where the work is".
+      { ...form, hoursPerWeek: form.hoursPerWeek ?? '', location: siteRead?.site?.name ?? form.location },
       { costCentersOffered: costCenters.length > 0 }
     ))
     if (missing) {
@@ -283,7 +316,11 @@ function RaiseModal({ onClose, onRaised, team, me }: {
         body: JSON.stringify({
           title: form.title.trim(),
           skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
-          location: form.location.trim() || null,
+          // The site by id; the free text only where the company has no site.
+          locationId: siteRead?.site?.id ?? null,
+          location: siteRead?.site ? null : (form.location.trim() || null),
+          // Who it goes to. Sent on the raise where the job clears by rule.
+          ...(siteRead ? { sendTo: [...ticked] } : {}),
           headcount: parseInt(form.headcount, 10) || 1,
           // Rates are entered in dollars and stored in cents.
           budget: form.budget ? Math.round(parseFloat(form.budget) * 100) : null,
@@ -304,7 +341,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
         }),
       })
       const json = await readJson(res)
-      onRaised(json.data.decision)
+      onRaised({ ...json.data.decision, sentSays: json.data.sentSays ?? null })
       onClose()
     } catch (e: any) {
       setError(e.message)
@@ -500,11 +537,49 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               placeholder="SAP MM, S/4HANA" className={`${field} mt-1`} />
           </label>
 
-          <label className="block">
-            <Lbl>Where — the city, and on site, hybrid or remote</Lbl>
-            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
-              placeholder="Lakewood, CO — on site three days a week" className={`${field} mt-1`} />
-          </label>
+          {siteRead && siteRead.sites.length > 0 ? (
+            <label className="block">
+              <Lbl>Site</Lbl>
+              <select value={siteId} onChange={e => setSiteId(e.target.value)} className={`${field} mt-1`}>
+                {siteRead.sites.map(st => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-etyme-muted mt-1">{siteRead.siteSays}</p>
+            </label>
+          ) : (
+            <label className="block">
+              <Lbl>Where — the city, and on site, hybrid or remote</Lbl>
+              <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                placeholder="Lakewood, CO — on site three days a week" className={`${field} mt-1`} />
+            </label>
+          )}
+
+          {siteRead && (
+            <div>
+              <Lbl>Send the job to</Lbl>
+              {siteRead.suppliers.length > 0 && (
+                <ul className="mt-2 space-y-1.5">
+                  {siteRead.suppliers.map(f => (
+                    <li key={f.id}>
+                      <label className="flex items-center gap-2 text-sm text-etyme-ink">
+                        <input type="checkbox" className="accent-etyme-action" checked={ticked.has(f.id)}
+                          onChange={e => {
+                            const next = new Set(ticked)
+                            if (e.target.checked) next.add(f.id)
+                            else next.delete(f.id)
+                            setTicked(next)
+                          }} />
+                        <span>{f.name}</span>
+                        {f.says && <span className="text-xs text-etyme-muted">· {f.says}</span>}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-etyme-muted mt-2">{siteRead.says}</p>
+            </div>
+          )}
 
           <label className="block">
             <Lbl>What the work is, day to day</Lbl>
@@ -549,7 +624,7 @@ const REQ_COLUMNS: Column<Requisition>[] = [
   { key: 'title', label: 'Requirement', render: (r) => <span className="text-etyme-ink">{r.title}</span> },
   { key: 'status', label: 'Where it is', render: (r) => stageChip(r), sortValue: (r) => stageOf(r) },
   { key: 'headcount', label: 'Positions', align: 'right' },
-  { key: 'location', label: 'Location', render: (r) => <span className="text-etyme-muted">{r.location ?? '—'}</span>, hideOnMobile: true },
+  { key: 'location', label: 'Site', render: (r) => <span className="text-etyme-muted">{r.location ?? '—'}</span>, hideOnMobile: true },
   { key: 'orgUnit', label: 'Department', render: (r) => <span className="text-etyme-muted">{r.orgUnit?.name ?? '—'}</span>, sortValue: (r) => r.orgUnit?.name ?? '', hideOnMobile: true },
   { key: 'neededBy', label: 'Needed by', render: (r) => <span className="tabular-nums text-etyme-muted">{r.neededBy ? new Date(r.neededBy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>, sortValue: (r) => r.neededBy ?? '' },
   { key: 'billMax', label: 'Max rate', align: 'right', render: (r) => <span className="tabular-nums">{r.billMax != null ? `$${Math.round(r.billMax / 100)}/hr` : '—'}</span> },

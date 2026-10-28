@@ -4,10 +4,17 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { waitingOnSays } from './words'
 import { stageOf } from '@/lib/requisition-stage'
-import { isConsultantSeat } from '@/lib/seat'
 import { emit } from '@/lib/events'
 import { ownPriceMedian } from '@/lib/chain-top'
-import { seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
+import { unitsReachedBy } from '@/lib/resolve-client-company'
+import { whoIsHiring } from './who-is-hiring'
+import { sendJobTo } from './send'
+import { regionScopeFor } from '@/lib/region-scope'
+import { approvedSuppliersOf, siteSuppliers } from '@/lib/sites'
+import { mayFillAtSite, notApprovedForCompany } from '@/lib/site-rules'
+import { approvedAtWords, raisedSays, sentSays, placeOf } from '@/lib/job-site'
+import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
+import { reportError } from '@/lib/alerts'
 import {
   evaluateRequisition,
   type RuleKind,
@@ -47,119 +54,6 @@ import { ancestry } from '@/lib/org-tree'
  * well as sell — and when they buy, they buy for themselves.
  */
 
-/**
- * The company these roles belong to, and the caller as they act there.
- *
- * Four answers and no fifth: a client is hiring for itself; a firm in a
- * seat is hiring for the client that granted it; a prime, a GSI, a sub
- * or a bench vendor is hiring for its own firm; and a program office
- * with no seat, or somebody with no company at all, is buying nobody and
- * is told so rather than shown an empty list.
- */
-async function whoIsHiring(
-  caller: NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>,
-  named: string | null
-): Promise<
-  | { client: { id: string; name: string }; seat: any; acting: typeof caller; error: null }
-  | { client: null; seat: null; acting: null; error: NextResponse }
-> {
-  if (!caller.company) {
-    return {
-      client: null, seat: null, acting: null,
-      error: NextResponse.json(
-        {
-          error: {
-            code: 'NOT_HIRING',
-            message:
-              'A job belongs to the company that is hiring. You are signed in as a person ' +
-              'rather than at a firm, so there is no company to open one for.',
-          },
-        },
-        { status: 403 }
-      ),
-    }
-  }
-
-  // A seat on a bench is a seat to file hours and answer for yourself,
-  // never to read the firm's demand. A consultant holds a context at the
-  // agency that benches them, so "the caller's company" is that agency —
-  // which would have handed them its whole pipeline of open roles.
-  if (isConsultantSeat(caller)) {
-    return {
-      client: null, seat: null, acting: null,
-      error: NextResponse.json(
-        {
-          error: {
-            code: 'NOT_HIRING',
-            message:
-              'Jobs a firm is hiring for are the firm\'s own. Yours are on your page — ' +
-              'what you have been put forward for, and where each one stands.',
-          },
-        },
-        { status: 403 }
-      ),
-    }
-  }
-
-  const desk = await seatedDesk(caller, named)
-
-  // Naming somebody else's company is refused out loud rather than
-  // quietly answered with your own roles, which would leave a reader
-  // staring at a list that is not the one they asked for. A seat is the
-  // only thing that makes another company's id legitimate here, and a
-  // revoked seat is not a seat: `seatedDesk` comes back with the
-  // caller's own firm, and the id they asked about is no longer theirs
-  // to ask about.
-  if (named && desk?.companyId !== named) {
-    return {
-      client: null, seat: null, acting: null,
-      error: NextResponse.json(
-        {
-          error: {
-            code: 'FORBIDDEN',
-            message:
-              caller.company.kind === 'CLIENT'
-                ? "You may only read your own company's jobs."
-                : `Those jobs belong to the company that opened them. ${caller.company.name} reads ` +
-                  'its own, and a client\'s from a seat that client granted it — ask an owner or the ' +
-                  'program manager there for one.',
-          },
-        },
-        { status: 403 }
-      ),
-    }
-  }
-
-  // A program office places nobody, so it has no roles of its own: the
-  // ones it works on are a client's, and the seat is what reaches them.
-  const office = !desk?.seat && caller.company.kind === 'MSP'
-  if (!desk || office) {
-    return {
-      client: null, seat: null, acting: null,
-      error: NextResponse.json(
-        {
-          error: {
-            code: 'NOT_HIRING',
-            message:
-              `${caller.company.name} is not tied to a client yet. An MSP places ` +
-              `nobody, so the jobs it opens are a client's — and it opens them from a seat ` +
-              `the client granted it. Ask an owner or the program manager at that client to ` +
-              `grant ${caller.company.name} a seat in their program.`,
-          },
-        },
-        { status: 403 }
-      ),
-    }
-  }
-
-  return {
-    client: { id: desk.companyId, name: desk.companyName },
-    seat: desk.seat,
-    acting: desk.acting,
-    error: null,
-  }
-}
-
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
@@ -190,6 +84,7 @@ export async function GET(request: NextRequest) {
       ...(includeArchived ? {} : { archivedAt: null }),
     },
     include: {
+      site: { select: { id: true, name: true } },
       raisedBy: { select: { id: true, name: true } },
       owner: { select: { id: true, name: true } },
       orgUnit: { select: { id: true, name: true } },
@@ -210,7 +105,8 @@ export async function GET(request: NextRequest) {
         id: r.id,
         title: r.title,
         skills: r.skills,
-        location: r.location,
+        location: placeOf(r),
+        site: r.site,
         headcount: r.headcount,
         billMin: r.billMin,
         billMax: r.billMax,
@@ -325,6 +221,11 @@ export async function POST(request: NextRequest) {
     overtimeAfterHours, overtimeMultiplierBps,
     // Whose need it is, when somebody raises it on their behalf.
     ownerId: ownerAsked,
+    // The site, by id, and the suppliers ticked under "Send the job to"
+    // (founder, 2026-10-28, the Sites drawing). Absent `sendTo` sends
+    // nothing on the raise, as before; the form always sends it.
+    locationId: siteAsked,
+    sendTo: sendToAsked,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -526,6 +427,70 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── Where, and who it goes to ──────────────────────────────────────
+  //
+  // The site the job is at, by id, from the company's own sites (a seat
+  // that reads one region, its region's). The form always names one, the
+  // primary site pre-selected. A job raised with none named (an import, an
+  // older caller) keeps no site: it reads as the primary site, goes to
+  // every approved supplier, and its placement is at the primary site, as
+  // every job was before sites ("skipping stops one thing only").
+  const asked = typeof siteAsked === 'string' && siteAsked ? siteAsked : null
+  const scope = asked ? await regionScopeFor(client.id, seat ? seat.orgUnitId : caller.orgUnitId) : null
+  const found = asked
+    ? await prisma.companyLocation.findFirst({
+        where: { id: asked, companyId: client.id },
+        select: { id: true, name: true, city: true },
+      })
+    : null
+  const site = found && (!scope || scope.siteIds.includes(found.id)) ? found : null
+  if (asked && !site) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_SITE',
+          message: scope
+            ? `That site is outside ${scope.label}, the region you hire for. Pick one of its sites.`
+            : `That site is not one of ${client.name}'s. Pick one of its sites.`,
+          field: 'locationId',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // Each tick is a firm approved at the site, or, where the site names
+  // nobody or there is no site, approved for the company. Refused in the
+  // site's own sentence before anything is written.
+  const sendTo: string[] | null = Array.isArray(sendToAsked)
+    ? [...new Set(sendToAsked.filter((v: unknown): v is string => typeof v === 'string' && v.length > 0))]
+    : null
+  let sendNames = new Map<string, { id: string; name: string }>()
+  if (sendTo && sendTo.length > 0) {
+    const [approvedFirms, here, belowAPrime] = await Promise.all([
+      approvedSuppliersOf(client.id),
+      site ? siteSuppliers(site.id) : Promise.resolve(null),
+      reachedOnlyThrough(client.id),
+    ])
+    const approved = new Set(approvedFirms.map((f) => f.id))
+    const names = await prisma.company.findMany({ where: { id: { in: sendTo } }, select: { id: true, name: true } })
+    sendNames = new Map(names.map((c) => [c.id, c]))
+    for (const vid of sendTo) {
+      const firm = { id: vid, name: sendNames.get(vid)?.name ?? 'That firm' }
+      const verdict = here
+        ? mayFillAtSite({ supplier: firm, site: here.site, client: client.name, approved, atSite: here })
+        : approved.has(vid) && !belowAPrime.has(vid)
+          ? ({ ok: true } as const)
+          : ({ ok: false, says: notApprovedForCompany(firm.name, client.name) } as const)
+      if (!verdict.ok) {
+        return NextResponse.json(
+          { error: { code: 'NOT_APPROVED_AT_SITE', message: verdict.says, field: 'sendTo' } },
+          { status: 403 }
+        )
+      }
+    }
+  }
+
   // ── Write it ──
 
   const requisition = await prisma.$transaction(async (tx) => {
@@ -534,7 +499,10 @@ export async function POST(request: NextRequest) {
         companyId: client.id, // the CLIENT owns this one
         title: title.trim(),
         skills: Array.isArray(skills) ? skills : [],
-        location: location ?? null,
+        // The free text stays, written as the site's name, for the readers
+        // that still read it (lib/job-site's `placeOf` reads the site first).
+        location: site ? site.name : (typeof location === 'string' && location.trim() ? location.trim() : null),
+        locationId: site?.id ?? null,
         billMin: billMin ?? null,
         billMax: billMax ?? null,
         months: months ?? null,
@@ -620,6 +588,39 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // ── A job that published itself goes to the suppliers ticked ────────
+  //
+  // Who sees a job is the program's choice, not the hiring manager's
+  // (lib/company-defaults). With sites, the program made it per site,
+  // under Settings → Sites; the hiring manager only narrows within it, so
+  // a job that clears by rule goes out on the raise rather than waiting
+  // for somebody to send what the site already says. A job routed for
+  // approval goes out from its own page once approved, with the site's
+  // suppliers ticked there by default.
+  let sentTo: string[] = []
+  if (requisition.status === 'OPEN' && sendTo && sendTo.length > 0) {
+    try {
+      const results = await sendJobTo({
+        requisition: {
+          id: requisition.id, title: requisition.title, companyId: client.id, company: client,
+          headcount: requisition.headcount, location: requisition.location,
+          site: site ? { name: site.name } : null, startDate: requisition.startDate,
+        },
+        vendors: sendTo.map((companyId) => ({ companyId })),
+        vendorMap: sendNames,
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        caller,
+        reason: (names) =>
+          `Sent when it cleared by rule, to the suppliers ${caller.person.name} ticked` +
+          `${site ? ` ${approvedAtWords(site)}` : ''}: ${names.join(', ') || 'nobody'}`,
+      })
+      sentTo = results.filter((r) => r.status === 'sent').map((r) => r.name)
+    } catch (err) {
+      // The job stands; it can still be sent from its own page.
+      reportError(`${requisition.title} was raised and could not be sent to its suppliers:`, err)
+    }
+  }
+
   // Tell the approvers there is something waiting.
   if (decision.route.length > 0) {
     const notifications: NotifyParams[] = decision.route.map(r => ({
@@ -660,9 +661,16 @@ export async function POST(request: NextRequest) {
         annualValue: value.cents / 100,
         valueBasis: value.basis,
         valueSays: value.says,
-        message: decision.state === 'AUTO_APPROVED'
-          ? `Job request open — ${decision.summary}`
-          : `Job request raised — ${decision.summary}`,
+        site: site ? { id: site.id, name: site.name } : null,
+        sentTo,
+        sentSays: sentSays({ open: decision.state === 'AUTO_APPROVED', sentTo, ticked: sendTo?.length ?? 0, site }),
+        message: raisedSays({
+          open: decision.state === 'AUTO_APPROVED',
+          summary: decision.summary,
+          sentTo,
+          ticked: sendTo?.length ?? 0,
+          site,
+        }),
       },
     },
     { status: 201 }

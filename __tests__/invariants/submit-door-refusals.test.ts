@@ -169,7 +169,8 @@ describe('an Owner holds every permission, so an Owner is told what a desk is to
       'src/app/api/submissions/[id]/forward/route.ts',
       'src/app/api/contractor-invites/[id]/route.ts',
       'src/lib/supplier-desks.ts',
-      'src/app/api/requisitions/[id]/distribute/route.ts',
+      // The one door that sends a job, read by the release route and the raise.
+      'src/app/api/requisitions/send.ts',
     ]) {
       const src = readFileSync(join(process.cwd(), f), 'utf8')
       const filters = src.match(/permissions: \{ hasSome: \[[^\]]*\] \}|permissions: \{ has: [^}]+\}/g) ?? []
