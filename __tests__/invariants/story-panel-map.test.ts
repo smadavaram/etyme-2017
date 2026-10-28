@@ -172,7 +172,7 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     const v = view('region')
     const plants = CORVANE_PLANTS.filter((p) => p.region === 'latam')
     expect(v.signed).toContain('Valeria Montes')
-    expect(column(v, 'Plant').map((c) => c.t)).toEqual(plants.map((p) => p.city))
+    expect(column(v, 'Site').map((c) => c.t)).toEqual(plants.map((p) => p.city))
     expect(column(v, 'Hiring manager').map((c) => c.t)).toEqual(plants.map((p) => p.manager))
     expect(column(v, 'Contractors').map((c) => Number(c.t))).toEqual(plants.map((p) => onSite.filter((c) => c.plant.key === p.key).length))
     expect(column(v, 'Weeks to sign').map((c) => Number(c.t))).toEqual(plants.map((p) => p.weeksToSign))
@@ -250,7 +250,7 @@ describe('Every figure on the map is the Corvane seed’s', () => {
       v.columns.some((c) => c.t === title) && column(v, title).forEach((c) => expect(set.has(c.t), `${v.tab}: ${c.t}`).toBe(true))
     for (const v of MAP.views) {
       named(v, 'Contractor', people); named(v, 'Hiring manager', people); named(v, 'Regional manager', people)
-      named(v, 'Supplier', firms); named(v, 'Plant', places); named(v, 'Region', regions)
+      named(v, 'Supplier', firms); named(v, 'Site', places); named(v, 'Region', regions)
       expect(people.has(v.demo.target.seat), v.demo.target.seat).toBe(true)
       expect(v.signed).toContain(v.demo.target.seat)
     }

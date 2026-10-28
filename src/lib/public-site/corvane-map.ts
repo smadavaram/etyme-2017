@@ -293,7 +293,7 @@ export function corvaneMap(): CorvaneMap {
       { label: 'Spend this month', value: dollars(total), sub: 'at sample rates' },
     ],
     columns: [
-      { t: 'Region' }, { t: 'Regional manager' }, { t: 'Plants', right: true }, { t: 'Contractors', right: true },
+      { t: 'Region' }, { t: 'Regional manager' }, { t: 'Sites', right: true }, { t: 'Contractors', right: true },
       { t: 'Open jobs', right: true }, { t: 'Weeks to sign', right: true }, { t: 'Near the time limit' }, { t: 'Spend this month', right: true },
     ],
     rows: regions.map((g) => [
@@ -333,7 +333,7 @@ export function corvaneMap(): CorvaneMap {
       { label: 'Nearest time limit', value: plural(daysToLimit(reg.nearest), 'day'), sub: reg.nearest.plant.city, att: daysToLimit(reg.nearest) <= NEAR_LIMIT_DAYS },
     ],
     columns: [
-      { t: 'Plant' }, { t: 'Hiring manager' }, { t: 'Contractors', right: true }, { t: 'Open jobs', right: true },
+      { t: 'Site' }, { t: 'Hiring manager' }, { t: 'Contractors', right: true }, { t: 'Open jobs', right: true },
       { t: 'Weeks to sign', right: true }, { t: 'Nearest time limit' }, { t: 'Spend this month', right: true },
     ],
     rows: reg.plants.map((p) => {
