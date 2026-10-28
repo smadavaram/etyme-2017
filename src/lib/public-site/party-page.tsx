@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import { SubPageView } from './sub-page'
 import { ON_SCREEN_DOOR, OPEN_DEMO } from './skeleton-words'
 import { doorTab, partyAt, tabHref, type PartySlug } from './parties'
+import { doorMap } from './door-maps'
+import { NO_FACTS, type DoorFacts } from './door-map-facts'
+import { CorvaneMapView } from './corvane-map-view'
 
 /**
  * One party door, in the home page's shape (founder, 2026-10-14). The
@@ -14,10 +17,14 @@ import { doorTab, partyAt, tabHref, type PartySlug } from './parties'
  * are in the HTML, an advertisement can link to one, and the tabs are
  * plain links that work with no script. The panel is the door's own
  * whichever tab is open.
+ *
+ * Since 2026-10-28 a door draws its own party's map under the hero, the
+ * way the home page draws Corvane's: its roles are tabs at their own
+ * addresses (`?seat=`, beside `?tab=`), read on the server too.
  */
 
-/** What a door's route is handed by Next: the address's query, of which `tab` is read. */
-export interface DoorParams { searchParams?: { tab?: string | string[] } }
+/** What a door's route is handed by Next: the address's query, of which `tab` and the map's `seat` are read. */
+export interface DoorParams { searchParams?: { tab?: string | string[]; seat?: string | string[] } }
 
 function tabOf(params?: DoorParams): string | null {
   const t = params?.searchParams?.tab
@@ -29,9 +36,16 @@ export function partyMetadata(slug: PartySlug, params?: DoorParams): Metadata {
   return { title: p.tab ? `${p.eyebrow}: ${p.tab.label}` : p.eyebrow, description: p.purpose }
 }
 
-export function PartyPageView({ slug, params }: { slug: PartySlug; params?: DoorParams }) {
+/**
+ * `facts` are the door's live figures, read by its route before it draws
+ * (`./door-map-facts`); with none, each live figure on the map says it is
+ * on the demo. The map itself is the door tab's own (`./door-maps`), and a
+ * door with no map yet (the MSPs') draws none.
+ */
+export function PartyPageView({ slug, params, facts = NO_FACTS }: { slug: PartySlug; params?: DoorParams; facts?: DoorFacts }) {
   const door = partyAt(slug)!
   const p = doorTab(door, tabOf(params))
+  const drawn = doorMap(p.tab ? tabHref(door, p.tab.key) : door.route, facts, params?.searchParams?.seat)
   const demo = 'candidate' in p.demo
     ? { label: OPEN_DEMO, candidate: true as const }
     : { label: OPEN_DEMO, target: p.demo.target }
@@ -49,6 +63,7 @@ export function PartyPageView({ slug, params }: { slug: PartySlug; params?: Door
       signUp={p.signUp}
       band={p.band}
       story={p.story}
+      map={drawn ? { node: <CorvaneMapView map={drawn.map} seat={drawn.seat} hrefs={drawn.hrefs} doorsOpen inPage />, under: drawn.map.under } : undefined}
     />
   )
 }

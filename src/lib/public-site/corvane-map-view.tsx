@@ -3,7 +3,7 @@
 import { useState, type MouseEvent } from 'react'
 import { EtymeMark } from '@/components/logo'
 import { DemoLink } from './demo-link'
-import type { CorvaneMap, MapCell, SeatKey, Tone } from './corvane-map'
+import type { MapCell, RoleMap, Tone } from './corvane-map'
 
 /**
  * The map, drawn: the bar, four role tabs, who is signed in, the one
@@ -21,6 +21,10 @@ import type { CorvaneMap, MapCell, SeatKey, Tone } from './corvane-map'
  * five figures sit two to a row, and the one table is drawn at every
  * width inside its own box that scrolls sideways, the row's name pinned
  * on the left. The page itself never scrolls sideways.
+ *
+ * The same view draws each door's map (2026-10-28): the door's own
+ * party's roles over its own book (`./door-maps`). A map with one seat —
+ * a worker's own page — draws no tab row.
  *
  * `doorsOpen` is the page's one read of whether Corvane is seeded on this
  * deployment (`./corvane-seeded`). Where it is not, no "Open the demo as …"
@@ -53,10 +57,22 @@ function Cell({ c }: { c: MapCell }) {
   )
 }
 
-export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMap; seat: SeatKey; hrefs: Record<SeatKey, string>; doorsOpen: boolean }) {
-  const [cur, setCur] = useState<SeatKey>(seat)
+export function CorvaneMapView({ map, seat, hrefs, doorsOpen, inPage = false }: {
+  map: RoleMap
+  seat: string
+  hrefs: Record<string, string>
+  doorsOpen: boolean
+  /**
+   * Drawn on a door, under the door's own tabs. The door's tab is the page
+   * (`aria-current="page"`); a seat on its map is the current one of a set
+   * inside it (`aria-current="true"`), so a reader and a screen reader hear
+   * one page, not two.
+   */
+  inPage?: boolean
+}) {
+  const [cur, setCur] = useState<string>(seat)
 
-  function pick(key: SeatKey) {
+  function pick(key: string) {
     return (e: MouseEvent<HTMLAnchorElement>) => {
       // A click that asks for a new tab or window is the reader's choice.
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -73,13 +89,14 @@ export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMa
           <EtymeMark size={18} className="hidden shrink-0 md:block" />
           <span className="min-w-0">{map.bar}</span>
         </p>
+        {map.views.length > 1 && (
         <nav aria-label="Read it as" className="flex flex-wrap gap-1.5 md:ml-auto">
           {map.views.map((v) => (
             <a
               key={v.key}
               href={hrefs[v.key]}
               onClick={pick(v.key)}
-              aria-current={v.key === cur ? 'page' : undefined}
+              aria-current={v.key === cur ? (inPage ? 'true' : 'page') : undefined}
               className={`whitespace-nowrap rounded-full border px-3 py-1 text-[13px] transition-colors ${FOCUS} ${
                 v.key === cur
                   ? 'border-etyme-action bg-etyme-action text-white'
@@ -90,6 +107,7 @@ export function CorvaneMapView({ map, seat, hrefs, doorsOpen }: { map: CorvaneMa
             </a>
           ))}
         </nav>
+        )}
       </div>
 
       {map.views.map((v) => (

@@ -274,8 +274,9 @@ describe('No link lands in the middle of another page', () => {
         // The frame's own screens and the sign-up form, with the party it
         // opens on, are pages too, outside the marketing list.
         const own = h.startsWith('/embed/demo') || h.split('?')[0] === '/signup'
-        // A door's tab is the door's own page at its own address (`?tab=sub`).
-        const path = h.split('#')[0].split('?tab=')[0]
+        // A door's tab is the door's own page at its own address (`?tab=sub`),
+        // and so is a seat on its map (`?seat=hr`, 2026-10-28).
+        const path = h.split('#')[0].split('?tab=')[0].split('?seat=')[0]
         // Never /census: it is linked from nowhere since 2026-10-14.
         expect(path, `${route} links to the census`).not.toBe('/census')
         expect(replacementFor(path), `${route} links to ${path}, an old address`).toBeNull()

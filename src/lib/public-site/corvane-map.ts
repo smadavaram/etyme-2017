@@ -57,7 +57,7 @@ import { spendInReporting, SAMPLE_RATE_TABLE } from '@/lib/money/reporting-curre
 import { format, fromMinor } from '@/lib/money'
 import { monthsOf } from '@/lib/tenure-days'
 import { possessive } from '@/lib/requisition-approval'
-import type { SeatTarget } from './flow'
+import type { PersonTarget, SeatTarget } from './flow'
 
 // ── The shape the view draws ─────────────────────────────────────────
 
@@ -97,8 +97,14 @@ export interface MapCell { t: string; sub?: string; chip?: Tone; att?: boolean; 
 
 export interface MapStat { label: string; value: string; sub?: string; att?: boolean }
 
-export interface MapView {
-  key: SeatKey
+/**
+ * One seat on a map. Generic since the doors' maps (2026-10-28): the
+ * home page's four Corvane roles, and each door's own party's roles, are
+ * the same shape drawn by one view (`./corvane-map-view`). A door's
+ * worker opens as a person rather than a desk, so the target may be one.
+ */
+export interface MapView<K extends string = SeatKey, T extends SeatTarget | PersonTarget = SeatTarget> {
+  key: K
   tab: string
   /** "Signed in as …": who, and what this seat reads. */
   signed: string
@@ -108,16 +114,19 @@ export interface MapView {
   columns: { t: string; right?: boolean }[]
   rows: MapCell[][]
   caption: string
-  demo: { target: SeatTarget; label: string }
+  demo: { target: T; label: string }
 }
 
-export interface CorvaneMap {
+/** A map: the bar over the tabs, one view per seat, and the line under it. */
+export interface RoleMap<K extends string = string, T extends SeatTarget | PersonTarget = SeatTarget | PersonTarget> {
   /** The bar over the tabs. */
   bar: string
-  views: MapView[]
+  views: MapView<K, T>[]
   /** The line under the map: what the reader is looking at, and what the figures rest on. */
   under: string
 }
+
+export type CorvaneMap = RoleMap<SeatKey, SeatTarget>
 
 // ── Which seats the drawing plays ────────────────────────────────────
 

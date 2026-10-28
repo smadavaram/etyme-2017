@@ -726,8 +726,12 @@ describe('Four doors for the parties who are not the client, reached by link and
       expect(page?.kind, p.route).toBe('PARTY')
       const route = read(page!.routeFile)
       expect(route.trim().split('\n').length, p.route).toBeLessThanOrEqual(4)
-      // A door with tabs hands the address's query to the view, which reads the tab from it.
-      expect(route).toContain(p.tabs ? `<PartyPageView slug="${p.slug}" params={params} />` : `<PartyPageView slug="${p.slug}" />`)
+      // A door with tabs or a map hands the address's query to the view,
+      // which reads the tab and the map's seat from it; a door whose map
+      // has live figures reads them first, bounded (2026-10-28).
+      const handsQuery = Boolean(p.tabs) || p.slug === 'integrators'
+      const live = p.slug === 'integrators' || p.slug === 'suppliers' ? ` facts={await doorFacts('${p.slug}')}` : ''
+      expect(route).toContain(`<PartyPageView slug="${p.slug}"${handsQuery ? ' params={params}' : ''}${live} />`)
     }
   })
 

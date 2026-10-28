@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { EmbedStep } from '@/lib/sample-seat'
 import { TryDemo } from '@/components/try-demo'
 import { SiteHeader } from './frame'
@@ -49,6 +50,13 @@ export interface SubPageProps {
   band?: BandKind
   /** Which story the panel plays: Northbend Athletic's unless a page names another. */
   story?: StoryKey
+  /**
+   * A door's map, drawn under the hero and before the panel, where the
+   * home page draws its own (founder, "Do it for all parties like those",
+   * 2026-10-27; built 2026-10-28). Drawn by the caller, so this view stays
+   * the same one column for every page.
+   */
+  map?: { node: ReactNode; under: string }
 }
 
 function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
@@ -58,7 +66,7 @@ function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
 
 const TAB = 'rounded-full border px-3 py-1.5 text-[14px] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
 
-export function SubPageView({ tabs, question, purpose, step, caption, label, lines, link, demo, signUp, band, story }: SubPageProps) {
+export function SubPageView({ tabs, question, purpose, step, caption, label, lines, link, demo, signUp, band, story, map }: SubPageProps) {
   const shown = lines.slice(0, 3)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
@@ -88,6 +96,14 @@ export function SubPageView({ tabs, question, purpose, step, caption, label, lin
           </h1>
           <p className="mt-3 text-[17px] leading-snug text-etyme-muted md:text-[18px]">{purpose}</p>
         </section>
+
+        {/* ── A door's map: its own party's book, read from its own roles ── */}
+        {map && (
+          <section id="map" aria-label="One record, read from each role" className="scroll-mt-20 pb-8">
+            {map.node}
+            <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{map.under}</p>
+          </section>
+        )}
 
         {/* ── The product, live and read-only, at this page's step ── */}
         <LiveDemo step={step} caption={caption} label={label} story={story}>
