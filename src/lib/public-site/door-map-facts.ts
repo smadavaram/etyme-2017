@@ -20,11 +20,14 @@
  * plausible wrong number is worse than a blank.
  *
  * Server only: it reaches the database. Reads only; writes nothing. It
- * reads the seeded demo world by its reserved slugs and nothing else.
+ * reads the seeded demo world by its own slugs, and refuses any company
+ * that is not the seed's (`mayReadLive`).
  */
 
 import { prisma } from '@/lib/db'
 import { firmTuesday, type FirmTuesday } from '@/lib/money/firm-today'
+import { reservedDomain } from '@/lib/demo-company'
+import { reservedAddress } from '@/lib/demo-session'
 import { BILLS_FROM_BELOW } from './door-map-seed'
 
 /** One week a firm's client signed and the firm has not billed. */
@@ -79,22 +82,51 @@ export type LiveDoor = keyof typeof LIVE_READS
  */
 export const FACTS_WAIT_MS = 1_500
 
+/** A company as the guard reads it: its slug, its domain, and the address of every seat on it. */
+export interface CompanySeen { id: string; slug: string; domain: string | null; seatEmails: string[] }
+
 /** The reads, so a test can hand in its own. */
 export interface FactsReader {
-  firmBySlug(slug: string): Promise<FirmTuesday | null>
-  receipt(payerSlug: string, number: string): Promise<{ totalCents: number; dueAt: Date; vendorName: string } | null>
+  company(slug: string): Promise<CompanySeen | null>
+  firm(companyId: string): Promise<FirmTuesday | null>
+  receipt(payerId: string, number: string): Promise<{ totalCents: number; dueAt: Date; vendorName: string } | null>
 }
 
 const DAY = 86_400_000
 
+/** Every slug a door may read live: the seed's own firms, and nothing an address can name. */
+export const SEEDED_SLUGS: readonly string[] = [
+  ...Object.values(LIVE_READS).map((w) => w.firm),
+  ...Object.values(LIVE_READS).map((w) => `world-${w.receipt.payer}`),
+]
+
+/**
+ * Whether a public page may read this company's book: the coordinator's
+ * call of 2026-10-28, reversible by the founder in a sentence. Only the
+ * seed's own firm, by the slug the door asked for, with no domain anybody
+ * could register (the seed writes none; a reserved one also passes,
+ * `.example`, `.invalid`, `.local`), and every seat on it held at a
+ * reserved address. A real tenant fails at least one, so a stranger can
+ * never make a door read a real firm's book, whatever address is passed.
+ */
+export function mayReadLive(c: CompanySeen | null, slug: string): c is CompanySeen {
+  if (!c || c.slug !== slug || !SEEDED_SLUGS.includes(slug)) return false
+  if (c.domain && !reservedDomain(c.domain)) return false
+  return c.seatEmails.every((e) => reservedAddress(e))
+}
+
 export const DATABASE: FactsReader = {
-  async firmBySlug(slug) {
-    const c = await prisma.company.findUnique({ where: { slug }, select: { id: true } })
-    return c ? firmTuesday(c.id) : null
+  async company(slug) {
+    const c = await prisma.company.findUnique({
+      where: { slug },
+      select: { id: true, slug: true, domain: true, contexts: { select: { person: { select: { primaryEmail: true } } } } },
+    })
+    return c ? { id: c.id, slug: c.slug, domain: c.domain, seatEmails: c.contexts.map((x) => x.person.primaryEmail ?? '') } : null
   },
-  async receipt(payerSlug, number) {
+  firm: (companyId) => firmTuesday(companyId),
+  async receipt(payerId, number) {
     const b = await prisma.vendorBill.findFirst({
-      where: { number, company: { slug: payerSlug } },
+      where: { number, companyId: payerId },
       select: { totalCents: true, dueAt: true, vendorCompany: { select: { name: true } } },
     })
     return b ? { totalCents: b.totalCents, dueAt: b.dueAt, vendorName: b.vendorCompany.name } : null
@@ -141,9 +173,14 @@ export async function doorFacts(
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<DoorFacts>((resolve) => { timer = setTimeout(() => resolve(NO_FACTS), waitMs) })
   const settle = <T,>(p: Promise<T>): Promise<T | null> => p.then((x) => x, () => null)
+  /** The seed's own firm by its slug, or null: never a firm that is not the seed's. */
+  const seeded = async (slug: string) => {
+    const c = await read.company(slug)
+    return mayReadLive(c, slug) ? c : null
+  }
   const both = Promise.all([
-    settle(read.firmBySlug(w.firm)),
-    settle(read.receipt(`world-${w.receipt.payer}`, w.receipt.number)),
+    settle(seeded(w.firm).then((c) => (c ? read.firm(c.id) : null))),
+    settle(seeded(`world-${w.receipt.payer}`).then((c) => (c ? read.receipt(c.id, w.receipt.number) : null))),
   ]).then(([firm, receipt]): DoorFacts => ({
     firm: firm ? firmLive(firm) : null,
     receipt: receipt

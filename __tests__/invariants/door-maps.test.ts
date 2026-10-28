@@ -41,7 +41,7 @@ import {
   teleworldMap, brightmoorMap, techpepleMap, helenaMap, byrneMap, doorMap, doorSeatHref, doorSeatOf,
   copyOfDoorMap, defaultCopyOfDoorMap, DOOR_MAPS, DOOR_SEATS, ON_THE_DEMO, READ_LIVE,
 } from '@/lib/public-site/door-maps'
-import { doorFacts, firmLive, NO_FACTS, LIVE_READS, FACTS_WAIT_MS, type DoorFacts, type FactsReader } from '@/lib/public-site/door-map-facts'
+import { doorFacts, firmLive, mayReadLive, NO_FACTS, LIVE_READS, FACTS_WAIT_MS, type DoorFacts, type FactsReader, type CompanySeen } from '@/lib/public-site/door-map-facts'
 import * as SEED from '@/lib/public-site/door-map-seed'
 
 const ROOT = process.cwd()
@@ -424,24 +424,51 @@ describe('The live figures are read, bounded, and never guessed', () => {
 
   it('a database slower than the wait, or a failed read, reads as no live figure', async () => {
     expect(FACTS_WAIT_MS).toBeLessThanOrEqual(2_000)
-    const slow: FactsReader = { firmBySlug: () => new Promise(() => {}), receipt: () => new Promise(() => {}) }
+    const slow: FactsReader = { company: () => new Promise(() => {}), firm: () => new Promise(() => {}), receipt: () => new Promise(() => {}) }
     expect(await doorFacts('suppliers', slow, 20)).toEqual(NO_FACTS)
-    const broken: FactsReader = { firmBySlug: () => Promise.reject(new Error('down')), receipt: () => Promise.reject(new Error('down')) }
+    const broken: FactsReader = { company: () => Promise.reject(new Error('down')), firm: () => Promise.reject(new Error('down')), receipt: () => Promise.reject(new Error('down')) }
     expect(await doorFacts('integrators', broken, 200)).toEqual(NO_FACTS)
   })
+
+  const seededAs = (slug: string, over: Partial<CompanySeen> = {}): CompanySeen =>
+    ({ id: `id-${slug}`, slug, domain: null, seatEmails: [`world-x@demo.etyme.local`, 'rosa.delgado@seed.etyme.invalid'], ...over })
 
   it('each door reads its own firm by its demo slug and the invoice from below by the number and payer the seed wrote, and counts days to its due day', async () => {
     expect(LIVE_READS.integrators.firm).toBe('world-teleworld')
     expect(LIVE_READS.suppliers.firm).toBe('world-brightmoor')
     const asked: string[] = []
     const reader: FactsReader = {
-      firmBySlug: async (slug) => { asked.push(slug); return null },
-      receipt: async (payer, number) => { asked.push(`${payer} ${number}`); return { totalCents: 464_000, dueAt: new Date('2026-11-22T00:00:00Z'), vendorName: 'Nimbus Talent' } },
+      company: async (slug) => { asked.push(slug); return seededAs(slug) },
+      firm: async () => null,
+      receipt: async (payerId, number) => { asked.push(`${payerId} ${number}`); return { totalCents: 464_000, dueAt: new Date('2026-11-22T00:00:00Z'), vendorName: 'Nimbus Talent' } },
     }
     const f = await doorFacts('integrators', reader, 500, new Date('2026-10-28T15:00:00Z'))
-    expect(asked).toEqual(['world-teleworld', 'world-teleworld NT-2026-1190'])
+    expect(asked.sort()).toEqual(['id-world-teleworld NT-2026-1190', 'world-teleworld', 'world-teleworld'])
     expect(f.receipt).toEqual({ number: 'NT-2026-1190', from: 'Nimbus Talent', totalMinor: 464_000, dueInDays: 25 })
     expect(f.firm).toBeNull()
+  })
+
+  it('a door’s map never reads a firm that is not the seed’s', async () => {
+    // The seed's own firm passes: its slug, no registrable domain, every seat reserved.
+    expect(mayReadLive(seededAs('world-brightmoor'), 'world-brightmoor')).toBe(true)
+    expect(mayReadLive(seededAs('world-brightmoor', { domain: 'brightmoor.example' }), 'world-brightmoor')).toBe(true)
+    // A real domain, a real seat, another slug, or a slug the doors never read: refused.
+    expect(mayReadLive(seededAs('world-brightmoor', { domain: 'brightmoor.com' }), 'world-brightmoor')).toBe(false)
+    expect(mayReadLive(seededAs('world-brightmoor', { seatEmails: ['jenna@brightmoorstaffing.com'] }), 'world-brightmoor')).toBe(false)
+    expect(mayReadLive(seededAs('acme'), 'world-brightmoor')).toBe(false)
+    expect(mayReadLive(seededAs('world-acme'), 'world-acme')).toBe(false)
+    expect(mayReadLive(null, 'world-brightmoor')).toBe(false)
+    // And a refused company is never read further: no book, no invoice, only "on the demo".
+    const reads: string[] = []
+    const real: FactsReader = {
+      company: async (slug) => seededAs(slug, { domain: 'realfirm.com' }),
+      firm: async (id) => { reads.push(id); return tuesday({ people: [], weeks: [] }) },
+      receipt: async (id) => { reads.push(id); return { totalCents: 1, dueAt: new Date(), vendorName: 'X' } },
+    }
+    expect(await doorFacts('suppliers', real, 500)).toEqual(NO_FACTS)
+    expect(reads).toEqual([])
+    const view = brightmoorMap(NO_FACTS).views.find((v) => v.key === 'owner')!
+    expect(view.stats.find((s) => s.label === 'Signed, not billed')!.sub).toBe(ON_THE_DEMO)
   })
 })
 
