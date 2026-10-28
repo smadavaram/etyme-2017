@@ -55,7 +55,8 @@ import { prisma as db } from '@/lib/db'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { holidayKeys } from '@/lib/seed-calendar'
-import { chaseCredentials, withdrawMisdirectedAsks } from '@/lib/credential-chase'
+import { chaseCredentials, lookAtCredentials, withdrawMisdirectedAsks } from '@/lib/credential-chase'
+import { confirmPaperSets } from '@/lib/seed-setup'
 import { day, seedToday, seedWeek, signingDays } from '@/lib/seed-days'
 import { weekStart, weekEnd } from '@/lib/overtime'
 import { weekDueFor, type WeekDue } from '@/lib/days-off'
@@ -1280,6 +1281,12 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // asker flipped between Halcyon and her own company — is withdrawn
   // first, so the right firm asks once.
   await withdrawMisdirectedAsks(day(0))
+  // The firms the chase asks for have said what they require (the setup
+  // checklist's Papers you require, 2026-10-28): nobody is chased for a
+  // set never confirmed, so the seed confirms the shipped sets of the
+  // firms this chase asks for, the way lib/seed-setup does for the world.
+  const asking = [...new Set((await lookAtCredentials(day(0))).map((f) => f.companyId))]
+  await confirmPaperSets(await db.company.findMany({ where: { id: { in: asking } }, select: { id: true, kind: true } }))
   await chaseCredentials(day(0))
 
   return { people, placements }
