@@ -281,7 +281,7 @@ export function corvaneMap(): CorvaneMap {
   const nearAll = onSite.filter((c) => daysToLimit(c) <= NEAR_LIMIT_DAYS).length
   const opsView: MapView = {
     key: 'operations', tab: 'Head of operations',
-    signed: `Signed in as ${ops.name}, head of operations. Reads every plant, every supplier, one list.`,
+    signed: `Signed in as ${ops.name}, head of operations. Reads every site, every supplier, one list.`,
     headline:
       `${plural(weeks, 'week')} ${weeks === 1 ? 'is' : 'are'} waiting to be signed across ${plural(plantsWaiting, 'plant')}, ` +
       `and ${plural(nearAll, 'contractor')} reach the time limit within ${NEAR_LIMIT_DAYS} days.`,
@@ -308,7 +308,7 @@ export function corvaneMap(): CorvaneMap {
         : { t: `none within ${NEAR_LIMIT_DAYS} days`, chip: 'ok' },
       { t: dollars(g.usd) },
     ]),
-    caption: 'Every plant, every supplier, one list. Pick a region to see its hiring managers.',
+    caption: 'Every site, every supplier, one list. Pick a region to see its hiring managers.',
     demo: { target: { as: CORVANE_DEMO_AS, desk: 'operations', seat: ops.name }, label: `Open the demo as ${ops.name}` },
   }
 
