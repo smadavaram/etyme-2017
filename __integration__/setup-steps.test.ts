@@ -103,7 +103,7 @@ describe('a new company walks five steps, then stops', () => {
     // Since the setup checklist (2026-10-28) the one line is the checklist's:
     // every item still owed, in its order, linking to it.
     expect(s.body.data.reminder).toEqual({
-      says: 'Finish setting up: your company, addresses, the people in charge, papers you require, your companies, your team, integrations.',
+      says: 'Finish setting up: your company, addresses, the people in charge and 4 more.',
       href: '/dashboard/settings/setup',
       link: 'Complete setup',
     })
@@ -155,7 +155,7 @@ describe('a new company walks five steps, then stops', () => {
     // The teammate finishes the team item; it leaves the line.
     as(FOUNDER)
     const s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge, papers you require, your companies, integrations.')
+    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge and 3 more.')
   })
 
   it('a colleague with a role lands on their own desk', async () => {
@@ -184,7 +184,7 @@ describe('a new company walks five steps, then stops', () => {
     const done = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'WORK', outcome: 'DONE' })))
     expect(done.body.data).toMatchObject({ finished: true, next: null, owed: [] })
     // Her line is the checklist's, and never names a team or a site.
-    expect(done.body.data.reminder.says).toBe('Finish setting up: your company, addresses, papers you require, bank details, your companies, integrations.')
+    expect(done.body.data.reminder.says).toBe('Finish setting up: your company, addresses, papers you require and 3 more.')
     const list = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'PEOPLE', outcome: 'SKIPPED' })))
     expect(list.body.error.message).toBe('A one-person firm has no contractor list or team to set up.')
   })

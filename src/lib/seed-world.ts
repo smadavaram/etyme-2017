@@ -91,7 +91,7 @@ const PREFIX = 'world-'                    // marks a company as part of this wo
 // hold in your head and wide enough that every seat has somebody above
 // and below it.
 type Kind = 'CLIENT' | 'MSP' | 'GSI' | 'VENDOR'
-interface Firm {
+export interface Firm {
   slug: string; name: string; kind: Kind; seat: string; who: string
   /**
    * A firm on the register that nobody at it has joined.
@@ -107,7 +107,7 @@ interface Firm {
 /** The VP who owns the money at each client, by name. */
 const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
 
-const FIRMS: Firm[] = [
+export const FIRMS: readonly Firm[] = [
   { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program manager', who: 'Grace Whitmore' },
   { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent program', who: 'Daniel Achebe' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing', who: 'Ines Marquardt' },
@@ -484,6 +484,169 @@ export async function seedRosaExpenses(ctx: SeedContext): Promise<{ expenses: nu
   }
   return done
 }
+
+// ── The seed's own rows, exported read-only (2026-10-28) ────────────
+//
+// Read by market's door maps (lib/public-site/door-map-seed), so a map
+// reads the value the seed writes instead of a copy of it.
+
+/** The three chains stopped mid-way (the in-flight step below). Exported read-only for the doors' maps. */
+export interface Round {
+  round: number
+  stage: string
+  mode: string
+  /// PROPOSED · CONFIRMED · DONE
+  state: string
+  /// Days from now. Negative is a round that already happened.
+  inDays: number
+  /// Whole hour UTC. Deliberately not local — stored absolute, read in
+  /// whatever zone the reader set.
+  atHourUtc: number
+  interviewers: string[]
+  outcome?: string
+  feedback?: string
+}
+export interface Live {
+  role: string
+  skills: string[]
+  loc: string
+  /// client ← prime ← bench vendor.
+  client: string
+  prime: string
+  bench: string
+  name: string
+  /// What the client will pay, what the prime quotes it, what the bench
+  /// vendor quotes the prime. In cents, as everywhere else.
+  band: [number, number]
+  primeRate: number
+  benchRate: number
+  rounds: Round[]
+}
+export const LIVE: readonly Live[] = [
+  {
+    role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
+    client: 'harlow-health', prime: 'computer-systems', bench: 'techpeple',
+    name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
+    rounds: [
+      {
+        round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED',
+        inDays: 3, atHourUtc: 15,
+        interviewers: ['Anne Whitfield, Lab Systems', 'Ravi Menon, Clinical Apps'],
+      },
+    ],
+  },
+  {
+    role: 'Python market risk developer', skills: ['Python', 'Pandas', 'Market risk'],
+    loc: 'Charlotte, NC',
+    client: 'meridian-bank', prime: 'vertex-global', bench: 'sahasra',
+    name: 'Tobias Lindgren', band: [12000, 14000], primeRate: 13200, benchRate: 10400,
+    rounds: [
+      {
+        round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'DONE', inDays: -6, atHourUtc: 14,
+        interviewers: ['Sarah Kwan, Risk Technology'],
+        outcome: 'ADVANCE', feedback: 'Knows the book. Send to the trading team.',
+      },
+      {
+        round: 2, stage: 'TECHNICAL', mode: 'VIDEO', state: 'PROPOSED', inDays: 6, atHourUtc: 18,
+        interviewers: ['Miguel Ortiz, Quant Dev', 'Sarah Kwan, Risk Technology'],
+      },
+    ],
+  },
+  {
+    role: 'DO-178C verification engineer', skills: ['DO-178C', 'Embedded C', 'LDRA'],
+    loc: 'Wichita, KS',
+    client: 'corveldt', prime: 'teleworld', bench: 'nimbus',
+    name: 'Meera Balakrishnan', band: [13000, 15000], primeRate: 14100, benchRate: 11300,
+    rounds: [
+      {
+        round: 1, stage: 'SCREEN', mode: 'VIDEO', state: 'DONE', inDays: -4, atHourUtc: 16,
+        interviewers: ['Karl Vogt, Software Assurance'],
+        outcome: 'ADVANCE', feedback: 'Certification experience is real. Bring them in.',
+      },
+      {
+        round: 2, stage: 'TECHNICAL', mode: 'ONSITE', state: 'CONFIRMED',
+        inDays: 2, atHourUtc: 16,
+        interviewers: [
+          'Karl Vogt, Software Assurance',
+          'Dana Reyes, Avionics Integration',
+          'Priyanka Sethi, DER',
+        ],
+      },
+    ],
+  },
+]
+
+
+/** The integrators' own W2 employees (the payroll step below). Exported read-only for the doors' maps. */
+export interface Staffer {
+  name: string
+  /** What they do, in the trade's words. The name of their seat's role. */
+  discipline: string
+  /** The practice they sit in, read on the seat as the reason it was granted. */
+  practice: string
+}
+export const PAYROLL: readonly { slug: string; team: readonly Staffer[] }[] = [
+  { slug: 'teleworld', team: [
+    { name: 'Karthik Menon',   discipline: 'Validation Engineer',   practice: 'Delivery — avionics software assurance practice' },
+    { name: 'Amara Nwosu',     discipline: 'Data Engineer',         practice: 'Delivery — data platform practice' },
+    { name: 'Felix Brenner',   discipline: 'ERP Finance Consultant', practice: 'Delivery — ERP finance practice' },
+    { name: 'Deepa Varma',     discipline: 'Integration Architect', practice: 'Delivery — integration practice' },
+  ]},
+  { slug: 'sundara', team: [
+    { name: 'Aditi Ramaswamy', discipline: 'Validation Engineer',   practice: 'Delivery — safety-critical software practice' },
+    { name: 'Olivier Renard',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
+    { name: 'Harish Pillai',   discipline: 'ERP Finance Consultant', practice: 'Delivery — plant maintenance practice' },
+    { name: 'Beatriz Salgado', discipline: 'PLM Systems Engineer',  practice: 'Delivery — Teamcenter practice' },
+  ]},
+]
+
+
+/** Aptiva Workforce's three people besides its program manager (below). */
+export const APTIVA_TEAM: readonly { desk: string; role: string; name: string }[] = [
+  { desk: 'suppliers',   role: 'Supplier Manager', name: 'Delphine Castellanos' },
+  { desk: 'coordinator', role: 'Coordinator',      name: 'Tomasz Wierzbicki' },
+  { desk: 'ap',          role: 'AP Clerk',         name: 'Hollis Banerjee' },
+]
+
+
+/** Brightmoor Staffing's seated people (the supplier-desks step below). */
+export const SUPPLIER_TEAM: readonly { desk: string; role: string; name: string }[] = [
+  { desk: 'account',    role: 'Account Manager',     name: 'Marisa Delacroix' },
+  { desk: 'recruiter',  role: 'Recruiter',           name: 'Tobias Ferrand' },
+  { desk: 'resourcing', role: 'Resource Manager',    name: 'Nadia Oyelowo' },
+  { desk: 'hr',         role: 'HR',                  name: 'Petra Kalnins' },
+  { desk: 'contracts',  role: 'Contract Manager',    name: 'Geoffrey Alderton' },
+  { desk: 'ar',         role: 'Accounts Receivable', name: 'Imelda Santoro' },
+  { desk: 'payroll',    role: 'AP & Payroll',        name: 'Desmond Achebe' },
+  { desk: 'finance',    role: 'Finance',             name: 'Rosalind Tay' },
+  { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
+]
+
+
+/** Techpeple's two desks besides its owner (see below). */
+export const BENCH_FIRM_TEAM: readonly { desk: string; role: string; name: string }[] = [
+  { desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' },
+  { desk: 'resourcing', role: 'Resource Manager', name: 'Mateo Brandvold' },
+]
+
+
+/** A middle firm's AP & Payroll clerk (the supplier-desks step below). */
+export const MIDDLE_FIRM_AP: readonly { firm: string; clerk: string }[] = [
+  { firm: 'computer-systems', clerk: 'Lorna Whitcombe' },
+  { firm: 'vertex-global',    clerk: 'Callum Dravecky' },
+  { firm: 'pinnacle',         clerk: 'Ingrid Halvorsen' },
+  { firm: 'teleworld',        clerk: 'Ravi Kalathil' },
+  { firm: 'sundara',          clerk: 'Meenakshi Raman' },
+]
+
+
+/**
+ * The pay band Corveldt Aerospace's invitations to its two integrators
+ * carry for the DO-178C job (the payroll-invitations step below): under the
+ * client's own ceiling, and not the same for both. In cents.
+ */
+export const PAYROLL_INVITATION_BAND = { payMin: 13_000, payMax: { teleworld: 14_500, sundara: 14_000 } } as const
+
 
 /**
  * Seed as much of the world as fits before `budgetMs` runs out, and say
@@ -1350,90 +1513,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // personId), so the same person cannot be submitted twice against one
   // requirement. The prime posts its own, carrying endClientCompanyId, and
   // that is the mirror the bench vendor answers.
-  interface Round {
-    round: number
-    stage: string
-    mode: string
-    /// PROPOSED · CONFIRMED · DONE
-    state: string
-    /// Days from now. Negative is a round that already happened.
-    inDays: number
-    /// Whole hour UTC. Deliberately not local — stored absolute, read in
-    /// whatever zone the reader set.
-    atHourUtc: number
-    interviewers: string[]
-    outcome?: string
-    feedback?: string
-  }
-  interface Live {
-    role: string
-    skills: string[]
-    loc: string
-    /// client ← prime ← bench vendor.
-    client: string
-    prime: string
-    bench: string
-    name: string
-    /// What the client will pay, what the prime quotes it, what the bench
-    /// vendor quotes the prime. In cents, as everywhere else.
-    band: [number, number]
-    primeRate: number
-    benchRate: number
-    rounds: Round[]
-  }
-  const LIVE: Live[] = [
-    {
-      role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
-      client: 'harlow-health', prime: 'computer-systems', bench: 'techpeple',
-      name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
-      rounds: [
-        {
-          round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED',
-          inDays: 3, atHourUtc: 15,
-          interviewers: ['Anne Whitfield, Lab Systems', 'Ravi Menon, Clinical Apps'],
-        },
-      ],
-    },
-    {
-      role: 'Python market risk developer', skills: ['Python', 'Pandas', 'Market risk'],
-      loc: 'Charlotte, NC',
-      client: 'meridian-bank', prime: 'vertex-global', bench: 'sahasra',
-      name: 'Tobias Lindgren', band: [12000, 14000], primeRate: 13200, benchRate: 10400,
-      rounds: [
-        {
-          round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'DONE', inDays: -6, atHourUtc: 14,
-          interviewers: ['Sarah Kwan, Risk Technology'],
-          outcome: 'ADVANCE', feedback: 'Knows the book. Send to the trading team.',
-        },
-        {
-          round: 2, stage: 'TECHNICAL', mode: 'VIDEO', state: 'PROPOSED', inDays: 6, atHourUtc: 18,
-          interviewers: ['Miguel Ortiz, Quant Dev', 'Sarah Kwan, Risk Technology'],
-        },
-      ],
-    },
-    {
-      role: 'DO-178C verification engineer', skills: ['DO-178C', 'Embedded C', 'LDRA'],
-      loc: 'Wichita, KS',
-      client: 'corveldt', prime: 'teleworld', bench: 'nimbus',
-      name: 'Meera Balakrishnan', band: [13000, 15000], primeRate: 14100, benchRate: 11300,
-      rounds: [
-        {
-          round: 1, stage: 'SCREEN', mode: 'VIDEO', state: 'DONE', inDays: -4, atHourUtc: 16,
-          interviewers: ['Karl Vogt, Software Assurance'],
-          outcome: 'ADVANCE', feedback: 'Certification experience is real. Bring them in.',
-        },
-        {
-          round: 2, stage: 'TECHNICAL', mode: 'ONSITE', state: 'CONFIRMED',
-          inDays: 2, atHourUtc: 16,
-          interviewers: [
-            'Karl Vogt, Software Assurance',
-            'Dana Reyes, Avionics Integration',
-            'Priyanka Sethi, DER',
-          ],
-        },
-      ],
-    },
-  ]
 
   await step('in-flight', async () => {
     for (const l of LIVE) {
@@ -1584,27 +1663,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // consultant profile to carry four words would seed the very thing the
   // carve-out exists to do without. `ensureDefaultRoles` never touches a
   // role a company wrote itself, so these survive every later run.
-  interface Staffer {
-    name: string
-    /** What they do, in the trade's words. The name of their seat's role. */
-    discipline: string
-    /** The practice they sit in, read on the seat as the reason it was granted. */
-    practice: string
-  }
-  const PAYROLL: { slug: string; team: Staffer[] }[] = [
-    { slug: 'teleworld', team: [
-      { name: 'Karthik Menon',   discipline: 'Validation Engineer',   practice: 'Delivery — avionics software assurance practice' },
-      { name: 'Amara Nwosu',     discipline: 'Data Engineer',         practice: 'Delivery — data platform practice' },
-      { name: 'Felix Brenner',   discipline: 'ERP Finance Consultant', practice: 'Delivery — ERP finance practice' },
-      { name: 'Deepa Varma',     discipline: 'Integration Architect', practice: 'Delivery — integration practice' },
-    ]},
-    { slug: 'sundara', team: [
-      { name: 'Aditi Ramaswamy', discipline: 'Validation Engineer',   practice: 'Delivery — safety-critical software practice' },
-      { name: 'Olivier Renard',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
-      { name: 'Harish Pillai',   discipline: 'ERP Finance Consultant', practice: 'Delivery — plant maintenance practice' },
-      { name: 'Beatriz Salgado', discipline: 'PLM Systems Engineer',  practice: 'Delivery — Teamcenter practice' },
-    ]},
-  ]
 
   let onPayroll = 0
   await step('payroll', async () => {
@@ -1708,7 +1766,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           data: {
             requirementId: avionics.id, fromCompanyId: corveldt.id, toCompanyId: to.id,
             // Under the client's own ceiling, and not the same for both.
-            payMin: 13_000, payMax: slug === 'teleworld' ? 14_500 : 14_000,
+            payMin: PAYROLL_INVITATION_BAND.payMin, payMax: PAYROLL_INVITATION_BAND.payMax[slug as 'teleworld' | 'sundara'],
             expiresAt: day(12), status: 'SENT', createdAt: day(-9),
           },
         })
@@ -1748,12 +1806,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     await seedTwinInvoiceDemo()
   })
 
-  /** Aptiva Workforce's three people besides its program manager (below). */
-  const APTIVA_TEAM: { desk: string; role: string; name: string }[] = [
-    { desk: 'suppliers',   role: 'Supplier Manager', name: 'Delphine Castellanos' },
-    { desk: 'coordinator', role: 'Coordinator',      name: 'Tomasz Wierzbicki' },
-    { desk: 'ap',          role: 'AP Clerk',         name: 'Hollis Banerjee' },
-  ]
 
   // ── A program office in a seat, at one of the three programs ───────
   //
@@ -1854,22 +1906,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // Each holds the role's own permissions from `lib/company-defaults`,
   // so the AR desk cannot run payroll and the recruiter cannot see what
   // anybody costs — which is the whole reason for seating them.
-  const SUPPLIER_TEAM: { desk: string; role: string; name: string }[] = [
-    { desk: 'account',    role: 'Account Manager',     name: 'Marisa Delacroix' },
-    { desk: 'recruiter',  role: 'Recruiter',           name: 'Tobias Ferrand' },
-    { desk: 'resourcing', role: 'Resource Manager',    name: 'Nadia Oyelowo' },
-    { desk: 'hr',         role: 'HR',                  name: 'Petra Kalnins' },
-    { desk: 'contracts',  role: 'Contract Manager',    name: 'Geoffrey Alderton' },
-    { desk: 'ar',         role: 'Accounts Receivable', name: 'Imelda Santoro' },
-    { desk: 'payroll',    role: 'AP & Payroll',        name: 'Desmond Achebe' },
-    { desk: 'finance',    role: 'Finance',             name: 'Rosalind Tay' },
-    { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
-  ]
-  /** Techpeple's two desks besides its owner (see below). */
-  const BENCH_FIRM_TEAM: { desk: string; role: string; name: string }[] = [
-    { desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' },
-    { desk: 'resourcing', role: 'Resource Manager', name: 'Mateo Brandvold' },
-  ]
   let supplierDesks = 0
   await step('supplier-desks', async () => {
     const brightmoor = firmBySlug.get('brightmoor')
@@ -1964,13 +2000,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     // `firm` and `clerk`, never `slug` and `name`: the public-page guard
     // reads every `slug, name` pair in this file as a seeded firm, and a
     // clerk read as a firm made "Ravi" a company name.
-    const MIDDLE_FIRM_AP: { firm: string; clerk: string }[] = [
-      { firm: 'computer-systems', clerk: 'Lorna Whitcombe' },
-      { firm: 'vertex-global',    clerk: 'Callum Dravecky' },
-      { firm: 'pinnacle',         clerk: 'Ingrid Halvorsen' },
-      { firm: 'teleworld',        clerk: 'Ravi Kalathil' },
-      { firm: 'sundara',          clerk: 'Meenakshi Raman' },
-    ]
     for (const m of MIDDLE_FIRM_AP) {
       const firm = firmBySlug.get(m.firm)
       if (!firm) continue

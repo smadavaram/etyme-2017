@@ -28,6 +28,8 @@
  * single document stays with regulation.
  */
 
+import { mayChasePaper } from '@/lib/setup-gates'
+import { workerPartyAt } from '@/lib/document-stages/chase-gate'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
@@ -435,6 +437,14 @@ export async function askForRenewal(
     select: { id: true },
   })
   if (already) return { done: null, because: null }
+
+  // The firm asks a worker for a renewal only once it has said what it
+  // requires of that party (setup checklist, Papers you require,
+  // 2026-10-28). The party is read off the line that pays the person at
+  // the asking firm (`workerPartyAt`, regulatory's). A lapsed license
+  // still stops a start; only the letter waits, and the night says why.
+  const gate = await mayChasePaper(input.askingCompanyId, await workerPartyAt(person.id, input.askingCompanyId))
+  if (!gate.ok) return { done: null, because: gate.says }
 
   const rows = (await prisma.verification.findMany({
     where: { personId: person.id, ...PRODUCED_OR_SELF_FILED },

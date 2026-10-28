@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { bankChange, type BankFacts } from '@/lib/money/remit-change'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -188,6 +189,12 @@ export async function PATCH(request: NextRequest) {
     await prisma.remitTo.updateMany({ where: { companyId, isDefault: true }, data: { isDefault: false } })
   }
 
+  const after: BankFacts = {}
+  for (const k of ['bankName', 'accountName', 'accountLast4', 'routingLast4'] as const) {
+    if (k in body) after[k] = body[k] ? String(body[k]).trim() : null
+  }
+  const change = bankChange(existing, after)
+
   const remitTo = await prisma.remitTo.update({
     where: { id },
     data: {
@@ -196,13 +203,12 @@ export async function PATCH(request: NextRequest) {
       ...(typeof body.country === 'string' ? { country: body.country.toUpperCase().slice(0, 2) } : {}),
       ...('taxId' in body ? { taxId: body.taxId ? String(body.taxId).trim() : null } : {}),
       ...('bankName' in body ? { bankName: body.bankName ? String(body.bankName).trim() : null } : {}),
+      ...('accountName' in body ? { accountName: after.accountName ?? null } : {}),
       ...('isDefault' in body ? { isDefault: Boolean(body.isDefault) } : {}),
       // A different bank is a different place for the money to go, so a
-      // check a paying firm's Finance made no longer stands (setup
-      // checklist, 2026-10-28; `mayPayFirm` in lib/setup-gates).
-      ...('bankName' in body && (body.bankName ? String(body.bankName).trim() : null) !== existing.bankName
-        ? { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null, enteredById: caller!.person.id, enteredAt: new Date() }
-        : {}),
+      // check a paying firm's Finance made no longer stands; a label
+      // change leaves it (`bankChange` in lib/money/remit-change).
+      ...(change.cleared ? { ...change.data, enteredById: caller!.person.id, enteredAt: new Date() } : {}),
     },
   })
 
@@ -217,7 +223,7 @@ export async function PATCH(request: NextRequest) {
     },
   })
 
-  return NextResponse.json({ data: { remitTo, message: 'Saved.' } })
+  return NextResponse.json({ data: { remitTo, message: change.cleared ? change.says : 'Saved.' } })
 }
 
 export async function DELETE(request: NextRequest) {

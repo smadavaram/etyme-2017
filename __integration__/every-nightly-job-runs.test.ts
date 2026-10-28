@@ -78,4 +78,20 @@ describe('every job the nightly run calls', () => {
     const wrong = await mod.GET(req('GET', '/api/cron/due-cycles', undefined, { authorization: 'Bearer undefined' }))
     expect(wrong.status, 'the literal string "Bearer undefined" was once a way in').toBe(401)
   })
+
+  it('the night’s report names the letters it held back for an unconfirmed set', async () => {
+    const { prisma } = await import('./harness')
+    const sent = (outcome.watch.body as any)?.data?.lapseLetters ?? 0
+    expect(sent, 'the seeded world has letters to send tonight').toBeGreaterThan(0)
+    // Nobody has confirmed what they require of anybody: every letter waits.
+    await prisma.documentRequirement.deleteMany({ where: { companyId: { not: null }, party: { not: null } } })
+    const mod = await import('@/app/api/cron/watch/route')
+    const res = await mod.GET(req('GET', '/api/cron/watch', undefined, { authorization: `Bearer ${process.env.CRON_SECRET}` }))
+    const body = (await res.json()).data
+    expect(body.heldBack.length).toBeGreaterThan(0)
+    for (const h of body.heldBack) {
+      expect(h.headline).toMatch(/until you confirm what you require of them, under Setup → Papers you require\.$/)
+      expect(h.detail).toMatch(/^Not asked for tonight: /)
+    }
+  }, 300_000)
 })

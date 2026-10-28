@@ -174,6 +174,22 @@ describe('the admin’s setup checklist', () => {
     expect(await mayPayFirm(client.id, companyId)).toMatchObject({ ok: false, step: 'BANK' })
   })
 
+  it('changing the bank at setup clears the Finance check', async () => {
+    as(OWNER)
+    const row = await prisma.remitTo.findFirstOrThrow({ where: { companyId } })
+    const client = await prisma.company.findFirstOrThrow({ where: { kind: 'CLIENT', claimedAt: { not: null } }, select: { id: true } })
+    await prisma.remitTo.update({ where: { id: row.id }, data: { verifiedAt: new Date(), verifiedByCompanyId: client.id } })
+    // The same details saved again leave the check standing.
+    const same = await json(await put('bank', { bankName: row.bankName, accountName: row.accountName, accountNumber: row.accountLast4 }))
+    expect(same.body.data.says).toBeNull()
+    expect((await prisma.remitTo.findUniqueOrThrow({ where: { id: row.id } })).verifiedAt).not.toBeNull()
+    // A different bank is checked again, and the answer says so.
+    const moved = await json(await put('bank', { bankName: 'Harbor Savings', accountName: row.accountName, accountNumber: row.accountLast4 }))
+    expect(moved.body.data.says).toBe('Bank details changed; your client’s Finance checks them again before paying.')
+    expect((await prisma.remitTo.findUniqueOrThrow({ where: { id: row.id } })).verifiedAt).toBeNull()
+    expect(await mayPayFirm(client.id, companyId)).toMatchObject({ ok: false, step: 'BANK' })
+  })
+
   it('a confirmed paper set is what Etyme may chase, party by party', async () => {
     as(OWNER)
     expect(await mayChasePaper(companyId, 'WORKERS_W2')).toMatchObject({ ok: false, step: 'PAPERS' })

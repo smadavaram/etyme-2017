@@ -1,3 +1,4 @@
+import { mayChasePaper } from '@/lib/setup-gates'
 import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { randomBytes } from 'crypto'
@@ -17,7 +18,7 @@ import { packetByKey, resolveItems, itemsToAsk, withRequirements, type HeldDocum
 import { coverGaps } from '@/lib/cover-gap'
 import { papersAsked } from '@/lib/contract-clearance'
 import { documentFindings, requiredOfSupplier } from '@/lib/document-request'
-import { everyDocumentLetter, sendDocumentLapses, NIGHT_LETTER, type NightFindings } from '@/lib/notify/documents'
+import { everyDocumentLetter, sendDocumentLapses, withheldFindings, NIGHT_LETTER, type NightFindings } from '@/lib/notify/documents'
 import {
   lookAtCredentials,
   askForRenewal,
@@ -65,7 +66,8 @@ export async function GET(request: NextRequest) {
   // every party the lapse costs, once per milestone, through the name
   // wall. Worked out first and sent with the findings below, so a person
   // owed both reads one message tonight rather than two.
-  const letters = dry ? [] : (await everyDocumentLetter(now)).letters
+  const telling = dry ? { letters: [], withheld: [] } : await everyDocumentLetter(now)
+  const letters = telling.letters
 
   const findings = ordered([
     ...(await lookAtVerifications(now)),
@@ -78,6 +80,10 @@ export async function GET(request: NextRequest) {
     // them, off the line's own required set. Every row is NOTIFY_ONLY:
     // nothing is reopened and no letter is sent from here.
     ...(await documentFindings(now)),
+    // The letters held back tonight because the company never confirmed
+    // what it requires of that party (Setup → Papers you require), so the
+    // report says what was not sent and why.
+    ...withheldFindings(telling.withheld),
   ])
 
   // Nothing at all is the ordinary outcome and is reported as silence
@@ -140,6 +146,9 @@ export async function GET(request: NextRequest) {
       lapseLetters,
       actions,
       couldNotAct,
+      // Every letter held back tonight for a set never confirmed, whole,
+      // so the report never cuts the reason off (Setup → Papers you require).
+      heldBack: withheldFindings(telling.withheld).map((w) => ({ headline: w.headline, detail: w.detail })),
       summary: digest(findings),
       findings: findings.slice(0, 50).map((f) => ({
         kind: f.kind,
@@ -399,6 +408,16 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
   // Already in hand. Two lapsing certificates produce two findings and one
   // request, which is the right number.
   if (already) return { done: null, because: null }
+
+  // The buyer asks its supplier only once it has said what it requires of
+  // the suppliers it buys from (setup checklist, Papers you require,
+  // 2026-10-28). A lapse still stops a start; only the letter waits, and
+  // the night says why. A firm renewing its own cover asks nobody but
+  // itself, so no set of its own is read.
+  if (!chasingSelf) {
+    const gate = await mayChasePaper(askingCompanyId, 'SUB_VENDORS')
+    if (!gate.ok) return { done: null, because: gate.says }
+  }
 
   const held = await prisma.verification.findMany({
     where: { companyId: verification.companyId },

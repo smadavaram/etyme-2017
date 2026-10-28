@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { bankChange } from '@/lib/money/remit-change'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { setupDoor, refused } from '../door'
@@ -230,12 +231,15 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       prisma.companyAddress.findUnique({ where: { companyId_kind: { companyId: c.id, kind: 'LEGAL' } } }),
       prisma.remitTo.findFirst({ where: { companyId: c.id }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     ])
-    const changed = !existing || existing.bankName !== bankName || existing.accountLast4 !== last4 || (routing4 && existing.routingLast4 !== routing4)
+    // A change to the bank, the account name, the last four or the routing
+    // is checked again before anybody pays (`bankChange`, money's one rule).
+    const change = bankChange(existing ? { ...existing, accountName: existing.accountName ?? existing.legalName } : null, {
+      bankName, accountName, accountLast4: last4, ...(routing4 ? { routingLast4: routing4 } : {}),
+    })
     const data = {
       bankName, accountName, accountLast4: last4, ...(routing4 ? { routingLast4: routing4 } : {}),
       enteredById: by, enteredAt: new Date(),
-      // A change to where the money goes is checked again before anybody pays.
-      ...(changed ? { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } : {}),
+      ...(change.cleared ? change.data : {}),
     }
     if (existing) {
       await prisma.remitTo.update({ where: { id: existing.id }, data })
@@ -248,7 +252,7 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
         },
       })
     }
-    return { ok: true, answers: [{ field: 'bank', source: 'PERSON' }] }
+    return { ok: true, answers: [{ field: 'bank', source: 'PERSON' }], says: existing && change.cleared ? change.says : undefined }
   },
 
   // ── Your domain ────────────────────────────────────────────────────

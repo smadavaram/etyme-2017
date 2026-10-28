@@ -196,4 +196,25 @@ describe('the nightly chase asking a nurse for her renewal', () => {
       await prisma.verification.update({ where: { id: license.id }, data: { expiresAt: license.expiresAt } })
     }
   }, 60_000)
+
+  it('a renewal is not asked for a party whose set was never confirmed, and the night says why', async () => {
+    const open = await herPacket()
+    await prisma.documentPacket.update({ where: { id: open!.id }, data: { cancelledAt: new Date() } })
+    const { workerPartyAt } = await import('@/lib/document-stages/chase-gate')
+    const party = await workerPartyAt(it_.her, open!.companyId)
+    const held = await prisma.documentRequirement.findMany({ where: { companyId: open!.companyId, party } })
+    expect(held.length, 'the seed confirmed the placing firm\u2019s set for her party').toBeGreaterThan(0)
+    await prisma.documentRequirement.deleteMany({ where: { companyId: open!.companyId, party } })
+    try {
+      const night = await chaseCredentials(new Date())
+      expect(await herPacket(), 'nothing is asked of her while the set is not confirmed').toBeNull()
+      const why = night.couldNotAct.find((l) => l.includes('Colleen Byrne'))
+      expect(why, JSON.stringify(night.couldNotAct)).toMatch(/until you confirm what you require of them, under Setup → Papers you require\.$/)
+    } finally {
+      await prisma.documentRequirement.createMany({ data: held.map(({ id: _id, createdAt: _c, updatedAt: _u, ...r }) => r) })
+    }
+    // Confirmed again, the next night asks her.
+    await chaseCredentials(new Date())
+    expect(await herPacket()).toBeTruthy()
+  }, 60_000)
 })

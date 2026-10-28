@@ -283,15 +283,25 @@ export function skipLine(item: ItemKey): string {
 export const CHECKLIST_HREF = '/dashboard/settings/setup'
 
 /**
- * "Finish setting up: addresses, papers you require, bank details." — or
- * null when nothing is owed. One line however many items are owed. Said
+ * "Finish setting up: addresses, papers you require, bank details and 2
+ * more." — or null when nothing is owed. One line however many items are
+ * owed, naming at most three. Said
  * on Today and in the Ask Etyme greeting, with "Complete setup", until the
  * list is empty; it never nags daily, it stays.
  */
 export function reminderSentence(owed: readonly ItemKey[]): string | null {
   if (owed.length === 0) return null
-  return `Finish setting up: ${owed.map((k) => ITEM_WORDS[k].reminder).join(', ')}.`
+  // At most three named, so the line stays one short sentence in the chat's
+  // voice; the setup page lists every item.
+  const named = owed.slice(0, REMINDER_NAMES).map((k) => ITEM_WORDS[k].reminder)
+  const rest = owed.length - named.length
+  return rest > 0
+    ? `Finish setting up: ${named.join(', ')} and ${rest} more.`
+    : `Finish setting up: ${named.join(', ')}.`
 }
+
+/** How many items the reminder names before "and N more". */
+export const REMINDER_NAMES = 3
 
 /** The words of the reminder's link. */
 export const COMPLETE_SETUP = 'Complete setup'

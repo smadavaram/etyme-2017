@@ -93,7 +93,7 @@ export const RATE_CHANGE_PERSON = {
 /** What she is billed and paid, in cents an hour. */
 export const RATE_CHANGE_RATES = { bill: 11_200, pay: 66_00, raise: 70_00 }
 
-const ROLE = {
+export const ROLE = {
   title: 'Warehouse systems analyst',
   skills: ['Warehouse management', 'RF scanning', 'SQL'],
   loc: 'Tualatin, OR',

@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { WORLD_CLIENTS } from '@/lib/seed-world'
+import { WORLD_CLIENTS, APTIVA_TEAM, PAYROLL_INVITATION_BAND } from '@/lib/seed-world'
 import { PROGRAMMES, week } from '@/lib/seed-programmes'
 import { OFFERED, NORTHBEND_JOB } from '@/lib/seed-bench-matching'
 import { MOVE_DESKS } from '@/lib/seed-internal-moves'
@@ -186,7 +186,9 @@ describe('Every value a door map copies from the seed is the value the seed file
     ))
     const j = SEED.CORVELDT_JOB
     expect(WORLD).toMatch(new RegExp(`title: '${esc(j.title)}'`))
-    expect(WORLD).toMatch(new RegExp(`payMin: ${us(j.payMin)}, payMax: slug === 'teleworld' \\? ${us(j.payMax)} :`))
+    // Read from the seed's own export since 2026-10-28.
+    expect(PAYROLL_INVITATION_BAND.payMin).toBe(j.payMin)
+    expect(PAYROLL_INVITATION_BAND.payMax.teleworld).toBe(j.payMax)
     expect(WORLD).toMatch(new RegExp(`role: '${esc(j.title)}'[^\\n]*\\n\\s*loc: '${j.city}, KS'`))
     const meera = WORLD.slice(WORLD.indexOf(`name: '${SEED.MEERA.name}'`))
     expect(WORLD).toMatch(new RegExp(`client: '${j.client}', prime: 'teleworld', bench: '${SEED.MEERA.bench}',\\s+name: '${SEED.MEERA.name}'`))
@@ -221,12 +223,12 @@ describe('Every value a door map copies from the seed is the value the seed file
 
   it('Aptiva Workforce’s four people are the seed’s: Rashida Coleman in its first seat, Delphine Castellanos its supplier manager, Tomasz Wierzbicki its coordinator and Hollis Banerjee its AP clerk, every one at a reserved address', () => {
     expect(SEED.FIRST_SEAT.aptiva).toBe('Rashida Coleman')
-    const team = WORLD.slice(WORLD.indexOf('const APTIVA_TEAM'), WORLD.indexOf('// ── A program office in a seat'))
+    // Read from the seed's own export since 2026-10-28.
     const roles = { suppliers: 'Supplier Manager', coordinator: 'Coordinator', ap: 'AP Clerk' }
     for (const [desk, name] of Object.entries(SEED.APTIVA_TEAM)) {
-      expect(team, desk).toMatch(new RegExp(`desk: '${desk}',\\s+role: '${roles[desk as keyof typeof roles]}',\\s+name: '${esc(name)}'`))
+      expect(APTIVA_TEAM.find((t) => t.desk === desk), desk).toEqual({ desk, role: roles[desk as keyof typeof roles], name })
     }
-    expect((team.match(/desk: '/g) ?? []).length, 'the map reads every Aptiva seat the seed writes').toBe(Object.keys(SEED.APTIVA_TEAM).length)
+    expect(APTIVA_TEAM.length, 'the map reads every Aptiva seat the seed writes').toBe(Object.keys(SEED.APTIVA_TEAM).length)
     // Every seat the seed writes at Aptiva and at Cavanaugh is at the demo's own domain, which nobody can register.
     expect(WORLD).toContain("const DOMAIN = 'demo.etyme.local'")
     expect(WORLD).toContain('const email = `${PREFIX}aptiva-${d.desk}@${DOMAIN}`')

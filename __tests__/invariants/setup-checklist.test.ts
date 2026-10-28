@@ -99,7 +99,10 @@ describe('a skipped item comes back', () => {
     const skipped = { ADDRESSES: { outcome: 'SKIPPED' as const, byId: 'p', at: '2026-10-28T00:00:00Z' } }
     expect(stateOf('ADDRESSES', skipped, facts())).toBe('SKIPPED')
     const c = checklistFor({ kind: 'VENDOR', record: skipped, facts: facts() })
-    expect(reminderSentence(c.owed)).toBe('Finish setting up: your company, addresses, your sites, the people in charge, how you work, papers you require, bank details, your companies, your team, your domain, integrations.')
+    expect(reminderSentence(c.owed)).toBe('Finish setting up: your company, addresses, your sites and 8 more.')
+    // At most three named, so it stays one short sentence; the page lists them all.
+    expect(reminderSentence(['ADDRESSES', 'BANK'])).toBe('Finish setting up: addresses, bank details.')
+    expect(reminderSentence(c.owed)!.split(' ').length).toBeLessThanOrEqual(20)
     // Done another way — the address saved on Settings — it leaves the line.
     const done = checklistFor({ kind: 'VENDOR', record: skipped, facts: facts({ legalAddress: true, billingAddress: true }) })
     expect(done.owed).not.toContain('ADDRESSES')

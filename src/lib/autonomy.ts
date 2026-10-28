@@ -739,6 +739,22 @@ export const PLANNED: Record<string, PlannedAct> = {
   // Three of the four have already left for the ladder above, which is
   // what this list is for.
 
+  // ── The setup checklist, 2026-10-28 ─────────────────────────────────
+  //
+  // A letter held back because the company never confirmed what it
+  // requires of that party. Decided here with its rung; regulatory writes
+  // it to the automation log from the nightly chase, and it moves onto
+  // the ladder in that commit. L0: it looked, told the company why, and
+  // changed nothing; confirming the set lets the next night ask.
+  PAPER_CHASE_WITHHELD: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A paper that has run out, or soon will, was not asked for tonight, because the company has not yet said what it requires of that party under Setup → Papers you require. The company was told why. A paper that has run out still stops a start; only the letter waits, and confirming the set brings it back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
   SUBMISSION_COVER_WARNED: {
     kind: 'ENFORCEMENT',
     outcome: 'WARN',
