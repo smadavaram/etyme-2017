@@ -78,6 +78,7 @@ model Person {
   expensesAccepted         ExpenseAcceptance[]       @relation("expenseAcceptedBy")
   requisitionsRaised       Requirement[]             @relation("requisitionRaiser")
   requisitionsOwned        Requirement[]             @relation("requisitionOwner")
+  requisitionSendToSet     Requirement[]             @relation("requirementSendToSetBy")
   requisitionsReporting    Requirement[]             @relation("requisitionReportsTo")
   approvalRules            ApprovalRule[]            @relation("approvalRuleApprover")
   requirementApprovals     RequirementApproval[]     @relation("requirementApprover")
@@ -2724,15 +2725,24 @@ model Requirement {
 
   /// The site as free text, from before a job named its site by id.
   /// Kept while demand moves its readers to `locationId` (2026-10-28).
-  location   String?
+  location          String?
   /// The job's site, by id (founder, 2026-10-28, "Build it, sites sounds
   /// good"). The placement inherits it; its suppliers default to the
   /// site's (lib/sites). Null on a job posted before sites, or posted with
   /// no site, which reads as the primary site.
-  locationId String?
-  site       CompanyLocation? @relation("requirementSite", fields: [locationId], references: [id], onDelete: SetNull)
-  billMin    Int?
-  billMax    Int?
+  locationId        String?
+  site              CompanyLocation? @relation("requirementSite", fields: [locationId], references: [id], onDelete: SetNull)
+  /// The suppliers the job goes to once it is approved, as the hiring
+  /// manager left the ticks on the form (2026-10-28). Empty means the
+  /// site's default (`jobSiteDefaults` in lib/sites), so a job that waits
+  /// for approval keeps the unticks rather than going to every firm the
+  /// site names. Who set them and when, beside them.
+  sendToSupplierIds String[]         @default([])
+  sendToSetById     String?
+  sendToSetBy       Person?          @relation("requirementSendToSetBy", fields: [sendToSetById], references: [id], onDelete: SetNull)
+  sendToSetAt       DateTime?
+  billMin           Int?
+  billMax           Int?
 
   /// What finance actually committed, in cents. Not to exceed.
   ///
@@ -2989,6 +2999,7 @@ model Requirement {
   @@index([reportsToId])
   @@index([orgUnitId])
   @@index([locationId])
+  @@index([sendToSetById])
   @@index([costCenterId])
   @@index([endClientCompanyId])
   @@index([openingId])
