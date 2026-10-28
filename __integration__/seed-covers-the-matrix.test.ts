@@ -65,6 +65,7 @@ const RUNTIME: Record<string, string> = {
   // seeded site reads its managers from the jobs they posted there, which
   // is the rule; a typed name is only for somebody who has posted nothing.
   siteHiringManager: 'written when a person names a hiring manager at a site who has posted nothing there yet',
+  setupAnswer: 'written when an Owner or Admin saves a setup checklist item, saying where each answer came from; the seed answers nothing on anybody’s behalf, so a seeded answer reads as typed by nobody',
   // An MSP asking a client for a seat (2026-10-27). Nothing writes one
   // until an MSP asks; a seeded ask would claim somebody asked.
   programSeatRequest: 'written when an MSP asks a client for a seat in its program',

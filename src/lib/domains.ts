@@ -466,6 +466,14 @@ export const DOMAINS: Domain[] = [
       // to make a company for both doors, the steps' rules and words, and
       // the record of who answered each and when.
       'lib/company-create', 'lib/setup-steps', 'lib/setup-state',
+      // The admin's setup checklist (founder, 2026-10-22; built 2026-10-28):
+      // the eleven items' rules and words, the record of each answer and
+      // where it came from, the fill sources (the work email, a paper, read
+      // by rules and by the model only where the company turned it on), and
+      // what a skipped item refuses. The refusals are read by money's and
+      // regulatory's routes; the rules are here so there is one copy.
+      'lib/setup-checklist', 'lib/setup-checklist-state', 'lib/setup-fill', 'lib/setup-fill-model',
+      'lib/setup-gates', 'lib/setup-gate-rules',
       // A password door, until the single sign-on keys exist (founder,
       // 2026-10-08): the rules with no database in them, the sign-up,
       // confirm, sign-in and reset against the database, and the one way
@@ -492,6 +500,8 @@ export const DOMAINS: Domain[] = [
       'lib/seed-corvane',
       // The three programs' sites naming their approved suppliers (2026-10-28).
       'lib/seed-sites',
+      // Every seeded firm's setup checklist reads what the seed holds (2026-10-28).
+      'lib/seed-setup',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // One way to print a calendar day on a screen: UTC, American order,
       // the year shown. lib/when is its twin for a moment in somebody's zone.

@@ -69,6 +69,7 @@ import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
 import { seedCorvane, corvaneSteps, CORVANE_SLUG, CORVANE_SUPPLIER_SLUGS } from '@/lib/seed-corvane'
 import { seedProgramSites } from '@/lib/seed-sites'
+import { seedSetupChecklists } from '@/lib/seed-setup'
 
 /** `n` days after a UTC midnight, still at UTC midnight. */
 function plusDays(d: Date, n: number): Date {
@@ -282,6 +283,8 @@ export function worldStepNames(): string[] {
     ...corvaneSteps(),
     // The three programs' primary sites name their approved suppliers (2026-10-28).
     'program-sites',
+    // Every firm's setup checklist reads what the seed holds (2026-10-28).
+    'setup-checklists',
     'own-seats',
     'claim',
   ]
@@ -1745,6 +1748,13 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     await seedTwinInvoiceDemo()
   })
 
+  /** Aptiva Workforce's three people besides its program manager (below). */
+  const APTIVA_TEAM: { desk: string; role: string; name: string }[] = [
+    { desk: 'suppliers',   role: 'Supplier Manager', name: 'Delphine Castellanos' },
+    { desk: 'coordinator', role: 'Coordinator',      name: 'Tomasz Wierzbicki' },
+    { desk: 'ap',          role: 'AP Clerk',         name: 'Hollis Banerjee' },
+  ]
+
   // ── A program office in a seat, at one of the three programs ───────
   //
   // Cavanaugh Glassworks has no contingent workforce office of its own —
@@ -1788,6 +1798,37 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
               'place nobody here, so they sit in our program manager seat under our own rules.',
           },
         })
+      }
+    }
+    // Aptiva's own three people beside Rashida Coleman, so the MSP's map
+    // reads a real person in each of its four roles (founder, 2026-10-28,
+    // the four doors' maps): the supplier manager who keeps Cavanaugh's
+    // panel, the coordinator who moves its jobs and candidates, and the AP
+    // clerk who pays what the three-way check passes. Each holds Aptiva's
+    // own MSP role; in Cavanaugh's program every Aptiva seat acts under the
+    // one seat Cavanaugh granted, which is the firm's, not the person's.
+    if (aptiva) {
+      for (const d of APTIVA_TEAM) {
+        const seed = rolesFor('MSP').find((r) => r.name === d.role)
+        if (!seed) continue
+        const role =
+          (await db.role.findFirst({ where: { companyId: aptiva.id, name: d.role }, select: { id: true } })) ??
+          (await db.role.create({
+            data: { companyId: aptiva.id, name: d.role, permissions: seed.permissions, isDefault: false },
+            select: { id: true },
+          }))
+        const email = `${PREFIX}aptiva-${d.desk}@${DOMAIN}`
+        const who = await db.person.upsert({
+          where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
+        })
+        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: aptiva.id } }))) {
+          await db.context.create({
+            data: {
+              personId: who.id, companyId: aptiva.id, roleId: role.id, type: 'EMPLOYEE',
+              grantReason: `Seeded MSP seat — ${d.role}`,
+            },
+          })
+        }
       }
     }
   })
@@ -2207,6 +2248,16 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // After every step that approves a supplier or writes a job.
   await step('program-sites', async () => {
     await seedProgramSites({ domain: DOMAIN, prefix: PREFIX })
+  })
+
+  // ── The setup checklists read what the seed holds ─────────────────
+  //
+  // Every firm's legal address and paper sets, its payment details
+  // checked, and the four client programs' profile and people in charge
+  // (lib/seed-setup), so no seeded Today page asks for what is already
+  // here. After Corvane and the sites, which it reads.
+  await step('setup-checklists', async () => {
+    await seedSetupChecklists({ prefix: PREFIX, slugs: WORLD_SLUGS })
   })
 
   // ── Everybody on their own work holds their own seat ───────────────

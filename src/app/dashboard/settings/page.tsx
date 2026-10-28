@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { kindWord, postureWord } from '@/lib/parties'
@@ -190,6 +191,14 @@ export default function SettingsPage() {
         title={`How ${company.name} is set up`}
         subtitle="Everything here can be changed, except a verified domain."
       />
+
+      {canEdit && (
+        <p className="mb-5 text-[13px] text-etyme-muted">
+          {/* The setup checklist (2026-10-28): every item, done, skipped or to do. */}
+          <Link href={'/dashboard/settings/setup' as any} className="text-etyme-action-press">Setup checklist</Link>
+          {' '}— your company, addresses, sites, the people in charge, papers, bank details and your domain, one at a time.
+        </p>
+      )}
 
       {!canEdit && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">

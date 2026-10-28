@@ -305,7 +305,7 @@ systems drop and the half an investigation needs.
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
 **Coverage, stated honestly.** 51 route files write an access-log row
-through `src/lib/access-log.ts`, out of 336 API route files. They are the routes that
+through `src/lib/access-log.ts`, out of 339 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -552,6 +552,7 @@ Stated plainly because it is the disclosure most easily buried.
 | Resume evidence check (`src/app/api/submissions/[id]/check/route.ts`, `src/app/api/requirements/[id]/screen/route.ts`) | The extracted text of the resume and the skills claimed for it | Does not run; the finding says the claims are unchecked |
 | Import (`src/lib/extract.ts`) | Up to 60,000 characters of the file or paste being loaded | Returns null; only a spreadsheet with recognizable headings can be loaded |
 | Public page drafting (`src/lib/consultant-portfolio.ts`, `src/lib/site-voice.ts`) | The words the page will carry | Not drafted |
+| Setup, a paper the company uploads (`src/lib/setup-fill-model.ts`) | Only where the company turned the model on: the text of its own W-9 or certificate of insurance, masked (names, firms, emails, phones) with every tax number cut out first, asked only for the fields the rules did not read; every prompt and answer logged | Rules only; the person types what is missing. Nothing is recorded until a person presses Save |
 
 Provider: **Anthropic**, via `@anthropic-ai/sdk`. Models are configurable
 (`MATCH_MODEL`, `CHECK_MODEL`).
@@ -879,7 +880,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 51 route files of 336 (section 4).
+- Access logging covers 51 route files of 339 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their

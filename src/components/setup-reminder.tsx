@@ -5,15 +5,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 /**
- * "Finish setting up: your people, your team." — one line, on the
- * dashboard, with a link back.
+ * "Finish setting up: addresses, papers you require." — one line, on the
+ * dashboard, with "Complete setup" linking to the setup checklist.
+ *
+ * Since 2026-10-28 the line is the checklist's (`setupReminderFor` in
+ * lib/setup-checklist-state): every item still owed, done or skipped
+ * never counting as done, until the list is empty. It never nags daily;
+ * it is one line that stays.
  *
  * The founder, 2026-10-07: a company that skipped steps sees one line on
  * the dashboard linking back; one that finished never sees the steps
  * again. Drawn on the three consoles only — a reminder on every page is
  * nagging, not a reminder — and only for a seat that can finish setup:
- * `GET /api/onboarding/setup` answers null for everybody else, and for any
- * company that never began the five steps.
+ * `GET /api/onboarding/setup` answers null for everybody else, and for a
+ * company nobody has taken possession of.
  */
 
 const CONSOLES = new Set(['/dashboard', '/dashboard/program', '/dashboard/my-work'])
@@ -21,7 +26,7 @@ const CONSOLES = new Set(['/dashboard', '/dashboard/program', '/dashboard/my-wor
 export function SetupReminder() {
   const pathname = usePathname()
   const onConsole = CONSOLES.has(pathname ?? '')
-  const [line, setLine] = useState<{ says: string; href: string } | null>(null)
+  const [line, setLine] = useState<{ says: string; href: string; link?: string } | null>(null)
 
   useEffect(() => {
     if (!onConsole) return
@@ -37,7 +42,7 @@ export function SetupReminder() {
   return (
     <div className="mb-5 px-4 py-2.5 rounded-lg border border-etyme-rule bg-etyme-surface text-[13px] text-etyme-ink flex items-center justify-between gap-3">
       <span>{line.says}</span>
-      <Link href={line.href as any} className="text-etyme-action font-medium shrink-0 hover:underline">Finish setup</Link>
+      <Link href={line.href as any} className="text-etyme-action font-medium shrink-0 hover:underline">{line.link ?? 'Complete setup'}</Link>
     </div>
   )
 }

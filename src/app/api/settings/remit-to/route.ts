@@ -148,6 +148,8 @@ export async function POST(request: NextRequest) {
       accountLast4: body.accountLast4 ? String(body.accountLast4) : null,
       routingLast4: body.routingLast4 ? String(body.routingLast4) : null,
       isDefault: makeDefault,
+      enteredById: caller!.person.id,
+      enteredAt: new Date(),
     },
   })
 
@@ -195,6 +197,12 @@ export async function PATCH(request: NextRequest) {
       ...('taxId' in body ? { taxId: body.taxId ? String(body.taxId).trim() : null } : {}),
       ...('bankName' in body ? { bankName: body.bankName ? String(body.bankName).trim() : null } : {}),
       ...('isDefault' in body ? { isDefault: Boolean(body.isDefault) } : {}),
+      // A different bank is a different place for the money to go, so a
+      // check a paying firm's Finance made no longer stands (setup
+      // checklist, 2026-10-28; `mayPayFirm` in lib/setup-gates).
+      ...('bankName' in body && (body.bankName ? String(body.bankName).trim() : null) !== existing.bankName
+        ? { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null, enteredById: caller!.person.id, enteredAt: new Date() }
+        : {}),
     },
   })
 

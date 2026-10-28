@@ -9,12 +9,18 @@
 
 import { prisma } from '@/lib/db'
 import {
-  readRecord, recordStep, outstanding, reminderFor, showsSteps, nextStep, claimedSentence,
+  readRecord, recordStep, outstanding, showsSteps, nextStep, claimedSentence,
   countryGuessSentence, packSentence, countryName,
   type SetupRecord, type SetupFacts, type SetupStep, type Reminder,
 } from '@/lib/setup-steps'
 import { countryFromDomain } from '@/lib/company-defaults'
 import { skipStops, confirmAllWords } from '@/lib/site-rules'
+import { setupReminderFor } from '@/lib/setup-checklist-state'
+
+async function checklistReminder(companyId: string): Promise<(Reminder & { link: string }) | null> {
+  const r = await setupReminderFor(companyId, { mayRun: true })
+  return r ? { says: r.says, href: r.href, link: r.link } : null
+}
 
 export interface SetupState {
   startedAt: Date | null
@@ -25,8 +31,12 @@ export interface SetupState {
   next: SetupStep | null
   /** Whether /start shows the steps to this reader. */
   shows: boolean
-  /** The dashboard's one line, for a reader who may finish it. */
-  reminder: Reminder | null
+  /**
+   * The dashboard's one line, for a reader who may finish it: the setup
+   * checklist's (`setupReminderFor` in lib/setup-checklist-state), with
+   * the link's words.
+   */
+  reminder: (Reminder & { link: string }) | null
   /**
    * For a supplier that took its record from a client's invitation: the
    * line over "How you work" naming the client and the next step.
@@ -101,7 +111,9 @@ export async function setupStateFor(
       followedLinkBack: reader.followedLinkBack === true,
       owed: owed.length,
     }),
-    reminder: reader.mayRun ? reminderFor({ startedAt: c.setupStartedAt, record, facts, kind: c.kind }) : null,
+    // The one line that comes back is the checklist's since 2026-10-28: every
+    // item still owed, in the checklist's order, linking to it.
+    reminder: reader.mayRun ? await checklistReminder(companyId) : null,
     claimedSays: claimedFrom ? claimedSentence(claimedFrom) : null,
     sites: {
       count: siteRows.length,

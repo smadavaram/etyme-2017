@@ -53,9 +53,15 @@ describe('an exact claim decides', () => {
     expect(e.message).toMatch(/ask them to invite you/i)
   })
 
-  it('ignores a claim nobody has proved', () => {
+  it('a claim nobody has proved admits nobody and founds nothing: the person is told to ask for an invitation or for the domain to be verified', () => {
+    // Was "ignores a claim nobody has proved", which then founded a second
+    // company on a domain a firm already held — the "founded again" break
+    // of the 2026-10-27 onboarding walk. Since the setup checklist
+    // (2026-10-28) the refusal names the step (`mayJoinByDomain`).
     const e = decideEntry('dev@infosys.com', [claim({ domain: 'infosys.com', verified: false })])
-    expect(e.action).toBe('CREATE')
+    expect(e.action).toBe('REFUSE')
+    expect(e.message).toMatch(/has not verified infosys\.com yet, so colleagues join by invitation/)
+    expect(e.message).toMatch(/Setup → Your domain/)
   })
 })
 

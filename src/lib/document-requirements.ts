@@ -361,6 +361,15 @@ export interface EffectiveInput {
   lineRows?: RequirementRow[]
   /** Rows written on the order above it. */
   orderRows?: RequirementRow[]
+  /**
+   * The paying company's own set for this party, confirmed at setup
+   * ("Papers you require", 2026-10-28): over the shipped floor, under the
+   * order. Read as the floor, so its items carry no row id here and are
+   * changed only at setup, never through a line.
+   */
+  companyRows?: RequirementRow[]
+  /** "required by Tapin's own papers, set at setup". */
+  companySays?: string | null
   /** How to name the order in a sentence — "Northbend Athletic's order PO-2026-1". */
   orderSays?: string | null
   /** The firm or person behind each role, where the line names one. */
@@ -417,6 +426,22 @@ export function effectiveRequirements(input: EffectiveInput): EffectiveRequireme
     })
   }
 
+  // 1b. The company's own set, confirmed at setup: what it adds to the
+  // floor, and what it waived with a reason. Work authorization is never
+  // waived here either (`fromRow` refuses it as it does on a line).
+  // A row that only confirms the shipped item, as it is, leaves the floor's
+  // own words: confirming a set changes nothing a line says.
+  for (const row of input.companyRows ?? []) {
+    const floor = out.get(row.documentTypeKey)
+    const same = floor && floor.from === 'DEFAULT' && floor.id === null && row.required === floor.required
+      && row.blocks == null && !row.waivedAt && !row.waivedReason
+    if (same) continue
+    out.set(row.documentTypeKey, {
+      ...fromRow(row, 'DEFAULT', input.companySays ?? 'required by the company’s own papers, set at setup'),
+      id: null,
+    })
+  }
+
   // 2. The order's own rules, over the top.
   const orderById = new Map<string, RequirementRow>()
   for (const row of input.orderRows ?? []) {
@@ -437,7 +462,7 @@ export function effectiveRequirements(input: EffectiveInput): EffectiveRequireme
     (a, b) => Number(b.blocks) - Number(a.blocks) || Number(b.required) - Number(a.required) || a.label.localeCompare(b.label)
   )
 
-  function fromRow(row: RequirementRow, from: 'ORDER' | 'LINE', says: string): EffectiveRequirement {
+  function fromRow(row: RequirementRow, from: 'DEFAULT' | 'ORDER' | 'LINE', says: string): EffectiveRequirement {
     const key = row.documentTypeKey
     const owedBy = partyFor(key, row.owedBy)
     const floorItem = CANNOT_BE_WAIVED.includes(key)
@@ -570,6 +595,7 @@ async function sellRequirements(id: string, db: Db): Promise<LineRequirements | 
 
   const shape: LineShape = 'CUSTOMER'
   const { orderRows, orderSays } = await orderSet(line.workOrder, db)
+  const company = await companySet(line.companyId, shape, line.company?.name ?? null, db)
 
   return assemble({
     side: 'SELL',
@@ -580,6 +606,8 @@ async function sellRequirements(id: string, db: Db): Promise<LineRequirements | 
       : null,
     orderRows,
     orderSays,
+    companyRows: company.rows,
+    companySays: company.says,
     lineRows: line.documentRequirements,
     names: {
       WORKER: line.person?.name ?? null,
@@ -632,6 +660,7 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
   })
   const { orderRows, orderSays } = await orderSet(line.workOrder, db)
   const sell = line.sellLinks[0]?.sellContract ?? null
+  const company = await companySet(line.companyId, shape, line.company?.name ?? null, db)
 
   // A corp-to-corp line with no vendor company on it is the person's own
   // corporation, so the supplier's name is theirs. Where nothing names
@@ -649,6 +678,8 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       : null,
     orderRows,
     orderSays,
+    companyRows: company.rows,
+    companySays: company.says,
     lineRows: line.documentRequirements,
     names: {
       WORKER: worker,
@@ -662,6 +693,33 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
     site: sell?.workLocation ?? null,
     db,
   })
+}
+
+/** Which party of a company's own set a line's shape is (`lib/document-stages/required-sets`). */
+export const PARTY_OF_SHAPE: Record<LineShape, 'WORKERS_W2' | 'CORP_TO_CORP' | 'SUB_VENDORS' | 'CUSTOMERS'> = {
+  W2: 'WORKERS_W2',
+  CORP_TO_CORP: 'CORP_TO_CORP',
+  SUB_VENDOR: 'SUB_VENDORS',
+  CUSTOMER: 'CUSTOMERS',
+}
+
+/**
+ * The paying company's own set for the party this line is about, as it
+ * confirmed it at setup. Empty where it never did, and the shipped floor
+ * stands alone, as before.
+ */
+async function companySet(
+  companyId: string | null,
+  shape: LineShape,
+  companyName: string | null,
+  db: Db
+): Promise<{ rows: RequirementRow[]; says: string | null }> {
+  if (!companyId) return { rows: [], says: null }
+  const rows = await db.documentRequirement.findMany({
+    where: { companyId, party: PARTY_OF_SHAPE[shape] },
+    select: ROW_SELECT,
+  })
+  return { rows, says: rows.length ? `required by ${companyName ?? 'the company'}’s own papers, set at setup` : null }
 }
 
 async function orderSet(
@@ -686,6 +744,8 @@ async function assemble(input: {
   order: { id: string; number: string; issuedBy: string } | null
   orderRows: RequirementRow[]
   orderSays: string | null
+  companyRows?: RequirementRow[]
+  companySays?: string | null
   lineRows: RequirementRow[]
   names: Names
   /** Whose dictionaries name these types: the line's company, and the firm across from it. */
@@ -706,7 +766,7 @@ async function assemble(input: {
       })
     : []
 
-  const waiverIds = [...input.orderRows, ...input.lineRows]
+  const waiverIds = [...input.orderRows, ...(input.companyRows ?? []), ...input.lineRows]
     .map((r) => r.waivedById)
     .filter((v): v is string => !!v)
   const waiverNames: Record<string, string> = {}
@@ -728,6 +788,8 @@ async function assemble(input: {
     lineRows: input.lineRows,
     orderRows: input.orderRows,
     orderSays: input.orderSays,
+    companyRows: input.companyRows,
+    companySays: input.companySays,
     names: input.names,
     waiverNames,
     documentTypes: defined,

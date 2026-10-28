@@ -30,6 +30,7 @@
  * belong with the Infosys that is already here, and offering to ask.
  */
 
+import { mayJoinByDomain } from '@/lib/setup-gate-rules'
 import { registrableDomain } from '@/lib/registrable-domain'
 
 /** What happens when somebody signs in on a domain a company has claimed. */
@@ -143,7 +144,20 @@ export function decideEntry(email: string, claims: ClaimedDomain[]): Entry {
   }
 
   // ── An exact claim ──────────────────────────────────────────────────
-  const exact = claims.find((c) => c.domain === domain && c.verified)
+  //
+  // Only a proved claim admits anybody (`mayJoinByDomain` in
+  // lib/setup-gate-rules, the setup checklist's refusal). A claim the
+  // company has not proved yet admits nobody and founds nothing: the
+  // person is told to ask for an invitation, or for the domain to be
+  // verified under Setup → Your domain. Founding a second company on a
+  // domain a firm already holds was the "founded again" break of the
+  // 2026-10-27 onboarding walk ("one firm, one tenant").
+  const unproved = claims.find((c) => c.domain === domain && !c.verified)
+  if (unproved && !claims.some((c) => c.domain === domain && c.verified)) {
+    const gate = mayJoinByDomain({ companyName: unproved.companyName, domain, verified: false })
+    if (!gate.ok) return { action: 'REFUSE', message: gate.says }
+  }
+  const exact = claims.find((c) => c.domain === domain && mayJoinByDomain({ ...c, domain }).ok)
 
   if (exact) {
     switch (exact.joinPolicy) {

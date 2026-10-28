@@ -100,7 +100,13 @@ describe('a new company walks five steps, then stops', () => {
   it('a company that skips its people and its team is reminded on the dashboard, once, with a link back', async () => {
     as(FOUNDER)
     const s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data.reminder).toEqual({ says: 'Finish setting up: your people, your team.', href: '/start?finish=1' })
+    // Since the setup checklist (2026-10-28) the one line is the checklist's:
+    // every item still owed, in its order, linking to it.
+    expect(s.body.data.reminder).toEqual({
+      says: 'Finish setting up: your company, addresses, the people in charge, papers you require, your companies, your team, integrations.',
+      href: '/dashboard/settings/setup',
+      link: 'Complete setup',
+    })
   })
 
   it('a company that finished setup never sees the steps again', async () => {
@@ -112,14 +118,16 @@ describe('a new company walks five steps, then stops', () => {
     const back = await json(await entry(req('GET', '/api/onboarding?finish=1')))
     expect(back.body.data.setup.shows).toBe(true)
 
-    // A seeded company never began the steps, so it is never asked or reminded.
+    // A seeded company never began the steps, so it is never asked them; its
+    // checklist line names only what the seed does not hold (lib/seed-setup).
     const seeded = await prisma.context.findFirstOrThrow({
       where: { type: 'EMPLOYEE', company: { kind: 'VENDOR', setupStartedAt: null }, role: { permissions: { has: '*' } } },
       include: { person: true },
     })
     as(seeded.person.primaryEmail)
     const theirs = await json(await readSetup(req('GET', '/api/onboarding/setup', undefined, { 'x-context-id': seeded.id })))
-    expect(theirs.body.data).toMatchObject({ shows: false, reminder: null })
+    expect(theirs.body.data.shows).toBe(false)
+    expect(theirs.body.data.reminder?.says ?? '').not.toMatch(/your company|addresses|your sites|how you work|papers you require/)
   })
 
   it('a colleague joining on a claimed domain gets a seat with the Member role and the owner is told', async () => {
@@ -144,10 +152,10 @@ describe('a new company walks five steps, then stops', () => {
     }
     expect(told).toBeGreaterThan(0)
 
-    // The teammate finishes the team step; only the people are still owed.
+    // The teammate finishes the team item; it leaves the line.
     as(FOUNDER)
     const s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data.reminder.says).toBe('Finish setting up: your people.')
+    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge, papers you require, your companies, integrations.')
   })
 
   it('a colleague with a role lands on their own desk', async () => {
@@ -174,7 +182,9 @@ describe('a new company walks five steps, then stops', () => {
     const before = (await json(await readSetup(req('GET', '/api/onboarding/setup')))).body.data
     expect(before.owed).toEqual(['WORK'])
     const done = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'WORK', outcome: 'DONE' })))
-    expect(done.body.data).toMatchObject({ finished: true, next: null, owed: [], reminder: null })
+    expect(done.body.data).toMatchObject({ finished: true, next: null, owed: [] })
+    // Her line is the checklist's, and never names a team or a site.
+    expect(done.body.data.reminder.says).toBe('Finish setting up: your company, addresses, papers you require, bank details, your companies, integrations.')
     const list = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'PEOPLE', outcome: 'SKIPPED' })))
     expect(list.body.error.message).toBe('A one-person firm has no contractor list or team to set up.')
   })
