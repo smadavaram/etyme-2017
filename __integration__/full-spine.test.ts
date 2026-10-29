@@ -636,7 +636,8 @@ describe('Step 10b — no supplier places anybody without cover on file', () => 
     ))
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('AWARD_BLOCKED')
-    expect(r.body.error.message).toContain("general liability and workers' compensation")
+    // Names the firm, and each missing paper once (the Tapin walk, 2026-10-29).
+    expect(r.body.error.message).toBe("Computer Systems has neither a general liability nor a workers' compensation certificate on file")
   })
 
   it('clears once both certificates are on file and in date', async () => {

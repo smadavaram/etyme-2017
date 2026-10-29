@@ -38,6 +38,8 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
 import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'
+import { linkAsksFor, joinAsksFor, firmAskItems, LINK_REQUEST } from '@/app/api/conversations/twin/firm-asks'
+import { emailSender } from '@/lib/senders'
 import { readerScope } from '@/app/api/program/reader-scope'
 import { regionContracts } from '@/lib/region-scope'
 
@@ -1152,6 +1154,49 @@ export async function GET(request: NextRequest) {
     for (let i = decisions.length - 1; i >= 0; i--) {
       if (decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)) decisions.splice(i, 1)
     }
+  }
+
+  // ── 9. What another party waits on this firm for ─────────────────
+  //
+  // A link request another firm made ("Tapin asks to link as your
+  // sub-vendor") and somebody who asked from the firm's own page to join
+  // its bench where no letter could leave. Ask Etyme counted both on the
+  // mark and this list did not, so Today and the mark disagreed by one
+  // while either waited (the Tapin walk, 2026-10-29). The rows are read
+  // by the conversation's own readers (`firm-asks`), in the same type and
+  // entity, so the greeting finds them here and adds nothing twice.
+  const [linkAsks, joinAsks] = await Promise.all([
+    linkAsksFor(caller).catch(() => []),
+    joinAsksFor(caller, emailSender() !== null, now).catch(() => []),
+  ])
+  if (joinAsks.length > 0) {
+    const askers = await prisma.benchListing.findMany({
+      where: { id: { in: joinAsks.map((a) => a.listingId) } },
+      select: { consultant: { select: { personId: true } } },
+    })
+    logBulkAccess([...new Set(askers.map((l) => l.consultant.personId))], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'PROFILE_VIEW',
+      reason: 'Read in the decision queue: asked from your page to join your bench',
+    })
+  }
+  const askedOn = new Map<string, string>([
+    ...linkAsks.map((a) => [a.id, a.askedOn] as [string, string]),
+    ...joinAsks.map((a) => [a.listingId, a.askedOn] as [string, string]),
+  ])
+  for (const row of firmAskItems(linkAsks, joinAsks, caller.company?.kind ?? '')) {
+    const link = row.type === LINK_REQUEST
+    decisions.push({
+      ...row,
+      named: link
+        ? { whose: row.whose ?? null, what: 'link request', whats: 'link requests' }
+        : { whose: row.whose ?? null, what: 'ask to join your bench', whats: 'asks to join your bench' },
+      urgency: 'MEDIUM',
+      dueDate: null,
+      amount: null,
+      createdAt: new Date(`${askedOn.get(row.entityId) ?? now.toISOString().slice(0, 10)}T00:00:00Z`).toISOString(),
+    })
   }
 
   // ── Sort by urgency, then by created date ─────────

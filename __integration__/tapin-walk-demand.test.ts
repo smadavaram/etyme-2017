@@ -3,6 +3,9 @@ import { freshWorld, prisma, as, req, json } from './harness'
 import { POST as raiseOwnCopy } from '@/app/api/requirements/route'
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as submit } from '@/app/api/submissions/route'
+import { GET as decisionsGet } from '@/app/api/decisions/route'
+import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { joinLetterLead } from '@/lib/public-site/join-bench'
 
 /**
  * The Tapin walk (2026-10-29), demand's half, on the seeded world: a
@@ -84,5 +87,32 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
     expect(row.toCompanyId).toBe(brightmoor.id)
     // Computed from the listing (a marketed one), never taken from the caller.
     expect(['BENCH', 'NETWORK']).toContain(row.kind)
+  })
+})
+
+describe('what another party waits on a firm for', () => {
+  it('a link request and a join request are on the one decisions list, so Today and the mark agree', async () => {
+    // A firm Consultis does not trade with yet asks to link as its client.
+    const tapwell = await prisma.company.create({ data: { name: 'Tapwell Bench', slug: 'tapwell-bench-decisions', kind: 'VENDOR', currency: 'USD' } })
+    const asker = await prisma.person.create({ data: { name: 'Sharad Tapwell', primaryEmail: 'sharad@tapwell.invalid' } })
+    const link = await prisma.tradeLinkRequest.create({
+      data: { fromCompanyId: tapwell.id, toCompanyId: consultis, relationship: 'CLIENT', askedById: asker.id },
+    })
+    // Somebody asks from Consultis's own page to join its bench.
+    await askOntoBench({
+      firm: { id: consultis, name: 'Consultis' }, name: 'Asha Rao', email: 'asha.rao@join.invalid',
+      by: null, letterLead: joinLetterLead('Consultis'),
+    })
+
+    as(CONSULTIS)
+    const r = await json(await decisionsGet(req('GET', '/api/decisions')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const rows = r.body.data.decisions as any[]
+    const linkRow = rows.find((d) => d.type === 'LINK_REQUEST')
+    const joinRow = rows.find((d) => d.type === 'JOIN_ASK')
+    expect(linkRow?.entityId).toBe(link.id)
+    expect(linkRow.title).toMatch(/^Tapwell Bench asks to link as your /)
+    expect(joinRow?.title).toBe('Asha Rao asked to join your bench from your page')
+    expect(r.body.data.total).toBe(rows.length)
   })
 })
