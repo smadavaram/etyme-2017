@@ -998,8 +998,14 @@ export function addRefusalSays(path: AddPath, name: string, firm: string): strin
 }
 
 /** What adding somebody who already has a record did, in a sentence. */
-export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean; kept?: boolean }): string {
-  const first = o.again ? `${o.firm} asked ${o.name} onto its bench again` : `${o.name} already has an account, so ${o.firm} asked them onto its bench`
+export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean; kept?: boolean; typed?: boolean }): string {
+  // The Tapin walk, 2026-10-29: what the firm typed was dropped without a
+  // word. It is kept on the firm's listing now, and the first line says
+  // whose is whose.
+  const whose = o.again
+    ? ''
+    : `${o.name} already has an account. Their own name and papers stay theirs${o.typed ? '; what you typed is kept on your bench listing' : ''}. `
+  const first = o.again ? `${o.firm} asked ${o.name} onto its bench again` : `${whose}${o.firm} asked them onto its bench`
   // "Went by email" only where an email could leave (second onboarding walk).
   const sent = o.emailed
     ? ' The invitation went by email.'

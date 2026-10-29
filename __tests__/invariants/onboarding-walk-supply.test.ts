@@ -62,7 +62,7 @@ describe('1 · a firm asks somebody who already has an account, never makes a se
 
   it('the firm reads what adding them did, in a sentence with no pronoun the record does not hold', () => {
     const says = askedExistingSays({ name: 'Maya Brooks', firm: 'Brightmoor Staffing', emailed: false, again: false })
-    expect(says).toBe('Maya Brooks already has an account, so Brightmoor Staffing asked them onto its bench, on the record they already have. The invitation is recorded; it can be sent from Bench. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
+    expect(says).toBe('Maya Brooks already has an account. Their own name and papers stay theirs. Brightmoor Staffing asked them onto its bench, on the record they already have. The invitation is recorded; it can be sent from Bench. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
     expect(says).not.toMatch(/\b(she|her|he|his)\b/)
   })
 })

@@ -75,6 +75,7 @@ vi.mock('@/lib/db', () => {
 
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 import { POST as addConsultant } from '@/app/api/consultants/route'
+import { readAsTheFirm, firmViewOf } from '@/lib/consultant-portfolio/firm-view'
 
 const PAGE = { id: 'firm-p', name: 'Tapin' }
 const fromPage = (name: string, email: string) => askOntoBench({ firm: PAGE, name, email, by: null })
@@ -211,5 +212,58 @@ describe('one bench ask for the page and the recruiter', () => {
   it('the page never states terms, so a listing asked from it promises no pay', async () => {
     await fromPage('Ike Danso', 'ike@example.test')
     expect(h.listings[0]).toMatchObject({ termsEngagementType: null, termsPayRateCents: null, termsStatedById: null })
+  })
+
+  it('what a firm types about a person who already has an account is kept on the firm’s listing and never overwrites the person', async () => {
+    maya()
+    h.profiles[0] = { ...h.profiles[0], headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH' }
+    const r = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'M Brooks', email: 'maya@example.test',
+        headline: 'Workday HCM consultant', skills: ['Workday HCM', ' Payroll ', 'workday hcm'],
+        location: 'San Antonio, TX', notes: 'Met at the Dallas meetup.', workAuth: 'H1B',
+        rateMin: 6000, rateMax: 8000,
+      }),
+    }))
+    expect(r.status).toBe(201)
+
+    // The firm's view is on its own listing, with its rate.
+    expect(h.listings[0]).toMatchObject({
+      companyId: 'firm-r',
+      firmHeadline: 'Workday HCM consultant',
+      firmSkills: ['Workday HCM', 'Payroll'],
+      firmLocation: 'San Antonio, TX',
+      firmNotes: 'Met at the Dallas meetup.',
+      rateMin: 6000,
+      rateMax: 8000,
+    })
+    // Her own name and profile are untouched.
+    expect(h.people[0].name).toBe('Maya Brooks')
+    expect(h.profiles).toHaveLength(1)
+    expect(h.profiles[0]).toMatchObject({ headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH', workAuth: null })
+
+    // And the firm reads its own view first, her own words where it said nothing.
+    const read = readAsTheFirm({ headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH' }, h.listings[0])
+    expect(read).toMatchObject({ headline: 'Workday HCM consultant', skills: ['Workday HCM', 'Payroll'], location: 'San Antonio, TX', notes: 'Met at the Dallas meetup.' })
+    expect(readAsTheFirm({ headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH' }, firmViewOf({})))
+      .toMatchObject({ headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH', notes: null })
+  })
+
+  it('the firm is told in one line that the person already has an account', async () => {
+    maya()
+    const r = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', skills: ['Workday HCM'] }),
+    }))
+    const says: string = (await r.json()).data.message
+    expect(says.startsWith('Maya Brooks already has an account. Their own name and papers stay theirs; what you typed is kept on your bench listing.')).toBe(true)
+  })
+
+  it('the public page never writes a firm’s view of the person, and never clears one', async () => {
+    maya()
+    h.listings.push({ id: 'back', consultantId: 'maya-profile', companyId: 'firm-p', state: 'GRANTED', revokedAt: new Date('2026-10-01'), firmNotes: 'Strong on payroll.' })
+    await fromPage('Maya Brooks', 'maya@example.test')
+    expect(h.listings[0].firmNotes).toBe('Strong on payroll.')
   })
 })

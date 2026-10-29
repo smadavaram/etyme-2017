@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { addedSays, benchClosedSays, notAtACompany } from '@/lib/bench-filter'
 import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -98,13 +99,22 @@ export async function GET(request: NextRequest) {
         { person: { name: { contains: q, mode: 'insensitive' } } },
         { headline: { contains: q, mode: 'insensitive' } },
         { skills: { hasSome: [q] } },
+        // And this firm's own words about them, on its listing.
+        ...(companyId
+          ? [{ listings: { some: { companyId, revokedAt: null, OR: [{ firmHeadline: { contains: q, mode: 'insensitive' } }, { firmSkills: { hasSome: [q] } }] } } }]
+          : []),
       ],
     })
   }
 
   // Skill filter (AND — consultant must have all listed skills)
   if (skills && skills.length > 0) {
-    andClauses.push({ skills: { hasEvery: skills } })
+    andClauses.push({
+      OR: [
+        { skills: { hasEvery: skills } },
+        ...(companyId ? [{ listings: { some: { companyId, revokedAt: null, firmSkills: { hasEvery: skills } } } }] : []),
+      ],
+    })
   }
 
   // Availability filter
@@ -149,6 +159,11 @@ export async function GET(request: NextRequest) {
                 termsEngagementType: true,
                 termsPayRateCents: true,
                 termsAgreedAt: true,
+                // The firm's own view of the person, read before her own words.
+                firmHeadline: true,
+                firmSkills: true,
+                firmLocation: true,
+                firmNotes: true,
               },
             }
           : false,
@@ -169,6 +184,12 @@ export async function GET(request: NextRequest) {
   const data = profiles.map((p) => {
     const isSubject = p.personId === caller.person.id
     const showRate = isSubject || canSeeCost
+    // This firm's own view first, the person's own words where it said
+    // nothing (`readAsTheFirm`); her own are kept beside under `own`.
+    const read = readAsTheFirm(
+      { headline: p.headline, skills: p.skills, location: p.location },
+      Array.isArray(p.listings) ? p.listings[0] : null
+    )
 
     return {
       id: p.id,
@@ -178,9 +199,11 @@ export async function GET(request: NextRequest) {
         name: p.person.name,
         email: p.person.primaryEmail,
       },
-      headline: p.headline,
-      skills: p.skills,
-      location: p.location,
+      headline: read.headline,
+      skills: read.skills,
+      location: read.location,
+      notes: read.notes,
+      own: read.own,
       workAuth: p.workAuth,
       rateFloor: showRate ? p.rateFloor : undefined,
       availableFrom: p.availableFrom?.toISOString() ?? null,
@@ -269,6 +292,7 @@ export async function POST(request: NextRequest) {
     tier = 'MARKETING',
     rateMin,
     rateMax,
+    notes,
   } = body
 
   // Validation
@@ -336,6 +360,7 @@ export async function POST(request: NextRequest) {
         rateFloor: rateFloor != null ? parseInt(String(rateFloor), 10) : null,
         availableFrom: availableFrom ? new Date(availableFrom) : null,
       },
+      notes: typeof notes === 'string' ? notes : null,
     })
 
     if (out.kind === 'NOTHING') {
@@ -379,7 +404,7 @@ export async function POST(request: NextRequest) {
             asked: true,
             consultant: { id: out.profile.id, personId: out.person.id, person },
             listing,
-            message: askedExistingSays({ name: out.person.name, firm: firm.name, emailed: out.mail === 'EMAILED', kept: out.mail === 'KEPT', again }) + termsSays,
+            message: askedExistingSays({ name: out.person.name, firm: firm.name, emailed: out.mail === 'EMAILED', kept: out.mail === 'KEPT', again, typed: out.typed }) + termsSays,
           },
         },
         { status: again ? 200 : 201 }

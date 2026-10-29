@@ -54,6 +54,7 @@ import { listingTermsFrom, termsShown, type InviteMail, type TermsShown } from '
 import { addPath, type AddPath } from '@/lib/consultant-portfolio'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
+import { firmViewOf, firmTypedAnything, type FirmView } from './firm-view'
 
 export type BenchAskDoor = 'ADD_CONSULTANT' | 'PUBLIC_PAGE'
 
@@ -69,7 +70,12 @@ export interface BenchAskInput {
   rateMax?: number | null
   /** What the firm says it would pay. Only a recruiter states terms; the page never does. */
   statedTerms?: { engagementType: unknown; payRateCents: unknown } | null
-  /** What a recruiter typed about a new person. Ignored for somebody who already has a record. */
+  /**
+   * What a recruiter typed about the person. Where nobody by that address
+   * has a profile it becomes theirs; either way the headline, skills and
+   * place are kept as the firm's own view on its listing, with `notes`,
+   * and never written onto a profile somebody already has (`firm-view`).
+   */
   newProfile?: {
     headline?: string | null
     skills?: string[]
@@ -78,6 +84,8 @@ export interface BenchAskInput {
     rateFloor?: number | null
     availableFrom?: Date | null
   }
+  /** The firm's own note on the person, kept on its listing only. */
+  notes?: string | null
   /** A line put above the firm's letter, e.g. why it came when the person asked from the page. */
   letterLead?: string
 }
@@ -111,7 +119,9 @@ export type BenchAskOutcome =
         termsEngagementType: string | null
         termsPayRateCents: number | null
         termsStatedAt: Date | null
-      }
+      } & FirmView
+      /** Whether the firm typed anything about the person, kept on its listing. */
+      typed: boolean
       terms: TermsShown | null
       /** The sentence the terms check gave, where terms were stated. */
       termsSays: string | null
@@ -228,6 +238,8 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
   )
   if (!terms.ok) return { kind: 'REFUSED', code: terms.code, says: terms.says, field: terms.field }
 
+  const view = firmViewOf({ ...o.newProfile, notes: o.notes })
+
   let asked
   try {
     asked = await prisma.$transaction(async (tx) => {
@@ -253,7 +265,9 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
             },
           })
 
-      const data = { tier, rateMin: min, rateMax: max, ...invitation(new Date()), ...terms.fields }
+      // The firm's own view goes on its listing, never on her profile. Only
+      // a recruiter states one; the page leaves whatever the firm said.
+      const data = { tier, rateMin: min, rateMax: max, ...invitation(new Date()), ...terms.fields, ...(o.by ? view : {}) }
       const row =
         path === 'ASK_AGAIN'
           ? await tx.benchListing.update({
@@ -281,6 +295,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
             door,
             path,
             profileCreated: !profile,
+            firmViewKept: o.by ? firmTypedAnything(view) : false,
             fromPublicPage: door === 'PUBLIC_PAGE',
             termsEngagementType: terms.fields.termsEngagementType,
             termsPayRateCents: terms.fields.termsPayRateCents,
@@ -357,7 +372,12 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
       termsEngagementType: asked.row.termsEngagementType,
       termsPayRateCents: asked.row.termsPayRateCents,
       termsStatedAt: asked.row.termsStatedAt,
+      firmHeadline: asked.row.firmHeadline,
+      firmSkills: asked.row.firmSkills,
+      firmLocation: asked.row.firmLocation,
+      firmNotes: asked.row.firmNotes,
     },
+    typed: o.by ? firmTypedAnything(view) : false,
     terms: shown,
     termsSays: terms.says,
     mail,

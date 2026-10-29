@@ -46,6 +46,10 @@ interface Consultant {
   rateFloor?: number | null
   /** What the firm stated it would pay them, cents an hour, where this seat reads pay. Never a bill rate. */
   payRateCents?: number | null
+  /** This firm's own note, from its bench listing. */
+  notes?: string | null
+  /** The person's own words, under the firm's view above; the profile editor starts from these. */
+  own?: { headline: string | null; skills: string[]; location: string | null }
 }
 
 // ── Add Consultant Modal ───────────────────────────────────
@@ -71,6 +75,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
     // already (2026-10-06). Optional; they read it beside their yes.
     termsEngagementType: '' as '' | 'W2' | 'IND_1099',
     termsPay: '',
+    // The firm's own note, kept on its listing and read by nobody else.
+    notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,6 +150,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           termsPayRateCents: form.termsPay.trim()
             ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * 100) : form.termsPay
             : null,
+          notes: form.notes.trim() || null,
         }),
       })
 
@@ -336,6 +343,19 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 <option value="GBP_SW">UK Skilled Worker</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="add-notes" className="block text-xs font-semibold text-etyme-muted mb-1">Notes</label>
+            <textarea
+              id="add-notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              placeholder="Your own note. Kept on your bench listing; nobody else reads it."
+            />
           </div>
 
           {/* Their bench listing: who sees them once they say yes, and at what rate. */}
@@ -600,6 +620,9 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
             {consultant.headline && (
               <p className="text-[13px] text-etyme-muted mt-0.5">{consultant.headline}</p>
             )}
+            {consultant.notes && (
+              <p className="text-[13px] text-etyme-muted mt-1">Your note: {consultant.notes}</p>
+            )}
           </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -614,7 +637,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
           {mayEdit && (
             <ProfileEditor
               consultantId={consultant.id}
-              skills={consultant.skills}
+              skills={consultant.own?.skills ?? consultant.skills}
               availableFrom={consultant.availableFrom}
               rateFloor={consultant.rateFloor ?? null}
               mayRate={mayRate}
