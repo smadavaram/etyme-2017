@@ -1653,6 +1653,37 @@ to Papers you require; the start-papers line reaches only seats that
 get HR's notice; the Tapin walk on screens records its verdict under
 this line.
 
+**The walk said: Tapin cannot run its week on Etyme. Do not ship as
+"Tapin runs on Etyme".** Sign-up, the checklist, three people onto the
+bench by their own yes (one seeded, no second record), the link to
+Brightmoor and putting a person forward all work on screens. The chain
+stops at the award: insurance Brightmoor accepted on its Paperwork
+screen never reaches the record the award checks, so "Place" refuses
+every time, and no week, signature, acceptance or bill followed. Also
+found, each with its owner: the job's rate band posts dollars where the
+record holds cents, so $90–$110 reads $0.90–$1.10 (demand); a W2's own
+page shows the prime's rate to his firm, a rung he is not party to
+(money); the award raises a second order beside the one raised by hand
+(money); "Record a placement" fails for every firm on a company id the
+session does not return (money); a firm with more than one person has
+no screen to file its own W-9, insurance or good standing, and the
+client's Document requests page cannot open or accept what arrived
+(regulatory); an agreement can be recorded but never signed on screen,
+and recording the prime's order is refused naming a role the prime does
+not have (money); Brightmoor's owner is never told in Ask Etyme that a
+link request waits, Tapin's greeting never mentions the job, the
+interview or the placement, and the page says "a letter is on its way"
+where no email can be sent (conversation); the account manager is
+refused sending a job, Tapin's job page has no way to put somebody
+forward, and "Answer interview" opens an empty page (demand); the
+checklist never shows where an answer came from and a skipped item
+reads "Saved by" (architect); details typed for a person who already
+has an account are silently dropped (supply); `/site/<slug>` shows a
+client nothing to act on (market). Report:
+`scratchpad/walk-tapin/report.md`, 172 screens. The fix wave goes
+ahead of other work, per "the two trust flows get the first seat";
+the second walk records its verdict under this line.
+
 ## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
 
 "Build it", on the two drawings waiting since 2026-10-27: the setup
