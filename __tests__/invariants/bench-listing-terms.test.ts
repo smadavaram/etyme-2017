@@ -133,7 +133,8 @@ describe('the doors', () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
   it('both listing doors check terms through the one rule, and write them on the listing', () => {
-    for (const p of ['src/app/api/consultants/route.ts', 'src/app/api/bench/listings/route.ts']) {
+    // Add consultant asks through askOntoBench (2026-10-29), which holds the check.
+    for (const p of ['src/lib/consultant-portfolio/bench-ask.ts', 'src/app/api/bench/listings/route.ts']) {
       const src = read(p)
       expect(src, p).toContain('listingTermsFrom(')
       expect(src, p).toContain('...terms.fields')

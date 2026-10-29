@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
-import { invitation } from '@/lib/bench-consent'
-import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { askByEmail } from './ask-by-email'
-import { addedSays, benchClosedSays, listingTermsFrom, termsShown, notAtACompany } from '@/lib/bench-filter'
-import { addPath, addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
-import { getCallerContext, type CallerContext } from '@/lib/api-context'
+import { addedSays, benchClosedSays, notAtACompany } from '@/lib/bench-filter'
+import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
+import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
   canReadPayRate,
@@ -221,9 +219,11 @@ export async function GET(request: NextRequest) {
  *
  * Create a consultant by hand. BUILD.md §3 — Supply.
  *
- * Creates: Person + ConsultantProfile + BenchListing (MARKETING unless
- * the firm says otherwise, pending grant). The consultant must grant the
- * listing before submissions can reference it.
+ * Asks a person onto the bench through `askOntoBench`, the one function
+ * the public page's "Join the bench" calls too: Person and
+ * ConsultantProfile only where none exists, and a BenchListing (MARKETING
+ * unless the firm says otherwise) born INVITED. The consultant must say
+ * yes before submissions can reference it.
  *
  * Optional terms (2026-10-06): `termsEngagementType` and
  * `termsPayRateCents`, what the firm would pay them when it places them,
@@ -311,368 +311,111 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Somebody who already has a record is asked, never made again
-  // (onboarding walk, 2026-10-27). Maya Brooks signed up herself; adding
-  // her was refused "A consultant profile already exists" and there was
-  // no other way to ask her. The same invitation and the same yes as the
-  // bench's own request door, on the record she already has: no second
-  // person, no second profile, her own name kept, and no seat at the firm
-  // before she answers.
-  const existing = await prisma.person.findUnique({
-    where: { primaryEmail: email.toLowerCase().trim() },
-    select: {
-      id: true,
-      name: true,
-      primaryEmail: true,
-      consultant: {
-        select: {
-          id: true,
-          rateFloor: true,
-          ownCompany: { select: { id: true, name: true } },
-          listings: { where: { companyId }, select: { id: true, state: true, revokedAt: true } },
-        },
-      },
-    },
-  })
-  if (existing?.consultant) {
-    return askExisting({
-      caller,
-      companyId,
-      person: existing,
-      profile: existing.consultant,
-      body,
-      tier,
-      rateMin,
-      rateMax,
-    })
-  }
-
-  // What the firm says it would pay them, where it says anything. A
-  // person added here has no company of their own on record yet, so
-  // "through their own company" is refused in the terms page's sentence.
-  const terms = listingTermsFrom(
-    { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
-    {
-      personName: name.trim(),
-      firmName: caller.company!.name,
-      ownCompany: null,
-      statedById: caller.person.id,
-      now: new Date(),
-    }
-  )
-  if (!terms.ok) {
-    return NextResponse.json(
-      { error: { code: terms.code, message: terms.says, field: terms.field } },
-      { status: 422 }
-    )
-  }
-
+  // One ask, from either door (`askOntoBench`): somebody who already has
+  // a record is asked on it, never made again (onboarding walk,
+  // 2026-10-27: Maya Brooks signed up herself and adding her was refused);
+  // a live ask or a yes is not asked again; a no stands; a listing taken
+  // back is asked afresh. Every listing is an invitation only the person
+  // answers, and nobody is seated at the firm before that yes.
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Find or create the Person
-      let person = await tx.person.findUnique({
-        where: { primaryEmail: email.toLowerCase().trim() },
-      })
-
-      if (!person) {
-        person = await tx.person.create({
-          data: {
-            name: name.trim(),
-            primaryEmail: email.toLowerCase().trim(),
-          },
-        })
-      }
-
-      // 2. Check if ConsultantProfile already exists
-      const existingProfile = await tx.consultantProfile.findUnique({
-        where: { personId: person.id },
-      })
-
-      if (existingProfile) {
-        throw new Error('PROFILE_EXISTS')
-      }
-
-      // 3. Create ConsultantProfile
-      const profile = await tx.consultantProfile.create({
-        data: {
-          personId: person.id,
-          headline: headline?.trim() || null,
-          skills: skills.map((s: string) => s.trim()).filter(Boolean),
-          location: location?.trim() || null,
-          workAuth: workAuth || null,
-          rateFloor: rateFloor != null ? parseInt(String(rateFloor), 10) : null,
-          availableFrom: availableFrom ? new Date(availableFrom) : null,
-          visibility: 'INTERNAL',
-        },
-      })
-
-      // 4. Create the BenchListing as an invitation.
-      //
-      // The comment here used to describe an epoch-zero sentinel marking
-      // a listing "pending until the consultant grants it". No such
-      // sentinel was ever written: grantedAt was not set at all, so it
-      // defaulted to now() and every listing was born granted. The
-      // intent was recorded twice — here and in the other create path's
-      // automation log — and built neither time.
-      //
-      // BenchListing.state carries it now. INVITED, and only the
-      // consultant moves it.
-      const listing = await tx.benchListing.create({
-        data: {
-          consultantId: profile.id,
-          companyId,
-          tier: tier as 'RETAINED' | 'MARKETING',
-          rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
-          rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
-          ...invitation(new Date()),
-          ...terms.fields,
-        },
-      })
-
-      // 5. Create a CONSULTANT context on this company for the person
-      await tx.context.create({
-        data: {
-          personId: person.id,
-          type: 'CONSULTANT',
-          companyId,
-        },
-      })
-
-      // 6. AutomationLog
-      await tx.automationLog.create({
-        data: {
-          companyId,
-          action: 'CONSULTANT_CREATED',
-          summary: `Consultant "${person.name}" added with ${skills.length} skills, ${tier} bench listing`,
-          reason: 'Manual consultant creation via API',
-          payload: {
-            personId: person.id,
-            profileId: profile.id,
-            listingId: listing.id,
-            createdBy: caller.person.id,
-            termsEngagementType: terms.fields.termsEngagementType,
-            termsPayRateCents: terms.fields.termsPayRateCents,
-          },
-          reversible: true,
-        },
-      })
-
-      return { person, profile, listing }
-    })
-
-    // Ask them, in the vendor's name.
-    //
-    // Outside the transaction: a slow mail provider must not roll back a
-    // consultant who was correctly created. The invitation is recorded
-    // either way and can be resent.
-    const url = inviteUrl(result.listing.id)
-    const msg = inviteText({
-      personName: result.person.name,
-      vendorName: caller.company!.name,
-      url,
-      // The terms stated on the listing, so the email names what a yes agrees.
-      terms: termsShown(result.listing, caller.company!.name),
-    })
-    // Said as it went: emailed only where an email could leave; where none
-    // can, the link is kept on the notice for staff and the screen says so.
-    const mail = await askByEmail({
-      companyId, personId: result.person.id, to: result.person.primaryEmail, url,
-      subject: msg.subject, body: msg.body, listingId: result.listing.id,
-    })
-
-    return NextResponse.json(
-      {
-        data: {
-          consultant: {
-            id: result.profile.id,
-            personId: result.person.id,
-            person: {
-              id: result.person.id,
-              name: result.person.name,
-              email: result.person.primaryEmail,
-            },
-            headline: result.profile.headline,
-            skills: result.profile.skills,
-            location: result.profile.location,
-            workAuth: result.profile.workAuth,
-            availableFrom: result.profile.availableFrom?.toISOString() ?? null,
-            visibility: result.profile.visibility,
-          },
-          listing: {
-            id: result.listing.id,
-            tier: result.listing.tier,
-            rateMin: result.listing.rateMin,
-            rateMax: result.listing.rateMax,
-            status: result.listing.state,
-            termsEngagementType: result.listing.termsEngagementType,
-            termsPayRateCents: result.listing.termsPayRateCents,
-            termsStatedAt: result.listing.termsStatedAt?.toISOString() ?? null,
-            termsAgreedAt: null,
-          },
-          // What adding them did, in a sentence: the ask went, and nothing
-          // reaches past the firm until they say yes.
-          message: addedSays({
-            name: result.person.name,
-            firm: caller.company!.name,
-            tier: result.listing.tier,
-            emailed: mail === 'EMAILED',
-            kept: mail === 'KEPT',
-          }) + (terms.says ? ` ${terms.says}` : ''),
-        },
+    const firm = { id: companyId, name: caller.company!.name }
+    const out = await askOntoBench({
+      firm,
+      name,
+      email,
+      by: { personId: caller.person.id },
+      tier: tier as 'RETAINED' | 'MARKETING',
+      rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
+      rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
+      statedTerms: { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
+      newProfile: {
+        headline,
+        skills,
+        location,
+        workAuth,
+        rateFloor: rateFloor != null ? parseInt(String(rateFloor), 10) : null,
+        availableFrom: availableFrom ? new Date(availableFrom) : null,
       },
-      { status: 201 }
-    )
-  } catch (err: any) {
-    if (err?.message === 'PROFILE_EXISTS') {
+    })
+
+    if (out.kind === 'NOTHING') {
+      return NextResponse.json(
+        { error: { code: out.path, message: addRefusalSays(out.path, out.person.name, firm.name), field: 'email' } },
+        { status: 409 }
+      )
+    }
+    if (out.kind === 'REFUSED') {
+      return NextResponse.json(
+        { error: { code: out.code, message: out.says, field: out.field } },
+        { status: 422 }
+      )
+    }
+    if (out.kind === 'RACED') {
       return NextResponse.json(
         { error: { code: 'ADDED_A_MOMENT_AGO', message: 'That address got a record a moment ago. Add them again and they are asked onto your bench on the record they have.', field: 'email' } },
         { status: 409 }
       )
     }
-    if (err?.code === 'P2002') {
-      const target = err?.meta?.target
-      if (target?.includes('primaryEmail')) {
-        return NextResponse.json(
-          { error: { code: 'DUPLICATE_EMAIL', message: 'A person with this email already exists', field: 'email' } },
-          { status: 409 }
-        )
-      }
-      if (target?.includes('consultantId') && target?.includes('companyId')) {
-        return NextResponse.json(
-          { error: { code: 'LISTING_EXISTS', message: 'A bench listing already exists for this consultant at this company' } },
-          { status: 409 }
-        )
-      }
+
+    const listing = {
+      id: out.listing.id,
+      tier: out.listing.tier,
+      rateMin: out.listing.rateMin,
+      rateMax: out.listing.rateMax,
+      status: out.listing.state,
+      termsEngagementType: out.listing.termsEngagementType,
+      termsPayRateCents: out.listing.termsPayRateCents,
+      termsStatedAt: out.listing.termsStatedAt?.toISOString() ?? null,
+      termsAgreedAt: null,
     }
-    reportError('Consultant creation failed:', err)
-    return NextResponse.json(
-      { error: { code: 'INTERNAL', message: 'Consultant creation failed. Please try again.' } },
-      { status: 500 }
-    )
-  }
-}
+    const person = { id: out.person.id, name: out.person.name, email: out.person.primaryEmail }
+    const termsSays = out.termsSays ? ` ${out.termsSays}` : ''
 
-/**
- * "Add consultant" for somebody who already has a record: the bench's
- * invitation, on that record. The same rule as `POST /api/bench/listings`
- * — a live ask or a yes is not asked again, a no stands, a listing taken
- * back is asked afresh — and the same log line, so the firm hears the
- * answer the same way (`tellTheFirm` reads `requestedBy`).
- */
-async function askExisting(o: {
-  caller: CallerContext
-  companyId: string
-  person: { id: string; name: string; primaryEmail: string | null }
-  profile: {
-    id: string
-    rateFloor: number | null
-    ownCompany: { id: string; name: string } | null
-    listings: { id: string; state: string; revokedAt: Date | null }[]
-  }
-  body: Record<string, unknown>
-  tier: string
-  rateMin: unknown
-  rateMax: unknown
-}) {
-  const { caller, companyId, person, profile } = o
-  const firm = caller.company!.name
-  const listing = profile.listings[0] ?? null
-  const path = addPath({ profileExists: true, listing })
-  const refusal = addRefusalSays(path, person.name, firm)
-  if (refusal) {
-    return NextResponse.json(
-      { error: { code: path, message: refusal, field: 'email' } },
-      { status: 409 }
-    )
-  }
-
-  // The floor is the person's own; no ask goes out below it.
-  const max = o.rateMax != null ? parseInt(String(o.rateMax), 10) : null
-  const min = o.rateMin != null ? parseInt(String(o.rateMin), 10) : null
-  if (profile.rateFloor != null && max != null && max < profile.rateFloor) {
-    return NextResponse.json(
-      { error: { code: 'BELOW_RATE_FLOOR', message: `The top of that range is below the lowest rate ${person.name} has said they will take.`, field: 'rateMax' } },
-      { status: 422 }
-    )
-  }
-
-  const terms = listingTermsFrom(
-    { engagementType: o.body.termsEngagementType, payRateCents: o.body.termsPayRateCents },
-    { personName: person.name, firmName: firm, ownCompany: profile.ownCompany ?? null, statedById: caller.person.id, now: new Date() }
-  )
-  if (!terms.ok) {
-    return NextResponse.json({ error: { code: terms.code, message: terms.says, field: terms.field } }, { status: 422 })
-  }
-
-  try {
-    const again = path === 'ASK_AGAIN'
-    const asked = await prisma.$transaction(async (tx) => {
-      const data = {
-        tier: o.tier as 'RETAINED' | 'MARKETING',
-        rateMin: min,
-        rateMax: max,
-        ...invitation(new Date()),
-        ...terms.fields,
-      }
-      const row = again
-        ? await tx.benchListing.update({
-            where: { id: listing!.id },
-            // Asked again, not restored: revoking is never a suggestion.
-            data: { ...data, revokedAt: null, declinedNote: null },
-          })
-        : await tx.benchListing.create({ data: { consultantId: profile.id, companyId, ...data } })
-      await tx.automationLog.create({
-        data: {
-          companyId,
-          action: 'BENCH_LISTING_REQUESTED',
-          summary: `${o.tier} bench listing requested for "${person.name}", who already has a record. Pending their answer.`,
-          reason: 'Add consultant with the address of somebody already on Etyme: asked on their own record, never a second one.',
-          payload: {
-            listingId: row.id,
-            consultantId: profile.id,
-            personId: person.id,
-            requestedBy: caller.person.id,
-            tier: o.tier,
-            fromAddConsultant: true,
-            termsEngagementType: terms.fields.termsEngagementType,
-            termsPayRateCents: terms.fields.termsPayRateCents,
+    if (out.path !== 'NEW') {
+      const again = out.path === 'ASK_AGAIN'
+      return NextResponse.json(
+        {
+          data: {
+            asked: true,
+            consultant: { id: out.profile.id, personId: out.person.id, person },
+            listing,
+            message: askedExistingSays({ name: out.person.name, firm: firm.name, emailed: out.mail === 'EMAILED', kept: out.mail === 'KEPT', again }) + termsSays,
           },
-          reversible: true,
         },
-      })
-      return row
-    })
-
-    const url = inviteUrl(asked.id)
-    const msg = inviteText({ personName: person.name, vendorName: firm, url, terms: termsShown(asked, firm) })
-    const mail = await askByEmail({
-      companyId, personId: person.id, to: person.primaryEmail, url,
-      subject: msg.subject, body: msg.body, listingId: asked.id,
-    })
+        { status: again ? 200 : 201 }
+      )
+    }
 
     return NextResponse.json(
       {
         data: {
-          asked: true,
-          consultant: { id: profile.id, personId: person.id, person: { id: person.id, name: person.name, email: person.primaryEmail } },
-          listing: {
-            id: asked.id,
-            tier: asked.tier,
-            rateMin: asked.rateMin,
-            rateMax: asked.rateMax,
-            status: asked.state,
-            termsEngagementType: asked.termsEngagementType,
-            termsPayRateCents: asked.termsPayRateCents,
-            termsStatedAt: asked.termsStatedAt?.toISOString() ?? null,
-            termsAgreedAt: null,
+          consultant: {
+            id: out.profile.id,
+            personId: out.person.id,
+            person,
+            headline: out.profile.headline,
+            skills: out.profile.skills,
+            location: out.profile.location,
+            workAuth: out.profile.workAuth,
+            availableFrom: out.profile.availableFrom?.toISOString() ?? null,
+            visibility: out.profile.visibility,
           },
-          message: askedExistingSays({ name: person.name, firm, emailed: mail === 'EMAILED', kept: mail === 'KEPT', again }) + (terms.says ? ` ${terms.says}` : ''),
+          listing,
+          // What adding them did, in a sentence: the ask went, and nothing
+          // reaches past the firm until they say yes.
+          message: addedSays({
+            name: out.person.name,
+            firm: firm.name,
+            tier: out.listing.tier,
+            emailed: out.mail === 'EMAILED',
+            kept: out.mail === 'KEPT',
+          }) + termsSays,
         },
       },
-      { status: again ? 200 : 201 }
+      { status: 201 }
     )
   } catch (err) {
-    reportError('Asking an existing person onto a bench failed:', err)
+    reportError('Asking somebody onto the bench failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'The ask did not go out. Please try again.' } },
       { status: 500 }

@@ -176,7 +176,9 @@ describe('no route creates a bench listing without asking', () => {
   const ROOT = process.cwd()
   const CREATORS = [
     'src/app/api/bench/listings/route.ts',
-    'src/app/api/consultants/route.ts',
+    // Add consultant and the public page's Join the bench both ask
+    // through this one function (2026-10-29).
+    'src/lib/consultant-portfolio/bench-ask.ts',
   ]
 
   it('finds the routes it is meant to be checking', () => {

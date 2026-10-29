@@ -20,16 +20,18 @@ describe('1 · a firm asks somebody who already has an account, never makes a se
   it('a firm asks a person who already has an account onto its bench with the same yes, and never makes a second record of her', () => {
     expect(addPath({ profileExists: true, listing: null })).toBe('ASK_EXISTING')
     expect(addRefusalSays('ASK_EXISTING', 'Maya Brooks', 'Brightmoor Staffing')).toBeNull()
+    // Since 2026-10-29 the ask is one function both doors call
+    // (`askOntoBench`): the existing record is read before anything is
+    // made, and the ask is the bench's own invitation on it.
     const route = read('src/app/api/consultants/route.ts')
-    // The existing record is read before anything is made, and the ask is
-    // the bench's own invitation on it.
-    expect(route.indexOf('askExisting({')).toBeLessThan(route.indexOf('tx.person.create'))
-    const ask = route.slice(route.indexOf('async function askExisting'))
+    expect(route).toContain('askOntoBench({')
+    const ask = read('src/lib/consultant-portfolio/bench-ask.ts')
+    expect(ask.indexOf('prisma.person.findUnique')).toBeLessThan(ask.indexOf('tx.person.create'))
+    expect(ask).toContain('existing ??')
     expect(ask).toContain('...invitation(new Date())')
     expect(ask).toContain("action: 'BENCH_LISTING_REQUESTED'")
-    expect(ask).toContain('requestedBy: caller.person.id')
-    expect(ask).not.toContain('consultantProfile.create')
-    expect(ask).not.toContain('person.create')
+    expect(ask).toContain('requestedBy: o.by?.personId ?? null')
+    expect(ask).toContain('profile\n        ? { ...profile')
     expect(ask).not.toContain('context.create')
     expect(route).not.toContain('A consultant profile already exists for this person')
   })
@@ -295,11 +297,11 @@ describe('8 · second walk: refusals shown, pay never a bill rate, mail said as 
     const sender = read('src/app/api/consultants/ask-by-email.ts')
     expect(sender).toContain("body: recordedBody(lines, o.url, 'NOT_CONFIGURED'),")
     expect(sender).toContain('mailOn: configured()')
-    for (const f of ['src/app/api/consultants/route.ts', 'src/app/api/bench/listings/route.ts']) {
+    for (const f of ['src/lib/consultant-portfolio/bench-ask.ts', 'src/app/api/bench/listings/route.ts']) {
       const src = read(f)
       expect(src, f).toContain('await askByEmail({')
       expect(src, f).not.toContain('void send({')
     }
-    expect(read('src/app/api/consultants/route.ts')).toContain("emailed: mail === 'EMAILED',")
+    expect(read('src/app/api/consultants/route.ts')).toContain("emailed: out.mail === 'EMAILED',")
   })
 })
