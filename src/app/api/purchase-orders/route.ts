@@ -12,6 +12,7 @@ import { linesForReader } from '@/lib/money/order-lines-read'
 import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
+import { orderIsTheirsSays } from '@/lib/money/order-raiser'
 import { suppliersOf } from '@/lib/suppliers-of'
 import { supplierStanding } from '@/lib/counterparty'
 import { nounFor, referenceFor, sideOf } from '@/lib/order-naming'
@@ -444,8 +445,19 @@ export async function POST(request: NextRequest) {
     ...(recordingForBuyer ? {} : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId) }),
   })
   if (!allowed.ok) {
+    // A seller recording the order of a buyer that is on Etyme: the order
+    // is the buyer's to raise, and the refusal names who at the buyer may
+    // — read off the buyer's own roles, never "their MSP or AP clerk",
+    // which a prime supplier does not have (the Tapin walk, 2026-10-29).
+    const theirsToRaise = recordingForBuyer && seller.id === companyId && buyer.claimedAt != null && buyer.id !== seller.id
+    const says = theirsToRaise
+      ? orderIsTheirsSays({
+          buyerName: buyer.name,
+          roles: await prisma.role.findMany({ where: { companyId: buyer.id }, select: { name: true, permissions: true } }),
+        })
+      : allowed.says
     return NextResponse.json(
-      { error: { code: 'NOT_YOURS', message: allowed.says, field: recordingForBuyer ? 'issuedById' : 'issuedToId' } },
+      { error: { code: 'NOT_YOURS', message: says, field: recordingForBuyer ? 'issuedById' : 'issuedToId' } },
       { status: 403 }
     )
   }

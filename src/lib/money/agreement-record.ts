@@ -259,3 +259,49 @@ export function mayRecordAgreement(input: {
         : `${other.name} is not on Etyme, so it is your record of it until they join.`),
   }
 }
+
+// ── Signing on screen ────────────────────────────────────────────────
+
+/**
+ * Whether this reader is offered "Record a signature" on an agreement
+ * row, which side is still to sign, and what is said where it is not.
+ *
+ * The Tapin walk, 2026-10-29: an agreement could be recorded and never
+ * signed on any screen, though the form said each side's signature is
+ * recorded afterwards. The signature route
+ * (`POST /api/program/agreements/[id]/sign`) records both sides, by the
+ * supplier's seat holding `rates.write` or `settings.manage` — the seat
+ * that holds the paper — and writes `MasterAgreement.signedAt` on the
+ * later of the two when the second (the countersignature) is in. The
+ * button follows exactly that rule, so the screen never offers what the
+ * route refuses.
+ */
+export type SignOffer =
+  | { offer: true; sides: Array<'VENDOR' | 'CLIENT'>; says: string }
+  | { offer: false; says: string | null }
+
+export function signOfferFor(a: {
+  /** This reader's side: VENDOR where they sell under it. */
+  role: 'VENDOR' | 'CLIENT'
+  counterpartyName: string
+  signedParties: readonly string[]
+  /** `rates.write` or `settings.manage`, as the sign route asks. */
+  holdsTheDesk: boolean
+  ended?: boolean
+}): SignOffer {
+  const missing = (['VENDOR', 'CLIENT'] as const).filter((p) => !a.signedParties.includes(p))
+  if (missing.length === 0) return { offer: false, says: null }
+  if (a.ended) return { offer: false, says: 'This agreement was ended, so nothing more is signed on it.' }
+  if (a.role === 'CLIENT') {
+    return { offer: false, says: `${a.counterpartyName} records the signatures, both sides, from the copy it holds.` }
+  }
+  if (!a.holdsTheDesk) {
+    return { offer: false, says: 'Your contract manager, an admin or the owner records the signatures.' }
+  }
+  const says = missing.length === 2
+    ? 'Record each side’s signature as it is on the paper: the second one is the countersignature.'
+    : missing[0] === 'CLIENT'
+      ? `Your side is signed. Record ${a.counterpartyName}’s countersignature.`
+      : `${a.counterpartyName} signed. Record your countersignature.`
+  return { offer: true, sides: [...missing], says }
+}

@@ -103,7 +103,8 @@ describe('the money screens read who is actually here', () => {
         })
       )
     )
-    expect(body.error.message).toMatch(/ask their MSP or AP clerk/i)
+    // Names who at the client raises it, from the client's own roles (the Tapin walk, 2026-10-29).
+    expect(body.error.message).toMatch(/Ask .+ to raise it\./)
   })
 
   it('still lets a supplier record the order a client that is not here handed it on paper', async () => {

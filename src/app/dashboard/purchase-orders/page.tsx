@@ -6,7 +6,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton } from '@/components/ui'
-import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
+import { lineName, type LineSide, type OrderSide } from '@/lib/order-naming'
+import { lineDoesForReader } from '@/lib/money/order-line-words'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { useSession } from '@/components/session-provider'
@@ -510,9 +511,10 @@ function Lines({ po }: { po: PO }) {
               <span className="text-etyme-faint text-[11px] mr-1.5 tabular-nums">{i + 1}</span>
               {lineName({ side: l.side, personName: l.personName, siteName: l.siteName })}
               <span className="text-[11px] text-etyme-muted ml-2">
-                {lineDoes(
+                {lineDoesForReader(
                   { side: l.side, personName: l.personName, paidToName: l.paidToName },
-                  po.side
+                  po.side,
+                  po.counterparty.name
                 )}
               </span>
             </span>

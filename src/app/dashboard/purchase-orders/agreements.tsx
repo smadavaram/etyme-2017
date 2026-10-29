@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { firmsToPick, LINK_FIRST_SAYS, LINK_FIRST_HREF } from '@/lib/money/firm-picker'
 import type { OrderTerms } from '@/lib/money/order-terms'
+import { signOfferFor } from '@/lib/money/agreement-record'
 import { Chip, Field, FormMessage, Input, Lbl, Panel, Select, SubmitButton, ErrorState } from '@/components/ui'
 
 /**
@@ -29,8 +30,16 @@ interface AgreementRow {
   role: 'VENDOR' | 'CLIENT'
   counterparty: { id: string; name: string }
   terms: { paymentTermsDays: number; paymentTermsSays?: string; currency: string; signedAt: string | null }
+  status?: string
   statusSays?: string
   signatures?: Array<{ party: string }>
+  /** Where the list route actually puts them (GET /api/program/agreements). */
+  signing?: { signatures?: Array<{ party: string }> }
+}
+
+/** Each side's signature on file, read where the list route puts them. */
+function signedParties(a: AgreementRow): string[] {
+  return (a.signing?.signatures ?? a.signatures ?? []).map((s) => s.party)
 }
 
 const FROM_WORDS: Record<string, string> = {
@@ -91,21 +100,30 @@ export function Agreements({ mayRecord, selfCompanyId }: { mayRecord: boolean; s
       {rows && rows.length > 0 && (
         <ul className="space-y-2">
           {rows.map((a) => (
-            <li key={a.id} className="panel flex items-baseline justify-between gap-3">
-              <span className="text-[13px] text-etyme-ink">
-                {a.counterparty.name}
-                <span className="ml-2 text-[12px] text-etyme-muted">
-                  {a.role === 'VENDOR' ? 'you sell to them' : 'you buy from them'}
-                  {' · '}net {a.terms.paymentTermsDays} · {a.terms.currency}
+            <li key={a.id} className="panel">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] text-etyme-ink">
+                  {a.counterparty.name}
+                  <span className="ml-2 text-[12px] text-etyme-muted">
+                    {a.role === 'VENDOR' ? 'you sell to them' : 'you buy from them'}
+                    {' · '}net {a.terms.paymentTermsDays} · {a.terms.currency}
+                  </span>
                 </span>
-              </span>
-              <Chip tone={a.terms.signedAt ? 'verified' : 'attention'}>
-                {a.terms.signedAt
-                  ? 'Signed by both'
-                  : (a.signatures?.length ?? 0) === 1
-                    ? 'One side signed'
-                    : 'Not signed yet'}
-              </Chip>
+                <Chip tone={a.terms.signedAt ? 'verified' : 'attention'}>
+                  {a.terms.signedAt
+                    ? 'Signed by both'
+                    : signedParties(a).length === 1
+                      ? 'One side signed'
+                      : 'Not signed yet'}
+                </Chip>
+              </div>
+              {!a.terms.signedAt && (
+                <SignRow
+                  row={a}
+                  holdsTheDesk={mayRecord}
+                  onSigned={(says) => { setFlash(says); load() }}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -246,5 +264,109 @@ function RecordAgreement({ onRecorded, selfCompanyId }: { onRecorded: (says: str
         Record it
       </SubmitButton>
     </Panel>
+  )
+}
+
+const SIDE_WORDS: Record<'VENDOR' | 'CLIENT', string> = {
+  VENDOR: 'The supplier’s side',
+  CLIENT: 'The client’s side',
+}
+
+/**
+ * Record a signature, and with the second one the countersignature, on
+ * the agreement's own row, for the seat the signature route lets record
+ * it (`signOfferFor` in lib/money/agreement-record). Name, title, the
+ * date on the paper and how it was signed, as `AgreementSignature`
+ * records each side.
+ */
+function SignRow({ row, holdsTheDesk, onSigned }: { row: AgreementRow; holdsTheDesk: boolean; onSigned: (says: string) => void }) {
+  const offer = signOfferFor({
+    role: row.role,
+    counterpartyName: row.counterparty.name,
+    signedParties: signedParties(row),
+    holdsTheDesk,
+    ended: row.status === 'TERMINATED',
+  })
+  const [open, setOpen] = useState(false)
+  const [party, setParty] = useState<'' | 'VENDOR' | 'CLIENT'>('')
+  const [signerName, setSignerName] = useState('')
+  const [signerTitle, setSignerTitle] = useState('')
+  const [signedAt, setSignedAt] = useState('')
+  const [method, setMethod] = useState('WET_INK')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!offer.offer) {
+    return offer.says ? <p className="text-[12px] text-etyme-muted mt-1.5">{offer.says}</p> : null
+  }
+  const side = party || offer.sides[0]
+
+  async function sign() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/program/agreements/${row.id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ party: side, signerName, signerTitle, signedAt, method }),
+      })
+      const body = await readJson(res)
+      setOpen(false)
+      onSigned(body.data.says)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <p className="text-[12px] text-etyme-muted">{offer.says}</p>
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="btn-secondary text-[13px] mt-1.5">
+          Record a signature
+        </button>
+      ) : (
+        <div className="mt-2">
+          {error && <div className="mb-2"><ErrorState says={error} /></div>}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {offer.sides.length > 1 && (
+              <Field label="Which side signed">
+                <Select value={side} onChange={(e) => setParty(e.target.value as 'VENDOR' | 'CLIENT')}>
+                  {offer.sides.map((p) => <option key={p} value={p}>{SIDE_WORDS[p]}</option>)}
+                </Select>
+              </Field>
+            )}
+            <Field label="Who signed">
+              <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+            </Field>
+            <Field label="Their title">
+              <Input value={signerTitle} onChange={(e) => setSignerTitle(e.target.value)} />
+            </Field>
+            <Field label="Date on the paper">
+              <Input value={signedAt} onChange={(e) => setSignedAt(e.target.value)} type="date" />
+            </Field>
+            <Field label="How it was signed">
+              <Select value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="WET_INK">On paper</option>
+                <option value="ELECTRONIC">Electronically</option>
+                <option value="COUNTERPART">In counterparts</option>
+              </Select>
+            </Field>
+          </div>
+          <SubmitButton
+            type="button"
+            onClick={sign}
+            pending={busy}
+            pendingLabel="Recording…"
+            disabled={!signerName.trim() || !signerTitle.trim() || !signedAt}
+            className="mt-3"
+          >
+            Record the signature
+          </SubmitButton>
+        </div>
+      )}
+    </div>
   )
 }

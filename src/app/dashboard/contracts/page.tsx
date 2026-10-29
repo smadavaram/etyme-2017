@@ -25,6 +25,7 @@ import {
 import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
+import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 
 /**
  * The documents, and their lines.
@@ -326,10 +327,14 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
           setSuppliers(Array.from(seen.entries()).map(([id, name]) => ({ id, name })))
         }
 
-        // Get user's company ID
+        // The caller's company, read where every other page reads it:
+        // the seat in use, else the first seat. `/api/me` has never
+        // returned a bare companyId, so the old read was null for every
+        // firm and the form refused to record anything (Tapin walk,
+        // 2026-10-29). `callerCompanyIdFromMe` says which field.
         if (meRes.ok) {
           const meBody = await meRes.json()
-          setCompanyId(meBody.data?.companyId ?? meBody.data?.membership?.companyId ?? null)
+          setCompanyId(callerCompanyIdFromMe(meBody))
         }
 
         // Get consultants for dropdown

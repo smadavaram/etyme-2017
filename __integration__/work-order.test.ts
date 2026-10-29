@@ -375,7 +375,8 @@ describe('the purchase order the client handed them', () => {
     )
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('theirs to raise')
-    expect(r.body.error.message).toContain('Ask their MSP or AP clerk')
+    // Who at the client raises it, read off the client's own roles (the Tapin walk, 2026-10-29).
+    expect(r.body.error.message).toMatch(/Ask .+ to raise it\./)
   })
 
   it('a firm that is neither end of the deal cannot write the order at all', async () => {

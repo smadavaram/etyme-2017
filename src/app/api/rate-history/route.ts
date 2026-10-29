@@ -9,6 +9,8 @@ import { proposeBackPay } from '@/lib/money/back-pay'
 import { tellWorkerOfPayChange } from '@/lib/money/pay-change-notice'
 import { lineFor, settleApproved } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
+import { ownPayLineWhere } from '@/lib/money/paid-through'
+import { ownCompanyIdsOf } from '@/lib/money/own-companies'
 
 /**
  * Who may read what a placement has been priced at.
@@ -127,8 +129,11 @@ export async function GET(request: NextRequest) {
           }),
       canSeeBuy
         ? prisma.buyContract.findMany({
+            // The line that pays them and no rung above it, even where the
+            // rung below has not written its own line yet (the Tapin walk,
+            // 2026-10-29): lib/money/paid-through.
             where: own
-              ? { candidates: { some: { personId: caller.person.id } }, supplierSellContractId: null }
+              ? ownPayLineWhere(caller.person.id, await ownCompanyIdsOf(caller.person.id))
               : { companyId: companyId! },
             select: {
               id: true,
@@ -301,7 +306,7 @@ export async function GET(request: NextRequest) {
   } else {
     const bc = await prisma.buyContract.findFirst({
       where: ownSeat
-        ? { id: contractId, supplierSellContractId: null, candidates: { some: { personId: caller.person.id } } }
+        ? { id: contractId, ...ownPayLineWhere(caller.person.id, await ownCompanyIdsOf(caller.person.id)) }
         : { id: contractId, companyId: caller.company?.id },
     })
     if (!bc) {

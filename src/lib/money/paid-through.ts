@@ -99,3 +99,44 @@ export function ownCompanyBillsSays(a: {
   return `${w}, ${h}, accepted by ${a.buyerName} and ready for ${seller} to bill. ` +
     `${a.buyerName} pays ${seller}’s invoice${terms}; it does not pay you wages.`
 }
+
+// ── The worker's own pay line, and no rung above it ─────────────────
+
+/**
+ * Whether a buy line naming this person is the line that pays them — the
+ * only line whose rate their own page may show.
+ *
+ * Every rung of a chain writes a `BuyContractCandidate` with the person's
+ * name on it, and at every rung but the bottom its `payRate` is what one
+ * firm pays another for that person's hours: a price between two firms
+ * the worker is not party to. The old test was `supplierSellContractId
+ * === null` alone, which holds the rung below closed only once the rung
+ * below has written its own sell line. Where it has not yet — Brightmoor's
+ * buy line to Tapin before Tapin's line exists — the prime's price to the
+ * sub read as the worker's pay: Ravi, Tapin's W2 at $45, read "paid by
+ * Brightmoor Staffing · $100/hr" (the Tapin walk, 2026-10-29).
+ *
+ * So the line is the worker's own only where nobody stands between: no
+ * supplier's contract behind it, and the firm it buys from, if any, is
+ * the worker's own company (corp to corp through her LLC). A line that
+ * buys from any other firm is a price between firms, withheld whether or
+ * not the rung below has written its side yet.
+ */
+export function isWorkersOwnPayLine(line: PayLineShape, ownCompanyIds: readonly string[]): boolean {
+  if (line.supplierSellContractId) return false
+  if (line.vendorCompanyId && !ownCompanyIds.includes(line.vendorCompanyId)) return false
+  return true
+}
+
+/**
+ * The same rule as a database filter, for a reader that asks Prisma for
+ * a worker's own buy lines (`BuyContract` where-clause). `personId` is the
+ * worker; `ownCompanyIds` as above.
+ */
+export function ownPayLineWhere(personId: string, ownCompanyIds: readonly string[]) {
+  return {
+    candidates: { some: { personId } },
+    supplierSellContractId: null,
+    OR: [{ vendorCompanyId: null }, ...(ownCompanyIds.length ? [{ vendorCompanyId: { in: [...ownCompanyIds] } }] : [])],
+  }
+}
