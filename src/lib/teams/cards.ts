@@ -109,6 +109,30 @@ export interface BillSendFacts {
   link: string | null
 }
 
+/**
+ * A bench person Ask Etyme would put forward (`bench.put_forward`,
+ * 2026-10-29), as Teams shows it. The question, the match's reasons and
+ * the band are the web card's own words. There is no yes in Teams: the
+ * submission goes out in the recruiter's name from their own signed-in
+ * session, so the card says the route's own sentence (PUT_FORWARD_SIGNED_IN)
+ * and opens Ask Etyme on the web.
+ */
+export interface PutForwardFacts {
+  approvalId: string
+  /** "Put Felix Brenner forward for Java Developer at Northbend Athletic?" */
+  question: string
+  /** "Match 84 of 100, high confidence." Null where the reasons are not whole, so no score is shown. */
+  scoreSays: string | null
+  whyRows: { label: string; value: string }[]
+  bandSays: string
+  /** The approval route's sentence for a yes from Teams, word for word. */
+  signedIn: string
+  /** Ask Etyme on the web, where the rate is entered. */
+  link: string | null
+  ruleCited: string
+  rationale: string
+}
+
 /** What "Keep it as a draft" records when the person gives no reason: true, and plain. */
 export const BILL_NOT_NOW_REASON = 'Not now, said in Teams with no reason given. The draft stays on the Bills page.'
 
@@ -290,6 +314,29 @@ export function billSendCard(f: BillSendFacts): Element {
   return adaptive([text(f.title, { weight: 'Bolder', size: 'Medium' }), ...billFacts(f)], billActions(f))
 }
 
+// ── A bench person to put forward ─────────────────────────────────────
+
+/** Open Ask Etyme · Why? There is no yes here: see PutForwardFacts. */
+export function putForwardActions(f: PutForwardFacts): Element[] {
+  return [
+    ...(f.link ? [{ type: 'Action.OpenUrl', title: 'Open Ask Etyme', url: f.link }] : []),
+    { type: 'Action.ShowCard', title: 'Why?', card: whyCard(f.ruleCited, f.rationale) },
+  ]
+}
+
+function putForwardFacts(f: PutForwardFacts): Element[] {
+  return [
+    ...(f.scoreSays ? [text(f.scoreSays, { isSubtle: true, spacing: 'Small' }), facts(f.whyRows.map((r) => [r.label, r.value]))] : []),
+    text(f.bandSays, { isSubtle: true }),
+    text(f.signedIn, { spacing: 'Medium' }),
+  ]
+}
+
+/** The put-forward card, sent on its own. */
+export function putForwardCard(f: PutForwardFacts): Element {
+  return adaptive([text(f.question, { weight: 'Bolder', size: 'Medium' }), ...putForwardFacts(f)], putForwardActions(f))
+}
+
 // ── The time limit ────────────────────────────────────────────────────
 
 export function tenureTitle(f: Pick<TenureAlertFacts, 'personName' | 'daysToLimit' | 'tier'>): string {
@@ -330,8 +377,10 @@ export function tenureAlertCard(f: TenureAlertFacts): Element {
 // ── The digest ────────────────────────────────────────────────────────
 
 /** "1 bill to send · 3 invoice receipts need approval · 1 contractor near the time limit", or null when there is nothing. */
-export function digestHeading(invoices: number, risks: number, bills = 0, of: { paying?: number; past?: number } = {}): string | null {
+export function digestHeading(invoices: number, risks: number, bills = 0, of: { paying?: number; past?: number; putForward?: number } = {}): string | null {
   const parts: string[] = []
+  const people = Math.max(0, of.putForward ?? 0)
+  if (people > 0) parts.push(`${people} ${people === 1 ? 'person' : 'people'} from your bench to put forward`)
   // A receipt the twin asks to pay is titled as paying, never as an approval
   // (walk four, 2026-10-26: "3 invoice receipts need approval" over "Pay …?").
   const paying = Math.min(invoices, Math.max(0, of.paying ?? 0))
@@ -348,10 +397,11 @@ export function digestHeading(invoices: number, risks: number, bills = 0, of: { 
 }
 
 /** The digest's heading from its own items: paying and approving told apart, past and near told apart. */
-export function digestHeadingOf(invoices: readonly Pick<InvoiceApprovalFacts, 'pay'>[], risks: readonly Pick<TenureAlertFacts, 'daysToLimit'>[], bills: readonly unknown[] = []): string | null {
+export function digestHeadingOf(invoices: readonly Pick<InvoiceApprovalFacts, 'pay'>[], risks: readonly Pick<TenureAlertFacts, 'daysToLimit'>[], bills: readonly unknown[] = [], putForward: readonly unknown[] = []): string | null {
   return digestHeading(invoices.length, risks.length, bills.length, {
     paying: invoices.filter((i) => i.pay).length,
     past: risks.filter((r) => r.daysToLimit < 0).length,
+    putForward: putForward.length,
   })
 }
 
@@ -359,10 +409,16 @@ export function digestHeadingOf(invoices: readonly Pick<InvoiceApprovalFacts, 'p
  * The nightly digest: one card, each item with its own buttons. Null
  * when there is nothing to say — an empty digest is never sent.
  */
-export function digestCard(invoices: readonly InvoiceApprovalFacts[], risks: readonly TenureAlertFacts[], bills: readonly BillSendFacts[] = []): Element | null {
-  const heading = digestHeadingOf(invoices, risks, bills)
+export function digestCard(invoices: readonly InvoiceApprovalFacts[], risks: readonly TenureAlertFacts[], bills: readonly BillSendFacts[] = [], putForward: readonly PutForwardFacts[] = []): Element | null {
+  const heading = digestHeadingOf(invoices, risks, bills, putForward)
   if (!heading) return null
   const body: Element[] = [text(heading, { weight: 'Bolder', size: 'Medium' })]
+  for (const f of putForward) {
+    body.push({
+      type: 'Container', separator: true, spacing: 'Medium',
+      items: [text(f.question, { weight: 'Bolder' }), ...putForwardFacts(f), { type: 'ActionSet', actions: putForwardActions(f) }],
+    })
+  }
   for (const f of bills) {
     body.push({
       type: 'Container', separator: true, spacing: 'Medium',

@@ -50,10 +50,10 @@ import { programManagerAt } from '@/lib/twin/run'
 import { teamsBotConfig } from '@/lib/teams/config'
 import { conversationFor, rememberConversation } from '@/lib/teams/store'
 import { openPersonalChat, sendToConversation } from '@/lib/teams/connector'
-import { asMessage, digestCard, digestHeadingOf, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
-import { INVOICE_APPROVE, INVOICE_PAY, RECEIPT_ACTS, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
+import { asMessage, digestCard, digestHeadingOf, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type PutForwardFacts, type TenureAlertFacts } from '@/lib/teams/cards'
+import { INVOICE_APPROVE, INVOICE_PAY, RECEIPT_ACTS, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, putForwardTeamsFacts, tenureAlertFacts } from '@/lib/teams/facts'
 import { waitingQuestions } from '@/lib/twin/ledger'
-import { BILL_SEND } from '@/app/api/conversations/twin/ask'
+import { BILL_SEND, PUT_FORWARD } from '@/app/api/conversations/twin/ask'
 
 /** The note on a digest the bot itself delivered, so /ready can count it. */
 export const TEAMS_BOT_SENT_NOTE = 'Sent by the Etyme bot in Teams'
@@ -119,6 +119,8 @@ export interface DigestFor {
   risks: TenureAlertFacts[]
   /** Bills Ask Etyme drafted that this person may send. */
   bills: BillSendFacts[]
+  /** Bench people Ask Etyme would put forward, for this person to answer on the web. */
+  putForward: PutForwardFacts[]
   keys: string[]
 }
 
@@ -128,20 +130,30 @@ export interface DigestFor {
  * owner-only exception's sentence where it applies. Never decided again
  * here, so the digest and the approval route cannot disagree.
  */
-async function billsFor(personId: string, companyId: string, permissions: readonly string[]): Promise<(BillSendFacts & { keys: DigestItemKey })[]> {
+async function billsFor(personId: string, companyId: string, permissions: readonly string[]): Promise<{
+  bills: (BillSendFacts & { keys: DigestItemKey })[]
+  putForward: (PutForwardFacts & { keys: DigestItemKey })[]
+}> {
   const [person, company] = await Promise.all([
     prisma.person.findUnique({ where: { id: personId }, select: { id: true, name: true } }),
     prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true, kind: true } }),
   ])
-  if (!person || !company) return []
+  if (!person || !company) return { bills: [], putForward: [] }
   const questions = await waitingQuestions({ person, company, permissions } as unknown as Parameters<typeof waitingQuestions>[0], { take: 200 })
-  const out: (BillSendFacts & { keys: DigestItemKey })[] = []
+  const bills: (BillSendFacts & { keys: DigestItemKey })[] = []
+  const putForward: (PutForwardFacts & { keys: DigestItemKey })[] = []
   for (const q of questions) {
-    if (q.action !== BILL_SEND || !q.mayDecide) continue
-    const f = await billSendFacts(q.id, companyId, q.askedYouBecause)
-    if (f) out.push({ ...f, keys: { key: `bill:${q.id}` } })
+    if (!q.mayDecide) continue
+    if (q.action === BILL_SEND) {
+      const f = await billSendFacts(q.id, companyId, q.askedYouBecause)
+      if (f) bills.push({ ...f, keys: { key: `bill:${q.id}` } })
+    } else if (q.action === PUT_FORWARD && company.kind !== 'CLIENT') {
+      // Said once, when it appears: a job sent is answered or it closes.
+      const f = await putForwardTeamsFacts(q.id, companyId)
+      if (f) putForward.push({ ...f, keys: { key: `put-forward:${q.id}` } })
+    }
   }
-  return out
+  return { bills, putForward }
 }
 
 /**
@@ -155,7 +167,7 @@ export async function digestFor(personId: string, companyId: string, opts: { all
     select: { role: { select: { permissions: true } } },
     orderBy: { grantedAt: 'desc' },
   })
-  if (!seat) return { invoices: [], risks: [], bills: [], keys: [] }
+  if (!seat) return { invoices: [], risks: [], bills: [], putForward: [], keys: [] }
   const me: Recipient = { personId, permissions: (seat.role?.permissions as string[] | undefined) ?? [] }
   const owner = await programManagerAt(companyId)
 
@@ -196,27 +208,30 @@ export async function digestFor(personId: string, companyId: string, opts: { all
 
   // Said once, when it appears: an unsent bill has no day after which it
   // cannot be fixed, so there is no second call.
-  const bills = await billsFor(personId, companyId, me.permissions)
+  const { bills, putForward } = await billsFor(personId, companyId, me.permissions)
 
   if (opts.all) {
-    return { invoices, risks, bills, keys: [] }
+    return { invoices, risks, bills, putForward, keys: [] }
   }
   const said = await alreadySaid(personId, companyId)
   const dueSoon = (f: { dueAt?: string | null }) => !!f.dueAt && new Date(f.dueAt).getTime() - now.getTime() <= LAST_CALL_DAYS * DAY
   const inv = toSay(invoices, said, dueSoon)
   const rk = toSay(risks, said, () => false)
   const bl = toSay(bills, said, () => false)
+  const pf = toSay(putForward, said, () => false)
   return {
     invoices: inv.map((x) => x.item),
     risks: rk.map((x) => x.item),
     bills: bl.map((x) => x.item),
-    keys: [...bl.flatMap((x) => x.keys), ...inv.flatMap((x) => x.keys), ...rk.flatMap((x) => x.keys)],
+    putForward: pf.map((x) => x.item),
+    keys: [...pf.flatMap((x) => x.keys), ...bl.flatMap((x) => x.keys), ...inv.flatMap((x) => x.keys), ...rk.flatMap((x) => x.keys)],
   }
 }
 
 /** The same digest as plain lines, for the channel or the email that stands in for the bot. */
-export function digestLines(d: Pick<DigestFor, 'invoices' | 'risks'> & Partial<Pick<DigestFor, 'bills'>>): string {
+export function digestLines(d: Pick<DigestFor, 'invoices' | 'risks'> & Partial<Pick<DigestFor, 'bills' | 'putForward'>>): string {
   const lines = [
+    ...(d.putForward ?? []).map((f) => `• ${f.question}`),
     ...(d.bills ?? []).map((f) => `• ${f.title}${f.askedYouBecause ? ` — ${f.askedYouBecause}` : ''}`),
     ...d.invoices.map((f) => `• ${invoiceTitle(f)}${f.variances.length ? ` — ${f.variances[0]}` : ''}`),
     ...d.risks.map((f) => `• ${tenureTitle(f)}`),
@@ -234,10 +249,10 @@ export interface TeamsDigestResult {
 /** Send one person their digest, by the bot where it can, else the existing notice. */
 async function sendDigest(personId: string, companyId: string, now: Date): Promise<TeamsDigestResult> {
   const d = await digestFor(personId, companyId, { now })
-  const heading = digestHeadingOf(d.invoices, d.risks, d.bills)
-  const card = digestCard(d.invoices, d.risks, d.bills)
+  const heading = digestHeadingOf(d.invoices, d.risks, d.bills, d.putForward)
+  const card = digestCard(d.invoices, d.risks, d.bills, d.putForward)
   if (!heading || !card) return { personId, via: 'NOTHING', items: 0 }
-  const items = d.invoices.length + d.risks.length + d.bills.length
+  const items = d.invoices.length + d.risks.length + d.bills.length + d.putForward.length
   const record = { saidKeys: d.keys, href: '/dashboard', twinDigest: true }
 
   const config = teamsBotConfig()
@@ -283,7 +298,7 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
   try {
     const owner = await programManagerAt(companyId)
     const needs = await prisma.twinApproval.findMany({
-      where: { companyId, decision: 'PENDING', twinAction: { action: { in: [...RECEIPT_ACTS, BILL_SEND] } } },
+      where: { companyId, decision: 'PENDING', twinAction: { action: { in: [...RECEIPT_ACTS, BILL_SEND, PUT_FORWARD] } } },
       select: { needsPermission: true },
       distinct: ['needsPermission'],
     })
@@ -317,8 +332,8 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
 /** For the person who asks the bot: their open items, said or not, as one card. */
 export async function cardForAsker(personId: string, companyId: string): Promise<Record<string, unknown> | null> {
   const d = await digestFor(personId, companyId, { all: true })
-  const card = digestCard(d.invoices, d.risks, d.bills)
-  const heading = digestHeadingOf(d.invoices, d.risks, d.bills)
+  const card = digestCard(d.invoices, d.risks, d.bills, d.putForward)
+  const heading = digestHeadingOf(d.invoices, d.risks, d.bills, d.putForward)
   return card && heading ? asMessage(card, heading) : null
 }
 

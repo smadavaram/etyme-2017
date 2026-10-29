@@ -12,7 +12,8 @@ import { deskOf } from '@/components/shell/sidebar-props'
 import {
   FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays, partyOf, questionsFor, placeholderFor,
   billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
-  payQuestion, payYesSays, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer,
+  payQuestion, payYesSays, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer, type RateAnswer,
+  putForwardQuestion, putForwardScoreSays, putForwardWhyRows, putForwardBandSays, putForwardPress, putForwardDoneSays,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
   type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
@@ -93,7 +94,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER' | 'OVERTAKEN'; number?: string } | { state: 'ERROR'; text: string }
 type Cards = Record<string, CardState>
 
-type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, answer?: PayAnswer | null) => void
+type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, answer?: PayAnswer | RateAnswer | null) => void
 
 /** The twin's numbers, the hours tolerance among them: the architect's rules page. */
 const RULES_HREF = '/dashboard/twin/rules'
@@ -266,7 +267,7 @@ export function AskEtyme() {
   }
 
   /** A yes or a no, through the one approval route; then the line that drew the card records it. */
-  const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string, answer?: PayAnswer | null) => {
+  const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string, answer?: PayAnswer | RateAnswer | null) => {
     setDeciding(item.approvalId)
     const { url, init } = decisionRequest(item.approvalId, decision, reason, answer)
     try {
@@ -284,7 +285,9 @@ export function AskEtyme() {
         kind: 'TEXT',
         says: item.bill
           ? `${decision === 'APPROVED' ? billSentSays(item.bill, number) : billKeptSays(item.bill)} Recorded under your name.`
-          : item.pay && decision === 'APPROVED' && answer?.reference
+          : item.putForward && decision === 'APPROVED' && answer && 'rateCents' in answer
+          ? putForwardDoneSays(item.putForward, answer.rateCents)
+          : item.pay && decision === 'APPROVED' && answer && 'reference' in answer && answer.reference
           ? paidSays(item.pay, answer.reference.trim())
           : `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
         links: [
@@ -718,6 +721,7 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
 
   if (item.bill) return <BillCard item={item} card={card} busy={busy} onDecide={onDecide} />
   if (item.pay) return <PayCard item={item} card={card} busy={busy} onDecide={onDecide} onLater={onLater} />
+  if (item.putForward) return <PutForwardCard item={item} card={card} busy={busy} onDecide={onDecide} onLater={onLater} />
 
   const done = card && card.state !== 'ERROR'
   return (
@@ -832,6 +836,91 @@ function PayCard({ item, card, busy, onDecide, onLater }: {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="btn-primary text-[13px]" disabled={busy}>{busy ? 'Recording…' : 'Yes, pay it'}</button>
+            <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(item)}>Not now</button>
+          </div>
+        </form>
+      )}
+      {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
+    </li>
+  )
+}
+
+/**
+ * Ask Etyme found somebody on the firm's own bench for a job the firm was
+ * sent (2026-10-29): "Put Felix Brenner forward for Java Developer at
+ * Northbend Athletic?" The match's score in one line, its reasons on tap
+ * (each factor, what it is based on, what it could not account for); the
+ * band the job was sent at; one box for the rate, which the recruiter
+ * types, because Ask Etyme never chooses one. Yes goes to the one approval
+ * route with the rate; a blank or unreadable box is refused here in the
+ * route's own sentence, before anything is sent. Not now changes nothing.
+ */
+function PutForwardCard({ item, card, busy, onDecide, onLater }: {
+  item: WaitingItem
+  card?: CardState
+  busy: boolean
+  onDecide: Decide
+  onLater: (item: WaitingItem) => void
+}) {
+  const f = item.putForward!
+  const [rate, setRate] = useState('')
+  const [refused, setRefused] = useState<string | null>(null)
+  const done = card && card.state !== 'ERROR'
+  const id = `rate-${item.approvalId}`
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{putForwardQuestion(f)}</p>
+      {f.why ? (
+        <details className="mt-0.5 text-[12.5px] text-etyme-muted">
+          <summary className="cursor-pointer">{putForwardScoreSays(f.why)} Why?</summary>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+            {putForwardWhyRows(f.why).map((r, i) => (
+              <div key={i} className="contents">
+                <dt className="text-etyme-faint">{r.label}</dt>
+                <dd>{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : (
+        <p className="mt-0.5 text-[12.5px] text-etyme-muted">The match’s reasons are not on the record, so no score is shown.</p>
+      )}
+      <p className="mt-0.5 text-[12.5px] text-etyme-muted">{putForwardBandSays(f)}</p>
+      <Links links={[{ label: `Open ${item.title}`, href: item.href }]} />
+      {done ? (
+        <p className="mt-2">
+          <span className={`chip ${card.state === 'APPROVED' ? 'chip--verified' : 'chip--passive'}`}>
+            {card.state === 'APPROVED' ? 'Put forward' : card.state === 'OVERTAKEN' ? 'Closed' : 'Kept waiting'}
+          </span>
+          {card.state === 'LATER' && <span className="ml-2 text-[12.5px] text-etyme-muted">Nobody was put forward. Ask “What needs me today?” to see it again.</span>}
+          {card.state === 'OVERTAKEN' && <span className="ml-2 text-[12.5px] text-etyme-muted">The record moved on before anybody answered, so there is nothing to put forward.</span>}
+        </p>
+      ) : (
+        <form
+          className="mt-3 flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const press = putForwardPress(item, rate)
+            if (!press.ok) { setRefused(press.says); return }
+            onDecide(item, 'APPROVED', null, { rateCents: press.rateCents })
+          }}
+        >
+          <label htmlFor={id} className="text-[12.5px] text-etyme-muted">Your rate, an hour</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id={id}
+              inputMode="decimal"
+              className="max-w-[10rem] text-[13px]"
+              value={rate}
+              maxLength={12}
+              placeholder="85.00"
+              onChange={(e) => { setRate(e.target.value); setRefused(null) }}
+              aria-describedby={refused ? `${id}-refused` : undefined}
+            />
+            {refused && <span id={`${id}-refused`} className="text-[12.5px] text-etyme-danger">{refused}</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="btn-primary text-[13px]" disabled={busy}>{busy ? 'Recording…' : 'Yes, put them forward'}</button>
             <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(item)}>Not now</button>
           </div>
         </form>

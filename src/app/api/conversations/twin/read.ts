@@ -43,10 +43,30 @@ import { GET as complianceRoute } from '@/app/api/compliance/route'
 import { labelFor } from '@/lib/document-type'
 import { maySendBills } from '@/lib/money/bill-send'
 import { billsDueToday } from './bill-due'
+import { NEEDS_RATE, PUT_FORWARD_SIGNED_IN } from '@/lib/twin/supplier-performers'
+import { mayChasePaper } from '@/lib/setup-gates'
+import { workerPartyAt } from '@/lib/document-stages/chase-gate'
+
+/** The route's own sentences, carried on the put-forward card so it never retypes them. */
+const PUT_FORWARD_SENTENCES = { needsRate: NEEDS_RATE, signedIn: PUT_FORWARD_SIGNED_IN } as const
+
+/**
+ * Whether an act is asked only of a firm that sells people. Such a
+ * question is never drawn for a client's seat, whatever row it sits on:
+ * a client's greeting never carries a supplier's cards.
+ */
+function suppliersOnly(action: string): boolean {
+  const kinds = TWIN_ACTS[action]?.kinds
+  return !!kinds && kinds.length > 0 && kinds.every((k) => k === 'SUPPLIER')
+}
+
+/** How far back a refused start-papers ask is still said: the nightly run writes one a week (lib/twin/supplier-run). */
+const PAPERS_GATE_DAYS = 7
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
+  putForwardFromPayload, putForwardItemTitle, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
   type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
@@ -218,9 +238,11 @@ export function readersFor(
       // One card per receipt: where the twin asked to pay a receipt, an
       // `approve` question still open on it is not drawn beside it.
       const toPay = new Set(rows.filter((r) => r.twinAction.action === RECEIPT_PAY).map((r) => r.twinAction.entityId))
+      const client = caller.company?.kind === 'CLIENT'
       const mine = rows.filter((r) => {
         const p = asRecord(r.twinAction.payload)
         if (r.twinAction.action === RECEIPT_APPROVE && toPay.has(r.twinAction.entityId)) return false
+        if (client && suppliersOnly(r.twinAction.action)) return false
         if (!hasPermission(caller.permissions, r.needsPermission as Permission)) return false
         if (askedYou.has(r.id)) return true
         return r.twinAction.authorityPersonId !== caller.person.id &&
@@ -245,7 +267,9 @@ export function readersFor(
         // A drafted bill to send is this firm's own bill, never an invoice
         // receipt: the card reads it from the question's own payload.
         const bill = a.action === BILL_SEND ? liveBills.get(r.id) ?? billFromPayload(p) : null
+        const putForward = a.action === PUT_FORWARD ? putForwardFromPayload(p, PUT_FORWARD_SENTENCES) : null
         const title = bill ? billItemTitle(bill)
+          : putForward ? putForwardItemTitle(putForward)
           : a.entityType === 'Invoice'
           ? `${typeof p.number === 'string' ? p.number : 'Invoice receipt'}${typeof p.supplierName === 'string' ? ` from ${p.supplierName}` : ''}`
           : typeof p.title === 'string' ? p.title : names.get(a.entityId) ?? a.entityType
@@ -261,6 +285,7 @@ export function readersFor(
           action: a.action,
           entity: { type: a.entityType, id: a.entityId },
           ...(bill ? { bill } : {}),
+          ...(putForward ? { putForward } : {}),
           ...(a.action === RECEIPT_PAY && a.entityType === 'Invoice'
             ? { pay: { supplier: typeof p.supplierName === 'string' ? p.supplierName : null, number: typeof p.number === 'string' ? p.number : null } }
             : {}),
@@ -584,6 +609,31 @@ export function readersFor(
         })
       }
       return { ok: true as const, receipts: out }
+    },
+
+    async papersGate(): Promise<string | null> {
+      // The people who look after the firm's own people, or who run its
+      // setup: those are who can confirm the set. Nobody else is told.
+      if (!ownCompany || !caller.company || caller.company.kind === 'CLIENT') return null
+      if (!hasAnyPermission(caller.permissions, ['consultants.write', 'settings.manage'] as Permission[])) return null
+      const refused = await prisma.twinAction.findFirst({
+        where: {
+          companyId, action: START_PAPERS, outcome: 'REFUSED',
+          ts: { gte: new Date(Date.now() - PAPERS_GATE_DAYS * 86_400_000) },
+        },
+        orderBy: { ts: 'desc' },
+        select: { entityId: true, payload: true },
+      })
+      const said = asRecord(refused?.payload).said
+      // Only the gate's refusal, which names the step; a start already
+      // made or a line that ended is not something setup fixes.
+      if (!refused || typeof said !== 'string' || !said.includes(PAPERS_STEP_TEXT)) return null
+      // Asked of the gate again now, so a firm that confirmed its set
+      // since the night it was refused is not told to do it again.
+      const line = await prisma.sellContract.findUnique({ where: { id: refused.entityId }, select: { personId: true } })
+      if (!line) return null
+      const gate = await mayChasePaper(companyId, await workerPartyAt(line.personId, companyId))
+      return gate.ok ? null : gate.says
     },
 
     async told(): Promise<{ told: ToldReceipt[]; stale: string[] }> {

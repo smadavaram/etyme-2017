@@ -18,7 +18,12 @@ import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
 import { bellShows } from '@/lib/notify/account-mail'
 import { pageOf } from '@/lib/notify'
-import { NOTICES_SHOWN, THREADS_SHOWN, type NoticeLine, type ThreadNote } from './ask'
+import {
+  NOTICES_SHOWN, THREADS_SHOWN, COMING_FREE, START_PAPERS, OUR_BENCH_HREF, START_ASKS_HREF, startAskedSays,
+  type NoticeLine, type ThreadNote,
+} from './ask'
+import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-performers'
+import { labelFor } from '@/lib/document-type'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
@@ -99,10 +104,11 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
       where,
       orderBy: { createdAt: 'desc' },
       take: NOTICES_SHOWN,
-      select: { id: true, type: true, title: true, body: true, entityId: true, data: true },
+      select: { id: true, type: true, title: true, body: true, entityId: true, data: true, createdAt: true },
     }),
     prisma.notification.count({ where }),
   ])
+  const twin = await twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>())
   // Etyme's own question, answered since it was asked: the notice is
   // marked read with the rest and never said, because "Ask Etyme is asking
   // you to decide" about a bill already sent is a question nobody can
@@ -116,8 +122,13 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
     shown: rows.map((n) => {
       const data = asRecord(n.data)
       const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
+      const acted = twin.get(n.id)
       return {
         id: n.id, title: named.get(n.id) ?? n.title, href: pageOf(n.type, n.entityId, data),
+        // What Ask Etyme did alone, in its own words, over the notice's own.
+        ...(acted ? { title: acted.title, href: acted.href } : {}),
+        ...(acted?.act ? { act: acted.act } : {}),
+        ...(acted?.linkText ? { linkText: acted.linkText } : {}),
         type: n.type, body: typeof n.body === 'string' ? n.body : null,
         cycleKind: typeof data?.kind === 'string' ? data.kind : null,
         dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
@@ -127,6 +138,89 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
     }),
     older: Math.max(0, total - rows.length),
   }
+}
+
+/** How near the ledger's entry a notice must be written to be the notice of that act. */
+const SAME_ACT_MS = 60 * 60 * 1000
+
+function comingRows(v: unknown): ComingFreeRow[] {
+  return Array.isArray(v)
+    ? v.filter((r): r is ComingFreeRow => !!r && typeof r === 'object' && typeof (r as ComingFreeRow).name === 'string' && typeof (r as ComingFreeRow).days === 'number')
+    : []
+}
+
+/**
+ * What Ask Etyme did alone at a firm that sells people, said in its own
+ * words (2026-10-29, "Tapin gets agents"):
+ *
+ *   who is coming free   the performer's notice, re-titled from the ledger
+ *                        entry it follows with `comingFreeTitle` (the
+ *                        stored title is cut at 120 characters), opening
+ *                        Our bench
+ *   start papers asked   HR's notice from the clearance ask, where Ask
+ *                        Etyme made that ask: who was asked for what, for
+ *                        which start, the person's name opening the asks
+ *
+ * A notice is read once, so each is said once: when it appears. Nothing
+ * here is a decision, so none of it is in the count on the mark. A
+ * notice whose entry cannot be found keeps its own title.
+ */
+async function twinActNotices(
+  rows: ReadonlyArray<{ id: string; type: string; title: string; entityId: string | null; data: unknown; createdAt: Date }>,
+): Promise<Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>> {
+  const out = new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()
+  const near = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) <= SAME_ACT_MS
+
+  const free = rows.filter((n) => asRecord(n.data)?.twinAction === COMING_FREE && n.entityId)
+  if (free.length) {
+    const entries = await prisma.twinAction.findMany({
+      where: { action: COMING_FREE, outcome: 'PERFORMED', companyId: { in: [...new Set(free.map((n) => n.entityId!))] } },
+      orderBy: { ts: 'desc' },
+      take: 20,
+      select: { companyId: true, ts: true, payload: true },
+    })
+    for (const n of free) {
+      const e = entries.find((x) => x.companyId === n.entityId && near(x.ts, n.createdAt))
+      const p = asRecord(e?.payload)
+      out.set(n.id, {
+        title: p ? comingFreeTitle(comingRows(p.comingFree), comingRows(p.idle)) : n.title,
+        href: OUR_BENCH_HREF,
+        act: COMING_FREE,
+      })
+    }
+  }
+
+  const contracts = rows.filter((n) => n.type === 'CONTRACT' && n.entityId)
+  if (contracts.length) {
+    const ids = [...new Set(contracts.map((n) => n.entityId!))]
+    const [asks, lines] = await Promise.all([
+      prisma.twinAction.findMany({
+        where: { action: START_PAPERS, outcome: 'PERFORMED', entityType: 'SellContract', entityId: { in: ids } },
+        orderBy: { ts: 'desc' },
+        take: 50,
+        select: { entityId: true, ts: true, payload: true },
+      }),
+      prisma.sellContract.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, person: { select: { name: true } }, requirement: { select: { title: true } }, clientCompany: { select: { name: true } } },
+      }),
+    ])
+    for (const n of contracts) {
+      const e = asks.find((a) => a.entityId === n.entityId && near(a.ts, n.createdAt))
+      const line = lines.find((l) => l.id === n.entityId)
+      if (!e || !line) continue
+      const p = asRecord(e.payload) ?? {}
+      const keys = Array.isArray(p.asks) ? p.asks.filter((k): k is string => typeof k === 'string') : []
+      const personName = typeof p.personName === 'string' && p.personName ? p.personName : line.person.name
+      out.set(n.id, {
+        title: startAskedSays({ personName, papers: keys.map((k) => labelFor(k)), jobTitle: line.requirement?.title ?? null, clientName: line.clientCompany?.name ?? null }).replace(/\.$/, ''),
+        href: START_ASKS_HREF,
+        act: START_PAPERS,
+        linkText: personName,
+      })
+    }
+  }
+  return out
 }
 
 /** The twin's mismatch notice, as the nightly run titles it (lib/twin/performers, flagMismatch). */

@@ -11,9 +11,13 @@ import { ruleSetFor } from '@/lib/twin/rule-set'
 import { rate } from '@/lib/money-display'
 import { appLink } from '@/lib/notify'
 import { logBulkAccess } from '@/lib/access-log'
-import type { BillSendFacts, InvoiceApprovalFacts, TenureAlertFacts } from '@/lib/teams/cards'
+import type { BillSendFacts, InvoiceApprovalFacts, PutForwardFacts, TenureAlertFacts } from '@/lib/teams/cards'
+import { NEEDS_RATE, PUT_FORWARD_SIGNED_IN } from '@/lib/twin/supplier-performers'
 import { billDueToday } from '@/app/api/conversations/twin/bill-due'
-import { BILL_SEND, billFromPayload, billRows, billCardTitle, billItemTitle, hrefFor } from '@/app/api/conversations/twin/ask'
+import {
+  BILL_SEND, billFromPayload, billRows, billCardTitle, billItemTitle, hrefFor,
+  PUT_FORWARD, putForwardFromPayload, putForwardQuestion, putForwardScoreSays, putForwardWhyRows, putForwardBandSays,
+} from '@/app/api/conversations/twin/ask'
 
 export const INVOICE_APPROVE = 'invoice_receipt.approve'
 /** The twin asks to pay a receipt that passed the check (2026-10-26); the card asks for the bank reference. */
@@ -171,5 +175,36 @@ export async function billSendFacts(approvalId: string, companyId: string, asked
     ruleCited: a.twinAction.ruleCited,
     rationale: a.twinAction.rationale,
     link: appLink(hrefFor(a.twinAction.entityType, a.twinAction.entityId)),
+  }
+}
+
+/** Ask Etyme on the web, where a put-forward is answered with a rate. */
+export const ASK_ETYME_PATH = '/dashboard/conversations'
+
+/**
+ * Everything the put-forward card shows in Teams, in the web card's own
+ * words, for one pending `bench.put_forward` question. Null where it is
+ * not one, is answered, or names nobody. The card carries no yes: the
+ * route refuses a yes from Teams in PUT_FORWARD_SIGNED_IN, so the card
+ * says that sentence instead of offering a button that only says no.
+ */
+export async function putForwardTeamsFacts(approvalId: string, companyId: string): Promise<PutForwardFacts | null> {
+  const a = await prisma.twinApproval.findFirst({
+    where: { id: approvalId, companyId, decision: 'PENDING' },
+    select: { id: true, twinAction: { select: { action: true, ruleCited: true, rationale: true, payload: true } } },
+  })
+  if (!a || a.twinAction.action !== PUT_FORWARD) return null
+  const f = putForwardFromPayload(a.twinAction.payload, { needsRate: NEEDS_RATE, signedIn: PUT_FORWARD_SIGNED_IN })
+  if (!f) return null
+  return {
+    approvalId: a.id,
+    question: putForwardQuestion(f),
+    scoreSays: f.why ? putForwardScoreSays(f.why) : null,
+    whyRows: f.why ? putForwardWhyRows(f.why) : [],
+    bandSays: putForwardBandSays(f),
+    signedIn: f.signedIn,
+    link: appLink(ASK_ETYME_PATH),
+    ruleCited: a.twinAction.ruleCited,
+    rationale: a.twinAction.rationale,
   }
 }

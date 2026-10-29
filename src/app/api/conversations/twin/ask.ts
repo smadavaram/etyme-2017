@@ -739,6 +739,13 @@ export interface WaitingItem {
    */
   pay?: { supplier: string | null; number: string | null }
   /**
+   * For `bench.put_forward` (2026-10-29): who, to which job, for whom,
+   * the match's why, the band the job was sent at, and the sentences the
+   * approval route says, carried from the server so the card never
+   * retypes them. A yes carries the rate the recruiter enters.
+   */
+  putForward?: PutForwardCard
+  /**
    * Why this seat is asked, where it would otherwise not be: the owner Ask
    * Etyme acts for, asked to send its bill because nobody else at the firm
    * sends bills (founder, 2026-10-19). Said under the card's title, so the
@@ -921,6 +928,10 @@ export function needsCountSays(needs: number, items: readonly WaitingItem[]): { 
   const within = items.length <= needs
   const one = items.length === 1
   const also = items.length === 0 ? ''
+    : allPutForward(items)
+      ? within
+        ? ` ${one ? (needs === 1 ? 'It is a person' : 'One of them is a person') : `${numberWord(items.length)} of them are people`} from your bench to put forward; enter your rate and say yes below, or not now.`
+        : ` Etyme also found ${one ? 'one person' : `${lowerNumber(items.length)} people`} on your bench to put forward; enter your rate and say yes below, or not now.`
     : allBills(items)
       ? within
         ? ` ${one ? (needs === 1 ? 'It is the bill' : 'One of them is the bill') : `${numberWord(items.length)} of them are bills`} Etyme drafted; ${one ? 'send it' : 'send each'} below, or say not now.`
@@ -949,6 +960,10 @@ export interface NoticeLine {
   entityId?: string | null
   /** Etyme's own question, already answered: marked read with the rest, never said. */
   settled?: boolean
+  /** The twin's act the notice is about, where it is one (`bench.coming_free`). */
+  act?: string | null
+  /** The phrase inside the title that opens `href`; the whole title where absent. */
+  linkText?: string | null
 }
 
 /** Notices said in one greeting, at most; the rest wait for the next one. */
@@ -1006,8 +1021,14 @@ export function sinceSays(
   const now = opts.now ?? new Date()
   const threadLines = threadsSay(opts.threads ?? [], opts.moreThreads ?? 0)
   if (notices.length === 0 && threadLines.length === 0) return []
-  const groups: { key: string; kind: string | null; dueOn: string | null; title: string; href: string; people: string[] }[] = []
+  const groups: { key: string; kind: string | null; dueOn: string | null; title: string; href: string; people: string[]; act?: string | null; linkText?: string | null }[] = []
+  // Who is coming free is said once, the newest: a week not opened is not two lines of the same bench.
+  let comingFree = false
   for (const n of notices) {
+    if (n.act === COMING_FREE) {
+      if (comingFree) continue
+      comingFree = true
+    }
     const title = n.title.replace(/[\s.!:;,]+$/u, '').replace(/!/g, '').trim() || 'A notice'
     const dated = n.cycleKind && n.dueOn ? `${n.cycleKind}:${n.dueOn.slice(0, 10)}` : null
     const key = dated ?? `${title}\u0000${n.href}`
@@ -1016,7 +1037,7 @@ export function sinceSays(
     if (same) {
       for (const p of people) if (!same.people.includes(p)) same.people.push(p)
     } else {
-      groups.push({ key, kind: dated ? n.cycleKind! : null, dueOn: dated ? n.dueOn! : null, title, href: n.href, people })
+      groups.push({ key, kind: dated ? n.cycleKind! : null, dueOn: dated ? n.dueOn! : null, title, href: n.href, people, act: n.act ?? null, linkText: n.linkText ?? null })
     }
   }
   const out: RichLine[] = [{ says: SINCE_HEADING }, ...threadLines]
@@ -1046,8 +1067,11 @@ export function sinceSays(
     if (said) {
       const text = opts.worker && g.kind === 'TIMESHEET_SUBMIT' ? 'Your work' : g.people.find((p) => said.includes(p))
       out.push({ says: said, links: text ? [{ text, href: opts.worker && g.kind === 'TIMESHEET_SUBMIT' ? YOUR_WORK_HREF : g.href }] : [] })
+    } else if (g.act === COMING_FREE) {
+      out.push(comingFreeLine(g.title))
     } else {
-      out.push({ says: `${g.title}.`, links: [{ text: g.title, href: g.href }] })
+      const text = g.linkText && g.title.includes(g.linkText) ? g.linkText : g.title
+      out.push({ says: `${g.title}.`, links: [{ text, href: g.href }] })
     }
   }
   // Every notice was the reader's own week to approve: the heading alone says nothing.
@@ -1061,6 +1085,11 @@ export function sinceSays(
 /** The twin's questions, as the fact line of a reply. */
 export function needsSays(items: readonly WaitingItem[]): string {
   if (items.length === 0) return 'Nothing from Etyme is waiting on you.'
+  if (allPutForward(items)) {
+    return items.length === 1
+      ? 'Etyme found one person on your bench to put forward; enter your rate and say yes below, or not now.'
+      : `Etyme found ${lowerNumber(items.length)} people on your bench to put forward; enter your rate and say yes below, or not now.`
+  }
   if (allBills(items)) {
     return items.length === 1
       ? 'Etyme drafted one bill for you to send; send it below, or say not now.'
@@ -1081,6 +1110,11 @@ function numberWord(n: number): string {
 /** "Two invoice receipts", "12 questions". Sentence case, for the start of a line. */
 function counted(n: number, noun: string): string {
   return `${n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n} ${noun}${n === 1 ? '' : 's'}`
+}
+
+/** Every question waiting is a bench person to put forward, so the line says put forward rather than approve. */
+function allPutForward(items: readonly WaitingItem[]): boolean {
+  return items.length > 0 && items.every((i) => i.action === PUT_FORWARD && !!i.putForward)
 }
 
 /** Every question waiting is a drafted bill to send, so the line says send rather than approve. */
@@ -1504,15 +1538,17 @@ export function decisionRequest(
   approvalId: string,
   decision: 'APPROVED' | 'REJECTED',
   reason: string | null,
-  /** What the person filled in on the card before a yes: the bank reference and method on a payment. */
-  answer?: PayAnswer | null,
+  /** What the person filled in on the card before a yes: the bank reference and method on a payment, the rate on a put-forward. */
+  answer?: PayAnswer | RateAnswer | null,
 ): {
   url: string
   init: { method: 'POST'; headers: Record<string, string>; body: string }
 } {
-  const filled = answer && (answer.reference?.trim() || answer.method?.trim())
-    ? { reference: answer.reference?.trim() || undefined, method: answer.method?.trim() || undefined }
-    : null
+  const rated = answer && 'rateCents' in answer && Number.isInteger(answer.rateCents) && answer.rateCents > 0 ? { rateCents: answer.rateCents } : null
+  const paid = answer && !('rateCents' in answer) ? answer : null
+  const filled = rated ?? (paid && (paid.reference?.trim() || paid.method?.trim())
+    ? { reference: paid.reference?.trim() || undefined, method: paid.method?.trim() || undefined }
+    : null)
   return {
     url: `/api/twin/approvals/${encodeURIComponent(approvalId)}`,
     init: {
@@ -1571,6 +1607,207 @@ export function paidSays(p: { supplier: string | null; number: string | null }, 
   return `Paid ${whose}${p.number ? ` ${p.number}` : ''}, bank reference ${reference}. Recorded under your name.`
 }
 
+// ── Putting a bench person forward (2026-10-29) ───────────────────────
+//
+// "Tapin gets agents, not a website": Ask Etyme at a firm that sells
+// people finds somebody on its own bench whom the match engine scored
+// against a job the firm was sent, and asks a recruiter (`bench.put_forward`,
+// NEEDS_APPROVAL, a seat holding submissions.create, never the Owner it
+// acts for). The card says who, to which job, for whom; the match's why
+// on tap, never a bare number; the band the job was sent at; and a rate
+// box the recruiter fills, because a rate is the firm's word and Ask
+// Etyme never chooses one. A yes goes through the one approval route with
+// `{ answer: { rateCents } }`, which submits through the submission door
+// in the recruiter's own name.
+
+export const PUT_FORWARD = 'bench.put_forward'
+
+/** The weekly word on who is coming free (ACTS_ALONE); a notice, never a decision. */
+export const COMING_FREE = 'bench.coming_free'
+
+/** Asking a worker for the papers a start needs (ACTS_ALONE). */
+export const START_PAPERS = 'papers.ask_for_start'
+
+/** What a recruiter fills in on a put-forward card: the rate, in minor units an hour. */
+export interface RateAnswer { rateCents: number }
+
+/** The match's reasons, as the engine wrote them. Never a score without these. */
+export interface PutForwardWhy {
+  score: number
+  /** "HIGH" · "MODERATE" */
+  confidence: string
+  factors: { label: string; value: number; weight: number; detail?: string }[]
+  basis: string
+  /** What the match could not account for; null where it said nothing was unknown. */
+  unknowns: string | null
+}
+
+export interface PutForwardCard {
+  personName: string
+  jobTitle: string
+  clientName: string | null
+  /** Null where the question carries no complete reasons: the card then shows no score at all. */
+  why: PutForwardWhy | null
+  /** Minor units an hour, from the invitation the job came on; either end may be missing. */
+  bandMinCents: number | null
+  bandMaxCents: number | null
+  currency: string
+  /** The route's own sentence for a yes with no rate (NEEDS_RATE in lib/twin/supplier-performers). */
+  needsRate: string
+  /** The route's own sentence for a yes from Teams (PUT_FORWARD_SIGNED_IN). */
+  signedIn: string
+}
+
+/**
+ * A put-forward question's payload, read back. Null where the person or
+ * the job is missing. The why is kept only whole: a score with no factors,
+ * basis or confidence beside it is a bare number, and a bare number is a
+ * bug, so it is dropped rather than shown.
+ */
+export function putForwardFromPayload(
+  p: unknown,
+  sentences: { needsRate: string; signedIn: string },
+  currency = 'USD',
+): PutForwardCard | null {
+  if (!isRecord(p)) return null
+  const personName = typeof p.personName === 'string' && p.personName.trim() ? p.personName.trim() : null
+  const jobTitle = typeof p.jobTitle === 'string' && p.jobTitle.trim() ? p.jobTitle.trim() : null
+  if (!personName || !jobTitle) return null
+  const factors = Array.isArray(p.factors)
+    ? p.factors.filter((f): f is { label: string; value: number; weight: number; detail?: string } =>
+        isRecord(f) && typeof f.label === 'string' && typeof f.value === 'number' && typeof f.weight === 'number')
+        .map((f) => ({ label: f.label, value: f.value, weight: f.weight, ...(typeof f.detail === 'string' && f.detail ? { detail: f.detail } : {}) }))
+    : []
+  const whole = typeof p.score === 'number' && Number.isFinite(p.score) &&
+    typeof p.confidence === 'string' && !!p.confidence &&
+    typeof p.basis === 'string' && !!p.basis.trim() &&
+    Array.isArray(p.factors) && factors.length > 0 && factors.length === p.factors.length
+  const band = (v: unknown) => (isMinor(v) && v > 0 ? v : null)
+  return {
+    personName,
+    jobTitle,
+    clientName: typeof p.clientName === 'string' && p.clientName.trim() ? p.clientName.trim() : null,
+    why: whole
+      ? {
+          score: Math.round(p.score as number),
+          confidence: p.confidence as string,
+          factors,
+          basis: (p.basis as string).trim(),
+          unknowns: typeof p.unknowns === 'string' && p.unknowns.trim() ? p.unknowns.trim() : null,
+        }
+      : null,
+    bandMinCents: band(p.bandMinCents),
+    bandMaxCents: band(p.bandMaxCents),
+    currency,
+    needsRate: sentences.needsRate,
+    signedIn: sentences.signedIn,
+  }
+}
+
+/** "Felix Brenner for Java Developer": the question as a list names it, so "approve 1" finds it. */
+export function putForwardItemTitle(f: Pick<PutForwardCard, 'personName' | 'jobTitle'>): string {
+  return `${f.personName} for ${f.jobTitle}`
+}
+
+/** "Put Felix Brenner forward for Java Developer at Northbend Athletic?" */
+export function putForwardQuestion(f: Pick<PutForwardCard, 'personName' | 'jobTitle' | 'clientName'>): string {
+  return `Put ${f.personName} forward for ${f.jobTitle}${f.clientName ? ` at ${f.clientName}` : ''}?`
+}
+
+/** "Match 84 of 100, high confidence." The one line drawn closed; the reasons open under it. */
+export function putForwardScoreSays(w: PutForwardWhy): string {
+  return `Match ${w.score} of 100, ${w.confidence.toLowerCase()} confidence.`
+}
+
+/** The reasons drawn on tap: each factor, the basis, and what it could not account for. */
+export function putForwardWhyRows(w: PutForwardWhy): { label: string; value: string }[] {
+  // The engine's own scale (lib/match-engine): a factor scores 0 to 100 and weighs a share of the match.
+  const rows = w.factors.map((f) => ({
+    label: f.label,
+    value: `${Math.round(f.value)} of 100, ${Math.round(f.weight * 100)}% of the match${f.detail ? `. ${f.detail.replace(/[\s.]+$/u, '')}.` : ''}`,
+  }))
+  rows.push({ label: 'Based on', value: w.basis })
+  rows.push({ label: 'Not known', value: w.unknowns ?? 'Nothing the match could not account for.' })
+  return rows
+}
+
+/** "Band: $70/hr–$85/hr", from the invitation; said plainly where the client sent none. */
+export function putForwardBandSays(f: Pick<PutForwardCard, 'bandMinCents' | 'bandMaxCents' | 'currency'>): string {
+  const per = (m: number) => `${format(fromMinor(m, f.currency))} an hour`
+  if (f.bandMinCents != null && f.bandMaxCents != null) return `The job was sent at ${per(f.bandMinCents)} to ${per(f.bandMaxCents)}.`
+  if (f.bandMaxCents != null) return `The job was sent at up to ${per(f.bandMaxCents)}.`
+  if (f.bandMinCents != null) return `The job was sent at ${per(f.bandMinCents)} or more.`
+  return 'The job was sent with no rate band.'
+}
+
+/**
+ * What the recruiter typed in the rate box, in minor units: "85", "$85.50",
+ * "1,200". Null for anything that is not a positive amount with at most
+ * two decimals. Pure.
+ */
+export function rateCentsFrom(typed: string): number | null {
+  const t = typed.trim().replace(/^\$/, '').replace(/,/g, '').replace(/\s*(\/\s*(hr|hour)|an hour|per hour)$/i, '').trim()
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null
+  const cents = Math.round(Number(t) * 100)
+  return cents > 0 ? cents : null
+}
+
+/**
+ * What a yes on the card sends, or the route's own sentence where the box
+ * is blank or not a rate. Nothing is sent without a rate: the route would
+ * refuse it in the same sentence (NEEDS_RATE), so the card says it first.
+ */
+export function putForwardPress(
+  item: Pick<WaitingItem, 'approvalId' | 'putForward'>,
+  typed: string,
+): { ok: true; request: ReturnType<typeof decisionRequest>; rateCents: number } | { ok: false; says: string } {
+  const needs = item.putForward?.needsRate ?? 'Enter the rate you are putting them forward at.'
+  const rateCents = rateCentsFrom(typed)
+  if (!rateCents) return { ok: false, says: needs }
+  return { ok: true, rateCents, request: decisionRequest(item.approvalId, 'APPROVED', null, { rateCents }) }
+}
+
+/** What the chat says after the yes. */
+export function putForwardDoneSays(f: Pick<PutForwardCard, 'personName' | 'jobTitle' | 'clientName' | 'currency'>, rateCents: number): string {
+  return `Put ${f.personName} forward for ${f.jobTitle}${f.clientName ? ` at ${f.clientName}` : ''}, at ${format(fromMinor(rateCents, f.currency))} an hour. Sent in your name.`
+}
+
+// ── What Ask Etyme did alone, at a firm that sells people (2026-10-29) ──
+
+/** Our bench, where who is coming free is read. */
+export const OUR_BENCH_HREF = '/dashboard/bench'
+
+/** Where the start asks are listed, with the papers each one asked for. */
+export const START_ASKS_HREF = '/dashboard/packets'
+
+/** The checklist, where "Papers you require" is confirmed. */
+export const SETUP_HREF = '/dashboard/settings/setup'
+
+/** The phrase the gate names its step with (STEP_PLACE.PAPERS in lib/setup-gate-rules), linked to the checklist. */
+export const PAPERS_STEP_TEXT = 'Setup → Papers you require'
+
+/**
+ * "Ask Etyme asked Maria Lee for the I-9 and a background check consent,
+ * for the Java Developer start at Northbend Athletic." Who was asked, for
+ * what, for which start. Pure.
+ */
+export function startAskedSays(f: { personName: string; papers: readonly string[]; jobTitle: string | null; clientName: string | null }): string {
+  const papers = f.papers.length ? listed(f.papers.map((x) => x.trim()).filter(Boolean)) : 'the papers the start still needs'
+  const start = f.jobTitle ? `the ${f.jobTitle} start` : 'the start'
+  return `Ask Etyme asked ${f.personName} for ${papers}, for ${start}${f.clientName ? ` at ${f.clientName}` : ''}.`
+}
+
+/** Who is coming free, as the greeting says it: the performer's own title, and Our bench. Pure. */
+export function comingFreeLine(title: string): RichLine {
+  const t = title.replace(/[\s.]+$/u, '')
+  return { says: `${t}. See Our bench.`, links: [{ text: 'Our bench', href: OUR_BENCH_HREF }] }
+}
+
+/** The gate's own sentence, once, with the checklist linked where it names the step. Pure. */
+export function papersGateLine(says: string): RichLine {
+  return { says, links: says.includes(PAPERS_STEP_TEXT) ? [{ text: PAPERS_STEP_TEXT, href: SETUP_HREF }] : [{ text: says, href: SETUP_HREF }] }
+}
+
 // ── Answering ────────────────────────────────────────────────────────
 
 /** A read the seat may be refused, with the sentence that says who reads it instead. */
@@ -1595,6 +1832,12 @@ export interface Readers {
   heldBills?(): Promise<HeldBill[]>
   /** Receipts the twin told this seat's paying desk about that still fail the check; empty for any other desk. */
   told(): Promise<{ told: ToldReceipt[]; stale: string[] }>
+  /**
+   * Where Ask Etyme was refused asking for start papers this week because
+   * the firm never confirmed the set (`mayChasePaper`), the gate's own
+   * sentence; null otherwise. Optional: a reader for a client has none.
+   */
+  papersGate?(): Promise<string | null>
   /** A placement or a receipt the message names, at this company, where it names one. */
   named(text: string): Promise<Named>
   /** Weeks waiting for this company's signature, oldest first, at most WEEKS_SHOWN, and how many in all. */
@@ -1780,6 +2023,13 @@ export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
     return items.length === 1
       ? { says: `Send ${b.invoiceNumber ? 'bill ' : ''}${items[0].title}; it is built from weeks ${b.customerName} signed.`, links: [{ text: items[0].title, href: items[0].href }] }
       : { says: `Send the ${counted(items.length, 'bill').toLowerCase()} below; each is built from weeks the customer signed.` }
+  }
+  // A bench person to put forward: the recruiter's own call, at the rate they enter.
+  if (items.every((i) => i.action === PUT_FORWARD && i.putForward)) {
+    const f = items[0].putForward!
+    return items.length === 1
+      ? { says: `Put ${f.personName} forward for ${f.jobTitle}${f.clientName ? ` at ${f.clientName}` : ''}: enter your rate and say yes, or not now.` }
+      : { says: `Put the ${lowerNumber(items.length)} people below forward: enter your rate on each and say yes, or not now.` }
   }
   // Paying first: a receipt the twin asks to pay is one card, with the bank reference.
   if (items.every((i) => i.action === RECEIPT_PAY)) {
@@ -2026,6 +2276,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
     opts.greeting ? Promise.resolve(opts.picture ?? null).catch(() => null) : Promise.resolve(null),
     opts.greeting && party === 'FIRM' && read.billing ? read.billing().catch(() => null) : Promise.resolve(null),
   ])
+  const papersGate = opts.greeting && read.papersGate ? await read.papersGate().catch(() => null) : null
   const near = limits.ok ? nearLimit(limits.entries, now) : []
   // A bill this reader may send through the Bills page's own Send is a card
   // of its own, never "not yours to send" (walk three, 2026-10-26).
@@ -2101,6 +2352,10 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // the cap never drops it, and never in the headline or the mark: setup is
   // not a decision anybody else waits on.
   if (opts.greeting && opts.setup) more.push(opts.setup)
+  // Start papers Ask Etyme could not ask for, because the set was never
+  // confirmed: the gate's own sentence, once however many starts it held,
+  // and like the setup line never counted.
+  if (papersGate) more.push(papersGateLine(papersGate))
   if (opts.greeting && (opts.notices || opts.threads)) {
     const said = heldNoticeTitles(held)
     // Nor is the twin's own question said again as the notice that told
