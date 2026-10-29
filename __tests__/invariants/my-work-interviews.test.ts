@@ -186,5 +186,9 @@ describe('A candidate can answer an interview from their own page', () => {
     expect(PAGE).toContain("respond({ action: 'DECLINE', reason: reason.trim() })")
     expect(section.length).toBeGreaterThan(0)
   })
-})
 
+  it('the Answer interview link opens the worker’s page on that round', () => {
+    expect(PAGE).toContain('id={`interview-${iv.id}`}')
+    expect(PAGE).toContain("hash.startsWith('interview-')")
+  })
+})

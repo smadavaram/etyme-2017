@@ -365,6 +365,16 @@ function InterviewCard({ iv, onAnswered }: { iv: Interview; onAnswered: () => vo
   )
 }
 
+/** Opens the page on the round a link named, once the rounds are drawn. */
+function ScrollToHash({ ready }: { ready: number }) {
+  useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : ''
+    if (!hash.startsWith('interview-')) return
+    document.getElementById(hash)?.scrollIntoView({ block: 'start' })
+  }, [ready])
+  return null
+}
+
 function YourInterviews() {
   const [ahead, setAhead] = useState<Interview[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -396,10 +406,15 @@ function YourInterviews() {
 
   return (
     <section className="mb-8">
+      <ScrollToHash ready={ahead.length} />
       <h2 className="font-serif text-lg text-etyme-ink mb-3">Your interviews</h2>
       <div className="bg-etyme-surface border border-etyme-action/30 rounded-lg divide-y divide-etyme-rule">
         {ahead.map((iv) => (
-          <InterviewCard key={iv.id} iv={iv} onAnswered={load} />
+          // "Answer interview" links to #interview-<id>; the rounds load
+          // after the page, so the effect above scrolls to it once drawn.
+          <div key={iv.id} id={`interview-${iv.id}`} className="scroll-mt-20">
+            <InterviewCard iv={iv} onAnswered={load} />
+          </div>
         ))}
       </div>
     </section>
