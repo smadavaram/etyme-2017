@@ -141,7 +141,7 @@ describe('a bench firm’s page, read by a client', () => {
     expect(page).toContain('<Ask source="GENERATED_SITE" firm={{ slug: site.slug, name: site.name }} />')
     expect(page).toMatch(/site\.contact && <Contact/)
     // The date reads as a date, never the ISO string.
-    expect(page).toContain('{onDay(site.liveSince)}')
+    expect(page).toContain('{formatDayLong(site.liveSince)}')
   })
 
   it('only a person who said yes to being shown beyond the firm appears on the open internet', () => {

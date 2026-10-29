@@ -17,6 +17,7 @@
  */
 
 import { normalEmail, tidy } from '@/lib/public-site/leads'
+import { formatDay } from '@/lib/format-date'
 import type { ComingFree } from '@/lib/public-site'
 
 // ── Who may be shown on the open internet ───────────────────────────
@@ -97,8 +98,7 @@ export function benchFreeNow(rows: BenchRow[], now: Date, alreadyListed: Readonl
 export function freeSays(c: Pick<ComingFree, 'daysUntilFree' | 'freeOn'>): string {
   if (c.daysUntilFree <= 0) return 'Free now'
   if (c.daysUntilFree <= 30) return `Free in ${c.daysUntilFree} day${c.daysUntilFree === 1 ? '' : 's'}`
-  const d = new Date(`${c.freeOn}T00:00:00Z`)
-  return `Free ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
+  return `Free ${formatDay(c.freeOn)}`
 }
 
 /** The summary line, counted from the rows actually shown. */

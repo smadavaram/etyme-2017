@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { publicSite, describeSite, titleOf, type PublicSite } from '@/lib/public-site'
 import type { Measure } from '@/lib/buyer-reputation'
 import { JOIN_BENCH_COPY } from '@/lib/public-site/join-bench'
+import { formatDayLong } from '@/lib/format-date'
 import { FIRM_ASK_COPY, freeSays, telHref } from '@/lib/public-site/firm-page'
 import { JoinBench } from './join-bench'
 import { Ask } from '../ask'
@@ -39,13 +40,6 @@ function Lbl({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   )
-}
-
-/** "October 29, 2026", the way every page prints a date; never the ISO string. */
-function onDay(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
-  })
 }
 
 function Rule() {
@@ -123,7 +117,7 @@ export default async function CompanySite({ params }: { params: Promise<{ slug: 
 
         <footer className="mt-16 pt-8 border-t border-etyme-rule">
           <p className="text-[13px] text-etyme-muted">
-            {site.name} has been on Etyme since {onDay(site.liveSince)}.
+            {site.name} has been on Etyme since {formatDayLong(site.liveSince)}.
           </p>
           {/* Being here is not a recommendation from us. Implying otherwise
               would make every page on the platform worth less. */}
