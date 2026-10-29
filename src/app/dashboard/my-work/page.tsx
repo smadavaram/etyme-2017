@@ -1148,6 +1148,10 @@ export default function MyWorkPage() {
     const foundByPage = data.standing?.because === 'OWN_MAKING' && !data.empty.ownFirm
     return (
       <div className="max-w-2xl">
+        {/* An interview is proposed before there is any placement, so
+            "Answer interview" lands here: the answer comes first (the
+            Tapin walk's dead end). It draws nothing when none is open. */}
+        <YourInterviews />
         <NothingYet says={data.empty.says} listedBy={data.empty.listedBy} ownFirm={data.empty.ownFirm} />
         {foundByPage && (
           <p className="text-[13px] text-etyme-muted mt-1">

@@ -173,4 +173,18 @@ describe('A candidate can answer an interview from their own page', () => {
     // screen.
     expect(PAGE).toContain('break-all')
   })
+
+  it('a worker with no placement yet still sees the interview proposed to her, with Accept and Propose another time', () => {
+    // The empty branch draws the interviews above its empty line (the
+    // Tapin walk: "Answer interview" opened a page with nothing to answer).
+    const empty = PAGE.slice(PAGE.indexOf('if (data.empty) {'), PAGE.indexOf('const s = data.summary'))
+    expect(empty).toContain('<YourInterviews />')
+    expect(empty.indexOf('<YourInterviews />')).toBeLessThan(empty.indexOf('<NothingYet'))
+    // And the section carries both answers: a time accepted, or another asked for.
+    const section = PAGE.slice(PAGE.indexOf('function YourInterviews()'))
+    expect(PAGE).toMatch(/respond\(\{\s*action: 'ACCEPT', slot: s\.start\s*\}\)/)
+    expect(PAGE).toContain("respond({ action: 'DECLINE', reason: reason.trim() })")
+    expect(section.length).toBeGreaterThan(0)
+  })
 })
+
