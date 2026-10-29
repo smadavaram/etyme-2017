@@ -1128,9 +1128,9 @@ export async function POST(
               says: ceiling?.says ?? null,
             }
           : null,
-        subOrder: result.buyHeader
-          ? { workOrderId: result.buyHeader.id, number: result.buyHeader.number, raised: result.buyHeader.raised }
-          : null,
+        // Never the prime's order to its sub: this row is in the client's
+        // log, and a sub-vendor's order, like its name, is the prime's to
+        // keep. The prime reads its own order in its own log, below.
         lineDisagreesWithOrder: result.lineCheck.differences,
         lineOutsideOrderWindow: result.lineCheck.outsideOrderWindow,
         // The rounds the award called off, each with the sentence every
@@ -1207,18 +1207,22 @@ export async function POST(
   // order in its own log; the order below in the firm that raised it,
   // never the client's, because what a prime buys below is not the
   // client's to read.
-  for (const [header, companyId] of [
-    [result.sellHeader, payerId],
-    [result.buyHeader, submission.fromCompanyId],
+  for (const [header, companyId, below] of [
+    [result.sellHeader, payerId, false],
+    [result.buyHeader, submission.fromCompanyId, true],
   ] as const) {
-    if (!header || header.raised || !header.outside) continue
+    // The client's own order is in its award row above; it is said again
+    // only where the line runs outside it. The prime's order to its sub is
+    // in no row the client reads, so the prime is told of every line the
+    // award adds to it, here, in its own log.
+    if (!header || header.raised || (!header.outside && !below)) continue
     await prisma.automationLog.create({
       data: {
         companyId,
         action: 'PURCHASE_ORDER_CHANGED',
         summary: `${header.number} — a line for ${submission.person.name} added by the award`,
-        reason: header.outside,
-        payload: { workOrderId: header.id, number: header.number, requirementId: req.id, outsideOrderWindow: true },
+        reason: header.outside ?? header.says,
+        payload: { workOrderId: header.id, number: header.number, requirementId: req.id, outsideOrderWindow: Boolean(header.outside) },
         reversible: true,
       },
     })

@@ -438,6 +438,7 @@ describe('Five people on one commitment is one document with five lines', () => 
 // ═══════════════════════════════════════════════════════════════════
 
 describe('A prime buys below the line it sells', () => {
+  let chainAnswer = ''
 
   it('gives the sub-vendor’s placement its own order, from the prime to the sub', async () => {
     as(NORTHBEND)
@@ -445,6 +446,7 @@ describe('A prime buys below the line it sells', () => {
       rate: 14_000, startDate: '2026-10-05', endDate: '2027-10-04',
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    chainAnswer = JSON.stringify(r.body)
 
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: r.body.data.contractId } })
     const sellOrder = await prisma.workOrder.findUniqueOrThrow({ where: { id: sell.workOrderId! } })
@@ -475,6 +477,21 @@ describe('A prime buys below the line it sells', () => {
     expect(Number(subOrder.amount)).toBeLessThan(Number(clientOrder.amount))
     expect(subOrder.issuedById).not.toBe(co.northbend)
     expect(subOrder.issuedToId).not.toBe(co.northbend)
+  })
+
+  it('the client\u2019s award answer never carries the prime\u2019s order to its sub', async () => {
+    const subOrder = await prisma.workOrder.findFirstOrThrow({ where: { issuedById: co.auralis, issuedToId: co.marrow } })
+    const sell = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.auralis, clientCompanyId: co.northbend } })
+    // What the client reads of the award: the answer, and its own log.
+    const rows = await prisma.automationLog.findMany({ where: { companyId: co.northbend } })
+    const read = chainAnswer + JSON.stringify(rows)
+    expect(read).not.toContain(subOrder.id)
+    expect(read).not.toContain(subOrder.number)
+    expect(read).not.toContain('subOrder')
+    // Its own order is named.
+    expect(read).toContain(sell.workOrderId!)
+    // The prime reads its own order in its own log.
+    expect(JSON.stringify(await prisma.automationLog.findMany({ where: { companyId: co.auralis } }))).toContain(subOrder.number)
   })
 
   it('logs the order to the sub against the prime, never against the client', async () => {
