@@ -926,6 +926,52 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     approverNeeds: 'invoices.issue',
     byHand: 'Send it from the Bills page.',
   },
+  // ── The supplier's own acts (founder, 2026-10-29, "Tapin gets agents") ──
+  //
+  // Three acts turned toward a firm that sells people, each placed here,
+  // with its tier, before any card is drawn (the 2026-10-12 rule). The
+  // twin acts on the Owner's authority (`supplierAuthorityAt` in
+  // lib/twin/run), so the people who submit, ask for papers and work the
+  // bench are free to answer. Performers in lib/twin/supplier-performers;
+  // the nightly finders in lib/twin/supplier-run.
+  //
+  // Putting somebody forward leaves the firm: the client reads the name
+  // and the rate. So it is asked, and the yes is said by a seat holding
+  // `submissions.create`, never by the Owner the twin acts for. The yes
+  // goes through the submission door itself (POST /api/submissions, as
+  // the person who said yes), so the person's consent on a live bench
+  // listing, or the firm's employment of them, is checked where it is
+  // always checked. Nobody but the Owner holding the permission is a
+  // refusal in a sentence, not the owner-only exception: that exception
+  // is the founder's, for a bill, and is not widened here.
+  'bench.put_forward': {
+    kinds: ['SUPPLIER'],
+    says: 'Put a person on the firm\u2019s own bench forward to a job the firm was sent, at the rate the person saying yes enters.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'submissions.create',
+    byHand: 'Put them forward from the job\u2019s page.',
+  },
+  // Asking a person on the firm's own line for the papers their start
+  // needs, from the line's required set (regulatory's clearance ask,
+  // `askForClearance`). Alone: the ask is to the firm's own worker about
+  // the firm's own line, it asks once, and it never asks for what is held.
+  // Refused in a sentence where the firm never confirmed the set for that
+  // kind of worker (`mayChasePaper` in lib/setup-gates).
+  'papers.ask_for_start': {
+    kinds: ['SUPPLIER'],
+    says: 'Ask a person on one of the firm\u2019s own lines for the papers their start still needs, once, from the line\u2019s required set.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'consultants.write', alone: 'TOLD',
+  },
+  // Who comes off a project in the next 30 days and who has been on the
+  // bench past 14, told to the people who put people forward. A summary
+  // inside the firm; nothing leaves it.
+  'bench.coming_free': {
+    kinds: ['SUPPLIER'],
+    says: 'Tell the recruiters who comes off a project in the next 30 days and who has waited on the bench for more than 14. It changes nothing and tells nobody outside the firm.',
+    money: false, external: false, reversible: false, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'TOLD',
+  },
   // ── Never ──
   'payroll.release': {
     says: 'Release a payroll run.',
@@ -1046,7 +1092,7 @@ export const JOBS: Record<string, Job> = {
     job: 'twin',
     rung: 'L1',
     basis: 'RULE',
-    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the AP clerk, and asks a person before anything is approved. Everything it does goes through its role contract, and it writes its own rows from there rather than from this job.',
+    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the AP clerk, and asks a person before anything is approved. Ask Etyme, for a firm that sells people, drafts the bills its agreements say are due, asks for the papers a start still needs, tells the recruiters who is coming free, and asks a person before it puts anybody forward. Everything either does goes through its role contract, and it writes its own rows from there rather than from this job.',
     writes: [],
   },
   'visa-watch': {

@@ -3,6 +3,7 @@ import { cronAuthorized } from '@/lib/cron-auth'
 import { reportError } from '@/lib/alerts'
 import { programsToRun, runTwin, suppliersToRun, tellOnTeams, type RunSummary } from '@/lib/twin/run'
 import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bills-run'
+import { runSupplierActs, type SupplierActsRun } from '@/lib/twin/supplier-run'
 
 /**
  * GET /api/cron/twin
@@ -13,6 +14,11 @@ import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bil
  * Every finding goes through the twin's one door (`act` in
  * lib/twin/ledger), so this route writes nothing itself: the ledger and
  * the automation log are written there, under the role contract.
+ *
+ * Then, for each supplier firm, its own three acts (2026-10-29,
+ * lib/twin/supplier-run): who is coming free, told to its recruiters;
+ * the papers a start still needs, asked once; and a bench person matched
+ * to a job the firm was sent, put to a recruiter as a question.
  *
  * Each supplier firm is then given the same Teams digest a client
  * program is (`tellOnTeams`, conversation's digest). Since 2026-10-19 the
@@ -43,11 +49,18 @@ export async function GET(request: NextRequest) {
       await reportError('cron/twin', err, { companyId }).catch(() => undefined)
     }
   })
-  const suppliers: (SupplierBillRun & { teamsDigest: RunSummary['teamsDigest'] })[] = []
+  const suppliers: (SupplierBillRun & { acts: SupplierActsRun | null; teamsDigest: RunSummary['teamsDigest'] })[] = []
   await inTurns(turnedDaily(await suppliersToRun()), deadline, left, async (companyId) => {
     try {
       const run = await runSupplierBills(companyId, { surface: 'CRON' })
-      suppliers.push({ ...run, teamsDigest: await tellOnTeams(companyId) })
+      // The bills stand whatever the other acts do: a failure there is
+      // reported and the firm's bills are still counted.
+      const acts = await runSupplierActs(companyId, { surface: 'CRON' }).catch(async (err) => {
+        broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
+        await reportError('cron/twin/supplier-acts', err, { companyId }).catch(() => undefined)
+        return null
+      })
+      suppliers.push({ ...run, acts, teamsDigest: await tellOnTeams(companyId) })
     } catch (err) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin/supplier', err, { companyId }).catch(() => undefined)
@@ -57,9 +70,11 @@ export async function GET(request: NextRequest) {
   const done = ran.reduce((n, r) => n + r.outcomes.PERFORMED, 0)
   const drafted = suppliers.reduce((n, r) => n + r.drafted, 0)
   const sendAsked = suppliers.reduce((n, r) => n + r.asked, 0)
+  const putForward = suppliers.reduce((n, r) => n + (r.acts?.putForward ?? 0), 0)
+  const startAsks = suppliers.reduce((n, r) => n + (r.acts?.startAsks ?? 0), 0)
   const says =
     `The twin read ${ran.length} program${ran.length === 1 ? '' : 's'}: ${done} done on its own, ${asked} put to a person.` +
-    ` Ask Etyme, for suppliers, read ${suppliers.length} firm${suppliers.length === 1 ? '' : 's'}: ${drafted} bill${drafted === 1 ? '' : 's'} drafted, ${sendAsked} put to a person to send.` +
+    ` Ask Etyme, for suppliers, read ${suppliers.length} firm${suppliers.length === 1 ? '' : 's'}: ${drafted} bill${drafted === 1 ? '' : 's'} drafted, ${sendAsked} put to a person to send, ${startAsks} start${startAsks === 1 ? '' : 's'} with papers asked for, ${putForward} bench ${putForward === 1 ? 'person' : 'people'} put to a recruiter.` +
     (broke.length ? ` ${broke.length} could not be read.` : '') +
     (left.length ? ` ${left.length} firm${left.length === 1 ? ' was' : 's were'} not reached before the time limit and will be read on the next run.` : '')
   return NextResponse.json({ data: { ran, suppliers, broke, left, says } })

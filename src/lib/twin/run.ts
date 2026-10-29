@@ -348,9 +348,8 @@ export async function programsToRun(take = 200): Promise<string[]> {
  * and never a visitor's own demo sandbox (`isDemo`), which nobody watches
  * and which is removed after thirty days unused.
  *
- * Nothing calls this yet: the supplier's twin has no performer that does
- * anything until money lands drafting the bill, and a nightly pass that
- * only records refusals is noise in the ledger.
+ * Read by the nightly run (cron/twin): money's bill run, then the
+ * supplier's own acts (lib/twin/supplier-run, 2026-10-29).
  */
 export async function suppliersToRun(take = 500): Promise<string[]> {
   const rows = await prisma.company.findMany({

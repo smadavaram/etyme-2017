@@ -110,6 +110,38 @@ function embedResponse(request: NextRequest, res: NextResponse): NextResponse {
   return res
 }
 
+/**
+ * The app's own pages: signing in, signing up and the dashboard. On a
+ * firm's address they are sent to the platform's host rather than served,
+ * so a person never signs in on a firm's page.
+ */
+const APP_PATHS = ['/dashboard', '/login', '/signup', '/start', '/verify', '/reset', '/welcome']
+
+function isAppPath(path: string): boolean {
+  return APP_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
+}
+
+/** How long the edge waits for the page's verdict before it serves the home page. */
+const SITE_ASK_MS = 1500
+
+/**
+ * Whether a firm has a page at this address, asked of the public reader
+ * the page itself draws on. A slow or failed answer reads as no page, and
+ * the visitor reads the home page rather than an error.
+ */
+async function firmHasPage(request: NextRequest, slug: string): Promise<boolean> {
+  const stop = new AbortController()
+  const timer = setTimeout(() => stop.abort(), SITE_ASK_MS)
+  try {
+    const r = await fetch(new URL(`/api/site/${encodeURIComponent(slug)}`, request.url), { cache: 'no-store', signal: stop.signal })
+    return r.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/map') return mapGate(request)
   const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
@@ -151,9 +183,28 @@ export async function middleware(request: NextRequest) {
   // theirs. A company sending somebody to techpeple.etyme.com should not
   // watch it turn into an etyme.com URL in front of them.
   const path = request.nextUrl.pathname
-  const isTenantRoot = path === '/' && kind !== 'PLATFORM'
 
-  if (isTenantRoot) {
+  // A firm's address is its page, and only its page (founder, 2026-10-29,
+  // "Tapin gets agents, not a website": `tapin.etyme.com` opens Tapin's
+  // generated page). Signing in and the app stay on the platform's own
+  // host, where the session cookie lives, so those paths are sent there.
+  if (kind === 'SUBDOMAIN' && isAppPath(path)) {
+    return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, `https://${PLATFORM_HOST}`))
+  }
+
+  // A subdomain that names no firm with a page opens the home page, never
+  // a missing page: one ask of the page's own public reader (GET
+  // /api/site/:slug, the verdict the page itself draws on), because the
+  // edge cannot reach the database.
+  if (path === '/' && kind === 'SUBDOMAIN') {
+    if (await firmHasPage(request, value)) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/site/${encodeURIComponent(value)}`
+      return NextResponse.rewrite(url, { request: { headers } })
+    }
+    return NextResponse.next({ request: { headers } })
+  }
+  if (path === '/' && kind === 'CUSTOM') {
     const url = request.nextUrl.clone()
     url.pathname = `/site/${encodeURIComponent(value)}`
     return NextResponse.rewrite(url, { request: { headers } })

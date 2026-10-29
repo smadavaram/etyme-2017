@@ -1283,7 +1283,8 @@ export const MATRIX: L1[] = [
             'FIXED 2026-10-20 by the architect, found by the simulation: a person on a placement, a submission or a bench listing who holds no seat anywhere is their own seat \u2014 the company-less consultant seat a candidate gets at sign-up, their own work only, no company and no permission \u2014 given on first sign-in and written on the automation log; never where a seat at a firm is paused or their own seat was taken away, and \u201cnobody has given you a seat yet\u201d is never said to them (lib/own-seat, getCallerContext)',
             'FIXED 2026-10-27 by etyme-architect, from the onboarding walk: the company form suggests the Etyme address from the company name and the country and currency from the work email’s web address, the way the Microsoft and Google door does, each said as a guess and left alone once the person changes it (signUpGuesses in src/lib/password-words.ts); /api/health names the password door when it works and says the demo button is the only way in only when it is (signInDoors in src/lib/readiness.ts, read by both)',
             'BUILT 2026-10-27 by etyme-architect: a colleague who sets her password from the invitation lands signed in, on Ask Etyme (an invitation’s link is marked; the page signs in with the password just chosen); where no email can be sent, sign-up still works and the confirmation link is kept on the notice for staff (recordedBody in lib/notify/account-mail), and the page says so; reset stays shut without a sender, because a reset link kept by hand is a way into an existing account; the candidate sign-up pre-fills an email it was handed (?email=)',
-            'FIXED 2026-10-27 by etyme-architect: the invited colleague lands in Ask Etyme itself (ASK_ETYME_HREF), so a phone opens the chat and not the thread list'],
+            'FIXED 2026-10-27 by etyme-architect: the invited colleague lands in Ask Etyme itself (ASK_ETYME_HREF), so a phone opens the chat and not the thread list',
+            'BUILT 2026-10-29 by etyme-architect (\u201cTapin gets agents, not a website\u201d, step 4): a firm\u2019s Etyme address on a subdomain (tapin.etyme.com) opens its generated page by a rewrite, never a redirect, asked of the page\u2019s own public reader; a subdomain that names no firm with a page, or does not answer in 1.5 seconds, opens the home page; signing in, signing up and the dashboard on a firm\u2019s address are sent to the platform\u2019s own host \u2014 src/middleware.ts. The DNS wildcard for *.etyme.com on the deployment is the founder\u2019s'],
           implementedBy: ['src/app/(auth)/another-account.tsx', 'src/lib/auth.ts', 'src/lib/login-doors.ts', 'src/lib/own-seat.ts', 'src/lib/api-context.ts', 'src/lib/password.ts', 'src/lib/password-door.ts', 'src/lib/seat-member.ts', 'src/lib/auth.ts',
             'src/lib/staff-bootstrap.ts', 'src/app/api/staff/bootstrap-company/route.ts',
             'src/lib/domains-owned.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts', 'src/lib/seed-rebuild.ts',
@@ -1297,8 +1298,8 @@ export const MATRIX: L1[] = [
             'src/app/(auth)/reset/[token]/form.tsx', 'src/lib/credential-chase.ts', 'src/lib/login-doors.ts',
             'src/app/(auth)/account-doors.tsx', 'src/lib/company-domains.ts', 'src/lib/company-create.ts', 'src/lib/api-context.ts',
             'docs/run-etyme-on-etyme.md',
-            'src/app/api/health/route.ts'],
-          testedBy: ['__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
+            'src/app/api/health/route.ts', 'src/middleware.ts'],
+          testedBy: ['__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
             '__tests__/invariants/company-domains.test.ts', '__tests__/invariants/setup-steps.test.ts',
             '__tests__/invariants/sign-in-ways.test.ts', '__tests__/invariants/readiness.test.ts', '__tests__/invariants/map.test.ts',
             '__tests__/invariants/onboarding-walk-platform.test.ts',
@@ -3068,6 +3069,26 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/ask-etyme-questions.test.ts',
             '__tests__/invariants/bill-due-on-sending.test.ts',
             '__tests__/invariants/twin-invoice-rule.test.ts'] },
+        // Added 2026-10-29 by etyme-architect, on the founder's "Go" to
+        // "Tapin gets agents, not a website", step 2. PARTIAL: the act
+        // kinds, performers and nightly finders are built; the cards are
+        // conversation's and the supplier twin's access-log kind is
+        // regulatory's, both named below.
+        { code: 'L3.7.6.3', name: 'The supplier\u2019s own acts \u2014 a bench person put forward, start papers, who is coming free', owner: 'Recruiter', status: P,
+          tasks: [
+            'BUILT 2026-10-29 by etyme-architect: three act kinds on the supplier\u2019s role contract, each with its tier before any card: bench.put_forward NEEDS_APPROVAL (an outside message; the yes from a seat holding submissions.create, never the Owner Ask Etyme acts for, and no owner-only exception), papers.ask_for_start ACTS_ALONE, bench.coming_free ACTS_ALONE; the supplier\u2019s default contract lists all five with bill.draft and bill.send; the NEVER floor is unchanged \u2014 src/lib/autonomy.ts',
+            'BUILT 2026-10-29: a bench person is put forward only with the person\u2019s consent (a granted, running listing at the firm, or the firm employing them), only to a job the firm was sent, never twice, and on a yes goes through POST /api/submissions itself, as the person who said yes, at the rate they entered on the card; a yes with no rate, or with no signed-in session of that person behind it (Teams, today), is refused in a sentence; the question carries the match\u2019s factors, basis, confidence and unknowns, and the client is not a party to it \u2014 src/lib/twin/supplier-performers.ts',
+            'BUILT 2026-10-29: start papers are asked through regulatory\u2019s clearance ask (askForClearance), once, never for what is held, only on a line not yet started and only where the firm confirmed the set for that kind of worker (mayChasePaper); otherwise refused in the gate\u2019s sentence \u2014 src/lib/twin/supplier-performers.ts',
+            'BUILT 2026-10-29: who comes off a project in 30 days and who has waited on the bench past 14, from the Today page\u2019s own reads, told by name once a week to the firm\u2019s seats that put people forward and to nobody outside it \u2014 src/lib/twin/supplier-run.ts',
+            'BUILT 2026-10-29: an act whose write is another domain\u2019s door runs that door before the ledger\u2019s transaction (Performer.door), its refusal ledgered as refused, and a door that stood with an entry that could not be written is told to staff as done, never as nothing done \u2014 src/lib/twin/ledger.ts, src/lib/twin/performers.ts',
+            'BUILT 2026-10-29: the nightly run raises the three for every staffing firm, integrator and one-person corporation after its bills, a refusal written once a week rather than nightly, at most three people a job a night, matches of 70 or more and not LOW confidence (coordinator\u2019s call, reversible) \u2014 src/lib/twin/supplier-run.ts, src/app/api/cron/twin/route.ts',
+            'OWED BY etyme-conversation: the cards in the supplier\u2019s Ask Etyme \u2014 put forward (with a rate field sent as answer.rateCents), start papers asked, who is coming free \u2014 through the one approval route',
+            'OWED BY etyme-regulatory: lib/access-log names only the program manager\u2019s twin; the supplier twin\u2019s reads are written with actorTwinKind SUPPLIER through one cast in src/lib/twin/supplier-run.ts until TwinKind there carries SUPPLIER',
+            'OPEN for the founder: where nobody but the Owner may submit, Ask Etyme refuses rather than asking the Owner; widening the owner-only exception past bill.send is the founder\u2019s call'],
+          implementedBy: ['src/lib/autonomy.ts', 'src/lib/twin/ledger.ts', 'src/lib/twin/performers.ts', 'src/lib/twin/supplier-performers.ts',
+            'src/lib/twin/supplier-run.ts', 'src/lib/twin/run.ts', 'src/app/api/cron/twin/route.ts'],
+          testedBy: ['__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts',
+            '__integration__/every-nightly-job-runs.test.ts'] },
       ]},
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
         // It had no implementedBy while it was NONE, on purpose, and the

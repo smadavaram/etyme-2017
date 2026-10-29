@@ -31,6 +31,7 @@ import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
 import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import type { TwinKindName } from '@/lib/autonomy'
+import { SUPPLIER_ACT_PERFORMERS } from '@/lib/twin/supplier-performers'
 
 export interface PerformContext {
   companyId: string
@@ -61,8 +62,24 @@ export interface PerformContext {
 
 type Tx = Prisma.TransactionClient
 
+/** What an act's own door answered: done, with what it made, or refused in its own sentence. */
+export type DoorResult = { ok: true; result: Record<string, unknown> } | { ok: false; says: string }
+
 export interface Performer {
   check?: (c: PerformContext) => Promise<string | null>
+  /**
+   * The act's write, where it is another domain's door that cannot join the
+   * ledger's transaction: a submission made through POST /api/submissions,
+   * a start ask through the clearance ask (2026-10-29). Run after `check`
+   * and before the ledger's transaction; a refusal is the door's own
+   * sentence, written to the ledger as refused, and nothing else happens.
+   * Done, the entry is then written with what it made. Where that entry
+   * cannot be written the door's write still stands, and staff are told in
+   * those words (`DONE_NOT_RECORDED` in lib/twin/ledger), because the door
+   * keeps its own trail (the submission's access log and event, the
+   * packet's) and undoing it would be a second act nobody asked for.
+   */
+  door?: (c: PerformContext) => Promise<DoorResult>
   inTx?: (tx: Tx, c: PerformContext) => Promise<Record<string, unknown>>
   after?: (c: PerformContext) => Promise<void>
 }
@@ -355,6 +372,10 @@ const ledgerOnly: Performer = {}
 
 export const PERFORMERS: Readonly<Record<string, Performer>> = {
   ...SUPPLIER_BILL_PERFORMERS,
+  // The supplier's own acts (2026-10-29): putting a bench person forward,
+  // asking for start papers, and who is coming free. Each calls another
+  // domain's door; none computes anything of its own.
+  ...SUPPLIER_ACT_PERFORMERS,
   'tenure.warning.record': ledgerOnly,
   'invoice_receipt.record': ledgerOnly,
   'summary.draft': ledgerOnly,

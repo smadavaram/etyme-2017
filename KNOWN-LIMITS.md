@@ -949,3 +949,31 @@ every unconfirmed line. What the founder should know:
 - **The seat grant applies regulatory's rule by the role's name only**
   where the grant route does not load the role's permissions (demand's
   route). The form offers only passing roles, read with their permissions.
+
+## The supplier's own acts and a firm's address — etyme-architect (2026-10-29)
+
+1. **A yes to put somebody forward works only on the web.** The yes goes
+   through `POST /api/submissions` itself, made from the session of the
+   person saying yes, so the submission is theirs and every refusal is the
+   door's own. A Teams card carries no session, so a Teams yes is refused
+   with "Put them forward from Ask Etyme on the web" until the bot can
+   act in a person's name.
+2. **The submission and the yes are two writes.** The submission is made
+   first, through its own door and its own trail (access log, event); the
+   yes is then recorded. Where that record fails, staff are told it was
+   done and not recorded (`DONE_NOT_RECORDED`); the submission is not
+   undone. The same holds for the start-papers ask.
+3. **Nobody but the Owner submits: refused, not asked.** The owner-only
+   exception stays on `bill.send` alone; widening it is the founder's.
+4. **The supplier twin's reads are logged through one cast.** The access
+   log's twin kinds name only the program manager's twin;
+   `src/lib/twin/supplier-run.ts` writes `SUPPLIER` until regulatory adds
+   it to the union.
+5. **The start-papers ask reads the worker's party from a running buy
+   line** (`workerPartyAt`, regulatory's), so a corp-to-corp worker not
+   yet started is checked against the W2 set's confirmation.
+6. **A firm's address checks its page with one request from the edge**
+   on each visit to its root, waiting at most 1.5 seconds; a slow answer
+   shows the home page. A firm's own domain (CUSTOM) still opens
+   `/site/<host>` with no check. `*.etyme.com` must point at the
+   deployment before `tapin.etyme.com` resolves at all.

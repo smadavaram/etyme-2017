@@ -566,9 +566,17 @@ async function actOnce(input: ActInput): Promise<ActResult> {
 
   // ACTS_ALONE: the record's writes, the entry and the automation-log row, together.
   const alone = what.alone ?? 'TOLD'
+  // An act whose write is another domain's door goes through it first; a
+  // refusal is the door's own sentence (2026-10-29).
+  let opened: Record<string, unknown> | null = null
+  if (performer.door) {
+    const d = await performer.door(ctx)
+    if (!d.ok) return refuse(base, d.says, 'The record says no')
+    opened = d.result
+  }
   try {
     const done = await onePerformerSlot(() => prisma.$transaction(async (tx) => {
-      const result = performer.inTx ? await performer.inTx(tx, ctx) : {}
+      const result = { ...(opened ?? {}), ...(performer.inTx ? await performer.inTx(tx, ctx) : {}) }
       const row = await writeEntry(tx, { ...base, outcome: 'PERFORMED', payload: { ...base.payload, result } })
       await tx.automationLog.create({
         data: {
@@ -600,10 +608,22 @@ async function actOnce(input: ActInput): Promise<ActResult> {
       })
       if (seen) return { outcome: 'ALREADY', entryId: seen.id, says: 'This was already recorded; nothing new was done.' }
     }
+    if (opened) {
+      await report(`The twin did ${input.action} on ${input.entity.type} ${input.entity.id} through its own door, and the ledger entry could not be written.`, err, input.companyId, input.authority.personId)
+      return { outcome: 'FAILED', says: DONE_NOT_RECORDED }
+    }
     await report(`The twin could not do ${input.action} on ${input.entity.type} ${input.entity.id}; nothing was written.`, err, input.companyId, input.authority.personId)
     return { outcome: 'FAILED', says: NOT_RECORDED }
   }
 }
+
+/**
+ * Said where an act went through another domain's door and its ledger
+ * entry then failed: the act stands, with that door's own trail, and
+ * staff were told. Never "nothing was done", which would be false.
+ */
+export const DONE_NOT_RECORDED =
+  'It was done, and the twin\u2019s ledger could not record it. Staff have been told; the record\u2019s own trail shows it.'
 
 // ── The owner-only exception ──────────────────────────────────────────
 
@@ -737,13 +757,27 @@ export interface Decider {
 export interface DecisionAnswer {
   reference?: string | null
   method?: string | null
+  /**
+   * The rate, in cents an hour, a person enters on a card that puts
+   * somebody forward (`bench.put_forward`, 2026-10-29). The twin never
+   * fills it: a rate is the firm's commercial word, and a number the twin
+   * chose would be one nobody stood behind.
+   */
+  rateCents?: number | null
 }
 
+/** The highest rate a card accepts, in cents an hour; anything above is a typo, not a rate. */
+const MAX_RATE_CENTS = 10_000_000
+
 /** An answer's fields, trimmed and capped; a blank field is absent. Pure. */
-export function cleanAnswer(a: unknown): { reference: string | null; method: string | null } {
+export function cleanAnswer(a: unknown): { reference: string | null; method: string | null; rateCents?: number } {
   const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>
   const field = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null)
-  return { reference: field(o.reference, 200), method: field(o.method, 60) }
+  const r = o.rateCents
+  const rateCents = typeof r === 'number' && Number.isInteger(r) && r > 0 && r <= MAX_RATE_CENTS ? r : null
+  // The rate only where one was entered, so an answer that carries none
+  // reads exactly as it did before rates existed.
+  return { reference: field(o.reference, 200), method: field(o.method, 60), ...(rateCents ? { rateCents } : {}) }
 }
 
 export type DecideResult =
@@ -807,7 +841,7 @@ export async function decideApproval(args: {
 
   const asked = approval.twinAction
   const answer = cleanAnswer(args.answer)
-  const answered = !!(answer.reference || answer.method)
+  const answered = !!(answer.reference || answer.method || answer.rateCents)
   // The person's answer rides with the twin's own note, under its own
   // key, so a performer reads what was asked and what was filled in apart.
   const payload: Record<string, unknown> = { ...((asked.payload ?? {}) as Record<string, unknown>), ...(answered ? { answer } : {}) }
@@ -933,6 +967,17 @@ export async function decideApproval(args: {
   const recordSays = performer.check ? await performer.check(ctx) : null
   if (recordSays) return refused(422, recordSays, 'The record says no')
 
+  // An act whose write is another domain's door (2026-10-29): through it,
+  // as the person saying yes, before the yes is recorded. Its refusal is
+  // its own sentence; a second yes racing this one meets the door's own
+  // guard (a submission is unique on job and person).
+  let opened: Record<string, unknown> | null = null
+  if (performer.door) {
+    const d = await performer.door(ctx)
+    if (!d.ok) return refused(422, d.says, 'The record says no')
+    opened = d.result
+  }
+
   try {
     const done = await onePerformerSlot(() => prisma.$transaction(async (tx) => {
       const moved = await tx.twinApproval.updateMany({
@@ -940,7 +985,7 @@ export async function decideApproval(args: {
         data: { decision: 'APPROVED', approverPersonId: args.decider.personId, decidedAt: new Date(), surface: args.surface, reasonFromApprover: reason },
       })
       if (moved.count !== 1) throw new Error('ALREADY_DECIDED')
-      const result = performer.inTx ? await performer.inTx(tx, ctx) : {}
+      const result = { ...(opened ?? {}), ...(performer.inTx ? await performer.inTx(tx, ctx) : {}) }
       const row = await writeEntry(tx, { ...person, outcome: 'PERFORMED', payload: { ...person.payload, result } })
       await tx.automationLog.create({
         data: {
@@ -964,6 +1009,10 @@ export async function decideApproval(args: {
     }
     return { ok: true, outcome: 'PERFORMED', entryId: done.id, result: done.result }
   } catch (err) {
+    if (opened) {
+      await report(`Approval ${approval.id} went through its own door and the yes could not be recorded.`, err, approval.companyId, args.decider.personId)
+      return { ok: false, status: 500, says: DONE_NOT_RECORDED }
+    }
     if (err instanceof Error && err.message === 'ALREADY_DECIDED') return { ok: false, status: 409, says: 'Somebody has already answered this.' }
     await report(`Approval ${approval.id} was not done; nothing was written.`, err, approval.companyId, args.decider.personId)
     return { ok: false, status: 500, says: 'Nothing was done, because it could not be recorded. Staff have been told.' }
