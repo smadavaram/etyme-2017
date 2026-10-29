@@ -762,7 +762,10 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     // Seven unread, two shown: five wait for the next greeting.
     expect(got.older).toBe(5)
     const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
-    expect(where).toMatchObject({ personId: 'p-dana', status: 'UNREAD' })
+    // Unread, or said by a greeting in the last few minutes, so a second load in the same minute still says it.
+    expect(where.personId).toBe('p-dana')
+    expect(where.OR[0]).toEqual({ status: 'UNREAD' })
+    expect(where.OR[1].status).toBe('READ')
     // Dana holds no desk at another firm, so nothing she was sent waits elsewhere.
     expect(where.AND).toHaveLength(1)
     // The twin's Teams digest is the greeting's own list; it is not said again under it.

@@ -25,6 +25,11 @@ const DB = {
   twinActions: [] as any[],
   refused: null as any,
   lines: [] as any[],
+  links: [] as any[],
+  logs: [] as any[],
+  listings: [] as any[],
+  subs: [] as any[],
+  calls: [] as string[],
 }
 const GATE = { now: { ok: false, says: '', step: 'PAPERS' } as any }
 
@@ -41,6 +46,10 @@ vi.mock('@/lib/db', () => ({
       findUnique: vi.fn(async ({ where }: any) => DB.lines.find((l) => l.id === where.id) ?? null),
     },
     person: { findMany: vi.fn(async () => []) },
+    tradeLinkRequest: { findMany: vi.fn(async (args: any) => { DB.calls.push('tradeLinkRequest'); return DB.links.filter((l) => l.toCompanyId === args.where.toCompanyId) }) },
+    automationLog: { findMany: vi.fn(async () => { DB.calls.push('automationLog'); return DB.logs }) },
+    benchListing: { findMany: vi.fn(async () => DB.listings) },
+    submission: { findMany: vi.fn(async () => DB.subs) },
     context: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     roleContract: { findFirst: vi.fn(async () => null) },
     invoice: { findMany: vi.fn(async () => []) },
@@ -291,5 +300,136 @@ describe('Ask Etyme at a firm that sells people: the three acts, said', () => {
       expect(TWIN_ACTS[act].kinds).toEqual(['SUPPLIER'])
     }
     DB.approvals = []
+  })
+})
+
+describe('Ask Etyme for both ends of a chain: the Tapin walk, 2026-10-29', () => {
+  it('a client or prime reads a link request as a card with Yes and Not now', async () => {
+    const { linkAsksFor, firmAskItems, withFirmAsks, linkAskTitle } = await import('@/app/api/conversations/twin/firm-asks')
+    const { queueCards, namedNeedsSays } = await import('@/app/api/conversations/twin/ask')
+    // Tapin asked Brightmoor to link, naming Brightmoor as its prime.
+    DB.links = [{
+      id: 'tl-1', toCompanyId: 'c-brightmoor', relationship: 'PRIME', createdAt: new Date('2026-10-29T06:16:58Z'),
+      fromCompany: { name: 'Tapin', kind: 'VENDOR' }, askedBy: { name: 'Sharath Madavaram' },
+    }]
+    const owner = { company: { id: 'c-brightmoor', kind: 'VENDOR' }, permissions: ['*'] }
+    const asks = await linkAsksFor(owner)
+    expect(asks).toHaveLength(1)
+    // Named as the reader would name the asker on its own register: a sub-vendor.
+    expect(linkAskTitle(asks[0], 'VENDOR')).toBe('Tapin asks to link as your sub-vendor')
+    // A client reads a supplier that asks as its supplier.
+    expect(linkAskTitle({ fromName: 'Tapin', fromKind: 'VENDOR', relationship: 'CLIENT' }, 'CLIENT')).toBe('Tapin asks to link as your supplier')
+
+    // A decision, so it is in the one queue: counted, and named in the headline.
+    const queue = withFirmAsks({ total: 0, items: [] }, firmAskItems(asks, [], 'VENDOR'))!
+    expect(queue.total).toBe(1)
+    expect(namedNeedsSays(queue, [])!.says).toMatch(/^One thing needs you: Tapin asks to link as your sub-vendor\./)
+    // The card: Yes through the one route Companies presses; Not now is drawn on every card and changes nothing.
+    const [card] = queueCards(queue, [])
+    expect(card.title).toBe('Tapin asks to link as your sub-vendor.')
+    expect(card.fact).toMatch(/^Sharath Madavaram at Tapin asked\. Say yes and each of you can name the other on agreements and orders\./)
+    expect(card.act).toMatchObject({ label: 'Yes, link', url: '/api/trade-links/tl-1', body: { action: 'accept' } })
+    // Counted once even when the queue already carries the same row.
+    expect(withFirmAsks(queue, firmAskItems(asks, [], 'VENDOR'))!.total).toBe(1)
+    // A queue that could not be read stays unread: the ask alone is never the whole count.
+    expect(withFirmAsks(null, firmAskItems(asks, [], 'VENDOR'))).toBeNull()
+    // Only a seat that may answer is asked; nothing is read for one that may not.
+    DB.calls.length = 0
+    expect(await linkAsksFor({ company: { id: 'c-brightmoor', kind: 'VENDOR' }, permissions: ['submissions.create'] })).toEqual([])
+    expect(DB.calls).toEqual([])
+    // The mark and the greeting read the one queue the asks are folded into.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
+    expect(route).toMatch(/withFirmAsks\(mine, firmAskItems\(links, joins/)
+    // The notice that told of the ask is not said again under the card.
+    const ask = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/ask.ts'), 'utf8')
+    expect(ask).toMatch(/if \(d\.type === LINK_REQUEST\) carded\.add\(d\.entityId\)/)
+    DB.links = []
+  })
+
+  it('a sub-vendor’s greeting names the job it was sent, the interview proposed and the start after the award', async () => {
+    const { unreadNotices, stillNew, SAID_AGAIN_MS } = await import('@/app/api/conversations/twin/notices')
+    const tapin = { person: { id: 'p-sharath' }, company: { id: 'c-tapin' } } as any
+    const at = new Date('2026-10-29T06:29:23Z')
+    DB.notices = [
+      // The job, as the send writes it: said in its own words, opening the thread.
+      { id: 'n-job', type: 'SYSTEM', title: 'Brightmoor Staffing sent you the EHS lead job', body: null, entityId: 'req-1', data: { kind: 'JOB_SENT', href: '/dashboard/conversations?open=cv-1' }, createdAt: at },
+      // The client's choice, told down the chain at the award.
+      { id: 'n-chosen', type: 'SUBMISSION', title: 'Selected — Ravi Kumar for EHS lead', body: null, entityId: 'sub-tapin', data: { submissionId: 'sub-tapin', href: '/dashboard/submissions' }, createdAt: at },
+      // The award of Tapin's own line.
+      { id: 'n-placed', type: 'CONTRACT', title: 'Paper Ravi Kumar’s contract', body: null, entityId: 'sc-tapin', data: { contractId: 'sc-tapin', requirementId: 'req-1', href: '/dashboard/contracts' }, createdAt: at },
+    ]
+    DB.subs = [{ id: 'sub-tapin', person: { name: 'Ravi Kumar' }, toCompany: { name: 'Brightmoor Staffing' }, requirement: { title: 'EHS lead', mirroredFrom: { company: { name: 'Northbend Athletic' } } } }]
+    const start = new Date(Date.now() + 11 * 86_400_000)
+    DB.lines = [{ id: 'sc-tapin', startDate: start, person: { name: 'Ravi Kumar' }, clientCompany: { name: 'Brightmoor Staffing' }, endClientCompany: { name: 'Northbend Athletic' } }]
+    const { shown } = await unreadNotices(tapin)
+    const titles = Object.fromEntries(shown.map((n) => [n.id, n.title]))
+    expect(titles['n-job']).toBe('Brightmoor Staffing sent you the EHS lead job')
+    expect(titles['n-chosen']).toBe('Northbend Athletic chose Ravi Kumar for the EHS lead job, through Brightmoor Staffing')
+    expect(titles['n-placed']).toMatch(/^Ravi Kumar starts at Northbend Athletic on [A-Z][a-z]{2} \d{1,2}, through Brightmoor Staffing$/)
+    const said = sinceSays(shown, 0, { now: new Date() })
+    expect(said.find((l) => l.says.startsWith('Ravi Kumar starts'))!.links).toEqual([{ text: 'Ravi Kumar', href: '/dashboard/contracts' }])
+    expect(said.find((l) => l.says.startsWith('Brightmoor Staffing sent you'))!.links![0].href).toBe('/dashboard/conversations?open=cv-1')
+    // Another firm's submission or line keeps the title it was written with.
+    DB.subs = []
+    DB.lines = []
+    expect((await unreadNotices(tapin)).shown.find((n) => n.id === 'n-chosen')!.title).toBe('Selected — Ravi Kumar for EHS lead')
+    DB.notices = []
+
+    // A second load in the same minute still says them: read a moment ago is still new.
+    const now = new Date('2026-10-29T06:29:45Z')
+    expect(stillNew(now).OR).toEqual([{ status: 'UNREAD' }, { status: 'READ', readAt: { gte: new Date(now.getTime() - SAID_AGAIN_MS) } }])
+    expect(SAID_AGAIN_MS).toBeLessThanOrEqual(10 * 60 * 1000)
+
+    // The interview: Tapin is told of its own person's round, through the firm it sold to.
+    const { noticesFor } = await import('@/lib/interview-notices')
+    const friday = new Date('2026-10-30T16:00:00Z')
+    const notices = noticesFor('PROPOSED', {
+      interviewId: 'iv-1', submissionId: 'sub-bm', round: 1, stage: 'Technical', role: 'EHS lead',
+      consultant: { id: 'p-ravi', name: 'Ravi Kumar' }, client: { id: 'c-northbend', name: 'Northbend Athletic' },
+      vendor: { id: 'c-brightmoor', name: 'Brightmoor Staffing' }, requesterId: 'p-marcus', vendorStaffIds: ['p-jenna'],
+      slotCount: 1, when: null, reason: null, noShowBy: null, slots: [friday],
+      below: [{ id: 'c-tapin', name: 'Tapin', staffIds: ['p-sharath', 'p-ravi'], soldTo: 'Brightmoor Staffing' }],
+    })
+    const toTapin = notices.filter((n) => n.companyId === 'c-tapin')
+    expect(toTapin.map((n) => n.personId)).toEqual(['p-sharath'])
+    expect(toTapin[0].title).toBe('Ravi Kumar’s interview with Northbend Athletic for EHS lead is proposed for Friday, Oct 30, through Brightmoor Staffing')
+    // The person is still told as the person, and hears it is Tapin to tell, the firm nearest them.
+    const toRavi = notices.find((n) => n.personId === 'p-ravi')!
+    expect(toRavi.channel).toBe('EMAIL')
+    expect(toRavi.body).toMatch(/or tell Tapin\.$/)
+    // Brightmoor's own people still hear it in their own words.
+    expect(notices.find((n) => n.personId === 'p-jenna')!.title).toBe('Northbend Athletic wants to interview Ravi Kumar for EHS lead')
+  })
+
+  it('the page never claims a letter went when none could', async () => {
+    const { joinAsksFor, firmAskItems, withFirmAsks, joinAskFact } = await import('@/app/api/conversations/twin/firm-asks')
+    const { queueCards } = await import('@/app/api/conversations/twin/ask')
+    const tapin = { company: { id: 'c-tapin', kind: 'VENDOR' }, permissions: ['*'] }
+    DB.logs = [{ at: new Date('2026-10-29T07:10:00Z'), payload: { listingId: 'bl-asha', fromPublicPage: true } }]
+    DB.listings = [{ id: 'bl-asha', consultant: { person: { name: 'Asha Rao', primaryEmail: 'asha@example.com' } } }]
+
+    // Where email can leave, the letter went and the firm owes nothing: nothing is read or said.
+    DB.calls.length = 0
+    expect(await joinAsksFor(tapin, true)).toEqual([])
+    expect(DB.calls).toEqual([])
+
+    // Where none can, the firm is told by name, with the address the person gave, until they answer.
+    const joins = await joinAsksFor(tapin, false, new Date('2026-10-29T08:00:00Z'))
+    expect(joins).toEqual([{ listingId: 'bl-asha', name: 'Asha Rao', email: 'asha@example.com', askedOn: '2026-10-29' }])
+    const queue = withFirmAsks({ total: 0, items: [] }, firmAskItems([], joins, 'VENDOR'))!
+    expect(queue.total).toBe(1)
+    const [card] = queueCards(queue, [])
+    expect(card.title).toBe('Asha Rao asked to join your bench from your page.')
+    expect(card.fact).toBe('No email can leave Etyme here, so the letter asking for their yes did not go. Write to them at asha@example.com; the page told them you will be in touch.')
+    expect(card.href).toBe('/dashboard/bench')
+    // No button pretends to send anything: it opens the bench.
+    expect(card.act).toBeNull()
+    for (const said of [card.title, card.fact, joinAskFact({ email: null })]) {
+      expect(said).not.toMatch(/on its way|we sent|was sent|has been sent/i)
+    }
+    // A seat that does not look after the firm's people is not told.
+    expect(await joinAsksFor({ company: { id: 'c-tapin', kind: 'VENDOR' }, permissions: ['invoices.issue'] }, false)).toEqual([])
+    DB.logs = []
+    DB.listings = []
   })
 })

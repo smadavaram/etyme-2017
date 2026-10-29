@@ -319,7 +319,7 @@ export function AskEtyme() {
       setActed((a) => ({
         ...a,
         [card.key]: res.ok
-          ? { state: 'DONE', says: typeof body?.data?.message === 'string' ? body.data.message : card.act!.done }
+          ? { state: 'DONE', says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : card.act!.done }
           : { state: 'ERROR', says: body?.error?.message ?? statusMeans(res.status) },
       }))
     } catch {

@@ -19,7 +19,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { bellShows } from '@/lib/notify/account-mail'
 import { pageOf } from '@/lib/notify'
 import {
-  NOTICES_SHOWN, THREADS_SHOWN, COMING_FREE, START_PAPERS, OUR_BENCH_HREF, START_ASKS_HREF, startAskedSays,
+  NOTICES_SHOWN, THREADS_SHOWN, COMING_FREE, START_PAPERS, OUR_BENCH_HREF, START_ASKS_HREF, startAskedSays, chosenSays, placedSays,
   type NoticeLine, type ThreadNote,
 } from './ask'
 import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-performers'
@@ -48,7 +48,7 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
  * chase for her license follows her for the same reason (Colleen Byrne,
  * 2026-10-20): a bench seat is no firm's book.
  */
-async function unreadWhere(caller: CallerContext, opts: { program?: string | null } = {}): Promise<Prisma.NotificationWhereInput> {
+async function unreadWhere(caller: CallerContext, opts: { program?: string | null } = {}, now = new Date()): Promise<Prisma.NotificationWhereInput> {
   // A firm seated in a client's program reads that program, the same as
   // its greeting: a notice written at its own firm's book waits for the
   // seat that reads that book (walk three, 2026-10-26: Aptiva, seated at
@@ -56,7 +56,7 @@ async function unreadWhere(caller: CallerContext, opts: { program?: string | nul
   if (opts.program) {
     return {
       personId: caller.person.id,
-      status: 'UNREAD',
+      ...stillNew(now),
       AND: [
         { OR: [{ companyId: null }, { companyId: opts.program }] },
         { OR: [{ entityId: null }, { NOT: { entityId: { startsWith: DIGEST_PREFIX } } }] },
@@ -75,7 +75,7 @@ async function unreadWhere(caller: CallerContext, opts: { program?: string | nul
   const at: Prisma.NotificationWhereInput[] = elsewhere.length ? [{ companyId: null }, { companyId: { notIn: elsewhere } }] : []
   return {
     personId: caller.person.id,
-    status: 'UNREAD',
+    ...stillNew(now),
     AND: [
       ...(at.length ? [{ OR: at }] : []),
       // The twin's Teams digest is the greeting's own list sent to Teams;
@@ -85,6 +85,24 @@ async function unreadWhere(caller: CallerContext, opts: { program?: string | nul
     ],
     ...bellShows(),
   }
+}
+
+/**
+ * How long a notice the greeting already said is said again on the next
+ * greeting. Marking a notice read the moment a greeting is served lost it
+ * to any second load: the Tapin walk (2026-10-29) read Brightmoor's job,
+ * the link answered and two bench yeses off one load, and the screen drew
+ * the next, a fraction of a second later, which said only the oldest. A
+ * reload, a phone and a desktop opened together, or the screen fetching
+ * twice did the same. So a notice stays in "Since you last looked" for a
+ * few minutes after it was first said, then is gone; it is still told
+ * once, and never on a later day.
+ */
+export const SAID_AGAIN_MS = 5 * 60 * 1000
+
+/** Unread, or read by a greeting in the last few minutes (SAID_AGAIN_MS). */
+export function stillNew(now: Date): Pick<Prisma.NotificationWhereInput, 'OR'> {
+  return { OR: [{ status: 'UNREAD' }, { status: 'READ', readAt: { gte: new Date(now.getTime() - SAID_AGAIN_MS) } }] }
 }
 
 /** The marker the twin's Teams digest writes as its notice's entityId (`lib/teams/digest`). */
@@ -108,7 +126,10 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
     }),
     prisma.notification.count({ where }),
   ])
-  const twin = await twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>())
+  const [twin, chain] = await Promise.all([
+    twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()),
+    chainNotices(rows, caller.company?.id ?? null).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()),
+  ])
   // Etyme's own question, answered since it was asked: the notice is
   // marked read with the rest and never said, because "Ask Etyme is asking
   // you to decide" about a bill already sent is a question nobody can
@@ -122,7 +143,7 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
     shown: rows.map((n) => {
       const data = asRecord(n.data)
       const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
-      const acted = twin.get(n.id)
+      const acted: Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'> | undefined = twin.get(n.id) ?? chain.get(n.id)
       return {
         id: n.id, title: named.get(n.id) ?? n.title, href: pageOf(n.type, n.entityId, data),
         // What Ask Etyme did alone, in its own words, over the notice's own.
@@ -219,6 +240,80 @@ async function twinActNotices(
         linkText: personName,
       })
     }
+  }
+  return out
+}
+
+/** The title the award writes for a firm below when the client chooses its candidate (`tellSelected` in lib/papering). */
+const CHOSEN_PREFIX = 'Selected — '
+
+/**
+ * What a firm further down a chain is told of its person, said with the
+ * names (the Tapin walk, 2026-10-29: Tapin's greeting never said the
+ * award or the placement):
+ *
+ *   chosen   the client chose the firm's candidate, told down the chain
+ *            at the award: "Northbend Athletic chose Ravi Kumar for the
+ *            HCM integration lead job, through Brightmoor Staffing"
+ *   placed   the award wrote the firm's own line: "Ravi Kumar starts at
+ *            Northbend Athletic on Nov 9, through Brightmoor Staffing",
+ *            opening where the notice opened (its terms, or Contracts)
+ *
+ * Only the reader's own firm's submission or line is re-said; anything
+ * else keeps the title it was written with. The person's name opens it.
+ */
+async function chainNotices(
+  rows: ReadonlyArray<{ id: string; type: string; title: string; entityId: string | null; data: unknown }>,
+  companyId: string | null,
+): Promise<Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>> {
+  const out = new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()
+  if (!companyId) return out
+  const chosen = rows.filter((n) => n.type === 'SUBMISSION' && n.entityId && n.title.startsWith(CHOSEN_PREFIX))
+  const placed = rows.filter((n) => {
+    const d = asRecord(n.data)
+    return n.type === 'CONTRACT' && !!n.entityId && d?.contractId === n.entityId && typeof d?.requirementId === 'string'
+  })
+  const [subs, lines] = await Promise.all([
+    chosen.length
+      ? prisma.submission.findMany({
+          where: { id: { in: [...new Set(chosen.map((n) => n.entityId!))] }, fromCompanyId: companyId },
+          select: {
+            id: true, person: { select: { name: true } }, toCompany: { select: { name: true } },
+            requirement: { select: { title: true, mirroredFrom: { select: { company: { select: { name: true } } } } } },
+          },
+        })
+      : Promise.resolve([]),
+    placed.length
+      ? prisma.sellContract.findMany({
+          where: { id: { in: [...new Set(placed.map((n) => n.entityId!))] }, companyId },
+          select: { id: true, startDate: true, person: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ])
+  for (const n of chosen) {
+    const s = subs.find((x) => x.id === n.entityId)
+    if (!s) continue
+    out.set(n.id, {
+      title: chosenSays({
+        personName: s.person.name, jobTitle: s.requirement.title,
+        siteName: s.requirement.mirroredFrom?.company?.name ?? null, throughName: s.toCompany.name,
+      }),
+      href: pageOf(n.type, n.entityId, asRecord(n.data)),
+      linkText: s.person.name,
+    })
+  }
+  const now = new Date()
+  for (const n of placed) {
+    const l = lines.find((x) => x.id === n.entityId)
+    if (!l) continue
+    out.set(n.id, {
+      title: placedSays({
+        personName: l.person.name, siteName: l.endClientCompany?.name ?? l.clientCompany.name,
+        throughName: l.clientCompany.name, startOn: l.startDate.toISOString().slice(0, 10),
+      }, now),
+      href: pageOf(n.type, n.entityId, asRecord(n.data)),
+      linkText: l.person.name,
+    })
   }
   return out
 }

@@ -79,6 +79,71 @@ export interface NoticeContext {
   slots?: Date[]
   /** Where the round has got to once the event landed — CONFIRMED means in all three diaries. */
   state?: string
+  /**
+   * The firms further down the chain that put this person forward to the
+   * supplier, nearest first (`parentSubmission`): a sub-vendor, and the
+   * bench firm below it. Each is told of its own person's round, through
+   * the firm it sold to, and never the client's notes.
+   */
+  below?: BelowFirm[]
+}
+
+/** A firm below the supplier in a chain: who it is, its seats, and the firm it sold the person to. */
+export interface BelowFirm {
+  id: string
+  name: string
+  staffIds: string[]
+  soldTo: string
+}
+
+/** How many rungs below the supplier are told: a sub-vendor and the bench firm under it, and no further. */
+export const BELOW_TOLD = 3
+
+/** "Thursday, Oct 30", in the reader's own day. */
+export function dayIn(d: Date, zone: string | null): string {
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: zone ?? 'UTC' })
+}
+
+/**
+ * What a firm below the supplier reads of its person's round (the Tapin
+ * walk, 2026-10-29: Tapin was never told its person had an interview).
+ * The round as the client booked it, through the firm the reader sold to,
+ * so the firm that will call the person knows before the person asks.
+ */
+export function belowSays(
+  event: InterviewEvent,
+  f: { person: string; role: string; client: string; through: string; round: number; firstDay: string | null; slotCount: number; at: string },
+): { title: string; body: string } | null {
+  const through = f.through !== f.client ? `, through ${f.through}` : ''
+  switch (event) {
+    case 'PROPOSED': {
+      const when = f.firstDay ? ` for ${f.firstDay}${f.slotCount > 1 ? ` or one of ${f.slotCount - 1} other times` : ''}` : ''
+      return {
+        title: `${possessive(f.person)} interview with ${f.client} for ${f.role} is proposed${when}${through}`,
+        body: `Round ${f.round}, for ${f.role}. ${f.through} confirms the time with ${f.client}; tell ${f.through} if ${f.person} cannot make it.`,
+      }
+    }
+    case 'CONFIRMED':
+      return {
+        title: `${possessive(f.person)} interview with ${f.client} for ${f.role} is booked${f.at ? ` for ${f.at}` : ''}${through}`,
+        body: `Round ${f.round}, for ${f.role}${f.at ? `, ${f.at}` : ''}.`,
+      }
+    case 'CANCELLED':
+      return { title: `${possessive(f.person)} round ${f.round} with ${f.client} is off${through}`, body: `For ${f.role}.` }
+    case 'OFFERED':
+      return {
+        title: `${f.client} is making ${f.person} an offer for ${f.role}${through}`,
+        body: `After round ${f.round}. ${f.through} places ${f.person} with you when ${f.client} awards the position.`,
+      }
+    case 'REJECTED':
+      return { title: `${f.person} is not going forward at ${f.client} for ${f.role}${through}`, body: `After round ${f.round}.` }
+    default:
+      return null
+  }
+}
+
+function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}’` : `${name}’s`
 }
 
 /** The zone one reader is told a time in: their own, else the fallback, else UTC. */
@@ -110,9 +175,28 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
     add({ personId: c.consultant.id, companyId: c.vendor.id, type: 'INTERVIEW', title, body: said(body, c.consultant.id), channel: 'EMAIL' })
 
   const round = `round ${c.round}`
+  // The firm the candidate hears from is the one nearest them: the bottom
+  // of the chain where there is one, else the supplier.
+  const nearest = c.below && c.below.length ? c.below[c.below.length - 1].name : c.vendor.name
   // The candidate's own clock for the times offered, so the letter can
   // be answered without converting anything.
   const offered = (c.slots ?? []).map((t) => timeFor(t, zoneOf(c, c.consultant.id)))
+
+  // The firms below the supplier, each in its own words, before the
+  // supplier's own notices so a seat on both hears the supplier's.
+  for (const b of c.below ?? []) {
+    for (const personId of b.staffIds) {
+      // The person is told as the person, and the client's requester as the client.
+      if (c.vendorStaffIds.includes(personId) || personId === c.consultant.id || personId === c.requesterId) continue
+      const zone = zoneOf(c, personId)
+      const said = belowSays(event, {
+        person: c.consultant.name, role: c.role, client: c.client.name, through: b.soldTo, round: c.round,
+        firstDay: c.slots && c.slots.length ? dayIn([...c.slots].sort((x, y) => x.getTime() - y.getTime())[0], zone) : null,
+        slotCount: c.slotCount, at: c.when ? timeFor(c.when, zone) : '',
+      })
+      if (said) add({ personId, companyId: b.id, type: 'INTERVIEW', title: said.title, body: said.body })
+    }
+  }
 
   switch (event) {
     case 'PROPOSED':
@@ -125,7 +209,7 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       )
       toConsultant(
         `${c.client.name} would like to interview you for ${c.role}`,
-        `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered${offered.length > 0 ? `: ${offered.join('; ')}` : ''} — pick one on your page, or tell ${c.vendor.name}.`
+        `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered${offered.length > 0 ? `: ${offered.join('; ')}` : ''} — pick one on your page, or tell ${nearest}.`
       )
       break
     case 'CONFIRMED':
@@ -157,7 +241,7 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       // got back (client tester, 2026-10-03).
       const off = (at: string) => `For ${c.role}${at ? `, ${at}` : ''}.${c.reason ? ` ${c.reason}` : ''}`
       toVendorStaff(`Round ${c.round} for ${c.consultant.name} at ${c.client.name} is off`, off)
-      toConsultant(`Your ${round} with ${c.client.name} is off`, (at) => `${off(at)} ${c.vendor.name} will be in touch.`)
+      toConsultant(`Your ${round} with ${c.client.name} is off`, (at) => `${off(at)} ${nearest} will be in touch.`)
       toRequester(`Round ${c.round} for ${c.consultant.name} is off`, off)
       break
     }
@@ -166,7 +250,7 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       // four jobs at one client read four letters under one subject line
       // (handoffs station, 2026-10-20).
       toVendorStaff(`${c.consultant.name} goes through to round ${c.round + 1} at ${c.client.name} for ${c.role}`, `For ${c.role}. ${c.client.name} will propose times.`)
-      toConsultant(`You are through to round ${c.round + 1} with ${c.client.name} for ${c.role}`, `For ${c.role}. They will propose times; ${c.vendor.name} will let you know.`)
+      toConsultant(`You are through to round ${c.round + 1} with ${c.client.name} for ${c.role}`, `For ${c.role}. They will propose times; ${nearest} will let you know.`)
       break
     case 'OFFERED': {
       // An offer is not a placement. The client places somebody by
@@ -235,6 +319,7 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
       submission: {
         select: {
           id: true,
+          parentSubmissionId: true,
           person: { select: { id: true, name: true } },
           requirement: { select: { title: true } },
         },
@@ -242,9 +327,10 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
     },
   })
   if (!row) return null
+  const below = await belowOf(row.submission.parentSubmissionId).catch(() => [] as BelowFirm[])
   // Every reader's own zone, in one read, so each is told the time in
   // their own day.
-  const readers = Array.from(new Set([row.requestedById, row.submission.person.id, ...row.vendor.contexts.map((x) => x.personId)]))
+  const readers = Array.from(new Set([row.requestedById, row.submission.person.id, ...row.vendor.contexts.map((x) => x.personId), ...below.flatMap((b) => b.staffIds)]))
   const people = await prisma.person.findMany({ where: { id: { in: readers } }, select: { id: true, timezone: true } })
   const zones = Object.fromEntries(people.map((p) => [p.id, p.timezone]))
   const slots = (Array.isArray(row.proposedSlots) ? (row.proposedSlots as any[]) : [])
@@ -269,7 +355,40 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
     zones,
     slots,
     state: row.state,
+    below,
   }
+}
+
+/**
+ * The firms that put the person forward below the supplier, nearest
+ * first, walked up `parentSubmission` at most BELOW_TOLD rungs: each
+ * firm, the firm it sold to, and its staff seats.
+ */
+async function belowOf(parentId: string | null): Promise<BelowFirm[]> {
+  const out: BelowFirm[] = []
+  let next = parentId
+  while (next && out.length < BELOW_TOLD) {
+    const sub = await prisma.submission.findUnique({
+      where: { id: next },
+      select: {
+        parentSubmissionId: true,
+        toCompany: { select: { name: true } },
+        fromCompany: {
+          select: {
+            id: true, name: true,
+            contexts: { where: { revokedAt: null, suspendedAt: null, type: { in: ['EMPLOYEE', 'PARTNER'] } }, select: { personId: true } },
+          },
+        },
+      },
+    })
+    if (!sub) break
+    out.push({
+      id: sub.fromCompany.id, name: sub.fromCompany.name, soldTo: sub.toCompany.name,
+      staffIds: Array.from(new Set(sub.fromCompany.contexts.map((x) => x.personId))),
+    })
+    next = sub.parentSubmissionId
+  }
+  return out
 }
 
 /**

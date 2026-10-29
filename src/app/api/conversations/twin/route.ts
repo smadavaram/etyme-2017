@@ -20,6 +20,8 @@ import { firstActFor, welcomeFor, setupLineFor } from './first-act'
 import { setupReminderFor } from '@/lib/setup-checklist-state'
 import { hasPermission } from '@/lib/permissions'
 import { firstActFacts } from './first-act-read'
+import { linkAsksFor, joinAsksFor, firmAskItems, withFirmAsks } from './firm-asks'
+import { emailSender } from '@/lib/senders'
 
 /**
  * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
@@ -205,7 +207,16 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
       // is in her one queue, so her greeting and her mark count it.
       const own = await ownFactsOf(caller, request)
       // Nor is she asked to accept her own week: she is the firm (CLAUDE.md, shipped 2026-10-21).
-      return own ? withOwnPapers(withoutOwnWeek(queue, caller.person.name), cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
+      const mine = own ? withOwnPapers(withoutOwnWeek(queue, caller.person.name), cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
+      // What another party waits on this firm for (./firm-asks): a firm
+      // asking to link, and, where no letter can leave, somebody who asked
+      // from the page to join the bench. Rows of the one queue, counted.
+      if (!mine || !caller.company) return mine
+      const [links, joins] = await Promise.all([
+        linkAsksFor(caller).catch(() => []),
+        joinAsksFor(caller, emailSender() !== null).catch(() => []),
+      ])
+      return withFirmAsks(mine, firmAskItems(links, joins, caller.company.kind ?? ''))
     } catch {
       return null
     }

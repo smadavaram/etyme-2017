@@ -2362,6 +2362,8 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
     // of it: its card is right above (handoffs station, 2026-10-20: "Ask
     // Etyme is asking you to decide." under the bill card it asked about).
     const carded = new Set(items.map((i) => i.approvalId))
+    // Nor is a link request said again as the notice that told of it: its card is above.
+    for (const d of queue?.items ?? []) if (d.type === LINK_REQUEST) carded.add(d.entityId)
     more.push(...sinceSays((opts.notices?.shown ?? []).filter((n) => !n.settled && !said.has(n.title) && !(n.entityId && carded.has(n.entityId))), opts.notices?.older ?? 0, {
       now, threads: opts.threads?.shown, moreThreads: opts.threads?.more, self: opts.self,
     }))
@@ -2827,6 +2829,40 @@ export function cardIdsOf(answer: Answer): string[] {
 // Every row is a card; where one existing route performs the act, the
 // card carries it, and everywhere else the card opens the row's page.
 
+/**
+ * A firm further down the chain, told its person was chosen at the top
+ * (the Tapin walk, 2026-10-29: Tapin read "Selected — Ravi Kumar for HCM
+ * integration lead"): who, for which job, at which site, and through the
+ * firm it sold to. The site is said where the record names it; the firm a
+ * sub-vendor sold to is always its own counterparty.
+ */
+export function chosenSays(f: { personName: string; jobTitle: string; siteName: string | null; throughName: string | null }): string {
+  const through = f.throughName && f.throughName !== f.siteName ? `, through ${f.throughName}` : ''
+  return f.siteName
+    ? `${f.siteName} chose ${f.personName} for the ${f.jobTitle} job${through}`
+    : `${f.personName} was chosen for the ${f.jobTitle} job${through}`
+}
+
+/**
+ * The placement the award wrote, said as the start: "Ravi Kumar starts at
+ * Northbend Athletic on Nov 9, through Brightmoor Staffing." The site is
+ * the end client where the line names one, else the firm it bills; the
+ * firm it bills is said only where it is not the site.
+ */
+export function placedSays(f: { personName: string; siteName: string; throughName: string | null; startOn: string }, now: Date): string {
+  const when = whenSays(f.startOn, now)
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const past = Date.parse(`${f.startOn.slice(0, 10)}T00:00:00Z`) < today
+  const on = when === 'today' || when === 'tomorrow' ? when : `on ${when}`
+  const through = f.throughName && f.throughName !== f.siteName ? `, through ${f.throughName}` : ''
+  return `${f.personName} ${past ? 'started' : 'starts'} at ${f.siteName} ${on}${through}`
+}
+
+/** Another firm already on Etyme asks to link with this one (./firm-asks). */
+export const LINK_REQUEST = 'LINK_REQUEST'
+/** Somebody asked from the firm's public page to join its bench, where no letter could leave (./firm-asks). */
+export const JOIN_ASK = 'JOIN_ASK'
+
 /** One row of GET /api/decisions, as much of it as the chat reads. */
 export interface QueueItem {
   type: string
@@ -2986,6 +3022,11 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
       return `${possessive(who.replace(/ at .*$/, ''))} contract waits to be papered`
     case 'CONTRACT_START':
       return `${d.title.replace(/^Start /, '').replace(/ at .*$/, '')} waits to be started`
+    // Another firm asks to link, or somebody asked from the page to join
+    // the bench (./firm-asks): the row's own title names them.
+    case LINK_REQUEST:
+    case JOIN_ASK:
+      return cap(d.title)
     case 'OWN_PAPER':
       // A one-person firm's own paper, asked of her as the worker: the card's own name.
       return cap(d.whose?.trim() || d.title)
@@ -3047,6 +3088,11 @@ export function queueAct(d: QueueItem): QueueAct | null {
       url: `/api/timesheets/${id}/approve`, body: {},
       done: accept ? 'Accepted, and recorded under your name.' : 'Approved, and recorded under your name.',
     }
+  }
+  // A link request is answered by the one route Companies presses; Not
+  // now on the card changes nothing, so the ask stays for the next look.
+  if (d.type === LINK_REQUEST) {
+    return { label: 'Yes, link', url: `/api/trade-links/${id}`, body: { action: 'accept' }, done: `Linked. ${d.whose ?? 'They'} ${d.whose ? 'is' : 'are'} on your companies.` }
   }
   if (d.type === 'EXPENSE_APPROVAL') {
     return { label: 'Approve expense', url: '/api/expenses/actions', body: { action: 'approve', expenseIds: [d.entityId] }, done: 'Approved, and recorded under your name.' }
@@ -3111,6 +3157,7 @@ export function queueCards(q: QueueRead | null | undefined, twin: readonly Waiti
         type: d.type,
         title: `${queueName(d)}.`,
         fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle)
+          : d.type === LINK_REQUEST || d.type === JOIN_ASK ? (d.subtitle ?? '')
           : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim()
           : pay ? `${factOf(d.subtitle)} ${PAY_OPENS_THE_RECEIPT}`.trim()
           : factOf(d.subtitle),
