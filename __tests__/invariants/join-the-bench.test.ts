@@ -15,11 +15,17 @@ const h = vi.hoisted(() => ({
   listings: [] as Row[],
   logs: [] as Row[],
   letters: [] as Row[],
+  reads: [] as Row[],
   site: null as Row | null,
   seq: 0,
 }))
 
 vi.mock('@/lib/alerts', () => ({ reportError: vi.fn() }))
+// Looking an existing person up by address is logged by the shared ask.
+vi.mock('@/lib/access-log', () => ({
+  logAccess: vi.fn((r: Row) => { h.reads.push(r) }),
+  recordRefusal: vi.fn(async (ids: string[], r: Row) => { h.reads.push({ ids, ...r }) }),
+}))
 vi.mock('@/app/api/consultants/ask-by-email', () => ({
   askByEmail: vi.fn(async (o: Row) => { h.letters.push(o); return 'EMAILED' }),
 }))
@@ -75,7 +81,7 @@ const ask = (body: Row) =>
   )
 
 beforeEach(() => {
-  h.people = []; h.profiles = []; h.listings = []; h.logs = []; h.letters = []; h.seq = 0
+  h.people = []; h.profiles = []; h.listings = []; h.logs = []; h.letters = []; h.reads = []; h.seq = 0
   h.site = vendorSite
 })
 
@@ -106,6 +112,10 @@ describe('Join the bench on a firm’s public page', () => {
   })
 
   it('joining from the page asks the person onto the bench with their own yes and never makes a second record', async () => {
+    // The bench's one ask, the same function Add consultant calls; never a copy of it.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/site/[slug]/join/route.ts'), 'utf8')
+    expect(route).toContain('askOntoBench(')
+    expect(route).not.toMatch(/benchListing\.(create|update)|person\.create|consultantProfile\.create/)
     const first = await ask({ name: 'Ifeoma Obi', email: 'Ifeoma@Example.com ' })
     expect(first.status).toBe(200)
     expect(h.people).toHaveLength(1)
@@ -134,6 +144,9 @@ describe('Join the bench on a firm’s public page', () => {
     expect(h.profiles).toHaveLength(1)
     expect(h.listings[0].consultantId).toBe('maya-profile')
     expect(h.people[0].name).toBe('Maya Brooks')
+    // Her record was read by her address, and that read is logged as nobody's.
+    expect(h.reads).toHaveLength(1)
+    expect(h.reads[0].allowed).toBe(false)
   })
 
   it('a no stands: an address that said no is not asked again from the page', async () => {

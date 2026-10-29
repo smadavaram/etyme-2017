@@ -36,7 +36,6 @@
  */
 
 import { normalEmail, tidy } from '@/lib/public-site/leads'
-import type { AddPath } from '@/lib/consultant-portfolio'
 
 /** Whether this kind of company's page offers "Join the bench". */
 export function offersJoinBench(kind: string): boolean {
@@ -85,33 +84,6 @@ export function joinProblems(input: { name?: string | null; email?: string | nul
     out.push({ field: 'email', says: `“${input.email!.trim()}” is not an email address we can write to.` })
   }
   return out
-}
-
-/**
- * What the door does on each path of the bench's own rule (`addPath` in
- * lib/consultant-portfolio, the rule Add consultant follows):
- *
- *  - NEW           nobody by that address has a profile: one is made on
- *                  the person by that address, or on a new person where
- *                  there is none, and the listing is an invitation.
- *  - ASK_EXISTING  she has a profile: the invitation only, on her record.
- *  - ASK_AGAIN     she took a listing here back: asked afresh.
- *  - ALREADY_ASKED, ALREADY_ON, SAID_NO: nothing is written and nothing
- *                  is sent. A no stands; a public box cannot reopen it.
- */
-export type JoinAct = 'CREATE_PROFILE' | 'ASK' | 'ASK_AGAIN' | 'NOTHING'
-
-export function joinAct(path: AddPath): JoinAct {
-  switch (path) {
-    case 'NEW':
-      return 'CREATE_PROFILE'
-    case 'ASK_EXISTING':
-      return 'ASK'
-    case 'ASK_AGAIN':
-      return 'ASK_AGAIN'
-    default:
-      return 'NOTHING'
-  }
 }
 
 /**

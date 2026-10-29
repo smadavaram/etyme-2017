@@ -4,17 +4,13 @@ import { reportError } from '@/lib/alerts'
 import { publicSite } from '@/lib/public-site'
 import { looksScripted, normalEmail, tidy } from '@/lib/public-site/leads'
 import {
-  joinAct,
   joinLetterLead,
   joinProblems,
   joinReply,
   tooManyAsks,
   TOO_MANY_SAYS,
 } from '@/lib/public-site/join-bench'
-import { addPath } from '@/lib/consultant-portfolio'
-import { invitation } from '@/lib/bench-consent'
-import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { askByEmail } from '@/app/api/consultants/ask-by-email'
+import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 
 /**
  * POST /api/site/:slug/join
@@ -25,12 +21,11 @@ import { askByEmail } from '@/app/api/consultants/ask-by-email'
  * its link on `/bench-invite/[token]`, which thanks them. The yes is
  * never given here, because anybody can type any address into a box.
  *
- * It is the bench's own ask, on the bench's own rule (`addPath`), its
- * own invitation (`invitation`, `inviteUrl`, `inviteText`) and its own
- * way of sending (`askByEmail`): somebody who already has a record is
- * asked on it, never made again, and a no is never reopened from here.
- * What differs from Add consultant is only who started it, so nobody is
- * seated at the firm before their yes and no rate or term is stated.
+ * It is the bench's own ask, the one function Add consultant calls too
+ * (`askOntoBench` in lib/consultant-portfolio/bench-ask): somebody who
+ * already has a record is asked on it, never made again, and a no is
+ * never reopened from here. What differs is only who started it
+ * (`by: null`), so no rate or term is stated.
  *
  * Public, with no account: the reply is one sentence for every path, so
  * a stranger learns nothing about an address. A field nobody sees and a
@@ -96,73 +91,15 @@ export async function POST(
       return NextResponse.json({ error: { code: 'TOO_MANY', message: TOO_MANY_SAYS } }, { status: 429 })
     }
 
-    const existing = await prisma.person.findUnique({
-      where: { primaryEmail: email },
-      select: {
-        id: true,
-        name: true,
-        primaryEmail: true,
-        consultant: {
-          select: {
-            id: true,
-            listings: { where: { companyId: firm.id }, select: { id: true, state: true, revokedAt: true } },
-          },
-        },
-      },
-    })
-    const listing = existing?.consultant?.listings[0] ?? null
-    const act = joinAct(addPath({ profileExists: Boolean(existing?.consultant), listing }))
-    if (act === 'NOTHING') return reply()
-
-    const asked = await prisma.$transaction(async (tx) => {
-      // Never a second record: the person by that address, or a new one
-      // where there is none. Their own name stays theirs.
-      const person = existing ?? (await tx.person.create({ data: { name, primaryEmail: email }, select: { id: true, name: true, primaryEmail: true } }))
-      const profileId =
-        existing?.consultant?.id ??
-        (await tx.consultantProfile.create({ data: { personId: person.id, visibility: 'INTERNAL' }, select: { id: true } })).id
-
-      const row =
-        act === 'ASK_AGAIN'
-          ? await tx.benchListing.update({
-              where: { id: listing!.id },
-              // Asked again, never restored: revoking is never a suggestion.
-              data: { tier: 'MARKETING', ...invitation(new Date()), revokedAt: null, declinedNote: null },
-            })
-          : await tx.benchListing.create({
-              data: { consultantId: profileId, companyId: firm.id, tier: 'MARKETING', ...invitation(new Date()) },
-            })
-
-      await tx.automationLog.create({
-        data: {
-          companyId: firm.id,
-          action: 'BENCH_LISTING_REQUESTED',
-          summary: `"${person.name}" asked to join the bench from ${firm.name}’s public page. Pending their yes from the letter.`,
-          reason: 'Join the bench on the public page: the bench’s own invitation, sent to the address the person gave, answered only from its link.',
-          payload: {
-            listingId: row.id,
-            consultantId: profileId,
-            personId: person.id,
-            requestedBy: null,
-            tier: 'MARKETING',
-            fromPublicPage: true,
-          },
-          reversible: true,
-        },
-      })
-      return { listingId: row.id, person }
-    })
-
-    const url = inviteUrl(asked.listingId)
-    const msg = inviteText({ personName: asked.person.name, vendorName: firm.name, url, terms: null })
-    await askByEmail({
-      companyId: firm.id,
-      personId: asked.person.id,
-      to: asked.person.primaryEmail,
-      url,
-      subject: msg.subject,
-      body: joinLetterLead(firm.name) + msg.body,
-      listingId: asked.listingId,
+    // ASKED, NOTHING, REFUSED and RACED all get the one reply: a stranger
+    // learns nothing about an address, and the page states no terms, so
+    // nothing it sends can be refused for them.
+    await askOntoBench({
+      firm: { id: firm.id, name: firm.name },
+      name,
+      email,
+      by: null,
+      letterLead: joinLetterLead(firm.name),
     })
     return reply()
   } catch (err: any) {
