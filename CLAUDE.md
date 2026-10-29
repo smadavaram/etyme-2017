@@ -1603,6 +1603,56 @@ this order, on "Go":
 4. **`tapin.etyme.com` opens Tapin's generated page**, and a firm's own
    domain later: a host mapping, not a site (architect).
 
+**Built and shipped to production the same day (b0881c5a6 on the deploy
+branch, source f0e939f76).** The supplier's three act kinds in the role
+contract (`bench.put_forward`, needs a yes from the seat holding
+`submissions.create` and never the Owner where another seat holds it,
+performed through `POST /api/submissions` itself so consent, the time
+limit, licenses and the band are the route's own, a yes with no rate
+refused, a yes from Teams sent to the web; `papers.ask_for_start`, acts
+alone through regulatory's clearance ask where `mayChasePaper` says the
+set is confirmed; `bench.coming_free`, acts alone, one summary a week
+by name to the seats that submit, nothing outside the firm), the
+supplier's default contract listing all five with `bill.draft` and
+`bill.send`, the nightly run raising them for every supplier-kind firm
+(`runSupplierActs` after `runSupplierBills`), every entry ledgered under
+the Owner's role and the supplier's twin named in the access log; the
+three cards in the supplier's Ask Etyme (the why on tap, a rate box,
+`NEEDS_RATE` and `PUT_FORWARD_SIGNED_IN` reused from the performers,
+the start ask as "Ask Etyme asked <person> for <papers>", the refused
+ask carrying the gate's sentence with the link to setup, coming free as
+one line of names never counted in the mark); "Join the bench" on a
+staffing or bench firm's generated page, the yes from the invitation
+letter and never on the page, one reply on every path, a cap per page
+per hour, through supply's one function `askOntoBench` in
+`lib/consultant-portfolio/bench-ask` that Add consultant calls too, the
+public lookup logged as `PUBLIC_PAGE_ADDRESS_LOOKUP` with no actor
+before the reply; the do-not-return picker reading the bench listing;
+a corp-to-corp worker about to start chased against her own set; and
+a firm's Etyme address on `<slug>.etyme.com` opening `/site/<slug>`
+through the middleware (the app's own pages sent to the main host, a
+stranger's subdomain the home page) once `*.etyme.com` points at the
+deployment, which is the founder's DNS line. Coordinator's calls on the
+way, each reversible in a sentence: a brand-new person asked onto a
+bench no longer gets a seat at the firm before their yes (the
+2026-10-22 rule applied to both doors); no Owner-only exception for
+putting somebody forward (a firm where only the Owner submits is told
+to put them forward from the job's page); the twin offers only
+existing matches of 70 or more with confidence above LOW, at most three
+people per job per night; coming free goes out once a week; no
+role-contract rows are seeded, so the shipped default reaches every
+firm. Release pass on a quiet copy of 107ba513b: type check clean,
+12,358 of 12,359 unit (the one red the posture's route count, fixed in
+f0e939f76), 2,592 integration, build clean. Gates: no source
+difference, no Ruby, brand kit present, no schema line removed. Smoke:
+every public page and the four doors 200, `/site/tapin` 200 on
+production, the inbound email door 404 to a POST. **Open:** the
+founder's DNS line for `*.etyme.com`; the setup page has no address for
+a single item, so the refused start ask links to the checklist, not
+to Papers you require; the start-papers line reaches only seats that
+get HR's notice; the Tapin walk on screens records its verdict under
+this line.
+
 ## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
 
 "Build it", on the two drawings waiting since 2026-10-27: the setup
