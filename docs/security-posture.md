@@ -386,6 +386,14 @@ and the person who forwarded it. If the row cannot be written the body is
 not shown. A refused read is written before the refusal goes out
 (`recordForwardedEmailRead` in `src/lib/access-log.ts`).
 
+**An address typed on a public page.** "Join the bench" on a firm's
+public page takes an email address from a visitor with no seat. Where the
+address belongs to somebody on Etyme, finding her reads her record, so a
+row is written before the reply goes out, under a name of its own,
+`PUBLIC_PAGE_ADDRESS_LOOKUP`. The row names no actor, because the visitor
+is not the firm, and is marked not allowed, because the visitor is told
+nothing about her.
+
 ---
 
 ## 5. Segregation of duties, enforced

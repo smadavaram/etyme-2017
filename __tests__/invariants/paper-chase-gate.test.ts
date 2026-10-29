@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gateChases, partyOfShape, withheldDetail } from '@/lib/document-stages/chase-gate'
+import { gateChases, partyOfShape, withheldDetail, workerPartyAt } from '@/lib/document-stages/chase-gate'
 import { asFindings, type DocumentWatch } from '@/lib/document-request'
 import { contractClearance } from '@/lib/contract-clearance'
 import { paperChaseGate } from '@/lib/setup-gate-rules'
@@ -129,5 +129,37 @@ describe('the nightly chase asks for papers only where the company said what it 
     // And it is the same verdict a confirmed set would get: nothing in it
     // depends on setup.
     expect(paperChaseGate('WORKERS_W2', ['WORKERS_W2']).ok).toBe(true)
+  })
+})
+
+describe('a worker is chased as the worker the line about to start says she is', () => {
+  /** A database holding buy lines by state, answering findFirst the way Prisma would for one state list. */
+  function linesAt(lines: Array<{ state: string; startDate: Date; contractType: string; vendorCompanyId: string | null; vendorKind: string | null }>) {
+    return {
+      buyContract: {
+        findFirst: async ({ where, orderBy }: { where: { state: { in: string[] } }; orderBy: { startDate: 'asc' | 'desc' } }) => {
+          const hit = lines
+            .filter((l) => where.state.in.includes(l.state))
+            .sort((a, b) => (orderBy.startDate === 'asc' ? 1 : -1) * (a.startDate.getTime() - b.startDate.getTime()))[0]
+          return hit ? { contractType: hit.contractType, vendorCompanyId: hit.vendorCompanyId, vendorCompany: hit.vendorKind ? { kind: hit.vendorKind } : null } : null
+        },
+      },
+    } as never
+  }
+
+  it('a corp-to-corp worker who has not started is chased against the corp-to-corp set', async () => {
+    const db = linesAt([{ state: 'VERIFIED', startDate: inDays(7), contractType: 'C2C', vendorCompanyId: null, vendorKind: null }])
+    expect(await workerPartyAt('p', 'c', db)).toBe('CORP_TO_CORP')
+    const viaHerOwnFirm = linesAt([{ state: 'DRAFT', startDate: inDays(3), contractType: 'C2C', vendorCompanyId: 'llc', vendorKind: 'CONSULTANT_CORP' }])
+    expect(await workerPartyAt('p', 'c', viaHerOwnFirm)).toBe('CORP_TO_CORP')
+  })
+
+  it('a running line decides over one about to start, and with neither the worker is taken as the firm’s own', async () => {
+    const db = linesAt([
+      { state: 'IN_PROGRESS', startDate: inDays(-90), contractType: 'W2', vendorCompanyId: null, vendorKind: null },
+      { state: 'VERIFIED', startDate: inDays(10), contractType: 'C2C', vendorCompanyId: null, vendorKind: null },
+    ])
+    expect(await workerPartyAt('p', 'c', db)).toBe('WORKERS_W2')
+    expect(await workerPartyAt('p', 'c', linesAt([{ state: 'ENDED', startDate: inDays(-400), contractType: 'C2C', vendorCompanyId: null, vendorKind: null }]))).toBe('WORKERS_W2')
   })
 })

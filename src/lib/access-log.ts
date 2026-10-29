@@ -152,6 +152,21 @@ export type AccessAction =
   // and a refusal is written before the refusal goes out. Its subject is
   // the person who forwarded it, the one person the row can always name.
   | 'FORWARDED_EMAIL_READ'      // read the body of an email forwarded to the company, or was refused it
+  // ── An address looked up from a public page ──────────────────────
+  //
+  // `lib/consultant-portfolio/bench-ask` (etyme-supply, 2026-10-29): a
+  // visitor types an email address into "Join the bench" on a firm's
+  // public page, and the ask finds the person on Etyme by that address,
+  // which reads her record. It was filed under MARKETING_REQUEST with the
+  // reason saying what happened, but nobody shared a listing: a stranger
+  // with no seat caused a lookup and learned nothing. So it has a name of
+  // its own, and "whose record was found from a public page" is one query.
+  // The row is refusal-shaped: `allowed: false`, no actor person and no
+  // actor company (the visitor is not the firm), written with
+  // `recordRefusal` before the reply goes out. A recruiter's own lookup
+  // from "Add consultant" is a seat reading at its firm, and stays
+  // MARKETING_REQUEST.
+  | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
 
 interface LogAccessBase {
   /** The person whose data was accessed */
@@ -172,8 +187,14 @@ interface LogAccessBase {
   reason?: string
 }
 
-/** The twins that may read. One today; the column is a string so the next is a line here. */
-export type TwinKind = 'PROGRAM_MANAGER'
+/**
+ * The twins that may read: the program manager's, and the supplier
+ * firm's (`lib/twin/supplier-run`, 2026-10-29), which reads as the
+ * supplier's twin under the role it acts for. The column is a string, so
+ * the next is a line here; every kind is still refused by `actorColumns`
+ * where a TWIN row names none.
+ */
+export type TwinKind = 'PROGRAM_MANAGER' | 'SUPPLIER'
 
 /** Who made a read, as the `actorKind` column holds it. A string column: a new kind is a line here. */
 export type ActorKind = 'PERSON' | 'TWIN' | 'SAMPLE'

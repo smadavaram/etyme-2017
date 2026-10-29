@@ -102,6 +102,11 @@ export async function gateChases<T>(
   return { chase, withheld: [...withheld.values()] }
 }
 
+/** A buy line paying somebody now. */
+export const RUNNING = ['IN_PROGRESS', 'PAUSED'] as const
+/** A buy line awarded and not yet started: the one a start is waiting on. */
+export const ABOUT_TO_START = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] as const
+
 /**
  * The party a person's own check is about, at the firm that would order
  * it again: read off the line that pays them there, where there is one.
@@ -114,11 +119,24 @@ export async function workerPartyAt(
   companyId: string,
   db: Db = prisma
 ): Promise<Party> {
-  const line = await db.buyContract.findFirst({
-    where: { companyId, candidates: { some: { personId } }, state: { in: ['IN_PROGRESS', 'PAUSED'] as never[] } },
-    select: { contractType: true, vendorCompanyId: true, vendorCompany: { select: { kind: true } } },
-    orderBy: { startDate: 'desc' },
-  })
+  const select = { contractType: true, vendorCompanyId: true, vendorCompany: { select: { kind: true } } } as const
+  const theirs = { companyId, candidates: { some: { personId } } }
+  // The running line first; where there is none, the line about to start
+  // (awarded, not yet started: the soonest), because the papers chased
+  // before a start are exactly the ones a corp-to-corp worker owes as a
+  // corp-to-corp worker. Reading only running lines checked her against
+  // the W2 set until her first day (2026-10-29).
+  const line =
+    (await db.buyContract.findFirst({
+      where: { ...theirs, state: { in: [...RUNNING] } },
+      select,
+      orderBy: { startDate: 'desc' },
+    })) ??
+    (await db.buyContract.findFirst({
+      where: { ...theirs, state: { in: [...ABOUT_TO_START] } },
+      select,
+      orderBy: { startDate: 'asc' },
+    }))
   if (!line) return 'WORKERS_W2'
   return partyOfShape(
     shapeOf({ side: 'BUY', contractType: line.contractType, vendorCompanyId: line.vendorCompanyId, vendorKind: line.vendorCompany?.kind ?? null })

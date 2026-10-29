@@ -86,17 +86,40 @@ export function matching(subjects: readonly KnownSubject[], q: string): KnownSub
 const TAKE = 2000
 
 /**
+ * How a firm knows somebody from its own bench listing, or null where the
+ * listing says nothing true about the two of them.
+ *
+ * Read from the listing, not from a seat (2026-10-29). A person asked onto
+ * a bench is no longer seated at the firm before her yes (`askOntoBench`
+ * in lib/consultant-portfolio/bench-ask, "only a yes puts somebody on the
+ * bench"), so a picker that looked for the seat lost everybody invited and
+ * not yet answered, while the bench page still showed them. The listing is
+ * what the bench page reads, so the picker reads it too: asked, on, or
+ * said no. A no is still a dealing: the firm asked her, and a decision
+ * about somebody it asked is the firm's to record.
+ */
+export function benchNote(listing: { state: string; revokedAt: Date | null }): { note: string; rank: number } | null {
+  if (listing.revokedAt) return null
+  switch (listing.state) {
+    case 'GRANTED': return { note: 'On this firm’s bench', rank: 2 }
+    case 'INVITED': return { note: 'Asked onto this firm’s bench, no answer yet', rank: 2 }
+    case 'DECLINED': return { note: 'Said no to this firm’s bench', rank: 4 }
+    default: return null
+  }
+}
+
+/**
  * Everybody this company has dealt with, whichever side of the deal it
  * was on.
  *
  * Five sources, because there are five true ways to have dealt with
  * somebody and no single table holds them: a submission either
  * direction, a placement either direction, a buy line the firm pays, a
- * seat or a bench listing here, and somebody the firm asked for itself
+ * seat or a bench listing here (asked, on, or said no), and somebody the firm asked for itself
  * before any supplier put them forward.
  */
 export async function peopleKnownTo(companyId: string): Promise<KnownSubject[]> {
-  const [subsIn, subsOut, sells, buys, seats, invites] = await Promise.all([
+  const [subsIn, subsOut, sells, buys, seats, listings, invites] = await Promise.all([
     prisma.submission.findMany({
       where: { toCompanyId: companyId },
       select: { personId: true, person: { select: { name: true } }, fromCompany: { select: { name: true } } },
@@ -130,6 +153,14 @@ export async function peopleKnownTo(companyId: string): Promise<KnownSubject[]> 
       select: { personId: true, type: true, person: { select: { name: true } } },
       take: TAKE,
     }),
+    // The bench as the bench page reads it: every listing here, asked,
+    // on or declined. The seat above stays for people seated before
+    // 2026-10-29, when a recruiter's ask still wrote one.
+    prisma.benchListing.findMany({
+      where: { companyId, revokedAt: null, state: { in: ['INVITED', 'GRANTED', 'DECLINED'] } },
+      select: { state: true, revokedAt: true, consultant: { select: { personId: true, person: { select: { name: true } } } } },
+      take: TAKE,
+    }),
     prisma.contractorInvitation.findMany({
       where: { companyId, personId: { not: null } },
       select: { personId: true, name: true },
@@ -151,6 +182,10 @@ export async function peopleKnownTo(companyId: string): Promise<KnownSubject[]> 
       note: 'On this firm’s bench',
       rank: 2,
     })),
+    ...listings.flatMap((l) => {
+      const how = benchNote(l)
+      return how ? [{ id: l.consultant.personId, name: l.consultant.person?.name ?? '', ...how }] : []
+    }),
     ...subsIn.map((s) => ({
       id: s.personId,
       name: s.person?.name ?? '',
