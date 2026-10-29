@@ -2185,6 +2185,29 @@ model BenchListing {
   /// agreed, whatever the two columns above say.
   termsAgreedAt       DateTime?
 
+  // ── The firm's own view of the person ───────────────────────────────
+  //
+  // Added 2026-10-29 for etyme-supply, from the Tapin walk: a firm that
+  // asks somebody who already has an account onto its bench typed a
+  // headline, skills and a place, and all of it was thrown away, because
+  // the person's own profile is theirs and the firm may not write it. So
+  // the firm's words live on its own listing: how it sells the person,
+  // read by this firm and whoever it shows the person to, never written
+  // onto `ConsultantProfile` and never read as the person's own words.
+  //
+  // Additive, nullable, no rates. Written only by `askOntoBench`
+  // (etyme-supply); null is "the firm said nothing", and a reader falls
+  // back to the person's own profile.
+
+  /// The title the firm sells the person as: "Workday HCM consultant".
+  firmHeadline String?
+  /// The skills the firm lists them for, in the firm's words.
+  firmSkills   String[] @default([])
+  /// Where the firm says they work from or will work.
+  firmLocation String?
+  /// The firm's own note on the person. Never shown to the person's other firms.
+  firmNotes    String?
+
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
   @@index([consultantId, state])
