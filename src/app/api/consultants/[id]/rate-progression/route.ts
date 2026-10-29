@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import { progressionFigures } from '@/lib/consultant-portfolio'
+import { ownPayLineWhere } from '@/lib/money/paid-through'
+import { ownCompanyIdsOf } from '@/lib/money/own-companies'
 
 /**
  * GET /api/consultants/:id/rate-progression
@@ -109,7 +111,9 @@ export async function GET(
       buyContract: {
         // Somebody else's: the lines at the reader's firm. Their own: the
         // leg that pays them, never a price between two firms above them.
-        ...(isSelf ? { supplierSellContractId: null } : { companyId }),
+        // A line buying from a firm that is not her own is a price between
+        // firms even before the rung below writes its line (`ownPayLineWhere`).
+        ...(isSelf ? ownPayLineWhere(consultant.personId, await ownCompanyIdsOf(consultant.personId)) : { companyId }),
         state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
       },
     },

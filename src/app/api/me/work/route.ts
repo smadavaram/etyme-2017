@@ -21,7 +21,8 @@ import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
 import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { hoursInMonth } from '@/lib/periods'
-import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/paid-through'
+import { paidByPayroll, workerPaidAs, ownCompanyBillsSays, isWorkersOwnPayLine } from '@/lib/money/paid-through'
+import { ownCompanyIdsOf } from '@/lib/money/own-companies'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands, releaseFrom } from '@/lib/internal-moves'
 import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approval'
@@ -386,10 +387,22 @@ export async function GET(request: NextRequest) {
   // sentence rather than shown — including the rare case of a
   // corp-to-corp consultant whose own company happens to hold a sell
   // contract here, where a blank is the safe direction to be wrong in.
+  //
+  // And null alone is not enough (the Tapin walk, 2026-10-29): before the
+  // rung below writes its own line, the prime's buy line to the sub has no
+  // `supplierSellContractId` yet, and Ravi, Tapin's W2 at $45, read
+  // "paid by Brightmoor Staffing · $100/hr". So the line is hers only where
+  // it buys from nobody, or from her own company (`isWorkersOwnPayLine`).
+  //
+  // The companies that are the person's own: a line that buys from one
+  // of them pays her company's invoice, never her wages (lib/money/paid-through),
+  // and the one-person firm she holds the seat at.
+  const ownCompanyIds = await ownCompanyIdsOf(personId)
+  if (ownFirm && !ownCompanyIds.includes(ownFirm.id)) ownCompanyIds.push(ownFirm.id)
   const paysAnybody = new Map(payLines.map(l => [l.buyContract.companyId, l]))
   const payByCompany = new Map(
     payLines
-      .filter(l => l.buyContract.supplierSellContractId === null)
+      .filter(l => isWorkersOwnPayLine(l.buyContract, ownCompanyIds))
       .map(l => [l.buyContract.companyId, l])
   )
 
@@ -521,14 +534,8 @@ export async function GET(request: NextRequest) {
   const signersOf = new Map<string, WeekSigner[]>()
   const pricedWeeks: OwedWeek[] = []
 
-  // The companies that are the person's own: a line that buys from one
-  // of them pays her company's invoice, never her wages (lib/money/paid-through).
-  const ownCompanyIds = (
-    await prisma.consultantProfile.findMany({ where: { personId, ownCompanyId: { not: null } }, select: { ownCompanyId: true } })
-  ).map((p) => p.ownCompanyId!)
-  // And the one-person firm she holds the seat at (lib/money/paid-through:
-  // "and any one-person corporation she holds the owner's seat at").
-  if (ownFirm && !ownCompanyIds.includes(ownFirm.id)) ownCompanyIds.push(ownFirm.id)
+  // The companies that are the person's own (`ownCompanyIds`) are read
+  // above, before her pay lines are chosen, because they decide both.
 
   // Her own firm, where she is the only one there who may accept hours,
   // never accepts her week: the signature above stands in for it, and the
