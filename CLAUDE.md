@@ -1567,6 +1567,42 @@ forms 200, the inbound email door 404 to a POST. Still waiting on
 (https://claude.ai/artifact/1DGk7epPUy76NzXsWV1hQq) and the four doors'
 maps.
 
+## Tapin gets agents, not a website — "Go", the founder, 2026-10-29
+
+The founder asked whether Tapin should have a public website of its own
+to attract clients and candidates, or whether to build agents first to
+transact and let firms host a website elsewhere. Tested against the five
+questions, the website scored on nothing but micro-distribution and the
+agents on the core problem (a recruiter's day lost to handoffs), credit
+(a signed week that moves itself is what a lender can advance against)
+and the one number (acts per day). **Decided: agents first, and the
+generated company page is the website.** Every company already has a
+public page at `/site/<slug>`, read from its own record (what it does,
+who is coming free, the positions it works, an ask box into Ask Etyme),
+and it fills itself the moment Tapin's people are on its bench. No
+separate marketing site, blog, SEO pages or careers portal; a firm that
+wants those hosts them anywhere and links to its Etyme page. Built in
+this order, on "Go":
+1. **Tapin's week on Etyme**, walked on screens on a local copy as a
+   supplier signing up fresh: people onto the bench by their yes, the
+   first prime linked by one ask and one yes, papers filed, a job
+   answered, a week filed and signed, the bill drafted. Every gap is
+   the roadmap (release).
+2. **The supplier-side agents**: the twin's acts turned toward a
+   supplier, each a new act kind in the role contract first with its
+   tier (architect), then a card in the supplier's Ask Etyme
+   (conversation): put a matching bench person forward to a job the
+   firm was sent; ask a person for the papers a start needs; draft the
+   bill the day the week is signed (exists); ask for a renewal before a
+   paper lapses (exists); tell the recruiter who is coming free and who
+   is idle. Yes and Not now, through the one approval route; NEVER
+   floor unchanged.
+3. **"Join the bench" on the generated page**: one door for a candidate
+   into the bench ask that already exists, never a second record of
+   them (market, on the public page; supply's bench ask unchanged).
+4. **`tapin.etyme.com` opens Tapin's generated page**, and a firm's own
+   domain later: a host mapping, not a site (architect).
+
 ## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
 
 "Build it", on the two drawings waiting since 2026-10-27: the setup
