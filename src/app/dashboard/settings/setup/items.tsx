@@ -7,7 +7,7 @@ import { Check, Field, FormMessage, Input, Select, SubmitButton, Textarea } from
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
-import { ENTITY_TYPES, type ItemKey, type ItemWords, type ChecklistRow } from '@/lib/setup-checklist'
+import { ENTITY_TYPES, W9_LINE, type ItemKey, type ItemWords, type ChecklistRow } from '@/lib/setup-checklist'
 
 /**
  * Each checklist item's screen: one column, a short heading, plain fields
@@ -21,6 +21,8 @@ export interface SetupRead {
   checklist: { rows: ChecklistRow[]; owed: ItemKey[]; intro: string; countLine: string }
   words: Record<ItemKey, ItemWords>
   stamps: Partial<Record<ItemKey, string>>
+  /** Each item's own address, after /dashboard/settings/setup/. */
+  slugs?: Partial<Record<ItemKey, string>>
   detail: any
   says?: string | null
 }
@@ -133,7 +135,7 @@ function CompanyItem(p: Props) {
     timeZone: d.timeZone,
   })
   const [sources, setSources] = useState<Record<string, Source>>(
-    !d.website && guess ? { website: { source: 'DOMAIN', quote: guess.quote } } : {},
+    !d.website && guess ? { website: { source: 'DOMAIN', quote: guess.domain } } : {},
   )
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setF({ ...f, [k]: e.target.value })
@@ -141,8 +143,8 @@ function CompanyItem(p: Props) {
   }
   const from = (k: string) => {
     const s = sources[k]
-    if (s?.source === 'DOMAIN') return `Guessed from your work email: “${s.quote}”. Change it if that is wrong.`
-    if (s?.source === 'PAPER') return `From your W-9: “${s.quote}”. Check it, then save.`
+    if (s?.source === 'DOMAIN') return `From your work email’s domain: “${s.quote}”. Change it if that is wrong.`
+    if (s?.source === 'PAPER') return `From your W-9${W9_LINE[k] ? `, ${W9_LINE[k]}` : ''}: “${s.quote}”. Check it, then save.`
     return d.sources?.[k] ?? null
   }
 
@@ -174,8 +176,18 @@ function CompanyItem(p: Props) {
         <Field label="Website" help={<From says={from('website')} />}><Input value={f.website} onChange={set('website')} placeholder="tapin.com" /></Field>
         <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
         <Field label="EIN" help={<From says={from('taxId')} />}><Input value={f.taxId} onChange={set('taxId')} placeholder="12-3456789" /></Field>
-        <Field label="Currency"><Input value={f.currency} onChange={set('currency')} maxLength={3} /></Field>
+        <Field label="Currency" help={<From says={from('currency')} />}><Input value={f.currency} onChange={set('currency')} maxLength={3} /></Field>
         <Field label="Time zone" help="Your primary site’s. Each site may have its own."><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/Chicago" /></Field>
+      </div>
+      <div className="space-y-1.5 border-t border-etyme-rule pt-3">
+        <p className="text-[13.5px] text-etyme-ink">
+          Country: {d.countryName}
+          <span className="block"><From says={d.sources?.country ?? null} /></span>
+        </p>
+        <p className="text-[13.5px] text-etyme-ink">
+          Etyme address: {d.etymeAddress}
+          <span className="block"><From says={d.sources?.etymeAddress ?? null} /></span>
+        </p>
       </div>
       <p className="text-[12px] text-etyme-faint">The logo is added from your public page. Etyme does not read your website yet.</p>
     </Frame>
@@ -341,7 +353,7 @@ function PeopleItem(p: Props) {
 
   const guessed = d.accountsEmailGuessed && accounts === d.accountsEmail
   return (
-    <Frame {...p} save={() => ({ duties, accountsEmail: accounts, sources: guessed ? { accountsEmail: { source: 'DOMAIN', quote: accounts } } : {} })}>
+    <Frame {...p} save={() => ({ duties, accountsEmail: accounts, sources: guessed ? { accountsEmail: { source: 'DOMAIN', quote: accounts.split('@')[1] ?? accounts } } : {} })}>
       {duties.map((x, i) => (
         <div key={x.duty} className="space-y-2">
           <Lbl>{x.label}</Lbl>
@@ -367,7 +379,7 @@ function PeopleItem(p: Props) {
       ))}
       <div className="space-y-2">
         <Lbl>Accounts email</Lbl>
-        <Field label="Where suppliers send invoices and clients send payments" help={guessed ? 'Guessed from your work email. Change it if that is wrong.' : undefined}>
+        <Field label="Where suppliers send invoices and clients send payments" help={guessed ? `From your work email’s domain: “${accounts.split('@')[1] ?? accounts}”. Change it if that is wrong.` : d.accountsSays ?? undefined}>
           <Input value={accounts} onChange={(e) => setAccounts(e.target.value)} />
         </Field>
       </div>

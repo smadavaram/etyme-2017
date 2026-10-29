@@ -12,6 +12,8 @@ import {
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
+import { recordAnswers } from '@/lib/setup-checklist-state'
+import { signUpAnswers } from '@/lib/setup-fill'
 import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES, joinedSentence } from '@/lib/setup-steps'
 import { countryFromDomain, packFor } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
@@ -373,6 +375,13 @@ export async function POST(request: NextRequest) {
   })
   const company = made.company
   const from = 'domain' in decision ? decision.domain : null
+  // Where each answer came from: a guess from the work email's domain says
+  // so on the setup checklist, and only what was typed reads "Typed by".
+  await recordAnswers(company.id, person.id, signUpAnswers({
+    email, name, country: made.country, currency: made.currency, address: slug,
+    nameFromDomain: !String(body.name ?? '').trim() && !!newCompanyDomain,
+    addressFromDomain: !!newCompanyDomain,
+  }))
 
   await prisma.automationLog.create({
     data: {

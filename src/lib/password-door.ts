@@ -45,6 +45,8 @@ import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
 import { appUrl } from '@/lib/supplier-link'
 import { createCompany } from '@/lib/company-create'
+import { recordAnswers } from '@/lib/setup-checklist-state'
+import { signUpAnswers } from '@/lib/setup-fill'
 import { typeByKey } from '@/lib/onboarding'
 import { decideEntry, domainOfEmail, isConsumerDomain, isPlatformDomain, type ClaimedDomain } from '@/lib/company-domains'
 import { knownCountry, knownCurrency, joinedSentence } from '@/lib/setup-steps'
@@ -750,6 +752,11 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
     claimDomain: false,
     startsSetup: true,
   })
+  // Where each answer came from, so the checklist says "From your work
+  // email's domain" over a guess and "Typed by" only over what was typed.
+  await recordAnswers(made.company.id, person.id, signUpAnswers({
+    email: person.primaryEmail, name: made.company.name, country: made.country, currency: made.currency, address: slug,
+  }))
 
   await prisma.automationLog.create({
     data: {

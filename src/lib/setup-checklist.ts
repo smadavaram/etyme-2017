@@ -339,8 +339,32 @@ function notForKind(kind: string | null | undefined, item: ItemKey): string {
 // ── Where an answer came from ────────────────────────────────────────
 
 /**
+ * The W-9 line each value is printed on, so the line under an answer
+ * points at the box a person checks it against: the legal name is line 1,
+ * the business name line 2, the street line 5, the city, state and ZIP
+ * line 6, and the EIN is in Part I. Every edition since 2017 numbers them
+ * this way.
+ */
+export const W9_LINE: Readonly<Record<string, string>> = {
+  legalName: 'line 1',
+  dba: 'line 2',
+  'legal.street': 'line 5',
+  'legal.city': 'line 6',
+  'legal.state': 'line 6',
+  'legal.postalCode': 'line 6',
+  taxId: 'Part I',
+}
+
+/**
  * The line under an answer: where it came from, and who confirmed it when.
- * "From your W-9: “Tapin LLC”. Saved by Sharath Madavaram, Oct 28, 2026."
+ *
+ *   "From your work email’s domain: “tapin.com”. Confirmed by Sharath Madavaram, Oct 28, 2026."
+ *   "From your W-9, line 1: “Tapin LLC”. Confirmed by Sharath Madavaram, Oct 28, 2026."
+ *   "From your file: “Tapin LLC”. Confirmed by …"
+ *   "Typed by Priya Raman, Oct 28, 2026."
+ *
+ * Only what a person typed reads "Typed by"; a guess a person accepted
+ * still says where the guess came from, and who accepted it.
  */
 export function sourceWords(input: {
   source: AnswerSource
@@ -349,27 +373,81 @@ export function sourceWords(input: {
   at?: Date | string | null
   /** Which paper, where the source is a paper: "W-9". */
   paper?: string | null
+  /** The field, so a paper's value names the line it was printed on. */
+  field?: string | null
 }): string {
   const quoted = input.quote ? `: “${input.quote.trim().slice(0, 80)}”` : ''
+  const line = input.source === 'PAPER' && (input.paper ?? 'W-9') === 'W-9' && input.field ? W9_LINE[input.field] : undefined
   const from: Record<AnswerSource, string> = {
-    DOMAIN: `Guessed from your work email${quoted}`,
-    PAPER: `From your ${input.paper ?? 'paper'}${quoted}`,
+    DOMAIN: `From your work email’s domain${quoted}`,
+    PAPER: `From your ${input.paper ?? 'paper'}${line ? `, ${line}` : ''}${quoted}`,
     IMPORT: `From your file${quoted}`,
     WEBSITE: `From your website${quoted}`,
     PERSON: 'Typed by a person',
   }
-  const head = input.source === 'PERSON' && input.by ? `Typed by ${input.by}` : from[input.source]
   const when = input.at ? dayWords(input.at) : null
-  const tail = input.source !== 'PERSON' && input.by
-    ? `. Confirmed by ${input.by}${when ? `, ${when}` : ''}.`
-    : input.source === 'PERSON' && when ? `, ${when}.` : '.'
-  return `${head}${tail}`
+  if (input.source === 'PERSON') {
+    // The Etyme address is made from the company name the person typed.
+    if (input.field === 'etymeAddress' && input.quote) {
+      return `Made from the company name ${input.by ? `${input.by} typed` : 'typed at sign-up'}${quoted}${when ? `, ${when}` : ''}.`
+    }
+    return input.by ? `Typed by ${input.by}${when ? `, ${when}` : ''}.` : 'Typed by a person.'
+  }
+  const tail = input.by ? `. Confirmed by ${input.by}${when ? `, ${when}` : ''}.` : '.'
+  return `${from[input.source]}${tail}`
 }
 
-/** The stamp under an open item. */
-export function savedStamp(by: string | null | undefined, at: Date | string | null | undefined): string {
-  if (!at) return 'Not answered yet. Each answer is saved with your name and the time.'
-  return `Saved by ${by ?? 'somebody no longer here'}, ${dayWords(at)}.`
+/**
+ * The stamp under an open item: who answered it and when, in the word
+ * that says what they did. A skipped item was not saved, so it never
+ * reads "Saved by".
+ */
+export function itemStamp(
+  outcome: ItemOutcome | null | undefined,
+  by: string | null | undefined,
+  at: Date | string | null | undefined,
+  /** The item's state on the list now: a skipped item finished another way (a colleague joined) reads done. */
+  stateNow?: ItemState,
+): string {
+  if (!at || !outcome) return 'Not answered yet. Each answer is saved with your name and the time.'
+  const who = by ?? 'somebody no longer here'
+  if (outcome === 'SKIPPED') {
+    return stateNow === 'DONE'
+      ? `Skipped by ${who}, ${dayWords(at)}, and done since then another way.`
+      : `Skipped by ${who}, ${dayWords(at)}. It stays on the list until it is answered.`
+  }
+  return `Saved by ${who}, ${dayWords(at)}.`
+}
+
+// ── Each item's own address ──────────────────────────────────────────
+
+/** The last part of each item's address: /dashboard/settings/setup/<slug>. */
+export const ITEM_SLUG: Readonly<Record<ItemKey, string>> = {
+  COMPANY: 'company',
+  ADDRESSES: 'addresses',
+  SITES: 'sites',
+  PEOPLE_IN_CHARGE: 'people-in-charge',
+  HOW_YOU_WORK: 'how-you-work',
+  PAPERS: 'papers',
+  BANK: 'bank',
+  COMPANIES: 'companies',
+  TEAM: 'team',
+  DOMAIN: 'domain',
+  INTEGRATIONS: 'integrations',
+}
+
+/**
+ * The address that opens one item itself, so a refusal or a greeting line
+ * links to "Papers you require" rather than to the top of the list.
+ */
+export function itemHref(item: ItemKey): string {
+  return `${CHECKLIST_HREF}/${ITEM_SLUG[item]}`
+}
+
+/** The item an address names, or null. */
+export function itemOfSlug(slug: string | null | undefined): ItemKey | null {
+  const hit = (Object.entries(ITEM_SLUG) as [ItemKey, string][]).find(([, s]) => s === slug)
+  return hit ? hit[0] : null
 }
 
 function dayWords(at: Date | string): string {

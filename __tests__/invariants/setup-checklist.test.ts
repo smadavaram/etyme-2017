@@ -3,12 +3,12 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   ITEM_ORDER, itemsFor, checklistFor, stateOf, reminderSentence, checkItemAnswer, sourceWords, bankWords, lastFour,
-  bankStanding, ITEM_WORDS, NO_FACTS, CHECKLIST_HREF, type ChecklistFacts,
+  bankStanding, ITEM_WORDS, NO_FACTS, CHECKLIST_HREF, itemStamp, itemHref, itemOfSlug, ITEM_SLUG, type ChecklistFacts,
 } from '@/lib/setup-checklist'
 import {
   billingAddressGate, bankGate, mayJoinByDomain, paperChaseGate, NO_BILLING_ADDRESS,
 } from '@/lib/setup-gate-rules'
-import { readW9, readCoi, readPaperByRules, fromWorkEmail, splitCityLine, textOfUpload } from '@/lib/setup-fill'
+import { readW9, readCoi, readPaperByRules, fromWorkEmail, splitCityLine, textOfUpload, signUpAnswers } from '@/lib/setup-fill'
 import { readMissingWithModel, withoutTaxNumbers, MODEL_SAYS } from '@/lib/setup-fill-model'
 import { defaultRequiredSets } from '@/lib/document-stages/required-sets'
 import { decideEntry } from '@/lib/company-domains'
@@ -119,11 +119,75 @@ describe('a skipped item comes back', () => {
 })
 
 describe('where an answer came from', () => {
+  it('a guessed answer says it came from the work email’s domain, a paper’s from the paper and its line, a typed one from the person', () => {
+    const at = '2026-10-29T12:00:00Z'
+    expect(sourceWords({ source: 'DOMAIN', quote: 'tapin.com', by: 'Sharath Madavaram', at, field: 'currency' }))
+      .toBe('From your work email’s domain: “tapin.com”. Confirmed by Sharath Madavaram, Oct 29, 2026.')
+    expect(sourceWords({ source: 'PAPER', quote: 'Tapin LLC', by: 'Sharath Madavaram', at, paper: 'W-9', field: 'legalName' }))
+      .toBe('From your W-9, line 1: “Tapin LLC”. Confirmed by Sharath Madavaram, Oct 29, 2026.')
+    expect(sourceWords({ source: 'PAPER', quote: 'Dallas, TX 75202', by: 'Sharath Madavaram', at, paper: 'W-9', field: 'legal.city' }))
+      .toMatch(/^From your W-9, line 6: /)
+    expect(sourceWords({ source: 'PAPER', quote: '12-3456789', by: 'Sharath Madavaram', at, paper: 'W-9', field: 'taxId' }))
+      .toMatch(/^From your W-9, Part I: /)
+    expect(sourceWords({ source: 'IMPORT', quote: 'Tapin LLC', by: 'Sharath Madavaram', at })).toMatch(/^From your file: “Tapin LLC”\. Confirmed by /)
+    expect(sourceWords({ source: 'PERSON', by: 'Priya Raman', at, field: 'phone' })).toBe('Typed by Priya Raman, Oct 29, 2026.')
+    expect(sourceWords({ source: 'PERSON', quote: 'Tapin', by: 'Sharath Madavaram', at, field: 'etymeAddress' }))
+      .toBe('Made from the company name Sharath Madavaram typed: “Tapin”, Oct 29, 2026.')
+
+    // The sign-up's guesses are written as guesses; what the person changed is theirs.
+    const kept = signUpAnswers({ email: 'sharath@tapin.com', name: 'Tapin', country: 'US', currency: 'USD', address: 'tapin' })
+    expect(kept).toEqual([
+      { field: 'name', source: 'PERSON', quote: null },
+      { field: 'country', source: 'DOMAIN', quote: 'tapin.com' },
+      { field: 'currency', source: 'DOMAIN', quote: 'tapin.com' },
+      { field: 'etymeAddress', source: 'PERSON', quote: 'Tapin' },
+    ])
+    const changed = signUpAnswers({ email: 'sharath@tapin.com', name: 'Tapin', country: 'IN', currency: 'INR', address: 'tapin-bench' })
+    expect(changed.map((a) => a.source)).toEqual(['PERSON', 'PERSON', 'PERSON', 'PERSON'])
+    expect(changed.find((a) => a.field === 'etymeAddress')!.quote).toBeNull()
+    // A personal address guesses nothing.
+    expect(signUpAnswers({ email: 'colleen@gmail.com', name: 'Byrne Care', country: 'US', currency: 'USD' }).every((a) => a.source === 'PERSON')).toBe(true)
+    // The sign-in door's name and address, left to the domain, say so.
+    const oauth = signUpAnswers({ email: 'ops@tapinwalk.co', name: 'Tapinwalk', country: 'US', currency: 'USD', address: 'tapinwalk', nameFromDomain: true, addressFromDomain: true })
+    expect(oauth.find((a) => a.field === 'name')).toEqual({ field: 'name', source: 'DOMAIN', quote: 'tapinwalk.co' })
+    expect(oauth.find((a) => a.field === 'etymeAddress')).toEqual({ field: 'etymeAddress', source: 'DOMAIN', quote: 'tapinwalk.co' })
+  })
+
+  it('a skipped item says who skipped it, never that it was saved', () => {
+    const at = '2026-10-29T12:00:00Z'
+    const skipped = itemStamp('SKIPPED', 'Sharath Madavaram', at, 'SKIPPED')
+    expect(skipped).toBe('Skipped by Sharath Madavaram, Oct 29, 2026. It stays on the list until it is answered.')
+    expect(skipped).not.toMatch(/saved/i)
+    expect(itemStamp('SKIPPED', 'Sharath Madavaram', at, 'DONE')).toBe('Skipped by Sharath Madavaram, Oct 29, 2026, and done since then another way.')
+    expect(itemStamp('DONE', 'Sharath Madavaram', at)).toBe('Saved by Sharath Madavaram, Oct 29, 2026.')
+    expect(itemStamp(null, null, null)).toBe('Not answered yet. Each answer is saved with your name and the time.')
+    // The screen reads the stamp that knows a skip.
+    expect(src('src/app/api/settings/setup/read.ts')).toContain('itemStamp(r.outcome')
+  })
+
+  it('every item has its own address', () => {
+    const hrefs = ITEM_ORDER.map(itemHref)
+    expect(new Set(hrefs).size).toBe(ITEM_ORDER.length)
+    expect(itemHref('PAPERS')).toBe('/dashboard/settings/setup/papers')
+    for (const k of ITEM_ORDER) {
+      expect(hrefs[ITEM_ORDER.indexOf(k)].startsWith(`${CHECKLIST_HREF}/`)).toBe(true)
+      expect(itemOfSlug(ITEM_SLUG[k])).toBe(k)
+    }
+    expect(itemOfSlug('payroll')).toBeNull()
+    // The address is a page, and it opens that item; one that names no item is not found.
+    const page = src('src/app/dashboard/settings/setup/[item]/page.tsx')
+    expect(page).toContain('itemOfSlug(params.item)')
+    expect(page).toContain('notFound()')
+    expect(page).toContain('<SetupChecklist item={item} />')
+    // Opening an item from the list moves the address with it.
+    expect(src('src/app/dashboard/settings/setup/checklist.tsx')).toContain('window.history.replaceState(null, \'\', itemHref(key))')
+  })
+
   it('an answer records who gave it, when, and where it came from', () => {
     expect(sourceWords({ source: 'PAPER', quote: 'Tapin LLC', by: 'Sharath Madavaram', at: '2026-10-28T12:00:00Z', paper: 'W-9' }))
       .toBe('From your W-9: “Tapin LLC”. Confirmed by Sharath Madavaram, Oct 28, 2026.')
-    expect(sourceWords({ source: 'DOMAIN', quote: 'sharath@tapin.com', by: 'Sharath Madavaram', at: '2026-10-28T12:00:00Z' }))
-      .toBe('Guessed from your work email: “sharath@tapin.com”. Confirmed by Sharath Madavaram, Oct 28, 2026.')
+    expect(sourceWords({ source: 'DOMAIN', quote: 'tapin.com', by: 'Sharath Madavaram', at: '2026-10-28T12:00:00Z' }))
+      .toBe('From your work email’s domain: “tapin.com”. Confirmed by Sharath Madavaram, Oct 28, 2026.')
     expect(sourceWords({ source: 'PERSON', by: 'Sharath Madavaram', at: '2026-10-28T12:00:00Z' })).toBe('Typed by Sharath Madavaram, Oct 28, 2026.')
   })
 

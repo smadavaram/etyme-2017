@@ -86,6 +86,51 @@ describe('the admin’s setup checklist', () => {
     expect(rows.every((r) => r.answeredById === ownerId)).toBe(true)
   })
 
+  it('a guessed answer says it came from the work email’s domain, a paper’s from the paper and its line, a typed one from the person', async () => {
+    as(OWNER)
+    // The sign-in door guessed the country, the currency and the address from tapinwalk.co; the name was typed.
+    const rows = await prisma.setupAnswer.findMany({ where: { companyId, field: { in: ['name', 'country', 'currency', 'etymeAddress'] } } })
+    const by = Object.fromEntries(rows.map((r) => [r.field, r]))
+    expect(by.name).toMatchObject({ source: 'PERSON', quote: null, answeredById: ownerId })
+    expect(by.country).toMatchObject({ source: 'DOMAIN', quote: 'tapinwalk.co', answeredById: ownerId })
+    expect(by.currency).toMatchObject({ source: 'DOMAIN', quote: 'tapinwalk.co' })
+    expect(by.etymeAddress).toMatchObject({ source: 'DOMAIN', quote: 'tapinwalk.co' })
+    const read = await json(await readChecklist(req('GET', '/api/settings/setup')))
+    const sources = read.body.data.detail.COMPANY.sources
+    expect(sources.country).toMatch(/^From your work email’s domain: “tapinwalk\.co”\. Confirmed by /)
+    expect(sources.currency).toMatch(/^From your work email’s domain: “tapinwalk\.co”/)
+    expect(sources.name).toMatch(/^Typed by /)
+
+    // Saving the screen with the currency left as guessed keeps the guess; changing it makes it the person's.
+    const kept = await json(await put('company', { legalName: 'Tapinwalk', currency: 'USD' }))
+    expect(kept.status, JSON.stringify(kept.body)).toBe(200)
+    expect(kept.body.data.detail.COMPANY.sources.currency).toMatch(/^From your work email’s domain/)
+    const typed = await json(await put('company', { legalName: 'Tapinwalk', currency: 'CAD' }))
+    expect(typed.body.data.detail.COMPANY.sources.currency).toMatch(/^Typed by /)
+    await put('company', { legalName: 'Tapinwalk', currency: 'USD' })
+    // Back to skipped, so the walk below starts where it did.
+    await prisma.setupItem.update({ where: { companyId_item: { companyId, item: 'COMPANY' } }, data: { outcome: 'SKIPPED' } })
+    await prisma.company.update({ where: { id: companyId }, data: { legalName: null } })
+  })
+
+  it('a skipped item says who skipped it, never that it was saved', async () => {
+    as(OWNER)
+    const read = await json(await readChecklist(req('GET', '/api/settings/setup')))
+    const states = Object.fromEntries(read.body.data.checklist.rows.map((r: any) => [r.key, r.state]))
+    expect(states.ADDRESSES).toBe('SKIPPED')
+    expect(read.body.data.stamps.ADDRESSES).toMatch(/^Skipped by .+, [A-Z][a-z]{2} \d{1,2}, \d{4}\. It stays on the list until it is answered\.$/)
+    expect(read.body.data.stamps.ADDRESSES).not.toMatch(/Saved/)
+    // Finished another way, a skipped item says so.
+    expect(read.body.data.stamps.TEAM).toMatch(/and done since then another way\.$/)
+  })
+
+  it('every item has its own address', async () => {
+    as(OWNER)
+    const read = await json(await readChecklist(req('GET', '/api/settings/setup')))
+    expect(read.body.data.slugs).toMatchObject({ PAPERS: 'papers', PEOPLE_IN_CHARGE: 'people-in-charge', HOW_YOU_WORK: 'how-you-work' })
+    expect(Object.keys(read.body.data.slugs)).toEqual(ITEM_ORDER)
+  })
+
   it('a skipped item comes back on Today until it is done', async () => {
     as(OWNER)
     const before = (await json(await readSetupState(req('GET', '/api/onboarding/setup')))).body.data.reminder
@@ -131,7 +176,7 @@ describe('the admin’s setup checklist', () => {
     expect(saved.status, JSON.stringify(saved.body)).toBe(200)
     const co = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { legalName: true, taxId: true } })
     expect(co).toEqual({ legalName: 'Tapinwalk LLC', taxId: '12-3456789' })
-    expect(saved.body.data.detail.COMPANY.sources.legalName).toMatch(/^From your W-9: “Tapinwalk LLC”\. Confirmed by /)
+    expect(saved.body.data.detail.COMPANY.sources.legalName).toMatch(/^From your W-9, line 1: “Tapinwalk LLC”\. Confirmed by /)
   })
 
   it('an answer records who gave it, when, and where it came from', async () => {
@@ -146,8 +191,8 @@ describe('the admin’s setup checklist', () => {
     const by = Object.fromEntries(rows.map((r) => [r.field, r]))
     expect(by.website).toMatchObject({ source: 'DOMAIN', quote: OWNER, answeredById: ownerId })
     expect(by.phone).toMatchObject({ source: 'PERSON', quote: null, answeredById: ownerId })
-    // Typed again by a person, the legal name now says so.
-    expect(by.legalName.source).toBe('PERSON')
+    // Left as the W-9 gave it, the legal name keeps saying it came from the W-9.
+    expect(by.legalName.source).toBe('PAPER')
     expect(by.website.answeredAt.getTime()).toBeGreaterThanOrEqual(start - 1000)
     const item = await prisma.setupItem.findUniqueOrThrow({ where: { companyId_item: { companyId, item: 'COMPANY' } } })
     expect(item).toMatchObject({ outcome: 'DONE', answeredById: ownerId })

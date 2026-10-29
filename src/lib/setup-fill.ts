@@ -28,6 +28,7 @@ import { inflateSync } from 'zlib'
 import { isConsumerDomain, isPlatformDomain } from '@/lib/company-domains'
 import { countryFromDomain } from '@/lib/company-defaults'
 import { currencyFor } from '@/lib/setup-steps'
+import { addressFromName } from '@/lib/password-words'
 import { plainEin } from '@/lib/setup-checklist'
 
 /** One value read from somewhere, with the words it came from. */
@@ -82,6 +83,57 @@ export function fromWorkEmail(email: string | null | undefined): DomainFill | nu
   if (/\.(example|invalid|local|test)$/.test(domain)) return null
   const country = countryFromDomain(domain)
   return { domain, website: `https://${domain}`, country, currency: currencyFor(country), quote: e }
+}
+
+/** One answer the sign-up gave, and where it came from, for `SetupAnswer`. */
+export interface SignUpAnswer {
+  field: 'name' | 'country' | 'currency' | 'etymeAddress'
+  source: 'DOMAIN' | 'PERSON'
+  /** The domain a guess came from, or the company name an address was made from. */
+  quote: string | null
+}
+
+/**
+ * Where each of the sign-up's answers came from, so the checklist says so
+ * rather than "Typed by" over a guess (the Tapin walk, 2026-10-29).
+ *
+ * The country is the domain's when the email is on a company domain and
+ * the country kept is the one the domain gives; the currency is the
+ * domain's when it is the country's own and the country was. Anything the
+ * person changed is theirs. The company name is always typed. The Etyme
+ * address, where it is the one made from the company name, says so; where
+ * the person typed another, it is theirs. Pure: no database.
+ */
+export function signUpAnswers(input: {
+  email: string | null | undefined
+  name: string
+  country: string
+  currency: string
+  /** The Etyme address, without ".etyme.com"; null at the OAuth door, which asks for none. */
+  address?: string | null
+  /** The OAuth door: the name was left blank and guessed from the domain. */
+  nameFromDomain?: boolean
+  /** The OAuth door: the address was made from the domain. */
+  addressFromDomain?: boolean
+}): SignUpAnswer[] {
+  const e = String(input.email ?? '').trim().toLowerCase()
+  const at = e.lastIndexOf('@')
+  const raw = at > 0 ? e.slice(at + 1) : ''
+  const domain = raw.includes('.') && !isConsumerDomain(raw) && !isPlatformDomain(raw) ? raw : null
+  const countryGuessed = !!domain && input.country === countryFromDomain(domain)
+  const currencyGuessed = countryGuessed && input.currency === currencyFor(input.country)
+  const out: SignUpAnswer[] = [
+    input.nameFromDomain && domain ? { field: 'name', source: 'DOMAIN', quote: domain } : { field: 'name', source: 'PERSON', quote: null },
+    { field: 'country', source: countryGuessed ? 'DOMAIN' : 'PERSON', quote: countryGuessed ? domain : null },
+    { field: 'currency', source: currencyGuessed ? 'DOMAIN' : 'PERSON', quote: currencyGuessed ? domain : null },
+  ]
+  if (input.address && input.addressFromDomain && domain) {
+    out.push({ field: 'etymeAddress', source: 'DOMAIN', quote: domain })
+  } else if (input.address) {
+    const made = addressFromName(input.name) === input.address
+    out.push({ field: 'etymeAddress', source: 'PERSON', quote: made ? input.name.trim() : null })
+  }
+  return out
 }
 
 // ── 2. A paper: what kind it is ──────────────────────────────────────

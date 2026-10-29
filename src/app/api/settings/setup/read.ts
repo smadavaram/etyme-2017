@@ -7,7 +7,7 @@
  */
 import { prisma } from '@/lib/db'
 import {
-  ITEM_WORDS, itemsFor, sourceWords, savedStamp, bankWords, bankStanding, inviteRoleFor, DUTIES, DUTY_WORDS,
+  ITEM_WORDS, itemsFor, sourceWords, itemStamp, ITEM_SLUG, bankWords, bankStanding, inviteRoleFor, DUTIES, DUTY_WORDS,
   type ItemKey, type AnswerSource, type Duty,
 } from '@/lib/setup-checklist'
 import { checklistOf, setupReminderFor } from '@/lib/setup-checklist-state'
@@ -22,7 +22,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   const c = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
     select: {
-      id: true, name: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true,
+      id: true, name: true, slug: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true,
       legalName: true, dba: true, establishedYear: true, website: true, logoUrl: true, phone: true,
       billingSameAsLegal: true, accountsEmail: true, teamsWebhookUrl: true,
     },
@@ -66,7 +66,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   const domainFill = fromWorkEmail(reader.email)
   const sources: Record<string, string> = {}
   for (const a of answers) {
-    sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9' })
+    sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9', field: a.field })
   }
   const primary = sites.find((s) => s.isPrimary) ?? sites[0] ?? null
   const legal = addresses.find((a) => a.kind === 'LEGAL') ?? null
@@ -96,7 +96,9 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   const stamps: Partial<Record<ItemKey, string>> = {}
   for (const k of itemsFor(c.kind)) {
     const r = record[k]
-    stamps[k] = r ? savedStamp(nameOf(r.byId), r.at) : savedStamp(null, null)
+    stamps[k] = r
+      ? itemStamp(r.outcome, nameOf(r.byId), r.at, checklist.rows.find((x) => x.key === k)?.state)
+      : itemStamp(null, null, null)
   }
 
   return {
@@ -105,6 +107,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     reminder,
     words: Object.fromEntries(itemsFor(c.kind).map((k) => [k, ITEM_WORDS[k]])),
     stamps,
+    slugs: Object.fromEntries(itemsFor(c.kind).map((k) => [k, ITEM_SLUG[k]])),
     detail: {
       COMPANY: {
         legalName: c.legalName ?? '',
@@ -118,6 +121,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         currency: c.currency,
         country: c.country ?? 'US',
         countryName: countryName(c.country ?? 'US'),
+        etymeAddress: `${c.slug}.etyme.com`,
         timeZone: primary?.timeZone ?? '',
         domainFill,
         sources,
@@ -153,6 +157,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         seats: seats.map((s) => ({ personId: s.personId, name: s.person.name, role: s.role?.name ?? null })),
         accountsEmail: c.accountsEmail ?? (domainFill ? `accounts@${domainFill.domain}` : ''),
         accountsEmailGuessed: !c.accountsEmail && !!domainFill,
+        accountsSays: c.accountsEmail ? sources.accountsEmail ?? null : null,
       },
       HOW_YOU_WORK: { asksPayroll: asksPayroll(c.kind), noPayrollLine: noPayrollLine(c.kind) },
       PAPERS: { sets },

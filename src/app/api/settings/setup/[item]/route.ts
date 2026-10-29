@@ -84,6 +84,11 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
     const taxId = str(body.taxId) ? (plainEin(body.taxId) ?? str(body.taxId, 40)) : null
     const currency = str(body.currency) ? knownCurrency(body.currency) : null
     if (str(body.currency) && !currency) return { ok: false, says: 'Type the currency as three letters, like USD.' }
+    const before = await prisma.company.findUniqueOrThrow({
+      where: { id: c.id },
+      select: { legalName: true, dba: true, entityType: true, establishedYear: true, website: true, phone: true, taxId: true, currency: true },
+    })
+    const primaryBefore = await prisma.companyLocation.findFirst({ where: { companyId: c.id, isPrimary: true }, select: { timeZone: true } })
     await prisma.company.update({
       where: { id: c.id },
       data: {
@@ -96,9 +101,11 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       const primary = await prisma.companyLocation.findFirst({ where: { companyId: c.id, isPrimary: true }, select: { id: true } })
       if (primary) await prisma.companyLocation.update({ where: { id: primary.id }, data: { timeZone: tz } })
     }
+    const after: Record<string, unknown> = { legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year, website, phone: str(body.phone, 40) || null, taxId, currency: currency ?? before.currency, timeZone: tz || null }
+    const was: Record<string, unknown> = { ...before, timeZone: primaryBefore?.timeZone ?? null }
     const fields = ['legalName', 'dba', 'entityType', 'establishedYear', 'website', 'phone', 'taxId', 'currency', 'timeZone']
       .filter((f) => str(body[f]))
-    return { ok: true, answers: fields.map((f) => sourceOf(body, f)) }
+    return { ok: true, answers: await keepWhereUnchanged(c.id, fields.map((f) => sourceOf(body, f)), (f) => String(was[f] ?? '') === String(after[f] ?? '')) }
   },
 
   // ── Addresses ──────────────────────────────────────────────────────
@@ -292,6 +299,23 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
     await prisma.company.update({ where: { id: c.id }, data: { teamsWebhookUrl: check.url } })
     return { ok: true }
   },
+}
+
+/**
+ * Where a value was left as it stood, its answer keeps where it came from
+ * and who gave it: a currency guessed from the work email's domain at
+ * sign-up does not turn into "Typed by" because somebody pressed Save on
+ * the screen beside it. A value that changed, or one with no answer yet,
+ * is recorded as the screen says.
+ */
+async function keepWhereUnchanged(companyId: string, answers: AnswerToRecord[], unchanged: (field: string) => boolean): Promise<AnswerToRecord[]> {
+  const held = await prisma.setupAnswer.findMany({ where: { companyId, field: { in: answers.map((a) => a.field) } }, select: { field: true, source: true } })
+  return answers.filter((a) => {
+    const prior = held.find((h) => h.field === a.field)
+    // A paper or a file read again on purpose is always recorded anew.
+    if (!prior || a.source !== 'PERSON') return true
+    return !unchanged(a.field)
+  })
 }
 
 function address(a: any) {
