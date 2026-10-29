@@ -194,8 +194,14 @@ export function ownPaperMenu(input: { firm: boolean; defined?: DefinedType[] }):
 export interface OwnPaperInput {
   key: string
   about: OwnPaperAbout
-  /** True where she is a one-person firm, the only seat that files a firm's papers here. */
+  /** True where she is a one-person firm: she is the firm, so she files its papers. */
   isOnePersonFirm: boolean
+  /**
+   * True where the seat files its firm's own papers at a firm with a team
+   * (the Owner, an Admin, HR or the Compliance Officer; `mayFileFirmPapers`
+   * in `./firm-papers`). The Tapin walk, 2026-10-29.
+   */
+  filesForFirm?: boolean
   /** True where the record has somewhere to keep the copy for this caller. */
   canKeepCopy: boolean
   fileName?: string | null
@@ -257,10 +263,10 @@ function startOfDay(on: Date): number {
  */
 export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict {
   const key = input.key.trim()
-  if (input.about === 'MY_FIRM' && !input.isOnePersonFirm) {
+  if (input.about === 'MY_FIRM' && !input.isOnePersonFirm && !input.filesForFirm) {
     return {
       ok: false, code: 'NOT_YOUR_FIRM',
-      message: 'A firm’s papers go on file through the client that asks for them. This page keeps a one-person firm’s own.',
+      message: 'Your firm’s W-9, insurance and good standing are filed by its Owner, an Admin, HR or the Compliance Officer, under Company paperwork.',
     }
   }
   const why = whyNotOwn(key, input.about, input.jurisdiction ?? 'DEFAULT', input.defined ?? [])

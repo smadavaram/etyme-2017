@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { plainDate } from '@/lib/plain-date'
 import { emptyRequestsSays } from './words'
+import { ExaminePaper, type ExamineRow } from '../documents/examine'
 import { usePageSection } from '@/components/page-section'
 import { EmptyState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
 
@@ -33,6 +34,19 @@ interface Packet {
   expiresInDays: number
   linkExpired: boolean
   awaitingReview: number
+  /** What arrived and nobody has looked at yet. */
+  arrived?: Arrived[]
+}
+
+interface Arrived {
+  itemId: string
+  key: string
+  label: string
+  fileName: string | null
+  /** The paper the answer is kept as; null where no file came with it. */
+  paperId: string | null
+  aboutAFirm: boolean
+  examineNeeds: { start: boolean; end: boolean; edition: boolean }
 }
 
 interface Available {
@@ -67,6 +81,9 @@ export default function PacketsPage() {
   const [subjectPersonId, setSubjectPersonId] = useState('')
   const [people, setPeople] = useState<{ id: string; name: string; email: string | null; onLine?: boolean }[]>([])
   const [notOffered, setNotOffered] = useState<{ label: string; why: string }[]>([])
+  // Looking at what arrived: the same look, and the same route, as Paperwork
+  // (the Tapin walk, 2026-10-29: this page had no way to open anything).
+  const [examining, setExamining] = useState<ExamineRow | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -268,7 +285,32 @@ export default function PacketsPage() {
         />
       )}
 
-      <Group title="Waiting on you" rows={review} note="Something arrived and nobody has looked at it." />
+      <Group title="Waiting on you" rows={review} note="Something arrived and nobody has looked at it. Open each one, then accept it or send it back."
+        onLook={(p, a) => setExamining({
+          id: a.paperId!, template: { name: a.label }, subject: p.subject,
+          subjectType: 'PACKET_ITEM', aboutAFirm: a.aboutAFirm, fileName: a.fileName, examineNeeds: a.examineNeeds,
+        })}
+        onAnswer={async (p, a, accept) => {
+          setError(null); setFlash(null)
+          const note = accept ? '' : (window.prompt(`Why does ${a.label} go back? ${p.subject} reads this.`) ?? '').trim()
+          if (!accept && !note) return
+          try {
+            const res = await fetch(`/api/packets/${p.id}/review`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ itemId: a.itemId, action: accept ? 'accept' : 'reject', note }),
+            })
+            const body = await readJson(res)
+            setFlash(body.data.message)
+            load()
+          } catch (e: any) { setError(e.message) }
+        }} />
+      {examining && (
+        <ExaminePaper
+          row={examining}
+          onClose={() => setExamining(null)}
+          onDone={(says) => { setExamining(null); setFlash(says); load() }}
+        />
+      )}
       <Group title="Waiting on them" rows={open} />
       <Group title="Link expired" rows={stale} note="They cannot reply to these. Send a new request." />
       <Group title="Done" rows={done} />
@@ -276,7 +318,13 @@ export default function PacketsPage() {
   )
 }
 
-function Group({ title, rows, note }: { title: string; rows: Packet[]; note?: string }) {
+function Group({ title, rows, note, onLook, onAnswer }: {
+  title: string
+  rows: Packet[]
+  note?: string
+  onLook?: (p: Packet, a: Arrived) => void
+  onAnswer?: (p: Packet, a: Arrived, accept: boolean) => void
+}) {
   if (rows.length === 0) return null
   return (
     <section className="mb-7">
@@ -309,6 +357,28 @@ function Group({ title, rows, note }: { title: string; rows: Packet[]; note?: st
                   ? `Their link expired ${Math.abs(p.expiresInDays)} days ago, so they cannot reply.`
                   : p.progress.summary}
             </p>
+            {onLook && (p.arrived ?? []).length > 0 && (
+              <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
+                {(p.arrived ?? []).map((a) => (
+                  <li key={a.itemId} className="pt-2 pb-1 flex flex-wrap items-center gap-3">
+                    <span className="flex-1 min-w-[200px] text-[13px] text-etyme-ink">
+                      {a.label}{a.fileName ? <span className="text-etyme-faint"> · {a.fileName}</span> : null}
+                    </span>
+                    {a.paperId ? (
+                      <>
+                        <a href={`/api/documents/${a.paperId}/file`} target="_blank" rel="noreferrer" className="text-[12px] text-etyme-action hover:underline">Open</a>
+                        <button onClick={() => onLook(p, a)} className="text-[12px] text-etyme-action hover:underline">Accept or send back</button>
+                      </>
+                    ) : onAnswer && (
+                      <>
+                        <button onClick={() => onAnswer(p, a, true)} className="text-[12px] text-etyme-action hover:underline">Accept</button>
+                        <button onClick={() => onAnswer(p, a, false)} className="text-[12px] text-etyme-action hover:underline">Send back</button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ))}
       </div>

@@ -33,6 +33,8 @@ interface OnFile {
 
 interface OwnView {
   firm: { id: string; name: string } | null
+  /** A firm with a team whose own papers this seat files (Company paperwork). */
+  teamFirm?: { id: string; name: string } | null
   canKeepCopy: boolean
   menu: OwnPaperNeeds[]
   onFile: OnFile[]
@@ -78,7 +80,9 @@ export function OwnPapers({ about, heading }: { about?: OwnPaperAbout; heading?:
     <section className="mb-8">
       {heading && <h2 className="font-serif text-lg text-etyme-ink mb-1">{heading}</h2>}
       <p className="text-sm text-etyme-muted mb-3">
-        {view.firm
+        {view.teamFirm && about === 'MY_FIRM'
+          ? `${view.teamFirm.name}’s own papers. Put each on file once; a client that buys from you looks at it and records what it saw.`
+          : view.firm
           ? 'Put each paper on file once. A client that asks for one looks at it and records what it saw.'
           : 'Put a paper on file once. The firm that asks for it looks at it and records what it saw.'}
       </p>

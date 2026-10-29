@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
+import { builtInType } from '@/lib/document-type'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { askTheDesk } from '@/lib/permissions'
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
       createdBy: { select: { name: true } },
       items: {
         orderBy: { position: 'asc' },
-        select: { id: true, label: true, required: true, state: true, receivedAt: true },
+        select: { id: true, key: true, label: true, required: true, state: true, receivedAt: true, fileName: true, fileUrl: true },
       },
     },
   })
@@ -178,6 +179,21 @@ export async function GET(request: NextRequest) {
       // act on, which looks identical to them ignoring it.
       linkExpired: daysLeft < 0,
       awaitingReview: p.items.filter((i) => i.state === 'RECEIVED').length,
+      // What arrived, so the page opens each one and accepts it or sends it
+      // back through the one examine route (the Tapin walk, 2026-10-29:
+      // "Waiting on you 4" had no way to look at any of the four).
+      arrived: p.items
+        .filter((i) => i.state === 'RECEIVED')
+        .map((i) => ({
+          itemId: i.id,
+          key: i.key,
+          label: i.label,
+          fileName: i.fileName,
+          // The paper the answer is kept as, where a file came with it.
+          paperId: paperIdOf(i.fileUrl),
+          aboutAFirm: !!p.subjectCompany,
+          examineNeeds: examineNeedsOf(i.key),
+        })),
     }
   })
 
@@ -604,4 +620,20 @@ export async function POST(request: NextRequest) {
     },
     { status: 201 }
   )
+}
+
+/** The paper an answer is kept as: its file lives at /api/documents/<id>/file. */
+function paperIdOf(fileUrl: string | null): string | null {
+  const m = fileUrl ? /^\/api\/documents\/([^/]+)\/file$/.exec(fileUrl) : null
+  return m ? m[1] : null
+}
+
+/** What accepting a paper of this type asks for, read from its type. */
+function examineNeedsOf(key: string): { start: boolean; end: boolean; edition: boolean } {
+  const spec = builtInType(key)
+  return {
+    start: spec?.validityShape === 'START_AND_END',
+    end: spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY',
+    edition: spec?.reissued === true,
+  }
 }

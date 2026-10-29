@@ -4,17 +4,8 @@ import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { progressOf } from '@/lib/packets'
-import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
-import {
-  checkToRecord,
-  examinedFromAPacket,
-  mayRecordCheck,
-  orderedNotCollected,
-  recordLabel,
-  withArticle,
-  type ExaminedEvidence,
-} from '@/lib/attestation'
-import { writeCheck } from '@/app/api/compliance/verifications/record'
+import { accessActor } from '@/lib/access-log'
+import { examinationOf, paperFollowsItem } from '@/app/api/packets/examination'
 
 /**
  * POST /api/packets/:id/review   { itemId, action: 'accept' | 'reject', note?, validUntil? }
@@ -81,7 +72,7 @@ export async function POST(
   // can act.
   const packet = await prisma.documentPacket.findFirst({
     where: { id, companyId: caller.company.id },
-    select: { id: true, label: true, completedAt: true, recipientEmail: true, subjectPersonId: true },
+    select: { id: true, label: true, completedAt: true, recipientEmail: true, subjectPersonId: true, subjectCompanyId: true },
   })
   if (!packet) {
     return NextResponse.json(
@@ -188,6 +179,9 @@ export async function POST(
     },
   })
 
+  // The paper kept from this item reads the same verdict on Paperwork.
+  await paperFollowsItem({ itemId, accepted: action === 'accept', reviewerId: caller.person.id, validUntil })
+
   const fresh = await prisma.packetItem.findMany({
     where: { packetId: id },
     orderBy: { position: 'asc' },
@@ -238,154 +232,4 @@ export async function POST(
           : `${item.label} sent back to ${packet.recipientEmail}. They can see why and send another.`,
     },
   })
-}
-
-// ── The examination, recorded through the one rule ───────────────────
-
-/** The fields a recorded check takes, beyond the date a packet already asks for. */
-const EXAMINATION_FIELDS = ['formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt'] as const
-
-interface Examined {
-  /** The recorded check the item became. */
-  verificationId?: string
-  /** What the answer adds, in a sentence. */
-  says?: string
-  /** Nothing changes, and why. */
-  refused?: { status: number; code: string; message: string; field?: string }
-}
-
-async function examinationOf(input: {
-  packet: { id: string; subjectPersonId: string | null }
-  item: { id: string; key: string; label: string }
-  body: Record<string, unknown>
-  validUntil: Date | null
-  now: Date
-  caller: {
-    companyId: string
-    companyName: string
-    personId: string
-    personName: string
-    holds: (permission: string) => boolean
-    actor: ReturnType<typeof accessActor>
-  }
-}): Promise<Examined | null> {
-  const { packet, item, body, caller, now } = input
-  const personId = packet.subjectPersonId
-  if (!personId) return null
-
-  if (orderedNotCollected(item.key)) {
-    return {
-      says:
-        `The ${recordLabel(item.key)} itself counts toward the start once the screening company’s report is recorded; ` +
-        `a file sent here is not their report.`,
-    }
-  }
-  if (!examinedFromAPacket(item.key)) return null
-
-  const given = EXAMINATION_FIELDS.some((f) => {
-    const v = body[f]
-    return Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== ''
-  })
-  const refuse = (status: number, code: string, message: string, field?: string): Examined | { says: string } =>
-    given ? { refused: { status, code, message, field } } : { says: `It does not count toward the start yet. ${message}` }
-
-  const [person, line] = await Promise.all([
-    prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
-    // The placement this firm employs or places the person on, newest
-    // first. A firm with none is not the employer, and records nothing.
-    prisma.sellContract.findFirst({
-      where: {
-        companyId: caller.companyId,
-        personId,
-        state: { notIn: ['CANCELLED'] },
-        ...(typeof body.contractId === 'string' && body.contractId ? { id: body.contractId } : {}),
-      },
-      orderBy: { startDate: 'desc' },
-      select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
-    }),
-  ])
-  const subjectName = person?.name ?? 'this person'
-  const buyerName = line ? (line.endClientCompany?.name ?? line.clientCompany.name) : 'the client'
-
-  const may = mayRecordCheck({
-    about: 'PERSON',
-    side: line ? 'EMPLOYER' : null,
-    holds: caller.holds,
-    callerFirm: caller.companyName,
-    subjectName,
-    employerName: line ? caller.companyName : 'the firm that employs or places them',
-    buyerName,
-    type: item.key,
-  })
-  if (!may.ok) {
-    if (given) {
-      await recordRefusal([personId], {
-        ...caller.actor,
-        action: 'COMPLIANCE_CHECK',
-        reason: `Refused recording ${withArticle(recordLabel(item.key))} from a document request: not this seat’s or this firm’s to record`,
-      })
-    }
-    return refuse(403, may.code, may.message)
-  }
-
-  // ── Dates and evidence, as the paper prints them ──
-  const dateOf = (v: unknown): Date | null | 'BAD' => {
-    if (v == null || v === '') return null
-    const d = new Date(String(v))
-    return Number.isNaN(d.getTime()) ? 'BAD' : d
-  }
-  const dates: Record<string, Date | null> = {}
-  for (const [f, words] of [['issuedOn', 'the day it was issued'], ['validFrom', 'the day it starts'], ['expiresAt', 'the day it runs out']] as const) {
-    const d = dateOf(body[f])
-    if (d === 'BAD') return { refused: { status: 422, code: 'VALIDATION', message: `Give ${words} as a date, like 2027-06-30.`, field: f } }
-    dates[f] = d
-  }
-  const evidence: ExaminedEvidence[] = []
-  if (Array.isArray(body.evidence)) {
-    for (const e of body.evidence as Record<string, unknown>[]) {
-      const at = e?.expiresAt ? new Date(String(e.expiresAt)) : null
-      if (at && Number.isNaN(at.getTime())) {
-        return { refused: { status: 422, code: 'VALIDATION', message: 'Give each document’s expiry as a date, like 2031-04-30.', field: 'evidence' } }
-      }
-      evidence.push({
-        type: String(e?.type ?? '').toUpperCase(),
-        issuer: typeof e?.issuer === 'string' ? e.issuer : null,
-        reference: typeof e?.reference === 'string' ? e.reference : null,
-        expiresAt: at,
-      })
-    }
-  }
-  const str = (k: string): string | null => (typeof body[k] === 'string' ? (body[k] as string) : null)
-
-  const verdict = checkToRecord(
-    {
-      about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
-      issuer: str('issuer'), issuedOn: dates.issuedOn, validFrom: dates.validFrom,
-      // The packet's own date is the paper's expiry where nothing else names one.
-      expiresAt: dates.expiresAt ?? input.validUntil,
-      formEdition: str('formEdition'), evidence, reference: str('reference'),
-      licenseNumber: str('licenseNumber'), licenseState: str('licenseState'),
-    },
-    now
-  )
-  if (!verdict.ok) return refuse(422, verdict.code, verdict.message, verdict.field)
-
-  const written = await writeCheck({
-    row: verdict.row,
-    subject: { personId },
-    personId,
-    recordedById: caller.personId,
-    recordingCompanyId: caller.companyId,
-    now,
-  })
-  logAccess({
-    subjectId: personId,
-    ...caller.actor,
-    action: 'COMPLIANCE_CHECK',
-    reason: `Recorded ${withArticle(recordLabel(item.key))} from a document request, for the placement at ${buyerName}`,
-  })
-  return {
-    verificationId: written.id,
-    says: `${verdict.says} It counts toward the start.`,
-  }
 }

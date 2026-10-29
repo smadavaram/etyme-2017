@@ -127,6 +127,12 @@ export interface CoverFacts {
   consultantCorpName: string | null
   /** True when corp-to-corp but no company has been recorded for them. */
   corpMissing: boolean
+  /**
+   * The supplier the person is engaged through, by name, so the refusal
+   * names the firm rather than "the vendor". Optional: a caller that does
+   * not pass it reads "The supplier".
+   */
+  vendorName?: string | null
 }
 
 export interface CoverVerdict {
@@ -165,7 +171,7 @@ export function checkCover(type: WorkerType | null, facts: CoverFacts, asOf: Dat
 
   const who = responsible === 'CONSULTANT_ENTITY'
     ? (facts.consultantCorpName ?? 'their own company')
-    : 'the vendor'
+    : (facts.vendorName?.trim() || 'the supplier')
 
   if (responsible === 'CONSULTANT_ENTITY' && facts.corpMissing) {
     return {
@@ -185,21 +191,47 @@ export function checkCover(type: WorkerType | null, facts: CoverFacts, asOf: Dat
     return { outcome: 'PASS', reason: `${who} has current cover`, responsible }
   }
 
-  const names = missing
-    .map(m => (m === 'INSURANCE_GL' ? 'general liability' : "workers' compensation"))
-    .join(' and ')
-
   // Lapsed cover on the party who answers is legally grounded, so it blocks.
-  const lapsed = facts.certificates.some(
-    c => REQUIRED.includes(c.type) && c.expiresAt !== null && c.expiresAt <= asOf
-  )
+  // Each paper is named once, as lapsed or as missing, never both and
+  // never twice (the Tapin walk, 2026-10-29, read the whole refusal twice).
   return {
     outcome: 'BLOCK',
-    reason: lapsed
-      ? `${who} let ${names} lapse`
-      : `${who} has no ${names} cover on file`,
+    reason: coverRefusal(who, missing.map((m) => ({
+      paper: m,
+      lapsed: facts.certificates.some((c) => c.type === m && c.expiresAt !== null && c.expiresAt <= asOf),
+    }))),
     responsible,
   }
+}
+
+const COVER_NAME: Record<string, string> = {
+  INSURANCE_GL: 'general liability',
+  INSURANCE_WC: "workers' compensation",
+}
+
+/**
+ * The refusal for missing or lapsed cover, saying each paper once and
+ * naming the firm that owes it.
+ *
+ *   "Tapin has no workers' compensation certificate on file."
+ *   "Tapin has neither a general liability nor a workers' compensation certificate on file."
+ *   "Tapin let its general liability certificate lapse and has no workers' compensation certificate on file."
+ */
+export function coverRefusal(who: string, papers: { paper: string; lapsed: boolean }[]): string {
+  const seen = new Set<string>()
+  const once = papers.filter((p) => (seen.has(p.paper) ? false : (seen.add(p.paper), true)))
+  const name = (k: string) => COVER_NAME[k] ?? k.toLowerCase().replace(/_/g, ' ')
+  const lapsed = once.filter((p) => p.lapsed).map((p) => name(p.paper))
+  const missing = once.filter((p) => !p.lapsed).map((p) => name(p.paper))
+  const firm = who.charAt(0).toUpperCase() + who.slice(1)
+  const parts: string[] = []
+  if (lapsed.length > 0) {
+    parts.push(`let its ${lapsed.join(' and ')} certificate${lapsed.length === 1 ? '' : 's'} lapse`)
+  }
+  if (missing.length === 1) parts.push(`has no ${missing[0]} certificate on file`)
+  else if (missing.length > 1) parts.push(`has neither a ${missing[0]} nor a ${missing[1]} certificate on file`)
+  if (parts.length === 0) return `${firm} has current cover`
+  return `${firm} ${parts.join(' and ')}`
 }
 
 

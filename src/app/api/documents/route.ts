@@ -6,6 +6,8 @@ import { logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN, builtInType } from '@/lib/document-type'
 import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
+import { paperSubject } from '@/lib/document-stages/firm-papers'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * GET /api/documents
@@ -85,8 +87,30 @@ export async function GET(request: NextRequest) {
     if (subjectId) where.subjectId = subjectId
     if (status) where.status = status.toUpperCase()
 
+    // A supplier's own papers, filed on its record (Company paperwork),
+    // waiting for this client's look: only the firms it buys from, only
+    // where this seat looks at supplier papers, and never twice.
+    const looksAtSupplierPapers = !isConsultantSeat(caller) && !subjectId && !status &&
+      ['vendors.manage', 'privacy.manage', 'governance.write'].some((p) => hasPermission(caller.permissions ?? [], p as never))
+    let keptBySuppliers: string[] = []
+    if (looksAtSupplierPapers) {
+      const ties = await prisma.counterparty.findMany({
+        where: { companyId, relationship: 'SUPPLIER', status: { not: 'BLOCKED' } },
+        select: { otherCompanyId: true },
+        take: 500,
+      })
+      const asked = await prisma.documentPacket.findMany({
+        where: { companyId, subjectCompanyId: { not: null }, cancelledAt: null },
+        select: { subjectCompanyId: true },
+        take: 500,
+      })
+      keptBySuppliers = [...new Set([...ties.map((t) => t.otherCompanyId), ...asked.map((a) => a.subjectCompanyId!)])].filter((id) => id !== companyId)
+    }
+
     const instances = await prisma.docInstance.findMany({
-      where,
+      where: keptBySuppliers.length
+        ? { OR: [where, { status: KEPT_BY_HOLDER, subjectType: 'COMPANY', subjectId: { in: keptBySuppliers }, examinedAt: null }] }
+        : where,
       include: {
         template: { select: { id: true, name: true, audience: true, needsSignature: true } },
         sellContract: { select: { person: { select: { name: true } }, clientCompany: { select: { name: true } } } },
@@ -97,18 +121,41 @@ export async function GET(request: NextRequest) {
 
     // Who each request is about, by name. A row that says "PERSON
     // cmt…" is a row nobody can act on.
-    const personIds = instances.filter((i) => i.subjectType === 'PERSON').map((i) => i.subjectId)
-    const companyIds = instances.filter((i) => i.subjectType === 'COMPANY').map((i) => i.subjectId)
+    // A paper kept from a document request is about the request's subject.
+    const itemIds = instances.filter((i) => i.subjectType === 'PACKET_ITEM').map((i) => i.subjectId)
+    const items = itemIds.length
+      ? await prisma.packetItem.findMany({
+          where: { id: { in: itemIds } },
+          select: { id: true, key: true, packet: { select: { subjectCompanyId: true, subjectPersonId: true } } },
+        })
+      : []
+    const itemOf = new Map(items.map((i) => [i.id, i]))
+    const aboutOf = (i: (typeof instances)[number]) =>
+      paperSubject({ subjectType: i.subjectType, subjectId: i.subjectId, packet: itemOf.get(i.subjectId)?.packet ?? null })
+    const personIds = instances.map(aboutOf).flatMap((a) => (a.kind === 'PERSON' ? [a.personId] : []))
+    const companyIds = instances.map(aboutOf).flatMap((a) => (a.kind === 'FIRM' ? [a.companyId] : []))
     const [people, companies] = await Promise.all([
       personIds.length ? prisma.person.findMany({ where: { id: { in: personIds } }, select: { id: true, name: true } }) : [],
       companyIds.length ? prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } }) : [],
     ])
     const personName = new Map(people.map((p) => [p.id, p.name]))
     const companyName = new Map(companies.map((c) => [c.id, c.name]))
-    const subjectOf = (i: (typeof instances)[number]): string =>
-      i.subjectType === 'PACKET_ITEM'
-        ? 'Sent through a document request'
-        : i.subjectType === 'PERSON'
+    const subjectOf = (i: (typeof instances)[number]): string => {
+      const about = aboutOf(i)
+      if (i.subjectType === 'PACKET_ITEM') {
+        return about.kind === 'FIRM'
+          ? companyName.get(about.companyId) ?? 'A company'
+          : about.kind === 'PERSON'
+            ? personName.get(about.personId) ?? 'Somebody'
+            : 'Sent through a document request'
+      }
+      if (i.status === KEPT_BY_HOLDER && i.subjectType === 'COMPANY' && i.subjectId !== companyId) {
+        return `${companyName.get(i.subjectId) ?? 'A supplier'}, filed on its own record`
+      }
+      return subjectOf_(i)
+    }
+    const subjectOf_ = (i: (typeof instances)[number]): string =>
+      i.subjectType === 'PERSON'
         ? personName.get(i.subjectId) ?? 'Somebody'
         : i.subjectType === 'COMPANY'
           ? companyName.get(i.subjectId) ?? 'A company'
@@ -124,6 +171,9 @@ export async function GET(request: NextRequest) {
           subjectType: i.subjectType,
           subjectId: i.subjectId,
           subject: subjectOf(i),
+          // Whether the paper is about a firm, whichever way it arrived, so
+          // the look asks who issued it (a certificate's insurer).
+          aboutAFirm: aboutOf(i).kind === 'FIRM',
           status: i.status,
           envelopeId: i.envelopeId,
           sentAt: i.sentAt?.toISOString() ?? null,
@@ -140,7 +190,7 @@ export async function GET(request: NextRequest) {
           expiresAt: i.expiresAt?.toISOString().slice(0, 10) ?? null,
           edition: i.edition ?? null,
           countersignedAt: i.countersignedAt?.toISOString() ?? null,
-          examineNeeds: examineNeedsFor(i.template.name),
+          examineNeeds: examineNeedsFor(i.template.name, itemOf.get(i.subjectId)?.key ?? null),
           // A license's number, issuer and expiry as the sender gave them,
           // so the examine step opens with them filled in.
           licenseFacts: licenseFactsFrom(i.note),
@@ -385,8 +435,9 @@ async function offeredWork(personId: string, companyId: string): Promise<boolean
  * one, an edition where the form is reissued. Nothing for a paper whose
  * type is not known, because nothing is required of it.
  */
-function examineNeedsFor(templateName: string): { start: boolean; end: boolean; edition: boolean } {
-  const key = typeKeyForTemplate(templateName, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
+function examineNeedsFor(templateName: string, itemKey: string | null = null): { start: boolean; end: boolean; edition: boolean } {
+  // A request item names its type; a paper's name is read only where it does not.
+  const key = itemKey ?? typeKeyForTemplate(templateName, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
   const spec = key ? builtInType(key) : null
   return {
     start: spec?.validityShape === 'START_AND_END',

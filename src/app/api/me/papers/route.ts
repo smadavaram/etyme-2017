@@ -17,6 +17,7 @@ import { credentialChaseNow } from '@/lib/contract-clearance'
 import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
 import { mayFileOwnPaper, ownPaperMenu, type OwnPaperAbout } from '@/lib/document-stages/own-papers'
+import { mayFileFirmPapers } from '@/lib/document-stages/firm-papers'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid, KEPT_BY_HOLDER, statusWord } from '@/lib/document-request'
 import { plainDate } from '@/lib/plain-date'
 import { Prisma, VerificationType } from '@prisma/client'
@@ -736,8 +737,12 @@ const VERIFICATION_TYPES = new Set<string>(Object.values(VerificationType))
  * template (DOC), on the verification itself (VERIFICATION), or nowhere.
  * A degree has no verification type, so with no firm it has no home yet.
  */
-function copyHome(key: string, hasFirm: boolean): 'DOC' | 'VERIFICATION' | null {
+function copyHome(key: string, hasFirm: boolean, about: OwnPaperAbout = 'ME', teamFirm = false): 'DOC' | 'VERIFICATION' | null {
   if (hasFirm) return 'DOC'
+  // A firm's own paper, filed by its Owner, Admin, HR or Compliance
+  // Officer: kept under the firm's template. A staffer's own license is
+  // hers, never kept under her employer's.
+  if (about === 'MY_FIRM' && teamFirm) return 'DOC'
   return VERIFICATION_TYPES.has(key) ? 'VERIFICATION' : null
 }
 
@@ -749,7 +754,7 @@ function copyHome(key: string, hasFirm: boolean): 'DOC' | 'VERIFICATION' | null 
  * no access log row (see the GET above).
  */
 async function ownFile(caller: Caller, verificationId: string) {
-  const firm = ownFirm(caller)
+  const firm = ownFirm(caller) ?? teamFirm(caller)
   const doc = await prisma.verificationDoc.findFirst({
     where: {
       verificationId,
@@ -774,13 +779,28 @@ function ownFirm(caller: Caller): { id: string; name: string } | null {
   return c && c.kind === 'CONSULTANT_CORP' ? { id: c.id, name: c.name } : null
 }
 
+/**
+ * The firm with a team whose own papers this seat files: its Owner, an
+ * Admin, HR or the Compliance Officer (`mayFileFirmPapers`). Found by the
+ * Tapin walk, 2026-10-29: only a one-person firm had anywhere to file its
+ * W-9, insurance and good standing.
+ */
+function teamFirm(caller: Caller): { id: string; name: string } | null {
+  const c = caller.company
+  if (!c || c.kind === 'CONSULTANT_CORP' || caller.context.type === 'CONSULTANT') return null
+  const may = mayFileFirmPapers({ companyKind: c.kind, companyName: c.name, isOnePersonFirm: false, permissions: caller.permissions ?? [] })
+  return may.ok ? { id: c.id, name: c.name } : null
+}
+
 async function ownView(caller: Caller) {
   const me = caller.person.id
   const firm = ownFirm(caller)
+  const team = firm ? null : teamFirm(caller)
+  const firmId = firm?.id ?? team?.id ?? null
   const rows = await prisma.verification.findMany({
     where: {
-      OR: [{ personId: me }, ...(firm ? [{ companyId: firm.id }] : [])],
-      uploadedById: me,
+      // Her own papers she filed; the firm's papers whoever at the firm filed them.
+      OR: [{ personId: me, uploadedById: me }, ...(firmId ? [{ companyId: firmId }] : [])],
       result: { path: ['selfFiled'], equals: true },
     },
     select: {
@@ -793,8 +813,7 @@ async function ownView(caller: Caller) {
   const kept = await prisma.docInstance.findMany({
     where: {
       status: KEPT_BY_HOLDER,
-      signedById: me,
-      OR: [{ subjectType: 'PERSON', subjectId: me }, ...(firm ? [{ subjectType: 'COMPANY', subjectId: firm.id }] : [])],
+      OR: [{ subjectType: 'PERSON', subjectId: me, signedById: me }, ...(firmId ? [{ subjectType: 'COMPANY', subjectId: firmId }] : [])],
     },
     select: { id: true, subjectType: true, fileName: true, validFrom: true, expiresAt: true, edition: true, signedAt: true, note: true, template: { select: { name: true } } },
     orderBy: { signedAt: 'desc' },
@@ -839,9 +858,11 @@ async function ownView(caller: Caller) {
   return NextResponse.json({
     data: {
       firm,
+      // A firm with a team whose papers this seat files, under Company paperwork.
+      teamFirm: team,
       canKeepCopy: true,
       // A paper with nowhere to keep its copy for her is not offered.
-      menu: ownPaperMenu({ firm: !!firm }).filter((m) => copyHome(m.key, !!firm) !== null),
+      menu: ownPaperMenu({ firm: !!firm || !!team }).filter((m) => copyHome(m.key, !!firm, m.about, !!team) !== null),
       onFile,
       says: null,
     },
@@ -860,6 +881,7 @@ export async function PUT(request: NextRequest) {
   if (error) return error
   const me = caller.person.id
   const firm = ownFirm(caller)
+  const team = firm ? null : teamFirm(caller)
 
   const isForm = (request.headers.get('content-type') ?? '').includes('multipart/form-data')
   const fields: Record<string, string | null> = {}
@@ -895,7 +917,8 @@ export async function PUT(request: NextRequest) {
     key: fields.key ?? '',
     about,
     isOnePersonFirm: !!firm,
-    canKeepCopy: copyHome(fields.key ?? '', !!firm) !== null,
+    filesForFirm: !!team,
+    canKeepCopy: copyHome(fields.key ?? '', !!firm, about, !!team) !== null,
     fileName: file?.name ?? null,
     number: fields.number,
     issuer: fields.issuer,
@@ -910,9 +933,11 @@ export async function PUT(request: NextRequest) {
   const row = verdict.row
   const label = labelFor(row.key)
 
+  const filer = about === 'MY_FIRM' ? (firm ?? team) : firm
   const written = await prisma.$transaction(async (tx) => {
     let docId: string | null = null
-    if (file && firm) {
+    if (file && filer) {
+      const firm = filer
       const name = label.charAt(0).toUpperCase() + label.slice(1)
       const template =
         (await tx.docTemplate.findFirst({ where: { companyId: firm.id, name }, select: { id: true } })) ??
@@ -940,7 +965,7 @@ export async function PUT(request: NextRequest) {
     if (VERIFICATION_TYPES.has(row.key)) {
       const v = await tx.verification.create({
         data: {
-          ...(about === 'MY_FIRM' ? { companyId: firm!.id } : { personId: me }),
+          ...(about === 'MY_FIRM' ? { companyId: filer!.id } : { personId: me }),
           type: row.key as VerificationType,
           status: 'PENDING',
           provider: row.issuer,

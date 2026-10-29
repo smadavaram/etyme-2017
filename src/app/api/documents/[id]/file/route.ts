@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { standingOn } from '@/lib/document-request'
+import { hasPermission } from '@/lib/permissions'
+import { buyerMayExamineKept } from '@/app/api/packets/examination'
 
 /**
  * GET /api/documents/:id/file — the document itself.
@@ -85,7 +87,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // sentence, because billing a client is not reading a contractor's
   // passport. The person it is about reads their own. A company's own
   // paper reaches it. Everybody else is told nothing is here.
-  const standing = standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
+  // A paper a supplier filed on its own record, opened by a client that
+  // buys from it to examine it (Company paperwork, 2026-10-29).
+  const keptForBuyer = await buyerMayExamineKept(
+    {
+      companyId: caller.company?.id ?? null,
+      isConsultantSeat: caller.context.type === 'CONSULTANT',
+      holds: (p) => hasPermission(caller.permissions ?? [], p as never),
+    },
+    { status: doc.status, subjectType: doc.subjectType, subjectId: doc.subjectId }
+  )
+  const standing = keptForBuyer ? { ok: true as const, staffOfIssuer: true } : standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
     personId: caller.person.id,
     atIssuer: caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT',
     atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId,
@@ -95,7 +107,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const mine = subjectPersonId !== null && caller.person.id === subjectPersonId
 
   const why = standing.ok
-    ? standing.staffOfIssuer
+    ? keptForBuyer
+      ? `${caller.company?.name ?? 'A client'} buys from the firm that filed this paper and is examining it.`
+      : standing.staffOfIssuer
       ? `${issuer.name} asked for this document and its paperwork team is reading the answer.`
       : mine
         ? 'Their own document.'

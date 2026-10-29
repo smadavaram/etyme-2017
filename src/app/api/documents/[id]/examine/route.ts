@@ -7,8 +7,9 @@ import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
 import { mayExamine, standingOn, typeKeyForTemplate } from '@/lib/document-request'
 import { BUILT_IN, typeByKey } from '@/lib/document-type'
-import { RECORDABLE_ABOUT_A_FIRM, checkToRecord, mayRecordCheck } from '@/lib/attestation'
-import { writeCheck } from '@/app/api/compliance/verifications/record'
+import { RECORDABLE_ABOUT_A_FIRM } from '@/lib/attestation'
+import { paperSubject } from '@/lib/document-stages/firm-papers'
+import { buyerMayExamineKept, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
 
 /**
  * POST /api/documents/:id/examine
@@ -26,6 +27,14 @@ import { writeCheck } from '@/app/api/compliance/verifications/record'
  * a firm that buys from it, also becomes the recorded check the start
  * reads (`checkToRecord`, `writeCheck` — the same writer as Record a
  * check), so the supplier's standing and the paper cannot disagree.
+ *
+ * A paper kept from a document request is about the request's subject
+ * (a supplier for a supplier set), and the request's item follows the
+ * verdict, so Paperwork, Document requests and the supplier's standing
+ * read one answer (the Tapin walk, 2026-10-29: Brightmoor accepted
+ * Tapin's insurance here and the award still refused, because the paper
+ * read as about nobody). A paper a supplier filed on its own record is
+ * examined the same way by a client that buys from it.
  *
  * Sent back: the paper is asked for again with the reason on it, the
  * file that was refused is not kept as an answer, and the sender is told
@@ -50,20 +59,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   })
   if (!doc) return refuse(404, 'NOT_FOUND', 'That document is not here.')
 
-  const subjectPersonId =
-    doc.subjectType === 'PERSON'
-      ? doc.subjectId
-      : doc.subjectType === 'SELL_CONTRACT'
+  // A request item's answer: the item, and whom the request is about.
+  const item = doc.subjectType === 'PACKET_ITEM'
+    ? await prisma.packetItem.findUnique({
+        where: { id: doc.subjectId },
+        select: { id: true, key: true, label: true, packet: { select: { id: true, subjectCompanyId: true, subjectPersonId: true } } },
+      })
+    : null
+  const about = paperSubject({
+    subjectType: doc.subjectType,
+    subjectId: doc.subjectId,
+    packet: item?.packet ?? null,
+    contractPersonId:
+      doc.subjectType === 'SELL_CONTRACT'
         ? doc.sellContract?.personId ?? null
         : doc.subjectType === 'BUY_CONTRACT'
           ? doc.buyContract?.candidates[0]?.personId ?? null
-          : null
-  const issuer = doc.template.company
-  const atSubjectCompany = doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId
+          : null,
+  })
+  const subjectPersonId = about.kind === 'PERSON' ? about.personId : null
+  const subjectCompanyId = about.kind === 'FIRM' ? about.companyId : null
+  const holds = (p: string) => hasPermission(caller.permissions ?? [], p as never)
+
+  // A paper the supplier filed itself, opened by a client that buys from it.
+  const keptForBuyer = await buyerMayExamineKept(
+    { companyId: caller.company?.id ?? null, isConsultantSeat: caller.context.type === 'CONSULTANT', holds },
+    { status: doc.status, subjectType: doc.subjectType, subjectId: doc.subjectId }
+  )
+  const issuer = keptForBuyer && caller.company ? { id: caller.company.id, name: caller.company.name } : doc.template.company
+  const atSubjectCompany = subjectCompanyId !== null && caller.company?.id === subjectCompanyId
 
   // Whose hands it is in: the same rule as opening the file. Examining a
   // paper is reading it, and reading it is the paperwork team's work.
-  const standing = standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
+  const standing = keptForBuyer ? { ok: true as const, staffOfIssuer: true } : standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
     personId: caller.person.id,
     atIssuer: caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT',
     atSubjectCompany,
@@ -83,10 +111,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const [person, company] = await Promise.all([
     subjectPersonId ? prisma.person.findUnique({ where: { id: subjectPersonId }, select: { name: true } }) : null,
-    doc.subjectType === 'COMPANY' ? prisma.company.findUnique({ where: { id: doc.subjectId }, select: { name: true } }) : null,
+    subjectCompanyId ? prisma.company.findUnique({ where: { id: subjectCompanyId }, select: { id: true, name: true } }) : null,
   ])
-  const senderName = person?.name ?? company?.name ?? 'whoever it was asked of'
-  const key = typeKeyForTemplate(doc.template.name, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
+  const senderName = person?.name ?? company?.name ?? 'the firm that sent it'
+  // A request item names its type; any other paper is read off its name.
+  const key = item?.key ?? typeKeyForTemplate(doc.template.name, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
   const spec = key ? typeByKey(key) : null
 
   const dateOf = (field: string): Date | null | 'BAD' => {
@@ -103,7 +132,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const now = new Date()
   const verdict = mayExamine(
     {
-      status: doc.status,
+      // A paper its holder kept is on file, as far as the buyer looking at it is concerned.
+      status: keptForBuyer ? 'UPLOADED' : doc.status,
       templateName: doc.template.name,
       needsSignature: doc.template.needsSignature,
       issuerName: issuer.name,
@@ -127,37 +157,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return refuse(verdict.code === 'NOT_YOURS' ? 403 : verdict.code === 'NOTHING_ARRIVED' ? 409 : 422, verdict.code, verdict.message, verdict.field)
   }
 
-  // ── A supplier's certificate becomes the recorded check ──
+  // ── What the look puts on the record ──
+  // One writer for a supplier's certificate, whichever door accepted it
+  // (`recordSupplierPaper`), and the request's own reading for an item.
   let verificationId: string | null = null
   let checkSays: string | null = null
-  if (verdict.verdict === 'ACCEPT' && doc.subjectType === 'COMPANY' && key && (RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(key) && caller.company) {
-    const buys = await buysFrom(issuer.id, doc.subjectId)
-    const may = mayRecordCheck({
-      about: 'FIRM', side: buys ? 'BUYER' : null, type: key,
-      holds: (p) => hasPermission(caller.permissions ?? [], p as never),
-      callerFirm: caller.company.name, subjectName: senderName, employerName: senderName, buyerName: issuer.name,
-    })
-    if (may.ok) {
-      const check = checkToRecord(
-        {
-          about: 'FIRM', type: key, subjectName: senderName, recordedBy: caller.person.name,
-          issuer: typeof body.issuer === 'string' ? body.issuer : null,
-          reference: typeof body.reference === 'string' ? body.reference : null,
-          validFrom: verdict.validFrom, expiresAt: verdict.expiresAt,
-        },
-        now
-      )
-      if (!check.ok) return refuse(422, check.code, check.message, check.field)
-      const written = await writeCheck({
-        row: check.row, subject: { companyId: doc.subjectId }, personId: null,
-        recordedById: caller.person.id, recordingCompanyId: caller.company.id, now,
-      })
-      verificationId = written.id
-      checkSays = check.says
-    } else {
-      // Examined, and said why it is not on the supplier's standing.
-      checkSays = `It is not recorded on ${senderName}’s standing: ${may.message}`
+  if (verdict.verdict === 'ACCEPT' && caller.company) {
+    const buyer = {
+      companyId: caller.company.id, companyName: caller.company.name,
+      personId: caller.person.id, personName: caller.person.name, holds,
+      actor: accessActor(caller),
     }
+    const str = (k: string): string | null => (typeof body[k] === 'string' && (body[k] as string).trim() ? (body[k] as string).trim() : null)
+    const examined = item
+      ? await examinationOf({
+          packet: item.packet, item,
+          body: { ...body, formEdition: body.formEdition ?? body.edition },
+          validUntil: verdict.expiresAt, now, caller: buyer,
+        })
+      : company && key && (RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(key)
+        ? await recordSupplierPaper({
+            buyer, supplier: company, key,
+            issuer: str('issuer'), reference: str('reference'),
+            validFrom: verdict.validFrom, expiresAt: verdict.expiresAt, now,
+          })
+        : null
+    if (examined?.refused) return refuse(examined.refused.status, examined.refused.code, examined.refused.message, examined.refused.field)
+    verificationId = examined?.verificationId ?? null
+    checkSays = examined?.says ?? null
   }
 
   const note = [doc.note, verdict.note].filter(Boolean).join('\n').slice(-2000)
@@ -175,6 +202,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           ...(verdict.countersign ? { countersignedAt: now, countersignedById: caller.person.id } : {}),
         },
       })
+    } else if (keptForBuyer) {
+      // The supplier's own copy stays on its record; the client's look is
+      // written on it, and the supplier is told to file a current one.
+      await tx.docInstance.update({ where: { id }, data: { note, examinedById: caller.person.id, examinedAt: now } })
     } else {
       // A paper sent back is not held. The refused file goes with it, the
       // same as a packet item sent back, so nothing reads it as an answer.
@@ -190,6 +221,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (doc.file) await tx.docFile.delete({ where: { docInstanceId: id } })
     }
   })
+  if (item) {
+    await itemFollowsPaper({
+      itemId: item.id,
+      accepted: verdict.verdict === 'ACCEPT',
+      reviewerId: caller.person.id,
+      note: verdict.verdict === 'ACCEPT' ? null : verdict.note,
+      validUntil: verdict.expiresAt,
+      verificationId,
+    })
+  }
 
   if (subjectPersonId) {
     logAccess({
@@ -216,13 +257,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const noticeBody = verdict.verdict === 'ACCEPT' ? verdict.says : `${verdict.note}. Send the right one from your paperwork page.`
   if (subjectPersonId) {
     void notify({ personId: subjectPersonId, companyId: issuer.id, type: 'SYSTEM', title, body: noticeBody, entityId: id })
-  } else if (doc.subjectType === 'COMPANY') {
+  } else if (subjectCompanyId) {
     const staff = await prisma.context.findMany({
-      where: { companyId: doc.subjectId, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
+      where: { companyId: subjectCompanyId, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
       select: { personId: true },
       take: 10,
     })
-    void notifyBulk(staff.map((s) => ({ personId: s.personId, companyId: doc.subjectId, type: 'SYSTEM' as const, title, body: noticeBody, entityId: id })))
+    void notifyBulk(staff.map((s) => ({ personId: s.personId, companyId: subjectCompanyId, type: 'SYSTEM' as const, title, body: noticeBody, entityId: id })))
   }
 
   return NextResponse.json({
@@ -235,22 +276,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       says: checkSays ? `${verdict.says} ${checkSays}` : verdict.says,
     },
   })
-}
-
-/**
- * Whether the firm that asked buys from the firm the paper is about:
- * it sent it a job, received a candidate from it, or pays it on a line.
- */
-async function buysFrom(buyerId: string, supplierId: string): Promise<boolean> {
-  const [invited, submitted, line] = await Promise.all([
-    prisma.requirementInvitation.findFirst({ where: { fromCompanyId: buyerId, toCompanyId: supplierId }, select: { id: true } }),
-    prisma.submission.findFirst({ where: { fromCompanyId: supplierId, toCompanyId: buyerId }, select: { id: true } }),
-    prisma.sellContract.findFirst({
-      where: { companyId: supplierId, OR: [{ clientCompanyId: buyerId }, { endClientCompanyId: buyerId }] },
-      select: { id: true },
-    }),
-  ])
-  return Boolean(invited || submitted || line)
 }
 
 function refuse(status: number, code: string, message: string, field?: string) {

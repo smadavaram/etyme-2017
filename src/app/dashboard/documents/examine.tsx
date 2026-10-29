@@ -21,6 +21,8 @@ export interface ExamineRow {
   template: { name: string }
   subject: string
   subjectType: string
+  /** About a firm, whichever way it arrived (a request's item about a supplier, too). */
+  aboutAFirm?: boolean
   fileName: string | null
   examineNeeds?: { start: boolean; end: boolean; edition: boolean }
   /** A license's facts as sent, to fill the form in. */
@@ -37,7 +39,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const aboutAFirm = row.subjectType === 'COMPANY'
+  const aboutAFirm = row.aboutAFirm ?? row.subjectType === 'COMPANY'
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -110,10 +112,12 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
                 <input value={edition} onChange={(e) => setEdition(e.target.value)} required placeholder="Rev. March 2024" className={field} />
               </label>
             )}
+            {/* A supplier's certificate goes on its standing only with the
+                insurer (or the state, for good standing) named on it. */}
             {aboutAFirm && needs.end && (
               <label className="block">
-                <span className={label}>Who issued it, if it says</span>
-                <input value={issuer} onChange={(e) => setIssuer(e.target.value)} placeholder="The Hartford" className={field} />
+                <span className={label}>Who issued it: the insurer, or the state</span>
+                <input value={issuer} onChange={(e) => setIssuer(e.target.value)} required placeholder="The Hartford" className={field} />
               </label>
             )}
           </>

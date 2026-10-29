@@ -6,6 +6,7 @@ import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { ExaminePaper, type ExamineRow } from './examine'
+import { plainDate } from '@/lib/plain-date'
 import { OwnPapers, readOwnPapers } from './own-papers'
 
 /**
@@ -45,6 +46,8 @@ interface Request_ {
   template: { id: string; name: string; needsSignature: boolean }
   subjectType: string
   subject: string
+  /** About a firm, whichever way it arrived: the look asks who issued it. */
+  aboutAFirm?: boolean
   status: string
   sentAt: string | null
   signedAt: string | null
@@ -81,6 +84,9 @@ export default function DocumentsPage() {
   // A one-person firm: her firm's papers and her license go on file here,
   // and she is never offered herself to ask (release walk, 2026-10-27).
   const [onePersonFirm, setOnePersonFirm] = useState(false)
+  // A firm with a team, at a seat that files the firm's own W-9, insurance
+  // and good standing (the Tapin walk, 2026-10-29).
+  const [teamFirm, setTeamFirm] = useState(false)
   const [record, setRecord] = useState<{ id: string; kind: 'upload' | 'sign'; fileUrl: string; note: string } | null>(null)
 
   const load = useCallback(async () => {
@@ -95,6 +101,7 @@ export default function DocumentsPage() {
         readOwnPapers(),
       ])
       setOnePersonFirm(!!own?.firm)
+      setTeamFirm(!!own?.teamFirm)
       setTemplates(t?.data?.templates ?? [])
       setRequests(r?.data?.instances ?? [])
       setBooks(whoWeMayAsk)
@@ -187,6 +194,8 @@ export default function DocumentsPage() {
 
       {onePersonFirm && <OwnPapers heading="Your firm’s papers" />}
 
+      {teamFirm && <OwnPapers about="MY_FIRM" heading="Company paperwork" />}
+
       {!onePersonFirm && <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>
         <form onSubmit={askFor} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
@@ -246,14 +255,14 @@ export default function DocumentsPage() {
                   {r.status === 'PENDING' ? 'Ask for it' : 'Ask again'}
                 </button>
               )}
-              {(r.status === 'UPLOADED' || r.status === 'SIGNED') && !r.examinedAt && (
+              {(r.status === 'UPLOADED' || r.status === 'SIGNED' || r.status === 'KEPT') && !r.examinedAt && (
                 <button onClick={() => setExamining(r)} className="text-xs text-etyme-action hover:underline">
                   Look at it
                 </button>
               )}
               {r.examinedAt && (
                 <span className="text-xs text-etyme-verified">
-                  Accepted {new Date(r.examinedAt).toLocaleDateString()}{r.expiresAt ? ` · runs out ${r.expiresAt}` : ''}
+                  Accepted {plainDate(r.examinedAt)}{r.expiresAt ? ` · runs out ${plainDate(r.expiresAt)}` : ''}
                 </span>
               )}
               {r.status === 'SENT' && (
