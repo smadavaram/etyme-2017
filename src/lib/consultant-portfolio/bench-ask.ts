@@ -33,7 +33,8 @@
  * ── The log ──────────────────────────────────────────────────────────
  *
  * One automation row, BENCH_LISTING_REQUESTED, with the same payload from
- * both doors: `requestedBy` is the recruiter, or null from the page, which
+ * both doors, and after it a CONSULTANT_CREATED row wherever a consultant
+ * record was made for an address that had none (the ladder names it): `requestedBy` is the recruiter, or null from the page, which
  * is what `tellTheFirm` reads to know who hears the answer; `door` says
  * which; `fromPublicPage` stays because the page's hourly cap counts it.
  *
@@ -190,7 +191,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
     if (o.by) {
       logAccess({ subjectId: existing.id, actorPersonId: o.by.personId, actorCompanyId: firm.id, action: 'MARKETING_REQUEST', reason })
     } else {
-      await recordRefusal([existing.id], { action: 'MARKETING_REQUEST', allowed: false, reason })
+      await recordRefusal([existing.id], { action: 'PUBLIC_PAGE_ADDRESS_LOOKUP', allowed: false, reason })
     }
   }
 
@@ -287,6 +288,31 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
           reversible: true,
         },
       })
+      // A profile made where none existed is a record the system wrote
+      // for somebody who has not said yes yet: its own row, from both doors.
+      if (!profile) {
+        await tx.automationLog.create({
+          data: {
+            companyId: firm.id,
+            action: 'CONSULTANT_CREATED',
+            summary: `A consultant record was made for "${person.name}" so ${firm.name} could ask them onto its bench. Nothing reaches past the firm until they say yes.`,
+            reason:
+              door === 'PUBLIC_PAGE'
+                ? 'Join the bench on the public page, for an address with no consultant record on Etyme.'
+                : 'Add consultant, for an address with no consultant record on Etyme.',
+            payload: {
+              personId: person.id,
+              profileId: prof.id,
+              listingId: row.id,
+              createdBy: o.by?.personId ?? null,
+              door,
+              personCreated: !existing,
+            },
+            reversible: true,
+          },
+        })
+      }
+
       return { person, prof, row }
     })
   } catch (err) {

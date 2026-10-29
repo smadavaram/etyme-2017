@@ -89,7 +89,7 @@ const maya = () => {
 /** The record an ask leaves, with the ids and the door taken out. */
 const shapeOf = (firmId: string) => {
   const listing = h.listings.find((l) => l.companyId === firmId)!
-  const log = h.logs.find((l) => l.companyId === firmId)!
+  const log = h.logs.find((l) => l.companyId === firmId && l.action === 'BENCH_LISTING_REQUESTED')!
   return {
     listing: { state: listing.state, tier: listing.tier, revokedAt: listing.revokedAt, termsAgreedAt: listing.termsAgreedAt },
     log: { action: log.action, reversible: log.reversible, keys: Object.keys(log.payload).sort() },
@@ -112,15 +112,33 @@ describe('one bench ask for the page and the recruiter', () => {
     expect(h.profiles).toHaveLength(2)
     expect(shapeOf('firm-r')).toEqual(shapeOf('firm-p'))
     expect(shapeOf('firm-p').listing.state).toBe('INVITED')
-    expect(h.logs.map((l) => l.action)).toEqual(['BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REQUESTED'])
-    expect(h.logs.map((l) => l.payload.door)).toEqual(['PUBLIC_PAGE', 'ADD_CONSULTANT'])
-    expect(h.logs.map((l) => l.payload.requestedBy)).toEqual([null, 'recruiter-1'])
+    const asks = h.logs.filter((l) => l.action === 'BENCH_LISTING_REQUESTED')
+    expect(asks.map((l) => l.payload.door)).toEqual(['PUBLIC_PAGE', 'ADD_CONSULTANT'])
+    expect(asks.map((l) => l.payload.requestedBy)).toEqual([null, 'recruiter-1'])
     expect(h.letters).toHaveLength(2)
 
     // And the recruiter's route writes no listing of its own any more.
     const route = readFileSync(join(process.cwd(), 'src/app/api/consultants/route.ts'), 'utf8')
     expect(route).toContain('askOntoBench(')
     expect(route).not.toContain('benchListing.create')
+  })
+
+  it('a consultant record made for a new address is written down as made, from either door, and can be undone', async () => {
+    await fromPage('Ike Danso', 'ike@example.test')
+    await fromRecruiter('Ada Obi', 'ada@example.test')
+    const made = h.logs.filter((l) => l.action === 'CONSULTANT_CREATED')
+    expect(made.map((l) => [l.payload.door, l.payload.createdBy, l.reversible])).toEqual([
+      ['PUBLIC_PAGE', null, true],
+      ['ADD_CONSULTANT', 'recruiter-1', true],
+    ])
+    expect(made.every((l) => l.reason && l.payload.listingId)).toBe(true)
+  })
+
+  it('somebody who already has a record is never written down as made again', async () => {
+    maya()
+    await fromPage('M. Brooks', 'maya@example.test')
+    await fromRecruiter('M Brooks', 'maya@example.test')
+    expect(h.logs.filter((l) => l.action === 'CONSULTANT_CREATED')).toEqual([])
   })
 
   it('nobody is seated at the firm before their yes, from either door', async () => {
@@ -173,7 +191,7 @@ describe('one bench ask for the page and the recruiter', () => {
     maya()
     await fromPage('Maya Brooks', 'maya@example.test')
     expect(h.reads).toHaveLength(1)
-    expect(h.reads[0]).toMatchObject({ subjectId: 'maya', allowed: false, actorPersonId: null, actorCompanyId: null, action: 'MARKETING_REQUEST' })
+    expect(h.reads[0]).toMatchObject({ subjectId: 'maya', allowed: false, actorPersonId: null, actorCompanyId: null, action: 'PUBLIC_PAGE_ADDRESS_LOOKUP' })
     expect(h.reads[0].reason).toContain('the visitor was told nothing about this person')
   })
 
@@ -182,7 +200,7 @@ describe('one bench ask for the page and the recruiter', () => {
     await fromRecruiter('Maya Brooks', 'maya@example.test')
     await new Promise((r) => setTimeout(r, 0))
     expect(h.reads).toHaveLength(1)
-    expect(h.reads[0]).toMatchObject({ subjectId: 'maya', allowed: true, actorPersonId: 'recruiter-1', actorCompanyId: 'firm-r' })
+    expect(h.reads[0]).toMatchObject({ subjectId: 'maya', allowed: true, actorPersonId: 'recruiter-1', actorCompanyId: 'firm-r', action: 'MARKETING_REQUEST' })
   })
 
   it('an address nobody holds reads nobody, so no read is logged', async () => {
