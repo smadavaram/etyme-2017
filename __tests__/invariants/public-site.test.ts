@@ -23,6 +23,13 @@ describe('what a company is said to do', () => {
     expect(whatTheyDo('VENDOR', 'BENCH')).toBe('supplies consultants through other staffing firms')
   })
 
+  it('a one-person firm’s page says what she does, never that she supplies consultants', () => {
+    const said = whatTheyDo('CONSULTANT_CORP', null)
+    expect(said).toBe('is an independent contractor’s own company, paid for contract work')
+    expect(said).not.toMatch(/supplies|consultants/)
+    expect(said).not.toMatch(/\b(she|her|he|his)\b/)
+  })
+
   it('never leaves an enum on a public page', () => {
     for (const kind of ['CLIENT', 'MSP', 'GSI', 'VENDOR', 'CONSULTANT_CORP']) {
       const said = whatTheyDo(kind, null)

@@ -140,6 +140,9 @@ export function whatTheyDo(kind: string, posture: string | null): string {
   if (kind === 'CLIENT') return 'hires contract staff'
   if (kind === 'MSP') return 'runs contingent workforce programs'
   if (kind === 'GSI') return 'delivers projects and supplies people'
+  // A one-person firm is the worker's own company, paid for the worker's
+  // own contract work. It supplies nobody. No pronoun: the record stores none.
+  if (kind === 'CONSULTANT_CORP') return 'is an independent contractor’s own company, paid for contract work'
   return posture === 'BENCH'
     ? 'supplies consultants through other staffing firms'
     : 'supplies consultants to clients'
