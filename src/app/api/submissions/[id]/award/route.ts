@@ -1199,6 +1199,28 @@ export async function POST(
     })
   }
 
+  // A line that joined an open order whose dates do not cover it: said,
+  // never a second order (the Tapin walk, 2026-10-29). The client's own
+  // order in its own log; the order below in the firm that raised it,
+  // never the client's, because what a prime buys below is not the
+  // client's to read.
+  for (const [header, companyId] of [
+    [result.sellHeader, payerId],
+    [result.buyHeader, submission.fromCompanyId],
+  ] as const) {
+    if (!header || header.raised || !header.outside) continue
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'PURCHASE_ORDER_CHANGED',
+        summary: `${header.number} — a line for ${submission.person.name} added by the award`,
+        reason: header.outside,
+        payload: { workOrderId: header.id, number: header.number, requirementId: req.id, outsideOrderWindow: true },
+        reversible: true,
+      },
+    })
+  }
+
   // The order below, where this firm bought from a sub-vendor. Logged
   // against the firm that raised it, never against the client — what a
   // prime pays its sub is not the client's to read.
@@ -1313,6 +1335,11 @@ export async function POST(
   // Told first, and awaited, because the notice travels down the chain
   // in order: the awarded firm, then each firm below it, then the person.
   // The supplier's seats were read above, with the rest.
+  // The awarding firm's own order, joined though its dates do not cover
+  // the line: said on the screen beside the other notes. The order below
+  // is never said here, because the client reads this answer.
+  const orderNotes: string[] = result.sellHeader?.outside ? [result.sellHeader.outside] : []
+
   const handoff = awardHandoff(
     {
       personName: submission.person.name,
@@ -1492,7 +1519,7 @@ export async function POST(
         },
         currency: terms.currency.value,
         checks: decision.checks,
-        notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+        notes: [...decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason), ...orderNotes],
         interviewsCalledOff: result.calledOff.length,
         // Where it went next, in the supplier's own words. The award is
         // the handoff, and saying so is how a person learns the rule
@@ -1508,7 +1535,7 @@ export async function POST(
           personName: submission.person.name,
           fills: decision.fillsRequisition,
           seatsAfter: decision.seatsAfter,
-          notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+          notes: [...decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason), ...orderNotes],
           passedOver: result.passedOver,
           roundsCalledOff: result.calledOff.length,
         }),

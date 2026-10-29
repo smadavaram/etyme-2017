@@ -490,6 +490,93 @@ describe('A prime buys below the line it sells', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════
+// An order the prime raised by hand, before the award
+// ═══════════════════════════════════════════════════════════════════
+
+describe('A prime that already raised its order to the sub raises no second one', () => {
+  // The Tapin walk, 2026-10-29: Brightmoor raised its order to Tapin by
+  // hand from Oct 29; the client's award was backdated to Oct 19; the
+  // award raised a second order for the same deal.
+  const TAPWELL = 'owner@tapwell.invalid'
+  let tapwell = ''
+  let handRaised = ''
+  let submissionId = ''
+
+  beforeAll(async () => {
+    const t = await company('Tapwell Bench', 'tapwell-bench', 'VENDOR', TAPWELL)
+    tapwell = t.companyId
+    await insure(tapwell, t.personId)
+    const ravi = await worker('Ravi Kumaran', 'ravi@tapwell.invalid', tapwell, t.roleId)
+
+    handRaised = (await prisma.workOrder.create({
+      data: {
+        number: 'AU-PO-7731', title: 'Subcontract — Tapwell', issuedById: co.auralis, issuedToId: tapwell,
+        recordedById: co.auralis, amount: 60_000, currency: 'USD', status: 'OPEN',
+        startDate: new Date('2026-10-29'), endDate: null,
+      },
+    })).id
+
+    const seat = await prisma.requirement.create({
+      data: {
+        companyId: co.northbend, title: 'Integration lead — Tualatin',
+        skills: ['Workday'], status: 'OPEN', approvalState: 'APPROVED', headcount: 1,
+        billMin: 12_000, billMax: 15_000, months: 12,
+        startDate: new Date('2026-10-19'), raisedById: who.pm, ownerId: who.pm,
+      },
+    })
+    const auralisCopy = await prisma.requirement.create({
+      data: {
+        companyId: co.auralis, title: 'Integration lead — Tualatin (via Auralis)',
+        skills: ['Workday'], status: 'OPEN', approvalState: 'AUTO_APPROVED', headcount: 1,
+        billMax: 15_000, months: 12, raisedById: who.auralisLead, ownerId: who.auralisLead,
+      },
+    })
+    const below = await prisma.submission.create({
+      data: {
+        requirementId: auralisCopy.id, personId: ravi, fromCompanyId: tapwell, toCompanyId: co.auralis,
+        kind: 'NETWORK', rate: 10_000, contractType: 'W2', status: 'SUBMITTED',
+      },
+    })
+    submissionId = (await prisma.submission.create({
+      data: {
+        requirementId: seat.id, personId: ravi, fromCompanyId: co.auralis, toCompanyId: co.northbend,
+        kind: 'NETWORK', rate: 13_000, contractType: 'W2', status: 'SUBMITTED', parentSubmissionId: below.id,
+      },
+    })).id
+  })
+
+  it('an award on a prime’s existing open order adds a line and raises no second order', async () => {
+    as(NORTHBEND)
+    const r = await award(submissionId, { rate: 13_000, startDate: '2026-10-19', endDate: '2027-10-18' })
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: r.body.data.contractId } })
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: link.buyContractId } })
+    expect(buy.vendorCompanyId).toBe(tapwell)
+    expect(buy.workOrderId).toBe(handRaised)
+    expect(await prisma.workOrder.count({ where: { issuedById: co.auralis, issuedToId: tapwell } })).toBe(1)
+  })
+
+  it('a line outside its order’s dates is said on the screen, not a new order', async () => {
+    // Said to the prime, whose order it is, and never to the client.
+    const said = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: co.auralis, action: 'PURCHASE_ORDER_CHANGED' },
+    })
+    expect(said.summary).toBe('AU-PO-7731 — a line for Ravi Kumaran added by the award')
+    expect(said.reason).toBe(
+      'Order AU-PO-7731 starts Oct 29, 2026 and this line starts Oct 19, 2026. ' +
+      'The line is on the order; the order’s dates are reported, not changed.'
+    )
+    expect(await prisma.automationLog.count({
+      where: { companyId: co.northbend, action: 'PURCHASE_ORDER_CHANGED' },
+    })).toBe(0)
+    // The order's own dates did not move.
+    const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: handRaised } })
+    expect(order.startDate.toISOString().slice(0, 10)).toBe('2026-10-29')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
 // The other door to the same pair
 // ═══════════════════════════════════════════════════════════════════
 

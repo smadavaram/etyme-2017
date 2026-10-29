@@ -77,6 +77,12 @@ export interface FoundHeader {
   raised: boolean
   /** Why, in a sentence, for the log and the screen. */
   says: string
+  /**
+   * Where the line joined an open order whose dates do not cover it, the
+   * sentence that says so. Null where it fits or the order was raised;
+   * absent on a header read by a door that does not ask.
+   */
+  outside?: string | null
 }
 
 export async function headerFor(db: OrderWriter, input: HeaderInput): Promise<FoundHeader> {
@@ -113,7 +119,7 @@ export async function headerFor(db: OrderWriter, input: HeaderInput): Promise<Fo
 
   if (choice.id) {
     const found = candidates.find((c) => c.id === choice.id)!
-    return { ...found, raised: false, says: choice.says }
+    return { ...found, raised: false, says: choice.says, outside: choice.outside }
   }
 
   // Both numbers, derived from the two ids so the same pair lands on the
@@ -164,7 +170,7 @@ export async function headerFor(db: OrderWriter, input: HeaderInput): Promise<Fo
     select: HEADER_SELECT,
   })
 
-  return { ...raised, raised: true, says: choice.says }
+  return { ...raised, raised: true, says: choice.says, outside: null }
 }
 
 /**

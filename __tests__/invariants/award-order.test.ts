@@ -170,23 +170,43 @@ describe('One open order per pair of firms — found, never raised twice', () =>
     expect(choice.says).toContain('closed')
   })
 
-  it('an order that ends before the placement does cannot authorize it', () => {
-    const choice = chooseHeader([header({ endDate: day('2026-06-30') })], line())
-    expect(choice.id).toBeNull()
-    expect(choice.says).toContain('does not cover')
+  it('a line outside its order\u2019s dates is said on the screen, not a new order', () => {
+    // Ends before the placement does.
+    const late = chooseHeader([header({ endDate: day('2026-06-30') })], line())
+    expect(late.id).toBe('wo-1')
+    expect(late.outside).toBe(
+      'The order ends Jun 30, 2026 and this line runs to Sep 30, 2026. The line is on the order; the order\u2019s dates are reported, not changed.'
+    )
+    // Starts after the work does: Brightmoor's order to Tapin from Oct 29,
+    // under an award backdated to Oct 19 (the Tapin walk, 2026-10-29).
+    const early = chooseHeader(
+      [{ ...header({ startDate: day('2026-10-29'), endDate: null }), number: 'BM-PO-7731' }],
+      line({ start: day('2026-10-19'), end: null }),
+    )
+    expect(early.id).toBe('wo-1')
+    expect(early.outside).toBe(
+      'Order BM-PO-7731 starts Oct 29, 2026 and this line starts Oct 19, 2026. The line is on the order; the order\u2019s dates are reported, not changed.'
+    )
   })
 
-  it('an order that starts after the work does cannot authorize it either', () => {
-    const choice = chooseHeader([header({ startDate: day('2026-06-01') })], line())
-    expect(choice.id).toBeNull()
+  it('a line inside its order\u2019s dates joins it with nothing to say', () => {
+    expect(chooseHeader([header()], line()).outside).toBeNull()
+  })
+
+  it('where one open order covers the line and another does not, the line goes on the one that covers it', () => {
+    const covering = header({ id: 'wo-covers', startDate: day('2026-01-01'), endDate: day('2026-12-31') })
+    const later = header({ id: 'wo-later', startDate: day('2026-06-01'), endDate: day('2027-12-31') })
+    expect(chooseHeader([covering, later], line()).id).toBe('wo-covers')
   })
 
   it('an open-ended order covers a placement of any length', () => {
     expect(chooseHeader([header({ endDate: null })], line({ end: day('2030-01-01') })).id).toBe('wo-1')
   })
 
-  it('a placement with no end date does not fit inside an order that has one', () => {
-    expect(chooseHeader([header()], line({ end: null })).id).toBeNull()
+  it('a placement with no end date joins an order that has one, and the screen says the order ends first', () => {
+    const c = chooseHeader([header()], line({ end: null }))
+    expect(c.id).toBe('wo-1')
+    expect(c.outside).toContain('runs with no end date')
   })
 
   it('where two open orders both cover it, the line joins the most recent commitment', () => {
@@ -220,6 +240,22 @@ describe('One document, two numbers — the buyer’s and the seller’s', () =>
     const a = orderNumbers({ buyerId: 'client-1', sellerId: 'supplier-1', on: day('2026-03-01') })
     const b = orderNumbers({ buyerId: 'client-1', sellerId: 'supplier-1', on: day('2026-11-20') })
     expect(a.number).toBe(b.number)
+  })
+
+  it('two orders between different pairs never share a number', () => {
+    // Northbend to Brightmoor, and Brightmoor to Tapin: one firm on both.
+    const above = orderNumbers({ buyerId: 'cmnorthbend0nb1', sellerId: 'cmbrightmoorbm7', on: day('2026-10-19') })
+    const below = orderNumbers({ buyerId: 'cmbrightmoorbm7', sellerId: 'cmtapin00000tp4', on: day('2026-10-19') })
+    expect(below.number).not.toBe(above.number)
+    expect(below.sellerNumber).not.toBe(above.sellerNumber)
+    // Neither number of one pair is the other pair's either.
+    expect([above.number, above.sellerNumber].map((n) => n.slice(3))).not.toContain(below.sellerNumber.slice(3))
+    // A client buying from two suppliers, and a supplier selling to two clients.
+    const a = orderNumbers({ buyerId: 'client-1', sellerId: 'supplier-aaa', on: day('2026-03-01') })
+    const b = orderNumbers({ buyerId: 'client-1', sellerId: 'supplier-bbb', on: day('2026-03-01') })
+    const c = orderNumbers({ buyerId: 'client-2', sellerId: 'supplier-aaa', on: day('2026-03-01') })
+    expect(new Set([a.number, b.number, c.number]).size).toBe(3)
+    expect(new Set([a.sellerNumber, b.sellerNumber, c.sellerNumber]).size).toBe(3)
   })
 
   it('two different suppliers to one client never share a purchase order number', () => {

@@ -650,10 +650,25 @@ export function orderNumbers(input: { buyerId: string; sellerId: string; on: Dat
   sellerNumber: string
 } {
   const year = input.on.getUTCFullYear()
+  // The suffix comes from both firms, so one firm's id never gives two
+  // documents the same tail: Brightmoor's order to Tapin read the number
+  // of Northbend's order to Brightmoor, because the seller's number was
+  // built from the buyer's id alone (the Tapin walk, 2026-10-29).
+  const pair = pairSuffix(input.buyerId, input.sellerId)
   return {
-    number: `PO-${year}-${input.sellerId.slice(-5).toUpperCase()}`,
-    sellerNumber: `SO-${year}-${input.buyerId.slice(-5).toUpperCase()}`,
+    number: `PO-${year}-${pair}`,
+    sellerNumber: `SO-${year}-${pair}`,
   }
+}
+
+/**
+ * Six characters from the buyer and seller ids together: the last three
+ * of each, so a reader can still tell the pair apart by eye, and no
+ * pair shares the suffix of another pair that has a different firm on
+ * either end, short of both ids sharing their last three characters.
+ */
+function pairSuffix(buyerId: string, sellerId: string): string {
+  return `${buyerId.slice(-3)}${sellerId.slice(-3)}`.toUpperCase()
 }
 
 /**
@@ -694,6 +709,38 @@ export interface HeaderChoice {
   /** The order to put this line on, or null to raise one. */
   id: string | null
   says: string
+  /**
+   * Where the line joins an open order whose dates do not cover it, the
+   * sentence that says so, for the screen. Null where it fits, or where
+   * no order was joined.
+   */
+  outside: string | null
+}
+
+/** "Oct 29, 2026", read in UTC so the day never moves with the server. */
+function onDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+/**
+ * Where a line runs outside its order's window, in a sentence. Null where
+ * it fits.
+ */
+export function outsideOrderSays(
+  order: { number?: string | null; startDate: Date; endDate: Date | null },
+  line: { start: Date; end: Date | null },
+): string | null {
+  const name = order.number ? `Order ${order.number}` : 'The order'
+  if (line.start.getTime() < order.startDate.getTime()) {
+    return `${name} starts ${onDay(order.startDate)} and this line starts ${onDay(line.start)}. ` +
+      'The line is on the order; the order’s dates are reported, not changed.'
+  }
+  if (order.endDate && (line.end === null || line.end.getTime() > order.endDate.getTime())) {
+    return `${name} ends ${onDay(order.endDate)} and this line runs ` +
+      `${line.end ? `to ${onDay(line.end)}` : 'with no end date'}. ` +
+      'The line is on the order; the order’s dates are reported, not changed.'
+  }
+  return null
 }
 
 /**
@@ -705,47 +752,39 @@ export interface HeaderChoice {
  * opened, as a second line, because five people on one commitment is one
  * document with five lines.
  *
- * Two things disqualify an existing order, and both are refusals to
- * quietly change something somebody signed:
+ * **A closed order authorizes nothing**, so the award raises one.
  *
- *   **It is not open.** A closed or cancelled order authorizes nothing.
- *   **It does not cover the line.** An order that starts after the work
- *   does, or ends before it, cannot authorize it — and widening it is
- *   the buyer's act on their own document, never a side effect of an
- *   award. A new order is raised instead and says so.
+ * **An open order whose dates do not cover the line is still joined.**
+ * Until 2026-10-29 it was not: Brightmoor raised its order to Tapin by
+ * hand from Oct 29, the award was backdated to Oct 19, and the award
+ * raised a second order for the same deal (the Tapin walk). The header's
+ * window is reported beside the line and never applied (ratified
+ * 2026-09-19), so a line outside it is a sentence on the screen
+ * (`outside`), never a second document. Where several open orders stand,
+ * one that covers the line is preferred, then the most recent.
  */
-export function chooseHeader(candidates: HeaderCandidate[], line: HeaderLine): HeaderChoice {
+export function chooseHeader(candidates: (HeaderCandidate & { number?: string | null })[], line: HeaderLine): HeaderChoice {
   const pair = candidates.filter(
     (c) => c.issuedById === line.issuedById && c.issuedToId === line.issuedToId
   )
   if (pair.length === 0) {
-    return { id: null, says: 'No order between these two firms yet, so the award raises one.' }
+    return { id: null, says: 'No order between these two firms yet, so the award raises one.', outside: null }
   }
 
   const open = pair.filter((c) => c.status === 'OPEN')
   if (open.length === 0) {
-    return { id: null, says: 'Every order between these two firms is closed, so the award raises one.' }
+    return { id: null, says: 'Every order between these two firms is closed, so the award raises one.', outside: null }
   }
 
-  const covers = open.filter((c) => {
-    if (c.startDate.getTime() > line.start.getTime()) return false
-    if (c.endDate === null) return true
-    if (line.end === null) return false
-    return line.end.getTime() <= c.endDate.getTime()
-  })
-
-  if (covers.length === 0) {
-    return {
-      id: null,
-      says:
-        'The open order between these two firms does not cover this placement’s dates, ' +
-        'so the award raises one rather than widening a commitment somebody signed.',
-    }
+  const latest = <T extends HeaderCandidate>(xs: T[]) =>
+    xs.reduce((a, b) => (b.startDate.getTime() > a.startDate.getTime() ? b : a))
+  const covers = open.filter((c) => outsideOrderSays(c, line) === null)
+  const best = covers.length > 0 ? latest(covers) : latest(open)
+  return {
+    id: best.id,
+    says: 'Joins the order already open with this firm, as another line on it.',
+    outside: outsideOrderSays(best, line),
   }
-
-  // The most recent commitment that covers it.
-  const best = covers.reduce((a, b) => (b.startDate.getTime() > a.startDate.getTime() ? b : a))
-  return { id: best.id, says: 'Joins the order already open with this firm, as another line on it.' }
 }
 
 /**
