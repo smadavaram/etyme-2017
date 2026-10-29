@@ -5,6 +5,7 @@ import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
 import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as convertSubmission } from '@/app/api/submissions/[id]/convert/route'
 import { nounFor } from '@/lib/order-naming'
+import { refusalSays } from '@/app/dashboard/submissions/words'
 
 /**
  * The award raises the purchase order, and the contract is its first line.
@@ -573,6 +574,35 @@ describe('A prime that already raised its order to the sub raises no second one'
     // The order's own dates did not move.
     const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: handRaised } })
     expect(order.startDate.toISOString().slice(0, 10)).toBe('2026-10-29')
+  })
+})
+
+describe('An award refused on cover', () => {
+  it('a one-reason refusal at the award says it once, and names the firm', async () => {
+    const u = await company('Unpapered Staffing', 'unpapered-staffing', 'VENDOR', 'owner@unpapered.invalid')
+    const lee = await worker('Lee Varga', 'lee@unpapered.invalid', u.companyId, u.roleId)
+    const seat = await prisma.requirement.create({
+      data: {
+        companyId: co.northbend, title: 'Analyst — cover check', skills: ['SQL'], status: 'OPEN',
+        approvalState: 'APPROVED', headcount: 1, billMax: 12_000, months: 6, raisedById: who.pm, ownerId: who.pm,
+      },
+    })
+    const sub = await prisma.submission.create({
+      data: {
+        requirementId: seat.id, personId: lee, fromCompanyId: u.companyId, toCompanyId: co.northbend,
+        kind: 'INTERNAL', rate: 10_000, contractType: 'W2', status: 'SUBMITTED',
+      },
+    })
+    as(NORTHBEND)
+    const r = await award(sub.id, { rate: 10_000, startDate: '2026-10-05', endDate: '2027-04-04' })
+    expect(r.status).toBe(409)
+    const message: string = r.body.error.message
+    expect(message).toContain('Unpapered Staffing has neither a general liability nor a workers\u2019 compensation certificate on file'.replace('\u2019', "'"))
+    expect(message.toLowerCase()).not.toContain('the vendor')
+    // What the screen prints: the message, and no reason a second time.
+    const reasons = (r.body.error.checks ?? []).map((c: any) => c.reason)
+    const shown = refusalSays(message, reasons)
+    expect(shown.split('certificate on file').length - 1, shown).toBe(1)
   })
 })
 

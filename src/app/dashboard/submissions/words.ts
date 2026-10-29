@@ -105,3 +105,21 @@ export function submittedOn(iso: string | null | undefined): string {
 export function jobsToSubmitTo<T extends { company: { id: string } }>(jobs: T[], myCompanyId: string): T[] {
   return jobs.filter((j) => j.company.id !== myCompanyId)
 }
+
+/**
+ * A refused award, said once.
+ *
+ * The screen printed the route's message, a dash, then every blocking
+ * check's reason, so a refusal with one reason said itself twice: "the
+ * vendor has no general liability and workers' compensation cover on file
+ * — the vendor has no general liability…" (the Tapin walk, 2026-10-29).
+ * A reason already in the message is not said again; the others follow it.
+ */
+export function refusalSays(message: string, reasons: readonly string[]): string {
+  const plain = (s: string) => s.trim().replace(/[.\s]+$/, '').toLowerCase()
+  const said = plain(message)
+  const rest = [...new Set(reasons.map((r) => r.trim()).filter(Boolean))].filter((r) => !said.includes(plain(r)))
+  const first = message.trim()
+  const head = first.charAt(0).toUpperCase() + first.slice(1)
+  return rest.length === 0 ? head : `${head} — ${rest.join(' · ')}`
+}

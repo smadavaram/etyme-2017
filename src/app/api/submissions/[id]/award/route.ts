@@ -332,6 +332,9 @@ export async function POST(
     certificates,
     consultantCorpName: submission.person.consultant?.ownCompany?.name ?? null,
     corpMissing: responsible === 'CONSULTANT_ENTITY' && !coverCompanyId,
+    // The refusal names the firm: "Tapin has neither a general liability
+    // nor a workers' compensation certificate on file", never "the vendor".
+    vendorName: vendorCompany?.name ?? submission.fromCompany?.name ?? null,
   }, new Date())
 
   if (cover.outcome === 'BLOCK') {

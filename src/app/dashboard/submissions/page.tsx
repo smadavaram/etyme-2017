@@ -18,7 +18,7 @@ import { listHead } from './list-head'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
-import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
+import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING, refusalSays } from './words'
 import { jobListWord } from '../requirements/words'
 import { onePerJob } from '@/lib/internal-moves'
 
@@ -1788,8 +1788,8 @@ export default function SubmissionsPage() {
               const copy = res.clone()
               const body = await res.json().catch(() => ({}) as any)
               if (!res.ok || !body?.data) {
-                const checks = (body.error?.checks ?? []).map((x: any) => x.reason).join(' · ')
-                if (body.error?.message) throw new Error(`${body.error.message}${checks ? ` — ${checks}` : ''}`)
+                // Each reason once: one already in the message is not said again.
+                if (body.error?.message) throw new Error(refusalSays(body.error.message, (body.error?.checks ?? []).map((x: any) => x.reason)))
                 await readJson(copy)
               }
               // One paragraph, each thing once: the notes are already

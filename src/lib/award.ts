@@ -24,6 +24,7 @@
  */
 
 import { termsFor, type OrderHeader, type OrderLine, type OrderSide } from '@/lib/money/order-terms'
+import { formatDay } from '@/lib/format-date'
 
 export type AwardCode =
   | 'APPROVAL'    // the requisition itself cleared approval
@@ -717,10 +718,8 @@ export interface HeaderChoice {
   outside: string | null
 }
 
-/** "Oct 29, 2026", read in UTC so the day never moves with the server. */
-function onDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-}
+/** "Oct 29, 2026", through the one formatter, read in UTC. */
+const onDay = (d: Date): string => formatDay(d)
 
 /**
  * Where a line runs outside its order's window, in a sentence. Null where

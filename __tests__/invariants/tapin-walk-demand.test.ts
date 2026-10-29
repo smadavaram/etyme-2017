@@ -7,6 +7,7 @@ import { putForward } from '@/app/dashboard/requirements/words'
 import { rateHelp } from '@/app/dashboard/submissions/rate-words'
 import { bandHint } from '@/app/dashboard/submissions/rate-words'
 import { rolesFor } from '@/lib/company-defaults'
+import { refusalSays } from '@/app/dashboard/submissions/words'
 
 /**
  * The Tapin walk, 2026-10-29: what demand's screens did to a bench
@@ -117,5 +118,21 @@ describe('answering a job that was sent', () => {
   it('a firm the job was sent to reads who sent it, not "Typed in here"', () => {
     const page = read('src/app/dashboard/requirements/[id]/page.tsx')
     expect(page).toContain('label="Sent by"')
+  })
+})
+
+describe('a refused award, on the screen', () => {
+  it('a one-reason refusal at the award says it once, and names the firm', () => {
+    const one = "Tapin has neither a general liability nor a workers' compensation certificate on file"
+    expect(refusalSays(one, [one])).toBe(one)
+    expect(refusalSays(`${one}.`, [one])).toBe(`${one}.`)
+    // Two reasons: the summary carries the first, the second follows it once.
+    const two = "Tapin's certificate of good standing has lapsed"
+    expect(refusalSays(`2 reasons this cannot proceed — ${one}`, [one, two])).toBe(`2 reasons this cannot proceed — ${one} — ${two}`)
+    // Every screen that places somebody prints it through the same function.
+    expect(read('src/app/dashboard/submissions/page.tsx')).toContain('refusalSays(body.error.message')
+    expect(read('src/app/dashboard/requisitions/[id]/page.tsx')).toContain('refusalSays(')
+    // And the award names the firm whose cover it read.
+    expect(read('src/app/api/submissions/[id]/award/route.ts')).toContain('vendorName: vendorCompany?.name')
   })
 })

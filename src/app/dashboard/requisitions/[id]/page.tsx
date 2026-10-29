@@ -18,6 +18,7 @@ import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
+import { refusalSays } from '../../submissions/words'
 import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo, centsTyped, typedFromCents } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
 import { Lbl, Chip, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
@@ -533,8 +534,8 @@ export default function RequisitionDetail() {
     // not produce a parser error on screen.
     const j = await res.json().catch(() => ({}) as any)
     if (!res.ok) {
-      const checks = (j.error?.checks ?? []).map((x: any) => `· ${x.reason}`).join('\n')
-      alert(`${j.error?.message ?? 'Could not place them'}${checks ? '\n\n' + checks : ''}`)
+      // Each reason once: one already in the message is not said again.
+      alert(refusalSays(j.error?.message ?? 'Could not place them', (j.error?.checks ?? []).map((x: any) => x.reason)))
       return
     }
     // One paragraph, each thing once: who was placed, what the award
