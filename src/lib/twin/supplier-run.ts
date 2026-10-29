@@ -50,14 +50,6 @@ const REFUSED_QUIET_DAYS = 7
 
 const ACTS = ['bench.put_forward', 'papers.ask_for_start', 'bench.coming_free'] as const
 
-/**
- * The supplier twin's reads, said as the supplier twin. The access log's
- * kinds name only the program manager's twin today; widening its union is
- * regulatory's (lib/access-log), and until it lands the row is written
- * with the true value through this one cast, never as a person's read.
- */
-const SUPPLIER_TWIN = 'SUPPLIER' as unknown as 'PROGRAM_MANAGER'
-
 export interface SupplierActsRun {
   companyId: string
   comingFree: number
@@ -98,7 +90,7 @@ export async function runSupplierActs(
   const tally = (r: ActResult) => { outcomes[r.outcome]++; return r }
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
   const firm = company?.name ?? 'this firm'
-  const reads = { actorPersonId: authority.personId ?? undefined, actorCompanyId: companyId, actorKind: 'TWIN' as const, actorTwinKind: SUPPLIER_TWIN }
+  const reads = { actorPersonId: authority.personId ?? undefined, actorCompanyId: companyId, actorKind: 'TWIN' as const, actorTwinKind: 'SUPPLIER' as const }
 
   // ── Who is coming free ──
   const [rolling, bench] = await Promise.all([rollingOffAt(companyId, now, COMING_FREE_DAYS), benchAt(companyId, now)])
