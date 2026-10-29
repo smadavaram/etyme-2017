@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { isZone, timeFor } from '@/lib/interviews'
+import { formatDay } from '@/lib/format-date'
+import { dayOfMomentFor } from '@/lib/when'
 
 export { timeFor }
 
@@ -99,9 +101,17 @@ export interface BelowFirm {
 /** How many rungs below the supplier are told: a sub-vendor and the bench firm under it, and no further. */
 export const BELOW_TOLD = 3
 
-/** "Thursday, Oct 30", in the reader's own day. */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * "Fri, Oct 30": the day a moment falls on in the reader's own zone
+ * (`dayOfMomentFor`), printed by the one day formatter.
+ */
 export function dayIn(d: Date, zone: string | null): string {
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: zone ?? 'UTC' })
+  const local = dayOfMomentFor(d, zone)
+  const m = local.match(/^([A-Z][a-z]{2}) (\d{1,2}), (\d{4})$/)
+  const iso = m ? `${m[3]}-${String(MONTHS.indexOf(m[1]) + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}` : d.toISOString().slice(0, 10)
+  return formatDay(iso, { weekday: true, year: false })
 }
 
 /**

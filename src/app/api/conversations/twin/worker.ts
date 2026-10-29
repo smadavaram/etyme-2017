@@ -96,6 +96,11 @@ export const NOT_ANOTHER_PERSON = 'I answer only about your own work, never anot
 export const NOT_THEIR_RATE = 'Etyme shows you your own pay only; what one firm charges another stays between them.'
 
 const YOUR_WORK = '/dashboard/my-work'
+
+/** One round on Your work: the interviews block, at that round, where she accepts or proposes another time. */
+export function interviewHref(id: string): string {
+  return `${YOUR_WORK}#interview-${encodeURIComponent(id)}`
+}
 const YOUR_PAPERWORK = '/dashboard/my-work/paperwork'
 const WHO_HAS_YOU = '/dashboard/my-benches'
 
@@ -461,7 +466,8 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       act: 'INTERVIEW',
       title: `${i.with} asked to interview you for ${i.role}.`,
       says: `Round ${i.round}. Pick a time or decline on Your work.`,
-      href: YOUR_WORK,
+      // The round itself, where Accept and Propose another time are.
+      href: interviewHref(i.id),
       button: 'Answer interview',
       name: `${possessive(i.with)} interview request`,
     })

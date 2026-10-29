@@ -392,7 +392,7 @@ describe('Ask Etyme for both ends of a chain: the Tapin walk, 2026-10-29', () =>
     })
     const toTapin = notices.filter((n) => n.companyId === 'c-tapin')
     expect(toTapin.map((n) => n.personId)).toEqual(['p-sharath'])
-    expect(toTapin[0].title).toBe('Ravi Kumar’s interview with Northbend Athletic for EHS lead is proposed for Friday, Oct 30, through Brightmoor Staffing')
+    expect(toTapin[0].title).toBe('Ravi Kumar’s interview with Northbend Athletic for EHS lead is proposed for Fri, Oct 30, through Brightmoor Staffing')
     // The person is still told as the person, and hears it is Tapin to tell, the firm nearest them.
     const toRavi = notices.find((n) => n.personId === 'p-ravi')!
     expect(toRavi.channel).toBe('EMAIL')

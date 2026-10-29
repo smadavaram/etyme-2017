@@ -1,5 +1,6 @@
 'use client'
 
+import { refusalSays } from '@/app/dashboard/submissions/words'
 import { useState } from 'react'
 
 import { rate as showRate } from '@/lib/money-display'
@@ -62,13 +63,18 @@ export function PlaceDialog({
       const copy = res.clone()
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok || !body?.data) {
-        const checks = (body.error?.checks ?? []).map((x: any) => x.reason).join(' · ')
-        if (body.error?.message) throw new Error(`${body.error.message}${checks ? ` — ${checks}` : ''}`)
+        // Said once: a reason the message already carries is not said again (demand's refusalSays).
+        const reasons: string[] = (body.error?.checks ?? []).map((x: any) => String(x?.reason ?? ''))
+        if (body.error?.message) throw new Error(refusalSays(body.error.message, reasons))
         await readJson(copy)
       }
       const notes: string[] = body.data?.notes ?? []
+      const message: string = body.data?.message ?? `${candidate} is placed.`
+      // A note the message already says is not said twice.
+      const plain = (x: string) => x.trim().replace(/[.\s]+$/, '').toLowerCase()
+      const extra = [...new Set(notes.map((n) => n.trim()).filter(Boolean))].filter((n) => !plain(message).includes(plain(n)))
       onDone(
-        [body.data?.message ?? `${candidate} is placed.`, ...notes].filter(Boolean).join(' '),
+        [message, ...extra].join(' '),
         body.data?.contractId ?? null
       )
     } catch (err: any) {

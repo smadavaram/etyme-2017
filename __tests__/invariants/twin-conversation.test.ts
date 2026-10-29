@@ -1285,7 +1285,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     })
     const a = workerToday(f)
     expect(a.cards.map((c) => [c.act, c.title, c.button, c.href])).toEqual([
-      ['INTERVIEW', 'Cavanaugh Glassworks asked to interview you for ERP finance lead.', 'Answer interview', '/dashboard/my-work'],
+      ['INTERVIEW', 'Cavanaugh Glassworks asked to interview you for ERP finance lead.', 'Answer interview', '/dashboard/my-work#interview-iv-1'],
       ['RENEW', 'Your stay on Techpeple’s bench ends on Oct 25.', 'Renew for 60 days', '/dashboard/my-benches'],
     ])
     expect(a.cards[1].listingId).toBe('bl-1')
