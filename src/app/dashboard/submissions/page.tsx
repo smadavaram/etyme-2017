@@ -1,7 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-import { bandHint, RATE_HELP, CURRENCY_SAYS } from './rate-words'
+import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -218,12 +218,15 @@ interface NetworkOffer {
 function SubmitToRequirementModal({
   companyId,
   initialPersonId,
+  initialRequirementId,
   onClose,
   onCreated,
 }: {
   companyId: string
   /** Somebody already chosen elsewhere — Bench, a person's page. */
   initialPersonId?: string | null
+  /** The job it was opened from: "Put forward" on a job's own page. */
+  initialRequirementId?: string | null
   onClose: () => void
   onCreated: () => void
 }) {
@@ -235,7 +238,7 @@ function SubmitToRequirementModal({
   const [loadingOptions, setLoadingOptions] = useState(true)
 
   const [form, setForm] = useState({
-    requirementId: '',
+    requirementId: initialRequirementId ?? '',
     personId: initialPersonId ?? '',
     // The supplier who offered them, where they came from our network.
     offeredBy: '',
@@ -362,6 +365,10 @@ function SubmitToRequirementModal({
 
   // Selected items for match preview
   const selectedReq = requirements.find((r) => r.id === form.requirementId)
+  // Never the job's own firm's people offered back to it: a prime's
+  // person, put forward by its sub-vendor on the prime's own job (the
+  // Tapin walk, 2026-10-29).
+  const offers = selectedReq ? network.filter((o) => o.supplierId !== selectedReq.company.id) : network
   const selectedOwn = ourPeople.find((p) => p.personId === form.personId)
   const selectedOffer = form.offeredBy
     ? network.find((o) => o.personId === form.personId && o.supplierId === form.offeredBy)
@@ -557,9 +564,9 @@ function SubmitToRequirementModal({
                     ))}
                   </optgroup>
                 )}
-                {network.length > 0 && (
+                {offers.length > 0 && (
                   <optgroup label="Offered by your suppliers">
-                    {network.map((o) => (
+                    {offers.map((o) => (
                       <option key={`${o.personId}|${o.supplierId}`} value={`${o.personId}|${o.supplierId}`}>
                         {o.name} — from {o.supplierName}
                       </option>
@@ -647,7 +654,7 @@ function SubmitToRequirementModal({
                 submission records no currency of its own, and a picker
                 whose answer the route threw away was a form that lied. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field className="sm:col-span-2" label="Rate *" help={bandHint(bands[form.requirementId]) ?? RATE_HELP}>
+              <Field className="sm:col-span-2" label="Rate *" help={bandHint(bands[form.requirementId]) ?? rateHelp(selectedReq?.company.name)}>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -1072,6 +1079,7 @@ export default function SubmissionsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [preselectedPerson, setPreselectedPerson] = useState<string | null>(null)
+  const [preselectedJob, setPreselectedJob] = useState<string | null>(null)
   const [placeSubmission, setPlaceSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
@@ -1118,6 +1126,8 @@ export default function SubmissionsPage() {
     if (searchParams.get('new') === '1') {
       // Somebody chosen elsewhere — Bench passes who.
       setPreselectedPerson(searchParams.get('person'))
+      // A job's own "Put forward" passes which job.
+      setPreselectedJob(searchParams.get('job'))
       setShowSubmitModal(true)
       router.replace('/dashboard/submissions', { scroll: false })
     }
@@ -1670,7 +1680,8 @@ export default function SubmissionsPage() {
         <SubmitToRequirementModal
           companyId={companyId}
           initialPersonId={preselectedPerson}
-          onClose={() => { setShowSubmitModal(false); setPreselectedPerson(null) }}
+          initialRequirementId={preselectedJob}
+          onClose={() => { setShowSubmitModal(false); setPreselectedPerson(null); setPreselectedJob(null) }}
           onCreated={() => {
             setToast({ message: 'Consultant submitted successfully', type: 'success' })
             setTimeout(() => setToast(null), 3500)

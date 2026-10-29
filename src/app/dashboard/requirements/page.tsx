@@ -10,6 +10,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { range as showRange } from '@/lib/money-display'
 import { statusWord, statusWordLower, stageWordFor, stageReason, ARCHIVED_WORD, ownJobsAddress, readsMarginClass } from './words'
 import { stageOf } from '@/lib/requisition-stage'
+import { centsTyped, typedFromCents } from '../requisitions/facts'
 
 /**
  * Requirements working surface — open demand.
@@ -113,11 +114,11 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
         conf.location = { confidence: p.location.confidence, flagged: p.location.flagged }
       }
       if (p.billMin?.value) {
-        newForm.billMin = String(Math.round(p.billMin.value / 100))
+        newForm.billMin = typedFromCents(p.billMin.value)
         conf.billMin = { confidence: p.billMin.confidence, flagged: p.billMin.flagged }
       }
       if (p.billMax?.value) {
-        newForm.billMax = String(Math.round(p.billMax.value / 100))
+        newForm.billMax = typedFromCents(p.billMax.value)
         conf.billMax = { confidence: p.billMax.confidence, flagged: p.billMax.flagged }
       }
       if (p.months?.value) {
@@ -149,8 +150,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
           location: form.location || null,
           // Entered in dollars, stored in cents.
-          billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
-          billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
+          billMin: centsTyped(form.billMin),
+          billMax: centsTyped(form.billMax),
           months: form.months ? parseInt(form.months) : null,
           marginClass: form.marginClass || null,
           rateVisible: form.rateVisible,

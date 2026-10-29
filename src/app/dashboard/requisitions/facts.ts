@@ -1,4 +1,5 @@
 import { compact as money } from '@/lib/money-display'
+import { parse as parseMoney, wholeFromMinor } from '@/lib/money'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -270,4 +271,28 @@ export function nobodyToSendTo(input: {
   if (!input.open || input.suppliers === null) return null
   if (input.suppliers.some((s) => !s.blocked)) return null
   return { says: 'Nobody to send it to yet.', href: '/dashboard/suppliers', link: 'Recommend a supplier.' }
+}
+
+/**
+ * A rate, a band or a budget as somebody typed it on a job, in the
+ * minor units the record keeps.
+ *
+ * The one money-in reader for every box on a job: the raise form, the
+ * edit form, the send form's band and the award's rate. The send form
+ * once posted the band as typed, so Brightmoor's $90 to $110 was stored
+ * as 90 and 110 cents and Tapin read $0.90 to $1.10 an hour (the Tapin
+ * walk, 2026-10-29). A formatter takes minor units only, so every box
+ * comes through here first. Empty or unreadable is null, never zero:
+ * "no figure" is not a figure.
+ */
+export function centsTyped(typed: string | null | undefined, currency = 'USD'): number | null {
+  if (typed == null || typed.trim() === '') return null
+  const m = parseMoney(typed, currency)
+  return m ? m.minor : null
+}
+
+/** The other way: minor units back into the box, as a person types it. */
+export function typedFromCents(cents: number | null | undefined, currency = 'USD'): string {
+  if (cents == null) return ''
+  return String(wholeFromMinor(cents, currency))
 }

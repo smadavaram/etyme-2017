@@ -31,6 +31,17 @@ export function bandHint(band: { payMin: number | null; payMax: number | null } 
 export const RATE_HELP = 'What you will bill the client for each hour. There is no default: type the rate you agreed.'
 
 /**
+ * The same, naming whom the rate is billed to. A sub-vendor answering a
+ * prime's job bills the prime, not the client: Tapin read "What you will
+ * bill the client" on Brightmoor's job (the Tapin walk, 2026-10-29).
+ */
+export function rateHelp(billedTo: string | null | undefined): string {
+  return billedTo
+    ? `What you will bill ${billedTo} for each hour. There is no default: type the rate you agreed.`
+    : RATE_HELP
+}
+
+/**
  * Said beside the currency, because the record keeps one today.
  *
  * The form offered CAD, GBP and EUR and the route dropped the choice: a

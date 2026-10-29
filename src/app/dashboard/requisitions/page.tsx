@@ -11,7 +11,7 @@ import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
-import { missingForApproval, missingSays, budgetField, defaultPanel, nobodyToSendTo } from './facts'
+import { missingForApproval, missingSays, budgetField, defaultPanel, nobodyToSendTo, centsTyped } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
   headlineRow, myRow, whoFor, whoWillBeAsked,
@@ -323,10 +323,10 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           ...(siteRead ? { sendTo: [...ticked] } : {}),
           headcount: parseInt(form.headcount, 10) || 1,
           // Rates are entered in dollars and stored in cents.
-          budget: form.budget ? Math.round(parseFloat(form.budget) * 100) : null,
+          budget: centsTyped(form.budget),
           hoursPerWeek: form.hoursPerWeek ? parseInt(form.hoursPerWeek, 10) : null,
-          billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
-          billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
+          billMin: centsTyped(form.billMin),
+          billMax: centsTyped(form.billMax),
           months: form.months ? parseInt(form.months, 10) : null,
           neededBy: form.neededBy || null,
           description: form.description.trim() || null,

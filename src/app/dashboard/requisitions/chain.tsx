@@ -1,6 +1,6 @@
 'use client'
 
-import { missingForApproval, missingSays, day, withoutRepeat } from './facts'
+import { missingForApproval, missingSays, day, withoutRepeat, centsTyped, typedFromCents } from './facts'
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
@@ -635,8 +635,8 @@ export function EditRequisition({
   const [skills, setSkills] = useState(req.skills.join(', '))
   const [location, setLocation] = useState(req.location ?? '')
   const [headcount, setHeadcount] = useState(String(req.headcount))
-  const [billMin, setBillMin] = useState(req.billMin != null ? String(req.billMin / 100) : '')
-  const [billMax, setBillMax] = useState(req.billMax != null ? String(req.billMax / 100) : '')
+  const [billMin, setBillMin] = useState(typedFromCents(req.billMin))
+  const [billMax, setBillMax] = useState(typedFromCents(req.billMax))
   const [months, setMonths] = useState(req.months != null ? String(req.months) : '')
   const [hoursPerWeek, setHoursPerWeek] = useState(req.hoursPerWeek != null ? String(req.hoursPerWeek) : '')
   const [neededBy, setNeededBy] = useState(req.neededBy ? req.neededBy.slice(0, 10) : '')
@@ -652,7 +652,7 @@ export function EditRequisition({
   const out = stageOf(req) === 'OPEN'
 
   /** Empty means "no figure", which is not the same as zero. */
-  const cents = (v: string) => (v.trim() === '' ? null : Math.round(Number(v) * 100))
+  const cents = (v: string) => centsTyped(v)
   const whole = (v: string) => (v.trim() === '' ? null : Number(v))
 
   async function save() {

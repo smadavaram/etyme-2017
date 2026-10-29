@@ -205,3 +205,27 @@ export function ownJobsAddress(kind: string | null | undefined): string | null {
 export function readsMarginClass(kind: string | null | undefined): boolean {
   return kind !== 'CLIENT'
 }
+
+/**
+ * Whether this job's page offers "Put forward", and where it leads.
+ *
+ * A firm a job was sent to answers it by putting somebody forward: a
+ * person on its bench who said yes, or its own employee. The submit door
+ * existed and the job's page never pointed at it, so Tapin, holding
+ * Brightmoor's job, went Shared with you, Work this job request, Submit
+ * candidates, Submissions, + Submit, and then picked the job again (the
+ * Tapin walk, 2026-10-29). Offered on an open job this firm did not raise,
+ * to a firm that sells and a seat that may submit; never to a client,
+ * which buys and never submits. The form it opens has the job chosen.
+ */
+export function putForward(p: {
+  status: string
+  raiser: boolean
+  kind: string | null | undefined
+  maySubmit: boolean
+  requirementId: string
+}): { href: string } | null {
+  if (p.status !== 'OPEN' || p.raiser || !p.maySubmit) return null
+  if (!p.kind || p.kind === 'CLIENT') return null
+  return { href: `/dashboard/submissions?new=1&job=${encodeURIComponent(p.requirementId)}` }
+}

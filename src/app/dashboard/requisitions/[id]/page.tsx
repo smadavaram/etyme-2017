@@ -18,7 +18,7 @@ import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
-import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo } from '../facts'
+import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo, centsTyped, typedFromCents } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
 import { Lbl, Chip, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 import { DetailHead } from '@/components/ui/detail-head'
@@ -329,8 +329,8 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
           vendors: chosen.map(([id, v]) => ({
             companyId: id,
             // Entered in dollars, stored in cents like every other rate.
-            payMin: v.min ? Math.round(parseFloat(v.min) * 100) : null,
-            payMax: v.max ? Math.round(parseFloat(v.max) * 100) : null,
+            payMin: centsTyped(v.min),
+            payMax: centsTyped(v.max),
           })),
         }),
       })
@@ -517,11 +517,11 @@ export default function RequisitionDetail() {
   async function award(c: Candidate) {
     const rate = window.prompt(
       `Place ${c.person.name}. Rate in dollars per hour:`,
-      String(Math.round(c.rate / 100))
+      typedFromCents(c.rate)
     )
     if (rate === null) return
-    const cents = Math.round(parseFloat(rate) * 100)
-    if (!Number.isFinite(cents) || cents <= 0) { alert('That is not a rate'); return }
+    const cents = centsTyped(rate)
+    if (cents == null || cents <= 0) { alert('That is not a rate'); return }
 
     const res = await fetch(`/api/submissions/${c.id}/award`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

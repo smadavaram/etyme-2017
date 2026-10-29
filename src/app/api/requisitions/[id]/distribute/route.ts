@@ -3,12 +3,12 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { descendants } from '@/lib/org-tree'
 import { mayDistribute } from '@/lib/requisition-approval'
-import { hasPermission } from '@/lib/permissions'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
 import { siteSuppliers } from '@/lib/sites'
 import { mayFillAtSite } from '@/lib/site-rules'
 import { sendJobTo, type VendorBand } from '../../send'
+import { maySendJob } from '../../who-sends'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -52,7 +52,7 @@ export async function POST(
 
   const requisition = await prisma.requirement.findUnique({
     where: { id },
-    include: { company: { select: { id: true, name: true } }, site: { select: { id: true, name: true, city: true } } },
+    include: { company: { select: { id: true, name: true, kind: true } }, site: { select: { id: true, name: true, city: true } } },
   })
 
   if (!requisition) {
@@ -103,18 +103,20 @@ export async function POST(
     }
   }
 
-  // And within it, only the desk that owns the supplier panel. A hiring
-  // manager raises the role and deliberately does not choose who sees
-  // it — that is the control that stops work being routed to a friend
-  // (lib/company-defaults). The role said so; the route did not ask.
-  if (!hasPermission(acting.permissions, 'requirements.distribute')) {
+  // And within it, only the desk that sends jobs out at this kind of
+  // firm. At a client that is the program office: a hiring manager raises
+  // the role and deliberately does not choose who sees it, the control
+  // that stops work being routed to a friend (lib/company-defaults). At a
+  // supplier sending a job down to its sub-vendor it is the account
+  // manager or the owner, because a supplier has no program office
+  // (`./who-sends`). The refusal names the role that sends there.
+  const sends = maySendJob(
+    { kind: requisition.company.kind, name: requisition.company.name },
+    acting.permissions,
+  )
+  if (!sends.ok) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: 'Sending a job request to suppliers is the program manager\'s call. Ask them to send it out.',
-        },
-      },
+      { error: { code: 'FORBIDDEN', message: sends.says } },
       { status: 403 }
     )
   }

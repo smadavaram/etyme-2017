@@ -5,7 +5,8 @@ import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
-import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord, readsMarginClass } from '../words'
+import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord, readsMarginClass, putForward } from '../words'
+import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
@@ -13,6 +14,7 @@ import Link from 'next/link'
 import { JobMatches } from './matches'
 import { RefusedState, LoadingState, ErrorState, Chip, Lbl, FormMessage, Field, Input, Textarea, SubmitButton, EmptyState } from '@/components/ui'
 import { DetailHead } from '@/components/ui/detail-head'
+import { centsTyped } from '../../requisitions/facts'
 
 /**
  * Requirement detail — the core revenue workflow.
@@ -123,7 +125,7 @@ function sentence(message: string | null | undefined): string | null {
 
 export default function RequirementDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { company } = useSession()
+  const { company, permissions } = useSession()
   // The word this reader's menu uses for the list — "Job requests" on a
   // client's, the supplier's own word on a supplier's (`lib/page-framing`).
   const listWord = jobListWord(company?.kind).plural
@@ -253,6 +255,13 @@ export default function RequirementDetailPage() {
   // Why it was withdrawn, where somebody wrote one. The chip says
   // "Cancelled"; only the row can say the client's budget was cut.
   const stoppedBecause = stageReason(requirement)
+  const forward = putForward({
+    status: requirement.status,
+    raiser,
+    kind: company?.kind,
+    maySubmit: hasPermission(permissions ?? [], 'submissions.create'),
+    requirementId: requirement.id,
+  })
 
   return (
     <div className="animate-fade-in">
@@ -296,13 +305,21 @@ export default function RequirementDetailPage() {
                 Send to suppliers
               </button>
             )}
+            {/* A firm the job was sent to answers it: somebody from its
+                bench who said yes, or its own employee, through the one
+                submit door, with this job already chosen. */}
+            {forward && (
+              <Link href={forward.href as any} className="btn-primary">
+                Put forward
+              </Link>
+            )}
             {/* A firm the job was sent to passes it on through its own
                 record of it, never through the client's release form. */}
             {requirement.status === 'OPEN' && !raiser && company?.kind !== 'CLIENT' && (
               <button
                 onClick={passOn}
                 disabled={passing}
-                className="btn-primary disabled:opacity-50"
+                className={`${forward ? 'btn-secondary' : 'btn-primary'} disabled:opacity-50`}
               >
                 {passing ? 'Opening…' : 'Send to your own suppliers'}
               </button>
@@ -344,7 +361,11 @@ export default function RequirementDetailPage() {
           {requirement.startDate && (
             <DetailField label="Start" value={new Date(requirement.startDate).toLocaleDateString()} />
           )}
-          <DetailField label="How it came in" value={sourceWord(requirement.source)} />
+          {/* How it came in is the raiser's to know. A firm the job was
+              sent to read "Typed in here" about a job it was sent. */}
+          {raiser
+            ? <DetailField label="How it came in" value={sourceWord(requirement.source)} />
+            : <DetailField label="Sent by" value={requirement.company.name} />}
           {requirement.marginClass && readsMarginClass(company?.kind) && (
             <DetailField label="Margin" value={requirement.marginClass === 'EXPERTISE' ? 'Expertise' : 'Arbitrage'} />
           )}
@@ -519,8 +540,9 @@ function DistributeModal({
         body: JSON.stringify({
           vendors: Array.from(selectedVendors).map((companyId) => ({
             companyId,
-            payMin: payMin ? Number(payMin) : undefined,
-            payMax: payMax ? Number(payMax) : undefined,
+            // Typed in dollars, kept in cents like every other rate.
+            payMin: centsTyped(payMin) ?? undefined,
+            payMax: centsTyped(payMax) ?? undefined,
             message: message || undefined,
           })),
           expiresAt: new Date(expiresAt).toISOString(),
@@ -604,7 +626,7 @@ function DistributeModal({
           {/* Rate band — per CLAUDE.md: "Rate bands live on RequirementInvitation, never on Requirement" */}
           <div>
             <div className="flex items-end gap-3">
-              <Field label="Pay rate band, from ($/hr, optional)" className="flex-1">
+              <Field label="Rate band, from ($/hr, optional)" className="flex-1">
                 <Input
                   type="number"
                   placeholder="Min"
@@ -628,7 +650,7 @@ function DistributeModal({
               </Field>
             </div>
             <p className="text-[12px] text-etyme-muted mt-1.5">
-              Each vendor sees only their own band — never another vendor's rate.
+              Each supplier sees only its own band, never another supplier’s rate.
             </p>
           </div>
 
