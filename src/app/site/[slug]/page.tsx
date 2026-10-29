@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
-import { publicSite, type PublicSite } from '@/lib/public-site'
+import { publicSite, describeSite, titleOf, type PublicSite } from '@/lib/public-site'
 import type { Measure } from '@/lib/buyer-reputation'
+import { JOIN_BENCH_COPY } from '@/lib/public-site/join-bench'
+import { JoinBench } from './join-bench'
 
 /**
  * A company's public page.
@@ -24,16 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const site = await publicSite(slug)
   if (!site) return { title: 'Not found' }
 
-  const description =
-    site.audience === 'SUPPLIERS'
-      ? site.openPositions.length > 0
-        ? `${site.openPositions.length} contract position${site.openPositions.length === 1 ? '' : 's'} open to suppliers. ${site.reputation?.worthIt ?? ''}`
-        : `${site.name} ${site.does}.`
-      : site.comingFree.length > 0
-        ? `${site.name} ${site.does}. ${site.comingFreeSummary}`
-        : `${site.name} ${site.does}.`
-
-  return { title: `${site.name} — ${site.does}`, description: description.trim() }
+  // Read from the record and never empty: a firm with nothing coming
+  // free and nothing open still reads as "<name> <does>.".
+  return { title: titleOf(site), description: describeSite(site) }
 }
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -371,6 +366,23 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
                 </div>
               ))}
             </div>
+          </section>
+        </>
+      )}
+
+      {/* One door for a candidate, a staffing or bench firm's page only:
+          the bench's own ask, answered from the letter it sends. */}
+      {site.joinBench && (
+        <>
+          <Rule />
+          <section>
+            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
+              {JOIN_BENCH_COPY.heading}
+            </h2>
+            <p className="text-[15px] text-etyme-muted mt-1.5 max-w-xl leading-relaxed">
+              {JOIN_BENCH_COPY.means}
+            </p>
+            <JoinBench slug={site.slug} />
           </section>
         </>
       )}

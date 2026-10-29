@@ -44,6 +44,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'shared/[token]': 'A consented share of a document; the token is the credential and expires.',
   'c/[slug]': 'A consultant’s public page, published by the consultant.',
   'site/[slug]': 'A company’s public site, published by the company.',
+  'site/[slug]/join': 'Join the bench from a staffing firm’s public page: sends the firm’s own bench invitation to the address typed, answered only from the letter’s signed link; the reply is one sentence on every path and reads nothing back.',
   'health': 'Says the deployment is up; reads no company.',
   'ready': 'The public readiness page: which edges are proven, never whose data.',
   'demo': 'The demo door: seats a visitor in the seeded demo world, never a real company.',

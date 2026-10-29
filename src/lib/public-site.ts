@@ -3,6 +3,7 @@ import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
 import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
 import { speaksForItself } from '@/lib/public-site/speaks'
+import { offersJoinBench } from '@/lib/public-site/join-bench'
 
 /**
  * What the world sees at techpeple.etyme.com.
@@ -93,6 +94,8 @@ export interface PublicSite {
   comingFreeSummary: string | null
   /** Supplier page: what a consultant joining them gets. */
   training: Training[]
+  /** "Join the bench": a staffing or bench firm's page only, never a client's. */
+  joinBench: boolean
 }
 
 const READABLE: Record<string, string> = {
@@ -143,6 +146,34 @@ export function whatTheyDo(kind: string, posture: string | null): string {
 }
 
 /**
+ * The page's title and the line a search result or a link preview shows.
+ *
+ * Read from the record, and never empty: a firm with nobody coming free
+ * and nothing open still reads as the firm, "<name> <does>.", because
+ * that sentence needs nothing but the company itself.
+ */
+export function titleOf(site: Pick<PublicSite, 'name' | 'does'>): string {
+  return `${site.name} — ${site.does}`
+}
+
+export function describeSite(
+  site: Pick<PublicSite, 'name' | 'does' | 'audience' | 'openPositions' | 'comingFree' | 'comingFreeSummary'> & {
+    reputation?: { worthIt?: string | null } | null
+  }
+): string {
+  const firm = `${site.name} ${site.does}.`
+  if (site.audience === 'SUPPLIERS' && site.openPositions.length > 0) {
+    const n = site.openPositions.length
+    const worth = site.reputation?.worthIt?.trim()
+    return `${firm} ${n} contract position${n === 1 ? '' : 's'} open to suppliers.${worth ? ` ${worth}` : ''}`
+  }
+  if (site.audience === 'TALENT_AND_BUYERS' && site.comingFree.length > 0 && site.comingFreeSummary?.trim()) {
+    return `${firm} ${site.comingFreeSummary.trim()}`
+  }
+  return firm
+}
+
+/**
  * Who this company's public page is talking to.
  *
  * A GSI is genuinely both — Infosys buys bench from three firms and sells
@@ -169,12 +200,15 @@ function voiceFor(
   const fallback = writeFromRules(facts)
   const stored = company.siteHeadings as Record<string, string> | null
 
+  // A blank stored line is nothing stored: the page never opens on an
+  // empty sentence because somebody cleared a field.
+  const said = (v: string | null) => (v && v.trim().length > 0 ? v : null)
   return {
-    tagline: company.siteTagline ?? fallback.tagline,
-    intro: company.siteIntro ?? fallback.intro,
+    tagline: said(company.siteTagline) ?? fallback.tagline,
+    intro: said(company.siteIntro) ?? fallback.intro,
     headings: { ...DEFAULT_HEADINGS, ...(stored ?? {}) },
     writtenBy:
-      company.siteTagline === null
+      said(company.siteTagline) === null
         ? 'RULES'
         : (company.siteWrittenBy as 'MODEL' | 'RULES' | 'PERSON' | null) ?? 'PERSON',
   }
@@ -270,6 +304,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     verifiedDomain: company.domainVerified ? company.domain : null,
     inNetwork: company.networkVerifiedAt !== null,
     liveSince: company.siteLiveAt.toISOString().slice(0, 10),
+    joinBench: offersJoinBench(company.kind),
   }
 
   // ── Talking to suppliers ────────────────────────────────────────────
