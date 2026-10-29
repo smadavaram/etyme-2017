@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation'
 import { publicSite, describeSite, titleOf, type PublicSite } from '@/lib/public-site'
 import type { Measure } from '@/lib/buyer-reputation'
 import { JOIN_BENCH_COPY } from '@/lib/public-site/join-bench'
+import { FIRM_ASK_COPY, freeSays, telHref } from '@/lib/public-site/firm-page'
 import { JoinBench } from './join-bench'
+import { Ask } from '../ask'
 
 /**
  * A company's public page.
@@ -37,6 +39,13 @@ function Lbl({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   )
+}
+
+/** "October 29, 2026", the way every page prints a date; never the ISO string. */
+function onDay(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  })
 }
 
 function Rule() {
@@ -114,7 +123,7 @@ export default async function CompanySite({ params }: { params: Promise<{ slug: 
 
         <footer className="mt-16 pt-8 border-t border-etyme-rule">
           <p className="text-[13px] text-etyme-muted">
-            {site.name} has been on Etyme since {site.liveSince}.
+            {site.name} has been on Etyme since {onDay(site.liveSince)}.
           </p>
           {/* Being here is not a recommendation from us. Implying otherwise
               would make every page on the platform worth less. */}
@@ -270,7 +279,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
                     )}
                   </div>
                   <span className="text-[13px] text-etyme-ink tabular-nums shrink-0">
-                    {c.daysUntilFree === 0 ? 'now' : `${c.daysUntilFree}d`}
+                    {freeSays(c)}
                   </span>
                 </div>
               ))}
@@ -278,6 +287,25 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
           </section>
         </>
       )}
+
+      {/* For a client: a question that lands in the firm's own Ask Etyme,
+          and the firm's contact as it set it. Neither ever goes to Etyme. */}
+      {site.askBox && (
+        <>
+          <Rule />
+          <section>
+            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
+              {FIRM_ASK_COPY.heading(site.name)}
+            </h2>
+            <p className="text-[15px] text-etyme-muted mt-1.5 mb-5 max-w-xl leading-relaxed">
+              {FIRM_ASK_COPY.means(site.name)}
+            </p>
+            <Ask source="GENERATED_SITE" firm={{ slug: site.slug, name: site.name }} />
+          </section>
+        </>
+      )}
+
+      {site.contact && <Contact site={site} contact={site.contact} />}
 
       <Rule />
       <section>
@@ -388,6 +416,43 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
       )}
 
       {site.credentials.length > 0 && <Credentials site={site} />}
+    </>
+  )
+}
+
+/** The firm's contact, only what it set at setup, and nothing invented. */
+function Contact({ site, contact }: { site: PublicSite; contact: NonNullable<PublicSite['contact']> }) {
+  const tel = contact.phone ? telHref(contact.phone) : null
+  return (
+    <>
+      <Rule />
+      <section>
+        <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">Contact {site.name}</h2>
+        <dl className="mt-5 space-y-2 max-w-md text-[15px]">
+          {contact.phone && (
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-etyme-muted">Phone</dt>
+              <dd className="text-etyme-ink tabular-nums">
+                {tel ? <a href={tel} className="hover:underline">{contact.phone}</a> : contact.phone}
+              </dd>
+            </div>
+          )}
+          {contact.accountsEmail && (
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-etyme-muted">Accounts</dt>
+              <dd className="text-etyme-ink">
+                <a href={`mailto:${contact.accountsEmail}`} className="hover:underline">{contact.accountsEmail}</a>
+              </dd>
+            </div>
+          )}
+          {contact.people.map((p) => (
+            <div key={p.role} className="flex items-baseline justify-between gap-4">
+              <dt className="text-etyme-muted">{p.role}</dt>
+              <dd className="text-etyme-ink">{p.name}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </>
   )
 }

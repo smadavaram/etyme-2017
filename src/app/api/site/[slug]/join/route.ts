@@ -6,10 +6,11 @@ import { looksScripted, normalEmail, tidy } from '@/lib/public-site/leads'
 import {
   joinLetterLead,
   joinProblems,
-  joinReply,
+  joinReplyFor,
   tooManyAsks,
   TOO_MANY_SAYS,
 } from '@/lib/public-site/join-bench'
+import { emailSender } from '@/lib/senders'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 
 /**
@@ -76,7 +77,8 @@ export async function POST(
     )
   }
 
-  const reply = () => NextResponse.json({ data: { says: joinReply(firm.name) } })
+  // Never says a letter went where none can leave this deployment.
+  const reply = () => NextResponse.json({ data: { says: joinReplyFor(firm.name, emailSender() !== null) } })
 
   try {
     const lastHour = await prisma.automationLog.count({

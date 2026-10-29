@@ -68,7 +68,8 @@ vi.mock('@/lib/db', () => {
 })
 
 import { POST } from '@/app/api/site/[slug]/join/route'
-import { offersJoinBench, JOIN_BENCH_COPY, joinReply } from '@/lib/public-site/join-bench'
+import { offersJoinBench, JOIN_BENCH_COPY, joinReplyFor } from '@/lib/public-site/join-bench'
+import { emailSender } from '@/lib/senders'
 import { describeSite, titleOf } from '@/lib/public-site'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -162,7 +163,7 @@ describe('Join the bench on a firm’s public page', () => {
   it('every path gets the same reply, so a stranger learns nothing about an address', async () => {
     const fresh = await (await ask({ name: 'New Person', email: 'new@example.com' })).json()
     const again = await (await ask({ name: 'New Person', email: 'new@example.com' })).json()
-    expect(fresh.data.says).toBe(joinReply('Tapin'))
+    expect(fresh.data.says).toBe(joinReplyFor('Tapin', emailSender() !== null))
     expect(again.data.says).toBe(fresh.data.says)
   })
 

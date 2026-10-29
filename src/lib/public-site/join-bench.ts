@@ -68,6 +68,23 @@ export function joinReply(firm: string): string {
   )
 }
 
+/**
+ * The reply where no email can leave this deployment (the Tapin walk,
+ * 2026-10-29: the page said a letter was on its way while the notice read
+ * NOT_CONFIGURED). The letter that asks for the yes cannot go, so the page
+ * never says it did; the firm holds the address and its notice keeps the
+ * link for staff to pass on. Still one sentence for every address, because
+ * whether email can leave is a fact about the deployment, not the person.
+ */
+export function joinReplyNoLetter(firm: string): string {
+  return `${firm} has your address and will be in touch.`
+}
+
+/** Which of the two replies is true here, given whether email can leave. */
+export function joinReplyFor(firm: string, letterCanLeave: boolean): string {
+  return letterCanLeave ? joinReply(firm) : joinReplyNoLetter(firm)
+}
+
 /** Name and email, each quoted back where it is wrong. */
 export function joinProblems(input: { name?: string | null; email?: string | null }): { field: 'name' | 'email'; says: string }[] {
   const out: { field: 'name' | 'email'; says: string }[] = []

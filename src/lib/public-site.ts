@@ -1,9 +1,12 @@
 import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
-import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
+import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
 import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { offersJoinBench } from '@/lib/public-site/join-bench'
+import {
+  mayShowPublicly, benchFreeNow, freeSummary, firmContact, offersAsk, type FirmContact,
+} from '@/lib/public-site/firm-page'
 
 /**
  * What the world sees at techpeple.etyme.com.
@@ -96,6 +99,10 @@ export interface PublicSite {
   training: Training[]
   /** "Join the bench": a staffing or bench firm's page only, never a client's. */
   joinBench: boolean
+  /** The ask box for a client, landing in the firm's own Ask Etyme. */
+  askBox: boolean
+  /** The firm's contact as it set it at setup; null where it set none. */
+  contact: FirmContact | null
 }
 
 const READABLE: Record<string, string> = {
@@ -245,6 +252,10 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
       claimedAt: true, _count: { select: { contexts: { where: { roleId: { not: null } } } } },
       siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
+      // The contact the firm set at setup. Never a CompanyInCharge email:
+      // that is a person's own address.
+      phone: true, accountsEmail: true,
+      peopleInCharge: { select: { duty: true, name: true, personId: true } },
       locations: {
         where: { isRemote: false },
         orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
@@ -260,6 +271,20 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   }
 
   const audience = audienceFor(company.kind)
+
+  const seatedIds = company.peopleInCharge.map((r) => r.personId).filter((x): x is string => !!x)
+  const seated = seatedIds.length
+    ? await prisma.person.findMany({ where: { id: { in: seatedIds } }, select: { id: true, name: true } })
+    : []
+  const contact = firmContact({
+    phone: company.phone,
+    accountsEmail: company.accountsEmail,
+    inCharge: company.peopleInCharge.map((r) => ({
+      duty: r.duty,
+      name: r.name,
+      seatedName: seated.find((p) => p.id === r.personId)?.name ?? null,
+    })),
+  })
 
   const [placements, activeNow, clientRows, profiles, verifications] = await Promise.all([
     prisma.sellContract.count({ where: { companyId: company.id } }),
@@ -308,6 +333,8 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     inNetwork: company.networkVerifiedAt !== null,
     liveSince: company.siteLiveAt.toISOString().slice(0, 10),
     joinBench: offersJoinBench(company.kind),
+    askBox: offersAsk(company.kind),
+    contact,
   }
 
   // ── Talking to suppliers ────────────────────────────────────────────
@@ -405,7 +432,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   }
 
   // ── Talking to candidates, clients and peer firms ───────────────────
-  const [rollingOff, courses] = await Promise.all([
+  const [rollingOff, courses, benchListings] = await Promise.all([
     prisma.sellContract.findMany({
       where: {
         companyId: company.id,
@@ -425,7 +452,10 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
                 headline: true, skills: true, location: true, rateFloor: true,
                 listings: {
                   where: { revokedAt: null },
-                  select: { companyId: true, showBeforeFree: true, revokedAt: true },
+                  select: {
+                    companyId: true, state: true, revokedAt: true, staysUntil: true,
+                    showInMatches: true, showBeforeFree: true,
+                  },
                 },
               },
             },
@@ -442,19 +472,36 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       take: 12,
       select: { title: true, category: true, duration: true, price: true },
     }),
+    // People on this firm's bench who said yes to being shown beyond it.
+    // Free now unless a running contract says otherwise, checked below.
+    prisma.benchListing.findMany({
+      where: { companyId: company.id, state: 'GRANTED', revokedAt: null, showInMatches: true },
+      orderBy: { grantedAt: 'desc' },
+      take: 40,
+      select: {
+        state: true, revokedAt: true, staysUntil: true, showInMatches: true, showBeforeFree: true,
+        consultant: { select: { personId: true, headline: true, skills: true, location: true } },
+      },
+    }),
   ])
+  const benchPeople = benchListings.map((l) => l.consultant.personId)
+  const working = new Set(
+    benchPeople.length
+      ? (await prisma.sellContract.findMany({
+          where: { personId: { in: benchPeople }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+          select: { personId: true },
+        })).map((c) => c.personId)
+      : []
+  )
 
   const rows: RollingOff[] = []
   for (const c of rollingOff) {
     if (!c.endDate || !c.person.consultant) continue
     const listing = c.person.consultant.listings.find((l) => l.companyId === c.companyId)
-    // The same consent gate as everywhere else. A contract end date is not
-    // agreement to be advertised, least of all on the open internet.
-    if (!mayShow({
-      hasLiveListing: Boolean(listing),
-      listingRevoked: listing ? listing.revokedAt !== null : false,
-      consultantOptedOut: listing ? listing.showBeforeFree === false : false,
-    }).mayShow) continue
+    // A contract end date is not agreement to be advertised, least of all
+    // on the open internet: the person's own yes, and their yes to being
+    // shown beyond this firm (an INVITED listing is nobody's yes yet).
+    if (!listing || !mayShowPublicly(listing, now, true)) continue
 
     rows.push({
       contractId: c.id,
@@ -474,23 +521,21 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   }
 
   const free = releasing(rows, now)
-
-  return {
-    ...base,
-    ...voiceFor(company, {
-      name: base.name, kind: base.kind, posture: company.supplierPosture,
-      skills: base.skills.map((s) => s.skill),
-      locations: base.locations,
-      placements: base.track.placements,
-      activeNow: base.track.activeNow,
-      clients: base.track.clients,
-      openPositions: 0,
-      comingFree: free.length,
-      trainingCourses: courses.length,
-    }),
-    openPositions: [],
-    reputation: null,
-    comingFree: free.map((r) => ({
+  const freeNow = benchFreeNow(
+    benchListings.map((l) => ({
+      personId: l.consultant.personId,
+      headline: l.consultant.headline,
+      skills: l.consultant.skills,
+      location: l.consultant.location,
+      listing: l,
+      working: working.has(l.consultant.personId),
+    })),
+    now,
+    new Set(free.map((r) => r.personId))
+  )
+  const comingFree: ComingFree[] = [
+    ...freeNow,
+    ...free.map((r) => ({
       headline: r.headline,
       skills: r.skills,
       location: r.location,
@@ -502,7 +547,29 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       // buyer actually reads.
       provenAt: r.proven ? 'Currently on assignment' : null,
     })),
-    comingFreeSummary: free.length > 0 ? summarize(free).summary : null,
+  ]
+  const mayExtend = summarize(free).uncertain
+  const comingFreeSummary = comingFree.length > 0
+    ? `${freeSummary(comingFree)}${mayExtend > 0 ? ` ${mayExtend} may extend instead.` : ''}`
+    : null
+
+  return {
+    ...base,
+    ...voiceFor(company, {
+      name: base.name, kind: base.kind, posture: company.supplierPosture,
+      skills: base.skills.map((s) => s.skill),
+      locations: base.locations,
+      placements: base.track.placements,
+      activeNow: base.track.activeNow,
+      clients: base.track.clients,
+      openPositions: 0,
+      comingFree: comingFree.length,
+      trainingCourses: courses.length,
+    }),
+    openPositions: [],
+    reputation: null,
+    comingFree,
+    comingFreeSummary,
     training: courses.map((c) => ({
       title: c.title,
       category: c.category,

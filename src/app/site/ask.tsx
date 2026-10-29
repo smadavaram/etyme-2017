@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { problems, ASK_COPY } from '@/lib/public-site/leads'
+import { firmAskProblems, firmAskThanks, FIRM_ASK_COPY } from '@/lib/public-site/firm-page'
 
 /**
  * The ask box.
@@ -32,12 +33,29 @@ import { problems, ASK_COPY } from '@/lib/public-site/leads'
  * and nothing between them, and a file with no owner fails the ownership
  * invariant on the commit that adds it. This is also where the generated
  * company sites will use it from, which is the source value
- * GENERATED_SITE is reserved for. Only the home page calls it today.
+ * GENERATED_SITE is reserved for.
+ *
+ * ── On a firm's own page ─────────────────────────────────────────────
+ *
+ * Given a `firm`, the box speaks for that firm and posts to the firm's
+ * page (`/api/site/:slug/ask`), which lands the question in the firm's
+ * own Ask Etyme. It never reaches Etyme's lead list: a firm's client is
+ * the firm's (the Tapin walk, 2026-10-29).
  */
 
 type State = 'idle' | 'sending' | 'sent'
 
-export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATED_SITE' }) {
+export function Ask({
+  source = 'HOME_PAGE',
+  firm,
+}: {
+  source?: 'HOME_PAGE' | 'GENERATED_SITE'
+  /** The firm whose page this is; its question goes to the firm, never to us. */
+  firm?: { slug: string; name: string }
+}) {
+  const copy = firm
+    ? { ...ASK_COPY, ...FIRM_ASK_COPY, emailHint: null, askHint: null, after: null }
+    : { ...ASK_COPY }
   // When the form appeared. A submission that beats a human typing speed
   // never rendered this page.
   const shownAt = useRef<number>(Date.now())
@@ -58,7 +76,9 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
     // Checked here as well as on the server, so somebody sees the
     // problem without a round trip — and in our words, with their text
     // in them.
-    const found = problems({ email, name, companyName, source, asked })
+    const found = firm
+      ? firmAskProblems({ email, name, companyName, asked })
+      : problems({ email, name, companyName, source, asked })
     if (found.length > 0) {
       setSays(found[0].says)
       return
@@ -66,7 +86,7 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
 
     setState('sending')
     try {
-      const res = await fetch('/api/market/leads', {
+      const res = await fetch(firm ? `/api/site/${encodeURIComponent(firm.slug)}/ask` : '/api/market/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -86,7 +106,7 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
         return
       }
       setState('sent')
-      setSays(json?.data?.says ?? ASK_COPY.thanks)
+      setSays(json?.data?.says ?? (firm ? firmAskThanks(firm.name) : ASK_COPY.thanks))
     } catch {
       setState('idle')
       setSays('That did not send — the connection dropped somewhere. Try again.')
@@ -97,7 +117,7 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
     return (
       <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-6">
         <p className="text-[17px] leading-relaxed text-etyme-ink">{says ?? ASK_COPY.thanks}</p>
-        <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{ASK_COPY.after}</p>
+        {copy.after && <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{copy.after}</p>}
       </div>
     )
   }
@@ -122,7 +142,7 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
       </div>
 
       <label htmlFor="ask-email" className="stat-label block">
-        {ASK_COPY.emailLabel}
+        {copy.emailLabel}
       </label>
       <input
         id="ask-email"
@@ -131,27 +151,27 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
         autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@yourfirm.com"
+        placeholder={firm ? 'you@yourcompany.com' : 'you@yourfirm.com'}
         className="mt-2 w-full rounded-lg border border-etyme-rule bg-etyme-raised px-4 py-3
                    text-[16px] text-etyme-ink placeholder:text-etyme-faint
                    focus:border-etyme-ink focus:outline-none"
       />
-      <p className="mt-1.5 text-[13px] text-etyme-muted">{ASK_COPY.emailHint}</p>
+      {copy.emailHint && <p className="mt-1.5 text-[13px] text-etyme-muted">{copy.emailHint}</p>}
 
       <label htmlFor="ask-what" className="stat-label mt-6 block">
-        {ASK_COPY.askLabel}
+        {copy.askLabel}
       </label>
       <textarea
         id="ask-what"
         rows={3}
         value={asked}
         onChange={(e) => setAsked(e.target.value)}
-        placeholder={ASK_COPY.askPlaceholder}
+        placeholder={copy.askPlaceholder}
         className="mt-2 w-full rounded-lg border border-etyme-rule bg-etyme-raised px-4 py-3
                    text-[16px] leading-relaxed text-etyme-ink placeholder:text-etyme-faint
                    focus:border-etyme-ink focus:outline-none"
       />
-      <p className="mt-1.5 text-[13px] text-etyme-muted">{ASK_COPY.askHint}</p>
+      {copy.askHint && <p className="mt-1.5 text-[13px] text-etyme-muted">{copy.askHint}</p>}
 
       {/* Stacked at every width. Two boxes side by side on a phone read
           as first name and last name, which is how a surname ended up in
@@ -162,8 +182,8 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
           autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={ASK_COPY.namePlaceholder}
-          aria-label={ASK_COPY.namePlaceholder}
+          placeholder={copy.namePlaceholder}
+          aria-label={copy.namePlaceholder}
           className="w-full rounded-lg border border-etyme-rule bg-etyme-raised px-4 py-3
                      text-[16px] text-etyme-ink placeholder:text-etyme-faint
                      focus:border-etyme-ink focus:outline-none"
@@ -173,8 +193,8 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
           autoComplete="organization"
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
-          placeholder={ASK_COPY.companyPlaceholder}
-          aria-label={ASK_COPY.companyPlaceholder}
+          placeholder={copy.companyPlaceholder}
+          aria-label={copy.companyPlaceholder}
           className="w-full rounded-lg border border-etyme-rule bg-etyme-raised px-4 py-3
                      text-[16px] text-etyme-ink placeholder:text-etyme-faint
                      focus:border-etyme-ink focus:outline-none"
@@ -194,7 +214,7 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
         className="mt-6 rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
                    transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {state === 'sending' ? ASK_COPY.sending : ASK_COPY.button}
+        {state === 'sending' ? copy.sending : copy.button}
       </button>
     </form>
   )
