@@ -1728,6 +1728,39 @@ reads "The supplier" where no name is passed from other callers
 (demand); the seed's dead 12-day cover at Cavanaugh (architect). The
 second Tapin walk on screens records its verdict under this line.
 
+**The second walk said: still no, and the chain now reaches the bill.**
+Steps one to five work on screens: every checklist answer says where it
+came from, three people onto the bench by their yes with what Tapin
+typed kept, the link request a card and one number on Brightmoor's
+mark, greeting and Today, the agreement countersigned, the order
+raised, Tapin's own papers filed and accepted, the job sent by the
+account manager and read at $90–$110, Put forward, the interview
+answered from the worker's page, the award clearing on the accepted
+insurance, the week signed by Northbend and accepted by Brightmoor and
+Tapin ($5,200 signed, $4,000 accepted at each rung, $1,800 owed to
+Ravi, who sees only his $45). Three things stop the week, each with
+its owner: **the employer cannot record its own W2's I-9** (Tapin's
+Compliance page lists starts only at the client rung, the upload lands
+on the Northbend–Brightmoor line and Brightmoor is told; regulatory);
+**Activate asks for a reason and draws no box** for a paperwork
+warning (demand); **the bill can never be sent**, because the award put
+a line starting Oct 19 on Brightmoor's order that opens Oct 30, the
+check fails "starts before PO opens", only Brightmoor may waive it and
+Brightmoor cannot see an unsent bill or change its order's dates
+(money; the 2026-09-19 rule says a line outside its order's window is a
+sentence, never a refusal). Also: the start card's Open lands on a
+missing contracts page (demand); Today says "Sent, not yet paid" of a
+bill never sent and the order shows $4,000 drawn for it (money);
+Tapin's Paperwork says "not examined" after Brightmoor accepted and the
+request still asks (regulatory); bench counts differ across Consultants,
+Today and Ask Etyme (supply); Northbend's mark stale until a reload
+(conversation); wrong words: "Brightmoor employs Ravi", "Accounts
+Receivable" raises an order, "BILL RATE" for what the prime pays,
+"vendor / client / msp", "organisation" on a public page, a client's
+chat suggestions on a supplier's seat, the sign-up panel speaking to a
+client, "(job MSA5YG)". Report `scratchpad/walk-tapin-2/report.md`,
+218 screens. The third walk records its verdict under this line.
+
 ## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
 
 "Build it", on the two drawings waiting since 2026-10-27: the setup
