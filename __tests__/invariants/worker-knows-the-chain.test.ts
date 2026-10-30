@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { placementLines, tieOf, type ChainRung, type Tie } from '@/lib/consultant-portfolio'
+import { isWorkersOwnPayLine } from '@/lib/money/paid-through'
 
 /**
  * The worker knows the complete chain.
@@ -90,7 +91,10 @@ describe('the page carries the chain and only the worker’s own pay', () => {
   it('no rung above the worker’s own is priced on their page', () => {
     const placements = route.slice(route.indexOf('placements: lines.map('), route.indexOf('// One entry per contract they file on'))
     expect(placements).not.toContain('billRate')
-    // Pay only from a buy line with no supplier below it: their own.
-    expect(route).toContain('supplierSellContractId === null')
+    // Pay only from the line that pays them: no firm below it, and none
+    // it buys from but their own company (money's rule).
+    expect(route).toContain('.filter(l => isWorkersOwnPayLine(l.buyContract, ownCompanyIds))')
+    expect(isWorkersOwnPayLine({ contractType: 'C2C', vendorCompanyId: 'sub', supplierSellContractId: null }, [])).toBe(false)
+    expect(isWorkersOwnPayLine({ contractType: 'C2C', vendorCompanyId: 'own-llc', supplierSellContractId: null }, ['own-llc'])).toBe(true)
   })
 })
