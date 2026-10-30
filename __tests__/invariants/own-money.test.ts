@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { negotiation, type Event } from '@/lib/rate-negotiation'
+import { isWorkersOwnPayLine } from '@/lib/money/paid-through'
 
 /**
  * A consultant sees what they are paid and never what they are billed at.
@@ -153,8 +154,17 @@ describe('what a consultant is paid comes from the leg that pays them and never 
     // Award writes a BuyContractCandidate at every hop, and at every hop
     // but the bottom its payRate is what one firm pays another firm for
     // this person's hours — a sell-side price one rung down.
-    // `supplierSellContractId` is that rung; null means there is none.
-    expect(WORK).toContain("l.buyContract.supplierSellContractId === null")
+    // The rule is one door (`isWorkersOwnPayLine` in lib/money/paid-through):
+    // no supplier's contract behind the line, and no firm it buys from but
+    // the worker's own company — so a prime's line to a sub that has not
+    // written its own line yet never reads as the worker's pay (the Tapin
+    // walk, 2026-10-29). The route reads pay through it and nothing else.
+    expect(WORK).toContain('isWorkersOwnPayLine(l.buyContract, ownCompanyIds)')
+    expect(WORK).toContain('ownCompanyIdsOf(personId)')
+    expect(WORK).not.toContain('l.buyContract.supplierSellContractId === null')
+    expect(isWorkersOwnPayLine({ contractType: 'C2C', vendorCompanyId: 'tapin', supplierSellContractId: null }, [])).toBe(false)
+    expect(isWorkersOwnPayLine({ contractType: 'W2', vendorCompanyId: 'brightmoor', supplierSellContractId: 'sub-line' }, [])).toBe(false)
+    expect(isWorkersOwnPayLine({ contractType: 'W2', vendorCompanyId: null, supplierSellContractId: null }, [])).toBe(true)
   })
 
   it('tells somebody why a rung shows no rate, rather than leaving a blank', () => {

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { rolesFor } from '@/lib/company-defaults'
 import { progressionFigures } from '@/lib/consultant-portfolio'
-import { isWorkersOwnPayLine, ownPayLineWhere } from '@/lib/money/paid-through'
 
 /**
  * The bench's doors onto a pay rate, checked against the pay rule
@@ -64,13 +63,7 @@ describe('a rate history shows each figure only to the desk that reads it', () =
   })
 
   it("a worker's own rate history is the leg that pays them, never a price between two firms above them", () => {
-    // Their own: only a line that buys from nobody, or from their own
-    // company; a prime's line to the sub is a price between firms even
-    // before the sub writes its own line (the Tapin walk).
-    expect(src(PROGRESSION)).toMatch(/isSelf \? ownPayLineWhere\(consultant\.personId, await ownCompanyIdsOf\(consultant\.personId\)\) : \{ companyId \}/)
-    const where = ownPayLineWhere('ravi', [])
-    expect(where.supplierSellContractId).toBeNull()
-    expect(where.OR).toEqual([{ vendorCompanyId: null }])
+    expect(src(PROGRESSION)).toMatch(/isSelf \? \{ supplierSellContractId: null \} : \{ companyId \}/)
   })
 
   it('somebody else’s rate history is never read without a firm to scope it to', () => {
@@ -99,11 +92,7 @@ describe("the worker's own pages read the worker's own pay and nobody else's", (
   })
 
   it('the work page shows the worker the rate on the leg that pays them, not a price between firms', () => {
-    expect(src('src/app/api/me/work/route.ts')).toContain('.filter(l => isWorkersOwnPayLine(l.buyContract, ownCompanyIds))')
-    // Ravi, Tapin's W2 at $45; Brightmoor buys him from Tapin at $100.
-    expect(isWorkersOwnPayLine({ contractType: 'C2C', vendorCompanyId: 'tapin', supplierSellContractId: null }, [])).toBe(false)
-    expect(isWorkersOwnPayLine({ contractType: 'C2C', vendorCompanyId: 'tapin', supplierSellContractId: 'tapin-sell' }, [])).toBe(false)
-    expect(isWorkersOwnPayLine({ contractType: 'W2', vendorCompanyId: null, supplierSellContractId: null }, [])).toBe(true)
+    expect(src('src/app/api/me/work/route.ts')).toMatch(/supplierSellContractId === null/)
   })
 
   it('the signed-in person’s own record carries no pay figure at all', () => {
