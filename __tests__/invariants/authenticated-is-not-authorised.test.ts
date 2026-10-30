@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { daysOnSite } from '@/lib/tenure-days'
+import { maySendJob } from '@/app/api/requisitions/who-sends'
 
 /**
  * Signed in is not the same as allowed.
@@ -39,6 +40,7 @@ import { daysOnSite } from '@/lib/tenure-days'
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 const DISTRIBUTE = read('src/app/api/requisitions/[id]/distribute/route.ts')
+const WHO_SENDS = read('src/app/api/requisitions/who-sends.ts')
 const REQUIREMENTS_PAGE = read('src/app/dashboard/requirements/[id]/page.tsx')
 const SUBMISSION_STATUS = read('src/app/api/submissions/[id]/status/route.ts')
 const ROLLOFF_CHECKLIST = read('src/app/api/rolloff/[id]/checklist/route.ts')
@@ -79,8 +81,18 @@ describe('only the company that raised a requirement may put it in front of supp
   })
 
   it('refuses a desk that does not hold the supplier panel, naming the program manager', () => {
-    expect(DISTRIBUTE).toContain("'requirements.distribute'")
-    expect(DISTRIBUTE).toContain('program manager')
+    // The route asks the one rule for who sends a job out at this kind of
+    // firm (\`who-sends\`), and the rule reads the supplier panel.
+    expect(DISTRIBUTE).toContain('maySendJob(')
+    expect(WHO_SENDS).toContain("'requirements.distribute'")
+    // A client's seat without the panel: the program manager or Procurement.
+    const hm = maySendJob({ kind: 'CLIENT', name: 'Northbend Athletic' }, ['requirements.read', 'requirements.write'])
+    expect(hm.ok).toBe(false)
+    expect(hm.ok ? '' : hm.says).toContain('the program manager')
+    // A supplier has no program manager: the account manager or the owner.
+    const recruiter = maySendJob({ kind: 'VENDOR', name: 'Brightmoor Staffing' }, ['requirements.read', 'submissions.create'])
+    expect(recruiter.ok ? '' : recruiter.says).toContain('the account manager or the owner')
+    expect(recruiter.ok ? '' : recruiter.says).not.toContain('program manager')
   })
 
   it('refuses a requirement the approval chain has not cleared', () => {
