@@ -1684,6 +1684,50 @@ client nothing to act on (market). Report:
 ahead of other work, per "the two trust flows get the first seat";
 the second walk records its verdict under this line.
 
+**The fix wave shipped to production 2026-10-30 (1dd0b5ad0 on the
+deploy branch, source f73276c07).** Every fault above closed, each with
+its owner's test sentences: a supplier's certificate accepted by the
+client on Paperwork, on Document requests or through the examine route
+is written by one function (`recordSupplierPaper`) onto the record the
+award, the clearance and the nightly watch read, so the award clears
+the same day; the refusal names the firm once; a firm with a team files
+its own W-9, insurance and good standing from Company paperwork
+(`mayFileFirmPapers`); the rate band is stored in cents through one
+reader (`centsTyped`/`typedFromCents`); who may send a job down depends
+on the kind of firm (`who-sends.ts`); a job received from a prime has
+"Put forward"; the award joins the prime's existing open order between
+the two firms and says so where the dates differ, order numbers take
+their suffix from both firms, and the client's award row never carries
+the prime's order to its sub; a worker's own page and rate history read
+only the line that pays her (`isWorkersOwnPayLine`, `ownPayLineWhere`);
+"Record a placement" reads the caller's company from the seat; the
+order refusal names the roles that may at that kind of firm; an
+agreement is countersigned on screen; a link request is a card with
+Yes and Not now and on the one decisions list with a join request, so
+Today and the mark agree; a sub-vendor's greeting names the job it was
+sent, the interview and the start, and firms below the supplier hear
+their person's rounds; a said notice stays in "Since you last looked"
+five minutes, which was why the first walk's greeting missed notices;
+a bench firm's page gives a client who is coming free (only people who
+said yes to being shown beyond the firm, never a name or a rate), an
+ask box into the firm's Ask Etyme and the firm's contact, and never
+claims a letter went when none could; the checklist says where each
+answer came from (DOMAIN with the domain quoted, PAPER with the W-9
+line, PERSON), a skipped item says skipped, every item has its own
+address; what a firm types about a person who already has an account
+is kept on its own listing (`BenchListing.firmHeadline`, `firmSkills`,
+`firmLocation`, `firmNotes`) and never on the person; "Answer
+interview" opens the round. Release pass 30 on a quiet copy of
+f73276c07, fully green: type check, 12,420 unit, 2,605 integration,
+build. Gates: no source difference, no Ruby, brand kit present, no
+schema line removed. Smoke: every public page, the four doors and
+`/site/tapin` 200, the inbound email door 404 to a POST. Still open,
+with owners: a firm that lists a person can overwrite that person's
+own profile through the edit route (supply); the award's cover sentence
+reads "The supplier" where no name is passed from other callers
+(demand); the seed's dead 12-day cover at Cavanaugh (architect). The
+second Tapin walk on screens records its verdict under this line.
+
 ## The setup checklist and the four doors' maps are built — "Build it", the founder, 2026-10-28
 
 "Build it", on the two drawings waiting since 2026-10-27: the setup
