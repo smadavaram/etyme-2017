@@ -1,4 +1,5 @@
 import { demoAddress, DEMO_ADDRESS_NOTE, type Sender } from '@/lib/notification-delivery'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import {
   teamsCard, teamsLinkKind, teamsEdge, TEAMS_LINK_RETIRED_SENTENCE, type TeamsFacts,
 } from '@/lib/notify/teams-link'
@@ -20,11 +21,12 @@ import {
  */
 
 export function emailSender(): Sender | null {
+  // The one answer to "can email leave" (lib/notify/mail-leaves): every
+  // sentence that promises a letter reads it, so the send agrees with it.
+  if (!mailLeaves()) return null
   const resend = process.env.RESEND_API_KEY
   const sendgrid = process.env.SENDGRID_API_KEY
-  const from = process.env.NOTIFY_FROM_EMAIL
-  if (!from) return null
-  if (!resend && !sendgrid) return null
+  const from = process.env.NOTIFY_FROM_EMAIL!
 
   return {
     channel: 'EMAIL',

@@ -36,6 +36,8 @@
  * the outcome.
  */
 
+import { mailLeaves, NO_MAIL_HERE } from '@/lib/notify/mail-leaves'
+
 export type TeamsLinkKind = 'WORKFLOWS' | 'RETIRED' | 'OTHER' | 'INVALID'
 
 /**
@@ -120,6 +122,18 @@ export function checkTeamsLink(raw: unknown): TeamsLinkCheck {
 
 // ── A link already saved ─────────────────────────────────────────────
 
+/**
+ * Where a company's notifications go with no working Teams link: by email
+ * where email can leave this deployment (`mailLeaves`), and otherwise only
+ * in Etyme, said so. "Go by email" on a deployment with no email key was a
+ * promise nothing kept (the Tapin walks, 2026-10-29 and 2026-10-30).
+ */
+export function withoutTeams(mail: boolean, until = ''): string {
+  return mail
+    ? `Notifications for this company go by email${until}.`
+    : `Notifications for this company show in Etyme only${until}. ${NO_MAIL_HERE}.`
+}
+
 export type TeamsLinkStanding =
   | { state: 'NONE'; says: string }
   | { state: 'WORKS'; says: string }
@@ -133,11 +147,11 @@ export type TeamsLinkStanding =
  * disagree with the link, and it clears the moment a Workflows link is
  * saved.
  */
-export function teamsLinkStanding(url: string | null | undefined): TeamsLinkStanding {
+export function teamsLinkStanding(url: string | null | undefined, mail: boolean = mailLeaves()): TeamsLinkStanding {
   if (!url) {
     return {
       state: 'NONE',
-      says: 'No Teams channel is set up. Notifications for this company go by email.',
+      says: `No Teams channel is set up. ${withoutTeams(mail)}`,
     }
   }
   const kind = teamsLinkKind(url)
@@ -146,7 +160,7 @@ export function teamsLinkStanding(url: string | null | undefined): TeamsLinkStan
       state: 'NEEDS_NEW_LINK',
       says:
         'This Teams link no longer works: Microsoft switched off this kind of link in May 2026. ' +
-        'Notifications for this company go by email until a new link is saved. ' +
+        `${withoutTeams(mail, ' until a new link is saved')} ` +
         TEAMS_LINK_HOW_TO,
     }
   }
@@ -245,10 +259,11 @@ export type TeamsEdgeState = 'MISSING' | 'SET' | 'PROVEN'
  * link, proven only once one has posted. A retired link counts for
  * neither, and is named so whoever reads the page knows who to call.
  */
-export function teamsEdge(f: TeamsFacts): { state: TeamsEdgeState; says: string; fix?: string } {
+export function teamsEdge(f: TeamsFacts, mail: boolean = mailLeaves()): { state: TeamsEdgeState; says: string; fix?: string } {
+  const instead = mail ? 'reached by email instead' : 'reached only in Etyme, because no email can be sent from here yet'
   const retired =
     f.retiredChannels > 0
-      ? ` ${f.retiredChannels === 1 ? '1 company still has' : `${f.retiredChannels} companies still have`} the kind of link Microsoft switched off in May 2026, and ${f.retiredChannels === 1 ? 'is' : 'are'} reached by email instead.`
+      ? ` ${f.retiredChannels === 1 ? '1 company still has' : `${f.retiredChannels} companies still have`} the kind of link Microsoft switched off in May 2026, and ${f.retiredChannels === 1 ? 'is' : 'are'} ${instead}.`
       : ''
   if (f.workflowsChannels === 0) {
     return {

@@ -85,7 +85,8 @@ describe('saving a Teams link', () => {
 
 describe('a company that saved the retired kind before May 2026', () => {
   it('its settings say the link needs replacing, and how', () => {
-    const s = teamsLinkStanding(RETIRED)
+    // Where email can leave this deployment (lib/notify/mail-leaves).
+    const s = teamsLinkStanding(RETIRED, true)
     expect(s.state).toBe('NEEDS_NEW_LINK')
     expect(s.says).toContain('Microsoft switched off this kind of link in May 2026')
     expect(s.says).toContain('go by email until a new link is saved')

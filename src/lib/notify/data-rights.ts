@@ -473,7 +473,7 @@ export function erasureCompleteNotice(input: ErasureDone): Notice {
     to: input.replyTo,
     card: {
       title: 'A request to be forgotten has run',
-      text: 'The record is erased. What is kept, and for how long, is in the letter sent to the person.',
+      text: 'The record is erased. What is kept, and for how long, is in the letter to the person.',
       facts: [
         { name: 'Reference', value: input.reference },
         { name: 'Ran on', value: done },

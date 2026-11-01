@@ -31,6 +31,7 @@
 
 import { prisma } from '@/lib/db'
 import { emailSender } from '@/lib/senders'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { choicesBlock } from '@/lib/reply-link'
 import type { Kind } from '@/lib/texts'
 
@@ -54,9 +55,9 @@ export interface Sent {
   reason: string
 }
 
-/** Whether a real provider is configured. */
+/** Whether a real provider is configured: the one answer (`mailLeaves` in lib/notify/mail-leaves). */
 export function configured(): boolean {
-  return emailSender() !== null
+  return mailLeaves()
 }
 
 /**
