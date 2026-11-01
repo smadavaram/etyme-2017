@@ -213,10 +213,13 @@ export const SUPPLIERS: PartyPage = withTabs({
       'Bill your client on the week it approves. Pay each sub-vendor only what matches.',
     ],
     // The prime's first act on Etyme: record a client it already works with.
-    // As many words as the client's band, because this tab sits at 162 of 165.
+    // The line is true on the day the prime signs up: a job lands only when
+    // the client sends it on Etyme (coordinator, 2026-11-01). "Ready for
+    // your sub-vendors" was cut to stay within 165 words; the first line
+    // above already says it. This tab sits at 164.
     bandSays: {
       heading: 'Seen enough? Add a client you work with.',
-      line: 'Its jobs land here, ready for your sub-vendors. Free while we are testing.',
+      line: 'When it sends a job on Etyme, it lands here. Free while we are testing.',
     },
   },
   {

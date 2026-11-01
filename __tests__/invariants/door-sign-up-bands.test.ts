@@ -44,7 +44,8 @@ describe('the sign-up band on each party door', () => {
   it('a prime vendor is asked to add a client it works with, a sub-vendor to ask its prime to link, and a bench vendor to put its bench on Etyme', () => {
     expect(band('/for/suppliers')).toEqual({
       heading: 'Seen enough? Add a client you work with.',
-      line: 'Its jobs land here, ready for your sub-vendors. Free while we are testing.',
+      // True on the day the prime signs up: a job lands only once the client sends it on Etyme.
+      line: 'When it sends a job on Etyme, it lands here. Free while we are testing.',
     })
     expect(band('/for/suppliers?tab=sub')).toEqual({
       heading: 'Seen enough? Ask your prime to link.',
