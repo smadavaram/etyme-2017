@@ -466,6 +466,60 @@ export function askedSays(consent: string | null): string {
   return 'Not answered yet. Not on your bench until they say yes.'
 }
 
+// ── One bench, counted once (the second Tapin walk, 2026-10-30) ────────
+//
+// Tapin's bench read one number on Consultants, another on Today and
+// Ask Etyme. Today and Ask Etyme read `benchAt` (app/api/today/reads):
+// a live yes or employment here, and not on a project of this firm's
+// today. Consultants counted its own way: every record with a listing
+// not taken back, so somebody asked and not answered, somebody who said
+// no and somebody on a project all sat in its figures, and its
+// "Retained · on bench" counted a tier, not a bench. So Consultants now
+// reads `benchAt` for its count, and each row says where it stands
+// against that one list.
+
+/** Where one consultant record stands against the firm's one bench list. */
+export type BenchStanding = 'ON_BENCH' | 'ON_A_PROJECT' | 'ASKED' | 'SAID_NO' | 'EMPLOYED'
+
+/**
+ * Where a record stands, read from `benchAt`'s answer and the firm's
+ * own listing. Pure.
+ *
+ * `onBench` is whether `benchAt` named the person, or null where this
+ * seat does not read the bench; a null never guesses "on a project".
+ * Somebody `benchAt` names is on the bench whatever their listing says,
+ * because employment is a consent of its own. Otherwise an unanswered
+ * ask and a no say so; a live yes `benchAt` did not name is on a project
+ * here (a listing's yes always dates a spell, so only a running line
+ * takes them off it); and an employee with no listing is employed here.
+ */
+export function benchStanding(o: { onBench: boolean | null; listingState: string | null }): BenchStanding | null {
+  if (o.onBench === true) return 'ON_BENCH'
+  if (o.listingState === 'INVITED') return 'ASKED'
+  if (o.listingState === 'DECLINED') return 'SAID_NO'
+  if (o.onBench === null) return null
+  return o.listingState === 'GRANTED' ? 'ON_A_PROJECT' : 'EMPLOYED'
+}
+
+/** The words a row reads for its standing. */
+export const STANDING_WORD: Record<BenchStanding, string> = {
+  ON_BENCH: 'On the bench',
+  ON_A_PROJECT: 'On a project',
+  ASKED: 'Asked, not answered',
+  SAID_NO: 'Said no',
+  EMPLOYED: 'Employed here',
+}
+
+/**
+ * Whether a seat reads the bench count on Consultants: where the Today
+ * page shows it (`todayReads(...).bench` in lib/today-page, passed in),
+ * and never at a client, which has no bench of its own (Ask Etyme says
+ * the same). Pure.
+ */
+export function consultantsReadBench(todayBench: boolean, companyKind: string | null): boolean {
+  return todayBench && companyKind !== 'CLIENT'
+}
+
 /** Every value we accept for a tier, so a new tier fails loudly rather than vanishing. */
 const TIERS = ['RETAINED', 'MARKETING'] as const
 

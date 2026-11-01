@@ -8,7 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
-import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown } from '@/lib/bench-filter'
+import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
@@ -50,6 +50,20 @@ interface Consultant {
   notes?: string | null
   /** The person's own words, under the firm's view above; the profile editor starts from these. */
   own?: { headline: string | null; skills: string[]; location: string | null }
+  /** Where they stand against the one bench list Today and Ask Etyme read; null where this seat does not read the bench. */
+  standing?: BenchStanding | null
+  /** What they said to this firm's listing: INVITED · GRANTED · DECLINED, or null with no listing. */
+  consent?: string | null
+  /** Whose record this is to change: this firm's to keep, or theirs (`recordKeptBy`). */
+  keptBy?: 'FIRM' | 'THEM'
+  /** Whether this firm has a listing for them, where its own words are kept. */
+  listed?: boolean
+}
+
+/** The firm's bench as Today and Ask Etyme count it (`benchAt`), and who was asked and has not answered. */
+interface BenchCount {
+  count: number
+  invited: number
 }
 
 // ── Add Consultant Modal ───────────────────────────────────
@@ -637,9 +651,13 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
           {mayEdit && (
             <ProfileEditor
               consultantId={consultant.id}
+              name={consultant.name}
+              keptBy={consultant.keptBy ?? 'THEM'}
+              listed={consultant.listed ?? false}
               skills={consultant.own?.skills ?? consultant.skills}
               availableFrom={consultant.availableFrom}
               rateFloor={consultant.rateFloor ?? null}
+              firmView={{ headline: consultant.headline, skills: consultant.skills, location: consultant.location, notes: consultant.notes ?? null }}
               mayRate={mayRate}
               onSaved={onSaved}
             />
@@ -954,6 +972,14 @@ export default function ConsultantsPage() {
    */
   const [onPayroll, setOnPayroll] = useState<number | null>(null)
   /**
+   * Who is on the bench, read from the one list Today and Ask Etyme read
+   * (`benchAt`), never counted here (the second Tapin walk: three screens
+   * read three numbers). Null where this seat does not read the bench.
+   */
+  const [bench, setBench] = useState<BenchCount | null>(null)
+  /** Every consultant record, from the route's own count rather than the rows on this page. */
+  const [total, setTotal] = useState<number | null>(null)
+  /**
    * Whether the list has answered. The counters read "Total 0" while the
    * read was out and above a refusal, a nought nobody had counted (sign-up
    * walk round four, 21). They wait for an answer and go on a refusal.
@@ -1007,6 +1033,7 @@ export default function ConsultantsPage() {
         name: c.person?.name ?? c.name ?? 'Unknown',
         email: c.person?.email ?? c.email ?? '',
         tier: c.listings?.[0]?.tier ?? c.tier ?? null,
+        consent: c.listings?.[0]?.consent ?? null,
         rateMin: c.listings?.[0]?.rateMin ?? c.rateMin ?? null,
         rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
         // Pay is the pay the firm stated, never the listing's rate range,
@@ -1014,6 +1041,8 @@ export default function ConsultantsPage() {
         payRateCents: payShown(c.listings?.[0]),
       }))
       setConsultants(mapped)
+      setBench(body.data?.bench ?? null)
+      setTotal(typeof body.data?.pagination?.total === 'number' ? body.data.pagination.total : null)
       setCounted(true)
       // The seat's own permissions: the list answer does not carry them, so
       // an owner holding everything read "Restricted" over their own people.
@@ -1041,10 +1070,9 @@ export default function ConsultantsPage() {
   }, [fetchConsultants])
 
   // ── Stats ──────────────────────────────────────────
-  const retainedCount = consultants.filter((c) => c.tier === 'RETAINED').length
-  const availableNow = consultants.filter(
-    (c) => c.availableFrom && new Date(c.availableFrom) <= new Date()
-  ).length
+  // Nothing about the bench is counted on this page: the bench is the
+  // route's `bench`, read from `benchAt`, the list Today and Ask Etyme read.
+  const recordCount = total ?? consultants.length
 
   // ── Column definitions ─────────────────────────────
   const columns: Column<Consultant>[] = [
@@ -1140,10 +1168,31 @@ export default function ConsultantsPage() {
         row.availableFrom ? new Date(row.availableFrom).getTime() : Infinity,
     },
     {
+      key: 'standing',
+      label: 'Bench',
+      render: (row) => (
+        row.standing ? (
+          <span className={`chip ${
+            row.standing === 'ON_BENCH' ? 'chip--verified'
+              : row.standing === 'ASKED' ? 'chip--attention'
+              : row.standing === 'ON_A_PROJECT' ? 'chip--action'
+              : 'chip--passive'
+          }`}>
+            {STANDING_WORD[row.standing]}
+          </span>
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) => (row.standing ? STANDING_WORD[row.standing] : ''),
+    },
+    {
       key: 'tier',
       label: 'Tier',
+      // A tier markets nobody until the person says yes, so it is shown
+      // only on a yes (or where there is no listing to answer).
       render: (row) => (
-        row.tier ? (
+        row.tier && (row.consent == null || row.consent === 'GRANTED') ? (
           <span className={`chip ${
             row.tier === 'RETAINED' ? 'chip--verified' : 'chip--attention'
           }`}>
@@ -1226,21 +1275,24 @@ export default function ConsultantsPage() {
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Total</p>
-          <p className="stat-value text-etyme-ink">{consultants.length}</p>
+          <p className="stat-value text-etyme-ink">{recordCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">consultant records</p>
         </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Retained</p>
-          <p className="stat-value text-etyme-verified">{retainedCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">on bench</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Available now</p>
-          <p className={`stat-value ${availableNow > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
-            {availableNow}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">ready to deploy</p>
-        </div>
+        {/* The bench as Today and Ask Etyme count it: one list, read by the route. */}
+        {bench && (
+          <div className="panel flex-1 min-w-[140px]">
+            <p className="stat-label">On the bench</p>
+            <p className={`stat-value ${bench.count > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{bench.count}</p>
+            <p className="text-[11px] text-etyme-faint mt-0.5">said yes or employed here, and not on a project today</p>
+          </div>
+        )}
+        {bench && (
+          <div className="panel flex-1 min-w-[140px]">
+            <p className="stat-label">Invited, waiting</p>
+            <p className={`stat-value ${bench.invited > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{bench.invited}</p>
+            <p className="text-[11px] text-etyme-faint mt-0.5">not on your bench until they say yes</p>
+          </div>
+        )}
       </div>
       )}
 
@@ -1263,7 +1315,9 @@ export default function ConsultantsPage() {
       {/* Footer count */}
       {!loading && consultants.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {consultants.length} consultant{consultants.length !== 1 ? 's' : ''}
+          {consultants.length < recordCount
+            ? `${consultants.length} of ${recordCount} consultant records shown`
+            : `${consultants.length} consultant${consultants.length !== 1 ? 's' : ''}`}
         </p>
       )}
 

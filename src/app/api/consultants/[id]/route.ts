@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { benchClosedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
-import { logAccess, recordRefusal } from '@/lib/access-log'
+import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
+import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -229,10 +230,28 @@ export async function GET(
 /**
  * PATCH /api/consultants/:id
  *
- * Update a consultant profile. BUILD.md §3 — Supply.
+ * Change a consultant record, or this firm's own view of the person.
+ * BUILD.md §3 — Supply. Requires consultants.write.
  *
- * Only updatable fields are accepted; personId and id are immutable.
- * Requires consultants.write permission.
+ * A consultant is a person, not a record a firm owns (the second Tapin
+ * walk, 2026-10-30: Tapin could rewrite the profile of somebody with an
+ * account of their own, and every firm that lists her read Tapin's words
+ * as hers). So `profileEditPlan` (lib/consultant-portfolio/firm-view)
+ * decides where an edit goes before anything is written:
+ *
+ *  - the person changes their own record;
+ *  - a firm changes the record only while it is the firm's to keep — no
+ *    account of their own, and no other firm lists them — and what it
+ *    typed is kept on its listing too, so its own list shows it;
+ *  - otherwise the firm's title, skills, place and note go on its own
+ *    listing (`firmHeadline`, `firmSkills`, `firmLocation`, `firmNotes`),
+ *    and their name, work authorization, free date, lowest rate and
+ *    visibility are refused in a sentence, with nothing written.
+ *
+ * A refusal is logged before it is sent (`recordRefusal`); a change by a
+ * firm is logged too. Both are filed as PROFILE_VIEW, the read the change
+ * makes, with the reason saying it was a change: the log's actions are a
+ * fixed list in lib/access-log, which is not supply's to extend.
  */
 export async function PATCH(
   request: NextRequest,
@@ -250,12 +269,38 @@ export async function PATCH(
     )
   }
 
+  const companyId = caller.company?.id ?? null
+
   const profile = await prisma.consultantProfile.findUnique({
     where: { id },
     select: {
       id: true,
       personId: true,
-      person: { select: { name: true } },
+      headline: true,
+      skills: true,
+      location: true,
+      person: {
+        select: {
+          name: true,
+          passwordHash: true,
+          _count: {
+            select: {
+              credentials: true,
+              // The seat a person is given on signing in (lib/own-seat).
+              contexts: { where: { type: 'CONSULTANT', companyId: null } },
+            },
+          },
+        },
+      },
+      // This firm's listing, and how many other firms list them: read as
+      // two counts so nothing about another firm's listing leaves here.
+      listings: {
+        where: { companyId: companyId ?? '', revokedAt: null },
+        select: { id: true, firmHeadline: true, firmSkills: true, firmLocation: true, firmNotes: true },
+      },
+      _count: {
+        select: { listings: { where: { revokedAt: null, ...(companyId ? { companyId: { not: companyId } } : {}) } } },
+      },
     },
   })
 
@@ -266,150 +311,194 @@ export async function PATCH(
     )
   }
 
-  // Verify the caller's company has a relationship with this consultant
-  // (either same company context or an active bench listing)
-  const companyId = caller.company?.id
   const isSubject = profile.personId === caller.person.id
+  const listing = profile.listings[0] ?? null
 
-  if (!isSubject && companyId) {
-    const hasRelationship = await prisma.$transaction(async (tx) => {
-      const hasContext = await tx.context.findFirst({
-        where: { personId: profile.personId, companyId, revokedAt: null },
-        select: { id: true },
+  // The firm must know them: a seat here, or a listing not taken back.
+  if (!isSubject) {
+    const hasContext = companyId
+      ? await prisma.context.findFirst({
+          where: { personId: profile.personId, companyId, revokedAt: null },
+          select: { id: true },
+        })
+      : null
+    if (!hasContext && !listing) {
+      await recordRefusal([profile.personId], {
+        ...accessActor(caller),
+        action: 'PROFILE_VIEW',
+        reason: 'Refused a change to their record: the firm neither employs this person nor lists them.',
       })
-      if (hasContext) return true
-
-      const hasListing = await tx.benchListing.findFirst({
-        where: { consultant: { personId: profile.personId }, companyId, revokedAt: null },
-        select: { id: true },
-      })
-      return !!hasListing
-    })
-
-    if (!hasRelationship) {
       return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'You can only update consultants associated with your company' } },
+        { error: { code: 'FORBIDDEN', message: `${profile.person.name} is not one of ${caller.company?.name ?? 'your company'}’s people, so there is nothing here for you to change.` } },
         { status: 403 }
       )
     }
   }
 
-  const body = await request.json()
-  const allowedFields = ['headline', 'skills', 'location', 'workAuth', 'rateFloor', 'availableFrom', 'visibility']
-  const updateData: Record<string, any> = {}
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Send the changes as fields.' } },
+      { status: 422 }
+    )
+  }
 
-  for (const field of allowedFields) {
-    if (field in body) {
-      if (field === 'skills') {
-        if (!Array.isArray(body.skills)) {
-          return NextResponse.json(
-            { error: { code: 'VALIDATION', message: 'skills must be an array of strings', field: 'skills' } },
-            { status: 422 }
-          )
-        }
-        updateData.skills = body.skills.map((s: string) => String(s).trim()).filter(Boolean)
-      } else if (field === 'rateFloor') {
-        // Only the consultant themselves or someone with consultants.cost can set rateFloor
-        const canSetRate = isSubject || hasPermission(caller.permissions, 'consultants.cost')
-        if (!canSetRate) {
-          return NextResponse.json(
-            {
-              error: {
-                code: 'FORBIDDEN',
-                message:
-                  'Only the consultant can set their own lowest rate, or a role that sees what each person costs. ' +
-                  askTheDesk({
-                    doing: 'Setting somebody else’s lowest rate',
-                    needs: 'consultants.cost',
-                    kind: caller.company?.kind ?? null,
-                    companyName: caller.company?.name ?? null,
-                  }),
-                field: 'rateFloor',
-              },
-            },
-            { status: 403 }
-          )
-        }
-        updateData.rateFloor = body.rateFloor != null ? parseInt(String(body.rateFloor), 10) : null
-      } else if (field === 'availableFrom') {
-        updateData.availableFrom = body.availableFrom ? new Date(body.availableFrom) : null
-      } else if (field === 'visibility') {
-        const validVisibility = ['INTERNAL', 'FEED', 'CLIENT_VISIBLE', 'VERIFIED']
-        if (!validVisibility.includes(body.visibility)) {
-          return NextResponse.json(
-            { error: { code: 'VALIDATION', message: `visibility must be one of: ${validVisibility.join(', ')}`, field: 'visibility' } },
-            { status: 422 }
-          )
-        }
-        updateData.visibility = body.visibility
-      } else if (field === 'workAuth') {
-        if (body.workAuth !== null) {
-          const validWorkAuth = ['US_CITIZEN', 'GC', 'H1B', 'OPT', 'GBP_SW', 'EAD', 'TN', 'L1']
-          if (!validWorkAuth.includes(body.workAuth)) {
-            return NextResponse.json(
-              { error: { code: 'VALIDATION', message: `workAuth must be one of: ${validWorkAuth.join(', ')}`, field: 'workAuth' } },
-              { status: 422 }
-            )
-          }
-        }
-        updateData.workAuth = body.workAuth
-      } else {
-        updateData[field] = typeof body[field] === 'string' ? body[field].trim() : body[field]
+  // ── Read the fields, checking each as before ──────────────────────
+  const updateData: Record<string, any> = {}
+  for (const field of ['headline', 'skills', 'location', 'workAuth', 'rateFloor', 'availableFrom', 'visibility'] as const) {
+    if (!(field in body)) continue
+    if (field === 'skills') {
+      if (!Array.isArray(body.skills)) {
+        return NextResponse.json(
+          { error: { code: 'VALIDATION', message: 'skills must be an array of strings', field: 'skills' } },
+          { status: 422 }
+        )
       }
+      updateData.skills = body.skills.map((s: string) => String(s).trim()).filter(Boolean)
+    } else if (field === 'rateFloor') {
+      updateData.rateFloor = body.rateFloor != null ? parseInt(String(body.rateFloor), 10) : null
+    } else if (field === 'availableFrom') {
+      updateData.availableFrom = body.availableFrom ? new Date(body.availableFrom) : null
+    } else if (field === 'visibility') {
+      const validVisibility = ['INTERNAL', 'FEED', 'CLIENT_VISIBLE', 'VERIFIED']
+      if (!validVisibility.includes(body.visibility)) {
+        return NextResponse.json(
+          { error: { code: 'VALIDATION', message: `visibility must be one of: ${validVisibility.join(', ')}`, field: 'visibility' } },
+          { status: 422 }
+        )
+      }
+      updateData.visibility = body.visibility
+    } else if (field === 'workAuth') {
+      if (body.workAuth !== null) {
+        const validWorkAuth = ['US_CITIZEN', 'GC', 'H1B', 'OPT', 'GBP_SW', 'EAD', 'TN', 'L1']
+        if (!validWorkAuth.includes(body.workAuth)) {
+          return NextResponse.json(
+            { error: { code: 'VALIDATION', message: `workAuth must be one of: ${validWorkAuth.join(', ')}`, field: 'workAuth' } },
+            { status: 422 }
+          )
+        }
+      }
+      updateData.workAuth = body.workAuth
+    } else {
+      updateData[field] = typeof body[field] === 'string' ? body[field].trim() : body[field]
     }
   }
 
-  // Also allow updating the person's name
   let personUpdate: { name: string } | null = null
   if ('name' in body && typeof body.name === 'string' && body.name.trim().length >= 2) {
     personUpdate = { name: body.name.trim() }
   }
+  const notesSent = 'notes' in body && (body.notes === null || typeof body.notes === 'string')
 
-  if (Object.keys(updateData).length === 0 && !personUpdate) {
+  const fields = [
+    ...Object.keys(updateData),
+    ...(personUpdate ? ['name'] : []),
+    ...(notesSent ? ['notes'] : []),
+  ]
+
+  // ── Where the edit may go ─────────────────────────────────────────
+  const plan = profileEditPlan({
+    isSubject,
+    ownAccount: hasOwnAccount({
+      passwordSet: Boolean(profile.person.passwordHash),
+      signIns: profile.person._count.credentials,
+      ownSeats: profile.person._count.contexts,
+    }),
+    otherFirms: profile._count.listings,
+    hasListing: listing != null,
+    name: profile.person.name,
+    firm: caller.company?.name ?? 'your company',
+    fields,
+  })
+
+  if (!plan.ok) {
+    await recordRefusal([profile.personId], {
+      ...accessActor(caller),
+      action: 'PROFILE_VIEW',
+      reason: `Refused a change to their record: ${plan.says}`,
+    })
+    return NextResponse.json(
+      { error: { code: plan.code, message: plan.says, field: plan.field } },
+      { status: 403 }
+    )
+  }
+
+  if (!plan.profile && !plan.listing) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'No valid fields to update' } },
       { status: 422 }
     )
   }
 
-  try {
-    const updated = await prisma.$transaction(async (tx) => {
-      const updatedProfile = await tx.consultantProfile.update({
-        where: { id },
-        data: updateData,
-        include: {
-          person: { select: { id: true, name: true, primaryEmail: true } },
+  // The lowest rate is pay: the person's own, or a role that reads pay.
+  if (plan.profile && 'rateFloor' in updateData && !isSubject && !hasPermission(caller.permissions, 'consultants.cost')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            'Only the consultant can set their own lowest rate, or a role that sees what each person costs. ' +
+            askTheDesk({
+              doing: 'Setting somebody else’s lowest rate',
+              needs: 'consultants.cost',
+              kind: caller.company?.kind ?? null,
+              companyName: caller.company?.name ?? null,
+            }),
+          field: 'rateFloor',
         },
-      })
+      },
+      { status: 403 }
+    )
+  }
 
-      if (personUpdate) {
-        await tx.person.update({
-          where: { id: profile.personId },
-          data: personUpdate,
-        })
-        updatedProfile.person.name = personUpdate.name
+  try {
+    const written = await prisma.$transaction(async (tx) => {
+      const own = plan.profile && Object.keys(updateData).length > 0
+        ? await tx.consultantProfile.update({
+            where: { id },
+            data: updateData,
+            select: { headline: true, skills: true, location: true },
+          })
+        : { headline: profile.headline, skills: profile.skills, location: profile.location }
+      if (plan.profile && personUpdate) {
+        await tx.person.update({ where: { id: profile.personId }, data: personUpdate })
       }
-
-      return updatedProfile
+      const view = plan.listing && listing
+        ? await tx.benchListing.update({
+            where: { id: listing.id },
+            data: firmViewPatch(body),
+            select: { firmHeadline: true, firmSkills: true, firmLocation: true, firmNotes: true },
+          })
+        : listing
+      return { own, view }
     })
 
+    if (!isSubject) {
+      logAccess({
+        subjectId: profile.personId,
+        ...accessActor(caller),
+        action: 'PROFILE_VIEW',
+        allowed: true,
+        reason: plan.profile ? 'Changed the consultant record the firm keeps' : 'Changed the firm’s own view on its bench listing',
+      })
+    }
+
+    // What this firm now reads about them: its own view first, theirs beside.
+    const read = readAsTheFirm(written.own, isSubject ? null : written.view)
     return NextResponse.json({
       data: {
         consultant: {
-          id: updated.id,
-          personId: updated.personId,
-          person: {
-            id: updated.person.id,
-            name: updated.person.name,
-            email: updated.person.primaryEmail,
-          },
-          headline: updated.headline,
-          skills: updated.skills,
-          location: updated.location,
-          workAuth: updated.workAuth,
-          availableFrom: updated.availableFrom?.toISOString() ?? null,
-          visibility: updated.visibility,
+          id: profile.id,
+          personId: profile.personId,
+          name: personUpdate && plan.profile ? personUpdate.name : profile.person.name,
+          headline: read.headline,
+          skills: read.skills,
+          location: read.location,
+          notes: read.notes,
+          own: read.own,
         },
+        kept: plan.profile && plan.listing ? 'BOTH' : plan.profile ? 'PROFILE' : 'LISTING',
+        message: plan.says,
       },
     })
   } catch (err: any) {

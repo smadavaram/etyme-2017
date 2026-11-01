@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
-import { addedSays, benchClosedSays, notAtACompany } from '@/lib/bench-filter'
+import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
 import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
-import { readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
+import { readAsTheFirm, hasOwnAccount, recordKeptBy } from '@/lib/consultant-portfolio/firm-view'
+import { benchAt } from '@/app/api/today/reads'
+import { todayReads } from '@/lib/today-page'
+import { logBulkAccess } from '@/lib/access-log'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -29,6 +32,16 @@ import {
  *
  * Field filtering: pay rates and rate floors are stripped unless the caller
  * holds consultants.cost (BUILD.md §2).
+ *
+ * Who is on the bench is `benchAt` (app/api/today/reads), the one list
+ * the Today page and Ask Etyme read (the second Tapin walk, 2026-10-30:
+ * three screens, three numbers). This page lists consultant records,
+ * which is more people than the bench: somebody asked and not answered,
+ * somebody who said no, somebody on a project. So `bench.count` is
+ * benchAt's, and each row says where it stands against that list
+ * (`benchStanding` in lib/bench-filter); nothing here counts a bench of
+ * its own. Read where the Today page reads it (`todayReads`), never at a
+ * client.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -145,14 +158,24 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         person: {
-          select: { id: true, name: true, primaryEmail: true },
+          select: {
+            id: true, name: true, primaryEmail: true,
+            // Whether they have an account of their own: read, never sent.
+            passwordHash: true,
+            _count: { select: { credentials: true, contexts: { where: { type: 'CONSULTANT', companyId: null } } } },
+          },
         },
+        // How many other firms list them, as a number only: it decides
+        // whose record this is to change, and nothing about those firms
+        // leaves this route.
+        _count: { select: { listings: { where: { revokedAt: null, ...(companyId ? { companyId: { not: companyId } } : {}) } } } },
         listings: companyId
           ? {
               where: { companyId, revokedAt: null },
               select: {
                 id: true,
                 tier: true,
+                state: true,
                 rateMin: true,
                 rateMax: true,
                 grantedAt: true,
@@ -181,15 +204,55 @@ export async function GET(request: NextRequest) {
   }
   const canSeeCost = canReadCostAggregates(fieldCtx)
 
+  // ── The one bench, read where Today reads it ─────────────────────
+  const now = new Date()
+  const readsBench = Boolean(companyId) && consultantsReadBench(
+    todayReads(caller.permissions, caller.company?.kind ?? null).bench,
+    caller.company?.kind ?? null
+  )
+  const [bench, invited] = readsBench
+    ? await Promise.all([
+        benchAt(companyId!, now),
+        prisma.benchListing.count({ where: { companyId: companyId!, revokedAt: null, state: 'INVITED' } }),
+      ])
+    : [null, null]
+  const onBench = bench ? new Set(bench.map((b) => b.personId)) : null
+  if (bench && bench.length > 0) {
+    // The Today page logs the same read in the same words.
+    const others = bench.map((b) => b.personId).filter((pid) => pid !== caller.person.id)
+    if (others.length > 0) {
+      logBulkAccess(others, {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId ?? undefined,
+        action: 'TALENT_VIEW_ANON',
+        reason: 'Read on Consultants: on the bench, as the Today page counts it',
+      })
+    }
+  }
+
   const data = profiles.map((p) => {
     const isSubject = p.personId === caller.person.id
     const showRate = isSubject || canSeeCost
     // This firm's own view first, the person's own words where it said
     // nothing (`readAsTheFirm`); her own are kept beside under `own`.
+    const listing = Array.isArray(p.listings) ? p.listings[0] ?? null : null
     const read = readAsTheFirm(
       { headline: p.headline, skills: p.skills, location: p.location },
-      Array.isArray(p.listings) ? p.listings[0] : null
+      listing
     )
+    // Whose record this is to change from this firm (`recordKeptBy`):
+    // the firm's to keep, or theirs, in which case the firm's words go
+    // on its listing. The reason is never sent.
+    const keptBy = isSubject
+      ? 'THEM'
+      : recordKeptBy({
+          ownAccount: hasOwnAccount({
+            passwordSet: Boolean(p.person.passwordHash),
+            signIns: p.person._count.credentials,
+            ownSeats: p.person._count.contexts,
+          }),
+          otherFirms: p._count.listings,
+        })
 
     return {
       id: p.id,
@@ -204,6 +267,10 @@ export async function GET(request: NextRequest) {
       location: read.location,
       notes: read.notes,
       own: read.own,
+      // Where they stand against the one bench list, and who changes their record.
+      standing: benchStanding({ onBench: onBench ? onBench.has(p.personId) : null, listingState: listing?.state ?? null }),
+      keptBy,
+      listed: listing != null,
       workAuth: p.workAuth,
       rateFloor: showRate ? p.rateFloor : undefined,
       availableFrom: p.availableFrom?.toISOString() ?? null,
@@ -215,6 +282,8 @@ export async function GET(request: NextRequest) {
             rateMin: showRate ? l.rateMin : undefined,
             rateMax: showRate ? l.rateMax : undefined,
             grantedAt: l.grantedAt.toISOString(),
+            // What the person said: a tier markets nobody until they say yes.
+            consent: l.state,
             // The terms stated at listing: the kind is not money, the pay is.
             termsEngagementType: l.termsEngagementType,
             termsPayRateCents: showRate ? l.termsPayRateCents : undefined,
@@ -227,6 +296,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       consultants: data,
+      // The firm's bench, as Today and Ask Etyme count it, and the people
+      // asked who have not answered. Null where this seat does not read it.
+      bench: bench ? { count: bench.length, invited: invited ?? 0 } : null,
       pagination: {
         page,
         limit,
