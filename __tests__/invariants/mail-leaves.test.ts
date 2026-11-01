@@ -40,9 +40,12 @@ describe('one function knows whether an email can leave this deployment', () => 
     expect(configured()).toBe(true)
   })
 
-  it('the bench invitation’s check reads that one function', () => {
+  it('the bench invitation’s check and Ask Etyme’s join asks read that one function', () => {
     expect(read('src/lib/messages.ts')).toContain('return mailLeaves()')
     expect(read('src/app/api/consultants/ask-by-email.ts')).toContain('mailOn: configured()')
+    const route = read('src/app/api/conversations/twin/route.ts')
+    expect(route).toContain('joinAsksFor(caller, mailLeaves())')
+    expect(route).not.toContain('emailSender() !== null')
   })
 })
 

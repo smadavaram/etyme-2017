@@ -1697,9 +1697,12 @@ describe('every first screen names a person and the step in front of them (found
     const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
     const greet = route.slice(route.indexOf('// Every read starts at once'), route.indexOf('return NextResponse.json({ data: { answer, model, party'))
     expect(greet).toContain('const thread = threadFor(caller, take)')
-    expect(greet).toContain('const picture = pictureFor(request)')
-    expect(greet).not.toContain('picture: await pictureFor(request)')
-    expect(greet).toMatch(/await Promise\.all\(\[\s+seatOf\(caller\)\.then\(\(seat\) => unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\)\),\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), partyFor\(caller\),/)
+    // The picture starts once the party is known, which a client knows at once, and is never awaited on its own.
+    expect(greet).toContain('const picture = who.then((w) => pictureFor(caller, w.party))')
+    expect(greet).not.toMatch(/picture: await pictureFor/)
+    expect(greet).toMatch(/await Promise\.all\(\[\s+unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\),\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), who,/)
+    // And the rules' own reads start beside them (2026-11-01), not after them.
+    expect(greet.indexOf('startedReaders(readersFor(')).toBeLessThan(greet.indexOf('await Promise.all(['))
     // The paying clerk's receipts are each checked at the same time, not in turn.
     const read = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
     expect(read).toContain('const verdicts = await Promise.all(flagged.map((f) => invoiceVerdict(f.entityId, rules)))')

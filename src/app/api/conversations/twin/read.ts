@@ -876,7 +876,7 @@ export function readersFor(
           personId: l.person.id, person: l.person.name,
           site: l.endClientCompany?.name ?? l.clientCompany?.name ?? null,
           endsOn, daysLeft: Math.round((l.endDate!.getTime() - today.getTime()) / 86_400_000),
-          href: `/dashboard/contracts/${l.id}`,
+          href: `/dashboard/placements/${l.id}`,
         }
         const had = byPerson.get(l.person.id)
         if (!had || had.endsOn < endsOn) byPerson.set(l.person.id, row)
@@ -1112,7 +1112,7 @@ export function readersFor(
       const d = body?.data ?? {}
       const held: PaperHeld[] = (d.startsHeld ?? []).map((x: any) => ({
         personId: String(x.personId), name: String(x.name), startsOn: typeof x.startDate === 'string' ? x.startDate.slice(0, 10) : null,
-        missing: [...(x.blocking ?? []), ...(x.chasing ?? [])].map(String), href: `/dashboard/contracts/${x.contractId}`,
+        missing: [...(x.blocking ?? []), ...(x.chasing ?? [])].map(String), href: `/dashboard/placements/${x.contractId}`,
       }))
       const runs: PaperRun[] = []
       for (const p of d.verifications?.persons ?? []) {

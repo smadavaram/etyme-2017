@@ -14,6 +14,7 @@
  *   client        no supplier yet     recommend your first supplier, then post a job
  *                 no job yet          post your first job
  *   supplier      no client yet       nothing from a client yet; record one you work with
+ *   sub-vendor or no firm linked yet   ask your prime vendor to link (2026-11-01)
  *   bench firm    nobody on its bench add the people on its bench, each asked to say yes
  *   integrator    nobody of its own   add your people, then a delivery manager flags who rolls off
  *   MSP           no seat             ask a client for a seat
@@ -62,6 +63,12 @@ export interface FirstActFacts {
   bench?: boolean
   /** A bench firm: people on its bench, asked or agreed. */
   benchPeople?: number
+  /**
+   * A firm that sells through other suppliers: whether any firm is linked
+   * with it, or a link is asked either way and not yet answered. Nothing
+   * reaches it until a prime vendor links it.
+   */
+  linked?: boolean
   /** An integrator: people it brought in, by import, on its bench, or on a line it sells. */
   people?: number
   /** An MSP: live seats a client granted it. */
@@ -107,11 +114,22 @@ export function firstActFor(f: FirstActFacts): RichLine | null {
             }
           : null
       }
-      // A bench firm's business is its bench, so its first act is its people, not a client.
+      // A firm that sells through other suppliers (posture BENCH: a
+      // sub-vendor or a bench vendor, one position on the record, 2026-11-01).
+      // Nothing reaches it until a prime vendor links it, so where no firm is
+      // linked and no link is asked either way, that is its first act, in the
+      // Sub-vendor door's own words ("Ask your prime to link"). Once a firm is
+      // linked, its business is its bench, in the Bench vendor door's words.
       if (f.bench) {
+        if (f.linked === false) {
+          return {
+            says: 'Ask your prime to link with you. Its jobs and the weeks it approves land here once it does.',
+            links: [{ text: 'Ask your prime to link with you', href: FIRST_ACT_HREF.companies }],
+          }
+        }
         return f.benchPeople === 0
           ? {
-              says: 'Add the people on your bench and ask each to say yes. A client’s job lands here when one invites you.',
+              says: 'Add the people on your bench and ask each to say yes. Jobs from the firms you sell to land here.',
               links: [{ text: 'Add the people on your bench', href: FIRST_ACT_HREF.bench }],
             }
           : null

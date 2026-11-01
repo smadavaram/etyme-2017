@@ -13,6 +13,7 @@ import { today, voiceBreaks, type Readers } from '@/app/api/conversations/twin/a
 import { firstActFor, welcomeFor, setupLineFor, FIRST_ACT_HREF, NEW_ARRIVAL_DAYS } from '@/app/api/conversations/twin/first-act'
 import { workerToday, newWorkerAct, type WorkerFacts } from '@/app/api/conversations/twin/worker'
 import { recordedBody, isAccountMail, bellShows, LINK_KEPT, LINK_NOT_KEPT, ACCOUNT_MAIL } from '@/lib/notify/account-mail'
+import { SUPPLIERS } from '@/lib/public-site/parties'
 
 const NOW = new Date('2026-10-27T15:00:00Z')
 
@@ -65,7 +66,7 @@ describe('every new party’s first greeting names its one next act', () => {
 
   it('a bench vendor’s first act is its bench', () => {
     const act = firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, clients: 0 })
-    expect(act?.says).toBe('Add the people on your bench and ask each to say yes. A client’s job lands here when one invites you.')
+    expect(act?.says).toBe('Add the people on your bench and ask each to say yes. Jobs from the firms you sell to land here.')
     expect(act?.links).toEqual([{ text: 'Add the people on your bench', href: '/dashboard/consultants' }])
     expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 3 })).toBeNull()
   })
@@ -271,5 +272,56 @@ describe('the setup checklist’s one line in the greeting', () => {
     expect(greeted.recommend).toBeUndefined()
     expect(greeted.queue ?? []).toHaveLength(0)
     expect(greeted.items).toHaveLength(0)
+  })
+})
+
+// ── A firm that sells through other suppliers (2026-11-01) ──────────────
+//
+// A sub-vendor and a bench vendor are one position on the record (posture
+// BENCH, "sells through other suppliers"). Its first act is chosen by
+// state: nothing reaches it until a prime vendor links it.
+
+describe('a sub-vendor’s or bench vendor’s first greeting asks its prime to link until a firm is linked, then asks for its bench', () => {
+  const tabOf = (key: string) => SUPPLIERS.tabs!.find((t) => t.key === key)!
+
+  it('with no firm linked and no link asked either way, the one next act is to ask its prime to link, with the Companies link', () => {
+    const act = firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, linked: false })
+    expect(act?.says).toBe('Ask your prime to link with you. Its jobs and the weeks it approves land here once it does.')
+    expect(act?.links).toEqual([{ text: 'Ask your prime to link with you', href: '/dashboard/companies' }])
+    // Even with people already on its bench: nothing reaches them until a prime links the firm.
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 4, linked: false })?.says).toBe(act?.says)
+  })
+
+  it('with a firm linked and nobody on its bench, the next act is to add the people on its bench, each asked to say yes', () => {
+    const act = firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, linked: true })
+    expect(act?.says).toBe('Add the people on your bench and ask each to say yes. Jobs from the firms you sell to land here.')
+    expect(act?.links).toEqual([{ text: 'Add the people on your bench', href: '/dashboard/consultants' }])
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 2, linked: true })).toBeNull()
+  })
+
+  it('where whether a firm is linked was not read, the greeting does not guess that none is, and asks for the bench as before', () => {
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0 })?.links?.[0].text).toBe('Add the people on your bench')
+  })
+
+  it('the words match the band each door’s tab shows: “Ask your prime to link” on Sub-vendor, “Jobs from the firms you sell to land here” on Bench vendor', () => {
+    expect(tabOf('sub').bandSays?.heading).toContain('Ask your prime to link')
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, linked: false })?.says).toContain('Ask your prime to link')
+    expect(tabOf('bench').bandSays?.line).toContain('Jobs from the firms you sell to land here.')
+    expect(firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, linked: true })?.says).toContain('Jobs from the firms you sell to land here.')
+  })
+
+  it('both acts are said in the voice, and each link’s words are in its sentence', () => {
+    for (const linked of [false, true]) {
+      const a = firstActFor({ party: 'FIRM', companyKind: 'VENDOR', bench: true, benchPeople: 0, linked })!
+      expect(voiceBreaks(a.says)).toEqual([])
+      for (const l of a.links ?? []) expect(a.says).toContain(l.text)
+    }
+  })
+
+  it('linked is read off the firm’s own register either way and an open link asked either way, nobody’s person data', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/first-act-read.ts'), 'utf8')
+    expect(src).toContain('prisma.counterparty.count({ where: { OR: [{ companyId }, { otherCompanyId: companyId }] } })')
+    expect(src).toContain('prisma.tradeLinkRequest.count({ where: { OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }], answeredAt: null } })')
+    expect(src).toContain('f.linked = register + asks > 0')
   })
 })

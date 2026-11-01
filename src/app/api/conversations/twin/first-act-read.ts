@@ -36,7 +36,14 @@ export async function firstActFacts(companyId: string, companyKind: string | nul
       const posture = await prisma.company.findUnique({ where: { id: companyId }, select: { supplierPosture: true } })
       if (posture?.supplierPosture === 'BENCH') {
         f.bench = true
-        f.benchPeople = await prisma.benchListing.count({ where: { companyId } })
+        // Linked: a firm on its register either way, or a link asked either way and not yet answered.
+        const [benchPeople, register, asks] = await Promise.all([
+          prisma.benchListing.count({ where: { companyId } }),
+          prisma.counterparty.count({ where: { OR: [{ companyId }, { otherCompanyId: companyId }] } }),
+          prisma.tradeLinkRequest.count({ where: { OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }], answeredAt: null } }),
+        ])
+        f.benchPeople = benchPeople
+        f.linked = register + asks > 0
         return f
       }
       const [register, invited, lines] = await Promise.all([

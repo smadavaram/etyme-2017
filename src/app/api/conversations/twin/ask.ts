@@ -459,7 +459,7 @@ export const SOLO_QUESTIONS: readonly string[] = [
  * 2026-10-22: a hiring manager was offered the time limit and spend, and
  * both refused her).
  */
-const CHIPS: ReadonlyArray<{ q: string; parties: readonly Party[]; may: (p: readonly string[], kind: string | null | undefined) => boolean }> = [
+export const CHIPS: ReadonlyArray<{ q: string; parties: readonly Party[]; may: (p: readonly string[], kind: string | null | undefined) => boolean }> = [
   { q: 'What needs me today?', parties: ['CLIENT', 'MSP', 'FIRM'], may: () => true },
   { q: 'Who applied for my jobs?', parties: ['CLIENT', 'MSP', 'FIRM'], may: (p) => hasAnyPermission(p, ['requirements.write', 'requirements.read', 'submissions.create']) },
   { q: 'Which timesheets are waiting?', parties: ['CLIENT', 'MSP'], may: (p) => hasAnyPermission(p, ['timesheets.read', 'timesheets.approve']) },
@@ -479,15 +479,42 @@ const CHIPS: ReadonlyArray<{ q: string; parties: readonly Party[]; may: (p: read
 export const CHIPS_SHOWN = 4
 
 /**
+ * A firm's own order (the second Tapin walk, 2026-10-30: Tapin's owner was
+ * offered "What needs me today?" and "Who applied for my jobs?" first,
+ * the client's questions in the client's order). The list above is in a
+ * client's order, and a seat that may ask everything read its first four.
+ * So a firm's own four lead, the ones a supplier asks on a Tuesday, and
+ * the shared questions follow only where a seat may not ask one of its
+ * own: an account manager who reads no bills is offered who applied in
+ * its place, never ahead of it.
+ */
+export const FIRM_ORDER: readonly string[] = [
+  ...FIRM_QUESTIONS,
+  'Which weeks do I need to accept?',
+  'Which invoice receipts can I pay?',
+  'Who applied for my jobs?',
+  'What needs me today?',
+]
+
+/**
  * The chips for a seat; a worker's are her own five (./worker), drawn by
  * the screen. With the seat's permissions, only questions its desk gets an
- * answer to, in the order above, four at most; without them, the party's
- * own four, as before.
+ * answer to, four at most: a client's and a seated program's in the order
+ * above, a firm's in its own order (`FIRM_ORDER`); without them, the
+ * party's own four, as before.
  */
 export function questionsFor(party: Party, permissions?: readonly string[] | null, companyKind?: string | null): readonly string[] {
   if (party === 'SOLO') return SOLO_QUESTIONS
   if (!permissions) return party === 'FIRM' ? FIRM_QUESTIONS : SUGGESTED_QUESTIONS
-  return CHIPS.filter((c) => c.parties.includes(party) && c.may(permissions, companyKind)).slice(0, CHIPS_SHOWN).map((c) => c.q)
+  const asked = CHIPS.filter((c) => c.parties.includes(party) && c.may(permissions, companyKind)).map((c) => c.q)
+  const ordered = party === 'FIRM' ? [...asked].sort((a, b) => rankIn(FIRM_ORDER, a) - rankIn(FIRM_ORDER, b)) : asked
+  return ordered.slice(0, CHIPS_SHOWN)
+}
+
+/** Where a question sits in an order; one the order does not name goes last, never first. */
+function rankIn(order: readonly string[], q: string): number {
+  const i = order.indexOf(q)
+  return i < 0 ? order.length : i
 }
 
 /** "Northbend Athletic’s", "Cavanaugh Glassworks’". */
@@ -1905,6 +1932,48 @@ export interface Picture {
   currency?: string | null
 }
 
+/**
+ * Whose greeting says the program's picture: a client's, and a firm's
+ * seated in a client's program. "Seven contractors are on site today,
+ * through four suppliers" is a buyer's sentence; a supplier's greeting
+ * says what it bills instead, and a one-person firm's her own week. The
+ * program page was read for every seat and thrown away for those two
+ * (2026-11-01, the greeting over two seconds under load): a supplier's
+ * greeting paid for a client's dashboard it never said.
+ */
+export function readsPicture(party: Party): boolean {
+  return party === 'CLIENT' || party === 'MSP'
+}
+
+/**
+ * People on site today and the suppliers they come through, from the
+ * program page's own answer (`programView` in app/api/program/view, the
+ * same `data` GET /api/program sends), never counted a second way. Null
+ * where the answer carries no count.
+ *
+ * What current rates come to a month is the page's own figure, said only
+ * where it priced every seat on site and in one currency: a total of some
+ * seats read as the total of all is the plausible wrong number. The page
+ * says in its own line where some seat has no rate ("… people have no rate
+ * and are not in it"); then the figure is partial and is not said.
+ */
+export function pictureOf(data: unknown): Picture | null {
+  const d = (data ?? null) as { summary?: Record<string, unknown> | null; contractors?: unknown } | null
+  const summary = d?.summary
+  if (!summary || typeof summary.activeContractors !== 'number') return null
+  const contractors: Array<{ state?: string; vendor?: { id?: string } | null; currency?: string | null }> = Array.isArray(d.contractors) ? d.contractors : []
+  const live = contractors.filter((c) => c.state === 'IN_PROGRESS')
+  const suppliers = new Set(live.filter((c) => c.vendor?.id).map((c) => c.vendor!.id))
+  const currencies = [...new Set(live.map((c) => (c.currency ?? 'USD').toUpperCase()))]
+  const unpriced = [summary.monthlySpendSays, summary.monthlySpendBasis].some((x) => typeof x === 'string' && /\bno rate\b/.test(x))
+  const spend = summary.monthlySpend
+  const priced = typeof spend === 'number' && Number.isInteger(spend) && !unpriced && currencies.length <= 1
+  return {
+    onSite: summary.activeContractors, suppliers: suppliers.size,
+    monthlyMinor: priced ? spend : null, currency: priced ? currencies[0] ?? 'USD' : null,
+  }
+}
+
 /** What a firm bills today: the people on its live lines, and what their current rates come to a month. */
 export interface Billing {
   people: number
@@ -2290,15 +2359,19 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // names the reader's own work only (walk three, 2026-10-26: compliance
   // and HR were told to "ask the AP clerk to approve IN-FMDSDT"); who else
   // is asked stays a fact line below.
-  const recommend =
+  let recommend: RichLine | undefined =
     itemsAskSays(items) ??
     (told.told.length ? toldAskSays(told.told[0]) : null) ??
     (held.length ? heldAskSays(held) : null) ??
     sendAskSays(sendable) ??
     (near.length ? { says: planSays(near[0]), links: [{ text: near[0].name, href: near[0].href }] } : null) ??
-    // A new party's one next act, where nothing else is (./first-act).
-    (opts.greeting && opts.firstAct ? opts.firstAct : null) ??
     undefined
+
+  // A new party's one next act, where nothing else is (./first-act). Read
+  // only then: a seat with a decision waiting never pays for the read.
+  if (!recommend && opts.greeting && opts.firstAct) {
+    recommend = (typeof opts.firstAct === 'function' ? await opts.firstAct().catch(() => null) : opts.firstAct) ?? undefined
+  }
 
   // Then the facts, each read at the moment of the question. A one-person
   // firm's own week first: money and the week before anything else.
@@ -2413,9 +2486,9 @@ export interface TodayOptions {
   /**
    * A new party's first act (`firstActFor` in ./first-act): recommended in
    * the greeting only where nothing else is, so a decision waiting always
-   * comes first.
+   * comes first. Given as a read, it is read only then.
    */
-  firstAct?: RichLine | null
+  firstAct?: RichLine | null | (() => Promise<RichLine | null>)
   /**
    * The setup checklist's one line, "Finish setting up: … Complete setup"
    * (`setupLineFor` in ./first-act), for an Owner or Admin whose company
