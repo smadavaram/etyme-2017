@@ -19,7 +19,7 @@ import { listHead } from './list-head'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
-import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
+import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING, firmOption } from './words'
 import { jobListWord } from '../requirements/words'
 import { onePerJob } from '@/lib/internal-moves'
 
@@ -851,7 +851,7 @@ function SendOnModal({
                 <option value="">Pick a company…</option>
                 {companies.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} · {c.kind.toLowerCase()}
+                    {firmOption(c)}
                   </option>
                 ))}
               </select>

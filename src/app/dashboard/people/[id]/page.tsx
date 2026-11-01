@@ -6,6 +6,7 @@ import { DetailHead } from '@/components/ui/detail-head'
 import { usePageSection } from '@/components/page-section'
 import { Star } from '@/components/network-view'
 import Link from 'next/link'
+import { submissionStatusWord } from '@/app/dashboard/submissions/words'
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -261,7 +262,7 @@ export default function PersonPage() {
                   <td className="py-1.5 pr-3 tabular-nums text-etyme-muted">{money(s.rateCents)}</td>
                   <td className="py-1.5 pr-3 tabular-nums text-etyme-faint">{when(s.at)}</td>
                   <td className="py-1.5 text-right text-etyme-faint">
-                    {s.status.toLowerCase().replace(/_/g, ' ')}
+                    {submissionStatusWord(s.status)}
                     {s.cleared === false && ' · held back'}
                     {s.interviews.length > 0 && ` · ${s.interviews.length} interview${s.interviews.length === 1 ? '' : 's'}`}
                   </td>

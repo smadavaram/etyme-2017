@@ -4,6 +4,8 @@ import { join } from 'path'
 import { reasonAsked, answersFor, unanswered, ANSWERED_IN } from '@/lib/award/reason-asked'
 import { opensOn } from '@/app/dashboard/submissions/award-dialog'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
+import { firmWord, firmOption, submissionStatusWord } from '@/app/dashboard/submissions/words'
+import { kindWord } from '@/lib/parties'
 
 /**
  * The second Tapin walk, 2026-10-30: what demand's screens still did
@@ -13,6 +15,7 @@ import { ASK_ETYME_HREF } from '@/lib/nav-table'
  *   2. The start card's Open landed on a page that does not exist.
  *   3. A job sent to a supplier was told apart by six characters of its key.
  *   4. The award's cover sentence must always name the firm.
+ *   5. The Send on picker printed a firm's kind as the column says it.
  */
 
 const ROOT = process.cwd()
@@ -267,5 +270,71 @@ describe('the award’s cover sentence names the firm, never “The supplier”'
     expect(regions).toContain('{ supplierPhrase: c.company.name, clientName: client.name, now }')
     // The one call with no name is the count, which keeps the outcome and drops the sentence.
     expect(regions).toMatch(/startPaperwork\(\{ \.\.\.c, person: \{ name: '' \} \}, \{ supplierPhrase: '', clientName: client\.name, now \}\)\s*if \(papers\.outcome === 'BLOCK'\) \{ heldStarts = 1; break \}/)
+  })
+})
+
+// ── 5. A firm in a picker is called what the trade calls it ────────────
+
+describe('a firm beside its name in a picker is called what the trade calls it, never its column in lower case', () => {
+  it('a supplier, a client, an MSP, an integrator and a one-person firm are each said in the trade’s word', () => {
+    expect(firmOption({ name: 'Brightmoor Staffing', kind: 'VENDOR' })).toBe('Brightmoor Staffing · supplier')
+    expect(firmOption({ name: 'Northbend Athletic', kind: 'CLIENT' })).toBe('Northbend Athletic · client')
+    expect(firmOption({ name: 'Aptiva Workforce', kind: 'MSP' })).toBe('Aptiva Workforce · MSP')
+    expect(firmOption({ name: 'Teleworld Solutions', kind: 'GSI' })).toBe('Teleworld Solutions · integrator')
+    expect(firmOption({ name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' })).toBe('Byrne Critical Care LLC · one-person firm')
+  })
+
+  it('the words are lib/parties’ own, so the picker and the sidebar never call one firm two things', () => {
+    for (const k of ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const) {
+      expect(firmWord(k).toLowerCase()).toBe(kindWord(k).toLowerCase())
+    }
+    // The one word said differently: "Own company" is a firm reading about itself.
+    expect(kindWord('CONSULTANT_CORP')).toBe('Own company')
+    expect(firmWord('CONSULTANT_CORP')).toBe('one-person firm')
+  })
+
+  it('no machine word reaches the picker: vendor, gsi, msp in lower case and consultant_corp are never said', () => {
+    for (const k of ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']) {
+      expect(firmWord(k)).not.toMatch(/^(vendor|gsi|msp|consultant_corp|consultant corp)$/)
+      expect(firmWord(k)).not.toContain('_')
+    }
+    // A kind nobody knows says nothing, never its code.
+    expect(firmOption({ name: 'Somebody', kind: 'SOMETHING_NEW' })).toBe('Somebody')
+    expect(firmOption({ name: 'Somebody', kind: null })).toBe('Somebody')
+  })
+
+  it('the Send on picker says each firm through the one reader', () => {
+    const page = code('src/app/dashboard/submissions/page.tsx')
+    expect(page).toContain('{firmOption(c)}')
+    expect(page).not.toMatch(/\.kind\.toLowerCase\(\)/)
+  })
+
+  it('no screen of the buying side prints a company’s kind or a submission’s status as its column in lower case', () => {
+    const files: string[] = []
+    const roots = [
+      'src/app/dashboard/requisitions', 'src/app/dashboard/requirements', 'src/app/dashboard/submissions',
+      'src/app/dashboard/invitations', 'src/app/dashboard/leads', 'src/app/dashboard/decisions',
+      'src/app/dashboard/program', 'src/app/dashboard/suppliers', 'src/app/dashboard/timesheets',
+      'src/app/dashboard/people', 'src/app/dashboard/identity', 'src/app/welcome', 'src/app/apply',
+    ]
+    function walk(dir: string) {
+      for (const n of readdirSync(join(ROOT, dir))) {
+        const p = `${dir}/${n}`
+        if (statSync(join(ROOT, p)).isDirectory()) walk(p)
+        else if (n.endsWith('.tsx')) files.push(p)
+      }
+    }
+    roots.forEach(walk)
+    const hits = files.flatMap((f) =>
+      code(f).split('\n')
+        .filter((l) => /\b(kind|companyKind|supplierPosture)\??\.toLowerCase\(\)/.test(l) || /\bs\.status\.toLowerCase\(\)\.replace/.test(l))
+        .map((l) => `${f}: ${l.trim()}`)
+    )
+    expect(hits).toEqual([])
+  })
+
+  it('a person’s page says each submission’s status in the Submissions page’s words: “Not chosen”, never “not selected”', () => {
+    expect(submissionStatusWord('NOT_SELECTED')).toBe('Not chosen')
+    expect(code('src/app/dashboard/people/[id]/page.tsx')).toContain('{submissionStatusWord(s.status)}')
   })
 })
