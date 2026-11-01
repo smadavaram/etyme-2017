@@ -128,23 +128,28 @@ export interface JobSentFacts {
 // places and quarters, and one title for different news is a list nobody
 // can read. So a title names what differs from the client's other jobs
 // of that title, in the order a recruiter says it: the place, then the
-// start, and the job number only where nothing else does.
+// start, then the day it was posted.
+//
+// Never the job's machine id. The last resort used to be "(job MSA5YG)",
+// six characters of the row's key printed in a sentence a recruiter
+// reads; the second Tapin walk (2026-10-30) found it in Tapin's notice
+// and nobody can say it out loud or find it anywhere on a screen. Where
+// the place, the start and the day posted are all the same, the jobs
+// are alike in every way a person tells jobs apart, and the title says
+// so: "one of two like it". The notice opens the one it is about.
 
 /** One job of a title, as `jobApart` compares it. */
 export interface SameTitleJob {
   id: string
   location: string | null | undefined
   startDate: Date | null | undefined
+  /** The day it was posted, where the caller read it. */
+  postedAt?: Date | null
 }
 
 /** "Nov 3": the day a job starts, said the way a recruiter says it. */
 export function startSays(d: Date): string {
   return formatDay(d, { year: false })
-}
-
-/** The job's number as a person reads it off the job's page: the last six of its id. */
-export function jobNumber(id: string): string {
-  return id.slice(-6).toUpperCase()
 }
 
 const sameDay = (a: Date | null | undefined, b: Date | null | undefined) =>
@@ -155,25 +160,51 @@ const samePlace = (a: string | null | undefined, b: string | null | undefined) =
 /**
  * What tells `job` apart from `others` (the client's other jobs of the
  * same title): nothing where there are none; the place where that
- * settles it; the start as well where two share a place; the job number
- * only where neither does. Each part is added only if it removes at
- * least one job from the set still sharing the words so far.
+ * settles it; the start as well where two share a place; the day posted
+ * where two share both; and, where nothing a person reads differs,
+ * how many are alike. Each part is added only if it removes at least
+ * one job from the set still sharing the words so far.
  */
 export function jobApart(job: SameTitleJob, others: readonly SameTitleJob[]): string {
   let left = others.filter((o) => o.id !== job.id)
   if (left.length === 0) return ''
+  const parts: string[] = []
   let place = ''
-  let start = ''
   if (job.location && left.some((o) => !samePlace(o.location, job.location))) {
     place = ` in ${job.location}`
     left = left.filter((o) => samePlace(o.location, job.location))
   }
   if (left.length > 0 && job.startDate && left.some((o) => !sameDay(o.startDate, job.startDate))) {
-    start = `${place ? ',' : ''} starting ${startSays(job.startDate)}`
+    parts.push(`starting ${startSays(job.startDate)}`)
     left = left.filter((o) => sameDay(o.startDate, job.startDate))
   }
-  const number = left.length > 0 ? ` (job ${jobNumber(job.id)})` : ''
-  return `${place}${start}${number}`
+  if (left.length > 0 && job.postedAt && left.some((o) => !sameDay(o.postedAt, job.postedAt))) {
+    parts.push(`posted ${startSays(job.postedAt)}`)
+    left = left.filter((o) => sameDay(o.postedAt, job.postedAt))
+  }
+  if (left.length > 0) parts.push(`one of ${countInWords(left.length + 1)} like it`)
+  if (parts.length === 0) return place
+  // A comma after the place and between the parts: "in Tualatin, starting
+  // Nov 3". With no place, "starting" and "posted" read straight on from
+  // the title ("the Java developer job starting Nov 3"); "one of two like
+  // it" takes its comma.
+  const lead = place ? `${place},` : parts[0].startsWith('one of') ? ',' : ''
+  return `${lead} ${parts.join(', ')}`
+}
+
+/**
+ * The words in `apart` past the place, for the body's line, which says
+ * the place itself: "Java developer starting Nov 3: 1 position in
+ * Tualatin." A copy that does not start with the place is said whole.
+ */
+function apartPastPlace(f: Pick<JobSentFacts, 'apart' | 'location'>): string {
+  const apart = f.apart ?? ''
+  const place = f.location ? ` in ${f.location}` : ''
+  if (!place || !apart.startsWith(place)) return apart
+  const rest = apart.slice(place.length)
+  if (!rest.startsWith(', ')) return rest
+  const after = rest.slice(2)
+  return after.startsWith('one of') ? `, ${after}` : ` ${after}`
 }
 
 /**
@@ -192,8 +223,7 @@ export function jobSentNotice(f: JobSentFacts): { title: string; body: string } 
 /** "Java developer: 1 position in Tualatin. Answers close Nov 3, 2026." */
 function jobLine(f: Pick<JobSentFacts, 'title' | 'headcount' | 'location' | 'closesAt' | 'apart'>): string {
   const where = f.location ? ` in ${f.location}` : ''
-  const which = (f.apart ?? '').match(/\(job [A-Z0-9]+\)$/)?.[0]
-  return `${f.title}${which ? ` ${which}` : ''}: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}.`
+  return `${f.title}${apartPastPlace(f)}: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}.`
 }
 
 function tail(f: Pick<JobSentFacts, 'clientName'>): string {

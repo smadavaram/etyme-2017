@@ -165,12 +165,15 @@ describe('every door to a placement is the award, and never lies', () => {
 
   it('the Submissions row offers Place only where the route said the reader may award', () => {
     expect(SUBMISSIONS).toContain('{row.award?.open && (')
-    expect(SUBMISSIONS).toContain('fetch(`/api/submissions/${placeSubmission.id}/award`')
+    // The press is the award, through the one dialog (`AwardDialog`).
+    expect(SUBMISSIONS).toContain('submissionId={placeSubmission.id}')
+    expect(read('src/app/dashboard/submissions/award-dialog.tsx')).toContain('fetch(`/api/submissions/${submissionId}/award`')
   })
 
   it('the requisition page offers Place only where the route said the reader may award', () => {
     expect(REQUISITION).toContain('c.award?.open && s.remaining > 0')
-    expect(REQUISITION).toContain('fetch(`/api/submissions/${c.id}/award`')
+    // The same dialog as the Submissions row, so both screens press the one route.
+    expect(REQUISITION).toContain('submissionId={placing.id}')
   })
 
   it('the Submissions list no longer offers to turn a placed row into a second contract', () => {

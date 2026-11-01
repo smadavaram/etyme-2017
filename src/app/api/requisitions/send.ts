@@ -36,6 +36,8 @@ export interface JobToSend {
   location: string | null
   site?: { name: string } | null
   startDate: Date | null
+  /** The day it was posted: tells two jobs of one title, place and start apart. */
+  createdAt?: Date | null
 }
 
 export type SendResult = { companyId: string; name: string; status: string; reason?: string }
@@ -136,13 +138,14 @@ export async function sendJobTo(input: {
   // so the supplier answers on the job rather than starting an email.
   if (sent.length > 0) {
     // The client's other live jobs of this title, so the notice says which
-    // one this is: the place, the start, or the job number (`jobApart`).
+    // one this is: the place, the start, or the day it was posted, and
+    // never the job's machine id (`jobApart`).
     const sameTitle = await prisma.requirement.findMany({
       where: {
         companyId: requisition.companyId, title: requisition.title, id: { not: id },
         status: { in: ['OPEN', 'DRAFT'] }, archivedAt: null, mirroredFromId: null,
       },
-      select: { id: true, location: true, startDate: true, site: { select: { name: true } } },
+      select: { id: true, location: true, startDate: true, createdAt: true, site: { select: { name: true } } },
     })
     const facts: JobSentFacts = {
       clientName: requisition.company.name,
@@ -151,8 +154,8 @@ export async function sendJobTo(input: {
       location: placeOf(requisition),
       closesAt: expiresAt,
       apart: jobApart(
-        { id, location: placeOf(requisition), startDate: requisition.startDate },
-        sameTitle.map((o) => ({ id: o.id, location: placeOf(o), startDate: o.startDate }))
+        { id, location: placeOf(requisition), startDate: requisition.startDate, postedAt: requisition.createdAt ?? null },
+        sameTitle.map((o) => ({ id: o.id, location: placeOf(o), startDate: o.startDate, postedAt: o.createdAt }))
       ),
     }
     const opener: Participant = {
@@ -290,7 +293,7 @@ export async function sendTickedOnClearing(input: {
   const job = await prisma.requirement.findUnique({
     where: { id: input.requirementId },
     select: {
-      id: true, title: true, companyId: true, headcount: true, location: true, startDate: true, status: true,
+      id: true, title: true, companyId: true, headcount: true, location: true, startDate: true, createdAt: true, status: true,
       sendToSupplierIds: true, clearedSupplierIds: true, locationId: true,
       sendToSetBy: { select: { name: true } },
       company: { select: { id: true, name: true } },

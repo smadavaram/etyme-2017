@@ -43,6 +43,8 @@ describe('a rate typed on a job', () => {
       'src/app/dashboard/requisitions/page.tsx',
       'src/app/dashboard/requisitions/[id]/page.tsx',
       'src/app/dashboard/requisitions/chain.tsx',
+      // The award's rate, typed in the one dialog both award screens open.
+      'src/app/dashboard/submissions/award-dialog.tsx',
     ]
     for (const f of files) {
       const src = read(f)
@@ -130,8 +132,11 @@ describe('a refused award, on the screen', () => {
     const two = "Tapin's certificate of good standing has lapsed"
     expect(refusalSays(`2 reasons this cannot proceed — ${one}`, [one, two])).toBe(`2 reasons this cannot proceed — ${one} — ${two}`)
     // Every screen that places somebody prints it through the same function.
-    expect(read('src/app/dashboard/submissions/page.tsx')).toContain('refusalSays(body.error.message')
-    expect(read('src/app/dashboard/requisitions/[id]/page.tsx')).toContain('refusalSays(')
+    // Both places a buyer places somebody draw the one dialog, which says the refusal once
+    // (the second Tapin walk, 2026-10-30).
+    expect(read('src/app/dashboard/submissions/award-dialog.tsx')).toContain('refusalSays(err.message')
+    expect(read('src/app/dashboard/submissions/page.tsx')).toContain('<AwardDialog')
+    expect(read('src/app/dashboard/requisitions/[id]/page.tsx')).toContain('<AwardDialog')
     // And the award names the firm whose cover it read.
     expect(read('src/app/api/submissions/[id]/award/route.ts')).toContain('vendorName: vendorCompany?.name')
   })

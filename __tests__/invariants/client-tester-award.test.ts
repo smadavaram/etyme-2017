@@ -139,9 +139,12 @@ describe('The award says what happened in words, each thing once', () => {
   })
 
   it('the screens print the award’s sentence and do not append the notes a second time', () => {
+    // Both award screens open one dialog, which hands back the award's own paragraph.
+    const dialog = src('src/app/dashboard/submissions/award-dialog.tsx')
+    expect(dialog).toContain("onDone(body.data.message ?? `${candidate} is placed.`, body.data.contractId ?? null)")
+    expect(dialog).not.toContain('...notes')
     const subs = src('src/app/dashboard/submissions/page.tsx')
-    expect(subs).toContain('setSaid(body.data?.message ?? null)')
-    expect(subs).not.toContain('[body.data?.message, ...notes]')
+    expect(subs).toMatch(/onDone=\{\(says\) => \{\s*setSaid\(says\)/)
     const req = src('src/app/dashboard/requisitions/[id]/page.tsx')
     expect(req).not.toContain('vendor(s) stood down')
   })

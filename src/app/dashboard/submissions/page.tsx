@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { AwardDialog } from './award-dialog'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
 
@@ -18,7 +19,7 @@ import { listHead } from './list-head'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
-import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING, refusalSays } from './words'
+import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
 import { jobListWord } from '../requirements/words'
 import { onePerJob } from '@/lib/internal-moves'
 
@@ -717,7 +718,9 @@ function SubmitToRequirementModal({
 }
 
 // ── Place (the award) ────────────────────────────────
-
+//
+// One dialog, `./award-dialog`, shared with the job request's own page,
+// so the two places a buyer places somebody ask and hear the same.
 
 // ── Send on ────────────────────────────────────────────────
 
@@ -926,128 +929,6 @@ function SendOnModal({
   )
 }
 
-/**
- * Placing somebody, from their row.
- *
- * This is the award — `POST /api/submissions/:id/award` — and nothing
- * else. It used to be a two-step: flip the row to PLACED, then "→
- * Contract" as a separate act, and the flip wrote nothing behind it. The
- * award writes the contract, the order and the billing dates in one
- * transaction and closes the seat, so there is one button and one road.
- * What the supplier pays its person is the supplier's business and is not
- * asked here.
- */
-function AwardModal({
-  submission,
-  placing,
-  onClose,
-  onPlace,
-}: {
-  submission: Submission
-  placing: boolean
-  onClose: () => void
-  onPlace: (rateDollars: number, startDate: string, underWay: { reason: string } | null) => void
-}) {
-  // Dollars, because that is what the field says and what onPlace
-  // multiplies back up. Seeded from cents, one click made a $130/hr
-  // submission into a $13,000/hr contract.
-  const [rate, setRate] = useState((submission.rate ?? 0) / 100)
-  const [startDate, setStartDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  )
-  // A start before today is refused unless the work is already under way,
-  // and why is kept with the placement (audit, 2026-10-05).
-  const before = !!startDate && startDate < new Date().toISOString().slice(0, 10)
-  const [underWay, setUnderWay] = useState(false)
-  const [why, setWhy] = useState('')
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mx-4">
-        <h3 className="headline-serif text-[18px] text-etyme-ink mb-1">
-          Place {submission.person.name}
-        </h3>
-        <p className="text-[12px] text-etyme-muted mb-4">
-          {submission.award?.says ?? 'This writes the contract, the order and the billing dates in one step.'}
-        </p>
-
-        <div className="mb-4 px-3 py-2 bg-etyme-canvas rounded-lg">
-          <p className="text-[12px] text-etyme-muted">
-            <span className="font-medium text-etyme-ink">{submission.requirement.title}</span>
-            {' · via '}
-            {submission.kind === 'INTERNAL' ? 'their own employer' : submission.fromCompany.name}
-            {' · asked '}
-            {showRate(submission.rate)}
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="eyebrow mb-1 block">Bill rate ($/hr) *</label>
-            <input
-              type="number"
-              step="0.01"
-              value={rate}
-              onChange={(e) => setRate(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
-            />
-          </div>
-
-          <div>
-            <label className="eyebrow mb-1 block">Start date *</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
-            />
-          </div>
-          {before && (
-            <div className="rounded-md bg-etyme-canvas px-3 py-2">
-              <label className="flex items-center gap-2 text-[12px] text-etyme-ink">
-                <input type="checkbox" checked={underWay} onChange={(e) => setUnderWay(e.target.checked)} />
-                The work is already under way
-              </label>
-              {underWay && (
-                <input
-                  value={why}
-                  onChange={(e) => setWhy(e.target.value)}
-                  placeholder="Why it started before the award"
-                  className="mt-2 w-full px-3 py-2 border border-etyme-rule rounded-md text-sm"
-                />
-              )}
-              {!underWay && (
-                <p className="mt-1 text-[12px] text-etyme-muted">
-                  That date is before today. Pick today or later, or tick this and say why.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={onClose}
-            disabled={placing}
-            className="btn-secondary flex-1 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onPlace(rate, startDate, before && underWay ? { reason: why.trim() } : null)}
-            disabled={placing || !(rate > 0) || !startDate || (before && (!underWay || why.trim().length === 0))}
-            className="btn-primary flex-1 disabled:opacity-50"
-          >
-            {placing ? 'Placing…' : 'Place'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
@@ -1088,7 +969,6 @@ export default function SubmissionsPage() {
   // side, the client's question and the box to answer it in.
   const [talk, setTalk] = useState<Submission | null>(null)
   const [said, setSaid] = useState<string | null>(null)
-  const [placing, setPlacing] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
   // Whose pipeline the server answered about. Null until the first read.
@@ -1764,45 +1644,18 @@ export default function SubmissionsPage() {
       )}
 
       {placeSubmission && (
-        <AwardModal
-          submission={placeSubmission}
-          placing={placing}
-          onClose={() => setPlaceSubmission(null)}
-          onPlace={async (rateDollars, startDate, underWay) => {
-            setPlacing(true)
-            try {
-              // The one road to a placement: the award.
-              const res = await fetch(`/api/submissions/${placeSubmission.id}/award`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  rate: Math.round(rateDollars * 100), // dollars → cents
-                  startDate,
-                  ...(underWay ? { workUnderWay: true, underWayReason: underWay.reason } : {}),
-                }),
-              })
-              // Read here rather than with readJson: a blocked award lists
-              // the checks that failed, and those are the sentence.
-              // Anything without a message of its own goes through
-              // readJson for its words.
-              const copy = res.clone()
-              const body = await res.json().catch(() => ({}) as any)
-              if (!res.ok || !body?.data) {
-                // Each reason once: one already in the message is not said again.
-                if (body.error?.message) throw new Error(refusalSays(body.error.message, (body.error?.checks ?? []).map((x: any) => x.reason)))
-                await readJson(copy)
-              }
-              // One paragraph, each thing once: the notes are already
-              // inside the award's own sentence (`awardSaid`).
-              setSaid(body.data?.message ?? null)
-              setPlaceSubmission(null)
-              fetchSubmissions()
-            } catch (err: any) {
-              setToast({ message: err.message, type: 'error' })
-              setTimeout(() => setToast(null), 6000)
-            } finally {
-              setPlacing(false)
-            }
+        <AwardDialog
+          submissionId={placeSubmission.id}
+          candidate={placeSubmission.person.name}
+          role={placeSubmission.requirement.title}
+          via={placeSubmission.kind === 'INTERNAL' ? 'their own employer' : placeSubmission.fromCompany.name}
+          askedCents={placeSubmission.rate ?? null}
+          says={placeSubmission.award?.says ?? null}
+          onCancel={() => setPlaceSubmission(null)}
+          onDone={(says) => {
+            setSaid(says)
+            setPlaceSubmission(null)
+            fetchSubmissions()
           }}
         />
       )}

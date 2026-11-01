@@ -731,7 +731,11 @@ export async function GET(request: NextRequest) {
         entityType: 'SELL_CONTRACT',
         entityId: c.id,
         dueDate: c.startDate?.toISOString() ?? null,
-        actionUrl: `/dashboard/contracts/${c.id}`,
+        // The placement's own page: the person, the papers that hold the
+        // start and the terms, top to bottom. There is no page at
+        // /dashboard/contracts/<id>; the card's Open landed on "page not
+        // found" (the second Tapin walk, 2026-10-30).
+        actionUrl: `/dashboard/placements/${c.id}`,
         // No amount. A draft contract has committed nothing, and adding
         // its rate to the "needs you" total would read as money waiting.
         amount: null,

@@ -18,8 +18,9 @@ import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
-import { refusalSays } from '../../submissions/words'
-import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo, centsTyped, typedFromCents } from '../facts'
+import { AwardDialog } from '../../submissions/award-dialog'
+import { FormMessage } from '@/components/ui/form'
+import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen, nobodyToSendTo, centsTyped } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
 import { Lbl, Chip, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 import { DetailHead } from '@/components/ui/detail-head'
@@ -482,6 +483,10 @@ export default function RequisitionDetail() {
   // Whether the register was read at all: a refused read is not "none".
   const [suppliersRead, setSuppliersRead] = useState(false)
   const [deciding, setDeciding] = useState<'approve' | 'reject' | 'changes' | null>(null)
+  /** The candidate being placed, while the dialog is open. */
+  const [placing, setPlacing] = useState<Candidate | null>(null)
+  /** The award's own paragraph, once somebody is placed. */
+  const [placedSaid, setPlacedSaid] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -515,33 +520,15 @@ export default function RequisitionDetail() {
   }, [])
 
 
-  async function award(c: Candidate) {
-    const rate = window.prompt(
-      `Place ${c.person.name}. Rate in dollars per hour:`,
-      typedFromCents(c.rate)
-    )
-    if (rate === null) return
-    const cents = centsTyped(rate)
-    if (cents == null || cents <= 0) { alert('That is not a rate'); return }
-
-    const res = await fetch(`/api/submissions/${c.id}/award`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rate: cents }),
-    })
-    // A safe parse rather than readJson: this branch needs the
-    // error object itself (lists the failed checks), and readJson throws an
-    // Error, which would lose it. An empty body must still
-    // not produce a parser error on screen.
-    const j = await res.json().catch(() => ({}) as any)
-    if (!res.ok) {
-      // Each reason once: one already in the message is not said again.
-      alert(refusalSays(j.error?.message ?? 'Could not place them', (j.error?.checks ?? []).map((x: any) => x.reason)))
-      return
-    }
-    // One paragraph, each thing once: who was placed, what the award
-    // stood down and called off, and any note (`awardSaid`).
-    alert(j.data.message)
-    await load()
+  // Placing somebody is the award, through the one dialog the Submissions
+  // row opens too (`AwardDialog`): the rate, the start, and the route's
+  // own questions and refusals kept on the screen. The rate was asked in a
+  // browser prompt and the answer shown in a browser alert, so a question
+  // the route asked ("Give a reason to go ahead.") had nowhere to be
+  // answered (the second Tapin walk, 2026-10-30).
+  function award(c: Candidate) {
+    setPlacedSaid(null)
+    setPlacing(c)
   }
 
   if (loading) return <LoadingState says="Opening the job request…" />
@@ -815,6 +802,11 @@ export default function RequisitionDetail() {
 
       {/* 4 — Candidates */}
       <ListSection title="Candidates" count={data.candidates.length}>
+        {placedSaid && (
+          <div className="px-4 pt-4">
+            <FormMessage tone="ok">{placedSaid}</FormMessage>
+          </div>
+        )}
         {data.candidates.length === 0 ? (
           <EmptyState
             compact
@@ -908,6 +900,24 @@ export default function RequisitionDetail() {
         })}
         canOpen={hasPermission(permissions, 'requirements.write') || hasPermission(permissions, 'requirements.distribute')}
       />
+
+      {placing && (
+        <AwardDialog
+          submissionId={placing.id}
+          candidate={placing.person.name}
+          role={r.title}
+          via={placing.kind === 'INTERNAL' ? 'their own employer' : placing.vendor.name}
+          askedCents={placing.rate}
+          says={placing.award?.says ?? null}
+          neededBy={r.neededBy ?? r.startDate ?? null}
+          onCancel={() => setPlacing(null)}
+          onDone={(said) => {
+            setPlacing(null)
+            setPlacedSaid(said)
+            load()
+          }}
+        />
+      )}
 
       {deciding && (
         <DecideModal

@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { approvalsToGo, countInWords, upperFirst, positionsSays, jobSentNotice, jobSentThreadLine, toldPerFirm, jobApart, jobsSentNotice, jobNumber } from '@/app/api/requisitions/words'
+import { approvalsToGo, countInWords, upperFirst, positionsSays, jobSentNotice, jobSentThreadLine, toldPerFirm, jobApart, jobsSentNotice } from '@/app/api/requisitions/words'
 
 const APPROVE_ROUTE = readFileSync(
   join(process.cwd(), 'src/app/api/requisitions/[id]/approve/route.ts'), 'utf8'
@@ -135,14 +135,33 @@ describe('jobs of one title are told apart, and a batch is one notice (handoffs 
     expect(jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, [others[0]])).toBe(' starting Nov 3')
   })
 
-  it('only where the place and the start are both the same does the title carry the job number', () => {
-    const job = { id: 'czabc123def456', location: 'Tualatin', startDate: day('2026-11-03') }
-    const apart = jobApart(job, [{ id: 'czother9xyz789', location: 'Tualatin', startDate: day('2026-11-03') }])
-    expect(apart).toBe(` (job ${jobNumber(job.id)})`)
-    expect(jobNumber(job.id)).toBe('DEF456')
+  it('where the place and the start are both the same, the day each was posted tells them apart, never the job’s machine id', () => {
+    const job = { id: 'czabc123def456', location: 'Tualatin', startDate: day('2026-11-03'), postedAt: day('2026-10-28') }
+    const apart = jobApart(job, [{ id: 'czother9xyz789', location: 'Tualatin', startDate: day('2026-11-03'), postedAt: day('2026-10-21') }])
+    expect(apart).toBe(' posted Oct 28')
     const said = jobSentNotice({ ...base, apart })
-    expect(said.title).toBe('Northbend Athletic sent you the Java developer job (job DEF456)')
-    expect(said.body.startsWith('Java developer (job DEF456): 1 position in Tualatin.')).toBe(true)
+    expect(said.title).toBe('Northbend Athletic sent you the Java developer job posted Oct 28')
+    expect(said.body.startsWith('Java developer posted Oct 28: 1 position in Tualatin.')).toBe(true)
+    expect(`${said.title} ${said.body}`).not.toMatch(/\(job |DEF456/i)
+  })
+
+  it('two jobs alike in place, start and the day posted are said to be alike, “one of two like it”, never told apart by a code', () => {
+    const job = { id: 'czabc123def456', location: 'Tualatin', startDate: day('2026-11-03'), postedAt: day('2026-10-28') }
+    const twin = { id: 'czother9xyz789', location: 'Tualatin', startDate: day('2026-11-03'), postedAt: day('2026-10-28') }
+    expect(jobApart(job, [twin])).toBe(', one of two like it')
+    const said = jobSentNotice({ ...base, apart: jobApart(job, [twin]) })
+    expect(said.title).toBe('Northbend Athletic sent you the Java developer job, one of two like it')
+    expect(said.body.startsWith('Java developer, one of two like it: 1 position in Tualatin.')).toBe(true)
+    // A third in another place: the place first, then the likeness.
+    const dallas = { id: 'czthird000111', location: 'Dallas, TX', startDate: day('2026-11-03'), postedAt: day('2026-10-28') }
+    expect(jobApart(job, [twin, dallas])).toBe(' in Tualatin, one of two like it')
+    expect(jobSentNotice({ ...base, apart: jobApart(job, [twin, dallas]) }).body.startsWith('Java developer, one of two like it: 1 position in Tualatin.')).toBe(true)
+  })
+
+  it('a job told apart by its start says the start in the body’s line too, so two lines of one batch never read the same', () => {
+    const apart = jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, [{ id: 'b', location: 'Dallas, TX', startDate: day('2026-11-03') }, { id: 'c', location: 'Tualatin', startDate: day('2026-12-01') }])
+    expect(apart).toBe(' in Tualatin, starting Nov 3')
+    expect(jobSentNotice({ ...base, apart }).body.startsWith('Java developer starting Nov 3: 1 position in Tualatin.')).toBe(true)
   })
 
   it('jobs one client sends in the same minute reach a person as one notice that names each: “sent you 3 jobs: …”', () => {
@@ -167,8 +186,10 @@ describe('jobs of one title are told apart, and a batch is one notice (handoffs 
   it('the send route asks for the client’s other jobs of the title and folds a send into an unread notice from the same minute', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/send.ts'), 'utf8')
     // Told apart by where each job is: its site first, the old free text second (lib/job-site).
-    expect(route).toContain('{ id, location: placeOf(requisition), startDate: requisition.startDate }')
-    expect(route).toContain('sameTitle.map((o) => ({ id: o.id, location: placeOf(o), startDate: o.startDate }))')
+    expect(route).toContain('{ id, location: placeOf(requisition), startDate: requisition.startDate, postedAt: requisition.createdAt ?? null }')
+    expect(route).toContain('sameTitle.map((o) => ({ id: o.id, location: placeOf(o), startDate: o.startDate, postedAt: o.createdAt }))')
+    // The raise's own read carries the day posted, so a job that sends itself is told apart the same way.
+    expect(route).toContain('startDate: true, createdAt: true, status: true,')
     expect(route).toContain("createdAt: { gte: new Date(Date.now() - JOB_BATCH_MS) }")
     expect(route).toContain("data: { path: ['kind'], equals: 'JOB_SENT' }")
     expect(route).toContain('requirementIds: jobs.map((j) => j.requirementId)')
