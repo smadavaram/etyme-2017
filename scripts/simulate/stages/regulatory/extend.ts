@@ -27,6 +27,8 @@ import { pdf } from './paper-files'
 import { statusOf } from './hiring-papers'
 import { firstSeat, walkPaper } from './registration'
 import { expectAt, notHeldLines, stageTable, tally } from './stage-tally'
+import { bothWays } from './both-ways'
+import { docMatrix, matrixNotes, matrixTable } from './doc-matrix'
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 
@@ -201,13 +203,26 @@ export default defineStage({
       }
     } else done.push('No placement this run had only a gap in cover before a new end date, so the warning was not tried.')
 
+    // ── Every document both ways (the founder, 2026-11-01) ─────────────
+    //
+    // After the extensions, so nothing a case writes changes which line
+    // was chosen above.
+    const matrixSays = await bothWays(ctx)
+
     // ── The table, one row per stage, in the run's own report ──────────
     const notHeld = notHeldLines(tally)
     const notes = [
       'Onboarding has no screen: a company cannot yet say what it requires. Its set is read as the shipped floor plus what its own orders add.',
       'A non-compete is asked of a W2 only where the site’s state does not void one for workers (California, Minnesota, North Dakota and Oklahoma do; NON_COMPETE_VOID in lib/document-stages).',
     ]
-    const table = stageTable(tally).split('\n')
+    // Two tables: the stages, then every document both ways. A heading
+    // between them ends the first, because blank lines are dropped.
+    const both = [...matrixTable(docMatrix), ...matrixNotes(docMatrix)]
+    const table = [
+      ...stageTable(tally).split('\n'),
+      '#### Every document both ways: kind × action × outcome, with the route’s own sentence on each negative',
+      ...both,
+    ]
     for (const line of table) ctx.log(line)
     return {
       closed: extended,
@@ -216,6 +231,7 @@ export default defineStage({
         `${extended} of ${tried} extensions went through. ${done.join(' ')} ` +
         (notHeld.length ? `Rules expected to hold that did not: ${notHeld.map((l) => l.replace(/^- /, '')).join('; ')}. ` : 'Every refusal the run expected at every stage came, with the words it expected. ') +
         `The table under this station is the documents at every stage: asked is a request sent, answered a file sent or a paper signed, examined a paper accepted, a provider's verdict recorded or a paper read against the new end date. ` +
+        `${matrixSays} The second table is every document both ways: the founder's six first, then the rest; held means the route took it and the record says it holds nothing yet. ` +
         notes.join(' '),
       table,
     }
