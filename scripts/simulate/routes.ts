@@ -9,7 +9,9 @@
  *
  * The owner is read off the file with `domainOf` in `lib/domains`, the
  * same map the ownership test reads, so a fault names the agent who
- * would fix it rather than a guess.
+ * would fix it rather than a guess. A page is a route too: where no
+ * route.ts answers a path, its page.tsx does, so a page the pages pass
+ * opens is owned by whoever owns the page's file.
  */
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -79,8 +81,10 @@ export function routeOf(path: string): RouteRef {
       break
     }
   }
-  const fileAbs = ok ? join(dir, 'route.ts') : null
-  const file = fileAbs && existsSync(fileAbs) ? fileAbs.slice(ROOT.length + 1) : null
+  // A route answers with route.ts; a page a person opens answers with
+  // page.tsx (the pages pass, pages.ts), and its owner is read the same way.
+  const fileAbs = ok ? ['route.ts', 'page.tsx', 'page.ts'].map((f) => join(dir, f)).find((f) => existsSync(f)) ?? null : null
+  const file = fileAbs ? fileAbs.slice(ROOT.length + 1) : null
   const ref: RouteRef = {
     route: '/' + pattern.join('/'),
     file,

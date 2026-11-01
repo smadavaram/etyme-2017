@@ -217,6 +217,21 @@ export interface Res<T = any> {
   sentence: string | null
 }
 
+/** A page opened the way a browser opens it: the whole answer read, redirects followed. */
+export interface PageRes {
+  /** The final status, after any redirect; 0 where the server never answered. */
+  status: number
+  /** From the request to the last byte of the last answer, redirects included. */
+  ms: number
+  ok: boolean
+  /** Characters of the page that came back. */
+  size: number
+  /** Where a redirect landed, where it was not the page asked for (path and query). */
+  landed: string | null
+  /** Why it failed, where it did: the server's own error sentence is not on an HTML page, so only a missing answer says one. */
+  sentence: string | null
+}
+
 /** Calls made inside `expectRefusal` are marked expected, so they are not counted as lessons. */
 export const expecting = new AsyncLocalStorage<{ expected: true }>()
 
@@ -279,9 +294,55 @@ async function call(wire: Wire, seat: string, method: Method, path: string, body
   return { status, json, ms, ok, sentence }
 }
 
+/** At most this many redirects are followed for one page, as a browser would before giving up. */
+const MAX_REDIRECTS = 5
+
+/**
+ * GET a page with the seat's session, as a browser does: asking for HTML,
+ * following a redirect on the same server (with the session) and reading
+ * the whole answer, because a server-rendered page streams and the person
+ * waits for the last byte. One row on the ledger per page, with the final
+ * status and the whole time.
+ */
+async function openPage(wire: Wire, seat: string, path: string, cookie: string | null): Promise<PageRes> {
+  const started = new Date()
+  const t0 = performance.now()
+  let status = 0
+  let size = 0
+  let sentence: string | null = null
+  let at = path
+  try {
+    for (let hop = 0; ; hop++) {
+      const headers: Record<string, string> = { accept: 'text/html,application/xhtml+xml' }
+      if (cookie) headers.cookie = cookie
+      const res = await fetch(wire.base + at, { method: 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(wire.timeoutMs) })
+      status = res.status
+      const text = await res.text()
+      size += text.length
+      const location = res.headers.get('location')
+      if (status < 300 || status >= 400 || !location || hop >= MAX_REDIRECTS) break
+      const next = new URL(location, wire.base + at)
+      // Another server is not this app's page: stop where the app said to go.
+      if (next.origin !== new URL(wire.base).origin) break
+      at = next.pathname + next.search
+    }
+  } catch (e: any) {
+    sentence = `The server did not answer: ${String(e?.message ?? e)}`
+    status = 0
+  }
+  const ms = Math.round(performance.now() - t0)
+  const ok = status >= 200 && status < 300
+  wire.ledger.record({
+    at: started.toISOString(), seat, method: 'GET', path: path.split('?')[0], status, ms,
+    ...(sentence ? { sentence } : {}),
+  })
+  return { status, ms, ok, size, landed: at === path ? null : at, sentence }
+}
+
 export class Actor {
   private cookie: string | null = null
   private opening: Promise<void> | null = null
+  private doorAnswer: Record<string, unknown> | null = null
 
   constructor(readonly spec: SeatSpec, private readonly wire: Wire) {}
 
@@ -305,6 +366,7 @@ export class Actor {
           this.opening = null
           throw new Error(`Could not take the seat ${this.key}: ${res.sentence ?? `status ${res.status}`}`)
         }
+        this.doorAnswer = (res.json?.data ?? null) as Record<string, unknown> | null
         this.cookie = cookie
       })()
     }
@@ -328,6 +390,20 @@ export class Actor {
    * ledger like any call. A station never reads the session itself.
    */
   upload<T = any>(path: string, form: FormData) { return this.request<T>('POST', path, form) }
+
+  /** Open a page as this seat, the way a browser does (`openPage`): the whole answer, redirects followed. */
+  async page(path: string): Promise<PageRes> {
+    await this.open()
+    return openPage(this.wire, this.key, path, this.cookie)
+  }
+
+  /**
+   * What the demo door answered when this seat was taken (`data` of
+   * POST /api/demo): the firm, the role, the client whose program it
+   * holds a seat in, where it lands. Null for a seat opened by the signed
+   * session, which knocks on no door, and before the seat is taken.
+   */
+  get door(): Readonly<Record<string, unknown>> | null { return this.doorAnswer }
 }
 
 /**
