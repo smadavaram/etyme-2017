@@ -7,6 +7,7 @@ import { COUNTRIES, CURRENCIES, currencyFor } from '@/lib/setup-steps'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-frame'
 import { AccountDoors, useKnownDoors } from '../account-doors'
 import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading, signUpGuesses } from '@/lib/password-words'
+import { signUpHeading } from './heading'
 
 /**
  * Signing up with an email and a password.
@@ -159,7 +160,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   return (
     <DoorFrame>
       <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-1">
-        {claimToken ? 'Take your company’s account' : 'Sign up for Etyme'}
+        {signUpHeading({ claim: Boolean(claimToken), openedOn: initialType, openedTab: initialTab, type, tab })}
       </h1>
       <p className="text-sm text-etyme-muted mb-6">
         Already have an account?{' '}

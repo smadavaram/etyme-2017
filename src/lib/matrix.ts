@@ -1259,7 +1259,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/payroll-cycles.test.ts', '__integration__/payroll-choice-reaches-the-dates.test.ts'] },
         // A password door, until the single sign-on keys exist (founder, 2026-10-08).
         { code: 'L3.2.2.14', name: 'Signing up with an email and a password', owner: 'Etyme', status: B,
-          tasks: ['FIXED 2026-10-20 by the architect, the founder kept out of Tapin: both Microsoft and Google ask for the account chooser on every sign-in (prompt=select_account on the providers in lib/auth and on the buttons), so a browser signed in to a personal Gmail still offers the work account; the sign-in page and /start say who is signed in and offer \u201cNot you? Use another account\u201d, which signs out and reopens the sign-in page (src/app/(auth)/another-account.tsx)',
+          tasks: ['FIXED 2026-11-01 by etyme-architect, found by market: the sign-up page names the party a link opened it for (Sign up as a supplier on ?type=prime, sub or bench; as a client, an MSP, an integrator, a solopreneur or a worker on theirs), follows what the person then picks, and says Sign up for Etyme only where no party was named (src/app/(auth)/signup/heading.ts)', 'FIXED 2026-10-20 by the architect, the founder kept out of Tapin: both Microsoft and Google ask for the account chooser on every sign-in (prompt=select_account on the providers in lib/auth and on the buttons), so a browser signed in to a personal Gmail still offers the work account; the sign-in page and /start say who is signed in and offer \u201cNot you? Use another account\u201d, which signs out and reopens the sign-in page (src/app/(auth)/another-account.tsx)',
             
             'A company signs up with a work email, a password and an Etyme address; a candidate with an email and a password',
             'Nothing is created until the email is confirmed by a one-time link that works once for 24 hours; signing up again sends a new one',
@@ -1307,12 +1307,12 @@ export const MATRIX: L1[] = [
             'src/app/(auth)/door-frame.tsx', 'src/app/(auth)/signup/page.tsx', 'src/app/(auth)/login/page.tsx',
             'src/app/(auth)/verify/[token]/page.tsx', 'src/app/(auth)/reset/page.tsx', 'src/app/(auth)/reset/[token]/page.tsx',
             'src/app/(auth)/start/page.tsx', 'prisma/schema.prisma',
-            'src/lib/password-words.ts', 'src/app/(auth)/signup/form.tsx', 'src/app/(auth)/reset/form.tsx',
+            'src/lib/password-words.ts', 'src/app/(auth)/signup/form.tsx', 'src/app/(auth)/signup/heading.ts', 'src/app/(auth)/reset/form.tsx',
             'src/app/(auth)/reset/[token]/form.tsx', 'src/lib/credential-chase.ts', 'src/lib/login-doors.ts',
             'src/app/(auth)/account-doors.tsx', 'src/lib/company-domains.ts', 'src/lib/company-create.ts', 'src/lib/api-context.ts',
             'docs/run-etyme-on-etyme.md',
             'src/app/api/health/route.ts', 'src/middleware.ts'],
-          testedBy: ['__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
+          testedBy: ['__tests__/invariants/sign-up-heading.test.ts', '__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
             '__tests__/invariants/company-domains.test.ts', '__tests__/invariants/setup-steps.test.ts',
             '__tests__/invariants/sign-in-ways.test.ts', '__tests__/invariants/readiness.test.ts', '__tests__/invariants/map.test.ts',
             '__tests__/invariants/onboarding-walk-platform.test.ts',
