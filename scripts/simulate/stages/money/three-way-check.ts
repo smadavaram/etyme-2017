@@ -18,7 +18,7 @@
  * (invoice-receipts); nothing here can wave it through.
  */
 import { defineStage } from '../../stage'
-import { seatWith, placementsOf, dollars, says } from './book'
+import { seatWith, placementsOf, ByCurrency, says } from './book'
 
 const WAIVE_REASON = 'The extra hour and a half was worked on the client’s release and agreed by phone; paying it.'
 
@@ -59,7 +59,7 @@ export default defineStage({
     let keyedClean = 0
     let held = 0
     let waived = 0
-    let waivedCents = 0
+    const waivedIn = new ByCurrency()
     const disputed = keyed.filter((r) => r.status === 'DISPUTED')
     keyedClean = keyed.length - disputed.length
     // Every held receipt but the last is waived with a reason; the last stays held.
@@ -74,7 +74,7 @@ export default defineStage({
       }
       if (ok) {
         waived++
-        waivedCents += r.totalCents
+        waivedIn.add(r.extra?.currency as string | undefined, r.totalCents)
         r.status = 'RECEIVED'
         r.extra!.waived = true
       }
@@ -86,7 +86,7 @@ export default defineStage({
       of: receipts.length,
       says: says([
         `${passed} bills raised here passed the check at their payer${failed ? `, ${failed} did not` : ''}.`,
-        `${keyedClean} keyed invoice receipts passed as recorded; ${disputed.length} were held over the accepted hours, ${waived} of them waived with a reason (${dollars(waivedCents)}), ${held} left held.`,
+        `${keyedClean} keyed invoice receipts passed as recorded; ${disputed.length} were held over the accepted hours, ${waived} of them waived with a reason (${waivedIn.says()}), ${held} left held.`,
         failures.length ? `Failing: ${failures.slice(0, 3).join(' · ')}` : null,
       ]),
     }

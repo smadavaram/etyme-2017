@@ -29,6 +29,8 @@
 import type { Ctx, World } from '../../stage'
 import type { Actor, SeatSpec, Res } from '../../actors'
 import { DEMO_COOKIE, sign } from '@/lib/demo-session'
+import { minorFromWhole, minorPerUnit } from '@/lib/money'
+import { amount } from '@/lib/money-display'
 import { performance } from 'node:perf_hooks'
 
 export const DAY = 86_400_000
@@ -54,13 +56,68 @@ export function addDays(isoDay: string, n: number): string {
   return iso(dayMs(isoDay) + n * DAY)
 }
 
-/** Cents as dollars, for a sentence in the report. Two currencies are never added here: every placement in the seed bills in USD, and a total says which. */
+/**
+ * Hundredths of a dollar as dollars, for a sentence in the report. Only
+ * for a figure known to be in dollars: a total over several placements
+ * goes through `ByCurrency`, because the seed bills in dong, pesos and
+ * rupees as well (Corvane Packaging, 2026-10-27).
+ */
 export function dollars(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-/** A whole-currency Decimal (Invoice.total, Expense.total) as integer cents. */
+/**
+ * A whole-currency Decimal (Invoice.total, Expense.total) as integer
+ * hundredths of the whole unit: the stations' one convention for a figure
+ * they carry and post back (`pay` posts `totalCents / 100`). Hundredths in
+ * every currency, so a dong figure is whole dong × 100 here, never minor
+ * units; `inCurrency` reads it back the same way.
+ */
 export function centsOf(whole: unknown): number {
   return Math.round(Number(whole) * 100)
+}
+
+/** Hundredths of a whole unit (`centsOf`) in one currency, as a person reads it: "$1,234.00", "₫924,000,000". */
+export function inCurrency(hundredths: number, currency: string): string {
+  return amount(minorFromWhole(hundredths / 100, currency), currency)
+}
+
+/**
+ * Integer minor units of a currency (a buy line's rate, an invoice line's
+ * amount) as the stations' hundredths of a whole unit: × 100 for dollars,
+ * × 100 for dong too, because a dong's minor unit is the dong.
+ */
+export function hundredthsOfMinor(minor: number, currency: string): number {
+  return Math.round((minor / minorPerUnit(currency)) * 100)
+}
+
+/**
+ * Sums kept apart by currency, never added across. The calibration run of
+ * 2026-11-01 printed "$535,357,918.40 billed in all (USD)" over bills in
+ * Vietnamese dong, Colombian pesos and rupees: three currencies read as
+ * one, and as dollars. Rupees and dollars are never added.
+ */
+export class ByCurrency {
+  private readonly sums = new Map<string, number>()
+  /** Add hundredths of a whole unit (`centsOf`) in a currency. A missing currency reads as unknown, never as dollars. */
+  add(currency: string | null | undefined, hundredths: number): void {
+    const ccy = (currency || '').toUpperCase() || 'UNKNOWN'
+    this.sums.set(ccy, (this.sums.get(ccy) ?? 0) + hundredths)
+  }
+  get size(): number {
+    return this.sums.size
+  }
+  /** What one currency came to, or zero. */
+  of(currency: string): number {
+    return this.sums.get(currency.toUpperCase()) ?? 0
+  }
+  /** One figure per currency, dollars first: "$1,234.00 (USD); ₫924,000,000 (VND)". "nothing" where none. */
+  says(): string {
+    if (this.sums.size === 0) return 'nothing'
+    return [...this.sums.entries()]
+      .sort(([a], [b]) => (a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)))
+      .map(([ccy, v]) => (ccy === 'UNKNOWN' ? `${(v / 100).toFixed(2)} in a currency nobody named` : `${inCurrency(v, ccy)} (${ccy})`))
+      .join('; ')
+  }
 }
 
 // ── Placements ────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { decimalsFor } from '@/lib/money'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 
 /**
  * What has already been drawn on a purchase order, by both of the ways a
@@ -17,9 +18,12 @@ import { decimalsFor } from '@/lib/money'
  * rupees and dollars are never added; the caller refuses the ceiling
  * check rather than guess at an exchange rate.
  *
- * Counted: platform invoices sent (not a draft, not cancelled or void),
- * and typed-in receipts not cancelled. A disputed receipt counts: it is
- * a claim on the order until somebody cancels it.
+ * Counted: platform invoices sent (`drawsOnOrder` in
+ * lib/money/bill-state: not a draft, not raised and still unsent, not
+ * cancelled or void), and typed-in receipts not cancelled. A disputed
+ * receipt counts: it is a claim on the order until somebody cancels it.
+ * A bill raised on the Bills page and never sent drew $4,000 on
+ * Brightmoor's order in the second Tapin walk; it draws nothing now.
  */
 export async function drawnOnOrder(
   order: { id: string; currency: string },
@@ -32,7 +36,7 @@ export async function drawnOnOrder(
       : prisma.invoice.findMany({
           where: {
             workOrderId: order.id,
-            status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] },
+            status: { notIn: [...DRAWS_NOTHING] },
             ...(except.invoiceId ? { id: { not: except.invoiceId } } : {}),
           },
           select: { number: true, total: true, currency: true },

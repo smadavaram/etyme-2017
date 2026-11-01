@@ -19,7 +19,7 @@
  * expense before the client above it has.
  */
 import { defineStage, type ExpenseFact } from '../../stage'
-import { placementsOf, seatWith, workerSeat, sundayOf, addDays, todayIso, centsOf, dollars, says } from './book'
+import { placementsOf, seatWith, workerSeat, sundayOf, addDays, todayIso, centsOf, ByCurrency, says } from './book'
 
 interface Spend { category: string; description: string; items: { description: string; quantity: number; unitPrice: number; expenseType: string }[] }
 
@@ -58,7 +58,8 @@ export default defineStage({
     let approved = 0
     let accepted = 0
     let fully = 0
-    let cents = 0
+    // One figure per currency, never added across (the 2026-11-01 calibration run).
+    const approvedIn = new ByCurrency()
     let expectedOnce = false
     const noRaiser: string[] = []
     await ctx.parallel(chosen, async (p, i) => {
@@ -83,7 +84,8 @@ export default defineStage({
       if (!made.ok || !e?.id) return
       const fact: ExpenseFact = {
         id: e.id, by: raiser.key, contractId: p.id, personId: p.personId, amountCents: centsOf(e.total), status: 'DRAFT',
-        extra: { periodEnd: addDays(from, 6), category },
+        // An expense is in the currency of the line it is filed on.
+        extra: { periodEnd: addDays(from, 6), category, currency: (p.bottom.billCurrency || 'USD').toUpperCase() },
       }
       ctx.world.expenses.push(fact)
       if (!(await raiser.post('/api/expenses/actions', { action: 'submit', expenseIds: [e.id] })).ok) return
@@ -93,7 +95,7 @@ export default defineStage({
       if (!(await approver.post('/api/expenses/actions', { action: 'approve', expenseIds: [e.id] })).ok) return
       fact.status = 'APPROVED'
       approved++
-      cents += fact.amountCents
+      approvedIn.add(String(fact.extra!.currency), fact.amountCents)
 
       // The firms above, top down: the end client, then each firm in the middle.
       const payers = [p.clientId, ...p.ladder.slice(0, -1).map((r) => r.sellerId)]
@@ -119,7 +121,7 @@ export default defineStage({
       closed: fully,
       of: chosen.length,
       says: says([
-        `${approved} of ${chosen.length} expenses approved by the worker's employer, ${dollars(cents)} in all (USD);`,
+        `${approved} of ${chosen.length} expenses approved by the worker's employer: ${approvedIn.says()};`,
         `${fully} accepted by every firm above, the client first, ${accepted} acceptances in all.`,
         workerDoor,
         noRaiser.length ? `Nobody but the worker could raise it at ${noRaiser.join(', ')}, so nothing was raised there.` : null,

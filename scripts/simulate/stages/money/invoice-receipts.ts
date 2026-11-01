@@ -20,7 +20,8 @@
  * has not accepted is refused outright, with no waiver, naming the week.
  */
 import { defineStage, type ReceiptFact } from '../../stage'
-import { placementsOf, seatWith, keyedByEmail, weekExtra, addDays, todayIso, dollars, says } from './book'
+import { minorPerUnit } from '@/lib/money'
+import { placementsOf, seatWith, keyedByEmail, weekExtra, addDays, todayIso, centsOf, ByCurrency, says } from './book'
 
 export default defineStage({
   name: 'invoice-receipts',
@@ -31,7 +32,8 @@ export default defineStage({
 
     // ── Bills raised here: the payer records the day each arrived ──────
     let landed = 0
-    let landedCents = 0
+    // One figure per currency, never added across (the 2026-11-01 calibration run).
+    const landedIn = new ByCurrency()
     const sent = ctx.world.bills.filter((b) => b.status === 'SUBMITTED' && !(b.extra as any)?.ended)
     await ctx.parallel(sent, async (b) => {
       const at = rungOf(String((b.extra as any)?.sellId))
@@ -41,10 +43,10 @@ export default defineStage({
       const res = await clerk.post(`/api/invoices/${b.id}/received`, { receivedAt: todayIso() })
       if (!res.ok) return
       landed++
-      landedCents += b.totalCents
+      landedIn.add(b.extra?.currency as string | undefined, b.totalCents)
       const fact: ReceiptFact = {
         id: b.id, by: clerk.key, fromSlug: b.fromSlug, toSlug: b.toSlug, totalCents: b.totalCents, status: 'RECEIVED',
-        extra: { kind: 'PLATFORM', placementId: at.p.id, payerId: at.r.buyerId },
+        extra: { kind: 'PLATFORM', placementId: at.p.id, payerId: at.r.buyerId, currency: b.extra?.currency },
       }
       ctx.world.receipts.push(fact)
     })
@@ -59,10 +61,10 @@ export default defineStage({
       const res = await clerk.post(`/api/invoices/${b.id}/received`, { receivedAt: todayIso() })
       if (!res.ok) return
       landed++
-      landedCents += b.totalCents
+      landedIn.add(b.extra?.currency as string | undefined, b.totalCents)
       ctx.world.receipts.push({
         id: b.id, by: clerk.key, fromSlug: b.fromSlug, toSlug: b.toSlug, totalCents: b.totalCents, status: 'RECEIVED',
-        extra: { kind: 'PLATFORM', placementId: p.id, payerId: p.bottom.buyerId, ended: true },
+        extra: { kind: 'PLATFORM', placementId: p.id, payerId: p.bottom.buyerId, ended: true, currency: b.extra?.currency },
       })
     })
 
@@ -70,10 +72,10 @@ export default defineStage({
     const keyed = placements.filter((p) => keyedByEmail(placements, p))
     const buyLines = await ctx.read.buyContract.findMany({
       where: { supplierSellContractId: { in: keyed.map((p) => p.id) } },
-      select: { id: true, companyId: true, supplierSellContractId: true, candidates: { select: { personId: true, payRate: true } } },
+      select: { id: true, companyId: true, supplierSellContractId: true, payCurrency: true, candidates: { select: { personId: true, payRate: true } } },
     })
     let keyedCount = 0
-    let keyedCents = 0
+    const keyedIn = new ByCurrency()
     let disputed = 0
     let overCount = 0
     const refusedBlocked: string[] = []
@@ -82,6 +84,10 @@ export default defineStage({
       const buy = buyLines.find((b) => b.supplierSellContractId === p.id && b.companyId === payerId)
       const rate = buy?.candidates.find((c) => c.personId === p.personId)?.payRate
       if (!buy || !rate) return
+      // The invoice is in the currency the payer's own buy line pays in; its
+      // rate and its lines are minor units of that currency, never dollars.
+      const ccy = (buy.payCurrency || 'USD').toUpperCase()
+      const per = minorPerUnit(ccy)
       const clerk = (await seatWith(ctx, payerId, 'payments.record', [p.personId])) ?? (await seatWith(ctx, payerId, 'invoices.read', [p.personId]))
       if (!clerk) return
       const weeks = ctx.world.weeks
@@ -99,21 +105,24 @@ export default defineStage({
           const hours = weekExtra(w).accepted![payerId] + overHours
           return { timesheetId: w.id, personId: p.personId, hours, rateCents: rate, amountCents: Math.round(hours * rate) }
         })
-        if (withExpenses) for (const e of spent) lines.push({ expenseId: e.id, personId: p.personId, amountCents: e.amountCents })
+        // An expense fact carries hundredths of a whole unit; a line takes minor units.
+        if (withExpenses) for (const e of spent) lines.push({ expenseId: e.id, personId: p.personId, amountCents: Math.round((e.amountCents / 100) * per) })
         const total = lines.reduce((a, l) => a + Number(l.amountCents), 0)
         const res = await clerk.post('/api/ap/bills', {
-          vendorCompanyId: p.bottom.sellerId, number, currency: 'USD', total: total / 100,
+          vendorCompanyId: p.bottom.sellerId, number, currency: ccy, total: total / per,
           buyContractId: buy.id, receivedAt: todayIso(), dueAt: addDays(todayIso(), 30), lines,
         })
         const bill = res.json?.data?.bill
         if (!res.ok || !bill?.id) return
         keyedCount++
-        keyedCents += total
+        // Carried as the stations' hundredths of a whole unit, like every bill.
+        const hundredths = centsOf(total / per)
+        keyedIn.add(ccy, hundredths)
         if (bill.status === 'DISPUTED') disputed++
         ctx.world.receipts.push({
-          id: bill.id, by: clerk.key, fromSlug: p.bottom.sellerSlug, toSlug: p.bottom.buyerSlug, totalCents: total, status: bill.status,
+          id: bill.id, by: clerk.key, fromSlug: p.bottom.sellerSlug, toSlug: p.bottom.buyerSlug, totalCents: hundredths, status: bill.status,
           extra: {
-            kind: 'KEYED', placementId: p.id, payerId, number,
+            kind: 'KEYED', placementId: p.id, payerId, number, currency: ccy,
             failing: (res.json.data.match?.checks ?? []).filter((c: any) => c.outcome === 'FAIL').map((c: any) => c.code),
           },
         })
@@ -133,15 +142,16 @@ export default defineStage({
       const payerId = pb.bottom.buyerId
       const buy = await ctx.read.buyContract.findFirst({
         where: { supplierSellContractId: pb.id, companyId: payerId },
-        select: { id: true, candidates: { select: { personId: true, payRate: true } } },
+        select: { id: true, payCurrency: true, candidates: { select: { personId: true, payRate: true } } },
       })
       const rate = buy?.candidates.find((c) => c.personId === pb.personId)?.payRate ?? pb.bottom.billRate
+      const blockedCcy = (buy?.payCurrency ?? pb.bottom.billCurrency ?? 'USD').toUpperCase()
       const clerk = (await seatWith(ctx, payerId, 'payments.record', [pb.personId])) ?? (await seatWith(ctx, payerId, 'invoices.read', [pb.personId]))
       if (clerk) {
         const res = await ctx.expectRefusal(
           clerk,
           (a) => a.post('/api/ap/bills', {
-            vendorCompanyId: pb.bottom.sellerId, number: `BLOCK-${pb.id.slice(-6)}`, currency: 'USD', total: (blocked.hours * rate) / 100,
+            vendorCompanyId: pb.bottom.sellerId, number: `BLOCK-${pb.id.slice(-6)}`, currency: blockedCcy, total: (blocked.hours * rate) / minorPerUnit(blockedCcy),
             ...(buy ? { buyContractId: buy.id } : {}), receivedAt: todayIso(), dueAt: addDays(todayIso(), 30),
             lines: [{ timesheetId: blocked.id, personId: pb.personId, hours: blocked.hours, rateCents: rate, amountCents: Math.round(blocked.hours * rate) }],
           }),
@@ -155,8 +165,8 @@ export default defineStage({
       closed: landed + keyedCount,
       of: sent.length + endedBills.length + keyed.length,
       says: says([
-        `${landed} bills raised here landed at their payers as invoice receipts, ${dollars(landedCents)} (USD).`,
-        `${keyedCount} invoices that came by email were keyed in line by line, ${dollars(keyedCents)}; ${disputed} of them held as disputed by the check.`,
+        `${landed} bills raised here landed at their payers as invoice receipts: ${landedIn.says()}.`,
+        `${keyedCount} invoices that came by email were keyed in line by line: ${keyedIn.says()}; ${disputed} of them held as disputed by the check.`,
       ]),
     }
   },

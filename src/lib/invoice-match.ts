@@ -13,6 +13,7 @@ import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { payersOwn } from '@/lib/money/expense-acceptance'
 import { acceptancesOn } from '@/lib/money/expense-acceptance-read'
 import { payeeBankGate } from '@/lib/money/payee-bank'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -308,8 +309,18 @@ interface SharedFacts {
   expenseDecisions: Awaited<ReturnType<typeof acceptancesOn>>
 }
 
-export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | null> {
-  return (await matchInvoices([invoiceId])).get(invoiceId) ?? null
+/**
+ * Who the check is read for. The firm sending a bill reads its order's
+ * window as a sentence (`orderWindow: 'SAY'`); everybody else — the firm
+ * paying, the twin asking it to pay, a queue of receipts — reads it as the
+ * check it has always been. See `MatchInput.orderWindow`.
+ */
+export interface MatchFor {
+  orderWindow?: 'CHECK' | 'SAY'
+}
+
+export async function matchInvoice(invoiceId: string, opts: MatchFor = {}): Promise<MatchWithLines | null> {
+  return (await matchInvoices([invoiceId], opts)).get(invoiceId) ?? null
 }
 
 /**
@@ -321,7 +332,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
  * receipt and a dozen statements behind the first (regulatory's profile,
  * 2026-10-20). An invoice that does not exist is absent from the map.
  */
-export async function matchInvoices(invoiceIds: readonly string[]): Promise<Map<string, MatchWithLines>> {
+export async function matchInvoices(invoiceIds: readonly string[], opts: MatchFor = {}): Promise<Map<string, MatchWithLines>> {
   const out = new Map<string, MatchWithLines>()
   const ids = [...new Set(invoiceIds)]
   if (ids.length === 0) return out
@@ -335,7 +346,10 @@ export async function matchInvoices(invoiceIds: readonly string[]): Promise<Map<
   const [onOrders, drawn, rateRows, carried, expenseDecisions] = await Promise.all([
     orderIds.length
       ? prisma.invoice.findMany({
-          where: { workOrderId: { in: orderIds }, status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] } },
+          // Only bills sent draw on an order (`drawsOnOrder` in
+          // lib/money/bill-state): a raised bill nobody was sent is the
+          // seller's working paper, like a draft.
+          where: { workOrderId: { in: orderIds }, status: { notIn: [...DRAWS_NOTHING] } },
           select: { id: true, workOrderId: true, total: true, currency: true },
         })
       : Promise.resolve([]),
@@ -357,12 +371,12 @@ export async function matchInvoices(invoiceIds: readonly string[]): Promise<Map<
     acceptancesOn(allLines.flatMap((l) => (l.expenseId ? [l.expenseId] : []))),
   ])
   const facts: SharedFacts = { onOrders, receiptsDrawn: new Map(drawn), rateRows, carried, expenseDecisions }
-  for (const inv of invoices) out.set(inv.id, matchFrom(inv, facts))
+  for (const inv of invoices) out.set(inv.id, matchFrom(inv, facts, opts))
   return out
 }
 
 /** The check on one loaded invoice. No database: everything it reads was read above. */
-function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
+function matchFrom(invoice: LoadedInvoice, facts: SharedFacts, opts: MatchFor = {}): MatchWithLines {
 
   const inv = invoice
 
@@ -594,6 +608,7 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
         return says ? [[l.id, says]] : []
       })
     ),
+    orderWindow: opts.orderWindow ?? 'CHECK',
   }
 
   const result = threeWayMatch(input)

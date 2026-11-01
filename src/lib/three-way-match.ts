@@ -296,6 +296,26 @@ export interface MatchInput {
    * milestone on another order.
    */
   receiptSays?: Record<string, string>
+  /**
+   * What the order's window means to whoever the check is read for.
+   *
+   *   CHECK  the firm being asked to pay, whose order it is (the default).
+   *          Work outside the window fails PO_STATUS, which that firm may
+   *          waive with a reason, or answer by moving its order's dates.
+   *   SAY    the firm sending the bill. The order is its buyer's, and the
+   *          seller can neither waive the window nor move it. A line's
+   *          dates are its own (ratified 2026-09-19: "a line outside its
+   *          order's window is a sentence on the screen, not a
+   *          correction"), so the window is said in `notes` and stops
+   *          nothing. A closed order, a ceiling with no room, a missing
+   *          order and every other check still refuse.
+   *
+   * Found on the second Tapin walk: Brightmoor's award put Ravi's line,
+   * starting Oct 19, on the order Brightmoor had raised from Oct 30.
+   * Tapin's bill failed "starts before PO opens", only Brightmoor could
+   * waive it, and Brightmoor could not see a bill that was never sent.
+   */
+  orderWindow?: 'CHECK' | 'SAY'
 }
 
 export interface MatchResult {
@@ -308,6 +328,13 @@ export interface MatchResult {
   summary: string
   /** What the PO looks like after this invoice, when there is one. */
   poAfter: { remainingCents: number; utilisationPercent: number } | null
+  /**
+   * Sentences said beside the verdict that stop nothing: where the work
+   * runs outside its order's window, read for the firm sending the bill
+   * (`orderWindow: 'SAY'`). Empty where there is nothing to say; the
+   * engine always sets it, and a result built by hand may leave it out.
+   */
+  notes?: string[]
 }
 
 /**
@@ -375,6 +402,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
       }],
       summary: 'No lines to match',
       poAfter: null,
+      notes: [],
     }
   }
 
@@ -637,6 +665,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 
   // ── The purchase order ──
   let poAfter: MatchResult['poAfter'] = null
+  const notes: string[] = []
 
   if (!po) {
     checks.push(poRequired
@@ -671,21 +700,28 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     const coversStart = firstDay >= po.startDate
     const coversEnd = po.endDate === null || lastDay <= po.endDate
 
-    checks.push(open && coversStart && coversEnd
-      ? {
-          code: 'PO_STATUS',
-          outcome: 'PASS',
-          reason: `PO ${po.number} is open and covers the work from ${plain(firstDay)} to ${plain(lastDay)}`,
-        }
-      : {
-          code: 'PO_STATUS',
-          outcome: 'FAIL',
-          reason: !open
-            ? `PO ${po.number} is ${po.status.toLowerCase()}`
-            : !coversStart
-              ? `Work starts ${plain(firstDay)}, before PO ${po.number} opens on ${plain(po.startDate)}`
-              : `Work runs to ${plain(lastDay)}, past PO ${po.number} ending ${plain(po.endDate!)}`,
-        })
+    if (open && !(coversStart && coversEnd) && input.orderWindow === 'SAY') {
+      // Read for the firm sending the bill: said, never a refusal.
+      const window = orderWindowSays({ number: po.number, startDate: po.startDate, endDate: po.endDate }, { firstDay, lastDay })!
+      notes.push(window)
+      checks.push({ code: 'PO_STATUS', outcome: 'PASS', reason: window })
+    } else {
+      checks.push(open && coversStart && coversEnd
+        ? {
+            code: 'PO_STATUS',
+            outcome: 'PASS',
+            reason: `PO ${po.number} is open and covers the work from ${plain(firstDay)} to ${plain(lastDay)}`,
+          }
+        : {
+            code: 'PO_STATUS',
+            outcome: 'FAIL',
+            reason: !open
+              ? `PO ${po.number} is ${po.status.toLowerCase()}`
+              : !coversStart
+                ? `Work starts ${plain(firstDay)}, before PO ${po.number} opens on ${plain(po.startDate)}`
+                : `Work runs to ${plain(lastDay)}, past PO ${po.number} ending ${plain(po.endDate!)}`,
+          })
+    }
 
     // PO_BALANCE — is there room left?
     const remainingBefore = po.amountCents - po.consumedCents
@@ -747,7 +783,33 @@ export function threeWayMatch(input: MatchInput): MatchResult {
         ? failures[0].reason
         : `${failures.length} checks failed — ${failures[0].reason}`,
     poAfter,
+    notes,
   }
+}
+
+/**
+ * Where the work on a bill runs outside the window of the order it is
+ * on, the sentence the firm sending it reads. Null where the window
+ * covers the work.
+ *
+ * Said, never applied: a line keeps its own dates (ratified 2026-09-19),
+ * and the order is its buyer's. The seller can neither move the order's
+ * dates nor waive them, so a refusal here would leave a bill nobody can
+ * send. The buyer reads the same window as a check on its own order
+ * when it pays, and may move the dates or record why it pays anyway.
+ */
+export function orderWindowSays(
+  po: { number: string; startDate: Date; endDate: Date | null },
+  work: { firstDay: Date; lastDay: Date },
+): string | null {
+  const after = 'The bill is still sent: a line keeps its own dates, and the firm that raised the order can change the order\u2019s.'
+  if (work.firstDay < po.startDate) {
+    return `Work starts ${plain(work.firstDay)}, before order ${po.number} opens on ${plain(po.startDate)}. ${after}`
+  }
+  if (po.endDate !== null && work.lastDay > po.endDate) {
+    return `Work runs to ${plain(work.lastDay)}, past order ${po.number} ending ${plain(po.endDate)}. ${after}`
+  }
+  return null
 }
 
 /**
@@ -1124,6 +1186,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
           ? failures[0].reason
           : `${failures.length} checks failed — ${failures[0].reason}`,
     poAfter,
+    notes: [],
   }
 }
 

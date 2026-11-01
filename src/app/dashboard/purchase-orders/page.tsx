@@ -74,6 +74,8 @@ interface PO {
   currency: string
   amount: number
   invoiced: number
+  /** Bills drafted or raised against it and not sent yet. They draw nothing on it. */
+  notSent?: number
   remaining: number
   consumedPercent: number
   overdrawn: boolean
@@ -468,7 +470,13 @@ const PO_COLUMNS: Column<PO>[] = [
   ), sortValue: (po) => po.reference },
   { key: 'counterparty', label: 'With', render: (po) => <span className="text-etyme-muted">{po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}</span>, sortValue: (po) => po.counterparty.name },
   { key: 'amount', label: 'Ceiling', align: 'right', render: (po) => <span className="tabular-nums">{money(po.amount, po.currency)}</span> },
-  { key: 'invoiced', label: 'Invoiced', align: 'right', render: (po) => <span className="tabular-nums">{money(po.invoiced, po.currency)}</span>, hideOnMobile: true },
+  { key: 'invoiced', label: 'Invoiced', align: 'right', render: (po) => (
+    <span className="tabular-nums">
+      {money(po.invoiced, po.currency)}
+      {/* A bill not sent draws nothing; said apart, never added in. */}
+      {(po.notSent ?? 0) > 0 && <span className="block text-[11px] text-etyme-faint">{money(po.notSent!, po.currency)} not sent</span>}
+    </span>
+  ), hideOnMobile: true },
   { key: 'remaining', label: 'Left', align: 'right', render: (po) => <span className={`tabular-nums ${po.overdrawn ? 'text-etyme-attention' : ''}`}>{money(po.remaining, po.currency)}</span> },
   { key: 'consumedPercent', label: 'Used', align: 'right', render: (po) => <span className="tabular-nums">{po.consumedPercent}%</span> },
   { key: 'lines', label: 'Lines', align: 'right', render: (po) => (
@@ -568,6 +576,11 @@ function Row({ po, onAddLine }: { po: PO; onAddLine: (() => void) | null }) {
         {po.reason}
         {po.endDate && <span className="text-etyme-faint"> · runs to {po.endDate}</span>}
       </p>
+      {(po.notSent ?? 0) > 0 && (
+        <p className="text-[12px] mt-1 text-etyme-muted">
+          {money(po.notSent!, po.currency)} more is on bills not sent yet. It draws on the order once it is sent.
+        </p>
+      )}
 
       <Lines po={po} />
       {onAddLine && (

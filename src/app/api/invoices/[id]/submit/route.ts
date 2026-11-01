@@ -100,6 +100,9 @@ export async function POST(
           dueAt: result.dueAt.toISOString(),
         },
         message: sent.raised ? `Bill ${result.number} raised and sent for client review` : `Bill ${result.number} submitted for client review`,
+        // Said beside the bill, never a reason it was held: work outside
+        // the window of the order it is on (`orderWindowSays`).
+        notes: check.notes,
         // Whom it reached, in the Bills page's own sentence: "Sent to
         // dana@acme.com on Oct 19", or why it was not. Null where the
         // delivery itself failed and staff were told.

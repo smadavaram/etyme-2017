@@ -30,8 +30,9 @@ import { defineStage, type BillFact } from '../../stage'
 import type { Actor } from '../../actors'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { billingStraddle, periodFor, type Period } from '@/lib/periods'
+import { amount } from '@/lib/money-display'
 import {
-  placementsOf, seatWith, keyedByEmail, payerSigned, weekExtra, centsOf, dollars, iso, says,
+  placementsOf, seatWith, keyedByEmail, payerSigned, weekExtra, centsOf, hundredthsOfMinor, ByCurrency, iso, says,
   type Placement, type Rung,
 } from './book'
 
@@ -45,7 +46,8 @@ export default defineStage({
 
     // Karthik Menon's case, measured before anything is billed: each ended
     // placement's signed weeks that no bill carries yet.
-    const owedOnEnded = new Map<string, { name: string; ids: string[]; cents: number }>()
+    // Minor units of the line's own currency, said in it.
+    const owedOnEnded = new Map<string, { name: string; ids: string[]; cents: number; currency: string }>()
     for (const p of endedUnbilled.filter((x) => x.ladder.length === 1)) {
       const sheets = await ctx.read.timesheet.findMany({
         where: {
@@ -60,6 +62,7 @@ export default defineStage({
         name: p.personName,
         ids: sheets.map((t) => t.id),
         cents: Math.round(sheets.reduce((n, t) => n + Number(t.totalHours), 0) * p.bottom.billRate),
+        currency: p.bottom.billCurrency,
       })
     }
 
@@ -194,8 +197,10 @@ export default defineStage({
 
     let made = 0
     let sent = 0
-    let totalCents = 0
-    let endedCents = 0
+    // One figure per currency, never one sum across them (the 2026-11-01
+    // calibration run added dong, pesos and rupees as dollars).
+    const billed = new ByCurrency()
+    const endedBilled = new ByCurrency()
     let endedBills = 0
     const bill = async (d: Due, isEnded: boolean) => {
       const seat: Actor | null = await seatWith(ctx, d.rung.sellerId, 'invoices.issue', [d.placement.personId])
@@ -209,7 +214,10 @@ export default defineStage({
       const fact: BillFact = {
         id: inv.id, by: seat.key, fromSlug: d.rung.sellerSlug, toSlug: d.rung.buyerSlug,
         totalCents: centsOf(inv.total ?? 0), status: 'ISSUED',
-        extra: { placementId: d.placement.id, sellId: d.rung.sellId, period: d.period.label, ended: isEnded },
+        extra: {
+          placementId: d.placement.id, sellId: d.rung.sellId, period: d.period.label, ended: isEnded,
+          currency: String(inv.currency ?? d.rung.billCurrency).toUpperCase(),
+        },
       }
       ctx.world.bills.push(fact)
       const out = await seat.post(`/api/invoices/${inv.id}/submit`)
@@ -219,7 +227,7 @@ export default defineStage({
       }
       if (isEnded) {
         endedBills++
-        endedCents += fact.totalCents
+        endedBilled.add(String(fact.extra!.currency), fact.totalCents)
       }
     }
     // One bill at a time per engagement, oldest period first, as a person
@@ -243,7 +251,7 @@ export default defineStage({
     // The twin's sent drafts are bills too.
     const twinBills = await ctx.read.invoice.findMany({
       where: { id: { in: drafts.map((d) => d.id) }, status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } },
-      select: { id: true, total: true, engagementId: true, status: true },
+      select: { id: true, total: true, currency: true, engagementId: true, status: true },
     })
     for (const b of twinBills) {
       if (ctx.world.bills.some((x) => x.id === b.id)) continue
@@ -253,10 +261,10 @@ export default defineStage({
       if (!rung) continue
       ctx.world.bills.push({
         id: b.id, by: 'twin', fromSlug: rung.r.sellerSlug, toSlug: rung.r.buyerSlug, totalCents: centsOf(b.total), status: b.status,
-        extra: { placementId: rung.p.id, sellId: rung.r.sellId, twin: true, ended: rung.ended },
+        extra: { placementId: rung.p.id, sellId: rung.r.sellId, twin: true, ended: rung.ended, currency: b.currency.toUpperCase() },
       })
     }
-    for (const b of ctx.world.bills) totalCents += b.totalCents
+    for (const b of ctx.world.bills) billed.add(b.extra?.currency as string | undefined, b.totalCents)
 
     // What the ended placements' weeks came to on bills, the twin's and ours.
     const endedSays: string[] = []
@@ -267,7 +275,7 @@ export default defineStage({
       })
       const weeks = new Set(lines.map((l) => l.timesheetId)).size
       const got = lines.reduce((n, l) => n + l.amountCents, 0)
-      endedSays.push(`${owed.name}: ${weeks} of ${owed.ids.length} signed weeks on a sent bill, ${dollars(got)} of ${dollars(owed.cents)} owed.`)
+      endedSays.push(`${owed.name}: ${weeks} of ${owed.ids.length} signed weeks on a sent bill, ${amount(got, owed.currency)} of ${amount(owed.cents, owed.currency)} owed.`)
     }
 
     // ── Checked against the record: each rung bills the hours its payer accepted ──
@@ -298,9 +306,11 @@ export default defineStage({
     // The expenses the firms above accepted, riding the bills as lines of their own.
     const expenseLines = await ctx.read.invoiceLine.findMany({
       where: { invoiceId: { in: ctx.world.bills.map((b) => b.id) }, expenseId: { in: ctx.world.expenses.map((e) => e.id) } },
-      select: { amountCents: true },
+      select: { amountCents: true, invoice: { select: { currency: true } } },
     })
-    const expenseCents = expenseLines.reduce((n, l) => n + l.amountCents, 0)
+    // A line's amount is minor units of its bill's currency.
+    const expensesBilled = new ByCurrency()
+    for (const l of expenseLines) expensesBilled.add(l.invoice.currency, hundredthsOfMinor(l.amountCents, l.invoice.currency))
     // The weeks a firm in the middle accepted short, as their supplier billed them.
     const cuts: string[] = []
     for (const l of billLines) {
@@ -312,7 +322,7 @@ export default defineStage({
       if (accepted == null || accepted === w.hours) continue
       cuts.push(
         `${p.personName}'s week of ${w.weekStart}: ${w.hours} hours worked, ${accepted} accepted by ${p.ladder[i].buyerName}, ` +
-          `billed by ${p.ladder[i].sellerName} as ${Number(l.hours)} hours at ${dollars(l.rateCents)} = ${dollars(l.amountCents)}.`
+          `billed by ${p.ladder[i].sellerName} as ${Number(l.hours)} hours at ${amount(l.rateCents, p.ladder[i].billCurrency)} = ${amount(l.amountCents, p.ladder[i].billCurrency)}.`
       )
     }
 
@@ -336,11 +346,12 @@ export default defineStage({
       closed: sent,
       of: due.size + ended.length,
       says: says([
-        `${made} bills generated and ${sent} sent, one per billing period per rung, ${dollars(totalCents)} billed in all (USD), ${twinSent} of them drafted by the supplier's twin and sent on a yes.`,
+        `${made} bills generated and ${sent} sent, one per billing period per rung, ${twinSent} of them drafted by the supplier's twin and sent on a yes.`,
+        `Billed, one figure per currency and never added across: ${billed.says()}.`,
         owedOnEnded.size
-          ? `Placements that had ended with signed weeks nobody billed (Karthik Menon's case), ${endedBills} bills raised by hand for ${dollars(endedCents)}, the rest by the twin: ${endedSays.join(' ')}`
+          ? `Placements that had ended with signed weeks nobody billed (Karthik Menon's case), ${endedBills} bills raised by hand for ${endedBilled.says()}, the rest by the twin: ${endedSays.join(' ')}`
           : 'No ended placement had signed weeks left unbilled.',
-        expenseLines.length ? `${expenseLines.length} accepted expenses rode the bills as lines of their own, ${dollars(expenseCents)}.` : 'No accepted expense rode a bill.',
+        expenseLines.length ? `${expenseLines.length} accepted expenses rode the bills as lines of their own, ${expensesBilled.says()}.` : 'No accepted expense rode a bill.',
         cuts.length ? `Weeks accepted short in the middle of a chain, as billed: ${cuts.slice(0, 3).join(' ')}` : null,
         notYet.size ? `${notYet.size} billing periods are still running, so their weeks wait for the bill on the agreement's date.` : null,
         `${checked - mismatches.length} of ${checked} billed weeks priced exactly the hours the firm above signed or accepted${mismatches.length ? `; ${mismatches.length} did not, and each is a money fault in the log` : ''}.`,

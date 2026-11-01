@@ -44,7 +44,16 @@ import type { ItemKey } from '@/lib/setup-checklist'
 type Tx = Prisma.TransactionClient
 
 export type SendCheck =
-  | { ok: true; invoice: { id: string; number: string; status: string; matchAttempt: number } }
+  | {
+      ok: true
+      invoice: { id: string; number: string; status: string; matchAttempt: number }
+      /**
+       * Sentences said beside the bill that stop nothing: where its work
+       * runs outside the window of the order it is on (`orderWindowSays`
+       * in lib/three-way-match). Empty where there is nothing to say.
+       */
+      notes: string[]
+    }
   | { ok: false; status: 404 | 409; code: string; says: string; checks?: { reason: string }[]; step?: ItemKey }
 
 /**
@@ -84,10 +93,18 @@ export async function mayBeSent(invoiceId: string, companyId: string, from: read
   // about. Invoices raised before line-level receipting have no
   // InvoiceLine rows; those are let through with the gap recorded,
   // because retro-blocking historic invoices helps nobody.
+  //
+  // Read as the firm sending it (`orderWindow: 'SAY'`): work outside the
+  // window of the order it is on is said beside the bill and does not
+  // hold it, because a line keeps its own dates and the order is its
+  // buyer's to move (ratified 2026-09-19; the second Tapin walk). A
+  // closed order, a ceiling with no room, no order where one is required,
+  // hours nobody accepted and every other check still refuse.
   const lineCount = await prisma.invoiceLine.count({ where: { invoiceId } })
+  let notes: string[] = []
   if (lineCount > 0) {
     const attempt = invoice.matchAttempt + 1
-    const { result: match } = await matchAndRecord(invoiceId, companyId, attempt)
+    const { result: match } = await matchAndRecord(invoiceId, companyId, attempt, { orderWindow: 'SAY' })
     await prisma.invoice.update({ where: { id: invoiceId }, data: { matchAttempt: attempt } })
     if (match && !match.matched) {
       return {
@@ -96,8 +113,9 @@ export async function mayBeSent(invoiceId: string, companyId: string, from: read
         checks: match.checks.filter((c) => c.outcome === 'FAIL'),
       }
     }
+    notes = match?.notes ?? []
   }
-  return { ok: true, invoice: { ...invoice, matchAttempt: invoice.matchAttempt + (lineCount > 0 ? 1 : 0) } }
+  return { ok: true, invoice: { ...invoice, matchAttempt: invoice.matchAttempt + (lineCount > 0 ? 1 : 0) }, notes }
 }
 
 export interface Sent {

@@ -4,6 +4,7 @@ import { matchInvoice } from '@/lib/invoice-match'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices/:id/match
@@ -56,7 +57,13 @@ export async function GET(
 
   if (reading) noteMoneyRead(reading, `Three-way check read on invoice ${id}`)
 
-  const result = await matchInvoice(id)
+  // The firm that raised it reads its order's window as a sentence beside
+  // it, as Send does (`mayBeSent`); the firm paying reads it as a check
+  // on its own order.
+  const ours = reading
+    ? await prisma.invoice.findFirst({ where: { id, ...invoicesRaisedBy(reading.companyId) }, select: { id: true } })
+    : null
+  const result = await matchInvoice(id, { orderWindow: ours ? 'SAY' : 'CHECK' })
 
   if (!result) {
     return NextResponse.json(
@@ -70,6 +77,8 @@ export async function GET(
       invoiceId: id,
       matched: result.matched,
       summary: result.summary,
+      // Said beside the bill and stopping nothing (`orderWindowSays`).
+      notes: result.notes ?? [],
       checks: result.checks,
       workOrder: result.poAfter
         ? {

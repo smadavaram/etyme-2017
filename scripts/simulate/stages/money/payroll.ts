@@ -18,7 +18,7 @@
 import { defineStage, type PayrollRunFact } from '../../stage'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { periodFor, type Period } from '@/lib/periods'
-import { placementsOf, seatWith, weekExtra, iso, dollars, says } from './book'
+import { placementsOf, seatWith, weekExtra, iso, hundredthsOfMinor, ByCurrency, says } from './book'
 
 interface Group { employerId: string; employerSlug: string; period: Period; buyIds: Set<string>; personIds: Set<string> }
 
@@ -83,9 +83,11 @@ export default defineStage({
 
     let runs = 0
     let paidPeople = 0
-    let grossCents = 0
+    // Pay is minor units of each line's own currency: one figure per
+    // currency, never added across (the 2026-11-01 calibration run).
+    const grossIn = new ByCurrency()
     let overtimeHours = 0
-    let premiumCents = 0
+    const premiumIn = new ByCurrency()
     const refusedSays: string[] = []
     /** What the route said about overtime, the weekly line and accepted hours, once each. */
     const sentences: string[] = []
@@ -109,9 +111,10 @@ export default defineStage({
             if (typeof said === 'string' && said && !sentences.includes(said)) sentences.push(said)
           }
           if (Number(r.grossPay) > 0) paidPeople++
-          grossCents += Number(r.grossPay) || 0
+          const ccy = String(r.currency || 'USD').toUpperCase()
+          grossIn.add(ccy, hundredthsOfMinor(Number(r.grossPay) || 0, ccy))
           overtimeHours += Number(r.overtimeHours) || 0
-          premiumCents += Number(r.premiumCents) || 0
+          premiumIn.add(ccy, hundredthsOfMinor(Number(r.premiumCents) || 0, ccy))
         }
         const fact: PayrollRunFact = {
           id: `${g.employerSlug}/${iso(g.period.start)}`, by: clerk.key, companySlug: g.employerSlug,
@@ -128,7 +131,7 @@ export default defineStage({
       of: list.length,
       says: says([
         `${runs} of ${list.length} pay periods worked out, approved and paid by the employer's payroll clerk (pay lines: ${freq}).`,
-        `${paidPeople} pay lines carried pay, ${dollars(grossCents)} gross (USD), ${Math.round(overtimeHours * 100) / 100} overtime hours with ${dollars(premiumCents)} of premium.`,
+        `${paidPeople} pay lines carried pay, gross ${grossIn.says()}, ${Math.round(overtimeHours * 100) / 100} overtime hours with ${premiumIn.says()} of premium.`,
         firstPaidEarly ? 'A period was paid with no calculation before it: the run route does not refuse it, which is a money gap.' : null,
         refusedSays.length ? `Not paid, in the route's words: ${refusedSays.slice(0, 2).join(' ')}` : null,
         sentences.length ? `What the pay lines said: ${sentences.slice(0, 4).join(' ')}` : null,

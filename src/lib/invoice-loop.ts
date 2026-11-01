@@ -17,7 +17,7 @@
  * move, which is the moment worth counting.
  */
 
-import { matchInvoice } from '@/lib/invoice-match'
+import { matchInvoice, type MatchFor } from '@/lib/invoice-match'
 import { runLoop, type Finding, type Step } from '@/lib/loop'
 import type { MatchResult } from '@/lib/three-way-match'
 
@@ -49,7 +49,9 @@ export function asFindings(result: MatchResult): Finding[] {
 export async function matchAndRecord(
   invoiceId: string,
   companyId: string,
-  attempt: number
+  attempt: number,
+  /** Who the check is read for; the firm sending a bill passes `orderWindow: 'SAY'`. */
+  opts: MatchFor = {}
 ): Promise<{ result: MatchResult | null; state: string }> {
   let result: MatchResult | null = null
 
@@ -58,7 +60,7 @@ export async function matchAndRecord(
       code: 'THREE_WAY_MATCH',
       checker: 'RULE',
       run: async () => {
-        result = await matchInvoice(invoiceId)
+        result = await matchInvoice(invoiceId, opts)
         return result ? asFindings(result) : null
       },
     },

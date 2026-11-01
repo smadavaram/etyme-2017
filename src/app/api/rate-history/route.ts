@@ -11,6 +11,7 @@ import { lineFor, settleApproved } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
 import { ownPayLineWhere } from '@/lib/money/paid-through'
 import { ownCompanyIdsOf } from '@/lib/money/own-companies'
+import { rateWordFor } from '@/lib/money/rate-words'
 
 /**
  * Who may read what a placement has been priced at.
@@ -649,10 +650,14 @@ async function changeableLines(caller: Awaited<ReturnType<typeof getCallerContex
     ...sells.map((c) => ({
       contractType: 'SELL' as const,
       contractId: c.id,
+      // The rung's own word: to the firm selling it the rate is what it
+      // bills; to the firm paying it, what it pays (lib/money/rate-words).
+      // A prime read "Bill" over what it pays its sub-vendor (the second
+      // Tapin walk).
       label:
         c.companyId === mine
           ? `Bill — ${c.person.name} at ${c.clientCompany?.name ?? 'the client'}`
-          : `Bill — ${c.person.name} from ${c.company.name}`,
+          : `${rateWordFor({ sellerId: c.companyId, sellerName: c.company.name, buyerId: mine, buyerName: '' }, mine).label} — ${c.person.name} from ${c.company.name}`,
       rateCents: inForce('SELL', c.id, c.billRate),
       currency: c.billCurrency,
     })),

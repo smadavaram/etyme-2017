@@ -163,10 +163,8 @@ export async function GET(
   // A draft is the issuing firm's working paper — the supplier's twin
   // writes them (2026-10-18) and nobody has been asked for the money. The
   // firm it would be sent to does not read it until it is sent.
-  if (
-    invoice.status === 'DRAFT' &&
-    directionFrom(partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }), reading?.companyId ?? caller.company?.id ?? null) !== 'RECEIVABLE'
-  ) {
+  const readAs = directionFrom(partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }), reading?.companyId ?? caller.company?.id ?? null)
+  if (invoice.status === 'DRAFT' && readAs !== 'RECEIVABLE') {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
       { status: 404 }
@@ -175,7 +173,11 @@ export async function GET(
 
   if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} read`)
 
-  const match = await matchInvoice(id)
+  // The firm that sends the bill reads its order's window as a sentence
+  // beside it, the way Send does (`mayBeSent`); the firm paying reads it
+  // as a check on its own order, which it may waive or answer by moving
+  // the order's dates.
+  const match = await matchInvoice(id, { orderWindow: readAs === 'RECEIVABLE' ? 'SAY' : 'CHECK' })
   // Every payment, with how it was paid and who paid whom, so the one
   // page for an invoice can show what was recorded — the clerk who just
   // paid it has to be able to read back the amount, the method and the
@@ -414,6 +416,9 @@ export async function GET(
             matched: match.matched,
             cleanMatch: match.cleanMatch,
             summary: match.summary,
+            // Said beside the bill and stopping nothing: its work runs
+            // outside the window of the order it is on (`orderWindowSays`).
+            notes: match.notes ?? [],
             // An exception recorded for another total, which no longer
             // covers this invoice — the sentence, or null.
             voidedWaiver: match.voidedWaiver ?? null,

@@ -29,10 +29,11 @@
  *
  * Every week the client at the top signed (a live CLIENT_APPROVAL on the
  * week, through the rung this firm bills, `lib/work-chain`) that is on no
- * bill this firm sent. A week on a draft bill is still not billed, and
- * says which draft holds it. Each week is priced by the Bills page's own
- * generator (`generateBill`, a dry run per billing period), so the amount
- * on Today is the amount the bill will carry: the firm's own rate to the
+ * bill this firm sent. A week on a bill drafted or raised and not sent is
+ * still not billed, and says which bill holds it (lib/money/bill-state).
+ * Each week is priced by the Bills page's own generator (`generateBill`,
+ * a dry run per billing period), so the amount on Today is the amount
+ * the bill will carry: the firm's own rate to the
  * firm that pays it, the payer's accepted hours, the overtime decided at
  * the top. Where the generator would leave the week off — the firm above
  * has not accepted it, overtime nobody decided, no rate, the order's
@@ -58,6 +59,7 @@ import { monthlyHours, HOURS_PER_MONTH, WEEKS_PER_MONTH, FULL_TIME_WEEK } from '
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { generateBill, BILLABLE_LINE_STATES, type BillCaller, type BillOutcome } from '@/lib/money/bill-generate'
 import { whereHoursLive } from '@/lib/work-chain'
+import { BILL_NOT_SENT, notSentSays } from '@/lib/money/bill-state'
 import { ladderFor } from '@/lib/work-chain-read'
 import { weekStart, weekEnd } from '@/lib/overtime'
 import { billingStraddle, periodFor, workedSpan, iso, type Period } from '@/lib/periods'
@@ -169,8 +171,15 @@ export interface SignedWeek {
   unpriced: WeekUnpriced | null
   /** The generator's own sentence, where the week has no amount. */
   says: string | null
-  /** A draft bill already holding the week, not yet sent. */
-  draft: { invoiceId: string; number: string } | null
+  /**
+   * A bill of this firm's already holding the week and not sent yet:
+   * drafted by Ask Etyme or raised on the Bills page. `says` is the one
+   * sentence for it ("Bill IN-0042 is raised, not sent."), from
+   * lib/money/bill-state, so no screen calls a raised bill drafted or an
+   * unsent one sent. Always set here; optional so a reader built by hand
+   * may leave them out.
+   */
+  draft: { invoiceId: string; number: string; status?: string; says?: string } | null
 }
 
 /** Feeds the Today figure "Signed and not yet billed". */
@@ -461,8 +470,12 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
     const line = billedBy.get(ts.sellContractId)
     if (!line) continue
     const ours = ts.invoiceLines.filter((x) => x.sellContractId === line.id)
-    // On a bill this firm sent: billed, and not this figure's.
-    if (ours.some((x) => x.invoice.status !== 'DRAFT')) continue
+    // On a bill this firm sent: billed, and not this figure's (and, as
+    // before, a week on a cancelled bill is not counted here). A bill
+    // drafted or raised and not sent is not billed (`BILL_NOT_SENT` in
+    // lib/money/bill-state): the second Tapin walk read a raised bill the
+    // check would not let go as billed, and Today called it sent.
+    if (ours.some((x) => !BILL_NOT_SENT.includes(x.invoice.status))) continue
 
     const base = {
       timesheetId: ts.id,
@@ -476,7 +489,8 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
       currency: (line.billCurrency || 'USD').toUpperCase(),
     }
 
-    // On a draft nobody has sent: the draft priced it, and holds it.
+    // On a bill nobody has sent, drafted or raised: that bill priced it,
+    // and holds it.
     if (ours.length > 0) {
       const inv = ours[0].invoice
       weeks.push({
@@ -485,7 +499,7 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
         billedHours: Math.round(ours.reduce((n, x) => n + Number(x.hours), 0) * 100) / 100,
         amountMinor: ours.reduce((n, x) => n + x.amountCents, 0),
         unpriced: null, says: null,
-        draft: { invoiceId: inv.id, number: inv.number },
+        draft: { invoiceId: inv.id, number: inv.number, status: inv.status, says: notSentSays(inv) },
       })
       continue
     }

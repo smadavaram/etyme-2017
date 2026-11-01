@@ -509,6 +509,11 @@ export default function InvoiceDetail() {
               {m.voidedWaiver && (
                 <p className="text-sm text-etyme-attention mt-1">{m.voidedWaiver}</p>
               )}
+              {/* Said beside the bill, never a reason it is held: its work
+                  runs outside the window of the order it is on. */}
+              {((m.notes ?? []) as string[]).map((n) => (
+                <p key={n} className="text-sm text-etyme-muted mt-1">{n}</p>
+              ))}
               {m.workOrder && (
                 <p className="text-sm text-etyme-muted mt-1 tabular-nums">
                   {amountFromUnits(m.workOrder.remaining)} left on the purchase order

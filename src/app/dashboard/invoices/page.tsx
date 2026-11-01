@@ -14,6 +14,7 @@ import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
 import { pageFraming } from '@/lib/page-framing'
 import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCountSays } from '@/lib/money/invoice-parties'
 import { booksFrom, booksHref, otherBooks, switchLabel, invoiceHref, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
+import { billStateWord } from '@/lib/money/bill-state'
 
 /**
  * Invoices working surface — the Operate section.
@@ -405,16 +406,9 @@ function GenerateInvoiceModal({
   )
 }
 
-/** The status as a payer says it. */
+/** The status as a payer says it, from the one reader (lib/money/bill-state). */
 function payableStatusWords(status: string): string {
-  switch (status) {
-    case 'ISSUED': return 'not submitted yet'
-    case 'SUBMITTED': return 'submitted'
-    case 'PARTIALLY_PAID': return 'part paid'
-    case 'PAID': return 'paid'
-    case 'CANCELLED': return 'cancelled'
-    default: return status.toLowerCase().replace('_', ' ')
-  }
+  return billStateWord(status, 'PAYER').toLowerCase()
 }
 
 /**
@@ -862,8 +856,10 @@ export default function InvoicesPage() {
       label: 'Status',
       render: (row) => (
         <div>
+          {/* The status word from the one reader: a raised bill is never
+              "Issued" to the firm that cannot send it, and never sent. */}
           <span className={`chip ${statusChipClass(row.status)}`}>
-            {row.status === 'PARTIALLY_PAID' ? 'Partial' : row.status.charAt(0) + row.status.slice(1).toLowerCase()}
+            {billStateWord(row.status, row.direction === 'PAYABLE' ? 'PAYER' : 'SENDER')}
           </span>
           {row.deliverySays && (
             <p className={`text-[11px] mt-0.5 max-w-[220px] ${/\bNot (sent|emailed)\b/.test(row.deliverySays) ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
@@ -994,13 +990,16 @@ export default function InvoicesPage() {
     row.status.toLowerCase().includes(q)
 
   // ── Status filter options ─────────────────────────
+  // The words from the one reader (lib/money/bill-state), as the side
+  // the page is open on says them.
+  const reader = side === 'PAYABLE' ? 'PAYER' : 'SENDER'
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
-    { key: 'ISSUED', label: 'Issued' },
-    { key: 'SUBMITTED', label: 'Submitted' },
-    { key: 'PARTIALLY_PAID', label: 'Partial' },
-    { key: 'PAID', label: 'Paid' },
-    { key: 'CANCELLED', label: 'Cancelled' },
+    { key: 'ISSUED', label: billStateWord('ISSUED', reader) },
+    { key: 'SUBMITTED', label: billStateWord('SUBMITTED', reader) },
+    { key: 'PARTIALLY_PAID', label: billStateWord('PARTIALLY_PAID', reader) },
+    { key: 'PAID', label: billStateWord('PAID', reader) },
+    { key: 'CANCELLED', label: billStateWord('CANCELLED', reader) },
   ]
 
   // Money pages wait (sign-up walk, round three, #17): until the session

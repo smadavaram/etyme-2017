@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
     /** Whom a sent bill reached, in the Bills page's sentence; null where delivery failed. */
     delivery?: string | null
     checks?: { reason: string }[]
+    /** Said beside a sent bill, never a reason it was held: work outside its order's window. */
+    notes?: string[]
   }> = []
 
   // One bill at a time, each through the same door as the Submit button
@@ -115,7 +117,12 @@ export async function POST(request: NextRequest) {
         return null
       })
       submitted++
-      results.push({ invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null, ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}) })
+      results.push({
+        invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null,
+        ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
+        // Work outside its order's window, said beside the bill (`orderWindowSays`).
+        ...(check.notes.length ? { notes: check.notes } : {}),
+      })
     } catch (err: any) {
       if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) {
         skipped++

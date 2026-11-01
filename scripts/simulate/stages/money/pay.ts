@@ -17,7 +17,7 @@
  * not paid.
  */
 import { defineStage, type PaymentFact } from '../../stage'
-import { seatWith, placementsOf, todayIso, dollars, says } from './book'
+import { seatWith, placementsOf, todayIso, ByCurrency, says } from './book'
 
 export default defineStage({
   name: 'pay',
@@ -30,7 +30,8 @@ export default defineStage({
     if (receipts.length === 0) return { closed: 0, says: 'Nothing has reached a payer to pay.' }
 
     let paid = 0
-    let cents = 0
+    // One figure per currency, never added across (the 2026-11-01 calibration run).
+    const paidIn = new ByCurrency()
     const payable = receipts.filter((r) => (r.extra?.kind === 'PLATFORM' && r.extra?.matched !== false) || (r.extra?.kind === 'KEYED' && r.status !== 'DISPUTED'))
     await ctx.parallel(payable, async (r) => {
       const clerk = await seatWith(ctx, String(r.extra!.payerId), 'payments.record', [personOf(r)])
@@ -40,7 +41,7 @@ export default defineStage({
         : await clerk.patch('/api/ap/bills', { id: r.id, paidAt: todayIso(), method: 'ACH', reference: `ACH-${r.id.slice(-8)}` })
       if (!res.ok) return
       paid++
-      cents += r.totalCents
+      paidIn.add(r.extra?.currency as string | undefined, r.totalCents)
       r.status = 'PAID'
       const fact: PaymentFact = { id: r.id, by: clerk.key, billId: r.id, amountCents: r.totalCents, extra: { kind: r.extra!.kind } }
       ctx.world.payments.push(fact)
@@ -67,7 +68,7 @@ export default defineStage({
       closed: paid,
       of: payable.length,
       says: says([
-        `${paid} of ${payable.length} invoice receipts paid by the payer's AP clerk through the one gate, ${dollars(cents)} (USD).`,
+        `${paid} of ${payable.length} invoice receipts paid by the payer's AP clerk through the one gate: ${paidIn.says()}.`,
         `${rows.length - nameless} of ${rows.length} payment rows name who paid whom${nameless ? `; ${nameless} do not, a money fault` : ''}.`,
       ]),
     }
