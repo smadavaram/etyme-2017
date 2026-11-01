@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { awardDoor, AWARDABLE_FROM, type AwardDoorFacts } from '@/lib/award'
 import { placeFromRound } from '@/lib/interviews'
@@ -18,7 +18,8 @@ import { noticesFor, type NoticeContext } from '@/lib/interview-notices'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const PAGE = read('src/app/dashboard/interviews/page.tsx')
-const DIALOG = read('src/app/dashboard/interviews/place-dialog.tsx')
+// The interview page opens demand's one award dialog (the second Tapin walk, 2026-10-30).
+const DIALOG = read('src/app/dashboard/submissions/award-dialog.tsx')
 const LIST = read('src/app/api/interviews/route.ts')
 
 const base: AwardDoorFacts = {
@@ -143,10 +144,21 @@ describe('the page takes the one road', () => {
     }
   })
 
-  it('placing asks for the bill rate and the start date, and sends the rate in cents', () => {
+  it('placing asks for the bill rate and the start date, and sends the rate in cents through the one reader', () => {
     expect(DIALOG).toContain('Bill rate ($/hr)')
     expect(DIALOG).toContain('Start date')
-    expect(DIALOG).toContain('rate: Math.round(rate * 100)')
+    expect(DIALOG).toContain('const cents = centsTyped(rate)')
+    expect(DIALOG).toContain('rate: cents')
+  })
+
+  it('placing from an interview opens the same award dialog Submissions opens, so a time-limit warning there asks for its reason in a box', () => {
+    expect(PAGE).toContain("import { AwardDialog } from '@/app/dashboard/submissions/award-dialog'")
+    expect(PAGE).toMatch(/<AwardDialog\b/)
+    expect(PAGE).not.toMatch(/PlaceDialog/)
+    expect(existsSync(join(process.cwd(), 'src/app/dashboard/interviews/place-dialog.tsx'))).toBe(false)
+    // The box is drawn from the route's own question, word for word.
+    expect(DIALOG).toContain('reasonAsked(')
+    expect(DIALOG).toContain('<Textarea')
   })
 })
 

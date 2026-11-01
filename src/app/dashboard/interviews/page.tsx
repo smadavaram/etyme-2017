@@ -11,7 +11,7 @@ import { refusalSentence } from '@/lib/refusal-words'
 import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
-import { PlaceDialog } from './place-dialog'
+import { AwardDialog } from '@/app/dashboard/submissions/award-dialog'
 import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -449,11 +449,16 @@ export default function InterviewsPage() {
       })}
 
       {placingFor && placingFor.place?.kind === 'PLACE' && (
-        <PlaceDialog
+        // The one award dialog, demand's, the same one Submissions and the
+        // job page open (the second Tapin walk, 2026-10-30): a time-limit
+        // warning asks for its reason in a box here as it does there, and
+        // a refusal stays in the dialog. This page kept a copy of its own,
+        // which showed the warning with no box to answer it.
+        <AwardDialog
           submissionId={placingFor.submissionId}
           candidate={placingFor.names.consultant}
           role={placingFor.role}
-          supplier={placingFor.names.vendor}
+          via={placingFor.names.vendor}
           askedCents={placingFor.rateCents}
           says={placingFor.place.says}
           onDone={(said) => {
