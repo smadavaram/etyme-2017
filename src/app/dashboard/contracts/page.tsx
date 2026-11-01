@@ -26,6 +26,7 @@ import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
+import { reasonAsked } from '@/lib/award/reason-asked'
 
 /**
  * The documents, and their lines.
@@ -695,7 +696,10 @@ function ContractDetailDrawer({
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
   const [activating, setActivating] = useState(false)
-  const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[] } | null>(null)
+  // A start's warnings, as the route asked them: the paperwork's, the
+  // client's rule's, or both in one sentence; and which were shown, sent
+  // back with the reason so it answers exactly those.
+  const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[]; answering: string[] } | null>(null)
   const [overrideReason, setOverrideReason] = useState('')
 
   // Only for a seat the route would let through. A picker somebody
@@ -780,11 +784,13 @@ function ContractDetailDrawer({
     }
   }
 
-  async function handleActivation(action: string, label: string, overrideReasonText?: string) {
+  async function handleActivation(action: string, label: string, overrideReasonText?: string, answering?: string[]) {
     setActivating(true)
     try {
-      const payload: Record<string, string> = { action }
+      const payload: Record<string, unknown> = { action }
       if (overrideReasonText) payload.overrideReason = overrideReasonText
+      // The warnings the person read: the reason answers those and no other.
+      if (overrideReasonText && answering?.length) payload.answering = answering
 
       const res = await fetch(`/api/contracts/${contract.id}/activate`, {
         method: 'POST',
@@ -795,12 +801,18 @@ function ContractDetailDrawer({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
 
-        // Governance warning — show override prompt
-        if (body.error?.code === 'GOVERNANCE_WARN' && body.error?.overridable) {
-          setGovernanceWarn({
-            message: body.error.message,
-            evaluations: body.error.evaluations ?? [],
-          })
+        // A warning the route asks a reason for — the paperwork's, the
+        // client's rule's, or both — is a box, never a toast (the second
+        // Tapin walk: "Activate asks for a reason and draws no box"). Which
+        // refusals are questions is demand's one reader (`reasonAsked`).
+        // Activate reads its reason from overrideReason only; a question
+        // answered in another field is not this button's to send.
+        const q = reasonAsked(body.error)
+        if (q && q.field === 'overrideReason') {
+          const shown: string[] = Array.isArray(body.error?.warnings)
+            ? body.error.warnings.map((w: { code?: unknown }) => String(w.code))
+            : typeof body.error?.code === 'string' ? [body.error.code] : []
+          setGovernanceWarn({ message: q.says, evaluations: body.error.evaluations ?? [], answering: shown })
           return
         }
 
@@ -827,9 +839,10 @@ function ContractDetailDrawer({
   }
 
   async function handleGovernanceOverride() {
-    if (!overrideReason.trim()) return
+    if (!overrideReason.trim() || !governanceWarn) return
+    const answering = governanceWarn.answering
     setGovernanceWarn(null)
-    await handleActivation('activate', 'Activate', overrideReason)
+    await handleActivation('activate', 'Activate', overrideReason, answering)
     setOverrideReason('')
   }
 
@@ -1164,7 +1177,7 @@ function ContractDetailDrawer({
         </div>
       )}
 
-      {/* Governance warning override dialog */}
+      {/* A start's warnings, the paperwork's and the client's rule's, and the box for the reason */}
       {governanceWarn && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
@@ -1172,8 +1185,9 @@ function ContractDetailDrawer({
         >
           <div className="card w-full max-w-md mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xl">⚠️</span>
-              <h3 className="text-base font-semibold">Governance warning</h3>
+              <h3 className="text-base font-semibold">
+                {governanceWarn.answering.length > 1 ? 'Two warnings before this start' : 'A warning before this start'}
+              </h3>
             </div>
             <div className="px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line mb-4">
               <p className="text-sm text-etyme-ink">{governanceWarn.message}</p>
@@ -1183,7 +1197,7 @@ function ContractDetailDrawer({
                     .filter((e: any) => e.outcome === 'WARN')
                     .map((e: any, i: number) => (
                       <li key={i} className="text-[12px] text-etyme-ink">
-                        • <strong>{e.ruleType}</strong>: {e.reason}
+                        • {e.reason}
                       </li>
                     ))
                   }
@@ -1191,12 +1205,12 @@ function ContractDetailDrawer({
               )}
             </div>
             <p className="text-sm text-etyme-muted mb-3">
-              You can proceed by providing a justification. This will be recorded in the governance audit trail.
+              Give a reason to go ahead. It is recorded with the start, beside each warning above.
             </p>
             <textarea
               value={overrideReason}
               onChange={(e) => setOverrideReason(e.target.value)}
-              placeholder="Justification for override (required)…"
+              placeholder="Why it should go ahead (required)…"
               rows={3}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg mb-4
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
@@ -1212,7 +1226,7 @@ function ContractDetailDrawer({
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-attention text-white
                            hover:bg-etyme-attention/90 transition-colors disabled:opacity-50"
               >
-                {activating ? 'Activating…' : 'Override and activate'}
+                {activating ? 'Activating…' : 'Activate with this reason'}
               </button>
             </div>
           </div>

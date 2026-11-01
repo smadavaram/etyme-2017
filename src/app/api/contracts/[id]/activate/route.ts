@@ -9,6 +9,7 @@ import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
 import { partiesSay, siteSay, startSays } from './words'
+import { startWarningVerdict, type StartWarning } from '@/lib/money/start-warnings'
 
 /**
  * POST /api/contracts/:id/activate
@@ -210,6 +211,14 @@ export async function POST(
     }
   }
 
+  // ── The warnings a start asks a reason for ──
+  //
+  // A paper that warns and a client rule that warns are both worked out
+  // before either is asked, and asked once, together: a reason typed for
+  // the paperwork used to carry the start past a client rule the person
+  // had never been shown (lib/money/start-warnings).
+  const warnings: StartWarning[] = []
+
   // ── Paperwork check on activation ──
   //
   // Before governance, because this is the supplier's own house and
@@ -330,20 +339,15 @@ export async function POST(
       )
     }
 
-    if (papers.outcome === 'WARN' && !body.overrideReason) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'DOCUMENTS_WARN',
-            message: papers.says,
-            fix: papers.fix,
-            chasing: papers.chasing,
-            cover: papers.cover.outcome,
-            overridable: true,
-          },
-        },
-        { status: 422 }
-      )
+    // A paper that warns is asked with the client's rule below, never
+    // alone: one refusal names every warning, and one reason (sent back
+    // in body.overrideReason) answers what the person was shown.
+    if (papers.outcome === 'WARN') {
+      warnings.push({
+        code: 'DOCUMENTS_WARN',
+        says: papers.says,
+        detail: { fix: papers.fix, chasing: papers.chasing, cover: papers.cover.outcome },
+      })
     }
   }
 
@@ -375,25 +379,37 @@ export async function POST(
       )
     }
 
-    // If there are warnings, include them in the response but allow proceeding
-    // The caller can override with { action: 'activate', overrideReason: '...' }
-    if (governance.outcome === 'WARN' && !body.overrideReason) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'GOVERNANCE_WARN',
-            message: governance.summary,
-            evaluations: governance.evaluations,
-            overridable: true,
-          },
-        },
-        { status: 422 }
-      )
+    // A client rule that warns is asked beside the paperwork's warning,
+    // with its evaluations: code: 'GOVERNANCE_WARN' where it is the only
+    // one, the paperwork's code first where both are.
+    if (governance.outcome === 'WARN') {
+      warnings.push({ code: 'GOVERNANCE_WARN', says: governance.summary, detail: { evaluations: governance.evaluations } })
     }
+  }
 
-    // If overriding a warning, record the override
-    if (governance.outcome === 'WARN' && body.overrideReason) {
-      const warnEvals = governance.evaluations.filter((e) => e.outcome === 'WARN')
+  // ── Asked once, answered once ──
+  //
+  // Every warning in one refusal; a reason answers them all, and where
+  // the screen says which it showed (`answering`), only those. A warning
+  // that appeared since is asked again, alone.
+  const verdict = startWarningVerdict(warnings, {
+    reason: typeof body.overrideReason === 'string' ? body.overrideReason : null,
+    answering: Array.isArray(body.answering) ? body.answering.filter((x: unknown): x is string => typeof x === 'string') : null,
+  })
+  if (!verdict.ok) {
+    return NextResponse.json({ error: verdict.error }, { status: 422 })
+  }
+  const answeredPapers = verdict.answered.some((w) => w.code === 'DOCUMENTS_WARN')
+  const answeredRule = verdict.answered.some((w) => w.code === 'GOVERNANCE_WARN')
+  const overrideReason: string | null = typeof body.overrideReason === 'string' ? body.overrideReason.trim() : null
+
+  if (action === 'activate') {
+    // The client's rule was answered: record whose reason it was, on each
+    // warning it answered.
+    if (answeredRule && overrideReason) {
+      const governance = warnings.find((w) => w.code === 'GOVERNANCE_WARN')!
+      const evaluations = (governance.detail?.evaluations ?? []) as { outcome: string; ruleId: string }[]
+      const warnEvals = evaluations.filter((e) => e.outcome === 'WARN')
       for (const we of warnEvals) {
         await prisma.governanceEvaluation.updateMany({
           where: {
@@ -404,7 +420,7 @@ export async function POST(
           },
           data: {
             overriddenBy: caller.person.id,
-            overrideNote: body.overrideReason,
+            overrideNote: overrideReason,
           },
         })
       }
@@ -485,7 +501,8 @@ export async function POST(
           by: { personId: caller.person.id, companyId: caller.company?.id ?? null, side },
           // Where the paperwork warned and somebody proceeded anyway,
           // their reason travels with the record. Never silently permit.
-          documentsOverride: action === 'activate' ? (body.overrideReason ?? null) : null,
+          // Only where the paperwork warned and the reason answered it.
+          documentsOverride: action === 'activate' && answeredPapers ? overrideReason : null,
         },
         // Cancellation and completion are not easily reversible
         reversible: !['complete', 'cancel'].includes(action),
