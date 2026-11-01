@@ -344,3 +344,28 @@ describe('a firm that lists a person cannot overwrite the person’s own profile
     expect(page).toContain("keptBy={consultant.keptBy ?? 'THEM'}")
   })
 })
+
+// ── 3. The ask's log line never promises a letter that cannot leave ─────
+
+describe('the bench ask says a letter is coming only where one can leave', () => {
+  it('where no email can leave, the ask reads as waiting on their yes with the link kept on the notice for staff, never "from the letter"', async () => {
+    const { askSummary } = await import('@/lib/consultant-portfolio/bench-ask')
+    const { INVITE_LINK_KEPT_SAYS } = await import('@/lib/bench-filter')
+    const says = askSummary({ door: 'ADD_CONSULTANT', personName: 'Anika Shah', firm: 'Tapin', path: 'NEW', tier: 'MARKETING', mailOn: false })
+    expect(says).toBe(`"Anika Shah" asked onto Tapin’s bench (MARKETING). Waiting on their yes. ${INVITE_LINK_KEPT_SAYS}`)
+    expect(says).not.toContain('letter')
+  })
+
+  it('where email can leave, the ask still says it waits on their yes from the letter', async () => {
+    const { askSummary } = await import('@/lib/consultant-portfolio/bench-ask')
+    expect(askSummary({ door: 'PUBLIC_PAGE', personName: 'Ike Danso', firm: 'Tapin', path: 'ASK_AGAIN', tier: 'MARKETING', mailOn: true }))
+      .toBe('"Ike Danso", who already has a record, asked again onto Tapin’s bench (MARKETING) from Tapin’s public page. Pending their yes from the letter.')
+  })
+
+  it('the ask reads whether mail can leave from the one function the send reads', async () => {
+    const ask = read('src/lib/consultant-portfolio/bench-ask.ts')
+    expect(ask).toContain("import { mailLeaves } from '@/lib/notify/mail-leaves'")
+    expect(ask).toContain('mailOn: mailLeaves() }),')
+    expect(read('src/lib/messages.ts')).toMatch(/export function configured\(\): boolean \{\s*return mailLeaves\(\)/)
+  })
+})

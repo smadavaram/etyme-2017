@@ -50,7 +50,8 @@
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { listingTermsFrom, termsShown, type InviteMail, type TermsShown } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown, INVITE_LINK_KEPT_SAYS, type InviteMail, type TermsShown } from '@/lib/bench-filter'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { addPath, type AddPath } from '@/lib/consultant-portfolio'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
@@ -150,12 +151,21 @@ export function lookupReason(o: { door: BenchAskDoor; firm: string; path: AddPat
     : `Looked up by email address to ask onto ${o.firm}’s bench (Add consultant); ${what}.`
 }
 
-/** The automation row's summary, the same shape from both doors. */
-export function askSummary(o: { door: BenchAskDoor; personName: string; firm: string; path: AddPath; tier: string }): string {
+/**
+ * The automation row's summary, the same shape from both doors.
+ *
+ * It promises a letter only where one can leave (`mailLeaves` in
+ * lib/notify/mail-leaves, the same answer the send reads through
+ * `configured`). Where none can, the ask is waiting and its link is kept
+ * on the notice for staff, in the bench invitation's own words
+ * (`INVITE_LINK_KEPT_SAYS`), never "from the letter" (2026-11-01).
+ */
+export function askSummary(o: { door: BenchAskDoor; personName: string; firm: string; path: AddPath; tier: string; mailOn: boolean }): string {
   const who = o.path === 'NEW' ? `"${o.personName}"` : `"${o.personName}", who already has a record,`
   const where = o.door === 'PUBLIC_PAGE' ? ` from ${o.firm}’s public page` : ''
   const again = o.path === 'ASK_AGAIN' ? ' again' : ''
-  return `${who} asked${again} onto ${o.firm}’s bench (${o.tier})${where}. Pending their yes from the letter.`
+  const waits = o.mailOn ? 'Pending their yes from the letter.' : `Waiting on their yes. ${INVITE_LINK_KEPT_SAYS}`
+  return `${who} asked${again} onto ${o.firm}’s bench (${o.tier})${where}. ${waits}`
 }
 
 function isUniqueClash(err: unknown): boolean {
@@ -281,7 +291,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
         data: {
           companyId: firm.id,
           action: 'BENCH_LISTING_REQUESTED',
-          summary: askSummary({ door, personName: person.name, firm: firm.name, path, tier }),
+          summary: askSummary({ door, personName: person.name, firm: firm.name, path, tier, mailOn: mailLeaves() }),
           reason:
             door === 'PUBLIC_PAGE'
               ? 'Join the bench on the public page: the bench’s own invitation, sent to the address the person gave, answered only from its link.'
