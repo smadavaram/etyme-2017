@@ -11,7 +11,8 @@ import {
   type ExaminedEvidence,
 } from '@/lib/attestation'
 import { buysFrom as buysOn } from '@/lib/document-stages/firm-papers'
-import { writeCheck } from '@/app/api/compliance/verifications/record'
+import { writeCheck, employerOfRecord } from '@/app/api/compliance/verifications/record'
+import { employedElsewhere } from '@/lib/document-stages/employer'
 
 /**
  * What a firm's look at a paper that arrived puts on the record: one
@@ -99,7 +100,60 @@ export async function recordSupplierPaper(input: {
     row: check.row, subject: { companyId: supplier.id }, personId: null,
     recordedById: buyer.personId, recordingCompanyId: buyer.companyId, now,
   })
+  await answerOpenAsks({
+    buyerId: buyer.companyId, supplierId: supplier.id, key,
+    verificationId: written.id, reviewerId: buyer.personId, validUntil: check.row.expiresAt ?? null, now,
+  })
   return { verificationId: written.id, says: check.says }
+}
+
+/**
+ * A paper the buyer accepted answers the buyer's own open asks for it.
+ *
+ * The second Tapin walk, 2026-10-30: Brightmoor accepted Tapin's
+ * insurance from the copy Tapin keeps on file, and Brightmoor's request
+ * to Tapin for the same certificate went on asking. One acceptance, one
+ * answer: every open item from this buyer, about this supplier, for this
+ * paper, reads accepted and points at the check it became, and a request
+ * with nothing left outstanding closes. Only the buyer's own requests,
+ * never another firm's: what Brightmoor accepted is not what Northbend
+ * asked.
+ */
+export async function answerOpenAsks(input: {
+  buyerId: string
+  supplierId: string
+  key: string
+  verificationId: string | null
+  reviewerId: string
+  validUntil: Date | null
+  now: Date
+}): Promise<number> {
+  const open = await prisma.packetItem.findMany({
+    where: {
+      key: input.key,
+      state: { in: ['PENDING', 'RECEIVED'] },
+      packet: { companyId: input.buyerId, subjectCompanyId: input.supplierId, cancelledAt: null },
+    },
+    select: { id: true, packetId: true },
+  })
+  if (open.length === 0) return 0
+  await prisma.packetItem.updateMany({
+    where: { id: { in: open.map((i) => i.id) } },
+    data: {
+      state: 'ACCEPTED',
+      reviewedById: input.reviewerId,
+      reviewedAt: input.now,
+      reviewNote: 'Accepted from the copy the firm keeps on file.',
+      validUntil: input.validUntil,
+      ...(input.verificationId ? { verificationId: input.verificationId } : {}),
+    },
+  })
+  for (const packetId of new Set(open.map((i) => i.packetId))) {
+    const items = await prisma.packetItem.findMany({ where: { packetId }, select: { required: true, state: true } })
+    const done = items.every((i) => !i.required || i.state === 'RECEIVED' || i.state === 'ACCEPTED')
+    if (done) await prisma.documentPacket.updateMany({ where: { id: packetId, completedAt: null }, data: { completedAt: input.now } })
+  }
+  return open.length
 }
 
 // ── The examination, recorded through the one rule ───────────────────
@@ -196,6 +250,9 @@ export async function examinationOf(input: {
   ])
   const subjectName = person?.name ?? 'this person'
   const buyerName = line ? (line.endClientCompany?.name ?? line.clientCompany.name) : 'the client'
+  // A seller above the employer does not complete the employer's I-9
+  // (the second Tapin walk, 2026-10-30): the same rule as Record a check.
+  const employer = line ? await employerOfRecord(personId, line.id) : null
 
   const may = mayRecordCheck({
     about: 'PERSON',
@@ -206,6 +263,7 @@ export async function examinationOf(input: {
     employerName: line ? caller.companyName : 'the firm that employs or places them',
     buyerName,
     type: item.key,
+    employedBy: employedElsewhere(employer, caller.companyId) ? employer!.name : null,
   })
   if (!may.ok) {
     if (given) {

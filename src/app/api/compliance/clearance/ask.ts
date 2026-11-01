@@ -6,6 +6,8 @@ import { hasPermission } from '@/lib/permissions'
 import { packetByKey, startPacketFor } from '@/lib/packets'
 import { ADVERSE_STEPS, startPreview, hrNotice, lineExtras, papersAsked, countWord, type StartPreview } from '@/lib/contract-clearance'
 import { possessive } from '@/lib/requisition-approval'
+import { employerOfRecord } from '@/app/api/compliance/verifications/record'
+import { employedElsewhere } from '@/lib/document-stages/employer'
 
 /**
  * Asking for the papers when somebody is placed, not when somebody tries
@@ -280,6 +282,29 @@ export async function askForClearance(input: {
       alreadyAsked: true,
       told: [],
       says: `${contract.person.name} has already been asked for their start paperwork, so nothing was sent again.`,
+    }
+  }
+
+  // ── Somebody else's employee ───────────────────────────────────────
+  //
+  // The second Tapin walk, 2026-10-30: Brightmoor sells Ravi's time to
+  // Northbend and buys it from Tapin, which employs him. The papers a
+  // worker owes go to the firm that employs her, which completes the I-9
+  // with her; a prime asking a sub-vendor's W2 directly asks him twice
+  // and is told when he answers, which is the wrong firm hearing. So the
+  // seller above the employer asks the worker for nothing and says who
+  // does; its own papers and its own cover are still its own.
+  const employer = preview.askOfPerson.length > 0 ? await employerOfRecord(contract.personId, contract.id) : null
+  if (employer && employedElsewhere(employer, contract.companyId)) {
+    const told = await tellHR(contract, preview, [], now)
+    return {
+      ...base,
+      packetId: null,
+      alreadyAsked: false,
+      told,
+      says:
+        `${employer.name} employs ${contract.person.name} and asks for the start papers. ` +
+        `${contract.company?.name ?? 'This firm'} reads them on the placement once they are on file. ${preview.says}`,
     }
   }
 

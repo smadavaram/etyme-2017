@@ -9,7 +9,7 @@ import { mayExamine, standingOn, typeKeyForTemplate } from '@/lib/document-reque
 import { BUILT_IN, typeByKey } from '@/lib/document-type'
 import { RECORDABLE_ABOUT_A_FIRM } from '@/lib/attestation'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
-import { buyerMayExamineKept, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
+import { answerOpenAsks, buyerMayExamineKept, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
 
 /**
  * POST /api/documents/:id/examine
@@ -203,9 +203,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       })
     } else if (keptForBuyer) {
-      // The supplier's own copy stays on its record; the client's look is
-      // written on it, and the supplier is told to file a current one.
-      await tx.docInstance.update({ where: { id }, data: { note, examinedById: caller.person.id, examinedAt: now } })
+      // The supplier's own copy stays on its record with the reason on it,
+      // and the supplier is told to file a current one. Not stamped as
+      // examined: on every screen, the examiner's and the holder's, an
+      // examination on a paper reads as accepted (the second Tapin walk,
+      // 2026-10-30, where one stamp meant two things).
+      await tx.docInstance.update({ where: { id }, data: { note } })
     } else {
       // A paper sent back is not held. The refused file goes with it, the
       // same as a packet item sent back, so nothing reads it as an answer.
@@ -221,6 +224,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (doc.file) await tx.docFile.delete({ where: { docInstanceId: id } })
     }
   })
+  // A supplier's own copy accepted answers this buyer's open asks for the
+  // same paper, so the request stops asking (the second Tapin walk).
+  if (keptForBuyer && verdict.verdict === 'ACCEPT' && caller.company && subjectCompanyId && key) {
+    await answerOpenAsks({
+      buyerId: caller.company.id, supplierId: subjectCompanyId, key,
+      verificationId, reviewerId: caller.person.id, validUntil: verdict.expiresAt, now,
+    })
+  }
   if (item) {
     await itemFollowsPaper({
       itemId: item.id,

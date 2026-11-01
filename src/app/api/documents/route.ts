@@ -371,7 +371,7 @@ export async function POST(request: NextRequest) {
   const validAudiences = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
   if (!audience || !validAudiences.includes(audience.toUpperCase())) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `audience must be one of: ${validAudiences.join(', ')}`, field: 'audience' } },
+      { error: { code: 'VALIDATION', message: 'Say who this document is asked of: a worker, a supplier, a client, your own staff, or anybody.', field: 'audience' } },
       { status: 422 }
     )
   }

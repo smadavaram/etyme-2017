@@ -282,3 +282,50 @@ export function complianceView(s: { loading: boolean; error: string | null; hasD
   if (!s.hasData) return { show: 'loading' }
   return { show: 'page' }
 }
+
+// ── Who puts a held start's papers on file ────────────────────────────
+
+/**
+ * Whose a held start's papers are, in one sentence, to the reader.
+ *
+ * The second Tapin walk, 2026-10-30: Northbend's page said "Brightmoor
+ * Staffing employs Ravi and puts these on file". Brightmoor sells Ravi's
+ * time; Tapin employs him and completes his I-9. A client may not learn
+ * the sub-vendor's name (the prime's to keep), so the sentence names the
+ * firm it pays and says the employer is a firm below it, without a name.
+ *
+ *   THIS_FIRM  the record says the supplier on the row employs the person
+ *   BELOW      the supplier buys the person's time from another firm
+ *   UNKNOWN    no employment fact and nobody below: the supplier places
+ *              the person, which is all the record can say
+ *
+ * And the employer reading its own page is told it is its own work.
+ */
+export type WhoEmploys = 'THIS_FIRM' | 'BELOW' | 'UNKNOWN'
+
+export function whoPutsItOnFile(s: {
+  /** The firm on the row, as this reader may name it. */
+  supplier: string
+  personName: string
+  employs: WhoEmploys
+  /** True where the reader is the employer itself. */
+  own: boolean
+}): string {
+  const who = s.personName
+  if (s.own) {
+    return (
+      `You employ ${who}, so these are yours to put on file: complete the I-9 with ${who} ` +
+      `from the document ${who} shows, and record it here.`
+    )
+  }
+  if (s.employs === 'THIS_FIRM') {
+    return `${s.supplier} employs ${who} and puts these on file. Ask them — you do not collect the documents yourself.`
+  }
+  if (s.employs === 'BELOW') {
+    return (
+      `${s.supplier} buys ${possessive(who)} time from the firm that employs ${who}, and that firm puts these ` +
+      `on file. Ask ${s.supplier} — you do not collect the documents yourself.`
+    )
+  }
+  return `${s.supplier} places ${who} and sees these put on file. Ask them — you do not collect the documents yourself.`
+}

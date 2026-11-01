@@ -55,6 +55,8 @@
  */
 
 import { plainDate } from '@/lib/plain-date'
+import { EMPLOYER_COMPLETES } from '@/lib/document-stages/employer'
+import { editionAsPrinted } from '@/lib/document-stages/editions'
 
 
 export type CheckKind =
@@ -909,6 +911,14 @@ export function mayRecordCheck(input: {
   employerName: string
   buyerName: string
   type: string
+  /**
+   * The firm that employs the person, where the record says it is a
+   * firm below the caller on the chain (lib/document-stages/employer).
+   * Only the employer completes an I-9 or a right to work check: a prime
+   * that buys a sub-vendor's W2 is a seller on the line and not the
+   * employer (the second Tapin walk, 2026-10-30).
+   */
+  employedBy?: string | null
 }): { ok: true } | { ok: false; code: 'NOT_A_PARTY' | 'NOT_YOURS_TO_RECORD' | 'FORBIDDEN'; message: string } {
   const what = recordLabel(input.type)
   if (!input.side) {
@@ -927,6 +937,18 @@ export function mayRecordCheck(input: {
       message:
         `The ${what} for ${input.subjectName} is recorded by ${input.employerName}, the firm that employs or places them. ` +
         `${input.buyerName} reads it on the placement; it does not complete it.`,
+    }
+  }
+  if (
+    input.about === 'PERSON' && input.employedBy &&
+    (EMPLOYER_COMPLETES as readonly string[]).includes(input.type.toUpperCase())
+  ) {
+    return {
+      ok: false,
+      code: 'NOT_YOURS_TO_RECORD',
+      message:
+        `${input.employedBy} employs ${input.subjectName}, so ${input.employedBy} completes the ${what} with ` +
+        `${input.subjectName} and records it. ${input.callerFirm} reads it on the placement once it is on file.`,
     }
   }
   if (input.about === 'FIRM' && input.side !== 'BUYER') {
@@ -1195,8 +1217,8 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
   }
 
   if (key === 'I9_EVERIFY') {
-    const edition = text(input.formEdition)
-    if (!edition) {
+    const typed = text(input.formEdition)
+    if (!typed) {
       return no(
         'NO_EDITION',
         `Say which edition of the I-9 it was completed on. The edition date is printed at the foot of every page, ` +
@@ -1204,6 +1226,21 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
         'formEdition'
       )
     }
+    // Read the way the issuer prints it (the founder's document walk,
+    // 2026-11-01): "Rev. 01/20/25" is the 01/20/25 edition, and
+    // "Rev. March 2024" is no edition of the I-9 at all.
+    const printed = editionAsPrinted(key, typed)
+    if (!printed.ok) {
+      const list = printed.printed
+      const said = list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}` : list[0]
+      return no(
+        'NOT_AN_EDITION',
+        `“${typed}” is not an edition of the I-9. The edition is the date printed at the foot of every page, ` +
+          `like ${list[list.length - 1]}; USCIS has printed ${said}.`,
+        'formEdition'
+      )
+    }
+    const edition = printed.edition
     const evidence = input.evidence ?? []
     if (evidence.length === 0) {
       return no(

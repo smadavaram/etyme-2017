@@ -362,3 +362,38 @@ export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict
     },
   }
 }
+
+// ── What a paper kept on file reads, to its holder and to its examiner ──
+
+/**
+ * One state for a paper its holder kept on file, read from one record:
+ * the examination written on the paper itself (`DocInstance.examinedAt`,
+ * who and when), which is what the examiner's own Paperwork screen reads
+ * too. A recorded check behind it (CLEAR or CONDITIONAL) is the same
+ * answer reached through the standing.
+ *
+ * Found by the second Tapin walk, 2026-10-30: Brightmoor accepted
+ * Tapin's insurance, the award cleared on it, and Tapin's own Company
+ * paperwork still read "On file, not examined", because it read only the
+ * self-filed row Tapin wrote and never the examination Brightmoor wrote.
+ *
+ * Pure: the screen and its test read the same sentence.
+ */
+export function keptPaperSays(p: {
+  examinedAt: Date | null
+  /** Who examined it, by name. */
+  examinedBy?: string | null
+  /** The firm they examined it for, by name. */
+  examinedFor?: string | null
+  /** The status of a check recorded about it, where one is linked. */
+  checkStatus?: string | null
+}): { examined: boolean; says: string } {
+  if (p.examinedAt) {
+    const by = p.examinedFor && p.examinedBy
+      ? `${p.examinedFor} (${p.examinedBy})`
+      : p.examinedFor ?? p.examinedBy ?? null
+    return { examined: true, says: by ? `Accepted by ${by} on ${plainDate(p.examinedAt.toISOString())}` : `Accepted on ${plainDate(p.examinedAt.toISOString())}` }
+  }
+  if (p.checkStatus === 'CLEAR' || p.checkStatus === 'CONDITIONAL') return { examined: true, says: 'On file and examined' }
+  return { examined: false, says: 'On file, not examined' }
+}

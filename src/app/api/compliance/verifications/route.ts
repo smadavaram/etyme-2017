@@ -5,7 +5,8 @@ import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import { emit } from '@/lib/events'
-import { writeCheck } from './record'
+import { writeCheck, employerOfRecord } from './record'
+import { employedElsewhere } from '@/lib/document-stages/employer'
 import {
   checkToRecord,
   mayRecordCheck,
@@ -69,7 +70,19 @@ export async function POST(request: NextRequest) {
   if (!contract) return refuse(404, 'NOT_FOUND', 'That placement could not be found. Open it from its own page and record the check there.')
 
   const raw = contractSide(caller, contract)
-  const side: RecordingSide = raw === 'SUPPLIER' ? 'EMPLOYER' : raw === 'PAYER' || raw === 'END_CLIENT' ? 'BUYER' : null
+  // ── Who employs the person, on the chain under this line ──
+  //
+  // The second Tapin walk, 2026-10-30: Ravi is Tapin's own W2, sold to
+  // Brightmoor and on to Northbend. The I-9 is Tapin's to complete, so a
+  // seller above Tapin is refused it in a sentence naming Tapin, and
+  // Tapin may record it from any line of Ravi's chain it is under — the
+  // check is about Ravi, read by every rung, not about the line.
+  const employer = about === 'PERSON' ? await employerOfRecord(contract.personId, contract.id) : null
+  const theEmployerHere =
+    !!employer && employer.how !== 'BOTTOM' && employer.companyId === caller.company.id && raw !== 'SUPPLIER'
+  const side: RecordingSide = theEmployerHere
+    ? 'EMPLOYER'
+    : raw === 'SUPPLIER' ? 'EMPLOYER' : raw === 'PAYER' || raw === 'END_CLIENT' ? 'BUYER' : null
   const subjectName = about === 'PERSON' ? contract.person.name : contract.company.name
   const buyerName = contract.endClientCompany?.name ?? contract.clientCompany.name
 
@@ -78,8 +91,9 @@ export async function POST(request: NextRequest) {
     holds: (p) => hasPermission(caller.permissions ?? [], p as never),
     callerFirm: caller.company.name,
     subjectName,
-    employerName: contract.company.name,
+    employerName: employer && employer.how !== 'BOTTOM' ? employer.name : contract.company.name,
     buyerName,
+    employedBy: side === 'EMPLOYER' && employedElsewhere(employer, caller.company.id) ? employer!.name : null,
   })
   if (!may.ok) {
     if (about === 'PERSON') {

@@ -668,6 +668,27 @@ export function booksSays(reading: BooksReading): string | null {
  */
 export const KEPT_BY_HOLDER = 'KEPT'
 
+/**
+ * Who a document in the library is asked of, as the trade says it.
+ *
+ * The library printed the stored audience title-cased — "Vendor",
+ * "Client" — the machine's words for the firm's role, read by a supplier
+ * on its own Paperwork screen (the second Tapin walk, 2026-10-30). A
+ * screen says who the person or the firm is to the reader, never the
+ * enum.
+ */
+export const AUDIENCE_WORDS: Record<string, string> = {
+  CANDIDATE: 'A worker',
+  VENDOR: 'A supplier',
+  CLIENT: 'A client',
+  EMPLOYEE: 'Your own staff',
+  GENERAL: 'Anybody',
+}
+
+export function audienceWord(audience: string): string {
+  return AUDIENCE_WORDS[audience.toUpperCase()] ?? 'Anybody'
+}
+
 /** The word a row shows: what is true, not the enum. */
 export function statusWord(status: string): string {
   switch (status) {

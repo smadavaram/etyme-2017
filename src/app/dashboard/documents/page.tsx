@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
-import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
+import { statusWord, audienceWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { ExaminePaper, type ExamineRow } from './examine'
 import { plainDate } from '@/lib/plain-date'
 import { OwnPapers, readOwnPapers } from './own-papers'
@@ -315,7 +315,7 @@ export default function DocumentsPage() {
           {templates.map((t) => (
             <div key={t.id} className="p-4 flex items-center gap-3">
               <div className="flex-1 text-sm text-etyme-ink">{t.name}</div>
-              <span className="text-xs text-etyme-muted">{t.audience.charAt(0) + t.audience.slice(1).toLowerCase()}{t.needsSignature ? ' · needs a signature' : ''}</span>
+              <span className="text-xs text-etyme-muted">Asked of: {audienceWord(t.audience).toLowerCase()}{t.needsSignature ? ' · needs a signature' : ''}</span>
               <span className="text-xs text-etyme-faint tabular-nums">{t.instanceCount} asked</span>
             </div>
           ))}
@@ -330,7 +330,7 @@ export default function DocumentsPage() {
             <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Asked of</span>
             <select value={newTemplate.audience} onChange={(e) => setNewTemplate({ ...newTemplate, audience: e.target.value })}
               className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
-              {AUDIENCES.map((a) => <option key={a} value={a}>{a.charAt(0) + a.slice(1).toLowerCase()}</option>)}
+              {AUDIENCES.map((a) => <option key={a} value={a}>{audienceWord(a)}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-etyme-ink pb-2">

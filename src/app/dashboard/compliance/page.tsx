@@ -78,6 +78,12 @@ interface HeldStart {
   fix: string | null
   blocking: string[]
   chasing: string[]
+  /** True where this firm employs the person and completes their papers. */
+  own?: boolean
+  /** The customer the start is for, on the employer's own rows. */
+  client?: string | null
+  /** Whose these papers are, in a sentence to this reader. */
+  whoFiles?: string
 }
 
 /** One document this firm, or somebody it placed, still owes. */
@@ -372,6 +378,10 @@ export default function CompliancePage() {
   const [tab, setTab] = useState<ComplianceTab>('policies')
 
   const [readAt, setReadAt] = useState(0)
+  // Recording the I-9 straight from a held start of somebody this firm
+  // employs (the second Tapin walk, 2026-10-30).
+  const [recordingStart, setRecordingStart] = useState<RecordFor | null>(null)
+  const [startRecorded, setStartRecorded] = useState<string | null>(null)
   useEffect(() => {
     fetch('/api/compliance')
       .then(r => r.json())
@@ -440,6 +450,21 @@ export default function CompliancePage() {
         <p className="text-[13px] text-etyme-ink mb-6">{standing}</p>
       )}
 
+      {startRecorded && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between">
+          <span>{startRecorded}</span>
+          <button onClick={() => setStartRecorded(null)} className="text-etyme-verified/70">Close</button>
+        </div>
+      )}
+      {recordingStart && (
+        <RecordCheck
+          kind="I9"
+          who={recordingStart}
+          onClose={() => setRecordingStart(null)}
+          onDone={(says) => { setRecordingStart(null); setStartRecorded(says); setReadAt((n) => n + 1) }}
+        />
+      )}
+
       {/* ── Starts the paperwork is holding up ──
           The dashboard said Ingrid Sørensen could not start without her
           I-9 while this page said nothing was outstanding. The same
@@ -466,20 +491,30 @@ export default function CompliancePage() {
                   </span>
                   <span className="font-medium text-etyme-ink text-[13px]">{s.name}</span>
                   <span className="text-[12px] text-etyme-muted">
-                    through {s.supplier} · starts {plainDate(s.startDate)}
+                    {s.own
+                      ? `you employ them${s.client ? ` · for ${s.client}` : ''} · starts ${plainDate(s.startDate)}`
+                      : `through ${s.supplier} · starts ${plainDate(s.startDate)}`}
                   </span>
                 </div>
                 <p className="text-[12px] text-etyme-muted mt-1">{s.says}</p>
                 {s.fix && <p className="text-[12px] text-etyme-action mt-1">{s.fix}</p>}
-                {/* Who does the fixing. On a client's page the employer
-                    completes the I-9 and holds the documents behind it; a
-                    client collecting a contractor's passport is excessive
-                    collection and co-employment exposure at once. */}
-                {data?.viewerIsClient && s.blocking.length > 0 && (
-                  <p className="text-[12px] text-etyme-muted mt-1">
-                    {s.supplier} employs {s.name.split(' ')[0]} and puts these on file. Ask them — you do not
-                    collect the documents yourself.
-                  </p>
+                {/* Who does the fixing. The employer completes the I-9 and
+                    holds the documents behind it; a client collecting a
+                    contractor's passport is excessive collection and
+                    co-employment exposure at once, and a prime buying a
+                    sub-vendor's W2 is not the employer either. */}
+                {s.whoFiles && (s.own || (data?.viewerIsClient && s.blocking.length > 0)) && (
+                  <p className="text-[12px] text-etyme-muted mt-1">{s.whoFiles}</p>
+                )}
+                {s.own && [...s.blocking, ...s.chasing].some(l => /\bI-9\b/.test(l)) && (
+                  <div className="mt-2 flex flex-wrap gap-3 text-[12px]">
+                    <button
+                      className="text-etyme-action hover:underline"
+                      onClick={() => setRecordingStart({ contractId: s.contractId, personId: s.personId, name: s.name })}
+                    >
+                      Record the I-9
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
