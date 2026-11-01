@@ -4,9 +4,10 @@ import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import {
-  writeVoice, writeFromRules, checkEdit, modelAvailable,
+  writeFromRules, checkEdit,
   DEFAULT_HEADINGS, type SiteFacts,
 } from '@/lib/site-voice'
+import { modelWritesFor, writePage } from './write'
 
 /**
  * GET   /api/settings/site — what their page says, and how it got written
@@ -105,6 +106,8 @@ export async function GET(request: NextRequest) {
   // What it would say if written now, so somebody can compare before
   // replacing what is there.
   const wouldSay = writeFromRules(facts)
+  // The model writes the page only where this company turned it on (./write).
+  const may = await modelWritesFor(caller.company.id)
 
   return NextResponse.json({
     data: {
@@ -120,11 +123,11 @@ export async function GET(request: NextRequest) {
       basedOn: facts,
       preview: { tagline: wouldSay.tagline, intro: wouldSay.intro },
       canWrite: hasPermission(caller.permissions, 'settings.manage'),
-      // Said plainly rather than silently producing a lesser result.
-      modelAvailable: modelAvailable(),
-      note: modelAvailable()
-        ? 'Written for you from your own numbers.'
-        : 'No writing key is set, so this is written from your numbers by rule. It is plainer, and everything on it is still true.',
+      // Said plainly rather than silently producing a lesser result: the
+      // model writes only where this company turned it on and a writer is
+      // set up, and the sentence says which of the two is missing.
+      modelAvailable: may.yes,
+      note: may.yes ? 'Written for you from your own numbers.' : may.says,
     },
   })
 }
@@ -166,7 +169,9 @@ export async function POST(request: NextRequest) {
   }
 
   const facts = await factsFor(caller.company.id)
-  const voice = await writeVoice(facts)
+  // By the model only where this company turned it on, every prompt and
+  // answer logged; otherwise by rule, and the note says why (./write).
+  const voice = await writePage({ companyId: caller.company.id, personId: caller.person.id, facts })
 
   await prisma.company.update({
     where: { id: caller.company.id },
@@ -185,9 +190,9 @@ export async function POST(request: NextRequest) {
       action: 'SITE_WRITTEN',
       summary: `${caller.person.name} had the public page written again`,
       reason: voice.writtenBy === 'MODEL'
-        ? 'Written from the company’s own numbers'
-        : 'Written by rule — no writing key is configured',
-      payload: { writtenBy: voice.writtenBy, basedOn: facts as any },
+        ? 'Written from the company’s own numbers by the model, which the company turned on; the prompt and answer are in its prompt log'
+        : voice.note,
+      payload: { writtenBy: voice.writtenBy, modelAsked: voice.asked, basedOn: facts as any },
       reversible: true,
     },
   })
