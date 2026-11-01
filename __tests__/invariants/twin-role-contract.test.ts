@@ -120,7 +120,8 @@ import { rolesFor } from '../../src/lib/company-defaults'
 import { checkContract, tierIn, DEFAULT_CONTRACT, defaultContractFor, twinKindFor, twinName } from '../../src/lib/twin/role-contract'
 import { twinRefusal } from '../../src/lib/refusal-words'
 import { TWIN_ACTS, ALL_TWIN_ACTS } from '../../src/lib/autonomy'
-import { suppliersToRun, runTwin } from '../../src/lib/twin/run'
+import { suppliersToRun, runTwin, firstSeated, SUPPLIER_TWIN_ROLES } from '../../src/lib/twin/run'
+import { inTurns, turnedDaily } from '../../src/app/api/cron/twin/turns'
 
 const AP_CLERK = {
   personId: 'pat', personName: 'Pat Okafor', companyId: CLIENT, companyKind: 'CLIENT',
@@ -421,5 +422,57 @@ describe('the nightly run never lets a receipt it cannot pay pass in silence', (
     ])
     expect(h.db.tables.twinApproval).toEqual([])
     expect(run.receipts).toBe(1)
+  })
+})
+
+describe('The nightly run reads every firm once, in one queue', () => {
+  const seat = (companyId: string, personId: string, role: string) => ({ companyId, personId, personName: personId, role })
+
+  it('the twin acts for the first seated program manager at each client, read for every client at once, and with nobody seated it names the role and no person', () => {
+    const seats = [seat('northbend', 'dana', 'Program Manager'), seat('cavanaugh', 'rhea', 'Program Manager'), seat('northbend', 'later', 'Program Manager')]
+    const got = firstSeated(seats, ['northbend', 'cavanaugh', 'talvern'], ['Program Manager'], 'Program Manager (nobody seated)')
+    expect(got.get('northbend')).toEqual({ personId: 'dana', role: 'Program Manager', personName: 'dana' })
+    expect(got.get('cavanaugh')?.personId).toBe('rhea')
+    expect(got.get('talvern')).toEqual({ personId: null, role: 'Program Manager (nobody seated)', personName: null })
+  })
+
+  it('a supplier\u2019s twin acts for its owner, else its admin, whatever order the seats were granted in', () => {
+    const seats = [seat('brightmoor', 'ada', 'Admin'), seat('brightmoor', 'jenna', 'Owner'), seat('techpeple', 'raj', 'Admin'), seat('techpeple', 'x', 'Recruiter')]
+    const got = firstSeated(seats, ['brightmoor', 'techpeple'], SUPPLIER_TWIN_ROLES, 'Owner (nobody seated)')
+    expect([got.get('brightmoor')?.personId, got.get('brightmoor')?.role]).toEqual(['jenna', 'Owner'])
+    expect([got.get('techpeple')?.personId, got.get('techpeple')?.role]).toEqual(['raj', 'Admin'])
+  })
+
+  it('a nightly run starts the next firm the moment any worker is free, so the suppliers never wait for the slowest client', async () => {
+    let finishSlow!: () => void
+    const slow = new Promise<void>((r) => { finishSlow = r })
+    const started: string[] = []
+    const firms = [{ id: 'slow-client' }, { id: 'client-2' }, { id: 'supplier-1' }, { id: 'supplier-2' }, { id: 'supplier-3' }]
+    const run = inTurns(firms, Number.MAX_SAFE_INTEGER, [], async (f) => {
+      started.push(f.id)
+      if (f.id === 'slow-client') await slow
+    }, { atOnce: 2 })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(started).toEqual(['slow-client', 'client-2', 'supplier-1', 'supplier-2', 'supplier-3'])
+    finishSlow()
+    await run
+  })
+
+  it('a firm the time limit cuts off is left for the next run, and no firm is read twice or both read and left', async () => {
+    let clock = 0
+    const read: string[] = []
+    const left: string[] = []
+    const firms = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id }))
+    await inTurns(firms, 2, left, async (f) => { read.push(f.id); clock++ }, { atOnce: 1, now: () => clock })
+    expect(read).toEqual(['a', 'b'])
+    expect(left).toEqual(['c', 'd', 'e'])
+  })
+
+  it('the order turns by the day, so the same firms are not always the ones a time limit leaves', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    const monday = turnedDaily(ids, Date.UTC(2026, 10, 2))
+    const tuesday = turnedDaily(ids, Date.UTC(2026, 10, 3))
+    expect(new Set(monday)).toEqual(new Set(ids))
+    expect(monday[0]).not.toBe(tuesday[0])
   })
 })

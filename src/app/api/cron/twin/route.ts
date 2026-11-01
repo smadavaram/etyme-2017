@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { reportError } from '@/lib/alerts'
-import { programsToRun, runTwin, suppliersToRun, tellOnTeams, type RunSummary } from '@/lib/twin/run'
+import { programManagersAt, programsToRun, runTwin, supplierAuthoritiesAt, suppliersToRun, tellOnTeams, type RunSummary } from '@/lib/twin/run'
 import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bills-run'
 import { runSupplierActs, type SupplierActsRun } from '@/lib/twin/supplier-run'
+import { BUDGET_MS, inTurns, turnedDaily } from './turns'
 
 /**
  * GET /api/cron/twin
@@ -41,21 +42,29 @@ export async function GET(request: NextRequest) {
   // the same firms are not always the ones left.
   const deadline = Date.now() + BUDGET_MS
   const left: string[] = []
-  await inTurns(turnedDaily(await programsToRun()), deadline, left, async (companyId) => {
+  const programs = turnedDaily(await programsToRun())
+  const supplierIds = turnedDaily(await suppliersToRun())
+  // Whose authority each firm's twin acts on, read once for every firm
+  // (simulation, 2026-11-01): it was read once per program, and twice per
+  // supplier, once by the bill run and once by the firm's own acts.
+  const [managers, owners] = await Promise.all([programManagersAt(programs), supplierAuthoritiesAt(supplierIds)])
+  const suppliers: (SupplierBillRun & { acts: SupplierActsRun | null; teamsDigest: RunSummary['teamsDigest'] })[] = []
+
+  const readProgram = async (companyId: string) => {
     try {
-      ran.push(await runTwin(companyId, { surface: 'CRON' }))
+      ran.push(await runTwin(companyId, { surface: 'CRON', authority: managers.get(companyId) }))
     } catch (err) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin', err, { companyId }).catch(() => undefined)
     }
-  })
-  const suppliers: (SupplierBillRun & { acts: SupplierActsRun | null; teamsDigest: RunSummary['teamsDigest'] })[] = []
-  await inTurns(turnedDaily(await suppliersToRun()), deadline, left, async (companyId) => {
+  }
+  const readSupplier = async (companyId: string) => {
+    const authority = owners.get(companyId)
     try {
-      const run = await runSupplierBills(companyId, { surface: 'CRON' })
+      const run = await runSupplierBills(companyId, { surface: 'CRON', authority })
       // The bills stand whatever the other acts do: a failure there is
       // reported and the firm's bills are still counted.
-      const acts = await runSupplierActs(companyId, { surface: 'CRON' }).catch(async (err) => {
+      const acts = await runSupplierActs(companyId, { surface: 'CRON', authority }).catch(async (err) => {
         broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
         await reportError('cron/twin/supplier-acts', err, { companyId }).catch(() => undefined)
         return null
@@ -65,7 +74,14 @@ export async function GET(request: NextRequest) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin/supplier', err, { companyId }).catch(() => undefined)
     }
-  })
+  }
+  // One queue (./turns): the programs first, because they carry the most
+  // work, then the suppliers, each taken by whichever worker is free.
+  await inTurns(
+    [...programs.map((id) => ({ id, program: true })), ...supplierIds.map((id) => ({ id, program: false }))],
+    deadline, left,
+    (firm) => (firm.program ? readProgram(firm.id) : readSupplier(firm.id)),
+  )
   const asked = ran.reduce((n, r) => n + r.outcomes.AWAITING_APPROVAL, 0)
   const done = ran.reduce((n, r) => n + r.outcomes.PERFORMED, 0)
   const drafted = suppliers.reduce((n, r) => n + r.drafted, 0)
@@ -78,32 +94,4 @@ export async function GET(request: NextRequest) {
     (broke.length ? ` ${broke.length} could not be read.` : '') +
     (left.length ? ` ${left.length} firm${left.length === 1 ? ' was' : 's were'} not reached before the time limit and will be read on the next run.` : '')
   return NextResponse.json({ data: { ran, suppliers, broke, left, says } })
-}
-
-/** Firms read at once. Each act inside holds one transaction, and the ledger caps those (onePerformerSlot). */
-const AT_ONCE = 4
-/** Stop starting firms after this, well inside the host's 60-second limit. */
-const BUDGET_MS = 45_000
-
-async function inTurns(ids: string[], deadline: number, left: string[], each: (id: string) => Promise<void>): Promise<void> {
-  let next = 0
-  const worker = async () => {
-    while (next < ids.length) {
-      if (Date.now() >= deadline) {
-        left.push(...ids.slice(next))
-        next = ids.length
-        return
-      }
-      await each(ids[next++])
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(AT_ONCE, ids.length) }, worker))
-}
-
-/** The same list, started at a different firm each day. */
-function turnedDaily(ids: string[]): string[] {
-  if (ids.length === 0) return ids
-  const day = Math.floor(Date.now() / 86_400_000)
-  const at = (day * 37) % ids.length
-  return [...ids.slice(at), ...ids.slice(0, at)]
 }

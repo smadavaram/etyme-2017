@@ -47,16 +47,77 @@ export const PROGRAM_MANAGER_ROLE = 'Program Manager'
  * person are refused in the ledger with the reason.
  */
 export async function programManagerAt(companyId: string): Promise<Authority> {
-  const seat = await prisma.context.findFirst({
+  return (await programManagersAt([companyId])).get(companyId)!
+}
+
+/**
+ * The person each client's twin acts under, read for every client at
+ * once: the nightly run read it once per program (simulation, 2026-11-01).
+ */
+export async function programManagersAt(companyIds: readonly string[]): Promise<Map<string, Authority>> {
+  return firstSeated(await seatsHolding(companyIds, [PROGRAM_MANAGER_ROLE]), companyIds, [PROGRAM_MANAGER_ROLE], `${PROGRAM_MANAGER_ROLE} (nobody seated)`)
+}
+
+/** A seat as `firstSeated` reads it. */
+export interface HeldSeat {
+  companyId: string | null
+  personId: string
+  personName: string
+  role: string
+}
+
+/**
+ * Whose authority each company's twin acts on, from its seats in seat
+ * order: the first seat holding the first of `roles` that anybody holds,
+ * else the role and no person (a role nobody has named falls back; it
+ * never refuses). `seats` come oldest seat first, as the one read orders
+ * them, so a company read alone and a company read among a hundred get
+ * the same answer. Pure.
+ */
+export function firstSeated(
+  seats: readonly HeldSeat[],
+  companyIds: readonly string[],
+  roles: readonly string[],
+  nobody: string,
+): Map<string, Authority> {
+  const byCompany = new Map<string, HeldSeat[]>()
+  for (const s of seats) {
+    if (!s.companyId) continue
+    const list = byCompany.get(s.companyId)
+    if (list) list.push(s)
+    else byCompany.set(s.companyId, [s])
+  }
+  const out = new Map<string, Authority>()
+  for (const id of companyIds) {
+    const held = byCompany.get(id) ?? []
+    let found: Authority | null = null
+    for (const role of roles) {
+      const seat = held.find((s) => s.role === role)
+      if (seat) {
+        found = { personId: seat.personId, role, personName: seat.personName }
+        break
+      }
+    }
+    out.set(id, found ?? { personId: null, role: nobody, personName: null })
+  }
+  return out
+}
+
+/** The live seats holding any of these roles at these companies, oldest seat first, in one read. */
+async function seatsHolding(companyIds: readonly string[], roles: readonly string[]): Promise<HeldSeat[]> {
+  if (companyIds.length === 0) return []
+  const rows = await prisma.context.findMany({
     // Never the shared sample's seat, which holds the role to read as
     // the program manager does and acts on nobody's authority.
-    where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: PROGRAM_MANAGER_ROLE }, ...NOT_THE_SAMPLE_SEAT },
+    where: {
+      companyId: { in: [...new Set(companyIds)] }, revokedAt: null, type: { not: 'CONSULTANT' },
+      role: { name: { in: [...roles] } }, ...NOT_THE_SAMPLE_SEAT,
+    },
     orderBy: { id: 'asc' },
-    select: { personId: true, person: { select: { name: true } } },
+    select: { companyId: true, personId: true, person: { select: { name: true } }, role: { select: { name: true } } },
   })
-  return seat
-    ? { personId: seat.personId, role: PROGRAM_MANAGER_ROLE, personName: seat.person.name }
-    : { personId: null, role: `${PROGRAM_MANAGER_ROLE} (nobody seated)`, personName: null }
+  // A seat without its role is never chosen (`firstSeated` matches the role by name).
+  return rows.map((r) => ({ companyId: r.companyId, personId: r.personId, personName: r.person?.name ?? '', role: r.role?.name ?? '' }))
 }
 
 /**
@@ -82,15 +143,16 @@ export const SUPPLIER_TWIN_ROLES = ['Owner', 'Admin'] as const
 
 /** The person whose seat the supplier's twin acts under. */
 export async function supplierAuthorityAt(companyId: string): Promise<Authority> {
-  for (const role of SUPPLIER_TWIN_ROLES) {
-    const seat = await prisma.context.findFirst({
-      where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: role }, ...NOT_THE_SAMPLE_SEAT },
-      orderBy: { id: 'asc' },
-      select: { personId: true, person: { select: { name: true } } },
-    })
-    if (seat) return { personId: seat.personId, role, personName: seat.person.name }
-  }
-  return { personId: null, role: `${SUPPLIER_TWIN_ROLES[0]} (nobody seated)`, personName: null }
+  return (await supplierAuthoritiesAt([companyId])).get(companyId)!
+}
+
+/**
+ * The person each supplier's twin acts under, read for every firm at
+ * once: the nightly run read it twice per firm, once for the bills and
+ * once for the firm's own acts (simulation, 2026-11-01).
+ */
+export async function supplierAuthoritiesAt(companyIds: readonly string[]): Promise<Map<string, Authority>> {
+  return firstSeated(await seatsHolding(companyIds, SUPPLIER_TWIN_ROLES), companyIds, SUPPLIER_TWIN_ROLES, `${SUPPLIER_TWIN_ROLES[0]} (nobody seated)`)
 }
 
 export interface RunSummary {
@@ -211,9 +273,10 @@ export function askPayAgain(o: { openSince: Date | null | undefined; dueAt: Date
   return o.now.getTime() >= eve.getTime() && o.openSince.getTime() < eve.getTime()
 }
 
-export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
+export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date; authority?: Authority } = {}): Promise<RunSummary> {
   const surface = opts.surface ?? 'CRON'
-  const authority = await programManagerAt(companyId)
+  // Handed in by the nightly run, which reads every program's at once.
+  const authority = opts.authority ?? (await programManagerAt(companyId))
   const rules = await ruleSetFor(companyId)
   // The role contract and every finding key already recorded, read once
   // for the run rather than once per act (2026-10-20).
