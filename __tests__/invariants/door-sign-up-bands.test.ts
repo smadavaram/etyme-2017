@@ -82,13 +82,21 @@ describe('the sign-up band on each party door', () => {
     }
   })
 
-  it('Sign up on the Suppliers door opens the form on the supplier’s own kind: a prime as a vendor, a sub-vendor and a bench vendor as firms that sell through other suppliers', () => {
+  it('Sign up on the Suppliers door opens the form on the supplier’s own kind: a prime as a vendor, a sub-vendor as a sub-vendor, a bench vendor as a bench supplier', () => {
     expect(view('/for/suppliers').signUp.href).toBe('/signup?type=prime')
-    expect(view('/for/suppliers?tab=sub').signUp.href).toBe('/signup?type=bench')
+    expect(view('/for/suppliers?tab=sub').signUp.href).toBe('/signup?type=sub')
     expect(view('/for/suppliers?tab=bench').signUp.href).toBe('/signup?type=bench')
     const kind = (href: string) => COMPANY_TYPES.find((t) => t.key === new URL(href, 'https://x.invalid').searchParams.get('type'))
     expect(kind('/signup?type=prime')).toMatchObject({ kind: 'VENDOR', posture: 'PRIME' })
-    expect(kind('/signup?type=bench')).toMatchObject({ kind: 'VENDOR', posture: 'BENCH' })
+    // Supply's sub-vendor choice (ce090048): it sells through its prime and bills the prime, not the client.
+    expect(kind('/signup?type=sub')).toMatchObject({ kind: 'VENDOR', posture: 'BENCH', label: 'Sub-vendor' })
+    expect(kind('/signup?type=sub')!.blurb).toBe('You supply people through a prime vendor, and bill the prime, not the client.')
+    expect(kind('/signup?type=bench')).toMatchObject({ kind: 'VENDOR', posture: 'BENCH', label: 'Bench supplier' })
+    // Every door's `?type=` is a kind the form knows.
+    for (const v of everyDoorView()) {
+      const t = new URL(v.signUp.href, 'https://x.invalid').searchParams.get('type')
+      if (t) expect(kind(v.signUp.href), v.href).toBeDefined()
+    }
     // The sign-up page opens on a `?type=` it knows, which is the list above.
     expect(read('src/app/(auth)/signup/page.tsx')).toContain('COMPANY_TYPES.some((t) => t.key === searchParams?.type)')
     // No door opens the form on an empty choice whose first option is Client.

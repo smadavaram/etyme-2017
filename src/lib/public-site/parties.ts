@@ -82,8 +82,8 @@ import type { StoryKey } from './story'
  * band. The home page and the step pages keep the client's band word for
  * word, because they speak to the client. And a door's Sign up opens the
  * form on its own kind (`?type=`): a prime vendor as a vendor, a
- * sub-vendor and a bench vendor as firms that sell through other
- * suppliers, never on an empty choice that lists Client first.
+ * sub-vendor as a sub-vendor, a bench vendor as a bench supplier, never on
+ * an empty choice that lists Client first.
  */
 
 export type PartySlug = 'suppliers' | 'program-offices' | 'integrators' | 'contractors'
@@ -181,12 +181,14 @@ function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'bandSays' | 'story'
 /**
  * A supplier's sign-up opens the company form on its own kind
  * (`COMPANY_TYPES` in lib/onboarding): a prime vendor as a vendor that
- * sells to clients directly, a sub-vendor and a bench vendor as a firm
- * that sells through other suppliers. Until 2026-10-31 it opened on an
- * empty choice whose first option is Client.
+ * sells to clients directly, a sub-vendor as a sub-vendor (supply's choice
+ * of 2026-11-01, which bills the prime, not the client), and a bench vendor
+ * as a bench supplier. Until 2026-10-31 it opened on an empty choice whose
+ * first option is Client.
  */
 const SUPPLIER_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=prime' }
-const THROUGH_OTHERS_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=bench' }
+const SUB_VENDOR_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=sub' }
+const BENCH_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=bench' }
 
 export const SUPPLIERS: PartyPage = withTabs({
   slug: 'suppliers',
@@ -237,9 +239,9 @@ export const SUPPLIERS: PartyPage = withTabs({
       'Your prime and your people.',
       'Your invoice is checked against the same approved hours, so nobody retypes them.',
     ],
-    // A sub-vendor sells through its prime, so it signs up as a firm that
-    // sells through other suppliers, adds its people, and links to its prime.
-    signUp: THROUGH_OTHERS_SIGN_UP,
+    // A sub-vendor signs up as itself (`?type=sub`), adds its people, and
+    // links to its prime.
+    signUp: SUB_VENDOR_SIGN_UP,
     bandSays: {
       heading: 'Seen enough? Ask your prime to link.',
       line: 'Add your people first. Your prime’s jobs and the weeks it approves land here. Free while we are testing.',
@@ -259,7 +261,7 @@ export const SUPPLIERS: PartyPage = withTabs({
       'You, and every firm you sell to.',
       'They see who is free, tell you what they need, and ask for people.',
     ],
-    signUp: THROUGH_OTHERS_SIGN_UP,
+    signUp: BENCH_SIGN_UP,
     bandSays: {
       heading: 'Seen enough? Put your bench on Etyme.',
       line: 'Add your people and ask each to say yes. Jobs from the firms you sell to land here. Free while we are testing.',
