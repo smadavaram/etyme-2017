@@ -73,6 +73,14 @@ function ensureReader(db: string): void {
       // Another run made it a moment ago.
     }
   }
+  // Where the server asks the harness for a password, the reader uses the same one.
+  if (process.env.PGPASSWORD) {
+    try {
+      psql(`ALTER ROLE ${READER_ROLE} PASSWORD '${process.env.PGPASSWORD.replace(/'/g, "''")}'`)
+    } catch {
+      // Another run made it a moment ago.
+    }
+  }
   psql([
     `GRANT pg_read_all_data TO ${READER_ROLE}`,
     `ALTER ROLE ${READER_ROLE} IN DATABASE "${db}" SET default_transaction_read_only = on`,
@@ -121,7 +129,7 @@ export async function prepareWorld(
   return {
     name,
     url: urlFor(name),
-    readerUrl: `postgresql://${READER_ROLE}@${PG_HOST}:${PG_PORT}/${name}`,
+    readerUrl: `postgresql://${READER_ROLE}${process.env.PGPASSWORD ? `:${encodeURIComponent(process.env.PGPASSWORD)}` : ''}@${PG_HOST}:${PG_PORT}/${name}`,
     template: world,
     builtTemplate,
   }

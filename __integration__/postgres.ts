@@ -12,8 +12,12 @@ export const PG_HOST = 'localhost'
 export const PG_PORT = 5432
 export const PG_USER = 'postgres'
 
+/** The server's password, where it asks for one; psql reads the same variable on its own. */
+const PG_PASSWORD = process.env.PGPASSWORD
+
 export function urlFor(db: string): string {
-  return `postgresql://${PG_USER}@${PG_HOST}:${PG_PORT}/${db}`
+  const auth = PG_PASSWORD ? `${PG_USER}:${encodeURIComponent(PG_PASSWORD)}` : PG_USER
+  return `postgresql://${auth}@${PG_HOST}:${PG_PORT}/${db}`
 }
 
 /** One or more statements against the maintenance database. */
