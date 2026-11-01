@@ -156,9 +156,32 @@ describe('The first screen is not an empty box', () => {
 
 describe('What this company does here', () => {
 
-  it('there are six ways in, and the sixth is the one-person firm', () => {
-    expect(COMPANY_TYPES).toHaveLength(6)
-    expect(COMPANY_TYPES[5].key).toBe('solo')
+  it('there are seven ways in, and the one-person firm is still the last', () => {
+    expect(COMPANY_TYPES).toHaveLength(7)
+    expect(COMPANY_TYPES[COMPANY_TYPES.length - 1].key).toBe('solo')
+    expect(COMPANY_TYPES.map((t) => t.key)).toEqual(['client', 'msp', 'gsi', 'prime', 'sub', 'bench', 'solo'])
+  })
+
+  // The second Tapin walk, 2026-11-01: the Suppliers door's Sub-vendor tab
+  // had no choice of its own and landed on "Bench supplier".
+  it('a sub-vendor, a firm that supplies people through a prime vendor, has a choice of its own', () => {
+    const t = typeByKey('sub')!
+    expect(t.label).toBe('Sub-vendor')
+    expect(t.blurb).toBe('You supply people through a prime vendor, and bill the prime, not the client.')
+    expect(t.personalEmail).toBe(false)
+  })
+
+  it('a sub-vendor is a supplier like any other, written as selling through other suppliers, never a kind of company of its own', () => {
+    const t = typeByKey('sub')!
+    expect(t.kind).toBe('VENDOR')
+    expect(t.kind).toBe(typeByKey('prime')!.kind)
+    expect(t.posture).toBe('BENCH')
+  })
+
+  it('the prime vendor says it sells to clients directly, and the sub-vendor never does', () => {
+    expect(typeByKey('prime')!.label).toBe('Prime vendor')
+    expect(typeByKey('prime')!.blurb).toContain('to clients directly')
+    expect(typeByKey('sub')!.blurb).not.toContain('to clients directly')
   })
 
   it('a client who hires contractors', () => {

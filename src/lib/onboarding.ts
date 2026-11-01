@@ -50,6 +50,13 @@ export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI' | 'CONSULTANT_CORP
  * is prime to one client and buys bench from three firms in the same week —
  * so this is a starting posture that shapes the first screens, not a
  * permanent identity, and it can be changed without migrating anything.
+ *
+ * A sub-vendor is BENCH too: it sells through a prime, which is what the
+ * column says BENCH means (prisma/schema.prisma, `Company.supplierPosture`),
+ * and how the generated world files every sub-vendor (lib/seed-scale/frame).
+ * Prime, sub-vendor and bench are positions on a deal, not kinds of company
+ * (2026-10-20), so the picker offers each in the trade's words and writes
+ * the posture; it never invents a kind.
  */
 export type SupplierPosture = 'PRIME' | 'BENCH' | null
 
@@ -71,8 +78,9 @@ export interface CompanyTypeOption {
 }
 
 /**
- * The six ways in. Written so a person recognizes themselves in one line,
- * because a wrong choice here is felt for months.
+ * The seven ways in. Written so a person recognizes themselves in one line,
+ * because a wrong choice here is felt for months. The seventh, the
+ * sub-vendor, was added on 2026-11-01; the one-person firm stays last.
  *
  * The sixth, the one-person firm, was added on the sign-up walk of
  * 2026-10-08. The kind, its roles (`rolesFor`) and its menu (SOLO_NAV)
@@ -125,9 +133,24 @@ const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
     key: 'prime',
     kind: 'VENDOR',
     posture: 'PRIME',
-    label: 'Vendor',
-    blurb: 'You supply consultants to clients directly.',
+    // "Prime vendor", the Suppliers door's own tab word (2026-10-16), so it
+    // reads as one of a pair with the sub-vendor below it.
+    label: 'Prime vendor',
+    blurb: 'You supply people to clients directly, under your own agreement with each client.',
     example: 'A staffing firm with its own MSAs',
+  },
+  // A firm that supplies people through a prime vendor (the second Tapin
+  // walk, 2026-11-01): there was no choice for it, so the Suppliers door's
+  // Sub-vendor tab landed on "Bench supplier", and the vendor's line, "to
+  // clients directly", was wrong for it. Kind VENDOR, posture BENCH: it
+  // sells through other suppliers, and its prime is the firm it bills.
+  {
+    key: 'sub',
+    kind: 'VENDOR',
+    posture: 'BENCH',
+    label: 'Sub-vendor',
+    blurb: 'You supply people through a prime vendor, and bill the prime, not the client.',
+    example: 'A staffing firm working under a prime vendor’s agreement',
   },
   {
     key: 'bench',
