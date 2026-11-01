@@ -25,7 +25,7 @@ import {
 
 describe('Permissions (BUILD.md §2)', () => {
   describe('The flat permission list', () => {
-    it('has exactly 33 permissions', () => {
+    it('has exactly 34 permissions', () => {
       // Deliberately a canary. Permission lists grow by accident, and every
       // addition is a new thing somebody can be granted without anyone
       // deciding they should be. Changing this number should be a decision.
@@ -52,7 +52,13 @@ describe('Permissions (BUILD.md §2)', () => {
       // The desk that answers for a person's record is not the desk that
       // edits the approval chain, so it is its own permission rather than
       // governance.write.
-      expect(PERMISSIONS).toHaveLength(33)
+      //
+      // 33 → 34: orders.raise. The order route asked for invoices.issue,
+      // so on the second Tapin walk (2026-10-30) Accounts Receivable raised
+      // a purchase order. An order is the ceiling a supplier bills against:
+      // the seat that raises it is not the seat that bills on it or awards
+      // against it (HELD_APART in lib/permissions).
+      expect(PERMISSIONS).toHaveLength(34)
     })
 
     it('every permission follows the resource.action pattern', () => {

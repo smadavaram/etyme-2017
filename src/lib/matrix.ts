@@ -2587,9 +2587,10 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/schema-terms.test.ts',
             '__tests__/invariants/payroll-export.test.ts'] },
         { code: 'L3.7.1.3', name: 'Governance and segregation of duties', owner: 'Compliance', status: B,
-          tasks: ['Approver is not the beneficiary', 'Blocks, and says whose rule'],
-          implementedBy: ['src/lib/governance.ts', 'src/lib/governance-authorship.ts'],
-          testedBy: ['__tests__/invariants/governance.test.ts', '__tests__/invariants/governance-authorship.test.ts'] },
+          tasks: ['Approver is not the beneficiary', 'Blocks, and says whose rule',
+            'BUILT 2026-11-01 by etyme-regulatory, from the second Tapin walk, where Accounts Receivable raised a purchase order because the order route asked for invoices.issue: raising an order is its own permission, orders.raise, said in words (“raise an order to a supplier, setting the most it may bill”), and held apart from billing on it (invoices.issue) and awarding against it (requirements.write) in HELD_APART, each pair with its reason, read by heldTogether, which never names the owner or the admin. Granted to no role here: the owner and the admin come to hold it when the role set lists it (company-defaults, the architect’s), the Contract Manager is the role it is meant for, and switching the order route from invoices.issue is money’s'],
+          implementedBy: ['src/lib/permissions.ts', 'src/lib/governance.ts', 'src/lib/governance-authorship.ts'],
+          testedBy: ['__tests__/invariants/orders-raise-held-apart.test.ts', '__tests__/invariants/permissions.test.ts', '__tests__/invariants/governance.test.ts', '__tests__/invariants/governance-authorship.test.ts'] },
       ]},
       { code: 'L2.7.2', name: 'Commercial risk', domain: 'SUPPLY', processes: [
         { code: 'L3.7.2.1', name: 'Supplier financial risk', owner: 'Procurement', status: B,

@@ -25,6 +25,14 @@ export const PERMISSIONS = [
   'timesheets.approve',
   'invoices.read',
   'invoices.issue',
+  // Raising an order: the ceiling a supplier bills against, committed to
+  // one firm. Held apart from invoices.issue and requirements.write (the
+  // second Tapin walk, 2026-10-30, saw Accounts Receivable raise a
+  // purchase order because the route asked for invoices.issue): the seat
+  // that raises an order is not the seat that bills on it or awards
+  // against it. See HELD_APART below. The Contract Manager is the role it
+  // is meant for; granting it is the role set's, not this list's.
+  'orders.raise',
   // Price is procurement's to set and to amend. Separate from
   // assignments.write because the team that owns rates at a client is not
   // the team that creates contracts.
@@ -409,6 +417,7 @@ export const PERMISSION_WORDS: Record<Permission, string> = {
   'timesheets.approve': 'sign hours off',
   'invoices.read': 'read bills and invoices',
   'invoices.issue': 'issue a bill to a customer',
+  'orders.raise': 'raise an order to a supplier, setting the most it may bill',
   'rates.read': 'read agreed rates',
   'rates.write': 'set and change agreed rates',
   'payments.record': 'record money received',
@@ -436,4 +445,47 @@ export function inWords(permissions: readonly string[]): string {
   if (said.length === 0) return 'do things this seat does not'
   if (said.length === 1) return said[0]
   return said.slice(0, -1).join(', ') + ' and ' + said[said.length - 1]
+}
+
+// ── Held apart ─────────────────────────────────────────────────────────
+//
+// Permissions one role should not hold together, each pair with the
+// reason in a sentence a person reads. Data, so a new pair is a new line.
+// The owner and the admin hold everything by construction and are never
+// named here: somebody has to be able to grant the rest, and at a firm of
+// one the owner is every role.
+
+export interface HeldApart {
+  a: Permission
+  b: Permission
+  /** Why one role does not hold both, said to a person. */
+  because: string
+}
+
+export const HELD_APART: readonly HeldApart[] = [
+  {
+    a: 'orders.raise',
+    b: 'invoices.issue',
+    because:
+      'The seat that raises an order is not the seat that bills on it: the order sets the most a bill may claim, ' +
+      'and one person holding both writes the limit and the claim against it.',
+  },
+  {
+    a: 'orders.raise',
+    b: 'requirements.write',
+    because:
+      'The seat that raises an order is not the seat that awards against it: awarding chooses who is paid, ' +
+      'and raising the order commits the money to pay them.',
+  },
+]
+
+/**
+ * The pairs a role holds together that are meant to be held apart, each
+ * with its reason. Empty for the owner and the admin, who hold
+ * everything by construction, and for a role holding everything ('*').
+ * Pure.
+ */
+export function heldTogether(role: { name: string; permissions: readonly string[] }): HeldApart[] {
+  if (HOLDS_EVERYTHING.has(role.name) || role.permissions.includes('*')) return []
+  return HELD_APART.filter((pair) => role.permissions.includes(pair.a) && role.permissions.includes(pair.b))
 }
