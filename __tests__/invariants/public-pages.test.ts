@@ -30,7 +30,7 @@ import {
 import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, tabHref } from '@/lib/public-site/parties'
 import { storyChromeCopy } from '@/lib/public-site/story'
-import { BAND, CATEGORY, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
+import { BAND, CATEGORY, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, bandWords, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
 import { companyPage } from '@/lib/public-site/company-page'
@@ -750,7 +750,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
     expect(DOORS[0]).toEqual({ t: 'Clients', href: '/' })
     const view = read('src/lib/public-site/sub-page.tsx')
-    expect(view).toContain('<SignUpBand primary={signUp} band={band} />')
+    expect(view).toContain('<SignUpBand primary={signUp} band={band} says={bandSays} />')
     expect(view).toContain('<SkeletonFooter />')
   })
 
@@ -806,12 +806,17 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(candidateForm(CLIENT_SIGN_UP.href)).toBe(false)
   })
 
-  it('each door’s filled button is its own sign-up, the rest of the band is the home page’s, and a contractor signs up on the same form as a candidate', () => {
+  it('each door’s filled button is its own sign-up, its band says that party’s own next act under the home page’s doors line, and a contractor signs up on the same form as a candidate', () => {
+    // Until 2026-10-31 a door's band was the home page's, word for word;
+    // the second Tapin walk read it on the Suppliers door as written to a
+    // hiring company. Each door now says its own (door-sign-up-bands.test.ts).
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     for (const p of PARTY_PAGES) {
       expect(p.signUp.href.startsWith('/signup'), p.route).toBe(true)
+      expect(all(copyOfPartyPage(p)), p.route).toContain('Your door:')
       if (p.slug !== 'contractors') {
-        expect(all(copyOfPartyPage(p))).toContain(BAND.heading)
+        expect(all(copyOfPartyPage(p))).not.toContain(BAND.heading)
+        expect(all(copyOfPartyPage(p))).toContain(bandWords(p.band, p.bandSays).heading)
         expect(all(copyOfPartyPage(p))).toContain('Free while we are testing.')
       }
     }
@@ -830,9 +835,11 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(c).not.toMatch(/spend audit/i)
     expect(c).toContain('Your door:')
     expect(doorAt('contractors')!.band).toBe('SELF')
-    // Every other door and every product page keeps the company band.
-    for (const p of PARTY_PAGES.filter((x) => x.slug !== 'contractors')) expect(all(copyOfPartyPage(p)), p.route).toContain(BAND.heading)
-    expect(read('src/lib/public-site/skeleton.tsx')).toContain("const words = band === 'SELF' ? BAND_FOR_SELF : BAND")
+    // Every other door draws a company's band in its own party's words
+    // (2026-10-31); the product pages keep the client's.
+    for (const p of PARTY_PAGES.filter((x) => x.slug !== 'contractors')) expect(all(copyOfPartyPage(p)), p.route).toContain(bandWords(p.band, p.bandSays).heading)
+    expect(read('src/lib/public-site/skeleton.tsx')).toContain('const words = bandWords(band, says)')
+    expect(read('src/lib/public-site/skeleton-words.ts')).toContain("return band === 'SELF' ? BAND_FOR_SELF : BAND")
   })
 
   it('no sentence on a door or any of its tabs is longer than twenty-five words, and the word ecosystem is on none of them', () => {
@@ -940,7 +947,9 @@ describe('Four doors for the parties who are not the client, reached by link and
     const views = Object.fromEntries(everyDoorView().filter((v) => v.slug === 'contractors').map((v) => [v.href, v]))
     expect(views['/for/contractors?tab=solo'].signUp.href).toBe('/signup?type=solo')
     expect(views['/for/contractors?tab=solo'].band).toBe('COMPANY')
-    expect(all(copyOf('/for/contractors?tab=solo')!)).toContain('Seen enough? Set up your company.')
+    // Her own first act, not a client's "Set up your company" (2026-10-31).
+    expect(all(copyOf('/for/contractors?tab=solo')!)).toContain('Seen enough? Record the contract you have.')
+    expect(all(copyOf('/for/contractors?tab=solo')!)).not.toContain('Set up your company')
     expect(views['/for/contractors'].signUp.href).toBe('/signup?as=candidate')
     expect(views['/for/contractors'].band).toBe('SELF')
     // The sign-up page opens the company form on the one-person kind from that address.

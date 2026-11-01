@@ -68,7 +68,7 @@ import { copyOfWhy } from '@/lib/public-site/why-words'
 import { TALK } from '@/lib/public-site/talk'
 /** The line under the question since the map, 2026-10-27, the drawing's own words. */
 const MAP_LEDE = 'Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a site’s hiring manager.'
-import { BAND, CATEGORY, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
+import { BAND, CATEGORY, OPEN_DEMO, bandWords, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
 import { HEADER, everyFrameLink } from '@/lib/public-site/nav'
@@ -761,7 +761,9 @@ describe('Every line says an outcome, a benefit or a method', () => {
     // carries a verb too, and so does the close the other pages end in.
     const heads = [...headlinesFrom(PAGE), BAND.heading]
     expect(heads).toEqual(['Know what every contractor costs, across every supplier.', 'Seen enough? Set up your company.'])
-    const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.headline), ...everyDoorView().map((p) => p.headline)])
+    // Each door's band says its own party's next act since 2026-10-31, and is a headline too.
+    const doorBands = everyDoorView().map((p) => bandWords(p.band, p.bandSays).heading)
+    const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.headline), ...everyDoorView().map((p) => p.headline), ...doorBands])
     expect(slogans, `these headlines have no verb in them:\n  ${slogans.join('\n  ')}`).toEqual([])
   })
   // "Answers each of the four questions in one line that names a screen"

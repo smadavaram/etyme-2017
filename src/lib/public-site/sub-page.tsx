@@ -4,7 +4,7 @@ import { TryDemo } from '@/components/try-demo'
 import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
 import type { DemoTarget, PersonTarget } from './flow'
-import type { BandKind } from './skeleton-words'
+import type { BandKind, BandWords } from './skeleton-words'
 import type { StoryKey } from './story'
 import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
 
@@ -21,7 +21,8 @@ import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMA
  *              this page's own screen in the full demo
  *   #lines     at most three short lines: what you do here, who is
  *              involved, what happens next
- *   #sign-up   the home page's band; a door's filled button is its own sign-up
+ *   #sign-up   the home page's band; a door's filled button is its own sign-up,
+ *              and its two lines are its own party's next act (2026-10-31)
  *   then the one security line and the footer
  *
  * No screenshot, no card grid, no day-one panels, no growth story, no
@@ -48,6 +49,8 @@ export interface SubPageProps {
   signUp?: { t: string; href: string }
   /** The band: a company's, or a person's own (the contractors' door). */
   band?: BandKind
+  /** A door's own band words: its party's next act, never the client's (2026-10-31). */
+  bandSays?: BandWords
   /** Which story the panel plays: Northbend Athletic's unless a page names another. */
   story?: StoryKey
   /**
@@ -66,7 +69,7 @@ function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
 
 const TAB = 'rounded-full border px-3 py-1.5 text-[14px] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
 
-export function SubPageView({ tabs, question, purpose, step, caption, label, lines, link, demo, signUp, band, story, map }: SubPageProps) {
+export function SubPageView({ tabs, question, purpose, step, caption, label, lines, link, demo, signUp, band, bandSays, story, map }: SubPageProps) {
   const shown = lines.slice(0, 3)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
@@ -125,7 +128,7 @@ export function SubPageView({ tabs, question, purpose, step, caption, label, lin
           ))}
         </ul>
 
-        <SignUpBand primary={signUp} band={band} />
+        <SignUpBand primary={signUp} band={band} says={bandSays} />
         <SecurityLine />
       </main>
 

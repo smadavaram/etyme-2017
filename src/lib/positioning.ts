@@ -1091,3 +1091,37 @@ export function promisesAnAccount(labels: string[]): string[] {
   }
   return out
 }
+
+// ── Two house rules a generated sentence can break ────────────────────
+//
+// The second Tapin walk (2026-10-31) found the British spelling of
+// "organization" on a firm's public page. The customers are US buyers
+// (American English on every screen, decided 2026-09-13), and "desk" and
+// "program office" are said nowhere (the founder, 2026-10-14). A page Etyme writes is checked by the
+// invariant tests; a sentence a model writes for a firm's page arrives at
+// run time, after every test has passed, so it is checked here and a draft
+// that breaks either rule is not used.
+
+// Each stem has one letter in brackets, so this file holds no British
+// word for the spelling invariant (american-english.test.ts) to find.
+const BRITISH_SPELLING = new RegExp(
+  '\\b(programm[e]s?|centr[e]s?|authori[s](?:ation|ations|e|ed|es|ing)|organi[s](?:ation|ations|e|ed|es|ing)|' +
+  'summari[s](?:e|ed|es|ing)|recogni[s](?:e|ed|es|ing|able)|speciali[s](?:e|ed|es|ing|ation)|' +
+  'utili[s](?:ation|e|ed|es|ing)|minimi[s](?:e|ed|es|ing)|judg[e]ments?|ag[e]ing|lab[e]ll(?:ed|ing)|' +
+  'behavi[o]urs?|hon[o]ur(?:ed|s|ing)?|col[o]urs?|fav[o]ur(?:ite|ites|able|ed|s)?|lab[o]ur|instalm[e]nts?|' +
+  'def[e]nce|off[e]nce|lic[e]nces?|catal[o]gue|analy[s](?:e|ed|ing)|trav[e]ll(?:ed|ing|er|ers)|' +
+  'mod[e]ll(?:ed|ing)|enr[o]l|enr[o]lment|fulf[i]l|fulf[i]lment|ch[e]ques?)\\b',
+  'gi',
+)
+
+/** Every word in the text spelled the British way, as written. Empty is the only acceptable answer. */
+export function britishSpellings(text: string): string[] {
+  return [...text.matchAll(BRITISH_SPELLING)].map((m) => m[0])
+}
+
+const NOBODY_USES = /\b(?:program(?:me)?[ -]offices?|desks?)\b/gi
+
+/** "Desk" and "program office", wherever a sentence says them. Empty is the only acceptable answer. */
+export function wordsNobodyUses(text: string): string[] {
+  return [...text.matchAll(NOBODY_USES)].map((m) => m[0])
+}

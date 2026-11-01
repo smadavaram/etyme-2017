@@ -219,7 +219,7 @@ export default async function ConsultantPage({ params }: { params: Promise<{ slu
               would make every page on the platform worth less. */}
           <p className="text-[12px] text-etyme-faint mt-2 max-w-lg leading-relaxed">
             Everything counted on this page comes from work recorded on Etyme. It is not a
-            recommendation — nothing here is vouched for by us.
+            recommendation from Etyme.
           </p>
           <p className="text-[12px] text-etyme-faint mt-4">
             <a href="https://etyme.com" className="hover:text-etyme-ink transition-colors">

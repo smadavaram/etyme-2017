@@ -62,6 +62,7 @@ export function PartyPageView({ slug, params, facts = NO_FACTS }: { slug: PartyS
       demo={demo}
       signUp={p.signUp}
       band={p.band}
+      bandSays={p.bandSays}
       story={p.story}
       map={drawn ? { node: <CorvaneMapView map={drawn.map} seat={drawn.seat} hrefs={drawn.hrefs} doorsOpen inPage />, under: drawn.map.under } : undefined}
     />

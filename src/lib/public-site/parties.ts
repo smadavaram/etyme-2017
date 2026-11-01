@@ -1,6 +1,6 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget, PersonTarget } from './flow'
-import { CATEGORY, copyOfSkeleton, ON_SCREEN_DOOR, OPEN_DEMO, watching, type BandKind } from './skeleton-words'
+import { CATEGORY, copyOfSkeleton, ON_SCREEN_DOOR, OPEN_DEMO, watching, type BandKind, type BandWords } from './skeleton-words'
 import type { StoryKey } from './story'
 
 /**
@@ -68,6 +68,22 @@ import type { StoryKey } from './story'
  * Rashida Coleman. The caption that said "your client's screen" is gone
  * with the client's screen; the line names whose screen it is. The words
  * of every headline, line, band and button are unchanged.
+ *
+ * ── Each door's band says its own party's next act, 2026-10-31 ───────
+ *
+ * The second Tapin walk read the Suppliers door as a bench supplier
+ * signing up fresh, and its sign-up band spoke to a client: "Seen enough?
+ * Set up your company. Your suppliers and contractors go where the sample
+ * ones are." So a door, and each tab of one, now names its band
+ * (`bandSays`): that party's next act after signing up, the same act its
+ * first greeting in Ask Etyme names (app/api/conversations/twin/
+ * first-act), so the page never promises a first step the first screen
+ * does not offer. "Free while we are testing." stays on every company's
+ * band. The home page and the step pages keep the client's band word for
+ * word, because they speak to the client. And a door's Sign up opens the
+ * form on its own kind (`?type=`): a prime vendor as a vendor, a
+ * sub-vendor and a bench vendor as firms that sell through other
+ * suppliers, never on an empty choice that lists Client first.
  */
 
 export type PartySlug = 'suppliers' | 'program-offices' | 'integrators' | 'contractors'
@@ -85,6 +101,8 @@ export interface DoorTab {
   signUp?: { t: string; href: string }
   /** The band, where this tab's reader is not setting up what the door's first tab is. */
   band?: BandKind
+  /** The band's two lines on this tab: this party's own next act, never the client's. */
+  bandSays?: BandWords
   /** The story the panel plays on this tab: this tab's own person. */
   story?: StoryKey
   /** The panel's starting step on this tab: the one its person acts on. */
@@ -122,6 +140,13 @@ export interface PartyPage {
   demo: { target: DemoTarget | PersonTarget } | { candidate: true }
   /** The sign-up band: a company's unless said; a contractor's is a person's own. */
   band?: BandKind
+  /**
+   * The band's two lines: this party's next act after signing up, in its
+   * own words (the second Tapin walk, 2026-10-31). Every door that sets up
+   * a company names its own; the contractors' Worker tab keeps a person's
+   * own band (`band: 'SELF'`).
+   */
+  bandSays?: BandWords
   /** Which story the panel plays: Northbend Athletic's program manager unless said. */
   story?: StoryKey
   /** The line under the panel, where the door seats its reader somewhere of its own. Ends on `ON_SCREEN_DOOR`. */
@@ -136,13 +161,16 @@ function withTabs(door: Omit<PartyPage, 'headline' | 'purpose' | 'lines' | 'tabs
 }
 
 /** What one tab changes on its door: the words, the sign-up, and the panel's person. */
-function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | 'label' | 'demo'>, tab: DoorTab) {
+function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'bandSays' | 'story' | 'step' | 'label' | 'demo'>, tab: DoorTab) {
   return {
     headline: tab.headline,
     purpose: tab.purpose,
     lines: tab.lines,
     signUp: tab.signUp ?? door.signUp,
     band: tab.band ?? door.band,
+    // A tab that sets up a person's own page draws a person's band, never
+    // the door's company words.
+    bandSays: tab.bandSays ?? (tab.band === 'SELF' ? undefined : door.bandSays),
     story: tab.story ?? door.story,
     step: tab.step ?? door.step,
     label: tab.panelLabel ?? door.label,
@@ -150,7 +178,15 @@ function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | '
   }
 }
 
-const SUPPLIER_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup' }
+/**
+ * A supplier's sign-up opens the company form on its own kind
+ * (`COMPANY_TYPES` in lib/onboarding): a prime vendor as a vendor that
+ * sells to clients directly, a sub-vendor and a bench vendor as a firm
+ * that sells through other suppliers. Until 2026-10-31 it opened on an
+ * empty choice whose first option is Client.
+ */
+const SUPPLIER_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=prime' }
+const THROUGH_OTHERS_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=bench' }
 
 export const SUPPLIERS: PartyPage = withTabs({
   slug: 'suppliers',
@@ -176,6 +212,12 @@ export const SUPPLIERS: PartyPage = withTabs({
       'Your account manager, and your sub-vendors with their insurance and papers checked.',
       'Bill your client on the week it approves. Pay each sub-vendor only what matches.',
     ],
+    // The prime's first act on Etyme: record a client it already works with.
+    // As many words as the client's band, because this tab sits at 162 of 165.
+    bandSays: {
+      heading: 'Seen enough? Add a client you work with.',
+      line: 'Its jobs land here, ready for your sub-vendors. Free while we are testing.',
+    },
   },
   {
     key: 'sub',
@@ -192,6 +234,13 @@ export const SUPPLIERS: PartyPage = withTabs({
       'Your prime and your people.',
       'Your invoice is checked against the same approved hours, so nobody retypes them.',
     ],
+    // A sub-vendor sells through its prime, so it signs up as a firm that
+    // sells through other suppliers, adds its people, and links to its prime.
+    signUp: THROUGH_OTHERS_SIGN_UP,
+    bandSays: {
+      heading: 'Seen enough? Ask your prime to link.',
+      line: 'Add your people first. Your prime’s jobs and the weeks it approves land here. Free while we are testing.',
+    },
   },
   {
     key: 'bench',
@@ -207,6 +256,11 @@ export const SUPPLIERS: PartyPage = withTabs({
       'You, and every firm you sell to.',
       'They see who is free, tell you what they need, and ask for people.',
     ],
+    signUp: THROUGH_OTHERS_SIGN_UP,
+    bandSays: {
+      heading: 'Seen enough? Put your bench on Etyme.',
+      line: 'Add your people and ask each to say yes. Jobs from the firms you sell to land here. Free while we are testing.',
+    },
   },
 ])
 
@@ -223,6 +277,12 @@ export const PROGRAM_OFFICES: PartyPage = {
     'The client’s hiring manager approves the weeks, and its AP clerk pays.',
   ],
   signUp: { t: 'Sign up as an MSP', href: '/signup?type=msp' },
+  // An MSP's first act: ask a client for a seat in its program. This door
+  // sits at 161 of 165 words, so its band is one word shorter than the client's.
+  bandSays: {
+    heading: 'Seen enough? Ask your client for a seat.',
+    line: 'Its owner or program manager grants it. Free while we are testing.',
+  },
   // The founder, on this door, 2026-10-15: "use a sample MSP company".
   // The panel plays Aptiva Workforce in the seat Cavanaugh Glassworks
   // granted it (its own Program Manager role, lib/seed-world
@@ -250,6 +310,11 @@ export const INTEGRATORS: PartyPage = {
     'Place them on your next project, or put them forward on a client’s job as your own employee.',
   ],
   signUp: { t: 'Sign up as an integrator', href: '/signup?type=gsi' },
+  // An integrator's first act: its own people on the record, then who rolls off.
+  bandSays: {
+    heading: 'Seen enough? Put your own people on Etyme.',
+    line: 'Import them from a file, or add them one by one. Then flag who rolls off. Free while we are testing.',
+  },
   demo: { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
 }
 
@@ -296,6 +361,11 @@ export const CONTRACTORS: PartyPage = withTabs({
     // the one-person kind (`?type=solo`, the sign-up page's own link).
     signUp: { t: 'Sign up', href: '/signup?type=solo' },
     band: 'COMPANY',
+    // Her first act: the contract she already has, then her firm's papers.
+    bandSays: {
+      heading: 'Seen enough? Record the contract you have.',
+      line: 'Put your W-9 and insurance on file. Then file your week and bill from it. Free while we are testing.',
+    },
   },
 ])
 
@@ -340,6 +410,6 @@ export function copyOfPartyPage(door: PartyPage, tab?: string | null): { hero: s
   const p = doorTab(door, tab)
   return {
     hero: [CATEGORY, ...(door.tabs ?? []).map((t) => t.label), p.headline, p.purpose],
-    body: [...p.lines, ...copyOfSkeleton({ step: p.step, caption: p.caption, label: p.label ?? ON_SCREEN_DOOR, button: OPEN_DEMO, primary: p.signUp, band: p.band, story: p.story })],
+    body: [...p.lines, ...copyOfSkeleton({ step: p.step, caption: p.caption, label: p.label ?? ON_SCREEN_DOOR, button: OPEN_DEMO, primary: p.signUp, band: p.band, says: p.bandSays, story: p.story })],
   }
 }

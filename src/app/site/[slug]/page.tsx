@@ -123,7 +123,7 @@ export default async function CompanySite({ params }: { params: Promise<{ slug: 
               would make every page on the platform worth less. */}
           <p className="text-[12px] text-etyme-faint mt-2 max-w-lg leading-relaxed">
             Everything counted on this page comes from work recorded on Etyme. It is not a
-            recommendation — nothing here is vouched for by us.
+            recommendation from Etyme.
           </p>
           <p className="text-[12px] text-etyme-faint mt-4">
             <a href="https://etyme.com" className="hover:text-etyme-ink transition-colors">
@@ -151,7 +151,7 @@ function ForSuppliers({ site }: { site: PublicSite }) {
 
         {site.openPositions.length === 0 ? (
           <p className="text-[15px] text-etyme-muted mt-3 max-w-xl leading-relaxed">
-            Nothing open to the network right now. {site.name} works with{' '}
+            Nothing open to any supplier right now. {site.name} works with{' '}
             {rep && rep.suppliers > 0
               ? `${rep.suppliers} supplier${rep.suppliers === 1 ? '' : 's'} they have already chosen`
               : 'suppliers they invite directly'}
@@ -329,8 +329,11 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
               <p className="font-serif text-4xl text-etyme-ink mt-1 tabular-nums">
                 {site.track.clients}
               </p>
+              {/* "company": the reader is a US buyer, and the British
+                  spelling of "organization" stood here until the second
+                  Tapin walk (2026-10-31). */}
               <p className="text-[13px] text-etyme-muted mt-0.5">
-                {site.track.clients === 1 ? 'organisation' : 'organisations'}
+                {site.track.clients === 1 ? 'company' : 'companies'}
               </p>
             </div>
           </div>

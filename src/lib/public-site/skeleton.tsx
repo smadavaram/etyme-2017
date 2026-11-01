@@ -4,8 +4,8 @@ import { storyIndex, type StoryKey } from './story'
 import { HomeFooter } from './frame'
 import { TalkToAPerson } from './talk'
 import {
-  CATEGORY, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
-  type BandKind,
+  CATEGORY, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, CLIENT_SIGN_UP, SECURITY, bandWords,
+  type BandKind, type BandWords,
 } from './skeleton-words'
 
 /**
@@ -91,9 +91,13 @@ export function PhoneButton({ children, className = 'mb-4' }: { children: React.
  * beside it left every page on 2026-10-14. On the home page "Talk to a
  * person" sits beside Sign up (`talk`, founder, 2026-10-27); the doors
  * keep the one button until their own drawings are built.
+ *
+ * A door says its own two lines (`says`, the second Tapin walk,
+ * 2026-10-31): its party's next act, never the client's "Set up your
+ * company". The home page passes none and keeps its band word for word.
  */
-export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY', talk = false }: { primary?: { t: string; href: string }; band?: BandKind; talk?: boolean }) {
-  const words = band === 'SELF' ? BAND_FOR_SELF : BAND
+export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY', says, talk = false }: { primary?: { t: string; href: string }; band?: BandKind; says?: BandWords; talk?: boolean }) {
+  const words = bandWords(band, says)
   return (
     <section
       id="sign-up"

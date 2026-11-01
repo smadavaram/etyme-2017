@@ -102,7 +102,7 @@ export function Ask({
       const json = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
         setState('idle')
-        setSays(json?.error?.message ?? 'That did not send. Try again, or write to us directly.')
+        setSays(json?.error?.message ?? (firm ? FIRM_ASK_COPY.failed : 'That did not send. Try again, or write to us directly.'))
         return
       }
       setState('sent')

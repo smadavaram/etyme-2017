@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join } from 'path'
 
 /**
@@ -64,11 +64,59 @@ function britishIn(file: string): string[] {
   return hits
 }
 
+/**
+ * The pages a stranger opens, and the files their words come from: the
+ * home page, the marketing site and its doors, a firm's generated page,
+ * the census, the demo door and the sign-up and sign-in forms.
+ */
+const PUBLIC = [
+  'src/app/page.tsx', 'src/app/(site)', 'src/app/site', 'src/app/c', 'src/app/census', 'src/app/demo',
+  'src/app/(auth)', 'src/lib/public-site', 'src/lib/site-voice.ts', 'src/lib/census-copy.ts', 'src/lib/password-words.ts',
+]
+
+/** The one quoted British word a public file may hold: the demo desk key, which is an address. */
+const PUBLIC_ADDRESSES = new Set(['programme'])
+
+/**
+ * A public file's British spellings, with no pass for a word quoted whole.
+ * A whole quoted word is a key everywhere else, but on a public page it is
+ * as often the word a reader reads: `{n === 1 ? 'organisation' : ...}`.
+ */
+function britishOnAPublicPage(text: string, where: string): string[] {
+  const hits: string[] = []
+  for (const m of text.matchAll(BRITISH)) {
+    const word = m[1]
+    if (word === word.toUpperCase()) continue
+    if (isAddress(text, m.index!, m.index! + m[0].length) && PUBLIC_ADDRESSES.has(word)) continue
+    const line = text.slice(0, m.index).split('\n').length
+    hits.push(`${where}:${line} "${m[0]}"`)
+  }
+  return hits
+}
+
+function publicFiles(): string[] {
+  return PUBLIC.map((p) => join(ROOT, p)).filter(existsSync).flatMap((p) => (statSync(p).isDirectory() ? walk(p) : [p]))
+}
+
 describe('the app speaks American English', () => {
   it('no screen, route, library or seed spells a word the British way', () => {
     const files = walk(join(ROOT, 'src'))
     const hits = files.flatMap(britishIn)
     expect(hits, hits.slice(0, 20).join('\n')).toEqual([])
+  })
+
+  it('a word shown on its own on a public page, like the word under a figure, is spelled the American way too', () => {
+    // The second Tapin walk (2026-10-31) read the British "organisation"
+    // under the Clients figure on a firm's public page. The sentence above
+    // let it through as a key, because it stood whole inside quotes. On
+    // the pages a stranger opens, only the demo desk key is let through.
+    const files = publicFiles()
+    expect(files.some((f) => f.endsWith('src/app/site/[slug]/page.tsx'))).toBe(true)
+    const hits = files.flatMap((f) => britishOnAPublicPage(readFileSync(f, 'utf8'), f.replace(ROOT + '/', '')))
+    expect(hits, hits.slice(0, 20).join('\n')).toEqual([])
+    // And the guard sees the shape that slipped through, and lets the key through.
+    expect(britishOnAPublicPage("{n === 1 ? 'organisation' : 'organisations'}", 'a page')).toHaveLength(2)
+    expect(britishOnAPublicPage("{ desk: 'programme', label: 'Program manager' }", 'a page')).toEqual([])
   })
 
   it('the roles a client starts with are named the way a US program office names them', () => {

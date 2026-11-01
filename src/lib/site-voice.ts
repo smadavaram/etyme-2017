@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { britishSpellings, wordsNobodyUses } from '@/lib/positioning'
 
 /**
  * Giving a company a site that sounds like them.
@@ -163,8 +164,12 @@ Rules that matter more than style:
   and "trusted" are all unverifiable and read as filler.
 - If the numbers are small, do not dress them up. A company with two
   placements should read as a company with two placements.
-- British or American spelling — follow whatever the company name suggests,
-  and default to British.
+- American English, always: organization, program, center, license. The
+  people reading this page are US buyers.
+- Never write "desk" or "program office". Say the person's job, or "team";
+  the firm that runs a client's program is an MSP.
+- Plain words and short sentences, about fifteen words each, for a reader
+  whose first language may not be English.
 
 Return only JSON: {"tagline":"...","intro":"...","headings":{"key":"..."}}`
 
@@ -204,6 +209,9 @@ Current names: ${JSON.stringify(DEFAULT_HEADINGS)}`
 
     const parsed = parseVoice(text)
     if (!parsed) return null
+    // A draft that breaks a house rule is not used; the rules write the
+    // page instead, from the same facts.
+    if (!keepsTheHouseWords(parsed)) return null
 
     return {
       tagline: parsed.tagline,
@@ -229,6 +237,19 @@ function pickKnown(h: Record<string, string> | undefined): Record<string, string
     if (typeof v === 'string' && v.trim() && v.length <= 60) out[k] = v.trim()
   }
   return out
+}
+
+/**
+ * Whether a drafted voice keeps the words every Etyme page keeps: American
+ * spelling and never "desk" or "program office" (the second Tapin walk,
+ * 2026-10-31, found "organization" spelled the British way on a firm's
+ * page, and the prompt then asked for British spelling unless the
+ * company's name suggested otherwise). Checked on what the model wrote,
+ * every heading included, because a prompt is a request and this is the gate.
+ */
+export function keepsTheHouseWords(v: { tagline: string; intro: string; headings?: Record<string, string> }): boolean {
+  const said = [v.tagline, v.intro, ...Object.values(v.headings ?? {})].filter((x) => typeof x === 'string').join(' ')
+  return britishSpellings(said).length === 0 && wordsNobodyUses(said).length === 0
 }
 
 export function parseVoice(text: string): { tagline: string; intro: string; headings?: Record<string, string> } | null {

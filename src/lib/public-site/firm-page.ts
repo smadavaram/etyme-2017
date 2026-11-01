@@ -178,6 +178,12 @@ export const FIRM_ASK_COPY = {
   companyPlaceholder: 'Your company',
   button: 'Send it',
   sending: 'Sending…',
+  /**
+   * Said where the send fails with no sentence from the route. Never "write
+   * to us": on a firm's page the question is the firm's, and "us" would be
+   * Etyme, which never reads it.
+   */
+  failed: 'That did not send. Try again in a minute.',
 } as const
 
 /** The one reply, true on every path that reaches it. */

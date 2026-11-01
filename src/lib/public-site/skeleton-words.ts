@@ -111,6 +111,33 @@ export const BAND_FOR_SELF = {
 /** Which band a page draws: a company's, or a person's own. */
 export type BandKind = 'COMPANY' | 'SELF'
 
+/**
+ * A band's own two lines, where a page's reader is not the client.
+ *
+ * The home page and the four step pages speak to the client, so their band
+ * says "Set up your company" over the client's own line. A party door is
+ * read by somebody else, and the second Tapin walk (2026-10-31) read the
+ * Suppliers door's band as written to a hiring company. So each door, and
+ * each tab of one, names its own band (`./parties`): that party's next
+ * act, in its own words, the same act its first greeting in Ask Etyme
+ * names. The doors line under it and the filled button are unchanged.
+ */
+export interface BandWords {
+  heading: string
+  line: string
+}
+
+/**
+ * The two lines a band draws: a door's own where it names them, else a
+ * person's own band on the contractors' door, else the home page's. One
+ * function, read by the band that draws them and the guard that counts
+ * them, so the two cannot disagree.
+ */
+export function bandWords(band?: BandKind, says?: BandWords): BandWords {
+  if (says) return says
+  return band === 'SELF' ? BAND_FOR_SELF : BAND
+}
+
 /** The client's sign-up, the band's filled button unless a door names its own. */
 export const CLIENT_SIGN_UP = { t: 'Sign up', href: '/signup' }
 
@@ -130,14 +157,14 @@ export const SECURITY = {
  * the frame's screens were, and is not counted. `step` is kept so a page
  * says which step it opens at, for the reader of this call.
  */
-export function copyOfSkeleton(o: { step?: EmbedStep; caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind; story?: StoryKey }): string[] {
-  const self = o.band === 'SELF'
+export function copyOfSkeleton(o: { step?: EmbedStep; caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind; says?: BandWords; story?: StoryKey }): string[] {
+  const words = bandWords(o.band, o.says)
   return [
     ...storyChromeCopy(o.story),
     o.button,
     ...(o.caption ? [o.caption] : []),
     o.label ?? ON_SCREEN,
-    self ? BAND_FOR_SELF.heading : BAND.heading, self ? BAND_FOR_SELF.line : BAND.line,
+    words.heading, words.line,
     BAND.doorsLead, ...DOORS.map((d) => d.t),
     (o.primary ?? CLIENT_SIGN_UP).t,
     SECURITY.line, SECURITY.link, SECURITY.docs,
