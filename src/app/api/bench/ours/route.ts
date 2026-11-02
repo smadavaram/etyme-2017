@@ -9,6 +9,7 @@ import {
 } from '@/lib/internal-moves'
 import { seatFacts, refuse } from './facts'
 import { recordAccess } from '@/lib/access-log'
+import { apartTitles } from './positions'
 
 /**
  * GET /api/bench/ours
@@ -249,6 +250,8 @@ export async function GET(request: NextRequest) {
     workOrderId?: string
     requirementId?: string
   }[] = []
+  // When each position starts and was posted, kept beside it to tell two alike apart.
+  const told: { key: string; startDate?: Date | null; postedAt?: Date | null }[] = []
   if (manager) {
     // A line on an order the manager's own project runs under — the order
     // is the position, and its latest line is whose terms a new line copies.
@@ -267,6 +270,7 @@ export async function GET(request: NextRequest) {
         title: `${what} — ${[s.client, s.city].filter(Boolean).join(', ')}`,
         ...s,
       })
+      told.push({ key: `order:${workOrderId}`, startDate: c.startDate })
     }
     // A client's job request the firm was sent, or its own — only for a
     // desk that may put somebody forward, so the screen never offers a
@@ -280,7 +284,7 @@ export async function GET(request: NextRequest) {
             { invitations: { some: { toCompanyId: companyId, status: { in: ['SENT', 'ACCEPTED'] } } } },
           ],
         },
-        select: { id: true, title: true, location: true, mirroredFromId: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+        select: { id: true, title: true, location: true, startDate: true, createdAt: true, mirroredFromId: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
         take: 50,
       })
       // One job, once (`onePerJob`): where the firm was sent a client's job
@@ -294,8 +298,14 @@ export async function GET(request: NextRequest) {
           title: `${r.title} — ${[client, cityOf(r.location)].filter(Boolean).join(', ')}`,
           client, city: cityOf(r.location),
         })
+        told.push({ key: `req:${r.id}`, startDate: r.startDate, postedAt: r.createdAt })
       }
     }
+    // Two lines that read the same are told apart, by the day each starts,
+    // then the day it was posted (`apartTitles`, demand's `jobApart`).
+    const facts = new Map(told.map((t) => [t.key, t]))
+    const titles = apartTitles(positions.map((p) => ({ key: p.key, title: p.title, ...facts.get(p.key) })))
+    for (const p of positions) p.title = titles.get(p.key) ?? p.title
   }
 
   if (rows.length) {
