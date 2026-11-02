@@ -9,7 +9,7 @@ import {
   type BillingPeriod, type CurrencyBook,
   type DunningStep, type SentLetter, type Receipt,
 } from '@/lib/ar-ageing'
-import { customerOf, loadBook, openInvoiceIdsAcross } from './book'
+import { customerOf, loadBook, loadToSend, openInvoiceIdsAcross } from './book'
 import {
   committedOf, exposureOf, assess,
   type RunningAssignment, type Committed, type CreditLimit,
@@ -101,6 +101,11 @@ export async function GET(request: NextRequest) {
   // disagree about which invoices are open produce a customer chased for
   // something the screen shows as settled, and nobody can reconstruct why.
   const { raw, book } = await loadBook(companyId, now)
+  // Bills raised or drafted and never sent: owed by nobody, so never aged
+  // or chased, and listed apart as to send (coordinator, 2026-11-02).
+  const toSend = (await loadToSend(companyId)).map((t) => ({
+    ...t, periodStart: t.periodStart.toISOString(), periodEnd: t.periodEnd.toISOString(),
+  }))
 
   if (raw.length === 0) {
     return NextResponse.json({
@@ -109,9 +114,11 @@ export async function GET(request: NextRequest) {
         source: 'NONE',
         currencies: [],
         gaps,
-        note:
-          'Nothing has been billed yet, so there is nothing to age. This screen fills ' +
-          'as bills are raised against approved timesheets.',
+        toSend,
+        note: toSend.length
+          ? 'Nothing sent is waiting to be paid, so there is nothing to age. The bills below are raised and not sent yet.'
+          : 'Nothing has been billed yet, so there is nothing to age. This screen fills ' +
+            'as bills are sent against approved timesheets.',
       },
     })
   }
@@ -529,6 +536,7 @@ export async function GET(request: NextRequest) {
       source: 'INVOICES',
       currencies,
       gaps,
+      toSend,
       note:
         'Aged from the due date, so a client on sixty-day terms is not shown as late on ' +
         'day forty-five. Part payments are chased for the balance and short payments are ' +

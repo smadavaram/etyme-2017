@@ -387,7 +387,11 @@ async function rollUpInvoice(
       paid,
       // Settled only when it is actually settled. A status is what
       // somebody typed; this is what the money says.
-      status: paid >= total ? 'PAID' : inv.status === 'PAID' ? 'ISSUED' : inv.status,
+      // A paid bill that is no longer paid in full is owed again: part paid
+      // where some came in, sent where none did. Never back to ISSUED,
+      // which means raised and never sent (lib/money/bill-state), and so
+      // would drop a debt from the book and from the chase.
+      status: paid >= total ? 'PAID' : inv.status === 'PAID' ? (paid > 0 ? 'PARTIALLY_PAID' : 'SUBMITTED') : inv.status,
     },
   })
 }

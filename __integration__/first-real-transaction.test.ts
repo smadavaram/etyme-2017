@@ -304,12 +304,28 @@ describe('Chapter 5 — the invoice exists, dated the day it was raised', () => 
 
 describe('Chapter 6 — the money is visible where a person would look for it', () => {
 
-  it('accounts receivable shows the client owing the invoice', async () => {
+  it('accounts receivable lists the raised bill as to send, and nobody owes it until it is sent', async () => {
     as(SHARATH)
     const r = await json(await readAr(req('GET', '/api/ar')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const s = JSON.stringify(r.body.data)
-    expect(s).toContain('380000') // $3,800 in cents, somewhere in the book
+    const invoice = await prisma.invoice.findFirstOrThrow({ where: { engagementId } })
+    expect(invoice.status).toBe('ISSUED')
+    const toSend = r.body.data.toSend.find((t: any) => t.id === invoice.id)
+    expect(toSend).toMatchObject({ totalMinor: 380_000, word: 'Raised, not sent' })
+    // Nothing aged, nothing chased: a bill nobody was sent is owed by nobody.
+    const owed = (r.body.data.currencies ?? []).flatMap((c: any) => c.invoices ?? []).filter((i: any) => i.id === invoice.id)
+    expect(owed).toEqual([])
+  })
+
+  it('once the bill is sent, accounts receivable shows the client owing it', async () => {
+    const invoice = await prisma.invoice.findFirstOrThrow({ where: { engagementId } })
+    await prisma.invoice.update({ where: { id: invoice.id }, data: { status: 'SUBMITTED', submittedAt: new Date('2026-09-01') } })
+    as(SHARATH)
+    const r = await json(await readAr(req('GET', '/api/ar')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.toSend.some((t: any) => t.id === invoice.id)).toBe(false)
+    const s = JSON.stringify(r.body.data.currencies)
+    expect(s).toContain('380000') // $3,800 in cents, in the book now
   })
 
   it('a payment arrives and the book closes to zero', async () => {

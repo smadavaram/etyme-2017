@@ -100,3 +100,32 @@ describe('Today counts a week on a bill nobody was sent as not yet billed', () =
     expect(src).not.toMatch(/label: 'Issued'/)
   })
 })
+
+describe('accounts receivable owes, ages and chases only what was sent (coordinator, 2026-11-02)', () => {
+  it('the receivable book holds bills sent only: a bill drafted, raised and not sent, cancelled or void is owed by nobody', () => {
+    const book = read('src/app/api/ar/book.ts')
+    expect(book).toMatch(/export const NOT_RECEIVABLE: readonly string\[\] = DRAWS_NOTHING/)
+    expect(book).toMatch(/status: \{ notIn: \[\.\.\.NOT_RECEIVABLE\] \}/)
+  })
+
+  it('ageing and the dunning ladder read that one book, so a bill never sent is never aged and never chased', () => {
+    expect(read('src/app/api/ar/dunning/route.ts')).toMatch(/loadBook\(companyId, now\)/)
+    expect(read('src/app/api/ar/collections/route.ts')).toMatch(/loadBook\(companyId, now\)/)
+  })
+
+  it('a bill raised and not sent is listed apart as to send, with its own word, its customer and its amount in its own currency', () => {
+    const book = read('src/app/api/ar/book.ts')
+    const toSend = book.slice(book.indexOf('export async function loadToSend'))
+    expect(toSend).toMatch(/status: \{ in: \[\.\.\.BILL_NOT_SENT\] \}/)
+    expect(toSend).toMatch(/word: billStateWord\(r\.status, 'SENDER'\)/)
+    expect(toSend).toMatch(/totalMinor: fromPrismaDecimal\(r\.total, r\.currency\)\.minor/)
+    expect(read('src/app/api/ar/route.ts')).toMatch(/const toSend = \(await loadToSend\(companyId\)\)/)
+    expect(read('src/app/dashboard/ar/page.tsx')).toMatch(/<Lbl>To send<\/Lbl>/)
+  })
+
+  it('a paid bill that is no longer paid in full is owed again, part paid or sent, never put back to raised and not sent', () => {
+    const pay = read('src/app/api/ar/payments/route.ts')
+    expect(pay).toMatch(/inv\.status === 'PAID' \? \(paid > 0 \? 'PARTIALLY_PAID' : 'SUBMITTED'\)/)
+    expect(pay).not.toMatch(/inv\.status === 'PAID' \? 'ISSUED'/)
+  })
+})

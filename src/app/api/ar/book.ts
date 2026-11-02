@@ -3,6 +3,7 @@ import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { ageBook, type ArInvoice, type Book } from '@/lib/ar-ageing'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
+import { BILL_NOT_SENT, DRAWS_NOTHING, billStateWord, notSentSays } from '@/lib/money/bill-state'
 
 /**
  * The receivable book, loaded once and used by every AR route.
@@ -18,8 +19,19 @@ import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
  * recomputes the book from the same rows the screen did.
  */
 
-/** Nothing owed on these, and nothing to chase. */
-export const NOT_RECEIVABLE = ['DRAFT', 'CANCELLED', 'VOID']
+/**
+ * Nothing owed on these, and nothing to chase: a bill drafted or raised
+ * and never sent, and one cancelled or void (`DRAWS_NOTHING` in
+ * lib/money/bill-state).
+ *
+ * Decided by the coordinator, 2026-11-02, reversible by the founder in a
+ * sentence: nobody owes a bill they were never sent. A bill raised on the
+ * Bills page used to be aged from its due date and chased by the dunning
+ * ladder though the customer had never received it (the second Tapin
+ * walk's "Sent, not yet paid" of a bill never sent). It is listed apart,
+ * as to send (`loadToSend`).
+ */
+export const NOT_RECEIVABLE: readonly string[] = DRAWS_NOTHING
 
 /**
  * Invoices this company raised — the agreement, the order, or a line on
@@ -38,7 +50,7 @@ export async function loadReceivables(companyId: string) {
   return prisma.invoice.findMany({
     where: {
       ...invoicesRaisedBy(companyId),
-      status: { notIn: NOT_RECEIVABLE },
+      status: { notIn: [...NOT_RECEIVABLE] },
     },
     select: {
       id: true, number: true, currency: true, total: true, paid: true,
@@ -266,4 +278,60 @@ export async function loadBook(companyId: string, now: Date) {
   const raw = await loadReceivables(companyId)
   const invoices = toArInvoices(raw)
   return { raw, invoices, book: ageBook(invoices, now) }
+}
+
+/** A bill this company raised or drafted and has not sent: owed by nobody yet. */
+export interface ToSend {
+  id: string
+  number: string
+  /** DRAFT or ISSUED. */
+  status: string
+  /** "Drafted, not sent" · "Raised, not sent", from lib/money/bill-state. */
+  word: string
+  /** "Bill IN-0042 is raised, not sent." */
+  says: string
+  customerName: string
+  currency: string
+  totalMinor: number
+  periodStart: Date
+  periodEnd: Date
+}
+
+/**
+ * The bills to send: raised or drafted by this company and never sent, so
+ * owed by nobody yet. Listed apart from the receivable book, never aged
+ * and never chased, oldest first. One per currency is never added: each
+ * carries its own.
+ */
+export async function loadToSend(companyId: string): Promise<ToSend[]> {
+  const rows = await prisma.invoice.findMany({
+    where: { ...invoicesRaisedBy(companyId), status: { in: [...BILL_NOT_SENT] } },
+    select: {
+      id: true, number: true, status: true, currency: true, total: true, periodStart: true, periodEnd: true,
+      engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
+      workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+      invoiceLines: {
+        take: 2,
+        select: { sellContract: { select: { companyId: true, clientCompanyId: true, company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } } } } },
+      },
+    },
+    orderBy: { periodEnd: 'asc' },
+    take: 1_000,
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    number: r.number,
+    status: r.status,
+    word: billStateWord(r.status, 'SENDER'),
+    says: notSentSays(r),
+    customerName: partiesOf({
+      agreement: r.engagement.msa,
+      order: r.workOrder,
+      lines: r.invoiceLines.map((l) => l.sellContract).filter((c): c is NonNullable<typeof c> => c != null),
+    }).client?.name ?? 'Not yet attributed',
+    currency: r.currency.toUpperCase(),
+    totalMinor: fromPrismaDecimal(r.total, r.currency).minor,
+    periodStart: r.periodStart,
+    periodEnd: r.periodEnd,
+  }))
 }

@@ -157,6 +157,28 @@ export default function ArPage() {
         <EmptyState says={data.note} />
       )}
 
+      {/* ── To send: raised or drafted and never sent, so owed by nobody
+          yet. Never aged and never chased; listed apart (2026-11-02). ── */}
+      {!loading && !error && !denied && (data?.toSend?.length ?? 0) > 0 && (
+        <div className="panel">
+          <Lbl>To send</Lbl>
+          <p className="mt-1 text-[12px] text-etyme-muted">
+            Nobody owes a bill until it is sent, so these are not aged or chased. Send each from its page.
+          </p>
+          <ul className="mt-2 divide-y divide-etyme-rule">
+            {data.toSend.map((t: { id: string; number: string; word: string; customerName: string; currency: string; totalMinor: number }) => (
+              <li key={t.id} className="flex items-baseline justify-between gap-3 py-1.5">
+                <span className="text-[13px] text-etyme-ink">
+                  <a href={`/dashboard/invoices/${t.id}`} className="text-etyme-action hover:underline">Bill {t.number}</a>
+                  <span className="text-etyme-muted"> · {t.customerName} · {t.word}</span>
+                </span>
+                <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">{amount(t.totalMinor, t.currency)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ── Partial — what could not be counted ────────────────────── */}
       {!loading && data?.gaps?.length > 0 && data.source !== 'NONE' && (
         <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
