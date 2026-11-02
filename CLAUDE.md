@@ -2389,6 +2389,95 @@ document flow is a trust layer and the verdict was "do not ship it as
 finished". From now on **every wave that changes a trust flow ends
 with a walk on screens, not only a simulation.**
 
+## Load and performance: 100,000 transactions on each page — the founder, 2026-11-01
+
+*"Do load and performance testing for 100000 transactions on each page"*,
+with the walk he meant: job → submissions by every route (direct, bench
+to prime, prime to client, prime to integrator, prime to prime) →
+interviews → offer and placement → the papers gate → timesheets →
+invoices and AR/AP. Then: *"Go from one company to another"*, *"Are you
+not working on live system?"*, *"Simulate documents to attach, sign or
+fill for positive and negative cases"*, and *"ensure UI saves records and
+UX flows are optimal."* What was decided and done, so the next run is
+not re-derived:
+
+- **Never on production.** A load test writes hundreds of thousands of
+  synthetic rows; production's database never carries them. The runs
+  are the simulation harness on a fresh copy of the generated world on
+  the session's box. Production-grade throughput needs a preview
+  deployment with its own hosted database, which only the founder can
+  provision; the box's numbers say which routes degrade first and by
+  how much, not what the hosted platform does.
+- **The run crosses companies by construction.** Every transaction
+  walks the chain the trade walks: the client raises the job, primes
+  and sub-vendors receive it, a bench firm's person goes forward through
+  the prime, the client signs, each rung accepts, the bill goes up one
+  rung and lands as an invoice receipt at the next, payroll runs at the
+  employer.
+- **A pages pass measures the screens, not only the routes**
+  (`npm run simulate:pages -- --db etyme_sim_<stamp> --concurrency 40
+  --rounds 3`, platform): every page on every party's menu, tabs
+  included, read from `lib/nav-table` so it cannot drift, opened as
+  26 seats through the demo door, with the reads each page makes on
+  load, p50/p95 per page, the two-second fault line, and the table
+  counts behind the pages (`reports/pages-<stamp>.md`).
+- **Documents both ways** (regulatory, `stages/regulatory/both-ways.ts`,
+  `doc-matrix.ts`): every document kind × action (attach, sign or
+  countersign, fill from fields) × outcome (accepted, sent back,
+  refused, held), the founder's six documents first (proof of right to
+  work undated then dated; the I-9 on a printed edition and on one the
+  issuer never printed; the background check verdict verbatim with and
+  without reference and date; the NDA and confidentiality undertaking
+  signed then countersigned, and the wrong order; the drug screen as a
+  provider's verdict; Brightmoor's good standing clearing the start, and
+  lapsed). It runs on the next scale run.
+- **Only a walk on screens proves a person can save a record.** The
+  release walker opens every form of every party in a real browser on
+  the kept scale world, presses Save, and proves the save three ways
+  (the sentence, the record on reload, the row), measuring clicks,
+  fields and seconds per flow against the zero-training test; its
+  verdict is recorded under this line.
+
+**Calibration, 200 placements × 4 weeks, 40 at once (1 Nov):** 17,830
+calls in 206 s, no server error, 3 routes over two seconds (the nightly
+agent run 9.0 s, an agent approval 5.4 s, the greeting 2.25 s). The
+"$535M billed" in its report was dong, pesos and rupees summed as
+dollars: the stations now report per currency.
+
+**The founder's scale, 2,000 jobs × 12 weeks, 60 at once (1 Nov,
+`reports/simulation-20261101180424.md`):** 338 firms, 3,663 seats,
+183,514 calls in 49 minutes (62 a second on four cores shared with the
+database); 2,000 jobs, 11,861 invitations, 13,861 matching runs, 2,697
+interview rounds, 1,011 awards, 881 starts, 9,184 weeks filed, 9,012
+signed, 8,316 accepted, 292 pay periods. **The one failure: 25 of 720
+bill sends answered 500 after 20 to 44 s**, the submit's five-second
+interactive transaction starving the pool under sixty senders (money).
+Thirteen routes over two seconds at p95: the nightly run 45.9 s for 338
+firms, an agent approval 14.1 s, sending a job to suppliers 7.6 s, the
+greeting 7.3 s, the award 5.4 s, matching 4.0 s, terms 3.3 s, and six
+between 2.0 and 2.6 s. Four lessons, none a product fault: 657 bills
+refused for a missing billing address (the generated world's firms had
+none; the seed gets `lib/seed-setup`'s rule); 500 starts refused as
+HR's work (148 of 160 generated suppliers had an HR role and nobody in
+it; the station now has the Owner seat somebody and asks as HR); 696
+acceptances refused as one's own hours and 731 flagged weeks signed
+without a reason (the stations at generated firms). The pages pass on
+that world (682,538 rows behind the pages, 263,813 of them access-log
+and 432,336 notices): 4,374 timed calls, none failed; 46 of 158 pages
+and 87 reads over two seconds at 40 at once; the worst reads
+`/api/suppliers` 20.7 s at Corvane's hiring manager, `/api/decisions`
+13.4 s, the greeting 12.7 s, `/api/program` 10.7 s; and every Settings
+tab at the supplier 5.5 to 9.4 s across five owners, which is a cost
+shared by the Settings shell (architect first). The one-person firm's
+and the worker's pages were all under the line.
+
+**What 100,000 per page means here.** A placement needs a person; a
+world of 3,429 people made 9,385 weeks and 1,142 bills in 49 minutes,
+while the log and notice tables passed 100,000 on their own. Reaching
+100,000 weeks or bills takes a world about ten times larger or a year
+of weeks, about ten hours on this box, and is run after the fixes
+above, with the documents matrix, on the next scale run.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
