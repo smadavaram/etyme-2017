@@ -1,6 +1,5 @@
 import { formatDay } from '@/lib/format-date'
-import { kindWord } from '@/lib/parties'
-import type { CompanyKind } from '@prisma/client'
+import { otherFirmWord } from '@/lib/parties'
 
 /**
  * The words the Submissions page uses for a row — never the column's code.
@@ -128,28 +127,17 @@ export function refusalSays(message: string, reasons: readonly string[]): string
 
 /**
  * What another firm is, beside its name in a picker: "Brightmoor
- * Staffing · supplier", "Aptiva Workforce · MSP".
+ * Staffing · supplier", "Aptiva Workforce · MSP", a one-person firm.
  *
  * The Send on picker printed the column, lower-cased: "vendor", "client",
- * "msp", "gsi", "consultant_corp" (the second Tapin walk, 2026-10-30). A
- * person reads the trade's word, and the words are `lib/parties`' own
- * (`kindWord`), so the picker and the sidebar never call one firm two
- * things. One word is said differently here: `kindWord` calls a
- * one-person corporation "Own company", which is right for the firm
- * reading about itself and wrong beside somebody else's name, where it
- * is a one-person firm.
- *
- * Lower case after the dot, because it describes the name before it; an
- * acronym keeps its capitals. A kind nobody knows says nothing rather
- * than its code.
+ * "msp", "gsi", "consultant_corp" (the second Tapin walk, 2026-10-30). The
+ * words are `lib/parties`' own word for another firm (`otherFirmWord`),
+ * so the picker, the sidebar and every other screen that names a firm
+ * beside its name cannot drift apart. A kind nobody knows says nothing
+ * rather than its code.
  */
 export function firmWord(kind: string | null | undefined): string {
-  if (!kind) return ''
-  if (kind === 'CONSULTANT_CORP') return 'one-person firm'
-  const known = ['VENDOR', 'CLIENT', 'MSP', 'GSI'].includes(kind)
-  if (!known) return ''
-  const word = kindWord(kind as CompanyKind)
-  return word === word.toUpperCase() ? word : word.charAt(0).toLowerCase() + word.slice(1)
+  return otherFirmWord(kind)
 }
 
 /** "Brightmoor Staffing · supplier", or the name alone where the kind says nothing. */
