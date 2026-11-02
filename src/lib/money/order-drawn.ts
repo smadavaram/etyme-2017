@@ -62,3 +62,32 @@ export async function drawnOnOrder(
   }
   return { cents, foreign }
 }
+
+/**
+ * What typed-in invoice receipts have drawn on each of several orders, in
+ * one read: the same answer `drawnOnOrder(order, { only: 'RECEIPTS' })`
+ * gives for each, by order id. The three-way check on a payer's open
+ * receipts read it once per order, the one statement in the check that
+ * grew with the receipts (18 of 42 statements for twenty receipts on the
+ * scale world, 2026-11-02). Only receipts in the order's own currency are
+ * added; any other currency is named in `foreign`, never converted.
+ */
+export async function receiptsDrawnOnOrders(
+  orders: readonly { id: string; currency: string }[],
+): Promise<Map<string, { cents: number; foreign: string[] }>> {
+  const out = new Map<string, { cents: number; foreign: string[] }>()
+  for (const o of orders) out.set(o.id, { cents: 0, foreign: [] })
+  if (orders.length === 0) return out
+  const ccyOf = new Map(orders.map((o) => [o.id, o.currency.toUpperCase()]))
+  const receipts = await prisma.vendorBill.findMany({
+    where: { workOrderId: { in: [...ccyOf.keys()] }, status: { not: 'CANCELLED' } },
+    select: { workOrderId: true, number: true, totalCents: true, currency: true },
+  })
+  for (const r of receipts) {
+    const at = r.workOrderId ? out.get(r.workOrderId) : undefined
+    if (!at) continue
+    if (r.currency.toUpperCase() !== ccyOf.get(r.workOrderId!)) at.foreign.push(r.number)
+    else at.cents += r.totalCents
+  }
+  return out
+}

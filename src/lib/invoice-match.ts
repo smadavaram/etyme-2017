@@ -9,7 +9,7 @@ import { ORDER_HEADER_PERIOD_SELECT, SELL_LINE_PERIOD_TERMS_SELECT, periodTermsF
 import { receiptFor } from '@/lib/money/rung-billing'
 import type { Carried } from '@/lib/money/client-overtime'
 import { carriedForLines } from '@/lib/money/client-overtime-read'
-import { drawnOnOrder } from '@/lib/money/order-drawn'
+import { receiptsDrawnOnOrders } from '@/lib/money/order-drawn'
 import { payersOwn } from '@/lib/money/expense-acceptance'
 import { acceptancesOn } from '@/lib/money/expense-acceptance-read'
 import { payeeBankGate } from '@/lib/money/payee-bank'
@@ -357,7 +357,9 @@ export async function matchInvoices(invoiceIds: readonly string[], opts: MatchFo
     // (lib/money/order-drawn): one order filled once by each path was
     // paid twice past its ceiling, because each check counted only its
     // own kind. Only those in the order's currency are added.
-    Promise.all(orders.map(async (o) => [o.id, (await drawnOnOrder(o, { only: 'RECEIPTS' })).cents] as const)),
+    // Read once for every order (`receiptsDrawnOnOrders`), the same answer
+    // drawnOnOrder gives one order at a time.
+    receiptsDrawnOnOrders(orders).then((m) => [...m].map(([id, d]) => [id, d.cents] as const)),
     contractIds.length
       ? prisma.rateHistory.findMany({
           where: { contractType: 'SELL', contractId: { in: contractIds } },
