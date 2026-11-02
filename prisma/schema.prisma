@@ -6156,6 +6156,11 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([personId, status])
+  // A person's notices, newest first: the greeting's "Since you last looked"
+  // and the list behind it (conversation, 2026-11-02). On the scale world the
+  // person with 1,512 notices read their list in 433 ms cold without it and
+  // 0.33 ms with it; the greeting's newest five from 7.6 ms to 0.07 ms.
+  @@index([personId, createdAt])
   @@index([companyId, createdAt])
   @@index([deliveryState, createdAt])
 }

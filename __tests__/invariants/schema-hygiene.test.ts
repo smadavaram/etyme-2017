@@ -156,6 +156,16 @@ describe('foreign keys are indexed', () => {
   })
 })
 
+describe('the reads that grow with a person’s history are indexed', () => {
+  it('a person’s notices are read newest first through an index on the person and the day', () => {
+    // The greeting's "Since you last looked" and the list behind it read
+    // one person's notices by date. On the scale world the person with
+    // 1,512 notices waited 433 ms cold for their list without this index
+    // and 0.33 ms with it (conversation, 2026-11-02).
+    expect(model('Notification')).toMatch(/@@index\(\[personId, createdAt\]\)/)
+  })
+})
+
 // ── Every read of a Check is scoped to a company ─────────────────────
 
 import { readFileSync as readSrc } from 'node:fs'
