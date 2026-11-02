@@ -5,9 +5,11 @@
  *
  * Wiring, for lib/seed-scale/index: `paperSteps(frame, people)` in the
  * papers slot after the people; `paperAfterRatesSteps(people)` after the
- * rates, because the orders its asks hang on are money's.
+ * rates, because the orders its asks hang on are money's. Both size
+ * themselves by `scaleSize()` and grow in shares with `sharesFor`, so the
+ * wiring passes no size.
  */
 
-export { planPapers, paperCounts, papersSeat, editionOn, retiredOn, asksFor, waiversFor, askIdFor, waiverIdFor, CLIENT_ASKS, CHAIN_ASKS, PROVIDERS, PROVIDER_SAYS } from './plan'
+export { planPapers, paperCounts, papersSeat, handfulPer, editionOn, retiredOn, asksFor, waiversFor, askIdFor, waiverIdFor, CLIENT_ASKS, CHAIN_ASKS, PROVIDERS, PROVIDER_SAYS } from './plan'
 export type { PaperPlan, PaperState } from './plan'
-export { paperSteps, paperAfterRatesSteps, paperStepNames, seedPapers } from './seed'
+export { paperSteps, paperAfterRatesSteps, paperStepNames, seedPapers, PAPER_SHARES } from './seed'

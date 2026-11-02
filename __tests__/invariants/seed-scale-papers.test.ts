@@ -4,15 +4,63 @@
  * recorded by whom. The integration file (`__integration__/seed-scale.test.ts`)
  * reads the same rules off the written rows.
  */
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+
+/**
+ * A database that has nothing yet: it counts every question the papers'
+ * steps ask, keeps the ids each step writes, answers "already there" for
+ * what an earlier step wrote, and notes any row written before the row it
+ * points at. The pure tests below never touch it.
+ */
+const fake = vi.hoisted(() => {
+  const state = {
+    asked: 0,
+    written: new Map<string, Set<string>>(),
+    orphans: [] as string[],
+    orders: [] as { id: string; issuedById: string; startDate: Date | null }[],
+    lines: [] as { id: string; workOrderId: string | null }[],
+  }
+  const has = (table: string, id: unknown) => typeof id === 'string' && !!state.written.get(table)?.has(id)
+  const pointsAt: Record<string, (r: Record<string, unknown>) => [string, unknown][]> = {
+    documentBacking: (r) => [['verification', r.formId], ['verification', r.evidenceId]],
+    adverseAction: (r) => [['verification', r.verificationId]],
+    visaEvent: (r) => [['visaPetition', r.petitionId]],
+    visaDocument: (r) => [['visaPetition', r.petitionId]],
+    documentRequirement: (r) => (r.inheritedFromId ? [['documentRequirement', r.inheritedFromId]] : []),
+  }
+  const model = (table: string) => ({
+    findMany: async (a: { where?: { id?: { in?: string[] } } }) => {
+      state.asked++
+      if (table === 'workOrder') return state.orders
+      if (table === 'sellContract') return state.lines.filter((l) => a.where?.id?.in?.includes(l.id))
+      return (a.where?.id?.in ?? []).filter((id) => has(table, id)).map((id) => ({ id }))
+    },
+    createMany: async (a: { data: Record<string, unknown>[] }) => {
+      state.asked++
+      for (const r of a.data) {
+        for (const [to, id] of pointsAt[table]?.(r) ?? []) if (!has(to, id)) state.orphans.push(`${table} ${String(r.id)} → ${to} ${String(id)}`)
+      }
+      const ids = state.written.get(table) ?? new Set<string>()
+      for (const r of a.data) ids.add(String(r.id))
+      state.written.set(table, ids)
+      return { count: a.data.length }
+    },
+  })
+  const prisma = new Proxy({}, { get: (_t, name) => (typeof name === 'string' && !name.startsWith('$') && name !== 'then' ? model(name) : undefined) })
+  return { state, prisma }
+})
+vi.mock('@/lib/db', () => ({ prisma: fake.prisma }))
+
 import { anchorSeed, day } from '@/lib/seed-days'
 import { I9_EVIDENCE, readVerdict } from '@/lib/attestation'
 import { CANNOT_BE_WAIVED } from '@/lib/document-requirements'
 import { byCalendar } from '@/lib/visa-petition'
 import { buildFrame } from '@/lib/seed-scale/frame'
 import { buildPeople, planPeople } from '@/lib/seed-scale/people'
-import { planPapers, paperCounts, paperStepNames, asksFor, waiversFor, editionOn, type PaperPlan } from '@/lib/seed-scale/papers'
-import type { ScaleFrame } from '@/lib/seed-scale/types'
+import { planPapers, paperCounts, paperStepNames, paperSteps, paperAfterRatesSteps, asksFor, waiversFor, editionOn, handfulPer, PAPER_SHARES, type PaperPlan } from '@/lib/seed-scale/papers'
+import { sharesFor } from '@/lib/seed-scale/index'
+import { idFor } from '@/lib/seed-scale/kit'
+import { STEP_QUERY_BUDGET, sizeFor, type ScaleFrame } from '@/lib/seed-scale/types'
 
 let frame: ScaleFrame
 let plan: PaperPlan
@@ -214,4 +262,71 @@ describe('the generated world’s papers, before anything is written', () => {
     expect(again.person.map((r) => [r.id, r.status, r.expiresAt])).toEqual(plan.person.map((r) => [r.id, r.status, r.expiresAt]))
     expect(paperStepNames()).toEqual(['scale:papers:people', 'scale:papers:visas', 'scale:papers:overtime', 'scale:papers:cover', 'scale:papers:asks'])
   })
+})
+
+describe('the generated world’s papers at any size', () => {
+  it('a world of any size gets every person’s papers in every state, in steps that stay under the line', async () => {
+    for (const people of [2000, 17_000]) {
+      const size = sizeFor(people)
+      const world = buildFrame(size)
+      const theirs = buildPeople(world)
+      const want = planPapers(world, theirs)
+      const at = `at ${people} people`
+
+      // Every person's papers: an I-9 for everybody placed on a W2 line at a US site, a petition behind every H-1B.
+      const placed = planPeople(world).filter((p) => theirs.some((t) => t.id === p.facts.id) && p.facts.country === 'US' && p.lines.some((l) => l.live && !l.ownCompany))
+      expect(new Set(want.placedUs), at).toEqual(new Set(placed.map((p) => p.facts.id)))
+      for (const id of want.placedUs) expect(want.person.some((v) => v.personId === id && v.type === 'I9_EVERIFY'), `${id} ${at}`).toBe(true)
+      for (const p of theirs.filter((t) => t.workAuth === 'H1B')) expect(want.petitions.some((v) => v.personId === p.id), `${p.name} ${at}`).toBe(true)
+      for (const f of world.firms.filter((x) => ['PRIME', 'SUB_VENDOR', 'BENCH', 'GSI'].includes(x.position))) {
+        expect(want.cover.some((v) => v.companyId === f.id && v.type === 'GOOD_STANDING'), `${f.name} ${at}`).toBe(true)
+      }
+      // In every state, the way the base size has them, the lapses a handful per hundred suppliers.
+      const c = paperCounts(want)
+      for (const kind of ['BACKGROUND_CHECK', 'PROFESSIONAL_LICENSE', 'I9_EVERIFY']) {
+        for (const state of ['CURRENT', 'EXPIRING', 'LAPSED']) expect(c[kind][state], `${kind} ${state} ${at}`).toBeGreaterThan(0)
+      }
+      for (const [kind, state] of [['INSURANCE_GL', 'NOT_STARTED'], ['INSURANCE_GL', 'LAPSED'], ['GOOD_STANDING', 'LAPSED'], ['BACKGROUND_CHECK', 'ORDERED'], ['BACKGROUND_CHECK', 'CONDITIONAL'], ['BACKGROUND_CHECK', 'FLAGGED'], ['I9_EVERIFY', 'RETIRED_EDITION']]) {
+        expect(c[kind]?.[state], `${kind} ${state} ${at}`).toBeGreaterThan(0)
+      }
+      expect(c.MISSING.COVER, at).toBeGreaterThanOrEqual(handfulPer(world))
+      expect(c.MISSING.BACKGROUND_CHECK_WAIVED, at).toBeGreaterThan(0)
+
+      // Written in shares that grow with the world, each under the line, nothing before what it points at.
+      fake.state.asked = 0
+      fake.state.written.clear()
+      fake.state.orphans = []
+      fake.state.orders = world.trades.filter((t) => t.relationship !== 'RUNS').map((t) => ({ id: idFor(`order/${t.buyer}/${t.seller}`), issuedById: t.buyer, startDate: day(-200) }))
+      fake.state.lines = want.waived.map((w) => ({ id: w.sellId, workOrderId: w.orderId }))
+      const shares = sharesFor(PAPER_SHARES, size)
+      const steps = [...paperSteps(world, () => theirs, size), ...paperAfterRatesSteps(() => theirs, size)]
+      expect(steps.length, at).toBe(5 * shares)
+      expect(paperStepNames(size), at).toEqual(steps.map((x) => x.name))
+      for (const walk of ['fresh', 'walked again']) {
+        const before = fake.state.written.get('verification')?.size ?? 0
+        for (const step of steps) {
+          const asked = fake.state.asked
+          await step.run(world)
+          expect(fake.state.asked - asked, `${step.name} ${walk} ${at}`).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
+        }
+        if (walk === 'walked again') expect(fake.state.written.get('verification')?.size, `a second seeding writes nothing ${at}`).toBe(before)
+      }
+      expect(fake.state.orphans, at).toEqual([])
+      // Every row the plan holds is written, in exactly one share.
+      const ids = (rows: { id: string }[]) => new Set(rows.map((r) => r.id))
+      expect(fake.state.written.get('verification'), at).toEqual(ids([...want.evidence, ...want.person, ...want.cover]))
+      expect(fake.state.written.get('documentBacking'), at).toEqual(ids(want.backings))
+      expect(fake.state.written.get('adverseAction'), at).toEqual(ids(want.adverse))
+      expect(fake.state.written.get('visaPetition'), at).toEqual(ids(want.petitions))
+      expect(fake.state.written.get('visaEvent'), at).toEqual(ids(want.visaEvents))
+      expect(fake.state.written.get('visaDocument'), at).toEqual(ids(want.visaDocuments))
+      expect(fake.state.written.get('exemptAssertion'), at).toEqual(ids(want.exempt))
+      expect(fake.state.written.get('documentRequirement')?.size, at).toBeGreaterThan(fake.state.orders.length * 4)
+    }
+    // Two thousand is one step each under its old name; seventeen thousand is nine of each.
+    expect(paperStepNames(sizeFor(2000))).toEqual(['scale:papers:people', 'scale:papers:visas', 'scale:papers:overtime', 'scale:papers:cover', 'scale:papers:asks'])
+    expect(paperStepNames(sizeFor(17_000)).slice(0, 2)).toEqual(['scale:papers:people:1-of-9', 'scale:papers:people:2-of-9'])
+    expect(handfulPer(buildFrame(sizeFor(2000)))).toBe(1)
+    expect(handfulPer(buildFrame(sizeFor(17_000)))).toBe(9)
+  }, 120_000)
 })

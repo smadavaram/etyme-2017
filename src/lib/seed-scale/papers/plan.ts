@@ -61,7 +61,7 @@ import { checkAssertion, screenExemption } from '@/lib/worker-classification'
 import { applyMove, EVENT_FOR, type PetitionStatus } from '@/lib/visa-petition'
 import { planPeople, rungIds, type LinePlan, type PersonPlan } from '../people'
 import { between, idFor, keyed, pick } from '../kit'
-import type { PersonFacts, ScaleFirm, ScaleFrame } from '../types'
+import { SCALE, type PersonFacts, type ScaleFirm, type ScaleFrame } from '../types'
 
 type WithId<T> = T & { id: string }
 
@@ -221,8 +221,11 @@ const plans = new WeakMap<ScaleFrame, PaperPlan>()
 
 /**
  * Every paper of the generated world. Pure; computed once per frame.
- * `people` is supply's two thousand, as `buildPeople(frame)` gives them;
- * the lines' rungs and rates are read from supply's own plan.
+ * `people` is supply's people at the world's size (two thousand unless
+ * the run sets another, `scaleSize`), as `buildPeople(frame)` gives them;
+ * the lines' rungs and rates are read from supply's own plan. Every
+ * person's papers are decided one person at a time, so every state
+ * appears in the same share at any size.
  */
 export function planPapers(frame: ScaleFrame, people?: readonly PersonFacts[]): PaperPlan {
   const have = plans.get(frame)
@@ -655,7 +658,9 @@ class Planner {
     for (const p of this.people) for (const l of p.lines) if (l.live && !l.ownCompany) employing.add(bottomOf(l).employerId)
     const lapseable = suppliers.filter((f) => (f.position === 'SUB_VENDOR' || f.position === 'BENCH') && employing.has(f.id))
     const quiet = suppliers.filter((f) => (f.position === 'SUB_VENDOR' || f.position === 'BENCH') && !employing.has(f.id))
-    // A handful lapsed, named: general liability on four, good standing on two, workers' compensation on one.
+    // A handful lapsed, named: general liability on four, good standing on two, workers' compensation on one,
+    // per hundred suppliers, so a larger world holds the same share of lapses (`handfulPer` below).
+    const k = handfulPer(this.frame)
     const lapsed = new Map<string, string[]>()
     const take = (list: ScaleFirm[], n: number, offset: number, kind: string) => {
       for (let i = 0; i < n && i < list.length; i++) {
@@ -663,11 +668,12 @@ class Planner {
         lapsed.set(f.id, [...(lapsed.get(f.id) ?? []), kind])
       }
     }
-    take(lapseable, 4, 0, 'INSURANCE_GL')
-    take(lapseable, 2, 3, 'GOOD_STANDING')
-    take(lapseable, 1, 5, 'INSURANCE_WC')
+    take(lapseable, 4 * k, 0, 'INSURANCE_GL')
+    take(lapseable, 2 * k, 3, 'GOOD_STANDING')
+    take(lapseable, 1 * k, 5, 'INSURANCE_WC')
     // And two with no workers' compensation on file at all, among firms with nobody working: missing, not lapsed.
-    const missing = new Set(quiet.filter((_, i) => i % Math.max(1, Math.floor(quiet.length / 2)) === 0).slice(0, 2).map((f) => f.id))
+    const gaps = 2 * k
+    const missing = new Set(quiet.filter((_, i) => i % Math.max(1, Math.floor(quiet.length / gaps)) === 0).slice(0, gaps).map((f) => f.id))
 
     for (const f of suppliers) {
       const buyerId = this.frame.trades
@@ -717,6 +723,17 @@ class Planner {
     this.note(id, kind, stateOf2(row.expiresAt, row.validFrom, this.today))
     void buyer
   }
+}
+
+/**
+ * How many handfuls of lapsed and missing cover a world holds: one per
+ * hundred suppliers (primes, sub-vendors and bench firms, `SCALE.suppliers`
+ * at two thousand people), never fewer than one. Read off the frame, so
+ * the plan stays a function of the frame and its people. Pure.
+ */
+export function handfulPer(frame: ScaleFrame): number {
+  const suppliers = frame.firms.filter((f) => f.position === 'PRIME' || f.position === 'SUB_VENDOR' || f.position === 'BENCH').length
+  return Math.max(1, Math.round(suppliers / SCALE.suppliers))
 }
 
 /** The line the firm that ordered a person's check holds for them: the employer's rung, or the placing firm's on their own company's line. */
