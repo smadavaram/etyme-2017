@@ -7,7 +7,8 @@ import { andAll } from '@/lib/walls'
 import { regionContracts } from '@/lib/region-scope'
 import { reportingRatesFor } from '@/lib/money/reporting-currency'
 import { readerScope } from './reader-scope'
-import { topRungs, headcount, suppliersOnSite, needsReportingRates, spendFigures } from './figures'
+import { chainTop } from '@/lib/chain-top'
+import { onSiteOf, headcount, suppliersOnSite, needsReportingRates, spendFigures } from './figures'
 
 /**
  * The program page's four headline figures, and nothing else: how many
@@ -93,7 +94,10 @@ export async function programSummary(
     orderBy: { endDate: 'asc' },
   })
 
-  const { contracts, onSite } = topRungs(everyRung)
+  // One row per person: the contract this client pays, never a rung its
+  // suppliers arranged below it (`chainTop`), before any rate is read.
+  const contracts = chainTop(everyRung)
+  const onSite = onSiteOf(contracts)
   const rates = needsReportingRates(onSite) ? await reportingRatesFor(client.id, now) : null
   const money = spendFigures(onSite, rates, now)
 

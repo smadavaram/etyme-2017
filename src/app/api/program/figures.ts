@@ -1,4 +1,3 @@
-import { chainTop } from '@/lib/chain-top'
 import { programMonthlySpend, spendLine } from '@/lib/program-spend'
 import { spendInReporting, type RateTable } from '@/lib/money/reporting-currency'
 import { spendOf, type SpendLine } from './regions/rollup'
@@ -35,11 +34,16 @@ export interface FigureRung {
   billCurrency: string
 }
 
-/** One row per person: the contract this client pays (`chainTop`), and those of them working today. */
-export function topRungs<T extends FigureRung>(everyRung: T[]): { contracts: T[]; onSite: T[] } {
-  const contracts = chainTop(everyRung)
+/**
+ * Those of the client's own rungs working today. The rungs are already one
+ * per person, the contract this client pays (`chainTop`), which every
+ * reader calls in its own file before a rate is read, so a rate on a rung
+ * underneath never reaches a figure (`rate-party.test.ts` holds each
+ * reader to it).
+ */
+export function onSiteOf<T extends FigureRung>(contracts: T[]): T[] {
   const onSite = contracts.filter((c) => c.state === 'IN_PROGRESS')
-  return { contracts, onSite }
+  return onSite
 }
 
 /** People, not rows: one person is one contractor however many lines they hold. */

@@ -3,7 +3,7 @@ import { placementStatus } from '@/lib/award/placement-status'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { viaPhrase } from '@/lib/chain-top'
+import { chainTop, viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { startPaperwork, agreementsOnFile } from './desk-findings'
@@ -22,7 +22,7 @@ import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
 import { regionContracts, regionRequirements } from '@/lib/region-scope'
 import { readerScope } from './reader-scope'
 import { reportingRatesFor } from '@/lib/money/reporting-currency'
-import { topRungs, headcount, needsReportingRates, spendFigures } from './figures'
+import { onSiteOf, headcount, needsReportingRates, spendFigures } from './figures'
 
 /**
  * GET /api/program
@@ -112,7 +112,8 @@ export async function programView(
   // On site means working now. A drafted contract is somebody who has
   // not started; it is on the Contractors tab with that word on it.
   // The same arithmetic the greeting's summary reads (`./figures`).
-  const { contracts, onSite } = topRungs(everyRung)
+  const contracts = chainTop(everyRung)
+  const onSite = onSiteOf(contracts)
 
   // ── Weeks and claims waiting on this desk ───────────────────────────
   //

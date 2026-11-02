@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { topRungs, headcount, suppliersOnSite, needsReportingRates, spendFigures, type FigureRung } from '@/app/api/program/figures'
+import { onSiteOf, headcount, suppliersOnSite, needsReportingRates, spendFigures, type FigureRung } from '@/app/api/program/figures'
+import { chainTop } from '@/lib/chain-top'
+
+const topRungs = (rows: FigureRung[]) => { const contracts = chainTop(rows); return { contracts, onSite: onSiteOf(contracts) } }
 import { SAMPLE_RATE_TABLE } from '@/lib/money/reporting-currency'
 
 /**
@@ -68,7 +71,10 @@ describe('the program’s headline figures are worked out once, for the page and
     const view = code('src/app/api/program/view.ts')
     const summary = code('src/app/api/program/summary.ts')
     for (const [name, src] of [['view', view], ['summary', summary]] as const) {
-      expect(src, name).toContain('topRungs(everyRung)')
+      // The paying rung, resolved in the reader's own file before any rate is read.
+      expect(src, name).toContain('const contracts = chainTop(everyRung)')
+      expect(src, name).toContain("from '@/lib/chain-top'")
+      expect(src, name).toContain('const onSite = onSiteOf(contracts)')
       expect(src, name).toContain("needsReportingRates(onSite) ? await reportingRatesFor(")
       expect(src, name).toContain('spendFigures(onSite, rates, now)')
       expect(src, name).toContain('headcount(contracts, onSite)')
@@ -76,7 +82,6 @@ describe('the program’s headline figures are worked out once, for the page and
       expect(src, name).toMatch(/endClientFilter\((clientCompany|client)\.id\), wall\.where, unitWall, reachWall/)
     }
     expect(view).not.toContain('spendInReporting(')
-    expect(view).not.toContain('chainTop(everyRung)')
   })
 
   it('the summary names nobody, prices no person and works out no start paperwork', () => {
