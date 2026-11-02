@@ -139,7 +139,7 @@ interface Placement {
   }
   // `weEmployThem` is null where the reader is not the supplier: the
   // answer lives on the buy contract, which nobody else is sent.
-  chain: { hopsBelow: number; weEmployThem: boolean | null }
+  chain: { hopsBelow: number; weEmployThem: boolean | null; says?: string | null }
   compliance: {
     person: Array<{ type: string; status: string; provider: string | null; expiresAt: string | null }>
     // The firm below us, where there is one. `standing` is computed for
@@ -593,9 +593,9 @@ export default function PlacementPage() {
   if (!p) return <LoadingState says="Opening the placement…" />
 
   const where = p.endClient ?? p.client
-  const chainLine = p.chain.weEmployThem
-    ? `${p.supplier.name} employs ${p.person.name.split(' ')[0]} directly.`
-    : `${p.person.name.split(' ')[0]} reaches ${where.name} through ${p.chain.hopsBelow + 1} firm${p.chain.hopsBelow ? 's' : ''}.`
+  // Money's sentence where the supplier reads its own chain (`chainUnderSays`); else how far the person is from the client.
+  const chainLine = p.chain.says
+    ?? `${p.person.name.split(' ')[0]} reaches ${where.name} through ${p.chain.hopsBelow + 1} firm${p.chain.hopsBelow ? 's' : ''}.`
 
   return (
     <div className="animate-fade-in max-w-3xl">

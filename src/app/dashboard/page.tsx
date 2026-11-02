@@ -71,7 +71,8 @@ interface TodayData {
       totals: CurrencyTotal[]
       people: { personName: string }[]
       /** Send is drawn where the send route would send it for this seat; otherwise its sentence. */
-      drafts: { invoiceId: string; number: string; send: boolean; refused: string | null }[]
+      /** `says` is money's words for a bill not yet sent: drafted, or raised (lib/money/bill-state). */
+      drafts: { invoiceId: string; number: string; says?: string; send: boolean; refused: string | null }[]
     }[]
   } | null
   rollingOff: { contractId: string; personId: string; name: string; client: string | null; days: number; lastDay: string; started: boolean }[] | null
@@ -469,7 +470,7 @@ function Bills({ t, busy, said, onAct }: {
                   return (
                     <div key={d.invoiceId} className="mt-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[12px] text-etyme-muted">Bill {d.number} is drafted.</span>
+                        <span className="text-[12px] text-etyme-muted">{d.says ?? `Bill ${d.number} is drafted.`}</span>
                         {d.send ? (
                           <button className="btn-primary" disabled={busy === key} onClick={() => onAct(key, `/api/invoices/${d.invoiceId}/submit`)}>
                             {busy === key ? 'Sending…' : 'Send'}

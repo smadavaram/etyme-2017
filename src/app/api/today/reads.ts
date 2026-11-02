@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { releasing, type RollingOff } from '@/lib/releasing-soon'
 import { benchSpell } from '@/lib/bench-profit'
 import { loadBook } from '@/app/api/ar/book'
+import { isSent } from '@/lib/money/bill-state'
 
 /**
  * The three reads behind a selling firm's Today page that are not money's
@@ -162,12 +163,16 @@ export interface UnpaidBill {
  * Every bill the firm sent with a balance still on it, earliest due
  * first, read from the receivable book Accounts receivable reads
  * (`loadBook`), so the two pages cannot disagree about what is open.
+ *
+ * Sent, by money's one reader (`isSent` in lib/money/bill-state): the
+ * book holds a bill raised and not yet sent (ISSUED) as receivable, and
+ * Today listed it under "Sent, not yet paid" (found by money, 2026-11-01).
  */
 export async function unpaidBills(companyId: string, now: Date): Promise<UnpaidBill[]> {
   const { book } = await loadBook(companyId, now)
   return book.byCurrency
     .flatMap((cb) => cb.invoices)
-    .filter((i) => i.outstandingMinor > 0)
+    .filter((i) => i.outstandingMinor > 0 && isSent(i.status))
     .map((i) => ({
       invoiceId: i.id,
       number: i.number,

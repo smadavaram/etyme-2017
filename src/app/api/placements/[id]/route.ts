@@ -24,6 +24,7 @@ import { ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
 import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
+import { chainBelow } from './chain'
 
 /**
  * GET /api/placements/:id
@@ -411,6 +412,11 @@ export async function GET(
   // ── The chain, downwards only ───────────────────────────────────────
   const rungs = await ladderFor([placement.id])
   const below = descend(placement.id, rungs).slice(1)
+  // The firm one rung down, by name, for the supplier's own chain line.
+  const belowFirmId = isSupplier && below.length ? rungs.find((r) => r.sellContractId === below[0])?.companyId ?? null : null
+  const firmBelowName = belowFirmId
+    ? (await prisma.company.findUnique({ where: { id: belowFirmId }, select: { name: true } }))?.name ?? null
+    : null
 
   // The buy leg. What the supplier pays, to whom, and when — their own
   // paper on their own side of the trade. A client is a party to the
@@ -1100,10 +1106,15 @@ export async function GET(
       // employs the person or buys them in is read off the buy leg, so
       // off the sell side it is null — unknown, rather than a confident
       // "employs them directly" computed from a row we did not fetch.
-      chain: {
-        hopsBelow: below.length,
-        weEmployThem: isSupplier ? ourBuy?.vendorCompany == null : null,
-      },
+      // "Employs them directly" only where the buy line says so (./chain).
+      chain: chainBelow({
+        isSupplier,
+        firmName: placement.company.name,
+        personName: placement.person.name,
+        buyLine: ourBuy ? { vendorName: ourBuy.vendorCompany?.name ?? null } : null,
+        below: below.length,
+        firmBelow: firmBelowName,
+      }),
 
       // ── Station 6 · cleared to work ──
       compliance: {
