@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { partiesOf } from '@/lib/money/invoice-parties'
-import { offPlatformRecord, readWeekChain } from '@/lib/week-approval'
+import { offPlatformRecord, weekSignersFor } from '@/lib/week-approval'
 import { emit } from '@/lib/events'
 import { deliverWritten, notificationRowFor, notify } from '@/lib/notify'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
@@ -77,7 +77,7 @@ async function readBill(invoiceId: string, db: Db = prisma) {
           person: { select: { name: true, primaryEmail: true } },
           timesheet: {
             select: {
-              id: true, periodStart: true, periodEnd: true, clientApprovedAt: true, clientApprovedById: true,
+              id: true, periodStart: true, periodEnd: true, clientApprovedAt: true, clientApprovedById: true, sellContractId: true,
               weekApprovals: {
                 where: { OR: [{ outcome: 'APPROVED' }, { how: 'EVIDENCE' }] },
                 orderBy: { createdAt: 'desc' },
@@ -96,6 +96,14 @@ async function readBill(invoiceId: string, db: Db = prisma) {
 }
 
 type Bill = NonNullable<Awaited<ReturnType<typeof readBill>>>
+
+/**
+ * The bill as one sending read it, handed on so a sending reads it once:
+ * the payer's notices are written from it (`writePayerNoticesIn`) and the
+ * letter or Teams message goes from it (`sendBillToCustomer`). Money hands
+ * it from one to the other; nothing outside this file looks inside it.
+ */
+export type BillRead = Read
 
 interface Read {
   bill: Bill
@@ -129,9 +137,14 @@ async function readWhole(invoiceId: string, db: Db = prisma): Promise<Read | nul
   // The weeks the hours rest on, once each, with the hours this bill took from each.
   const byWeek = new Map<string, BillWeek>()
   const approverIds = new Set<string>()
+  // One week per sell line: a week's chain is its line's (`readWeekChain`
+  // reads the ladder above the line), so every week on one line has the
+  // same client at its top.
+  const weekOfLine = new Map<string, string>()
   for (const l of bill.invoiceLines) {
     const t = l.timesheet
     if (!t) continue
+    if (!weekOfLine.has(t.sellContractId)) weekOfLine.set(t.sellContractId, t.id)
     const was = byWeek.get(t.id)
     const viaEmail = t.weekApprovals[0]?.approverName ?? null
     if (!viaEmail && t.clientApprovedById) approverIds.add(t.clientApprovedById)
@@ -155,15 +168,20 @@ async function readWhole(invoiceId: string, db: Db = prisma): Promise<Read | nul
 
   // Who signed them: the client at the top of each week's chain. Named
   // only where it is one firm; two firms, or none readable, and the
-  // sentence leaves the name out rather than pick one.
+  // sentence leaves the name out rather than pick one. One read for the
+  // whole bill, one week per sell line (2026-11-02, money's forty sends: a
+  // chain read per week, one after another, was most of a sending at
+  // scale; `weekSignersFor` is the architect's, three queries for any
+  // number of weeks).
   const signers = new Set<string>()
-  for (const w of weeks) {
-    try {
-      const chain = await readWeekChain(w.id)
-      if (chain) signers.add(chain.clientName)
-    } catch {
-      signers.add('')
+  try {
+    const names = await weekSignersFor([...weekOfLine.values()])
+    for (const id of weekOfLine.values()) {
+      const name = names.get(id)
+      if (name) signers.add(name)
     }
+  } catch {
+    signers.add('')
   }
   const only = signers.size === 1 ? [...signers][0] : ''
   const signedBy = only || null
@@ -382,16 +400,18 @@ const WRITTEN_IN_THE_SENDING = 'writtenInTheSending'
 export async function writePayerNoticesIn(
   tx: Prisma.TransactionClient,
   a: { invoiceId: string }
-): Promise<{ written: number; payerId: string | null; why: string | null }> {
+): Promise<{ written: number; payerId: string | null; why: string | null; read: BillRead | null }> {
   const w = await readWhole(a.invoiceId, tx)
-  if (!w) return { written: 0, payerId: null, why: 'Nothing behind this bill says who pays it.' }
-  if (!w.payer.onEtyme) return { written: 0, payerId: w.payer.id, why: null }
+  if (!w) return { written: 0, payerId: null, why: 'Nothing behind this bill says who pays it.', read: null }
+  // The bill as read here is handed back, so the delivery after it does
+  // not read it again (`sendBillToCustomer`'s `read`).
+  if (!w.payer.onEtyme) return { written: 0, payerId: w.payer.id, why: null, read: w }
   const already = await tx.notification.count({
     where: { entityId: w.bill.id, type: 'INVOICE', data: { path: [WRITTEN_IN_THE_SENDING], equals: true } },
   })
-  if (already > 0) return { written: 0, payerId: w.payer.id, why: null }
+  if (already > 0) return { written: 0, payerId: w.payer.id, why: null, read: w }
   const seats = await payerSeats(w.payer.id, tx)
-  if (seats.length === 0) return { written: 0, payerId: w.payer.id, why: `nobody at ${w.payer.name} can record a payment yet.` }
+  if (seats.length === 0) return { written: 0, payerId: w.payer.id, why: `nobody at ${w.payer.name} can record a payment yet.`, read: w }
   const said = billNotice(w.facts)
   for (const s of seats) {
     await tx.notification.create({
@@ -402,7 +422,7 @@ export async function writePayerNoticesIn(
       }),
     })
   }
-  return { written: seats.length, payerId: w.payer.id, why: null }
+  return { written: seats.length, payerId: w.payer.id, why: null, read: w }
 }
 
 /** The payer's notices written inside the sending and not yet sent by email or Teams. */
@@ -429,19 +449,38 @@ async function writtenInTheSending(invoiceId: string) {
  * sends nothing and says what the first did; sending again is
  * `resendBillToCustomer`, a person's own act.
  */
-export async function sendBillToCustomer(a: { invoiceId: string; byPersonId: string | null; now?: Date }): Promise<BillSent> {
+export async function sendBillToCustomer(a: {
+  invoiceId: string
+  byPersonId: string | null
+  now?: Date
+  /**
+   * The bill as the payer's notices read it after the sending committed
+   * (`writePayerNoticesIn`'s `read`), so it is not read twice. Used only
+   * where it is this bill and reads as sent; anything else is read again.
+   */
+  read?: BillRead | null
+}): Promise<BillSent> {
   const now = a.now ?? new Date()
   const past = await history(a.invoiceId)
   if (past.length) {
     const said = billSentSays(past.map((p) => p.delivery), now)
     return { sent: false, to: past[0].delivery.to.map((t) => t.address), says: said ?? 'Already sent.' }
   }
-  const w = await readWhole(a.invoiceId)
+  const w = handedOn(a.read, a.invoiceId) ?? (await readWhole(a.invoiceId))
   if (!w) return { sent: false, to: [], says: 'Not sent: nothing behind this bill says who pays it.' }
   if (w.bill.status !== 'SUBMITTED') {
     return { sent: false, to: [], says: `Not sent: bill ${w.bill.number} is ${w.bill.status.toLowerCase().replace('_', ' ')}, not sent.` }
   }
   return deliver(w, { byPersonId: a.byPersonId, resend: false, now })
+}
+
+/**
+ * A read handed on from the sending, where it may stand for a fresh one:
+ * the same bill, read once it was sent. A read from before the sending
+ * committed still says ISSUED or DRAFT, and the delivery reads again.
+ */
+export function handedOn(read: BillRead | null | undefined, invoiceId: string): BillRead | null {
+  return read && read.bill.id === invoiceId && read.bill.status === 'SUBMITTED' ? read : null
 }
 
 /**
