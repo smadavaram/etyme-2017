@@ -8,6 +8,8 @@ import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
+import { SaidField, SaidYes, refusalFrom } from '../said-field'
+import { askSupplierBody } from '../ask-body'
 import { Chip, DetailHead, EmptyState, ErrorState, Lbl, LoadingState, RefusedState } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
@@ -145,11 +147,14 @@ function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
   voided?: Override | null
   /** Only the desk that pays waives a check, or withdraws an exception (lib/money/pay-desk). */
   mayWaive: boolean
-  onWaive: (code: string) => void
-  onWithdraw: (code: string) => void
+  /** Records the exception with its reason; null on success, else the route's sentence. */
+  onWaive: (code: string, reason: string) => Promise<string | null>
+  onWithdraw: (code: string) => Promise<string | null>
 }) {
   const failed = c.outcome === 'FAIL'
   const waived = c.outcome === 'OVERRIDDEN'
+  // Asked on the page, never in a browser prompt (the screen walk, 2026-11-02).
+  const [asking, setAsking] = useState<'WAIVE' | 'WITHDRAW' | null>(null)
   return (
     <div className={`px-4 py-3 border-l-2 ${
       failed ? 'border-etyme-attention' : waived ? 'border-etyme-action' : 'border-transparent'
@@ -181,14 +186,14 @@ function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
           )}
         </div>
         <div className="shrink-0">
-          {failed && c.overridable && mayWaive && (
-            <button onClick={() => onWaive(c.code)}
+          {failed && c.overridable && mayWaive && !asking && (
+            <button onClick={() => setAsking('WAIVE')}
               className="px-3 py-1 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
               Record an exception
             </button>
           )}
-          {waived && mayWaive && (
-            <button onClick={() => onWithdraw(c.code)}
+          {waived && mayWaive && !asking && (
+            <button onClick={() => setAsking('WITHDRAW')}
               className="px-3 py-1 text-xs text-etyme-muted hover:text-etyme-attention">
               Withdraw
             </button>
@@ -196,6 +201,29 @@ function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
           {c.outcome === 'PASS' && <span className="text-etyme-verified text-sm">✓</span>}
         </div>
       </div>
+      {asking === 'WAIVE' && (
+        <div className="mt-2 max-w-[520px]">
+          <SaidField
+            id={`waive-${c.code}`}
+            label="Why this is waived. It travels with the invoice, and the next person to read it will be an auditor."
+            placeholder="The client agreed the extra hours by email on Oct 30."
+            submit="Record the exception"
+            onSend={(reason) => onWaive(c.code, reason)}
+            onCancel={() => setAsking(null)}
+          />
+        </div>
+      )}
+      {asking === 'WITHDRAW' && (
+        <div className="mt-2 max-w-[520px]">
+          <SaidYes
+            says="Withdraw this exception? The invoice may stop matching."
+            yes="Withdraw it"
+            no="Keep it"
+            onYes={() => onWithdraw(c.code)}
+            onNo={() => setAsking(null)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -216,6 +244,11 @@ export default function InvoiceDetail() {
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  // Asked on the page: the supplier's question and a draft's withdrawal
+  // reason in a field, the send's refusal beside its button.
+  const [askingSupplier, setAskingSupplier] = useState(false)
+  const [withdrawingDraft, setWithdrawingDraft] = useState(false)
+  const [sendRefused, setSendRefused] = useState<{ says: string; checks: string[] } | null>(null)
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 4000)
@@ -237,51 +270,37 @@ export default function InvoiceDetail() {
 
   useEffect(() => { if (id) load() }, [id, load])
 
-  async function waive(code: string) {
-    const reason = window.prompt(
-      'Why is this being waived? This travels with the invoice, and the next person to read it will be an auditor.'
-    )
-    if (!reason) return
+  /** Records an exception on a check, with its reason; the route's sentence where it refuses. */
+  async function waive(code: string, reason: string): Promise<string | null> {
     const res = await fetch(withBooks(`/api/invoices/${id}/match/override`, books), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, reason }),
     })
-    let j: any
-    try {
-      j = await readJson(res)
-    } catch (e: any) {
-      // The server's own words where it sent any, and a sentence
-      // rather than a parser error where it sent nothing.
-      alert(e.message)
-      return
-    }
+    if (!res.ok) return refusalFrom(await res.json().catch(() => null), 'The exception was not recorded. Your reason is still here.')
     await load()
+    return null
   }
 
-  async function withdraw(code: string) {
-    if (!window.confirm('Withdraw this exception? The invoice may stop matching.')) return
+  async function withdraw(code: string): Promise<string | null> {
     const res = await fetch(withBooks(`/api/invoices/${id}/match/override?code=${code}`, books), { method: 'DELETE' })
-    if (!res.ok) { alert('Could not withdraw it'); return }
+    if (!res.ok) return refusalFrom(await res.json().catch(() => null), 'The exception was not withdrawn.')
     await load()
+    return null
   }
 
   /** A question about this invoice, on the thread about the job with the supplier. */
-  async function askSupplier() {
+  async function askSupplier(question: string): Promise<string | null> {
     const r = data?.receipt
-    if (!r?.requirementId || !r.supplierId) return
-    const question = window.prompt(`What do you want to ask ${data.invoice.vendor?.name ?? 'the supplier'} about invoice ${data.invoice.number}?`)
-    if (!question?.trim()) return
+    if (!r?.requirementId || !r.supplierId) return 'This invoice names no job to ask about.'
     const res = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topic: 'REQUIREMENT', topicId: r.requirementId, withCompanyId: r.supplierId,
-        initialMessage: `About invoice ${data.invoice.number}: ${question.trim()}`,
-      }),
+      body: JSON.stringify(askSupplierBody({ requirementId: r.requirementId, supplierId: r.supplierId, number: data.invoice.number, question })),
     })
     const body = await res.json().catch(() => ({}))
-    if (!res.ok) { showToast(body.error?.message ?? 'The question was not sent.', 'error'); return }
+    if (!res.ok) return refusalFrom(body, `The question was not sent to ${data.invoice.vendor?.name ?? 'the supplier'}. Your words are still here.`)
     window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
+    return null
   }
 
   async function submit() {
@@ -294,10 +313,15 @@ export default function InvoiceDetail() {
     // not produce a parser error on screen.
     const j = await res.json().catch(() => ({}) as any)
     if (!res.ok) {
-      const cs = (j.error?.checks ?? []).map((c: any) => `· ${c.reason}`).join('\n')
-      alert(`${j.error?.message ?? 'Could not submit'}${cs ? '\n\n' + cs : ''}`)
+      // Said on the page beside the button, with the checks that failed,
+      // never in a browser alert (the screen walk, 2026-11-02).
+      setSendRefused({
+        says: refusalFrom(j, 'The bill was not sent.'),
+        checks: ((j.error?.checks ?? []) as { reason?: unknown }[]).map((c) => String(c.reason ?? '')).filter(Boolean),
+      })
       return
     }
+    setSendRefused(null)
     // What was sent, and whom it reached: "Sent to dana@acme.com on Oct 19".
     if (j.data?.message) showToast(j.data.delivery ? `${j.data.message}. ${j.data.delivery}.` : j.data.message)
     await load()
@@ -315,17 +339,14 @@ export default function InvoiceDetail() {
   }
 
   /** Withdraw a draft nobody has sent, with a reason; its weeks can be billed again. */
-  async function withdrawDraft() {
-    const reason = window.prompt(
-      `Why is draft bill ${data?.invoice?.number ?? ''} being withdrawn? This goes on the trail with your name.`
-    )
-    if (!reason?.trim()) return
+  async function withdrawDraft(reason: string): Promise<string | null> {
     const res = await fetch(`/api/invoices/${id}/withdraw`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
     })
     const j = await res.json().catch(() => ({}) as any)
-    if (!res.ok) { showToast(j.error?.message ?? 'The draft could not be withdrawn.', 'error'); return }
+    if (!res.ok) return refusalFrom(j, 'The draft could not be withdrawn. Your reason is still here.')
     window.location.href = booksHref('/dashboard/invoices', books)
+    return null
   }
 
   // Money pages wait (sign-up walk, round three, #17): until the session
@@ -434,8 +455,8 @@ export default function InvoiceDetail() {
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <button onClick={withdrawDraft}
-              className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk">
+            <button onClick={() => setWithdrawingDraft(true)} disabled={withdrawingDraft}
+              className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk disabled:opacity-50">
               Withdraw
             </button>
             {(!m || m.matched) && (
@@ -445,6 +466,28 @@ export default function InvoiceDetail() {
               </button>
             )}
           </div>
+        </div>
+      )}
+      {inv.status === 'DRAFT' && inv.direction === 'RECEIVABLE' && withdrawingDraft && (
+        <div className="-mt-4 mb-6 max-w-[560px]">
+          <SaidField
+            id="withdraw-draft"
+            label={`Why draft bill ${inv.number} is withdrawn. This goes on the trail with your name.`}
+            placeholder="The hours were billed on the wrong order."
+            submit="Withdraw the draft"
+            onSend={withdrawDraft}
+            onCancel={() => setWithdrawingDraft(false)}
+          />
+        </div>
+      )}
+      {sendRefused && (inv.status === 'DRAFT' || inv.status === 'ISSUED') && (
+        <div className="mb-6 rounded-lg border border-etyme-attention/30 bg-etyme-attention/5 p-4" role="alert">
+          <p className="text-sm text-etyme-attention">{sendRefused.says}</p>
+          {sendRefused.checks.length > 0 && (
+            <ul className="mt-1 list-disc pl-5 text-xs text-etyme-muted">
+              {sendRefused.checks.map((c) => <li key={c}>{c}</li>)}
+            </ul>
+          )}
         </div>
       )}
 
@@ -485,10 +528,23 @@ export default function InvoiceDetail() {
           <p className="text-[13px] text-etyme-muted tabular-nums">
             {data.receipt.row} · {data.receipt.hoursSigned ?? 'none'} h signed, {data.receipt.hoursBilled} h billed
           </p>
-          {inv.direction === 'PAYABLE' && data.receipt.requirementId && data.receipt.supplierId && (
-            <button onClick={askSupplier} className="mt-1 text-[13px] text-etyme-action hover:underline">
+          {inv.direction === 'PAYABLE' && data.receipt.requirementId && data.receipt.supplierId && !askingSupplier && (
+            <button onClick={() => setAskingSupplier(true)} className="mt-1 text-[13px] text-etyme-action hover:underline">
               Ask {inv.vendor?.name ?? 'the supplier'} about this invoice
             </button>
+          )}
+          {inv.direction === 'PAYABLE' && askingSupplier && (
+            <div className="mt-2 max-w-[520px]">
+              <SaidField
+                id="ask-supplier"
+                label={`Your question to ${inv.vendor?.name ?? 'the supplier'} about invoice ${inv.number}`}
+                placeholder="Which week are the 41.5 hours from?"
+                submit="Send"
+                rows={3}
+                onSend={askSupplier}
+                onCancel={() => setAskingSupplier(false)}
+              />
+            </div>
           )}
         </div>
       )}

@@ -11,6 +11,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { decimalsFor } from '@/lib/money'
 import { decidedBy } from '@/lib/money/pay-words'
+import { SaidField, SaidYes } from '../invoices/said-field'
 
 /**
  * Rate History working surface.
@@ -74,6 +75,9 @@ function matchesFilter(record: RateHistoryRecord, filter: FilterTab): boolean {
 export default function RateHistoryPage() {
   const [records, setRecords] = useState<RateHistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
+  // The proposed rate being decided on its row, and what the decision unblocked.
+  const [deciding, setDeciding] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
+  const [decided, setDecided] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
@@ -281,12 +285,12 @@ export default function RateHistoryPage() {
   // in it.
   const pending = records.filter(r => r.approvalState === 'PROPOSED')
 
-  async function decideAmendment(id: string, action: 'approve' | 'reject') {
-    const reason = action === 'reject'
-      ? window.prompt('Why are you rejecting this rate change?')
-      : (window.prompt('Note for the record? (optional)') ?? '')
-    if (action === 'reject' && !reason) return
-
+  /**
+   * Approve or reject a proposed rate, with the reason or the note typed
+   * on the row (never a browser prompt; the screen walk, 2026-11-02).
+   * Null on success, else the route's own sentence, said under the field.
+   */
+  async function decideAmendment(id: string, action: 'approve' | 'reject', reason: string): Promise<string | null> {
     const res = await fetch(`/api/rate-history/${id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -298,13 +302,13 @@ export default function RateHistoryPage() {
     } catch (e: any) {
       // The server's own words where it sent any, and a sentence
       // rather than a parser error where it sent nothing.
-      alert(e.message)
-      return
+      return e.message
     }
     // Say what the decision just unblocked — an approval that quietly makes
-    // three held invoices payable is worth stating.
-    alert(j.data.message)
+    // three held invoices payable is worth stating — on the page.
+    setDecided(j.data.message ?? null)
     await fetchHistory()
+    return null
   }
 
   // Money pages wait (sign-up walk, round three, #17): until the session
@@ -343,6 +347,7 @@ export default function RateHistoryPage() {
         <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg mb-6">
           <div className="p-4 border-b border-etyme-rule">
             <Lbl>Waiting on procurement</Lbl>
+            {decided && <p className="text-sm text-etyme-verified mt-1" role="status">{decided}</p>}
             <p className="text-sm text-etyme-muted mt-1">
               A proposed rate does not bill. Until one of these is approved, invoices
               at the new rate keep failing the price check.
@@ -362,16 +367,31 @@ export default function RateHistoryPage() {
                     {r.reason ? ` · ${r.reason}` : ''}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={() => decideAmendment(r.id, 'approve')}
-                    className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
-                    Approve
-                  </button>
-                  <button onClick={() => decideAmendment(r.id, 'reject')}
-                    className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
-                    Reject
-                  </button>
-                </div>
+                {deciding?.id !== r.id && (
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => setDeciding({ id: r.id, action: 'approve' })}
+                      className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                      Approve
+                    </button>
+                    <button onClick={() => setDeciding({ id: r.id, action: 'reject' })}
+                      className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+                      Reject
+                    </button>
+                  </div>
+                )}
+                {deciding?.id === r.id && (
+                  <div className="w-[320px] shrink-0">
+                    <SaidField
+                      id={`rate-${r.id}-${deciding.action}`}
+                      label={deciding.action === 'reject' ? 'Why this rate change is rejected' : 'A note for the record, if there is one'}
+                      placeholder={deciding.action === 'reject' ? 'The client has not agreed the new rate yet.' : 'Agreed with the client on the Oct 28 call.'}
+                      submit={deciding.action === 'reject' ? 'Reject' : 'Approve'}
+                      optional={deciding.action === 'approve'}
+                      onSend={(reason) => decideAmendment(r.id, deciding.action, reason)}
+                      onCancel={() => setDeciding(null)}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -575,6 +595,7 @@ function BackPayCell({ id, onPaid }: { id: string; onPaid: () => void }) {
   const [answer, setAnswer] = useState<BackPayAnswer | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  const [asking, setAsking] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -589,9 +610,9 @@ function BackPayCell({ id, onPaid }: { id: string; onPaid: () => void }) {
     load()
   }, [load])
 
-  async function pay() {
-    if (!answer) return
-    if (!window.confirm(`${answer.says}\n\nPay it now as ${answer.payments.length === 1 ? 'an off-cycle payment' : `${answer.payments.length} off-cycle payments`}?`)) return
+  /** Pays the back pay the route worked out; null on success, else the route's own sentence. */
+  async function pay(): Promise<string | null> {
+    if (!answer) return null
     setPaying(true)
     try {
       for (const p of answer.payments) {
@@ -613,8 +634,9 @@ function BackPayCell({ id, onPaid }: { id: string; onPaid: () => void }) {
       }
       await load()
       onPaid()
+      return null
     } catch (e: any) {
-      alert(e.message)
+      return e.message ?? 'The back pay was not paid.'
     } finally {
       setPaying(false)
     }
@@ -635,14 +657,26 @@ function BackPayCell({ id, onPaid }: { id: string; onPaid: () => void }) {
         {formatRate(answer.totalCents, answer.currency)} proposed
       </span>
       <span className="text-[11px] text-etyme-muted block">{answer.says}</span>
-      {answer.mayPay && (
+      {answer.mayPay && !asking && (
         <button
-          onClick={pay}
+          onClick={() => setAsking(true)}
           disabled={paying}
           className="mt-1 px-2 py-1 bg-etyme-action text-white rounded text-[11px] font-medium hover:opacity-90 disabled:opacity-50"
         >
           {paying ? 'Paying…' : 'Pay off cycle'}
         </button>
+      )}
+      {/* The yes asked on the page, never a browser confirm; a refusal is said under it. */}
+      {answer.mayPay && asking && (
+        <span className="mt-1 block">
+          <SaidYes
+            says={`Pay it now as ${answer.payments.length === 1 ? 'an off-cycle payment' : `${answer.payments.length} off-cycle payments`}?`}
+            yes="Pay it"
+            no="Not now"
+            onYes={pay}
+            onNo={() => setAsking(false)}
+          />
+        </span>
       )}
     </span>
   )

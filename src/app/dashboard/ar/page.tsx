@@ -11,6 +11,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { usePageSection } from '@/components/page-section'
 import { payDesk } from '@/lib/money/pay-desk'
+import { WriteOffForm, writeOffBody } from './write-off'
 
 /**
  * Accounts receivable.
@@ -1094,6 +1095,8 @@ function Collections() {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // The case whose write-off form is open, by customer.
+  const [writingOff, setWritingOff] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1107,8 +1110,14 @@ function Collections() {
   }, [])
 
   async function act(c: any, step: string, extra: Record<string, unknown> = {}) {
-    setBusy(`${c.customerId}:${step}`)
     setFailed(null)
+    const refused = await recordStep(c, step, extra)
+    if (refused) setFailed(refused)
+  }
+
+  /** Records a step; null on success, else the route's own sentence, for whoever drew the form. */
+  async function recordStep(c: any, step: string, extra: Record<string, unknown> = {}): Promise<string | null> {
+    setBusy(`${c.customerId}:${step}`)
     try {
       const res = await fetch('/api/ar/collections', {
         method: 'POST',
@@ -1122,8 +1131,9 @@ function Collections() {
       })
       const b = await readJson(res)
       setSaid(b.data.note)
+      return null
     } catch (e: any) {
-      setFailed(e.message)
+      return e.message
     } finally {
       setBusy(null)
     }
@@ -1238,26 +1248,27 @@ function Collections() {
                   Record it as sold to a factor
                 </button>
               )}
-              <button
-                className="text-[13px] underline text-etyme-muted"
-                disabled={busy != null}
-                onClick={() => {
-                  const reason = window.prompt(
-                    `Why are you writing off ${c.customerName}? One of: ` +
-                      (data?.writeOffReasons ?? []).map((r: any) => r.code).join(', ')
-                  )
-                  if (!reason) return
-                  const note = window.prompt('And a sentence somebody can read in six months')
-                  void act(c, 'WRITTEN_OFF', {
-                    reason,
-                    note,
-                    amountCents: c.overdueMinor,
-                  })
-                }}
-              >
-                Write it off
-              </button>
+              {writingOff !== c.customerId && (
+                <button
+                  className="text-[13px] underline text-etyme-muted"
+                  disabled={busy != null}
+                  onClick={() => setWritingOff(c.customerId)}
+                >
+                  Write it off
+                </button>
+              )}
             </div>
+            {/* The reason picked from the route's own list and the sentence
+                typed on the page, never in a browser prompt (the screen
+                walk, 2026-11-02); a refusal is said under the field. */}
+            {writingOff === c.customerId && (
+              <WriteOffForm
+                customerName={c.customerName}
+                reasons={(data?.writeOffReasons ?? []) as { code: string; label: string }[]}
+                onSend={(reason, note) => recordStep(c, 'WRITTEN_OFF', writeOffBody({ reason, note, amountCents: c.overdueMinor }))}
+                onCancel={() => setWritingOff(null)}
+              />
+            )}
           </article>
         )
       })}
