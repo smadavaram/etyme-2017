@@ -23,6 +23,7 @@ import { plainDate } from '@/lib/plain-date'
 import { calendarDaysBetween } from '@/lib/document-stages'
 import { humanKey } from '@/lib/document-type'
 import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
+import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
 // The bench answer is read through one door — `lib/bench-filter` — so two
 // screens on one menu cannot disagree about the same firm's people.
 import { readBench, type BenchReading } from '@/lib/bench-filter'
@@ -2461,7 +2462,10 @@ export function mayExamine(
       message: `Give the day ${name} starts, as printed on it. A paper that begins after somebody starts covers nobody on their first day.`,
     }
   }
-  if (t && t.validityShape !== 'NONE' && !expiresAt) {
+  // A paper completed from a document the person shows (an I-9) has no
+  // end of its own: its end is the document's, asked for with the document
+  // and recorded on the check (lib/document-stages/examine-form).
+  if (t && t.validityShape !== 'NONE' && !expiresAt && !COMPLETED_FROM_SHOWN.includes(t.key)) {
     return {
       ok: false, code: 'NO_EXPIRY', field: 'expiresAt',
       message: `${name} runs out, so it cannot be accepted without the date printed on it. A paper with no end recorded looks current on every screen until somebody audits it.`,

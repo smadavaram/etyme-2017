@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
+import { I9_SHOWN } from '@/lib/document-stages/examine-form'
+import { recordI9Body, recordVerdictBody } from './record-bodies'
 
 /**
  * Put a check on file for somebody about to start, from the screen.
@@ -25,14 +27,8 @@ import { FormMessage } from '@/components/ui'
 
 export type RecordKind = 'I9' | 'VERDICT' | 'ADVERSE'
 
-/** What an I-9 may be completed from, in the words on the document. */
-const I9_DOCUMENTS: { key: string; label: string; issuer: string }[] = [
-  { key: 'PASSPORT', label: 'Passport', issuer: 'U.S. Department of State' },
-  { key: 'GREEN_CARD', label: 'Permanent resident card', issuer: 'U.S. Citizenship and Immigration Services' },
-  { key: 'WORK_PERMIT', label: 'Work permit (EAD)', issuer: 'U.S. Citizenship and Immigration Services' },
-  { key: 'VISA', label: 'Visa', issuer: 'U.S. Department of State' },
-  { key: 'DRIVERS_LICENSE', label: 'Driver’s license (with another document for work authorization)', issuer: '' },
-]
+/** What an I-9 may be completed from: one list, the same the examine dialog offers. */
+const I9_DOCUMENTS = I9_SHOWN
 
 const OUTCOMES = [
   { key: 'ORDERED', label: 'Ordered, not back yet' },
@@ -68,6 +64,7 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
   const [doc, setDoc] = useState(I9_DOCUMENTS[0].key)
   const [docIssuer, setDocIssuer] = useState(I9_DOCUMENTS[0].issuer)
   const [docExpires, setDocExpires] = useState('')
+  const [docNumber, setDocNumber] = useState('')
   // Verdict
   const [type, setType] = useState('BACKGROUND_CHECK')
   const [provider, setProvider] = useState('')
@@ -102,16 +99,14 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
       let says: string
       if (kind === 'I9') {
         const shown = I9_DOCUMENTS.find((d) => d.key === doc)!
-        const r = await postJson('/api/compliance/verifications', {
-          contractId: who.contractId, about: 'PERSON', type: 'I9_EVERIFY', formEdition: edition,
-          evidence: [{ type: shown.key, issuer: docIssuer || null, expiresAt: docExpires || null }],
-        })
+        const r = await postJson('/api/compliance/verifications', recordI9Body(who.contractId, {
+          edition, doc: shown.key, docNumber, docIssuer, docExpires,
+        }))
         says = r?.data?.says ?? `The I-9 for ${who.name} is on file.`
       } else if (kind === 'VERDICT') {
-        const r = await postJson('/api/compliance/verifications', {
-          contractId: who.contractId, about: 'PERSON', type, provider, reference, renderedOn, outcome,
-          ...(outcome === 'ORDERED' ? {} : { providerSays }),
-        })
+        const r = await postJson('/api/compliance/verifications', recordVerdictBody(who.contractId, {
+          type, provider, reference, renderedOn, outcome, providerSays,
+        }))
         says = r?.data?.says ?? `${provider}’s report is on file.`
       } else {
         const noticeDocumentId =
@@ -152,12 +147,16 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
               </select>
             </label>
             <label className="block">
+              <span className={label}>Its number</span>
+              <input value={docNumber} onChange={(e) => setDocNumber(e.target.value)} required className={field} />
+            </label>
+            <label className="block">
               <span className={label}>Issued by</span>
-              <input value={docIssuer} onChange={(e) => setDocIssuer(e.target.value)} className={field} />
+              <input value={docIssuer} onChange={(e) => setDocIssuer(e.target.value)} required className={field} />
             </label>
             <label className="block">
               <span className={label}>The day it runs out, as printed</span>
-              <input type="date" value={docExpires} onChange={(e) => setDocExpires(e.target.value)} className={field} />
+              <input type="date" value={docExpires} onChange={(e) => setDocExpires(e.target.value)} required className={field} />
             </label>
           </>
         )}

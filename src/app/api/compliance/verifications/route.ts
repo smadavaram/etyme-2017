@@ -8,11 +8,11 @@ import { emit } from '@/lib/events'
 import { writeCheck, employerOfRecord } from './record'
 import { employedElsewhere } from '@/lib/document-stages/employer'
 import {
+  checkInputFrom,
   checkToRecord,
   mayRecordCheck,
   recordLabel,
   withArticle,
-  type ExaminedEvidence,
   type RecordingSide,
 } from '@/lib/attestation'
 
@@ -107,35 +107,6 @@ export async function POST(request: NextRequest) {
     return refuse(403, may.code, may.message)
   }
 
-  // ── Dates, as the paper prints them ──
-  const dateOf = (field: string): Date | null | 'BAD' => {
-    const v = body[field]
-    if (v == null || v === '') return null
-    const d = new Date(String(v))
-    return Number.isNaN(d.getTime()) ? 'BAD' : d
-  }
-  const dates: Record<string, Date | null> = {}
-  for (const f of ['renderedOn', 'issuedOn', 'validFrom', 'expiresAt']) {
-    const d = dateOf(f)
-    if (d === 'BAD') return refuse(422, 'VALIDATION', `Give ${DATE_WORDS[f]} as a date, like 2027-06-30.`, f)
-    dates[f] = d
-  }
-  const evidence: ExaminedEvidence[] = []
-  if (Array.isArray(body.evidence)) {
-    for (const e of body.evidence as Record<string, unknown>[]) {
-      const at = e?.expiresAt ? new Date(String(e.expiresAt)) : null
-      if (at && Number.isNaN(at.getTime())) {
-        return refuse(422, 'VALIDATION', 'Give each document’s expiry as a date, like 2031-04-30.', 'evidence')
-      }
-      evidence.push({
-        type: String(e?.type ?? '').toUpperCase(),
-        issuer: typeof e?.issuer === 'string' ? e.issuer : null,
-        reference: typeof e?.reference === 'string' ? e.reference : null,
-        expiresAt: at,
-      })
-    }
-  }
-
   // ── The person's authorization, where one is named ──
   //
   // A signed paper about this person, and nothing else. A consent that
@@ -157,18 +128,12 @@ export async function POST(request: NextRequest) {
     consentOn = consent.signedAt
   }
 
-  const str = (k: string): string | null => (typeof body[k] === 'string' ? (body[k] as string) : null)
   const now = new Date()
-  const verdict = checkToRecord(
-    {
-      about, type, subjectName, recordedBy: caller.person.name,
-      provider: str('provider'), reference: str('reference'), renderedOn: dates.renderedOn,
-      outcome: str('outcome'), providerSays: str('providerSays'), consentOn,
-      issuer: str('issuer'), issuedOn: dates.issuedOn, validFrom: dates.validFrom, expiresAt: dates.expiresAt,
-      formEdition: str('formEdition'), evidence, licenseNumber: str('licenseNumber'), licenseState: str('licenseState'),
-    },
-    now
-  )
+  // The body read once, by the same reader every door that records a check
+  // uses, so a field on a screen and the rule's question are one name.
+  const read = checkInputFrom(body, { about, type, subjectName, recordedBy: caller.person.name, consentOn })
+  if (!read.ok) return refuse(422, 'VALIDATION', read.message, read.field)
+  const verdict = checkToRecord(read.input, now)
   if (!verdict.ok) {
     return refuse(422, verdict.code, verdict.message, verdict.field)
   }
@@ -225,14 +190,6 @@ const REFUSED_BECAUSE: Record<'NOT_A_PARTY' | 'NOT_YOURS_TO_RECORD' | 'FORBIDDEN
   NOT_A_PARTY: 'the firm is not a party to the placement',
   NOT_YOURS_TO_RECORD: 'it is the other firm’s to record',
   FORBIDDEN: 'the seat does not record checks',
-}
-
-/** Each date field, as the paper names it. */
-const DATE_WORDS: Record<string, string> = {
-  renderedOn: 'the day the provider reported',
-  issuedOn: 'the day it was issued',
-  validFrom: 'the day it starts',
-  expiresAt: 'the day it runs out',
 }
 
 function refuse(status: number, code: string, message: string, field?: string) {

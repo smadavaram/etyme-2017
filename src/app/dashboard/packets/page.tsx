@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { plainDate } from '@/lib/plain-date'
 import { emptyRequestsSays } from './words'
 import { ExaminePaper, type ExamineRow } from '../documents/examine'
@@ -46,7 +47,7 @@ interface Arrived {
   /** The paper the answer is kept as; null where no file came with it. */
   paperId: string | null
   aboutAFirm: boolean
-  examineNeeds: { start: boolean; end: boolean; edition: boolean }
+  examineNeeds: Partial<ExamineNeeds>
 }
 
 interface Available {

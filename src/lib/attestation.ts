@@ -1048,6 +1048,74 @@ function no(code: string, message: string, field?: string): CheckRecordVerdict {
   return { ok: false, code, message, ...(field ? { field } : {}) }
 }
 
+/** Each date a check takes, as the paper names it. */
+const DATE_WORDS: Record<string, string> = {
+  renderedOn: 'the day the provider reported',
+  issuedOn: 'the day it was issued',
+  validFrom: 'the day it starts',
+  expiresAt: 'the day it runs out',
+}
+
+/**
+ * A posted body read into the check the rules judge: the dates parsed,
+ * the documents behind an I-9 read, every text field trimmed. One reading
+ * for every door that records a check (Record a check on the Compliance
+ * page, and a paper accepted on Paperwork or Document requests), so a
+ * screen's field and the rule's question are one name
+ * (`__tests__/invariants/every-question-has-a-field.test.ts`). Pure.
+ *
+ * A date that is not a date is refused here, naming its field; a missing
+ * one is left for `checkToRecord` to ask for in its own words.
+ */
+export function checkInputFrom(
+  body: Record<string, unknown>,
+  base: {
+    about: 'PERSON' | 'FIRM'
+    type: string
+    subjectName: string
+    recordedBy: string
+    consentOn?: Date | null
+    /** The day it runs out where the body names none: a request item's own date. */
+    expiresAtFallback?: Date | null
+  }
+): { ok: true; input: CheckToRecord } | { ok: false; message: string; field: string } {
+  const dates: Record<string, Date | null> = {}
+  for (const f of ['renderedOn', 'issuedOn', 'validFrom', 'expiresAt']) {
+    const v = body[f]
+    if (v == null || v === '') { dates[f] = null; continue }
+    const d = new Date(String(v))
+    if (Number.isNaN(d.getTime())) return { ok: false, message: `Give ${DATE_WORDS[f]} as a date, like 2027-06-30.`, field: f }
+    dates[f] = d
+  }
+  const evidence: ExaminedEvidence[] = []
+  if (Array.isArray(body.evidence)) {
+    for (const e of body.evidence as Record<string, unknown>[]) {
+      const at = e?.expiresAt ? new Date(String(e.expiresAt)) : null
+      if (at && Number.isNaN(at.getTime())) {
+        return { ok: false, message: 'Give each document’s expiry as a date, like 2031-04-30.', field: 'evidence' }
+      }
+      evidence.push({
+        type: String(e?.type ?? '').toUpperCase(),
+        issuer: typeof e?.issuer === 'string' ? e.issuer : null,
+        reference: typeof e?.reference === 'string' ? e.reference : null,
+        expiresAt: at,
+      })
+    }
+  }
+  const str = (k: string): string | null => (typeof body[k] === 'string' ? (body[k] as string) : null)
+  return {
+    ok: true,
+    input: {
+      about: base.about, type: base.type, subjectName: base.subjectName, recordedBy: base.recordedBy,
+      provider: str('provider'), reference: str('reference'), renderedOn: dates.renderedOn,
+      outcome: str('outcome'), providerSays: str('providerSays'), consentOn: base.consentOn ?? null,
+      issuer: str('issuer'), issuedOn: dates.issuedOn, validFrom: dates.validFrom,
+      expiresAt: dates.expiresAt ?? base.expiresAtFallback ?? null,
+      formEdition: str('formEdition'), evidence, licenseNumber: str('licenseNumber'), licenseState: str('licenseState'),
+    },
+  }
+}
+
 /**
  * What a desk may put on file, and the sentence that says what it is.
  *

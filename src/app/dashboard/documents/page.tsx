@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
@@ -56,7 +57,7 @@ interface Request_ {
   note: string | null
   examinedAt?: string | null
   expiresAt?: string | null
-  examineNeeds?: { start: boolean; end: boolean; edition: boolean }
+  examineNeeds?: Partial<ExamineNeeds>
   licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
 }
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']

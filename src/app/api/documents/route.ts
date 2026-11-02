@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { examineNeedsOf, type ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
-import { BUILT_IN, builtInType } from '@/lib/document-type'
+import { BUILT_IN } from '@/lib/document-type'
 import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
@@ -190,7 +191,7 @@ export async function GET(request: NextRequest) {
           expiresAt: i.expiresAt?.toISOString().slice(0, 10) ?? null,
           edition: i.edition ?? null,
           countersignedAt: i.countersignedAt?.toISOString() ?? null,
-          examineNeeds: examineNeedsFor(i.template.name, itemOf.get(i.subjectId)?.key ?? null),
+          examineNeeds: examineNeedsFor(i.template.name, itemOf.get(i.subjectId)?.key ?? null, aboutOf(i).kind === 'FIRM'),
           // A license's number, issuer and expiry as the sender gave them,
           // so the examine step opens with them filled in.
           licenseFacts: licenseFactsFrom(i.note),
@@ -435,15 +436,10 @@ async function offeredWork(personId: string, companyId: string): Promise<boolean
  * one, an edition where the form is reissued. Nothing for a paper whose
  * type is not known, because nothing is required of it.
  */
-function examineNeedsFor(templateName: string, itemKey: string | null = null): { start: boolean; end: boolean; edition: boolean } {
+function examineNeedsFor(templateName: string, itemKey: string | null, aboutAFirm: boolean): ExamineNeeds {
   // A request item names its type; a paper's name is read only where it does not.
   const key = itemKey ?? typeKeyForTemplate(templateName, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
-  const spec = key ? builtInType(key) : null
-  return {
-    start: spec?.validityShape === 'START_AND_END',
-    end: spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY',
-    edition: spec?.reissued === true,
-  }
+  return examineNeedsOf(key, aboutAFirm)
 }
 
 /** This firm's listing for the person, and whether anything else ties them. */

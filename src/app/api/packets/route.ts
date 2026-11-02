@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { examineNeedsOf } from '@/lib/document-stages/examine-form'
 import { randomBytes } from 'crypto'
-import { builtInType } from '@/lib/document-type'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { askTheDesk } from '@/lib/permissions'
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
           // The paper the answer is kept as, where a file came with it.
           paperId: paperIdOf(i.fileUrl),
           aboutAFirm: !!p.subjectCompany,
-          examineNeeds: examineNeedsOf(i.key),
+          examineNeeds: examineNeedsOf(i.key, !!p.subjectCompany),
         })),
     }
   })
@@ -628,12 +628,3 @@ function paperIdOf(fileUrl: string | null): string | null {
   return m ? m[1] : null
 }
 
-/** What accepting a paper of this type asks for, read from its type. */
-function examineNeedsOf(key: string): { start: boolean; end: boolean; edition: boolean } {
-  const spec = builtInType(key)
-  return {
-    start: spec?.validityShape === 'START_AND_END',
-    end: spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY',
-    edition: spec?.reissued === true,
-  }
-}

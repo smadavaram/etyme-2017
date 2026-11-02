@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
+import { I9_SHOWN, examineBody, examineFields, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
 
 /**
  * Look at a paper that arrived, and accept it or send it back.
@@ -24,38 +25,42 @@ export interface ExamineRow {
   /** About a firm, whichever way it arrived (a request's item about a supplier, too). */
   aboutAFirm?: boolean
   fileName: string | null
-  examineNeeds?: { start: boolean; end: boolean; edition: boolean }
+  /** What accepting asks for (lib/document-stages/examine-form); a list that predates a field leaves it out. */
+  examineNeeds?: Partial<ExamineNeeds>
   /** A license's facts as sent, to fill the form in. */
   licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
 }
 
 export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone: (says: string) => void; onClose: () => void }) {
-  const needs = row.examineNeeds ?? { start: false, end: false, edition: false }
+  const aboutAFirm = row.aboutAFirm ?? row.subjectType === 'COMPANY'
+  const given = row.examineNeeds ?? {}
+  const needs: ExamineNeeds = {
+    start: !!given.start, end: !!given.end, edition: !!given.edition,
+    shown: !!given.shown, license: !!given.license,
+    // A list that predates the field: a firm's certificate with an end names its issuer.
+    firmIssuer: given.firmIssuer ?? (aboutAFirm && !!given.end),
+  }
+  const shows = new Set(examineFields(needs))
   const [verdict, setVerdict] = useState<'ACCEPT' | 'SEND_BACK'>('ACCEPT')
-  const [validFrom, setValidFrom] = useState('')
-  const [expiresAt, setExpiresAt] = useState(row.licenseFacts?.expiresAt ?? '')
-  const [edition, setEdition] = useState('')
-  const [issuer, setIssuer] = useState('')
+  const [v, setV] = useState<ExamineValues>({
+    expiresAt: row.licenseFacts?.expiresAt ?? '',
+    issuer: row.licenseFacts?.issuer ?? '',
+    licenseNumber: row.licenseFacts?.licenseNumber ?? '',
+    shownType: I9_SHOWN[0].key,
+    shownIssuer: I9_SHOWN[0].issuer,
+  })
+  const set = (k: keyof ExamineValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value })
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const aboutAFirm = row.aboutAFirm ?? row.subjectType === 'COMPANY'
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      const body =
-        verdict === 'SEND_BACK'
-          ? { verdict, reason }
-          : {
-              verdict,
-              ...(validFrom ? { validFrom } : {}),
-              ...(expiresAt ? { expiresAt } : {}),
-              ...(edition ? { edition } : {}),
-              ...(issuer ? { issuer } : {}),
-            }
+      // Exactly what the fields above hold, in the names the route reads.
+      const body = verdict === 'SEND_BACK' ? { verdict, reason } : examineBody(needs, v)
       const res = await fetch(`/api/documents/${row.id}/examine`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
       })
@@ -94,30 +99,66 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
         </div>
         {verdict === 'ACCEPT' ? (
           <>
-            {needs.start && (
+            {shows.has('validFrom') && (
               <label className="block">
                 <span className={label}>The day it starts, as printed</span>
-                <input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} required className={field} />
+                <input type="date" value={v.validFrom ?? ''} onChange={set('validFrom')} required className={field} />
               </label>
             )}
-            {needs.end && (
+            {shows.has('expiresAt') && (
               <label className="block">
                 <span className={label}>The day it runs out, as printed</span>
-                <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} required className={field} />
+                <input type="date" value={v.expiresAt ?? ''} onChange={set('expiresAt')} required className={field} />
               </label>
             )}
-            {needs.edition && (
+            {shows.has('edition') && (
               <label className="block">
-                <span className={label}>The edition printed on the form</span>
-                <input value={edition} onChange={(e) => setEdition(e.target.value)} required placeholder="Rev. March 2024" className={field} />
+                <span className={label}>{needs.shown ? 'The edition printed at the foot of the form' : 'The edition printed on the form'}</span>
+                <input value={v.edition ?? ''} onChange={set('edition')} required placeholder={needs.shown ? '01/20/25' : 'Rev. March 2024'} className={field} />
               </label>
             )}
-            {/* A supplier's certificate goes on its standing only with the
-                insurer (or the state, for good standing) named on it. */}
-            {aboutAFirm && needs.end && (
+            {/* An I-9 is completed from a document the person chose to
+                show, and the record names that document: which one, its
+                number, who issued it and the day it runs out. Without
+                these the route refuses, and an I-9 could never be accepted
+                from this screen (the founder's walker, 2026-11-01). */}
+            {shows.has('shownType') && (
+              <>
+                <label className="block">
+                  <span className={label}>The document shown</span>
+                  <select
+                    value={v.shownType}
+                    onChange={(e) => setV({ ...v, shownType: e.target.value, shownIssuer: I9_SHOWN.find((d) => d.key === e.target.value)?.issuer ?? '' })}
+                    className={field}
+                  >
+                    {I9_SHOWN.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={label}>Its number</span>
+                  <input value={v.shownNumber ?? ''} onChange={set('shownNumber')} required className={field} />
+                </label>
+                <label className="block">
+                  <span className={label}>Issued by</span>
+                  <input value={v.shownIssuer ?? ''} onChange={set('shownIssuer')} required className={field} />
+                </label>
+                <label className="block">
+                  <span className={label}>The day it runs out, as printed on it</span>
+                  <input type="date" value={v.shownExpiresAt ?? ''} onChange={set('shownExpiresAt')} required className={field} />
+                </label>
+              </>
+            )}
+            {/* A license is checked on its board's register by its number. */}
+            {shows.has('licenseNumber') && (
               <label className="block">
-                <span className={label}>Who issued it: the insurer, or the state</span>
-                <input value={issuer} onChange={(e) => setIssuer(e.target.value)} required placeholder="The Hartford" className={field} />
+                <span className={label}>License number</span>
+                <input value={v.licenseNumber ?? ''} onChange={set('licenseNumber')} required className={field} />
+              </label>
+            )}
+            {shows.has('issuer') && (
+              <label className="block">
+                <span className={label}>{needs.license ? 'The board that issued it' : 'Who issued it: the insurer, or the state'}</span>
+                <input value={v.issuer ?? ''} onChange={set('issuer')} required placeholder={needs.license ? 'Oregon State Board of Nursing' : 'The Hartford'} className={field} />
               </label>
             )}
           </>

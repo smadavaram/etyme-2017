@@ -8,9 +8,10 @@ import { reportError } from '@/lib/alerts'
 import { hasPermission } from '@/lib/permissions'
 import { mayExamine, standingOn, typeKeyForTemplate } from '@/lib/document-request'
 import { BUILT_IN, typeByKey } from '@/lib/document-type'
-import { RECORDABLE_ABOUT_A_FIRM } from '@/lib/attestation'
+import { RECORDABLE_ABOUT_A_FIRM, examinedFromAPacket } from '@/lib/attestation'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
-import { answerOpenAsks, buyerMayExamineKept, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
+import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
+import { answerOpenAsks, buyerMayExamineKept, examinationBody, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
 
 /**
  * POST /api/documents/:id/examine
@@ -177,10 +178,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       actor: accessActor(caller),
     }
     const str = (k: string): string | null => (typeof body[k] === 'string' && (body[k] as string).trim() ? (body[k] as string).trim() : null)
-    const examined = item
+    // An I-9 records its examination whichever way it arrived: as a
+    // request's item, or as a paper the employer asked for on Paperwork.
+    // Until 2026-11-02 only the first did, so an I-9 accepted on Paperwork
+    // cleared nothing and the start stayed held.
+    const asItem = item ?? (subjectPersonId && key && COMPLETED_FROM_SHOWN.includes(key) && examinedFromAPacket(key)
+      ? { id: doc.id, key, label: doc.template.name, packet: { id: doc.id, subjectPersonId, subjectCompanyId: null } }
+      : null)
+    const examined = asItem
       ? await examinationOf({
-          packet: item.packet, item,
-          body: { ...body, formEdition: body.formEdition ?? body.edition },
+          packet: asItem.packet, item: asItem,
+          body: examinationBody(body),
           validUntil: verdict.expiresAt, now, caller: buyer,
         })
       : company && key && (RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(key)

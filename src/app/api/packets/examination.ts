@@ -2,13 +2,13 @@ import { prisma } from '@/lib/db'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import {
   RECORDABLE_ABOUT_A_FIRM,
+  checkInputFrom,
   checkToRecord,
   examinedFromAPacket,
   mayRecordCheck,
   orderedNotCollected,
   recordLabel,
   withArticle,
-  type ExaminedEvidence,
 } from '@/lib/attestation'
 import { buysFrom as buysOn } from '@/lib/document-stages/firm-papers'
 import { writeCheck, employerOfRecord } from '@/app/api/compliance/verifications/record'
@@ -158,6 +158,15 @@ export async function answerOpenAsks(input: {
 
 // ── The examination, recorded through the one rule ───────────────────
 
+/**
+ * The examine route's body as the record reads it: the dialog posts the
+ * form's edition as `edition` (what the paper's own examination reads),
+ * and the record reads `formEdition`. Pure.
+ */
+export function examinationBody(body: Record<string, unknown>): Record<string, unknown> {
+  return { ...body, formEdition: body.formEdition ?? body.edition }
+}
+
 /** The fields a recorded check takes, beyond the date a packet already asks for. */
 export const EXAMINATION_FIELDS = ['formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt'] as const
 
@@ -276,46 +285,14 @@ export async function examinationOf(input: {
     return refuse(403, may.code, may.message)
   }
 
-  // ── Dates and evidence, as the paper prints them ──
-  const dateOf = (v: unknown): Date | null | 'BAD' => {
-    if (v == null || v === '') return null
-    const d = new Date(String(v))
-    return Number.isNaN(d.getTime()) ? 'BAD' : d
-  }
-  const dates: Record<string, Date | null> = {}
-  for (const [f, words] of [['issuedOn', 'the day it was issued'], ['validFrom', 'the day it starts'], ['expiresAt', 'the day it runs out']] as const) {
-    const d = dateOf(body[f])
-    if (d === 'BAD') return { refused: { status: 422, code: 'VALIDATION', message: `Give ${words} as a date, like 2027-06-30.`, field: f } }
-    dates[f] = d
-  }
-  const evidence: ExaminedEvidence[] = []
-  if (Array.isArray(body.evidence)) {
-    for (const e of body.evidence as Record<string, unknown>[]) {
-      const at = e?.expiresAt ? new Date(String(e.expiresAt)) : null
-      if (at && Number.isNaN(at.getTime())) {
-        return { refused: { status: 422, code: 'VALIDATION', message: 'Give each document’s expiry as a date, like 2031-04-30.', field: 'evidence' } }
-      }
-      evidence.push({
-        type: String(e?.type ?? '').toUpperCase(),
-        issuer: typeof e?.issuer === 'string' ? e.issuer : null,
-        reference: typeof e?.reference === 'string' ? e.reference : null,
-        expiresAt: at,
-      })
-    }
-  }
-  const str = (k: string): string | null => (typeof body[k] === 'string' ? (body[k] as string) : null)
-
-  const verdict = checkToRecord(
-    {
-      about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
-      issuer: str('issuer'), issuedOn: dates.issuedOn, validFrom: dates.validFrom,
-      // The packet's own date is the paper's expiry where nothing else names one.
-      expiresAt: dates.expiresAt ?? input.validUntil,
-      formEdition: str('formEdition'), evidence, reference: str('reference'),
-      licenseNumber: str('licenseNumber'), licenseState: str('licenseState'),
-    },
-    now
-  )
+  // ── What was examined, read the way Record a check reads it ──
+  const read = checkInputFrom(body, {
+    about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
+    // The request's own date is the paper's end where nothing else names one.
+    expiresAtFallback: input.validUntil,
+  })
+  if (!read.ok) return { refused: { status: 422, code: 'VALIDATION', message: read.message, field: read.field } }
+  const verdict = checkToRecord(read.input, now)
   if (!verdict.ok) return refuse(422, verdict.code, verdict.message, verdict.field)
 
   const written = await writeCheck({
