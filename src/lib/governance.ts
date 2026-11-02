@@ -120,6 +120,10 @@ export async function evaluateGovernance(params: {
   }
 
   const evaluations: EvaluationResult[] = []
+  // The audit trail, written once after every rule is read rather than one
+  // row a rule (the page-timing pass, 2026-11-02: about ten of the award's
+  // 118 queries were these writes, one at a time).
+  const trail: { ruleId: string; triggerPoint: TriggerPoint; subjectType: string; subjectId: string; outcome: EvaluationOutcome; reason: string }[] = []
 
   // ── The time limit and the break, read once ──
   //
@@ -214,21 +218,16 @@ export async function evaluateGovernance(params: {
 
     if (result) {
       evaluations.push(result)
-
-      // Record the evaluation — the audit trail
-      await prisma.governanceEvaluation.create({
-        data: {
-          ruleId: rule.id,
-          triggerPoint,
-          subjectType,
-          subjectId,
-          outcome: result.outcome,
-          reason: result.reason,
-        },
-      }).catch((err) => {
-        console.error('[Governance] Failed to record evaluation:', err)
-      })
+      trail.push({ ruleId: rule.id, triggerPoint, subjectType, subjectId, outcome: result.outcome, reason: result.reason })
     }
+  }
+
+  // Record the evaluations — the audit trail — in one statement, the same
+  // rows the loop used to write one at a time.
+  if (trail.length > 0) {
+    await prisma.governanceEvaluation.createMany({ data: trail }).catch((err) => {
+      console.error('[Governance] Failed to record evaluations:', err)
+    })
   }
 
   // Determine overall outcome
