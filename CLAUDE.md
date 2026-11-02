@@ -2489,6 +2489,33 @@ harness driving it by URL through the demo door and refusing any
 production host. Notices and log rows per transaction are reported as
 a cost, because at 100,000 they decide the disk.
 
+**A screen that cannot reach its own rule, and why the tests did not
+catch it. The founder, 2026-11-02:** his own walker found on production
+that the "Accept or send back" dialog for an I-9 in Document requests
+has only the expiry and the edition, while the route refuses an I-9
+with no document named ("Say which document Rajesh Iyer showed … on
+its own it proves nothing"), so the I-9 can never be accepted from the
+screen, the placement stays held, and no timesheet or bill follows for
+any new placement. *"I am not sure why your testing is unable to catch
+bugs like this."* The honest answer, written down so the fix is
+structural and not one dialog: the simulation drives routes, and the
+routes were given the document's name, so every rule held; the unit
+tests test a route and a dialog each on its own, and nothing asserted
+that the dialog offers every field the route refuses without; the
+screen walks that would have met it (the 2026-10-22 papers walk, the
+two Tapin walks) recorded the I-9 as typed in on Compliance, not
+accepted from a packet. Three things follow: (1) regulatory adds the
+document shown (which list document, its number, the issuer, its
+expiry) to every place an I-9 is accepted; (2) an invariant, "every
+question a route asks, its screen has a field for": for each refusal a
+route can give for a missing field, the dialog that calls it offers
+that field, built as far as the code allows and naming what it cannot
+cover; (3) the screen walk that presses Save on every form of every
+party (the release walker, running on the scale world) is a release
+gate for the trust flows, not a walk after the fact: no deploy that
+touches papers or money without it, and its faults recorded here by
+class, "the screen cannot reach the rule" first.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
