@@ -416,7 +416,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       ? `${l.sub.fromCompany.name} set your pay for ${l.sub.requirement.title}`
       : `${l.sub.fromCompany.name} offers you terms for ${l.sub.requirement.title}`,
     body: employee
-      ? `${stated.says} You are their employee, so nothing is waiting on you.`
+      ? `${stated.agreedSays} You are their employee, so nothing is waiting on you.`
       : `${stated.says} Nothing starts until you agree. Open your terms to say yes.`,
     entityId: sell.id,
     data: { contractId: sell.id, href: `/dashboard/submissions/${id}/terms` },

@@ -8,6 +8,7 @@ import { evaluateGovernance } from '@/lib/governance'
 import { orderCeiling } from '@/lib/award'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
+import { lineDates } from '@/lib/money/line-dates'
 
 /**
  * POST /api/submissions/:id/convert
@@ -55,36 +56,17 @@ export async function POST(
     )
   }
 
-  if (!startDate) {
+  // The two days, read and refused in a sentence with both days in it
+  // (`lineDates`, money's): the same rule as before — a last day after the
+  // first, or none — said the way the person who typed them would.
+  const dates = lineDates(startDate, endDate)
+  if (!dates.ok) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'startDate is required', field: 'startDate' } },
+      { error: { code: 'VALIDATION', message: dates.says, field: dates.field } },
       { status: 422 }
     )
   }
-
-  const start = new Date(startDate)
-  const end = endDate ? new Date(endDate) : null
-
-  if (isNaN(start.getTime())) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Invalid startDate', field: 'startDate' } },
-      { status: 422 }
-    )
-  }
-
-  if (end && isNaN(end.getTime())) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Invalid endDate', field: 'endDate' } },
-      { status: 422 }
-    )
-  }
-
-  if (end && end <= start) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'endDate must be after startDate', field: 'endDate' } },
-      { status: 422 }
-    )
-  }
+  const { start, end } = dates
 
   // Load submission with related data
   const submission = await prisma.submission.findUnique({

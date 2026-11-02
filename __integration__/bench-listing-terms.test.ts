@@ -49,7 +49,7 @@ describe('a firm states terms when it lists somebody', () => {
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.listing).toMatchObject({ termsEngagementType: 'W2', termsPayRateCents: 9_000, termsAgreedAt: null })
-    expect(r.body.data.message).toContain('Larkspur Nursing Partners employs Ana Ferreira at $90/hr.')
+    expect(r.body.data.message).toContain('Larkspur Nursing Partners offers Ana Ferreira $90/hr as its employee.')
 
     const row = await listingOf(ANA)
     expect(row).toMatchObject({ termsEngagementType: 'W2', termsPayRateCents: 9_000, termsStatedById: ownerId, termsAgreedAt: null })
@@ -186,7 +186,7 @@ describe('the other listing door', () => {
       consultantId: ana.consultantId, tier: 'MARKETING', termsEngagementType: 'IND_1099', termsPayRateCents: 9_500,
     })))
     expect(again.status, JSON.stringify(again.body)).toBe(201)
-    expect(again.body.data.message).toContain('Larkspur Nursing Partners pays Ana Ferreira $95/hr as an independent contractor.')
+    expect(again.body.data.message).toContain('Larkspur Nursing Partners offers Ana Ferreira $95/hr as an independent contractor.')
     expect(await listingOf(ANA)).toMatchObject({
       state: 'INVITED', termsEngagementType: 'IND_1099', termsPayRateCents: 9_500, termsStatedById: ownerId, termsAgreedAt: null,
     })

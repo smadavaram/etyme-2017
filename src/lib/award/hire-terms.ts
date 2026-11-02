@@ -89,7 +89,21 @@ export type StatedVerdict =
       /** Null where the firm pays the person; their own company where it pays that. */
       vendorCompanyId: string | null
       payRateCents: number
+      /**
+       * The terms as offered: what the firm says it will pay, and how.
+       * True from the moment the firm states them, so it is the sentence
+       * for every place the person has not said yes yet — the bench ask,
+       * the terms page, the paper she signs.
+       */
       says: string
+      /**
+       * The same terms once they stand: the person agreed them, or the
+       * firm already employs her and the employment is the consent.
+       * "Employs" is said only here, never before the yes (screen walk,
+       * 2026-11-02: "Techpeple employs Dana Walker at $85/hr" read on a
+       * bench ask she had not answered).
+       */
+      agreedSays: string
     }
   | { ok: false; code: 'NO_TYPE' | 'NO_RATE' | 'NO_OWN_COMPANY' | 'THROUGH_THE_EMPLOYER'; says: string }
 
@@ -142,7 +156,8 @@ export function checkStatedTerms(t: StatedTerms): StatedVerdict {
       contractType: 'C2C',
       vendorCompanyId: t.ownCompany.id,
       payRateCents: rate,
-      says: `${t.firmName} pays ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate)}.`,
+      says: `${t.firmName} offers ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate)}.`,
+      agreedSays: `${t.firmName} pays ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate)}.`,
     }
   }
   return {
@@ -152,6 +167,10 @@ export function checkStatedTerms(t: StatedTerms): StatedVerdict {
     vendorCompanyId: null,
     payRateCents: rate,
     says:
+      type === 'W2'
+        ? `${t.firmName} offers ${t.personName} ${perHour(rate)} as its employee.`
+        : `${t.firmName} offers ${t.personName} ${perHour(rate)} as an independent contractor.`,
+    agreedSays:
       type === 'W2'
         ? `${t.firmName} employs ${t.personName} at ${perHour(rate)}.`
         : `${t.firmName} pays ${t.personName} ${perHour(rate)} as an independent contractor.`,
@@ -245,7 +264,7 @@ export function listingTerms(f: ListingTermsFacts): ListingTerms {
     statedAt: f.statedAt,
     statedById: f.statedById,
     agreedAt: f.agreedAt,
-    says: `${checked.says} ${f.personName} agreed these terms on ${f.firmName}’s bench listing.`,
+    says: `${checked.agreedSays} ${f.personName} agreed these terms on ${f.firmName}’s bench listing.`,
   }
 }
 

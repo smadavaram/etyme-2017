@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notSignableSays } from '../../not-signable'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { completeCycle } from '@/lib/cycle-complete'
-import { postAssertion } from '@/lib/order-postings'
+import { postAssertions } from '@/lib/order-postings'
 import { reportError } from '@/lib/alerts'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
@@ -199,8 +200,36 @@ export async function POST(
   }
 
   if (timesheet.status !== 'SUBMITTED') {
+    // Said the way a person would: who signed it and when, or what is
+    // still to happen (`notSignableSays`), never the status code.
+    // The client's signature first (the one this route writes), then the
+    // single approval that predates the split; an approval by email names
+    // the approver on the evidence, and one by silence says so.
+    const signerId = timesheet.clientApprovedById ?? timesheet.approvedById ?? null
+    const [signer, byEmail] = timesheet.status === 'APPROVED'
+      ? await Promise.all([
+          signerId ? prisma.person.findUnique({ where: { id: signerId }, select: { name: true } }) : null,
+          signerId ? null : prisma.weekApproval.findFirst({
+            where: { timesheetId: timesheet.id, outcome: 'APPROVED' },
+            orderBy: { usedAt: 'desc' },
+            select: { approverName: true, usedAt: true, sentAt: true },
+          }),
+        ])
+      : [null, null]
     return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: `Timesheet is ${timesheet.status}, can only approve from SUBMITTED` } },
+      {
+        error: {
+          code: 'INVALID_STATE',
+          message: notSignableSays({
+            status: timesheet.status,
+            personName: timesheet.person.name,
+            periodEnd: timesheet.periodEnd,
+            signedAt: timesheet.clientApprovedAt ?? timesheet.approvedAt ?? byEmail?.usedAt ?? byEmail?.sentAt ?? null,
+            signerName: signer?.name ?? byEmail?.approverName ?? null,
+            bySilence: timesheet.autoApproved,
+          }),
+        },
+      },
       { status: 409 }
     )
   }
@@ -1038,7 +1067,7 @@ export async function POST(
   // ── To the books, the same way /assert posts ──────────────────────
   //
   // Revenue when the client approves, pay and burden when the employer
-  // accepts, posted to the month the work was done (`postAssertion`,
+  // accepts, posted to the month the work was done (`postAssertions`,
   // lib/order-postings). Before this, a week signed from the button wrote
   // its assertions and posted nothing, so an accepted week had no pay
   // posting and was missing from "W-2 wages accepted and not yet paid".
@@ -1051,17 +1080,25 @@ export async function POST(
   // a settled project order, a missing exchange rate — must not turn an
   // approval that happened into an error on the screen. It is reported to
   // staff, the response says so in one sentence, and the approval stands.
+  //
+  // Every signature this press wrote is posted from one read of the week,
+  // in the order written (`postAssertions`); one that cannot post comes
+  // back in `failed` and is reported exactly as a thrown one was, and the
+  // rest still post.
   let notPosted: string | null = null
-  for (const written of [assertion, directAcceptance, solePayRateCents > 0 ? soleAcceptance : null]) {
-    if (!written) continue
-    try {
-      await postAssertion(written.id, person.id)
-    } catch (err) {
-      void reportError('Posting an approved timesheet to the books', err, {
-        path: `/api/timesheets/${id}/approve`, personId: person.id, companyId: onBehalfOf,
-      })
-      notPosted = POSTING_FAILED_SAYS
-    }
+  const writtenIds = [assertion, directAcceptance, solePayRateCents > 0 ? soleAcceptance : null]
+    .flatMap((written) => (written ? [written.id] : []))
+  const postingFailed = (err: unknown) => {
+    void reportError('Posting an approved timesheet to the books', err, {
+      path: `/api/timesheets/${id}/approve`, personId: person.id, companyId: onBehalfOf,
+    })
+    notPosted = POSTING_FAILED_SAYS
+  }
+  try {
+    const posted = await postAssertions(writtenIds, person.id)
+    for (const f of posted.failed) postingFailed(f.error)
+  } catch (err) {
+    postingFailed(err)
   }
 
   // Both signatures in: the "hours to approve" cycle for this week is done.

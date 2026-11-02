@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
+import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
@@ -76,6 +77,14 @@ interface Submission {
    * with the same function the award refuses on (`awardDoor`).
    */
   award?: { open: boolean; says: string }
+  /**
+   * Whether "Send on" and "Message <supplier>" are drawn, computed by the
+   * route with the rules the forward and conversations routes refuse on
+   * (`row-doors`). Absent means not offered: a button the route would
+   * turn away is never drawn.
+   */
+  sendOn?: { open: boolean; says: string | null }
+  message?: { open: boolean; says: string | null }
 }
 
 type StatusFilter = 'ALL' | 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFERED' | 'PLACED' | 'REJECTED' | 'WITHDRAWN'
@@ -764,9 +773,14 @@ function SendOnModal({
   const [roles, setRoles] = useState<{ requirementId: string; title: string }[]>([])
   const [roleId, setRoleId] = useState('')
 
+  // The companies it can go to. A refusal of that list is said in the
+  // dialog in the route's own words, never an empty picker with nothing
+  // under it (the screen walk, 2026-11-02: at Avonleigh nothing reached
+  // the screen).
+  const [companiesSay, setCompaniesSay] = useState<string | null>(null)
   useEffect(() => {
     fetch('/api/companies')
-      .then((r) => r.json())
+      .then((r) => readJson(r))
       .then((b) => {
         const all = b.data?.companies ?? []
         setCompanies(
@@ -776,7 +790,7 @@ function SendOnModal({
           )
         )
       })
-      .catch(() => {})
+      .catch((e: Error) => setCompaniesSay(e.message))
   }, [submission.toCompany.id, submission.fromCompany.id])
 
   // Null where the box holds no rate: no margin is said about nothing.
@@ -804,9 +818,12 @@ function SendOnModal({
       const copy = res.clone()
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok || !body?.data) {
-        if (body.error?.code === 'WHICH_ROLE') setRoles(body.error.options ?? [])
-        if (body.error?.message) throw new Error(body.error.message)
+        if (body?.error?.code === 'WHICH_ROLE') setRoles(body.error.options ?? [])
+        // The route's own sentence, whatever shape the refusal came in.
+        const says = sendOnRefusalSays(body)
+        if (says) throw new Error(says)
         await readJson(copy)
+        throw new Error('That could not be sent on.')
       }
       onSent(
         body.data?.message ??
@@ -860,6 +877,11 @@ function SendOnModal({
                   </option>
                 ))}
               </select>
+              {companiesSay ? (
+                <p className="mt-1 text-[11px] text-etyme-attention" role="alert">{companiesSay}</p>
+              ) : companies.length === 0 ? (
+                <p className="mt-1 text-[11px] text-etyme-faint">No other company on Etyme to send this to yet. Send it by email instead.</p>
+              ) : null}
               {roles.length > 0 && (
                 <>
                   <label className="eyebrow mb-1 mt-3 block">For which of their jobs</label>
@@ -916,7 +938,7 @@ function SendOnModal({
           </div>
         </div>
 
-        {error && <p className="mt-3 text-[12px] text-etyme-attention">{error}</p>}
+        {error && <p className="mt-3 text-[12px] text-etyme-attention" role="alert">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-2 text-[13px] text-etyme-muted hover:text-etyme-ink">
@@ -1265,9 +1287,7 @@ export default function SubmissionsPage() {
               and sending one twice puts the same name in front of the
               client twice. Never for a client: they are the end of the
               chain and have nobody to send anybody on to. */}
-          {!isClient && direction === 'received' &&
-            row.forwardedAt === null &&
-            !['PLACED', 'REJECTED', 'WITHDRAWN'].includes(row.status) && (
+          {!isClient && direction === 'received' && row.sendOn?.open === true && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -1282,9 +1302,10 @@ export default function SubmissionsPage() {
             )}
 
           {/* A word with the other firm about this candidate. The desk
-              that received them opens it; the firm that sent them
+              that received them opens it, where the threads rule lets it
+              (`row.message`, from the route); the firm that sent them
               answers. Not for an internal move: there is no other firm. */}
-          {row.kind !== 'INTERNAL' && (
+          {row.kind !== 'INTERNAL' && (direction === 'received' ? row.message?.open === true : true) && (
             <button
               onClick={(e) => {
                 e.stopPropagation()

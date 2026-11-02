@@ -58,6 +58,17 @@ export function reasonAsked(error: unknown): ReasonAsked | null {
   const e = error as { code?: unknown; message?: unknown; field?: unknown; overridable?: unknown }
   const says = typeof e.message === 'string' ? e.message.trim() : ''
   if (!says) return null
+  // A refusal whose code says it wants a reason, and names the field the
+  // route reads it from, is answered in that field: the timesheet's
+  // FLAG_NEEDS_REASON and NEEDS_REASON name `note` (Today → Approvals drew
+  // no box for it; the screen walk, 2026-11-02).
+  // What a known code sends beside its answer travels only where the route
+  // named the same field: NO_REASON from a paper's examination names
+  // `reason` and is never an award's "work under way".
+  if (typeof e.field === 'string' && e.field && typeof e.code === 'string' && /REASON$/.test(e.code)) {
+    const known = ANSWERED_IN[e.code]
+    return known?.with && known.field === e.field ? { says, field: e.field, with: known.with } : { says, field: e.field }
+  }
   const known = typeof e.code === 'string' ? ANSWERED_IN[e.code] : undefined
   if (known) return known.with ? { says, field: known.field, with: known.with } : { says, field: known.field }
   if (typeof e.field === 'string' && /reason$/i.test(e.field)) return { says, field: e.field }

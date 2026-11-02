@@ -126,7 +126,9 @@ describe('what the client desk is told', () => {
     expect(decisions).toContain("named: { whose: ts.person.name, what: 'week', whats: 'weeks' }")
     expect(page).toContain('Approve anyway')
     expect(page).toContain("if (reason.trim()) { onApprove(d, reason.trim()); setReasonFor(null) }")
-    expect(page).toContain('body: JSON.stringify(note ? { note } : {})')
+    // The reason travels as `note`, beside any answer the route asked for
+    // on the Approvals tab (the screen walk, 2026-11-02).
+    expect(page).toContain('body: JSON.stringify({ ...(note ? { note } : {}), ...(answers ?? {}) })')
   })
 
   it('a clear desk is not an empty page: what was done today is listed under the queue', () => {

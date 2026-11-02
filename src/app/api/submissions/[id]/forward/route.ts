@@ -8,6 +8,7 @@ import { clientOf, takeHold } from '@/lib/holds'
 import { whyNotOpen } from '../../words'
 import { landingFor } from './landing'
 import { actingDesk } from '@/lib/program-seat'
+import { sendOnActor } from '../../row-doors'
 
 /**
  * POST /api/submissions/:id/forward
@@ -70,8 +71,16 @@ export async function POST(
     )
   }
 
+  // The actor the list route judges "Send on" by too (`sendOnActor`),
+  // so the button and this refusal cannot disagree; the kind and name
+  // let a refusal say who at that firm may send a candidate on.
   const verdict = mayForward(
-    { companyId: desk?.companyId, permissions: deskPermissions },
+    sendOnActor({
+      companyId: desk?.companyId,
+      companyName: desk?.companyName ?? caller.company?.name ?? null,
+      permissions: deskPermissions,
+      kind: desk?.seat ? desk.seat.clientCompany.kind : caller.company?.kind ?? null,
+    }),
     {
       id: submission.id,
       fromCompanyId: submission.fromCompanyId,

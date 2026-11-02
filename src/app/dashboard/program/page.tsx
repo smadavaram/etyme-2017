@@ -1,6 +1,10 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { hasPermission } from '@/lib/permissions'
+import { reasonAsked, answersFor, unanswered, type ReasonAsked } from '@/lib/award/reason-asked'
+import { Field, Textarea } from '@/components/ui/form'
+import { approvalAmountSays, type Approved } from './approval-words'
 import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 
 import { useEffect, useState } from 'react'
@@ -286,6 +290,10 @@ export default function ProgramPage() {
 function ProgramToday() {
   // The reader's kind, for the one refusal that is answered on this page (an MSP with no seat).
   const sessionKind = useSession().company?.kind ?? null
+  // Roll off is offered only to a seat the roll-off route lets end a
+  // placement, the same permission it asks for; the program manager was
+  // offered it and refused with nothing on screen (the screen walk, 2026-11-02).
+  const mayRollOff = hasPermission(useSession().permissions, 'assignments.terminate')
   const [data, setData] = useState<ProgramData | null>(null)
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
@@ -365,16 +373,26 @@ function ProgramToday() {
     setTimeout(() => setToast(null), type === 'success' ? 3000 : 4500)
   }
 
-  /** Approve from the row, for the two kinds a client signs here. */
-  async function approve(d: Decision, note?: string) {
+  /**
+   * Approve from the row, for the two kinds a client signs here. Answers
+   * whether it went: a week the route asks a reason for is a question
+   * (`reasonAsked`), handed back so the row can draw the box under its own
+   * sentence, and the week stays on the list until it is signed.
+   */
+  async function approve(d: Decision, note?: string, answers?: Record<string, unknown>, inline = false): Promise<Approved> {
     setBusy(d.entityId)
     try {
       if (d.type === 'TIMESHEET_APPROVAL') {
         // A flagged week is approved anyway with the reason written on
         // the signature — WARN, capture a reason, proceed. Never silently.
-        const res = await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note ? { note } : {}) })
+        const res = await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(note ? { note } : {}), ...(answers ?? {}) }) })
         if (!res.ok) {
           const failed = await res.json().catch(() => ({}))
+          // A reason the route asks for: the Approvals row draws its box
+          // under the sentence; the Today queue says the sentence beside
+          // its own "Approve anyway" box, as before.
+          const question = reasonAsked(failed.error)
+          if (question && inline) return { ok: false, asked: question }
           // Hours over the weekly line are not a refusal to explain away
           // — they are a decision nobody has made, and it is worth money.
           // The reason box beside this row asks a different question, and
@@ -390,7 +408,7 @@ function ProgramToday() {
               // signature once the overtime question is answered.
               note: note ?? null,
             })
-            return
+            return { ok: false }
           }
           throw new Error(failed.error?.message ?? 'That week could not be approved.')
         }
@@ -406,26 +424,26 @@ function ProgramToday() {
       setData((cur) => cur && cur.approvalQueue.some((a) => a.id === d.entityId)
         ? { ...cur, approvalQueue: cur.approvalQueue.filter((a) => a.id !== d.entityId), summary: { ...cur.summary, pendingApprovals: Math.max(0, cur.summary.pendingApprovals - 1) } }
         : cur)
+      return { ok: true }
     } catch (err: any) {
       say(err.message, 'error')
+      return { ok: false }
     } finally {
       setBusy(null)
     }
   }
 
-  async function handleApproveItem(item: ProgramData['approvalQueue'][number]) {
-    await approve({
+  /**
+   * Approve from the Approvals tab. The row leaves the list only once the
+   * week or claim is signed: a refusal or a question keeps it there (the
+   * screen walk found a refused week dropped off the list until a reload).
+   */
+  async function handleApproveItem(item: ProgramData['approvalQueue'][number], answers?: Record<string, unknown>): Promise<Approved> {
+    return approve({
       type: item.kind === 'timesheet' ? 'TIMESHEET_APPROVAL' : 'EXPENSE_APPROVAL',
       title: item.person, subtitle: item.detail, urgency: 'MEDIUM', entityType: item.kind.toUpperCase(),
       entityId: item.id, actionUrl: '', amount: item.amount, createdAt: item.submittedAt ?? new Date().toISOString(),
-    })
-    if (data) {
-      setData({
-        ...data,
-        approvalQueue: data.approvalQueue.filter((a) => a.id !== item.id),
-        summary: { ...data.summary, pendingApprovals: Math.max(0, data.summary.pendingApprovals - 1) },
-      })
-    }
+    }, undefined, answers, true)
   }
 
   // Extend asks for the new last day and why, and says the route's own
@@ -561,6 +579,7 @@ function ProgramToday() {
           onApprove={approve}
           onExtend={handleExtend}
           onRolloff={handleRolloff}
+          mayRollOff={mayRollOff}
         />
       )}
       {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} onApprove={handleApproveItem} />}
@@ -629,7 +648,7 @@ function plural(n: number, one: string, many = `${one}s`): string {
  * everything else opens where the decision is made. Under the queue,
  * what was done today, so a clear desk is not an empty page.
  */
-function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, onApprove, onExtend, onRolloff, onApprovals }: {
+function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, onApprove, onExtend, onRolloff, mayRollOff, onApprovals }: {
   data: ProgramData
   onApprovals: () => void
   queue: Decision[]
@@ -644,6 +663,8 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
   /** Said once an extension is made, with the route's own sentence. */
   onExtend: (message: string) => void
   onRolloff: (contractId: string) => void
+  /** The seat may end a placement: the roll-off route's own permission. */
+  mayRollOff: boolean
 }) {
   const s = data.summary
   const [extending, setExtending] = useState<string | null>(null)
@@ -915,7 +936,7 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
                       <button onClick={() => setExtending(extending === c.contractId ? null : c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Extend</button>
                       {/* A plain button like Extend: ending a contract on its date is
                           an ordinary choice, not an alarm. */}
-                      <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Roll off</button>
+                      {mayRollOff && <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Roll off</button>}
                     </div>
                     {extending === c.contractId && (
                       <ExtendForm
@@ -1014,8 +1035,16 @@ function clock(iso: string): string {
 
 // ── Approvals tab ─────────────────────────────────────────
 
-function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue']; onApprove?: (item: ProgramData['approvalQueue'][number]) => void }) {
+function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue']; onApprove?: (item: ProgramData['approvalQueue'][number], answers?: Record<string, unknown>) => Promise<Approved> }) {
   const router = useRouter()
+  // The route's own question about a row, and what was typed under it.
+  const [asked, setAsked] = useState<Record<string, ReasonAsked>>({})
+  const [typed, setTyped] = useState<Record<string, string>>({})
+  async function press(item: ProgramData['approvalQueue'][number]) {
+    const q = asked[item.id]
+    const got = await onApprove?.(item, q ? answersFor({ [q.field]: q }, { [q.field]: typed[item.id] ?? '' }) : undefined)
+    if (got && !got.ok && got.asked) setAsked((a) => ({ ...a, [item.id]: got.asked! }))
+  }
 
   if (items.length === 0) {
     return (
@@ -1029,7 +1058,7 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
   return (
     <div>
       <h2 className="text-lg font-serif font-semibold mb-1">
-        {items.length} thing{items.length !== 1 ? 's' : ''} need you.
+        {items.length} thing{items.length !== 1 ? 's need' : ' needs'} you.
       </h2>
       <p className="text-sm text-etyme-muted mb-6">
         Timesheets, expenses, and signatures across every vendor in one queue
@@ -1058,7 +1087,7 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
               <p className="text-sm font-medium text-etyme-ink">{item.person}</p>
               <p className="text-xs text-etyme-muted mt-0.5">
                 {item.detail}
-                {item.amount != null && ` · $${item.amount.toFixed(2)}`}
+                {approvalAmountSays(item)}
               </p>
               <p className="text-[11px] text-etyme-faint mt-0.5">{item.vendor}</p>
             </div>
@@ -1067,11 +1096,12 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
             </div>
             <div className="flex gap-2 shrink-0">
               <button
-                onClick={() => onApprove?.(item)}
+                onClick={() => press(item)}
+                disabled={!!asked[item.id] && unanswered({ [asked[item.id].field]: asked[item.id] }, { [asked[item.id].field]: typed[item.id] ?? '' })}
                 className="text-xs px-3.5 py-2 bg-etyme-verified text-white rounded
-                                 hover:bg-etyme-verified/90 transition-colors"
+                                 hover:bg-etyme-verified/90 transition-colors disabled:opacity-50"
               >
-                Approve
+                {asked[item.id] ? 'Approve with this reason' : 'Approve'}
               </button>
               <button
                 onClick={() => router.push(`/dashboard/conversations?new=1` as Route)}
@@ -1081,6 +1111,20 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
                 Query
               </button>
             </div>
+            {/* The route's own question, word for word, with the box for
+                the answer; the answer goes on the signature. */}
+            {asked[item.id] && (
+              <div className="basis-full px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line" role="alert">
+                <Field label={asked[item.id].says}>
+                  <Textarea
+                    rows={2}
+                    placeholder="Your reason. Your name and this go on the signature."
+                    value={typed[item.id] ?? ''}
+                    onChange={(e) => setTyped((t) => ({ ...t, [item.id]: e.target.value }))}
+                  />
+                </Field>
+              </div>
+            )}
           </div>
         ))}
       </div>

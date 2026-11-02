@@ -157,7 +157,7 @@ describe('"Record a placement" writes a pay line only under the same rules', () 
     as(BRIGHTMOOR)
     const r = await record({ engagementType: 'W2', payRate: 9_000 })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.terms).toEqual({ says: 'Brightmoor Staffing employs Marisol Quintero at $90/hr.', payLine: true })
+    expect(r.body.data.terms).toEqual({ says: 'Brightmoor Staffing offers Marisol Quintero $90/hr as its employee.', payLine: true })
     const sellId = r.body.data.sellContract.id
     const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: r.body.data.buyContract.id }, include: { candidates: true } })
     expect([buy.contractType, buy.vendorCompanyId, buy.candidates[0].payRate]).toEqual(['W2', null, 9_000])

@@ -45,7 +45,7 @@ describe('the pay line a recorded placement writes', () => {
   it('a placement recorded as the firm’s employee at $90 writes a W2 line paying the person $90', () => {
     const v = recordedLine({ ...base, engagementType: 'W2', payRateCents: 9_000 })
     expect(v.ok && v.write).toEqual({ contractType: 'W2', vendorCompanyId: null, payRateCents: 9_000 })
-    expect(v.says).toBe('Brightmoor Staffing employs Marisol Quintero at $90/hr.')
+    expect(v.says).toBe('Brightmoor Staffing offers Marisol Quintero $90/hr as its employee.')
   })
 
   it('a placement recorded at a pay rate of nothing is refused as a missing rate, not a free placement', () => {

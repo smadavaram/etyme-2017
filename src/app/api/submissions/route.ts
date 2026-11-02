@@ -13,7 +13,7 @@ import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
-import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
+import { submissionScope } from '@/lib/resolve-client-company'
 import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
@@ -30,6 +30,7 @@ import { licenseAtSubmission } from './license'
 import { licenseAsksFor } from './license-asks'
 import { credentialDetail } from '@/lib/contract-clearance'
 import { actingDesk } from '@/lib/program-seat'
+import { sendOnActor, sendOnDoor, messageDoor } from './row-doors'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays, clientSubmissionsRefused } from './own-only'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
@@ -1562,7 +1563,10 @@ export async function GET(request: NextRequest) {
   // client's nine roles, with nothing on the screen to say the two lists
   // were about different companies. Silence is the worst of the three
   // possible answers; a refusal would at least have been true.
-  const desk = await seatedDesk(caller)
+  // `actingDesk`, which `seatedDesk` is: the book and the permissions in
+  // one answer, so "Send on" is judged here by what the forward route
+  // judges by.
+  const desk = await actingDesk(caller)
   const deskId = desk?.companyId ?? caller.company?.id ?? null
 
   const url = request.nextUrl
@@ -1717,6 +1721,16 @@ export async function GET(request: NextRequest) {
     : []
   const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
+  // "Send on" and "Message", asked of the two routes' own rules per row
+  // (`row-doors`): the forward route's actor is the acting desk's book
+  // and permissions, the conversations route's is the caller's own firm.
+  const sendOnBy = sendOnActor({
+    companyId: desk?.companyId ?? caller.company?.id ?? null,
+    companyName: desk?.companyName ?? caller.company?.name ?? null,
+    permissions: desk?.permissions ?? caller.permissions,
+    kind: desk?.seat ? desk.seat.clientCompany.kind : caller.company?.kind ?? null,
+  })
+  const messageBy = { companyId: caller.company?.id ?? null, consultantSeat: isConsultantSeat(caller) }
 
   return NextResponse.json({
     data: {
@@ -1789,6 +1803,10 @@ export async function GET(request: NextRequest) {
           })
           return { open: door.open, says: door.says }
         })(),
+        // Whether "Send on" and "Message <supplier>" are drawn: the same
+        // answers the forward and conversations routes give on the press.
+        sendOn: sendOnDoor(sendOnBy, s),
+        message: messageDoor(messageBy, s),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       // Whose book was read. Said out loud so the screen can say it too:

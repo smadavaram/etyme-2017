@@ -26,7 +26,17 @@ describe('the person’s own terms — hop 0', () => {
   it('a firm states W2 at $90 and it is written as employment at $90, paid by the firm', () => {
     const v = checkStatedTerms({ ...base, engagementType: 'W2', payRateCents: 9_000 })
     expect(v).toMatchObject({ ok: true, contractType: 'W2', vendorCompanyId: null, payRateCents: 9_000 })
-    expect(v.ok && v.says).toBe('Brightmoor Staffing employs Marisol Quintero at $90/hr.')
+    expect(v.ok && v.agreedSays).toBe('Brightmoor Staffing employs Marisol Quintero at $90/hr.')
+  })
+
+  it('until the person says yes, the terms a firm states read as offered, never as employment', () => {
+    const w2 = checkStatedTerms({ ...base, engagementType: 'W2', payRateCents: 9_000 })
+    expect(w2.ok && w2.says).toBe('Brightmoor Staffing offers Marisol Quintero $90/hr as its employee.')
+    const ind = checkStatedTerms({ ...base, engagementType: 'IND_1099', payRateCents: 9_500 })
+    expect(ind.ok && ind.says).toBe('Brightmoor Staffing offers Marisol Quintero $95/hr as an independent contractor.')
+    const own = checkStatedTerms({ ...base, ownCompany: { id: 'mq', name: 'Quintero Controls LLC' }, engagementType: 'OWN_COMPANY', payRateCents: 9_000 })
+    expect(own.ok && own.says).toBe("Brightmoor Staffing offers Quintero Controls LLC, Marisol Quintero's own company, $90/hr.")
+    for (const v of [w2, ind, own]) expect(v.ok && v.says).not.toMatch(/\b(employs|pays)\b/)
   })
 
   it('an empty rate is refused in a sentence: a missing rate, not a free placement', () => {

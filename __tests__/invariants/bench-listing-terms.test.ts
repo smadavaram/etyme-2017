@@ -38,7 +38,7 @@ describe('a firm states terms when it lists somebody', () => {
       termsEngagementType: 'W2', termsPayRateCents: 9000, termsStatedAt: NOW, termsStatedById: 'p-recruiter', termsAgreedAt: null,
     })
     expect(r.says).toBe(
-      'Brightmoor Staffing employs Marisol Quintero at $90/hr. Marisol Quintero sees these terms when they are asked, and agrees them only by saying yes.'
+      'Brightmoor Staffing offers Marisol Quintero $90/hr as its employee. Marisol Quintero sees these terms when they are asked, and agrees them only by saying yes.'
     )
   })
 

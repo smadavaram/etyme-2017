@@ -209,7 +209,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
     const asked = await prisma.notification.findFirstOrThrow({
       where: { personId: it_.marisol, title: 'Brightmoor Staffing offers you terms for Controls engineer' },
     })
-    expect(asked.body).toBe('Brightmoor Staffing employs Marisol Quintero at $90/hr. Nothing starts until you agree. Open your terms to say yes.')
+    expect(asked.body).toBe('Brightmoor Staffing offers Marisol Quintero $90/hr as its employee. Nothing starts until you agree. Open your terms to say yes.')
   })
 
   it('the person confirms W2 at $90 on her own page, and only then can the placement start', async () => {
