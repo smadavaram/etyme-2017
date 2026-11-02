@@ -8,10 +8,17 @@
  * Brightmoor Staffing's order to it, was told to ask two roles Brightmoor
  * does not have (the Tapin walk, 2026-10-29). So the roles are read off
  * the buyer's own roles — the ones holding the permission the order
- * route asks for (`invoices.issue`) — and named in the buyer's own words:
- * Owner, Admin, Contract Manager, Finance at a supplier; whatever the
- * client named its seats at a client. Nothing is guessed: where the
- * buyer has no role that may, the sentence says to ask the firm.
+ * route asks for — and named in the buyer's own words: at a supplier the
+ * Owner, the Admin and the Contract Manager; at a client the Owner, the
+ * Admin and the Procurement Lead, or whatever the firm named its seats.
+ * Nothing is guessed: where the buyer has no role that may, the sentence
+ * says to ask the firm.
+ *
+ * The permission is `orders.raise` since 2026-11-02. It was
+ * `invoices.issue`, the permission to bill, so Accounts Receivable and
+ * Finance raised purchase orders (the second Tapin walk). Raising an
+ * order is held apart from billing on it and from awarding against it
+ * (`HELD_APART` in lib/permissions); the grants are lib/company-defaults'.
  *
  * Pure: no database. The route passes the buyer's roles.
  */
@@ -21,7 +28,7 @@ export interface BuyerRole {
   permissions: readonly string[]
 }
 
-export const RAISES_AN_ORDER = 'invoices.issue'
+export const RAISES_AN_ORDER = 'orders.raise' as const
 
 /** The buyer's roles that may raise an order, the all-access ones first, each name once. */
 export function rolesThatRaiseOrders(roles: readonly BuyerRole[]): string[] {

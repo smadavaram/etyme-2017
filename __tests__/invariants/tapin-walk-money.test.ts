@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isWorkersOwnPayLine, ownPayLineWhere } from '@/lib/money/paid-through'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
-import { orderIsTheirsSays, rolesThatRaiseOrders } from '@/lib/money/order-raiser'
+import { orderIsTheirsSays, rolesThatRaiseOrders, RAISES_AN_ORDER } from '@/lib/money/order-raiser'
+import { rolesFor } from '@/lib/company-defaults'
 import { signOfferFor } from '@/lib/money/agreement-record'
 import { lineDoesForReader } from '@/lib/money/order-line-words'
 
@@ -59,19 +60,31 @@ describe('Record a placement', () => {
 })
 
 describe('recording the order a prime gave you', () => {
-  const brightmoorRoles = [
-    { name: 'Recruiter', permissions: ['submissions.write'] },
-    { name: 'Owner', permissions: ['*'] },
-    { name: 'Admin', permissions: ['*'] },
-    { name: 'Contract Manager', permissions: ['rates.write', 'invoices.issue'] },
-    { name: 'Finance', permissions: ['invoices.read', 'invoices.issue'] },
-  ]
+  // The roles every supplier and every client is seated with, read from
+  // the grants themselves (lib/company-defaults), never typed out here.
+  const supplierRoles = rolesFor('VENDOR').map((r) => ({ name: r.name, permissions: r.permissions as string[] }))
+  const clientRoles = rolesFor('CLIENT').map((r) => ({ name: r.name, permissions: r.permissions as string[] }))
 
-  it('the order refusal names the role that may at a supplier', () => {
-    expect(rolesThatRaiseOrders(brightmoorRoles)).toEqual(['Owner', 'Admin', 'Contract Manager', 'Finance'])
-    const says = orderIsTheirsSays({ buyerName: 'Brightmoor Staffing', roles: brightmoorRoles })
-    expect(says).toContain("Ask Brightmoor Staffing's Owner, Admin, Contract Manager or Finance to raise it.")
+  it('the order refusal names the roles that may raise an order at a supplier: the Owner, the Admin and the Contract Manager', () => {
+    expect(rolesThatRaiseOrders(supplierRoles)).toEqual(['Owner', 'Admin', 'Contract Manager'])
+    const says = orderIsTheirsSays({ buyerName: 'Brightmoor Staffing', roles: supplierRoles })
+    expect(says).toContain("Ask Brightmoor Staffing's Owner, Admin or Contract Manager to raise it.")
     expect(says).not.toMatch(/MSP|AP clerk/)
+  })
+
+  it('Accounts Receivable and Finance, who bill on an order, are never named as raising one', () => {
+    const who = rolesThatRaiseOrders(supplierRoles)
+    expect(who).not.toContain('Accounts Receivable')
+    expect(who).not.toContain('Finance')
+    expect(RAISES_AN_ORDER).toBe('orders.raise')
+  })
+
+  it('at a client the refusal names the Owner, the Admin and the Procurement Lead, never the AP clerk who pays', () => {
+    const who = rolesThatRaiseOrders(clientRoles)
+    expect(who).toContain('Owner')
+    expect(who).toContain('Procurement Lead')
+    expect(who).not.toContain('AP Clerk')
+    expect(who).not.toContain('Hiring Manager')
   })
 
   it('a buyer with no role that may raise an order is named itself, never a role it does not have', () => {

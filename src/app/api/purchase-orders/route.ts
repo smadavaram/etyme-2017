@@ -32,8 +32,10 @@ import { isAnchor, ANCHORS } from '@/lib/billing-cascade'
  *
  * A PO is not a contract. A contract carries a rate — what one person costs
  * per hour. A PO carries a ceiling — how much the payer has authorized in
- * total, across however many people. Raising one is an accounts-payable act
- * and needs invoices.issue rather than assignments.write.
+ * total, across however many people. Raising one needs orders.raise
+ * (`RAISES_AN_ORDER` in lib/money/order-raiser), held apart from billing
+ * on an order and from awarding against it; until 2026-11-02 it needed
+ * invoices.issue, so the firm's Accounts Receivable raised its orders.
  *
  * ── One row, read from whichever end you stand at ────────────────────
  *
@@ -354,7 +356,8 @@ export async function POST(request: NextRequest) {
   // book, where the client's role on the seat may raise one — and the
   // office's own only where the screen asked for its own books.
   const desk = (await writingDesk(caller, request))!
-  // Authorizing spend is an accounts-payable act, not a contracting one.
+  // Authorizing spend is the buyer's own act (orders.raise), never the
+  // seat that bills on the order.
   if (!hasPermission(desk.permissions, RAISES_AN_ORDER)) {
     return NextResponse.json(
       {
