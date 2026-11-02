@@ -85,8 +85,20 @@ export function joinReplyFor(firm: string, letterCanLeave: boolean): string {
   return letterCanLeave ? joinReply(firm) : joinReplyNoLetter(firm)
 }
 
-/** Name and email, each quoted back where it is wrong. */
-export function joinProblems(input: { name?: string | null; email?: string | null }): { field: 'name' | 'email'; says: string }[] {
+/** Said for an empty email where no letter can leave: the ask shows in Etyme instead. */
+export const JOIN_EMAIL_NO_LETTER = 'Your email. The ask for your yes shows in Etyme when you sign in with it.'
+
+/**
+ * Name and email, each quoted back where it is wrong.
+ *
+ * `letterCanLeave` is `mailLeaves()` (lib/notify/mail-leaves), read on the
+ * server: the route reads it, and the page reads it and hands it to the
+ * form, because a browser cannot see whether this deployment sends email.
+ * Where none can leave, the email field never promises a letter; the ask
+ * shows in Etyme for that address, on the person's own page once they
+ * sign in with it.
+ */
+export function joinProblems(input: { name?: string | null; email?: string | null }, letterCanLeave: boolean): { field: 'name' | 'email'; says: string }[] {
   const out: { field: 'name' | 'email'; says: string }[] = []
   const name = tidy(input.name)
   if (!name || name.length < 2) {
@@ -96,7 +108,7 @@ export function joinProblems(input: { name?: string | null; email?: string | nul
   }
   const email = normalEmail(input.email)
   if (!email) {
-    out.push({ field: 'email', says: 'Your email. The letter that asks for your yes goes there.' })
+    out.push({ field: 'email', says: letterCanLeave ? 'Your email. The letter that asks for your yes goes there.' : JOIN_EMAIL_NO_LETTER })
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
     out.push({ field: 'email', says: `“${input.email!.trim()}” is not an email address we can write to.` })
   }

@@ -10,7 +10,7 @@ import {
   tooManyAsks,
   TOO_MANY_SAYS,
 } from '@/lib/public-site/join-bench'
-import { emailSender } from '@/lib/senders'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 
 /**
@@ -47,7 +47,7 @@ export async function POST(
     return NextResponse.json({ error: { code: 'SCRIPTED', message: script.says } }, { status: 422 })
   }
 
-  const wrong = joinProblems({ name: body.name as string, email: body.email as string })
+  const wrong = joinProblems({ name: body.name as string, email: body.email as string }, mailLeaves())
   if (wrong.length > 0) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: wrong[0].says, field: wrong[0].field } },
@@ -78,7 +78,7 @@ export async function POST(
   }
 
   // Never says a letter went where none can leave this deployment.
-  const reply = () => NextResponse.json({ data: { says: joinReplyFor(firm.name, emailSender() !== null) } })
+  const reply = () => NextResponse.json({ data: { says: joinReplyFor(firm.name, mailLeaves()) } })
 
   try {
     const lastHour = await prisma.automationLog.count({

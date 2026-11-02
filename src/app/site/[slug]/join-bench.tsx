@@ -9,7 +9,7 @@ import { JOIN_BENCH_COPY, joinProblems } from '@/lib/public-site/join-bench'
  * Name and email, the one line about what joining means, and a button.
  * The yes is given from the letter, never here (lib/public-site/join-bench).
  */
-export function JoinBench({ slug }: { slug: string }) {
+export function JoinBench({ slug, letterCanLeave }: { slug: string; /** `mailLeaves()`, read by the page on the server. */ letterCanLeave: boolean }) {
   const shownAt = useRef<number>(Date.now())
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -21,7 +21,7 @@ export function JoinBench({ slug }: { slug: string }) {
   async function send(e: React.FormEvent) {
     e.preventDefault()
     setSays(null)
-    const wrong = joinProblems({ name, email })
+    const wrong = joinProblems({ name, email }, letterCanLeave)
     if (wrong.length > 0) {
       setSays(wrong[0].says)
       return

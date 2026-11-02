@@ -64,7 +64,7 @@ vi.mock('@/lib/db', () => {
 import { publicSite } from '@/lib/public-site'
 import { POST as askFirm } from '@/app/api/site/[slug]/ask/route'
 import { firmContact, mayShowPublicly, FIRM_ASK_COPY, firmAskThanks } from '@/lib/public-site/firm-page'
-import { joinReply, joinReplyFor, joinReplyNoLetter, JOIN_BENCH_COPY, TOO_MANY_SAYS } from '@/lib/public-site/join-bench'
+import { joinReply, joinReplyFor, joinReplyNoLetter, joinProblems, JOIN_BENCH_COPY, JOIN_EMAIL_NO_LETTER, TOO_MANY_SAYS } from '@/lib/public-site/join-bench'
 import { NOBODY_READS } from '@/lib/public-site/firm-page'
 import {
   check, copyFrom, britishSpellings, wordsNobodyUses, unverifiableClaims, readsAsAimedAtSuppliers, longSentences,
@@ -240,7 +240,27 @@ describe('Join the bench, said only as far as it is true', () => {
     expect(joinReplyNoLetter('Tapin')).not.toMatch(/letter|email|sent|on its way/i)
     expect(joinReplyFor('Tapin', true)).toBe(joinReply('Tapin'))
     const route = readFileSync(join(process.cwd(), 'src/app/api/site/[slug]/join/route.ts'), 'utf8')
-    expect(route).toContain('joinReplyFor(firm.name, emailSender() !== null)')
+    // One function knows whether email can leave (lib/notify/mail-leaves, 6bd3b86a).
+    expect(route).toContain('joinReplyFor(firm.name, mailLeaves())')
+    expect(route).not.toContain('emailSender() !== null')
+  })
+
+  it('where no email can leave, the email field on Join the bench says the ask shows in Etyme, never that a letter goes', () => {
+    const empty = (letterCanLeave: boolean) => joinProblems({ name: 'Jo Park', email: '' }, letterCanLeave).find((p) => p.field === 'email')!.says
+    expect(empty(true)).toBe('Your email. The letter that asks for your yes goes there.')
+    expect(empty(false)).toBe(JOIN_EMAIL_NO_LETTER)
+    expect(JOIN_EMAIL_NO_LETTER).toBe('Your email. The ask for your yes shows in Etyme when you sign in with it.')
+    expect(JOIN_EMAIL_NO_LETTER).not.toMatch(/letter|sent|on its way/i)
+  })
+
+  it('whether email can leave is read on the server, by the route and by the page that hands it to the form, never in the browser', () => {
+    const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+    expect(read('src/app/api/site/[slug]/join/route.ts')).toContain('joinProblems({ name: body.name as string, email: body.email as string }, mailLeaves())')
+    expect(read('src/app/site/[slug]/page.tsx')).toContain('<JoinBench slug={site.slug} letterCanLeave={mailLeaves()} />')
+    const form = read('src/app/site/[slug]/join-bench.tsx')
+    expect(form).toContain('joinProblems({ name, email }, letterCanLeave)')
+    // The browser cannot see the server's email keys, so the form never asks itself.
+    expect(form).not.toContain('mail-leaves')
   })
 })
 
@@ -307,7 +327,11 @@ describe('the words on a firm’s public page (the second Tapin walk, 2026-10-31
     const voice = read('src/lib/site-voice.ts')
     expect(voice).not.toMatch(/default to British/i)
     expect(voice).toContain('American English, always')
-    expect(voice).toContain('Never write "desk" or "program office".')
+    // The rule is said in other words, and the source never holds either word:
+    // the check reads the one list in lib/positioning (two-words.test.ts reads the prompt).
+    expect(voice).toContain('The firm that runs a client\'s program is an MSP.')
+    expect(wordsNobodyUses(voice)).toEqual([])
+    expect(voice).toContain("import { britishSpellings, wordsNobodyUses } from '@/lib/positioning'")
     expect(voice).toContain('if (!keepsTheHouseWords(parsed)) return null')
     const clean = { tagline: 'ICU nurses, out of San Antonio, TX.', intro: '3 placements across 1 organization.' }
     expect(keepsTheHouseWords(clean)).toBe(true)

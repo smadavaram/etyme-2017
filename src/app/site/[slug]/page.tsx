@@ -5,6 +5,7 @@ import { JOIN_BENCH_COPY } from '@/lib/public-site/join-bench'
 import { formatDayLong } from '@/lib/format-date'
 import { FIRM_ASK_COPY, freeSays, telHref } from '@/lib/public-site/firm-page'
 import { JoinBench } from './join-bench'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { Ask } from '../ask'
 
 /**
@@ -407,7 +408,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
             <p className="text-[15px] text-etyme-muted mt-1.5 max-w-xl leading-relaxed">
               {JOIN_BENCH_COPY.means}
             </p>
-            <JoinBench slug={site.slug} />
+            <JoinBench slug={site.slug} letterCanLeave={mailLeaves()} />
           </section>
         </>
       )}

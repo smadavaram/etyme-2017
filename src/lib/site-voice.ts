@@ -166,8 +166,8 @@ Rules that matter more than style:
   placements should read as a company with two placements.
 - American English, always: organization, program, center, license. The
   people reading this page are US buyers.
-- Never write "desk" or "program office". Say the person's job, or "team";
-  the firm that runs a client's program is an MSP.
+- Name people by their job (the recruiter, HR, the account manager), or
+  say "team". The firm that runs a client's program is an MSP.
 - Plain words and short sentences, about fifteen words each, for a reader
   whose first language may not be English.
 
@@ -241,11 +241,13 @@ function pickKnown(h: Record<string, string> | undefined): Record<string, string
 
 /**
  * Whether a drafted voice keeps the words every Etyme page keeps: American
- * spelling and never "desk" or "program office" (the second Tapin walk,
- * 2026-10-31, found "organization" spelled the British way on a firm's
- * page, and the prompt then asked for British spelling unless the
- * company's name suggested otherwise). Checked on what the model wrote,
- * every heading included, because a prompt is a request and this is the gate.
+ * spelling, and neither of the two words nobody uses, read from the one
+ * list in lib/positioning (`wordsNobodyUses`) and never named here. The
+ * second Tapin walk (2026-10-31) found "organization" spelled the British
+ * way on a firm's page, and the prompt then asked for British spelling
+ * unless the company's name suggested otherwise. Checked on what the model
+ * wrote, every heading included, because a prompt is a request and this
+ * is the gate.
  */
 export function keepsTheHouseWords(v: { tagline: string; intro: string; headings?: Record<string, string> }): boolean {
   const said = [v.tagline, v.intro, ...Object.values(v.headings ?? {})].filter((x) => typeof x === 'string').join(' ')
