@@ -1947,9 +1947,10 @@ export function readsPicture(party: Party): boolean {
 
 /**
  * People on site today and the suppliers they come through, from the
- * program page's own answer (`programView` in app/api/program/view, the
- * same `data` GET /api/program sends), never counted a second way. Null
- * where the answer carries no count.
+ * program page's own figures (`programSummary` in app/api/program/summary,
+ * or `programView` where the page is read anyway, which work them out with
+ * one arithmetic, app/api/program/figures), never counted a second way.
+ * Null where the answer carries no count.
  *
  * What current rates come to a month is the page's own figure, said only
  * where it priced every seat on site and in one currency: a total of some
@@ -1964,13 +1965,22 @@ export function pictureOf(data: unknown): Picture | null {
   const contractors: Array<{ state?: string; vendor?: { id?: string } | null; currency?: string | null }> = Array.isArray(d.contractors) ? d.contractors : []
   const live = contractors.filter((c) => c.state === 'IN_PROGRESS')
   const suppliers = new Set(live.filter((c) => c.vendor?.id).map((c) => c.vendor!.id))
-  const currencies = [...new Set(live.map((c) => (c.currency ?? 'USD').toUpperCase()))]
+  // The currencies the month is billed in: the page's own split where it
+  // gives one (`monthlySpendByCurrency`, demand's figures), else each live
+  // seat's. A figure in several currencies goes through the company's
+  // rates on the page, with a sentence saying so; the greeting has no room
+  // for that sentence, so it says the figure only in one currency.
+  const split = Array.isArray(summary.monthlySpendByCurrency)
+    ? (summary.monthlySpendByCurrency as Array<{ currency?: unknown }>).map((x) => String(x.currency ?? '').toUpperCase()).filter(Boolean)
+    : null
+  const currencies = split ?? [...new Set(live.map((c) => (c.currency ?? 'USD').toUpperCase()))]
+  const named = typeof summary.monthlySpendCurrency === 'string' ? summary.monthlySpendCurrency.toUpperCase() : null
   const unpriced = [summary.monthlySpendSays, summary.monthlySpendBasis].some((x) => typeof x === 'string' && /\bno rate\b/.test(x))
   const spend = summary.monthlySpend
   const priced = typeof spend === 'number' && Number.isInteger(spend) && !unpriced && currencies.length <= 1
   return {
     onSite: summary.activeContractors, suppliers: suppliers.size,
-    monthlyMinor: priced ? spend : null, currency: priced ? currencies[0] ?? 'USD' : null,
+    monthlyMinor: priced ? spend : null, currency: priced ? named ?? currencies[0] ?? 'USD' : null,
   }
 }
 

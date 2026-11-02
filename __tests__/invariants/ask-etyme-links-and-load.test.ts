@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join } from 'path'
 import { questionsFor, CHIPS, FIRM_ORDER, FIRM_QUESTIONS, SUGGESTED_QUESTIONS, readsPicture, pictureOf, partyOf, today, type Readers } from '@/app/api/conversations/twin/ask'
+import { cardsFor, paperCards, type WorkerFacts, type PaperAsk } from '@/app/api/conversations/twin/worker'
+import { paperAsksFrom } from '@/app/api/conversations/twin/worker-read'
 
 /**
  * The second Tapin walk (2026-10-30) and the calibration run of the
@@ -215,5 +217,113 @@ describe('a new party’s first act is read only where the greeting has nothing 
   it('a first act that cannot be read says nothing in its place, never a guess', async () => {
     const g = await today(quietReaders(), { greeting: true, party: 'CLIENT', firstAct: async () => { throw new Error('down') } })
     expect(recommended(g)).toBeUndefined()
+  })
+})
+
+// ── The mark and the greeting on the founder-scale world (2026-11-02) ──
+//
+// The page-timing pass read 432,336 notices and 263,813 access-log rows
+// behind the pages: the greeting 12.7 s and the mark 9.8 s at the 95th
+// percentile at a client and at a seated MSP.
+
+describe('a client’s greeting reads the program page’s four figures alone, never the whole page', () => {
+  it('a client’s picture comes from the page’s figures (programSummary), and only a seated firm, which needs the page’s queue, reads the page', () => {
+    const route = read(`${TWIN}/route.ts`)
+    expect(route).toContain("import { programSummary } from '@/app/api/program/summary'")
+    expect(route).toContain('const summary = await programSummary(caller, null)')
+    expect(route).toContain('if (await seatOf(caller)) return pictureOf(await programOf(caller))')
+    // The page is read for a seat only.
+    expect(route).toContain('if (!seat) return null')
+  })
+
+  it('the month is said in the currency the page’s figures name, and not at all where they split it across currencies', () => {
+    const summary = (byCurrency: string[], currency: string | null) => ({
+      summary: {
+        activeContractors: 2, vendors: 1, monthlySpend: 1_600_000, monthlySpendCurrency: currency,
+        monthlySpendByCurrency: byCurrency.map((c) => ({ currency: c, minor: 800_000 })), monthlySpendSays: 'Current rates come to €16,000 a month',
+      },
+      // The summary's rungs carry no currency of their own.
+      contractors: [{ contractId: 'a', state: 'IN_PROGRESS', vendor: { id: 'v' } }, { contractId: 'b', state: 'IN_PROGRESS', vendor: { id: 'v' } }],
+    })
+    expect(pictureOf(summary(['EUR'], 'EUR'))).toEqual({ onSite: 2, suppliers: 1, monthlyMinor: 1_600_000, currency: 'EUR' })
+    // Through the company's rates on the page, with a sentence the greeting has no room for: not said.
+    expect(pictureOf(summary(['EUR', 'USD'], 'USD'))).toMatchObject({ onSite: 2, monthlyMinor: null, currency: null })
+  })
+})
+
+describe('the mark counts what a seat owes and reads nothing it does not count', () => {
+  const asked = (over: Partial<PaperAsk>): PaperAsk => ({ id: 'p1', name: 'Certificate of insurance', todo: 'upload', askedBy: 'Halcyon Talent', dueOn: '2026-11-20', stopsWork: true, href: '/dashboard/my-work/paperwork', renews: null, ...over })
+
+  it('a one-person firm’s papers are read off her papers page alone, never off all four of her pages', () => {
+    const route = read(`${TWIN}/route.ts`)
+    expect(route).toContain('workerPapers(caller, request)')
+    expect(route).toContain('paperCards(papers ?? [])')
+    expect(route).not.toContain('cardsFor(own)')
+    // Where the greeting already reads her pages for her week, the papers come off that one read.
+    expect(route).toContain('facts.then((f) => (f ? f.papers : null))')
+    expect(route.indexOf('const ownWeek = ownFactsOf(')).toBeLessThan(route.indexOf('const queue = queueFor(request, caller)\n    void queue()'))
+  })
+
+  it('her paper cards from her papers alone are exactly the paper cards her whole facts give', () => {
+    const rows = [
+      { id: 'p1', kind: 'ASKED', todo: 'upload', name: 'Professional license (RN 154-882, WI)', askedBy: 'Halcyon Talent', dueOn: '2026-11-20T00:00:00Z', stopsWork: true, link: '/dashboard/my-work/paperwork' },
+      { id: 'p2', kind: 'HELD', name: 'Professional license', runsOutOn: '2026-11-15T00:00:00Z' },
+      { id: 'p3', kind: 'ASKED', todo: 'sign', name: 'Non-disclosure agreement', askedBy: null, dueOn: null, stopsWork: false, link: '//elsewhere' },
+    ]
+    const papers = paperAsksFrom(rows)
+    expect(papers.map((p) => [p.name, p.todo, p.renews?.runsOutOn ?? null, p.href])).toEqual([
+      ['Professional license (RN 154-882, WI)', 'upload', '2026-11-15', '/dashboard/my-work/paperwork'],
+      ['Non-disclosure agreement', 'sign', null, '/dashboard/my-work/paperwork'],
+    ])
+    const facts = { ...EMPTY_FACTS, papers }
+    expect(paperCards(papers)).toEqual(cardsFor(facts).filter((c) => c.act === 'PAPER'))
+  })
+
+  it('a worker’s mark reads her pages in count-only mode, and the count does not depend on anything that mode leaves out', () => {
+    expect(read(`${TWIN}/route.ts`)).toContain('workerFacts(caller, request, undefined, { forCount: true })')
+    const base: WorkerFacts = { ...EMPTY_FACTS, papers: [asked({})], toFile: [{ periodStart: '2026-10-25', periodEnd: '2026-10-31', site: 'Northbend Athletic', ended: true, wholeWeek: true, expectedHours: 40, dueOn: '2026-11-02' }] }
+    // What count-only mode does not read: the hours expected, the time limit, Your page, who employs her.
+    const lean: WorkerFacts = { ...base, toFile: base.toFile.map((w) => ({ ...w, expectedHours: null })), limits: [], pageOn: null, consent: { ...base.consent, employers: [] } }
+    expect(cardsFor(lean).length).toBe(cardsFor(base).length)
+    const src = read(`${TWIN}/worker-read.ts`)
+    for (const skipped of ['const endsRead = full &&', 'const pageRead = full', 'const employersRead = full &&', 'const lines = full && work']) expect(src).toContain(skipped)
+  })
+})
+
+describe('“Since you last looked” reads each thing once', () => {
+  it('the seats a person holds at other firms are read once for the greeting’s notices and its conversations together', () => {
+    const src = read(`${TWIN}/notices.ts`)
+    expect(src).toContain('const desks = await seatsElsewhere(caller)')
+    expect(src.match(/prisma\.context\.findMany\(\{\s*where: \{ personId: caller\.person\.id, type: \{ not: 'CONSULTANT' \}/g)?.length).toBe(1)
+  })
+})
+
+/** A worker with nothing on her record, for the sentences above to fill in. */
+const EMPTY_FACTS: WorkerFacts = {
+  seat: 'CONSULTANT', seatAt: null, ownFirm: null, placements: [], toFile: [], returned: [], sent: [],
+  ownCompanyBills: null, weeksWithNoRate: 0, papers: [], runningOut: [], interviews: [], stays: [], limits: [],
+  consent: { benches: [], asking: [], employers: [] }, unread: [], pageOn: false,
+} as WorkerFacts
+
+// ── Owed is sent and not paid (money's one sent rule, 2026-11-02) ───────
+
+describe('Ask Etyme says a bill is owed only once the firm that pays it was sent it', () => {
+  it('a bill raised and never sent is not said to be owed to the firm', async () => {
+    const { owedToUs, OWED_TO_US } = await import('@/app/api/conversations/twin/read')
+    expect(owedToUs('ISSUED')).toBe(false)
+    expect(owedToUs('DRAFT')).toBe(false)
+    expect(OWED_TO_US).not.toContain('ISSUED')
+  })
+
+  it('a bill sent, part paid, or held by the firm paying it is still owed, and a paid or cancelled one is not', async () => {
+    const { owedToUs } = await import('@/app/api/conversations/twin/read')
+    for (const s of ['SUBMITTED', 'PARTIALLY_PAID', 'HELD']) expect(owedToUs(s), s).toBe(true)
+    for (const s of ['PAID', 'CANCELLED', 'VOID']) expect(owedToUs(s), s).toBe(false)
+  })
+
+  it('every status Ask Etyme counts as owed is one money’s reader calls sent', async () => {
+    const { OWED_TO_US } = await import('@/app/api/conversations/twin/read')
+    const { isSent } = await import('@/lib/money/bill-state')
+    for (const s of OWED_TO_US) expect(isSent(s), s).toBe(true)
   })
 })

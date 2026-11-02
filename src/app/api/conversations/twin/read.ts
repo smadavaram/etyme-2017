@@ -10,6 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { isSent } from '@/lib/money/bill-state'
 import type { CallerContext } from '@/lib/api-context'
 import { feedWhere, ledgerFeed, waitingQuestions, ownerOnlyException } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
@@ -165,8 +166,18 @@ async function peopleAtDesk(companyId: string, permission: string, take = 3): Pr
   return [...new Set(rows.map((r) => r.person.name))]
 }
 
-/** Invoices a firm sent that are not paid in full: sent, part paid, or held by the firm paying them. */
-const OWED_TO_US = ['SUBMITTED', 'ISSUED', 'PARTIALLY_PAID', 'HELD']
+/**
+ * Invoices a firm sent that are not paid in full: sent, part paid, or held
+ * by the firm paying them. A bill raised and never sent (ISSUED) is owed by
+ * nobody (money's one reader, `isSent` in lib/money/bill-state, 2026-11-02):
+ * it is listed apart on Accounts receivable as to send, never as owed.
+ */
+export const OWED_TO_US: readonly string[] = ['SUBMITTED', 'PARTIALLY_PAID', 'HELD']
+
+/** Whether a bill in this status is owed to the firm that sent it, by the one sent rule. */
+export function owedToUs(status: string): boolean {
+  return OWED_TO_US.includes(status.toUpperCase()) && isSent(status)
+}
 
 /** At most this many checks at once, so one question never takes the whole connection pool. */
 async function inBatches<T, R>(xs: readonly T[], size: number, f: (x: T) => Promise<R>): Promise<R[]> {
@@ -1013,7 +1024,7 @@ export function readersFor(
         return { ok: false as const, says: deskRefusal('reads which bills are unpaid', 'invoices.read', company.kind) }
       }
       const found = await prisma.invoice.findMany({
-        where: { AND: [invoiceBetween(company.id), { status: { in: OWED_TO_US } }] },
+        where: { AND: [invoiceBetween(company.id), { status: { in: [...OWED_TO_US] } }] },
         orderBy: { dueAt: 'asc' },
         take: 200,
         select: {
@@ -1035,6 +1046,7 @@ export function readersFor(
         })
         // Only what this firm billed; what it was billed is an invoice receipt.
         if (directionFrom(parties, company.id) !== 'RECEIVABLE') continue
+        if (!owedToUs(r.status)) continue
         const due = fromPrismaDecimal(r.total, r.currency).minor - fromPrismaDecimal(r.paid, r.currency).minor
         if (due <= 0) continue
         rows.push({

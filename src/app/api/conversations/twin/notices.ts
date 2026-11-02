@@ -48,6 +48,25 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
  * chase for her license follows her for the same reason (Colleen Byrne,
  * 2026-10-20): a bench seat is no firm's book.
  */
+/**
+ * The seats this person holds at other firms, read once per request: the
+ * greeting's notices and its conversations both ask (2026-11-02).
+ */
+const elsewhereOf = new WeakMap<object, Promise<{ companyId: string | null }[]>>()
+function seatsElsewhere(caller: CallerContext): Promise<{ companyId: string | null }[]> {
+  let got = elsewhereOf.get(caller)
+  if (!got) {
+    got = caller.company
+      ? prisma.context.findMany({
+          where: { personId: caller.person.id, type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: caller.company.id } },
+          select: { companyId: true },
+        }).catch(() => [] as { companyId: string | null }[])
+      : Promise.resolve([])
+    elsewhereOf.set(caller, got)
+  }
+  return got
+}
+
 async function unreadWhere(caller: CallerContext, opts: { program?: string | null } = {}, now = new Date()): Promise<Prisma.NotificationWhereInput> {
   // A firm seated in a client's program reads that program, the same as
   // its greeting: a notice written at its own firm's book waits for the
@@ -64,12 +83,7 @@ async function unreadWhere(caller: CallerContext, opts: { program?: string | nul
       ...bellShows(),
     }
   }
-  const desks = caller.company
-    ? await prisma.context.findMany({
-        where: { personId: caller.person.id, type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: caller.company.id } },
-        select: { companyId: true },
-      }).catch(() => [] as { companyId: string | null }[])
-    : []
+  const desks = await seatsElsewhere(caller)
   const elsewhere = [...new Set((desks ?? []).map((c) => c.companyId).filter((id): id is string => !!id))]
   // `notIn` passes no null, so a notice tied to no company is named on its own.
   const at: Prisma.NotificationWhereInput[] = elsewhere.length ? [{ companyId: null }, { companyId: { notIn: elsewhere } }] : []

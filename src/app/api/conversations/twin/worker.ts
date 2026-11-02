@@ -436,28 +436,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
     })
   }
 
-  for (const p of f.papers) {
-    const verb = p.todo === 'sign' ? 'Sign' : p.todo === 'upload' ? 'Upload' : 'Open'
-    const by = p.askedBy ? ` for ${p.askedBy}` : ''
-    // A renewal is said by the day the paper she holds runs out, which is
-    // the day her work can stop; the ask's own due date is said only where
-    // it comes first, or where she holds nothing it renews.
-    const lapse = p.renews && (!p.dueOn || p.renews.runsOutOn <= p.dueOn) ? p.renews : null
-    const due = lapse
-      ? ` Your ${lowerFirst(lapse.name)} runs out on ${day(lapse.runsOutOn)}; send the new one before then.`
-      : p.dueOn ? ` It is due ${day(p.dueOn)}.` : ''
-    cards.push({
-      first: lapse ? `${verb} your ${p.name}${by} before ${day(lapse.runsOutOn)}.` : `${verb} your ${p.name}${by}.`,
-      key: `paper:${p.id}`,
-      act: 'PAPER',
-      title: `${p.name}${by}`,
-      says: `${verb} it from your paperwork.${due}${p.stopsWork ? ' Your work stops until it is on file.' : ''}`,
-      href: p.href,
-      button: verb,
-      stopsWork: p.stopsWork,
-      name: `your ${lowerFirst(p.name.replace(/\s*\([^)]*\)/g, '').trim())}`,
-    })
-  }
+  cards.push(...paperCards(f.papers))
 
   for (const i of f.interviews.filter((x) => x.waitingOnYou)) {
     cards.push({
@@ -503,6 +482,39 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       href: WHO_HAS_YOU,
       button: 'Answer',
       name: `${possessive(firm)} ask to list you`,
+    })
+  }
+
+  return cards
+}
+
+/**
+ * The cards for papers asked of her, alone: what a one-person firm's queue
+ * and mark add for her as the worker (the firm's own decisions are the
+ * firm's queue), read from her papers and nothing else of hers.
+ */
+export function paperCards(papers: readonly PaperAsk[]): WorkerCard[] {
+  const cards: WorkerCard[] = []
+  for (const p of papers) {
+    const verb = p.todo === 'sign' ? 'Sign' : p.todo === 'upload' ? 'Upload' : 'Open'
+    const by = p.askedBy ? ` for ${p.askedBy}` : ''
+    // A renewal is said by the day the paper she holds runs out, which is
+    // the day her work can stop; the ask's own due date is said only where
+    // it comes first, or where she holds nothing it renews.
+    const lapse = p.renews && (!p.dueOn || p.renews.runsOutOn <= p.dueOn) ? p.renews : null
+    const due = lapse
+      ? ` Your ${lowerFirst(lapse.name)} runs out on ${day(lapse.runsOutOn)}; send the new one before then.`
+      : p.dueOn ? ` It is due ${day(p.dueOn)}.` : ''
+    cards.push({
+      first: lapse ? `${verb} your ${p.name}${by} before ${day(lapse.runsOutOn)}.` : `${verb} your ${p.name}${by}.`,
+      key: `paper:${p.id}`,
+      act: 'PAPER',
+      title: `${p.name}${by}`,
+      says: `${verb} it from your paperwork.${due}${p.stopsWork ? ' Your work stops until it is on file.' : ''}`,
+      href: p.href,
+      button: verb,
+      stopsWork: p.stopsWork,
+      name: `your ${lowerFirst(p.name.replace(/\s*\([^)]*\)/g, '').trim())}`,
     })
   }
 

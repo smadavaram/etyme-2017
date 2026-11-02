@@ -8,12 +8,13 @@ import { readThread, appendTurn, markCard, clearThread, type SavedThread, type S
 import { prisma } from '@/lib/db'
 import { modelSwitchFor } from '@/lib/model-boundary'
 import { programView } from '@/app/api/program/view'
+import { programSummary } from '@/app/api/program/summary'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, cardsFor, type WorkerFacts } from './worker'
+import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, paperCards, type WorkerFacts, type PaperAsk } from './worker'
 import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat'
-import { workerFacts } from './worker-read'
+import { workerFacts, workerPapers } from './worker-read'
 import { owedTotal } from './owed'
 import { firstActFor, welcomeFor, setupLineFor } from './first-act'
 import { setupReminderFor } from '@/lib/setup-checklist-state'
@@ -90,9 +91,9 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
  * queue and once for the picture, and a client's went through
  * GET /api/program and back through JSON to read four figures). The
  * page's `programView`, for this caller, the same call GET /api/program
- * makes: a client's own program, or the program a seated firm's seat is
- * in. Null for any other seat, which the page would refuse or read as
- * the firm's own book, and where it refuses.
+ * makes, for the program a seated firm's seat is in: its queue is the
+ * page's own. Null for any other seat (a client reads the page's figures
+ * alone, `programSummary`), and where it refuses.
  */
 const programs = new WeakMap<object, Promise<ProgramRead | null>>()
 type ProgramRead = NonNullable<Awaited<ReturnType<typeof programView>>['data']>
@@ -101,8 +102,8 @@ function programOf(caller: Caller): Promise<ProgramRead | null> {
   if (!got) {
     got = (async () => {
       const seat = await seatOf(caller)
-      if (!seat && caller.company?.kind !== 'CLIENT') return null
-      const view = await programView(caller, seat ? seat.clientCompany.id : null, { trail: 'Ask Etyme' })
+      if (!seat) return null
+      const view = await programView(caller, seat.clientCompany.id, { trail: 'Ask Etyme' })
       return view.error || !view.data ? null : view.data
     })().catch(() => null)
     programs.set(caller, got)
@@ -118,7 +119,12 @@ function programOf(caller: Caller): Promise<ProgramRead | null> {
  */
 async function pictureFor(caller: Caller, party: Party): Promise<Picture | null> {
   if (!readsPicture(party)) return null
-  return pictureOf(await programOf(caller))
+  // A seated firm reads the page anyway, for its queue; a client reads the
+  // page's four figures alone (demand's `programSummary`, 2026-11-02), which
+  // works out no paperwork, names nobody and so logs nobody.
+  if (await seatOf(caller)) return pictureOf(await programOf(caller))
+  const summary = await programSummary(caller, null).catch(() => null)
+  return summary?.data ? pictureOf(summary.data) : null
 }
 
 /**
@@ -188,6 +194,28 @@ function ownFactsOf(caller: Caller, request: NextRequest): Promise<WorkerFacts |
   return got
 }
 
+/**
+ * The papers asked of a one-person firm's owner as the worker, read once
+ * per request: off her facts where the greeting already reads them for her
+ * week, and otherwise off her papers page alone (the mark, 2026-11-02: it
+ * read all four of her pages to count her papers). Null for anybody else,
+ * and where they could not be read.
+ */
+const soloPapers = new WeakMap<object, Promise<PaperAsk[] | null>>()
+function ownPapersOf(caller: Caller, request: NextRequest): Promise<PaperAsk[] | null> {
+  let got = soloPapers.get(caller)
+  if (!got) {
+    const facts = soloFacts.get(caller)
+    got = caller.company?.kind !== 'CONSULTANT_CORP'
+      ? Promise.resolve(null)
+      : facts
+        ? facts.then((f) => (f ? f.papers : null))
+        : workerPapers(caller, request).catch(() => null)
+    soloPapers.set(caller, got)
+  }
+  return got
+}
+
 function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead | null> {
   let read: Promise<QueueRead | null> | null = null
   // Read once per request however often it is asked: the headline, the
@@ -211,9 +239,11 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
       const queue = queueFrom(await res.json())
       // A one-person firm is the worker too: what is asked of her on paper
       // is in her one queue, so her greeting and her mark count it.
-      const own = await ownFactsOf(caller, request)
-      // Nor is she asked to accept her own week: she is the firm (CLAUDE.md, shipped 2026-10-21).
-      const mine = own ? withOwnPapers(withoutOwnWeek(queue, caller.person.name), cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
+      // Nor is she asked to accept her own week: she is the firm (CLAUDE.md,
+      // shipped 2026-10-21), whether or not her papers could be read.
+      const solo = caller.company?.kind === 'CONSULTANT_CORP'
+      const papers = solo ? await ownPapersOf(caller, request) : null
+      const mine = solo ? withOwnPapers(withoutOwnWeek(queue, caller.person.name), paperCards(papers ?? [])) : queue
       // What another party waits on this firm for (./firm-asks): a firm
       // asking to link, and, where no letter can leave, somebody who asked
       // from the page to join the bench. Rows of the one queue, counted.
@@ -381,13 +411,14 @@ export async function GET(request: NextRequest) {
     // the notices, the switch and the first act before, one after another.
     const company = caller.company
     const thread = threadFor(caller, take)
+    // A one-person firm is the firm and the worker: her own week is read
+    // from her own pages beside the rest, and said in her greeting. Started
+    // before the queue, which then takes her papers off the same read.
+    const ownWeek = ownFactsOf(caller, request).then((f) => (f ? latestWeekLine(f) : null)).catch(() => null)
     const queue = queueFor(request, caller)
     void queue()
     const who = partyFor(caller)
     const picture = who.then((w) => pictureFor(caller, w.party)).catch(() => null)
-    // A one-person firm is the firm and the worker: her own week is read
-    // from her own pages beside the rest, and said in her greeting.
-    const ownWeek = ownFactsOf(caller, request).then((f) => (f ? latestWeekLine(f) : null)).catch(() => null)
     // The setup checklist's one line, read beside the rest.
     const setupLine = setupLineOf(caller)
     const seat = await seatOf(caller)
@@ -543,7 +574,8 @@ async function owedCount(caller: Caller, request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   try {
-    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request), needs: needsFor(request, caller) })
+    // Her facts in count-only mode: only what decides how many things need her.
+    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request, undefined, { forCount: true }), needs: needsFor(request, caller) })
     return NextResponse.json({ data: { total } })
   } catch (err) {
     await reportError('Ask Etyme could not count what a seat owes', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })

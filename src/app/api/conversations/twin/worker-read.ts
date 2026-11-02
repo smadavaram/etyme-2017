@@ -61,10 +61,70 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
 const addDays = (day: string, n: number) => iso(new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY))
 
 /**
+ * What is asked of her on paper, from her papers page's rows: each ask to
+ * sign, upload or open, with the paper she holds that it renews (a held
+ * row whose name begins the ask's, "Professional license" under
+ * "Professional license (RN 154-882, WI)", with the day it runs out).
+ */
+export function paperAsksFrom(paperRows: readonly any[]): PaperAsk[] {
+  const held = paperRows.filter((p) => p.kind === 'HELD' && typeof p.name === 'string' && typeof p.runsOutOn === 'string')
+  const renewed = (name: unknown): { name: string; runsOutOn: string } | null => {
+    if (typeof name !== 'string') return null
+    const n = name.toLowerCase().trim()
+    const h = held
+      .filter((x) => { const m = String(x.name).toLowerCase().trim(); return m.length > 2 && (n === m || n.startsWith(`${m} `) || n.startsWith(`${m}(`)) })
+      .sort((a, b) => String(a.runsOutOn).localeCompare(String(b.runsOutOn)))[0]
+    return h ? { name: String(h.name), runsOutOn: String(h.runsOutOn).slice(0, 10) } : null
+  }
+  return paperRows
+    .filter((p) => p.todo === 'sign' || p.todo === 'upload' || p.todo === 'open')
+    .map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      todo: p.todo,
+      askedBy: p.askedBy ?? null,
+      dueOn: p.dueOn ? String(p.dueOn).slice(0, 10) : null,
+      stopsWork: Boolean(p.stopsWork),
+      href: typeof p.link === 'string' && p.link.startsWith('/') && !p.link.startsWith('//') ? p.link : '/dashboard/my-work/paperwork',
+      renews: renewed(p.name),
+    }))
+}
+
+/**
+ * Only the papers asked of her, from her own papers page and nothing else
+ * of hers: what a one-person firm's queue and mark add for her as the
+ * worker (2026-11-02: her mark read all four of her pages to count her
+ * papers). Null where the page could not be read, said as unread, never
+ * as nothing asked.
+ */
+export async function workerPapers(caller: CallerContext, request: NextRequest): Promise<PaperAsk[] | null> {
+  try {
+    const body = await bodyOf(await myPapers(request))
+    return body ? paperAsksFrom(body.papers ?? []) : null
+  } catch (err) {
+    await reportError('Ask Etyme could not read a worker’s papers', err, { path: '/api/conversations/twin', personId: caller.person.id })
+    return null
+  }
+}
+
+/**
  * The worker's facts, read from her own doors. `request` is her own
  * request, so every door asks the same "who is this" and gets her.
  */
-export async function workerFacts(caller: CallerContext, request: NextRequest, now = new Date()): Promise<WorkerFacts> {
+export async function workerFacts(
+  caller: CallerContext,
+  request: NextRequest,
+  now = new Date(),
+  /**
+   * `forCount`: only what decides how many things need her (the mark,
+   * 2026-11-02): her four doors and her bench stays. The hours her job
+   * runs, her time limit, whether Your page is on, who employs her and
+   * each sent week's last day change what a card says, never whether it
+   * is drawn, so they are not read for a number.
+   */
+  opts: { forCount?: boolean } = {},
+): Promise<WorkerFacts> {
+  const full = !opts.forCount
   const me = caller.person.id
   const today = iso(now)
   const unread: WorkerFacts['unread'] = []
@@ -104,7 +164,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
 
   // Her own rows, read beside each other: none waits on another.
   const sheetsSent: any[] = work?.timesheets ?? []
-  const endsRead = sheetsSent.length
+  const endsRead = full && sheetsSent.length
     ? prisma.timesheet.findMany({
         where: { personId: me, id: { in: sheetsSent.map((t) => t.id) } },
         select: { id: true, periodEnd: true, sellContractId: true },
@@ -117,11 +177,13 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
       })
     : Promise.resolve([])
   // Whether Your page is on: her own profile row, by her person id.
-  const pageRead = prisma.consultantProfile
-    .findUnique({ where: { personId: me }, select: { pageLiveAt: true } })
-    .then((p) => (p ? p.pageLiveAt !== null : false))
-    .catch(() => null)
-  const employersRead = benches
+  const pageRead = full
+    ? prisma.consultantProfile
+      .findUnique({ where: { personId: me }, select: { pageLiveAt: true } })
+      .then((p) => (p ? p.pageLiveAt !== null : false))
+      .catch(() => null)
+    : Promise.resolve(null)
+  const employersRead = full && benches
     ? prisma.context.findMany({
         where: { personId: me, type: 'EMPLOYEE', revokedAt: null, company: { kind: { not: 'CONSULTANT_CORP' } } },
         select: { company: { select: { name: true } } },
@@ -129,7 +191,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
     : Promise.resolve([] as Array<{ company: { name: string } | null }>)
 
   // ── The hours her job runs, for a whole week ─────────────────────────
-  const lines = work
+  const lines = full && work
     ? await prisma.sellContract.findMany({
         where: { personId: me },
         select: {
@@ -259,30 +321,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
 
   // ── What is asked of her on paper ────────────────────────────────────
   const paperRows: any[] = papers?.papers ?? []
-  // The paper she holds that an ask renews: a held row whose name begins
-  // the ask's ("Professional license" under "Professional license (RN
-  // 154-882, WI)"), with the day it runs out.
-  const held = paperRows.filter((p) => p.kind === 'HELD' && typeof p.name === 'string' && typeof p.runsOutOn === 'string')
-  const renewed = (name: unknown): { name: string; runsOutOn: string } | null => {
-    if (typeof name !== 'string') return null
-    const n = name.toLowerCase().trim()
-    const h = held
-      .filter((x) => { const m = String(x.name).toLowerCase().trim(); return m.length > 2 && (n === m || n.startsWith(`${m} `) || n.startsWith(`${m}(`)) })
-      .sort((a, b) => String(a.runsOutOn).localeCompare(String(b.runsOutOn)))[0]
-    return h ? { name: String(h.name), runsOutOn: String(h.runsOutOn).slice(0, 10) } : null
-  }
-  const asks: PaperAsk[] = paperRows
-    .filter((p) => p.todo === 'sign' || p.todo === 'upload' || p.todo === 'open')
-    .map((p) => ({
-      id: String(p.id),
-      name: p.name,
-      todo: p.todo,
-      askedBy: p.askedBy ?? null,
-      dueOn: p.dueOn ? String(p.dueOn).slice(0, 10) : null,
-      stopsWork: Boolean(p.stopsWork),
-      href: typeof p.link === 'string' && p.link.startsWith('/') && !p.link.startsWith('//') ? p.link : '/dashboard/my-work/paperwork',
-      renews: renewed(p.name),
-    }))
+  const asks = paperAsksFrom(paperRows)
   const soon = addDays(today, RUNNING_OUT_DAYS)
   const runningOut: PaperRunningOut[] = paperRows
     .filter((p) => p.kind === 'HELD' && typeof p.runsOutOn === 'string' && p.runsOutOn.slice(0, 10) >= today && p.runsOutOn.slice(0, 10) <= soon)
