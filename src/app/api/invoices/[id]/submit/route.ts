@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { announceRaised, mayBeSent, maySendBill, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, maySendBill, markSent, planSend, tellPayerAfterSending } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
@@ -74,10 +74,18 @@ export async function POST(
   }
 
   try {
+    // Read first, write short: everything the sending reads is read before
+    // its transaction (`planSend`), so the transaction holds a connection
+    // only for the writes (the founder-scale simulation, 2026-11-01: sends
+    // ran out of time inside it under load).
+    const plan = await planSend(id)
     const sent = await prisma.$transaction((tx) =>
-      markSent(tx, { invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name } })
+      markSent(tx, { invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name }, plan })
     )
-    if (sent.raised) await announceRaised(id, companyId, { personId: caller.person.id })
+    // The payer's people told in the app, before the letter goes.
+    const told = await tellPayerAfterSending(id, companyId)
+    // What the sending read is handed on, so the event reads nothing again.
+    if (sent.raised) await announceRaised(id, companyId, { personId: caller.person.id }, sent)
     // Now that the bill is sent, it goes to the firm that pays it: a
     // letter off Etyme, a notice on it (lib/notify/bill-delivery). Outside
     // the transaction, because a letter cannot be called back; and a
@@ -108,7 +116,7 @@ export async function POST(
         // delivery itself failed and staff were told.
         delivery: delivered?.says ?? null,
         // Where nobody at the payer can record a payment yet, the sender reads it.
-        ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
+        ...(told.why ? { payerNotice: told.why } : {}),
       },
     })
   } catch (err: any) {

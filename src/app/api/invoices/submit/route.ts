@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { announceRaised, mayBeSent, maySendBills, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, maySendBills, markSent, planSend, tellPayerAfterSending } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
@@ -105,10 +105,13 @@ export async function POST(request: NextRequest) {
         })
         continue
       }
+      // Read first, write short (`planSend`); the payer told after the commit.
+      const plan = await planSend(invoiceId)
       const sent = await prisma.$transaction((tx) =>
-        markSent(tx, { invoiceId, companyId, by: { personId: caller.person.id, name: caller.person.name } })
+        markSent(tx, { invoiceId, companyId, by: { personId: caller.person.id, name: caller.person.name }, plan })
       )
-      if (sent.raised) await announceRaised(invoiceId, companyId, { personId: caller.person.id })
+      const told = await tellPayerAfterSending(invoiceId, companyId)
+      if (sent.raised) await announceRaised(invoiceId, companyId, { personId: caller.person.id }, sent)
       // Each bill to the firm that pays it, after its own transaction, the
       // same call as the single Send (lib/notify/bill-delivery). A delivery
       // that fails leaves the bill sent and says so on the row.
@@ -119,7 +122,7 @@ export async function POST(request: NextRequest) {
       submitted++
       results.push({
         invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null,
-        ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
+        ...(told.why ? { payerNotice: told.why } : {}),
         // Work outside its order's window, said beside the bill (`orderWindowSays`).
         ...(check.notes.length ? { notes: check.notes } : {}),
       })

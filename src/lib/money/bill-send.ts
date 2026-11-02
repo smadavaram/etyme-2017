@@ -23,6 +23,24 @@
  *
  * The check runs before anything is written. A bill that does not pass
  * it stays where it was, and the refusal says why in a sentence.
+ *
+ * Three steps, and only the middle one holds a transaction:
+ *
+ *   planSend              every read the sending needs: the bill, its due
+ *                         date by the agreement, the reminders it closes,
+ *                         the overtime answers it was priced on
+ *   markSent (in a tx)    the writes only, the bill moved on its status
+ *                         so a second press finds it moved
+ *   tellPayerAfterSending the payer's people told in the app, right after
+ *                         the commit and before the letter goes
+ *
+ * The founder-scale simulation (2026-11-01, sixty firms sending at once):
+ * 25 of 720 sends answered 500 after 20 to 44 seconds, "Transaction
+ * already closed … 5000 ms … 9164 ms passed". The payer's notice read the
+ * whole bill inside the transaction, and part of that read went through
+ * the global client, so each send held one connection and waited for a
+ * second; under load the pool ran dry and the transactions ran out of
+ * time. Nothing heavy is read inside the transaction now.
  */
 
 import type { Prisma } from '@prisma/client'
@@ -30,12 +48,16 @@ import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
 import { completeCycles } from '@/lib/cycle-complete'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
-import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
+import {
+  ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT,
+  AGREEMENT_PERIOD_SELECT, ORDER_HEADER_PERIOD_SELECT, SELL_LINE_PERIOD_TERMS_SELECT,
+} from '@/lib/money/order-terms'
 import { billDue } from '@/lib/money/bill-generate'
 import { fromUnits } from '@/lib/money-display'
 import { emit } from '@/lib/events'
 import { closeOvertaken } from '@/lib/twin/ledger'
 import { writePayerNoticesIn } from '@/lib/notify/bill-delivery'
+import { reportError } from '@/lib/alerts'
 import { hasPermission } from '@/lib/permissions'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { mayIssueBill } from '@/lib/setup-gates'
@@ -125,10 +147,11 @@ export interface Sent {
   currency: string
   dueAt: Date
   submittedAt: Date
+  /** The engagement and how many lines, for the event a raised draft sends (`announceRaised`), so it reads nothing again. */
+  engagementId: string
+  lineCount: number
   /** It was a draft, and sending raised it. */
   raised: boolean
-  /** The payer's people told in the sending; `why` where nobody there could be. */
-  payerNotice: { written: number; why: string | null }
 }
 
 /** What the due date of a bill being sent is counted from: its agreement, its order, its lines. */
@@ -187,6 +210,54 @@ function dueWhenSent(inv: DueRow, on: Date): ReturnType<typeof billDue> {
 }
 
 /**
+ * What sending reads of a bill to date it and close its reminders: the
+ * same terms `DUE_SELECT` reads, through the period selects that carry no
+ * firm's name (`AGREEMENT_PERIOD_SELECT` and its kin in
+ * lib/money/order-terms: "the terms read are identical"). The names are
+ * only ever the due date's sentence, which the sending never says; read
+ * with them, this was twenty statements inside the sending's transaction
+ * for every yes (the architect's measurement, 2026-11-01), and is nine.
+ */
+const SEND_DUE_SELECT = {
+  periodEnd: true,
+  engagement: { select: { msa: { select: { ...AGREEMENT_PERIOD_SELECT, vendorId: true, clientId: true } } } },
+  invoiceLines: {
+    select: {
+      sellContractId: true,
+      timesheet: { select: { periodEnd: true } },
+      sellContract: {
+        select: {
+          paymentTerms: true, paymentTermsFrom: true, billCurrency: true, clientCompanyId: true,
+          ...SELL_LINE_PERIOD_TERMS_SELECT,
+          workOrder: { select: ORDER_HEADER_PERIOD_SELECT },
+        },
+      },
+    },
+  },
+} as const
+
+type SendDueRow = Prisma.InvoiceGetPayload<{ select: typeof SEND_DUE_SELECT }>
+
+/**
+ * The day a bill sent on `on` falls due, by the agreement's rule: the
+ * same arithmetic as `dueWhenSent`, over a read that names no firm. The
+ * firms' names reach only the sentence beside the date, never the date.
+ */
+export function dueAtOnSending(inv: Pick<SendDueRow, 'periodEnd' | 'engagement'> & {
+  invoiceLines: { sellContract: SendDueRow['invoiceLines'][number]['sellContract'] }[]
+}, on: Date): Date {
+  const line = inv.invoiceLines.find((l) => l.sellContract)?.sellContract ?? null
+  return billDue({
+    line,
+    engagementAgreement: inv.engagement.msa,
+    companyName: 'this company',
+    customerName: 'the client',
+    periodEnd: inv.periodEnd,
+    issuedAt: on,
+  }).due.dueAt
+}
+
+/**
  * What a draft's due date would be if it were sent on `on`: the sentence a
  * card shows beside Send, and whether the agreement's terms make it already
  * due or past due. Read by the supplier's twin before it asks for a yes,
@@ -200,35 +271,134 @@ export async function dueIfSentOn(invoiceId: string, on: Date = new Date()): Pro
 }
 
 /**
- * The writes, inside the caller's transaction. Moves only a bill still
- * in the state the check saw — a second yes, or a person pressing Submit
- * while the twin's question waited, finds it moved and is refused.
+ * Everything sending a bill reads, read before its transaction.
+ *
+ * The bill, the day it falls due if it is raised now (by the agreement's
+ * rule, `dueAtOnSending`), the reminders it answers — each line's "bill to
+ * raise" date and the payer's "invoice receipt to record" date on the buy
+ * line that pays it — and the overtime answers a draft was priced on. A
+ * bill no longer drafted or raised is refused as moved, the same way the
+ * write would refuse it.
+ *
+ * Read outside the transaction on purpose: the write moves the bill only
+ * from the status read here (`updateMany` on it), so a bill that moved in
+ * between is refused rather than sent twice, and a draft's lines cannot
+ * change without its status changing (it is withdrawn, or it is sent).
  */
-export async function markSent(
-  tx: Tx,
-  a: { invoiceId: string; companyId: string; by: { personId: string | null; name: string }; now?: Date }
-): Promise<Sent> {
-  const now = a.now ?? new Date()
-  const inv = await tx.invoice.findUniqueOrThrow({
-    where: { id: a.invoiceId },
+export interface SendPlan {
+  /** When the plan was read: the sending's own clock. */
+  at: Date
+  invoice: { id: string; number: string; status: string; total: number; currency: string; engagementId: string; lineCount: number }
+  /** A draft is raised by sending it, and dated again. */
+  raised: boolean
+  dueAt: Date
+  toClose: Parameters<typeof completeCycles>[1]
+  /** The overtime answers a draft was priced on, stamped billed when it goes. */
+  decisionIds: string[]
+}
+
+type PlanDb = Pick<Tx, 'invoice' | 'buyContract' | 'automationLog'>
+
+export async function planSend(invoiceId: string, now: Date = new Date(), db: PlanDb = prisma): Promise<SendPlan> {
+  const inv = await db.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
     select: {
       id: true, number: true, status: true, total: true, currency: true, dueAt: true,
       engagementId: true,
-      ...DUE_SELECT,
+      ...SEND_DUE_SELECT,
     },
   })
   const raised = inv.status === 'DRAFT'
   if (inv.status !== 'DRAFT' && inv.status !== 'ISSUED') {
     throw new Error(`ALREADY_MOVED:${inv.status}`)
   }
+  // Raised today, so dated today: the due date is counted again by the
+  // agreement's rule from the day it actually goes, never from the day
+  // the twin drafted it.
+  const dueAt = raised ? dueAtOnSending(inv, now) : inv.dueAt
 
-  let dueAt = inv.dueAt
+  const toClose: Parameters<typeof completeCycles>[1] = []
   if (raised) {
-    // Raised today, so dated today: the due date is counted again by the
-    // agreement's rule from the day it actually goes, never from the day
-    // the twin drafted it.
-    dueAt = dueWhenSent(inv, now).due.dueAt
+    // The "bill to raise" date each line was heading for is done now that
+    // it is raised — the step generation skips for a draft.
+    const latest = new Map<string, Date>()
+    for (const l of inv.invoiceLines) {
+      if (!l.sellContractId || !l.timesheet) continue
+      const was = latest.get(l.sellContractId)
+      if (!was || l.timesheet.periodEnd > was) latest.set(l.sellContractId, l.timesheet.periodEnd)
+    }
+    for (const [sellContractId, periodEnd] of latest) {
+      toClose.push({ sellContractId, kind: 'INVOICE_GENERATE', periodEnd })
+    }
   }
+
+  // ── The payer's date, on its own buy line ─────────────────────────
+  //
+  // The firm this bill goes to was expecting an invoice from us: its "invoice
+  // receipt to record" date on the buy line that pays us. When that invoice is
+  // typed in, the intake closes the date (api/ap/bills); sent here, nothing
+  // did, so the payer's timeline read the week as overdue though the bill was
+  // sitting on its desk. Closed the moment it is sent, for each line it
+  // bills — the buy line whose supplier contract is the one this line bills
+  // on. One read for every line.
+  const sentLatest = new Map<string, { periodEnd: Date; payer: string }>()
+  for (const l of inv.invoiceLines) {
+    if (!l.sellContractId || !l.timesheet || !l.sellContract) continue
+    const was = sentLatest.get(l.sellContractId)
+    if (!was || l.timesheet.periodEnd > was.periodEnd) {
+      sentLatest.set(l.sellContractId, { periodEnd: l.timesheet.periodEnd, payer: l.sellContract.clientCompanyId })
+    }
+  }
+  if (sentLatest.size > 0) {
+    const payersLines = await db.buyContract.findMany({
+      where: { OR: [...sentLatest].map(([sellContractId, { payer }]) => ({ supplierSellContractId: sellContractId, companyId: payer })) },
+      select: { id: true, supplierSellContractId: true, companyId: true },
+    })
+    for (const b of payersLines) {
+      const at = b.supplierSellContractId ? sentLatest.get(b.supplierSellContractId) : undefined
+      if (at && at.payer === b.companyId) toClose.push({ buyContractId: b.id, kind: 'VENDOR_BILL_GENERATE', periodEnd: at.periodEnd })
+    }
+  }
+
+  // The overtime answers this bill was priced on become history when it
+  // is sent — not when it was drafted. A draft is the firm's working
+  // paper: until it goes, a week's answer may still change, and a draft
+  // priced on the old answer then fails its own check here and is
+  // withdrawn and drafted again (lib/money/bill-withdraw).
+  const decisionIds = raised ? await draftDecisionIds(db, inv.id) : []
+
+  return {
+    at: now,
+    invoice: {
+      id: inv.id, number: inv.number, status: inv.status, total: Number(inv.total), currency: inv.currency,
+      engagementId: inv.engagementId, lineCount: inv.invoiceLines.length,
+    },
+    raised,
+    dueAt,
+    toClose,
+    decisionIds,
+  }
+}
+
+/**
+ * The writes, inside the caller's transaction, and nothing else: the
+ * reads are `planSend`'s, made before it. Moves only a bill still in the
+ * state the plan saw — a second yes, or a person pressing Submit while
+ * the twin's question waited, finds it moved and is refused. A caller
+ * with no plan has one read here, inside its transaction, as before.
+ *
+ * The payer's people are told after the commit (`tellPayerAfterSending`),
+ * before the letter or Teams message goes (`sendBillToCustomer`); where
+ * that step fails, the delivery writes the notice itself.
+ */
+export async function markSent(
+  tx: Tx,
+  a: { invoiceId: string; companyId: string; by: { personId: string | null; name: string }; now?: Date; plan?: SendPlan }
+): Promise<Sent> {
+  const plan = a.plan ?? (await planSend(a.invoiceId, a.now ?? new Date(), tx))
+  const now = a.now ?? plan.at
+  const inv = plan.invoice
+  const { raised, dueAt } = plan
 
   const moved = await tx.invoice.updateMany({
     where: { id: inv.id, status: inv.status },
@@ -239,12 +409,6 @@ export async function markSent(
     },
   })
   if (moved.count !== 1) throw new Error('ALREADY_MOVED')
-  // The payer's people who record payments are told in this transaction,
-  // so a sent bill cannot exist without its notice (the handoffs run,
-  // 2026-10-22). The letter or Teams message still goes after the commit
-  // (`sendBillToCustomer`), because a message cannot be called back.
-  const told = await writePayerNoticesIn(tx, { invoiceId: inv.id })
-  const toClose: Parameters<typeof completeCycles>[1] = []
   // Ask Etyme's open question about sending this bill is overtaken: it is
   // sent. Closed unanswered, so the card goes and a late yes is told why.
   // A yes sending it now already moved its own question, so finds none.
@@ -254,29 +418,14 @@ export async function markSent(
   })
 
   if (raised) {
-    // The "bill to raise" date each line was heading for is done now that
-    // it is raised — the step generation skips for a draft.
-    const latest = new Map<string, Date>()
-    for (const l of inv.invoiceLines) {
-      if (!l.sellContractId || !l.timesheet) continue
-      const was = latest.get(l.sellContractId)
-      if (!was || l.timesheet.periodEnd > was) latest.set(l.sellContractId, l.timesheet.periodEnd)
+    if (plan.decisionIds.length > 0) {
+      await tx.overtimeDecision.updateMany({ where: { id: { in: plan.decisionIds }, billedAt: null }, data: { billedAt: now } })
     }
-    // Marked with the payer's dates below, in one id-ordered call.
-    for (const [sellContractId, periodEnd] of latest) {
-      toClose.push({ sellContractId, kind: 'INVOICE_GENERATE', periodEnd })
-    }
-    // The overtime answers this bill was priced on become history now,
-    // when it is sent — not when it was drafted. A draft is the firm's
-    // working paper: until it goes, a week's answer may still change, and
-    // a draft priced on the old answer then fails its own check here and
-    // is withdrawn and drafted again (lib/money/bill-withdraw).
-    await stampDecisionsBilled(tx, inv.id)
     await tx.automationLog.create({
       data: {
         companyId: a.companyId,
         action: 'INVOICE_GENERATED',
-        summary: `Bill ${inv.number} raised from its draft: ${fromUnits(Number(inv.total), inv.currency)}, due ${dueAt.toISOString().slice(0, 10)}`,
+        summary: `Bill ${inv.number} raised from its draft: ${fromUnits(inv.total, inv.currency)}, due ${dueAt.toISOString().slice(0, 10)}`,
         reason: `Sent by ${a.by.name}`,
         payload: { invoiceId: inv.id, number: inv.number, engagementId: inv.engagementId, fromDraft: true },
         reversible: false,
@@ -284,34 +433,9 @@ export async function markSent(
     })
   }
 
-  // ── The payer's date, on its own buy line ─────────────────────────
-  //
-  // The firm this bill goes to was expecting an invoice from us: its "invoice
-  // receipt to record" date on the buy line that pays us. When that invoice is
-  // typed in, the intake closes the date (api/ap/bills); sent here, nothing
-  // did, so the payer's timeline read the week as overdue though the bill was
-  // sitting on its desk. Closed now, the moment it is sent, for each line it
-  // bills — the buy line whose supplier contract is the one this line bills on.
-  const sentLatest = new Map<string, { periodEnd: Date; payer: string }>()
-  for (const l of inv.invoiceLines) {
-    if (!l.sellContractId || !l.timesheet || !l.sellContract) continue
-    const was = sentLatest.get(l.sellContractId)
-    if (!was || l.timesheet.periodEnd > was.periodEnd) {
-      sentLatest.set(l.sellContractId, { periodEnd: l.timesheet.periodEnd, payer: l.sellContract.clientCompanyId })
-    }
-  }
-  for (const [sellContractId, { periodEnd, payer }] of sentLatest) {
-    const payersLines = await tx.buyContract.findMany({
-      where: { supplierSellContractId: sellContractId, companyId: payer },
-      select: { id: true },
-    })
-    for (const b of payersLines) {
-      toClose.push({ buyContractId: b.id, kind: 'VENDOR_BILL_GENERATE', periodEnd })
-    }
-  }
   // Every reminder this bill answers, in this transaction and in id order,
   // so two bills sent at once cannot each hold a row the other wants.
-  await completeCycles(tx, toClose)
+  await completeCycles(tx, plan.toClose)
 
   await tx.automationLog.create({
     data: {
@@ -323,7 +447,7 @@ export async function markSent(
         invoiceId: inv.id,
         invoiceNumber: inv.number,
         engagementId: inv.engagementId,
-        total: Number(inv.total),
+        total: inv.total,
         currency: inv.currency,
         submittedBy: a.by.personId,
         submittedAt: now.toISOString(),
@@ -333,9 +457,33 @@ export async function markSent(
   })
 
   return {
-    invoiceId: inv.id, number: inv.number, total: Number(inv.total), currency: inv.currency,
+    invoiceId: inv.id, number: inv.number, total: inv.total, currency: inv.currency,
     dueAt, submittedAt: now, raised,
-    payerNotice: { written: told.written, why: told.why },
+    engagementId: inv.engagementId, lineCount: inv.lineCount,
+  }
+}
+
+/**
+ * After the commit, the payer's people who record payments are told in
+ * the app: the notice each reads ("Brightmoor Staffing sent you bill
+ * INV-1042"), written before the letter or Teams message goes so the
+ * delivery sends it rather than writing a second one
+ * (lib/notify/bill-delivery). Never throws: where it fails, staff are
+ * told and the delivery writes the notice itself, so a sent bill still
+ * has somebody told.
+ *
+ * Until 2026-11-02 this was written inside the sending's transaction;
+ * its read of the bill held the transaction past its time under load
+ * (see the head of this file). `why` is where nobody at the payer can be
+ * told.
+ */
+export async function tellPayerAfterSending(invoiceId: string, companyId: string): Promise<{ written: number; why: string | null }> {
+  try {
+    const told = await writePayerNoticesIn(prisma, { invoiceId })
+    return { written: told.written, why: told.why }
+  } catch (err) {
+    void reportError('bill-payer-notice', err, { companyId }).catch(() => {})
+    return { written: 0, why: null }
   }
 }
 
@@ -355,11 +503,6 @@ export async function draftDecisionIds(db: Pick<Tx, 'automationLog'>, invoiceId:
   return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
 }
 
-async function stampDecisionsBilled(tx: Tx, invoiceId: string): Promise<void> {
-  const ids = await draftDecisionIds(tx, invoiceId)
-  if (ids.length === 0) return
-  await tx.overtimeDecision.updateMany({ where: { id: { in: ids }, billedAt: null }, data: { billedAt: new Date() } })
-}
 
 /**
  * After a draft is raised and sent, the event a bill raised on the Bills
@@ -370,12 +513,19 @@ async function stampDecisionsBilled(tx: Tx, invoiceId: string): Promise<void> {
 export async function announceRaised(
   invoiceId: string,
   companyId: string,
-  actor: { personId: string | null; twin?: boolean }
+  actor: { personId: string | null; twin?: boolean },
+  /**
+   * What the sending already knew (`markSent`'s answer), handed on so the
+   * bill is not read again for its own event. Absent, it is read.
+   */
+  known?: Pick<Sent, 'number' | 'total' | 'currency' | 'dueAt' | 'engagementId' | 'lineCount'>
 ): Promise<void> {
-  const inv = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    select: { id: true, number: true, total: true, currency: true, dueAt: true, engagementId: true, _count: { select: { invoiceLines: true } } },
-  })
+  const inv = known
+    ? { id: invoiceId, number: known.number, total: known.total, currency: known.currency, dueAt: known.dueAt, engagementId: known.engagementId, _count: { invoiceLines: known.lineCount } }
+    : await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: { id: true, number: true, total: true, currency: true, dueAt: true, engagementId: true, _count: { select: { invoiceLines: true } } },
+      })
   if (!inv) return
   await emit({
     type: 'invoice.generated',

@@ -58,7 +58,7 @@ import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { generateBill, type BillCaller, type PlannedBill } from '@/lib/money/bill-generate'
-import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, markSent, planSend, tellPayerAfterSending, type Sent, type SendPlan } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 import { reportError } from '@/lib/alerts'
 import { fromUnits } from '@/lib/money-display'
@@ -382,30 +382,51 @@ export const billSend: Performer = {
   async check(c) {
     if (c.entity.type !== 'Invoice') return 'Only a drafted bill can be sent.'
     const ok = await mayBeSent(c.entity.id, c.companyId, ['DRAFT'])
-    return ok.ok ? null : ok.says
+    if (!ok.ok) return ok.says
+    // On a yes, what the sending reads is read now, before the ledger's
+    // transaction, and handed to it (`planSend`; PerformContext.carry is
+    // fresh per act and never written). Asking reads nothing more.
+    if (c.approverPersonId && c.carry) {
+      try {
+        c.carry.plan = await planSend(c.entity.id)
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) return 'This bill was sent a moment ago by somebody else.'
+        throw err
+      }
+    }
+    return null
   },
   async inTx(tx, c) {
     const sent = await markSent(tx, {
       invoiceId: c.entity.id,
       companyId: c.companyId,
       by: { personId: null, name: 'a yes in Ask Etyme' },
+      plan: c.carry?.plan as SendPlan | undefined,
     })
+    // What the sending read, handed to `after` so the bill is not read
+    // again for its own event (PerformContext.carry: never written, fresh
+    // per act, and `after` runs only on a commit).
+    if (c.carry) c.carry.sent = sent
     return {
       invoiceId: sent.invoiceId, number: sent.number, total: sent.total, currency: sent.currency,
       dueAt: sent.dueAt.toISOString(), submittedAt: sent.submittedAt.toISOString(),
-      ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
     }
   },
   async after(c) {
+    // The payer's people told in the app first, so the delivery below sends
+    // their notice rather than writing a second one.
+    await tellPayerAfterSending(c.entity.id, c.companyId)
     try {
       // The event a bill raised on the Bills page sends, now that this one is raised.
-      await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true })
+      await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true }, c.carry?.sent as Sent | undefined)
     } finally {
       // And to the firm that pays it, the same way a person's Send reaches
       // it (lib/notify/bill-delivery), after the ledger's transaction has
-      // committed. The sender is the person who said yes, read off the
-      // answered question, because the twin sends nothing on its own.
-      const byPersonId = await whoSaidYes(c).catch(() => null)
+      // committed. The sender is the person who said yes: the ledger hands
+      // them over (`approverPersonId`, the same person in `after` as in the
+      // transaction), and only a context without one reads the answered
+      // question, because the twin sends nothing on its own.
+      const byPersonId = c.approverPersonId ?? (await whoSaidYes(c).catch(() => null))
       await sendBillToCustomer({ invoiceId: c.entity.id, byPersonId }).catch((err) => {
         void reportError('bill-delivery', err, { companyId: c.companyId }).catch(() => {})
         return null

@@ -326,7 +326,7 @@ describe('a cycle closed inside a transaction stays on that transaction', () => 
 
   it('raising a bill and sending one close their reminders through the one ordered call, inside their own transaction', () => {
     expect(read('src/lib/money/bill-generate.ts')).toContain('await completeCycles(tx, lines.map(')
-    expect(read('src/lib/money/bill-send.ts')).toContain('await completeCycles(tx, toClose)')
+    expect(read('src/lib/money/bill-send.ts')).toContain('await completeCycles(tx, plan.toClose)')
     expect(read('src/lib/money/bill-generate.ts')).not.toMatch(/completeCycle\(/)
     expect(read('src/lib/money/bill-send.ts')).not.toMatch(/completeCycle\(/)
   })
