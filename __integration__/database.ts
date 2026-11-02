@@ -36,6 +36,8 @@
  * The name a run starts from. Default matches what CI and every doc
  * already say.
  */
+import { urlFor } from './postgres'
+
 export const BASE_DB = process.env.ETYME_TEST_DB || 'etyme_test'
 
 /**
@@ -51,5 +53,10 @@ export const BASE_DB = process.env.ETYME_TEST_DB || 'etyme_test'
 const pool = Number(process.env.VITEST_POOL_ID || '1')
 export const TEST_DB = pool > 1 ? `${BASE_DB}_w${pool}` : BASE_DB
 
-/** The connection string for it. Nothing else builds one. */
-export const TEST_DATABASE_URL = `postgresql://postgres@localhost:5432/${TEST_DB}`
+/**
+ * The connection string for it, from the one builder (`urlFor` in
+ * ./postgres), which carries the server's password where it asks for one
+ * (f9d505e0). Built here by hand it had no password, so on a server that
+ * asks every file failed to connect before its first sentence ran.
+ */
+export const TEST_DATABASE_URL = urlFor(TEST_DB)
