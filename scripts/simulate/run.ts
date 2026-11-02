@@ -20,6 +20,7 @@ import { PrismaClient } from '@prisma/client'
 import { Cast, readCatalog, type Wire } from './actors'
 import { parseArgs } from './args'
 import { Ledger, faultsOf, isError, isRefusal } from './ledger'
+import { completeTransactions } from './complete'
 import { lessonsOf } from './lessons'
 import { writeReport, type StageRun } from './report'
 import { build, freePort, serverEnv, start, type Running } from './server'
@@ -59,6 +60,7 @@ async function main() {
   let catalog = { seats: [], unreachable: [] } as Awaited<ReturnType<typeof readCatalog>>
   let base = ''
   let failure: unknown = null
+  let complete: Awaited<ReturnType<typeof completeTransactions>> | null = null
 
   const stopAll = async () => {
     if (server) await server.stop()
@@ -135,6 +137,11 @@ async function main() {
       }
     }
     ledger.stage = 'harness'
+    // The headline: complete transactions, read-only, once every station ran.
+    complete = await completeTransactions(reader, startedAt)
+    say('unread' in complete
+      ? `complete transactions could not be read: ${complete.unread}`
+      : `${complete.complete} complete transaction${complete.complete === 1 ? '' : 's'} of ${complete.placements} placements this run worked on (target ${complete.target.toLocaleString('en-US')})`)
   } catch (e) {
     failure = e
   } finally {
@@ -147,7 +154,7 @@ async function main() {
     {
       stamp, startedAt, finishedAt, options: { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only },
       database: { name: db.name, template: db.template, kept: !args.drop }, base, build: buildNote,
-      stages, world, ledger, catalog, opened: cast?.opened ?? 0,
+      stages, world, ledger, catalog, opened: cast?.opened ?? 0, complete,
     },
     REPORTS
   )
