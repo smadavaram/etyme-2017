@@ -18,6 +18,7 @@ import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Stat, FormMessage } from '@/components/ui'
+import { nudgeBody } from '@/lib/consultant-portfolio/forms'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -991,7 +992,7 @@ export default function BenchPage() {
       const res = await fetch(`/api/bench/listings/${listingId}/nudge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ copyOnly }),
+        body: JSON.stringify(nudgeBody(copyOnly)),
       })
       const body = await readJson(res)
       if (copyOnly && body.data?.url) {

@@ -4,6 +4,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
+import { readProfileEdit } from '@/lib/consultant-portfolio/forms'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -344,57 +345,16 @@ export async function PATCH(
   }
 
   // ── Read the fields, checking each as before ──────────────────────
-  const updateData: Record<string, any> = {}
-  for (const field of ['headline', 'skills', 'location', 'workAuth', 'rateFloor', 'availableFrom', 'visibility'] as const) {
-    if (!(field in body)) continue
-    if (field === 'skills') {
-      if (!Array.isArray(body.skills)) {
-        return NextResponse.json(
-          { error: { code: 'VALIDATION', message: 'skills must be an array of strings', field: 'skills' } },
-          { status: 422 }
-        )
-      }
-      updateData.skills = body.skills.map((s: string) => String(s).trim()).filter(Boolean)
-    } else if (field === 'rateFloor') {
-      updateData.rateFloor = body.rateFloor != null ? parseInt(String(body.rateFloor), 10) : null
-    } else if (field === 'availableFrom') {
-      updateData.availableFrom = body.availableFrom ? new Date(body.availableFrom) : null
-    } else if (field === 'visibility') {
-      const validVisibility = ['INTERNAL', 'FEED', 'CLIENT_VISIBLE', 'VERIFIED']
-      if (!validVisibility.includes(body.visibility)) {
-        return NextResponse.json(
-          { error: { code: 'VALIDATION', message: `visibility must be one of: ${validVisibility.join(', ')}`, field: 'visibility' } },
-          { status: 422 }
-        )
-      }
-      updateData.visibility = body.visibility
-    } else if (field === 'workAuth') {
-      if (body.workAuth !== null) {
-        const validWorkAuth = ['US_CITIZEN', 'GC', 'H1B', 'OPT', 'GBP_SW', 'EAD', 'TN', 'L1']
-        if (!validWorkAuth.includes(body.workAuth)) {
-          return NextResponse.json(
-            { error: { code: 'VALIDATION', message: `workAuth must be one of: ${validWorkAuth.join(', ')}`, field: 'workAuth' } },
-            { status: 422 }
-          )
-        }
-      }
-      updateData.workAuth = body.workAuth
-    } else {
-      updateData[field] = typeof body[field] === 'string' ? body[field].trim() : body[field]
-    }
+  // The same reader the drawer's forms are tested against (`readProfileEdit`,
+  // lib/consultant-portfolio/forms), so a field refused here is one they draw.
+  const edit = readProfileEdit(body)
+  if (!edit.ok) {
+    return NextResponse.json(
+      { error: { code: edit.code, message: edit.message, field: edit.field } },
+      { status: 422 }
+    )
   }
-
-  let personUpdate: { name: string } | null = null
-  if ('name' in body && typeof body.name === 'string' && body.name.trim().length >= 2) {
-    personUpdate = { name: body.name.trim() }
-  }
-  const notesSent = 'notes' in body && (body.notes === null || typeof body.notes === 'string')
-
-  const fields = [
-    ...Object.keys(updateData),
-    ...(personUpdate ? ['name'] : []),
-    ...(notesSent ? ['notes'] : []),
-  ]
+  const { updateData, personUpdate, fields } = edit
 
   // ── Where the edit may go ─────────────────────────────────────────
   const plan = profileEditPlan({

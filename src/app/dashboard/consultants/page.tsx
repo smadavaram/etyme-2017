@@ -8,6 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
+import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
@@ -147,25 +148,9 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
       const res = await fetch('/api/consultants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          headline: form.headline || null,
-          // A skill typed and not yet ended with Enter is still a skill.
-          skills: addSkillTags(form.skills, form.skillDraft),
-          location: form.location || null,
-          workAuth: form.workAuth || null,
-          tier: form.tier,
-          rateMin: rates.rateMin,
-          rateMax: rates.rateMax,
-          // Dollars an hour typed, minor units sent. The route checks it
-          // with the terms page's own rule and says what is wrong.
-          termsEngagementType: form.termsEngagementType || null,
-          termsPayRateCents: form.termsPay.trim()
-            ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * 100) : form.termsPay
-            : null,
-          notes: form.notes.trim() || null,
-        }),
+        // What the form posts is built in one place the route's own
+        // reader is tested against (`addConsultantBody`, lib/consultant-portfolio/forms).
+        body: JSON.stringify(addConsultantBody(form, rates)),
       })
 
       if (!res.ok) {

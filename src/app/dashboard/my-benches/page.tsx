@@ -5,6 +5,7 @@ import { Lbl, Panel, Chip, LoadingState, ErrorState } from '@/components/ui'
 import { historyLine } from '@/lib/shared-consultant'
 
 import { useEffect, useState, useCallback } from 'react'
+import { answerBody, stayBody } from '@/lib/consultant-portfolio/forms'
 
 /**
  * Who has me, and what have they done with me.
@@ -192,15 +193,14 @@ export default function MyBenchesPage() {
       const res = await fetch(`/api/me/benches/${listingId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Built in one place the route's own rules are tested against
+        // (`answerBody`, lib/consultant-portfolio/forms). The terms printed
+        // beside the button go with the yes, which agrees these and nothing
+        // else; if the firm changed them, it is refused.
         body: JSON.stringify(
           said === 'ACCEPT'
-            ? {
-                said, stayDays: stayFor[listingId] ?? null, showInMatches: showFor[listingId] === true,
-                // The terms printed beside the button. The yes agrees these
-                // and nothing else; if the firm changed them, it is refused.
-                termsSeen: terms ? { engagementType: terms.engagementType, payRateCents: terms.payRateCents } : null,
-              }
-            : { said }
+            ? answerBody('ACCEPT', { stayDays: stayFor[listingId] ?? null, showInMatches: showFor[listingId] === true, terms: terms ?? null })
+            : answerBody('DECLINE')
         ),
       })
       const body = await readJson(res)
@@ -461,7 +461,7 @@ export default function MyBenchesPage() {
                     <StayPicker
                       label="Stay on this bench"
                       value={b.stayDays ?? null}
-                      onChange={(d) => send({ listingId: b.listingId, stayDays: d })}
+                      onChange={(d) => send(stayBody(b.listingId, d))}
                       choices={data.stayChoices ?? STAY_CHOICES_FALLBACK}
                       disabled={busy}
                     />

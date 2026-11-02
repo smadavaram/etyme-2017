@@ -311,8 +311,10 @@ describe('17 · adding a consultant says what it did, and one set of words for t
 
   it('the Consultants form asks who sees them and at what rate, and shows the route’s sentence when done', () => {
     const page = src('src/app/dashboard/consultants/page.tsx')
-    expect(page).toContain('tier: form.tier')
-    expect(page).toContain('rateMin: rates.rateMin')
+    expect(page).toContain('addConsultantBody(form, rates)')
+    const forms = src('src/lib/consultant-portfolio/forms.ts')
+    expect(forms).toContain('tier: form.tier')
+    expect(forms).toContain('rateMin: rates.rateMin')
     expect(page).toContain('onCreated={(says) => { setAdded(says); fetchConsultants() }}')
     expect(src('src/app/api/consultants/route.ts')).toContain('message: addedSays({')
   })

@@ -140,9 +140,14 @@ describe('Skills are entered as tags and sent as the same list', () => {
     expect(addSkillTags(['ACLS'], '   ')).toEqual(['ACLS'])
   })
 
-  it('the form submits the tags as an array, including a skill typed but not yet ended', () => {
-    expect(MODAL_SRC()).toContain('skills: addSkillTags(form.skills, form.skillDraft)')
+  it('the form submits the tags as an array, including a skill typed but not yet ended', async () => {
+    // Since 2026-11-02 the body is built in one place the route's reader is
+    // tested against (lib/consultant-portfolio/forms).
+    expect(MODAL_SRC()).toContain('body: JSON.stringify(addConsultantBody(form, rates))')
     expect(MODAL_SRC()).not.toContain("form.skills.split(',')")
+    const { addConsultantBody } = await import('@/lib/consultant-portfolio/forms')
+    const typed = { name: 'Asha Rao', email: 'asha@example.test', headline: '', skills: ['ACLS'], skillDraft: 'ICU nursing', location: '', workAuth: '', tier: 'MARKETING', termsEngagementType: '', termsPay: '', notes: '' }
+    expect(addConsultantBody(typed, { rateMin: null, rateMax: null }).skills).toEqual(['ACLS', 'ICU nursing'])
   })
 
   it('each tag has a remove button that names the skill', () => {

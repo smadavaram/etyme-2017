@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
 import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { readAddConsultant } from '@/lib/consultant-portfolio/forms'
 import { readAsTheFirm, hasOwnAccount, recordKeptBy } from '@/lib/consultant-portfolio/firm-view'
 import { benchAt } from '@/app/api/today/reads'
 import { todayReads } from '@/lib/today-page'
@@ -367,44 +368,15 @@ export async function POST(request: NextRequest) {
     notes,
   } = body
 
-  // Validation
-  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+  // The fields this route checks before it asks anybody, read the way
+  // the Add consultant form's body is built (`readAddConsultant`, ./forms),
+  // so a field refused here is always one the form draws.
+  const read = readAddConsultant(body)
+  if (!read.ok) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'name is required (min 2 characters)', field: 'name' } },
+      { error: { code: read.code, message: read.message, field: read.field } },
       { status: 422 }
     )
-  }
-
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A valid email is required', field: 'email' } },
-      { status: 422 }
-    )
-  }
-
-  if (!Array.isArray(skills)) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'skills must be an array of strings', field: 'skills' } },
-      { status: 422 }
-    )
-  }
-
-  const validTiers = ['RETAINED', 'MARKETING']
-  if (!validTiers.includes(tier)) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `tier must be one of: ${validTiers.join(', ')}`, field: 'tier' } },
-      { status: 422 }
-    )
-  }
-
-  if (workAuth) {
-    const validWorkAuth = ['US_CITIZEN', 'GC', 'H1B', 'OPT', 'GBP_SW', 'EAD', 'TN', 'L1']
-    if (!validWorkAuth.includes(workAuth)) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: `workAuth must be one of: ${validWorkAuth.join(', ')}`, field: 'workAuth' } },
-        { status: 422 }
-      )
-    }
   }
 
   // One ask, from either door (`askOntoBench`): somebody who already has
