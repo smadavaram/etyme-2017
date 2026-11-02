@@ -7,6 +7,7 @@ import { askByEmail } from '@/app/api/consultants/ask-by-email'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS } from '@/lib/bench-filter'
+import { readAddToBench } from '@/lib/consultant-portfolio/forms'
 
 /**
  * POST /api/bench/listings
@@ -47,34 +48,18 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { consultantId, tier = 'MARKETING', rateMin, rateMax } = body
 
-  // Validation
-  if (!consultantId || typeof consultantId !== 'string') {
+  // The fields checked before anybody is looked up, read the way Add to
+  // bench builds its body (`readAddToBench`, lib/consultant-portfolio/forms),
+  // so a field refused here is always one the form draws.
+  const read = readAddToBench(body)
+  if (!read.ok) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'consultantId is required', field: 'consultantId' } },
+      { error: { code: read.code, message: read.message, field: read.field } },
       { status: 422 }
     )
   }
-
-  const validTiers = ['RETAINED', 'MARKETING']
-  if (!validTiers.includes(tier)) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `tier must be one of: ${validTiers.join(', ')}`, field: 'tier' } },
-      { status: 422 }
-    )
-  }
-
-  if (rateMin != null && rateMax != null) {
-    const min = parseInt(String(rateMin), 10)
-    const max = parseInt(String(rateMax), 10)
-    if (min > max) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'rateMin cannot exceed rateMax', field: 'rateMin' } },
-        { status: 422 }
-      )
-    }
-  }
+  const { consultantId, tier, rateMin, rateMax } = read
 
   // Verify consultant exists
   const consultant = await prisma.consultantProfile.findUnique({

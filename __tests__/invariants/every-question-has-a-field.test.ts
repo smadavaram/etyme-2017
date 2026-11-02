@@ -300,13 +300,47 @@ describe('every question a bench or consultant route asks, its form has a field 
     const named = new Set<string>()
     // The Add consultant reader only, not the drawer's in the same file.
     const forms = read('src/lib/consultant-portfolio/forms.ts')
-    const addReader = forms.slice(forms.indexOf('export function readAddConsultant('), forms.indexOf('// ── The consultant drawer'))
+    const addReader = forms.slice(forms.indexOf('export function readAddConsultant('), forms.indexOf('// ── Add to bench'))
     for (const src of [addReader, read('src/lib/consultant-portfolio/bench-ask.ts'), read('src/app/api/consultants/route.ts')]) {
       for (const m of src.matchAll(/field: '(\w+)'/g)) named.add(m[1])
     }
     // listingTermsFrom names one of its two terms fields.
     named.add('termsEngagementType').add('termsPayRateCents')
     const offered = new Set<string>(ADD_CONSULTANT_FIELDS)
+    expect([...named].filter((f) => !offered.has(f))).toEqual([])
+  })
+
+  for (const tier of ['MARKETING', 'RETAINED'] as const) {
+    it(`Add to bench, ${tier === 'RETAINED' ? 'kept to the firm' : 'shown to partners'}, with the person picked and the range filled in, is not refused for a field the form does not draw`, async () => {
+      const { addToBenchBody, readAddToBench, ADD_TO_BENCH_FIELDS } = await import('@/lib/consultant-portfolio/forms')
+      const { listingRates, listingTermsFrom } = await import('@/lib/bench-filter')
+      const rates = listingRates({ min: '70', max: '85' }, null)
+      expect(rates.ok).toBe(true)
+      if (!rates.ok) return
+      const body = addToBenchBody('profile-asha', tier, rates)
+      expect(Object.keys(body).sort()).toEqual([...ADD_TO_BENCH_FIELDS].sort())
+      const fields = readAddToBench(body)
+      expect(fields.ok, !fields.ok ? `${fields.field}: ${fields.message}` : '').toBe(true)
+      // The form states no terms, and the route's terms rule asks for none then.
+      const terms = listingTermsFrom(
+        { engagementType: (body as Record<string, unknown>).termsEngagementType, payRateCents: (body as Record<string, unknown>).termsPayRateCents },
+        { personName: 'Asha Rao', firmName: 'Tapin', ownCompany: null, statedById: 'recruiter-1', now: ON }
+      )
+      expect(terms.ok).toBe(true)
+    })
+  }
+
+  it('every field Add to bench can be refused for is one its form draws', async () => {
+    const { ADD_TO_BENCH_FIELDS } = await import('@/lib/consultant-portfolio/forms')
+    const forms = read('src/lib/consultant-portfolio/forms.ts')
+    const reader = forms.slice(forms.indexOf('export function readAddToBench('), forms.indexOf('// ── The consultant drawer'))
+    const named = new Set<string>()
+    for (const src of [reader, read('src/app/api/bench/listings/route.ts')]) {
+      for (const m of src.matchAll(/field: '(\w+)'/g)) named.add(m[1])
+    }
+    const offered = new Set<string>(ADD_TO_BENCH_FIELDS)
+    // The route's terms refusal (`field: terms.field`) cannot fire for a form
+    // that states no terms: listingTermsFrom asks nothing of a blank pair.
     expect([...named].filter((f) => !offered.has(f))).toEqual([])
   })
 
@@ -393,6 +427,8 @@ describe('every question a bench or consultant route asks, its form has a field 
     expect(mine).toContain('send(stayBody(b.listingId, d))')
     expect(mine).toContain("answerBody('ACCEPT', {")
     expect(read('src/app/dashboard/bench/page.tsx')).toContain('body: JSON.stringify(nudgeBody(copyOnly))')
+    expect(read('src/app/dashboard/bench/page.tsx')).toContain('body: JSON.stringify(addToBenchBody(selectedConsultant.id, tier, { rateMin: minVal, rateMax: maxVal }))')
+    expect(read('src/app/api/bench/listings/route.ts')).toContain('const read = readAddToBench(body)')
     expect(read('src/app/api/consultants/route.ts')).toContain('const read = readAddConsultant(body)')
     expect(read('src/app/api/consultants/[id]/route.ts')).toContain('const edit = readProfileEdit(body)')
   })

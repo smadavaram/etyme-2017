@@ -18,7 +18,7 @@ import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Stat, FormMessage } from '@/components/ui'
-import { nudgeBody } from '@/lib/consultant-portfolio/forms'
+import { addToBenchBody, nudgeBody } from '@/lib/consultant-portfolio/forms'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -334,12 +334,9 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
         : await fetch('/api/bench/listings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              consultantId: selectedConsultant.id,
-              tier,
-              rateMin: minVal,
-              rateMax: maxVal,
-            }),
+            // Built in one place the route's own reader is tested against
+            // (`addToBenchBody`, lib/consultant-portfolio/forms).
+            body: JSON.stringify(addToBenchBody(selectedConsultant.id, tier, { rateMin: minVal, rateMax: maxVal })),
           })
 
       if (!res.ok) {

@@ -11,11 +11,11 @@
  * field each form draws, builds the body, and runs the route's own rules
  * on it. A refusal that names a field the form never drew fails there.
  *
- * The forms: Add consultant (the bench ask, `POST /api/consultants`), the
- * consultant drawer's editor (`PATCH /api/consultants/:id`), the person's
- * own stay and yes (`PATCH /api/me/benches`, `POST
- * /api/me/benches/:id/respond`), and asking somebody to check in
- * (`POST /api/bench/listings/:id/nudge`).
+ * The forms: Add consultant (the bench ask, `POST /api/consultants`), Add
+ * to bench (`POST /api/bench/listings`), the consultant drawer's editor
+ * (`PATCH /api/consultants/:id`), the person's own stay and yes (`PATCH
+ * /api/me/benches`, `POST /api/me/benches/:id/respond`), and asking
+ * somebody to check in (`POST /api/bench/listings/:id/nudge`).
  *
  * Pure, and safe in the browser: it imports only bench-filter's own pure
  * helpers, which the same screens already import.
@@ -106,6 +106,47 @@ export function readAddConsultant(body: Record<string, unknown>): { ok: true } |
     return { ok: false, code: 'VALIDATION', message: `workAuth must be one of: ${WORK_AUTH_CODES.join(', ')}`, field: 'workAuth' }
   }
   return { ok: true }
+}
+
+// ── Add to bench: somebody already on Etyme, onto this firm's bench ─────
+
+/** Every field Add to bench draws, by the name its body carries: the person picked from the search, who sees them, the range. */
+export const ADD_TO_BENCH_FIELDS = ['consultantId', 'tier', 'rateMin', 'rateMax'] as const
+
+/** The body Add to bench posts. The rates come in cents from `listingRates`, which the form checks first. */
+export function addToBenchBody(
+  consultantId: string,
+  tier: 'RETAINED' | 'MARKETING',
+  rates: { rateMin: number | null; rateMax: number | null }
+) {
+  return { consultantId, tier, rateMin: rates.rateMin, rateMax: rates.rateMax }
+}
+
+/**
+ * The fields `POST /api/bench/listings` checks before it looks anybody
+ * up: a person, a tier, and a range that is not upside down. What it
+ * refuses after that (a top rate under the person's own floor, the stated
+ * terms) is read by its own rules.
+ */
+export function readAddToBench(body: Record<string, unknown>):
+  | { ok: true; consultantId: string; tier: 'RETAINED' | 'MARKETING'; rateMin: unknown; rateMax: unknown }
+  | FieldRefusal {
+  const { consultantId, tier = 'MARKETING', rateMin, rateMax } = body
+  if (!consultantId || typeof consultantId !== 'string') {
+    return { ok: false, code: 'VALIDATION', message: 'consultantId is required', field: 'consultantId' }
+  }
+  const validTiers = ['RETAINED', 'MARKETING']
+  if (typeof tier !== 'string' || !validTiers.includes(tier)) {
+    return { ok: false, code: 'VALIDATION', message: `tier must be one of: ${validTiers.join(', ')}`, field: 'tier' }
+  }
+  if (rateMin != null && rateMax != null) {
+    const min = parseInt(String(rateMin), 10)
+    const max = parseInt(String(rateMax), 10)
+    if (min > max) {
+      return { ok: false, code: 'VALIDATION', message: 'rateMin cannot exceed rateMax', field: 'rateMin' }
+    }
+  }
+  return { ok: true, consultantId, tier: tier as 'RETAINED' | 'MARKETING', rateMin, rateMax }
 }
 
 // ── The consultant drawer's editor ──────────────────────────────────────

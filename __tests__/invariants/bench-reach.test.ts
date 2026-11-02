@@ -110,12 +110,18 @@ describe('a firm moving its own listing between tiers', () => {
 })
 
 describe('the doors that write a listing', () => {
-  it('a consultant a firm adds is marketed unless the firm chooses to retain them', () => {
+  it('a consultant a firm adds is marketed unless the firm chooses to retain them', async () => {
     // Retaining is an exclusive claim to carry somebody, one per person.
     // It was the silent default on this door and the opposite default on
     // the listing door, so the same firm got two answers.
     expect(read('app/api/consultants/route.ts')).toContain("tier = 'MARKETING'")
-    expect(read('app/api/bench/listings/route.ts')).toContain("tier = 'MARKETING'")
+    // The listing door reads its body through readAddToBench since
+    // 2026-11-02 (lib/consultant-portfolio/forms), and the default is there.
+    expect(read('app/api/bench/listings/route.ts')).toContain('readAddToBench(body)')
+    const forms = read('lib/consultant-portfolio/forms.ts')
+    expect(forms.slice(forms.indexOf('export function readAddToBench('))).toContain("tier = 'MARKETING'")
+    const { readAddToBench } = await import('@/lib/consultant-portfolio/forms')
+    expect(readAddToBench({ consultantId: 'profile-asha' })).toMatchObject({ ok: true, tier: 'MARKETING' })
     expect(read('app/dashboard/bench/page.tsx')).toContain("useState<'RETAINED' | 'MARKETING'>('MARKETING')")
   })
 
