@@ -18,6 +18,7 @@ vi.mock('@/app/api/ar/book', () => ({
           { id: 'i2', number: 'INV-2', customerName: 'Northbend', currency: 'usd', outstandingMinor: 520000, dueAt: new Date('2026-11-05'), daysOverdue: 0, status: 'SUBMITTED' },
           { id: 'i3', number: 'INV-3', customerName: 'Cavanaugh', currency: 'usd', outstandingMinor: 100000, dueAt: new Date('2026-10-30'), daysOverdue: 3, status: 'PARTIALLY_PAID' },
           { id: 'i4', number: 'INV-4', customerName: 'Cavanaugh', currency: 'usd', outstandingMinor: 0, dueAt: new Date('2026-10-01'), daysOverdue: 0, status: 'PAID' },
+          { id: 'i5', number: 'INV-5', customerName: 'Cavanaugh', currency: 'usd', outstandingMinor: 90000, dueAt: new Date('2026-10-20'), daysOverdue: 13, status: null },
         ],
       }],
     },
@@ -28,7 +29,7 @@ import { unpaidBills } from '@/app/api/today/reads'
 import { chainBelow } from '@/app/api/placements/[id]/chain'
 
 describe('What Today and the placement say about bills and employment', () => {
-  it('Today lists under "Sent, not yet paid" only bills that were sent, never one raised and not yet sent', async () => {
+  it('Today lists under "Sent, not yet paid" only bills that were sent, never one raised and not yet sent, nor one whose status is not on the record', async () => {
     const rows = await unpaidBills('brightmoor', new Date('2026-11-02'))
     expect(rows.map((r) => r.number)).toEqual(['INV-3', 'INV-2'])
   })

@@ -172,7 +172,8 @@ export async function unpaidBills(companyId: string, now: Date): Promise<UnpaidB
   const { book } = await loadBook(companyId, now)
   return book.byCurrency
     .flatMap((cb) => cb.invoices)
-    .filter((i) => i.outstandingMinor > 0 && isSent(i.status))
+    // A bill with no status on the record is never called sent.
+    .filter((i) => i.outstandingMinor > 0 && !!i.status && isSent(i.status))
     .map((i) => ({
       invoiceId: i.id,
       number: i.number,
