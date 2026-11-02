@@ -38,7 +38,7 @@ import { configuredSenders } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { weekFlag } from '@/lib/timesheet-flag'
 import { lineFor, splitWeeks, weeksAwaitingDecision, type Decision, type Treatment } from '@/lib/overtime'
-import { ladderAbove, laddersAbove } from '@/app/api/timesheets/ladder'
+import { laddersAbove } from '@/app/api/timesheets/ladder'
 import {
   topDown, signersOf, tellNext, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays, workerToldSays,
   type LadderRung, type Signer,
@@ -151,8 +151,22 @@ export interface WeekChain {
 
 /** Read one week and the chain above it. Null where there is no such week. */
 export async function readWeekChain(timesheetId: string): Promise<WeekChain | null> {
-  const t = await prisma.timesheet.findUnique({
-    where: { id: timesheetId },
+  return (await readWeekChains([timesheetId])).get(timesheetId) ?? null
+}
+
+/**
+ * The same read for many weeks at once (2026-11-02): the weeks in one
+ * query, every chain above them through `laddersAbove`, every firm's name
+ * in one more, each week's answer built exactly as `readWeekChain` built
+ * it alone. A worker's own first screen read it once per week waiting on
+ * the client, about eight queries a week. A week not found is absent.
+ */
+export async function readWeekChains(timesheetIds: readonly string[]): Promise<Map<string, WeekChain>> {
+  const out = new Map<string, WeekChain>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const weeks = await prisma.timesheet.findMany({
+    where: { id: { in: ids } },
     select: {
       id: true, personId: true, periodStart: true, periodEnd: true, totalHours: true, days: true, leaveDays: true,
       status: true, submittedAt: true, clientApprovedAt: true, employerAcceptedAt: true, sellContractId: true,
@@ -172,77 +186,86 @@ export async function readWeekChain(timesheetId: string): Promise<WeekChain | nu
       },
     },
   })
-  if (!t) return null
-
-  const sc = t.sellContract
-  const above = await ladderAbove(t.sellContractId, {
+  const bottomOf = (sc: (typeof weeks)[number]['sellContract']) => ({
     sellContractId: sc.id,
     companyId: sc.companyId,
     clientCompanyId: sc.clientCompanyId,
     endClientCompanyId: sc.endClientCompanyId,
     supplierSellContractId: null,
   })
-  const ladder = topDown(above.map((r) => r.rung))
-  const signers = signersOf(ladder)
-
-  const firmIds = new Set<string>()
-  for (const r of ladder) {
-    firmIds.add(r.companyId)
-    firmIds.add(r.clientCompanyId)
-    if (r.endClientCompanyId) firmIds.add(r.endClientCompanyId)
-  }
-  const names = new Map(
-    (await prisma.company.findMany({ where: { id: { in: [...firmIds] } }, select: { id: true, name: true } })).map((c) => [c.id, c.name])
+  const ladders = await laddersAbove(weeks.map((t) => ({ hoursOn: t.sellContractId, bottom: bottomOf(t.sellContract) })))
+  const built = weeks.map((t) => {
+    const sc = t.sellContract
+    const above = ladders.get(t.sellContractId) ?? [{ rung: bottomOf(sc), contract: null }]
+    const ladder = topDown(above.map((r) => r.rung))
+    const firmIds = new Set<string>()
+    for (const r of ladder) {
+      firmIds.add(r.companyId)
+      firmIds.add(r.clientCompanyId)
+      if (r.endClientCompanyId) firmIds.add(r.endClientCompanyId)
+    }
+    return { t, sc, above, ladder, firmIds }
+  })
+  const allNames = new Map(
+    (await prisma.company.findMany({ where: { id: { in: [...new Set(built.flatMap((b) => [...b.firmIds]))] } }, select: { id: true, name: true } }))
+      .map((c) => [c.id, c.name])
   )
 
-  const rungs = new Map<string, Rung>()
-  for (const r of ladder) {
-    const c = above.find((a) => a.rung.sellContractId === r.sellContractId)?.contract
-    rungs.set(r.sellContractId, {
-      id: r.sellContractId,
-      companyId: r.companyId,
-      clientCompanyId: r.clientCompanyId,
-      endClientCompanyId: r.endClientCompanyId ?? null,
-      sellerName: names.get(r.companyId) ?? 'A supplier',
-      buyerName: names.get(r.clientCompanyId) ?? 'A client',
-      billRate: c ? c.billRate : sc.billRate,
-      overtimeAfterHours: c ? c.overtimeAfterHours : sc.overtimeAfterHours,
-      overtimeMultiplierBps: c ? c.overtimeMultiplierBps : sc.overtimeMultiplierBps,
+  for (const { t, sc, above, ladder, firmIds } of built) {
+    const signers = signersOf(ladder)
+    // Each chain keeps the names of its own firms only, as it did read alone.
+    const names = new Map([...firmIds].filter((id) => allNames.has(id)).map((id) => [id, allNames.get(id)!]))
+
+    const rungs = new Map<string, Rung>()
+    for (const r of ladder) {
+      const c = above.find((a) => a.rung.sellContractId === r.sellContractId)?.contract
+      rungs.set(r.sellContractId, {
+        id: r.sellContractId,
+        companyId: r.companyId,
+        clientCompanyId: r.clientCompanyId,
+        endClientCompanyId: r.endClientCompanyId ?? null,
+        sellerName: names.get(r.companyId) ?? 'A supplier',
+        buyerName: names.get(r.clientCompanyId) ?? 'A client',
+        billRate: c ? c.billRate : sc.billRate,
+        overtimeAfterHours: c ? c.overtimeAfterHours : sc.overtimeAfterHours,
+        overtimeMultiplierBps: c ? c.overtimeMultiplierBps : sc.overtimeMultiplierBps,
+      })
+    }
+
+    const top = ladder[0]
+    const clientId = top.endClientCompanyId ?? top.clientCompanyId
+    out.set(t.id, {
+      week: {
+        id: t.id,
+        personId: t.personId,
+        personName: t.person.name,
+        personEmail: t.person.primaryEmail,
+        periodStart: t.periodStart,
+        periodEnd: t.periodEnd,
+        totalHours: Number(t.totalHours),
+        days: (t.days as Record<string, number>) ?? {},
+        leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+        status: t.status,
+        submittedAt: t.submittedAt,
+        clientApprovedAt: t.clientApprovedAt,
+        employerAcceptedAt: t.employerAcceptedAt,
+        sellContractId: t.sellContractId,
+        anomalyScore: t.anomalyScore,
+        anomalyReason: t.anomalyReason,
+        hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
+        contractEnd: sc.endDate,
+        decisions: t.overtimeDecisions,
+      },
+      ladder,
+      rungs,
+      signers,
+      clientId,
+      clientName: names.get(clientId) ?? 'The client',
+      employerId: sc.companyId,
+      names,
     })
   }
-
-  const top = ladder[0]
-  const clientId = top.endClientCompanyId ?? top.clientCompanyId
-  return {
-    week: {
-      id: t.id,
-      personId: t.personId,
-      personName: t.person.name,
-      personEmail: t.person.primaryEmail,
-      periodStart: t.periodStart,
-      periodEnd: t.periodEnd,
-      totalHours: Number(t.totalHours),
-      days: (t.days as Record<string, number>) ?? {},
-      leaveDays: (t.leaveDays as Record<string, number>) ?? {},
-      status: t.status,
-      submittedAt: t.submittedAt,
-      clientApprovedAt: t.clientApprovedAt,
-      employerAcceptedAt: t.employerAcceptedAt,
-      sellContractId: t.sellContractId,
-      anomalyScore: t.anomalyScore,
-      anomalyReason: t.anomalyReason,
-      hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
-      contractEnd: sc.endDate,
-      decisions: t.overtimeDecisions,
-    },
-    ladder,
-    rungs,
-    signers,
-    clientId,
-    clientName: names.get(clientId) ?? 'The client',
-    employerId: sc.companyId,
-    names,
-  }
+  return out
 }
 
 /**
@@ -1461,8 +1484,11 @@ function labelFor(r: Reader, c: WeekChain, id: string): string {
 }
 
 export async function readWeekApprovals(r: Reader, timesheetId: string, now = new Date()): Promise<{ ok: true; seen: WeekSeen } | Refused> {
-  const c = await readWeekChain(timesheetId)
-  if (!c) return refuse(404, 'NOT_FOUND', 'That week is not here.')
+  return (await readWeekApprovalsFor(r, [timesheetId], now)).get(timesheetId) ?? refuse(404, 'NOT_FOUND', 'That week is not here.')
+}
+
+/** Who may not read this week's approvals, and the refusal: logged before it is returned. Null where the reader may. */
+async function weekRefusal(r: Reader, c: WeekChain): Promise<Refused | null> {
   const stranger = desklessStranger(r, c)
   if (stranger) {
     await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', stranger)
@@ -1477,20 +1503,86 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
     await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', says)
     return refuse(403, 'FORBIDDEN', says)
   }
+  return null
+}
 
-  const rows = await prisma.weekApproval.findMany({
-    where: { timesheetId },
-    orderBy: { sentAt: 'desc' },
-    select: {
-      id: true, how: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true, sentById: true, sentByCompanyId: true,
-      outcome: true, sendBackCode: true, sendBackNote: true, evidenceKind: true, approvedOn: true, assertionId: true,
-      clientOffPlatform: true,
-      sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
-      contracts: { select: { sellContractId: true }, orderBy: { position: 'asc' } },
-      file: { select: { fileName: true, sizeBytes: true } },
-    },
-  })
+/**
+ * What `readWeekApprovals` answers, for many weeks at once (2026-11-02):
+ * the chains in one read (`readWeekChains`), every week's approvals and
+ * signatures in one query each, and the signers' names in one more, only
+ * where somebody signed. Each week's answer, and every read and refusal it
+ * logs, is the one the week read alone gives. A worker's own first screen
+ * asked once per week still waiting on the client, about eight queries a
+ * week and one lookup of no names at all. A week not found reads as not
+ * here.
+ */
+export async function readWeekApprovalsFor(
+  r: Reader,
+  timesheetIds: readonly string[],
+  now = new Date(),
+): Promise<Map<string, { ok: true; seen: WeekSeen } | Refused>> {
+  const out = new Map<string, { ok: true; seen: WeekSeen } | Refused>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const chains = await readWeekChains(ids)
+  const open: WeekChain[] = []
+  for (const id of ids) {
+    const c = chains.get(id)
+    if (!c) { out.set(id, refuse(404, 'NOT_FOUND', 'That week is not here.')); continue }
+    const refused = await weekRefusal(r, c)
+    if (refused) out.set(id, refused)
+    else open.push(c)
+  }
+  if (open.length === 0) return out
 
+  const [allRows, allLive] = await approvalRowsFor(open.map((c) => c.week.id))
+  const byIds = [...new Set(allLive.map((a) => a.byId).filter((x): x is string => !!x))]
+  const people = byIds.length
+    ? new Map((await prisma.person.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } })).map((x) => [x.id, x.name]))
+    : new Map<string, string>()
+
+  for (const c of open) {
+    const rows = allRows.filter((a) => a.timesheetId === c.week.id)
+    const live = allLive.filter((a) => a.timesheetId === c.week.id)
+    out.set(c.week.id, await weekSeen(r, c, rows, live, people, now))
+  }
+  return out
+}
+
+/** Every week's approvals, newest first, and its live signatures, oldest first, for these weeks in two queries. */
+function approvalRowsFor(ids: readonly string[]) {
+  const wanted = [...ids]
+  return Promise.all([
+    prisma.weekApproval.findMany({
+      where: { timesheetId: { in: wanted } },
+      orderBy: { sentAt: 'desc' },
+      select: {
+        id: true, timesheetId: true, how: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true, sentById: true, sentByCompanyId: true,
+        outcome: true, sendBackCode: true, sendBackNote: true, evidenceKind: true, approvedOn: true, assertionId: true,
+        clientOffPlatform: true,
+        sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
+        contracts: { select: { sellContractId: true }, orderBy: { position: 'asc' } },
+        file: { select: { fileName: true, sizeBytes: true } },
+      },
+    }),
+    prisma.workAssertion.findMany({
+      where: { timesheetId: { in: wanted }, state: 'LIVE' },
+      orderBy: { at: 'asc' },
+      select: { timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
+    }),
+  ])
+}
+type ApprovalRows = Awaited<ReturnType<typeof approvalRowsFor>>
+
+/** One week's approvals, signatures and what the reader may do, from rows already read; every read logged as it is shown. */
+async function weekSeen(
+  r: Reader,
+  c: WeekChain,
+  rows: ApprovalRows[0],
+  live: ApprovalRows[1],
+  people: Map<string, string>,
+  now: Date,
+): Promise<{ ok: true; seen: WeekSeen }> {
   const approvals: ApprovalSeen[] = []
   for (const a of rows) {
     const scope = a.contracts.map((x) => x.sellContractId)
@@ -1535,13 +1627,6 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
   }
 
   // ── The signatures, each read logged like the evidence ──
-  const live = await prisma.workAssertion.findMany({
-    where: { timesheetId, state: 'LIVE' },
-    orderBy: { at: 'asc' },
-    select: { role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
-  })
-  const byIds = [...new Set(live.map((a) => a.byId).filter((x): x is string => !!x))]
-  const people = new Map((await prisma.person.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } })).map((x) => [x.id, x.name]))
   const order = (companyId: string) => {
     if (companyId === c.clientId) return -1
     const i = c.ladder.findIndex((x) => x.clientCompanyId === companyId)
