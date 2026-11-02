@@ -2471,12 +2471,23 @@ tab at the supplier 5.5 to 9.4 s across five owners, which is a cost
 shared by the Settings shell (architect first). The one-person firm's
 and the worker's pages were all under the line.
 
-**What 100,000 per page means here.** A placement needs a person; a
-world of 3,429 people made 9,385 weeks and 1,142 bills in 49 minutes,
-while the log and notice tables passed 100,000 on their own. Reaching
-100,000 weeks or bills takes a world about ten times larger or a year
-of weeks, about ten hours on this box, and is run after the fixes
-above, with the documents matrix, on the next scale run.
+**The target is 100,000 complete transactions, not per page.
+Corrected by the founder, 2026-11-02:** *"100000 in complete
+transactions and not per page."* A complete transaction is one
+placement walked through every station to a paid invoice receipt at
+its payer and a worked-out pay period at its employer, and the
+report's headline counts those against the target. The scale run
+closed about 1,000 complete transactions in 49 minutes at about 180
+calls each, and wrote about 430 notices and 190 access-log rows per
+transaction; a world of 3,429 people cannot hold more at once, because
+a placement needs a person. So the rungs are: the fixes above and the
+documents matrix on a 2,000-job run; 10,000 complete transactions on
+this box from a generated world of about 17,000 people (about eight
+hours, the generator taking a size); 100,000 on a preview deployment
+with its own hosted database, which the founder provisions, the
+harness driving it by URL through the demo door and refusing any
+production host. Notices and log rows per transaction are reported as
+a cost, because at 100,000 they decide the disk.
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
