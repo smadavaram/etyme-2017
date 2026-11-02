@@ -16,7 +16,7 @@ import { tellNotChosen } from '@/lib/notify/not-chosen'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
-import { notify } from '@/lib/notify'
+import { notify, notifyBulk } from '@/lib/notify'
 import {
   checkClassification, checkCover, insuranceRestsWith, type WorkerType,
 } from '@/lib/worker-classification'
@@ -1367,12 +1367,12 @@ export async function POST(
     }))
   )
 
-  // Each group at once, the groups in order: the awarded firm, then each
-  // firm below it, then the person.
+  // Each group in one statement (`notifyBulk`, the same row each), the
+  // groups in order: the awarded firm, then each firm below it, then the
+  // person.
   for (const notice of [handoff.toPaper, handoff.toSell]) {
     if (!notice) continue
-    await Promise.all(notice.personIds.map((personId) =>
-      notify({
+    await notifyBulk(notice.personIds.map((personId) => ({
         personId,
         companyId: submission.fromCompanyId,
         type: 'CONTRACT',
@@ -1386,8 +1386,7 @@ export async function POST(
           contractId: result.contract.id, requirementId: req.id,
           href: buy.hopZero && !buy.write ? termsHref : '/dashboard/contracts',
         },
-      })
-    ))
+      })))
   }
 
   // ── Down the chain, one hop at a time ───────────────────────────────
@@ -1415,18 +1414,17 @@ export async function POST(
         const held = s.role?.permissions ?? []
         return held.includes('*') || held.includes('submissions.create') || held.includes('assignments.write')
       })
-      await Promise.all(desks.map((d) =>
-        notify({
-          personId: d.personId,
-          companyId: hop.fromCompanyId,
-          type: 'SUBMISSION',
-          channel: 'EMAIL',
-          title: told.title,
-          body: told.body,
-          entityId: hop.id,
-          data: { submissionId: hop.id, href: '/dashboard/submissions' },
-        })
-      ))
+      // One statement per hop, the hops still told in order.
+      await notifyBulk(desks.map((d) => ({
+        personId: d.personId,
+        companyId: hop.fromCompanyId,
+        type: 'SUBMISSION',
+        channel: 'EMAIL',
+        title: told.title,
+        body: told.body,
+        entityId: hop.id,
+        data: { submissionId: hop.id, href: '/dashboard/submissions' },
+      })))
     }
   }
 

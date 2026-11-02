@@ -46,4 +46,13 @@ describe('every start’s paperwork, every firm’s line set and every receipt a
     expect(route.match(/matchInvoices\(/g)?.length).toBe(1)
     expect(route).not.toMatch(/\bmatchInvoice\(/)
   })
+
+  it('the award tells each group of people in one statement, the same notice each, the groups still in order: the awarded firm, each firm below it, then the person', () => {
+    const award = code('src/app/api/submissions/[id]/award/route.ts')
+    expect(award).toContain("import { notify, notifyBulk } from '@/lib/notify'")
+    expect(award).toMatch(/for \(const notice of \[handoff\.toPaper, handoff\.toSell\]\) \{\s*if \(!notice\) continue\s*await notifyBulk\(notice\.personIds\.map/)
+    expect(award).toMatch(/for \(const \[n, hop\] of below\.entries\(\)\) \{[\s\S]*?await notifyBulk\(desks\.map/)
+    // Never one notice per person in a loop.
+    expect(award).not.toMatch(/Promise\.all\([a-zA-Z.]+\.map\(\([a-zA-Z]+\) =>\s*notify\(/)
+  })
 })
