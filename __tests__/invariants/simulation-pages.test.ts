@@ -164,13 +164,29 @@ describe('What each page reads on load', () => {
 })
 
 describe('The calls at once are many people on many pages', () => {
-  it('a round takes turns between seats, and keeps every page and read of every seat', () => {
-    const round = roundOf([
-      { party: 'client', seat: 'a', pages: [{ label: 'P1', href: '/1' }, { label: 'P2', href: '/2' }], reads: ['/api/me'] },
-      { party: 'worker', seat: 'b', pages: [{ label: 'Q1', href: '/q' }], reads: [] },
-    ])
-    expect(round.map((v) => `${v.seat}${v.path}`)).toEqual(['a/1', 'b/q', 'a/2', 'a/api/me'])
+  const seats = [
+    { party: 'supplier' as const, seat: 'owner', pages: Array.from({ length: 40 }, (_, i) => ({ label: `P${i}`, href: `/p/${i}` })), reads: Array.from({ length: 40 }, (_, i) => `/api/r${i}`) },
+    { party: 'worker' as const, seat: 'helena', pages: [{ label: 'Q1', href: '/q' }], reads: ['/api/me'] },
+  ]
+
+  it('a round keeps every page and read of every seat, once each', () => {
+    const round = roundOf(seats)
+    expect(round).toHaveLength(82)
+    expect(new Set(round.map((v) => `${v.seat}${v.path}`)).size).toBe(82)
     expect(round.find((v) => v.path === '/api/me')?.kind).toBe('read')
+  })
+
+  it('a page\u2019s place on the menu does not decide how busy the server is when it is opened', () => {
+    const round = roundOf(seats)
+    const lastSection = round.map((v, i) => ({ v, i })).filter(({ v }) => v.kind === 'page' && Number(v.path.split('/').pop()) >= 30)
+    const mean = lastSection.reduce((n, x) => n + x.i, 0) / lastSection.length
+    expect(mean / round.length).toBeGreaterThan(0.25)
+    expect(mean / round.length).toBeLessThan(0.75)
+  })
+
+  it('every round is mixed the same way on every run, and two rounds differently', () => {
+    expect(roundOf(seats, 2)).toEqual(roundOf(seats, 2))
+    expect(roundOf(seats, 1).map((v) => v.path)).not.toEqual(roundOf(seats, 2).map((v) => v.path))
   })
 })
 

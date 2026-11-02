@@ -268,19 +268,40 @@ export interface Visit {
 }
 
 /**
- * Every visit of one round, interleaved across seats — each seat's first
- * page, then each seat's second — so the calls at once are many people
- * on many screens, never one person opening forty tabs. Pure, and in the
- * same order every time.
+ * Every visit of one round, mixed across seats and pages, in the same
+ * order every time for the same round. Pure.
+ *
+ * Mixed, not taken in menu order (2026-11-02). The first founder-scale
+ * pass took each seat's pages in turn, so the last section of the longest
+ * menu (a supplier's Settings) was opened when every shorter menu had
+ * moved on to its reads: a median of 17 of the heaviest reads (Today, the
+ * greeting, the decisions list) were in flight beside each Settings tab,
+ * against 3 beside the supplier's other pages, and the tabs read 5.5 to
+ * 9.4 seconds where, measured alone at 40 at once, they take 1.1 to 2.3.
+ * A page's place on the menu must not decide how busy the server is when
+ * it is opened.
  */
-export function roundOf(seats: readonly { party: Party; seat: string; pages: readonly PageRef[]; reads: readonly string[] }[]): Visit[] {
-  const lists = seats.map((s) => [
-    ...s.pages.map((p) => ({ party: s.party, seat: s.seat, kind: 'page' as const, label: p.label, path: p.href })),
-    ...s.reads.map((r) => ({ party: s.party, seat: s.seat, kind: 'read' as const, label: r, path: r })),
-  ])
+export function roundOf(
+  seats: readonly { party: Party; seat: string; pages: readonly PageRef[]; reads: readonly string[] }[],
+  round = 0,
+): Visit[] {
   const out: Visit[] = []
-  const longest = Math.max(0, ...lists.map((l) => l.length))
-  for (let i = 0; i < longest; i++) for (const l of lists) if (i < l.length) out.push(l[i])
+  for (const s of seats) {
+    for (const p of s.pages) out.push({ party: s.party, seat: s.seat, kind: 'page', label: p.label, path: p.href })
+    for (const r of s.reads) out.push({ party: s.party, seat: s.seat, kind: 'read', label: r, path: r })
+  }
+  // Fisher-Yates on a seeded generator (mulberry32), so a round is the same mix on every run.
+  let t = (0x9e3779b9 ^ (round + 1)) >>> 0
+  const next = () => {
+    t = (t + 0x6d2b79f5) >>> 0
+    let x = Math.imul(t ^ (t >>> 15), 1 | t)
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x)
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
+  }
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
   return out
 }
 

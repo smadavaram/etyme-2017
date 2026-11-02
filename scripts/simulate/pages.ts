@@ -222,11 +222,10 @@ async function main() {
       const r = await actor.get(v.path)
       return { ...v, status: r.status, ms: r.ms, owner, ...(r.sentence ? { sentence: r.sentence } : {}) }
     }
-    const round = roundOf(plans)
-
     ledger.stage = 'warmup'
     for (let w = 0; w < args.warmup; w++) {
       const t0 = Date.now()
+      const round = roundOf(plans, w)
       const done = await parallel(round, visit, args.concurrency)
       for (const d of done) if (d.ok && isError(d.value.status)) warmupErrors.push(d.value)
       say(`untimed round ${w + 1}: ${round.length} calls in ${((Date.now() - t0) / 1000).toFixed(1)}s`)
@@ -234,6 +233,8 @@ async function main() {
     ledger.stage = 'pages'
     for (let r = 0; r < args.rounds; r++) {
       const t0 = Date.now()
+      // Each timed round its own mix, after the untimed ones.
+      const round = roundOf(plans, args.warmup + r)
       const done = await parallel(round, visit, args.concurrency)
       for (const d of done) if (d.ok) hits.push(d.value)
       const errors = done.filter((d) => d.ok && isError(d.value.status)).length
