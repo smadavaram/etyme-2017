@@ -4,6 +4,7 @@ import { cronAuthorized } from '@/lib/cron-auth'
 import { possessive } from '@/lib/requisition-approval'
 import { prisma } from '@/lib/db'
 import { send } from '@/lib/messages'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { inviteUrl } from '@/lib/bench-invite'
 import { endedSays, reminderDue, reminderText, reminderLeadDays } from '@/lib/bench-stay'
 import { tellFirm } from '@/lib/bench-stay-record'
@@ -81,6 +82,8 @@ export async function GET(request: NextRequest) {
         consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } },
       },
     })
+    // Asked once for the run: whether a letter can leave this deployment at all.
+    const mail = mailLeaves()
     const reminded: { person: string; firm: string; daysAhead: number }[] = []
     for (const l of ending) {
       if (!reminderDue(l, now)) continue
@@ -108,8 +111,11 @@ export async function GET(request: NextRequest) {
           data: {
             companyId: l.companyId,
             action: 'BENCH_STAY_REMINDED',
-            summary: `${person.name} was reminded that their stay on ${possessive(l.company.name)} bench ends soon.`,
-            reason: `Their chosen stay of ${l.stayDays} days ends within ${reminderLeadDays(l.stayDays)} day(s); the letter carries a one-tap renew.`,
+            // Said as what happened: a letter only where one can leave (`mailLeaves`, conversation's one answer).
+            summary: mail
+              ? `${person.name} was reminded by email that their stay on ${possessive(l.company.name)} bench ends soon.`
+              : `${person.name}'s stay on ${possessive(l.company.name)} bench ends soon. No email can be sent from here, so the reminder and its one-tap renew wait on their notice.`,
+            reason: `Their chosen stay of ${l.stayDays} days ends within ${reminderLeadDays(l.stayDays)} day(s); the reminder carries a one-tap renew.`,
             payload: { listingId: l.id, staysUntil: l.staysUntil!.toISOString() },
             reversible: false,
           },
@@ -124,7 +130,7 @@ export async function GET(request: NextRequest) {
         reminded: reminded.length,
         endedList: ended,
         remindedList: reminded,
-        message: `${ended.length} bench stay(s) ended; ${reminded.length} reminder(s) sent.`,
+        message: `${ended.length} bench stay(s) ended; ${reminded.length} reminder(s) ${mail ? 'sent' : 'written, and none emailed because no email can be sent from here'}.`,
       },
     })
   } catch (err: any) {

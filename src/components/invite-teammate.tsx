@@ -43,7 +43,9 @@ export function InviteTeammate({ onInvited }: { onInvited?: (says: string) => vo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined }),
       }))
-      const text = body.data?.says ?? `${invite.email.trim()} has been invited.`
+      // The route's sentence knows whether an email could leave (`mailLeaves`);
+      // the page cannot, so where the route says nothing it claims no letter.
+      const text = body.data?.says ?? `${invite.email.trim()} has a seat here, theirs when they sign in with that address.`
       setSaid((s) => [...s, { text, tone: 'ok' }])
       setInvite({ name: '', email: '', roleId: '' })
       onInvited?.(text)
