@@ -411,28 +411,101 @@ export async function burdenRate(
  * rate on the ladder in one — and written in one statement.
  */
 export async function postAssertion(assertionId: string, byId?: string | null) {
-  const a = await prisma.workAssertion.findUnique({
-    where: { id: assertionId },
-    select: { state: true, timesheet: { select: WEEK_SELECT } },
+  const posted = await postAssertions([assertionId], byId)
+  if (posted.failed.length > 0) throw posted.failed[0].error
+  return posted.found.length > 0 ? posted.rows : null
+}
+
+/** What `postAssertions` wrote, and which of the signatures asked for could not post. */
+export interface PostedSignatures {
+  /** The rows written, every signature's, in one statement. */
+  rows: Prisma.OrderPostingCreateManyInput[]
+  /** The signatures asked for that stand and were found, in the order asked. */
+  found: string[]
+  /** Those that could not post (a settled order, no exchange rate), with why. Nothing of theirs was written. */
+  failed: { assertionId: string; error: unknown }[]
+}
+
+/**
+ * Several signatures one press wrote, posted from one read.
+ *
+ * The approve button writes up to three signatures on one week — the
+ * one pressed, the employer's on a direct placement, and a one-person
+ * firm's stand-in acceptance — and posted each through `postAssertion`,
+ * so each read the week, the ladder, every rate on it, the orders and the
+ * firms again and wrote on its own: about ten statements a signature. Now
+ * the week, what is already posted, the ladder and the rates are read
+ * once, and every row is written in one statement.
+ *
+ * The postings are the ones `postAssertion` makes called for each in
+ * turn. Each signature is taken in the order asked, with the middle
+ * firms' acceptances it would have posted alongside it, against what the
+ * ones before it posted; a signature that cannot post writes nothing of
+ * its own or its neighbors', is returned in `failed`, and the next one
+ * goes on, as the next call did. Everything is planned before anything
+ * is written, which differs from one call at a time only where a later
+ * signature's employer burden would have counted an earlier one's pay in
+ * the same press; no press writes two pay signatures for one firm (a
+ * direct placement's pair and a stand-in are never both written), so the
+ * rows are the same.
+ */
+export async function postAssertions(assertionIds: readonly string[], byId?: string | null): Promise<PostedSignatures> {
+  const ids = [...new Set(assertionIds)]
+  const out: PostedSignatures = { rows: [], found: [], failed: [] }
+  if (ids.length === 0) return out
+
+  // The weeks, read once: every live signature on each, the asked ones among them.
+  const weeks = await prisma.timesheet.findMany({
+    where: { assertions: { some: { id: { in: ids }, state: 'LIVE' } } },
+    select: WEEK_SELECT,
   })
-  if (!a || a.state !== 'LIVE') return null
-  const week = a.timesheet
-  const target = week.assertions.find((x) => x.id === assertionId)
-  if (!target) return null
+  const weekOf = new Map<string, Week>()
+  const sigOf = new Map<string, Signature>()
+  for (const w of weeks) for (const x of w.assertions) { weekOf.set(x.id, w); sigOf.set(x.id, x) }
+  const targets = ids.filter((id) => sigOf.has(id))
+  out.found = targets
+  if (targets.length === 0) return out
 
-  const middle = week.assertions.filter((x) => x.role === 'PASS_THROUGH' && x.id !== assertionId)
-  const existing = await postedKinds([assertionId, ...middle.map((m) => m.id)])
-  const behind = middle.filter((m) => !existing.has(m.id))
+  const middles = (w: Week) => w.assertions.filter((x) => x.role === 'PASS_THROUGH')
+  // What every signature that could be posted here has already posted.
+  const existing = await postedKinds([...new Set([...targets, ...weeks.flatMap((w) => middles(w).map((m) => m.id))])])
+  /** What has posted, as each signature in turn would find it. */
+  const posted = new Map([...existing].map(([k, v]) => [k, new Set(v)] as const))
 
-  const [mine, ...others] = await planWeek(week, [target, ...behind])
-  const { rows } = await writePlans(
-    [
-      { plan: mine, byId: byId ?? null, isolated: false },
-      ...others.map((plan, i) => ({ plan, byId: behind[i].byId, isolated: true })),
-    ],
-    existing
-  )
-  return rows
+  // Each week planned once, for its asked signatures and every middle
+  // firm's acceptance nothing has posted for yet.
+  const plans = new Map<string, AssertionPlan>()
+  for (const w of weeks) {
+    const sigs = [
+      ...w.assertions.filter((x) => targets.includes(x.id)),
+      ...middles(w).filter((m) => !targets.includes(m.id) && !existing.has(m.id)),
+    ]
+    const planned = await planWeek(w, sigs)
+    sigs.forEach((sig, i) => plans.set(sig.id, planned[i]))
+  }
+
+  const books: BooksRead = { orderOfLine: new Map(), orders: new Map(), parallel: new Map() }
+  for (const id of targets) {
+    const behind = middles(weekOf.get(id)!).filter((m) => m.id !== id && !posted.has(m.id))
+    const entries = [
+      { plan: plans.get(id)!, byId: byId ?? null, isolated: false },
+      ...behind.map((m) => ({ plan: plans.get(m.id)!, byId: m.byId, isolated: true })),
+    ]
+    let mine: Prisma.OrderPostingCreateManyInput[]
+    try {
+      mine = await rowsOf(entries, posted, undefined, books)
+    } catch (error) {
+      out.failed.push({ assertionId: id, error })
+      continue
+    }
+    for (const r of mine) if (r.sourceId) posted.set(r.sourceId, (posted.get(r.sourceId) ?? new Set()).add(r.kind))
+    out.rows.push(...mine)
+  }
+
+  // Keyed on signature and kind: a row another call wrote a moment ago
+  // stands, exactly as the upsert this replaced left it.
+  if (out.rows.length > 0) await prisma.orderPosting.createMany({ data: out.rows, skipDuplicates: true })
+  return out
 }
 
 /** Which kinds each signature has already posted, by signature. */
@@ -471,11 +544,23 @@ async function writePlans(
   return { rows, count }
 }
 
+/**
+ * The orders each line posts to and the firms' second currencies, read
+ * once for several signatures posted together (`postAssertions`), so a
+ * line's order is opened once and never read twice.
+ */
+interface BooksRead {
+  orderOfLine: Map<string, string | null>
+  orders: Map<string, { id: string; currency: string; status: string; internalOrderId: string | null }>
+  parallel: Map<string, string | null>
+}
+
 /** The rows plans would write, built and checked, with nothing written. */
 async function rowsOf(
   entries: { plan: AssertionPlan; byId: string | null; isolated: boolean }[],
   existing: ReadonlyMap<string, ReadonlySet<string>>,
-  onlyBooksOf?: ReadonlySet<string>
+  onlyBooksOf?: ReadonlySet<string>,
+  books: BooksRead = { orderOfLine: new Map(), orders: new Map(), parallel: new Map() }
 ): Promise<Prisma.OrderPostingCreateManyInput[]> {
   const wanted = entries.map((e) => ({
     ...e,
@@ -487,24 +572,31 @@ async function rowsOf(
 
   // The order each line posts to: the master contract it is tagged to,
   // read with the ladder, else opened on first use.
-  const orderOfLine = new Map<string, string | null>()
-  for (const e of wanted) for (const [line, order] of Object.entries(e.plan.orderOf)) if (order) orderOfLine.set(line, order)
+  const orderOfLine = books.orderOfLine
+  for (const e of wanted) for (const [line, order] of Object.entries(e.plan.orderOf)) if (order && !orderOfLine.get(line)) orderOfLine.set(line, order)
   for (const e of wanted) {
     for (const p of e.planned) {
       if (!orderOfLine.get(p.ownSellContractId)) orderOfLine.set(p.ownSellContractId, await orderFor(p.ownSellContractId))
     }
   }
-  const orderIds = [...new Set([...orderOfLine.values()].filter((x): x is string => !!x))]
-  const companyIds = [...new Set(wanted.flatMap((e) => e.planned.map((p) => p.companyId)))]
+  // Only what has not been read for an earlier signature posted together.
+  const orderIds = [...new Set([...orderOfLine.values()].filter((x): x is string => !!x && !books.orders.has(x)))]
+  const companyIds = [...new Set(wanted.flatMap((e) => e.planned.map((p) => p.companyId)))].filter((id) => !books.parallel.has(id))
   const [orders, companies] = await Promise.all([
-    prisma.projectOrder.findMany({
-      where: { id: { in: orderIds } },
-      select: { id: true, currency: true, status: true, internalOrderId: true },
-    }),
-    prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, parallelCurrency: true } }),
+    orderIds.length
+      ? prisma.projectOrder.findMany({
+          where: { id: { in: orderIds } },
+          select: { id: true, currency: true, status: true, internalOrderId: true },
+        })
+      : Promise.resolve([]),
+    companyIds.length
+      ? prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, parallelCurrency: true } })
+      : Promise.resolve([]),
   ])
-  const orderOf = new Map(orders.map((o) => [o.id, o]))
-  const parOf = new Map(companies.map((c) => [c.id, c.parallelCurrency ?? null]))
+  for (const o of orders) books.orders.set(o.id, o)
+  for (const c of companies) books.parallel.set(c.id, c.parallelCurrency ?? null)
+  const orderOf = books.orders
+  const parOf = books.parallel
 
   const rows: Prisma.OrderPostingCreateManyInput[] = []
   for (const e of wanted) {
