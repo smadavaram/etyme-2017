@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { notify, notifyBulk, notificationHref, type NotificationType, type NotificationChannel } from '@/lib/notify'
+import { notify, notifyBulk, outwardIds, notificationHref, type NotificationType, type NotificationChannel } from '@/lib/notify'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
 // ── Notification routing ──────────────────────────────
@@ -204,7 +204,7 @@ describe('Fire-and-forget notification delivery', () => {
 // cannot be written is kept as FAILED with the reason, and staff hear.
 
 const db = vi.hoisted(() => ({
-  notification: { create: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+  notification: { create: vi.fn(), createMany: vi.fn(), createManyAndReturn: vi.fn(), update: vi.fn() },
   person: { findUnique: vi.fn() },
   company: { findUnique: vi.fn() },
 }))
@@ -225,11 +225,13 @@ describe('a bulk notice whose single write fails', () => {
   beforeEach(() => {
     db.notification.create.mockReset()
     db.notification.createMany.mockReset()
+    db.notification.createManyAndReturn.mockReset()
+    db.person.findUnique.mockReset()
     alerts.reportError.mockClear()
   })
 
   it('when the bulk in-app write fails, every recipient’s notice is still written one by one', async () => {
-    db.notification.createMany.mockRejectedValue(new Error('foreign key violated'))
+    db.notification.createManyAndReturn.mockRejectedValue(new Error('foreign key violated'))
     db.notification.create.mockImplementation(async () => ({ id: 'n' }))
 
     const result = await notifyBulk(team(3))
@@ -244,7 +246,7 @@ describe('a bulk notice whose single write fails', () => {
   })
 
   it('a notice that cannot be written at all is recorded as failed with the reason, and staff are told', async () => {
-    db.notification.createMany.mockRejectedValue(new Error('foreign key violated'))
+    db.notification.createManyAndReturn.mockRejectedValue(new Error('foreign key violated'))
     db.notification.create.mockImplementation(async ({ data }: any) => {
       if (data.personId === 'person-1' && data.deliveryState !== 'FAILED') {
         throw new Error('Company co-1 no longer exists')
@@ -271,7 +273,7 @@ describe('a bulk notice whose single write fails', () => {
   })
 
   it('a notice whose plain failed row is also refused is reported to staff by itself', async () => {
-    db.notification.createMany.mockRejectedValue(new Error('database unreachable'))
+    db.notification.createManyAndReturn.mockRejectedValue(new Error('database unreachable'))
     db.notification.create.mockRejectedValue(new Error('database unreachable'))
 
     const result = await notifyBulk(team(2))
@@ -283,14 +285,77 @@ describe('a bulk notice whose single write fails', () => {
   })
 
   it('when the bulk write succeeds it is one database call and nobody is alerted', async () => {
-    db.notification.createMany.mockResolvedValue({ count: 3 })
+    db.notification.createManyAndReturn.mockImplementation(async ({ data }: any) => data.map((d: any, i: number) => ({ id: `n${i}`, ...d })))
 
     const result = await notifyBulk(team(3))
 
     expect(result).toEqual({ count: 3 })
-    expect(db.notification.createMany).toHaveBeenCalledTimes(1)
+    expect(db.notification.createManyAndReturn).toHaveBeenCalledTimes(1)
     expect(db.notification.create).not.toHaveBeenCalled()
     expect(alerts.reportError).not.toHaveBeenCalled()
+  })
+
+  it('several people told at once by email or Teams are one write, the same row each as one at a time, and each is delivered by its own row', async () => {
+    db.notification.createManyAndReturn.mockImplementation(async ({ data }: any) => data.map((d: any, i: number) => ({ id: `n${i}`, ...d })))
+    db.person.findUnique.mockResolvedValue(null)
+    const told = [
+      { personId: 'p-renata', companyId: 'co-1', type: 'CONTRACT' as const, title: 'Rosa Delgado is placed', body: 'Starts Monday.', channel: 'EMAIL' as const },
+      { personId: 'p-imelda', companyId: 'co-1', type: 'CONTRACT' as const, title: 'Rosa Delgado is placed', body: 'Starts Monday.', channel: 'TEAMS' as const },
+      { personId: 'p-marcus', companyId: 'co-1', type: 'CONTRACT' as const, title: 'Rosa Delgado is placed', body: 'Starts Monday.' },
+    ]
+
+    const result = await notifyBulk(told)
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(result).toEqual({ count: 3 })
+    expect(db.notification.createManyAndReturn).toHaveBeenCalledTimes(1)
+    expect(db.notification.create).not.toHaveBeenCalled()
+    const rows = db.notification.createManyAndReturn.mock.calls[0][0].data
+    // The outward rows start PENDING, as `notify` writes them; the in-app one is shown.
+    expect(rows.map((r: any) => [r.personId, r.channel, r.deliveryState])).toEqual([
+      ['p-renata', 'EMAIL', 'PENDING'], ['p-imelda', 'TEAMS', 'PENDING'], ['p-marcus', 'IN_APP', 'SENT'],
+    ])
+    // Delivered: the two outward people looked up, the in-app one never.
+    const looked = db.person.findUnique.mock.calls.map((c: any[]) => c[0].where.id).sort()
+    expect(looked).toEqual(['p-imelda', 'p-renata'])
+  })
+
+  it('an outward notice whose batch write failed is still written and delivered on its own', async () => {
+    db.notification.createManyAndReturn.mockRejectedValue(new Error('foreign key violated'))
+    db.notification.create.mockImplementation(async () => ({ id: 'n-alone' }))
+    db.person.findUnique.mockResolvedValue(null)
+
+    const result = await notifyBulk([{ personId: 'p-renata', companyId: 'co-1', type: 'CONTRACT', title: 'Placed', body: 'b', channel: 'EMAIL' }])
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(result).toEqual({ count: 1 })
+    expect(db.person.findUnique).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('which written row each outward notice is', () => {
+  it('two identical notices to one person are two rows, and each is delivered once', () => {
+    const n = { personId: 'p', type: 'SYSTEM' as const, title: 'T', body: 'b', channel: 'EMAIL' as const }
+    const ids = outwardIds([n, n], [
+      { id: 'b', personId: 'p', channel: 'EMAIL', title: 'T', entityId: null },
+      { id: 'a', personId: 'p', channel: 'EMAIL', title: 'T', entityId: null },
+    ]).map((x) => x.id)
+    expect(ids.sort()).toEqual(['a', 'b'])
+  })
+
+  it('rows are matched on what was written, never on the order they came back in', () => {
+    const a = { personId: 'p-a', type: 'SYSTEM' as const, title: 'For A', body: 'b', channel: 'TEAMS' as const }
+    const b = { personId: 'p-b', type: 'SYSTEM' as const, title: 'For B', body: 'b', channel: 'EMAIL' as const }
+    const got = outwardIds([a, b], [
+      { id: 'id-b', personId: 'p-b', channel: 'EMAIL', title: 'For B', entityId: null },
+      { id: 'id-a', personId: 'p-a', channel: 'TEAMS', title: 'For A', entityId: null },
+    ])
+    expect(got.map((x) => [x.n.personId, x.id])).toEqual([['p-a', 'id-a'], ['p-b', 'id-b']])
+  })
+
+  it('an in-app notice is never delivered again: being written is its delivery', () => {
+    const inApp = { personId: 'p', type: 'SYSTEM' as const, title: 'T', body: 'b' }
+    expect(outwardIds([inApp], [{ id: 'x', personId: 'p', channel: 'IN_APP', title: 'T', entityId: null }])).toEqual([])
   })
 
   it('a single notice whose write fails is kept as failed with the reason, never only a console line', async () => {

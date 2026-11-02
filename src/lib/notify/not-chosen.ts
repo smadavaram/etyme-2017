@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
  * The supplier whose candidate was not chosen, told once, when the job
@@ -206,12 +206,9 @@ export async function tellNotChosen(placedSubmissionId: string): Promise<number>
         }
       })
     )
-    // Outward copies go one at a time through notify(), which delivers;
-    // in-app copies go in one write.
-    const outward = notices.filter((n) => n.channel === 'TEAMS')
-    const inApp = notices.filter((n) => n.channel !== 'TEAMS')
-    await Promise.all(outward.map((n) => notify(n)))
-    await notifyBulk(inApp)
+    // Every copy in one write, in the app and outward alike; each outward
+    // copy is then delivered by its own id (`notifyBulk`, 2026-11-02).
+    await notifyBulk(notices)
     return notices.length
   } catch (err) {
     console.error(`[not-chosen] could not tell the suppliers for ${placedSubmissionId}:`, err)

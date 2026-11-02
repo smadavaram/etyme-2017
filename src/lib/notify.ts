@@ -341,8 +341,12 @@ async function deliver(
  * Create multiple notifications in a single database call.
  * Fire-and-forget — do not await in callers.
  *
- * Uses createMany for efficiency. Does not return individual IDs
- * (Prisma createMany returns only the count).
+ * One statement for every row, in the app and outward alike, the same row
+ * per person `notify` writes (`rowFor`). A row asking for Teams or email
+ * is then delivered by its own id, the same as a single notice, so a
+ * fan-out is one insert and never "the row says it went and it did not"
+ * (2026-11-02, demand's measurement of the award: each person told was an
+ * insert of its own, about 15 of the award's 118 queries).
  *
  * Usage:
  *   notifyBulk([
@@ -354,30 +358,46 @@ export function notifyBulk(
   notifications: NotifyParams[]
 ): Promise<{ count: number } | null> {
   if (notifications.length === 0) return Promise.resolve({ count: 0 })
+  return prisma.notification
+    .createManyAndReturn({
+      data: notifications.map(rowFor),
+      select: { id: true, personId: true, channel: true, title: true, entityId: true },
+    })
+    .then((created) => {
+      for (const { n, id } of outwardIds(notifications, created)) {
+        // Not awaited, as `notify` does not: the rows exist, so a slow
+        // sender delays only the delivery status.
+        void deliver(id, n.personId, n.companyId ?? null, n.title, n.body, pageOf(n.type, n.entityId ?? null, n.data))
+      }
+      return { count: created.length }
+    })
+    .catch((err) => writeEach(notifications, err))
+}
 
-  // Bulk is mostly fan-out to a working team, in the app, and that half
-  // stays one database call. A row asking for Teams or email used to be
-  // written PENDING here and then nothing ever sent it — the exact "the
-  // row says it went and it did not" this file exists to stop. So each of
-  // those goes through `notify`, which writes it and then delivers it and
-  // records what happened, the same as a single notice.
-  const inApp = notifications.filter((n) => (n.channel ?? 'IN_APP') === 'IN_APP')
-  const outward = notifications.filter((n) => (n.channel ?? 'IN_APP') !== 'IN_APP')
-
-  const rows = inApp.map(rowFor)
-
-  const written =
-    rows.length === 0
-      ? Promise.resolve({ count: 0 })
-      : prisma.notification.createMany({ data: rows }).catch((err) => writeEach(inApp, err))
-
-  return Promise.all([written, Promise.all(outward.map((n) => notify(n)))]).then(
-    ([bulk, singles]) => {
-      const sent = singles.filter((x) => x !== null).length
-      if (bulk === null && sent === 0) return null
-      return { count: (bulk?.count ?? 0) + sent }
-    }
-  )
+/**
+ * Which written row each outward notice is, matched on what was written
+ * rather than on the order rows come back in. Two identical notices to one
+ * person are two rows, and each is delivered once.
+ */
+export function outwardIds(
+  notices: readonly NotifyParams[],
+  created: readonly { id: string; personId: string; channel: string; title: string; entityId: string | null }[]
+): { n: NotifyParams; id: string }[] {
+  const key = (personId: string, channel: string, title: string, entityId: string | null) => `${personId}\u0000${channel}\u0000${title}\u0000${entityId ?? ''}`
+  const free = new Map<string, string[]>()
+  for (const c of created) {
+    const k = key(c.personId, c.channel, c.title, c.entityId)
+    free.set(k, [...(free.get(k) ?? []), c.id])
+  }
+  const out: { n: NotifyParams; id: string }[] = []
+  for (const n of notices) {
+    const channel = n.channel ?? 'IN_APP'
+    if (channel === 'IN_APP') continue
+    const ids = free.get(key(n.personId, channel, n.title, n.entityId ?? null))
+    const id = ids?.shift()
+    if (id) out.push({ n, id })
+  }
+  return out
 }
 
 /**
@@ -395,7 +415,8 @@ async function writeEach(
   console.error(`[Notify] Failed to bulk-create ${notices.length} notification(s):`, err)
   let count = 0
   for (const n of notices) {
-    if (await writeOne(n)) count++
+    // An outward notice goes through `notify`, which writes it and delivers it.
+    if (await ((n.channel ?? 'IN_APP') === 'IN_APP' ? writeOne(n) : notify(n))) count++
   }
   void reportError('notify: bulk in-app write failed', err, {
     companyId: notices.find((n) => n.companyId)?.companyId ?? null,
