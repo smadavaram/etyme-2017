@@ -2489,10 +2489,22 @@ that world (682,538 rows behind the pages, 263,813 of them access-log
 and 432,336 notices): 4,374 timed calls, none failed; 46 of 158 pages
 and 87 reads over two seconds at 40 at once; the worst reads
 `/api/suppliers` 20.7 s at Corvane's hiring manager, `/api/decisions`
-13.4 s, the greeting 12.7 s, `/api/program` 10.7 s; and every Settings
-tab at the supplier 5.5 to 9.4 s across five owners, which is a cost
-shared by the Settings shell (architect first). The one-person firm's
-and the worker's pages were all under the line.
+13.4 s, the greeting 12.7 s, `/api/program` 10.7 s. Every Settings tab
+at the supplier read 5.5 to 9.4 s, which looked like a cost shared by
+the Settings shell and was not: the pass took each seat's pages in
+menu order, so the longest menu's last section opened beside the
+other seats' heaviest reads (a median of 17 heavy reads in flight
+against 3); measured alone the same tabs are 1.1 to 2.3 s at p50, and
+the pass now shuffles each round. The one-person firm's and the
+worker's pages were all under the line. The fix wave after the run,
+measured at forty at once: the client's suppliers list from 414
+queries and 23.6 s to 103 and 10.1 s (demand), the program page's
+four figures from 75 queries and 4.2 s to one query and 0.13 s
+(demand), sending a job from 52 queries to 32 (demand), the bill send
+from 34 server errors in 40 to none (money), a worker's own first
+screen from 52 queries to 31 (supply), the compliance page's per-line
+reads batched (regulatory), the signer's name and who approved a
+week read for many weeks at once (architect).
 
 **The target is 100,000 complete transactions, not per page.
 Corrected by the founder, 2026-11-02:** *"100000 in complete
@@ -2510,7 +2522,18 @@ hours, the generator taking a size); 100,000 on a preview deployment
 with its own hosted database, which the founder provisions, the
 harness driving it by URL through the demo door and refusing any
 production host. Notices and log rows per transaction are reported as
-a cost, because at 100,000 they decide the disk.
+a cost, because at 100,000 they decide the disk. Decided 2026-11-02 on
+the architect's costing, each reversible by the founder in a sentence:
+a complete transaction is a placement whose every rung's invoice
+receipt is paid by its payer and whose employer has worked out a pay
+period covering one of its weeks, with the partial states counted
+beside it so the report says where the chain stops; the world's size
+knob (`--people N`) gets its frame first (addresses, a namer, steps,
+the template name) and its per-domain sizes after; and `--url` against
+a preview waits on three things only the founder holds: the preview's
+NEXTAUTH_SECRET (without it only the demo-door seats open),
+its CRON_SECRET (the nightly stations) and a read-only database URL
+(the seat catalog).
 
 **A screen that cannot reach its own rule, and why the tests did not
 catch it. The founder, 2026-11-02:** his own walker found on production
