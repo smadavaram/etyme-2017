@@ -11,13 +11,19 @@ import { lineExtras, lineExtrasForSellLines, requirementsForSellLines } from '@/
  * batch, and the ledger sends only what its page draws.
  */
 
-/** A database that answers the batch reads and counts every single-line read. */
+/**
+ * A database that answers the batch reads and counts every line the
+ * required-set door asks about. The door (lib/document-requirements)
+ * reads lines with their own rows selected; it reads many at once since
+ * 2026-11-02, so the count is of lines asked about, not of reads.
+ */
 function fakeDb() {
-  const findUnique = vi.fn(async () => null)
+  const door = vi.fn(async (_a: { where: { id: { in: string[] } } }) => [] as never[])
+  const lines = vi.fn(async (_a?: unknown) => [{ id: 'line-1', companyId: 'supplier', personId: 'ravi', clientCompanyId: 'client', workLocation: null }])
   const db = {
     sellContract: {
-      findMany: vi.fn(async () => [{ id: 'line-1', companyId: 'supplier', personId: 'ravi', clientCompanyId: 'client', workLocation: null }]),
-      findUnique,
+      findMany: vi.fn(async (a: { where: { id: { in: string[] } }; select?: { documentRequirements?: unknown } }) =>
+        a.select?.documentRequirements ? door(a) : lines(a)),
     },
     verification: { findMany: vi.fn(async () => []) },
     documentType: { findMany: vi.fn(async () => []) },
@@ -25,35 +31,36 @@ function fakeDb() {
     masterAgreement: { findMany: vi.fn(async () => []) },
     contractLink: { findMany: vi.fn(async () => []) },
   }
-  return { db: db as never, findUnique }
+  /** Every line the door was asked about, once per time it was asked. */
+  const asked = () => door.mock.calls.flatMap(([a]) => a.where.id.in)
+  return { db: db as never, asked, lines }
 }
 
 describe('the compliance page reads each line once', () => {
   it('a line whose required set the page already read is not read again by the batch of line extras', async () => {
-    const { db, findUnique } = fakeDb()
+    const { db, asked } = fakeDb()
     const known = new Map([['line-1', { items: [] } as never]])
     const out = await lineExtrasForSellLines(['line-1'], db, new Date('2026-11-02T00:00:00Z'), known)
-    expect(findUnique).not.toHaveBeenCalled()
+    expect(asked()).toEqual([])
     expect(out.has('line-1')).toBe(true)
   })
 
   it('a line the page has not read yet is read by the batch, once', async () => {
-    const { db, findUnique } = fakeDb()
+    const { db, asked } = fakeDb()
     await lineExtrasForSellLines(['line-1', 'line-1'], db)
-    expect(findUnique).toHaveBeenCalledTimes(1)
+    expect(asked()).toEqual(['line-1'])
   })
 
   it('the sets of many lines are read once each and handed back by line, a line that is not there as nothing', async () => {
-    const { db, findUnique } = fakeDb()
+    const { db, asked } = fakeDb()
     const sets = await requirementsForSellLines(['line-1', 'line-2', 'line-1'], db)
-    expect(findUnique).toHaveBeenCalledTimes(2)
+    expect(asked().sort()).toEqual(['line-1', 'line-2'])
     expect([...sets.keys()]).toEqual(['line-1', 'line-2'])
     expect(sets.get('line-2')).toBeNull()
   })
 
   it('one line’s extras are read through the many-lines read, so one line and many cannot come to different answers', async () => {
-    const { db } = fakeDb()
-    const many = (db as unknown as { sellContract: { findMany: ReturnType<typeof vi.fn> } }).sellContract.findMany
+    const { db, lines: many } = fakeDb()
     await lineExtras({ sellContractId: 'line-1' }, db)
     expect(many).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(many.mock.calls[0][0])).toContain('"in":["line-1"]')

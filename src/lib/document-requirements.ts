@@ -562,23 +562,52 @@ const ROW_SELECT = {
  * One line, by id, on one side. Both ids at once is refused rather than
  * guessed at: a requirement belongs to exactly one owner and a caller
  * that does not know which one it is asking about is a caller with a bug.
+ *
+ * It is `requirementsForLines` with one id, so one line and many cannot
+ * come to different answers.
  */
 export async function requirementsFor(
   input: { sellContractId: string; buyContractId?: never } | { buyContractId: string; sellContractId?: never },
   db: Db = prisma
 ): Promise<LineRequirements | null> {
   if ('sellContractId' in input && input.sellContractId) {
-    return sellRequirements(input.sellContractId, db)
+    return (await requirementsForLines({ sellContractIds: [input.sellContractId] }, db)).get(input.sellContractId) ?? null
   }
   if ('buyContractId' in input && input.buyContractId) {
-    return buyRequirements(input.buyContractId, db)
+    return (await requirementsForLines({ buyContractIds: [input.buyContractId] }, db)).get(input.buyContractId) ?? null
   }
   return null
 }
 
-async function sellRequirements(id: string, db: Db): Promise<LineRequirements | null> {
-  const line = await db.sellContract.findUnique({
-    where: { id },
+/**
+ * What each of these lines requires, read at once, keyed by line: the
+ * same answer `requirementsFor` gives for each, from a handful of reads
+ * whatever the number of lines (the page-timing pass, 2026-11-02: the
+ * compliance page asked about eleven questions a line, 471 at a large
+ * supplier). A line that does not exist is left out of the map.
+ *
+ * One side at a time, for the same reason `requirementsFor` takes one id.
+ */
+export async function requirementsForLines(
+  input: { sellContractIds: readonly string[]; buyContractIds?: never } | { buyContractIds: readonly string[]; sellContractIds?: never },
+  db: Db = prisma
+): Promise<Map<string, LineRequirements>> {
+  if ('sellContractIds' in input && input.sellContractIds) return sellRequirements(unique(input.sellContractIds), db)
+  if ('buyContractIds' in input && input.buyContractIds) return buyRequirements(unique(input.buyContractIds), db)
+  return new Map()
+}
+
+function unique(ids: readonly string[]): string[] {
+  return [...new Set(ids.filter((v) => !!v))]
+}
+
+const ORDER_SELECT = { id: true, number: true, issuedBy: { select: { name: true } } } as const
+
+async function sellRequirements(ids: string[], db: Db): Promise<Map<string, LineRequirements>> {
+  const out = new Map<string, LineRequirements>()
+  if (ids.length === 0) return out
+  const lines = await db.sellContract.findMany({
+    where: { id: { in: ids } },
     select: {
       id: true,
       companyId: true,
@@ -587,45 +616,57 @@ async function sellRequirements(id: string, db: Db): Promise<LineRequirements | 
       person: { select: { name: true } },
       requirement: { select: { title: true } },
       workLocation: { select: { country: true, state: true } },
-      workOrder: { select: { id: true, number: true, issuedBy: { select: { name: true } } } },
+      workOrder: { select: ORDER_SELECT },
       documentRequirements: { select: ROW_SELECT },
     },
   })
-  if (!line) return null
+  if (lines.length === 0) return out
 
+  // On a sell line the paying company's own set is always its customers' party.
   const shape: LineShape = 'CUSTOMER'
-  const { orderRows, orderSays } = await orderSet(line.workOrder, db)
-  const company = await companySet(line.companyId, shape, line.company?.name ?? null, db)
+  const read = await readAround(
+    lines.map((line) => ({
+      order: line.workOrder,
+      companyId: line.companyId,
+      shape,
+      dictionaryFor: [line.companyId, line.clientCompany?.id ?? null],
+      lineRows: line.documentRequirements,
+    })),
+    db
+  )
 
-  return assemble({
-    side: 'SELL',
-    shape,
-    role: line.requirement?.title ?? null,
-    order: line.workOrder
-      ? { id: line.workOrder.id, number: line.workOrder.number, issuedBy: line.workOrder.issuedBy.name }
-      : null,
-    orderRows,
-    orderSays,
-    companyRows: company.rows,
-    companySays: company.says,
-    lineRows: line.documentRequirements,
-    names: {
-      WORKER: line.person?.name ?? null,
-      // On a sell line WE are the supplier — the firm the customer holds
-      // the insurance and the good standing of.
-      SUPPLIER: line.company?.name ?? null,
-      CUSTOMER: line.clientCompany?.name ?? null,
-      US: line.company?.name ?? null,
-    },
-    dictionaryFor: [line.companyId, line.clientCompany?.id ?? null],
-    site: line.workLocation ?? null,
-    db,
-  })
+  for (const line of lines) {
+    out.set(line.id, assemble({
+      side: 'SELL',
+      shape,
+      role: line.requirement?.title ?? null,
+      order: line.workOrder
+        ? { id: line.workOrder.id, number: line.workOrder.number, issuedBy: line.workOrder.issuedBy.name }
+        : null,
+      ...read.orderSet(line.workOrder),
+      ...read.companySet(line.companyId, shape, line.company?.name ?? null),
+      lineRows: line.documentRequirements,
+      names: {
+        WORKER: line.person?.name ?? null,
+        // On a sell line WE are the supplier — the firm the customer holds
+        // the insurance and the good standing of.
+        SUPPLIER: line.company?.name ?? null,
+        CUSTOMER: line.clientCompany?.name ?? null,
+        US: line.company?.name ?? null,
+      },
+      defined: read.dictionary([line.companyId, line.clientCompany?.id ?? null]),
+      waiverNames: read.waiverNames,
+      site: line.workLocation ?? null,
+    }))
+  }
+  return out
 }
 
-async function buyRequirements(id: string, db: Db): Promise<LineRequirements | null> {
-  const line = await db.buyContract.findUnique({
-    where: { id },
+async function buyRequirements(ids: string[], db: Db): Promise<Map<string, LineRequirements>> {
+  const out = new Map<string, LineRequirements>()
+  if (ids.length === 0) return out
+  const lines = await db.buyContract.findMany({
+    where: { id: { in: ids } },
     select: {
       id: true,
       companyId: true,
@@ -634,7 +675,7 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       company: { select: { name: true } },
       vendorCompany: { select: { name: true, kind: true } },
       candidates: { select: { person: { select: { name: true } } }, take: 1 },
-      workOrder: { select: { id: true, number: true, issuedBy: { select: { name: true } } } },
+      workOrder: { select: ORDER_SELECT },
       sellLinks: {
         select: {
           sellContract: {
@@ -650,49 +691,61 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       documentRequirements: { select: ROW_SELECT },
     },
   })
-  if (!line) return null
+  if (lines.length === 0) return out
 
-  const shape = shapeOf({
-    side: 'BUY',
-    contractType: line.contractType,
-    vendorCompanyId: line.vendorCompanyId,
-    vendorKind: line.vendorCompany?.kind ?? null,
-  })
-  const { orderRows, orderSays } = await orderSet(line.workOrder, db)
-  const sell = line.sellLinks[0]?.sellContract ?? null
-  const company = await companySet(line.companyId, shape, line.company?.name ?? null, db)
+  const shaped = lines.map((line) => ({
+    line,
+    shape: shapeOf({
+      side: 'BUY',
+      contractType: line.contractType,
+      vendorCompanyId: line.vendorCompanyId,
+      vendorKind: line.vendorCompany?.kind ?? null,
+    }),
+  }))
+  const read = await readAround(
+    shaped.map(({ line, shape }) => ({
+      order: line.workOrder,
+      companyId: line.companyId,
+      shape,
+      dictionaryFor: [line.companyId, line.vendorCompanyId],
+      lineRows: line.documentRequirements,
+    })),
+    db
+  )
 
-  // A corp-to-corp line with no vendor company on it is the person's own
-  // corporation, so the supplier's name is theirs. Where nothing names
-  // anybody — a line whose subject is not a person at all — the role
-  // stands on its own and the name is null.
-  const worker = line.candidates[0]?.person?.name ?? null
-  const supplier = line.vendorCompany?.name ?? (shape === 'CORP_TO_CORP' ? worker : null)
+  for (const { line, shape } of shaped) {
+    const sell = line.sellLinks[0]?.sellContract ?? null
+    // A corp-to-corp line with no vendor company on it is the person's own
+    // corporation, so the supplier's name is theirs. Where nothing names
+    // anybody — a line whose subject is not a person at all — the role
+    // stands on its own and the name is null.
+    const worker = line.candidates[0]?.person?.name ?? null
+    const supplier = line.vendorCompany?.name ?? (shape === 'CORP_TO_CORP' ? worker : null)
 
-  return assemble({
-    side: 'BUY',
-    shape,
-    role: sell?.requirement?.title ?? null,
-    order: line.workOrder
-      ? { id: line.workOrder.id, number: line.workOrder.number, issuedBy: line.workOrder.issuedBy.name }
-      : null,
-    orderRows,
-    orderSays,
-    companyRows: company.rows,
-    companySays: company.says,
-    lineRows: line.documentRequirements,
-    names: {
-      WORKER: worker,
-      SUPPLIER: supplier,
-      CUSTOMER: sell?.clientCompany?.name ?? null,
-      US: line.company?.name ?? null,
-    },
-    dictionaryFor: [line.companyId, line.vendorCompanyId],
-    // A buy line has no site of its own; the work is done where the sell
-    // line it funds says.
-    site: sell?.workLocation ?? null,
-    db,
-  })
+    out.set(line.id, assemble({
+      side: 'BUY',
+      shape,
+      role: sell?.requirement?.title ?? null,
+      order: line.workOrder
+        ? { id: line.workOrder.id, number: line.workOrder.number, issuedBy: line.workOrder.issuedBy.name }
+        : null,
+      ...read.orderSet(line.workOrder),
+      ...read.companySet(line.companyId, shape, line.company?.name ?? null),
+      lineRows: line.documentRequirements,
+      names: {
+        WORKER: worker,
+        SUPPLIER: supplier,
+        CUSTOMER: sell?.clientCompany?.name ?? null,
+        US: line.company?.name ?? null,
+      },
+      defined: read.dictionary([line.companyId, line.vendorCompanyId]),
+      waiverNames: read.waiverNames,
+      // A buy line has no site of its own; the work is done where the sell
+      // line it funds says.
+      site: sell?.workLocation ?? null,
+    }))
+  }
+  return out
 }
 
 /** Which party of a company's own set a line's shape is (`lib/document-stages/required-sets`). */
@@ -703,41 +756,95 @@ export const PARTY_OF_SHAPE: Record<LineShape, 'WORKERS_W2' | 'CORP_TO_CORP' | '
   CUSTOMER: 'CUSTOMERS',
 }
 
-/**
- * The paying company's own set for the party this line is about, as it
- * confirmed it at setup. Empty where it never did, and the shipped floor
- * stands alone, as before.
- */
-async function companySet(
-  companyId: string | null,
-  shape: LineShape,
-  companyName: string | null,
-  db: Db
-): Promise<{ rows: RequirementRow[]; says: string | null }> {
-  if (!companyId) return { rows: [], says: null }
-  const rows = await db.documentRequirement.findMany({
-    where: { companyId, party: PARTY_OF_SHAPE[shape] },
-    select: ROW_SELECT,
-  })
-  return { rows, says: rows.length ? `required by ${companyName ?? 'the company'}’s own papers, set at setup` : null }
-}
+const DICTIONARY_SELECT = {
+  companyId: true,
+  key: true, label: true, hint: true, purpose: true, validityShape: true,
+  validMonths: true, reissued: true, backedByAnyOf: true, requiresBacking: true,
+  signedBy: true, suppliedBy: true, blocks: true, archivedAt: true,
+} as const
 
-async function orderSet(
-  order: { id: string; number: string; issuedBy: { name: string } } | null,
+/**
+ * Everything around a set of lines that the sets are made from, read once
+ * for all of them: the orders' rows, the paying companies' own sets as
+ * confirmed at setup, the dictionaries that name the types, and who waived
+ * what. Each answer is handed out per line exactly as a read of that one
+ * line would have found it.
+ */
+async function readAround(
+  lines: {
+    order: { id: string } | null
+    companyId: string | null
+    shape: LineShape
+    dictionaryFor: (string | null)[]
+    lineRows: RequirementRow[]
+  }[],
   db: Db
-): Promise<{ orderRows: RequirementRow[]; orderSays: string | null }> {
-  if (!order) return { orderRows: [], orderSays: null }
-  const rows = await db.documentRequirement.findMany({
-    where: { workOrderId: order.id },
-    select: ROW_SELECT,
+) {
+  const orderIds = unique(lines.map((l) => l.order?.id ?? ''))
+  const companyIds = unique(lines.map((l) => l.companyId ?? ''))
+  const parties = [...new Set(lines.map((l) => PARTY_OF_SHAPE[l.shape]))]
+  const dictionaryIds = unique(lines.flatMap((l) => l.dictionaryFor.map((v) => v ?? '')))
+
+  const [orderRows, companyRows, defined] = await Promise.all([
+    orderIds.length
+      ? db.documentRequirement.findMany({ where: { workOrderId: { in: orderIds } }, select: { ...ROW_SELECT, workOrderId: true } })
+      : Promise.resolve([]),
+    companyIds.length
+      ? db.documentRequirement.findMany({
+          where: { companyId: { in: companyIds }, party: { in: parties } },
+          select: { ...ROW_SELECT, companyId: true, party: true },
+        })
+      : Promise.resolve([]),
+    // In id order, so where two firms' dictionaries name one type the
+    // answer is the same on every read.
+    dictionaryIds.length
+      ? db.documentType.findMany({ where: { companyId: { in: dictionaryIds } }, select: DICTIONARY_SELECT, orderBy: { id: 'asc' } })
+      : Promise.resolve([]),
+  ])
+
+  const waiverIds = unique(
+    [...orderRows, ...companyRows, ...lines.flatMap((l) => l.lineRows)].map((r) => r.waivedById ?? '')
+  )
+  const waiverNames: Record<string, string> = {}
+  if (waiverIds.length) {
+    const people = await db.person.findMany({ where: { id: { in: waiverIds } }, select: { id: true, name: true } })
+    for (const p of people) waiverNames[p.id] = p.name
+  }
+
+  const rowOnly = <T extends RequirementRow>(r: T): RequirementRow => ({
+    id: r.id, documentTypeKey: r.documentTypeKey, required: r.required, owedBy: r.owedBy, blocks: r.blocks,
+    inheritedFromId: r.inheritedFromId, note: r.note, waivedReason: r.waivedReason, waivedById: r.waivedById, waivedAt: r.waivedAt,
   })
+
   return {
-    orderRows: rows,
-    orderSays: `required by ${order.issuedBy.name}’s order ${order.number}`,
+    waiverNames,
+    /** The order's rows, and how to name the order in a sentence. */
+    orderSet(order: { id: string; number: string; issuedBy: { name: string } } | null): { orderRows: RequirementRow[]; orderSays: string | null } {
+      if (!order) return { orderRows: [], orderSays: null }
+      return {
+        orderRows: orderRows.filter((r) => r.workOrderId === order.id).map(rowOnly),
+        orderSays: `required by ${order.issuedBy.name}’s order ${order.number}`,
+      }
+    },
+    /**
+     * The paying company's own set for the party this line is about, as it
+     * confirmed it at setup. Empty where it never did, and the shipped floor
+     * stands alone, as before.
+     */
+    companySet(companyId: string | null, shape: LineShape, companyName: string | null): { companyRows: RequirementRow[]; companySays: string | null } {
+      if (!companyId) return { companyRows: [], companySays: null }
+      const rows = companyRows.filter((r) => r.companyId === companyId && r.party === PARTY_OF_SHAPE[shape]).map(rowOnly)
+      return { companyRows: rows, companySays: rows.length ? `required by ${companyName ?? 'the company'}’s own papers, set at setup` : null }
+    },
+    /** The dictionaries of the line's company and the firm across from it, in id order. */
+    dictionary(companies: (string | null)[]): DefinedType[] {
+      const of = new Set(companies.filter((v): v is string => !!v))
+      return defined.filter((t) => of.has(t.companyId)).map(({ companyId: _c, ...t }) => { void _c; return t as DefinedType })
+    },
   }
 }
 
-async function assemble(input: {
+function assemble(input: {
   side: LineSide
   shape: LineShape
   role: string | null
@@ -748,36 +855,12 @@ async function assemble(input: {
   companySays?: string | null
   lineRows: RequirementRow[]
   names: Names
-  /** Whose dictionaries name these types: the line's company, and the firm across from it. */
-  dictionaryFor: (string | null)[]
+  /** The dictionaries that name these types: the line's company's, and the firm's across from it. */
+  defined: DefinedType[]
+  waiverNames: Record<string, string>
   /** Where the work is done, for the state law that voids a non-compete. */
   site: { country: string | null; state: string | null } | null
-  db: Db
-}): Promise<LineRequirements> {
-  const companyIds = input.dictionaryFor.filter((v): v is string => !!v)
-  const defined = companyIds.length
-    ? await input.db.documentType.findMany({
-        where: { companyId: { in: companyIds } },
-        select: {
-          key: true, label: true, hint: true, purpose: true, validityShape: true,
-          validMonths: true, reissued: true, backedByAnyOf: true, requiresBacking: true,
-          signedBy: true, suppliedBy: true, blocks: true, archivedAt: true,
-        },
-      })
-    : []
-
-  const waiverIds = [...input.orderRows, ...(input.companyRows ?? []), ...input.lineRows]
-    .map((r) => r.waivedById)
-    .filter((v): v is string => !!v)
-  const waiverNames: Record<string, string> = {}
-  if (waiverIds.length) {
-    const people = await input.db.person.findMany({
-      where: { id: { in: waiverIds } },
-      select: { id: true, name: true },
-    })
-    for (const p of people) waiverNames[p.id] = p.name
-  }
-
+}): LineRequirements {
   // A non-compete is not asked where the site's state voids it for
   // workers (`NON_COMPETE_VOID` in lib/document-stages): kept on the
   // list, marked not asked with the law beside it, so the set screens,
@@ -791,8 +874,8 @@ async function assemble(input: {
     companyRows: input.companyRows,
     companySays: input.companySays,
     names: input.names,
-    waiverNames,
-    documentTypes: defined,
+    waiverNames: input.waiverNames,
+    documentTypes: input.defined,
   }), input.site)
 
   return { side: input.side, shape: input.shape, order: input.order, items, says: summarize(items, input.orderSays) }
