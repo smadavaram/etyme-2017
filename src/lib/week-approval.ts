@@ -38,7 +38,7 @@ import { configuredSenders } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { weekFlag } from '@/lib/timesheet-flag'
 import { lineFor, splitWeeks, weeksAwaitingDecision, type Decision, type Treatment } from '@/lib/overtime'
-import { ladderAbove } from '@/app/api/timesheets/ladder'
+import { ladderAbove, laddersAbove } from '@/app/api/timesheets/ladder'
 import {
   topDown, signersOf, tellNext, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays, workerToldSays,
   type LadderRung, type Signer,
@@ -243,6 +243,51 @@ export async function readWeekChain(timesheetId: string): Promise<WeekChain | nu
     employerId: sc.companyId,
     names,
   }
+}
+
+/**
+ * Who signs each week at the top of its chain, by name, for many weeks in
+ * one read (2026-11-02): the same answer `readWeekChain(id).clientName`
+ * gives for one week, in three queries whatever the number of weeks (the
+ * weeks, their ladders through `laddersAbove`, the names).
+ *
+ * Money measured a bill sent at forty at once: about 300 statements of
+ * each send were conversation's `readWhole` (lib/notify/bill-delivery)
+ * calling `readWeekChain` once per week on the bill only to read this
+ * name. A week that does not exist is absent from the map, as
+ * `readWeekChain` returns null for it.
+ */
+export async function weekSignersFor(timesheetIds: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const weeks = await prisma.timesheet.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, sellContractId: true,
+      sellContract: { select: { id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true } },
+    },
+  })
+  const bottomOf = (w: (typeof weeks)[number]) => ({
+    sellContractId: w.sellContract.id,
+    companyId: w.sellContract.companyId,
+    clientCompanyId: w.sellContract.clientCompanyId,
+    endClientCompanyId: w.sellContract.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladders = await laddersAbove(weeks.map((w) => ({ hoursOn: w.sellContractId, bottom: bottomOf(w) })))
+  const clientOf = new Map<string, string>()
+  for (const w of weeks) {
+    const above = ladders.get(w.sellContractId) ?? [{ rung: bottomOf(w), contract: null }]
+    const top = topDown(above.map((r) => r.rung))[0]
+    clientOf.set(w.id, top.endClientCompanyId ?? top.clientCompanyId)
+  }
+  const names = new Map(
+    (await prisma.company.findMany({ where: { id: { in: [...new Set(clientOf.values())] } }, select: { id: true, name: true } }))
+      .map((c) => [c.id, c.name])
+  )
+  for (const [weekId, clientId] of clientOf) out.set(weekId, names.get(clientId) ?? 'The client')
+  return out
 }
 
 /** "Sep 20 – Sep 26", the way the letter and the page say a week. */
