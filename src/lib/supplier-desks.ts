@@ -224,7 +224,13 @@ async function name(
   companyId: string,
   rows: { documentTypeKey: string; required: boolean; note: string | null }[]
 ): Promise<OrderedItem[]> {
-  const types = typesFor(await dictionaryOf(companyId))
+  return nameWith(typesFor(await dictionaryOf(companyId)), rows)
+}
+
+type OrderRow = { documentTypeKey: string; required: boolean; note: string | null }
+
+/** `name` over the client's dictionary already read. Pure. */
+function nameWith(types: ReturnType<typeof typesFor>, rows: readonly OrderRow[]): OrderedItem[] {
   const byKey = new Map(types.map((t) => [t.key, t]))
   const out = new Map<string, OrderedItem>()
   for (const r of rows) {
@@ -263,7 +269,7 @@ export async function orderedOfSupplier(companyId: string, supplierCompanyId: st
 
   const line = await prisma.sellContract.findFirst({
     where: { clientCompanyId: companyId, companyId: supplierCompanyId },
-    orderBy: [{ state: 'asc' }, { startDate: 'desc' }],
+    orderBy: LINE_FIRST,
     select: { id: true },
   })
   if (!line) return base
@@ -275,6 +281,27 @@ export async function orderedOfSupplier(companyId: string, supplierCompanyId: st
   // that invents its own agreement type gets it treated as an agreement
   // without anybody adding a case here.
   const byKey = new Map(typesFor(await dictionaryOf(companyId)).map((t) => [t.key, t]))
+  return withLine(base, byKey, set)
+}
+
+/**
+ * Which of a firm's lines with this client speaks for it: the earliest
+ * state, then the latest start, then the id, so two lines that start the
+ * same day always give the same answer.
+ */
+const LINE_FIRST = [{ state: 'asc' as const }, { startDate: 'desc' as const }, { id: 'asc' as const }]
+
+/**
+ * The client's order set with one line's own set folded over it: an item
+ * the line waived or made optional leaves, an item the line added joins.
+ * Pure.
+ */
+function withLine(
+  base: readonly OrderedItem[],
+  byKey: ReadonlyMap<string, { purpose: OrderedItem['purpose'] }>,
+  set: { items: readonly EffectiveRequirement[] } | null
+): OrderedItem[] {
+  if (!set) return [...base]
   const mine = set.items.filter((i: EffectiveRequirement) => i.owedBy === 'SUPPLIER')
   const waived = new Set(mine.filter((i) => i.waived || !i.required).map((i) => i.key))
 
@@ -290,6 +317,52 @@ export async function orderedOfSupplier(companyId: string, supplierCompanyId: st
     })
   }
   return [...out.values()]
+}
+
+/**
+ * `orderedOfSupplier` for every firm on a client's register at once.
+ *
+ * The register asked it one firm after another, and each time read the
+ * client's whole order set and its dictionary again: Corvane's hiring
+ * manager waited on 414 queries and 23 seconds for 25 suppliers (the page
+ * timing pass, 2026-11-02). The client's orders and dictionary are the
+ * same for every firm, so they are read once; every firm's line is found
+ * in one read, in the same order `orderedOfSupplier` picks it; and each
+ * line's own set is still read through the one door, `requirementsFor`,
+ * because only it knows what was added or waived for one firm. The answer
+ * for each firm is the one `orderedOfSupplier` gives.
+ */
+export async function orderedOfEachSupplier(
+  companyId: string,
+  supplierIds: readonly string[]
+): Promise<Map<string, OrderedItem[]>> {
+  if (supplierIds.length === 0) return new Map()
+  const [rows, dict, lines] = await Promise.all([
+    prisma.documentRequirement.findMany({
+      where: { workOrder: { issuedById: companyId }, owedBy: 'SUPPLIER' },
+      select: { documentTypeKey: true, required: true, note: true },
+    }),
+    dictionaryOf(companyId),
+    prisma.sellContract.findMany({
+      where: { clientCompanyId: companyId, companyId: { in: [...supplierIds] } },
+      orderBy: LINE_FIRST,
+      select: { id: true, companyId: true },
+    }),
+  ])
+  const types = typesFor(dict)
+  const byKey = new Map(types.map((t) => [t.key, t]))
+  const base = rows.length === 0 ? [] : nameWith(types, rows)
+  const lineOf = new Map<string, string>()
+  for (const l of lines) if (!lineOf.has(l.companyId)) lineOf.set(l.companyId, l.id)
+
+  const each = await Promise.all(
+    supplierIds.map(async (id) => {
+      const lineId = lineOf.get(id)
+      const set = lineId ? await requirementsFor({ sellContractId: lineId }) : null
+      return [id, withLine(base, byKey, set)] as const
+    })
+  )
+  return new Map(each)
 }
 
 // ── What a supplier owes on this client's orders and does not hold ────
@@ -325,14 +398,19 @@ export async function suppliersOwing(
   if (suppliers.length === 0) return out
 
   const ids = suppliers.map((s) => s.companyId)
-  const held = await prisma.verification.findMany({
-    where: {
-      companyId: { in: ids },
-      status: { in: ['CLEAR', 'CONDITIONAL'] },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-    },
-    select: { companyId: true, type: true, validFrom: true },
-  })
+  // What each firm holds, and every firm's set at once
+  // (`orderedOfEachSupplier`), never one firm after another.
+  const [held, orderedOf] = await Promise.all([
+    prisma.verification.findMany({
+      where: {
+        companyId: { in: ids },
+        status: { in: ['CLEAR', 'CONDITIONAL'] },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { companyId: true, type: true, validFrom: true },
+    }),
+    orderedOfEachSupplier(companyId, ids),
+  ])
   const onFile = new Set(
     held
       // Cover that begins next month does not cover a person starting
@@ -342,7 +420,7 @@ export async function suppliersOwing(
   )
 
   for (const s of suppliers) {
-    const ordered = await orderedOfSupplier(companyId, s.companyId)
+    const ordered = orderedOf.get(s.companyId) ?? []
     const owed: Owed[] = []
     const unanswerable: string[] = []
     for (const item of ordered) {
