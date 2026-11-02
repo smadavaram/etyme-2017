@@ -34,6 +34,7 @@ import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
+import { ITEM_WORDS, itemHref, CHECKLIST_HREF, type ItemKey } from '@/lib/setup-checklist'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, NOT_ANOTHER_BOOK } from './transaction'
@@ -65,6 +66,8 @@ export type Intent =
   | { kind: 'EXPIRING' }
   /** "When was I last paid?": the reader's own pay, answered from payroll or refused with who runs it (walk three, 2026-10-26). */
   | { kind: 'LAST_PAID' }
+  /** Setting up the company, getting started, what to do first (the founder's screen, 2026-11-02). */
+  | { kind: 'SETUP'; said: 'SETUP' | 'START'; item?: SetupItemAsked }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -80,6 +83,137 @@ function cleanRef(s: string): string | null {
   return r ? r : null
 }
 
+// ── Setting up the company ───────────────────────────────────────────
+//
+// The founder, as Tapin's Owner on production (2026-11-02): "I am ready to
+// setup company - can you guide from here" was refused as having no record
+// behind it. Setting up the company is the company's own record, so a
+// question about setup, getting started, what to do first or how it works
+// is answered with the checklist's next open item and its link.
+
+/** Words that name the company's own setup. */
+const SETUP_WORDS = /\b(set ?up|setting up|onboard (my|our|the) (company|firm|business|account)|(my|our|company|firm|account) onboarding|(complete|finish(ing)?) (my |our |the )?(setup|setting up|onboarding)|get(ting)? (my|our|the) (company|firm|account) (ready|set ?up|started))\b/
+/** The company named as what is set up. */
+const SETUP_OBJECT = /\b(compan(y|ies)|firm|account|business|organi[sz]ation|etyme|profile|checklist)\b/
+/** Asking where to begin, not naming setup: answered with setup while it is open, else with what needs the reader. */
+const GETTING_STARTED = /\b(get(ting)? started|where (do|should|can) (i|we) (start|begin)(?=\s*(?:[?.!]|$|here\b|from here\b))|what (do|should|can) (i|we) do first|first steps|guide (me|us)|walk (me|us) through|show (me|us) around|how (does|do) (this|it|etyme) work|ready to (start|begin)(?=\s*(?:[?.!]|$)))/
+/** A thing of the trade that a person sets up for somebody else: "set up an interview", "walk me through approving a timesheet". */
+const SET_UP_SOMETHING_ELSE = /\b(interviews?|calls?|meetings?|rounds?|jobs?|job requests?|requisitions?|placements?|contracts?|orders?|bills?|invoices?|invoice receipts?|timesheets?|weeks?|payroll|expenses?|consultants?|candidates?|workers?|people|person|suppliers?|vendors?|clients?|bench)\b/
+
+/** "How do I change…", "Where do I add…": asking where a thing is done. */
+const HOW_OR_WHERE = /\b(how|where) (do|can|should|would) (i|we) (add|change|set|enter|update|edit|put|give|record|verify|claim|turn on|connect|invite|fix|correct|find)\b|\bwhere (is|are)\b|\bhow (to|can i|can we)\b/
+/** The thing asked about, where it is one item of the checklist, or the company's type. */
+const ITEM_ASKED: ReadonlyArray<readonly [SetupItemAsked, RegExp]> = [
+  ['KIND', /\b(compan(y|ies)|firm|business|account) (type|kind)\b|\b(type|kind) of (company|firm|business|account)\b/],
+  ['BANK', /\bbank (details|account|info(rmation)?)\b|\brouting number\b/],
+  ['PEOPLE_IN_CHARGE', /\b(people|person) in charge\b|\bbilling contact\b|\baccounts email\b/],
+  ['ADDRESSES', /\b(billing|legal|company|business|our|my|mailing|registered) address(es)?\b|\baddresses\b/],
+  ['SITES', /\b(our|my|a|new) sites?\b|\bbranch(es| offices?)\b/],
+  ['HOW_YOU_WORK', /\bdays off\b|\bwork ?week\b|\bpay (period|day)s?\b|\bpayroll (settings?|schedule)\b|\bset ?up (my |our |the )?payroll\b|\b(public|company) holidays?\b/],
+  ['PAPERS', /\bpapers (you|we) require\b|\brequired (papers|documents)\b|\bpaper sets?\b/],
+  ['TEAM', /\b(invite|add) (a |my |our |the )?(colleague|teammate|team ?member|coworker|co-worker)s?\b|\binvite (my |our )?team\b/],
+  ['DOMAIN', /\b(our|my|the|company|email) domain\b|\bverify (a |the )?domain\b/],
+  ['INTEGRATIONS', /\bintegrations?\b|\bmicrosoft teams\b|\bteams (channel|webhook)\b|\baccounting export\b/],
+  ['COMPANY', /\b(legal name|company name|time ?zone|company phone|company profile|reporting currency)\b/],
+]
+
+/** A setup question about one item of the checklist, or about the company's type, which is changed in Settings. */
+export type SetupItemAsked = ItemKey | 'KIND'
+
+/** What a setup question asked: setup, or only where to begin, and the one item it named. */
+export interface SetupAsked {
+  said: 'SETUP' | 'START'
+  item?: SetupItemAsked
+}
+
+/**
+ * Whether a question is about setting up the company, getting started or
+ * what to do first: "SETUP" where it names setup or one of its items,
+ * "START" where it only asks where to begin, null for anything else. A
+ * sentence about a thing of the trade ("set up an interview with Helena")
+ * is not the company's setup unless it names the company too.
+ */
+export function setupAsked(text: string): SetupAsked | null {
+  const t = text.toLowerCase()
+  const setupWords = SETUP_WORDS.test(t)
+  // "Where do I add my bank details?", "How do I change my company type?"
+  const item = ITEM_ASKED.find(([, re]) => re.test(t))?.[0]
+  if (item && (setupWords || HOW_OR_WHERE.test(t) || GETTING_STARTED.test(t))) return { said: 'SETUP', item }
+  const said = setupWords ? 'SETUP' : GETTING_STARTED.test(t) ? 'START' : null
+  if (!said) return null
+  if (SET_UP_SOMETHING_ELSE.test(t) && !SETUP_OBJECT.test(t)) return null
+  return { said }
+}
+
+/** Whether a question is about setting up the company, getting started or what to do first. */
+export function asksAboutSetup(text: string): boolean {
+  return setupAsked(text) !== null
+}
+
+/** What the record says of this seat's setup, read by `Readers.setup` (./read). */
+export type SetupRead =
+  /**
+   * The checklist is open: the items still owed, the ones never answered
+   * first and the ones skipped after them, each in the checklist's order;
+   * the first one is next. `items` is this company's whole list.
+   */
+  | { kind: 'OPEN'; owed: readonly ItemKey[]; skipped?: readonly ItemKey[]; items?: readonly ItemKey[] }
+  /** Every item is done. */
+  | { kind: 'DONE'; items?: readonly ItemKey[] }
+  /** This seat does not run setup: the Owner or an Admin does. */
+  | { kind: 'NOT_YOURS' }
+  /** This company is not asked the checklist (nobody took possession of it, or it is a census sandbox). */
+  | { kind: 'NOT_ASKED' }
+
+/** Where the company's type is changed: Settings, the Owner's alone (lib/company-kind). */
+export const SETTINGS_HREF = '/dashboard/settings'
+export const KIND_SAYS = 'The Owner changes the type of company, under Settings.'
+
+/**
+ * "Next in setup: Your company. The name and number on every bill and
+ * agreement." and its one link; or, where the question named one item,
+ * where that item is and its link.
+ */
+export function setupSays(r: SetupRead, item?: SetupItemAsked): Answer {
+  if (item === 'KIND') return { kind: 'TEXT', says: KIND_SAYS, links: [{ label: 'Open Settings', href: SETTINGS_HREF }] }
+  if (item && (r.kind === 'OPEN' || r.kind === 'DONE') && r.items?.includes(item)) {
+    const w = ITEM_WORDS[item]
+    const owed = r.kind === 'OPEN' && r.owed.includes(item)
+    const sub = w.sub.charAt(0).toLowerCase() + w.sub.slice(1)
+    return {
+      kind: 'TEXT',
+      says: owed
+        ? `In setup, under ${w.label}: ${sub}`
+        : `In setup, under ${w.label}, already done. Open it to change an answer.`,
+      links: [{ label: `Open ${w.label}`, href: itemHref(item) }],
+    }
+  }
+  if (item && r.kind === 'NOT_ASKED') {
+    const w = ITEM_WORDS[item]
+    return { kind: 'TEXT', says: `${w.label} is under Settings, Setup.`, links: [{ label: 'Open setup', href: CHECKLIST_HREF }] }
+  }
+  switch (r.kind) {
+    case 'OPEN': {
+      const first = r.owed[0]
+      const w = ITEM_WORDS[first]
+      const more = r.owed.length - 1
+      const skippedIt = r.skipped?.includes(first) ? ', skipped earlier' : ''
+      return {
+        kind: 'TEXT',
+        says: `Next in setup: ${w.label}${skippedIt}. ${w.sub}` +
+          (more > 0 ? ` ${numberWord(more)} more after it, and you can skip any of them for now.` : ' It is the last one.'),
+        links: [{ label: `Open ${w.label}`, href: itemHref(first) }],
+      }
+    }
+    case 'DONE':
+      return { kind: 'TEXT', says: 'Setup is finished: every item is done. Ask “What needs me today?” to see what waits on you.', links: [{ label: 'Open setup', href: CHECKLIST_HREF }] }
+    case 'NOT_YOURS':
+      return { kind: 'TEXT', says: 'The Owner or an Admin sets up the company, under Settings, Setup. Ask “What needs me today?” to see what waits on you.' }
+    case 'NOT_ASKED':
+      return { kind: 'TEXT', says: 'Setup is under Settings, Setup: your company, addresses, papers and the rest, one at a time.', links: [{ label: 'Open setup', href: CHECKLIST_HREF }] }
+  }
+}
+
 /**
  * Read what a person typed into one of the five rule questions, or ASK.
  * Case and trailing punctuation do not matter; word order mostly does,
@@ -91,6 +225,8 @@ export function readAsk(raw: string): Intent {
   if (!text || /^(help|\?|what can you do\??|what do you answer\??)$/i.test(text)) return { kind: 'HELP' }
 
   const lower = text.toLowerCase()
+  const setup = setupAsked(lower)
+  if (setup) return { kind: 'SETUP', ...setup }
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
   if (
     (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
@@ -1890,6 +2026,8 @@ export interface Readers {
   logPrompt(entry: PromptLog): Promise<void>
   /** A firm's own people billing today and what their rates come to a month; null for a seat that does not read money. */
   billing?(): Promise<Billing | null>
+  /** Where this seat's company stands on the setup checklist; optional so a reader that has none answers as not asked. */
+  setup?(): Promise<SetupRead>
   /** This firm's people whose last day falls in the next `days` days, soonest first. */
   rollingOff?(days: number): Promise<Refusable<{ rows: RollRow[] }>>
   /** Who is on this firm's bench: the people who agreed to be, or an integrator's own people between projects. */
@@ -2567,7 +2705,7 @@ export async function respond(
   // refused by rule before any intent and before the model is considered.
   // Found by the walk of 2026-10-22: "What does Brightmoor Staffing pay
   // Helena Marsh?" was answered "needs the model".
-  if (!['HELP', 'WHY', 'DECIDE', 'NEEDS'].includes(intent.kind) && asksAboutFirmMoney(text, own)) {
+  if (!['HELP', 'WHY', 'DECIDE', 'NEEDS', 'SETUP'].includes(intent.kind) && asksAboutFirmMoney(text, own)) {
     if (anotherFirmsMoney(text, own, await read.vocabulary())) return { kind: 'TEXT', says: NOT_ANOTHER_BOOK }
   }
   // A firm's own book is answered only where this seat has the read; a
@@ -2585,6 +2723,15 @@ export async function respond(
 
     case 'NEEDS':
       return today(read, { now: opts.now, needs: opts.needs, party: opts.party })
+
+    // The company's own setup: its next open item, never the transaction refusal.
+    // "Where do I start?" with nothing left to set up, or setup that is not
+    // this seat's to run, is answered with what needs the reader instead.
+    case 'SETUP': {
+      const r: SetupRead = read.setup ? await read.setup() : { kind: 'NOT_ASKED' }
+      if (intent.said === 'START' && r.kind !== 'OPEN') return today(read, { now: opts.now, needs: opts.needs, party: opts.party })
+      return setupSays(r, intent.item)
+    }
 
     case 'ROLLOFF': {
       const got = await read.rollingOff!(ROLLOFF_DAYS)

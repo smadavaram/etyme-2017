@@ -488,13 +488,21 @@ function startedReaders(r: Readers, who: Promise<{ party: Party }>): Readers {
  * the reader's own seat may run setup (`settings.manage`: the Owner or
  * Admin). A seat in another company's program reads that program for the
  * whole session, and an outside firm never holds the client's settings, so
- * it reads no setup line there. A read that fails says nothing.
+ * it reads no setup line there. A one-person firm's Owner reads it like
+ * any Owner: her firm is set up the same way. A read that fails says
+ * nothing in the greeting, and staff are told, because a line that is
+ * missing in silence is how the founder's own greeting at Tapin showed no
+ * setup line with the checklist open (2026-11-02).
  */
 async function setupLineOf(caller: Caller): Promise<RichLine | null> {
   if (!caller.company || asWorker(caller) || (await seatOf(caller))) return null
   const mayRun = hasPermission(caller.permissions, 'settings.manage')
   if (!mayRun) return null
-  return setupReminderFor(caller.company.id, { mayRun }).then(setupLineFor).catch(() => null)
+  const companyId = caller.company.id
+  return setupReminderFor(companyId, { mayRun }).then(setupLineFor).catch(async (err) => {
+    await reportError('Ask Etyme could not read the setup checklist for the greeting', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId })
+    return null
+  })
 }
 
 /**
@@ -668,7 +676,8 @@ export async function POST(request: NextRequest) {
     // A one-person firm is the firm and the worker at once: her week, her
     // papers and her contract are answered from her own pages, as a
     // worker's are; what she billed and the rest, from the firm's book.
-    const solo = who.party === 'SOLO' && readAsk(text).kind !== 'UNPAID' &&
+    // Setting up her firm is the firm's book too (2026-11-02).
+    const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP'].includes(readAsk(text).kind) &&
       ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS'].includes(readWorkerAsk(text))
     const seat = await seatOf(caller)
     answer = solo

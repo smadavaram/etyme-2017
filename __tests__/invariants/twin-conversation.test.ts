@@ -1688,9 +1688,9 @@ describe('every first screen names a person and the step in front of them (found
   it('a one-person firm asks when her contract ends and reads it from her own placement', async () => {
     const a = await respondWorker('When does my contract end?', { facts: async () => helena() })
     expect(a.says).toBe('Your contract at Northbend Athletic ends on Mar 28, 2027. Checked just now.')
-    // The route sends her week, her papers and her contract to her own pages, and what she billed to the firm's book.
+    // The route sends her week, her papers and her contract to her own pages, and what she billed and her firm's setup to the firm's book.
     const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
-    expect(route).toContain("const solo = who.party === 'SOLO' && readAsk(text).kind !== 'UNPAID'")
+    expect(route).toContain("const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP'].includes(readAsk(text).kind)")
   })
 
   it('a worker’s greeting ends on where she stands against the client’s time limit, in whole months, after the papers', () => {

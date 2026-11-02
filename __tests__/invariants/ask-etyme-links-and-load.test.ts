@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join } from 'path'
-import { questionsFor, CHIPS, FIRM_ORDER, FIRM_QUESTIONS, SUGGESTED_QUESTIONS, readsPicture, pictureOf, partyOf, today, type Readers } from '@/app/api/conversations/twin/ask'
+import { questionsFor, CHIPS, FIRM_ORDER, FIRM_QUESTIONS, SUGGESTED_QUESTIONS, readsPicture, pictureOf, partyOf, today, readAsk, respond, setupSays, type Readers, type SetupRead } from '@/app/api/conversations/twin/ask'
+import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
+import { itemHref, CHECKLIST_HREF, reminderSentence, COMPLETE_SETUP, ITEM_WORDS } from '@/lib/setup-checklist'
+import { setupLineFor } from '@/app/api/conversations/twin/first-act'
 import { cardsFor, paperCards, type WorkerFacts, type PaperAsk } from '@/app/api/conversations/twin/worker'
 import { paperAsksFrom } from '@/app/api/conversations/twin/worker-read'
 
@@ -325,5 +328,134 @@ describe('Ask Etyme says a bill is owed only once the firm that pays it was sent
     const { OWED_TO_US } = await import('@/app/api/conversations/twin/read')
     const { isSent } = await import('@/lib/money/bill-state')
     for (const s of OWED_TO_US) expect(isSent(s), s).toBe(true)
+  })
+})
+
+// ── Setting up the company is the company's own record (2026-11-02) ────
+//
+// The founder, as Tapin's Owner on production, typed "I am ready to setup
+// company - can you guide from here" and was told Etyme answers only about
+// the company's own record. Setup is the company's own record.
+
+describe('a question about setting up the company is answered from the setup checklist', () => {
+  const FOUNDER = 'I am ready to setup company - can you guide from here'
+  const open = (over: Partial<Extract<SetupRead, { kind: 'OPEN' }>> = {}): SetupRead =>
+    ({ kind: 'OPEN', owed: ['COMPANY', 'ADDRESSES', 'HOW_YOU_WORK', 'PAPERS', 'BANK', 'COMPANIES', 'INTEGRATIONS'], skipped: [], ...over })
+  const ask = (text: string, setup: () => Promise<SetupRead>, extra: Partial<Readers> = {}) =>
+    respond(text, quietReaders({ setup, ...extra }), { env: {}, party: 'SOLO', companyKind: 'CONSULTANT_CORP', ownCompany: 'Tapin', ownKind: 'CONSULTANT_CORP', permissions: ALL })
+
+  it('a question about setting up the company is answered with the checklist’s next item and its link, never refused', async () => {
+    expect(readAsk(FOUNDER).kind).toBe('SETUP')
+    const a = await ask(FOUNDER, async () => open())
+    expect(a.kind).toBe('TEXT')
+    if (a.kind !== 'TEXT') return
+    expect(a.says).not.toBe(ONLY_THE_RECORD)
+    expect(a.says.startsWith('Next in setup: Your company. ')).toBe(true)
+    expect(a.says).toContain('Six more after it, and you can skip any of them for now.')
+    expect(a.links).toEqual([{ label: 'Open Your company', href: itemHref('COMPANY') }])
+  })
+
+  it('getting started, where to begin and how it works are setup questions too, while setup is open', async () => {
+    for (const q of ['How do I get started?', 'Where do I start?', 'What should I do first?', 'How does this work?', 'Help me finish setup', 'Set up my company']) {
+      expect(readAsk(q).kind, q).toBe('SETUP')
+      const a = await ask(q, async () => open({ owed: ['ADDRESSES', 'BANK'] }))
+      expect(a.kind === 'TEXT' && a.says.startsWith('Next in setup: Addresses. '), q).toBe(true)
+    }
+  })
+
+  it('the next item is one nobody has looked at yet, and a skipped one is said as skipped when only skipped ones are left', () => {
+    const last = setupSays({ kind: 'OPEN', owed: ['BANK'], skipped: ['BANK'] })
+    expect(last).toEqual({
+      kind: 'TEXT',
+      says: `Next in setup: Bank details, skipped earlier. ${ITEM_WORDS.BANK.sub} It is the last one.`,
+      links: [{ label: 'Open Bank details', href: itemHref('BANK') }],
+    })
+    const fresh = setupSays({ kind: 'OPEN', owed: ['ADDRESSES', 'BANK'], skipped: ['BANK'] })
+    expect(fresh.kind === 'TEXT' && fresh.says).toBe(`Next in setup: Addresses. ${ITEM_WORDS.ADDRESSES.sub} One more after it, and you can skip any of them for now.`)
+  })
+
+  it('the screen walk’s three questions are answered with the door to setup or Settings, never refused', async () => {
+    const items: SetupRead = { kind: 'OPEN', owed: ['COMPANY', 'ADDRESSES', 'BANK'], skipped: [], items: ['COMPANY', 'ADDRESSES', 'HOW_YOU_WORK', 'PAPERS', 'BANK', 'COMPANIES', 'INTEGRATIONS'] }
+    const type = await ask('How do I change my company type?', async () => items)
+    expect(type).toEqual({ kind: 'TEXT', says: 'The Owner changes the type of company, under Settings.', links: [{ label: 'Open Settings', href: '/dashboard/settings' }] })
+    const finish = await ask('How do I finish setting up my company?', async () => items)
+    expect(finish.kind === 'TEXT' && finish.says.startsWith('Next in setup: Your company. ')).toBe(true)
+    expect(finish.kind === 'TEXT' && finish.links).toEqual([{ label: 'Open Your company', href: itemHref('COMPANY') }])
+    const bank = await ask('Where do I add my bank details?', async () => items)
+    expect(bank).toEqual({
+      kind: 'TEXT',
+      says: 'In setup, under Bank details: where your clients pay you. Only the bank, the account name and four digits are kept.',
+      links: [{ label: 'Open Bank details', href: itemHref('BANK') }],
+    })
+    for (const a of [type, finish, bank]) expect(a.kind === 'TEXT' && a.says).not.toBe(ONLY_THE_RECORD)
+  })
+
+  it('an item already done is still found, with its link to change an answer; one this company is never asked falls back to what is next', async () => {
+    const done: SetupRead = { kind: 'DONE', items: ['COMPANY', 'ADDRESSES', 'BANK'] }
+    expect(await ask('Where do I change our billing address?', async () => done)).toEqual({
+      kind: 'TEXT', says: 'In setup, under Addresses, already done. Open it to change an answer.', links: [{ label: 'Open Addresses', href: itemHref('ADDRESSES') }],
+    })
+    // A client is never asked for bank details (lib/setup-checklist): told what is next instead.
+    const client: SetupRead = { kind: 'OPEN', owed: ['ADDRESSES'], skipped: [], items: ['COMPANY', 'ADDRESSES', 'SITES'] }
+    const a = await ask('Where do I add my bank details?', async () => client)
+    expect(a.kind === 'TEXT' && a.says.startsWith('Next in setup: Addresses. ')).toBe(true)
+  })
+
+  it('setting up a thing of the trade is not the company’s setup: an interview, a timesheet, a job request', () => {
+    for (const q of ['Set up an interview with Helena Marsh', 'Walk me through approving a timesheet', 'Where do I start a job request?', 'Who starts next week?', 'Onboard Helena Marsh', 'How do I add the bank reference?', 'How do I change Helena Marsh’s address?', 'Where is Helena Marsh’s timesheet?']) {
+      expect(readAsk(q).kind, q).not.toBe('SETUP')
+    }
+  })
+
+  it('a question about another company’s book, or with no record behind it, is still refused in its one sentence', async () => {
+    const setup = async () => open()
+    expect(await ask('What is the capital of France?', setup)).toEqual({ kind: 'TEXT', says: ONLY_THE_RECORD })
+    expect(await ask('What do other companies pay for a data engineer?', setup)).toEqual({ kind: 'TEXT', says: NOT_ANOTHER_BOOK })
+  })
+
+  it('a seat that does not run setup is told who does; with setup finished, “where do I start?” reads what needs the reader', async () => {
+    const notMine = await ask(FOUNDER, async () => ({ kind: 'NOT_YOURS' }))
+    expect(notMine.kind === 'TEXT' && notMine.says.startsWith('The Owner or an Admin sets up the company, under Settings, Setup.')).toBe(true)
+    const done = await ask(FOUNDER, async () => ({ kind: 'DONE' }))
+    expect(done.kind === 'TEXT' && done.links).toEqual([{ label: 'Open setup', href: CHECKLIST_HREF }])
+    expect((await ask('Where do I start?', async () => ({ kind: 'DONE' }))).kind).toBe('NEEDS')
+  })
+
+  it('the route answers a one-person firm’s setup question from the firm’s readers, never from her worker’s pages', () => {
+    const route = read('src/app/api/conversations/twin/route.ts')
+    expect(route).toMatch(/who\.party === 'SOLO' && !\['UNPAID', 'SETUP'\]\.includes\(readAsk\(text\)\.kind\)/)
+    const reader = read('src/app/api/conversations/twin/read.ts')
+    expect(reader).toMatch(/async setup\(\): Promise<SetupRead>/)
+    expect(reader).toMatch(/hasPermission\(caller\.permissions, 'settings\.manage'\)/)
+  })
+})
+
+describe('a one-person firm’s Owner with setup open reads the setup line in the greeting', () => {
+  const line = setupLineFor({ says: reminderSentence(['COMPANY', 'ADDRESSES', 'PAPERS', 'BANK'])!, href: CHECKLIST_HREF, link: COMPLETE_SETUP })!
+
+  it('a one-person firm’s Owner with setup open reads the setup line in the greeting', async () => {
+    const g = await today(quietReaders(), { greeting: true, party: 'SOLO', setup: line })
+    expect(g.kind).toBe('NEEDS')
+    const more = g.kind === 'NEEDS' ? g.more ?? [] : []
+    expect(more.map((m) => m.says)).toContain('Finish setting up: your company, addresses, papers you require and 1 more. Complete setup.')
+    expect(more.find((m) => m.says.startsWith('Finish setting up'))?.links).toEqual([{ text: COMPLETE_SETUP, href: CHECKLIST_HREF }])
+  })
+
+  it('the route reads the setup line for every kind of firm, the one-person firm included, and says when the read fails', () => {
+    const route = read('src/app/api/conversations/twin/route.ts')
+    const fn = route.slice(route.indexOf('async function setupLineOf'), route.indexOf('async function setupLineOf') + 900)
+    expect(fn).not.toMatch(/CONSULTANT_CORP/)
+    expect(fn).not.toMatch(/\.catch\(\(\) => null\)/)
+    expect(fn).toMatch(/reportError\(/)
+  })
+
+  it('the party, the chips and the setup line follow the firm’s kind as it stands on this request, never a kind kept from sign-in', () => {
+    const route = read('src/app/api/conversations/twin/route.ts')
+    // The kind is read off the caller, which getCallerContext reads from the seat's company on every request.
+    expect(route).toMatch(/const kind = caller\.company\?\.kind \?\? null/)
+    expect(route).toMatch(/questionsFor\(party\.party, await judgedBy\(caller\), company\.kind\)/)
+    expect(read('src/lib/api-context.ts')).toMatch(/company: \{ select: \{ id: true, name: true, slug: true, kind: true/)
+    expect(partyOf({ companyKind: 'CONSULTANT_CORP', seatedAt: null })).toBe('SOLO')
+    expect(partyOf({ companyKind: 'VENDOR', seatedAt: null })).toBe('FIRM')
   })
 })

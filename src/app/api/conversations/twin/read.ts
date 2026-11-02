@@ -46,6 +46,7 @@ import { maySendBills } from '@/lib/money/bill-send'
 import { billsDueToday } from './bill-due'
 import { NEEDS_RATE, PUT_FORWARD_SIGNED_IN } from '@/lib/twin/supplier-performers'
 import { mayChasePaper } from '@/lib/setup-gates'
+import { asksChecklist, checklistOf } from '@/lib/setup-checklist-state'
 import { workerPartyAt } from '@/lib/document-stages/chase-gate'
 
 /** The route's own sentences, carried on the put-forward card so it never retypes them. */
@@ -69,7 +70,7 @@ import {
   matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
   putForwardFromPayload, putForwardItemTitle, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
   type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
-  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
+  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict, type SetupRead,
 } from './ask'
 
 /** An invoice that was never sent, or was withdrawn, is nobody's spend. */
@@ -211,6 +212,25 @@ export function readersFor(
     })
 
   return {
+    /**
+     * Where this company stands on the setup checklist, read the way the
+     * setup page and the greeting's line read it (lib/setup-checklist-state).
+     * Only the Owner or an Admin of the reader's own company runs setup; a
+     * seat in another company's program never runs that company's.
+     */
+    async setup(): Promise<SetupRead> {
+      if (!ownCompany || seat) return { kind: 'NOT_YOURS' }
+      if (!hasPermission(caller.permissions, 'settings.manage')) return { kind: 'NOT_YOURS' }
+      if (!(await asksChecklist(companyId))) return { kind: 'NOT_ASKED' }
+      const { checklist } = await checklistOf(companyId)
+      const items = checklist.rows.map((r) => r.key)
+      if (checklist.owed.length === 0) return { kind: 'DONE', items }
+      // Never answered before skipped: the next item is one nobody has looked at yet.
+      const skipped = checklist.rows.filter((r) => r.state === 'SKIPPED').map((r) => r.key)
+      const todo = checklist.rows.filter((r) => r.state !== 'DONE' && r.state !== 'SKIPPED').map((r) => r.key)
+      return { kind: 'OPEN', owed: [...todo, ...skipped], skipped, items }
+    },
+
     async waiting(): Promise<WaitingItem[]> {
       // The twin asks people at its own company only.
       if (!ownCompany) return []
