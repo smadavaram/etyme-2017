@@ -46,6 +46,7 @@ import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { fromUnits, amount } from '@/lib/money-display'
 import { whereHoursLive, descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
+import type { Rung } from '@/lib/work-chain'
 import { lineFor, type Decision } from '@/lib/overtime'
 import {
   ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, moneyTermsFor,
@@ -143,6 +144,201 @@ export interface BillOptions {
   by?: string
   /** How many times this bill has been asked again after a collision. Internal. */
   attempt?: number
+  /**
+   * Reads shared with the other dry runs of one reader (`shareBillReads`),
+   * so a page pricing many periods at once reads the chain, the signed
+   * weeks and the expenses once. Never changes an answer.
+   */
+  shared?: BillShared
+}
+
+/**
+ * Reads made once and shared across several dry runs for one firm.
+ *
+ * The firm's Today page prices every signed week through this generator,
+ * one dry run per engagement and billing period, and each run used to
+ * walk the chain, read the signed weeks, read the expenses, the invoice
+ * receipts the payers hold from the firm and both firms' sites again:
+ * 215 database questions for 23 weeks at one supplier. Now each is read
+ * once, over every line of the firm and every day any run asks for, and
+ * each run keeps exactly the rows its own query would have returned —
+ * the same conditions, applied to what was read. A run that reaches past
+ * what was read (a line of another firm, or a day outside the window)
+ * reads for itself, as before. Only a dry run reads this way; a bill
+ * that is written always reads for itself.
+ */
+export interface BillShared {
+  /** Every sell line of the firm whose runs share these reads. */
+  readonly lineIds: ReadonlySet<string>
+  /** The ladder below those lines, read once (`ladderFor` over all of them). */
+  readonly rungs: readonly Rung[]
+  /** The first and last day any run will ask for, UTC midnight. */
+  readonly from: Date
+  readonly to: Date
+  /** What has been read, by what it is. Internal. */
+  readonly reads: Map<string, Promise<unknown>>
+}
+
+/** The reads several dry runs of one firm may share; see `BillShared`. */
+export function shareBillReads(a: { lineIds: readonly string[]; rungs: readonly Rung[]; from: Date; to: Date }): BillShared {
+  return { lineIds: new Set(a.lineIds), rungs: a.rungs, from: a.from, to: a.to, reads: new Map() }
+}
+
+/** Read once per key; every later asker waits on the same read. */
+function readOnce<T>(shared: BillShared, key: string, read: () => Promise<T>): Promise<T> {
+  let r = shared.reads.get(key) as Promise<T> | undefined
+  if (!r) {
+    r = read()
+    shared.reads.set(key, r)
+  }
+  return r
+}
+
+/** A week as the generator reads it. One include, so the shared read and a run's own cannot drift apart. */
+const BILL_WEEK_INCLUDE = {
+  person: { select: { id: true, name: true } },
+  // What somebody decided about each week that went over the line.
+  // The invoice prices from these and from nothing else: a contract
+  // multiplier says what an overtime hour COULD be worth, never what
+  // this week's was, and a week nobody has answered is not billable
+  // at any price.
+  overtimeDecisions: true,
+  // Every live signature on the week. A rung below the top bills
+  // only what the firm above it accepted, so the payer's own
+  // signature is read in the loop below (lib/money/rung-billing).
+  assertions: {
+    where: { state: 'LIVE' },
+    select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+  },
+  sellContract: {
+    select: {
+      id: true, billRate: true, billCurrency: true, workOrderId: true,
+      // Who the hours are filed with and for — which of a payer's
+      // signatures is its own is decided from these.
+      companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      overtimeAfterHours: true, overtimeMultiplierBps: true,
+      startDate: true,
+      // The job's hours: where the contract draws no overtime line,
+      // a week somebody decided was judged against them (lineFor).
+      requirement: { select: { hoursPerWeek: true } },
+      // The contract says what a period is — unless it is on an
+      // order, and then the order does. Both are selected and
+      // `lib/money/order-terms` picks; these three are never read
+      // directly.
+      billFrequency: true, billAnchor: true, billStraddle: true,
+      workOrder: { select: ORDER_HEADER_SELECT },
+      ...SELL_LINE_TERMS_SELECT,
+    },
+  },
+} as const
+
+/** An expense as the generator reads it; one include, for the same reason. */
+const BILL_EXPENSE_INCLUDE = {
+  person: { select: { name: true } },
+  sellContract: {
+    select: {
+      id: true, billCurrency: true, startDate: true,
+      billFrequency: true, billAnchor: true, billStraddle: true,
+      workOrder: { select: ORDER_HEADER_SELECT },
+      ...SELL_LINE_TERMS_SELECT,
+    },
+  },
+} as const
+
+/** Whether a row's period touches the days asked for, as the generator's own query asks it. */
+function touches(row: { periodStart: Date; periodEnd: Date }, asked: { start: Date | null; end: Date | null }): boolean {
+  if (asked.start && row.periodEnd.getTime() < asked.start.getTime()) return false
+  if (asked.end && row.periodStart.getTime() > asked.end.getTime()) return false
+  return true
+}
+
+type BillWeek = Prisma.TimesheetGetPayload<{ include: typeof BILL_WEEK_INCLUDE }>
+type BillExpense = Prisma.ExpenseGetPayload<{ include: typeof BILL_EXPENSE_INCLUDE }>
+type Asked = { start: Date | null; end: Date | null }
+
+/**
+ * Every signed week on a line the firm bills from, over every day read,
+ * with which of the firm's own lines already bill it. Read once.
+ */
+function sharedWeeks(shared: BillShared) {
+  return readOnce(shared, 'weeks', () => {
+    const hoursOn = [...new Set([...shared.lineIds].map((id) => whereHoursLive(id, shared.rungs)))]
+    return prisma.timesheet.findMany({
+      where: {
+        sellContractId: { in: hoursOn },
+        assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
+        periodEnd: { gte: shared.from },
+        periodStart: { lte: shared.to },
+      },
+      include: {
+        ...BILL_WEEK_INCLUDE,
+        invoiceLines: { where: { sellContractId: { in: [...shared.lineIds] } }, select: { sellContractId: true } },
+      },
+      orderBy: [{ periodStart: 'asc' }, { id: 'asc' }],
+    })
+  })
+}
+
+/**
+ * The weeks one run's own query would return, kept from the shared read
+ * by the same conditions: on a line its contracts bill from, signed by the
+ * client (read so), on no line of its own, and touching the days asked.
+ */
+export function weeksFromShared(
+  rows: Awaited<ReturnType<typeof sharedWeeks>>,
+  a: { contractIds: readonly string[]; ownIds: readonly string[]; asked: Asked }
+): BillWeek[] {
+  const on = new Set(a.contractIds)
+  const own = new Set(a.ownIds)
+  return rows
+    .filter((ts) => on.has(ts.sellContractId) && !ts.invoiceLines.some((l) => l.sellContractId !== null && own.has(l.sellContractId)) && touches(ts, a.asked))
+    .map(({ invoiceLines: _billed, ...ts }) => ts)
+}
+
+/**
+ * Every expense on the firm's lines and every line below them that a run
+ * could bill, over every day read, with which of the firm's own lines
+ * already bill it. Read once.
+ */
+function sharedExpenses(shared: BillShared) {
+  return readOnce(shared, 'expenses', () => {
+    const lines = new Set<string>()
+    for (const id of shared.lineIds) for (const l of descend(id, shared.rungs)) lines.add(l)
+    return prisma.expense.findMany({
+      where: {
+        sellContractId: { in: [...lines] },
+        status: { in: [...APPROVED_BY_EMPLOYER] },
+        periodEnd: { gte: shared.from },
+        periodStart: { lte: shared.to },
+      },
+      include: {
+        ...BILL_EXPENSE_INCLUDE,
+        invoiceLines: { where: { sellContractId: { in: [...shared.lineIds] } }, select: { sellContractId: true } },
+      },
+      orderBy: [{ periodEnd: 'asc' }, { id: 'asc' }],
+    })
+  })
+}
+
+/**
+ * The expenses one run's own query would return, kept by the same
+ * conditions: approved and on no bill on its own lines, accepted by the
+ * employer on a line below them, on no line of its own, touching the days.
+ */
+export function expensesFromShared(
+  rows: Awaited<ReturnType<typeof sharedExpenses>>,
+  a: { ownIds: readonly string[]; belowIds: readonly string[]; asked: Asked }
+): BillExpense[] {
+  const own = new Set(a.ownIds)
+  const below = new Set(a.belowIds)
+  const byEmployer: readonly string[] = APPROVED_BY_EMPLOYER
+  return rows
+    .filter((e) =>
+      ((own.has(e.sellContractId) && e.status === 'APPROVED' && e.invoiceId === null) ||
+        (below.has(e.sellContractId) && byEmployer.includes(e.status))) &&
+      !e.invoiceLines.some((l) => l.sellContractId !== null && own.has(l.sellContractId)) &&
+      touches(e, a.asked))
+    .map(({ invoiceLines: _billed, ...e }) => e)
 }
 
 /**
@@ -246,7 +442,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   }
 
   // Verify engagement and get payment terms
-  const engagement = await prisma.engagement.findUnique({
+  const readEngagement = () => prisma.engagement.findUnique({
     where: { id: engagementId },
     include: {
       msa: {
@@ -303,6 +499,10 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       },
     },
   })
+  // The same engagement asked for over several periods is read once.
+  const engagement = opts.dryRun && opts.shared
+    ? await readOnce(opts.shared, `engagement:${engagementId}`, readEngagement)
+    : await readEngagement()
 
   if (!engagement) {
     return reply(404, { error: { code: 'NOT_FOUND', message: 'Engagement not found' } })
@@ -355,7 +555,17 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // hours. On a direct placement it descends nowhere and this is the
   // identity, which is the ordinary case and stays the ordinary case.
   const ownIds = engagement.sellContracts.map((sc) => sc.id)
-  const rungs = await ladderFor(ownIds)
+  // Shared reads only where every line of this engagement is one of the
+  // firm's lines they were read over, and the signed weeks and expenses
+  // only where the days asked for are inside the days read. The ladder
+  // read over all the firm's lines descends from each of these exactly as
+  // a ladder read over these alone does (a chain deeper than eight hops,
+  // a data fault, is the one case it can read further).
+  const shared = opts.dryRun && opts.shared && ownIds.every((id) => opts.shared!.lineIds.has(id)) ? opts.shared : null
+  const sharedDays = shared && asked.start && asked.end
+    && asked.start.getTime() >= shared.from.getTime() && asked.end.getTime() <= shared.to.getTime()
+    ? shared : null
+  const rungs = shared ? [...shared.rungs] : await ladderFor(ownIds)
 
   /** Where the hours are → which of our contracts bills them. */
   const billedBy = new Map<string, string>()
@@ -398,46 +608,13 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     timesheetWhere.periodStart = { lte: asked.end }
   }
 
-  const timesheets = await prisma.timesheet.findMany({
-    where: timesheetWhere,
-    include: {
-      person: { select: { id: true, name: true } },
-      // What somebody decided about each week that went over the line.
-      // The invoice prices from these and from nothing else: a contract
-      // multiplier says what an overtime hour COULD be worth, never what
-      // this week's was, and a week nobody has answered is not billable
-      // at any price.
-      overtimeDecisions: true,
-      // Every live signature on the week. A rung below the top bills
-      // only what the firm above it accepted, so the payer's own
-      // signature is read in the loop below (lib/money/rung-billing).
-      assertions: {
-        where: { state: 'LIVE' },
-        select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
-      },
-      sellContract: {
-        select: {
-          id: true, billRate: true, billCurrency: true, workOrderId: true,
-          // Who the hours are filed with and for — which of a payer's
-          // signatures is its own is decided from these.
-          companyId: true, clientCompanyId: true, endClientCompanyId: true,
-          overtimeAfterHours: true, overtimeMultiplierBps: true,
-          startDate: true,
-          // The job's hours: where the contract draws no overtime line,
-          // a week somebody decided was judged against them (lineFor).
-          requirement: { select: { hoursPerWeek: true } },
-          // The contract says what a period is — unless it is on an
-          // order, and then the order does. Both are selected and
-          // `lib/money/order-terms` picks; these three are never read
-          // directly.
-          billFrequency: true, billAnchor: true, billStraddle: true,
-          workOrder: { select: ORDER_HEADER_SELECT },
-          ...SELL_LINE_TERMS_SELECT,
-        },
-      },
-    },
-    orderBy: { periodStart: 'asc' },
-  })
+  const timesheets = sharedDays
+    ? weeksFromShared(await sharedWeeks(sharedDays), { contractIds, ownIds, asked })
+    : await prisma.timesheet.findMany({
+        where: timesheetWhere,
+        include: BILL_WEEK_INCLUDE,
+        orderBy: { periodStart: 'asc' },
+      })
 
   // Read through our own contract from here on.
   //
@@ -450,7 +627,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // The top of the ladder over each week's hours: the contract the end
   // client pays. A bill on any line below it prices overtime on the
   // client's answer (the founder, 2026-10-19; lib/money/client-overtime).
-  const tops = await topLegsOver(timesheets.map((ts) => ts.sellContractId))
+  const tops = sharedDays
+    ? await readOnce(sharedDays, 'tops', async () => topLegsOver((await sharedWeeks(sharedDays)).map((ts) => ts.sellContractId)))
+    : await topLegsOver(timesheets.map((ts) => ts.sellContractId))
   const billing = timesheets.map((ts) => {
     const ours = ourContract.get(billedBy.get(ts.sellContractId) ?? ts.sellContractId)
     // The contract the hours are filed on, kept before it is replaced:
@@ -506,22 +685,25 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // is left off with a sentence rather than billed a second time
   // (lib/money/billed-elsewhere).
   const payerIds = [...new Set(engagement.sellContracts.map((sc) => sc.clientCompanyId).filter((x): x is string => !!x))]
+  const readReceived = () => prisma.vendorBill.findMany({
+    where: {
+      companyId: { in: payerIds },
+      vendorCompanyId: caller.company!.id,
+      status: { notIn: ['CANCELLED', 'VOID', 'REJECTED'] },
+      periodStart: { not: null },
+      periodEnd: { not: null },
+    },
+    select: {
+      number: true, companyId: true, periodStart: true, periodEnd: true,
+      company: { select: { name: true } },
+      buyContract: { select: { supplierSellContractId: true, candidates: { select: { personId: true } } } },
+    },
+  })
   const receivedFromUs = payerIds.length === 0
     ? []
-    : await prisma.vendorBill.findMany({
-        where: {
-          companyId: { in: payerIds },
-          vendorCompanyId: caller.company!.id,
-          status: { notIn: ['CANCELLED', 'VOID', 'REJECTED'] },
-          periodStart: { not: null },
-          periodEnd: { not: null },
-        },
-        select: {
-          number: true, companyId: true, periodStart: true, periodEnd: true,
-          company: { select: { name: true } },
-          buyContract: { select: { supplierSellContractId: true, candidates: { select: { personId: true } } } },
-        },
-      })
+    : shared
+      ? await readOnce(shared, `received:${caller.company!.id}:${[...payerIds].sort().join(',')}`, readReceived)
+      : await readReceived()
   /** The receipts one payer holds that could cover hours on our own contract. */
   const receiptsFor = (payerId: string, ourSellId: string): ReceiptOnRecord[] =>
     receivedFromUs
@@ -561,29 +743,21 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     for (const line of descend(own, rungs)) if (!ourLineOver.has(line)) ourLineOver.set(line, own)
   }
   const belowIds = [...ourLineOver.keys()].filter((id) => !ownIds.includes(id))
-  let expenseRows = await prisma.expense.findMany({
-    where: {
-      OR: [
-        { sellContractId: { in: ownIds }, status: 'APPROVED', invoiceId: null },
-        ...(belowIds.length > 0 ? [{ sellContractId: { in: belowIds }, status: { in: [...APPROVED_BY_EMPLOYER] } }] : []),
-      ],
-      invoiceLines: { none: { sellContractId: { in: ownIds } } },
-      ...(asked.start ? { periodEnd: { gte: asked.start } } : {}),
-      ...(asked.end ? { periodStart: { lte: asked.end } } : {}),
-    },
-    include: {
-      person: { select: { name: true } },
-      sellContract: {
-        select: {
-          id: true, billCurrency: true, startDate: true,
-          billFrequency: true, billAnchor: true, billStraddle: true,
-          workOrder: { select: ORDER_HEADER_SELECT },
-          ...SELL_LINE_TERMS_SELECT,
+  let expenseRows = sharedDays
+    ? expensesFromShared(await sharedExpenses(sharedDays), { ownIds, belowIds, asked })
+    : await prisma.expense.findMany({
+        where: {
+          OR: [
+            { sellContractId: { in: ownIds }, status: 'APPROVED', invoiceId: null },
+            ...(belowIds.length > 0 ? [{ sellContractId: { in: belowIds }, status: { in: [...APPROVED_BY_EMPLOYER] } }] : []),
+          ],
+          invoiceLines: { none: { sellContractId: { in: ownIds } } },
+          ...(asked.start ? { periodEnd: { gte: asked.start } } : {}),
+          ...(asked.end ? { periodStart: { lte: asked.end } } : {}),
         },
-      },
-    },
-    orderBy: { periodEnd: 'asc' },
-  })
+        include: BILL_EXPENSE_INCLUDE,
+        orderBy: { periodEnd: 'asc' },
+      })
 
   // ── Milestones accepted under this engagement's orders ──────────────
   //
@@ -1245,16 +1419,16 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // and no rate goes anywhere near the invoice — an under-taxed invoice
   // is a liability that surfaces two years later with interest, and a
   // plausible zero is the one output nobody ever audits.
-  const vendorSite = await prisma.companyLocation.findFirst({
-    where: { companyId: caller.company!.id },
-    orderBy: [{ isPrimary: 'desc' }],
-    select: { country: true, state: true },
-  })
-  const customerSite = await prisma.companyLocation.findFirst({
-    where: { companyId: partners.billTo.party.id },
-    orderBy: [{ isPrimary: 'desc' }],
-    select: { country: true, state: true },
-  })
+  const siteOf = (companyId: string) => {
+    const read = () => prisma.companyLocation.findFirst({
+      where: { companyId },
+      orderBy: [{ isPrimary: 'desc' }],
+      select: { country: true, state: true },
+    })
+    return shared ? readOnce(shared, `site:${companyId}`, read) : read()
+  }
+  const vendorSite = await siteOf(caller.company!.id)
+  const customerSite = await siteOf(partners.billTo.party.id)
 
   const per = minorPerUnit(currency)
   const tax = vendorSite

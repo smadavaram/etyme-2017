@@ -57,7 +57,7 @@ import { formatRange } from '@/lib/format-date'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { monthlyHours, HOURS_PER_MONTH, WEEKS_PER_MONTH, FULL_TIME_WEEK } from '@/lib/program-spend'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
-import { generateBill, BILLABLE_LINE_STATES, type BillCaller, type BillOutcome } from '@/lib/money/bill-generate'
+import { generateBill, shareBillReads, BILLABLE_LINE_STATES, type BillCaller, type BillOutcome, type BillShared } from '@/lib/money/bill-generate'
 import { whereHoursLive } from '@/lib/work-chain'
 import { BILL_NOT_SENT, notSentSays } from '@/lib/money/bill-state'
 import { ladderFor } from '@/lib/work-chain-read'
@@ -450,20 +450,26 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
   const caller: BillCaller = { company: { id: company.id, name: company.name, kind: company.kind }, person: { id: null, name: 'Today' } }
   // One dry run per engagement and billing period, started together and
   // read once each. A failure is kept and thrown when it is read, never
-  // swallowed into a figure.
+  // swallowed into a figure. The runs share one read of the chain, the
+  // signed weeks, the expenses, the receipts the payers hold and the
+  // sites (`shareBillReads`): six figures used to read each six times.
   type Settled = { outcome: BillOutcome } | { failed: unknown }
   const runs = new Map<string, Promise<Settled>>()
-  const dryRun = (engagementId: string, start: Date, end: Date): Promise<Settled> => {
+  const dryRun = (shared: BillShared, engagementId: string, start: Date, end: Date): Promise<Settled> => {
     const key = `${engagementId}:${iso(start)}:${iso(end)}`
     let run = runs.get(key)
     if (!run) {
-      run = generateBill(caller, { engagementId, periodStart: iso(start), periodEnd: iso(end) }, { dryRun: true })
+      run = generateBill(caller, { engagementId, periodStart: iso(start), periodEnd: iso(end) }, { dryRun: true, shared })
         .then((outcome) => ({ outcome }), (failed) => ({ failed }))
       runs.set(key, run)
     }
     return run
   }
-  const toPrice: { base: Omit<SignedWeek, 'billedHours' | 'amountMinor' | 'unpriced' | 'says' | 'draft'>; run: Promise<Settled> }[] = []
+  const toPrice: {
+    base: Omit<SignedWeek, 'billedHours' | 'amountMinor' | 'unpriced' | 'says' | 'draft'>
+    engagementId: string
+    period: Period
+  }[] = []
 
   const weeks: SignedWeek[] = []
   for (const ts of sheets) {
@@ -531,10 +537,22 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
     // The period this week bills in, under the agreement first, and the
     // generator's own pricing of that period.
     const period = billingPeriodOf(ts, periodTermsFor('SELL', line))
-    toPrice.push({ base, run: dryRun(line.engagementId, period.start, period.end) })
+    toPrice.push({ base, engagementId: line.engagementId, period })
   }
 
-  for (const { base, run } of toPrice) {
+  // Every period is known before any run starts, so the shared read
+  // covers the first day and the last any run asks for.
+  const shared = toPrice.length === 0
+    ? null
+    : shareBillReads({
+        lineIds: ownIds,
+        rungs,
+        from: new Date(toPrice.reduce((n, p) => Math.min(n, p.period.start.getTime()), Infinity)),
+        to: new Date(toPrice.reduce((n, p) => Math.max(n, p.period.end.getTime()), -Infinity)),
+      })
+  const priced = toPrice.map((p) => ({ base: p.base, run: dryRun(shared!, p.engagementId, p.period.start, p.period.end) }))
+
+  for (const { base, run } of priced) {
     const settled = await run
     if ('failed' in settled) throw settled.failed
     const read = readWeek(settled.outcome, base.timesheetId)
