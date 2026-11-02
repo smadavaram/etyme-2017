@@ -934,13 +934,13 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(held.length).toBeGreaterThan(0)
     expect(after.onDrafts).toBe(held.length)
     for (const w of held) {
-      expect(w.draft).toEqual({ invoiceId: draft.id, number: draft.number })
+      expect(w.draft).toEqual({ invoiceId: draft.id, number: draft.number, status: 'DRAFT', says: `Bill ${draft.number} is drafted, not sent.` })
       // The amount the draft carries is the amount the figure gave before it.
       expect(w.amountMinor).toBe(before.weeks.find((b) => b.timesheetId === w.timesheetId)!.amountMinor)
     }
   })
 
-  it('a week on a bill the firm sent is no longer counted, and the bill carries the amount the figure gave for it', async () => {
+  it('a week on a bill the firm raised and has not sent is still signed and not yet billed, and names the bill as raised, not sent; once sent it is no longer counted, at the amount the figure gave for it', async () => {
     as(OWNER)
     const before = (await read('world-brightmoor')).signedNotBilled
     const first = before.weeks.find((w) => !w.draft && w.amountMinor != null)!
@@ -958,14 +958,29 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
       engagementId: line.engagementId, periodStart: iso(period.start), periodEnd: iso(period.end),
     })))
     expect(out.status, JSON.stringify(out.body)).toBe(201)
+    const raisedId: string = out.body.data.invoice.id
+    const raised = await prisma.invoice.findUniqueOrThrow({ where: { id: raisedId }, select: { number: true, status: true } })
+    expect(raised.status).toBe('ISSUED')
     const billed = await prisma.invoiceLine.findMany({
-      where: { sellContractId: first.sellContractId, invoice: { status: { not: 'DRAFT' } }, timesheetId: { not: null } },
+      where: { invoiceId: raisedId, timesheetId: { not: null } },
       select: { timesheetId: true, amountCents: true },
     })
     expect(billed.length).toBeGreaterThan(0)
     for (const l of billed) {
       expect(l.amountCents).toBe(before.weeks.find((w) => w.timesheetId === l.timesheetId)!.amountMinor)
     }
+    // Raised and not sent: nobody has been asked for the money, so the weeks
+    // are still signed and not yet billed, and say which bill holds them.
+    const raisedNotSent = (await read('world-brightmoor')).signedNotBilled
+    expect(raisedNotSent.count).toBe(before.count)
+    for (const l of billed) {
+      expect(raisedNotSent.weeks.find((w) => w.timesheetId === l.timesheetId)?.draft).toEqual({
+        invoiceId: raisedId, number: raised.number, status: 'ISSUED', says: `Bill ${raised.number} is raised, not sent.`,
+      })
+    }
+    // Sent: billed, and no longer this figure's.
+    const sent = await json(await sendBill(req('POST', `/api/invoices/${raisedId}/submit`, {}), { params: Promise.resolve({ id: raisedId }) }))
+    expect(sent.status, JSON.stringify(sent.body)).toBe(200)
     const after = (await read('world-brightmoor')).signedNotBilled
     expect(after.count).toBe(before.count - billed.length)
     for (const l of billed) expect(after.weeks.some((w) => w.timesheetId === l.timesheetId)).toBe(false)
