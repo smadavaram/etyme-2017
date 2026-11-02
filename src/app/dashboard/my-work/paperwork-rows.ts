@@ -688,6 +688,24 @@ function dayOrNull(d: Date | string | null): Date | null {
 }
 
 /**
+ * Whether anything on her file could need the line at the top at all:
+ * runs out within the window, is not in force yet, or ran out, counted as
+ * though every paper on her file stopped her work. Pure.
+ *
+ * `papersRunningOut` reads what her lines require only to keep the papers
+ * whose lapse stops the work, and each paper's answer depends on its own
+ * copies alone. So where nothing would be said even with every paper
+ * counted, nothing is said with the real list either, and her lines'
+ * requirements need not be read (the page-timing pass, 2026-11-02: that
+ * read was four or five queries per placement on her first screen).
+ */
+export function mightRunOut(held: HeldOnFile[], on: Date): boolean {
+  const every: RequiredOfHer[] = [...new Set(held.map((h) => h.key))]
+    .map((key) => ({ key, required: true, blocks: true, waived: false, owedBy: 'WORKER' }))
+  return papersRunningOut({ held, required: every, on }).length > 0
+}
+
+/**
  * Which stopping papers on her file do not cover her well, from their start
  * and their end together.
  *

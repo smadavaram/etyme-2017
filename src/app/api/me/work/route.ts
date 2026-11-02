@@ -29,7 +29,7 @@ import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approv
 import { requirementsFor } from '@/lib/document-requirements'
 import { credentialKeys } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
-import { papersRunningOut, type HeldOnFile, type RequiredOfHer } from '@/app/dashboard/my-work/paperwork-rows'
+import { papersRunningOut, mightRunOut, type HeldOnFile, type RequiredOfHer } from '@/app/dashboard/my-work/paperwork-rows'
 
 /**
  * A person's moves between their employer's projects, in the words they
@@ -55,21 +55,28 @@ import { papersRunningOut, type HeldOnFile, type RequiredOfHer } from '@/app/das
  */
 async function runningOutFor(personId: string, now: Date) {
   const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
-  const [sellLines, buyLines, held] = await Promise.all([
+  // Her file first. The start as well as the end: a paper that begins next
+  // month does not cover this week, so its start decides whether it is in force.
+  const held = await prisma.verification.findMany({
+    where: { personId },
+    select: { id: true, type: true, status: true, provider: true, issuedAt: true, validFrom: true, expiresAt: true },
+  })
+  const onFile: HeldOnFile[] = held.map((v) => ({
+    id: v.id, key: v.type, label: labelFor(v.type), issuer: v.provider, status: v.status,
+    validFrom: v.validFrom ?? v.issuedAt, expiresAt: v.expiresAt,
+  }))
+  // Nothing on her file could be said even if every paper stopped her work,
+  // so what her lines require is not read (`mightRunOut`): the answer is the same.
+  if (!mightRunOut(onFile, now)) return []
+  const [sellLines, buyLines] = await Promise.all([
     prisma.sellContract.findMany({ where: { personId, state: live }, select: { id: true, companyId: true, clientCompanyId: true }, take: 20 }),
     prisma.buyContractCandidate.findMany({
       where: { personId, state: 'ACTIVE', buyContract: { state: live } },
       select: { buyContractId: true },
       take: 20,
     }),
-    // The start as well as the end: a paper that begins next month does
-    // not cover this week, so its start decides whether it is in force.
-    prisma.verification.findMany({
-      where: { personId },
-      select: { id: true, type: true, status: true, provider: true, issuedAt: true, validFrom: true, expiresAt: true },
-    }),
   ])
-  if (held.length === 0 || sellLines.length + buyLines.length === 0) return []
+  if (sellLines.length + buyLines.length === 0) return []
   const firms = [...new Set(sellLines.flatMap((l) => [l.companyId, l.clientCompanyId]).filter((v): v is string => !!v))]
   const [sets, types] = await Promise.all([
     Promise.all([
@@ -88,10 +95,6 @@ async function runningOutFor(personId: string, now: Date) {
       key, required: true, blocks: true, waived: false, owedBy: 'WORKER',
     })),
   ]
-  const onFile: HeldOnFile[] = held.map((v) => ({
-    id: v.id, key: v.type, label: labelFor(v.type), issuer: v.provider, status: v.status,
-    validFrom: v.validFrom ?? v.issuedAt, expiresAt: v.expiresAt,
-  }))
   return papersRunningOut({ held: onFile, required, on: now })
 }
 
@@ -116,23 +119,32 @@ async function movesFor(personId: string, now: Date) {
       orderBy: { createdAt: 'desc' },
     }),
   ])
-  const names = new Map(
-    (await prisma.person.findMany({
+  // Nobody coming off and nobody held is most people: nothing more to read.
+  if (releases.length === 0 && holds.length === 0) return []
+  const placedIds = holds.map((h) => h.placedSellContractId).filter((x): x is string => !!x)
+  const reqIds = holds.map((h) => h.forRequirementId).filter((x): x is string => !!x)
+  const [people, placedLines, forReqs] = await Promise.all([
+    prisma.person.findMany({
       where: { id: { in: [...releases.map((r) => r.releasedById), ...holds.map((h) => h.heldById)] } },
       select: { id: true, name: true },
-    })).map((p) => [p.id, p.name])
-  )
-  const placedLines = await prisma.sellContract.findMany({
-    where: { id: { in: holds.map((h) => h.placedSellContractId).filter((x): x is string => !!x) } },
-    select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } }, workLocation: { select: { city: true } } },
-  })
-  // The client of a job request somebody was put forward to: the person's
-  // own sentence named the job where the client belonged, three times
-  // (bench tester, 2026-10-01).
-  const forReqs = await prisma.requirement.findMany({
-    where: { id: { in: holds.map((h) => h.forRequirementId).filter((x): x is string => !!x) } },
-    select: { id: true, title: true, location: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
-  })
+    }),
+    placedIds.length
+      ? prisma.sellContract.findMany({
+          where: { id: { in: placedIds } },
+          select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } }, workLocation: { select: { city: true } } },
+        })
+      : Promise.resolve([]),
+    // The client of a job request somebody was put forward to: the person's
+    // own sentence named the job where the client belonged, three times
+    // (bench tester, 2026-10-01).
+    reqIds.length
+      ? prisma.requirement.findMany({
+          where: { id: { in: reqIds } },
+          select: { id: true, title: true, location: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ])
+  const names = new Map(people.map((p) => [p.id, p.name]))
   const out: { kind: 'COMING_OFF' | 'HELD' | 'NEXT_PROJECT'; title: string; body: string; cityChange: boolean }[] = []
   for (const r of releases) {
     const placed = holds.some((h) => h.releaseId === r.id && h.endedHow === 'PLACED')

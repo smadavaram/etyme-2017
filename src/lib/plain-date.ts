@@ -10,11 +10,18 @@
  * nothing a browser cannot run, so this file imports nothing at all.
  */
 
+/**
+ * The two formats, built once. `toLocaleDateString` builds a formatter on
+ * every call, and a worker's page prints hundreds of days (the
+ * page-timing pass, 2026-11-02); a formatter built once prints the same
+ * words.
+ */
+const WITH_YEAR = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const NO_YEAR = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+
 /** "Jun 1, 2026", read in UTC because every stored day is midnight UTC. */
 function plainDay(iso: string, withYear: boolean): string {
-  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', timeZone: 'UTC', ...(withYear ? { year: 'numeric' } : {}),
-  })
+  return (withYear ? WITH_YEAR : NO_YEAR).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`))
 }
 
 /**

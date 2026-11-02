@@ -1250,17 +1250,35 @@ export function dayStanding(
   filed: FiledWeek[],
   today: string
 ): ClosedBecause {
-  const d = toDay(day)
-  if (d > toDay(today)) return 'FUTURE'
-  if (d < toDay(c.startDate)) return 'BEFORE_START'
-  if (c.endDate && d > toDay(c.endDate)) return 'AFTER_END'
-  if (filed.some((f) => toDay(f.periodStart) <= d && d <= toDay(f.periodEnd))) return 'ALREADY_FILED'
+  return standingOn(toDay(day), boundsOf(c, filed, today))
+}
+
+/** A contract's days and the filed weeks, read from their strings once. */
+interface DayBounds { today: number; start: number; end: number | null; filed: [number, number][] }
+
+function boundsOf(c: { startDate: string; endDate: string | null }, filed: FiledWeek[], today: string): DayBounds {
+  return {
+    today: toDay(today),
+    start: toDay(c.startDate),
+    end: c.endDate ? toDay(c.endDate) : null,
+    filed: filed.map((f) => [toDay(f.periodStart), toDay(f.periodEnd)]),
+  }
+}
+
+/** `dayStanding` on a day already read, against bounds already read. */
+function standingOn(d: number, b: DayBounds): ClosedBecause {
+  if (d > b.today) return 'FUTURE'
+  if (d < b.start) return 'BEFORE_START'
+  if (b.end != null && d > b.end) return 'AFTER_END'
+  if (b.filed.some(([from, to]) => from <= d && d <= to)) return 'ALREADY_FILED'
   return 'OPEN'
 }
 
+/** Built once, for every week label on the page. */
+const WEEK_LABEL_DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+
 function label(from: string, to: string): string {
-  const f = (iso: string) =>
-    new Date(toDay(iso)).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+  const f = (iso: string) => WEEK_LABEL_DAY.format(new Date(toDay(iso)))
   return from === to ? f(from) : `${f(from)} – ${f(to)}`
 }
 
@@ -1287,13 +1305,16 @@ export function openWeeks(
   const lastSunday = toDay(weekStart(today))
   const firstSunday = Math.max(toDay(weekStart(c.startDate)), lastSunday - (WEEKS_BACK - 1) * 7 * DAY_MS)
 
+  // The contract's days and every filed week, read once for all the days below.
+  const bounds = boundsOf(c, filed, today)
+
   for (let sun = lastSunday; sun >= firstSunday; sun -= 7 * DAY_MS) {
     const sat = toDay(weekEnd(fromDay(sun)))
     let run: string[] = []
     const runs: string[][] = []
     for (let d = sun; d <= sat; d += DAY_MS) {
       const day = fromDay(d)
-      if (dayStanding(day, c, filed, today) === 'OPEN') {
+      if (standingOn(toDay(day), bounds) === 'OPEN') {
         run.push(day)
       } else if (run.length > 0) {
         runs.push(run)
@@ -2086,13 +2107,14 @@ const later = (a: string | null, b: string | null) => (!a ? b : !b ? a : a > b ?
  * UTC, because every date here is a calendar day stored at midnight UTC
  * and a reader west of London would otherwise see the day before.
  */
+/** Built once: a formatter per call was most of the time this page spent printing days (2026-11-02). */
+const SHORT_DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const SHORT_DAY_YEAR = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+
 export function shortDay(iso: string, today?: Date): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`)
   const thisYear = (today ?? new Date()).getUTCFullYear()
-  return d.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', timeZone: 'UTC',
-    ...(d.getUTCFullYear() !== thisYear ? { year: 'numeric' } : {}),
-  })
+  return (d.getUTCFullYear() !== thisYear ? SHORT_DAY_YEAR : SHORT_DAY).format(d)
 }
 
 interface WeekTally {
