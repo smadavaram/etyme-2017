@@ -123,7 +123,8 @@ describe('a warning that takes a reason is a question with a box, never a refusa
     expect(dialog).toContain('const question = reasonAsked(err)')
     expect(dialog).toContain('<Field label={q.says}>')
     expect(dialog).toContain('<Textarea')
-    expect(dialog).toContain('...answersFor(asked, typed)')
+    expect(dialog).toContain('body: JSON.stringify(awardBody({ cents, startDate, before, underWay, why }, asked, typed)),')
+    expect(code('src/app/dashboard/submissions/award-body.ts')).toContain('...answersFor(asked, typed),')
     expect(dialog).toContain('setRefusal(refusalSays(err.message')
     expect(dialog).not.toMatch(/setToast|window\.prompt|\balert\(/)
     // A new day is a new question: what the route said about the old one goes.

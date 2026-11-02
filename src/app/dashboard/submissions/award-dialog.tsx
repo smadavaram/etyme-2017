@@ -4,7 +4,8 @@ import { useState } from 'react'
 
 import { rate as showRate } from '@/lib/money-display'
 import { readJson } from '@/lib/read-response'
-import { reasonAsked, answersFor, unanswered, type ReasonAsked } from '@/lib/award/reason-asked'
+import { reasonAsked, unanswered, type ReasonAsked } from '@/lib/award/reason-asked'
+import { awardBody } from './award-body'
 import { Field, Input, Textarea, Check, SubmitButton } from '@/components/ui/form'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { refusalSays } from './words'
@@ -106,14 +107,9 @@ export function AwardDialog({
       const res = await fetch(`/api/submissions/${submissionId}/award`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rate: cents,
-          startDate,
-          ...(before && underWay ? { workUnderWay: true, underWayReason: why.trim() } : {}),
-          // Only the answers to questions the route has asked and the
-          // person has read.
-          ...answersFor(asked, typed),
-        }),
+        // Exactly what the dialog draws (`awardBody`), the answers only to
+        // questions the route has asked and the person has read.
+        body: JSON.stringify(awardBody({ cents, startDate, before, underWay, why }, asked, typed)),
       })
       // Read here rather than with readJson: a blocked award lists the
       // checks that failed, and those are the sentence.
