@@ -40,7 +40,8 @@ describe('a rate typed on a job', () => {
     const files = [
       'src/app/dashboard/requirements/[id]/page.tsx',
       'src/app/dashboard/requirements/page.tsx',
-      'src/app/dashboard/requisitions/page.tsx',
+      // The raise form's body, built where the form's rates are read (`jobBody`).
+      'src/app/dashboard/requisitions/job-body.ts',
       'src/app/dashboard/requisitions/[id]/page.tsx',
       'src/app/dashboard/requisitions/chain.tsx',
       // The award's rate, typed in the one dialog both award screens open.

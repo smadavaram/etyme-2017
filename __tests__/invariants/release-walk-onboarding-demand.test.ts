@@ -96,7 +96,9 @@ describe('the apply form, filled once', () => {
     expect(p.bank?.last4).toBe('4471')
     // One click: the page sends every paper sent before in one request.
     const page = read('src/app/apply/[token]/page.tsx')
-    expect(page).toMatch(/reuse: data\.prefill\.sentBefore\.map/)
+    // The body the page sends is its pure builder (`reuseBody`, in ./apply-body).
+    expect(page).toContain('reuseBody(data.prefill.sentBefore, form, refs, dates)')
+    expect(read('src/app/apply/[token]/apply-body.ts')).toMatch(/reuse: sentBefore\.map/)
     expect(page).toContain('Send these to ${data.client}')
   })
 
@@ -239,7 +241,7 @@ describe('the second onboarding walk, on a vendor and its own sub-vendor', () =>
     // And the page puts the carried dates in the boxes and sends them again.
     const page = read('src/app/apply/[token]/page.tsx')
     expect(page).toContain('setDates((cur) => ({ ...carried, ...cur }))')
-    expect(page).toMatch(/reuse: data\.prefill\.sentBefore\.map[\s\S]{0,120}dates,/)
+    expect(read('src/app/apply/[token]/apply-body.ts')).toMatch(/reuse: sentBefore\.map[\s\S]{0,120}dates,/)
   })
 
   it('HR confirms the dates the supplier gave and never re-types them', () => {

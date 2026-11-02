@@ -1,5 +1,6 @@
 'use client'
 
+import { jobBody } from './job-body'
 import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 
@@ -11,7 +12,7 @@ import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
-import { missingForApproval, missingSays, budgetField, defaultPanel, nobodyToSendTo, centsTyped } from './facts'
+import { missingForApproval, missingSays, budgetField, defaultPanel, nobodyToSendTo } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
   headlineRow, myRow, whoFor, whoWillBeAsked,
@@ -313,32 +314,15 @@ function RaiseModal({ onClose, onRaised, team, me }: {
       const res = await fetch('/api/requisitions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: form.title.trim(),
-          skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
-          // The site by id; the free text only where the company has no site.
-          locationId: siteRead?.site?.id ?? null,
-          location: siteRead?.site ? null : (form.location.trim() || null),
-          // Who it goes to. Sent on the raise where the job clears by rule.
-          ...(siteRead ? { sendTo: [...ticked] } : {}),
-          headcount: parseInt(form.headcount, 10) || 1,
-          // Rates are entered in dollars and stored in cents.
-          budget: centsTyped(form.budget),
-          hoursPerWeek: form.hoursPerWeek ? parseInt(form.hoursPerWeek, 10) : null,
-          billMin: centsTyped(form.billMin),
-          billMax: centsTyped(form.billMax),
-          months: form.months ? parseInt(form.months, 10) : null,
-          neededBy: form.neededBy || null,
-          description: form.description.trim() || null,
-          justification: form.justification.trim() || null,
-          costCenterId: form.costCenterId || null,
-          // Whose need it is, distinct from who typed it. Never ask a
-          // question whose answer is thrown away — the route reads this.
+        // Exactly what the form draws (`jobBody`), checked against what the
+        // raise reads by the field contract.
+        body: JSON.stringify(jobBody({
+          ...form,
+          siteId: siteRead?.site?.id ?? null,
+          sendTo: siteRead ? [...ticked] : null,
           ownerId: ownerId || null,
-          // The panel, so the first interview form opens with the room
-          // already in it rather than asking again.
-          interviewers: panel,
-        }),
+          panel,
+        })),
       })
       const json = await readJson(res)
       onRaised({ ...json.data.decision, sentSays: json.data.sentSays ?? null })

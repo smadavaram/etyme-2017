@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { panelFrom } from './panel'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -226,6 +227,8 @@ export async function POST(request: NextRequest) {
     // nothing on the raise, as before; the form always sends it.
     locationId: siteAsked,
     sendTo: sendToAsked,
+    // The panel, so the first interview form opens with the room in it.
+    interviewers,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -530,6 +533,8 @@ export async function POST(request: NextRequest) {
         orgUnitId: team,
         raisedById: raiser,
         ownerId: owner,
+        // The panel the form asked for, kept the way an edit keeps it (`panelFrom`).
+        ...(panelFrom(interviewers) ? { interviewers: panelFrom(interviewers) } : {}),
         approvalState: decision.state,
         // Only an approved requisition reaches the market.
         status: decision.state === 'AUTO_APPROVED' ? 'OPEN' : 'DRAFT',

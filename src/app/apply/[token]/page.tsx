@@ -1,5 +1,6 @@
 'use client'
 
+import { applyBody, reuseBody } from './apply-body'
 import { readJson } from '@/lib/read-response'
 import { EtymeLogo } from '@/components/logo'
 import { useParams } from 'next/navigation'
@@ -128,12 +129,8 @@ export default function ApplyPage() {
     try {
       const body = await readJson(await fetch(`/api/supplier-apply/${token}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          reuse: data.prefill.sentBefore.map((b) => ({ requestId: b.requestId, key: b.key })),
-          dates,
-          references: refs.filter((r) => r.name || r.company),
-          legalName: form.legalName, address: form.address, website: form.website, experience: form.experience, skills: form.skills,
-        }),
+        // Exactly what the page draws (`reuseBody`).
+        body: JSON.stringify(reuseBody(data.prefill.sentBefore, form, refs, dates)),
       }))
       setSaid(body.data.says)
       load()
@@ -149,18 +146,8 @@ export default function ApplyPage() {
     try {
       const body = await readJson(await fetch(`/api/supplier-apply/${token}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          legalName: form.legalName, address: form.address, duns: form.duns, website: form.website, experience: form.experience, skills: form.skills,
-          bank: { bankName: form.bankName, accountName: form.accountName, last4: form.last4 },
-          references: refs.filter((r) => r.name || r.company),
-          // Every date typed, with or without a new file this time.
-          dates,
-          docs: Object.entries(files).map(([key, f]) => ({
-            key, fileName: f.fileName, size: f.size, type: f.type, content: f.content,
-            validFrom: dates[key]?.validFrom || null,
-            validUntil: dates[key]?.validUntil || null,
-          })),
-        }),
+        // Exactly what the page draws (`applyBody`), checked against what the route reads.
+        body: JSON.stringify(applyBody(form, refs, dates, files)),
       }))
       setSaid(body.data.says)
       setFiles({})
