@@ -11,9 +11,12 @@
  *   --template NAME   copy this template database instead of today's world
  *   --scale           copy today's generated world at the founder's scale
  *                     (lib/seed-scale), building it on the base world first
+ *   --people N        the generated world's size (2000; at least 400); implies
+ *                     --scale. Firms follow the founder's ratios (`sizeFor`)
  *   --timeout MS      per call (60000)
  */
 import { STAGE_ORDER, type Options } from './stage'
+import { FEWEST_PEOPLE } from '@/lib/seed-scale/types'
 
 export interface Args extends Options {
   drop: boolean
@@ -21,6 +24,8 @@ export interface Args extends Options {
   template?: string
   /** Run on the generated world at the founder's scale rather than the base world. */
   scale: boolean
+  /** The generated world's size, in people (`sizeFor` in lib/seed-scale/types). */
+  people: number
   timeoutMs: number
 }
 
@@ -31,7 +36,7 @@ function positiveInt(name: string, v: string | undefined): number {
 }
 
 export function parseArgs(argv: string[]): Args {
-  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', scale: false, timeoutMs: 60_000 }
+  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', scale: false, people: 2000, timeoutMs: 60_000 }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split('=', 2)
     const value = () => inline ?? argv[++i]
@@ -47,10 +52,12 @@ export function parseArgs(argv: string[]): Args {
       case '--rebuild': a.build = 'always'; break
       case '--template': a.template = value(); break
       case '--scale': a.scale = true; break
-      default: throw new Error(`There is no flag ${flag}. The flags are --placements, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template, --scale and --timeout.`)
+      case '--people': a.people = positiveInt('people', value()); a.scale = true; break
+      default: throw new Error(`There is no flag ${flag}. The flags are --placements, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template, --scale, --people and --timeout.`)
     }
   }
   const unknown = a.only.filter((s) => !(STAGE_ORDER as readonly string[]).includes(s))
   if (unknown.length) throw new Error(`No station called ${unknown.join(', ')}. The stations are: ${STAGE_ORDER.join(', ')}.`)
+  if (a.scale && a.people < FEWEST_PEOPLE) throw new Error(`--people takes ${FEWEST_PEOPLE} or more: fewer leaves a kind of firm with nobody in it.`)
   return a
 }

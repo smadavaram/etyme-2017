@@ -90,6 +90,39 @@ export function emailFor(name: string, n: number): string {
 /** The first number a seated staff member's address carries. */
 export const STAFF_NUMBER_FROM = 8001
 
+/**
+ * Where staff numbers start for a world of this many people: 8001, as
+ * always, while the people's own numbers stay under it, and otherwise the
+ * first thousand clear of them (2026-11-02), so a staff address and a
+ * person's address never share a number. Pure.
+ */
+export function staffNumberFrom(people: number): number {
+  return people < STAFF_NUMBER_FROM - 1000 ? STAFF_NUMBER_FROM : (Math.ceil((people + 1000) / 1000) * 1000) + 1
+}
+
+/**
+ * Words a stem takes once every stem is used, so firm names never run out
+ * at a larger world: "Ashgrove North Staffing". Invented, plain, and none
+ * of them a company's name.
+ */
+export const NAME_QUALIFIERS: readonly string[] = [
+  'North', 'South', 'East', 'West', 'Central', 'Harbor', 'Valley', 'Ridge', 'Park', 'Hill',
+  'Lake', 'River', 'Field', 'Bridge', 'Grove', 'Point', 'Crest', 'Meadow', 'Stone', 'Brook',
+]
+
+/**
+ * The i-th name from a list of stems: the stem alone for the first round,
+ * then each stem with a qualifier, round after round. Unique for every i
+ * below stems × (qualifiers + 1); past that, null. Pure.
+ */
+export function stemAt(stems: readonly string[], i: number): string | null {
+  if (stems.length === 0 || i < 0) return null
+  const round = Math.floor(i / stems.length)
+  if (round > NAME_QUALIFIERS.length) return null
+  const stem = stems[i % stems.length]
+  return round === 0 ? stem : `${stem} ${NAME_QUALIFIERS[round - 1]}`
+}
+
 const POSITION_WORD: Record<Position, string> = {
   CLIENT: 'client', GSI: 'gsi', MSP: 'msp', PRIME: 'prime', SUB_VENDOR: 'sub', BENCH: 'bench', SOLO: 'solo',
 }

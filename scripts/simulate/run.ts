@@ -47,7 +47,7 @@ async function main() {
   process.env.NEXTAUTH_SECRET = nextAuthSecret
   const cronSecret = randomBytes(18).toString('hex')
 
-  const db = await prepareWorld(stamp, say, args.template, { scale: args.scale })
+  const db = await prepareWorld(stamp, say, args.template, { scale: args.scale, people: args.people })
   say(`world copied to ${db.name} from ${db.template}`)
 
   let server: Running | null = null

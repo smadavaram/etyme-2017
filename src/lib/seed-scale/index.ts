@@ -30,7 +30,7 @@ import { buildPeople, peopleAfterJobsSteps, peopleSteps } from './people'
 import { jobSteps } from './jobs'
 import { paperAfterRatesSteps, paperSteps } from './papers'
 import { seedRates } from './rates/rows'
-import { SCALE_SLUG_PREFIX, SCALE_VERSION, type PersonFacts, type ScaleFrame } from './types'
+import { PEOPLE_PER_RATIO, SCALE_SLUG_PREFIX, SCALE_VERSION, scaleSize, type PersonFacts, type ScaleFrame, type ScaleSize } from './types'
 import { prisma as db } from '@/lib/db'
 import { seedSetupChecklists } from '@/lib/seed-setup'
 
@@ -41,6 +41,15 @@ import { seedSetupChecklists } from '@/lib/seed-setup'
 export const RATE_SHARES = 4
 
 /**
+ * How many shares a step split into `base` at two thousand people takes at
+ * this size: more as the world grows, so each step stays under the queries
+ * a step may ask (2026-11-02). Never fewer than `base`. Pure.
+ */
+export function sharesFor(base: number, size: ScaleSize): number {
+  return Math.max(base, Math.ceil((base * size.people) / PEOPLE_PER_RATIO))
+}
+
+/**
  * Every step of the generated world, in order: the frame; the people
  * (supply); the papers (regulatory): each person's and each supplier's;
  * the jobs (demand), which put the people forward; the lines pointed at
@@ -48,24 +57,27 @@ export const RATE_SHARES = 4
  * the people's careers wrote and write the orders; and what each order
  * asks for on paper (regulatory), which needs those orders.
  */
-function allSteps(frame: ScaleFrame): FrameStep[] {
+function allSteps(frame: ScaleFrame, size: ScaleSize = scaleSize()): FrameStep[] {
   let people: PersonFacts[] | null = null
   const theirs = () => (people ??= buildPeople(frame))
+  // The architect's shares grow with the world; each domain's own steps size themselves.
+  const rates = sharesFor(RATE_SHARES, size)
+  const setups = sharesFor(SETUP_SHARES, size)
   return [
-    ...frameSteps(),
+    ...frameSteps(size),
     ...peopleSteps(frame),
     ...paperSteps(frame, theirs),
     ...jobSteps(theirs),
     // Every career line points at the filled job it came from (supply):
     // after the jobs exist, before the rates price the lines.
     ...peopleAfterJobsSteps(),
-    ...Array.from({ length: RATE_SHARES }, (_, index): FrameStep => ({
-      name: `scale:rates:${index + 1}-of-${RATE_SHARES}`, run: (f) => seedRates(f, { index, of: RATE_SHARES }),
+    ...Array.from({ length: rates }, (_, index): FrameStep => ({
+      name: `scale:rates:${index + 1}-of-${rates}`, run: (f) => seedRates(f, { index, of: rates }),
     })),
     ...paperAfterRatesSteps(theirs),
     // Last, once every agreement, line, order and one-person company exists.
-    ...Array.from({ length: SETUP_SHARES }, (_, index): FrameStep => ({
-      name: `scale:setup:${index + 1}-of-${SETUP_SHARES}`, run: () => seedSetupFor({ index, of: SETUP_SHARES }),
+    ...Array.from({ length: setups }, (_, index): FrameStep => ({
+      name: `scale:setup:${index + 1}-of-${setups}`, run: () => seedSetupFor({ index, of: setups }),
     })),
   ]
 }

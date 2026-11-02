@@ -57,11 +57,12 @@ async function seedInto(url: string): Promise<void> {
  * with the first URL it is given, and this run may already have seeded
  * the base world through it.
  */
-async function seedScaleInto(url: string): Promise<void> {
+async function seedScaleInto(url: string, people: number): Promise<void> {
   execFileSync('npx', ['vite-node', '--config', 'vitest.config.ts', 'scripts/simulate/seed-scale-into.ts'], {
     cwd: path.resolve(__dirname, '..', '..'),
     stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: url, NODE_ENV: 'development', PRISMA_QUIET: '1' },
+    // The size the generator reads (`scaleSize` in lib/seed-scale/types).
+    env: { ...process.env, DATABASE_URL: url, NODE_ENV: 'development', PRISMA_QUIET: '1', SCALE_PEOPLE: String(people) },
   })
 }
 
@@ -91,7 +92,7 @@ export async function prepareWorld(
   stamp: string,
   log: (line: string) => void,
   template?: string,
-  opts: { scale?: boolean } = {},
+  opts: { scale?: boolean; people?: number } = {},
 ): Promise<SimDatabase> {
   ensurePostgres()
   let world = template
@@ -112,11 +113,12 @@ export async function prepareWorld(
     // the base world it copies (CLAUDE.md, "Nine decisions for the
     // generated world"), and copied instead of it.
     if (opts.scale) {
-      const scale = planScaleTemplate(plan)
+      const people = opts.people ?? 2000
+      const scale = planScaleTemplate(plan, people)
       if (!databaseExists(scale.name)) {
         builtTemplate = true
-        log(`seeding the generated world at the founder's scale into ${scale.name} (reused by every later --scale run today)`)
-        await buildScaleTemplate(scale.name, plan.world, seedScaleInto)
+        log(`seeding the generated world of ${people.toLocaleString('en-US')} people into ${scale.name} (reused by every later --scale run of that size today)`)
+        await buildScaleTemplate(scale.name, plan.world, (url) => seedScaleInto(url, people))
       }
       world = scale.name
     }

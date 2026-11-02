@@ -31,10 +31,10 @@ import { namedCompanies } from '@/lib/positioning'
 import { INDUSTRIES, SUPPLIER_STEMS, industry } from './industries'
 import { agreementTermsFor } from './rates/pure'
 import {
-  NameBook, STAFF_NUMBER_FROM, between, emailFor, fold, idFor, keyed, minutesAfter, pick, slugFor, weighted, writeMissing, batch,
+  NameBook, staffNumberFrom, stemAt, between, emailFor, fold, idFor, keyed, minutesAfter, pick, slugFor, weighted, writeMissing, batch,
 } from './kit'
 import {
-  INDUSTRY_KEYS, SCALE, SCALE_SLUG_PREFIX, type CompanyKind, type IndustryKey, type Position, type ScaleFirm, type ScaleFrame,
+  INDUSTRY_KEYS, SCALE, SCALE_SLUG_PREFIX, scaleSize, type ScaleSize, type CompanyKind, type IndustryKey, type Position, type ScaleFirm, type ScaleFrame,
   type ScaleSeat, type ScaleSite, type Share, type Trade,
 } from './types'
 
@@ -79,10 +79,13 @@ export function roleKeyOf(role: string): string | null {
   return DESKS.find((d) => DESK_ROLES[d].includes(role)) ?? null
 }
 
-const COUNT: [Position, number][] = [
-  ['CLIENT', SCALE.clients], ['GSI', SCALE.gsis], ['MSP', SCALE.msps],
-  ['PRIME', SCALE.primes], ['SUB_VENDOR', SCALE.subVendors], ['BENCH', SCALE.benchFirms],
-]
+/** How many firms of each position a world of this size holds (`sizeFor` in ./types). */
+function countFor(size: ScaleSize): [Position, number][] {
+  return [
+    ['CLIENT', size.clients], ['GSI', size.gsis], ['MSP', size.msps],
+    ['PRIME', size.primes], ['SUB_VENDOR', size.subVendors], ['BENCH', size.benchFirms],
+  ]
+}
 
 // ── Names of firms ────────────────────────────────────────────────────
 
@@ -172,15 +175,16 @@ function industriesFor(position: Position, index: number, r: () => number): Indu
  * The whole frame, decided without the database. Pure: the same output
  * on every call, given the same birthday (`anchorSeed` first).
  */
-export function buildFrame(): ScaleFrame {
+export function buildFrame(size: ScaleSize = scaleSize()): ScaleFrame {
   const birthday = seedToday()
   const names = new NameBook()
   const firmNames = new Set<string>(BASE_NAMES)
   const firms: ScaleFirm[] = []
-  let staffNumber = STAFF_NUMBER_FROM
+  // Clear of the people's own numbers at any size (kit, `staffNumberFrom`).
+  let staffNumber = staffNumberFrom(size.people)
   let supplierStem = 0
 
-  for (const [position, count] of COUNT) {
+  for (const [position, count] of countFor(size)) {
     for (let n = 1; n <= count; n++) {
       const index = firms.length
       const firmKey = `firm/${position.toLowerCase()}/${String(n).padStart(2, '0')}`
@@ -198,8 +202,16 @@ export function buildFrame(): ScaleFrame {
           const candidate = `${stems[(n + i) % stems.length]} ${CLIENT_WORD[industries[0]]}`
           if (!firmNames.has(candidate.toLowerCase())) name = candidate
         }
+        // A larger world than the stems: each stem again with a qualifier (kit, `stemAt`).
+        for (let i = stems.length; !name; i++) {
+          const stem = stemAt(stems, i)
+          if (!stem) break
+          const candidate = `${stem} ${CLIENT_WORD[industries[0]]}`
+          if (!firmNames.has(candidate.toLowerCase())) name = candidate
+        }
       } else {
-        const stem = SUPPLIER_STEMS[supplierStem++]
+        // The plain stems first, as always; then each with a qualifier (kit, `stemAt`).
+        const stem = stemAt(SUPPLIER_STEMS, supplierStem++)
         const suffixes = SUFFIXES[position as Exclude<Position, 'CLIENT' | 'SOLO'>]
         if (stem) name = `${stem} ${suffixes[n % suffixes.length]}`
       }
@@ -253,12 +265,12 @@ export function buildFrame(): ScaleFrame {
     }
   }
 
-  const trades = tradesFor(firms)
+  const trades = tradesFor(firms, size)
   return frameOf(firms, trades, birthday)
 }
 
 /** The register: panels of six to twelve, subs under primes, bench firms under both, five MSPs each running a client. */
-function tradesFor(firms: ScaleFirm[]): Trade[] {
+function tradesFor(firms: ScaleFirm[], size: ScaleSize): Trade[] {
   const at = (p: Position) => firms.filter((f) => f.position === p)
   const clients = at('CLIENT'), gsis = at('GSI'), msps = at('MSP'), primes = at('PRIME'), subs = at('SUB_VENDOR'), bench = at('BENCH')
   const shares = (a: ScaleFirm, b: ScaleFirm) => a.industries.some((i) => b.industries.includes(i))
@@ -335,7 +347,7 @@ function tradesFor(firms: ScaleFirm[]): Trade[] {
   }
 
   // ── Five MSPs, each running one client's program, and tied to that client's panel ──
-  const run = clients.slice(0, SCALE.mspRuns)
+  const run = clients.slice(0, size.mspRuns)
   msps.forEach((m, i) => {
     const c = run[i % run.length]
     add({ seller: m.id, buyer: c.id, relationship: 'RUNS' })
@@ -384,8 +396,8 @@ export interface FrameStep {
 }
 
 /** The frame's steps, in the order they must run. */
-export function frameSteps(): FrameStep[] {
-  const total = SCALE.clients + SCALE.gsis + SCALE.msps + SCALE.suppliers
+export function frameSteps(size: ScaleSize = scaleSize()): FrameStep[] {
+  const total = size.clients + size.gsis + size.msps + size.suppliers
   const firmShares = Math.ceil(total / FIRMS_PER_STEP)
   const calendarShares = Math.ceil(total / CALENDAR_FIRMS_PER_STEP)
   return [

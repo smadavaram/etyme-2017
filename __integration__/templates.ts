@@ -117,11 +117,13 @@ export function planTemplates(now = new Date()): TemplatePlan {
  * generator (the import closure of lib/seed-scale/index.ts) and the base
  * template's own name, so a change to either builds a new one.
  */
-export function planScaleTemplate(base: TemplatePlan = planTemplates()): { name: string; files: number } {
+export function planScaleTemplate(base: TemplatePlan = planTemplates(), people = 2000): { name: string; files: number } {
   const files = closure([path.join(SRC, 'lib', 'seed-scale', 'index.ts')])
   const hash = createHash('sha256').update(base.world).update(hashFiles(files)).digest('hex').slice(0, 12)
   const day = base.world.slice(`${TEMPLATE_PREFIX}world_`.length, `${TEMPLATE_PREFIX}world_`.length + 8)
-  return { name: `${TEMPLATE_PREFIX}scale_${day}_${hash}`, files: files.length }
+  // The size is in the name (2026-11-02), so a world of 17,000 people and
+  // one of 2,000 seeded the same day from the same code never collide.
+  return { name: `${TEMPLATE_PREFIX}scale_${day}_p${people}_${hash}`, files: files.length }
 }
 
 /** A template may not be connected to while it is copied; this makes a stray connection impossible. */

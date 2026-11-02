@@ -59,6 +59,64 @@ export const SCALE = {
 
 export type ScaleSizes = typeof SCALE
 
+// ── The size of the world, by the number of people ────────────────────
+//
+// The founder's ratios (2026-10-20): ten clients, ten integrators, five
+// MSPs and a hundred suppliers (thirty primes, forty sub-vendors, thirty
+// bench firms) per two thousand people. A run aiming at 10,000 complete
+// transactions needs about 17,000 people, and 100,000 far more (founder,
+// 2026-11-02), so the world takes a size. `sizeFor(2000)` is `SCALE`,
+// exactly, so the world everybody has tested is unchanged.
+
+/** The founder's figure the ratios are written against. */
+export const PEOPLE_PER_RATIO = SCALE.people
+/** Fewer people than this leaves a kind of firm with nobody in it. */
+export const FEWEST_PEOPLE = 400
+
+/** How many of each firm, and of people, a world holds. */
+export interface ScaleSize {
+  people: number
+  clients: number
+  gsis: number
+  msps: number
+  suppliers: number
+  primes: number
+  subVendors: number
+  benchFirms: number
+  /** Clients an MSP runs through a seat: one each. */
+  mspRuns: number
+}
+
+/** The world for this many people, every firm count by the founder's ratios, at least one of each. Pure. */
+export function sizeFor(people: number): ScaleSize {
+  if (!Number.isInteger(people) || people < FEWEST_PEOPLE) {
+    throw new Error(`A generated world holds at least ${FEWEST_PEOPLE} people, as a whole number; it was asked for ${people}.`)
+  }
+  const k = people / PEOPLE_PER_RATIO
+  const of = (base: number) => Math.max(1, Math.round(base * k))
+  const primes = of(SCALE.primes), subVendors = of(SCALE.subVendors), benchFirms = of(SCALE.benchFirms)
+  const clients = of(SCALE.clients), msps = of(SCALE.msps)
+  return {
+    people, clients, gsis: of(SCALE.gsis), msps,
+    suppliers: primes + subVendors + benchFirms, primes, subVendors, benchFirms,
+    mspRuns: Math.min(msps, clients, Math.max(1, Math.round(SCALE.mspRuns * k))),
+  }
+}
+
+/** The environment variable a run sets to size the world (`npm run simulate -- --scale --people N`). */
+export const SCALE_PEOPLE_ENV = 'SCALE_PEOPLE'
+
+/**
+ * The size this process seeds and reads: `SCALE_PEOPLE` where it is set,
+ * else the founder's two thousand. Read in one place, so every folder of
+ * the generator (people, papers, jobs, rates) sizes itself by the same
+ * answer: each reads `scaleSize()` rather than `SCALE` for its counts.
+ */
+export function scaleSize(env: Record<string, string | undefined> = process.env): ScaleSize {
+  const raw = env[SCALE_PEOPLE_ENV]
+  return sizeFor(raw == null || raw === '' ? PEOPLE_PER_RATIO : Number(raw))
+}
+
 // ── Addresses, slugs and keys ─────────────────────────────────────────
 
 /**
