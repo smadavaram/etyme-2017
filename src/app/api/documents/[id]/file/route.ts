@@ -149,9 +149,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     paperSubject({ subjectType: doc.subjectType, subjectId: doc.subjectId, packet: item?.packet ?? null, contractPersonId: subjectPersonId }),
     issuer.id
   )
-  if (!standing.ok) {
-    await recordRefusal([subject], { ...trail, allowed: false })
-  } else {
+  if (standing.ok) {
     // Written before the file is sent, and nothing is handed over that
     // could not be recorded: a document's bytes are the read the trail
     // exists for.
@@ -164,7 +162,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         { status: 503 }
       )
     }
-  }
+  } else await recordRefusal([subject], { ...trail, allowed: false })
 
   if (!standing.ok) {
     // A colleague without the desk is told what its seat lacks, never a

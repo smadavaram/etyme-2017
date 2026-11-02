@@ -846,9 +846,11 @@ describe('a worker can send the file itself, and it is kept as the file', () => 
   it('logs every read of the file against the person it is about, and logs a refusal too', () => {
     const file = read('src/app/api/documents/[id]/file/route.ts')
     expect(file).toContain("action: 'DOCUMENT_FILE_READ'")
-    // A read handed over is logged; a refusal is awaited before the
-    // refusal is sent. Both through lib/access-log, never by hand.
-    expect(file).toContain('logAccess({ ...trail, subjectId: subject, allowed: true })')
+    // A read handed over is logged before the file goes (since
+    // 2026-11-02, with the person or the firm it is about as the subject);
+    // a refusal is awaited before the refusal is sent. Both through
+    // lib/access-log, never by hand.
+    expect(file).toContain('await recordAccess([subject], { ...trail, allowed: true })')
     expect(file).toContain('await recordRefusal([subject], { ...trail, allowed: false })')
     expect(file).not.toMatch(/accessLog\s*\.\s*create/)
     // Written before the verdict is acted on, so an attempt on a
