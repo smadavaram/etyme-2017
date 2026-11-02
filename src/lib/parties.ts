@@ -167,17 +167,31 @@ export function positionsOpenTo(kind: CompanyKind): Party[] {
  * A VENDOR is deliberately "Supplier" rather than one of PRIME, SUB or
  * BENCH_VENDOR: which of those it is is a position on a deal and not a
  * property of the firm, which is the whole point of this file.
+ *
+ * `other` is the word for another firm of that kind, beside its name
+ * (2026-11-02): lower case, because it describes the name before it, an
+ * acronym keeping its capitals, and a one-person corporation a
+ * "one-person firm" where it reads "Own company" to itself.
  */
-const KIND_WORDS: Record<CompanyKind, { word: string; label: string }> = {
-  VENDOR: { word: 'Supplier', label: 'Supplier · Staffing' },
-  CLIENT: { word: 'Client', label: 'Client · Enterprise' },
-  MSP: { word: 'MSP', label: 'MSP · Managed program' },
-  GSI: { word: 'Integrator', label: 'Integrator · Delivery' },
-  CONSULTANT_CORP: { word: 'Own company', label: 'Own company · One person' },
+const KIND_WORDS: Record<CompanyKind, { word: string; label: string; other: string }> = {
+  VENDOR: { word: 'Supplier', label: 'Supplier · Staffing', other: 'supplier' },
+  CLIENT: { word: 'Client', label: 'Client · Enterprise', other: 'client' },
+  MSP: { word: 'MSP', label: 'MSP · Managed program', other: 'MSP' },
+  GSI: { word: 'Integrator', label: 'Integrator · Delivery', other: 'integrator' },
+  CONSULTANT_CORP: { word: 'Own company', label: 'Own company · One person', other: 'one-person firm' },
 }
 
 export function kindWord(kind: CompanyKind | null | undefined): string {
   return kind ? KIND_WORDS[kind].word : 'Consultant'
+}
+
+/**
+ * What another firm of this kind is called beside its name, "Brightmoor
+ * Staffing · supplier", "Aptiva Workforce · MSP". A kind nobody knows says
+ * nothing rather than its code.
+ */
+export function otherFirmWord(kind: string | null | undefined): string {
+  return kind && Object.prototype.hasOwnProperty.call(KIND_WORDS, kind) ? KIND_WORDS[kind as CompanyKind].other : ''
 }
 
 export function kindLabel(kind: CompanyKind | null | undefined): string {
