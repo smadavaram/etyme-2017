@@ -2562,6 +2562,38 @@ gate for the trust flows, not a walk after the fact: no deploy that
 touches papers or money without it, and its faults recorded here by
 class, "the screen cannot reach the rule" first.
 
+**The screen walk's verdict, 2026-11-02: do not ship as "every screen
+saves".** 175 forms pressed on 26 seats across all six parties on the
+scale world (the 1 Nov build, before this wave's fixes), 675 page
+opens at desktop and phone width, no page error and no sideways
+scroll: 118 saved and proven (the sentence, the row, the record on
+reload), 13 refused rightly in a sentence that names the fix, 31
+failed, 13 not proven. The money chain works on screens end to end:
+the worker files, the client signs with a reason and the overtime
+decision, the supplier accepts from Ask Etyme, AR bills the right
+figure, the AP clerk pays from the chat with a bank reference. What
+fails is the paper that lets a person start, in the class the founder
+named: an I-9 or a license arriving through Document requests is
+refused for a field the dialog does not have; an I-9 accepted on
+Paperwork says "examined" and writes nothing the start gate reads
+(the worst class: success said, nothing saved). Both are closed in
+this wave by regulatory (5b4ca4d5) and are proven only when the walk
+runs again on the new build, which is the release gate. Also found,
+each with its owner: an over-hours week on Today's Approvals has no
+reason box and prints 45 hours as "$45.00" (demand); Roll off and
+Accept on an expense are offered to a program manager whose route
+refuses them silently (demand, money); an MSP seated in a program is
+offered "Message <supplier>" and "Send on" that always refuse, one in
+a permission code (conversation, market); "Ask the supplier" is a
+browser prompt (money); a setup question is refused as outside the
+record (conversation); a one-person firm cannot change its type
+(architect); machine words on screen ("endDate must be after
+startDate", "Timesheet is APPROVED, can only approve from SUBMITTED",
+"voided cheque"), "will hear from you by email" where none can leave,
+and "employs … at $85/hr" before the person said yes. Report:
+`scratchpad/walk-saves/report.md`, screenshots before and after every
+press.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
