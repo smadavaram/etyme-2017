@@ -56,29 +56,49 @@ export async function sendJobTo(input: {
 
   const results: Array<{ companyId: string; name: string; status: string; reason?: string }> = []
 
-  for (const v of vendors) {
-    const company = vendorMap.get(v.companyId)!
-    try {
-      await prisma.requirementInvitation.create({
-        data: {
-          requirementId: id,
-          fromCompanyId: requisition.companyId,
-          toCompanyId: v.companyId,
-          payMin: v.payMin ?? null,
-          payMax: v.payMax ?? null,
-          message: v.message ?? null,
-          expiresAt,
-          status: 'SENT',
-        },
-      })
-      results.push({ companyId: v.companyId, name: company.name, status: 'sent' })
-    } catch (err: any) {
-      // Unique on (requirementId, toCompanyId) — re-inviting is a no-op,
-      // reported per vendor rather than failing the whole distribution.
-      if (err?.code === 'P2002') {
-        results.push({ companyId: v.companyId, name: company.name, status: 'already_invited' })
-      } else {
-        results.push({ companyId: v.companyId, name: company.name, status: 'error', reason: 'Could not send' })
+  // Every invitation at once (the simulation of 2026-11-01: a job sent
+  // to eight firms wrote its eight invitations one after another, and the
+  // send was the slowest write of the run). The firms already asked are
+  // read first; the rest are written in one statement that returns what it
+  // wrote, so a firm a racing send asked a moment ago reads as already
+  // asked, exactly as the unique key made it read one at a time. A firm
+  // named twice in one send is asked once.
+  const created = await inviteAtOnce(id, requisition.companyId, vendors, expiresAt)
+  if (created) {
+    const answered = new Set<string>()
+    for (const v of vendors) {
+      const company = vendorMap.get(v.companyId)!
+      const first = !answered.has(v.companyId)
+      answered.add(v.companyId)
+      results.push({ companyId: v.companyId, name: company.name, status: first && created.has(v.companyId) ? 'sent' : 'already_invited' })
+    }
+  } else {
+    // The batch failed for a reason that is not a firm already asked: one
+    // firm at a time, as before, so one firm's failure is that firm's alone.
+    for (const v of vendors) {
+      const company = vendorMap.get(v.companyId)!
+      try {
+        await prisma.requirementInvitation.create({
+          data: {
+            requirementId: id,
+            fromCompanyId: requisition.companyId,
+            toCompanyId: v.companyId,
+            payMin: v.payMin ?? null,
+            payMax: v.payMax ?? null,
+            message: v.message ?? null,
+            expiresAt,
+            status: 'SENT',
+          },
+        })
+        results.push({ companyId: v.companyId, name: company.name, status: 'sent' })
+      } catch (err: any) {
+        // Unique on (requirementId, toCompanyId) — re-inviting is a no-op,
+        // reported per vendor rather than failing the whole distribution.
+        if (err?.code === 'P2002') {
+          results.push({ companyId: v.companyId, name: company.name, status: 'already_invited' })
+        } else {
+          results.push({ companyId: v.companyId, name: company.name, status: 'error', reason: 'Could not send' })
+        }
       }
     }
   }
@@ -165,34 +185,49 @@ export async function sendJobTo(input: {
       joinedAt: new Date().toISOString(),
     }
     const threads = new Map<string, string>()
-    await Promise.all(
-      sent.map(async (s) => {
-        try {
-          const where = { companyId: requisition.companyId, withCompanyId: s.companyId, topic: 'REQUIREMENT', topicId: id }
-          let thread = await prisma.conversation.findFirst({ where, select: { id: true } })
-          if (!thread) {
-            thread = await prisma.conversation
-              .create({
-                data: { ...where, title: `${requisition.title} — ${s.name}`, participants: [opener] as unknown as object },
-                select: { id: true },
-              })
-              .catch(async (e: any) => {
-                // A second send racing this one made it first; read theirs.
-                if (e?.code !== 'P2002') throw e
-                return prisma.conversation.findFirstOrThrow({ where, select: { id: true } })
-              })
+    // Every thread and its first line at once: the threads that exist are
+    // read in one go, the missing ones written in one statement that
+    // returns them, and the opening line written to each in one more. A
+    // thread a racing send opened a moment ago is read, never doubled.
+    // Where any of it fails, one firm at a time, as before, so the job
+    // still reaches every firm whose thread can be opened.
+    const atOnce = await threadsAtOnce({
+      clientId: requisition.companyId, requirementId: id, title: requisition.title,
+      firms: sent, opener, authorId: caller.person.id,
+      lineFor: (companyId) => jobSentThreadLine({ ...facts, note: vendors.find((v) => v.companyId === companyId)?.message ?? null }),
+    })
+    if (atOnce) {
+      for (const [companyId, threadId] of atOnce) threads.set(companyId, threadId)
+    } else {
+      await Promise.all(
+        sent.map(async (s) => {
+          try {
+            const where = { companyId: requisition.companyId, withCompanyId: s.companyId, topic: 'REQUIREMENT', topicId: id }
+            let thread = await prisma.conversation.findFirst({ where, select: { id: true } })
+            if (!thread) {
+              thread = await prisma.conversation
+                .create({
+                  data: { ...where, title: `${requisition.title} — ${s.name}`, participants: [opener] as unknown as object },
+                  select: { id: true },
+                })
+                .catch(async (e: any) => {
+                  // A second send racing this one made it first; read theirs.
+                  if (e?.code !== 'P2002') throw e
+                  return prisma.conversation.findFirstOrThrow({ where, select: { id: true } })
+                })
+            }
+            const note = vendors.find((v) => v.companyId === s.companyId)?.message ?? null
+            await prisma.message.create({
+              data: { conversationId: thread.id, authorId: caller.person.id, body: jobSentThreadLine({ ...facts, note }), type: 'TEXT' },
+            })
+            threads.set(s.companyId, thread.id)
+          } catch (err) {
+            // The invitation stands without its thread; the notice still goes.
+            reportError(`The thread for ${requisition.title} with ${s.name} could not be opened:`, err)
           }
-          const note = vendors.find((v) => v.companyId === s.companyId)?.message ?? null
-          await prisma.message.create({
-            data: { conversationId: thread.id, authorId: caller.person.id, body: jobSentThreadLine({ ...facts, note }), type: 'TEXT' },
-          })
-          threads.set(s.companyId, thread.id)
-        } catch (err) {
-          // The invitation stands without its thread; the notice still goes.
-          reportError(`The thread for ${requisition.title} with ${s.name} could not be opened:`, err)
-        }
-      })
-    )
+        })
+      )
+    }
 
     const seats = await prisma.context.findMany({
       where: {
@@ -330,4 +365,102 @@ export async function sendTickedOnClearing(input: {
       `Sent when ${input.when}, to the suppliers ${who} ticked${at}: ${names.join(', ') || 'nobody'}` +
       (leftNames.length > 0 ? `. Left out, no longer cleared for it: ${leftNames.join(', ')}` : ''),
   })
+}
+
+/**
+ * Write the invitations nobody has yet in one statement, and answer which
+ * firms this send asked: null where the batch failed for a reason other
+ * than a firm already being asked, so the caller asks one at a time.
+ */
+async function inviteAtOnce(
+  requirementId: string,
+  fromCompanyId: string,
+  vendors: readonly VendorBand[],
+  expiresAt: Date
+): Promise<Set<string> | null> {
+  try {
+    const ids = [...new Set(vendors.map((v) => v.companyId))]
+    const asked = new Set(
+      (await prisma.requirementInvitation.findMany({
+        where: { requirementId, toCompanyId: { in: ids } },
+        select: { toCompanyId: true },
+      })).map((r) => r.toCompanyId)
+    )
+    const firstOf = new Map<string, VendorBand>()
+    for (const v of vendors) if (!asked.has(v.companyId) && !firstOf.has(v.companyId)) firstOf.set(v.companyId, v)
+    if (firstOf.size === 0) return new Set()
+    const rows = await prisma.requirementInvitation.createManyAndReturn({
+      data: [...firstOf.values()].map((v) => ({
+        requirementId,
+        fromCompanyId,
+        toCompanyId: v.companyId,
+        payMin: v.payMin ?? null,
+        payMax: v.payMax ?? null,
+        message: v.message ?? null,
+        expiresAt,
+        status: 'SENT',
+      })),
+      // A racing send's invitation stands; this send did not ask that firm.
+      skipDuplicates: true,
+      select: { toCompanyId: true },
+    })
+    return new Set(rows.map((r) => r.toCompanyId))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Open the thread across the deal with every firm a job went to, and
+ * write its first line, in three statements however many firms there
+ * are. Null where any of it failed: the caller opens them one at a time.
+ */
+async function threadsAtOnce(input: {
+  clientId: string
+  requirementId: string
+  title: string
+  firms: readonly { companyId: string; name: string }[]
+  opener: Participant
+  authorId: string
+  lineFor: (companyId: string) => string
+}): Promise<Map<string, string> | null> {
+  try {
+    const key = { companyId: input.clientId, topic: 'REQUIREMENT', topicId: input.requirementId }
+    const ids = input.firms.map((f) => f.companyId)
+    const threadOf = new Map<string, string>()
+    const read = async (among: string[]) => {
+      if (among.length === 0) return
+      const rows = await prisma.conversation.findMany({ where: { ...key, withCompanyId: { in: among } }, select: { id: true, withCompanyId: true } })
+      for (const r of rows) if (r.withCompanyId) threadOf.set(r.withCompanyId, r.id)
+    }
+    await read(ids)
+    const missing = input.firms.filter((f) => !threadOf.has(f.companyId))
+    if (missing.length > 0) {
+      const made = await prisma.conversation.createManyAndReturn({
+        data: missing.map((f) => ({
+          ...key, withCompanyId: f.companyId,
+          title: `${input.title} — ${f.name}`,
+          participants: [input.opener] as unknown as object,
+        })),
+        // A second send racing this one made it first; read theirs below.
+        skipDuplicates: true,
+        select: { id: true, withCompanyId: true },
+      })
+      for (const m of made) if (m.withCompanyId) threadOf.set(m.withCompanyId, m.id)
+      await read(missing.map((f) => f.companyId).filter((c) => !threadOf.has(c)))
+    }
+    const opened = input.firms.filter((f) => threadOf.has(f.companyId))
+    if (opened.length !== input.firms.length) return null
+    await prisma.message.createMany({
+      data: opened.map((f) => ({
+        conversationId: threadOf.get(f.companyId)!,
+        authorId: input.authorId,
+        body: input.lineFor(f.companyId),
+        type: 'TEXT',
+      })),
+    })
+    return threadOf
+  } catch {
+    return null
+  }
 }
