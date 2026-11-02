@@ -397,3 +397,65 @@ export function keptPaperSays(p: {
   if (p.checkStatus === 'CLEAR' || p.checkStatus === 'CONDITIONAL') return { examined: true, says: 'On file and examined' }
   return { examined: false, says: 'On file, not examined' }
 }
+
+// ── The "Put on file" form, as data ───────────────────────────────────
+//
+// What the form draws, what it posts beside the file, and how the route
+// reads what was posted, in one place, so the test that every question
+// the route asks has a field on its screen reads the form's real body
+// (`__tests__/invariants/every-question-has-a-field.test.ts`). Pure.
+
+export type OwnPaperField = 'file' | 'number' | 'issuer' | 'year' | 'edition' | 'validFrom' | 'validUntil'
+
+export interface OwnPaperTyped {
+  number?: string
+  issuer?: string
+  year?: string
+  edition?: string
+  validFrom?: string
+  validUntil?: string
+}
+
+/** The fields the form draws, in order, each required. The file only where the record can keep a copy for this caller. */
+export function ownPaperFields(needs: OwnPaperNeeds, canKeepCopy: boolean): OwnPaperField[] {
+  return [
+    ...(canKeepCopy ? ['file' as const] : []),
+    ...(needs.number ? ['number' as const] : []),
+    ...(needs.issuer ? ['issuer' as const] : []),
+    ...(needs.year ? ['year' as const] : []),
+    ...(needs.edition ? ['edition' as const] : []),
+    ...(needs.validFrom ? ['validFrom' as const] : []),
+    ...(needs.validUntil ? ['validUntil' as const] : []),
+  ]
+}
+
+/** What the form posts beside the file: the paper, whose it is, and every field typed. */
+export function ownPaperPost(needs: OwnPaperNeeds, typed: OwnPaperTyped): Record<string, string> {
+  const out: Record<string, string> = { key: needs.key, about: needs.about }
+  for (const [k, v] of Object.entries(typed)) if (typeof v === 'string' && v.trim()) out[k] = v.trim()
+  return out
+}
+
+/** The names the route reads from the form, and nothing else. */
+export const OWN_PAPER_POSTED = ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year'] as const
+
+/** The route's reading of what was posted, as the rule takes it. */
+export function ownPaperInput(
+  fields: Record<string, string | null>,
+  ctx: { isOnePersonFirm: boolean; filesForFirm: boolean; canKeepCopy: boolean; fileName: string | null }
+): OwnPaperInput {
+  return {
+    key: fields.key ?? '',
+    about: fields.about === 'MY_FIRM' ? 'MY_FIRM' : 'ME',
+    isOnePersonFirm: ctx.isOnePersonFirm,
+    filesForFirm: ctx.filesForFirm,
+    canKeepCopy: ctx.canKeepCopy,
+    fileName: ctx.fileName,
+    number: fields.number ?? null,
+    issuer: fields.issuer ?? null,
+    validFrom: fields.validFrom ?? null,
+    validUntil: fields.validUntil ?? null,
+    edition: fields.edition ?? null,
+    year: fields.year ?? null,
+  }
+}

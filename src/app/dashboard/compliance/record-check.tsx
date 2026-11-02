@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
 import { I9_SHOWN } from '@/lib/document-stages/examine-form'
-import { recordI9Body, recordVerdictBody } from './record-bodies'
+import { adverseFields, recordAdverseBody, recordI9Body, recordVerdictBody } from './record-bodies'
 
 /**
  * Put a check on file for somebody about to start, from the screen.
@@ -109,13 +109,10 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
         }))
         says = r?.data?.says ?? `${provider}’s report is on file.`
       } else {
+        const asks = adverseFields(step)
         const noticeDocumentId =
-          step === 'NOT_TAKEN' ? undefined : await notice(step === 'PRE_NOTICE' ? 'Pre-adverse action notice' : 'Adverse action notice')
-        const r = await postJson('/api/compliance/adverse-action', {
-          verificationId: who.verificationId, contractId: who.contractId, step,
-          ...(noticeDocumentId ? { noticeDocumentId } : {}),
-          ...(step === 'PRE_NOTICE' ? {} : { reason }),
-        })
+          asks.includes('notice') ? await notice(step === 'PRE_NOTICE' ? 'Pre-adverse action notice' : 'Adverse action notice') : undefined
+        const r = await postJson('/api/compliance/adverse-action', recordAdverseBody(who.verificationId ?? '', who.contractId, step, { noticeDocumentId, reason }))
         says = r?.data?.says ?? 'Recorded.'
       }
       onDone(says)
@@ -206,13 +203,13 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
                 <option value="NOT_TAKEN">Decide not to act on the report</option>
               </select>
             </label>
-            {step !== 'NOT_TAKEN' && (
+            {adverseFields(step).includes('notice') && (
               <label className="block">
                 <span className={label}>The notice, with the copy of the report and the summary of rights</span>
                 <input type="file" accept=".pdf,image/*" required onChange={(e) => setCopy(e.target.files?.[0] ?? null)} className="text-sm" />
               </label>
             )}
-            {step !== 'PRE_NOTICE' && (
+            {adverseFields(step).includes('reason') && (
               <label className="block">
                 <span className={label}>The reason, kept beside the report</span>
                 <input value={reason} onChange={(e) => setReason(e.target.value)} required className={field} />

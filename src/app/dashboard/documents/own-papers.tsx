@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { Chip, EmptyState, FormMessage, LoadingState } from '@/components/ui'
-import type { OwnPaperAbout, OwnPaperNeeds } from '@/lib/document-stages/own-papers'
+import { ownPaperFields, ownPaperPost, type OwnPaperAbout, type OwnPaperNeeds } from '@/lib/document-stages/own-papers'
 
 /**
  * The papers a person keeps on her own file before anybody asks, with
@@ -133,16 +133,17 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
   const [f, setF] = useState({ number: '', issuer: '', validFrom: '', validUntil: '', edition: '', year: '' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // The fields this paper asks for, from the one description the route's test reads.
+  const shows = new Set(ownPaperFields(needs, canKeepCopy))
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
+      // Exactly what the fields below hold, in the names the route reads.
       const form = new FormData()
-      form.set('key', needs.key)
-      form.set('about', needs.about)
-      for (const [k, v] of Object.entries(f)) if (v.trim()) form.set(k, v.trim())
+      for (const [k, v] of Object.entries(ownPaperPost(needs, f))) form.set(k, v)
       if (file) form.set('file', file)
       const res = await fetch('/api/me/papers', { method: 'PUT', body: form })
       const body = await readJson(res)
@@ -159,35 +160,35 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
       <form onSubmit={save} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4">
         <h2 className="font-serif text-lg text-etyme-ink">{needs.label}</h2>
         {needs.hint && <p className="text-sm text-etyme-muted">{needs.hint}</p>}
-        {canKeepCopy && (
+        {shows.has('file') && (
           <label className="block">
             <span className={lbl}>The file</span>
             <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required className="text-sm" />
           </label>
         )}
-        {needs.number && (
+        {shows.has('number') && (
           <label className="block"><span className={lbl}>Number on it</span>
             <input value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} required className={box} /></label>
         )}
-        {needs.issuer && (
+        {shows.has('issuer') && (
           <label className="block"><span className={lbl}>Issued by</span>
             <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder={needs.key === 'DEGREE' ? 'University of Wisconsin' : 'Wisconsin Board of Nursing'} className={box} /></label>
         )}
-        {needs.year && (
+        {shows.has('year') && (
           <label className="block"><span className={lbl}>Year awarded</span>
             <input value={f.year} onChange={(e) => setF({ ...f, year: e.target.value })} required inputMode="numeric" placeholder="2019" className={box} /></label>
         )}
-        {needs.edition && (
+        {shows.has('edition') && (
           <label className="block"><span className={lbl}>Edition printed on it</span>
             <input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} required placeholder="Rev. March 2024" className={box} /></label>
         )}
-        {(needs.validFrom || needs.validUntil) && (
+        {(shows.has('validFrom') || shows.has('validUntil')) && (
           <div className="flex gap-3">
-            {needs.validFrom && (
+            {shows.has('validFrom') && (
               <label className="flex-1"><span className={lbl}>Starts</span>
                 <input type="date" value={f.validFrom} onChange={(e) => setF({ ...f, validFrom: e.target.value })} required className={box} /></label>
             )}
-            {needs.validUntil && (
+            {shows.has('validUntil') && (
               <label className="flex-1"><span className={lbl}>Runs out</span>
                 <input type="date" value={f.validUntil} onChange={(e) => setF({ ...f, validUntil: e.target.value })} required className={box} /></label>
             )}

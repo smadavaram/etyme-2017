@@ -38,3 +38,39 @@ export function recordVerdictBody(contractId: string, t: VerdictTyped): Record<s
     ...(t.outcome === 'ORDERED' ? {} : { providerSays: t.providerSays }),
   }
 }
+
+// ── After a flagged report ─────────────────────────────────────────────
+
+export type AdverseStepTyped = 'PRE_NOTICE' | 'FINAL' | 'NOT_TAKEN'
+
+/**
+ * What the form asks for at each step: the notice, raised from the firm's
+ * own template with the copy of the report attached and sent to the
+ * person, for the pre-adverse and the final notice; the reason for the
+ * final notice and for a decision not to act.
+ */
+export function adverseFields(step: AdverseStepTyped): ('notice' | 'reason')[] {
+  return [...(step === 'NOT_TAKEN' ? [] : ['notice' as const]), ...(step === 'PRE_NOTICE' ? [] : ['reason' as const])]
+}
+
+/**
+ * The notice the form raises before it posts a step that needs one: a
+ * paper about the person, from this firm's own template, with the copy
+ * attached and sent (`notice` in record-check.tsx). The facts the route
+ * reads off it.
+ */
+export const NOTICE_THE_FORM_RAISES = { aboutThisPerson: true, fromThisFirm: true, hasFile: true, sent: true } as const
+
+export function recordAdverseBody(
+  verificationId: string,
+  contractId: string,
+  step: AdverseStepTyped,
+  t: { noticeDocumentId?: string; reason?: string }
+): Record<string, unknown> {
+  const asks = adverseFields(step)
+  return {
+    verificationId, contractId, step,
+    ...(asks.includes('notice') && t.noticeDocumentId ? { noticeDocumentId: t.noticeDocumentId } : {}),
+    ...(asks.includes('reason') ? { reason: t.reason ?? '' } : {}),
+  }
+}

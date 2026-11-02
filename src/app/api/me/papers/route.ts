@@ -18,7 +18,7 @@ import { orderedNotCollected } from '@/lib/attestation'
 import { credentialChaseNow } from '@/lib/contract-clearance'
 import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
-import { keptPaperSays, mayFileOwnPaper, ownPaperMenu, type OwnPaperAbout } from '@/lib/document-stages/own-papers'
+import { OWN_PAPER_POSTED, keptPaperSays, mayFileOwnPaper, ownPaperInput, ownPaperMenu, type OwnPaperAbout } from '@/lib/document-stages/own-papers'
 import { mayFileFirmPapers } from '@/lib/document-stages/firm-papers'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { plainDate } from '@/lib/plain-date'
@@ -930,7 +930,7 @@ export async function PUT(request: NextRequest) {
   if (isForm) {
     const form = await request.formData().catch(() => null)
     if (!form) return refuse('That did not arrive. Pick the file again and send it.', 422, 'FILE_REQUIRED')
-    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year']) {
+    for (const k of OWN_PAPER_POSTED) {
       const v = form.get(k)
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -946,7 +946,7 @@ export async function PUT(request: NextRequest) {
     }
   } else {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-    for (const k of ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year']) {
+    for (const k of OWN_PAPER_POSTED) {
       const v = body[k]
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -954,20 +954,14 @@ export async function PUT(request: NextRequest) {
 
   const about: OwnPaperAbout = fields.about === 'MY_FIRM' ? 'MY_FIRM' : 'ME'
   const on = new Date()
-  const verdict = mayFileOwnPaper({
-    key: fields.key ?? '',
-    about,
+  // Read the way the form's own test reads it (ownPaperInput), so a field
+  // on the "Put on file" form and the rule's question are one name.
+  const verdict = mayFileOwnPaper(ownPaperInput(fields, {
     isOnePersonFirm: !!firm,
     filesForFirm: !!team,
     canKeepCopy: copyHome(fields.key ?? '', !!firm, about, !!team) !== null,
     fileName: file?.name ?? null,
-    number: fields.number,
-    issuer: fields.issuer,
-    validFrom: fields.validFrom,
-    validUntil: fields.validUntil,
-    edition: fields.edition,
-    year: fields.year,
-  }, on)
+  }), on)
   if (!verdict.ok) {
     return NextResponse.json({ error: { code: verdict.code, message: verdict.message, field: verdict.field ?? null } }, { status: 422 })
   }
