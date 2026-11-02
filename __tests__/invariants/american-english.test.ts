@@ -33,13 +33,15 @@ function walk(dir: string, out: string[] = []): string[] {
 
 // British stems that have an American form in ordinary use. Not
 // "cancelled": both spellings are American, and the schema is full of it.
+// "cheque" since the screen walk of 2026-11-01, which read "Bank letter or
+// voided cheque" on a supplier's document request.
 const BRITISH = new RegExp(
   '(?<![A-Za-z0-9_\\-./\\[])' +
   '(programmes?|centres?|authoris(?:ation|e|ed|es|ing)|organis(?:ation|ations|e|ed|es|ing)|' +
   'summaris(?:e|ed|es|ing)|normalis(?:ation|e|ed|es|ing)|recognis(?:e|ed|es|ing|able)|' +
   'utilis(?:ation|e|ed|es|ing)|minimis(?:ation|e|ed|es|ing)|judgements?|ageing|labell(?:ed|ing)|' +
   'behaviours?|honour(?:ed|s|ing)?|colours?|favour(?:ite|able|ed|s)?|instalments?|artefacts?|' +
-  'defence|offence|licence|grey|catalogue|analys(?:e|ed|ing)|travell(?:ed|ing)|modell(?:ed|ing)|totalled|annualis(?:e|ed|es|ing|ation))' +
+  'defence|offence|licence|cheques?|grey|catalogue|analys(?:e|ed|ing)|travell(?:ed|ing)|modell(?:ed|ing)|totalled|annualis(?:e|ed|es|ing|ation))' +
   '(?![A-Za-z0-9_\\-:@\\]\\(])',
   'g'
 )

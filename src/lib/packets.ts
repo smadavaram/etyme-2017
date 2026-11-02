@@ -91,7 +91,7 @@ export const PACKETS: PacketSpec[] = [
       { key: 'W9', label: 'W-9', hint: 'Signed, current year. This is how we set you up to be paid.', required: true, validMonths: null },
       { key: 'INSURANCE_GL', label: 'Certificate of general liability insurance', hint: 'Naming us as certificate holder. Your broker issues this.', required: true, validMonths: 12 },
       { key: 'INSURANCE_WC', label: "Certificate of workers' compensation", hint: 'Required wherever your people work on our sites.', required: true, validMonths: 12 },
-      { key: 'BANK_LETTER', label: 'Bank letter or voided cheque', hint: 'So payments reach the right account. We only keep the last four digits.', required: true, validMonths: null },
+      { key: 'BANK_LETTER', label: 'Bank letter or voided check', hint: 'So payments reach the right account. We only keep the last four digits.', required: true, validMonths: null },
       { key: 'BUSINESS_PARTNER', label: 'Business registration', hint: 'Incorporation certificate, or your DUNS number.', required: true, validMonths: null },
       { key: 'INSURANCE_EO', label: 'Errors and omissions insurance', hint: 'Only where your people advise rather than deliver.', required: false, validMonths: 12 },
       { key: 'INSURANCE_CYBER', label: 'Cyber liability insurance', hint: 'Required where your people touch our systems.', required: false, validMonths: 12 },

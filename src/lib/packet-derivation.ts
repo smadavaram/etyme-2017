@@ -102,7 +102,7 @@ const SUPPLIER_RULES: Rule[] = [
     when: () => true,
     because: 'so payments reach the right account',
     items: [
-      { key: 'BANK_LETTER', label: 'Bank letter or voided cheque', hint: 'We only keep the last four digits.', required: true, validMonths: null },
+      { key: 'BANK_LETTER', label: 'Bank letter or voided check', hint: 'We only keep the last four digits.', required: true, validMonths: null },
     ],
   },
   {
