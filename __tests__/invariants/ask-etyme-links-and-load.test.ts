@@ -5,6 +5,8 @@ import { questionsFor, CHIPS, FIRM_ORDER, FIRM_QUESTIONS, SUGGESTED_QUESTIONS, r
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
 import { itemHref, CHECKLIST_HREF, reminderSentence, COMPLETE_SETUP, ITEM_WORDS } from '@/lib/setup-checklist'
 import { setupLineFor } from '@/app/api/conversations/twin/first-act'
+import { queueAct } from '@/app/api/conversations/twin/ask'
+import { WEEK_WORDS, weekActOf } from '@/lib/notify/week-words'
 import { cardsFor, paperCards, type WorkerFacts, type PaperAsk } from '@/app/api/conversations/twin/worker'
 import { paperAsksFrom } from '@/app/api/conversations/twin/worker-read'
 
@@ -457,5 +459,25 @@ describe('a one-person firm’s Owner with setup open reads the setup line in th
     expect(read('src/lib/api-context.ts')).toMatch(/company: \{ select: \{ id: true, name: true, slug: true, kind: true/)
     expect(partyOf({ companyKind: 'CONSULTANT_CORP', seatedAt: null })).toBe('SOLO')
     expect(partyOf({ companyKind: 'VENDOR', seatedAt: null })).toBe('FIRM')
+  })
+})
+
+// ── One act, one word, on both doors (the screen walk, 2026-11-02) ─────
+
+describe('a week is accepted by the firm below the client and approved by the client, in the same words on every door', () => {
+  it('a firm below the client is offered “Accept timesheet” in Ask Etyme, the words its Timesheets page is to read, and the client “Approve timesheet”', () => {
+    const accept = queueAct({ type: 'TIMESHEET_APPROVAL', title: 'Accept the signed week — Omar Haddad', whose: 'Omar Haddad', entityId: 'ts-2' } as any)
+    expect(accept?.label).toBe(WEEK_WORDS.ACCEPT.button)
+    expect(accept?.label).toBe('Accept timesheet')
+    expect(accept?.done).toBe(WEEK_WORDS.ACCEPT.done)
+    const approve = queueAct({ type: 'TIMESHEET_APPROVAL', title: 'Approve timesheet — Helena Marsh', whose: 'Helena Marsh', entityId: 'ts-1' } as any)
+    expect(approve?.label).toBe(WEEK_WORDS.APPROVE.button)
+    expect(weekActOf({ signedAbove: true })).toBe('ACCEPT')
+    expect(weekActOf({ signedAbove: false })).toBe('APPROVE')
+  })
+
+  it('the firm that accepts is never offered the client’s verb, flagged or not', () => {
+    for (const w of Object.values(WEEK_WORDS.ACCEPT)) expect(w).not.toMatch(/\b(sign|approve)/i)
+    expect(WEEK_WORDS.ACCEPT.flagged).toBe('Accept anyway…')
   })
 })

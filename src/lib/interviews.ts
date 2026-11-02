@@ -529,3 +529,62 @@ export function placeFromRound(f: {
   if (f.award.open) return { kind: 'PLACE', says: f.award.says }
   return { kind: 'SAID', says: f.award.says }
 }
+
+// ── What a round's act must carry ─────────────────────────────────────
+
+/** A refusal for an answer the act is missing: the route's sentence, and the field that answers it. */
+export interface RoundAsk {
+  code: 'VALIDATION' | 'NO_REASON' | 'NO_FEEDBACK' | 'NOTHING_TO_DO'
+  message: string
+  field: string
+}
+
+const PARTIES: readonly Party[] = ['CLIENT', 'VENDOR', 'CONSULTANT']
+const OUTCOMES: readonly Outcome[] = ['ADVANCE', 'OFFER', 'REJECT']
+
+/**
+ * What a round's act is missing, or null: the one rule `POST
+ * /api/interviews/:id` refuses a body by, and the one the interviews
+ * page's dialogs are tested against (the founder's I-9 bug, 2026-11-01:
+ * a route asked for a field no screen offered). Who may act, and whether
+ * the round is still ahead, are the route's own checks and come first.
+ */
+export function roundAsks(body: unknown): RoundAsk | null {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
+  const action = String(b.action ?? '')
+  const names = (v: unknown) => (Array.isArray(v) ? v.map((n) => String(n ?? '').trim()).filter(Boolean) : [])
+  switch (action) {
+    case 'confirm':
+      // The slot is optional: none picked confirms the earliest still standing.
+      return null
+    case 'cancel':
+      // A cancellation with no reason is the thing that makes the other
+      // side stop answering, and it is one sentence to type.
+      return String(b.reason ?? '').trim().length < 3
+        ? { code: 'NO_REASON', message: 'Say why. A cancellation with no reason attached is what makes the other side stop answering.', field: 'reason' }
+        : null
+    case 'interviewers':
+      return !Array.isArray(b.interviewers) && names(b.add).length === 0 && names(b.remove).length === 0
+        ? { code: 'NOTHING_TO_DO', message: 'Say who to add or who to take off.', field: 'interviewers' }
+        : null
+    case 'outcome': {
+      if (b.noShowBy !== undefined && b.noShowBy !== null) {
+        return PARTIES.includes(b.noShowBy as Party)
+          ? null
+          : { code: 'VALIDATION', message: 'Say who did not turn up: the candidate, the supplier or your own side.', field: 'noShowBy' }
+      }
+      if (!OUTCOMES.includes(b.outcome as Outcome)) {
+        return { code: 'VALIDATION', message: 'Say what came of it: advance, offer, or reject.', field: 'outcome' }
+      }
+      // A rejection with no feedback is the single most common thing a
+      // supplier complains about, and the reason the next submission is
+      // no better than the last one.
+      if (b.outcome === 'REJECT' && String(b.feedback ?? '').trim().length < 3) {
+        return { code: 'NO_FEEDBACK', message: 'Say why they are out. It is the only thing that makes the next submission better, and it takes a sentence.', field: 'feedback' }
+      }
+      return null
+    }
+    default:
+      return { code: 'VALIDATION', message: 'Say what you are doing: confirm, call it off, or say what came of it.', field: 'action' }
+  }
+}

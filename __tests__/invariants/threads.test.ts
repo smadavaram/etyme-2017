@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import {
   whoMayOpen, canRead, sideOf, whoHears, withAuthor, messageNotice, suppliersOnRole,
-  hearsForTopic, whoAtTheFirmHears,
+  hearsForTopic, whoAtTheFirmHears, mayMessageSupplier,
   type RoleFacts, type CandidateFacts,
 } from '@/lib/threads'
 import { rolesFor } from '@/lib/company-defaults'
@@ -92,6 +94,34 @@ describe('who may open a conversation about a candidate', () => {
     const v = whoMayOpen(candidate, nike, techpeple)
     expect(v).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
     if (!v.ok) expect(v.message).toBe('Mei-Lin Chao came from Pinnacle, not Techpeple.')
+  })
+})
+
+describe('a firm seated in a client’s program is never offered a message the route refuses', () => {
+  const aptiva = { id: 'c-aptiva', name: 'Aptiva Workforce' }
+
+  it('“Message <supplier>” is drawn only for the firm the candidate was submitted to, exactly where the route lets it open', () => {
+    for (const firm of [nike, pinnacle, techpeple, aptiva, stranger]) {
+      const drawn = mayMessageSupplier(candidate, firm.id)
+      expect(drawn, firm.name).toBe(whoMayOpen(candidate, firm, pinnacle).ok)
+    }
+    expect(mayMessageSupplier(candidate, nike.id)).toBe(true)
+    expect(mayMessageSupplier(candidate, aptiva.id)).toBe(false)
+    expect(mayMessageSupplier(candidate, null)).toBe(false)
+  })
+
+  it('a seated firm that asks anyway is told, by name, that the client writes to the supplier, never that the candidate is a stranger to it', () => {
+    const v = whoMayOpen(candidate, aptiva, pinnacle, { seatedAt: nike })
+    expect(v).toEqual({ ok: false, code: 'NOT_YOURS', message: 'Mei-Lin Chao was put forward to Northbend Athletic, so only Northbend Athletic writes to Pinnacle about them.' })
+    const r = whoMayOpen(role, aptiva, techpeple, { seatedAt: nike })
+    expect(r).toEqual({ ok: false, code: 'NOT_YOURS', message: 'Kinaxis planners is Northbend Athletic’s job, so only Northbend Athletic writes to Techpeple about it.' })
+    // A firm with no seat there keeps the plain refusal.
+    expect(whoMayOpen(candidate, stranger, pinnacle)).toMatchObject({ ok: false, message: 'Mei-Lin Chao was not submitted to or by you.' })
+  })
+
+  it('the route asks for the seat only when it is about to refuse, and names the client from the seat', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/route.ts'), 'utf8')
+    expect(route).toMatch(/verdict\.code === 'NOT_YOURS'\) \{[\s\S]{0,240}seatFor\(caller, null\)[\s\S]{0,200}seatedAt: \{ id: seat\.clientCompany\.id, name: seat\.clientCompany\.name \}/)
   })
 })
 

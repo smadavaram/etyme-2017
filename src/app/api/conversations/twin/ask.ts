@@ -35,6 +35,7 @@ import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import { ITEM_WORDS, itemHref, CHECKLIST_HREF, type ItemKey } from '@/lib/setup-checklist'
+import { WEEK_WORDS, weekActOf } from '@/lib/notify/week-words'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, NOT_ANOTHER_BOOK } from './transaction'
@@ -3312,12 +3313,10 @@ function factOf(subtitle: string | null | undefined): string {
 export function queueAct(d: QueueItem): QueueAct | null {
   const id = encodeURIComponent(d.entityId)
   if (d.type === 'TIMESHEET_APPROVAL' && !d.flag) {
-    const accept = /^Accept\b/.test(d.title)
-    return {
-      label: accept ? 'Accept timesheet' : 'Approve timesheet',
-      url: `/api/timesheets/${id}/approve`, body: {},
-      done: accept ? 'Accepted, and recorded under your name.' : 'Approved, and recorded under your name.',
-    }
+    // A firm below the client accepts the week signed above it; the words
+    // are the Timesheets page's too (lib/notify/week-words).
+    const words = WEEK_WORDS[weekActOf({ signedAbove: /^Accept\b/.test(d.title) })]
+    return { label: words.button, url: `/api/timesheets/${id}/approve`, body: {}, done: words.done }
   }
   // A link request is answered by the one route Companies presses; Not
   // now on the card changes nothing, so the ask stays for the next look.

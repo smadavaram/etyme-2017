@@ -6,7 +6,7 @@ import { hasPermission } from '@/lib/permissions'
 import { tell } from '@/lib/interview-notices'
 import {
   stateAfterConfirming, stillValid, settle, noShow, reasonFor, headline, readerZone,
-  earliest, type Party, type Outcome,
+  earliest, roundAsks, type Party, type Outcome,
   shapeRow as shape, rowToInterview as asInterview,
 } from '@/lib/interviews'
 
@@ -152,23 +152,21 @@ export async function POST(
 
   // ── Cancel ──────────────────────────────────────────────────────────
   if (action === 'cancel') {
-    const reason = String(body?.reason ?? '').trim()
-
-    // A cancellation with no reason is the thing that makes the other
-    // side stop answering, and it is one sentence to type.
-    if (reason.length < 3) {
+    // Calling off a round that already happened would rewrite it: the
+    // outcome and the no-show stand (the screen walk's contract pass,
+    // 2026-11-02, found nothing stopped it).
+    if (row.state === 'CANCELLED' || row.state === 'DONE' || row.state === 'NO_SHOW') {
       return NextResponse.json(
-        {
-          error: {
-            code: 'NO_REASON',
-            message:
-              'Say why. A cancellation with no reason attached is what makes the other side stop answering.',
-            field: 'reason',
-          },
-        },
-        { status: 422 }
+        { error: { code: 'FINISHED', message: 'That round is already over. Calling it off now would rewrite it.' } },
+        { status: 409 }
       )
     }
+    // At the client, calling a round off is deciding it: whoever is hiring.
+    if (isClient && !mayDecide) return notHiring()
+    // The reason, in the one rule the interviews page is tested against.
+    const asked = roundAsks(body)
+    if (asked) return NextResponse.json({ error: asked }, { status: 422 })
+    const reason = String(body?.reason ?? '').trim()
 
     const saved = await prisma.interview.update({
       where: { id: row.id },
@@ -236,18 +234,8 @@ export async function POST(
       ? body.interviewers.map((n: unknown) => String(n ?? '').trim()).filter(Boolean)
       : null
 
-    if (!replace && add.length === 0 && remove.length === 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'NOTHING_TO_DO',
-            message: 'Say who to add or who to take off.',
-            field: 'interviewers',
-          },
-        },
-        { status: 422 }
-      )
-    }
+    const asked = roundAsks(body)
+    if (asked) return NextResponse.json({ error: asked }, { status: 422 })
 
     // Case-insensitive on removal and on the duplicate check, because
     // "Dana Okafor" and "dana okafor" are one person and a panel that
@@ -300,6 +288,11 @@ export async function POST(
     }
     if (!mayDecide) return notHiring()
 
+    // Who did not turn up, the outcome and the reason for a rejection, in
+    // the one rule the interviews page is tested against.
+    const asked = roundAsks(body)
+    if (asked) return NextResponse.json({ error: asked }, { status: 422 })
+
     const missed = body?.noShowBy as Party | undefined
 
     if (missed) {
@@ -337,37 +330,7 @@ export async function POST(
     }
 
     const outcome = body?.outcome as Outcome
-    if (!['ADVANCE', 'OFFER', 'REJECT'].includes(outcome)) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION',
-            message: 'Say what came of it: advance, offer, or reject.',
-            field: 'outcome',
-          },
-        },
-        { status: 422 }
-      )
-    }
-
     const feedback = String(body?.feedback ?? '').trim()
-
-    // A rejection with no feedback is the single most common thing a
-    // supplier complains about, and the reason the next submission is no
-    // better than the last one.
-    if (outcome === 'REJECT' && feedback.length < 3) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'NO_FEEDBACK',
-            message:
-              'Say why they are out. It is the only thing that makes the next submission better, and it takes a sentence.',
-            field: 'feedback',
-          },
-        },
-        { status: 422 }
-      )
-    }
 
     const v = settle(row.round, outcome, names.consultant)
 
@@ -417,14 +380,5 @@ export async function POST(
     return NextResponse.json({ data: { ...shape(saved), says: v.says } })
   }
 
-  return NextResponse.json(
-    {
-      error: {
-        code: 'VALIDATION',
-        message: 'Say what you are doing: confirm, cancel, or outcome.',
-        field: 'action',
-      },
-    },
-    { status: 422 }
-  )
+  return NextResponse.json({ error: roundAsks(body) }, { status: 422 })
 }

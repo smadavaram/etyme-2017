@@ -28,7 +28,7 @@ const RATE = read('src/app/api/me/submissions/[id]/rate/route.ts')
 
 describe('the routes ask the rule, and answer in its words', () => {
   it('opening a thread with another company goes through whoMayOpen, and a refusal is the sentence it wrote', () => {
-    expect(OPEN).toContain('const verdict = whoMayOpen(facts, me, other)')
+    expect(OPEN).toContain('let verdict = whoMayOpen(facts, me, other)')
     expect(OPEN).toMatch(/if \(!verdict\.ok\) \{\s*return NextResponse\.json\(\{ error: \{ code: verdict\.code, message: verdict\.message \} \}, \{ status: 403 \}\)/)
   })
 

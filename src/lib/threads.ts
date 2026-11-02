@@ -72,12 +72,34 @@ export type OpenVerdict =
     }
 
 /**
+ * Whether this firm may write to the firm that put a candidate forward:
+ * only the firm the candidate was submitted to, never the one that sent
+ * them and never a third. The Candidates page draws "Message <supplier>"
+ * only where this is true (demand), and `whoMayOpen` decides the same way,
+ * so the button and the route cannot disagree.
+ *
+ * A firm seated in a client's program is not the firm the candidate was
+ * submitted to, so it is not offered the button (the screen walk,
+ * 2026-11-02: Aptiva in Cavanaugh Glassworks' program was offered
+ * "Message <supplier>" on every row and refused nine times in nine).
+ */
+export function mayMessageSupplier(
+  sub: { toCompanyId: string; fromCompanyId: string },
+  callerCompanyId: string | null | undefined,
+): boolean {
+  return !!callerCompanyId && sub.toCompanyId === callerCompanyId && sub.fromCompanyId !== callerCompanyId
+}
+
+/**
  * May `caller` open a thread with `other` about this?
  *
  * Every refusal is a sentence somebody can act on. The codes are for the
- * machine and the tests.
+ * machine and the tests. `seatedAt` is the client whose program the
+ * caller holds a seat in, where it holds one: a job or a candidate that is
+ * that client's is refused with the client named as who writes.
  */
-export function whoMayOpen(facts: TopicFacts, caller: Firm, other: Firm): OpenVerdict {
+export function whoMayOpen(facts: TopicFacts, caller: Firm, other: Firm, opts: { seatedAt?: Firm | null } = {}): OpenVerdict {
+  const seatedAt = opts.seatedAt ?? null
   if (other.id === caller.id) {
     return {
       ok: false,
@@ -97,6 +119,9 @@ export function whoMayOpen(facts: TopicFacts, caller: Firm, other: Firm): OpenVe
             `${other.name} opens the conversation on ${facts.title}; ${caller.name} answers it. ` +
             'Submit a candidate, or answer the invitation, and they hear from you that way.',
         }
+      }
+      if (seatedAt && seatedAt.id === facts.demandCompanyId) {
+        return { ok: false, code: 'NOT_YOURS', message: `${facts.title} is ${seatedAt.name}’s job, so only ${seatedAt.name} writes to ${other.name} about it.` }
       }
       return { ok: false, code: 'NOT_YOURS', message: `${facts.title} is not yours to speak for.` }
     }
@@ -130,6 +155,13 @@ export function whoMayOpen(facts: TopicFacts, caller: Firm, other: Firm): OpenVe
       message:
         `${other.name} opens the conversation about ${facts.candidateName}; ${caller.name} answers it. ` +
         'Their status and any interview rounds are already yours to read.',
+    }
+  }
+  if (seatedAt && seatedAt.id === facts.toCompanyId) {
+    return {
+      ok: false,
+      code: 'NOT_YOURS',
+      message: `${facts.candidateName} was put forward to ${seatedAt.name}, so only ${seatedAt.name} writes to ${other.name} about them.`,
     }
   }
   return { ok: false, code: 'NOT_YOURS', message: `${facts.candidateName} was not submitted to or by you.` }

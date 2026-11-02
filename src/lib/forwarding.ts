@@ -34,7 +34,7 @@
  * — which is what they are owed — and not for how much.
  */
 
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 export type Via =
   /** The next party is on Etyme, so the hop becomes a real submission. */
   | 'ONWARD'
@@ -55,6 +55,13 @@ export interface Submission {
 export interface Actor {
   companyId: string | null | undefined
   permissions: readonly string[]
+  /**
+   * The kind and name of the company whose book the actor acts in (under
+   * a seat, the client's), so a refusal names who there may send a
+   * candidate on. Without them the refusal says "your company".
+   */
+  kind?: string | null
+  companyName?: string | null
 }
 
 export interface Destination {
@@ -82,16 +89,21 @@ export type Verdict =
 /** Decisions. A submission that has been answered cannot be sent onward. */
 const DECIDED = ['PLACED', 'REJECTED', 'WITHDRAWN', 'NOT_SELECTED']
 
-export function mayForward(
-  actor: Actor,
-  s: Submission,
-  to: Destination
-): Verdict {
+/**
+ * Whether this actor may send this submission on at all, wherever it goes:
+ * the refusal, or null. The Candidates page draws "Send on" only where this
+ * is null (`maySendOn`), and `mayForward` asks it first, so the button and
+ * the route cannot disagree.
+ */
+export function whyNotSendOn(actor: Actor, s: Submission): Extract<Verdict, { ok: false }> | null {
   if (!hasPermission(actor.permissions, 'submissions.create')) {
+    // Who at the firm may, in a sentence; never the permission's key
+    // (the screen walk, 2026-11-02: "Sending a candidate onward needs
+    // submissions.create." reached the screen).
     return {
       ok: false,
       code: 'NO_PERMISSION',
-      message: 'Sending a candidate onward needs submissions.create.',
+      message: askTheDesk({ doing: 'Sending a candidate on', needs: 'submissions.create', kind: actor.kind, companyName: actor.companyName }),
     }
   }
 
@@ -121,6 +133,21 @@ export function mayForward(
       message: 'You have already sent this one on. Sending it twice puts the same name in front of the client twice.',
     }
   }
+  return null
+}
+
+/** Whether to draw "Send on" for this submission, for this actor: the route's own first checks (`whyNotSendOn`). */
+export function maySendOn(actor: Actor, s: Submission): boolean {
+  return whyNotSendOn(actor, s) === null
+}
+
+export function mayForward(
+  actor: Actor,
+  s: Submission,
+  to: Destination
+): Verdict {
+  const not = whyNotSendOn(actor, s)
+  if (not) return not
 
   if (to.via === 'ONWARD') {
     if (!to.companyId) {

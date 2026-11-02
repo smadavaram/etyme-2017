@@ -148,7 +148,9 @@ describe('the page takes the one road', () => {
     expect(DIALOG).toContain('Bill rate ($/hr)')
     expect(DIALOG).toContain('Start date')
     expect(DIALOG).toContain('const cents = centsTyped(rate)')
-    expect(DIALOG).toContain('rate: cents')
+    // The body is demand's one builder (award-body), which sends the cents as the rate.
+    expect(DIALOG).toContain('awardBody({ cents, startDate, before, underWay, why }, asked, typed)')
+    expect(read('src/app/dashboard/submissions/award-body.ts')).toContain('rate: t.cents')
   })
 
   it('placing from an interview opens the same award dialog Submissions opens, so a time-limit warning there asks for its reason in a box', () => {

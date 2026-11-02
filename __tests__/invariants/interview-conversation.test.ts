@@ -73,9 +73,13 @@ describe('a round that moves is a round somebody hears about', () => {
   })
 
   it('every refusal the route already made still stands', () => {
-    for (const code of ['FINISHED', 'SLOT_GONE', 'NO_REASON', 'NOT_YOURS', 'NO_FEEDBACK']) {
+    for (const code of ['FINISHED', 'SLOT_GONE', 'NOT_YOURS']) {
       expect(ACTIONS).toContain(`code: '${code}'`)
     }
+    // The answers a round must carry are refused by one rule, the one the interviews page is tested against.
+    const RULE = readFileSync(join(process.cwd(), 'src/lib/interviews.ts'), 'utf8')
+    for (const code of ['NO_REASON', 'NO_FEEDBACK']) expect(RULE).toContain(`code: '${code}'`)
+    expect(ACTIONS).toContain('const asked = roundAsks(body)')
     // And the submission still moves with the decision.
     expect(ACTIONS).toMatch(/status: 'REJECTED'/)
     expect(ACTIONS).toMatch(/status: 'OFFERED'/)
@@ -168,6 +172,7 @@ describe('the interviews page, from the client chair', () => {
 
   it("the supplier's side still confirms a time from the row", () => {
     expect(PAGE).toMatch(/r\.you === 'VENDOR' && r\.state === 'PROPOSED'/)
-    expect(PAGE).toMatch(/action: 'confirm', slotStart: s\.start, forConsultant: true/)
+    expect(PAGE).toMatch(/act: 'CONFIRM', slotStart: s\.start/)
+    expect(readFileSync(join(process.cwd(), 'src/app/dashboard/interviews/round-body.ts'), 'utf8')).toMatch(/action: 'confirm', slotStart: t\.slotStart, forConsultant: true/)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  mayForward, onwardRate, journeyFor, journeySentence, howFar,
+  mayForward, maySendOn, whyNotSendOn, onwardRate, journeyFor, journeySentence, howFar,
   orderChain, toHops, mirrorRole,
   type Submission, type Actor, type Destination, type Hop,
 } from '@/lib/forwarding'
@@ -53,6 +53,35 @@ describe('who may send somebody onward', () => {
   it('needs the permission to submit, because that is what this is', () => {
     const v = mayForward(actor({ permissions: [] }), SUB, to())
     expect(v.ok === false && v.code).toBe('NO_PERMISSION')
+  })
+
+  it('a seat that may not send a candidate on is told in a sentence who at the firm may, and never sees a permission code', () => {
+    const v = mayForward(actor({ permissions: ['timesheets.read'], kind: 'VENDOR', companyName: 'Vertex Global' }), SUB, to())
+    expect(v.ok).toBe(false)
+    if (v.ok) return
+    expect(v.message.startsWith('Sending a candidate on is done by ')).toBe(true)
+    expect(v.message).toContain(' at Vertex Global')
+    expect(v.message).not.toMatch(/submissions\.create|\b[a-z]+\.[a-z_]+\b/)
+    // Without the firm's name the sentence still names the roles, at "your company".
+    const bare = mayForward(actor({ permissions: [] }), SUB, to())
+    expect(bare.ok === false && bare.message).toMatch(/^Sending a candidate on is done by .+ at your company/)
+  })
+
+  it('the Candidates page draws “Send on” exactly where the route’s own first checks would let it through', () => {
+    const cases: Array<[Actor, Submission]> = [
+      [actor(), SUB],
+      [actor({ permissions: [] }), SUB],
+      [actor({ companyId: 'techpeple' }), SUB],
+      [actor(), { ...SUB, status: 'PLACED' }],
+      [actor(), { ...SUB, forwardedAt: new Date() }],
+    ]
+    for (const [a, sub] of cases) {
+      expect(maySendOn(a, sub)).toBe(whyNotSendOn(a, sub) === null)
+      // Where the button is drawn, the route refuses only for where it is sent, never for who sends it.
+      const v = mayForward(a, sub, to())
+      if (maySendOn(a, sub)) expect(v.ok).toBe(true)
+      else expect(v.ok === false && v.code).toBe(whyNotSendOn(a, sub)!.code)
+    }
   })
 })
 

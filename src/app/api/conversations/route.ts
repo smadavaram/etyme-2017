@@ -267,7 +267,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That company is not here.' } }, { status: 404 })
     }
 
-    const verdict = whoMayOpen(facts, me, other)
+    let verdict = whoMayOpen(facts, me, other)
+    if (!verdict.ok && verdict.code === 'NOT_YOURS') {
+      // A firm seated in a client's program is told the client writes,
+      // by name, rather than that the candidate is not its own.
+      const seat = await seatFor(caller, null).catch(() => null)
+      if (seat) verdict = whoMayOpen(facts, me, other, { seatedAt: { id: seat.clientCompany.id, name: seat.clientCompany.name } })
+    }
     if (!verdict.ok) {
       return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
     }

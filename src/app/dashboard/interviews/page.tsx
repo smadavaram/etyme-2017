@@ -11,6 +11,7 @@ import { refusalSentence } from '@/lib/refusal-words'
 import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
+import { roundBody, mayPress, type RoundTyped } from './round-body'
 import { AwardDialog } from '@/app/dashboard/submissions/award-dialog'
 import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
@@ -115,6 +116,9 @@ export default function InterviewsPage() {
   // out the morning of, an architect is pulled in.
   const [panelFor, setPanelFor] = useState<string | null>(null)
   const [adding, setAdding] = useState('')
+  // "Call off this round": which round's box is open, and its reason.
+  const [callingOff, setCallingOff] = useState<string | null>(null)
+  const [offReason, setOffReason] = useState('')
   // "Next round" said what came of it and then left the client nowhere
   // to go. This is the round after it, proposed from the row it came
   // from.
@@ -148,7 +152,8 @@ export default function InterviewsPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function act(id: string, payload: Record<string, unknown>) {
+  async function act(id: string, typed: RoundTyped) {
+    const payload = roundBody(typed)
     setBusy(id)
     setError(null)
     try {
@@ -160,6 +165,8 @@ export default function InterviewsPage() {
       const body = await readJson(res)
       setDeciding(null)
       setFeedback('')
+      setCallingOff(null)
+      setOffReason('')
       // The row as it now is, before the list comes back. A client who
       // has just said "next round" must be able to set that round up
       // without waiting for a refetch or reaching for the reload key.
@@ -262,7 +269,7 @@ export default function InterviewsPage() {
                   <button
                     key={s.start}
                     disabled={busy === r.id}
-                    onClick={() => act(r.id, { action: 'confirm', slotStart: s.start, forConsultant: true })}
+                    onClick={() => act(r.id, { act: 'CONFIRM', slotStart: s.start })}
                     className="rounded border border-etyme-rule px-3 py-1.5 text-[12px]
                                text-etyme-ink hover:border-etyme-action disabled:opacity-40"
                   >
@@ -290,7 +297,7 @@ export default function InterviewsPage() {
                   </button>
                   <button
                     disabled={busy === r.id}
-                    onClick={() => act(r.id, { action: 'outcome', noShowBy: 'CONSULTANT' })}
+                    onClick={() => act(r.id, { act: 'NO_SHOW' })}
                     className="rounded border border-etyme-rule px-3 py-1.5 text-[12px] text-etyme-muted"
                   >
                     Nobody turned up
@@ -310,8 +317,8 @@ export default function InterviewsPage() {
                     {(['ADVANCE', 'OFFER', 'REJECT'] as const).map((o) => (
                       <button
                         key={o}
-                        disabled={busy === r.id || (o === 'REJECT' && feedback.trim().length < 3)}
-                        onClick={() => act(r.id, { action: 'outcome', outcome: o, feedback })}
+                        disabled={busy === r.id || !mayPress({ act: 'OUTCOME', outcome: o, feedback })}
+                        onClick={() => act(r.id, { act: 'OUTCOME', outcome: o, feedback })}
                         className="rounded border border-etyme-rule px-3 py-1.5 text-[12px]
                                    text-etyme-ink hover:border-etyme-action disabled:opacity-40"
                       >
@@ -402,7 +409,7 @@ export default function InterviewsPage() {
                   <span key={name} className="chip chip--passive">
                     {name}
                     <button
-                      onClick={() => act(r.id, { action: 'interviewers', remove: [name] })}
+                      onClick={() => act(r.id, { act: 'PANEL_REMOVE', name })}
                       disabled={busy === r.id}
                       aria-label={`Take ${name} off round ${r.round}`}
                       className="ml-1 text-etyme-faint hover:text-etyme-danger"
@@ -426,7 +433,7 @@ export default function InterviewsPage() {
                     e.preventDefault()
                     const name = adding.trim()
                     if (!name) return
-                    act(r.id, { action: 'interviewers', add: [name] })
+                    act(r.id, { act: 'PANEL_ADD', name })
                     setAdding('')
                   }}
                 >
@@ -440,6 +447,59 @@ export default function InterviewsPage() {
                   <button type="submit" disabled={busy === r.id} className="btn-secondary text-[12px]">
                     Add
                   </button>
+                </form>
+              )}
+            </div>
+          )}
+          {/* ── Calling it off ──
+              The route always took a cancellation with its reason and no
+              screen sent one (the field contract, 2026-11-02): a round
+              nobody can call off is a candidate taking a morning off for
+              a meeting that is not happening. Either side may, while the
+              round is still ahead; at the client, whoever is hiring. */}
+          {(r.state === 'PROPOSED' || r.state === 'CONFIRMED') && (r.you === 'VENDOR' || (r.you === 'CLIENT' && mayDecide)) && (
+            <div className="mt-4 border-t border-etyme-rule pt-3">
+              {callingOff !== r.id ? (
+                <button
+                  onClick={() => { setCallingOff(r.id); setOffReason('') }}
+                  className="text-[12px] text-etyme-muted underline hover:text-etyme-ink"
+                >
+                  Call off round {r.round}
+                </button>
+              ) : (
+                <form
+                  className="space-y-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (mayPress({ act: 'CANCEL', reason: offReason })) act(r.id, { act: 'CANCEL', reason: offReason })
+                  }}
+                >
+                  <label className="lbl" htmlFor={`off-${r.id}`}>Why it is called off</label>
+                  <input
+                    id={`off-${r.id}`}
+                    value={offReason}
+                    onChange={(e) => setOffReason(e.target.value)}
+                    placeholder="Everybody in the round reads this."
+                    className="w-full rounded border border-etyme-rule bg-etyme-raised p-2
+                               text-[13px] text-etyme-ink placeholder:text-etyme-faint"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      disabled={busy === r.id || !mayPress({ act: 'CANCEL', reason: offReason })}
+                      className="rounded border border-etyme-rule px-3 py-1.5 text-[12px]
+                                 text-etyme-ink hover:border-etyme-action disabled:opacity-40"
+                    >
+                      Call it off
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCallingOff(null); setOffReason('') }}
+                      className="px-2 py-1.5 text-[12px] text-etyme-faint underline"
+                    >
+                      Keep the round
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
