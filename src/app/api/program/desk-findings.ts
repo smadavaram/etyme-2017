@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { ADVERSE_STEPS, contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, contractClearance, lineExtrasForSellLines, sentencePhrases } from '@/lib/contract-clearance'
 import { heldStartSays } from '@/app/dashboard/program/needs-you'
 
 /**
@@ -55,31 +55,75 @@ export interface StartLine {
 export async function startPaperwork(
   c: StartLine,
   opts: { supplierPhrase: string; clientName: string; now: Date }
-): Promise<{ outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null; short: string | null }> {
-  const [personVerifications, supplierCertificates] = await Promise.all([
-    prisma.verification.findMany({ where: { personId: c.personId }, select: VERIFICATION_SHAPE }),
+): Promise<StartVerdict> {
+  const one = await startPaperworkFor([c], { supplierPhraseOf: () => opts.supplierPhrase, clientName: opts.clientName, now: opts.now })
+  return one.get(c.id)!
+}
+
+/** The start's verdict, as activation will give it. */
+export type StartVerdict = { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null; short: string | null }
+
+/**
+ * `startPaperwork` for many lines at once: the queue's held starts, the
+ * program page's starting-soon panel, a region's held starts.
+ *
+ * Each line's verdict is worked out exactly as `startPaperwork` works it
+ * out for one, on the same rows: every person's papers read once for all
+ * the lines, every supplier's own certificates once, and every line's own
+ * set and extras through regulatory's many-lines read
+ * (`lineExtrasForSellLines`). One start at a time was about twenty-five
+ * statements per start, and the queue asked for every start its client
+ * has (the page timing pass, 2026-11-02).
+ */
+export async function startPaperworkFor<T extends StartLine>(
+  lines: readonly T[],
+  opts: { supplierPhraseOf: (c: T) => string; clientName: string; now: Date }
+): Promise<Map<string, StartVerdict>> {
+  const out = new Map<string, StartVerdict>()
+  if (lines.length === 0) return out
+  const personIds = [...new Set(lines.map((c) => c.personId))]
+  const companyIds = [...new Set(lines.map((c) => c.companyId))]
+  const [personRows, firmRows, extras] = await Promise.all([
+    prisma.verification.findMany({ where: { personId: { in: personIds } }, select: { ...VERIFICATION_SHAPE, personId: true } }),
     // `personId: null`: a person's own file is not the firm's standing.
-    prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: VERIFICATION_SHAPE }),
+    prisma.verification.findMany({ where: { companyId: { in: companyIds }, personId: null }, select: { ...VERIFICATION_SHAPE, companyId: true } }),
+    lineExtrasForSellLines(lines.map((c) => c.id)),
   ])
-  const papers = contractClearance({
-    personName: c.person.name, personVerifications,
-    supplierName: opts.supplierPhrase, supplierCertificates,
-    clientName: opts.clientName, on: c.startDate > opts.now ? c.startDate : opts.now,
-    role: c.requirement?.title ?? null,
-    through: c.endDate,
-    ...(await lineExtras({ sellContractId: c.id })),
-  })
-  // The row's own sentence, where papers alone hold the start: the
-  // person is named on the row already, so it says what is missing once
-  // and what to do once (`heldStartSays`). Each item carries the
-  // clearance's own phrase for it, so a license names its board.
-  const short = heldStartSays({
-    outcome: papers.outcome,
-    blocking: papers.blocking.map((i) => ({ ...i, said: i.said ?? sentencePhrases([i])[0] })),
-    licenseBlocks: papers.license.outcome === 'BLOCK',
-    coverBlocks: papers.cover.outcome === 'BLOCK',
-  })
-  return { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null, short }
+  // Grouped by whose they are, in the order they were read, and handed on
+  // without the key, so each line reads exactly the rows a read of its own
+  // would have handed it.
+  const ofPerson = new Map<string, Omit<(typeof personRows)[number], 'personId'>[]>()
+  for (const { personId, ...row } of personRows) {
+    if (!personId) continue
+    ofPerson.set(personId, [...(ofPerson.get(personId) ?? []), row])
+  }
+  const ofFirm = new Map<string, Omit<(typeof firmRows)[number], 'companyId'>[]>()
+  for (const { companyId, ...row } of firmRows) {
+    if (!companyId) continue
+    ofFirm.set(companyId, [...(ofFirm.get(companyId) ?? []), row])
+  }
+  for (const c of lines) {
+    const papers = contractClearance({
+      personName: c.person.name, personVerifications: ofPerson.get(c.personId) ?? [],
+      supplierName: opts.supplierPhraseOf(c), supplierCertificates: ofFirm.get(c.companyId) ?? [],
+      clientName: opts.clientName, on: c.startDate > opts.now ? c.startDate : opts.now,
+      role: c.requirement?.title ?? null,
+      through: c.endDate,
+      ...(extras.get(c.id) ?? {}),
+    })
+    // The row's own sentence, where papers alone hold the start: the
+    // person is named on the row already, so it says what is missing once
+    // and what to do once (`heldStartSays`). Each item carries the
+    // clearance's own phrase for it, so a license names its board.
+    const short = heldStartSays({
+      outcome: papers.outcome,
+      blocking: papers.blocking.map((i) => ({ ...i, said: i.said ?? sentencePhrases([i])[0] })),
+      licenseBlocks: papers.license.outcome === 'BLOCK',
+      coverBlocks: papers.cover.outcome === 'BLOCK',
+    })
+    out.set(c.id, { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null, short })
+  }
+  return out
 }
 
 /** The suppliers, of those named, with an agreement on file with this client. */

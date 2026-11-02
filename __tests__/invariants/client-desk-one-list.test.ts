@@ -87,9 +87,11 @@ describe('The headline and the box under it read one list', () => {
     const route = src('src/app/api/program/view.ts')
     expect(route).not.toContain(".filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
     expect(route).toContain('startingSoon: cleared.slice(0, 5)')
-    expect(route).toContain('const papers = await startPaperwork(c, {')
+    // One verdict per start, every start read at once by the page and the queue alike (`startPaperworkFor`).
+    expect(route).toContain('startPaperworkFor(notStarted, {')
+    expect(route).toContain('const papers = startVerdicts.get(c.id)!')
     const decisions = src('src/app/api/decisions/route.ts')
-    expect(decisions).toContain('paperwork: await startPaperwork(c, { supplierPhrase: c.company.name, clientName, now })')
+    expect(decisions).toContain("const verdicts = await startPaperworkFor(starting, { supplierPhraseOf: (c) => c.company.name, clientName, now })")
   })
 
   it('the panel shows the nearest starts first, by the day they start', () => {

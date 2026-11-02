@@ -36,7 +36,7 @@ import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { logBulkAccess } from '@/lib/access-log'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
-import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
+import { startPaperworkFor, agreementsOnFile } from '@/app/api/program/desk-findings'
 import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'
 import { OVERDUE_BILL_STATUSES } from './overdue-bills'
 import { linkAsksFor, joinAsksFor, firmAskItems, LINK_REQUEST } from '@/app/api/conversations/twin/firm-asks'
@@ -986,20 +986,19 @@ export async function GET(request: NextRequest) {
     const top = chainTop(rungs)
     const clientName = caller.company!.name
 
-    const held = startsDesk
-      ? (await Promise.all(
-          top
-            .filter((c) => c.state !== 'IN_PROGRESS')
-            .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-            .map(async (c) => ({
-              contractId: c.id,
-              person: { name: c.person.name },
-              vendor: { name: c.company.name },
-              startDate: c.startDate,
-              paperwork: await startPaperwork(c, { supplierPhrase: c.company.name, clientName, now }),
-            }))
-        ))
+    // Every start's paperwork read at once (`startPaperworkFor`), the
+    // verdict each start would get read alone.
+    const starting = startsDesk
+      ? top.filter((c) => c.state !== 'IN_PROGRESS').sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
       : []
+    const verdicts = await startPaperworkFor(starting, { supplierPhraseOf: (c) => c.company.name, clientName, now })
+    const held = starting.map((c) => ({
+      contractId: c.id,
+      person: { name: c.person.name },
+      vendor: { name: c.company.name },
+      startDate: c.startDate,
+      paperwork: verdicts.get(c.id)!,
+    }))
 
     const onSiteBy = new Map<string, { id: string; name: string; headcount: number }>()
     if (supplierDesk) {

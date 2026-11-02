@@ -6,7 +6,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
-import { startPaperwork, agreementsOnFile } from './desk-findings'
+import { startPaperworkFor, agreementsOnFile } from './desk-findings'
 import { tierWord } from '@/lib/supplier-tier'
 import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -393,7 +393,17 @@ export async function programView(
   const notStarted = contracts
     .filter((c) => c.state !== 'IN_PROGRESS')
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-  const termsFor = await termsOnRecordFor(notStarted.map((c) => c.id))
+  // Every start's paperwork read at once (`startPaperworkFor`), the
+  // verdict `GET /api/decisions` gives each of the same starts, beside
+  // the terms on record for the same lines.
+  const [termsFor, startVerdicts] = await Promise.all([
+    termsOnRecordFor(notStarted.map((c) => c.id)),
+    startPaperworkFor(notStarted, {
+      supplierPhraseOf: (c) => shown(c.company.id, c.company.name).phrase,
+      clientName: clientCompany.name,
+      now,
+    }),
+  ])
   const cleared = await Promise.all(
     notStarted.map(async (c) => {
       // The verdict is `startPaperwork`'s, the one `GET /api/decisions`
@@ -403,11 +413,7 @@ export async function programView(
       // current certificate". What THIS client's own order asked for is
       // read on the line, so a purchase order requiring an agreement
       // nobody signed reads as held a week early, not on the day.
-      const papers = await startPaperwork(c, {
-        supplierPhrase: shown(c.company.id, c.company.name).phrase,
-        clientName: clientCompany.name,
-        now,
-      })
+      const papers = startVerdicts.get(c.id)!
       return {
         contractId: c.id,
         person: { id: c.person.id, name: c.person.name },

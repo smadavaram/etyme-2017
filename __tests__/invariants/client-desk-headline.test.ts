@@ -147,7 +147,8 @@ describe('a held start says what is missing once', () => {
   it('the queue and the program page read the one short sentence from the start’s paperwork', () => {
     const findings = readFileSync(join(process.cwd(), 'src/app/api/program/desk-findings.ts'), 'utf8')
     expect(findings).toContain('const short = heldStartSays({')
-    expect(findings).toContain('return { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null, short }')
+    // Every start read at once, each verdict the one a start read alone gets (`startPaperworkFor`).
+    expect(findings).toContain('out.set(c.id, { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null, short })')
   })
 })
 

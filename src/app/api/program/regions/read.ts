@@ -16,7 +16,7 @@ import { shownAt, type ShownRow } from '@/lib/document-stages/countries'
 import { spendLine } from '@/lib/program-spend'
 import { formatDayLong } from '@/lib/format-date'
 import { reportingRatesFor, spendInReporting, SAMPLE_RATES_WRITTEN_ON, type RateTable } from '@/lib/money/reporting-currency'
-import { startPaperwork } from '../desk-findings'
+import { startPaperworkFor } from '../desk-findings'
 import { readerScope, type ReaderScope } from '../reader-scope'
 import {
   cells, regionRows, managerRows, contractorRows, greeting, sumFigures,
@@ -163,12 +163,12 @@ async function regionsOwed(caller: CallerContext, requestedClientId: string | nu
     }),
   ])
 
-  // Stop at the first start on hold: one is enough to say "a start".
-  let heldStarts = 0
-  for (const c of chainTop(rungs).filter((x) => x.state !== 'IN_PROGRESS')) {
-    const papers = await startPaperwork({ ...c, person: { name: '' } }, { supplierPhrase: '', clientName: client.name, now })
-    if (papers.outcome === 'BLOCK') { heldStarts = 1; break }
-  }
+  // One start on hold is enough to say "a start". Every start's verdict
+  // is read at once (`startPaperworkFor`); only the outcome is kept, so
+  // no name or firm goes into it.
+  const unstarted = chainTop(rungs).filter((x) => x.state !== 'IN_PROGRESS').map((c) => ({ ...c, person: { name: '' } }))
+  const verdicts = await startPaperworkFor(unstarted, { supplierPhraseOf: () => '', clientName: client.name, now })
+  const heldStarts = [...verdicts.values()].some((v) => v.outcome === 'BLOCK') ? 1 : 0
 
   let heldReceipts = 0
   if (hasAnyPermission(acting.permissions, ['invoices.read', 'payments.record'])) {
@@ -405,13 +405,12 @@ async function readFacts(
 
   // ── Starts the paperwork will refuse, the verdict activation gives ──
   const notStarted = tops.filter((c) => c.state !== 'IN_PROGRESS')
-  const verdicts = await Promise.all(notStarted.map(async (c) => ({
-    c,
-    papers: await startPaperwork(
-      { id: c.id, personId: c.personId, companyId: c.companyId, startDate: c.startDate, endDate: c.endDate, person: c.person, requirement: c.requirement },
-      { supplierPhrase: c.company.name, clientName: client.name, now }
-    ),
-  })))
+  // Every start's verdict read at once (`startPaperworkFor`).
+  const readAtOnce = await startPaperworkFor(
+    notStarted.map((c) => ({ id: c.id, personId: c.personId, companyId: c.companyId, startDate: c.startDate, endDate: c.endDate, person: c.person, requirement: c.requirement, firm: c.company.name })),
+    { supplierPhraseOf: (c) => c.firm, clientName: client.name, now }
+  )
+  const verdicts = notStarted.map((c) => ({ c, papers: readAtOnce.get(c.id)! }))
   const held = verdicts.filter((v) => v.papers.outcome === 'BLOCK').map(({ c, papers }) => ({
     contractId: c.id, personId: c.personId, personName: c.person.name,
     ...placed(c.personId, c.workLocationId),

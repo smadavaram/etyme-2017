@@ -264,12 +264,13 @@ describe('the award’s cover sentence names the firm, never “The supplier”'
   })
 
   it('the start’s paperwork verdict names the supplier on every screen that shows its sentence', () => {
-    expect(code('src/app/api/decisions/route.ts')).toContain('startPaperwork(c, { supplierPhrase: c.company.name, clientName, now })')
-    expect(code('src/app/api/program/view.ts')).toContain('supplierPhrase: shown(c.company.id, c.company.name).phrase')
+    expect(code('src/app/api/decisions/route.ts')).toContain('startPaperworkFor(starting, { supplierPhraseOf: (c) => c.company.name, clientName, now })')
+    expect(code('src/app/api/program/view.ts')).toContain('supplierPhraseOf: (c) => shown(c.company.id, c.company.name).phrase,')
     const regions = code('src/app/api/program/regions/read.ts')
-    expect(regions).toContain('{ supplierPhrase: c.company.name, clientName: client.name, now }')
-    // The one call with no name is the count, which keeps the outcome and drops the sentence.
-    expect(regions).toMatch(/startPaperwork\(\{ \.\.\.c, person: \{ name: '' \} \}, \{ supplierPhrase: '', clientName: client\.name, now \}\)\s*if \(papers\.outcome === 'BLOCK'\) \{ heldStarts = 1; break \}/)
+    expect(regions).toContain("{ supplierPhraseOf: (c) => c.firm, clientName: client.name, now }")
+    // The one read with no name is the count, which keeps the outcome and drops the sentence.
+    expect(regions).toContain("startPaperworkFor(unstarted, { supplierPhraseOf: () => '', clientName: client.name, now })")
+    expect(regions).toMatch(/const heldStarts = \[\.\.\.verdicts\.values\(\)\]\.some\(\(v\) => v\.outcome === 'BLOCK'\) \? 1 : 0/)
   })
 })
 
