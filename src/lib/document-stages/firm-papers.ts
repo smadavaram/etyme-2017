@@ -133,3 +133,17 @@ export function paperSubject(input: {
   if (input.contractPersonId) return { kind: 'PERSON', personId: input.contractPersonId }
   return { kind: 'NONE' }
 }
+
+/**
+ * Whose data a read of this paper is, for the access log: the person it is
+ * about, or the firm it is about, never a firm's id where a person's is
+ * expected. Found by the simulation (2026-11-01): the file route filed a
+ * supplier's id as a person's, the foreign key refused it, and 98 reads of
+ * company papers were never in the trail. A paper about nobody is the
+ * firm's that asked for it. Pure.
+ */
+export function trailSubject(about: PaperSubject, issuerCompanyId: string): { personId: string } | { companyId: string } {
+  if (about.kind === 'PERSON') return { personId: about.personId }
+  if (about.kind === 'FIRM') return { companyId: about.companyId }
+  return { companyId: issuerCompanyId }
+}

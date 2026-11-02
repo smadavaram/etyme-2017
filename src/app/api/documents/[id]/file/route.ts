@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logAccess, recordRefusal } from '@/lib/access-log'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
+import { reportError } from '@/lib/alerts'
+import { paperSubject, trailSubject } from '@/lib/document-stages/firm-papers'
 import { standingOn } from '@/lib/document-request'
 import { hasPermission } from '@/lib/permissions'
 import { buyerMayExamineKept } from '@/app/api/packets/examination'
@@ -132,9 +134,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     action: 'DOCUMENT_FILE_READ' as const,
     reason: why,
   }
-  const subject = subjectPersonId ?? doc.subjectId
-  if (standing.ok) logAccess({ ...trail, subjectId: subject, allowed: true })
-  else await recordRefusal([subject], { ...trail, allowed: false })
+  // Whose data this is: the person, or the firm. Until 2026-11-02 a
+  // company's paper was filed under its firm's id as though it were a
+  // person's, the foreign key refused it, and the read was never in the
+  // trail (98 reads in the calibration run). A request item's paper is
+  // about the request's own subject.
+  const item = doc.subjectType === 'PACKET_ITEM'
+    ? await prisma.packetItem.findUnique({
+        where: { id: doc.subjectId },
+        select: { packet: { select: { subjectCompanyId: true, subjectPersonId: true } } },
+      })
+    : null
+  const subject = trailSubject(
+    paperSubject({ subjectType: doc.subjectType, subjectId: doc.subjectId, packet: item?.packet ?? null, contractPersonId: subjectPersonId }),
+    issuer.id
+  )
+  if (!standing.ok) {
+    await recordRefusal([subject], { ...trail, allowed: false })
+  } else {
+    // Written before the file is sent, and nothing is handed over that
+    // could not be recorded: a document's bytes are the read the trail
+    // exists for.
+    try {
+      await recordAccess([subject], { ...trail, allowed: true })
+    } catch (err) {
+      await reportError('access-log', err, { personId: caller.person.id, companyId: caller.company?.id })
+      return NextResponse.json(
+        { error: { code: 'NOT_RECORDED', message: 'This read could not be put on the record, so the file is not sent. Try again in a moment.' } },
+        { status: 503 }
+      )
+    }
+  }
 
   if (!standing.ok) {
     // A colleague without the desk is told what its seat lacks, never a

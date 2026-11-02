@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notify, notifyBulk } from '@/lib/notify'
 import { emit } from '@/lib/events'
-import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import { logAccess, recordAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import { reportError } from '@/lib/alerts'
 import { hasPermission } from '@/lib/permissions'
 import { mayExamine, standingOn, typeKeyForTemplate } from '@/lib/document-request'
 import { BUILT_IN, typeByKey } from '@/lib/document-type'
@@ -99,8 +100,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     companyName: caller.company?.name ?? null,
   })
   if (!standing.ok) {
-    if (subjectPersonId && caller.person.id !== subjectPersonId) {
-      await recordRefusal([subjectPersonId], {
+    // The person's or the firm's: a company's paper is the company's
+    // data, written with the company as the subject (2026-11-02).
+    const refusedOf = subjectPersonId && caller.person.id !== subjectPersonId
+      ? { personId: subjectPersonId }
+      : subjectCompanyId && caller.company?.id !== subjectCompanyId
+        ? { companyId: subjectCompanyId }
+        : null
+    if (refusedOf) {
+      await recordRefusal([refusedOf], {
         ...accessActor(caller),
         action: 'COMPLIANCE_CHECK',
         reason: `Refused examining ${doc.template.name}: the seat does not work this firm’s paperwork`,
@@ -250,6 +258,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       action: 'COMPLIANCE_CHECK',
       reason: `${verdict.verdict === 'ACCEPT' ? 'Examined' : 'Sent back'} ${doc.template.name} for ${issuer.name}`,
     })
+  } else if (subjectCompanyId && caller.company?.id !== subjectCompanyId) {
+    // A firm's paper looked at by another firm is a read of that firm's
+    // data, and it was never logged (2026-11-02). Written with the firm as
+    // its subject; the examination has already been written, so a row
+    // that cannot be written is reported rather than undoing it.
+    try {
+      await recordAccess([{ companyId: subjectCompanyId }], {
+        ...accessActor(caller),
+        action: 'COMPLIANCE_CHECK',
+        reason: `${verdict.verdict === 'ACCEPT' ? 'Examined' : 'Sent back'} ${doc.template.name} for ${issuer.name}`,
+      })
+    } catch (err) {
+      await reportError('access-log', err, { personId: caller.person.id, companyId: caller.company?.id })
+    }
   }
   void emit({
     type: 'verification.recorded',

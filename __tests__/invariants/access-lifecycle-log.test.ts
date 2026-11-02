@@ -406,3 +406,49 @@ describe('a refused read of somebody else’s Ask Etyme conversation is in the t
     expect(new Set(names).size).toBe(names.length)
   })
 })
+
+// ── A firm's own paper, read ───────────────────────────────────────────
+//
+// The simulation, 2026-11-01: the file route filed a supplier's id as a
+// person's, the foreign key refused it, and 98 reads of company papers and
+// a refusal were never in the trail. The architect gave the log a firm
+// subject (ea81372d); the routes that read a company's paper write it.
+
+describe('a read of a company’s paper is in the trail, with the company as its subject', () => {
+  beforeEach(() => {
+    createMany.mockReset()
+    reportError.mockReset()
+  })
+
+  it('a company’s paper is a read of the company, a person’s paper of the person, and a paper about nobody of the firm that asked', async () => {
+    const { trailSubject } = await import('@/lib/document-stages/firm-papers')
+    expect(trailSubject({ kind: 'FIRM', companyId: 'tapin' }, 'brightmoor')).toEqual({ companyId: 'tapin' })
+    expect(trailSubject({ kind: 'PERSON', personId: 'ravi' }, 'brightmoor')).toEqual({ personId: 'ravi' })
+    expect(trailSubject({ kind: 'NONE' }, 'brightmoor')).toEqual({ companyId: 'brightmoor' })
+  })
+
+  it('a read of a company’s paper writes the company into the company column and leaves the person empty, so the person key never refuses it', async () => {
+    const { recordAccess } = await import('@/lib/access-log')
+    createMany.mockResolvedValue({ count: 1 })
+    await recordAccess([{ companyId: 'tapin' }], { action: 'DOCUMENT_FILE_READ', actorPersonId: 'jenna', reason: 'examining' })
+    expect(createMany.mock.calls[0][0].data[0]).toMatchObject({ subjectId: null, subjectCompanyId: 'tapin', action: 'DOCUMENT_FILE_READ' })
+  })
+
+  it('the file behind a document is handed over only after its row is written, and not at all where the row could not be', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/documents/[id]/file/route.ts'), 'utf8')
+    expect(src).toContain('trailSubject(')
+    expect(src).not.toMatch(/\blogAccess\(/)
+    expect(src).not.toContain('subjectPersonId ?? doc.subjectId')
+    const written = src.indexOf('await recordAccess([subject]')
+    expect(written).toBeGreaterThan(-1)
+    expect(written).toBeLessThan(src.indexOf('new NextResponse(new Uint8Array(doc.file.bytes)'))
+    expect(src).toContain("code: 'NOT_RECORDED'")
+    expect(src).toContain('await recordRefusal([subject]')
+  })
+
+  it('a company’s paper looked at, or refused, by another firm on the examine route is written with the company as its subject', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/documents/[id]/examine/route.ts'), 'utf8')
+    expect(src).toContain('await recordAccess([{ companyId: subjectCompanyId }]')
+    expect(src).toContain("? { companyId: subjectCompanyId }")
+  })
+})
