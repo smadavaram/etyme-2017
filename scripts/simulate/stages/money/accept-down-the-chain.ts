@@ -51,6 +51,7 @@ export default defineStage({
     let employerCuts = 0
     let stopped = 0
     const soloStuck = new Set<string>()
+    let standIns = 0
     await ctx.parallel(signed, async (w) => {
       const p = placements.find((x) => x.id === w.contractId)
       if (!p) return
@@ -62,18 +63,27 @@ export default defineStage({
         const rung = p.ladder[i]
         const last = i === p.ladder.length - 1
         let seat = await seatWith(ctx, rung.sellerId, 'timesheets.approve', [p.personId])
-        // A one-person firm: the only seat that accepts for the employer is
-        // the worker's own. She tries, as she would, and the run records
-        // what the route says.
+        // A one-person firm is never asked to accept its own worker's week
+        // (2026-10-20, and the approve route's acceptsOnlyForItself): the
+        // signature of the firm above stands in for her firm's, written by
+        // the route itself. So the station never presses it as her; it reads
+        // the stand-in off the record, the way her own page does. The scale
+        // run pressed it 696 times and was refused "Nobody approves their own
+        // hours" each time.
         if (!seat) {
           const own = await seatWith(ctx, rung.sellerId, 'timesheets.approve')
           if (own && own.spec.personId === p.personId) {
-            const res = await own.post(`/api/timesheets/${w.id}/approve`, {})
-            if (res.ok) {
-              acceptances++
-              x.accepted[rung.sellerId] = w.hours
+            const standIn = await ctx.read.workAssertion.findFirst({
+              where: { timesheetId: w.id, companyId: rung.sellerId, state: 'LIVE' },
+              select: { hours: true },
+            })
+            if (standIn) {
+              standIns++
+              x.accepted[rung.sellerId] = standIn.hours != null ? Number(standIn.hours) : w.hours
               continue
             }
+            // The signature above should have written it; a week without it
+            // is a money fault, said in the report.
             soloStuck.add(p.personName)
           }
           stopped++
@@ -114,7 +124,8 @@ export default defineStage({
         middleCuts ? `${middleCuts} long weeks were accepted three hours short by the firm in the middle of a chain, with the reason.` : null,
         employerCuts ? `${employerCuts} long weeks were accepted two hours short by the employer on a direct placement, with the reason.` : null,
         stopped ? `${stopped} weeks stopped part way down the chain; the refusals are in the lessons.` : null,
-        soloStuck.size ? `A one-person firm cannot accept its own owner's week at the employer's rung, because the only person there is the worker: ${[...soloStuck].join(', ')}.` : null,
+        standIns ? `${standIns} weeks at a one-person firm were accepted for her by the signature of the firm above, as the route writes it; nobody pressed her own acceptance.` : null,
+        soloStuck.size ? `A money fault: at a one-person firm the signature above wrote no acceptance for her, so the week stopped there: ${[...soloStuck].join(', ')}.` : null,
       ]),
     }
   },
