@@ -39,6 +39,12 @@ export interface TotalsRow {
    * every week Northbend signed out of Northbend's own total.
    */
   youSigned?: boolean
+  /**
+   * The reader pays this week's rate rather than bills it: a prime's row
+   * for a week bought from its sub-vendor. What a firm bills and what it
+   * pays are never added into one figure.
+   */
+  buys?: boolean
 }
 
 /**
@@ -52,7 +58,7 @@ export function totalsRowOf(t: {
   status: string
   flag: string | null
   mayApprove?: boolean
-  rate: { cents: number | null; withheld?: boolean }
+  rate: { cents: number | null; withheld?: boolean; buys?: boolean }
   overtime?: { billableCents: number | null } | null
   signature?: { waitingOnYou: boolean; youSigned: boolean } | null
 }): TotalsRow {
@@ -65,6 +71,7 @@ export function totalsRowOf(t: {
     valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : t.totalHours * t.rate.cents,
     withheld: t.rate.withheld === true,
     youSigned: t.signature?.youSigned ?? false,
+    buys: t.rate.buys === true,
   }
 }
 
@@ -113,20 +120,32 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
   // Approved by every firm, or signed by this reader and waiting on the
   // firm below: either way it is work this reader has said yes to.
   const approved = rows.filter((r) => r.status === 'APPROVED' || r.youSigned === true)
-  const signedOnly = approved.filter((r) => r.status !== 'APPROVED').length
+  // What a firm bills and what it pays are two figures, never one sum: a
+  // prime's list holds weeks it bills its client for beside weeks it buys
+  // from its sub-vendor (the second Tapin walk). The figure is what it
+  // bills; where every week is one it pays, it is what it pays; the weeks
+  // left out are said by count.
+  const paid = approved.filter((r) => r.buys === true)
+  const billed = approved.filter((r) => r.buys !== true)
+  const onlyPays = billed.length === 0 && paid.length > 0
+  const valued = onlyPays ? paid : billed
+  const leftOut = onlyPays ? 0 : paid.length
+  const signedOnly = valued.filter((r) => r.status !== 'APPROVED').length
   const counted =
     signedOnly === 0 ? 'approved'
-    : signedOnly === approved.length ? 'signed by you'
+    : signedOnly === valued.length ? 'signed by you'
     : 'approved or signed by you'
-  const priced = approved.filter((r) => r.valueCents != null)
+  const priced = valued.filter((r) => r.valueCents != null)
   const approvedValueCents = priced.reduce((s, r) => s + (r.valueCents ?? 0), 0)
-  const withheld = approved.filter((r) => r.valueCents == null && r.withheld === true).length
-  const unpriced = approved.length - priced.length - withheld
-  const allWithheld = approved.length > 0 && priced.length === 0 && withheld === approved.length
-  const approvedFirst = approved.reduce<string | null>(
+  const withheld = valued.filter((r) => r.valueCents == null && r.withheld === true).length
+  const unpriced = valued.length - priced.length - withheld
+  const allWithheld = valued.length > 0 && priced.length === 0 && withheld === valued.length
+  const approvedFirst = valued.reduce<string | null>(
     (m, r) => (m == null || r.periodStart < m ? r.periodStart : m),
     null
   )
+  const lead = opts.payBasis ? 'your pay for' : onlyPays ? 'what you pay for' : 'billable, from'
+  const notInIt = leftOut > 0 ? `; ${weeks(leftOut)} you pay for ${leftOut === 1 ? 'is' : 'are'} not in this figure` : ''
 
   return {
     hours,
@@ -143,12 +162,25 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
       approved.length === 0
         ? 'no approved or signed weeks on this list'
         : allWithheld
-          ? `${weeks(approved.length)} ${counted}` +
+          ? `${weeks(valued.length)} ${counted}` +
             (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
-            '; their value is read by the billing team'
-          : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} ${counted}` +
+            '; their value is read by the billing team' + notInIt
+          : `${lead} ${weeks(valued.length)} ${counted}` +
             (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
             (withheld > 0 ? `; ${withheld} more whose rate is read by the billing team` : '') +
-            (unpriced > 0 ? `; ${unpriced} more with no rate on file` : ''),
+            (unpriced > 0 ? `; ${unpriced} more with no rate on file` : '') +
+            notInIt,
   }
+}
+
+/**
+ * The rate column's heading: the word every row shares, or "Rate" where
+ * a firm's list holds weeks it bills beside weeks it pays, and each cell
+ * then says its own (`rateWordFor` on the server).
+ */
+export function rateColumnLabel(labels: readonly string[]): { label: string; perRow: boolean } {
+  const words = [...new Set(labels.filter(Boolean))]
+  if (words.length === 0) return { label: 'Bill rate', perRow: false }
+  if (words.length === 1) return { label: words[0], perRow: false }
+  return { label: 'Rate', perRow: true }
 }

@@ -1,3 +1,5 @@
+import { NO_MAIL_HERE } from '@/lib/notify/mail-leaves'
+
 /**
  * Somebody the client's own team already knows.
  *
@@ -84,13 +86,21 @@ export interface Invite {
  *
  * A code is for the machine. Somebody reading a queue of eight people
  * needs to know which of them is waiting on *them*.
+ *
+ * `mail` is whether an email can leave this deployment (`mailLeaves` in
+ * lib/notify/mail-leaves), asked by every caller rather than assumed:
+ * the row said "has been sent a link" on a deployment where nothing could
+ * be sent (the Tapin walks), and the hiring manager waited on an answer
+ * from somebody who had never heard of the ask.
  */
-export function says(invite: Invite): { now: string; next: string | null } {
+export function says(invite: Invite, opts: { mail: boolean }): { now: string; next: string | null } {
   const first = invite.name.split(' ')[0]
   switch (invite.state) {
     case 'ASKED':
       return {
-        now: `${first} has been sent a link and has not answered yet.`,
+        now: opts.mail
+          ? `${first} has been sent a link and has not answered yet.`
+          : `The ask for ${first} shows in Etyme. ${NO_MAIL_HERE}, so ${first} has not been sent the link.`,
         next: null,
       }
     case 'NEEDS_SUPPLIER': {
@@ -125,6 +135,24 @@ export function says(invite: Invite): { now: string; next: string | null } {
     case 'WITHDRAWN':
       return { now: `This ask was withdrawn.`, next: null }
   }
+}
+
+/**
+ * What the hiring manager reads the moment the ask is made.
+ *
+ * "Will hear from you by email" only where the letter went: an email can
+ * leave this deployment and the provider took it. Where none can leave,
+ * the ask is saved and shows in Etyme, and the sentence says the person
+ * has not been told; where one could and this one did not go, it says why.
+ */
+export function askedSays(a: { first: string; companyName: string; sent: boolean; mail: boolean; note?: string | null }): string {
+  const after =
+    `${a.companyName} contracts through suppliers, so when they answer you will ` +
+    `either see the firm that represents them, or be asked to pick one to take them on.`
+  if (a.sent) return `${a.first} has been asked, and will hear from you by email. ${after}`
+  if (!a.mail) return `The ask for ${a.first} is saved and shows in Etyme. ${NO_MAIL_HERE}, so ${a.first} has not been told. ${after}`
+  const why = (a.note ?? '').trim().replace(/[.\s]+$/, '')
+  return `The ask for ${a.first} is saved and shows in Etyme, but the email did not go${why ? `: ${why}` : ''}. ${after}`
 }
 
 export type Step = { label: string; status: 'done' | 'now' | 'next' | 'off' }

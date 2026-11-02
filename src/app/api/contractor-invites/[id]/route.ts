@@ -8,6 +8,7 @@ import { newChecklist } from '@/lib/supplier-onboarding'
 import { newApplyToken, applyUrl, sendLink } from '@/lib/supplier-link'
 import { desksFor, deskPeople } from '@/lib/supplier-desks'
 import { says, type Answer, type InviteState } from '@/lib/contractor-invite'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * PATCH /api/contractor-invites/[id]
@@ -53,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   if (state === 'JOINED' || state === 'WITHDRAWN' || state === 'DECLINED') {
     return NextResponse.json(
-      { error: { code: 'SETTLED', message: `${row.name} is already ${says({ state, name: row.name, answer, supplierName: null }).now.replace(/^.*? /, '')}` } },
+      { error: { code: 'SETTLED', message: `${row.name} is already ${says({ state, name: row.name, answer, supplierName: null }, { mail: mailLeaves() }).now.replace(/^.*? /, '')}` } },
       { status: 409 }
     )
   }

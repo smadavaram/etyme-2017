@@ -5,9 +5,10 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { newInviteToken, sendInvite, welcomeUrl } from '@/lib/contractor-link'
 import {
-  mayInvite, says, stepsOf, STATE_WORD,
+  mayInvite, says, askedSays, stepsOf, STATE_WORD,
   type Answer, type InviteState,
 } from '@/lib/contractor-invite'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * GET  /api/contractor-invites   — who we have asked, and where it got to
@@ -47,13 +48,15 @@ export async function GET(request: NextRequest) {
   // person. Only whoever may act on the ask sees it, the same rule the
   // supplier link follows — everybody else is told it was sent.
   const mayAct = hasPermission(caller.permissions, 'requirements.write')
+  // Whether a link can have left at all: the one answer, asked once.
+  const mail = mailLeaves()
 
   return NextResponse.json({
     data: {
       invites: rows.map((r) => {
         const state = r.state as InviteState
         const supplierName = r.supplierCompanyId ? nameOf.get(r.supplierCompanyId) ?? null : null
-        const line = says({ state, name: r.name, answer: r.answer as unknown as Answer | null, supplierName })
+        const line = says({ state, name: r.name, answer: r.answer as unknown as Answer | null, supplierName }, { mail })
         return {
           id: r.id, name: r.name, email: r.email, skills: r.skills, reason: r.reason,
           state, stateWord: STATE_WORD[state], steps: stepsOf(state),
@@ -149,10 +152,15 @@ export async function POST(request: NextRequest) {
       data: {
         invite: { id: row.id, state: row.state, link: welcomeUrl(token) },
         delivery,
-        says:
-          `${name.split(' ')[0]} has been asked, and will hear from you by email. ` +
-          `${caller.company!.name} contracts through suppliers, so when they answer you will ` +
-          `either see the firm that represents them, or be asked to pick one to take them on.`,
+        says: askedSays({
+          first: name.split(' ')[0],
+          companyName: caller.company!.name,
+          // Said only where the letter actually went: an email can leave
+          // this deployment (`mailLeaves`) and the provider took it.
+          sent: mailLeaves() && delivery.state === 'SENT',
+          mail: mailLeaves(),
+          note: delivery.note,
+        }),
       },
     },
     { status: 201 }

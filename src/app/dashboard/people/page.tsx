@@ -9,6 +9,7 @@ import { applyFilter, locationsOf, isRecent, NETWORK_FILTERS, type NetworkFilter
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
+import { askFormSays } from './ask-words'
 import { useRouter } from 'next/navigation'
 
 /**
@@ -121,6 +122,9 @@ export default function PeoplePage() {
   const [pending, setPending] = useState<Pending[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [asking, setAsking] = useState(false)
+  // Whether an email can leave this deployment, as the route answered it
+  // (`mailLeaves`). Null until read: the form promises nothing meanwhile.
+  const [mail, setMail] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
   const [picking, setPicking] = useState<string | null>(null)
@@ -152,6 +156,7 @@ export default function PeoplePage() {
       setRows(body.data.people)
       setPending(body.data.pending ?? [])
       setSummary(body.data.summary)
+      setMail(typeof body.data.mail === 'boolean' ? body.data.mail : null)
       setError(null)
     } catch (err: any) {
       setError(err.message)
@@ -298,7 +303,7 @@ export default function PeoplePage() {
         </>}
       />
 
-      {asking && <AskForm busy={busy} onSubmit={ask} />}
+      {asking && <AskForm busy={busy} mail={mail} onSubmit={ask} />}
 
       {said && <FormMessage tone="ok">{said}</FormMessage>}
 
@@ -571,8 +576,10 @@ export default function PeoplePage() {
  * does will be surprised later, and surprise is the thing a product
  * nobody is trained on cannot afford.
  */
-function AskForm({ busy, onSubmit }: {
+function AskForm({ busy, mail, onSubmit }: {
   busy: boolean
+  /** Whether an email can leave this deployment; null until the route has said. */
+  mail: boolean | null
   onSubmit: (form: { name: string; email: string; skills: string; reason: string }) => void
 }) {
   const [name, setName] = useState('')
@@ -587,7 +594,7 @@ function AskForm({ busy, onSubmit }: {
       onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit({ name, email, skills, reason }) }}
     >
       <p className="text-[13px] text-etyme-ink">
-        Somebody you have worked with, or been referred. They hear from you by email.
+        {askFormSays(mail)}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Their name">

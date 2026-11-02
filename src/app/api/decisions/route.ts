@@ -38,6 +38,7 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
 import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'
+import { OVERDUE_BILL_STATUSES } from './overdue-bills'
 import { linkAsksFor, joinAsksFor, firmAskItems, LINK_REQUEST } from '@/app/api/conversations/twin/firm-asks'
 import { emailSender } from '@/lib/senders'
 import { readerScope } from '@/app/api/program/reader-scope'
@@ -874,10 +875,13 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 5. Overdue invoices ───────────────────────────
+  //
+  // Sent and owed only (`OVERDUE_BILL_STATUSES`): a bill raised and never
+  // sent is owed by nobody.
   if (hasAnyPermission(caller.permissions, ['invoices.read'])) {
     const overdueInvoices = await prisma.invoice.findMany({
       where: {
-        status: { in: ['ISSUED', 'PARTIALLY_PAID'] },
+        status: { in: [...OVERDUE_BILL_STATUSES] },
         dueAt: { lt: now },
         // Ours, whether or not there is an agreement behind it.
         //

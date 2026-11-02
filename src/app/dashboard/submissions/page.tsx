@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
+import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
 
@@ -393,14 +394,15 @@ function SubmitToRequirementModal({
     setSubmitting(true)
     setError(null)
 
-    const rateNum = parseFloat(form.rate)
-    if (isNaN(rateNum) || rateNum <= 0) {
+    // Typed in dollars, sent in cents, through the one reader (`centsTyped`).
+    const rateCents = centsTyped(form.rate)
+    if (rateCents == null || rateCents <= 0) {
       setError('Rate must be a positive number')
       setSubmitting(false)
       return
     }
-    const payNum = parseFloat(form.payRate)
-    if (selectedOffer && (isNaN(payNum) || payNum <= 0)) {
+    const payCents = centsTyped(form.payRate)
+    if (selectedOffer && (payCents == null || payCents <= 0)) {
       setError(`Say what ${selectedOffer.supplierName} charges you for ${selectedOffer.name}, an hour.`)
       setSubmitting(false)
       return
@@ -413,12 +415,12 @@ function SubmitToRequirementModal({
         body: JSON.stringify({
           requirementId: form.requirementId,
           personIds: [form.personId],
-          rate: Math.round(rateNum * 100),
+          rate: rateCents,
           fromCompanyId: companyId,
           coverNote: form.coverNote || undefined,
           ...(needsReason && form.reason.trim() ? { reason: form.reason.trim() } : {}),
           ...(selectedOffer
-            ? { offeredBy: selectedOffer.supplierId, payRate: Math.round(payNum * 100) }
+            ? { offeredBy: selectedOffer.supplierId, payRate: payCents }
             : {}),
         }),
       })
@@ -752,8 +754,9 @@ function SendOnModal({
   const [companies, setCompanies] = useState<{ id: string; name: string; kind: string }[]>([])
   const [toCompanyId, setToCompanyId] = useState('')
   const [email, setEmail] = useState('')
-  // Shown and typed in dollars; sent in cents.
-  const [rate, setRate] = useState(String((submission.rate ?? 0) / 100))
+  // Shown and typed in dollars; sent in cents, both ways through the one
+  // reader (`typedFromCents`, `centsTyped`).
+  const [rate, setRate] = useState(() => typedFromCents(submission.rate))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Where the company chosen sent us more than one role and nothing on
@@ -776,8 +779,9 @@ function SendOnModal({
       .catch(() => {})
   }, [submission.toCompany.id, submission.fromCompany.id])
 
-  const onwardCents = Math.round(Number(rate) * 100)
-  const marginCents = onwardCents - (submission.rate ?? 0)
+  // Null where the box holds no rate: no margin is said about nothing.
+  const onwardCents = centsTyped(rate)
+  const marginCents = onwardCents == null ? null : onwardCents - (submission.rate ?? 0)
 
   async function send() {
     setBusy(true)
@@ -814,7 +818,8 @@ function SendOnModal({
     }
   }
 
-  const ready = via === 'ONWARD' ? toCompanyId !== '' && (roles.length === 0 || roleId !== '') : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const rated = onwardCents != null && onwardCents > 0
+  const ready = rated && (via === 'ONWARD' ? toCompanyId !== '' && (roles.length === 0 || roleId !== '') : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -891,8 +896,7 @@ function SendOnModal({
           <div>
             <label className="eyebrow mb-1 block">Rate you send it on at ($/hr)</label>
             <input
-              type="number"
-              step="0.01"
+              inputMode="decimal"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
@@ -901,7 +905,9 @@ function SendOnModal({
                 down the chain and the person who sent it to you will never
                 see this number. */}
             <p className="mt-1 text-[11px] text-etyme-faint">
-              {marginCents > 0
+              {marginCents == null
+                ? 'Type the rate you send it on at, in dollars an hour.'
+                : marginCents > 0
                 ? `${showRate(marginCents)} yours. ${submission.fromCompany.name} does not see this.`
                 : marginCents === 0
                   ? 'Passed on at the same rate — nothing in it for you.'

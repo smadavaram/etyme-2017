@@ -78,7 +78,7 @@ describe('where an answer takes it', () => {
 
 describe('what the client reads on the row', () => {
   const of = (state: InviteState, over: Partial<{ answer: Answer | null; supplierName: string | null }> = {}) =>
-    says({ state, name: 'Lucía Fernández', answer: over.answer ?? null, supplierName: over.supplierName ?? null })
+    says({ state, name: 'Lucía Fernández', answer: over.answer ?? null, supplierName: over.supplierName ?? null }, { mail: true })
 
   it('every state says what is happening in a sentence, never a state name', () => {
     for (const state of INVITE_STATES) {

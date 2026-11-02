@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateWordFor } from '@/lib/money/rate-words'
 import { mayReadBillRate, billTrail, BILL_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
 import { writeBillTrail } from '@/lib/money/pay-trail'
 import { getCallerContext } from '@/lib/api-context'
@@ -670,7 +671,15 @@ interface Seen {
     cents: number | null
     currency: string | null
     basis: 'BILL' | 'PAY'
+    /**
+     * The rate's word from the reader's end of the line (`rateWordFor`):
+     * "Bill rate" to the firm selling the week, "What you pay" to the firm
+     * buying it. A prime read "Bill rate" over what it pays its sub-vendor
+     * (the second Tapin walk, 2026-10-31).
+     */
     label: string
+    /** The reader pays this rate rather than bills it, so the list never adds the two. */
+    buys?: boolean
     says: string | null
     /**
      * True where a rate is on file and this reader may not read it. A
@@ -705,9 +714,17 @@ type Row = {
     overtimeAfterHours: number | null
     overtimeMultiplierBps: number | null
     clientCompany: { id: string; name: string }
+    /** The firm selling the week on this line, by name: whose bill rate it is. */
+    company: { id: string; name: string }
     engagement: { id: string; title: string } | null
   }
 }
+
+/** The line a rate sits on, as `rateWordFor` reads it: who sells it, who pays it. */
+const ratedLine = (c: { companyId: string; clientCompanyId: string; company: { name: string }; clientCompany: { name: string } }) => ({
+  sellerId: c.companyId, sellerName: c.company.name,
+  buyerId: c.clientCompanyId, buyerName: c.clientCompany.name,
+})
 
 async function priceFor(
   caller: NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>,
@@ -717,12 +734,15 @@ async function priceFor(
   const out = new Map<string, Seen>()
   if (rows.length === 0) return out
 
+  // The firm's own book: the reader is the firm, and the word is its end's.
+  const reader = caller.company?.id ?? null
   const asIs = (r: Row): Seen => ({
     rate: {
       cents: r.sellContract.billRate,
       currency: r.sellContract.billCurrency,
       basis: 'BILL',
-      label: 'Bill rate',
+      label: rateWordFor(ratedLine(r.sellContract), reader).label,
+      buys: reader !== null && reader === r.sellContract.clientCompanyId,
       says: null,
     },
     afterHours: r.sellContract.overtimeAfterHours,
@@ -823,7 +843,9 @@ async function priceFor(
           cents: null,
           currency: null,
           basis: 'BILL',
-          label: 'Bill rate',
+          // The client pays its top rung, whichever one it turns out to be.
+          label: 'What you pay',
+          buys: true,
           says:
             'More than one of your contracts covers this week, so there is no single ' +
             'rate to price it at. Check the contracts for this person.',
@@ -836,19 +858,27 @@ async function priceFor(
       })
       continue
     }
+    // The firm the client pays, and the client's word for the rate on
+    // that rung: what it pays, read from its own end (`rateWordFor`).
+    const payee = rungs.find((x) => x.id === top.id)?.company ?? null
+    const word = rateWordFor({
+      sellerId: top.companyId, sellerName: payee?.name ?? '',
+      buyerId: top.clientCompanyId, buyerName: top.clientCompany.name,
+    }, seat.buyerCompanyId)
     out.set(r.id, {
       rate: {
         cents: top.billRate,
         currency: top.billCurrency,
         basis: 'BILL',
-        label: 'Bill rate',
+        label: word.label,
+        buys: top.clientCompanyId === seat.buyerCompanyId,
         says: null,
       },
       afterHours: top.overtimeAfterHours,
       multiplierBps: top.overtimeMultiplierBps,
       clientCompany: top.clientCompany,
       engagement: top.engagement,
-      payee: rungs.find((x) => x.id === top.id)?.company ?? null,
+      payee,
     })
   }
   return out

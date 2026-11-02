@@ -14,6 +14,7 @@ import { placementStatus } from '@/lib/award/placement-status'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
 import { says as inviteSays, stepsOf as inviteSteps, STATE_WORD, type Answer, type InviteState } from '@/lib/contractor-invite'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * GET /api/people — everyone who has been put in front of you, merged
@@ -408,11 +409,13 @@ export async function GET(request: NextRequest) {
     : []
   const inviteSupplierName = new Map(inviteSuppliers.map((c) => [c.id, c.name]))
 
+  // Whether an email can leave at all, asked once for every row and the form.
+  const mail = mailLeaves()
   const pending = invites.map((i) => {
     const state = i.state as InviteState
     const answer = i.answer as unknown as Answer | null
     const supplierName = i.supplierCompanyId ? inviteSupplierName.get(i.supplierCompanyId) ?? null : null
-    const line = inviteSays({ state, name: i.name, answer, supplierName })
+    const line = inviteSays({ state, name: i.name, answer, supplierName }, { mail })
     return {
       inviteId: i.id,
       personId: i.personId,
@@ -441,7 +444,7 @@ export async function GET(request: NextRequest) {
     // Summarized from the rows as the page draws them — with the firms
     // cell on each — so the sentence over the register counts the firms
     // this client pays, exactly the way the rows do.
-    data: { people, pending, summary: summarize(people), capMonths },
+    data: { people, pending, summary: summarize(people), capMonths, mail },
   })
 }
 
