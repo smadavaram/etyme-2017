@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { lineDates } from '@/lib/money/line-dates'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import type { Prisma } from '@prisma/client'
 import { rate } from '@/lib/money-display'
@@ -122,8 +123,8 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (typeof billRate !== 'number' || billRate <= 0) return errResponse('billRate must be a positive number (cents/hr)', 'billRate')
-  if (!startDate) return errResponse('startDate is required', 'startDate')
+  if (typeof billRate !== 'number' || billRate <= 0) return errResponse('Give the bill rate, the amount an hour this placement bills. A rate of nothing is not a price.', 'billRate')
+  if (!startDate) return errResponse('Give the day this person starts.', 'startDate')
 
   // ── The pay line, under the award's rules ──────────────────────────
   //
@@ -251,12 +252,11 @@ export async function POST(request: NextRequest) {
     : null
   const buyRhythm = termsFor('BUY', { workOrder: buyHeader })
 
-  const start = new Date(startDate)
-  const end = endDate ? new Date(endDate) : null
-
-  if (isNaN(start.getTime())) return errResponse('Invalid startDate', 'startDate')
-  if (end && isNaN(end.getTime())) return errResponse('Invalid endDate', 'endDate')
-  if (end && end <= start) return errResponse('endDate must be after startDate', 'endDate')
+  // The two days, refused with the days in the sentence (`lineDates`):
+  // The old refusal was the rule in the code's own field names.
+  const dates = lineDates(startDate, endDate)
+  if (!dates.ok) return errResponse(dates.says, dates.field)
+  const { start, end } = dates
 
   // Verify company exists and get template pack
   const company = await prisma.company.findUnique({

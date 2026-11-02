@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
+import { askSupplierBody } from './ask-body'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
@@ -421,45 +422,83 @@ function payableStatusWords(status: string): string {
  * Ask the supplier — on the thread about the job, with the question
  * written first, because a hold nobody explains is a phone call.
  */
-function PayerAction({ row, mayPay, books, onToast }: { row: Invoice; mayPay: boolean; books: Books; onToast: (m: string, t?: 'success' | 'error') => void }) {
+function PayerAction({ row, mayPay, books }: { row: Invoice; mayPay: boolean; books: Books; onToast?: (m: string, t?: 'success' | 'error') => void }) {
+  // The question is typed in a field on the row, never a browser prompt
+  // (the screen walk, 2026-11-02): at an MSP seat the thread refused it
+  // with nothing on screen and the words were lost. The refusal is said
+  // under the field, in the route's sentence, and what was typed stays.
+  const [asking, setAsking] = useState(false)
+  const [question, setQuestion] = useState('')
+  const [sending, setSending] = useState(false)
+  const [refused, setRefused] = useState<string | null>(null)
   const r = row.receipt
   if (!r || row.outstandingMinor <= 0 || row.status === 'CANCELLED') return null
   const payable = r.matches && (row.status === 'SUBMITTED' || row.status === 'PARTIALLY_PAID')
+  const who = counterpartyName(row)
 
-  async function ask(e: React.MouseEvent) {
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
     e.stopPropagation()
-    if (!r?.requirementId || !r.supplierId) return
-    const question = window.prompt(`What do you want to ask ${counterpartyName(row)} about invoice ${row.number}?`)
-    if (!question?.trim()) return
-    const res = await fetch('/api/conversations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topic: 'REQUIREMENT',
-        topicId: r.requirementId,
-        withCompanyId: r.supplierId,
-        initialMessage: `About invoice ${row.number}: ${question.trim()}`,
-      }),
-    })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      onToast(body.error?.message ?? 'The question was not sent.', 'error')
-      return
+    if (!r?.requirementId || !r.supplierId || !question.trim()) return
+    setSending(true)
+    setRefused(null)
+    try {
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(askSupplierBody({ requirementId: r.requirementId, supplierId: r.supplierId, number: row.number, question })),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRefused(body.error?.message ?? `The question was not sent to ${who}. Your words are still here.`)
+        return
+      }
+      window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
+    } catch {
+      setRefused(`The question was not sent to ${who}: the network did not answer. Your words are still here; send it again.`)
+    } finally {
+      setSending(false)
     }
-    window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
   }
 
   return (
-    <div className="flex items-center gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
-      {payable && mayPay && (
-        <a href={`${invoiceHref(row.id, books)}#pay`} className="btn-primary text-[11px] px-3 py-1">
-          Pay
-        </a>
-      )}
-      {r.requirementId && r.supplierId && (
-        <button onClick={ask} className="text-[11px] text-etyme-action hover:underline whitespace-nowrap">
-          Ask the supplier
-        </button>
+    <div className="flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-2 justify-end">
+        {payable && mayPay && (
+          <a href={`${invoiceHref(row.id, books)}#pay`} className="btn-primary text-[11px] px-3 py-1">
+            Pay
+          </a>
+        )}
+        {r.requirementId && r.supplierId && !asking && (
+          <button type="button" onClick={() => setAsking(true)} className="text-[11px] text-etyme-action hover:underline whitespace-nowrap">
+            Ask the supplier
+          </button>
+        )}
+      </div>
+      {asking && (
+        <form onSubmit={send} className="w-[260px] space-y-1.5 text-left">
+          <label className="block text-[11px] font-semibold text-etyme-muted" htmlFor={`ask-${row.id}`}>
+            Your question to {who} about invoice {row.number}
+          </label>
+          <textarea
+            id={`ask-${row.id}`}
+            className="input w-full text-[12px]"
+            rows={3}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Which week are the 41.5 hours from?"
+            autoFocus
+          />
+          {refused && <p className="text-[11px] leading-snug text-etyme-danger" role="alert">{refused}</p>}
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => { setAsking(false); setRefused(null) }} className="btn-secondary px-3 py-1 text-[11px]">
+              Cancel
+            </button>
+            <button type="submit" disabled={sending || !question.trim()} className="btn-primary px-3 py-1 text-[11px] disabled:opacity-50">
+              {sending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
+        </form>
       )}
     </div>
   )

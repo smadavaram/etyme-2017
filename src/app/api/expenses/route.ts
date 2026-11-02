@@ -7,6 +7,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, expenseOf, legOf, legsFor, legsOverMany, linesBelowPaid, EXPENSE_SELECT, LEG_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
+import { expenseDecideRefusal } from '@/lib/money/expense-decides'
 import { billableOnFiling, mayFileOwnExpense } from '@/lib/money/own-expense'
 
 /**
@@ -162,13 +163,18 @@ export async function GET(request: NextRequest) {
   }
   const truncated = rows.length > CEILING
 
-  const [legs, decisions, bills] = consultant
-    ? [new Map<string, Leg[]>(), new Map<string, AcceptanceRow[]>(), new Map<string, ExpenseBillLine[]>()]
+  const [legs, decisions, bills, deciding] = consultant
+    ? [new Map<string, Leg[]>(), new Map<string, AcceptanceRow[]>(), new Map<string, ExpenseBillLine[]>(), null]
     : await Promise.all([
         legsOverMany(rows.map((r) => r.sellContractId)),
         acceptancesOn(rows.map((r) => r.id)),
         billsAtRung(readerId, rows.map((r) => r.id)),
+        // Whether this reader may accept or send back what waits on its
+        // firm, by the accept route's own answer: a button it will refuse
+        // is never drawn, and the row says who decides instead.
+        caller.company ? writingDesk(caller, request) : Promise.resolve(null),
       ])
+  const decidedBy = deciding ? expenseDecideRefusal(deciding, caller.company?.kind) : null
 
   const shaped = rows
     .map((r) => {
@@ -211,7 +217,11 @@ export async function GET(request: NextRequest) {
       createdAt: r.createdAt.toISOString(),
       own: consultant || r.companyId === readerId,
       chain: view
-        ? { state: view.state, line: view.line, upToCents: view.upToCents, notBillableSays: view.notBillableSays }
+        ? {
+            state: view.state, line: view.line, upToCents: view.upToCents, notBillableSays: view.notBillableSays,
+            // Where the firm's turn has come and this reader may not decide it.
+            decidedBy: view.upToCents != null ? decidedBy : null,
+          }
         : null,
     }))
     .filter((e) => billable == null || billable === '' || e.billable === (billable === 'true'))

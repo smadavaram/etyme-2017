@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasAnyPermission, askTheDesk, type Permission } from '@/lib/permissions'
+import { type Permission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
-import { writingDesk, seatedRefusal } from '@/lib/money/seated-books'
+import { writingDesk } from '@/lib/money/seated-books'
+import { expenseDecideRefusal } from '@/lib/money/expense-decides'
 import { amount } from '@/lib/money-display'
 import {
   acceptanceChain, capFor, fullyAccepted, mayDecide, nextDown, waitingOn, type Decision,
@@ -33,6 +34,7 @@ import { readForAcceptance } from '@/lib/money/expense-acceptance-read'
  * shown its own decision and nobody beneath it.
  */
 
+// The same two as EXPENSE_DECIDES, which the list draws by; a test holds them together.
 const DECIDES: Permission[] = ['timesheets.approve', 'payments.record']
 
 const DECISIONS: Record<string, Decision> = { accept: 'ACCEPT', send_back: 'SEND_BACK' }
@@ -101,18 +103,10 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!desk) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: 'An expense is accepted by a company, and your seat is not at one.' } }, { status: 403 })
   }
-  if (!hasAnyPermission(desk.permissions, DECIDES)) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: desk.seat
-            ? seatedRefusal(desk.seat, 'Accepting an expense')
-            : askTheDesk({ doing: 'Accepting an expense before it is paid', needs: DECIDES, kind: caller.company?.kind, companyName: desk.companyName }),
-        },
-      },
-      { status: 403 }
-    )
+  // The one answer the list reads to draw the buttons (`expenseDecideRefusal`).
+  const refused = expenseDecideRefusal(desk, caller.company?.kind)
+  if (refused) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: refused } }, { status: 403 })
   }
 
   const { id } = await params

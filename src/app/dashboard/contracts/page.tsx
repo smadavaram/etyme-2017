@@ -27,6 +27,7 @@ import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/cli
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 import { reasonAsked } from '@/lib/award/reason-asked'
+import { activateBody } from './activate-body'
 
 /**
  * The documents, and their lines.
@@ -787,10 +788,8 @@ function ContractDetailDrawer({
   async function handleActivation(action: string, label: string, overrideReasonText?: string, answering?: string[]) {
     setActivating(true)
     try {
-      const payload: Record<string, unknown> = { action }
-      if (overrideReasonText) payload.overrideReason = overrideReasonText
-      // The warnings the person read: the reason answers those and no other.
-      if (overrideReasonText && answering?.length) payload.answering = answering
+      // What the dialog posts, built where a test can fill it in and run the start's rule on it.
+      const payload = activateBody({ action, reason: overrideReasonText, answering })
 
       const res = await fetch(`/api/contracts/${contract.id}/activate`, {
         method: 'POST',

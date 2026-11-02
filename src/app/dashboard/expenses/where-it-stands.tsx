@@ -22,6 +22,12 @@ export interface StandsView {
   line: string | null
   upToCents: number | null
   notBillableSays: string | null
+  /**
+   * Where it waits on the reader's firm and the reader may not decide it,
+   * who does, in the accept route's own sentence; the buttons are not
+   * drawn (`expenseDecideRefusal` in lib/money/expense-decides).
+   */
+  decidedBy?: string | null
 }
 
 const TONE: Record<StandsView['state'], string> = {
@@ -57,13 +63,14 @@ export function WhereItStands({
   const [sending, setSending] = useState(false)
   const [reason, setReason] = useState('')
   if (!view) return <span className="text-etyme-faint">—</span>
-  const canDecide = view.upToCents != null
+  const canDecide = view.upToCents != null && !view.decidedBy
 
   return (
     <div className="min-w-0 max-w-[340px] space-y-1.5" onClick={(e) => e.stopPropagation()}>
       {WORD[view.state] && <span className={`chip ${TONE[view.state]}`}>{WORD[view.state]}</span>}
       {view.line && <p className="text-[12px] leading-snug text-etyme-muted">{view.line}</p>}
       {view.notBillableSays && <p className="text-[12px] leading-snug text-etyme-faint">{view.notBillableSays}</p>}
+      {view.upToCents != null && view.decidedBy && <p className="text-[12px] leading-snug text-etyme-muted">{view.decidedBy}</p>}
       {canDecide && !sending && (
         <div className="flex flex-wrap gap-2 pt-0.5">
           <button

@@ -108,7 +108,9 @@ describe('the activate route and the Activate button keep to it', () => {
     const src = read('src/app/dashboard/contracts/page.tsx')
     expect(src).toMatch(/const q = reasonAsked\(body\.error\)\n\s*if \(q && q\.field === 'overrideReason'\)/)
     expect(src).not.toMatch(/body\.error\?\.code === 'GOVERNANCE_WARN' && body\.error\?\.overridable/)
-    expect(src).toMatch(/payload\.answering = answering/)
+    // The body is built where the field-contract test fills it in (`activateBody`).
+    expect(src).toMatch(/activateBody\(\{ action, reason: overrideReasonText, answering \}\)/)
+    expect(read('src/app/dashboard/contracts/activate-body.ts')).toMatch(/if \(t\.reason && t\.answering\?\.length\) payload\.answering = \[\.\.\.t\.answering\]/)
     expect(src).not.toMatch(/>Governance warning</)
   })
 })
