@@ -121,3 +121,42 @@ describe('a day is printed by a formatter built once, in the same words', () => 
     expect(daySpan('2026-12-28', '2027-01-03')).toBe('Dec 28, 2026 – Jan 3, 2027')
   })
 })
+
+describe('a matching run writes its matches at once', () => {
+  const engine = () => read('src/lib/match-engine.ts')
+  const write = () => engine().slice(engine().indexOf('// 6. Write Match records'), engine().indexOf('// 7. On a refresh'))
+
+  it('a matching run writes its matches in two statements, never one per person', () => {
+    expect(write()).not.toContain('prisma.match.upsert')
+    expect(write()).toContain('prisma.match.createMany({')
+    expect(write()).toContain('skipDuplicates: true')
+    expect(write()).toContain('UPDATE "Match" AS m SET')
+    expect(write()).not.toMatch(/for \(const \w+ of (matchResults|rows)\)/)
+  })
+
+  it('a match that was already there keeps its id, because the twin’s put-forward question rides on it: it is updated by its job and its person, never deleted and made again', () => {
+    expect(write()).toContain('WHERE m."requirementId" = ${requirementId} AND m."consultantId" = v."consultantId"')
+    expect(write()).not.toContain('deleteMany')
+  })
+
+  it('every row is written with the factors, basis, confidence and unknowns it was scored with, in the order scored', async () => {
+    const { matchRowsFor } = await import('@/lib/match-engine')
+    const at = new Date('2026-11-02T08:00:00.000Z')
+    const scored = [
+      { consultantId: 'c-icu', personId: 'p1', score: 91, confidence: 'HIGH' as const, factors: [{ label: 'ICU nursing', value: 1, weight: 0.5 }], basis: 'Four ICU placements in two years', unknowns: 'Night shifts not on record' },
+      { consultantId: 'c-gmp', personId: 'p2', score: 74, confidence: 'MODERATE' as const, factors: [{ label: 'GMP validation', value: 0.8, weight: 0.4 }], basis: 'Two validation projects', unknowns: null },
+    ]
+    expect(matchRowsFor('req-1', scored as never, at)).toEqual([
+      { requirementId: 'req-1', consultantId: 'c-icu', score: 91, confidence: 'HIGH', factors: scored[0].factors, basis: 'Four ICU placements in two years', unknowns: 'Night shifts not on record', computedAt: at },
+      { requirementId: 'req-1', consultantId: 'c-gmp', score: 74, confidence: 'MODERATE', factors: scored[1].factors, basis: 'Two validation projects', unknowns: null, computedAt: at },
+    ])
+  })
+
+  it('a person scored twice in one run is written once, with the later score, as one upsert after another left them', async () => {
+    const { matchRowsFor } = await import('@/lib/match-engine')
+    const at = new Date('2026-11-02T08:00:00.000Z')
+    const row = (consultantId: string, score: number) => ({ consultantId, personId: consultantId, score, confidence: 'LOW' as const, factors: [], basis: 'b', unknowns: null })
+    const rows = matchRowsFor('req-1', [row('a', 40), row('b', 60), row('a', 55)] as never, at)
+    expect(rows.map((r) => [r.consultantId, r.score])).toEqual([['b', 60], ['a', 55]])
+  })
+})

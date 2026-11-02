@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
 import { record } from '@/lib/agent-run'
 import { poolFor } from '@/lib/match-pool'
@@ -81,6 +82,41 @@ interface CandidateData {
   listingRateMax: number | null
   /// When the person themselves last said any of this was still true.
   confirmedAt: Date | null
+}
+
+/** One Match row as the run writes it. */
+export interface MatchRow {
+  requirementId: string
+  consultantId: string
+  score: number
+  confidence: string
+  factors: MatchFactor[]
+  basis: string
+  unknowns: string | null
+  computedAt: Date
+}
+
+/**
+ * The rows one run writes, in the order it scored them, every row's
+ * factors, basis, confidence and unknowns exactly as scored. A person
+ * scored twice in one run is written once, with the later score, the way
+ * one upsert after another left them. Pure.
+ */
+export function matchRowsFor(requirementId: string, results: readonly MatchResult[], computedAt: Date): MatchRow[] {
+  const last = new Map<string, number>()
+  results.forEach((r, i) => last.set(r.consultantId, i))
+  return results
+    .filter((r, i) => last.get(r.consultantId) === i)
+    .map((r) => ({
+      requirementId,
+      consultantId: r.consultantId,
+      score: r.score,
+      confidence: r.confidence,
+      factors: r.factors,
+      basis: r.basis,
+      unknowns: r.unknowns ?? null,
+      computedAt,
+    }))
 }
 
 /**
@@ -245,35 +281,28 @@ export async function runMatchEngine(
   // 6. Score what survived
   const matchResults = await scoreWithClaude(requirement, candidates, limit, sifted.considered)
 
-  // 6. Write Match records to the database
+  // 6. Write Match records to the database, the whole run at once
+  // (`matchRowsFor`, the page-timing pass of 2026-11-02: one upsert per
+  // match was about twenty of a run's forty-nine queries). New rows are
+  // created in one statement, Prisma minting their ids as before; rows
+  // that were already here keep their id, which the twin's put-forward
+  // question rides on, and take this run's figures in one more.
   const now = new Date()
-  for (const result of matchResults) {
-    await prisma.match.upsert({
-      where: {
-        requirementId_consultantId: {
-          requirementId,
-          consultantId: result.consultantId,
-        },
-      },
-      update: {
-        score: result.score,
-        confidence: result.confidence,
-        factors: result.factors as any,
-        basis: result.basis,
-        unknowns: result.unknowns,
-        computedAt: now,
-      },
-      create: {
-        requirementId,
-        consultantId: result.consultantId,
-        score: result.score,
-        confidence: result.confidence,
-        factors: result.factors as any,
-        basis: result.basis,
-        unknowns: result.unknowns,
-        computedAt: now,
-      },
+  const rows = matchRowsFor(requirementId, matchResults, now)
+  if (rows.length > 0) {
+    const made = await prisma.match.createMany({
+      data: rows.map((r) => ({ ...r, factors: r.factors as unknown as Prisma.InputJsonValue })),
+      skipDuplicates: true,
     })
+    if (made.count < rows.length) {
+      await prisma.$executeRaw`
+        UPDATE "Match" AS m SET
+          "score" = v."score", "confidence" = v."confidence", "factors" = v."factors",
+          "basis" = v."basis", "unknowns" = v."unknowns", "computedAt" = v."computedAt"
+        FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.consultantId}, ${r.score}::int, ${r.confidence}, ${JSON.stringify(r.factors)}::jsonb, ${r.basis}, ${r.unknowns}::text, ${r.computedAt.toISOString()}::timestamp(3))`))})
+          AS v("consultantId", "score", "confidence", "factors", "basis", "unknowns", "computedAt")
+        WHERE m."requirementId" = ${requirementId} AND m."consultantId" = v."consultantId"`
+    }
   }
 
   // 7. On a refresh, whoever in this pool no longer scored goes.
