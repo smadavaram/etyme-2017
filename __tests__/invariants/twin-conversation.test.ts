@@ -10,7 +10,7 @@
  * added tomorrow is a line of code, not a behavior a fake would show.
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -850,6 +850,13 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
   const AR = ['invoices.read', 'invoices.issue', 'payments.record']
   const OWNER = ['*']
   const AP_PAYROLL = ['invoices.read', 'payments.record', 'timesheets.approve']
+
+  // The reader is loaded once, before the sentences, with room for a busy
+  // machine: loaded inside the first sentence, it took about three of that
+  // sentence's five seconds on a quiet one, and under a founder-scale run
+  // on the same box the sentence timed out rather than failed (supply's
+  // report, 2026-11-02).
+  beforeAll(async () => { await import('@/app/api/conversations/twin/read') }, 60_000)
 
   it('Accounts Receivable sees the bill Ask Etyme drafted as a card with the customer, period, hours, amount, each person, the signed weeks and the due line', async () => {
     const { readersFor } = await import('@/app/api/conversations/twin/read')
