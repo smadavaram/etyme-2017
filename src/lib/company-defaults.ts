@@ -91,7 +91,7 @@ const ALL: string[] = [
   'submissions.read', 'submissions.create', 'submissions.rate',
   'assignments.read', 'assignments.write', 'assignments.terminate',
   'timesheets.read', 'timesheets.approve',
-  'invoices.read', 'invoices.issue',
+  'invoices.read', 'invoices.issue', 'orders.raise',
   'rates.read', 'rates.write',
   'payments.record',
   'payroll.read', 'payroll.run', 'payroll.approve',
@@ -212,7 +212,11 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     // choose who gets the seat. A firm where the same person picks the
     // candidate and writes the contract they are paid under has no
     // segregation on the one decision that commits money.
-    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_WORK, ['assignments.write'], OWN_PRICE, SEE_MONEY, ['vendors.read']),
+    //
+    // `orders.raise` (2026-11-01): the order is this desk's paper, and it
+    // neither bills on it nor awards against it (HELD_APART in
+    // lib/permissions).
+    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_WORK, ['assignments.write'], OWN_PRICE, SEE_MONEY, ['vendors.read', 'orders.raise']),
   },
   {
     // Money in: the client's invoices and what came back. Reads the
@@ -295,7 +299,11 @@ const CLIENT_ROLES: RoleSeed[] = [
     // it to the suppliers it cleared.
     name: 'Procurement Lead',
     blurb: 'Manages the suppliers: who may supply, at what rate. Releases a job request to the suppliers it cleared.',
-    permissions: uniq(SEE_DEMAND, ['requirements.distribute'], SEE_SUPPLY, OWN_PRICE, SEE_RULES, ['vendors.read', 'vendors.manage']),
+    // `orders.raise` (2026-11-01): the order is the ceiling a supplier
+    // bills against, and Procurement neither awards nor bills. The
+    // Program Manager raises and awards job requests, so does not raise
+    // orders as well (HELD_APART in lib/permissions).
+    permissions: uniq(SEE_DEMAND, ['requirements.distribute'], SEE_SUPPLY, OWN_PRICE, SEE_RULES, ['vendors.read', 'vendors.manage', 'orders.raise']),
   },
   {
     name: 'AP Clerk',
@@ -435,6 +443,34 @@ export const GRANTED_SINCE: {
     kinds: ['VENDOR', 'GSI'],
     permissions: ['consultants.cost'],
     why: 'At a small firm Finance runs payroll, so it reads what each person is paid and how their overtime is paid.',
+  },
+  // Raising an order became a permission of its own on 2026-11-01
+  // (regulatory, 5dad9041). Granted on the coordinator's call, reversible
+  // by the founder in a sentence, only to roles `heldTogether` does not
+  // name: never beside billing on the order or awarding against it.
+  {
+    role: 'Owner',
+    kinds: ['VENDOR', 'GSI', 'CLIENT', 'MSP', 'CONSULTANT_CORP'],
+    permissions: ['orders.raise'],
+    why: 'The owner holds every permission, and raising an order became one of its own.',
+  },
+  {
+    role: 'Admin',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['orders.raise'],
+    why: 'The admin runs the firm day to day and holds every permission but profit and loss.',
+  },
+  {
+    role: 'Contract Manager',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['orders.raise'],
+    why: 'The order is the contract manager\u2019s paper, and this role neither bills on it nor awards against it.',
+  },
+  {
+    role: 'Procurement Lead',
+    kinds: ['CLIENT'],
+    permissions: ['orders.raise'],
+    why: 'Procurement sets what a supplier may bill, and neither awards nor bills.',
   },
 ]
 

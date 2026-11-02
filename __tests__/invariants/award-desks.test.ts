@@ -182,7 +182,11 @@ describe('a firm formed before today picks this up without a migration', () => {
 
     const result = await ensureDefaultRoles('northbend', 'CLIENT')
 
-    expect(result.granted).toEqual([])
+    // Only the grants written for a client reach one (since 2026-11-01 the
+    // owner's and Procurement's `orders.raise`); none written for suppliers.
+    const forClients = new Set(GRANTED_SINCE.filter((g) => g.kinds.includes('CLIENT')).map((g) => g.role))
+    expect(result.granted.filter((line) => !forClients.has(line.split(' \u2192 ')[0]))).toEqual([])
+    expect(result.granted.some((line) => line.startsWith('Account Manager'))).toBe(false)
   })
 
   it('an untouched seeded Member loses exactly the two firm-wide reads and nothing else is written', async () => {

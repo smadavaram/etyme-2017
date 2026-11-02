@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { PERMISSIONS } from '@/lib/permissions'
+import { PERMISSIONS, heldTogether } from '@/lib/permissions'
 import {
   rolesFor,
   packFor,
   countryFromDomain,
   defaultsFor,
+  GRANTED_SINCE,
   type CompanyKind,
 } from '@/lib/company-defaults'
 
@@ -32,6 +33,25 @@ describe('the roles a company starts with', () => {
       const owner = rolesFor(kind).find((r) => r.isOwner)!
       expect(new Set(owner.permissions), kind).toEqual(new Set(PERMISSIONS))
     }
+  })
+
+  it('raises an order only from a role that neither bills on it nor awards against it, at every kind of firm and in every later grant', () => {
+    const together: string[] = []
+    const raisers: string[] = []
+    for (const kind of KINDS) {
+      for (const role of rolesFor(kind)) {
+        if (heldTogether(role).length) together.push(`${kind} ${role.name}`)
+        if (role.permissions.includes('orders.raise') && !role.isOwner && role.name !== 'Admin') raisers.push(`${kind} ${role.name}`)
+      }
+    }
+    for (const g of GRANTED_SINCE) {
+      for (const kind of g.kinds) {
+        const seed = rolesFor(kind).find((r) => r.name === g.role)
+        if (seed && heldTogether({ name: seed.name, permissions: [...seed.permissions, ...g.permissions] }).length) together.push(`granted: ${kind} ${g.role}`)
+      }
+    }
+    expect(together).toEqual([])
+    expect(raisers.sort()).toEqual(['CLIENT Procurement Lead', 'GSI Contract Manager', 'VENDOR Contract Manager'])
   })
 
   it('never invents a permission that does not exist', () => {
