@@ -24,9 +24,63 @@
  *
  * And the rules held on purpose: nobody signs their own hours, and a
  * flagged week is not signed without a reason.
+ *
+ * The signer reads each week's flag the way the Timesheets list shows it
+ * and the approve route asks it (`weekFlag` in lib/timesheet-flag, on the
+ * week's own contract: over the job's hours, past the last day, or marked
+ * when it was filed), never from the station's own copy of the job's
+ * hours. At the generated firms that copy said nothing where the route
+ * flagged the week, and the founder-scale run (2026-11-01) was refused
+ * 731 times "Say why this week is right before you sign it" and 188 times
+ * "a week like this is signed in Etyme … so it cannot be approved by
+ * email": a person reads the warning on the row before pressing Approve,
+ * and never sends a flagged week, or one over the overtime line, to be
+ * approved by email.
  */
 import { defineStage, type Ctx, type WeekFact } from '../../stage'
 import { placementsOf, seatWith, workerSeat, postForm, asNobody, todayIso, says, weekExtra, type Placement, type WeekExtra } from './book'
+import { weekFlag } from '@/lib/timesheet-flag'
+
+/**
+ * Each week's flag as the list shows it and the approve route asks it: the
+ * same function over the week's own contract, read through the read-only
+ * connection, and whether it is over the overtime line, which the email
+ * door leaves to a person signing in Etyme. Sets `flagged` on each week.
+ */
+async function readTheFlags(ctx: Ctx, weeks: WeekFact[]): Promise<{ overLine: Set<string>; corrected: number }> {
+  const overLine = new Set<string>()
+  let corrected = 0
+  for (let i = 0; i < weeks.length; i += 1000) {
+    const chunk = weeks.slice(i, i + 1000)
+    const rows = await ctx.read.timesheet.findMany({
+      where: { id: { in: chunk.map((w) => w.id) } },
+      select: {
+        id: true, totalHours: true, periodEnd: true, anomalyScore: true, anomalyReason: true,
+        sellContract: { select: { endDate: true, overtimeAfterHours: true, requirement: { select: { hoursPerWeek: true } } } },
+      },
+    })
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    for (const w of chunk) {
+      const t = byId.get(w.id)
+      if (!t) continue
+      const hours = Number(t.totalHours)
+      const flagged = weekFlag({
+        hours,
+        hoursPerWeek: t.sellContract.requirement?.hoursPerWeek ?? null,
+        periodEnd: t.periodEnd,
+        contractEnd: t.sellContract.endDate,
+        anomalyScore: t.anomalyScore,
+        anomalyReason: t.anomalyReason,
+      }) != null
+      const x = weekExtra(w)
+      if (x.flagged !== flagged) corrected++
+      x.flagged = flagged
+      // Over the line: what the extra hours are worth is the signer's to say.
+      if (hours > Math.min(40, t.sellContract.overtimeAfterHours ?? 40)) overLine.add(w.id)
+    }
+  }
+  return { overLine, corrected }
+}
 
 const FLAG_REASON = 'Agreed with the hiring manager: the release needed the extra hours this week.'
 const OT_REASON = 'Overtime agreed in advance for the release weekend.'
@@ -70,6 +124,8 @@ export default defineStage({
       if (mine[0]) held.add(mine[0].id)
     })
     for (const w of weeks) if (held.has(w.id)) weekExtra(w).unsigned = true
+    // Read off the rows before anybody presses anything.
+    const { overLine, corrected } = await readTheFlags(ctx, weeks)
 
     // ── The rules, held on purpose, before anything is signed ──────────
     const first = weeks.find((w) => !held.has(w.id))
@@ -104,10 +160,13 @@ export default defineStage({
     let linkSays: string | null = null
     const linkRefusals = new Map<string, number>()
     let withReason = 0
+    let missedFlags = 0
     let overtimeAnswered = 0
     let i = 0
+    // Never a flagged week, or one over the overtime line: those are signed
+    // in Etyme with the signer's reason and answer.
     const emailOrder = weeks
-      .filter((w) => !held.has(w.id) && ['PLAIN', 'WEEKEND'].includes(weekExtra(w).variant))
+      .filter((w) => !held.has(w.id) && ['PLAIN', 'WEEKEND'].includes(weekExtra(w).variant) && !weekExtra(w).flagged && !overLine.has(w.id))
       .filter(() => i++ % 6 === 2)
       .map((w) => w.id)
     const emailWeeks = new Set(emailOrder)
@@ -208,7 +267,10 @@ export default defineStage({
         res = await signer.post(`/api/timesheets/${w.id}/approve`, body)
       }
       if (!res.ok && res.json?.error?.code === 'FLAG_NEEDS_REASON') {
+        // The signer read the row wrong: a station fault, said, then answered.
+        missedFlags++
         body.note = FLAG_REASON
+        withReason++
         res = await signer.post(`/api/timesheets/${w.id}/approve`, body)
       }
       if (res.ok) {
@@ -225,7 +287,8 @@ export default defineStage({
       of: weeks.length,
       says: says([
         `${signed} of ${weeks.length} weeks signed by the client: ${inEtyme} in Etyme, ${byLink} signed by email link, the approver pressing Approve on the one-time link, and ${byEmail} attached as evidence of an approval given by email, each naming the approver.`,
-        withReason ? `${withReason} flagged weeks were signed with the reason they are right.` : null,
+        withReason ? `${withReason} flagged weeks were signed with the reason they are right, each flag read off the row as the list shows it${corrected ? ` (${corrected} weeks read differently from the job's hours the station carried)` : ''}.` : null,
+        missedFlags ? `${missedFlags} weeks were refused for want of a reason the signer should have read off the row; a station fault.` : null,
         overtimeAnswered ? `${overtimeAnswered} weeks over forty hours carried the client's answer on the extra hours.` : null,
         linksMinted
           ? `${linksMinted} one-time approval links were made; ${linksDelivered} left by email and ${linksHandedBack} were handed back to the worker, because this run has no email key` +
