@@ -95,9 +95,10 @@ describe('the generated world at the founder’s scale', () => {
       CLIENT: ['Owner', 'Program Manager', 'Hiring Manager', 'Approver', 'HR Partner', 'Procurement Lead', 'AP Clerk', 'Compliance Officer'],
       MSP: ['Owner', 'Program Manager', 'Supplier Manager', 'Coordinator', 'AP Clerk', 'Compliance Officer'],
       GSI: ['Owner', 'Delivery Manager', 'AP & Payroll', 'Recruiter', 'Resource Manager'],
-      PRIME: ['Owner', 'Recruiter', 'Resource Manager', 'Account Manager', 'AP & Payroll', 'Finance', 'Contract Manager', 'Accounts Receivable', 'Compliance Officer'],
-      SUB_VENDOR: ['Owner', 'Recruiter', 'AP & Payroll'],
-      BENCH: ['Owner', 'Recruiter', 'AP & Payroll'],
+      PRIME: ['Owner', 'Recruiter', 'Resource Manager', 'Account Manager', 'AP & Payroll', 'Finance', 'Contract Manager', 'Accounts Receivable', 'Compliance Officer', 'HR'],
+      // HR clears a start at every supplier (2026-11-02): without it the start station fell back to a role the route refuses.
+      SUB_VENDOR: ['Owner', 'Recruiter', 'AP & Payroll', 'HR'],
+      BENCH: ['Owner', 'Recruiter', 'AP & Payroll', 'HR'],
     }
     for (const f of frame.firms) {
       const held = rolesAt.get(f.id) ?? []
@@ -130,6 +131,23 @@ describe('the generated world at the founder’s scale', () => {
     const base = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
     for (const f of frame.firms) expect(f.id > base.id, f.name).toBe(true)
     expect(sharedTails(frame.firms.flatMap((f) => [f.id, ...f.seats.map((x) => x.personId)]))).toEqual([])
+  })
+
+  it('every generated firm that bills has a billing address and checked payment details, so its bills send and it can be paid', async () => {
+    const { mayIssueBill } = await import('@/lib/setup-gates')
+    const billers = await prisma.company.findMany({
+      where: { slug: { startsWith: SCALE_SLUG_PREFIX }, OR: [{ msasAsVendor: { some: {} } }, { ordersReceived: { some: {} } }, { sellContractsOut: { some: {} } }, { billsIssued: { some: {} } }] },
+      select: { id: true, name: true },
+    })
+    expect(billers.length).toBeGreaterThan(0)
+    const refused: string[] = []
+    for (const b of billers) {
+      const gate = await mayIssueBill(b.id)
+      if (!gate.ok) refused.push(`${b.name}: ${gate.says}`)
+    }
+    expect(refused).toEqual([])
+    expect(await prisma.remitTo.count({ where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } }, verifiedAt: null } })).toBe(0)
+    expect(await prisma.remitTo.count({ where: { companyId: { in: billers.map((b) => b.id) }, isDefault: true } })).toBe(billers.length)
   })
 
   it('a second seeding writes nothing', async () => {

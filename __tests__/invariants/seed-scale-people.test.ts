@@ -199,3 +199,20 @@ describe('the generated world’s two thousand people, before anything is writte
     expect(names.filter((n) => n.startsWith('scale:people:own-companies:')).length).toBeGreaterThan(1)
   })
 })
+
+describe('every generated firm holds the roles the simulation looks for (2026-11-02)', () => {
+  it('every generated supplier holds an HR seat, so a start is cleared by HR and never put to the compliance officer', () => {
+    const suppliers = frame.firms.filter((f) => f.kind === 'VENDOR' || f.kind === 'GSI')
+    expect(suppliers.length).toBeGreaterThan(0)
+    expect(suppliers.filter((f) => !f.seats.some((s) => s.role === 'HR')).map((f) => f.name)).toEqual([])
+    expect(suppliers.every((f) => f.seat('hr')?.role === 'HR')).toBe(true)
+  })
+
+  it('the HR seat is added after every earlier seat, so no seat seeded before changes its id', () => {
+    for (const f of frame.firms.filter((x) => x.kind === 'VENDOR')) {
+      const hr = f.seats.findIndex((s) => s.role === 'HR')
+      expect(hr, f.name).toBe(f.seats.length - 1)
+    }
+  })
+})
+

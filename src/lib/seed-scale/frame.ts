@@ -43,14 +43,24 @@ type WithId<T> = T & { id: string }
 
 // ── Who sits where ────────────────────────────────────────────────────
 
-/** The roles seated at each position, the Owner first. A name twice is two people in one role. */
+/**
+ * The roles seated at each position, the Owner first. A name twice is two
+ * people in one role.
+ *
+ * HR at every supplier (2026-11-02): the founder-scale run refused 500
+ * starts with "Clearing somebody to start is HR's work here", because no
+ * generated supplier held an HR seat and the station fell back to the
+ * compliance officer the route rightly refuses. Every generated firm holds
+ * the roles the simulation looks for (2026-10-20). Added last in each
+ * list, so every seat seeded before keeps its id.
+ */
 const SEATS: Record<Position, readonly string[]> = {
   CLIENT: ['Owner', 'Program Manager', 'Hiring Manager', 'Hiring Manager', 'Approver', 'HR Partner', 'Procurement Lead', 'AP Clerk', 'Compliance Officer'],
   MSP: ['Owner', 'Program Manager', 'Supplier Manager', 'Coordinator', 'AP Clerk', 'Compliance Officer'],
   GSI: ['Owner', 'Delivery Manager', 'Delivery Manager', 'AP & Payroll', 'Recruiter', 'Resource Manager', 'HR', 'Account Manager', 'Finance'],
-  PRIME: ['Owner', 'Recruiter', 'Resource Manager', 'Account Manager', 'AP & Payroll', 'Finance', 'Contract Manager', 'Accounts Receivable', 'Compliance Officer'],
-  SUB_VENDOR: ['Owner', 'Recruiter', 'Account Manager', 'AP & Payroll'],
-  BENCH: ['Owner', 'Recruiter', 'Resource Manager', 'AP & Payroll', 'Finance'],
+  PRIME: ['Owner', 'Recruiter', 'Resource Manager', 'Account Manager', 'AP & Payroll', 'Finance', 'Contract Manager', 'Accounts Receivable', 'Compliance Officer', 'HR'],
+  SUB_VENDOR: ['Owner', 'Recruiter', 'Account Manager', 'AP & Payroll', 'HR'],
+  BENCH: ['Owner', 'Recruiter', 'Resource Manager', 'AP & Payroll', 'Finance', 'HR'],
   SOLO: ['Owner'],
 }
 
