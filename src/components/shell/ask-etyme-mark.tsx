@@ -25,12 +25,18 @@
  * that is not such a call fires `announceOwedChanged()` instead. Several
  * acts in a burst are one read, and a read already out is followed by
  * one more rather than a second at once.
+ *
+ * And when the person comes back to the page (2026-11-02, conversation's
+ * decided fix): the page shown again, or the window focused, reads the
+ * number again unless the last read is under ten seconds old
+ * (`mayReadOnReturn`). Listened for only while a mark is on screen; the
+ * one-minute read stays as it was.
  */
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
-import { OWED_CHANGED_EVENT, OWED_REFRESH_MS, OWED_SETTLE_MS, isAct, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
+import { OWED_CHANGED_EVENT, OWED_REFRESH_MS, OWED_SETTLE_MS, isAct, mayReadOnReturn, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
 
 let owed: number | null = null
 let lastAt: number | null = null
@@ -104,10 +110,32 @@ export function subscribeOwed(listener: (n: number | null) => void): () => void 
   if (listeners.size === 1) {
     read()
     timer = setInterval(read, OWED_REFRESH_MS)
+    listenForReturn(true)
   }
   return () => {
     listeners.delete(listener)
-    if (listeners.size === 0 && timer) { clearInterval(timer); timer = null }
+    if (listeners.size === 0) {
+      if (timer) { clearInterval(timer); timer = null }
+      listenForReturn(false)
+    }
+  }
+}
+
+/** The person came back to the page: read again where the page is shown and the last read is not too recent. */
+function onReturn(): void {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  if (mayReadOnReturn(lastAt, Date.now())) read(true)
+}
+
+/** Hear the page being shown again and the window being focused, only while a mark is on screen. */
+function listenForReturn(on: boolean): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+  if (on) {
+    document.addEventListener('visibilitychange', onReturn)
+    window.addEventListener('focus', onReturn)
+  } else {
+    document.removeEventListener('visibilitychange', onReturn)
+    window.removeEventListener('focus', onReturn)
   }
 }
 

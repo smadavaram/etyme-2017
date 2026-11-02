@@ -44,6 +44,22 @@ export function mayRefresh(lastAt: number | null, now: number): boolean {
   return lastAt == null || now - lastAt >= OWED_REFRESH_MS
 }
 
+// ── Read again when the person comes back ─────────────────────────────
+//
+// Conversation's decided fix (2026-11-01): a browser slows a tab nobody is
+// looking at, so a person who left Etyme open, worked elsewhere and came
+// back read a number up to a minute old, or older, beside a Today that had
+// just loaded fresh. Coming back to the page reads it again, unless the
+// last read is so recent that nothing could have changed.
+
+/** A read this recent is not repeated when the person comes back to the page. */
+export const OWED_RETURN_GAP_MS = 10_000
+
+/** Whether coming back to the page may read the number again now: never read yet, or the last read at least ten seconds old. Pure. */
+export function mayReadOnReturn(lastAt: number | null, now: number): boolean {
+  return lastAt == null || now - lastAt >= OWED_RETURN_GAP_MS
+}
+
 // ── Read again after an act ───────────────────────────────────────────
 //
 // Found on the walk, 2026-10-22: Today said "Two things need you" while
