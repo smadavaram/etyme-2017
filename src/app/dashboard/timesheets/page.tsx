@@ -12,6 +12,8 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
+import { weekButton, anywayTitle, withReasonButton } from './act-words'
+import type { WeekAct } from '@/lib/notify/week-words'
 import { statusWords } from './status-words'
 import { listTotals, totalsRowOf, rateColumnLabel } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
@@ -92,6 +94,8 @@ interface Timesheet {
   /** Whether the server would let this seat sign this week. */
   mayApprove: boolean
   mayApproveWhyNot: string | null
+  /** Approve (the firm that signs the work) or accept (a firm below it): the button's words. */
+  act?: WeekAct
   /** Whether this seat may file or send these hours. */
   maySubmit: boolean
   /**
@@ -704,7 +708,7 @@ export default function TimesheetsPage() {
     if (submittedIds.length === 0) {
       setToast({
         message: flaggedLeft > 0
-          ? `${flaggedLeft === 1 ? 'That week is' : 'Those weeks are'} flagged. Sign ${flaggedLeft === 1 ? 'it' : 'each one'} on its own row, with the reason it is right.`
+          ? `${flaggedLeft === 1 ? 'That week is' : 'Those weeks are'} flagged. Open ${flaggedLeft === 1 ? 'it' : 'each one'} on its own row and give the reason it is right.`
           : canSignAny
           ? 'No submitted timesheets selected — only submitted timesheets can be approved.'
           : 'These are not yours to approve. Whoever is billed for the work signs it.',
@@ -1045,6 +1049,8 @@ export default function TimesheetsPage() {
               <button
                 onClick={(e) => { e.stopPropagation(); handleApproveTimesheet(row.id) }}
                 disabled={acting === row.id}
+                title={weekButton(row)}
+                aria-label={weekButton(row)}
                 className="text-[11px] text-etyme-verified hover:underline disabled:opacity-50"
               >
                 {acting === row.id ? '…' : '✓'}
@@ -1321,7 +1327,7 @@ export default function TimesheetsPage() {
             }}
           >
             <h3 id="flag-reason-title" className="text-base font-semibold mb-1">
-              Sign {reasonFor.row.person.name}&rsquo;s week anyway?
+              {anywayTitle(reasonFor.row.act, reasonFor.row.person.name)}
             </h3>
             <p className="text-sm text-etyme-attention mb-3">{reasonFor.says}</p>
             <label className="block text-xs font-semibold text-etyme-muted mb-1" htmlFor="flag-reason">
@@ -1347,7 +1353,7 @@ export default function TimesheetsPage() {
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-attention text-white
                            hover:opacity-90 transition-colors disabled:opacity-50"
               >
-                Sign with this reason
+                {withReasonButton(reasonFor.row.act)}
               </button>
             </div>
           </form>
@@ -1497,7 +1503,7 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
               onClick={onSign}
               className={`px-4 py-2 text-sm font-medium rounded-lg text-white hover:opacity-90 ${row.flag ? 'bg-etyme-attention' : 'bg-etyme-verified'}`}
             >
-              {row.flag ? 'Sign anyway…' : 'Sign this week'}
+              {weekButton(row)}
             </button>
           )}
         </div>

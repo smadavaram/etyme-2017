@@ -10,7 +10,7 @@
  * alone. Now the list route answers per row, the way it already answers
  * "Place" (`awardDoor`):
  *
- * - **Send on** is `whyNotSendOn` (conversation's, `lib/forwarding`) with
+ * - **Send on** is `maySendOn` (conversation's, `lib/forwarding`) with
  *   the actor the forward route builds: the acting desk's book and
  *   permissions (`actingDesk`), and the kind and name of that book so a
  *   refusal names who there may.
@@ -20,7 +20,7 @@
  *
  * Pure. The route reads; this decides.
  */
-import { whyNotSendOn, type Actor } from '@/lib/forwarding'
+import { maySendOn, whyNotSendOn, type Actor } from '@/lib/forwarding'
 import { mayMessageSupplier } from '@/lib/threads'
 
 export interface DoorRow {
@@ -50,15 +50,18 @@ export function sendOnActor(desk: {
 }
 
 export function sendOnDoor(actor: Actor, s: DoorRow): Door {
-  const not = whyNotSendOn(actor, {
+  const sub = {
     id: s.id,
     fromCompanyId: s.fromCompanyId,
     toCompanyId: s.toCompanyId,
     status: s.status,
     rateCents: s.rate ?? 0,
     forwardedAt: s.forwardedAt,
-  })
-  return not ? { open: false, says: not.message } : { open: true, says: null }
+  }
+  // Drawn by `maySendOn`, the one reader; the sentence is the same
+  // first checks' own refusal (`whyNotSendOn`), never a copy of the rule.
+  if (maySendOn(actor, sub)) return { open: true, says: null }
+  return { open: false, says: whyNotSendOn(actor, sub)?.message ?? null }
 }
 
 export function messageDoor(

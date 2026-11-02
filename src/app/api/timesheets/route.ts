@@ -26,6 +26,7 @@ import { approvalWordsReadLog } from './approval-by-email'
 import { approvalWordsFor } from '@/lib/week-approval'
 import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
+import { weekActOf } from '@/lib/notify/week-words'
 import {
   lineFor, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
   type Decision, type Treatment,
@@ -523,6 +524,10 @@ export async function GET(request: NextRequest) {
           href: `/dashboard/weeks/${t.id}`,
           mayApprove: approve.ok,
           mayApproveWhyNot: approve.ok ? null : approve.reason,
+          // Which act the button is: the firm that signs the work
+          // approves the timesheet; every firm below it accepts what it
+          // pays (`weekActOf`, the words Ask Etyme reads too).
+          act: weekActOf({ signedAbove: !isClientSide }),
           maySubmit: enter.ok,
           signature,
           // The days inside the week, so it can be opened and read before

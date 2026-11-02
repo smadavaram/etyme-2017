@@ -305,9 +305,56 @@ describe('the approve press to the books, and the convert route’s dates', () =
     expect(CONVERT).toContain('const dates = lineDates(startDate, endDate)')
     expect(CONVERT).not.toContain('endDate must be after startDate')
     expect(CONVERT).not.toContain("'Invalid startDate'")
+    // The bill rate is asked for in words too, never the column's name and unit.
+    expect(CONVERT).not.toContain('billRate must be a positive number (cents/hr)')
+    expect(CONVERT).toContain("'Give the rate the client is billed for this person, in dollars an hour, above nothing.'")
     const { lineDates } = await import('@/lib/money/line-dates')
     const v = lineDates('2026-11-09', '2026-11-02')
     expect(v.ok).toBe(false)
     expect(!v.ok && v.says).toBe('The last day, Nov 2, 2026, is before the start, Nov 9, 2026. Give a last day after the start, or leave it empty where it is not known.')
+  })
+})
+
+// ── One word for acting on a week, on the Timesheets page ─────────────
+
+describe('the Timesheets page’s words for acting on a week', () => {
+  const TIMESHEETS_PAGE = src('src/app/dashboard/timesheets/page.tsx')
+  const TIMESHEETS_ROUTE = src('src/app/api/timesheets/route.ts')
+
+  it('the client’s act on a week is “Approve timesheet”, and a firm below it accepts, in the words Ask Etyme reads', async () => {
+    const { weekButton, anywayTitle, withReasonButton } = await import('@/app/dashboard/timesheets/act-words')
+    const { WEEK_WORDS } = await import('@/lib/notify/week-words')
+    expect(weekButton({ act: 'APPROVE', flag: null })).toBe('Approve timesheet')
+    expect(weekButton({ act: 'APPROVE', flag: 'Over the job’s 40 hours.' })).toBe('Approve anyway…')
+    expect(weekButton({ act: 'ACCEPT', flag: null })).toBe(WEEK_WORDS.ACCEPT.button)
+    expect(weekButton({ act: 'ACCEPT', flag: 'Over the job’s 40 hours.' })).toBe(WEEK_WORDS.ACCEPT.flagged)
+    expect(anywayTitle('APPROVE', 'Omar Haddad')).toBe('Approve Omar Haddad’s timesheet anyway?')
+    expect(anywayTitle('ACCEPT', 'Omar Haddad')).toBe('Accept Omar Haddad’s timesheet anyway?')
+    expect(withReasonButton('APPROVE')).toBe('Approve with this reason')
+    expect(withReasonButton('ACCEPT')).toBe('Accept with this reason')
+  })
+
+  it('the list route says which act a row asks of this reader, the same way Ask Etyme decides it', () => {
+    expect(TIMESHEETS_ROUTE).toContain('act: weekActOf({ signedAbove: !isClientSide }),')
+  })
+
+  it('no button on the Timesheets page says “Sign” for the act; sentences about the record may', () => {
+    for (const old of ["'Sign anyway…'", "'Sign this week'", 'Sign with this reason', '&rsquo;s week anyway?', 'Sign ${flaggedLeft']) {
+      expect(TIMESHEETS_PAGE).not.toContain(old)
+    }
+    expect(TIMESHEETS_PAGE).toContain('{weekButton(row)}')
+    expect(TIMESHEETS_PAGE).toContain('{anywayTitle(reasonFor.row.act, reasonFor.row.person.name)}')
+    expect(TIMESHEETS_PAGE).toContain('{withReasonButton(reasonFor.row.act)}')
+    // The tick on a row says its act to a screen reader and on hover.
+    expect(TIMESHEETS_PAGE).toContain('aria-label={weekButton(row)}')
+  })
+
+  it('Send on is drawn by the one reader of the forward route’s first checks, never a copy of the rule', () => {
+    const DOORS = src('src/app/api/submissions/row-doors.ts')
+    expect(DOORS).toContain('if (maySendOn(actor, sub)) return { open: true, says: null }')
+    expect(DOORS).toContain('return mayMessageSupplier(s, caller.companyId)')
+    // The forward route passes the book's kind and name, so its refusal names who may.
+    expect(FORWARD_ROUTE).toContain("kind: desk?.seat ? desk.seat.clientCompany.kind : caller.company?.kind ?? null,")
+    expect(FORWARD_ROUTE).toContain('companyName: desk?.companyName ?? caller.company?.name ?? null,')
   })
 })

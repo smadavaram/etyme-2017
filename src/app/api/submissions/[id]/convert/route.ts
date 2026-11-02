@@ -51,7 +51,7 @@ export async function POST(
   // Validate required fields
   if (typeof billRate !== 'number' || billRate <= 0) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'billRate must be a positive number (cents/hr)', field: 'billRate' } },
+      { error: { code: 'VALIDATION', message: 'Give the rate the client is billed for this person, in dollars an hour, above nothing.', field: 'billRate' } },
       { status: 422 }
     )
   }
