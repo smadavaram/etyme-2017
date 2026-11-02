@@ -62,6 +62,15 @@ describe('a worker’s own page reads what her lines require only when a paper o
     expect(body.indexOf('if (!mightRunOut(onFile, now)) return []')).toBeLessThan(body.indexOf('requirementsFor('))
   })
 
+  it('who approved every week still waiting on the client is read in one go, and week by week only where that read fails', () => {
+    const route = read('src/app/api/me/work/route.ts')
+    const body = route.slice(route.indexOf('const emailAnswer = new Map'), route.indexOf('return NextResponse.json({', route.indexOf('const emailAnswer = new Map')))
+    expect(body).toContain('readWeekApprovalsFor(reader, waitingOnClient.map((t) => t.id), now).catch(() => null)')
+    // The single read is asked only where the one read failed.
+    expect(body).toContain(': await readWeekApprovals(reader, t.id, now).catch(() => null)')
+    expect(body.indexOf('readWeekApprovalsFor(')).toBeLessThan(body.indexOf('for (const t of waitingOnClient)'))
+  })
+
   it('somebody nobody is moving between projects reads no names, lines or job requests for moves', () => {
     const route = read('src/app/api/me/work/route.ts')
     const body = route.slice(route.indexOf('async function movesFor'), route.indexOf('export async function GET'))

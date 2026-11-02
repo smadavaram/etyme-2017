@@ -122,7 +122,10 @@ describe('approval by email is offered only where it can work', () => {
 
   it('the worker’s list asks lib/week-approval, the page’s own door, rather than deciding a second way', () => {
     const route = src('app/api/me/work/route.ts')
-    expect(route).toContain('readWeekApprovals(readerOf(caller)')
+    // Every waiting week through the same door at once (2026-11-02), the
+    // single read only where that fails.
+    expect(route).toContain('const reader = readerOf(caller)')
+    expect(route).toContain('readWeekApprovalsFor(reader,')
     expect(route).toContain('email: emailAnswer.get(t.id)')
     expect(route).not.toMatch(/prisma\.weekApproval/)
   })

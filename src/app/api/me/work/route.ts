@@ -25,7 +25,7 @@ import { paidByPayroll, workerPaidAs, ownCompanyBillsSays, isWorkersOwnPayLine }
 import { ownCompanyIdsOf } from '@/lib/money/own-companies'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands, releaseFrom } from '@/lib/internal-moves'
-import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approval'
+import { approvalWordsFor, readWeekApprovals, readWeekApprovalsFor, readerOf } from '@/lib/week-approval'
 import { requirementsFor } from '@/lib/document-requirements'
 import { credentialKeys } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
@@ -844,9 +844,22 @@ export async function GET(request: NextRequest) {
   // of lib/week-approval for each week still waiting for the client, so
   // the row never offers a link the page will refuse, and says so where a
   // link has already gone and is waiting (worker tester, 2026-10-03).
+  //
+  // Every such week at once (`readWeekApprovalsFor`, the page-timing pass of
+  // 2026-11-02): the same answer and the same log rows per week as the
+  // single read, in a handful of queries rather than about eight a week.
+  // Where the one read fails, each week is asked on its own as before, so a
+  // failure still costs only the week it is about.
   const emailAnswer = new Map<string, NonNullable<Parameters<typeof weekDoor>[0]['email']>>()
-  for (const t of timesheets.filter((x) => x.status === 'SUBMITTED' && x.clientApprovedAt === null)) {
-    const r = await readWeekApprovals(readerOf(caller), t.id, now).catch(() => null)
+  const waitingOnClient = timesheets.filter((x) => x.status === 'SUBMITTED' && x.clientApprovedAt === null)
+  const reader = readerOf(caller)
+  const answered = waitingOnClient.length
+    ? await readWeekApprovalsFor(reader, waitingOnClient.map((t) => t.id), now).catch(() => null)
+    : null
+  for (const t of waitingOnClient) {
+    const r = answered
+      ? answered.get(t.id) ?? null
+      : await readWeekApprovals(reader, t.id, now).catch(() => null)
     if (!r || !r.ok) continue
     const link = r.seen.approvals.find((a) => a.how === 'LINK' && a.state === 'WAITING') ?? null
     emailAnswer.set(t.id, {
