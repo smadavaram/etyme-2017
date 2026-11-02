@@ -19,7 +19,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 describe('what the client desk is told', () => {
   const decisions = read('src/app/api/decisions/route.ts')
-  const program = read('src/app/api/program/view.ts')
+  // The page's read, and the headline arithmetic it shares with Ask Etyme's greeting (`./figures`).
+  const program = read('src/app/api/program/view.ts') + read('src/app/api/program/figures.ts')
   const page = read('src/app/dashboard/program/page.tsx')
   const needsYou = read('src/app/dashboard/program/needs-you.ts')
   const volume = read('src/lib/demo-volume.ts')

@@ -3,7 +3,7 @@ import { placementStatus } from '@/lib/award/placement-status'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { chainTop, viaPhrase } from '@/lib/chain-top'
+import { viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { startPaperwork, agreementsOnFile } from './desk-findings'
@@ -14,15 +14,15 @@ import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { seatTrail, actingDesk } from '@/lib/program-seat'
 import { hasPermission, hasAnyPermission } from '@/lib/permissions'
-import { programMonthlySpend, spendLine } from '@/lib/program-spend'
+import { programMonthlySpend } from '@/lib/program-spend'
 import { deskItems, deskRows } from '@/app/dashboard/program/needs-you'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { formatDay } from '@/lib/format-date'
 import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
 import { regionContracts, regionRequirements } from '@/lib/region-scope'
 import { readerScope } from './reader-scope'
-import { spendOf } from './regions/rollup'
-import { reportingRatesFor, spendInReporting } from '@/lib/money/reporting-currency'
+import { reportingRatesFor } from '@/lib/money/reporting-currency'
+import { topRungs, headcount, needsReportingRates, spendFigures } from './figures'
 
 /**
  * GET /api/program
@@ -109,10 +109,10 @@ export async function programView(
   })
   // One row per person: the contract this client pays, never the rungs
   // its suppliers arranged below it (`lib/chain-top`).
-  const contracts = chainTop(everyRung)
   // On site means working now. A drafted contract is somebody who has
   // not started; it is on the Contractors tab with that word on it.
-  const onSite = contracts.filter((c) => c.state === 'IN_PROGRESS')
+  // The same arithmetic the greeting's summary reads (`./figures`).
+  const { contracts, onSite } = topRungs(everyRung)
 
   // ── Weeks and claims waiting on this desk ───────────────────────────
   //
@@ -518,29 +518,14 @@ export async function programView(
     reason: seat ? seatTrail(seat, opts.trail ?? 'Program view') : `${opts.trail ?? 'Program view'} at ${clientCompany.name}`,
   })
 
-  // What the client pays a month, in minor units, at 160 hours: the top
-  // rung of every chain with somebody on site. Somebody with no rate on
-  // their top rung is a head and not a price, and `spend` counts them
-  // apart rather than as a zero.
-  const spend = programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))
-  // Per currency. A program on sites in eight countries bills in eight
-  // currencies, and minor units of a rupee added to cents of a dollar is
-  // a figure nobody can stand behind: where there is more than one, the
-  // single figure is null and the currencies are carried apart (By region
-  // shows each). One currency for the whole is money's to compute.
-  const byCurrency = spendOf(onSite.map((c) => ({ rateMinor: (c.billRate ?? 0) > 0 ? c.billRate : null, currency: c.billCurrency })))
-  const oneCurrency = byCurrency.spend.length <= 1
-  // Several currencies roll up through money's one door, at the rates the
-  // company set or the labeled sample, and the sentence says which; a
-  // currency with no rate leaves the figure null rather than guessed.
-  const rates = oneCurrency ? null : await reportingRatesFor(clientCompany.id, now)
-  const inOne = rates ? spendInReporting(byCurrency.spend, rates.reportingCurrency, rates, now) : null
-  const totalMonthlySpend = oneCurrency ? spend.totalMinor : inOne?.total?.minor ?? null
-
-  // People, not rows: one person is one contractor however many lines
-  // they hold. Somebody on site with a later line signed is on site.
-  const onSitePeople = new Set(onSite.map((c) => c.personId))
-  const listedPeople = new Set(contracts.map((c) => c.personId))
+  // What the client pays a month, and who is on site, from the one
+  // arithmetic the greeting's summary reads too (`./figures`): the top
+  // rung of every chain with somebody on site, per currency, and through
+  // the company's rates where the program bills in several. People, not
+  // rows: one person is one contractor however many lines they hold.
+  const rates = needsReportingRates(onSite) ? await reportingRatesFor(clientCompany.id, now) : null
+  const money = spendFigures(onSite, rates, now)
+  const heads = headcount(contracts, onSite)
 
   // Build approval queue items
   const approvalQueue = [
@@ -621,22 +606,20 @@ export async function programView(
       /** Under a seat, what in this program needs somebody; null for the client's own seats. */
       programQueue,
       summary: {
-        activeContractors: onSitePeople.size,
+        activeContractors: heads.activeContractors,
         // The Contractors tab lists everybody with a live line here —
         // on site, and signed but not started. The headline said "4 on
         // site" beside a tab reading 5 and neither said what it counted,
         // so both are counted in people and the difference is named:
         // on site plus not started is the tab.
-        contractors: listedPeople.size,
-        notStarted: listedPeople.size - onSitePeople.size,
+        contractors: heads.contractors,
+        notStarted: heads.notStarted,
         vendors: vendors.length,
-        monthlySpend: totalMonthlySpend,
+        monthlySpend: money.monthlySpend,
         /** The currency `monthlySpend` is in; null where it is null. */
-        monthlySpendCurrency: oneCurrency
-          ? (byCurrency.spend[0]?.currency ?? onSite[0]?.billCurrency ?? 'USD')
-          : inOne?.total ? inOne.reportingCurrency : null,
+        monthlySpendCurrency: money.monthlySpendCurrency,
         /** A month at current rates, per currency, for a program billed in several. */
-        monthlySpendByCurrency: byCurrency.spend,
+        monthlySpendByCurrency: money.monthlySpendByCurrency,
         // What the figure rests on, as the one line under the figure
         // (founder, 2026-10-19: the paragraph under the six figures
         // becomes one line under the figure it explains). 160 hours a
@@ -644,7 +627,7 @@ export async function programView(
         // seats with no rate on the rung this client pays are named, so
         // the total of some seats is never presented as the total of all
         // of them (`spendLine`).
-        monthlySpendSays: inOne ? `${spendLine(spend)}. ${inOne.says}` : spendLine(spend),
+        monthlySpendSays: money.monthlySpendSays,
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,
