@@ -73,7 +73,7 @@ import {
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
 import { plainDate } from '@/lib/plain-date'
-import { requirementsFor } from '@/lib/document-requirements'
+import { requirementsFor, type LineRequirements } from '@/lib/document-requirements'
 import { heldFromDocInstances } from '@/lib/document-request'
 import {
   typesFor,
@@ -1755,10 +1755,28 @@ function extrasFrom(input: {
  * A line that does not exist, or that requires nothing, is left out of
  * the map, which is what `lineExtras` answering `{}` means.
  */
+/**
+ * What each of these sell lines requires, read once, a few at a time,
+ * keyed by line. For a caller that reads the same lines' sets for two
+ * answers (the compliance page: its starts and what the firm owes), so
+ * neither asks the door twice for one line (the page-timing pass,
+ * 2026-11-02: about 628 statements a page for a large supplier).
+ */
+export async function requirementsForSellLines(
+  sellContractIds: string[],
+  db: LineDb = prisma
+): Promise<Map<string, LineRequirements | null>> {
+  const ids = [...new Set(sellContractIds.filter(Boolean))]
+  const sets = await fewAtATime(ids, (id) => requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never))
+  return new Map(ids.map((id, i) => [id, sets[i] ?? null]))
+}
+
 export async function lineExtrasForSellLines(
   sellContractIds: string[],
   db: LineDb = prisma,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** Sets the caller already read, by line; any line not in it is read here. */
+  known?: Map<string, LineRequirements | null>
 ): Promise<Map<string, Awaited<ReturnType<typeof lineExtras>>>> {
   void now
   const out = new Map<string, Awaited<ReturnType<typeof lineExtras>>>()
@@ -1780,7 +1798,11 @@ export async function lineExtrasForSellLines(
   const firmIds = [...new Set([...supplierIds, ...customerIds])]
 
   const [sets, certificates, types, instances, agreements, links] = await Promise.all([
-    fewAtATime(lineIds, (id) => requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never)),
+    fewAtATime(lineIds, (id) =>
+      known?.has(id)
+        ? Promise.resolve(known.get(id) ?? null)
+        : requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never)
+    ),
     db.verification.findMany({
       where: { companyId: { in: supplierIds }, type: { in: [...FIRM_STANDING] } },
       select: {

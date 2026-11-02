@@ -120,7 +120,9 @@ describe('the compliance page reads the verdict the start button runs', () => {
 
   it('runs every line that has not started through the same clearance, with the line’s own required set', () => {
     expect(route).toContain('contractClearance({')
-    expect(route).toContain('...(await lineExtras({ sellContractId: c.id }))')
+    // Batched since the page-timing pass (2026-11-02): the same line
+    // extras, read for every start at once (compliance-reads-once.test.ts).
+    expect(route).toContain('...(startExtras.get(c.id) ?? {})')
     expect(route).toMatch(/state: \{ in: \['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'\] \}/)
   })
 

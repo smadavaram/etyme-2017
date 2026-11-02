@@ -1,0 +1,85 @@
+import { describe, it, expect, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
+
+/**
+ * The page-timing pass, 2026-11-02: at 40 at once the compliance read took
+ * 10 s at the 95th percentile, a large supplier's page making about 628
+ * statements, and the tenure ledger 6 s with 314 KB an answer. Each line's
+ * required set is now read once a page, the starts are checked in one
+ * batch, and the ledger sends only what its page draws.
+ */
+
+/** A database that answers the batch reads and counts every single-line read. */
+function fakeDb() {
+  const findUnique = vi.fn(async () => null)
+  const db = {
+    sellContract: {
+      findMany: vi.fn(async () => [{ id: 'line-1', companyId: 'supplier', personId: 'ravi', clientCompanyId: 'client', workLocation: null }]),
+      findUnique,
+    },
+    verification: { findMany: vi.fn(async () => []) },
+    documentType: { findMany: vi.fn(async () => []) },
+    docInstance: { findMany: vi.fn(async () => []) },
+    masterAgreement: { findMany: vi.fn(async () => []) },
+    contractLink: { findMany: vi.fn(async () => []) },
+  }
+  return { db: db as never, findUnique }
+}
+
+describe('the compliance page reads each line once', () => {
+  it('a line whose required set the page already read is not read again by the batch of line extras', async () => {
+    const { db, findUnique } = fakeDb()
+    const known = new Map([['line-1', { items: [] } as never]])
+    const out = await lineExtrasForSellLines(['line-1'], db, new Date('2026-11-02T00:00:00Z'), known)
+    expect(findUnique).not.toHaveBeenCalled()
+    expect(out.has('line-1')).toBe(true)
+  })
+
+  it('a line the page has not read yet is read by the batch, once', async () => {
+    const { db, findUnique } = fakeDb()
+    await lineExtrasForSellLines(['line-1', 'line-1'], db)
+    expect(findUnique).toHaveBeenCalledTimes(1)
+  })
+
+  it('the sets of many lines are read once each and handed back by line, a line that is not there as nothing', async () => {
+    const { db, findUnique } = fakeDb()
+    const sets = await requirementsForSellLines(['line-1', 'line-2', 'line-1'], db)
+    expect(findUnique).toHaveBeenCalledTimes(2)
+    expect([...sets.keys()]).toEqual(['line-1', 'line-2'])
+    expect(sets.get('line-2')).toBeNull()
+  })
+
+  it('the starts are checked in one batch, and what the firm owes reads the same sets as the starts', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/compliance/route.ts'), 'utf8')
+    expect(route).not.toMatch(/await lineExtras\(/)
+    expect(route).toContain('lineExtrasForSellLines(startIds, prisma, now, known)')
+    expect(route).toContain('const owes = await whatThisFirmOwes(clientCompany.id, now, setsFor)')
+    expect(route).not.toMatch(/requirementsFor\(\{ sellContractId: line\.id \}\)/)
+    // One read of every start's person checks and one of every firm's, never one per start.
+    expect(route).toContain('where: { personId: { in: startPeople } }')
+  })
+})
+
+describe('the tenure ledger sends what its page draws', () => {
+  const route = readFileSync(join(process.cwd(), 'src/app/api/tenure/route.ts'), 'utf8')
+  const contracts = route.slice(route.indexOf('contracts: data.contracts.map'), route.indexOf('daysBooked: daysBooked(c)'))
+
+  it('each contract carries the seven things the page draws and nothing the page does not', () => {
+    for (const field of ['id:', 'vendorName:', 'startDate:', 'endDate:', 'state:', 'daysWorked:']) expect(contracts).toContain(field)
+    for (const gone of ['payingCustomer', 'endClient:', 'workLocation', 'suppliedThrough', 'vendorNameWithheld']) expect(contracts).not.toContain(gone)
+  })
+
+  it('reads only the fields the ledger counts, never the site, the paying customer or the end client of every contract', () => {
+    const read = route.slice(route.indexOf('const contracts = await prisma.sellContract.findMany'), route.indexOf("orderBy: { startDate: 'asc' }"))
+    expect(read).toContain('select: {')
+    expect(read).not.toContain('include:')
+    expect(read).not.toMatch(/workLocation|endClientCompany: \{|clientCompany: \{/)
+  })
+
+  it('reads the time limit and the break before coming back in one query', () => {
+    expect(route).toContain("ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] }")
+    expect(route).not.toContain('governanceRule.findFirst')
+  })
+})

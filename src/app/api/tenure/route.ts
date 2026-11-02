@@ -125,12 +125,21 @@ export async function GET(request: NextRequest) {
       ...seatScope(units),
       state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
     },
-    include: {
-      person: { select: { id: true, name: true } },
+    // Only what the ledger counts and the page draws (the page-timing
+    // pass, 2026-11-02: 314 KB an answer for 360 people at Corvane, and
+    // 40 at once took 6 s at the 95th percentile). The paying customer,
+    // the end client and the site were sent on every contract and drawn
+    // nowhere; the name rule reads the client's id off the row itself.
+    select: {
+      id: true,
+      personId: true,
+      companyId: true,
+      clientCompanyId: true,
+      state: true,
+      startDate: true,
+      endDate: true,
+      person: { select: { name: true } },
       company: { select: { id: true, name: true } }, // the vendor
-      clientCompany: { select: { id: true, name: true } }, // the paying customer
-      endClientCompany: { select: { id: true, name: true } }, // the end client (if different)
-      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
     },
     orderBy: { startDate: 'asc' },
   })
@@ -177,21 +186,18 @@ export async function GET(request: NextRequest) {
     }
 
   // Load governance rules for tenure cap and break-in-service
-  const tenureRule = await prisma.governanceRule.findFirst({
+  // The client's two rules, read in one query: the first active rule of
+  // each kind, as the two reads before it took them.
+  const rules = await prisma.governanceRule.findMany({
     where: {
       policy: { companyId: clientCompany.id, isActive: true },
-      ruleType: 'TENURE_CAP',
+      ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] },
       isActive: true,
     },
+    orderBy: { id: 'asc' },
   })
-
-  const breakRule = await prisma.governanceRule.findFirst({
-    where: {
-      policy: { companyId: clientCompany.id, isActive: true },
-      ruleType: 'BREAK_IN_SERVICE',
-      isActive: true,
-    },
-  })
+  const tenureRule = rules.find((r) => r.ruleType === 'TENURE_CAP') ?? null
+  const breakRule = rules.find((r) => r.ruleType === 'BREAK_IN_SERVICE') ?? null
 
   const capMonths = tenureRule ? (tenureRule.parameters as any).maxMonths : null
   const breakDays = breakRule ? (breakRule.parameters as any).breakDays : null
@@ -323,18 +329,12 @@ export async function GET(request: NextRequest) {
       eligibleDate,
       hasActive: data.hasActive,
       onSite: standing.onSiteNow,
+      // What the page draws for each contract and nothing else. Who a
+      // sub-vendor's line reaches the client through is said once, on the
+      // row's firms above, folded by firmsOnARow, never per contract.
       contracts: data.contracts.map(c => ({
         id: c.id,
         vendorName: shown(c.companyId, c.company.name).name,
-        vendorNameWithheld: shown(c.companyId, c.company.name).masked,
-        // Who this rung reaches the client through. Never withheld: it is
-        // a firm the client itself pays and can call about this person.
-        suppliedThrough: shown(c.companyId, c.company.name).through,
-        payingCustomer: c.clientCompany.name,
-        endClient: c.endClientCompany?.name ?? c.clientCompany.name,
-        workLocation: c.workLocation
-          ? { name: c.workLocation.name, city: c.workLocation.city, state: c.workLocation.state, isRemote: c.workLocation.isRemote }
-          : null,
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         state: c.state,
