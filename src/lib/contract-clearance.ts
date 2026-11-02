@@ -73,7 +73,7 @@ import {
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
 import { plainDate } from '@/lib/plain-date'
-import { requirementsFor, type LineRequirements } from '@/lib/document-requirements'
+import { requirementsFor, requirementsForLines, type LineRequirements } from '@/lib/document-requirements'
 import { heldFromDocInstances } from '@/lib/document-request'
 import {
   typesFor,
@@ -1755,18 +1755,21 @@ function extrasFrom(input: {
  * half a minute. Here the firms' standing, their dictionaries, the signed
  * papers, the agreements, the links and the sites are each read once for
  * every line, and handed to the same `extrasFrom` the single read uses,
- * so the answer per line is the same answer. What a line requires is
- * still read line by line through `requirementsFor`, a few at a time,
- * because that door is the platform's and has no read of many lines yet.
+ * so the answer per line is the same answer. What each line requires,
+ * on the sell side and on the buy lines linked to it, is read through
+ * the platform's door for many lines (`requirementsForLines`), one call
+ * per side, which gives each line the set `requirementsFor` gives it
+ * alone (2026-11-02: 508 lines from 4,809 queries to 12).
  *
  * A line that does not exist, or that requires nothing, is left out of
  * the map, which is what `lineExtras` answering `{}` means.
  */
 /**
- * What each of these sell lines requires, read once, a few at a time,
- * keyed by line. For a caller that reads the same lines' sets for two
- * answers (the compliance page: its starts and what the firm owes), so
- * neither asks the door twice for one line (the page-timing pass,
+ * What each of these sell lines requires, read once, in one call to the
+ * door for many lines, keyed by line in the order asked; a line that is
+ * not there is `null`. For a caller that reads the same lines' sets for
+ * two answers (the compliance page: its starts and what the firm owes),
+ * so neither asks the door twice for one line (the page-timing pass,
  * 2026-11-02: about 628 statements a page for a large supplier).
  */
 export async function requirementsForSellLines(
@@ -1774,8 +1777,8 @@ export async function requirementsForSellLines(
   db: LineDb = prisma
 ): Promise<Map<string, LineRequirements | null>> {
   const ids = [...new Set(sellContractIds.filter(Boolean))]
-  const sets = await fewAtATime(ids, (id) => requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never))
-  return new Map(ids.map((id, i) => [id, sets[i] ?? null]))
+  const sets = ids.length ? await requirementsForLines({ sellContractIds: ids }, db) : new Map<string, LineRequirements>()
+  return new Map(ids.map((id) => [id, sets.get(id) ?? null]))
 }
 
 export async function lineExtrasForSellLines(
@@ -1804,12 +1807,10 @@ export async function lineExtrasForSellLines(
   const personIds = [...new Set(lines.map((l) => l.personId).filter((v): v is string => !!v))]
   const firmIds = [...new Set([...supplierIds, ...customerIds])]
 
-  const [sets, certificates, types, instances, agreements, links] = await Promise.all([
-    fewAtATime(lineIds, (id) =>
-      known?.has(id)
-        ? Promise.resolve(known.get(id) ?? null)
-        : requirementsFor({ sellContractId: id } as Parameters<typeof requirementsFor>[0], db as never)
-    ),
+  // The sets the caller did not hand over, in one read of many lines.
+  const unread = lineIds.filter((id) => !known?.has(id))
+  const [read, certificates, types, instances, agreements, links] = await Promise.all([
+    unread.length ? requirementsForLines({ sellContractIds: unread }, db) : Promise.resolve(new Map<string, LineRequirements>()),
     db.verification.findMany({
       where: { companyId: { in: supplierIds }, type: { in: [...FIRM_STANDING] } },
       select: {
@@ -1846,15 +1847,18 @@ export async function lineExtrasForSellLines(
     db.contractLink.findMany({ where: { sellContractId: { in: lineIds } }, select: { sellContractId: true, buyContractId: true }, orderBy: { id: 'asc' } }),
   ])
 
+  const setOf = (id: string): LineRequirements | null => (known?.has(id) ? known.get(id) ?? null : read.get(id) ?? null)
+
+  // What the worker owes on each buy line that funds these lines, in one read of many lines.
   const buyIds = [...new Set(links.map((l) => l.buyContractId))]
-  const buySets = await fewAtATime(buyIds, (id) => requirementsFor({ buyContractId: id } as Parameters<typeof requirementsFor>[0], db as never))
+  const buySets = buyIds.length ? await requirementsForLines({ buyContractIds: buyIds }, db) : new Map<string, LineRequirements>()
   const workerOf = new Map<string, LineRequirement[]>()
-  buyIds.forEach((id, i) => {
-    workerOf.set(id, ((buySets[i]?.items ?? []) as LineRequirement[]).filter((it) => it.owedBy === 'WORKER'))
+  buyIds.forEach((id) => {
+    workerOf.set(id, ((buySets.get(id)?.items ?? []) as LineRequirement[]).filter((it) => it.owedBy === 'WORKER'))
   })
 
   lines.forEach((line) => {
-    const set = sets[lineIds.indexOf(line.id)]
+    const set = setOf(line.id)
     if (!set) return
     const firms = new Set([line.companyId, line.clientCompanyId].filter((v): v is string => !!v))
     out.set(line.id, extrasFrom({
@@ -1879,21 +1883,6 @@ export async function lineExtrasForSellLines(
         : [],
     }))
   })
-  return out
-}
-
-/** Run one read per id, a few at a time, answers in the order of the ids. */
-async function fewAtATime<T>(ids: string[], read: (id: string) => Promise<T>, width = 6): Promise<T[]> {
-  const out: T[] = new Array(ids.length)
-  let next = 0
-  await Promise.all(
-    Array.from({ length: Math.min(width, ids.length) }, async () => {
-      while (next < ids.length) {
-        const i = next++
-        out[i] = await read(ids[i])
-      }
-    })
-  )
   return out
 }
 

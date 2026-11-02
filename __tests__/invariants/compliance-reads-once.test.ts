@@ -59,6 +59,34 @@ describe('the compliance page reads each line once', () => {
     expect(sets.get('line-2')).toBeNull()
   })
 
+  it('the sets of many lines, and of the buy lines behind them, are each read in one call whatever the number of lines', async () => {
+    const sells = ['line-1', 'line-2', 'line-3', 'line-4', 'line-5', 'line-6', 'line-7', 'line-8']
+    type Read = { where: { id: { in: string[] } }; select?: { documentRequirements?: unknown } }
+    // The door's reads select each line's own rows; the batch's own read of the lines does not.
+    const sellDoor = vi.fn(async (_a: Read) => [] as never[])
+    const buyDoor = vi.fn(async (_a: Read) => [] as never[])
+    const db = {
+      sellContract: {
+        findMany: vi.fn(async (a: Read) => a.select?.documentRequirements
+          ? sellDoor(a)
+          : a.where.id.in.map((id) => ({ id, companyId: 'supplier', personId: null, clientCompanyId: 'client', workLocation: null }))),
+      },
+      buyContract: { findMany: buyDoor },
+      verification: { findMany: vi.fn(async () => []) },
+      documentType: { findMany: vi.fn(async () => []) },
+      docInstance: { findMany: vi.fn(async () => []) },
+      masterAgreement: { findMany: vi.fn(async () => []) },
+      contractLink: { findMany: vi.fn(async () => sells.map((s, i) => ({ sellContractId: s, buyContractId: `buy-${i % 5}` }))) },
+    } as never
+    await requirementsForSellLines(sells, db)
+    expect(sellDoor).toHaveBeenCalledTimes(1)
+    await lineExtrasForSellLines(sells, db)
+    expect(sellDoor).toHaveBeenCalledTimes(2)
+    expect(sellDoor.mock.calls[1][0].where.id.in).toEqual(sells)
+    expect(buyDoor).toHaveBeenCalledTimes(1)
+    expect([...buyDoor.mock.calls[0][0].where.id.in].sort()).toEqual(['buy-0', 'buy-1', 'buy-2', 'buy-3', 'buy-4'])
+  })
+
   it('one line’s extras are read through the many-lines read, so one line and many cannot come to different answers', async () => {
     const { db, lines: many } = fakeDb()
     await lineExtras({ sellContractId: 'line-1' }, db)
