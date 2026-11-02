@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { kindWord, postureWord } from '@/lib/parties'
+import { KIND_CHOICES, choiceOf } from '@/lib/company-kind'
 
 import { useEffect, useState, useCallback } from 'react'
 import { plainDate } from '@/lib/plain-date'
@@ -47,6 +48,8 @@ interface Company {
   /** What the saved link is worth: works, needs a new link, or none (lib/notify/teams-link). */
   teams: { state: 'NONE' | 'WORKS' | 'NEEDS_NEW_LINK'; says: string }
   networkVerifiedAt: string | null
+  /** Who last changed the type, and when; null until anybody did. */
+  typeSet: { by: string | null; at: string } | null
 }
 interface Role {
   id: string
@@ -107,6 +110,8 @@ interface Settings {
   templatePack: Pack | null
   cycleShift: CycleShift
   canEdit: boolean
+  /** The type is the Owner's to change, and nobody else's (lib/company-kind). */
+  canChangeType?: boolean
 }
 
 // ── Bits ─────────────────────────────────────────────
@@ -117,6 +122,9 @@ interface Settings {
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
+
+/** Where a change of type keeps its sentence across the reload that redraws the menu. */
+const TYPE_CHANGED_KEY = 'etyme.settings.typeChanged'
 
 const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centers', 'Cycles', 'Ask Etyme', 'Bench pay'] as const
 /** Only a firm that carries people between projects has bench pay to set. */
@@ -151,6 +159,17 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // A change of type is said after the reload that redraws the menu.
+  useEffect(() => {
+    try {
+      const said = window.sessionStorage.getItem(TYPE_CHANGED_KEY)
+      if (said) {
+        window.sessionStorage.removeItem(TYPE_CHANGED_KEY)
+        setFlash(said)
+      }
+    } catch {}
+  }, [])
 
   async function send(path: string, method: string, payload?: unknown) {
     setBusy(true)
@@ -409,6 +428,11 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
               {kindWord(c.kind as any)}
               {postureWord(c.supplierPosture) ? ` · ${postureWord(c.supplierPosture)}` : ''}
             </p>
+            {c.typeSet && (
+              <p className="mt-0.5 text-[12px] text-etyme-muted">
+                Changed{c.typeSet.by ? ` by ${c.typeSet.by}` : ''} on {plainDate(c.typeSet.at)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -422,6 +446,8 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
           </button>
         )}
       </Panel>
+
+      <TypePanel data={data} busy={busy} />
 
       <Panel
         title="Where your people already are"
@@ -455,6 +481,84 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
         )}
       </Panel>
     </>
+  )
+}
+
+// ── What kind of company ─────────────────────────────
+//
+// The founder's Tapin, 2026-11-02: it signed up as a one-person firm and
+// had no way to become the bench vendor it is. The Owner chooses among
+// sign-up's own choices; the route refuses, in a sentence, only where work
+// on the record depends on the old type. A saved change reloads the page,
+// so the menu drawn beside it is the new type's.
+
+function TypePanel({ data, busy }: { data: Settings; busy: boolean }) {
+  const c = data.company
+  const now = choiceOf(c.kind, c.supplierPosture)
+  const [chosen, setChosen] = useState<string>(now?.key ?? '')
+  const [saving, setSaving] = useState(false)
+  const [refused, setRefused] = useState<string | null>(null)
+
+  if (!data.canChangeType) {
+    if (!data.canEdit) return null
+    return (
+      <Panel title="What kind of company you are" subtitle="Only the Owner changes the type. Ask the Owner if it is wrong.">
+        <p className="text-sm text-etyme-ink">{now?.label ?? kindWord(c.kind as any)}</p>
+      </Panel>
+    )
+  }
+
+  async function save() {
+    setSaving(true)
+    setRefused(null)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: chosen }),
+      })
+      const body = await readJson(res)
+      try { window.sessionStorage.setItem(TYPE_CHANGED_KEY, body.data?.message ?? 'Saved.') } catch {}
+      window.location.reload()
+    } catch (e: any) {
+      setRefused(e.message)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Panel
+      title="What kind of company you are"
+      subtitle="Your menu, Ask Etyme and the setup checklist follow this. Your roles, people, papers and setup answers stay as they are."
+    >
+      <div className="space-y-3">
+        {KIND_CHOICES.map((k) => (
+          <label key={k.key} className="flex gap-3 items-start cursor-pointer">
+            <input
+              type="radio"
+              name="companyType"
+              className="mt-1"
+              checked={chosen === k.key}
+              disabled={busy || saving}
+              onChange={() => setChosen(k.key)}
+            />
+            <span>
+              <span className="text-[14px] text-etyme-ink">{k.label}</span>
+              {now?.key === k.key && <span className="ml-2 text-[12px] text-etyme-muted">what you are now</span>}
+              <span className="block text-[13px] text-etyme-muted max-w-prose">{k.blurb}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {refused && <div className="mt-4"><FormMessage tone="error">{refused}</FormMessage></div>}
+      <button
+        onClick={save}
+        disabled={busy || saving || !chosen || chosen === now?.key}
+        className="mt-4 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-50"
+      >
+        {saving ? 'Changing…' : 'Change type'}
+      </button>
+    </Panel>
   )
 }
 

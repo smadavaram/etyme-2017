@@ -809,6 +809,12 @@ model Company {
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
   supplierPosture     String?
+  /// Who last changed the company's type (kind and posture) after sign-up,
+  /// and when: only its Owner, from Settings → Company (the founder's
+  /// Tapin, 2026-11-02). Null until anybody does. A record of a person,
+  /// never followed, like reportingCurrencySetById.
+  kindSetById         String?
+  kindSetAt           DateTime?
   currency            String    @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to

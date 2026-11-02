@@ -466,6 +466,9 @@ export const DOMAINS: Domain[] = [
       // to make a company for both doors, the steps' rules and words, and
       // the record of who answered each and when.
       'lib/company-create', 'lib/setup-steps', 'lib/setup-state',
+      // What kind of company this is, changed by its Owner after sign-up
+      // (the founder's Tapin, 2026-11-02): the choices and the verdict.
+      'lib/company-kind',
       // The admin's setup checklist (founder, 2026-10-22; built 2026-10-28):
       // the eleven items' rules and words, the record of each answer and
       // where it came from, the fill sources (the work email, a paper, read

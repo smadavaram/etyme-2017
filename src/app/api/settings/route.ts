@@ -7,6 +7,7 @@ import { emit } from '@/lib/events'
 import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
 import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
+import { changeCompanyKind, isOwnerSeat } from './kind'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
+        kindSetById: true, kindSetAt: true,
       },
     }),
     prisma.role.findMany({
@@ -111,12 +113,22 @@ export async function GET(request: NextRequest) {
   ])
 
   const heldBy = new Map(memberCounts.map((m) => [m.roleId, m._count._all]))
+  // Who last changed the type, by name, and whether this seat may: the
+  // Owner alone (lib/company-kind).
+  const [typeSetBy, mayChangeType] = await Promise.all([
+    company?.kindSetById
+      ? prisma.person.findUnique({ where: { id: company.kindSetById }, select: { name: true } })
+      : Promise.resolve(null),
+    isOwnerSeat(caller.context.id, companyId),
+  ])
   const pack = company?.templatePack ? getTemplatePack(company.templatePack) : null
 
   return NextResponse.json({
     data: {
       company: company && {
         ...company,
+        kindSetAt: company.kindSetAt?.toISOString() ?? null,
+        typeSet: company.kindSetAt ? { by: typeSetBy?.name ?? null, at: company.kindSetAt.toISOString() } : null,
         networkVerifiedAt: company.networkVerifiedAt?.toISOString() ?? null,
         siteLiveAt: company.siteLiveAt?.toISOString() ?? null,
         // Configured only where the saved link is a Workflows link that
@@ -179,6 +191,8 @@ export async function GET(request: NextRequest) {
       // read-only rather than failing on save.
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
       canEditGovernance: hasPermission(caller.permissions, 'governance.write'),
+      // The type is the Owner's to change, and nobody else's.
+      canChangeType: mayChangeType,
     },
   })
 }
@@ -187,7 +201,8 @@ export async function GET(request: NextRequest) {
  * PATCH /api/settings
  *
  * The company's own details. Name, currency, and the Teams channel that
- * notifications post to.
+ * notifications post to. And `{ type }` on its own: what kind of company
+ * this is, the Owner's alone (./kind, lib/company-kind).
  *
  * The domain is not editable. It came from the identity provider and it is
  * what decides who joins this company automatically — letting somebody
@@ -202,6 +217,38 @@ export async function PATCH(request: NextRequest) {
       { error: { code: 'NO_COMPANY', message: 'Settings are a company’s, and you are not signed in at a company.' } },
       { status: 403 }
     )
+  }
+
+  const body = await request.json().catch(() => ({}))
+
+  // ── What kind of company this is ───────────────────────────────────
+  //
+  // The Owner's alone, and asked before the settings gate so that anybody
+  // else, an Admin included, is told whose it is rather than that they
+  // lack a permission (the founder's Tapin, 2026-11-02; lib/company-kind).
+  if (body && typeof body === 'object' && 'type' in body) {
+    const others = Object.keys(body).filter((k) => k !== 'type')
+    if (others.length > 0) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Change the type of company on its own, then the rest.', field: 'type' } },
+        { status: 422 }
+      )
+    }
+    const result = await changeCompanyKind({
+      companyId: caller.company.id,
+      contextId: caller.context.id,
+      person: { id: caller.person.id, name: caller.person.name },
+      type: body.type,
+    })
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: { code: result.status === 403 ? 'FORBIDDEN' : result.status === 409 ? 'CONFLICT' : 'VALIDATION', message: result.message, field: result.field } },
+        { status: result.status }
+      )
+    }
+    return NextResponse.json({
+      data: { kind: result.kind, supplierPosture: result.supplierPosture, rolesAdded: result.rolesAdded, changed: ['type'], message: result.message },
+    })
   }
 
   if (!hasPermission(caller.permissions, 'settings.manage')) {
@@ -224,7 +271,6 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const body = await request.json().catch(() => ({}))
   const data: Record<string, unknown> = {}
   const changed: string[] = []
 
