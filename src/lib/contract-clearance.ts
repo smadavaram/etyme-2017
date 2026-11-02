@@ -1565,6 +1565,13 @@ export async function lineExtras(
   supplierCertificates?: CoverCertificate[]
   documentTypes?: DefinedType[]
 }> {
+  // A sell line is answered by the many-lines read, so one line and many
+  // lines cannot come to different answers, and a caller holding several
+  // lines asks once (`lineExtrasForSellLines`). What follows answers a
+  // buy line.
+  if ('sellContractId' in input && input.sellContractId) {
+    return (await lineExtrasForSellLines([input.sellContractId], db, now)).get(input.sellContractId) ?? {}
+  }
   const set = await requirementsFor(input as Parameters<typeof requirementsFor>[0], db as never)
   if (!set) return {}
 

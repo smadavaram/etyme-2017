@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
+import { lineExtras, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
 
 /**
  * The page-timing pass, 2026-11-02: at 40 at once the compliance read took
@@ -49,6 +49,14 @@ describe('the compliance page reads each line once', () => {
     expect(findUnique).toHaveBeenCalledTimes(2)
     expect([...sets.keys()]).toEqual(['line-1', 'line-2'])
     expect(sets.get('line-2')).toBeNull()
+  })
+
+  it('one line’s extras are read through the many-lines read, so one line and many cannot come to different answers', async () => {
+    const { db } = fakeDb()
+    const many = (db as unknown as { sellContract: { findMany: ReturnType<typeof vi.fn> } }).sellContract.findMany
+    await lineExtras({ sellContractId: 'line-1' }, db)
+    expect(many).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(many.mock.calls[0][0])).toContain('"in":["line-1"]')
   })
 
   it('the starts are checked in one batch, and what the firm owes reads the same sets as the starts', () => {
