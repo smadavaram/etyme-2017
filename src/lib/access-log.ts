@@ -168,8 +168,58 @@ export type AccessAction =
   // MARKETING_REQUEST.
   | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
 
+/**
+ * Whose data was read (2026-11-01). A person, by id — every caller before
+ * this day, and still almost all of them — or a firm, where what was read
+ * is the firm's own: a supplier's insurance, its W-9, its good standing.
+ *
+ * The simulation found the gap: the document file route filed a firm's id
+ * as a person's, the foreign key refused it, and 98 reads and a refusal of
+ * company papers were never in the trail. The row now names the firm as
+ * the firm (`AccessLog.subjectCompanyId`).
+ */
+export type AccessSubject = string | { personId: string } | { companyId: string }
+
+/**
+ * The subject columns of one row: exactly one of the person and the firm.
+ * Prisma cannot put that rule on the table, so the one writer keeps it.
+ * Throws on a subject naming both, neither, or an empty id. Pure.
+ */
+export function subjectColumns(subject: AccessSubject): { subjectId: string | null; subjectCompanyId: string | null } {
+  const o: { personId?: unknown; companyId?: unknown } = typeof subject === 'string' ? { personId: subject } : subject
+  const person = typeof o.personId === 'string' && o.personId.trim() ? o.personId : null
+  const firm = typeof o.companyId === 'string' && o.companyId.trim() ? o.companyId : null
+  if (!person === !firm) {
+    throw new Error(
+      person
+        ? 'An access-log row names one subject: the person or the firm, not both.'
+        : 'An access-log row names whose data was read: a person or a firm. This one named neither.'
+    )
+  }
+  return { subjectId: person, subjectCompanyId: firm }
+}
+
+/** One key per subject, so the same person or firm is written once per call. */
+function subjectKey(subject: AccessSubject): string {
+  const c = subjectColumns(subject)
+  return c.subjectId ? `person:${c.subjectId}` : `firm:${c.subjectCompanyId}`
+}
+
+/** "3 people", "1 firm", "2 people and 1 firm": who a failed write was about, in words. Pure. */
+export function whomSaid(subjects: readonly AccessSubject[]): string {
+  let people = 0
+  let firms = 0
+  for (const s of subjects) {
+    if (typeof s !== 'string' && 'companyId' in s) firms++
+    else people++
+  }
+  const p = people ? `${people} ${people === 1 ? 'person' : 'people'}` : ''
+  const f = firms ? `${firms} ${firms === 1 ? 'firm' : 'firms'}` : ''
+  return p && f ? `${p} and ${f}` : p || f || 'nobody'
+}
+
 interface LogAccessBase {
-  /** The person whose data was accessed */
+  /** The person whose data was accessed. A firm's own data is written through `recordAccess` and `recordRefusal`, which take an `AccessSubject`. */
   subjectId: string
   /**
    * The person doing the accessing (if known). Where a twin made the
@@ -331,6 +381,9 @@ export function logAccess(params: LogAccessParams): void {
         action,
         allowed,
       },
+      // The id only: nothing reads the row back, and a database a column
+      // behind the client still takes the write.
+      select: { id: true },
     })
     .catch((err) => {
       void reportError(
@@ -402,15 +455,17 @@ export function logBulkAccess(
  * share that rolled back. Omitted, the row is written on its own.
  */
 export async function recordAccess(
-  subjectIds: string[],
+  subjects: readonly AccessSubject[],
   params: Without<LogAccessParams, 'subjectId'>,
   db: AccessLogWriter = prisma
 ): Promise<number> {
-  if (subjectIds.length === 0) return 0
+  if (subjects.length === 0) return 0
   const row = actorRow({ ...params, subjectId: '' })
+  // A subject naming both or neither throws here, before anything is
+  // written, so the caller does not hand over what it could not record.
   const written = await db.accessLog.createMany({
-    data: subjectIds.map((subjectId) => ({
-      subjectId,
+    data: subjects.map((subject) => ({
+      ...subjectColumns(subject),
       ...row,
       action: params.action,
       allowed: params.allowed ?? true,
@@ -447,19 +502,27 @@ export async function recordAccess(
  * on every host.
  */
 export async function recordRefusal(
-  subjectIds: readonly string[],
+  subjectIds: readonly AccessSubject[],
   // `allowed: false` may be written at the call site so the route reads
   // as what it is; nothing else is accepted, because this is refusals only.
   params: Without<LogAccessParams, 'subjectId' | 'allowed'> & { allowed?: false }
 ): Promise<number> {
-  const subjects = [...new Set(subjectIds)]
-  if (subjects.length === 0) return 0
+  if (subjectIds.length === 0) return 0
+  let subjects: AccessSubject[] = [...subjectIds]
   try {
-    // Inside the try: a refusal is a refusal even when its actor is malformed.
+    // Inside the try: a refusal is a refusal even when its actor or a
+    // subject is malformed. The same person or firm is written once.
+    const seen = new Set<string>()
+    subjects = subjectIds.filter((s) => {
+      const k = subjectKey(s)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
     const row = actorRow({ ...params, subjectId: '' })
     const written = await prisma.accessLog.createMany({
-      data: subjects.map((subjectId) => ({
-        subjectId,
+      data: subjects.map((subject) => ({
+        ...subjectColumns(subject),
         ...row,
         action: params.action,
         allowed: false,
@@ -470,7 +533,7 @@ export async function recordRefusal(
     await reportError(
       'access-log',
       new Error(
-        `Could not record a refused ${params.action} of ${subjects.length} ${subjects.length === 1 ? 'person' : 'people'}. ` +
+        `Could not record a refused ${params.action} of ${whomSaid(subjects)}. ` +
           `The refusal was sent and is not in the trail. ` +
           `Cause: ${err instanceof Error ? err.message : String(err)}`
       ),

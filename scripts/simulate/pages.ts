@@ -25,10 +25,15 @@
  * 4. Stops the app and writes `reports/pages-<stamp>.md`, with the JSON of
  *    every call beside it.
  *
- * It writes nothing itself. Reading a page writes what reading it always
+ * It writes no row itself. Reading a page writes what reading it always
  * writes — the access log, a notice — and the report counts both before
- * and after.
+ * and after. It does bring the database's schema up to this tree's before
+ * it starts the app (`prisma db push`, refusing anything that would lose
+ * data), because the app reads this tree's schema: the first founder-scale
+ * pass ran on a database kept before `AccessLog.subjectCompanyId` existed,
+ * and every single-row access-log write failed until the column was added.
  */
+import { execFileSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -64,6 +69,24 @@ function readerUrlFor(db: string): string {
 function hasGet(route: string): boolean {
   const file = join(ROOT, 'src', 'app', 'api', ...route.split('/'), 'route.ts')
   return existsSync(file) && /export\s+(async\s+function|const)\s+GET\b/.test(readFileSync(file, 'utf8'))
+}
+
+/**
+ * The kept database brought up to this tree's schema, so the app started
+ * on it can read every column the tree's client asks for. Additive only:
+ * without --accept-data-loss Prisma refuses a change that would drop a
+ * column or a table, and the pass stops with its words.
+ */
+function bringUpToSchema(db: string, say: (line: string) => void): void {
+  try {
+    const out = execFileSync('npx', ['prisma', 'db', 'push', '--skip-generate'], {
+      cwd: ROOT, env: { ...process.env, DATABASE_URL: urlFor(db) }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    say(/already in sync/i.test(out) ? `${db} already holds this tree's schema` : `${db} brought up to this tree's schema`)
+  } catch (e: any) {
+    const said = `${e?.stdout ?? ''}${e?.stderr ?? ''}`.trim().split('\n').slice(-6).join(' ')
+    throw new Error(`${db} could not be brought up to this tree's schema without losing data, so the pages were not read. Prisma said: ${said}`)
+  }
 }
 
 async function countTables(reader: PrismaClient): Promise<Record<string, number>> {
@@ -110,6 +133,7 @@ async function main() {
 
   ensurePostgres()
   if (!databaseExists(args.db)) throw new Error(`There is no database called ${args.db}. A simulation run says which it kept on its last line.`)
+  bringUpToSchema(args.db, say)
 
   // The secret the simulation signs sessions with (run.ts); the server
   // and the actors must agree on it (lib/demo-session).

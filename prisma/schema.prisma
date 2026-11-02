@@ -565,15 +565,24 @@ model TradeLinkRequest {
 
 // Every read of a person's data, including refusals. The subject can see this.
 model AccessLog {
-  id             String   @id @default(cuid())
-  subjectId      String
-  subject        Person   @relation("subject", fields: [subjectId], references: [id], onDelete: Cascade)
-  actorPersonId  String?
-  actorPerson    Person?  @relation("actor", fields: [actorPersonId], references: [id])
-  actorCompanyId String?
-  actorCompany   Company? @relation(fields: [actorCompanyId], references: [id])
-  action         String // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
-  allowed        Boolean  @default(true)
+  id               String   @id @default(cuid())
+  /// Whose data was read: a person (`subjectId`) or a firm
+  /// (`subjectCompanyId`), exactly one where a subject is named
+  /// (2026-11-01). A firm's own papers — its insurance, its W-9 — are
+  /// about the firm, and filing the firm's id as a person failed the
+  /// foreign key, so 98 reads and a refusal in the simulation were never
+  /// in the trail. The one writer, lib/access-log (`subjectColumns`),
+  /// refuses a row naming both or neither; Prisma cannot say it here.
+  subjectId        String?
+  subject          Person?  @relation("subject", fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectCompanyId String?
+  subjectCompany   Company? @relation("accessSubjectCompany", fields: [subjectCompanyId], references: [id], onDelete: Cascade)
+  actorPersonId    String?
+  actorPerson      Person?  @relation("actor", fields: [actorPersonId], references: [id])
+  actorCompanyId   String?
+  actorCompany     Company? @relation("accessActorCompany", fields: [actorCompanyId], references: [id])
+  action           String // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
+  allowed          Boolean  @default(true)
   /// PERSON · TWIN · SAMPLE. TWIN where a twin made the read on the
   /// authority of `actorPersonId`'s seat, so the row carries both names:
   /// the person whose authority it was, and the twin that used it
@@ -582,13 +591,14 @@ model AccessLog {
   /// sample seat the home page frames (2026-10-14); that seat is a seeded
   /// person of its own ("Shared sample"), never a program manager who
   /// works there, and `reason` names its Context.
-  actorKind      String   @default("PERSON")
+  actorKind        String   @default("PERSON")
   /// Which twin, where `actorKind` is TWIN — PROGRAM_MANAGER first.
-  actorTwinKind  String?
-  reason         String? // why it was refused
-  at             DateTime @default(now())
+  actorTwinKind    String?
+  reason           String? // why it was refused
+  at               DateTime @default(now())
 
   @@index([subjectId, at])
+  @@index([subjectCompanyId, at])
   @@index([actorPersonId])
   @@index([actorCompanyId])
 }
@@ -863,7 +873,9 @@ model Company {
   submissionsOut        Submission[]            @relation("from")
   submissionsIn         Submission[]            @relation("to")
   automationLog         AutomationLog[]
-  accessLogs            AccessLog[]
+  accessLogs            AccessLog[]             @relation("accessActorCompany")
+  /// Reads of this firm's own data (its papers), each logged with the firm as its subject.
+  accessedBy            AccessLog[]             @relation("accessSubjectCompany")
   programSeatsGranted   ProgramSeat[]           @relation("seatClient")
   programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
   seatAsksMade          ProgramSeatRequest[]    @relation("seatAskOffice")
