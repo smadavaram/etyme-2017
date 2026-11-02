@@ -92,7 +92,8 @@ export async function POST(request: NextRequest) {
         results.push({ invoiceId, number: null, status: 'skipped', reason: who.says })
         continue
       }
-      const check = await mayBeSent(invoiceId, companyId, ['ISSUED', 'DRAFT'])
+      // The billing address was asked once for every bill by `maySendBills`, which refuses a firm with none.
+      const check = await mayBeSent(invoiceId, companyId, ['ISSUED', 'DRAFT'], { addressRead: true })
       if (!check.ok) {
         if (check.status === 404) errors++
         else skipped++
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       // Each bill to the firm that pays it, after its own transaction, the
       // same call as the single Send (lib/notify/bill-delivery). A delivery
       // that fails leaves the bill sent and says so on the row.
-      const delivered = await sendBillToCustomer({ invoiceId, byPersonId: caller.person.id }).catch((err) => {
+      const delivered = await sendBillToCustomer({ invoiceId, byPersonId: caller.person.id, read: told.read }).catch((err) => {
         void reportError('bill-delivery', err, { companyId }).catch(() => {})
         return null
       })

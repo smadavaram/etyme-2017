@@ -65,7 +65,8 @@ export async function POST(
       ? NextResponse.json({ error: { code: who.code, message: who.says, step: who.step } }, { status: 409 })
       : NextResponse.json({ error: { code: who.code, message: who.says } }, { status: 403 })
   }
-  const check = await mayBeSent(id, companyId, ['ISSUED', 'DRAFT'])
+  // The billing address was asked by `maySendBill` a moment ago, which refuses a firm with none.
+  const check = await mayBeSent(id, companyId, ['ISSUED', 'DRAFT'], { addressRead: true })
   if (!check.ok) {
     return NextResponse.json(
       { error: { code: check.code, message: check.says, ...(check.checks ? { checks: check.checks } : {}), ...(check.step ? { step: check.step } : {}) } },
@@ -91,7 +92,8 @@ export async function POST(
     // the transaction, because a letter cannot be called back; and a
     // failure here never unsends the bill — it says it was not delivered,
     // and Send again is the way it goes.
-    const delivered = await sendBillToCustomer({ invoiceId: id, byPersonId: caller.person.id }).catch((err) => {
+    // The bill as the notice read it is handed on, so the letter does not read it again.
+    const delivered = await sendBillToCustomer({ invoiceId: id, byPersonId: caller.person.id, read: told.read }).catch((err) => {
       void reportError('bill-delivery', err, { companyId }).catch(() => {})
       return null
     })

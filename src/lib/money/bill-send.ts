@@ -46,6 +46,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
+import { loadForMatch } from '@/lib/invoice-match'
 import { completeCycles } from '@/lib/cycle-complete'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 import {
@@ -56,7 +57,7 @@ import { billDue } from '@/lib/money/bill-generate'
 import { fromUnits } from '@/lib/money-display'
 import { emit } from '@/lib/events'
 import { closeOvertaken } from '@/lib/twin/ledger'
-import { writePayerNoticesIn } from '@/lib/notify/bill-delivery'
+import { writePayerNoticesIn, type BillRead } from '@/lib/notify/bill-delivery'
 import { reportError } from '@/lib/alerts'
 import { hasPermission } from '@/lib/permissions'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
@@ -84,11 +85,27 @@ export type SendCheck =
  * recorded through the harness (lib/invoice-loop) whether it passes or
  * not, the same as the Submit button always has.
  */
-export async function mayBeSent(invoiceId: string, companyId: string, from: readonly ('ISSUED' | 'DRAFT')[]): Promise<SendCheck> {
-  const invoice = await prisma.invoice.findFirst({
-    where: { id: invoiceId, ...invoicesRaisedBy(companyId) },
-    select: { id: true, number: true, status: true, matchAttempt: true },
-  })
+export async function mayBeSent(
+  invoiceId: string,
+  companyId: string,
+  from: readonly ('ISSUED' | 'DRAFT')[],
+  opts: {
+    /**
+     * The caller asked `maySendBill(s)` for this firm in this request, which
+     * refuses a firm with no billing address, so it is not read again here.
+     * The twin's check asks nothing first and leaves this off.
+     */
+    addressRead?: boolean
+  } = {}
+): Promise<SendCheck> {
+  // The bill read once, as the check reads it (`loadForMatch`): whether
+  // this firm raised it, its state, its lines, and everything the check
+  // weighs them against. It was read three times: for the state, to count
+  // its lines, and again by the check.
+  const [loaded] = await loadForMatch({ id: invoiceId, ...invoicesRaisedBy(companyId) })
+  const invoice = loaded
+    ? { id: loaded.id, number: loaded.number, status: loaded.status, matchAttempt: loaded.matchAttempt }
+    : null
   if (!invoice) {
     return { ok: false, status: 404, code: 'NOT_FOUND', says: 'No such bill of yours. A bill is sent by the firm that raised it.' }
   }
@@ -104,7 +121,7 @@ export async function mayBeSent(invoiceId: string, companyId: string, from: read
   // No bill leaves without an address to print on it: the setup
   // checklist's Addresses step (`mayIssueBill`, 2026-10-28). A draft may
   // still be written; only sending is refused, before the check writes.
-  const address = await mayIssueBill(companyId)
+  const address = opts.addressRead ? ({ ok: true } as const) : await mayIssueBill(companyId)
   if (!address.ok) {
     return { ok: false, status: 409, code: 'SETUP_INCOMPLETE', says: address.says, step: address.step }
   }
@@ -122,11 +139,11 @@ export async function mayBeSent(invoiceId: string, companyId: string, from: read
   // buyer's to move (ratified 2026-09-19; the second Tapin walk). A
   // closed order, a ceiling with no room, no order where one is required,
   // hours nobody accepted and every other check still refuse.
-  const lineCount = await prisma.invoiceLine.count({ where: { invoiceId } })
+  const lineCount = loaded!.invoiceLines.length
   let notes: string[] = []
   if (lineCount > 0) {
     const attempt = invoice.matchAttempt + 1
-    const { result: match } = await matchAndRecord(invoiceId, companyId, attempt, { orderWindow: 'SAY' })
+    const { result: match } = await matchAndRecord(invoiceId, companyId, attempt, { orderWindow: 'SAY' }, loaded)
     await prisma.invoice.update({ where: { id: invoiceId }, data: { matchAttempt: attempt } })
     if (match && !match.matched) {
       return {
@@ -477,13 +494,18 @@ export async function markSent(
  * (see the head of this file). `why` is where nobody at the payer can be
  * told.
  */
-export async function tellPayerAfterSending(invoiceId: string, companyId: string): Promise<{ written: number; why: string | null }> {
+export async function tellPayerAfterSending(
+  invoiceId: string,
+  companyId: string
+): Promise<{ written: number; why: string | null; read: BillRead | null }> {
   try {
     const told = await writePayerNoticesIn(prisma, { invoiceId })
-    return { written: told.written, why: told.why }
+    // The bill as the notice read it, after the commit: handed to the
+    // letter (`sendBillToCustomer`'s `read`), so a send reads it once.
+    return { written: told.written, why: told.why, read: told.read }
   } catch (err) {
     void reportError('bill-payer-notice', err, { companyId }).catch(() => {})
-    return { written: 0, why: null }
+    return { written: 0, why: null, read: null }
   }
 }
 

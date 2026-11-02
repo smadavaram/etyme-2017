@@ -129,7 +129,8 @@ describe('every other refusal stands for the firm sending the bill', () => {
 describe('the send door asks the check as the firm sending it, and the pay door as the firm paying', () => {
   it('Send, the bulk Send and a yes in Ask Etyme all run the check with the window as a sentence (lib/money/bill-send)', () => {
     const src = read('src/lib/money/bill-send.ts')
-    expect(src).toMatch(/matchAndRecord\(invoiceId, companyId, attempt, \{ orderWindow: 'SAY' \}\)/)
+    // Handed the bill the check read it with (`loadForMatch`), so the window is read on that one read.
+    expect(src).toMatch(/matchAndRecord\(invoiceId, companyId, attempt, \{ orderWindow: 'SAY' \}, loaded\)/)
   })
 
   it('the send door still refuses a bill with no billing address before it runs the check', () => {

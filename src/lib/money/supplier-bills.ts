@@ -415,7 +415,7 @@ export const billSend: Performer = {
   async after(c) {
     // The payer's people told in the app first, so the delivery below sends
     // their notice rather than writing a second one.
-    await tellPayerAfterSending(c.entity.id, c.companyId)
+    const told = await tellPayerAfterSending(c.entity.id, c.companyId)
     try {
       // The event a bill raised on the Bills page sends, now that this one is raised.
       await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true }, c.carry?.sent as Sent | undefined)
@@ -427,7 +427,8 @@ export const billSend: Performer = {
       // transaction), and only a context without one reads the answered
       // question, because the twin sends nothing on its own.
       const byPersonId = c.approverPersonId ?? (await whoSaidYes(c).catch(() => null))
-      await sendBillToCustomer({ invoiceId: c.entity.id, byPersonId }).catch((err) => {
+      // The bill as the notice read it, handed on: a yes reads it once.
+      await sendBillToCustomer({ invoiceId: c.entity.id, byPersonId, read: told.read }).catch((err) => {
         void reportError('bill-delivery', err, { companyId: c.companyId }).catch(() => {})
         return null
       })
