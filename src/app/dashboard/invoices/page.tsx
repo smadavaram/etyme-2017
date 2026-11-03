@@ -194,6 +194,8 @@ function agingColor(bucket: string): string {
 interface EngagementOption {
   id: string
   title: string
+  /** "<person> · <week or weeks> · <customer>" (lib/money/bill-choice). */
+  label?: string
   /** Who the bill would go to. Null where nothing on the paper says. */
   clientName: string | null
 }
@@ -248,7 +250,7 @@ function GenerateInvoiceModal({
     e.preventDefault()
 
     if (!engagementId) {
-      setError('Select an engagement')
+      setError('Pick the person and the weeks to bill.')
       return
     }
 
@@ -314,7 +316,7 @@ function GenerateInvoiceModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Engagement *</label>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Who and which weeks *</label>
             {loadingEngagements ? (
               <LoadingState compact says="Loading engagements…" />
             ) : engagements.length > 0 ? (
@@ -325,10 +327,10 @@ function GenerateInvoiceModal({
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="">Select engagement…</option>
+                <option value="">Pick a person and their weeks…</option>
                 {engagements.map((eng) => (
                   <option key={eng.id} value={eng.id}>
-                    {eng.clientName ? `${eng.title} — ${eng.clientName}` : eng.title}
+                    {eng.label ?? (eng.clientName ? `${eng.title} — ${eng.clientName}` : eng.title)}
                   </option>
                 ))}
               </select>

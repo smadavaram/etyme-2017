@@ -4,6 +4,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { generateBill, BILLABLE_LINE_STATES } from '@/lib/money/bill-generate'
+import { billChoiceLabel } from '@/lib/money/bill-choice'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -115,6 +116,19 @@ export async function GET(request: NextRequest) {
           company: { select: { id: true, name: true } },
           clientCompany: { select: { id: true, name: true } },
           endClientCompany: { select: { id: true, name: true } },
+          // What the choice is called: the person, and the signed weeks
+          // not yet on a live bill (lib/money/bill-choice).
+          person: { select: { name: true } },
+          timesheets: {
+            where: {
+              assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
+              // Not on a live bill of this firm's; a rung above or below
+              // bills the same week on its own line.
+              invoiceLines: { none: { sellContract: { companyId: caller.company!.id }, invoice: { status: { notIn: ['CANCELLED', 'VOID'] } } } },
+            },
+            select: { periodStart: true, periodEnd: true },
+            take: 60,
+          },
         },
       },
     },
@@ -130,17 +144,28 @@ export async function GET(request: NextRequest) {
     })
     if (!mayBillUnder(parties, caller.company).ok) continue
 
+    const clientName =
+      e.sellContracts[0]?.endClientCompany?.name ??
+      parties.client?.name ??
+      null
+    // This firm's own lines only: a rung below bills its own.
+    const own = e.sellContracts.filter((l) => l.companyId === caller.company!.id)
     billable.push({
       id: e.id,
       title: e.title,
+      // "<person> · <week or weeks> · <customer>", the way the trade says
+      // which bill it means; never a job title alone.
+      label: billChoiceLabel({
+        people: own.map((l) => l.person?.name ?? '').filter(Boolean),
+        weeks: own.flatMap((l) => l.timesheets.map((t) => ({ start: t.periodStart, end: t.periodEnd }))),
+        clientName,
+        title: e.title,
+      }),
       // Who the bill would go to. The end client where a line names one
       // — that is the firm on the paper — and the customer on the line
       // otherwise. Never a guess: null where nothing says, and the
       // screen prints the engagement's own name alone.
-      clientName:
-        e.sellContracts[0]?.endClientCompany?.name ??
-        parties.client?.name ??
-        null,
+      clientName,
       says: parties.says,
     })
   }
