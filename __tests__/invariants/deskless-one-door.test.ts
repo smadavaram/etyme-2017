@@ -431,9 +431,10 @@ describe('the demo door counts a demo start once per visit', () => {
     expect(picker).toContain("...(visit ? { visit, page: '/demo' } : {})")
     const route = readFileSync(join(API, 'demo/route.ts'), 'utf8')
     expect(route).toContain("import { countDemoStarted } from '@/lib/events'")
-    // One count before each of the four answers that seat somebody: a
-    // resume, a person, a world desk, a private sandbox.
-    expect(route.match(/await countTheSeat\(body\)/g)?.length).toBe(4)
+    // One count before each of the five answers that seat somebody: a
+    // resume, a person, a worker door (2026-11-03), a world desk, a
+    // private sandbox.
+    expect(route.match(/await countTheSeat\(body\)/g)?.length).toBe(5)
     // And none on a refusal: no count precedes an error answer.
     for (const m of route.matchAll(/await countTheSeat\(body\)\n\s*(?:const res = )?(?:return )?NextResponse\.json\(\{\n\s*(\w+)/g)) {
       expect(m[1]).toBe('data')
