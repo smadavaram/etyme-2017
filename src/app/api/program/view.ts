@@ -23,6 +23,7 @@ import { regionContracts, regionRequirements } from '@/lib/region-scope'
 import { readerScope } from './reader-scope'
 import { reportingRatesFor } from '@/lib/money/reporting-currency'
 import { onSiteOf, headcount, needsReportingRates, spendFigures } from './figures'
+import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 
 /**
  * GET /api/program
@@ -149,6 +150,8 @@ export async function programView(
         include: {
           person: { select: { id: true, name: true } },
           company: { select: { id: true, name: true } },
+          // Its currency, for an expense raised before it carried one.
+          buyLinks: LINE_CURRENCY_SELECT.buyLinks,
         },
       },
     },
@@ -445,7 +448,7 @@ export async function programView(
     }),
     prisma.expense.findMany({
       where: { sellContract: andAll(endClientFilter(clientCompany.id), reachWall), approvedAt: { gte: dayStart } },
-      select: { id: true, total: true, approvedAt: true, person: { select: { name: true } } },
+      select: { id: true, total: true, currency: true, approvedAt: true, person: { select: { name: true } }, sellContract: { select: LINE_CURRENCY_SELECT } },
       orderBy: { approvedAt: 'desc' }, take: 10,
     }),
     prisma.submission.findMany({
@@ -465,7 +468,7 @@ export async function programView(
   ])
   const today = [
     ...signedToday.map((t) => ({ id: `t-${t.id}`, what: 'Hours signed', who: `${t.person.name}, ${Number(t.totalHours)}h`, at: t.clientApprovedAt!.toISOString() })),
-    ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, $${Number(e.total).toFixed(2)}`, at: e.approvedAt!.toISOString() })),
+    ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, ${claimSays(Number(e.total), currencyOfExpense(e))}`, at: e.approvedAt!.toISOString() })),
     ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${viaPhrase(shown(c.company.id, c.company.name))}`, at: c.startDate.toISOString() })),
     ...awardedToday.map((a) => ({ id: `a-${a.id}`, what: 'Awarded', who: `${a.person.name} — ${a.requirement.title}`, at: a.decidedAt!.toISOString() })),
     // One line per ask: the same person asked of the same supplier for
@@ -559,6 +562,7 @@ export async function programView(
       detail: `${exp.category} · ${exp.billable ? 'Billable' : 'Internal'}`,
       // Whole currency, not cents. See decisions/route.ts.
       amount: exp.total ? Number(exp.total) : null,
+      currency: currencyOfExpense(exp),
       submittedAt: exp.submittedAt?.toISOString() ?? null,
       daysWaiting: exp.submittedAt
         ? Math.floor((now.getTime() - exp.submittedAt.getTime()) / (24 * 60 * 60 * 1000))

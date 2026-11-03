@@ -100,7 +100,7 @@ describe('Today → Approvals, a week over the line', () => {
     expect(approvalAmountSays({ kind: 'timesheet', amount: 1 })).toBe(' · 1 hour')
     expect(approvalAmountSays({ kind: 'timesheet', amount: 37.5 })).toBe(' · 37.50 hours')
     expect(approvalAmountSays({ kind: 'timesheet', amount: 45 })).not.toContain('$')
-    expect(approvalAmountSays({ kind: 'expense', amount: 149.98 })).toBe(' · $149.98')
+    expect(approvalAmountSays({ kind: 'expense', amount: 149.98, currency: 'USD' })).toBe(' · $149.98')
     expect(approvalAmountSays({ kind: 'timesheet', amount: null })).toBe('')
     expect(PROGRAM_PAGE).toContain('{approvalAmountSays(item)}')
     expect(PROGRAM_PAGE).not.toContain('{item.amount != null && ` · $${item.amount.toFixed(2)}`}')

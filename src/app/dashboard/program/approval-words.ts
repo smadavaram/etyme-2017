@@ -8,17 +8,20 @@
  * expense in the one `amount` field, and only the kind says which.
  */
 import type { ReasonAsked } from '@/lib/award/reason-asked'
+import { claimSays } from '@/lib/expense-currency'
 
 /** What the page's approve hands back to the row: done, or the route's own question. */
 export type Approved = { ok: boolean; asked?: ReasonAsked }
 
-export function approvalAmountSays(item: { kind: 'timesheet' | 'expense'; amount: number | null }): string {
+export function approvalAmountSays(item: { kind: 'timesheet' | 'expense'; amount: number | null; currency?: string | null }): string {
   if (item.amount == null) return ''
   if (item.kind === 'timesheet') {
     const h = Number.isInteger(item.amount) ? String(item.amount) : item.amount.toFixed(2)
     return ` · ${h} hour${item.amount === 1 ? '' : 's'}`
   }
-  // An expense carries no currency of its own on the record; the queue's
-  // claims are in the client's own dollars, as the page has always read them.
-  return ` · $${item.amount.toFixed(2)}`
+  // A claim is in the currency it was raised in (`currencyOfExpense` in
+  // lib/expense-currency): pesos at Monterrey, dong at Ho Chi Minh City.
+  // Where the row names none, the figure is said without a symbol rather
+  // than as dollars nobody chose.
+  return ` · ${claimSays(item.amount, item.currency ?? null)}`
 }

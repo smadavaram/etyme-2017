@@ -469,6 +469,8 @@ export const DOMAINS: Domain[] = [
       // What kind of company this is, changed by its Owner after sign-up
       // (the founder's Tapin, 2026-11-02): the choices and the verdict.
       'lib/company-kind',
+      // The currency an expense is in, decided once where it is raised (2026-11-02).
+      'lib/expense-currency',
       // The admin's setup checklist (founder, 2026-10-22; built 2026-10-28):
       // the eleven items' rules and words, the record of each answer and
       // where it came from, the fill sources (the work email, a paper, read

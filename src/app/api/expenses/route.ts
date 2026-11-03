@@ -9,6 +9,7 @@ import { acceptancesOn, expenseOf, legOf, legsFor, legsOverMany, linesBelowPaid,
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
 import { expenseDecideRefusal } from '@/lib/money/expense-decides'
 import { billableOnFiling, mayFileOwnExpense } from '@/lib/money/own-expense'
+import { expenseCurrencyFor } from '@/lib/expense-currency'
 
 /**
  * GET /api/expenses
@@ -398,6 +399,8 @@ export async function POST(request: NextRequest) {
         periodEnd: new Date(periodEnd),
         items,
         total: totalOf(items),
+        // In the pay currency of the line that pays the worker (lib/expense-currency).
+        currency: await expenseCurrencyFor(line!.id, prisma),
         receiptUrl: receiptUrl ?? null,
         // Filed by the person who spent it: that is the submission.
         status: 'SUBMITTED',
@@ -513,6 +516,8 @@ export async function POST(request: NextRequest) {
       periodEnd: new Date(periodEnd),
       items,
       total: totalOf(items),
+      // In the pay currency of the line that pays the worker (lib/expense-currency).
+      currency: await expenseCurrencyFor(sellContractId, prisma),
       receiptUrl: receiptUrl ?? null,
       status: 'DRAFT',
     },

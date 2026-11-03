@@ -46,6 +46,7 @@ import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { postAssertion, removeWithdrawnPostings } from '@/lib/order-postings'
 import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt, type Entry } from '@/lib/gl'
 import { alreadyOnABill, type BillOnRecord } from '@/lib/money/billed-elsewhere'
+import { expenseCurrencyFor } from '@/lib/expense-currency'
 
 export interface SeedContext {
   firmBySlug: Map<string, { id: string }>
@@ -1099,6 +1100,8 @@ export async function seedOrderToCash(
           periodStart: day(e.submittedOn - 7), periodEnd: day(e.submittedOn),
           items: e.items as never,
           total: Math.round(total * 100) / 100,
+          // The pay currency of the line that pays the worker (lib/expense-currency).
+          currency: await expenseCurrencyFor(c.id, db),
           status: e.status,
           submittedAt: day(e.submittedOn),
           approvedById: e.approvedOn == null ? null : approver?.personId ?? null,

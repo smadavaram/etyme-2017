@@ -70,6 +70,7 @@ import { dueOn } from '@/lib/billing-cascade'
 import { seedCorvane, corvaneSteps, CORVANE_SLUG, CORVANE_SUPPLIER_SLUGS } from '@/lib/seed-corvane'
 import { seedProgramSites } from '@/lib/seed-sites'
 import { seedSetupChecklists } from '@/lib/seed-setup'
+import { expenseCurrencyFor } from '@/lib/expense-currency'
 
 /** `n` days after a UTC midnight, still at UTC midnight. */
 function plusDays(d: Date, n: number): Date {
@@ -453,6 +454,8 @@ export async function seedRosaExpenses(ctx: SeedContext): Promise<{ expenses: nu
           category: 'TRAVEL', billable: true, description: e.description,
           periodStart: day(e.submittedOn - 3), periodEnd: day(e.submittedOn - 1),
           items: e.items as never, total,
+          // The pay currency of the line that pays her (lib/expense-currency).
+          currency: await expenseCurrencyFor(line.id, db),
           status: 'APPROVED',
           submittedAt: day(e.submittedOn),
           approvedById: payroll.id, approvedAt: day(e.approvedOn),

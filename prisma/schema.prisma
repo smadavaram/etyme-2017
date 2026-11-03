@@ -4713,6 +4713,13 @@ model Expense {
   periodEnd       DateTime
   items           Json // [{ description, quantity, unitPrice, expenseType }]
   total           Decimal             @db.Decimal(12, 2)
+  /// The currency `items` and `total` are in: the pay currency of the line
+  /// that pays the worker for this placement (`expenseCurrencyFor` in
+  /// lib/expense-currency), written where the expense is raised. The
+  /// Approvals row printed every expense in dollars, which is wrong at a
+  /// non-dollar site such as Corvane's (2026-11-02). Null on an expense
+  /// raised before then: read the line's own currency, never a default.
+  currency        String?
   receiptUrl      String?
   status          String              @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
   submittedAt     DateTime?

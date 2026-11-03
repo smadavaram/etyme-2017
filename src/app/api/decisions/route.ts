@@ -43,6 +43,7 @@ import { linkAsksFor, joinAsksFor, firmAskItems, LINK_REQUEST } from '@/app/api/
 import { emailSender } from '@/lib/senders'
 import { readerScope } from '@/app/api/program/reader-scope'
 import { regionContracts } from '@/lib/region-scope'
+import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 
 /**
  * GET /api/decisions
@@ -427,6 +428,8 @@ export async function GET(request: NextRequest) {
         sellContract: {
           select: {
             clientCompany: { select: { name: true } },
+            // Its currency, for an expense raised before it carried one.
+            ...LINE_CURRENCY_SELECT,
           },
         },
       },
@@ -447,13 +450,15 @@ export async function GET(request: NextRequest) {
         // schema says so where InvoiceLine is defined. Dividing by a
         // hundred turned a $149.98 expense into "$1.50" on the founder's
         // main screen, and an $1,801 one into "$18.01".
-        subtitle: `$${Number(exp.total).toFixed(2)} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
+        // In the currency it was raised in (lib/expense-currency), never dollars by default.
+        subtitle: `${claimSays(Number(exp.total), currencyOfExpense(exp))} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : 'MEDIUM',
         entityType: 'EXPENSE',
         entityId: exp.id,
         dueDate: null,
         actionUrl: '/dashboard/expenses',
-        amount: Number(exp.total),
+        // Whole dollars only, the unit the queue's Value adds; another currency is said in the subtitle.
+        amount: currencyOfExpense(exp) === 'USD' ? Number(exp.total) : null,
         createdAt: exp.submittedAt?.toISOString() ?? exp.createdAt.toISOString(),
       })
     }

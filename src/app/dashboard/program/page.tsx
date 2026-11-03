@@ -114,6 +114,8 @@ interface ProgramData {
     vendor: string
     detail: string
     amount: number | null
+    /** An expense's currency (lib/expense-currency); null on a week. */
+    currency?: string | null
     submittedAt: string | null
     daysWaiting: number
   }[]
