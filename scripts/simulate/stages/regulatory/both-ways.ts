@@ -23,6 +23,7 @@ import type { Ctx } from '../../stage'
 import { docMatrix, type DocAction } from './doc-matrix'
 import { pdf, sendFile, type PaperFile } from './paper-files'
 import { askOf, answerWith, examineAt, firstSeat, workerOf } from './registration'
+import { education } from './education'
 
 const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -86,7 +87,7 @@ function tooLarge(name: string): PaperFile {
 }
 
 /** One placement this run started whose worker, employer and client all have seats. */
-async function findSubject(ctx: Ctx): Promise<{ s: Subject | null; other: Actor | null }> {
+async function findSubject(ctx: Ctx): Promise<{ s: Subject | null; other: Actor | null; otherPerson: { personId: string; personName: string } | null }> {
   const started = ctx.world.contracts.filter((c) => c.side === 'SELL').map((c) => c.id)
   const rows = await ctx.read.sellContract.findMany({
     where: { state: 'IN_PROGRESS', ...(started.length ? { id: { in: started } } : {}) },
@@ -108,6 +109,7 @@ async function findSubject(ctx: Ctx): Promise<{ s: Subject | null; other: Actor 
   )
   let s: Subject | null = null
   let other: Actor | null = null
+  let otherPerson: { personId: string; personName: string } | null = null
   for (const r of rows) {
     if (!ctx.world.companies[r.company.slug] || !ctx.world.companies[r.clientCompany.slug]) continue
     if (below.has(`${r.personId}:${r.company.id}`)) continue
@@ -121,9 +123,9 @@ async function findSubject(ctx: Ctx): Promise<{ s: Subject | null; other: Actor 
       s = { lineId: r.id, personId: r.personId, personName: r.person.name, supplier: r.company, client: r.clientCompany, worker, hr, clientSeat, supplierSeat }
       continue
     }
-    if (r.personId !== s.personId) { other = worker; break }
+    if (r.personId !== s.personId) { other = worker; otherPerson = { personId: r.personId, personName: r.person.name }; break }
   }
-  return { s, other }
+  return { s, other, otherPerson }
 }
 
 // ── 1. Proof of right to work ─────────────────────────────────────────
@@ -410,7 +412,7 @@ async function sets(ctx: Ctx): Promise<string[]> {
 
 /** Every case, once. Never throws: a case that fails is a line in the report. */
 export async function bothWays(ctx: Ctx): Promise<string> {
-  const { s, other } = await findSubject(ctx)
+  const { s, other, otherPerson } = await findSubject(ctx)
   if (!s) {
     docMatrix.skipped('no running placement this run had a worker, an employer and a client all with seats')
     return 'The document matrix found no placement to stand on.'
@@ -428,6 +430,7 @@ export async function bothWays(ctx: Ctx): Promise<string> {
     ['the authorization', () => consent(ctx, s)],
     ['the waiver', () => waiver(ctx, s)],
     ['the sets', () => sets(ctx)],
+    ['education', () => education(ctx, s, other && otherPerson ? { actor: other, ...otherPerson } : null)],
   ]
   for (const [name, run] of cases) {
     try {
