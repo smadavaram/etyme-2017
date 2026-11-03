@@ -2719,6 +2719,75 @@ client's Approvals row (no Corvane agreement names billable expense
 kinds, so none reaches a client), and the 390 px phone pass. Report:
 `scratchpad/walk-saves/report2.md`, shots under `shots2/`.
 
+**Shipped to production 2026-11-03 (3a35d888d on the deploy branch,
+source b30ab360b):** the screen-walk wave, 360 files. The I-9 class
+closed on screens: every door that credits an I-9 asks for the
+document shown (Document requests, Paperwork, Compliance's Record the
+I-9, offered wherever the firm owes it as the employer), a firm's own
+name for the I-9 is read as the I-9 and an I-94 never is, one edition
+rule every door reads (`editionToRecord`) refuses an edition the issuer
+never printed, one retired before the day the form was completed, or
+one dated after it, Compliance reads the backing the way the start
+does, and a passport shown again on an I-9 already on file is kept.
+"Every question a route asks, its screen has a field for" as a contract
+test in five domains; money's screens ask on the page, never in a
+browser prompt; a button is drawn only where its route will take it
+(Today, Candidates, Timesheets; Roll off and Accept-expense never for a
+program manager; Send on by `maySendOn`); the Owner changes the kind of
+company from Settings and the menu, the chat and the checklist follow;
+a setup question is answered with the next item and its link; an
+expense carries the currency it was spent in; a seated firm writes to
+the client's suppliers as the program and sees "Message <supplier>" on
+Candidates; a candidate card tells two jobs with one title apart and
+opens that job's candidates; the compliance page reads every line's set
+in one call; the generated world's papers grow with it; an approval
+stands when its posting fails; every machine sentence the first walk
+found reworded; the cron sweep reads route files only; and the load
+wave's performance fixes above. Release pass 31 on f84db49d9 (type
+check clean, 13,127 of 13,131 unit, 2,606 of 2,608 integration, build
+clean; the six reds test strings and ledger entries behind the wave,
+fixed and green alone), pass 32 on 12cf8d106 after the walk's two
+fixes (type check clean, 13,136 of 13,138 unit, 2,608 of 2,608
+integration, build clean; the two reds the posture's ladder counts and
+a hand-formatted date, fixed), and on b30ab360b generate, type check,
+the four fixed files (173 of 173) and the build, all clean. Gates on
+the replay: no Ruby, brand kit present, no source difference. Four
+additive columns land through `DB_PUSH_ON_BUILD`, which the founder
+sets back to 0 after this deploy: `Expense.currency`,
+`Company.kindSetById` and `kindSetAt`, `AccessLog.subjectCompanyId`, and
+the index on `Notification(personId, createdAt)`. **The founder's one
+step:** sign in to Tapin as the Owner and set its type to Bench vendor
+from Settings. Three lessons from the wave, so they are not paid for
+twice: a worker restart loses every agent and its context, and the
+handover that works is the diff itself (`git diff -- <files>`), which
+a fresh agent of the same domain finishes from; two agents running
+integration files while a third changes the schema cut each other's
+connections (Postgres 57P01, the template rebuild), so the release
+pass runs alone and agents run unit files only while it runs; and a
+`src/lib/matrix.ts` left staged by a dead agent rode into two commits
+and each had to be undone, so a committer checks `git diff --cached`
+holds only its own files before `git commit`. Coordinator's calls on
+the way, each reversible in a sentence: the candidate card draws no
+act until an act kind in the role contract decides a candidate; the
+no-email ask sentence drops "has not answered yet", because she was
+never sent the link; an I-9 edition dated after the completion day is
+refused with the other two; the retirement day prints as the issuer
+prints it. **Open, with owners:** a client's typed-in invoice receipt
+lists no supplier, the last of the class "the screen cannot reach the
+rule", and the order's drawn figure posted at straight time after a
+premium was chosen, a money figure, both first in money's next wave,
+with a bill generated from Bills carrying no pay-to, "₫170.00" showing
+cents, and the acceptance read on `billCurrency` (money); Paperwork
+saying "On file" for a paper nobody examined (regulatory); nine notices
+on a worker's own upload, identical candidate cards, "bill" for an
+invoice receipt in a client's greeting (conversation); Grant the seat
+with empty fields saying nothing, Activate offered to HR, "due to
+start" on a past day, the bill picker naming jobs (demand); Add
+consultant offered to a delivery manager (supply). The three pieces
+decided this day (work country, the degree, setup as a conversation)
+start on this source, the setup conversation on the founder's read of
+https://claude.ai/artifact/3VnXSMPHtFu2uXhSZR1HmM.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
