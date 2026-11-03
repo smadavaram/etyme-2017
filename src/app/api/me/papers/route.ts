@@ -1,3 +1,4 @@
+import { fileHash } from '@/lib/document-stages/degree'
 import { NextRequest, NextResponse } from 'next/server'
 import { employmentOf } from '@/app/api/compliance/verifications/record'
 import { linesForWorker } from '@/lib/document-stages/employer'
@@ -1028,6 +1029,7 @@ export async function PUT(request: NextRequest) {
           data: {
             verificationId: v.id, fileName: file.name, fileUrl: `/api/me/papers?file=${v.id}`,
             contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes,
+            fileHash: fileHash(file.bytes),
           },
         })
       }

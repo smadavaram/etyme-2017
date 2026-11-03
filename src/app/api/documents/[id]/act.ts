@@ -1,3 +1,4 @@
+import { fileHash } from '@/lib/document-stages/degree'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { BUILT_IN } from '@/lib/document-type'
@@ -159,6 +160,7 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
           contentType: file.type,
           sizeBytes: file.bytes.byteLength,
           bytes: file.bytes,
+          fileHash: fileHash(file.bytes),
           uploadedById: caller.person.id,
         },
         update: {
@@ -166,6 +168,7 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
           contentType: file.type,
           sizeBytes: file.bytes.byteLength,
           bytes: file.bytes,
+          fileHash: fileHash(file.bytes),
           uploadedAt: now,
           uploadedById: caller.person.id,
         },

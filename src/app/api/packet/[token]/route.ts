@@ -1,3 +1,4 @@
+import { fileHash } from '@/lib/document-stages/degree'
 import { plainDate } from '@/lib/plain-date'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
@@ -348,8 +349,8 @@ async function keepTheFile(packetId: string, itemId: string, label: string, file
     await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
     await tx.docFile.upsert({
       where: { docInstanceId: paper.id },
-      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes },
-      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedAt: now },
+      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: fileHash(file.bytes) },
+      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: fileHash(file.bytes), uploadedAt: now },
     })
     return paper.id
   })
