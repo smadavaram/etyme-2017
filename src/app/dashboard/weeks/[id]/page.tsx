@@ -7,6 +7,7 @@ import { useSession } from '@/components/session-provider'
 import { DetailHead } from '@/components/ui/detail-head'
 import { LoadingState, RefusedState } from '@/components/ui/states'
 import { isDeskless } from '@/lib/nav-table'
+import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'
 
 /**
  * One week, and how the client approved it.
@@ -192,6 +193,11 @@ export default function WeekPage() {
           ))}
         </ul>
       </section>
+
+      {/* The money part: the bill this reader's firm raises on the week,
+          from money's one component. It draws nothing where the reader's
+          firm bills nothing on this week. */}
+      <BillThisWeek timesheetId={id} />
 
       {seen.act.ok && (
         <section className="panel space-y-3">
