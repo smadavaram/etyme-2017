@@ -102,7 +102,7 @@ describe('What each seat opens is its own menu, never a hand list', () => {
     const pages = pagesOf(menu).map((p) => p.href)
     expect(new Set(pages)).toEqual(new Set(hrefs(menu)))
     expect(pages.length).toBe(new Set(pages).size)
-    expect(pagesOf(menu).find((p) => p.href === '/dashboard/bench')?.label).toBe('People › Bench')
+    expect(pagesOf(menu).find((p) => p.href === '/dashboard/bench')?.label).toBe('Candidates › Bench')
   })
 
   it('a page the menu does not offer this role is not opened', () => {

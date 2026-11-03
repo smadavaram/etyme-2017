@@ -134,10 +134,10 @@ describe('the Interviews and Submissions pages are headed in the reader’s own 
     expect(f.eyebrow).toBeTruthy()
   })
 
-  it('a supplier’s Interviews page is headed Candidates, the link its own menu files Interviews under as a tab', () => {
-    expect(pageFraming('VENDOR', 'interviews', null, OWNER).eyebrow).toBe('Candidates')
-    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Candidates')
-    expect(pageFraming('MSP', 'interviews', null, OWNER).eyebrow).toBe('Candidates')
+  it('a supplier’s Interviews page is headed Submissions, the link its own menu files Interviews under as a tab', () => {
+    expect(pageFraming('VENDOR', 'interviews', null, OWNER).eyebrow).toBe('Submissions')
+    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Submissions')
+    expect(pageFraming('MSP', 'interviews', null, OWNER).eyebrow).toBe('Submissions')
   })
 
   it('the Interviews page takes its heading from the framing and types no section name of its own', () => {

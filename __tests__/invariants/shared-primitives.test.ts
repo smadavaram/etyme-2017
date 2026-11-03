@@ -290,7 +290,7 @@ describe('the shell', () => {
   it('the pages of the noun being read sit in a row of tabs at every width, in the page, never over it', () => {
     const menu = getNavForKind('CLIENT', false)
     expect(tabsFor(menu, '/dashboard/alumni')!.tabs.map((i) => i.label))
-      .toEqual(['Contractors', 'Contracts', 'Ending soon', 'Past contractors', 'Tenure', 'Duplicate check'])
+      .toEqual(['Contracts', 'Ending soon', 'Past contractors', 'Tenure', 'Duplicate check'])
     expect(tabsFor(menu, '/dashboard/requisitions')).toBeNull()
     // The worker's "You" is a list, so on a phone her other pages are pills, and from md up the menu lists them.
     const items = [

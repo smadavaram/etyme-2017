@@ -117,11 +117,12 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     }
   })
 
-  it('bench check-ins are headed by the reader\'s own link, People, never by Talent', () => {
+  it('bench check-ins are headed by the reader\'s own link, Candidates, never by Talent or People', () => {
     // The page typed "Talent" into its own header rather than asking the
-    // framing, so it outlived the section by the same route.
-    expect(sectionOfHref('VENDOR', '/dashboard/texts')).toBe('People')
-    expect(sectionOfHref('GSI', '/dashboard/texts')).toBe('People')
+    // framing, so it outlived the section by the same route. "People"
+    // read "Candidates" from 2026-11-03 (founder: "People = candidates").
+    expect(sectionOfHref('VENDOR', '/dashboard/texts')).toBe('Candidates')
+    expect(sectionOfHref('GSI', '/dashboard/texts')).toBe('Candidates')
     // An MSP runs no bench, so it has no check-ins to head
     // (sign-up walk, round five, problem 21).
     expect(sectionOfHref('MSP', '/dashboard/texts')).toBeNull()
@@ -130,8 +131,8 @@ describe('the heading on a page names the section the reader\'s own menu puts it
   it('no section name is typed into the framing table by hand', () => {
     // Derivation is the point. If an eyebrow could be written here, it
     // could disagree with the menu here, which is exactly what happened.
-    expect(sectionFor('VENDOR', 'contracts.buy')).toBe('Companies')
-    expect(sectionFor('CLIENT', 'contracts.buy')).toBe('Contractors')
+    expect(sectionFor('VENDOR', 'contracts.buy')).toBe('Contracts')
+    expect(sectionFor('CLIENT', 'contracts.buy')).toBe('Contracts')
   })
 
   it('a page its own menu does not offer is headed by nothing rather than by somebody else\'s section', () => {
@@ -147,8 +148,8 @@ describe('the heading on a page names the section the reader\'s own menu puts it
 
 describe('a staffing vendor reads its own menu over its own pages', () => {
 
-  it('buy contracts are headed Companies, where the menu files both sides of a contract as tabs', () => {
-    expect(pageFraming('VENDOR', 'contracts.buy', null, OWNER).eyebrow).toBe('Companies')
+  it('buy contracts are headed Contracts, the link of its own that files both sides of a contract as tabs', () => {
+    expect(pageFraming('VENDOR', 'contracts.buy', null, OWNER).eyebrow).toBe('Contracts')
   })
 
   it('sell contracts are headed the same section as buy contracts, because they are one table', () => {
@@ -160,13 +161,13 @@ describe('a staffing vendor reads its own menu over its own pages', () => {
     expect(pageFraming('VENDOR', 'timesheets', null, OWNER).eyebrow).toBe('Timesheets')
   })
 
-  it('the firm’s own consultants are headed People, never Talent — the section that stopped existing', () => {
-    expect(pageFraming('VENDOR', 'consultants', null, OWNER).eyebrow).toBe('People')
+  it('the firm’s own consultants are headed Candidates, never Talent or People — the sections that stopped existing', () => {
+    expect(pageFraming('VENDOR', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
   })
 
-  it('the jobs a vendor is working are headed Jobs, who it put forward Candidates, and who rolls off Timesheets', () => {
+  it('the jobs a vendor is working are headed Jobs, who it put forward Submissions, and who rolls off Timesheets', () => {
     expect(pageFraming('VENDOR', 'requirements', null, OWNER).eyebrow).toBe('Jobs')
-    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Candidates')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
     expect(pageFraming('VENDOR', 'rolloff', null, OWNER).eyebrow).toBe('Timesheets')
   })
 
@@ -182,25 +183,25 @@ describe('a staffing vendor reads its own menu over its own pages', () => {
   })
 })
 
-describe('an integrator and an MSP are headed by the same nine a supplier reads', () => {
+describe('an integrator and an MSP are headed by the same links a supplier reads', () => {
 
-  it('an integrator reads Candidates over who it put forward, the same link a staffing vendor reads', () => {
-    expect(pageFraming('GSI', 'submissions', null, OWNER).eyebrow).toBe('Candidates')
-    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Candidates')
+  it('an integrator reads Submissions over who it put forward, the same link a staffing vendor reads', () => {
+    expect(pageFraming('GSI', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
   })
 
   it('an MSP reads Jobs over the job requests it works', () => {
     expect(pageFraming('MSP', 'requirements', null, OWNER).eyebrow).toBe('Jobs')
   })
 
-  it('an integrator files its own people under People, and an MSP, which places nobody, has no people to file', () => {
-    expect(pageFraming('GSI', 'consultants', null, OWNER).eyebrow).toBe('People')
+  it('an integrator files its own people under Candidates, and an MSP, which places nobody, has no people to file', () => {
+    expect(pageFraming('GSI', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
     expect(pageFraming('MSP', 'consultants', null, OWNER).eyebrow).toBe('')
   })
 
-  it('contracts are Companies, the hours and expenses Timesheets, and the money Bills, for all three suppliers', () => {
+  it('contracts are Contracts, the hours and expenses Timesheets, and the money Bills, for all three suppliers', () => {
     const heads: Partial<Record<PageKey, string>> = {
-      'contracts.sell': 'Companies', 'contracts.buy': 'Companies', timesheets: 'Timesheets', invoices: 'Bills', expenses: 'Timesheets',
+      'contracts.sell': 'Contracts', 'contracts.buy': 'Contracts', timesheets: 'Timesheets', invoices: 'Bills', expenses: 'Timesheets',
     }
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
       for (const [page, head] of Object.entries(heads)) {
@@ -229,7 +230,7 @@ describe('a client sees demand-side framing', () => {
   it('sell contracts are framed as contracts at the client\'s sites', () => {
     const f = pageFraming('CLIENT', 'contracts.sell', null, OWNER)
     expect(f.title).toBe('Contracts')
-    expect(f.eyebrow).toBe('Contractors')
+    expect(f.eyebrow).toBe('Contracts')
   })
 
   it('a client is never told they bill their own contractors', () => {
@@ -361,9 +362,12 @@ describe('a program office reading a client\'s book is framed in the client\'s w
   it('the eyebrow follows the seat to the client\'s own links, where the client\'s own menu files the page', () => {
     // The sidebar already moved (`seatedAtClient` in the shell). The
     // heading is read off the same menu, so the two cannot disagree.
-    expect(pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH, OWNER).eyebrow).toBe('Contractors')
+    expect(pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH, OWNER).eyebrow).toBe('Contracts')
     expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER).eyebrow).toBe('Timesheets')
-    expect(pageFraming('MSP', 'contracts.sell', null, OWNER).eyebrow).toBe('Companies')
+    expect(pageFraming('MSP', 'contracts.sell', null, OWNER).eyebrow).toBe('Contracts')
+    // Where the two menus name a page differently, the seat's wins.
+    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH, OWNER).eyebrow).toBe('Invoice receipts')
+    expect(pageFraming('MSP', 'invoices', null, OWNER).eyebrow).toBe('Bills')
   })
 
   it('every shared page a seated office opens is worded exactly as the client\'s own desk words it', () => {
@@ -472,7 +476,7 @@ describe('a supplier reading its own book is framed exactly as before', () => {
 
   it('the two headings the walk called out are word for word what they were, under the link the nine file them at', () => {
     const contracts = pageFraming('VENDOR', 'contracts.sell', null, OWNER)
-    expect(contracts.eyebrow).toBe('Companies')
+    expect(contracts.eyebrow).toBe('Contracts')
     expect(contracts.title).toBe('Sell Contracts')
     expect(contracts.subtitle).toBe(
       'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
@@ -649,8 +653,8 @@ describe('sign-up walk, round three: a page is headed by the link the reader cli
     expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Companies')
   })
 
-  it('a client’s contractors are headed Contractors, the link they sit under', () => {
-    expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Contractors')
+  it('a client’s people are headed Candidates, the link they sit under', () => {
+    expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
   })
 
   it('Paperwork, Screening packs and Check queue are headed Settings for a staffing vendor, where its menu files them as tabs', () => {
@@ -902,7 +906,7 @@ describe('sign-up walk, round six: a page is headed only by a section the reader
 
   it('an MSP in a client’s seat is headed by the client’s menu, trimmed to the seat it was granted', () => {
     const seated: ReaderIdentity = { companyKind: 'MSP', seatedAtClient: 'Cavanaugh Glassworks', permissions: ['*'] }
-    expect(sectionForReader(seated, '/dashboard/alumni')).toBe('Contractors')
+    expect(sectionForReader(seated, '/dashboard/alumni')).toBe('Contracts')
     expect(sectionForReader({ companyKind: 'MSP', permissions: ['*'] }, '/dashboard/alumni')).toBeNull()
   })
 })
@@ -1009,8 +1013,8 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
   it('a page that passes its reader is headed off that reader’s own trimmed menu, and an owner still reads the whole menu’s section', () => {
     expect(pageFraming('GSI', 'interviews', null, KARTHIK).eyebrow).toBe('')
     expect(pageFraming('VENDOR', 'submissions', null, SAM).eyebrow).toBe('')
-    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Candidates')
-    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Candidates')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
+    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Submissions')
   })
 
   it('the words under the heading do not change when the reader is omitted, only the section over them', () => {
@@ -1032,7 +1036,7 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
   it('a reader seated at a client is framed in the client’s words and menu when it passes only its identity', () => {
     const seated = { permissions: ['*'], seatedAtClient: 'Cavanaugh Glassworks' }
     const f = pageFraming('MSP', 'contracts.sell', null, seated)
-    expect(f.eyebrow).toBe('Contractors')
+    expect(f.eyebrow).toBe('Contracts')
     expect(f.whose).toContain('Cavanaugh Glassworks')
   })
 

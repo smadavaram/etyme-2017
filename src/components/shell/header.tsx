@@ -127,7 +127,7 @@ const PLUS_MENU: PlusMenuSection[] = [
     ],
   },
   {
-    label: 'People',
+    label: 'Candidates',
     items: [
       {
         label: 'Add consultant',

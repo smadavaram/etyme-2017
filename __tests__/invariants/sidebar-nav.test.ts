@@ -37,14 +37,18 @@ describe('a client viewing People never sees the same human twice under two diff
   const client = getNavForKind('CLIENT', false)
   const hrefs = client.flatMap((s) => s.items.map((i) => i.href))
 
-  it('reads its people as Contractors, one row per human, and what its suppliers sent as Candidates', () => {
+  it('reads the people it keeps as Candidates, one row per human, what its suppliers sent as Submissions, and the placed lines as Contracts', () => {
     // The raw feed put every supplier's submission of the same person on
-    // its own row. It is the client's Candidates now (founder,
-    // 2026-10-19) — what suppliers put forward, waiting to be looked at —
-    // and the people register is a noun of its own beside it.
-    expect(client.find((s) => s.label === 'Contractors')!.items[0].href).toBe('/dashboard/people')
-    expect(client.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/submissions')
-    expect(client.flatMap((s) => s.items.map((i) => i.label))).not.toContain('People')
+    // its own row. It is the client's Submissions now (founder,
+    // 2026-11-03: "hiring managers also see submissions as submissions
+    // or applications") and the people register is Candidates, "a memory
+    // of candidates they would like to reach out to".
+    expect(client.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/people')
+    expect(client.find((s) => s.label === 'Submissions')!.items[0].href).toBe('/dashboard/submissions')
+    expect(client.find((s) => s.label === 'Contracts')!.items[0].href).toBe('/dashboard/contracts')
+    const labels = client.flatMap((s) => s.items.map((i) => i.label))
+    expect(labels).not.toContain('People')
+    expect(labels).not.toContain('Contractors')
   })
 
   it('offers exactly one entry point for people, and it is the merged register', () => {
@@ -82,14 +86,16 @@ describe('a candidate never lands on the vendor staff\'s own screens', () => {
   })
 })
 
-describe('a menu is nine links, and every other page is a tab of one of them', () => {
+describe('a menu is ten links at most, and every other page is a tab of one of them', () => {
   // The founder, 2026-10-19: "left navigation is also exhaustive … [it]
   // will scare anyone from our app." The table carried 133 labels and a
-  // supplier's owner read about forty.
+  // supplier's owner read about forty. Nine links then; ten since
+  // Contracts became a link of its own between Submissions and
+  // Timesheets (2026-11-03).
   for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
-    it(`gives ${kind} at most nine links, each one noun whose other pages are its tabs`, () => {
+    it(`gives ${kind} at most ten links, each one noun whose other pages are its tabs`, () => {
       const nav = getNavForKind(kind, false, { permissions: ['*'] })
-      expect(nav.length, kind).toBeLessThanOrEqual(9)
+      expect(nav.length, kind).toBeLessThanOrEqual(10)
       for (const s of nav) expect(s.tabbed, `${kind} ${s.label}`).toBe(true)
       expect(nav.flatMap(linksOf).map((l) => l.label)).toEqual(nav.map((s) => s.label))
     })
@@ -97,8 +103,9 @@ describe('a menu is nine links, and every other page is a tab of one of them', (
 
   it('opens each noun on its own page first, and draws its tabs in the order the table holds them', () => {
     const vendor = getNavForKind('VENDOR', false)
-    expect(tabsFor(vendor, '/dashboard/interviews')).toEqual({ label: 'Candidates', tabs: vendor.find((s) => s.label === 'Candidates')!.items })
-    expect(tabsFor(vendor, '/dashboard/interviews')!.tabs.map((t) => t.label)).toEqual(['Candidates', 'Interviews'])
+    expect(tabsFor(vendor, '/dashboard/interviews')).toEqual({ label: 'Submissions', tabs: vendor.find((s) => s.label === 'Submissions')!.items })
+    expect(tabsFor(vendor, '/dashboard/interviews')!.tabs.map((t) => t.label)).toEqual(['Submissions', 'Interviews'])
+    expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(['Sell contracts', 'Buy contracts', 'POs'])
     expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR', 'AP', 'Payroll', 'Commissions'])
   })
 
@@ -110,10 +117,10 @@ describe('a menu is nine links, and every other page is a tab of one of them', (
   })
 
   it('opens a noun on the first of its pages the seat may open, so the link never lies', () => {
-    // The finance desk reads bench profit and no people: People opens Bench for it.
+    // The finance desk reads bench profit and no people: Candidates opens Bench for it.
     const finance = getNavForKind('VENDOR', false, { permissions: ['pnl.read', 'invoices.read'] })
-    const people = finance.find((s) => s.label === 'People')!
-    expect(linksOf(people)[0]).toMatchObject({ label: 'People', href: '/dashboard/bench' })
+    const people = finance.find((s) => s.label === 'Candidates')!
+    expect(linksOf(people)[0]).toMatchObject({ label: 'Candidates', href: '/dashboard/bench' })
   })
 
   it('draws no sub-heading anywhere: a page that was a neighbor is a tab now', () => {
@@ -155,13 +162,13 @@ describe('a client\'s nav reads as the nouns on its own desk, not a wall of link
   })
 })
 
-describe('an integrator gets the nine a supplier gets, its own people under People', () => {
+describe('an integrator gets the links a supplier gets, its own people under Candidates', () => {
   const gsi = getNavForKind('GSI', false)
   const hrefs = gsi.flatMap((s) => s.items.map((i) => i.href))
 
-  it('reads the supplier’s nine, with no Leads, because its demand arrives through the client it already has', () => {
+  it('reads the supplier’s ten, with no Leads, because its demand arrives through the client it already has', () => {
     expect(gsi.map((s) => s.label)).toEqual(
-      ['Ask Etyme', 'Today', 'Jobs', 'Candidates', 'Timesheets', 'Bills', 'People', 'Companies', 'Settings']
+      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Candidates', 'Companies', 'Settings']
     )
     expect(hrefs).not.toContain('/dashboard/leads')
   })
@@ -224,16 +231,33 @@ describe('a nav label names a thing, in the words the trade uses', () => {
     expect(asking, `a nav item is not a question: ${asking.join(' · ')}`).toEqual([])
   })
 
-  it('never offers a client "People", which it could not tell apart from Contractors and Candidates', () => {
-    // The founder's first report named this pair. At a client a person is
-    // a contractor, and somebody a supplier put forward is a candidate;
-    // "People" is the supplier's own noun for its own (2026-10-19), where
-    // Candidates is who it put forward to somebody else's job.
-    const client = getNavForKind('CLIENT', false).flatMap((s) => s.items.map((i) => i.label))
-    expect(client).not.toContain('People')
+  it('never offers anybody "People" or "Contractors", and one word means one thing on every menu', () => {
+    // The founder's first report named this pair, and on 2026-11-03:
+    // "People = candidates. And Candidates = submissions." Candidates is
+    // the people a firm keeps, Submissions is who was put forward to a
+    // job, Contracts is the line from the award on.
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      const labels = getNavForKind(kind, false).flatMap((s) => [s.label, ...s.items.map((i) => i.label)])
+      expect(labels, kind).not.toContain('People')
+      expect(labels, kind).not.toContain('Contractors')
+    }
     const vendor = getNavForKind('VENDOR', false)
-    expect(vendor.find((s) => s.label === 'People')!.items[0].href).toBe('/dashboard/consultants')
-    expect(vendor.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/submissions')
+    expect(vendor.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/consultants')
+    expect(vendor.find((s) => s.label === 'Submissions')!.items[0].href).toBe('/dashboard/submissions')
+    const client = getNavForKind('CLIENT', false)
+    expect(client.find((s) => s.label === 'Submissions')!.items[0].href).toBe('/dashboard/submissions')
+  })
+
+  it('reads every firm’s menu in the process order: jobs, who was put forward, the contract, the hours, the money, the lists it keeps', () => {
+    expect(getNavForKind('CLIENT', false).map((s) => s.label)).toEqual(
+      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Invoice receipts', 'Candidates', 'Suppliers', 'Settings']
+    )
+    expect(getNavForKind('VENDOR', false).map((s) => s.label)).toEqual(
+      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Candidates', 'Companies', 'Settings']
+    )
+    expect(getNavForKind('MSP', false).map((s) => s.label)).toEqual(
+      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Companies', 'Settings']
+    )
   })
 })
 
@@ -412,14 +436,14 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
 })
 
 describe('no menu offers a wall of links', () => {
-  it('never prints more than nine links to any party, for any seat', () => {
+  it('never prints more than ten links to any party, for any seat', () => {
     for (const [party, sections] of Object.entries(MENUS)) {
-      expect(entriesOf(sections).length, party).toBeLessThanOrEqual(9)
+      expect(entriesOf(sections).length, party).toBeLessThanOrEqual(10)
     }
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
       const worker = getNavForKind(kind, false, { worker: true })
-      // Nine of the firm's, and the worker's own five under "You".
-      expect(worker.filter((s) => s.tabbed).length, kind).toBeLessThanOrEqual(9)
+      // Ten of the firm's, and the worker's own five under "You".
+      expect(worker.filter((s) => s.tabbed).length, kind).toBeLessThanOrEqual(10)
     }
   })
 })
@@ -427,7 +451,8 @@ describe('no menu offers a wall of links', () => {
 describe('both lines of a contract are one noun’s tabs, side by side, and the hours are a noun of their own', () => {
   // "contracts buy sell timesheets should be under operate" (founder,
   // 2026-09-13) still holds in its spirit: the two sides of one contract
-  // are never reached from two unrelated places.
+  // are never reached from two unrelated places. Since 2026-11-03 that
+  // place is Contracts, a link of its own on every firm's menu.
   for (const party of TRADING) {
     const sections = MENUS[party]
     const contractLinks = itemsOf(sections).filter((i) => pathOf(i.href) === '/dashboard/contracts')
@@ -435,7 +460,7 @@ describe('both lines of a contract are one noun’s tabs, side by side, and the 
     it(`files every contract page ${party} has under one noun, adjacent`, () => {
       expect(contractLinks.length, 'no contracts page at all').toBeGreaterThan(0)
       const homes = new Set(contractLinks.map((l) => sections.find((s) => s.items.includes(l))!.label))
-      expect([...homes], `${party} files contracts under ${[...homes].join(' and ')}`).toEqual([party === 'a client' ? 'Contractors' : 'Companies'])
+      expect([...homes], `${party} files contracts under ${[...homes].join(' and ')}`).toEqual(['Contracts'])
       const home = sections.find((s) => s.items.includes(contractLinks[0]))!
       const at = contractLinks.map((l) => home.items.indexOf(l))
       expect(at[at.length - 1] - at[0], 'the two sides are not side by side').toBe(contractLinks.length - 1)

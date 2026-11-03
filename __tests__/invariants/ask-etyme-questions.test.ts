@@ -652,14 +652,14 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
   }
 
   it('a question about where a page is is answered from the person’s own menu with the link, never the model', async () => {
-    await placed('OWNER', 'where can I see my contracts', 'Your contracts are under Companies, on the Sell contracts and Buy contracts tabs.',
+    await placed('OWNER', 'where can I see my contracts', 'Your contracts are under Contracts, on the Sell contracts and Buy contracts tabs.',
       ['/dashboard/contracts?side=sell', '/dashboard/contracts?side=buy'])
     // The model is off and nothing reached it: the seat's readers throw if the model is asked.
     expect((await where('OWNER', 'Where are my contracts?')).says).not.toMatch(/needs the model/)
   })
 
-  it('a supplier’s Owner asks “Where are my contracts?” and reads both tabs under Companies', async () => {
-    await placed('OWNER', 'Where are my contracts?', 'Your contracts are under Companies, on the Sell contracts and Buy contracts tabs.',
+  it('a supplier’s Owner asks “Where are my contracts?” and reads both tabs under Contracts', async () => {
+    await placed('OWNER', 'Where are my contracts?', 'Your contracts are under Contracts, on the Sell contracts and Buy contracts tabs.',
       ['/dashboard/contracts?side=sell', '/dashboard/contracts?side=buy'])
   })
 
@@ -667,12 +667,12 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
     await placed('OWNER', 'Where do I see what I billed?', 'What you billed is under Bills, on the Bills and AR tabs.', ['/dashboard/invoices', '/dashboard/ar'])
   })
 
-  it('a supplier’s Owner asks “Where do I add people to the bench?” and reads the Bench tab, then People', async () => {
-    await placed('OWNER', 'Where do I add people to the bench?', 'The bench is under People, on the Bench and People tabs.', ['/dashboard/bench', '/dashboard/consultants'])
+  it('a supplier’s Owner asks “Where do I add people to the bench?” and reads the Bench tab, then Candidates', async () => {
+    await placed('OWNER', 'Where do I add people to the bench?', 'The bench is under Candidates, on the Bench and Candidates tabs.', ['/dashboard/bench', '/dashboard/consultants'])
   })
 
-  it('a client’s hiring manager asks “Where are my contracts?” and reads Contracts under Contractors', async () => {
-    await placed('HIRING_MANAGER', 'Where are my contracts?', 'Your contracts are under Contractors, on the Contracts tab.', ['/dashboard/contracts'])
+  it('a client’s hiring manager asks “Where are my contracts?” and reads Contracts', async () => {
+    await placed('HIRING_MANAGER', 'Where are my contracts?', 'Your contracts are under Contracts.', ['/dashboard/contracts'])
   })
 
   it('a client’s hiring manager asks “Where do I approve timesheets?” and reads Timesheets', async () => {
@@ -712,7 +712,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
   it('a page the seat may not open is never offered', async () => {
     // A hiring manager has no Settings page of the firm's and no payroll.
     const payroll = await where('HIRING_MANAGER', 'Where do I run payroll?')
-    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Candidates, Timesheets, Invoice receipts, Contractors, Suppliers and Settings.' })
+    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Submissions, Contracts, Timesheets, Invoice receipts, Candidates, Suppliers and Settings.' })
     // "Take me there" toward a page off the seat's menu opens nothing.
     expect(await where('HIRING_MANAGER', 'take me there', '/dashboard/payroll')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
     // Every page offered to any of the four is on that seat's own filtered menu.

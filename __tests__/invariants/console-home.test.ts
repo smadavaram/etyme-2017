@@ -143,7 +143,7 @@ describe('a program office at a client’s desk reads the client’s menu', () =
 
   it('gives the MSP its own menu back the moment it holds no seat at the client', () => {
     expect(getNavForKind('MSP', false).map((s) => s.label)).toEqual(
-      ['Ask Etyme', 'Today', 'Jobs', 'Candidates', 'Timesheets', 'Bills', 'Companies', 'Settings']
+      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Companies', 'Settings']
     )
   })
 })

@@ -23,18 +23,22 @@ import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 /**
  * Sidebar navigation — from CLAUDE.md, "Navigation per company type".
  *
- * Nine links per party (founder, 2026-10-19), and this file and
- * CLAUDE.md's table are held together by a test rather than by anybody
- * remembering:
+ * Nine links per party (founder, 2026-10-19), ten at a firm since the
+ * process order of 2026-11-03, and this file and CLAUDE.md's table are
+ * held together by a test rather than by anybody remembering:
  *
- *   Client      Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings
- *   Supplier,   Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings
- *   integrator,
- *   MSP
+ *   Client      Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Candidates · Suppliers · Settings
+ *   Supplier,   Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Candidates · Companies · Settings
+ *   integrator
+ *   MSP         the supplier's, with no Candidates (an MSP places nobody)
  *   Solo        Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings
  *   Consultant  Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork
  *
- * Every other page is a tab of one of the nine.
+ * The founder, 2026-11-03: "People = candidates. And Candidates =
+ * submissions", and "Contracts, not Contractors". One word means one
+ * thing on every menu: Submissions is who was put forward to a job,
+ * Candidates is the people a firm keeps, Contracts is the line from the
+ * award on. Every other page is a tab of one of the links.
  */
 
 export type NavSection = {
@@ -416,8 +420,12 @@ const JOBS: NavItem = { label: 'Jobs', href: '/dashboard/requirements', icon: '�
 const LEADS: NavItem = { label: 'Leads', href: '/dashboard/leads', icon: '⌁', pageCalls: ['openings', 'openings/**'] }
 const SHARED_WITH_YOU: NavItem = { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' }
 
-/** Who was put forward, and the rounds they sit. */
-const CANDIDATES: NavItem = { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' }
+/**
+ * Who was put forward, and the rounds they sit. "Submissions" on every
+ * menu since 2026-11-03 (founder: "Candidates = submissions"; "hiring
+ * managers also see submissions as submissions or applications").
+ */
+const SUBMISSIONS: NavItem = { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' }
 const INTERVIEWS: NavItem = { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' }
 
 const TIMESHEETS: NavItem = { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' }
@@ -438,16 +446,21 @@ const PAYROLL: NavItem = { label: 'Payroll', href: '/dashboard/payroll', icon: '
 // What a recruiter earned on a placement.
 const COMMISSIONS: NavItem = { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', needs: ['payroll.read'] }
 
-/** The firm's own people. The register first; the bench beside it. */
-const PEOPLE: NavItem = { label: 'People', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] }
+/**
+ * The firm's own people, its candidates: the register first, the bench
+ * beside it. "Candidates" since 2026-11-03 (founder: "People =
+ * candidates"); "People" is nobody's word at a staffing firm.
+ */
+const CANDIDATES: NavItem = { label: 'Candidates', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] }
 const BENCH: NavItem = { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS }
 const CHECK_INS: NavItem = { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS }
 
 /**
- * The firms it trades with, and what it agreed with them: the register,
- * the firms it buys from, the people at them, both lines of a contract
- * and the order they draw down. `/api/suppliers` is scoped to the caller
- * as the buyer, which is what a prime with sub-vendors under it reads.
+ * The firms it trades with: the register, the firms it buys from and the
+ * people at them. `/api/suppliers` is scoped to the caller as the buyer,
+ * which is what a prime with sub-vendors under it reads. Both lines of a
+ * contract and the order they draw down are a link of their own since
+ * 2026-11-03 (Contracts, below).
  */
 const COMPANIES: NavItem = { label: 'Companies', href: '/dashboard/companies', icon: '▣' }
 const SUPPLIERS: NavItem = { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] }
@@ -516,25 +529,37 @@ const FIRM_SETTINGS: NavItem[] = [
 const tabbed = (label: string, items: NavItem[]): NavSection => ({ label, tabbed: true, items })
 
 /**
- * A staffing vendor: Ask Etyme · Today · Jobs · Candidates · Timesheets ·
- * Bills · People · Companies · Settings.
+ * A firm's contracts, a link of its own between Submissions and
+ * Timesheets (founder, 2026-11-03: "a utility for contracts on sell side
+ * or buy where documentation happens and hiring happens, followed by
+ * timesheet and expense submit"). Sell, the line that bills the client
+ * or the prime; Buy, the line that pays a sub-vendor or the firm's own
+ * employee; and the orders beside them.
+ */
+const FIRM_CONTRACTS: NavItem[] = [SELL_CONTRACTS, BUY_CONTRACTS, POS]
+
+/**
+ * A staffing vendor: Ask Etyme · Today · Jobs · Submissions · Contracts ·
+ * Timesheets · Bills · Candidates · Companies · Settings — the process
+ * order, then the two lists it keeps.
  */
 const VENDOR_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
   tabbed('Jobs', [JOBS, LEADS, SHARED_WITH_YOU]),
-  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
+  tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('People', [PEOPLE, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS]),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An integrator: the supplier's nine. No Leads: a GSI's demand arrives
+ * An integrator: the supplier's ten. No Leads: a GSI's demand arrives
  * through the client relationship it already has, not through a capture
- * form. Its People are its own employees, rolling off one project and
+ * form. Its Candidates are its own employees, rolling off one project and
  * onto the next — checked first on a job request before a role reaches a
  * sub-vendor (match-engine.ts: this company's own bench and nobody
  * else's).
@@ -543,19 +568,20 @@ const GSI_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
-  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
+  tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('People', [PEOPLE, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS]),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An MSP: the supplier's nine, less People. An MSP runs the program and
+ * An MSP: the supplier's ten, less Candidates. An MSP runs the program and
  * places nobody (CLAUDE.md, "Etyme runs the program"): it holds no bench
  * and no consultants of its own, and its own setup tells it so (sign-up
- * walk, round five, problem 21), so the menu offers no People with
+ * walk, round five, problem 21), so the menu offers no Candidates with
  * nothing behind it. No payroll and no commission run either: it pays
  * nobody and is paid a fee on the program. The supplier base it manages
  * and how each firm scores are under Companies.
@@ -568,10 +594,11 @@ const MSP_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY]),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
-  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
+  tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS]),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
@@ -659,16 +686,19 @@ const SOLO_NAV: NavSection[] = [
 ]
 
 /**
- * A client: Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice
- * receipts · Contractors · Suppliers · Settings.
+ * A client: Ask Etyme · Today · Jobs · Submissions · Contracts ·
+ * Timesheets · Invoice receipts · Candidates · Suppliers · Settings —
+ * the process order, then the two lists it keeps (founder, 2026-11-03).
  *
  * A client only buys, so its money noun is what it receives: invoice
  * receipts, what is owed on them, the budget they draw down and the
  * orders that carry the ceiling. No AR and no payroll: nobody owes a
  * client money for contract labor, and the supplier employs the
- * contractor. Its people are Contractors — one row per human across
- * every supplier, never one per submission — with the contracts that
- * place them, who is ending soon, who has gone and the time limit.
+ * contractor. Its Contracts are its buy side, one row per person placed,
+ * with who is ending soon, who has gone and the time limit. Its
+ * Candidates are its memory of people it would like to reach out to —
+ * one row per human across every supplier, never one per submission,
+ * with the stars and the recent engagements.
  */
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
@@ -678,7 +708,17 @@ const CLIENT_NAV: NavSection[] = [
   tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞' }]),
   // What suppliers put forward, waiting to be looked at; the list
   // defaults to what was sent TO the caller.
-  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
+  // "Contracts, not Contractors" (founder, 2026-11-03): from the award on
+  // the thing a client holds is the line, with its papers, rate and dates.
+  tabbed('Contracts', [
+    { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
+    { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
+    { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎' },
+    { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+    // Where a chain we can only see part of makes one person look like two.
+    { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉' },
+  ]),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES]),
   // What a firm receives from below is an invoice receipt (founder, 2026-09-28).
   tabbed('Invoice receipts', [
@@ -687,15 +727,11 @@ const CLIENT_NAV: NavSection[] = [
     { label: 'Budget', href: '/dashboard/program/budget', icon: '◱' },
     POS,
   ]),
-  tabbed('Contractors', [
-    { label: 'Contractors', href: '/dashboard/people', icon: '◍' },
-    { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
-    { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
-    { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎' },
-    { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
-    // Where a chain we can only see part of makes one person look like two.
-    { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉' },
-  ]),
+  // The client's memory of people it would like to reach out to
+  // (founder, 2026-11-03): everybody put in front of it, the ones it
+  // starred, its recent engagements, each with "Ask for them". Opens on
+  // Everyone, so it is never empty where anybody was ever put forward.
+  tabbed('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
   tabbed('Suppliers', [
     SUPPLIERS,
     CONTACTS,
@@ -1084,8 +1120,8 @@ export function routeMatches(apiPath: string, pattern: string): boolean {
 
 /**
  * What the menu calls the page behind a route, read from the reader's
- * own menu first, so a client is told "Contractors" where a supplier
- * would read "Consultants". Null where no link names it.
+ * own menu first, so a client is told "Contracts" where a supplier
+ * would read "Sell contracts". Null where no link names it.
  */
 export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined): string | null {
   const own = kind ? getNavForKind(kind, false) : []

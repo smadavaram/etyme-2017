@@ -234,7 +234,7 @@ interface NavTopic { re: RegExp; subject: string; plural: boolean; pages: readon
 
 /** Most specific first: "add people to the bench" is the bench, not people. */
 const NAV_TOPICS: readonly NavTopic[] = [
-  { re: /\bbench\b/, subject: 'The bench', plural: false, pages: ['Bench', 'People', 'Who has you'] },
+  { re: /\bbench\b/, subject: 'The bench', plural: false, pages: ['Bench', 'Candidates', 'Who has you'] },
   { re: /\binvoice receipts?\b|\bsuppliers?['’]?s? invoices?\b/, subject: 'Invoice receipts', plural: true, pages: ['Invoice receipts', 'AP'] },
   { re: /\b(purchase|sales|work) orders?\b|\bpos\b/, subject: 'Your orders', plural: true, pages: ['POs'] },
   { re: /\bagreements?\b|\bmsas?\b/, subject: 'Your agreements', plural: true, pages: ['Agreements', 'Sell contracts', 'Buy contracts', 'Contracts'] },
@@ -247,12 +247,12 @@ const NAV_TOPICS: readonly NavTopic[] = [
   { re: /\binvoic(e|es|ed|ing)\b/, subject: 'Your invoices', plural: true, pages: ['Bills', 'Invoice receipts', 'AR'] },
   { re: /\bpayables?\b|\bap\b/, subject: 'What you owe', plural: false, pages: ['AP', 'Invoice receipts'] },
   { re: /\binterviews?\b/, subject: 'Your interviews', plural: true, pages: ['Interviews', 'Your work'] },
-  { re: /\bcandidates?\b|\bapplicants?\b|\bapplied\b|\bapplications?\b|\bsubmissions?\b/, subject: 'Your candidates', plural: true, pages: ['Candidates'] },
+  { re: /\bcandidates?\b|\bapplicants?\b|\bapplied\b|\bapplications?\b|\bsubmissions?\b/, subject: 'Your candidates', plural: true, pages: ['Submissions'] },
   { re: /\bleads?\b/, subject: 'Leads', plural: true, pages: ['Leads'] },
   { re: /\bjobs?\b|\bjob requests?\b|\brequisitions?\b|\bopenings?\b|\bpositions?\b/, subject: 'Your jobs', plural: true, pages: ['Jobs', 'Leads', 'Shared with you'] },
   { re: /\b(users?|permissions?|teammates?|colleagues?|my team|our team)\b/, subject: 'Your team', plural: false, pages: ['Users & permissions'] },
-  { re: /\bcontractors?\b/, subject: 'Your contractors', plural: true, pages: ['Contractors', 'People'] },
-  { re: /\bpeople\b|\bconsultants?\b|\bemployees?\b|\bworkers?\b/, subject: 'Your people', plural: true, pages: ['People', 'Contractors'] },
+  { re: /\bcontractors?\b/, subject: 'Your contractors', plural: true, pages: ['Candidates'] },
+  { re: /\bpeople\b|\bconsultants?\b|\bemployees?\b|\bworkers?\b/, subject: 'Your people', plural: true, pages: ['Candidates'] },
   { re: /\b(sub-?)?(suppliers?|vendors?)\b/, subject: 'Your suppliers', plural: true, pages: ['Suppliers', 'Companies'] },
   { re: /\bclients?\b|\bcustomers?\b|\bcompan(y|ies)\b|\bpartners?\b/, subject: 'Your companies', plural: true, pages: ['Companies', 'Suppliers'] },
   { re: /\bcontacts?\b/, subject: 'Your contacts', plural: true, pages: ['Contacts'] },

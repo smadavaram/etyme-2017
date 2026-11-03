@@ -66,12 +66,13 @@ describe('the two Network pages', () => {
   const suppliersApi = read('src/app/api/suppliers/route.ts')
   const favorites = read('src/app/api/favorites/route.ts')
 
-  it('a client reaches its contractors as one link, and its suppliers and their contacts as another', () => {
+  it('a client reaches the people it keeps as one link, and its suppliers and their contacts as another', () => {
     // The Network group became two of the nine links (founder,
     // 2026-10-19): Contractors, and Suppliers with Contacts as a tab.
+    // The people are the client's Candidates since 2026-11-03.
     expect(sidebar).not.toContain("group: 'People & suppliers'")
     const client = getNavForKind('CLIENT', false)
-    expect(client.find((s) => s.label === 'Contractors')!.items[0].label).toBe('Contractors')
+    expect(client.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/people')
     expect(client.find((s) => s.label === 'Suppliers')!.items.map((i) => i.label).slice(0, 2)).toEqual(['Suppliers', 'Contacts'])
   })
   it('both pages have a feed and a table of the same rows, and the same filter bar', () => {
