@@ -1674,6 +1674,53 @@ in one commit per domain, the two tables below moving with
 `lib/nav-table` so `sidebar-nav.test.ts` stays green. Machine names,
 routes and keys do not move.
 
+**Built the same evening (architect, 745397fa8, 827ba166b, 06455f31a).**
+Every firm's menu reads the process order (client: Ask Etyme · Today ·
+Jobs · Submissions · Contracts · Timesheets · Invoice receipts ·
+Candidates · Suppliers · Settings; supplier and integrator the same
+with Bills and Companies; an MSP with no Candidates, nine); "People"
+and "Contractors" are on no menu; no route, key or file name moved;
+the navigation table below matches the code and the test reads it.
+The account menu lists every firm seat as "Company · Role" and "You ·
+<first name>" only where `ownPage` says the person is a worker; the
+current hat is marked; one click switches; the left menu, search, the
++ button, the tab row and the page headings read one hat; a link into
+a worker's own page opens the You hat and a page only the firm's menu
+holds opens the firm hat; the hat is remembered in one cookie
+(`etyme_hat`, `firm` or `you`, with the seat id after a colon where
+the person holds more than one seat), read on the server through
+`readHatCookie` in `lib/nav-table`, so Ask Etyme can greet the hat
+being worn; a seat chosen in the account menu is used only where it is
+the person's own and live, and a switch between firm seats is logged
+by the route that always logged one. Twenty-six test sentences in
+`__tests__/invariants/two-hats.test.ts`. Coordinator's calls on the
+way, each reversible in a sentence: a worker whose seat holds nothing
+beyond their own work (Karthik Menon) opens in the You hat, because
+the firm hat would show only Ask Etyme; a Member with no permissions
+and no work keeps their own pages beside Ask Etyme as one hat; the
+You hat keeps the person's conversations inside Ask Etyme and offers
+nothing on the + button; switching hats reloads Ask Etyme so the
+greeting and the number are read again; the client's Candidates link
+opens the people page on Everyone until demand orders Favorites and
+Recent engagement first; a supplier's Companies carries no Agreements
+tab because no supplier agreements page exists. One lesson, so it is
+not paid for twice: the words commit was pushed red on `map.test.ts`
+alone, because a matrix line was added without regenerating the
+matrix page; the fix followed in the next commit, and a commit that
+touches `src/lib/matrix.ts` runs `npm run matrix` and the map test
+before it is pushed. **Where the founder's own worker row at Tapin
+is**, to be read on production: `ownPage` says worker for the Person
+whose email is the Owner's if any of a `ConsultantProfile`, a
+`SellContract`, a `Submission` or a `BuyContractCandidate` row carries
+that `personId`; a `ConsultantProfile` alone is enough and is the
+likeliest (a "Your page" edit or a bench listing). From this build the
+Owner's firm menu shows no You list either way; the row only decides
+whether "You · Sharath" is offered in the account menu. The words
+around the new nouns (the greeting and chips per hat, page-framing's
+titles, the nav answers, the client's Candidates page heading and
+filter order, the alumni sentences, the documentation's party table)
+are conversation's, demand's and market's, built in the same wave.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
