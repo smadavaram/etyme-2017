@@ -29,6 +29,7 @@ import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 import { reasonAsked } from '@/lib/award/reason-asked'
 import { activateBody } from './activate-body'
 import { ActivatePanel } from './activate-panel'
+import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 
 /**
  * The documents, and their lines.
@@ -862,6 +863,8 @@ function ContractDetailDrawer({
               </span>
             </div>
             <p className="text-[11px] text-etyme-faint font-mono mt-1">{contract.id.slice(0, 12)}…</p>
+            {/* The placed person's one-time sign-in link, for a seat that manages the team, where they have no account. */}
+            {contract.personId && <SignInLink personId={contract.personId} className="mt-2" />}
           </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
