@@ -76,6 +76,36 @@ export function degreeSentBack(i: { firmName: string; reason: string }): string 
   return `${i.firmName} sent your degree certificate back: ${i.reason.trim().replace(/[.\s]+$/, '')}. Upload the right one from your page.`
 }
 
+/**
+ * What the person is told when something on her degree does not look
+ * right (the fourth screen walk, 2026-11-03: HR was warned that the year
+ * on Rosa Delgado's certificate is not the year on her résumé, and Rosa
+ * was told nothing). The founder's rule: the person is told, in words,
+ * what is being checked and why, and never what HR was told. So the
+ * sentence names the firm and the thing that differs on her own papers,
+ * and says what she can do herself; it never carries HR's three doors,
+ * the years as HR reads them, or another person's name. A file already
+ * filed for somebody else is said to HR only, so on its own it tells the
+ * person nothing. A provider's verification clears every warning, and is
+ * not a question either.
+ */
+const FOR_YOU: Partial<Record<string, string>> = {
+  YEAR_AHEAD: 'the year on it has not come yet',
+  YEAR_DIFFERS: 'the year on it is not the year on your résumé',
+  NAME_DIFFERS: 'the name on it is not the name on your record',
+  SCHOOL_DIFFERS: 'the school on it is not the one your résumé names',
+  NOT_WHAT_THE_JOB_ASKS: 'it does not show the qualification the job asks for',
+}
+
+/** "Brightmoor Staffing is checking your degree certificate: the year on it is not the year on your résumé. …", or null where nothing is the person's to hear. */
+export function degreeCheckForYou(i: { firmName: string; findings: readonly { code: string }[]; verified?: string | null }): string | null {
+  if (i.verified) return null
+  const why = [...new Set(i.findings.map((f) => FOR_YOU[f.code]).filter((w): w is string => !!w))]
+  if (why.length === 0) return null
+  const said = why.length === 1 ? why[0] : `${why.slice(0, -1).join('; ')}; and ${why[why.length - 1]}`
+  return `${i.firmName} is checking your degree certificate: ${said}. If your résumé is wrong, correct it on Your page; if the certificate is the wrong one, upload the right one from Your paperwork.`
+}
+
 // ── The start's one question ──────────────────────────────────────────
 
 /** Asked of the hiring manager on the start card, Yes or No, recorded with who said it. */
