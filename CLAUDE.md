@@ -1720,6 +1720,36 @@ around the new nouns (the greeting and chips per hat, page-framing's
 titles, the nav answers, the client's Candidates page heading and
 filter order, the alumni sentences, the documentation's party table)
 are conversation's, demand's and market's, built in the same wave.
+**Conversation (f7692126c, 4e407c70b, 0255a0be0, 33158bb93) and market
+(d390e6f2a), the same evening.** Ask Etyme's greeting, chips and mark
+follow the hat through one function (`asYou` in the twin route, read
+off the account menu's own cookie and its own rule `offersYouHat`), so
+one hat never shows two numbers: an Owner who is also a worker is
+greeted as the firm until they put on the You hat, and an Owner on no
+placement is greeted as the firm whatever the cookie says; "Where are
+my contractors?" answers Contracts, "Where are my candidates?" the
+memory at a client and the bench at a supplier, "Who applied?" opens
+Submissions, and "on site today" opens Contracts; the client's people
+page is headed Candidates; a notice written before 2026-11-03 that
+said "<supplier>'s bill" is read in the client's greeting as the
+supplier's invoice through one reader; and who hears that a paper
+arrived is HR and the compliance officer, else the Owner, else the
+Admin, never the sender or a colleague (`paperExaminersAt`), wired
+into the documents route by regulatory. Coordinator's calls, each
+reversible in a sentence: a seat with no role of its own is greeted
+as a worker in either hat; in the You hat only a notice that opens a
+page on the You menu is said, so the person's own week notices stay in
+the firm hat as before; threads other companies wrote to the firm wait
+for the firm hat; both hats share the one saved Ask Etyme thread (a
+thread per hat is a schema change); the compliance officer hears a
+paper beside HR. The documentation names the menu links where they
+help ("On a client's menu, people it may ask for again are under
+Candidates. People working there now are under Contracts.") and keeps
+"Contractors" as the heading of the people page, the buyer's word for
+a person. **One word for the founder:** on the home page and the step
+pages "Candidates" is the step (who applied), and on every menu
+"Candidates" is now the memory and who applied is "Submissions"; the
+chip stays until he says the word.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
