@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { plainDate } from '@/lib/plain-date'
+import { itemStateSays } from '@/lib/document-stages/packet-resend'
 import { emptyRequestsSays } from './words'
 import { ExaminePaper, type ExamineRow } from '../documents/examine'
 import { usePageSection } from '@/components/page-section'
@@ -37,6 +38,10 @@ interface Packet {
   awaitingReview: number
   /** What arrived and nobody has looked at yet. */
   arrived?: Arrived[]
+  /** The request's own link, for a seat that sends it on; null for any other. */
+  link?: string | null
+  /** Every item and where it stands. */
+  items?: { itemId: string; label: string; required: boolean; state: string; fileName: string | null }[]
 }
 
 interface Arrived {
@@ -106,6 +111,19 @@ export default function PacketsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Send a request again from its row (2026-11-03: a stuck request could
+  // only be chased by asking again from scratch).
+  const resend = useCallback(async (p: Packet) => {
+    setError(null); setFlash(null); setLink(null); setAsked([])
+    try {
+      const res = await fetch(`/api/packets/${p.id}/resend`, { method: 'POST' })
+      const body = await readJson(res)
+      setFlash(body.data.message)
+      if (body.data.link) setLink(body.data.link)
+      load()
+    } catch (e: any) { setError(e.message) }
+  }, [load])
 
   // Opened from another page to ask for one thing — the compliance page's
   // held start, a supplier's lapsing cover — the form opens filled in.
@@ -304,7 +322,8 @@ export default function PacketsPage() {
             setFlash(body.data.message)
             load()
           } catch (e: any) { setError(e.message) }
-        }} />
+        }}
+        onResend={resend} />
       {examining && (
         <ExaminePaper
           row={examining}
@@ -312,20 +331,22 @@ export default function PacketsPage() {
           onDone={(says) => { setExamining(null); setFlash(says); load() }}
         />
       )}
-      <Group title="Waiting on them" rows={open} />
-      <Group title="Link expired" rows={stale} note="They cannot reply to these. Send a new request." />
+      <Group title="Waiting on them" rows={open} onResend={resend} />
+      <Group title="Link expired" rows={stale} note="They cannot reply to these. Send it again to open the link for thirty more days." onResend={resend} />
       <Group title="Done" rows={done} />
     </>
   )
 }
 
-function Group({ title, rows, note, onLook, onAnswer }: {
+function Group({ title, rows, note, onLook, onAnswer, onResend }: {
   title: string
   rows: Packet[]
   note?: string
   onLook?: (p: Packet, a: Arrived) => void
   onAnswer?: (p: Packet, a: Arrived, accept: boolean) => void
+  onResend?: (p: Packet) => void
 }) {
+  const [opened, setOpened] = useState<string | null>(null)
   if (rows.length === 0) return null
   return (
     <section className="mb-7">
@@ -337,7 +358,12 @@ function Group({ title, rows, note, onLook, onAnswer }: {
       <div className="space-y-2 mt-3">
         {rows.map((p) => (
           <div key={p.id} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
-            <div className="flex items-baseline justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => setOpened(opened === p.id ? null : p.id)}
+              aria-expanded={opened === p.id}
+              className="w-full text-left flex items-baseline justify-between gap-4"
+            >
               <div className="min-w-0">
                 <p className="text-[14px] text-etyme-ink">
                   {p.label}
@@ -350,7 +376,7 @@ function Group({ title, rows, note, onLook, onAnswer }: {
               <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
                 {p.progress.received}/{p.progress.total}
               </span>
-            </div>
+            </button>
             <p className={`text-[12px] mt-2 ${p.linkExpired && !p.completedAt ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
               {p.completedAt
                 ? `Finished ${plainDate(p.completedAt)}`
@@ -358,6 +384,28 @@ function Group({ title, rows, note, onLook, onAnswer }: {
                   ? `Their link expired ${Math.abs(p.expiresInDays)} days ago, so they cannot reply.`
                   : p.progress.summary}
             </p>
+            {/* The request opened: every item and where it stands, its
+                link, and Send again where something is still owed. */}
+            {opened === p.id && (
+              <div className="mt-3 border-t border-etyme-rule pt-2 space-y-2">
+                <ul className="space-y-1">
+                  {(p.items ?? []).map((i) => (
+                    <li key={i.itemId} className="flex flex-wrap justify-between gap-3 text-[13px]">
+                      <span className="text-etyme-ink">{i.label}{i.fileName ? <span className="text-etyme-faint"> · {i.fileName}</span> : null}</span>
+                      <span className="text-etyme-muted">{itemStateSays(i.state, i.required)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {p.link && (
+                  <p className="text-[12px] text-etyme-muted">
+                    Their link: <span className="font-mono text-etyme-ink break-all">{p.link}</span>
+                  </p>
+                )}
+                {onResend && !p.completedAt && (p.items ?? []).some((i) => i.state === 'PENDING' || i.state === 'REJECTED') && (
+                  <button type="button" onClick={() => onResend(p)} className="text-[12px] text-etyme-action hover:underline">Send again</button>
+                )}
+              </div>
+            )}
             {onLook && (p.arrived ?? []).length > 0 && (
               <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
                 {(p.arrived ?? []).map((a) => (

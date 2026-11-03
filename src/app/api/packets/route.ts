@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     take: 200,
     select: {
       id: true, packetKey: true, label: true, purpose: true, direction: true,
-      recipientEmail: true, recipientName: true,
+      recipientEmail: true, recipientName: true, token: true,
       expiresAt: true, completedAt: true, reopenedReason: true, createdAt: true,
       subjectCompany: { select: { id: true, name: true } },
       subjectPerson: { select: { id: true, name: true } },
@@ -148,6 +148,10 @@ export async function GET(request: NextRequest) {
     : []
   const now = new Date()
 
+  // The link is the credential: shown only to a seat that may ask for
+  // papers, which is the seat that sends it on (2026-11-03: a row opened
+  // nothing, so a stuck request's link could not be found again).
+  const showsLinks = mayAskForDocuments(caller.permissions)
   const rows = packets.map((p) => {
     const progress = progressOf(
       p.items.map((i) => ({
@@ -180,6 +184,9 @@ export async function GET(request: NextRequest) {
       // act on, which looks identical to them ignoring it.
       linkExpired: daysLeft < 0,
       awaitingReview: p.items.filter((i) => i.state === 'RECEIVED').length,
+      link: showsLinks ? `/packet/${p.token}` : null,
+      // Every item and where it stands, so a row opens its request.
+      items: p.items.map((i) => ({ itemId: i.id, label: i.label, required: i.required, state: i.state, fileName: i.fileName })),
       // What arrived, so the page opens each one and accepts it or sends it
       // back through the one examine route (the Tapin walk, 2026-10-29:
       // "Waiting on you 4" had no way to look at any of the four).
