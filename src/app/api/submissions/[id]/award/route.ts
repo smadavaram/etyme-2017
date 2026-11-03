@@ -7,7 +7,7 @@ import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
 import {
-  assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, tellPlaced, awardTellsThePerson,
+  assessAward, awardDoor, buySide, employeePayOnRecord, orderCeiling, lineAgreesWithHeader, tellPlaced, awardTellsThePerson,
   awardSaid, roundsToCallOff, OPEN_ROUND_STATES, STOOD_DOWN_REASON, type AwardFacts, type RoundToCallOff,
 } from '@/lib/award'
 import { tell } from '@/lib/interview-notices'
@@ -578,22 +578,28 @@ export async function POST(
   // pending" until the firm states the terms and the person agrees them
   // (`lib/award/hire-terms`, the terms page beside this route).
   const employedHere = employedCount > 0
+  // The firm's own W2 pay for the person, as its record shows it: a line
+  // running today, else the one that ended last (an employee between
+  // projects), read by `employeePayOnRecord` so an INTERNAL award writes
+  // the employment line with no order rather than leaving the placement
+  // with "No buy line behind this placement".
   const currentPay = employedHere
-    ? await prisma.buyContractCandidate.findFirst({
+    ? employeePayOnRecord((await prisma.buyContractCandidate.findMany({
         where: {
           personId: submission.personId,
           payRate: { gt: 0 },
-          state: 'ACTIVE',
+          state: { in: ['ACTIVE', 'ENDED'] },
           buyContract: {
             companyId: submission.fromCompanyId,
             vendorCompanyId: null,
             contractType: 'W2',
-            state: { in: ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING', 'PAUSED'] },
+            state: { in: ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING', 'PAUSED', 'ENDED'] },
           },
         },
         orderBy: { startDate: 'desc' },
-        select: { payRate: true },
-      })
+        take: 20,
+        select: { payRate: true, state: true, startDate: true, endDate: true, buyContract: { select: { state: true } } },
+      })).map((c) => ({ payRateCents: c.payRate, lineState: c.buyContract.state, candidateState: c.state, startDate: c.startDate, endDate: c.endDate })))
     : null
 
   const onListing = listing
@@ -615,7 +621,8 @@ export async function POST(
     suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
     suppliedRateCents: suppliedBy?.rate ?? null,
     employedByAwardedFirm: employedHere,
-    currentPayCents: currentPay?.payRate ?? null,
+    currentPayCents: currentPay?.cents ?? null,
+    payFromLineEndedOn: currentPay?.endedOn ?? null,
     agreedOnListing: agreedOnListing
       ? {
           contractType: agreedOnListing.terms.contractType,

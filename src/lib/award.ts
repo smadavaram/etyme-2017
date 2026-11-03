@@ -380,6 +380,12 @@ export interface BuySideFacts {
    */
   currentPayCents?: number | null
   /**
+   * Hop 0 only: where the pay is from a line that has ended (an employee
+   * between projects), the day it ended, so the line says which pay it
+   * took. Null where the pay is from a line running today.
+   */
+  payFromLineEndedOn?: Date | null
+  /**
    * Hop 0 only: terms the firm stated on its bench listing of the person
    * and the person agreed (`listingTerms` in lib/award/hire-terms, AGREED
    * only). Already checked; the award writes them as they are.
@@ -470,7 +476,9 @@ export function buySide(f: BuySideFacts): BuySide {
       payRateCents: pay,
       rateKnown: true,
       hopZero,
-      says: 'Their own employee, at the pay they are on today.',
+      says: f.payFromLineEndedOn
+        ? `Their own employee, at the pay on their last line here, which ended ${formatDay(f.payFromLineEndedOn)}.`
+        : 'Their own employee, at the pay they are on today.',
     }
   }
   // Terms the person agreed when the firm listed them: on record already,
@@ -497,6 +505,45 @@ export function buySide(f: BuySideFacts): BuySide {
       ? 'Their own employee, with no pay on record yet. The firm states it before they can start.'
       : 'Awarded, terms pending: the firm and the person agree how they are engaged and what they are paid before the start.',
   }
+}
+
+/** One of the firm's own W2 pay lines for the person, as the award reads it. */
+export interface EmployeePayLine {
+  payRateCents: number
+  /** The BuyContract's state. */
+  lineState: string
+  /** The person's own state on the line: ACTIVE, or ENDED where they left a line that runs on. */
+  candidateState: string
+  startDate: Date
+  endDate: Date | null
+}
+
+/** A line paying the person today: started, on the bench, internal, training or paused. */
+const PAYING_TODAY = ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING', 'PAUSED']
+
+/**
+ * What a firm pays its own employee, as its own record says, for the
+ * award's employment line (the work-country wave's leftover, 2026-11-03).
+ *
+ * The pay on a line running today first, the latest started. Where none
+ * runs, the pay on the line that ended last: an integrator's engineer
+ * rolling off one client and put forward as INTERNAL to the next is still
+ * its employee on the pay its own record shows, and writing no line said
+ * "No buy line behind this placement" of the firm's own W2. A line never
+ * confirmed (a draft), a cancelled line and a pay of nothing are not pay
+ * on record. Null where nothing is, and the firm states it on the terms
+ * page, never a number made up here.
+ */
+export function employeePayOnRecord(lines: EmployeePayLine[]): { cents: number; endedOn: Date | null } | null {
+  const paid = lines.filter((l) => l.payRateCents > 0)
+  const today = paid
+    .filter((l) => PAYING_TODAY.includes(l.lineState) && l.candidateState === 'ACTIVE')
+    .sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0]
+  if (today) return { cents: today.payRateCents, endedOn: null }
+  const ended = paid
+    .filter((l) => l.lineState === 'ENDED' || l.candidateState === 'ENDED')
+    .sort((a, b) => (b.endDate ?? b.startDate).getTime() - (a.endDate ?? a.startDate).getTime())[0]
+  return ended ? { cents: ended.payRateCents, endedOn: ended.endDate ?? ended.startDate } : null
 }
 
 // ── The header the award raises ───────────────────────────────────────
