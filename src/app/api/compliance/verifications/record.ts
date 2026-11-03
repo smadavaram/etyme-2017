@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import type { CheckRow } from '@/lib/attestation'
 import {
   EMPLOYED_ON,
@@ -7,6 +8,8 @@ import {
   type Employer,
   type EmploymentFact,
 } from '@/lib/document-stages/employer'
+
+type Tx = Prisma.TransactionClient
 
 /**
  * Put one recorded check on file, with the documents behind it.
@@ -34,6 +37,28 @@ export async function writeCheck(input: {
   now: Date
 }): Promise<{ id: string; already: boolean }> {
   const { row, subject, recordedById, now } = input
+  const writeEvidence = async (tx: Tx, formId: string, evidence: CheckRow['evidence']) => {
+    for (const e of evidence) {
+      const seen = await tx.verification.create({
+        data: {
+          personId: input.personId,
+          type: e.type as never,
+          status: 'CLEAR',
+          provider: e.provider,
+          referenceId: e.referenceId,
+          expiresAt: e.expiresAt,
+          uploadedById: recordedById,
+          verifiedById: recordedById,
+          verifiedAt: now,
+        },
+        select: { id: true },
+      })
+      await tx.documentBacking.create({
+        data: { formId, evidenceId: seen.id, satisfiedKey: e.type, recordedById },
+      })
+    }
+  }
+
   const already = await prisma.verification.findFirst({
     where: {
       ...subject,
@@ -46,7 +71,21 @@ export async function writeCheck(input: {
     },
     select: { id: true },
   })
-  if (already) return { id: already.id, already: true }
+  // The form is the same paper, and what was shown this time may not be:
+  // a passport typed now stands behind it, never dropped (the screen walk,
+  // 2026-11-03, where Casimir Kestrel's number and expiry went nowhere).
+  // A document already behind it, the same as printed, is not written twice.
+  if (already) {
+    const behind = await prisma.documentBacking.findMany({
+      where: { formId: already.id },
+      select: { evidence: { select: { type: true, referenceId: true, expiresAt: true } } },
+    })
+    const fresh = row.evidence.filter((e) => !behind.some((b) =>
+      b.evidence.type === e.type && b.evidence.referenceId === e.referenceId &&
+      (b.evidence.expiresAt?.getTime() ?? null) === (e.expiresAt?.getTime() ?? null)))
+    if (fresh.length) await prisma.$transaction((tx) => writeEvidence(tx, already.id, fresh))
+    return { id: already.id, already: true }
+  }
 
   const id = await prisma.$transaction(async (tx) => {
     const made = await tx.verification.create({
@@ -69,25 +108,7 @@ export async function writeCheck(input: {
       },
       select: { id: true },
     })
-    for (const e of row.evidence) {
-      const seen = await tx.verification.create({
-        data: {
-          personId: input.personId,
-          type: e.type as never,
-          status: 'CLEAR',
-          provider: e.provider,
-          referenceId: e.referenceId,
-          expiresAt: e.expiresAt,
-          uploadedById: recordedById,
-          verifiedById: recordedById,
-          verifiedAt: now,
-        },
-        select: { id: true },
-      })
-      await tx.documentBacking.create({
-        data: { formId: made.id, evidenceId: seen.id, satisfiedKey: e.type, recordedById },
-      })
-    }
+    await writeEvidence(tx, made.id, row.evidence)
     return made.id
   })
   return { id, already: false }

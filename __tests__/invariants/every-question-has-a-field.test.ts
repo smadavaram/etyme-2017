@@ -9,6 +9,7 @@ import { OWN_PAPER_POSTED, mayFileOwnPaper, ownPaperFields, ownPaperInput, ownPa
 import { licenseFieldsFor } from '@/app/dashboard/my-work/paperwork-rows'
 import { examineBody, examineFields, examineNeedsOf, type ExamineValues } from '@/lib/document-stages/examine-form'
 import { examinationBody, recordDoorFor } from '@/app/api/packets/examination'
+import { PUBLISHED_EDITIONS, editionToRecord } from '@/lib/document-stages/editions'
 import { formNumberKey, heldFromDocInstances, typeKeyForTemplate } from '@/lib/document-request'
 import { i9RecordFor } from '@/app/dashboard/compliance/record-for'
 import { NOTICE_THE_FORM_RAISES, adverseFields, recordAdverseBody, recordI9Body, recordVerdictBody, type AdverseStepTyped } from '@/app/dashboard/compliance/record-bodies'
@@ -501,6 +502,79 @@ describe('the screen walk’s papers, on the build after it', () => {
     const route = read('src/app/api/compliance/route.ts')
     expect(route).toContain('for (const o of i9Owed) o.recordI9 = employs.has(`${companyId}:${o.personId}`)')
     expect(read('src/app/dashboard/compliance/page.tsx')).toContain('{o.recordI9 && o.personId && (')
+  })
+
+  // The screen walk of 2026-11-03: "07/32/24" and the retired 08/01/23
+  // edition, completed that day, were accepted on Paperwork and said to
+  // count toward the start. Paperwork's Accept posts `edition`, which the
+  // examination reads as `formEdition` and records through `checkToRecord`.
+  const NOV_3 = new Date('2026-11-03T15:00:00Z')
+  const fromPaperwork = (edition: string) => {
+    const body = examinationBody({
+      verdict: 'ACCEPT', edition,
+      evidence: [{ type: 'PASSPORT', issuer: 'U.S. Department of State', reference: 'X12345678', expiresAt: '2034-06-09' }],
+    })
+    const read = checkInputFrom(body, { about: 'PERSON', type: 'I9_EVERIFY', subjectName: 'Amara Nwosu', recordedBy: 'Farah Haddad' })
+    if (!read.ok) throw new Error(read.message)
+    return checkToRecord(read.input, NOV_3)
+  }
+
+  it('an I-9 accepted from Paperwork on an edition the issuer never printed is refused, naming the printed edition', () => {
+    const v = fromPaperwork('07/32/24')
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('NOT_PRINTED')
+      expect(v.field).toBe('formEdition')
+      expect(v.message).toBe('The I-9 edition 07/32/24 is not one the issuer printed; the current edition is 01/20/25.')
+    }
+    // The current edition is still accepted, read the way the issuer prints it.
+    const ok = fromPaperwork('Rev. 01/20/2025')
+    expect(ok.ok).toBe(true)
+    if (ok.ok) expect(ok.row.formEdition).toBe('01/20/25')
+  })
+
+  it('an I-9 accepted from Paperwork on an edition retired before the day it was completed is refused, naming the retirement day', () => {
+    const v = fromPaperwork('08/01/23')
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('RETIRED')
+      expect(v.message).toBe('The 08/01/23 edition was retired on 07/31/26; an I-9 completed on Nov 3, 2026 must be on the 01/20/25 edition.')
+    }
+    // Completed while it was still accepted, the same edition stands: the day it was completed decides.
+    const read = checkInputFrom(examinationBody({
+      edition: '08/01/23', issuedOn: '2026-03-02',
+      evidence: [{ type: 'PASSPORT', expiresAt: '2034-06-09' }],
+    }), { about: 'PERSON', type: 'I9_EVERIFY', subjectName: 'Amara Nwosu', recordedBy: 'Farah Haddad' })
+    expect(read.ok).toBe(true)
+    if (read.ok) expect(checkToRecord(read.input, NOV_3).ok).toBe(true)
+    // The dates and the sentence come from the one list, never retyped.
+    const retired = PUBLISHED_EDITIONS.I9_EVERIFY.find((e) => e.edition === '08/01/23')!
+    expect(retired.retiredAt!.toISOString().slice(0, 10)).toBe('2026-08-01')
+  })
+
+  it('every door that writes an I-9 examination reads the one edition rule', () => {
+    // One rule, in the editions file, and the record of an I-9 reads it.
+    expect(read('src/lib/attestation.ts')).toContain('editionToRecord(key, typed, input.issuedOn ?? on)')
+    expect(editionToRecord('I9_EVERIFY', '07/32/24', NOV_3).ok).toBe(false)
+    // Nothing reads an edition for its shape alone outside that file.
+    for (const file of ['src/lib/attestation.ts', 'src/app/api/packets/examination.ts', 'src/app/api/compliance/verifications/route.ts', 'src/app/api/documents/[id]/examine/route.ts', 'src/app/api/packets/[id]/review/route.ts']) {
+      expect(read(file), file).not.toContain('editionAsPrinted(')
+    }
+    // Every door records through `checkToRecord` and writes through the one writer.
+    expect(read('src/app/api/packets/examination.ts')).toContain('const verdict = checkToRecord(read.input, now)')
+    expect(read('src/app/api/compliance/verifications/route.ts')).toContain('const verdict = checkToRecord(read.input, now)')
+    expect(read('src/app/api/documents/[id]/examine/route.ts')).toContain('await examinationOf({')
+    expect(read('src/app/api/packets/[id]/review/route.ts')).toMatch(/examinationOf\(/)
+  })
+
+  it('Compliance reads what stands behind an I-9 the way the start does, so a recorded passport is not called nothing', () => {
+    const route = read('src/app/api/compliance/route.ts')
+    expect(route).toContain('backedBy: { select: { evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } } } }')
+  })
+
+  it('accepting an I-9 where one already stands keeps the document just shown behind it', () => {
+    const writer = read('src/app/api/compliance/verifications/record.ts')
+    expect(writer).toContain('if (fresh.length) await prisma.$transaction((tx) => writeEvidence(tx, already.id, fresh))')
   })
 
   it('a supplier is asked for a bank letter or a voided check, spelled the American way', () => {

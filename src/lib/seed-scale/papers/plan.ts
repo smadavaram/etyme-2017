@@ -432,13 +432,15 @@ class Planner {
     const retired = which === 'live' && r() < 1 / 25 ? retiredOn(completed) : null
     const row = record({
       about: 'PERSON', type: 'I9_EVERIFY', subjectName: p.facts.name, recordedBy: seat.name,
-      issuedOn: completed, formEdition: retired ?? edition,
+      issuedOn: completed, formEdition: edition,
       evidence: [{ type: evidenceType, issuer, reference: `${evidenceType.slice(0, 2)}-${between(r, 100000, 999999)}`, expiresAt: evidenceEnds }],
     }, completed)
     const id = idFor(pkey(p, `i9/${which}/${employerId}`))
     // A few old rows were completed on paper before anybody recorded which edition: the finding, kept.
+    // And a few live ones on an edition already retired, which the rule now refuses at the door: the
+    // finding the start check reads, written past the rule on purpose, the way the missing edition is.
     const noEdition = which === 'old' && r() < 1 / 40
-    const form = rowFrom(id, { ...row, formEdition: noEdition ? null : row.formEdition }, { personId: p.facts.id }, seat.personId, null)
+    const form = rowFrom(id, { ...row, formEdition: noEdition ? null : retired ?? row.formEdition }, { personId: p.facts.id }, seat.personId, null)
     this.out.person.push(form)
     this.note(id, 'I9_EVERIFY', noEdition ? 'NO_EDITION' : retired ? 'RETIRED_EDITION' : stateOf2(row.expiresAt, null, this.today))
     row.evidence.forEach((e, i) => {

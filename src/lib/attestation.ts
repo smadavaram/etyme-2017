@@ -56,7 +56,7 @@
 
 import { plainDate } from '@/lib/plain-date'
 import { EMPLOYER_COMPLETES } from '@/lib/document-stages/employer'
-import { editionAsPrinted } from '@/lib/document-stages/editions'
+import { editionToRecord } from '@/lib/document-stages/editions'
 
 
 export type CheckKind =
@@ -1294,20 +1294,12 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
         'formEdition'
       )
     }
-    // Read the way the issuer prints it (the founder's document walk,
-    // 2026-11-01): "Rev. 01/20/25" is the 01/20/25 edition, and
-    // "Rev. March 2024" is no edition of the I-9 at all.
-    const printed = editionAsPrinted(key, typed)
-    if (!printed.ok) {
-      const list = printed.printed
-      const said = list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}` : list[0]
-      return no(
-        'NOT_AN_EDITION',
-        `“${typed}” is not an edition of the I-9. The edition is the date printed at the foot of every page, ` +
-          `like ${list[list.length - 1]}; USCIS has printed ${said}.`,
-        'formEdition'
-      )
-    }
+    // The one edition rule (lib/document-stages/editions): read the way
+    // the issuer prints it, printed by the issuer, and still accepted on
+    // the day the form was completed (the screen walks of 2026-11-01 and
+    // 2026-11-03).
+    const printed = editionToRecord(key, typed, input.issuedOn ?? on)
+    if (!printed.ok) return no(printed.code, printed.message, 'formEdition')
     const edition = printed.edition
     const evidence = input.evidence ?? []
     if (evidence.length === 0) {

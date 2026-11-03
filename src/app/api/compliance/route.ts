@@ -629,7 +629,25 @@ export async function GET(request: NextRequest) {
   const startIds = [...startLines, ...ownStarts].map((c) => c.id)
   // Each read answers empty for no ids.
   const [startPersonRows, startFirmRows, startExtras] = await Promise.all([
-    prisma.verification.findMany({ where: { personId: { in: startPeople } }, select: { personId: true, ...verificationShape, ...ADVERSE_STEPS } }),
+    // The edition and what each form was completed from, read the way the
+    // start reads them (`contracts/[id]/activate`): without them every I-9
+    // here read "on file with nothing behind it" (the screen walk, 2026-11-03).
+    prisma.verification.findMany({
+      where: { personId: { in: startPeople } },
+      select: {
+        personId: true, ...verificationShape, ...ADVERSE_STEPS, formEdition: true,
+        backedBy: { select: { evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } } } },
+      },
+    }).then((rows) => rows.map((v) => ({
+      ...v,
+      backedBy: v.backedBy.map((b) => {
+        const from = b.evidence.validFrom ?? b.evidence.issuedAt
+        return {
+          key: b.evidence.type,
+          inForce: CAME_BACK.includes(b.evidence.status) && !(from && from > now) && !(b.evidence.expiresAt && b.evidence.expiresAt < now),
+        }
+      }),
+    }))),
     prisma.verification.findMany({ where: { companyId: { in: startFirms }, personId: null }, select: { companyId: true, ...verificationShape } }),
     setsFor(startIds).then((known) => lineExtrasForSellLines(startIds, prisma, now, known)),
   ])

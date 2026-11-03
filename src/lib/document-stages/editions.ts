@@ -72,3 +72,82 @@ export function editionAsPrinted(type: string, raw: string): { ok: true; edition
   if (/^\d{2}\/\d{2}\/\d{2}$/.test(canon)) return { ok: true, edition: canon }
   return { ok: false, printed: list.map((e) => e.edition) }
 }
+
+/** What a form is called in a sentence, for a type the issuer list covers. */
+const FORM_LABEL: Record<string, string> = { I9_EVERIFY: 'I-9' }
+
+const DAY_MS = 86_400_000
+
+/** A day the way the issuer prints its editions: "07/31/26", read in UTC. */
+function asPrinted(d: Date): string {
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  return `${mm}/${dd}/${String(d.getUTCFullYear()).slice(-2)}`
+}
+
+/** "Nov 3, 2026", read in UTC. A leaf, so it formats its own day. */
+const PLAIN = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+
+export type EditionToRecord =
+  | { ok: true; edition: string }
+  | { ok: false; code: 'NOT_AN_EDITION' | 'NOT_PRINTED' | 'NOT_YET_PRINTED' | 'RETIRED'; message: string }
+
+/**
+ * The one edition rule for every door that records a form on an edition:
+ * Paperwork and Document requests (through the examination), the
+ * request's own review, Record the I-9 on Compliance, and a firm's own
+ * papers. Each reaches it through `checkToRecord` in lib/attestation.
+ *
+ * Found by the screen walk of 2026-11-03: "07/32/24", a date that does
+ * not exist, and the retired 08/01/23 edition completed that day were
+ * both accepted and said to count toward the start, because the edition
+ * was only read for its shape. Now an edition is recorded only where the
+ * issuer printed it and it was still accepted on the day the form was
+ * completed. A type the issuer list does not cover is taken as typed.
+ */
+export function editionToRecord(type: string, raw: string, completedOn: Date): EditionToRecord {
+  const list = PUBLISHED_EDITIONS[type] ?? []
+  const form = FORM_LABEL[type] ?? 'form'
+  const aForm = FORM_LABEL[type] ? `an ${form}` : 'a form'
+  const read = editionAsPrinted(type, raw)
+  if (!read.ok) {
+    const printed = read.printed
+    const said = printed.length > 1 ? `${printed.slice(0, -1).join(', ')} and ${printed[printed.length - 1]}` : printed[0]
+    return {
+      ok: false, code: 'NOT_AN_EDITION',
+      message:
+        `“${raw.trim()}” is not an edition of the ${form}. The edition is the date printed at the foot of every page, ` +
+        `like ${printed[printed.length - 1]}; USCIS has printed ${said}.`,
+    }
+  }
+  if (list.length === 0) return read
+  const on = completedOn.getTime()
+  const open = list.filter((e) => e.effectiveFrom.getTime() <= on && (!e.retiredAt || e.retiredAt.getTime() > on))
+  const due = open[open.length - 1] ?? list[list.length - 1]
+  const day = PLAIN.format(completedOn)
+  const found = list.find((e) => e.edition === read.edition)
+  if (!found) {
+    return {
+      ok: false, code: 'NOT_PRINTED',
+      message: `The ${form} edition ${read.edition} is not one the issuer printed; the current edition is ${due.edition}.`,
+    }
+  }
+  if (found.effectiveFrom.getTime() > on) {
+    return {
+      ok: false, code: 'NOT_YET_PRINTED',
+      message:
+        `The ${found.edition} edition was not printed until ${asPrinted(found.effectiveFrom)}; ` +
+        `${aForm} completed on ${day} must be on the ${due.edition} edition.`,
+    }
+  }
+  if (found.retiredAt && found.retiredAt.getTime() <= on) {
+    // The issuer prints the last day a form is accepted; retiredAt is the day after it.
+    return {
+      ok: false, code: 'RETIRED',
+      message:
+        `The ${found.edition} edition was retired on ${asPrinted(new Date(found.retiredAt.getTime() - DAY_MS))}; ` +
+        `${aForm} completed on ${day} must be on the ${due.edition} edition.`,
+    }
+  }
+  return read
+}
