@@ -25,7 +25,7 @@
  * Pure: no database.
  */
 
-export type StartWarningCode = 'DOCUMENTS_WARN' | 'GOVERNANCE_WARN'
+export type StartWarningCode = 'DOCUMENTS_WARN' | 'GOVERNANCE_WARN' | 'START_IDENTITY_WARN'
 
 export interface StartWarning {
   code: StartWarningCode
@@ -45,6 +45,7 @@ export interface StartAnswer {
 const HEADING: Record<StartWarningCode, string> = {
   DOCUMENTS_WARN: 'Paperwork',
   GOVERNANCE_WARN: 'The client’s rule',
+  START_IDENTITY_WARN: 'Who started',
 }
 
 /** The refusal's sentence: one warning as itself, several each under its own heading, and how one reason answers them. */
@@ -93,5 +94,27 @@ export function startWarningVerdict(warnings: readonly StartWarning[], answer: S
       overridable: true,
       field: 'overrideReason',
     },
+  }
+}
+
+/**
+ * The hiring manager's No to "Is the person who started the person you
+ * interviewed?" (`SellContract.startIdentityConfirmed === false`), as a
+ * warning the start asks a reason for. Never a verdict and never a block
+ * (the founder, 2026-11-03: what the record sees is said to the role that
+ * decides, and none of it blocks except where the law blocks), and never
+ * silently permitted either: the start asks why, and a later Yes from the
+ * same hiring manager clears it. Null where nobody said No.
+ */
+export function startIdentityWarning(i: {
+  confirmed: boolean | null | undefined
+  personName: string
+  answeredBy: string | null
+}): StartWarning | null {
+  if (i.confirmed !== false) return null
+  const who = i.answeredBy ?? 'The hiring manager'
+  return {
+    code: 'START_IDENTITY_WARN',
+    says: `${who} said the person who started is not the ${i.personName} who was interviewed. Check with the supplier first, or give a reason to start anyway. A Yes from ${i.answeredBy ?? 'the hiring manager'} clears this.`,
   }
 }

@@ -9,7 +9,7 @@ import { termsGate } from '@/lib/award/terms-on-record'
 import { siteSay, startSays } from './words'
 import { startPapers } from './papers'
 import { gateRefusal, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
-import { startWarningVerdict, type StartWarning } from '@/lib/money/start-warnings'
+import { startWarningVerdict, startIdentityWarning, type StartWarning } from '@/lib/money/start-warnings'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 
 /**
@@ -291,6 +291,19 @@ export async function POST(
     }
   }
 
+  // ── The hiring manager's No on who started ──
+  //
+  // Asked of the hiring manager at the start (`startIdentityConfirmed`):
+  // a No is said here as a warning a reason answers, never a block, and a
+  // later Yes clears it.
+  if (action === 'activate') {
+    const answeredBy = contract.startIdentityConfirmed === false && contract.startIdentityConfirmedById
+      ? (await prisma.person.findUnique({ where: { id: contract.startIdentityConfirmedById }, select: { name: true } }))?.name ?? null
+      : null
+    const identity = startIdentityWarning({ confirmed: contract.startIdentityConfirmed, personName: contract.person.name, answeredBy })
+    if (identity) warnings.push(identity)
+  }
+
   // ── Asked once, answered once ──
   //
   // Every warning in one refusal; a reason answers them all, and where
@@ -305,6 +318,7 @@ export async function POST(
   }
   const answeredPapers = verdict.answered.some((w) => w.code === 'DOCUMENTS_WARN')
   const answeredRule = verdict.answered.some((w) => w.code === 'GOVERNANCE_WARN')
+  const answeredIdentity = verdict.answered.some((w) => w.code === 'START_IDENTITY_WARN')
   const overrideReason: string | null = typeof body.overrideReason === 'string' ? body.overrideReason.trim() : null
 
   if (action === 'activate') {
@@ -407,6 +421,8 @@ export async function POST(
           // their reason travels with the record. Never silently permit.
           // Only where the paperwork warned and the reason answered it.
           documentsOverride: action === 'activate' && answeredPapers ? overrideReason : null,
+          // And where the hiring manager said the person who started is not the one interviewed.
+          identityOverride: action === 'activate' && answeredIdentity ? overrideReason : null,
         },
         // Cancellation and completion are not easily reversible
         reversible: !['complete', 'cancel'].includes(action),

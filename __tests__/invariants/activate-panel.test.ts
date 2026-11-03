@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gateRefusal, type GateContract } from '@/app/api/contracts/[id]/activate/gate'
 import { viewBefore, viewAfterRefusal, type StartPreflight } from '@/app/dashboard/contracts/activate-view'
+import { startIdentityWarning, startWarningVerdict } from '@/lib/money/start-warnings'
 
 /**
  * Activate is a real button. The tester's retest of 2026-11-03: Rajesh
@@ -78,5 +79,18 @@ describe('the Activate button on a placement', () => {
     expect(panel).toMatch(/viewAfterRefusal\(body\.error\)/)
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
     expect(page).toMatch(/<ActivatePanel contractId=\{contract\.id\}/)
+  })
+})
+
+describe('the hiring manager’s No on who started', () => {
+  it('activation asks a reason where the hiring manager said the person who started is not the one interviewed, and a Yes asks nothing', () => {
+    const w = startIdentityWarning({ confirmed: false, personName: 'Rajesh Iyer', answeredBy: 'Marcus Oyelaran' })!
+    expect(w.says).toBe('Marcus Oyelaran said the person who started is not the Rajesh Iyer who was interviewed. Check with the supplier first, or give a reason to start anyway. A Yes from Marcus Oyelaran clears this.')
+    const v = startWarningVerdict([w], { reason: null })
+    expect(v.ok).toBe(false)
+    // The panel draws the box for it, under the route's own sentence.
+    expect(viewAfterRefusal(v.ok ? {} : v.error).box).toEqual({ answering: ['START_IDENTITY_WARN'] })
+    expect(startIdentityWarning({ confirmed: true, personName: 'Rajesh Iyer', answeredBy: 'Marcus Oyelaran' })).toBeNull()
+    expect(startIdentityWarning({ confirmed: null, personName: 'Rajesh Iyer', answeredBy: null })).toBeNull()
   })
 })

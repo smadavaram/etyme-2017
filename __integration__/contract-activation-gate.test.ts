@@ -170,6 +170,22 @@ describe('activating a contract on paperwork', () => {
     expect(r.body.error.chasing.map((c: { key: string }) => c.key)).toContain('BACKGROUND_CHECK')
   })
 
+  it('a hiring manager’s No on who started is asked a reason at the start, never a block, and a later Yes clears it', async () => {
+    await prisma.sellContract.update({ where: { id: contractId }, data: { startIdentityConfirmed: false, startIdentityConfirmedById: seatPersonId, startIdentityConfirmedAt: new Date() } })
+    as(seat)
+    const asked = await post({ action: 'activate', overrideReason: 'Background check follows Monday.', answering: ['DOCUMENTS_WARN'] })
+    expect(asked.status).toBe(422)
+    expect(asked.body.error.code).toBe('START_IDENTITY_WARN')
+    expect(asked.body.error.message).toMatch(/is not the Nobody Onfile who was interviewed\. Check with the supplier first, or give a reason to start anyway\./)
+    expect((await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })).state).toBe('DRAFT')
+    // The same hiring manager says Yes: the question is gone and only the paperwork is asked.
+    await prisma.sellContract.update({ where: { id: contractId }, data: { startIdentityConfirmed: true } })
+    as(seat)
+    const again = await post({ action: 'activate' })
+    expect(again.body.error.code).toBe('DOCUMENTS_WARN')
+    expect(again.body.error.warnings.map((w: { code: string }) => w.code)).toEqual(['DOCUMENTS_WARN'])
+  })
+
   it('with a reason recorded, it proceeds — and the reason travels with the record', async () => {
     as(seat)
     const r = await post({ action: 'activate', overrideReason: 'Client waived the background check in writing.' })
