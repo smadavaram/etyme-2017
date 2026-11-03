@@ -3341,6 +3341,48 @@ with no cents (money); the backfill's second pass has run on no
 database yet, so the founder runs it once on production with his
 secret after the deploy.
 
+**Release pass 35 on 1b5b5e5af and the fourth walk, the same night.**
+The pass: type check clean, 13,545 of 13,547 unit, 2,642 of 2,645
+integration, build clean; the five reds were old assertions for words
+this wave changed on purpose (the people page's filter bar, the
+Paperwork chip, "Contractors" in the door's sentence, "W-9 is on file",
+the old acceptance sentence), brought up to the code in 2e323404e with
+no product file touched, each green alone. The walk on that build (50
+checks on 22 seats: 23 saved and proven, 15 refused rightly, 10 failed,
+2 not proven) said: **the money blocker passes** (no "Bill this week"
+on Helena Marsh's billed week, the direct press refused in the sentence
+naming TECH-vv0wk-10 with Invoice rows unchanged; Rosa Delgado's
+unbilled week drafted from the week's own page, one hours line, 40 h ×
+$112 = $4,480, "On bill IN_ZULMUB_003, drafted and not sent yet") and
+every piece of the wave holds on screens (Activate with its sentence
+kept, the menus on twelve seats, Candidates opening on Favorites, the
+nav answers, the poem refused, the setup line, the margin answer, the
+model switch, Grant the seat, Send again, the probation ask, the added
+consultant found, the two line options, the bill picker, one "left
+after this bill", the acceptance sentence); **and papers are still read
+two ways in one place, so it does not ship yet:** an accepted
+undertaking reads on file on the placement, on Compliance and on the
+worker's page, and a fresh W-2 request still asks for it ("Not on
+file") because the request route hands the one reader only the asking
+firm's own document types, and the undertaking is the client's paper;
+the backfill closes only background checks, licenses and I-9s (781
+closed), so Rajesh Iyer's and 17 more Nov 1 requests still wait on the
+right to work and the undertaking their placements hold; and the
+worker's page lists her NDA as still needed. Each regulatory's, fixed
+next. Also found: a supplier's Contracts page shows page one of the
+API as the whole list (20 of 28 lines, six running placements missing
+from the counts and the rate total; money); the greeting does not
+follow Karthik Menon into his firm hat and lists colleagues' uploads
+there (conversation); the worker is told nothing when her degree's
+year is warned to HR (conversation); a one-person firm is offered a
+"You" hat the rule denies her (architect). **For the founder, one
+line:** the placement reads an unexamined upload as on file while
+Paperwork says "Arrived, not examined" (`PAPER_ON_FILE` keeps
+UPLOADED); it is left as it was for this deploy because changing it
+changes starts across the seed, and whether an upload nobody examined
+may clear a start is his call. Report: `scratchpad/walk-saves/report4.md`,
+141 screenshots.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
