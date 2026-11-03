@@ -13,6 +13,7 @@ import { addVolume } from '@/lib/demo-volume'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/lib/demo-session'
 import { countDemoStarted } from '@/lib/events'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
+import { workerRows, doorsFrom } from '@/app/demo/worker-doors'
 import { consoleHome } from '@/lib/console-home'
 import { landingFor, ASK_ETYME_HREF, BY_REGION_HREF } from '@/lib/nav-table'
 import { seatsHeldBy } from '@/lib/program-seat'
@@ -189,9 +190,10 @@ export async function POST(request: NextRequest) {
   // instead of Northbend Athletic. The world branch below is the only answer to `as`.
   const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
   const asPerson = typeof (body as any)?.person === 'string' ? String((body as any).person) : null
+  const asWorker = typeof (body as any)?.worker === 'string' ? String((body as any).worker) : null
   const wanted = seatAsked(body)
   const existing = read(request.cookies.get(DEMO_COOKIE)?.value)
-  if (existing && !asWorld && !asPerson) {
+  if (existing && !asWorld && !asPerson && !asWorker) {
     const person = await prisma.person.findUnique({
       where: { primaryEmail: existing },
       select: {
@@ -305,6 +307,78 @@ export async function POST(request: NextRequest) {
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(door.email), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
+  }
+
+  // ── A worker door, for every seeded person on the work ──────────
+  //
+  // `{ worker: "<person id>" }` opens the person's own seat: the founder's
+  // tester placed the seeded Rajesh Iyer and could not file a week as him,
+  // because only six people had a door (2026-11-03). The id is looked up
+  // in the same list the page draws (`app/demo/worker-doors`), so a door
+  // cannot name somebody the page does not: only a person on a seeded
+  // firm's placement or submission, at an address nobody can buy, with no
+  // door of their own, and with no seat that holds a desk — their address
+  // opens exactly what `lib/api-context` resolves for it, which is then
+  // their own work and nothing of the firm's.
+  if (asWorker) {
+    let door
+    try {
+      door = doorsFrom(await workerRows(asWorker)).firms.flatMap((f) => f.workers.map((w) => ({ ...w, firm: f.name })))[0]
+    } catch (err: any) {
+      reportError('demo: could not look up a worker door', String(err?.message ?? err))
+      return NextResponse.json(
+        { error: { code: 'DEMO_FAILED', message: 'Could not take that seat just now. Nothing was changed.' } },
+        { status: 503 }
+      )
+    }
+    if (!door || door.personId !== asWorker) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORKER_SEAT', message: 'That person has no worker door on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    const seated = await prisma.person.findUnique({
+      where: { id: door.personId },
+      select: {
+        primaryEmail: true,
+        contexts: {
+          where: { revokedAt: null, suspendedAt: null },
+          select: { type: true, company: { select: { kind: true } }, role: { select: { permissions: true } } },
+          orderBy: { grantedAt: 'desc' },
+          take: 1,
+        },
+      },
+    })
+    if (!seated) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORKER_SEAT', message: 'That person has no worker door on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    const seat = seated.contexts[0]
+    await countTheSeat(body)
+    const res = NextResponse.json({
+      data: {
+        worker: door.personId,
+        personName: door.name,
+        listedBy: door.firm,
+        contextType: seat?.type ?? 'CONSULTANT',
+        // A person with no seat yet is given their own on the first read
+        // (lib/own-seat): a consultant seat with no company.
+        landing: landingFor({
+          kind: (seat?.company?.kind ?? null) as any,
+          isConsultant: !seat || seat.type === 'CONSULTANT',
+          worker: true,
+          permissions: seat?.role?.permissions ?? [],
+        }),
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(seated.primaryEmail), {
       httpOnly: true, sameSite: 'lax', path: '/',
       secure: process.env.NODE_ENV === 'production',
       maxAge: COOKIE_DAYS * 24 * 60 * 60,

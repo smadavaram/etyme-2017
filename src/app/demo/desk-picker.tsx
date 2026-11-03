@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CLIENT_DESKS, type ClientDesk, type ClientProgram, type Program } from './seats'
 import { visitId } from '@/lib/public-site/count'
+import type { WorkerFirm } from '@/lib/demo-desks'
 
 /**
  * The doors on /demo, drawn two ways since 2026-10-15.
@@ -22,7 +23,7 @@ import { visitId } from '@/lib/public-site/count'
  * list, checked against the seed, and is the hover text on its name.
  *
  * All doors post to the same route with the same three shapes of body
- * (`{as, desk}`, `{as}`, `{person}`) and land wherever it says. Nothing
+ * (`{as, desk}`, `{as}`, `{person}`, `{worker}`) and land wherever it says. Nothing
  * about which seats exist or where they land is decided here.
  */
 
@@ -220,6 +221,45 @@ export function DoorRows({ firms = [], people = [] }: { firms?: Program[]; peopl
                 })}
               </div>
             )}
+          </li>
+        ))}
+      </ul>
+      <Refusal error={error} />
+    </div>
+  )
+}
+
+/**
+ * Every other seeded person on the work, under the firm that employs or
+ * lists them (2026-11-03). Each firm is folded: Brightmoor Staffing
+ * alone lists a dozen, and the page stays one screen. The list comes
+ * from the world (`app/demo/worker-doors`), never from here.
+ */
+export function WorkerDoorList({ firms }: { firms: WorkerFirm[] }) {
+  const { busy, error, sit } = useSeat()
+  if (firms.length === 0) return null
+  return (
+    <div>
+      <ul className="divide-y divide-etyme-rule border-y border-etyme-rule">
+        {firms.map((f) => (
+          <li key={f.slug} className="py-2">
+            <details>
+              <summary className="cursor-pointer py-1 text-[14px]">
+                <span className="font-semibold">{f.name}</span>
+                <span className="text-etyme-muted"> · {f.workers.length === 1 ? '1 worker' : `${f.workers.length} workers`}</span>
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {f.workers.map((w) => (
+                  <RoleChip
+                    key={w.personId}
+                    label={w.label}
+                    busy={busy === w.personId}
+                    locked={busy !== null}
+                    onClick={() => { if (!busy) sit(w.personId, { worker: w.personId }) }}
+                  />
+                ))}
+              </div>
+            </details>
           </li>
         ))}
       </ul>

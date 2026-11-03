@@ -200,3 +200,95 @@ export function whoRefusal(input: {
     : ` Nobody holds the ${desk} role there.`
   return `${input.who} does not hold the ${desk} role at ${input.company.name} in the demo, so no seat was taken.${tail}`
 }
+
+// ── A worker door for every seeded person on the work ────────────────
+//
+// The founder's tester, on production, 2026-11-03: he placed the seeded
+// Rajesh Iyer (Brightmoor Staffing → Northbend Athletic) and could not
+// file a week as him. The demo page had a door for six named people and
+// the world holds about four hundred on a placement or a submission;
+// Rajesh's address is on a reserved demo domain, so no password can be
+// made for him either, rightly. So every seeded person on the work gets
+// a door, read from the world rather than typed, under the firm that
+// employs or lists them. The door is the person's own seat — the one
+// `lib/api-context` resolves for their address — and never a firm's.
+
+/** What the page and the route read about one seeded person on the work. */
+export interface WorkerRow {
+  personId: string
+  name: string
+  email: string
+  /** The firm that employs or lists them: their newest usable seat's company, else the firm that put them forward or sells their line. */
+  firmSlug: string | null
+  firmName: string | null
+  /** Whether any usable seat of theirs holds a desk (a permission beyond the reads of their own work). */
+  holdsADesk: boolean
+  /** A seat of theirs is paused and none is usable: the door would open on a refusal. */
+  paused: boolean
+}
+
+export interface WorkerDoor {
+  personId: string
+  name: string
+  /** "Open as Rajesh Iyer, worker" — what the button says. */
+  label: string
+}
+
+export interface WorkerFirm {
+  slug: string
+  name: string
+  workers: WorkerDoor[]
+}
+
+export interface WorkerDoors {
+  firms: WorkerFirm[]
+  /** Seeded people on the work who get no worker door, each with why. */
+  without: { name: string; because: string }[]
+}
+
+/** The words on a worker door. */
+export function workerDoorLabel(name: string): string {
+  return `Open as ${name}, worker`
+}
+
+/**
+ * The worker doors, from the rows the world holds.
+ *
+ * Pure. Four people are left out, each said: one who already has a door
+ * of their own on the page (Helena Marsh, Colleen Byrne and the other
+ * named people), one at an address somebody could buy, one whose seat
+ * holds a desk at a firm (their address would open the firm's book, so
+ * their door is that role's on the firm's row), and one whose only seat
+ * is paused.
+ */
+export function workerDoors(
+  rows: readonly WorkerRow[],
+  opts: { doored: Iterable<string>; reserved: (email: string) => boolean; excluded?: Iterable<string> }
+): WorkerDoors {
+  const doored = new Set([...opts.doored].map((e) => e.toLowerCase()))
+  const excluded = new Set([...(opts.excluded ?? [])].map((e) => e.toLowerCase()))
+  const firms = new Map<string, WorkerFirm>()
+  const seen = new Set<string>()
+  const without: WorkerDoors['without'] = []
+  for (const r of rows) {
+    if (seen.has(r.personId)) continue
+    seen.add(r.personId)
+    const email = r.email.toLowerCase()
+    if (doored.has(email)) { without.push({ name: r.name, because: `${r.name} has a door of their own on the page.` }); continue }
+    if (excluded.has(email)) continue
+    if (!opts.reserved(r.email)) { without.push({ name: r.name, because: `${r.name}’s address is not a seeded one, so no demo door opens it.` }); continue }
+    if (r.holdsADesk) {
+      without.push({ name: r.name, because: `${r.name} holds a role at ${r.firmName ?? 'a firm'}, so their door is that role’s, on the firm’s row.` })
+      continue
+    }
+    if (r.paused) { without.push({ name: r.name, because: `${r.name}’s seat is paused.` }); continue }
+    if (!r.firmSlug || !r.firmName) { without.push({ name: r.name, because: `No firm employs or lists ${r.name}.` }); continue }
+    const firm = firms.get(r.firmSlug) ?? { slug: r.firmSlug, name: r.firmName, workers: [] }
+    firm.workers.push({ personId: r.personId, name: r.name, label: workerDoorLabel(r.name) })
+    firms.set(r.firmSlug, firm)
+  }
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
+  const list = [...firms.values()].sort(byName)
+  for (const f of list) f.workers.sort(byName)
+  return { firms: list, without }
+}

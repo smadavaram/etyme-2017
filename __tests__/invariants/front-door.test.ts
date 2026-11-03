@@ -85,7 +85,7 @@ describe('asking for a world seat is never answered with an old private sandbox'
     // default CLIENT seat — so anybody who had ever held a private client
     // sandbox got it back instead of Northbend Athletic.
     const asWorldAt = ROUTE.indexOf("const asWorld = typeof (body as any)?.as === 'string'")
-    const resumeAt = ROUTE.indexOf('if (existing && !asWorld && !asPerson) {')
+    const resumeAt = ROUTE.indexOf('if (existing && !asWorld && !asPerson && !asWorker) {')
     expect(asWorldAt).toBeGreaterThan(-1)
     expect(resumeAt).toBeGreaterThan(asWorldAt)
     // And only once — a second, later computation would be the old order back.
@@ -98,6 +98,12 @@ describe('asking for a world seat is never answered with an old private sandbox'
     // seat and hand back whatever company the cookie already held.
     const asPersonAt = ROUTE.indexOf("const asPerson = typeof (body as any)?.person === 'string'")
     expect(asPersonAt).toBeGreaterThan(-1)
-    expect(ROUTE.indexOf('if (existing && !asWorld && !asPerson) {')).toBeGreaterThan(asPersonAt)
+    expect(ROUTE.indexOf('if (existing && !asWorld && !asPerson && !asWorker) {')).toBeGreaterThan(asPersonAt)
+  })
+
+  it('and skips it for a worker door too, so a visitor holding a sandbox can still sit as Rajesh Iyer', () => {
+    const asWorkerAt = ROUTE.indexOf("const asWorker = typeof (body as any)?.worker === 'string'")
+    expect(asWorkerAt).toBeGreaterThan(-1)
+    expect(ROUTE.indexOf('if (existing && !asWorld && !asPerson && !asWorker) {')).toBeGreaterThan(asWorkerAt)
   })
 })

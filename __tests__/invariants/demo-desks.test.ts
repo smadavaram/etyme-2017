@@ -156,3 +156,56 @@ describe('a door’s numbers come from the record, never from a phrase', () => {
     expect(daysAgoWords(new Date('2026-09-05T00:00:00Z'), today)).toBe('31 days ago')
   })
 })
+
+describe('every seeded person on the work has a worker door, and only one', () => {
+  // Imported here so the sentences above keep their own import line.
+  const lib = () => import('@/lib/demo-desks')
+  const reserved = (e: string) => /\.(invalid|example|local)$/.test(e.split('@')[1] ?? '')
+  const row = (over: Partial<import('@/lib/demo-desks').WorkerRow>): import('@/lib/demo-desks').WorkerRow => ({
+    personId: 'p-rajesh', name: 'Rajesh Iyer', email: 'rajesh.iyer@seed.etyme.invalid',
+    firmSlug: 'world-brightmoor', firmName: 'Brightmoor Staffing', holdsADesk: false, paused: false, ...over,
+  })
+
+  it('every seeded person on a placement or a submission has a worker door on the demo page under the firm that holds them', async () => {
+    const { workerDoors } = await lib()
+    const doors = workerDoors(
+      [
+        row({}),
+        row({ personId: 'p-rosa2', name: 'Ana Ruiz', email: 'ana.ruiz@seed.etyme.invalid' }),
+        row({ personId: 'p-tomasz', name: 'Tomasz Nowak', email: 'tomasz.nowak@seed.etyme.invalid', firmSlug: 'world-sahasra', firmName: 'Sahasra Talent' }),
+      ],
+      { doored: [], reserved }
+    )
+    expect(doors.firms.map((f) => f.name)).toEqual(['Brightmoor Staffing', 'Sahasra Talent'])
+    const brightmoor = doors.firms[0]
+    expect(brightmoor.workers.map((w) => w.label)).toEqual(['Open as Ana Ruiz, worker', 'Open as Rajesh Iyer, worker'])
+    expect(doors.without).toEqual([])
+  })
+
+  it('a worker door opens the person’s own seat and nothing of the firm’s: a person whose seat holds a role at the firm gets no worker door, and says why', async () => {
+    const { workerDoors } = await lib()
+    const doors = workerDoors([row({ name: 'Jenna Okafor', email: 'jenna@seed.etyme.invalid', holdsADesk: true })], { doored: [], reserved })
+    expect(doors.firms).toEqual([])
+    expect(doors.without[0].because).toBe('Jenna Okafor holds a role at Brightmoor Staffing, so their door is that role’s, on the firm’s row.')
+  })
+
+  it('a person who already has a door gets no second one', async () => {
+    const { workerDoors } = await lib()
+    const doors = workerDoors(
+      [row({ personId: 'p-helena', name: 'Helena Marsh', email: 'helena.marsh@seed.etyme.invalid' }), row({})],
+      { doored: ['Helena.Marsh@seed.etyme.invalid'], reserved }
+    )
+    expect(doors.firms.flatMap((f) => f.workers.map((w) => w.name))).toEqual(['Rajesh Iyer'])
+    expect(doors.without).toEqual([{ name: 'Helena Marsh', because: 'Helena Marsh has a door of their own on the page.' }])
+  })
+
+  it('no worker door opens an address somebody could buy, or a seat that is paused', async () => {
+    const { workerDoors } = await lib()
+    const doors = workerDoors(
+      [row({ email: 'rajesh@gmail.com' }), row({ personId: 'p-2', name: 'Paused Person', email: 'p2@seed.etyme.invalid', paused: true })],
+      { doored: [], reserved }
+    )
+    expect(doors.firms).toEqual([])
+    expect(doors.without.map((w) => w.name)).toEqual(['Rajesh Iyer', 'Paused Person'])
+  })
+})

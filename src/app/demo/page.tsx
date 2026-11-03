@@ -1,6 +1,7 @@
 import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { DemoChip } from '@/components/shell/demo-chip'
-import { ProgramDoors, DoorRows, OpenOnArrival } from './desk-picker'
+import { ProgramDoors, DoorRows, OpenOnArrival, WorkerDoorList } from './desk-picker'
+import { workerDoorsNow } from './worker-doors'
 import {
   CLIENT_PROGRAMS,
   SUPPLIER_SEATS,
@@ -54,7 +55,7 @@ import { CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
 export const dynamic = 'force-dynamic'
 
 export default async function DemoPage() {
-  const facts = await doorFacts()
+  const [facts, workers] = await Promise.all([doorFacts(), workerDoorsNow()])
   const others = [
     ...SUPPLIER_SEATS.filter((s) => !FIRST_SUPPLIERS.includes(s.slug)),
     ...PROGRAM_OFFICE_SEATS,
@@ -104,6 +105,13 @@ export default async function DemoPage() {
             <div className="mt-2">
               <DoorRows people={CANDIDATE_SEATS} />
             </div>
+            {/* Every other seeded person on a placement or a submission,
+                under the firm that holds them, read from the world. */}
+            {workers.firms.length > 0 && (
+              <div className="mt-4">
+                <WorkerDoorList firms={workers.firms} />
+              </div>
+            )}
           </details>
           <OpenOnArrival fold="everyone" />
         </section>

@@ -14,6 +14,7 @@ import { pinnedOn, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { seedWorld } from '@/lib/seed-world'
 
 import { POST as demo } from '@/app/api/demo/route'
+import { workerRows, workerDoorsNow } from '@/app/demo/worker-doors'
 import { POST as approveRequisition } from '@/app/api/requisitions/[id]/approve/route'
 import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
 import { GET as requirements } from '@/app/api/requirements/route'
@@ -1051,5 +1052,72 @@ describe('a requisition over the line is walked to published from the demo’s o
     const after = await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })
     expect(after.approvalState).toBe('APPROVED')
     expect(after.status, 'approved and still not open to a single supplier').toBe('OPEN')
+  }, 120_000)
+})
+
+describe('every seeded person on the work has a worker door', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  /** POST /api/demo asking to sit as a worker by the id the page drew. */
+  async function sitAsWorker(personId: string) {
+    const res = await demo(req('POST', '/api/demo', { worker: personId }) as NextRequest)
+    const body = await res.json()
+    const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
+    return { status: res.status, body, cookie: m?.[1] }
+  }
+
+  it('every seeded person on a placement or a submission has a worker door on the demo page under the firm that holds them', async () => {
+    const rows = await workerRows()
+    const doors = await workerDoorsNow()
+    const drawn = new Map(doors.firms.flatMap((f) => f.workers.map((w) => [w.personId, f.name] as const)))
+    const said = new Set(doors.without.map((w) => w.name))
+    expect(rows.length).toBeGreaterThan(50)
+    for (const r of rows) {
+      // Drawn under its firm, or left out with a sentence; never neither.
+      expect(drawn.has(r.personId) || said.has(r.name), `${r.name} has no door and no reason`).toBe(true)
+      if (drawn.has(r.personId)) expect(drawn.get(r.personId), r.name).toBe(r.firmName)
+    }
+    // The founder's tester's case: Rajesh Iyer, put forward by Brightmoor to Northbend.
+    const rajesh = rows.find((r) => r.name === 'Rajesh Iyer')!
+    expect(drawn.get(rajesh.personId)).toBe('Brightmoor Staffing')
+    const label = doors.firms.find((f) => f.name === 'Brightmoor Staffing')!.workers.find((w) => w.name === 'Rajesh Iyer')!.label
+    expect(label).toBe('Open as Rajesh Iyer, worker')
+  }, 120_000)
+
+  it('a worker door opens the person’s own seat and nothing of the firm’s', async () => {
+    const rajesh = (await workerRows()).find((r) => r.name === 'Rajesh Iyer')!
+    const { status, body, cookie } = await sitAsWorker(rajesh.personId)
+    expect(status, body?.error?.message).toBe(200)
+    expect(body.data.personName).toBe('Rajesh Iyer')
+    expect(body.data.landing).toBe(ASK_ETYME_HREF)
+    expect(body.data.companyId, 'the worker door handed over a company').toBeUndefined()
+    expect(await whoIsSitting(cookie!)).toBe('Rajesh Iyer')
+
+    as(rajesh.email)
+    // His own work opens.
+    const work = await json(await myWork(req('GET', '/api/me/work')))
+    expect(work.status).toBe(200)
+    // The firm's job requests do not: nothing of Brightmoor's book.
+    const jobs = await json(await requirements(req('GET', '/api/requirements') as NextRequest))
+    const rows = (jobs.body?.data ?? []) as unknown[]
+    expect(jobs.status === 403 || rows.length === 0, `Rajesh read ${rows.length} of the firm’s job requests`).toBe(true)
+
+    // A person the page does not draw is refused in a sentence.
+    const stranger = await sitAsWorker('not-a-person')
+    expect(stranger.status).toBe(400)
+    expect(stranger.body.error.message).toBe('That person has no worker door on the demo page.')
+  }, 120_000)
+
+  it('a person who already has a door gets no second one', async () => {
+    const doors = await workerDoorsNow()
+    const names = doors.firms.flatMap((f) => f.workers.map((w) => w.name))
+    for (const c of CANDIDATE_SEATS) expect(names, c.name).not.toContain(c.name)
+    const helena = (await workerRows()).find((r) => r.name === 'Helena Marsh')!
+    expect((await sitAsWorker(helena.personId)).status).toBe(400)
+    // No person is drawn twice.
+    const ids = doors.firms.flatMap((f) => f.workers.map((w) => w.personId))
+    expect(new Set(ids).size).toBe(ids.length)
   }, 120_000)
 })
