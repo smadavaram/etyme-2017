@@ -11,7 +11,7 @@ import { BUILT_IN, typeByKey } from '@/lib/document-type'
 import { RECORDABLE_ABOUT_A_FIRM, examinedFromAPacket } from '@/lib/attestation'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
-import { answerOpenAsks, buyerMayExamineKept, examinationBody, examinationOf, itemFollowsPaper, recordSupplierPaper } from '@/app/api/packets/examination'
+import { answerOpenAsks, buyerMayExamineKept, examinationBody, examinationOf, itemFollowsPaper, recordSupplierPaper, type Door } from '@/app/api/packets/examination'
 
 /**
  * POST /api/documents/:id/examine
@@ -171,6 +171,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // (`recordSupplierPaper`), and the request's own reading for an item.
   let verificationId: string | null = null
   let checkSays: string | null = null
+  // Where it can be recorded, where this look could not record it.
+  let door: Door | null = null
   if (verdict.verdict === 'ACCEPT' && caller.company) {
     const buyer = {
       companyId: caller.company.id, companyName: caller.company.name,
@@ -198,9 +200,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             validFrom: verdict.validFrom, expiresAt: verdict.expiresAt, now,
           })
         : null
-    if (examined?.refused) return refuse(examined.refused.status, examined.refused.code, examined.refused.message, examined.refused.field)
+    if (examined?.refused) return refuse(examined.refused.status, examined.refused.code, examined.refused.message, examined.refused.field, examined.refused.door)
     verificationId = examined?.verificationId ?? null
     checkSays = examined?.says ?? null
+    door = examined?.door ?? null
   }
 
   const note = [doc.note, verdict.note].filter(Boolean).join('\n').slice(-2000)
@@ -315,10 +318,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       countersigned: verdict.countersign,
       verificationId,
       says: checkSays ? `${verdict.says} ${checkSays}` : verdict.says,
+      ...(door ? { door } : {}),
     },
   })
 }
 
-function refuse(status: number, code: string, message: string, field?: string) {
-  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, { status })
+function refuse(status: number, code: string, message: string, field?: string, door?: Door | null) {
+  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}), ...(door ? { door } : {}) } }, { status })
 }

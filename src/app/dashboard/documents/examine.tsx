@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { readJson } from '@/lib/read-response'
+import { readJson, statusMeans } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
 import { I9_SHOWN, examineBody, examineFields, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
 
@@ -52,18 +52,30 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
   const set = (k: keyof ExamineValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value })
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // The screen that can record what this dialog could not, where the route names one.
+  const [door, setDoor] = useState<{ says: string; href: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
+    setDoor(null)
     try {
       // Exactly what the fields above hold, in the names the route reads.
       const body = verdict === 'SEND_BACK' ? { verdict, reason } : examineBody(needs, v)
       const res = await fetch(`/api/documents/${row.id}/examine`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
       })
+      if (!res.ok) {
+        // The route's sentence, and the screen it names where it names one.
+        const text = await res.text().catch(() => '')
+        let refused: { error?: { message?: string; door?: { says: string; href: string } } } | null = null
+        try { refused = text ? JSON.parse(text) : null } catch { refused = null }
+        setError(refused?.error?.message ?? statusMeans(res.status))
+        setDoor(refused?.error?.door ?? null)
+        return
+      }
       const json = await readJson(res)
       onDone(json?.data?.says ?? (verdict === 'ACCEPT' ? `${row.template.name} accepted.` : `${row.template.name} sent back.`))
     } catch (e: any) {
@@ -169,6 +181,9 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
           </label>
         )}
         {error && <FormMessage tone="error">{error}</FormMessage>}
+        {door && (
+          <a href={door.href} className="block text-sm text-etyme-action hover:underline">{door.says}</a>
+        )}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="text-sm text-etyme-muted">Cancel</button>
           <button type="submit" disabled={busy} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">

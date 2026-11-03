@@ -1553,6 +1553,33 @@ const NAMED_BY: { key: string; names: RegExp }[] = [
 ]
 
 /**
+ * Government forms read by the number the issuer prints on them, even
+ * where nothing else may be guessed: a form's number is its name, not a
+ * reading of the words around it. Found by the screen walk of 2026-11-01:
+ * Techpeple asked Ifeoma Balogun for "I-9, with the document it is
+ * completed from", and because that is not the I-9's label word for word,
+ * Accept on Paperwork drew no fields, stamped the paper examined, said
+ * "examined by Bhavesh Nair" and recorded no I-9, so nothing the start
+ * reads was written; and the same name could be asked for before any
+ * offer, because the ask did not know it was an I-9.
+ *
+ * The I-94 is a different record (an arrival record, not the employer's
+ * form), and `\b` after the 9 keeps it out. Counting a paper read this
+ * way is still the employer's examination and nothing else
+ * (`EXAMINED_NOT_SENT`): reading the name routes the paper to the
+ * examination that asks for the document shown; it never clears a start.
+ */
+const NAMED_BY_FORM_NUMBER: { key: string; names: RegExp }[] = [
+  { key: 'I9_EVERIFY', names: /(^|[^\w-])i-?9\b(?!-)|\bemployment eligibility verification\b/i },
+]
+
+/** The type a government form's own number names, or null. Pure. */
+export function formNumberKey(templateName: string): string | null {
+  const name = templateName.trim()
+  return NAMED_BY_FORM_NUMBER.find((row) => row.names.test(name))?.key ?? null
+}
+
+/**
  * Which type of document a signed paper is, read off its own name.
  *
  * Null is a real answer and the honest failure: a non-disclosure
@@ -1591,6 +1618,9 @@ export function typeKeyForTemplate(
     (t) => t.label.trim().toLowerCase() === name.toLowerCase() || t.key.toLowerCase() === name.toLowerCase()
   )
   if (exact) return exact.key
+  // A form named by its number is that form, guessing or not.
+  const form = formNumberKey(name)
+  if (form) return form
   if (opts.guess === false) return null
   for (const row of NAMED_BY) {
     if (row.names.test(name)) return row.key

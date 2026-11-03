@@ -8,6 +8,7 @@ import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnfo
 import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
 import { RecordCheck, type RecordFor, type RecordKind } from './record-check'
+import { i9RecordFor } from './record-for'
 import { usePageSection } from '@/components/page-section'
 import { EmptyState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
@@ -100,6 +101,10 @@ interface OwedDocument {
   word: string
   asked: string
   waivedSays: string | null
+  /** The person the line is for, where the worker owes it. */
+  personId?: string | null
+  /** An I-9 this firm records as the person's employer, from this row. */
+  recordI9?: boolean
 }
 
 interface LapsedSupplier {
@@ -393,6 +398,22 @@ export default function CompliancePage() {
       .finally(() => setLoading(false))
   }, [readAt])
 
+  // Opened for one person from another screen's refusal ("Record the I-9
+  // on Compliance", the screen walk of 2026-11-01): once, when the page
+  // has read whom this firm records an I-9 for.
+  const [askedFor] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const q = new URLSearchParams(window.location.search)
+    return q.get('record') === 'I9' ? q.get('person') : null
+  })
+  const [openedFor, setOpenedFor] = useState(false)
+  useEffect(() => {
+    if (!askedFor || openedFor || !data) return
+    setOpenedFor(true)
+    const who = i9RecordFor(data, askedFor)
+    if (who) setRecordingStart(who)
+  }, [askedFor, openedFor, data])
+
   useEffect(() => {
     fetch('/api/compliance/classification')
       .then(r => r.json())
@@ -608,12 +629,24 @@ export default function CompliancePage() {
                 </div>
                 <p className="text-[12px] text-etyme-muted mt-1">{owedSentence(o)}</p>
                 {o.waivedSays && <p className="text-[12px] text-etyme-muted mt-1">{o.waivedSays}</p>}
-                <a
-                  className="text-[12px] text-etyme-action hover:underline"
-                  href={`/dashboard/documents/requirements?sellContractId=${o.lineId}`}
-                >
-                  See everything this line asks for
-                </a>
+                <div className="flex flex-wrap gap-3 text-[12px]">
+                  {/* The employer records the I-9 from here, whether or not a
+                      start is listed as held (the screen walk, 2026-11-01). */}
+                  {o.recordI9 && o.personId && (
+                    <button
+                      className="text-etyme-action hover:underline"
+                      onClick={() => setRecordingStart({ contractId: o.lineId, personId: o.personId!, name: o.aboutName ?? 'this person' })}
+                    >
+                      Record the I-9
+                    </button>
+                  )}
+                  <a
+                    className="text-etyme-action hover:underline"
+                    href={`/dashboard/documents/requirements?sellContractId=${o.lineId}`}
+                  >
+                    See everything this line asks for
+                  </a>
+                </div>
               </div>
             ))}
           </div>
@@ -1104,6 +1137,16 @@ function VerificationsTab({
                             {startOf.get(person.personId ?? "")!.says}
                           </p>
                         )}
+                        {/* An I-9 this firm owes as the employer, with no start listed
+                            as held: the same form, from the line it is owed on. */}
+                        {!startOf.has(person.personId ?? "") && person.personId && (() => {
+                          const who = i9RecordFor(data, person.personId)
+                          return who ? (
+                            <div className="mt-2 flex flex-wrap gap-3 text-[12px]">
+                              <button className="text-etyme-action hover:underline" onClick={() => setRecording({ kind: 'I9', who })}>Record the I-9</button>
+                            </div>
+                          ) : null
+                        })()}
                         {startOf.has(person.personId ?? "") && (() => {
                           const start = startOf.get(person.personId ?? "")!
                           const who: RecordFor = { contractId: start.contractId, personId: start.personId, name: start.name }

@@ -911,6 +911,16 @@ interface Owed {
   word: string
   asked: string
   waivedSays: string | null
+  /** The person the line is for, where the worker owes it. */
+  personId: string | null
+  /**
+   * Whether this firm records it from this row: an I-9 it owes as the
+   * person's employer (an employee seat, or a line of its own paying them
+   * by payroll). Found by the screen walk of 2026-11-01: Record the I-9
+   * was offered only while a start was listed as held, so Pinnacle could
+   * not record Nikhil Fairweather's at all.
+   */
+  recordI9: boolean
 }
 
 /** A check that actually came back. Anything still running holds nothing. */
@@ -1033,8 +1043,19 @@ async function whatThisFirmOwes(
         word: item.word,
         asked: item.asked,
         waivedSays: item.waivedSays,
+        personId: item.owedBy === 'WORKER' ? (line.personId ?? null) : null,
+        recordI9: false,
       })
     }
+  }
+
+  // An I-9 the worker owes is recorded by the employer, so the row offers
+  // Record the I-9 only where this firm employs the person; anybody else
+  // reads whose it is. One read for every such person.
+  const i9Owed = out.filter((o) => o.key === 'I9_EVERIFY' && o.owedBy === 'WORKER' && o.state !== 'WAIVED' && o.personId)
+  if (i9Owed.length) {
+    const employs = await employedPairs(i9Owed.map((o) => o.personId!))
+    for (const o of i9Owed) o.recordI9 = employs.has(`${companyId}:${o.personId}`)
   }
 
   return out.sort(

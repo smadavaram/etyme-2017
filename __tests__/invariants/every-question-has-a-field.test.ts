@@ -8,7 +8,9 @@ import { licenseRenewal } from '@/lib/document-request'
 import { OWN_PAPER_POSTED, mayFileOwnPaper, ownPaperFields, ownPaperInput, ownPaperMenu, ownPaperPost, type OwnPaperTyped } from '@/lib/document-stages/own-papers'
 import { licenseFieldsFor } from '@/app/dashboard/my-work/paperwork-rows'
 import { examineBody, examineFields, examineNeedsOf, type ExamineValues } from '@/lib/document-stages/examine-form'
-import { examinationBody } from '@/app/api/packets/examination'
+import { examinationBody, recordDoorFor } from '@/app/api/packets/examination'
+import { formNumberKey, heldFromDocInstances, typeKeyForTemplate } from '@/lib/document-request'
+import { i9RecordFor } from '@/app/dashboard/compliance/record-for'
 import { NOTICE_THE_FORM_RAISES, adverseFields, recordAdverseBody, recordI9Body, recordVerdictBody, type AdverseStepTyped } from '@/app/dashboard/compliance/record-bodies'
 
 /**
@@ -431,5 +433,80 @@ describe('every question a bench or consultant route asks, its form has a field 
     expect(read('src/app/api/bench/listings/route.ts')).toContain('const read = readAddToBench(body)')
     expect(read('src/app/api/consultants/route.ts')).toContain('const read = readAddConsultant(body)')
     expect(read('src/app/api/consultants/[id]/route.ts')).toContain('const edit = readProfileEdit(body)')
+  })
+})
+
+/**
+ * The screen walk of 2026-11-01, checked on the build after it
+ * (etyme-regulatory, 2026-11-02). Pressed on a private copy of the kept
+ * world with the bodies the dialogs post: an I-9 accepted on Paperwork
+ * and on Document requests is recorded with the document behind it and
+ * the start clears; a license from a request is recorded with its board
+ * and number. What was still wrong is below, each as a sentence.
+ */
+describe('the screen walk’s papers, on the build after it', () => {
+  const STRICT = BUILT_IN.map((t) => ({ key: t.key, label: t.label }))
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+  it('a firm’s own name for the I-9 is read as the I-9 wherever a paper is credited, so accepting it asks for the document shown, and an I-94 or another form is never read as one', () => {
+    // Techpeple's own paper for Ifeoma Balogun: before, it read as no type,
+    // so Accept drew no field, stamped it examined and recorded no I-9.
+    for (const name of ['I-9, with the document it is completed from', 'Form I-9', 'I-9', 'Employment Eligibility Verification (Form I-9)']) {
+      expect(typeKeyForTemplate(name, STRICT, { guess: false }), name).toBe('I9_EVERIFY')
+      expect(examineNeedsOf(typeKeyForTemplate(name, STRICT, { guess: false }), false).shown, name).toBe(true)
+    }
+    for (const name of ['I-94', 'Form I-90', 'I-9-A', 'CI-9 slip']) expect(typeKeyForTemplate(name, STRICT, { guess: false }), name).not.toBe('I9_EVERIFY')
+    expect(formNumberKey('I-94 record')).toBeNull()
+  })
+
+  it('a paper read as the I-9 by its name never stands behind a start on its own: only the employer’s recorded examination does', () => {
+    const [held] = heldFromDocInstances([
+      { id: 'd1', status: 'SIGNED', signedAt: ON, template: { name: 'I-9, with the document it is completed from' } },
+    ])
+    expect(held.key).toBe('I9_EVERIFY')
+    expect(held.accepted).toBe(false)
+  })
+
+  it('an I-9 the look could not record names Record the I-9 on Compliance, with its link to the person, and no other paper names it', () => {
+    expect(recordDoorFor('I9_EVERIFY', 'person-1')).toEqual({ says: 'Record the I-9 on Compliance', href: '/dashboard/compliance?record=I9&person=person-1' })
+    for (const key of ['PROFESSIONAL_LICENSE', 'RIGHT_TO_WORK', 'BACKGROUND_CHECK', 'INSURANCE_GL']) expect(recordDoorFor(key, 'person-1'), key).toBeNull()
+    const examination = read('src/app/api/packets/examination.ts')
+    // Only for what the look did not post, and only once this firm may record it.
+    expect(examination).toContain("const doorFor = (field?: string) => (!given || (!!field && blank(body[field])) ? recordDoorFor(item.key, personId) : null)")
+    expect(examination.indexOf('const doorFor')).toBeGreaterThan(examination.indexOf('return refuse(403, may.code, may.message)'))
+    // Both doors that accept a paper send it on, and the dialog draws it as a link.
+    expect(read('src/app/api/documents/[id]/examine/route.ts')).toContain('examined.refused.field, examined.refused.door)')
+    expect(read('src/app/api/packets/[id]/review/route.ts')).toContain('door: examined.refused.door')
+    expect(read('src/app/dashboard/documents/examine.tsx')).toContain('<a href={door.href}')
+    // And the link opens the form for that person.
+    expect(read('src/app/dashboard/compliance/page.tsx')).toContain("q.get('record') === 'I9' ? q.get('person') : null")
+  })
+
+  it('Record the I-9 is offered for anybody whose I-9 this firm owes as their employer, whether or not a start is listed as held, and for nobody it does not employ', () => {
+    const data = {
+      startsHeld: [{ contractId: 'line-held', personId: 'ingrid', name: 'Ingrid Sørensen', own: true }, { contractId: 'line-sub', personId: 'omar', name: 'Omar Haddad', own: false }],
+      owes: [
+        { lineId: 'line-nikhil', personId: 'nikhil', aboutName: 'Nikhil Fairweather', recordI9: true },
+        { lineId: 'line-ravi', personId: 'ravi', aboutName: 'Ravi Kalathil', recordI9: false },
+      ],
+    }
+    expect(i9RecordFor(data, 'ingrid')).toEqual({ contractId: 'line-held', personId: 'ingrid', name: 'Ingrid Sørensen' })
+    // Pinnacle and Nikhil Fairweather: no start held, his I-9 owed on a line Pinnacle employs him on.
+    expect(i9RecordFor(data, 'nikhil')).toEqual({ contractId: 'line-nikhil', personId: 'nikhil', name: 'Nikhil Fairweather' })
+    // Somebody a firm below employs, and somebody owed on no line here, are offered nothing.
+    expect(i9RecordFor(data, 'omar')).toBeNull()
+    expect(i9RecordFor(data, 'ravi')).toBeNull()
+    expect(i9RecordFor(null, 'nikhil')).toBeNull()
+    // The route says which owed I-9 this firm records, from one read of who it employs.
+    const route = read('src/app/api/compliance/route.ts')
+    expect(route).toContain('for (const o of i9Owed) o.recordI9 = employs.has(`${companyId}:${o.personId}`)')
+    expect(read('src/app/dashboard/compliance/page.tsx')).toContain('{o.recordI9 && o.personId && (')
+  })
+
+  it('a supplier is asked for a bank letter or a voided check, spelled the American way', () => {
+    for (const file of ['src/lib/packets.ts', 'src/lib/packet-derivation.ts']) {
+      expect(read(file), file).toContain("'Bank letter or voided check'")
+      expect(read(file), file).not.toMatch(/cheque/i)
+    }
   })
 })

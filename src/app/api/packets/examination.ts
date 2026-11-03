@@ -12,6 +12,7 @@ import {
 } from '@/lib/attestation'
 import { buysFrom as buysOn } from '@/lib/document-stages/firm-papers'
 import { writeCheck, employerOfRecord } from '@/app/api/compliance/verifications/record'
+import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
 import { employedElsewhere } from '@/lib/document-stages/employer'
 
 /**
@@ -170,13 +171,34 @@ export function examinationBody(body: Record<string, unknown>): Record<string, u
 /** The fields a recorded check takes, beyond the date a packet already asks for. */
 export const EXAMINATION_FIELDS = ['formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt'] as const
 
+/** A screen that can take what this one could not, and where it is. */
+export interface Door {
+  says: string
+  href: string
+}
+
+/**
+ * Where an I-9 is recorded when the paper's own dialog could not record
+ * it: Record the I-9 on Compliance, opened for the person. Found by the
+ * screen walk of 2026-11-01: a refusal on Document requests named no
+ * screen that could answer it, so the person read a rule and no way to
+ * meet it. Only for a firm that may record it; anybody else is told whose
+ * it is instead. Null for any other paper.
+ */
+export function recordDoorFor(key: string, personId: string): Door | null {
+  if (!COMPLETED_FROM_SHOWN.includes(key)) return null
+  return { says: 'Record the I-9 on Compliance', href: `/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}` }
+}
+
 export interface Examined {
   /** The recorded check the item became. */
   verificationId?: string
   /** What the answer adds, in a sentence. */
   says?: string
   /** Nothing changes, and why. */
-  refused?: { status: number; code: string; message: string; field?: string }
+  refused?: { status: number; code: string; message: string; field?: string; door?: Door }
+  /** Where it can be recorded instead, where this look could not record it. */
+  door?: Door
 }
 
 export async function examinationOf(input: {
@@ -285,15 +307,33 @@ export async function examinationOf(input: {
     return refuse(403, may.code, may.message)
   }
 
+  // This firm may record it. Where the look did not post what the record
+  // needs (a screen that drew no field for it, or nothing posted at all),
+  // the sentence names the screen that has the field, with its link. A
+  // refusal of what was posted (a document that has run out) is answered
+  // with a different document, not a different screen, and names none.
+  const blank = (v: unknown) => v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === '')
+  const doorFor = (field?: string) => (!given || (!!field && blank(body[field])) ? recordDoorFor(item.key, personId) : null)
+  const orThere = (message: string, door: Door | null) => (door ? `${message} Or ${door.says.charAt(0).toLowerCase()}${door.says.slice(1)}.` : message)
+  const cannot = (status: number, code: string, message: string, field?: string): Examined => {
+    const door = doorFor(field)
+    return given
+      ? { refused: { status, code, message: orThere(message, door), field, ...(door ? { door } : {}) } }
+      : { says: `It does not count toward the start yet. ${orThere(message, door)}`, ...(door ? { door } : {}) }
+  }
+
   // ── What was examined, read the way Record a check reads it ──
   const read = checkInputFrom(body, {
     about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
     // The request's own date is the paper's end where nothing else names one.
     expiresAtFallback: input.validUntil,
   })
-  if (!read.ok) return { refused: { status: 422, code: 'VALIDATION', message: read.message, field: read.field } }
+  if (!read.ok) {
+    const door = doorFor(read.field)
+    return { refused: { status: 422, code: 'VALIDATION', message: orThere(read.message, door), field: read.field, ...(door ? { door } : {}) } }
+  }
   const verdict = checkToRecord(read.input, now)
-  if (!verdict.ok) return refuse(422, verdict.code, verdict.message, verdict.field)
+  if (!verdict.ok) return cannot(422, verdict.code, verdict.message, verdict.field)
 
   const written = await writeCheck({
     row: verdict.row,

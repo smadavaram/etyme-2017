@@ -160,7 +160,7 @@ export async function POST(
   }) : null
   if (examined?.refused) {
     return NextResponse.json(
-      { error: { code: examined.refused.code, message: examined.refused.message, ...(examined.refused.field ? { field: examined.refused.field } : {}) } },
+      { error: { code: examined.refused.code, message: examined.refused.message, ...(examined.refused.field ? { field: examined.refused.field } : {}), ...(examined.refused.door ? { door: examined.refused.door } : {}) } },
       { status: examined.refused.status }
     )
   }
