@@ -11,6 +11,7 @@ import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
+import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
@@ -1014,13 +1015,21 @@ export default function ConsultantsPage() {
    */
   const [firstRead, setFirstRead] = useState(false)
 
-  // Open the add modal when navigated with ?new=1
+  // Whether the route would take this seat's Add consultant: the button is
+  // drawn only where it would, read off the route's own gate (second screen
+  // walk, 2026-11-03: a delivery manager was offered it and refused).
+  const mayAdd = mayAddConsultant(session.permissions)
+  /** Who may add, said where somebody without the role followed a link to the form. */
+  const [addRefused, setAddRefused] = useState<string | null>(null)
+
+  // Open the add modal when navigated with ?new=1, or say who adds.
   useEffect(() => {
     if (searchParams.get('new') === '1') {
-      setShowAdd(true)
+      if (mayAdd) setShowAdd(true)
+      else setAddRefused(whoAddsSays({ kind: session.company?.kind ?? null, companyName: session.company?.name ?? null }))
       router.replace('/dashboard/consultants', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, mayAdd, session.company?.kind, session.company?.name])
 
   const fetchConsultants = useCallback(async () => {
     setLoading(true)
@@ -1257,10 +1266,19 @@ export default function ConsultantsPage() {
             <p>Consultant records — the people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
           )}
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-          Add consultant
-        </button>
+        {mayAdd && (
+          <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
+            Add consultant
+          </button>
+        )}
       </div>
+
+      {addRefused && (
+        <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
+          {addRefused}{' '}
+          <button className="text-etyme-action hover:underline" onClick={() => setAddRefused(null)}>Close</button>
+        </p>
+      )}
 
       {added && (
         <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
@@ -1336,7 +1354,7 @@ export default function ConsultantsPage() {
       )}
 
       {/* Modals */}
-      {showAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
+      {showAdd && mayAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
       {selected && (
         <ConsultantDrawer
           consultant={selected}
