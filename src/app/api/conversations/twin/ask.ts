@@ -2267,6 +2267,8 @@ export interface Readers {
   rollingOff?(days: number): Promise<Refusable<{ rows: RollRow[] }>>
   /** Who is on this firm's bench: the people who agreed to be, or an integrator's own people between projects. */
   bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
+  /** What this firm's own placements earn, as Profitability reads them; refused to a seat without `margin.read` in the route's own sentence. */
+  margins?(): Promise<Refusable<{ rows: MarginRow[] }>>
   /** Weeks signed at the top that are on none of this firm's bills, oldest first. */
   unbilledWeeks?(): Promise<Refusable<{ rows: UnbilledRow[] }>>
   /** Bills this firm sent that are not paid in full, the latest first. */
@@ -3132,8 +3134,23 @@ export async function respond(
     case 'NEVER':
       return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text)) }
 
-    case 'MARGIN':
-      return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+    // A firm's own margin is its own to read (release walk three,
+    // 2026-11-03): answered from Profitability's own figures where this
+    // seat holds `margin.read`, refused in the route's sentence where it
+    // does not. A client, or a firm reading a client's program, has no
+    // margin of its own here, and nobody reads another firm's.
+    case 'MARGIN': {
+      if (opts.party === 'CLIENT' || opts.party === 'MSP' || !read.margins) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+      const got = await read.margins()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      const named = marginRowsNamed(text, got.rows)
+      const rows = named.length ? named : got.rows
+      return {
+        kind: 'LIST', says: marginSays(rows, { named: named.length > 0 }),
+        ...(rows.length ? { table: marginTable(rows) } : {}),
+        links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
+      }
+    }
 
     case 'TIME_LIMIT': {
       const limits = await read.limits()
@@ -3875,6 +3892,33 @@ export const ROLLOFF_DAYS = 30
 
 export interface RollRow { personId: string; person: string; site: string | null; endsOn: string; daysLeft: number; href: string }
 export interface BenchRow { personId: string; person: string; free: string; skills: string[]; href?: string }
+/**
+ * One placement this firm sells, as Profitability reads it (GET
+ * /api/profitability?by=contract, `placementBooks` in lib/money/margin):
+ * the spread the two sides agreed and what the signed weeks earned. Both
+ * in the firm's own figures; null where the page shows a blank.
+ */
+export interface MarginRow {
+  personId: string
+  person: string
+  client: string | null
+  live: boolean
+  /** Bill less pay, per hour, in minor units, and its percentage; null where the page cannot stand behind one. */
+  spreadMinor: number | null
+  spreadPct: number | null
+  /** Why there is no agreed spread, in the page's own words. */
+  spreadMissing: string | null
+  /**
+   * What the placement made, as the page's row says it (`profit`: revenue
+   * less pay, burden, commission and expenses): the margin, the revenue it
+   * is on and its percentage. Null where nothing says what it costs.
+   */
+  earnedMinor: number | null
+  earnedRevenueMinor: number | null
+  earnedPct: number | null
+  currency: string
+  href: string
+}
 export interface UnbilledRow {
   timesheetId: string; person: string; customer: string | null; periodStart: string; periodEnd: string; hours: number; signedOn: string | null; href: string
   /** What the week bills, in minor units, as Today prices it; null where it cannot be priced. */
@@ -3999,6 +4043,64 @@ export function benchTable(rows: readonly BenchRow[]): ListTable {
     caption: 'On your bench',
     head: ['Person', 'Free', 'Skills'],
     rows: rows.map((r) => ({ cells: [r.person, r.free, r.skills.slice(0, 4).join(', ') || '—'], ...(r.href ? { href: r.href } : {}) })),
+  }
+}
+
+/**
+ * The placements a margin question names, by the person's full name, or
+ * by a first or last name written in the question; none where it names
+ * nobody, and the answer is then the whole book. Pure.
+ */
+export function marginRowsNamed(text: string, rows: readonly MarginRow[]): MarginRow[] {
+  const lower = text.toLowerCase()
+  const said = new Set(words(text).filter((w) => w.length >= 3))
+  return rows.filter((r) => {
+    if (lower.includes(r.person.trim().toLowerCase())) return true
+    const parts = words(r.person)
+    return parts.length > 0 && (said.has(parts[0]) || (parts.length > 1 && said.has(parts[parts.length - 1])))
+  })
+}
+
+const pctOf = (n: number) => `${Math.round(n * 10) / 10}%`
+
+/** One placement's margin in a clause: "Rajesh Iyer at Northbend Athletic: $35.00 an hour agreed (26.9%), $1,400.00 made on $5,200.00 billed (26.9%)". */
+function marginClause(r: MarginRow): string {
+  const at = r.client ? ` at ${r.client}` : ''
+  const agreed = r.spreadMinor != null && r.spreadPct != null
+    ? `${money(r.spreadMinor, r.currency)} an hour agreed (${pctOf(r.spreadPct)})`
+    : 'no agreed spread on the record'
+  const earned = r.earnedMinor != null && r.earnedRevenueMinor != null && r.earnedRevenueMinor > 0
+    ? `, ${money(r.earnedMinor, r.currency)} made on ${money(r.earnedRevenueMinor, r.currency)} billed${r.earnedPct != null ? ` (${pctOf(r.earnedPct)})` : ''}`
+    : r.earnedMinor == null && r.earnedRevenueMinor != null && r.earnedRevenueMinor > 0
+      ? ', and what it costs is not on the record, so what it made is not said'
+      : ', nothing billed on it yet'
+  return `${r.person}${at}: ${agreed}${earned}`
+}
+
+/** What the firm's own placements earn, in one sentence, from Profitability's figures. Pure. */
+export function marginSays(rows: readonly MarginRow[], opts: { named?: boolean } = {}): string {
+  if (rows.length === 0) return 'Your firm sells no placements yet, so there is no margin to read. Checked just now.'
+  const shown = rows.slice(0, 3).map(marginClause)
+  const more = rows.length > 3 ? ` And ${lowerNumber(rows.length - 3)} more on Profitability.` : ''
+  const lead = opts.named ? 'From Profitability' : 'Your margin, from Profitability'
+  return `${lead}: ${shown.join('; ')}.${more} Checked just now.`
+}
+
+export function marginTable(rows: readonly MarginRow[]): ListTable {
+  return {
+    caption: 'What your placements earn',
+    head: ['Person', 'Client', 'Agreed spread', 'Made so far'],
+    rows: rows.map((r) => ({
+      cells: [
+        r.person,
+        r.client ?? '—',
+        r.spreadMinor != null && r.spreadPct != null ? `${money(r.spreadMinor, r.currency)}/hr · ${pctOf(r.spreadPct)}` : '—',
+        r.earnedMinor != null && r.earnedRevenueMinor != null && r.earnedRevenueMinor > 0
+          ? `${money(r.earnedMinor, r.currency)}${r.earnedPct != null ? ` · ${pctOf(r.earnedPct)}` : ''}`
+          : '—',
+      ],
+      href: r.href,
+    })),
   }
 }
 
