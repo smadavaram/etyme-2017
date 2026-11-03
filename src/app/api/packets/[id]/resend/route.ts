@@ -6,6 +6,7 @@ import { mayAskForDocuments } from '@/lib/packets'
 import { notify } from '@/lib/notify'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { resendPlan } from '@/lib/document-stages/packet-resend'
+import { resentSays, resendEmailLeaves } from '@/lib/notify/resend-words'
 
 /**
  * POST /api/packets/:id/resend — send a document request again.
@@ -61,12 +62,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       entityId: packet.id,
     })
   }
-  if (!leaves) {
-    // No email leaves this deployment, so the link stays with whoever pressed it.
+  const facts = { leaves, address: packet.recipientEmail, hasAccount: !!recipient, waitingOn: plan.waitingOn, until: plan.until }
+  if (!resendEmailLeaves(facts)) {
+    // No email leaves for this address (no sender here, or a demo address
+    // that never receives one), so the link stays with whoever pressed it.
     void notify({
       personId: caller.person.id, companyId: caller.company.id, type: 'SYSTEM',
       title: `Pass this link to ${packet.recipientEmail}: ${packet.label}`,
-      body: `No email can be sent from here yet, so send it yourself: ${link}, open until ${plan.until}.`,
+      body: `No email went to ${packet.recipientEmail}, so send it yourself: ${link}, open until ${plan.until}.`,
       entityId: packet.id,
     })
   }
@@ -74,9 +77,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: {
       link,
       expiresAt: plan.expiresAt.toISOString().slice(0, 10),
-      message: leaves || recipient
-        ? `Sent again to ${packet.recipientEmail}, waiting on ${plan.waitingOn}. The link is open until ${plan.until}.`
-        : `No email can be sent from here yet, so send ${packet.recipientEmail} the link yourself. It is open until ${plan.until} and is kept on your notices.`,
+      // "Sent again" only where an email left (release walk three):
+      // conversation's one sentence for it.
+      message: resentSays(facts),
     },
   })
 }

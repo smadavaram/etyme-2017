@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { plainDate } from '@/lib/plain-date'
 import { itemStateSays } from '@/lib/document-stages/packet-resend'
-import { emptyRequestsSays } from './words'
+import { emptyRequestsSays, sendRequestMissing } from './words'
 import { ExaminePaper, type ExamineRow } from '../documents/examine'
 import { usePageSection } from '@/components/page-section'
 import { EmptyState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
@@ -149,6 +149,11 @@ export default function PacketsPage() {
   // set of anybody this firm may put forward (the walk on screens, 2026-10-22).
   const askable = spec?.purpose === 'SUBMISSION' ? people : people.filter((p) => p.onLine !== false)
 
+  const sendMissing = sendRequestMissing({
+    packetKey, email, subject: spec?.subject === 'PERSON' || spec?.subject === 'COMPANY' ? spec.subject : null,
+    subjectPersonId, subjectCompanyId,
+  })
+
   async function ask() {
     setBusy(true); setError(null); setFlash(null); setLink(null); setAsked([])
     try {
@@ -272,11 +277,14 @@ export default function PacketsPage() {
               </Field>
             )}
           </div>
-          <SubmitButton type="button" onClick={ask} pending={busy} pendingLabel="Sending…"
-            disabled={!packetKey || !email.trim() || (spec?.subject === 'COMPANY' && !subjectCompanyId) || (spec?.subject === 'PERSON' && !subjectPersonId)}
-            className="mt-4">
-            Send the request
-          </SubmitButton>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <SubmitButton type="button" onClick={ask} pending={busy} pendingLabel="Sending…"
+              disabled={!!sendMissing}>
+              Send the request
+            </SubmitButton>
+            {/* A disabled button always says what is missing (release walk three, D3). */}
+            {sendMissing && <span className="text-[12px] text-etyme-muted">{sendMissing}</span>}
+          </div>
           {notOffered.length > 0 && (
             <div className="mt-4 text-[12px] text-etyme-muted">
               <p>Not sent from here: {notOffered.map((n) => n.label).join(', ')}.</p>
