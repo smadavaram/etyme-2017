@@ -5055,6 +5055,56 @@ are `etyme-conversation`'s. Until that lands the table is written by the
 seed and read by its own door, and nothing that computes a verdict today
 has changed meaning.
 
+### Work authorization is checked where the work is done — decided by the founder, 2026-11-03
+
+The founder, asked what happens when a candidate turns out to have no
+work authorization after three interviews: *"Especially for the onsite
+jobs — offshore jobs is fine."* So the question is never "is this person
+authorized" in the abstract; it is "authorized where this job's work is
+done". The record already holds the three facts the rule needs: the
+job's work mode (`Requirement.workMode`: ONSITE · HYBRID · REMOTE), the
+site's country (`CompanyLocation.country` through the job's site), and
+the country the person works from (`ConsultantProfile.country`).
+
+- **An onsite or hybrid job checks the site's country.** A US site asks
+  the two lawful screening questions in words (authorized to work in the
+  US; sponsorship needed now or later), **records the sponsorship answer
+  as a field** rather than words on the packet, and says it at
+  put-forward where the job lawfully offers none ("Priya said she will
+  need sponsorship; this job offers none"), so the interview is never
+  booked. The start still refuses without the I-9, and work authorization
+  still cannot be waived.
+- **A remote job worked from the person's own country is offshore, and
+  asks nothing about the site's country.** An engineer in Pune working
+  for a client in Ohio through an Indian supplier needs no US
+  authorization and completes no I-9, because she is not employed in the
+  US. What the start needs is the work country's own set, and that set
+  is regulatory's to confirm with its source before it is enforced
+  (today the gate asks every placement for an I-9 or a right-to-work
+  check, which is wrong for an offshore line and is the first thing this
+  changes).
+- **A remote job worked from the site's country is onsite for this
+  purpose.** Remote from Austin for a client in Ohio is US work.
+- **The lawful-basis rule stands**: a job refuses a person over status
+  only with a recorded basis (export control, a federal contract clause,
+  a clearance, a statute, no sponsorship offered); without one it warns.
+  "No sponsorship" never turns away somebody who needs none.
+- **What was found, so it is not re-derived:** until this day the
+  screening answer was kept as words on the packet item
+  (`WORK_AUTH_QUESTION`) and nothing read it, so a candidate who said
+  "I will need sponsorship" could be interviewed three times for a job
+  that offers none, and nobody was told until the award refused the
+  start; and the put-forward warning read only the papers on file (an
+  I-9 or a right-to-work check), so it fired for nearly everybody not
+  yet employed and told the submitter nothing about sponsorship.
+- **Built in the wave after the 2026-11-03 deploy, in this order:** the
+  work country of a job and of a line, read from the three facts above
+  (demand, with architect if a column is needed); the sponsorship answer
+  as a field and the put-forward sentence (demand); the start gate and
+  the required set per work country, confirmed with a source before any
+  is enforced, and the offshore line's set (regulatory). The simulation
+  gets an offshore chain so "horizontal, never vertical" is proven on it.
+
 **Four models overlap here and none is a superset:** `Verification` and
 `VerificationDoc` (the person's compliance evidence, expiry watched by
 `cron/watch`), `DocInstance` and `DocTemplate` (papers sent for signature,
