@@ -19,6 +19,7 @@ import { listTotals, totalsRowOf, rateColumnLabel } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
+import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -1487,6 +1488,11 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
         {row.approvedBy && !row.signature?.says?.startsWith(row.approvedBy) && (
           <p className="mt-3 text-[12px] text-etyme-muted">{row.approvedBy}</p>
         )}
+
+        {/* An approved week's bill: "Bill this week" for the seat that
+            bills, then the bill's state. Draws nothing where the route
+            would refuse the reader. */}
+        {row.status === 'APPROVED' && <BillThisWeek timesheetId={row.id} />}
 
         <div className="flex justify-end items-center gap-3 mt-5">
           {row.href && (

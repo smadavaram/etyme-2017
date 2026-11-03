@@ -339,6 +339,14 @@ describe('the Timesheets page’s words for acting on a week', () => {
   const TIMESHEETS_PAGE = src('src/app/dashboard/timesheets/page.tsx')
   const TIMESHEETS_ROUTE = src('src/app/api/timesheets/route.ts')
 
+  it('an approved week on the Timesheets page offers Bill this week to the seat that bills', () => {
+    // Money's component: it asks the week's bill route and draws nothing
+    // where that route refuses the reader, then the bill's state after.
+    expect(TIMESHEETS_PAGE).toContain("import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'")
+    expect(TIMESHEETS_PAGE).toContain("{row.status === 'APPROVED' && <BillThisWeek timesheetId={row.id} />}")
+    expect(TIMESHEETS_PAGE).toContain('onRowClick={(row) => setOpened(row)}')
+  })
+
   it('the client’s act on a week is “Approve timesheet”, and a firm below it accepts, in the words Ask Etyme reads', async () => {
     const { weekButton, anywayTitle, withReasonButton } = await import('@/app/dashboard/timesheets/act-words')
     const { WEEK_WORDS } = await import('@/lib/notify/week-words')

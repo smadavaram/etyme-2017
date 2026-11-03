@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, personId: true, companyId: true,
       person: { select: { name: true } },
-      company: { select: { name: true } },
       requirement: { select: { title: true } },
     },
   })
