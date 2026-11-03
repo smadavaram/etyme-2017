@@ -67,18 +67,24 @@ export function ReceiptForm({ books, onSaved, onClose }: {
   }, [books])
 
   const supplier = suppliers?.find((s) => s.id === supplierId) ?? null
-  const line = supplier?.lines.find((l: any) => l.buyContractId === buyId) ?? null
+  // `buyId` holds the option's key: `buy:<id>` for a buy line, `sell:<id>`
+  // for a supplier's line whose customer this firm is.
+  const line = supplier?.lines.find((l: any) => l.key === buyId) ?? null
+  const lineParam = line?.sellContractId
+    ? `sellContractId=${encodeURIComponent(line.sellContractId)}`
+    : line?.buyContractId ? `buyContractId=${encodeURIComponent(line.buyContractId)}` : null
+  const asCustomer = Boolean(supplier?.lines.some((l: any) => l.sellContractId))
   const currency: string = line?.currency ?? 'USD'
 
   useEffect(() => {
     setOptions(null)
     setLines([])
     setResult(null)
-    if (!buyId) return
-    fetch(withBooks(`/api/ap/receipts/options?buyContractId=${encodeURIComponent(buyId)}`, books))
+    if (!lineParam) return
+    fetch(withBooks(`/api/ap/receipts/options?${lineParam}`, books))
       .then(async (r) => setOptions((await readJson(r)).data))
       .catch((e) => setFailed(e.message))
-  }, [buyId, books])
+  }, [lineParam, books])
 
   const lineMinors = lines.map((l) => toMinor(l.amount, currency) ?? 0)
   const sum = lineMinors.reduce((n, x) => n + x, 0)
@@ -126,7 +132,8 @@ export function ReceiptForm({ books, onSaved, onClose }: {
   function body(preview: boolean) {
     const out: Record<string, unknown> = {
       vendorCompanyId: supplierId,
-      buyContractId: buyId || null,
+      buyContractId: line?.buyContractId ?? null,
+      sellContractId: line?.sellContractId ?? null,
       number: number.trim(),
       currency,
       total: totalMinor == null ? null : Number(toTyped(totalMinor, currency)),
@@ -176,7 +183,7 @@ export function ReceiptForm({ books, onSaved, onClose }: {
   }
 
   if (failed) return <div className="panel"><FormMessage tone="error">{failed}</FormMessage></div>
-  if (!suppliers) return <div className="panel"><p className="text-[13px] text-etyme-muted">Reading your suppliers and buy lines…</p></div>
+  if (!suppliers) return <div className="panel"><p className="text-[13px] text-etyme-muted">Reading your suppliers…</p></div>
 
   const ready = supplierId && number.trim() && dueAt && totalMinor != null && totalMinor > 0 && (!withLines || (lines.length > 0 && lines.every((l) => l.ref)))
 
@@ -193,7 +200,7 @@ export function ReceiptForm({ books, onSaved, onClose }: {
 
       {suppliers.length === 0 && (
         <p className="text-[13px] text-etyme-ink">
-          There is no buy line with a supplier on it here, so there is nothing an invoice receipt could be for.
+          No supplier bills you on a line here yet, so there is nothing an invoice receipt could be for.
         </p>
       )}
 
@@ -204,11 +211,11 @@ export function ReceiptForm({ books, onSaved, onClose }: {
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
-        <Field label="Buy line" help={line?.netDays != null ? `Agreed terms: net ${line.netDays} days.` : undefined}>
+        <Field label={asCustomer ? 'Contractor' : 'Buy line'} help={line?.netDays != null ? `Agreed terms: net ${line.netDays} days.` : undefined}>
           <Select value={buyId} onChange={(e) => setBuyId(e.target.value)} disabled={!supplier}>
-            <option value="">Choose the buy line</option>
+            <option value="">{asCustomer ? 'Choose who the invoice is for' : 'Choose the buy line'}</option>
             {supplier?.lines.map((l: any) => (
-              <option key={l.buyContractId} value={l.buyContractId}>
+              <option key={l.key} value={l.key}>
                 {l.people.join(', ') || 'Nobody named'}
                 {l.rateMinor != null ? ` · ${rateWords(l.rateMinor, l.currency)}` : ''}
                 {l.orderNumber ? ` · order ${l.orderNumber}` : ''}
@@ -236,7 +243,7 @@ export function ReceiptForm({ books, onSaved, onClose }: {
         </button>
       </div>
 
-      {withLines && buyId && !options && <p className="text-[13px] text-etyme-muted">Reading what you accepted on this buy line…</p>}
+      {withLines && buyId && !options && <p className="text-[13px] text-etyme-muted">Reading what you accepted on this line…</p>}
 
       {withLines && options && (
         <div className="space-y-3">

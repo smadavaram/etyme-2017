@@ -57,6 +57,7 @@ import { descend } from '@/lib/work-chain'
 import { overBillCheck } from '@/lib/purchase-order'
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
+import { paidBuyLine, paidSellLine, clientLineOf, lineWord, type PaidLine } from '@/lib/money/paid-line'
 import { billsToPayer, payersOwn } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, legsFor, legsOverMany } from '@/lib/money/expense-acceptance-read'
 import {
@@ -75,6 +76,12 @@ export interface KeyedReceipt {
   vendorName: string
   number: string
   buyContractId: string | null
+  /**
+   * A client's side: the supplier's sell line whose customer is the payer
+   * (lib/money/paid-line). Named at intake; read back from the record
+   * where a stored receipt has no buy line.
+   */
+  sellContractId?: string | null
   /** The order the clerk named, if any. Where none, the buy line's own. */
   workOrderId: string | null
   periodStart: Date | null
@@ -125,12 +132,8 @@ export interface KeyedCheck {
  */
 export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay'): Promise<KeyedCheck> {
   const currency = r.currency.toUpperCase()
-  const buy = r.buyContractId
-    ? await prisma.buyContract.findUnique({
-        where: { id: r.buyContractId },
-        select: { workOrderId: true, supplierSellContractId: true, overtimeMultiplierBps: true },
-      })
-    : null
+  const line = await paidLineFor(r)
+  const buy = line
 
   // The order: the clerk's, else the line's own. The walk's $4,720
   // receipt against a $1,000 order went through because the order was
@@ -139,7 +142,7 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
   const workOrderId = r.workOrderId ?? buy?.workOrderId ?? null
   const order = await orderFacts(r, workOrderId)
   const waivers = liveWaivers(r.waivers ?? [], r.totalCents, currency)
-  const others = await otherReceipts(r, then)
+  const others = await otherReceipts(r, then, line)
 
   if (r.lines && r.lines.length > 0) {
     return checkLines(r, then, { buy, workOrderId, order, waivers, others })
@@ -156,16 +159,13 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
   //
   // The paying firm's own signature on each week (lib/money/payers-
   // acceptance), each accepted day at the rate in force that day.
-  if (r.buyContractId && r.periodStart && r.periodEnd) {
-    const book = await payersBook({ buyContractId: r.buyContractId, periodStart: r.periodStart, periodEnd: r.periodEnd, then })
+  if (line && r.periodStart && r.periodEnd) {
+    const book = await payersBook({ ...bookOf(line), periodStart: r.periodStart, periodEnd: r.periodEnd, then })
     if (book && book.waiting.length > 0) notAccepted = { says: book.notAccepted, waiting: book.waiting }
     const ours = book?.accepted ?? null
     if (ours) {
-      const candidate = await prisma.buyContractCandidate.findFirst({
-        where: { buyContractId: r.buyContractId },
-        select: { payRate: true, payCurrency: true },
-      })
-      const periods = await buyRatePeriods(r.buyContractId)
+      const candidate = line.candidates[0] ?? null
+      const periods = line.periods
       const priced = candidate
         ? ours.weeks.map((w) =>
             priceByDay({
@@ -283,6 +283,31 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
   }
 }
 
+// ── The line a receipt is paid on ────────────────────────────────────
+
+/**
+ * The buy line the receipt names; else the supplier's sell line whose
+ * customer is the payer, named at intake or read back from the record
+ * (lib/money/paid-line). Null where neither can be said.
+ */
+async function paidLineFor(r: KeyedReceipt): Promise<PaidLine | null> {
+  if (r.buyContractId) return paidBuyLine(r.buyContractId)
+  const sellId = r.sellContractId ?? await clientLineOf({
+    companyId: r.companyId,
+    vendorCompanyId: r.vendorCompanyId,
+    workOrderId: r.workOrderId,
+    timesheetIds: (r.lines ?? []).flatMap((l) => (l.timesheetId ? [l.timesheetId] : [])),
+    expenseIds: (r.lines ?? []).flatMap((l) => (l.expenseId ? [l.expenseId] : [])),
+  })
+  if (!sellId) return null
+  const line = await paidSellLine(sellId, r.companyId)
+  return line && line.vendorCompanyId === r.vendorCompanyId ? line : null
+}
+
+function bookOf(line: PaidLine): { buyContractId: string } | { sellContractId: string } {
+  return line.side === 'BUY' ? { buyContractId: line.id } : { sellContractId: line.id }
+}
+
 // ── The order a receipt draws on ─────────────────────────────────────
 
 async function orderFacts(
@@ -339,13 +364,15 @@ interface Others {
   sums: { expenseId: string | null; milestoneId: string | null; receipt: ReceiptAlready }[]
 }
 
-async function otherReceipts(r: KeyedReceipt, then: 'record' | 'pay'): Promise<Others> {
-  if (!r.buyContractId) return { receipts: [], sums: [] }
+async function otherReceipts(r: KeyedReceipt, then: 'record' | 'pay', line: PaidLine | null): Promise<Others> {
+  if (!line) return { receipts: [], sums: [] }
   const rows = await prisma.vendorBill.findMany({
     where: {
       companyId: r.companyId,
       vendorCompanyId: r.vendorCompanyId,
-      buyContractId: r.buyContractId,
+      // A client's receipts carry no buy line; they are held on the order
+      // the supplier's line draws on.
+      ...(line.side === 'BUY' ? { buyContractId: line.id } : { buyContractId: null, workOrderId: line.workOrderId }),
       // A cancelled receipt holds nothing: its week may be received again.
       status: { not: 'CANCELLED' },
       ...(r.id ? { id: { not: r.id } } : {}),
@@ -502,7 +529,7 @@ async function checkLines(
   r: KeyedReceipt,
   then: 'record' | 'pay',
   ctx: {
-    buy: { workOrderId: string | null; supplierSellContractId: string | null; overtimeMultiplierBps: number } | null
+    buy: PaidLine | null
     workOrderId: string | null
     order: { po: PurchaseOrderFacts | null; hard: KeyedCheck['hard'] }
     waivers: ReturnType<typeof liveWaivers>
@@ -531,30 +558,27 @@ async function checkLines(
   const expenseLines = lines.filter((l) => l.expenseId)
   const milestoneLines = lines.filter((l) => l.milestoneId)
 
-  const candidates = r.buyContractId
-    ? await prisma.buyContractCandidate.findMany({
-        where: { buyContractId: r.buyContractId },
-        select: { personId: true, payRate: true, payCurrency: true },
-      })
-    : []
+  const line = ctx.buy
+  const candidates = line?.candidates ?? []
+  const onLine = lineWord(line)
 
-  if ((hoursLines.length > 0 || expenseLines.length > 0) && !r.buyContractId) {
+  if ((hoursLines.length > 0 || expenseLines.length > 0) && !line) {
     hard ??= {
       code: 'NO_BUY_LINE',
-      says: 'A week or an expense on an invoice receipt is checked against what was accepted on one buy line. Name the buy line this invoice is for.',
+      says: 'A week or an expense on an invoice receipt is checked against what was accepted on one line. Name the line this invoice is for.',
     }
   }
 
   // ── Hours lines ─────────────────────────────────────────────────────
   const weeksRead: AcceptedWeekRead[] = []
-  if (hoursLines.length > 0 && r.buyContractId) {
+  if (hoursLines.length > 0 && line) {
     const ids = [...new Set(hoursLines.map((l) => l.timesheetId!))]
     const sheets = await prisma.timesheet.findMany({ where: { id: { in: ids } }, select: WEEK_SELECT })
     const byId = new Map(sheets.map((t) => [t.id, t]))
     const from = sheets.reduce<Date | null>((a, t) => (!a || t.periodStart < a ? t.periodStart : a), null)
     const to = sheets.reduce<Date | null>((a, t) => (!a || t.periodEnd > a ? t.periodEnd : a), null)
     const book = from && to
-      ? await payersBook({ buyContractId: r.buyContractId, periodStart: from, periodEnd: to, then })
+      ? await payersBook({ ...bookOf(line), periodStart: from, periodEnd: to, then })
       : null
     const accepted = new Map((book?.accepted?.weeks ?? []).map((w) => [w.id, w]))
     const waiting = (book?.waiting ?? []).filter((w) => ids.includes(w.id))
@@ -562,7 +586,7 @@ async function checkLines(
       const payer = await prisma.company.findUnique({ where: { id: r.companyId }, select: { name: true } })
       notAccepted = { says: notAcceptedSays(payer?.name ?? 'This company', waiting, then), waiting }
     }
-    const periods = await buyRatePeriods(r.buyContractId)
+    const periods = line.periods
     // The top of the ladder over each week: whose answer on overtime is the client's.
     const tops = await topLegsOver(sheets.map((t) => t.sellContractId))
 
@@ -581,7 +605,7 @@ async function checkLines(
       const w = accepted.get(t.id)
       const isWaiting = waiting.some((x) => x.id === t.id)
       if (!candidate || (!w && !isWaiting)) {
-        refuse(l, `${n(l)} bills ${whose}, which this buy line does not pay for.`)
+        refuse(l, `${n(l)} bills ${whose}, which ${onLine} does not pay for.`)
         continue
       }
       if (!w) {
@@ -598,7 +622,7 @@ async function checkLines(
           code: 'CURRENCY',
           says:
             `This invoice is in ${currency}, and ${t.person?.name ?? 'this person'} is paid in ${candidate.payCurrency.toUpperCase()} ` +
-            `on this buy line. The two are never compared or added, so it is not checked on a guess.`,
+            `on ${onLine}. The two are never compared or added, so it is not checked on a guess.`,
         }
         continue
       }
@@ -652,7 +676,7 @@ async function checkLines(
   }
 
   // ── Expense lines ───────────────────────────────────────────────────
-  if (expenseLines.length > 0 && r.buyContractId) {
+  if (expenseLines.length > 0 && line) {
     const ids = [...new Set(expenseLines.map((l) => l.expenseId!))]
     const rows = await prisma.expense.findMany({
       where: { id: { in: ids } },
@@ -666,11 +690,10 @@ async function checkLines(
     // The contracts this buy line pays for: the payer's own sell lines it
     // funds, and the supplier's contract below it down to the bottom of
     // the chain — the same two places its weeks are found.
-    const linked = await prisma.contractLink.findMany({ where: { buyContractId: r.buyContractId }, select: { sellContractId: true } })
-    const below = ctx.buy?.supplierSellContractId
-      ? descend(ctx.buy.supplierSellContractId, await ladderFor([ctx.buy.supplierSellContractId]))
+    const below = line.supplierSellContractId
+      ? descend(line.supplierSellContractId, await ladderFor([line.supplierSellContractId]))
       : []
-    const onThisLine = new Set([...linked.map((x) => x.sellContractId), ...below])
+    const onThisLine = new Set([...line.linked, ...below])
     const people = new Set(candidates.map((c) => c.personId))
     // What this payer itself accepted of each, and whether the supplier
     // bills it on this leg: the receipt for an expense is the payer's own
@@ -694,7 +717,7 @@ async function checkLines(
       linePeople[l.id] = e.personId
       spans.push({ start: e.periodStart, end: e.periodEnd })
       if (!onThisLine.has(e.sellContractId) || !people.has(e.personId)) {
-        refuse(l, `${n(l)} bills ${what}, which is not on this buy line.`)
+        refuse(l, `${n(l)} bills ${what}, which is not on ${onLine}.`)
         continue
       }
       if (l.personId && l.personId !== e.personId) {

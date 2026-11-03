@@ -6,8 +6,9 @@ import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books
 import { suppliersFor, lineOptionsFor } from '@/lib/money/receipt-options'
 
 /**
- * GET /api/ap/receipts/options                    the suppliers and their buy lines
- * GET /api/ap/receipts/options?buyContractId=…    what an invoice on that line may bill
+ * GET /api/ap/receipts/options                    the suppliers this firm pays, and the lines it pays them on
+ * GET /api/ap/receipts/options?buyContractId=…    what an invoice on that buy line may bill
+ * GET /api/ap/receipts/options?sellContractId=…   the same, on a supplier's line whose customer this firm is
  *
  * What the "Record an invoice receipt" form offers: a week this firm
  * accepted, with the hours accepted and the agreed rate beside it; an
@@ -42,14 +43,23 @@ export async function GET(request: NextRequest) {
   }
 
   const buyContractId = request.nextUrl.searchParams.get('buyContractId')
-  if (!buyContractId) {
-    noteMoneyRead(reading, 'Buy lines read to record an invoice receipt')
+  const sellContractId = request.nextUrl.searchParams.get('sellContractId')
+  if (!buyContractId && !sellContractId) {
+    noteMoneyRead(reading, 'The lines this firm pays suppliers on, read to record an invoice receipt')
     return NextResponse.json({ data: { suppliers: await suppliersFor(reading.companyId) } })
   }
-  const line = await lineOptionsFor(reading.companyId, buyContractId)
+  // A client's side is the supplier's line whose customer it is; nobody
+  // else's line is ever read here (lib/money/paid-line).
+  const line = buyContractId
+    ? await lineOptionsFor(reading.companyId, { buyContractId })
+    : await lineOptionsFor(reading.companyId, { sellContractId: sellContractId! })
   if (!line) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such buy line here', field: 'buyContractId' } },
+      {
+        error: buyContractId
+          ? { code: 'NOT_FOUND', message: 'No such buy line here', field: 'buyContractId' }
+          : { code: 'NOT_FOUND', message: 'No supplier’s line is billed to you by that name', field: 'sellContractId' },
+      },
       { status: 404 }
     )
   }

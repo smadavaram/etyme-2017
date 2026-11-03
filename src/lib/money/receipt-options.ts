@@ -21,11 +21,11 @@
 
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
-import { buyRatePeriods } from '@/lib/money/keyed-receipt'
+import { paidBuyLine, paidSellLine, lineWord, type PaidLine } from '@/lib/money/paid-line'
 import { priceByDay } from '@/lib/contract-rate'
 import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
-import { termsFor, ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT } from '@/lib/money/order-terms'
+import { termsFor, ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
 import { decimalsFor } from '@/lib/money'
 import { billsToPayer, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, legsFor, legsOverMany } from '@/lib/money/expense-acceptance-read'
@@ -42,7 +42,12 @@ export interface SupplierOption {
 }
 
 export interface BuyLineOption {
-  buyContractId: string
+  /** What the form sends back: `buy:<id>` or `sell:<id>`. */
+  key: string
+  /** A buy line of this firm's, paying a sub-vendor. */
+  buyContractId: string | null
+  /** A client's side: the supplier's line whose customer this firm is (lib/money/paid-line). */
+  sellContractId: string | null
   /** Who the line pays for, by name. */
   people: string[]
   rateMinor: number | null
@@ -93,7 +98,12 @@ export interface LineOptions {
   milestones: SumOption[]
 }
 
-/** Every supplier this firm buys from on a buy line, with those lines. */
+/**
+ * Every supplier this firm pays, with the lines it pays them on: its own
+ * buy lines to a sub-vendor, and — where it is the customer — each
+ * supplier's sell line to it, the rung it pays. Never a firm it does not
+ * trade with: every option is a line this firm is a party to as payer.
+ */
 export async function suppliersFor(companyId: string): Promise<SupplierOption[]> {
   const lines = await prisma.buyContract.findMany({
     where: { companyId, vendorCompanyId: { not: null }, state: { not: 'DRAFT' } },
@@ -119,7 +129,9 @@ export async function suppliersFor(companyId: string): Promise<SupplierOption[]>
     const rates = [...new Set(l.candidates.map((c) => c.payRate))]
     const s = bySupplier.get(l.vendorCompany.id) ?? { id: l.vendorCompany.id, name: l.vendorCompany.name, lines: [] }
     s.lines.push({
+      key: `buy:${l.id}`,
       buyContractId: l.id,
+      sellContractId: null,
       people: l.candidates.map((c) => c.person?.name ?? 'Somebody'),
       // One rate where the line pays one; where it pays people at several, none is guessed.
       rateMinor: rates.length === 1 ? rates[0] : null,
@@ -131,6 +143,50 @@ export async function suppliersFor(companyId: string): Promise<SupplierOption[]>
     })
     bySupplier.set(l.vendorCompany.id, s)
   }
+
+  // ── Where this firm is the customer ────────────────────────────────
+  //
+  // Second screen walk, 2026-11-03: a client's AP clerk was offered a
+  // supplier list that was always empty, because a client holds no buy
+  // line. What it pays is the supplier's sell line to it. A line this
+  // firm also holds a buy line against is checked on the buy line, above.
+  const viaBuy = new Set(
+    (await prisma.buyContract.findMany({
+      where: { companyId, supplierSellContractId: { not: null } },
+      select: { supplierSellContractId: true },
+    })).map((b) => b.supplierSellContractId!)
+  )
+  const sells = await prisma.sellContract.findMany({
+    where: { clientCompanyId: companyId, companyId: { not: companyId }, state: { not: 'DRAFT' } },
+    select: {
+      id: true, state: true, billRate: true, billCurrency: true,
+      billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true, paymentTermsFrom: true,
+      ...SELL_LINE_TERMS_SELECT,
+      company: { select: { id: true, name: true } },
+      person: { select: { name: true } },
+      workOrder: { select: ORDER_HEADER_SELECT },
+    },
+    orderBy: { startDate: 'desc' },
+    take: 500,
+  })
+  for (const l of sells) {
+    if (viaBuy.has(l.id)) continue
+    const terms = termsFor('SELL', l)
+    const s = bySupplier.get(l.company.id) ?? { id: l.company.id, name: l.company.name, lines: [] }
+    s.lines.push({
+      key: `sell:${l.id}`,
+      buyContractId: null,
+      sellContractId: l.id,
+      people: [l.person?.name ?? 'Somebody'],
+      rateMinor: l.billRate,
+      currency: l.billCurrency.toUpperCase(),
+      orderNumber: l.workOrder?.number ?? null,
+      state: l.state,
+      netDays: terms.paymentTermsDays,
+      netFrom: terms.paymentTermsFrom,
+    })
+    bySupplier.set(l.company.id, s)
+  }
   return [...bySupplier.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -139,27 +195,40 @@ export async function suppliersFor(companyId: string): Promise<SupplierOption[]>
  * expenses approved on the line and the milestones accepted on its
  * order. Null where the line is not this firm's.
  */
-export async function lineOptionsFor(companyId: string, buyContractId: string, now = new Date()): Promise<LineOptions | null> {
-  const buy = await prisma.buyContract.findUnique({
-    where: { id: buyContractId },
-    select: {
-      companyId: true, workOrderId: true, supplierSellContractId: true, payCurrency: true, vendorCompanyId: true,
-      candidates: { select: { personId: true, payRate: true, payCurrency: true } },
-    },
-  })
-  if (!buy || buy.companyId !== companyId) return null
-  const currency = buy.payCurrency.toUpperCase()
+export async function lineOptionsFor(
+  companyId: string,
+  which: string | { buyContractId: string } | { sellContractId: string },
+  now = new Date(),
+): Promise<LineOptions | null> {
+  const ref = typeof which === 'string' ? { buyContractId: which } : which
+  let buy: PaidLine | null
+  let currency: string
+  if ('buyContractId' in ref) {
+    const row = await prisma.buyContract.findUnique({ where: { id: ref.buyContractId }, select: { companyId: true, payCurrency: true } })
+    if (!row || row.companyId !== companyId) return null
+    buy = await paidBuyLine(ref.buyContractId)
+    currency = row.payCurrency.toUpperCase()
+  } else {
+    buy = await paidSellLine(ref.sellContractId, companyId)
+    currency = (buy?.candidates[0]?.payCurrency ?? 'USD').toUpperCase()
+  }
+  if (!buy) return null
+  const lineId = buy.id
 
   // ── Weeks ───────────────────────────────────────────────────────────
   const from = new Date(now.getTime() - WEEKS_BACK_DAYS * 86_400_000)
-  const book = await payersBook({ buyContractId, periodStart: from, periodEnd: now, then: 'record' })
+  const book = await payersBook(
+    buy.side === 'BUY'
+      ? { buyContractId: lineId, periodStart: from, periodEnd: now, then: 'record' }
+      : { sellContractId: lineId, periodStart: from, periodEnd: now, then: 'record' }
+  )
   const accepted = book?.accepted?.weeks ?? []
   const sheets = accepted.length
     ? await prisma.timesheet.findMany({ where: { id: { in: accepted.map((w) => w.id) } }, select: { id: true, personId: true } })
     : []
   const personOf = new Map(sheets.map((t) => [t.id, t.personId]))
-  const periods = await buyRatePeriods(buyContractId)
-  const held = await weeksHeld(companyId, buyContractId, buy.vendorCompanyId, buy.candidates.map((c) => c.personId), accepted.map((w) => ({
+  const periods = buy.periods
+  const held = await weeksHeld(companyId, buy, buy.vendorCompanyId, buy.candidates.map((c) => c.personId), accepted.map((w) => ({
     id: w.id, personName: w.personName ?? null, days: w.days ?? null, periodStart: iso(w.periodStart), periodEnd: iso(w.periodEnd),
   })))
 
@@ -171,7 +240,7 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
         return {
           timesheetId: w.id, personName: name, weekOf: iso(w.periodStart), weekEnds: iso(w.periodEnd),
           hoursAccepted: w.hours, rateMinor: null, heldBy: held.get(w.id) ?? null,
-          says: `${name} is not on this buy line, so this week is not billed on it.`,
+          says: `${name} is not on ${lineWord(buy)}, so this week is not billed on it.`,
         }
       }
       const priced = priceByDay({
@@ -203,11 +272,10 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
   // The contracts this line pays for: the payer's own sell lines it
   // funds, and the supplier's contract below it to the bottom of the
   // chain — the same two places the check looks.
-  const linked = await prisma.contractLink.findMany({ where: { buyContractId }, select: { sellContractId: true } })
   const below = buy.supplierSellContractId
     ? descend(buy.supplierSellContractId, await ladderFor([buy.supplierSellContractId]))
     : []
-  const onLine = [...new Set([...linked.map((x) => x.sellContractId), ...below])]
+  const onLine = [...new Set([...buy.linked, ...below])]
   const expenseRows = onLine.length
     ? await prisma.expense.findMany({
         where: {
@@ -306,14 +374,18 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
  */
 async function weeksHeld(
   companyId: string,
-  buyContractId: string,
+  line: PaidLine,
   vendorCompanyId: string | null,
   personIds: string[],
   weeks: { id: string; personName: string | null; days: Record<string, number> | null; periodStart: string; periodEnd: string }[],
 ): Promise<Map<string, string>> {
   if (weeks.length === 0) return new Map()
   const rows = await prisma.vendorBill.findMany({
-    where: { companyId, buyContractId, status: { not: 'CANCELLED' } },
+    // A client's receipts carry no buy line; they are held on the order
+    // the supplier's line draws on, as the check reads them.
+    where: line.side === 'BUY'
+      ? { companyId, buyContractId: line.id, status: { not: 'CANCELLED' } }
+      : { companyId, vendorCompanyId: vendorCompanyId ?? undefined, buyContractId: null, workOrderId: line.workOrderId, status: { not: 'CANCELLED' } },
     select: {
       number: true, periodStart: true, periodEnd: true, receivedAt: true,
       vendorCompany: { select: { name: true } },

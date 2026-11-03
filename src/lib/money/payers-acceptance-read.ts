@@ -45,12 +45,19 @@ export async function payersBook(i: {
   periodStart: Date
   periodEnd: Date
   then?: 'record' | 'pay'
+} | {
+  /** A client's side: the supplier's sell line whose customer it is (lib/money/paid-line). */
+  sellContractId: string
+  periodStart: Date
+  periodEnd: Date
+  then?: 'record' | 'pay'
 }): Promise<{
   accepted: PayersAcceptance | null
   waiting: WaitingWeek[]
   /** Empty where every week is accepted. */
   notAccepted: string
 } | null> {
+  if ('sellContractId' in i) return clientsBook(i)
   const buy = await prisma.buyContract.findUnique({
     where: { id: i.buyContractId },
     select: { companyId: true, supplierSellContractId: true, company: { select: { name: true } } },
@@ -115,5 +122,57 @@ export async function payersBook(i: {
     accepted: payersAcceptance(read),
     waiting,
     notAccepted: notAcceptedSays(buy.company.name, waiting, i.then ?? 'record'),
+  }
+}
+
+/**
+ * The client's side of `payersBook`: what the customer on a supplier's
+ * sell line signed over the period, on that line and every rung below it
+ * to the employer's, where the week is filed once. The client is never
+ * the employer on its own supplier's line, so every hour of a week it
+ * signed is the line's; there is nothing to divide.
+ */
+async function clientsBook(i: { sellContractId: string; periodStart: Date; periodEnd: Date; then?: 'record' | 'pay' }) {
+  const sell = await prisma.sellContract.findUnique({
+    where: { id: i.sellContractId },
+    select: { clientCompanyId: true, clientCompany: { select: { name: true } } },
+  })
+  if (!sell) return null
+  const below = descend(i.sellContractId, await ladderFor([i.sellContractId]))
+  const weeks = await prisma.timesheet.findMany({
+    where: { periodEnd: { gte: i.periodStart }, periodStart: { lte: i.periodEnd }, sellContractId: { in: below } },
+    select: {
+      id: true, periodStart: true, periodEnd: true, days: true,
+      person: { select: { name: true } },
+      sellContract: {
+        select: {
+          companyId: true, clientCompanyId: true, endClientCompanyId: true,
+          buyLinks: { select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true } },
+        },
+      },
+      assertions: {
+        where: { state: 'LIVE', companyId: sell.clientCompanyId },
+        select: { companyId: true, role: true, hours: true, rateCents: true },
+      },
+    },
+    take: 2_000,
+  })
+  const read = {
+    payerCompanyId: sell.clientCompanyId,
+    // No buy line on the client's side: the id only keys the share, and
+    // the client is never the employer, so the share is the whole week.
+    buyContractId: i.sellContractId,
+    weeks: weeks.map(({ person, ...w }) => ({
+      ...w,
+      personName: person?.name ?? null,
+      days: (w.days as PayableWeek['days']) ?? null,
+    })),
+    payerLinks: [],
+  }
+  const waiting = weeksAwaitingPayer(read)
+  return {
+    accepted: payersAcceptance(read),
+    waiting,
+    notAccepted: notAcceptedSays(sell.clientCompany.name, waiting, i.then ?? 'record'),
   }
 }
