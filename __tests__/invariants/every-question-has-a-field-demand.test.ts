@@ -290,3 +290,14 @@ describe('the start asks whoever is hiring whether the person who started is the
     expect(IDENTITY_ROUTE).toContain('is for whoever is hiring: a hiring or program manager.')
   })
 })
+
+// ── Pick one of your suppliers, under Ask somebody (2026-11-03) ───────
+
+describe('every question the pick route asks, the supplier picker has a field for', () => {
+  const PICK = readFileSync(join(process.cwd(), 'src/app/api/contractor-invites/[id]/route.ts'), 'utf8')
+  const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/people/page.tsx'), 'utf8')
+  it('the pick route reads supplierCompanyId, and the picker sends the firm pressed as supplierCompanyId', () => {
+    expect(PICK).toContain('body.supplierCompanyId')
+    expect(PAGE).toContain("act(p.inviteId, { action: 'pick', supplierCompanyId })")
+  })
+})

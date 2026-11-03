@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { linkIsOpen, stateAfterAnswer, type Answer, type InviteState, type Represents } from '@/lib/contractor-invite'
 import { notify } from '@/lib/notify'
+import { supplierOptions } from '@/app/api/contractor-invites/suppliers'
 
 /**
  * GET  /api/contractor-welcome/[token]  — what they see
@@ -48,11 +49,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   // list they can recognize rather than a name they have to spell. Only
   // approved ones: naming a firm still on probation as an option would
   // be the client telling them something it has not decided.
-  const approved = await prisma.counterparty.findMany({
-    where: { companyId: row.companyId, relationship: 'SUPPLIER', tier: { in: ['APPROVED', 'PREFERRED'] } },
-    select: { otherCompany: { select: { id: true, name: true } } },
-    orderBy: { otherCompany: { name: 'asc' } },
-  })
+  // The rule is the client's picker's (`supplierOptions`): approved with
+  // or without a standing set. Why a firm is held back is the client's
+  // business, so the person reads only the firms offered.
+  const approved = (await supplierOptions(row.companyId, new Date()))
+    .filter((o) => o.offered)
+    .map((o) => ({ otherCompany: { id: o.companyId, name: o.name } }))
 
   return NextResponse.json({
     data: {
@@ -114,10 +116,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Otherwise the field is a way to point the ask at any company id.
   let supplierCompanyId: string | null = null
   if (interested && represents === 'ON_BENCH') {
-    const ok = await prisma.counterparty.findFirst({
-      where: { companyId: row.companyId, otherCompanyId: firmCompanyId!, relationship: 'SUPPLIER', tier: { in: ['APPROVED', 'PREFERRED'] } },
-      select: { otherCompanyId: true },
-    })
+    const [option] = firmCompanyId ? await supplierOptions(row.companyId, new Date(), firmCompanyId) : []
+    const ok = option?.offered ? { otherCompanyId: option.companyId } : null
     if (!ok) {
       return NextResponse.json(
         { error: { code: 'NOT_A_SUPPLIER', message: `${row.company.name} does not have that firm as an approved supplier. Pick another, or name it instead.` } },

@@ -9,6 +9,8 @@ import {
   type Answer, type InviteState,
 } from '@/lib/contractor-invite'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { supplierOptions } from './suppliers'
+import { NO_SUPPLIER_TO_PICK } from '@/lib/contractor-invite'
 
 /**
  * GET  /api/contractor-invites   — who we have asked, and where it got to
@@ -28,6 +30,15 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Reading who has been asked')
   if (notStaff) return notStaff
   const companyId = caller.company!.id
+
+  // `?choices=1`: the suppliers that may take somebody on, each with the
+  // sentence why where one may not, read by the one rule `pick` refuses on.
+  if (request.nextUrl.searchParams.get('choices') === '1') {
+    const choices = await supplierOptions(companyId, new Date())
+    return NextResponse.json({
+      data: { choices, says: choices.some((c) => c.offered) ? null : NO_SUPPLIER_TO_PICK },
+    })
+  }
 
   const rows = await prisma.contractorInvitation.findMany({
     where: { companyId },

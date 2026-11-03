@@ -10,6 +10,7 @@ import { applyFilter, locationsOf, isRecent, NETWORK_FILTERS, type NetworkFilter
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { askFormSays } from './ask-words'
+import { SupplierPicker, type SupplierChoiceRow } from './supplier-picker'
 import { useRouter } from 'next/navigation'
 
 /**
@@ -57,11 +58,6 @@ interface Pending {
   askedAt: string
 }
 
-interface Supplier {
-  companyId: string
-  name: string
-  tier: string | null
-}
 
 interface Row {
   personId: string
@@ -120,7 +116,8 @@ export default function PeoplePage() {
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [pending, setPending] = useState<Pending[]>([])
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierChoiceRow[] | null>(null)
+  const [suppliersSay, setSuppliersSay] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
   // Whether an email can leave this deployment, as the route answered it
   // (`mailLeaves`). Null until read: the form promises nothing meanwhile.
@@ -220,14 +217,21 @@ export default function PeoplePage() {
     } catch (err: any) { setError(err.message) } finally { setBusy(false) }
   }
 
-  /** Only fetched when somebody actually has to pick one. */
+  /**
+   * Only fetched when somebody actually has to pick one, and read from the
+   * rule `pick` refuses on, so a firm offered here is a firm it accepts.
+   */
   const loadSuppliers = useCallback(async () => {
-    if (suppliers.length > 0) return
+    if (suppliers !== null) return
     try {
-      const body = await readJson(await fetch('/api/suppliers'))
-      setSuppliers((body.data.suppliers ?? []).filter((x: Supplier) => x.tier === 'APPROVED' || x.tier === 'PREFERRED'))
-    } catch { /* the picker says so below */ }
-  }, [suppliers.length])
+      const body = await readJson(await fetch('/api/contractor-invites?choices=1'))
+      setSuppliers(body.data.choices ?? [])
+      setSuppliersSay(body.data.says ?? null)
+    } catch (err: any) {
+      setSuppliers([])
+      setSuppliersSay(err.message)
+    }
+  }, [suppliers])
 
   const places = useMemo(() => locationsOf(rows), [rows])
   const shown = useMemo(() => applyFilter(rows, filter, place, now), [rows, filter, place, now])
@@ -385,18 +389,13 @@ export default function PeoplePage() {
                     </button>
                   )}
                   {picking === p.inviteId ? (
-                    <select
-                      autoFocus
-                      aria-label={`A supplier to take ${p.name} on`}
-                      disabled={busy}
-                      defaultValue=""
-                      onChange={(e) => e.target.value && act(p.inviteId, { action: 'pick', supplierCompanyId: e.target.value })}
-                      className="rounded-lg border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[12px]"
-                    >
-                      <option value="" disabled>Which of your suppliers?</option>
-                      {suppliers.map((sup) => <option key={sup.companyId} value={sup.companyId}>{sup.name}</option>)}
-                      {suppliers.length === 0 && <option value="" disabled>No approved suppliers yet</option>}
-                    </select>
+                    <SupplierPicker
+                      personName={p.name}
+                      choices={suppliers}
+                      says={suppliersSay}
+                      busy={busy}
+                      onPick={(supplierCompanyId) => act(p.inviteId, { action: 'pick', supplierCompanyId })}
+                    />
                   ) : (
                     <button
                       disabled={busy}

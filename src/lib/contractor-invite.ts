@@ -252,3 +252,45 @@ export function stateAfterAnswer(answer: {
 export function linkIsOpen(state: InviteState): boolean {
   return state === 'ASKED'
 }
+
+/**
+ * Which of the client's own suppliers may take somebody on, and why not.
+ *
+ * The approval is the act: a firm the client approved, through onboarding
+ * or by holding it on its register, is offered whether or not Procurement
+ * has set its standing yet. A standing is set later from Suppliers, and
+ * null means nobody has rated the firm, never that it is not approved
+ * (the coordinator's call, 2026-11-03, reversible by the founder in a
+ * sentence). Only a firm explicitly on probation, still a prospect, or
+ * blocked is held back, and each says why in a sentence beside its name,
+ * because a choice greyed out with no reason is the fault the founder's
+ * tester found.
+ *
+ * The screen's picker, the PATCH route's `pick` and the person's own link
+ * all read this one rule, so the three cannot disagree.
+ */
+export type SupplierChoice = { offered: true; why: null } | { offered: false; why: string }
+
+export function supplierChoice(f: {
+  name: string
+  tier: string | null
+  status: string | null
+  /** Whether a live block stands on the firm here, with its reason where one was given. */
+  blocked: boolean
+  blockedReason: string | null
+}): SupplierChoice {
+  if (f.blocked || f.status === 'BLOCKED') {
+    const why = (f.blockedReason ?? '').trim().replace(/[.\s]+$/, '')
+    return { offered: false, why: `${f.name} is blocked here${why ? `: ${why}` : ''}. Lift the block under Suppliers first.` }
+  }
+  if (f.tier === 'PROBATION') {
+    return { offered: false, why: `${f.name} is on probation; Procurement sets its standing under Suppliers.` }
+  }
+  if (f.status === 'PROSPECT') {
+    return { offered: false, why: `${f.name} is not approved yet; it goes through your supplier approvals under Suppliers.` }
+  }
+  return { offered: true, why: null }
+}
+
+/** Said where the client has no supplier that may take somebody on. */
+export const NO_SUPPLIER_TO_PICK = 'No approved suppliers yet. Approve one under Suppliers, then ask.'

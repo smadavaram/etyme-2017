@@ -9,6 +9,7 @@ import { newApplyToken, applyUrl, sendLink } from '@/lib/supplier-link'
 import { desksFor, deskPeople } from '@/lib/supplier-desks'
 import { says, type Answer, type InviteState } from '@/lib/contractor-invite'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { supplierOptions } from '../suppliers'
 
 /**
  * PATCH /api/contractor-invites/[id]
@@ -68,16 +69,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // ── Pick one of our own suppliers to take them on ──────────────────
   if (action === 'pick') {
     const supplierId = typeof body?.supplierCompanyId === 'string' ? body.supplierCompanyId : ''
-    const approved = await prisma.counterparty.findFirst({
-      where: { companyId, otherCompanyId: supplierId, relationship: 'SUPPLIER', tier: { in: ['APPROVED', 'PREFERRED'] } },
-      select: { otherCompany: { select: { id: true, name: true } } },
-    })
-    if (!approved) {
+    // The same rule the picker draws from (`supplierOptions`): a firm
+    // the client approved is offered with or without a standing set, and
+    // one on probation, still a prospect or blocked is refused with the
+    // sentence the picker showed beside its name.
+    const [option] = supplierId ? await supplierOptions(companyId, now, supplierId) : []
+    if (!option || !option.offered) {
       return NextResponse.json(
-        { error: { code: 'NOT_A_SUPPLIER', message: 'Pick a supplier you have approved. A firm on probation cannot be handed somebody.' } },
+        { error: { code: 'NOT_A_SUPPLIER', message: option?.why ?? 'Pick one of your own suppliers. A firm you do not have yet goes through your supplier approvals under Suppliers first.' } },
         { status: 409 }
       )
     }
+    const approved = { otherCompany: { id: option.companyId, name: option.name } }
     await prisma.contractorInvitation.update({
       where: { id },
       data: { state: 'REPRESENTED', supplierCompanyId: approved.otherCompany.id },

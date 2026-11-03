@@ -172,3 +172,59 @@ describe('the Pending list says what it holds', () => {
     expect(emptyWord('PENDING', null, 'people')).not.toContain('desk has said yes')
   })
 })
+
+// ── The supplier picker under Ask somebody (founder's retest, 2026-11-03) ──
+
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { supplierChoice, NO_SUPPLIER_TO_PICK } from '@/lib/contractor-invite'
+
+const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+const PICKER = read('src/app/dashboard/people/supplier-picker.tsx')
+const CONTRACTORS = read('src/app/dashboard/people/page.tsx')
+const PICK_ROUTE = read('src/app/api/contractor-invites/[id]/route.ts')
+const LIST_ROUTE = read('src/app/api/contractor-invites/route.ts')
+const WELCOME_ROUTE = read('src/app/api/contractor-welcome/[token]/route.ts')
+const OPTIONS = read('src/app/api/contractor-invites/suppliers.ts')
+
+describe('picking a supplier to take somebody on', () => {
+  const firm = { name: 'Pinnacle Resourcing', tier: null, status: 'ACTIVE', blocked: false, blockedReason: null }
+
+  it('a supplier the client approved with no standing set is offered', () => {
+    expect(supplierChoice(firm)).toEqual({ offered: true, why: null })
+    expect(supplierChoice({ ...firm, tier: 'APPROVED' }).offered).toBe(true)
+    expect(supplierChoice({ ...firm, tier: 'PREFERRED' }).offered).toBe(true)
+    // The screen, the pick and the person's own link read one rule, and
+    // none of them filters on a standing any more.
+    expect(CONTRACTORS).toContain("/api/contractor-invites?choices=1")
+    expect(CONTRACTORS).not.toMatch(/x\.tier === 'APPROVED'/)
+    for (const src of [PICK_ROUTE, LIST_ROUTE, WELCOME_ROUTE]) {
+      expect(src).toContain('supplierOptions(')
+      expect(src).not.toMatch(/tier: \{ in: \['APPROVED', 'PREFERRED'\] \}/)
+    }
+    expect(OPTIONS).toContain('supplierChoice(')
+  })
+
+  it('every disabled choice under Ask somebody says why', () => {
+    expect(supplierChoice({ ...firm, tier: 'PROBATION' })).toEqual({
+      offered: false, why: 'Pinnacle Resourcing is on probation; Procurement sets its standing under Suppliers.',
+    })
+    expect(supplierChoice({ ...firm, blocked: true, blockedReason: 'Missed two starts.' })).toEqual({
+      offered: false, why: 'Pinnacle Resourcing is blocked here: Missed two starts. Lift the block under Suppliers first.',
+    })
+    expect(supplierChoice({ ...firm, status: 'BLOCKED' }).why).toBe('Pinnacle Resourcing is blocked here. Lift the block under Suppliers first.')
+    expect(supplierChoice({ ...firm, status: 'PROSPECT' }).why).toBe(
+      'Pinnacle Resourcing is not approved yet; it goes through your supplier approvals under Suppliers.'
+    )
+    expect(NO_SUPPLIER_TO_PICK).toBe('No approved suppliers yet. Approve one under Suppliers, then ask.')
+    // A firm held back is its sentence, never a greyed-out option; the
+    // only disabled control is a button while a press is in flight.
+    expect(PICKER).not.toContain('<option')
+    expect(PICKER).toContain('{c.why}')
+    expect(PICKER).toContain('{says}')
+    expect(PICKER.match(/disabled=\{[^}]*\}/g)).toEqual(['disabled={busy}'])
+    expect(CONTRACTORS).not.toContain('No approved suppliers yet')
+    // The pick refuses with the sentence the picker showed beside the name.
+    expect(PICK_ROUTE).toContain('message: option?.why ??')
+  })
+})
