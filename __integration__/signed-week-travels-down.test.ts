@@ -204,7 +204,12 @@ describe('below the top of a chain, the client decided the overtime', () => {
     const r = await sign(ot.week, { note })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.clientDecided).toBe('Northbend Athletic decided 5 hours at time and a half.')
-    expect(r.body.data.message).toMatch(/^Accepted 45h — \$[\d,]+\.\d{2} to pay for the week\. Northbend Athletic decided 5 hours at time and a half\.$/)
+    // A firm below the top is never handed a payroll figure ("to pay for
+    // the week"): it reads what it accepted and, at the end, the client's
+    // overtime decision it did not make.
+    expect(r.body.data.message).toMatch(/^Accepted 45h\. .*Northbend Athletic decided 5 hours at time and a half\.$/)
+    expect(r.body.data.message).not.toContain('to pay')
+    expect(r.body.data.message).not.toMatch(/\$[\d,]+\.\d{2} to pay/)
     // Nothing of Computer Systems' own is written: the client's answer is the only one.
     const answers = await prisma.overtimeDecision.findMany({ where: { timesheetId: ot.week }, select: { decidedByCompanyId: true } })
     const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })

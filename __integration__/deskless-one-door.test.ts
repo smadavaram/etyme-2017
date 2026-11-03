@@ -108,9 +108,9 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firm�
     expect(open, open.join('\n')).toEqual([])
   })
 
-  it('Today, jobs, contractors and past contractors refuse with the door’s own sentence, each named as the menu names it', () => {
+  it('Today, jobs, candidates and past contractors refuse with the door’s own sentence, each named as the menu names it', () => {
     const words: Record<string, string> = {
-      program: 'Today', requisitions: 'Jobs', people: 'Contractors', alumni: 'Past contractors',
+      program: 'Today', requisitions: 'Jobs', people: 'Candidates', alumni: 'Past contractors',
     }
     for (const [route, page] of Object.entries(words)) {
       expect(walked[route].status, route).toBe(403)

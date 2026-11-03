@@ -88,7 +88,10 @@ describe('Paperwork and the document set', () => {
   it('Paperwork and the document set refuse through the shared refused state and mark each document’s standing with the shared chip', () => {
     const docs = page('documents')
     expect(docs).toContain('<RefusedState says={unread} />')
-    expect(docs).toContain('<Chip tone={tone(r.status)}>')
+    // The chip's tone and word are read from the record: a paper that
+    // arrived and nobody examined is attention, never verified.
+    expect(docs).toContain('<Chip tone={tone(r)}>{paperWord(r)}</Chip>')
+    expect(docs).toMatch(/const tone = \(r: Request_\): ChipTone =>\s*waitsToBeExamined\(r\) \? 'attention'/)
     const set = page('documents/requirements')
     expect(set).toContain('<RefusedState says={door.says} />')
     expect(set).toContain('<Chip tone={')

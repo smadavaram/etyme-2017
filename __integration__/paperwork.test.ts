@@ -67,11 +67,15 @@ describe('paperwork asked for, answered, on file', () => {
     expect(r.body.data.papers.map((p: any) => [p.name, p.todo]).sort()).toEqual([['Mutual NDA', 'sign'], ['W-9', 'upload']])
   })
 
-  it('he uploads the W-9 — on file; he cannot merely upload the NDA', async () => {
+  it('he uploads the W-9 — told it is received and that Pinnacle, who asked, will look at it before it counts; he cannot merely upload the NDA', async () => {
     as(WORKER)
     const up = await call(upload, 'POST', `/api/documents/${it_.w9}/upload`, it_.w9, { fileUrl: 'https://files.example/w9.pdf', fileName: 'w9.pdf' })
     expect(up.body?.error, JSON.stringify(up.body)).toBeUndefined()
-    expect(up.body.data.says).toBe('W-9 is on file. Thank you.')
+    // Received, never "on file" until the firm that asked has examined it,
+    // and the firm named is the one that asked for it.
+    expect(up.body.data.says).toBe('W-9 received. Thank you. Pinnacle Resourcing will look at it before it counts.')
+    expect(up.body.data.says).not.toMatch(/on file/i)
+    expect((await prisma.docInstance.findUniqueOrThrow({ where: { id: it_.w9 } })).status).toBe('UPLOADED')
     const no = await call(upload, 'POST', `/api/documents/${it_.nda}/upload`, it_.nda, { fileUrl: 'https://files.example/nda.pdf' })
     expect(no.status).toBe(409)
     expect(no.body.error.code).toBe('NEEDS_SIGNATURE')

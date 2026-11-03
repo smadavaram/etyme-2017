@@ -125,10 +125,15 @@ describe('21: a count is drawn only after the first read has answered', () => {
     expect(src).not.toMatch(/\{label\} <span className="tabular-nums opacity-60">\{n\}<\/span>/)
   })
 
-  it('Contractors draws "Everyone" and "On site now" counts only once the first read has answered', () => {
+  it('Candidates draws "Everyone" and "On site now" counts only once the first read has answered', () => {
     const src = read('people')
     expect(src).toMatch(/setReadOnce\(true\)/)
-    expect(src).toMatch(/\{readOnce && !error && \(\s*<FilterBar/)
+    // The client's people page draws its own filter bar, in the reader's
+    // order; it is drawn only once the first read is back.
+    expect(src).toMatch(/\{readOnce && !error && \(\s*<OrderedFilterBar/)
+    // And the bar offers no filter whose count is not known yet.
+    const bar = readFileSync(join(process.cwd(), 'src/app/dashboard/people/filter-bar.tsx'), 'utf8')
+    expect(bar).toMatch(/order\.filter\(\(f\) => counts\[f\] !== undefined\)/)
   })
 
   it('a supplier’s Job requests list and Needs attention draw their counts only once the first read is back', () => {
