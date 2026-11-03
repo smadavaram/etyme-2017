@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { readCv, cvSentence } from '@/lib/cv-reader'
 import { holdExpiry } from '@/lib/representation'
+import { sponsorshipLine } from '@/lib/answers'
+import { recordResumeEducation } from '@/lib/consultant-portfolio/education-write'
 
 /**
  * GET  /api/answer/:token — the role, for somebody with no account
@@ -71,7 +73,7 @@ export async function GET(
       requirement: {
         select: {
           id: true, title: true, skills: true, location: true,
-          startDate: true, months: true, workAuthRequired: true,
+          startDate: true, months: true, workAuthRequired: true, workAuthCite: true,
         },
       },
     },
@@ -100,7 +102,8 @@ export async function GET(
         location: i.requirement.location,
         startDate: i.requirement.startDate,
         months: i.requirement.months,
-        workAuthRequired: i.requirement.workAuthRequired,
+        // In words, never the column (the second screen walk, 2026-11-03).
+        sponsorship: sponsorshipLine(i.requirement),
         // Their own band, and only theirs.
         band: { min: i.payMin, max: i.payMax },
         message: i.message,
@@ -248,6 +251,9 @@ export async function POST(
       },
       select: { id: true },
     }))
+  // The résumé's education lines land on the person's profile, through
+  // the one write every reader of a résumé calls (supply's).
+  await recordResumeEducation(profile.id, read.education)
 
   await prisma.benchListing.upsert({
     where: { consultantId_companyId: { consultantId: profile.id, companyId: invite.companyId } },

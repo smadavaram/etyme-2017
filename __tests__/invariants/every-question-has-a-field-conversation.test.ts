@@ -85,3 +85,37 @@ describe('every question a round asks, the interviews page has a field for', () 
     expect(PAGE).toContain('const payload = roundBody(typed)')
   })
 })
+
+// ── The answer link, for a supplier with no account (the second screen walk, 2026-11-03) ──
+
+import { sponsorshipLine } from '@/lib/answers'
+
+describe('the answer link says a job’s sponsorship in words', () => {
+  it('a supplier answering a job reads its sponsorship line in words, never a code', () => {
+    expect(sponsorshipLine({ workAuthRequired: 'NEEDS_NO_SPONSOR', workAuthCite: 'We do not sponsor work visas for this role' }))
+      .toBe('This job offers no sponsorship: ‘We do not sponsor work visas for this role’. Anybody already allowed to work in the US may apply.')
+    expect(sponsorshipLine({ workAuthRequired: 'NEEDS_NO_SPONSOR', workAuthCite: null }))
+      .toBe('This job offers no sponsorship. Anybody already allowed to work in the US may apply.')
+    expect(sponsorshipLine({ workAuthRequired: 'US_CITIZEN', workAuthCite: 'FAR 52.204-2' })).toBe('This job asks for a US citizen: ‘FAR 52.204-2’.')
+    expect(sponsorshipLine({ workAuthRequired: null })).toBeNull()
+    for (const code of ['NEEDS_NO_SPONSOR', 'US_CITIZEN', 'H1B', 'SOMETHING_NEW']) {
+      expect(sponsorshipLine({ workAuthRequired: code })).not.toMatch(/\b[A-Z]+_[A-Z_]+\b/)
+    }
+    // The page and the route never print the column itself.
+    const page = readFileSync(join(process.cwd(), 'src/app/answer/[token]/page.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'src/app/api/answer/[token]/route.ts'), 'utf8')
+    expect(page).not.toMatch(/workAuthRequired/)
+    expect(route).toMatch(/sponsorship: sponsorshipLine\(i\.requirement\)/)
+    expect(route).not.toMatch(/workAuthRequired: i\.requirement\.workAuthRequired/)
+  })
+
+  it('a CV pasted through the answer link writes the person’s education lines onto their profile', () => {
+    // Through supply's one write (lib/consultant-portfolio/education-write), after the profile is found or made.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/answer/[token]/route.ts'), 'utf8')
+    const made = route.indexOf('const profile =')
+    const written = route.indexOf('await recordResumeEducation(profile.id, read.education)')
+    expect(made).toBeGreaterThan(-1)
+    expect(written).toBeGreaterThan(made)
+    expect(route).toMatch(/from '@\/lib\/consultant-portfolio\/education-write'/)
+  })
+})

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { NEEDS_NO_SPONSOR_VALUE } from '@/lib/checks'
 import { applyReply, type Kind, type Reply } from '@/lib/texts'
 import { lastAsked } from '@/lib/messages'
 
@@ -125,4 +126,44 @@ export async function anyBench(personId: string): Promise<string> {
     select: { companyId: true },
   })
   return contract!.companyId
+}
+
+// ── What a job asks of somebody's permission to work, said to a supplier ──
+//
+// The second screen walk (2026-11-03) found the answer page printing a
+// job's raw column: "needs NEEDS_NO_SPONSOR". A supplier answering with no
+// account reads this line before it puts anybody forward, so it is a
+// sentence: what the job offers, in the client's own words where it gave
+// them, and who may apply.
+
+const STATUS_WORDS: Record<string, string> = {
+  US_CITIZEN: 'a US citizen',
+  GC: 'a lawful permanent resident',
+  ASYLEE: 'an asylee',
+  REFUGEE: 'a refugee',
+  EAD: 'somebody authorized to work on an EAD',
+  H1B: 'somebody on an H-1B',
+  L1: 'somebody on an L-1',
+  TN: 'somebody on TN status',
+  E3: 'somebody on an E-3',
+  OPT: 'somebody on OPT',
+  CPT: 'somebody on CPT',
+}
+
+/**
+ * The job's sponsorship line, or null where the job asks nothing.
+ * `cite` is the firm's own policy sentence (`workAuthCite`).
+ */
+export function sponsorshipLine(job: { workAuthRequired: string | null | undefined; workAuthCite?: string | null }): string | null {
+  const required = job.workAuthRequired?.trim()
+  if (!required) return null
+  const cite = job.workAuthCite?.trim().replace(/^["'‘“]+|["'’”.]+$/g, '')
+  if (required.toUpperCase() === NEEDS_NO_SPONSOR_VALUE) {
+    return `This job offers no sponsorship${cite ? `: ‘${cite}’` : ''}. Anybody already allowed to work in the US may apply.`
+  }
+  const words = STATUS_WORDS[required.toUpperCase()]
+  if (words) return `This job asks for ${words}${cite ? `: ‘${cite}’` : ''}.`
+  // A code nobody here can say is never printed; free words are.
+  if (/^[A-Z0-9_]+$/.test(required)) return 'This job limits who may hold it by permission to work. Ask the client what it asks for before you put anybody forward.'
+  return `This job asks for ${required.replace(/[.\s]+$/, '')}.`
 }

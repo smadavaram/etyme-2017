@@ -26,7 +26,8 @@ interface Role {
   location: string | null
   startDate: string | null
   months: number | null
-  workAuthRequired: string | null
+  /** What the job offers on sponsorship, in words; null where it asks nothing. */
+  sponsorship: string | null
   band: { min: number | null; max: number | null }
   message: string | null
   alreadySent: number
@@ -168,9 +169,9 @@ export default function AnswerPage() {
                         r.startDate
                           ? `starts ${new Date(r.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
                           : null,
-                        r.workAuthRequired ? `needs ${r.workAuthRequired}` : null,
                       ].filter(Boolean).join(' · ')}
                     </p>
+                    {r.sponsorship && <p className="mt-1 text-[13px] text-etyme-ink">{r.sponsorship}</p>}
                   </div>
                   {r.alreadySent > 0 && (
                     <span className="chip chip--verified">
