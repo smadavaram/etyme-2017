@@ -130,6 +130,17 @@ const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 
 /** Only a firm that carries people between projects has bench pay to set. */
 const BENCH_KINDS = ['VENDOR', 'GSI']
 type Tab = (typeof TABS)[number]
+/**
+ * A tab named in the address opens on arrival, so a sentence elsewhere can
+ * link to one ("turn it on under Settings" lands on the model switch:
+ * MODEL_SWITCH_HREF in lib/model-boundary). The slug is the tab's own
+ * name, lower case, spaces as hyphens: ?tab=ask-etyme.
+ */
+function tabFromAddress(search: string): Tab | null {
+  const want = new URLSearchParams(search).get('tab')
+  if (!want) return null
+  return TABS.find((t) => t.toLowerCase().replace(/\s+/g, '-') === want.toLowerCase()) ?? null
+}
 
 // ── Page ─────────────────────────────────────────────
 
@@ -159,6 +170,13 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // The tab the address names, read once on arrival (window, not
+  // useSearchParams, so the page needs no Suspense boundary).
+  useEffect(() => {
+    const named = tabFromAddress(window.location.search)
+    if (named) setTab(named)
+  }, [])
 
   // A change of type is said after the reload that redraws the menu.
   useEffect(() => {
@@ -252,7 +270,7 @@ export default function SettingsPage() {
           margin the setup panels (components/settings/panel-bits) carry, so
           the two kinds stack evenly on one tab. */}
       <div className="[&>*]:mb-5">
-      {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} />}
+      {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} openModel={() => setTab('Ask Etyme')} />}
       {tab === 'Walls' && <WallsTab data={data} send={send} busy={busy} />}
       {tab === 'Address' && <AddressTab send={send} busy={busy} />}
       {tab === 'Roles' && <RolesTab data={data} send={send} busy={busy} />}
@@ -379,7 +397,7 @@ function howYouCameIn(c: Pick<Company, 'slug' | 'domain' | 'domainVerified'>): s
     'Colleagues join by invitation, or by signing up with that address, and are seated as Member until you give them a role.'
 }
 
-function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
+function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: SendFn; busy: boolean; openModel: () => void }) {
   const c = data.company
   const [name, setName] = useState(c.name)
   const [currency, setCurrency] = useState(c.currency)
@@ -448,6 +466,14 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
       </Panel>
 
       <TypePanel data={data} busy={busy} />
+
+      {/* Beside the type, because the founder looked here for it
+          (2026-11-03): the switch itself is the Ask Etyme tab's. */}
+      {data.canEdit && (
+        <Panel title="Ask Etyme and the model" subtitle="Whether a question the rules do not answer may be sent to a model, masked. Off until an Owner or an Admin turns it on.">
+          <button onClick={openModel} className="text-[13px] text-etyme-action-press">Open the switch</button>
+        </Panel>
+      )}
 
       <Panel
         title="Where your people already are"

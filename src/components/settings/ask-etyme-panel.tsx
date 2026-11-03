@@ -9,10 +9,27 @@ import { Empty, Panel, setLine } from './panel-bits'
 
 /**
  * Ask Etyme and the model (founder, 2026-10-13, "The model boundary").
- * Off until the settings desk turns it on; who did and when is said under
- * it; every prompt that left is listed, masked, with a CSV export. The
- * rules are lib/model-boundary, through /api/settings/ask-etyme.
+ * Off until an Owner or Admin turns it on; who did and when is said under
+ * it; the boundary is said in four lines a buyer can check; every prompt
+ * that left is listed, masked, with a CSV export. The rules are
+ * lib/model-boundary, through /api/settings/ask-etyme.
+ *
+ * The panel carries the anchor Ask Etyme's "turn it on under Settings"
+ * links to (`MODEL_SWITCH_ANCHOR` in lib/model-boundary, which this client
+ * file cannot import because that file reads the database).
  */
+export const PANEL_ANCHOR = 'ask-etyme-model'
+
+/** The boundary, in the four lines a buyer can check against the log below. */
+export const BOUNDARY_LINES = [
+  'Names, rates and pay are masked before anything leaves.',
+  'Only what the rules did not answer is sent.',
+  'The provider keeps nothing.',
+  'Every prompt and answer is logged on your record, below.',
+] as const
+
+/** Said where this deployment has no model key; the choice is still recorded. */
+export const NOT_SET_UP_LINE = 'The model is not set up on this deployment yet; turning it on here takes effect when it is.'
 
 interface PromptRow {
   id: string
@@ -55,6 +72,10 @@ export function AskEtymePanel() {
     }
   }, [])
   useEffect(() => { load() }, [load])
+  // Arrived by the link in Ask Etyme's sentence: bring the switch into view once it is drawn.
+  useEffect(() => {
+    if (data && window.location.hash === `#${PANEL_ANCHOR}`) document.getElementById(PANEL_ANCHOR)?.scrollIntoView()
+  }, [data])
 
   async function save() {
     setBusy(true); setErr(null); setNote(null)
@@ -74,7 +95,7 @@ export function AskEtymePanel() {
     }
   }
 
-  const title = 'Ask Etyme may send free-text questions to the model'
+  const title = 'Ask Etyme and the model'
   if (!data) {
     return <Panel title={title}>{err ? <FormMessage tone="error">{err}</FormMessage> : <Empty>Opening the model setting…</Empty>}</Panel>
   }
@@ -90,20 +111,23 @@ export function AskEtymePanel() {
   ]
 
   return (
+    <div id={PANEL_ANCHOR} className="scroll-mt-20">
     <Panel
       title={title}
-      subtitle="Names, rates and pay are masked before anything leaves; every prompt is logged below."
+      subtitle="Off until an Owner or an Admin turns it on. Ask Etyme answers from the rules first either way."
     >
-      <p className="mb-4 text-[13.5px] text-etyme-ink">
+      <p className="mb-2 text-[14px] text-etyme-ink">
         {data.on
-          ? data.modelSetUp
-            ? 'On. Questions the rules do not answer may go to the model, masked.'
-            : 'On, but no model is set up on this deployment, so nothing leaves.'
-          : 'Off. Ask Etyme answers from the rules only and sends nothing to the model.'}
+          ? 'On. A question the rules do not answer may be sent, masked.'
+          : 'Off. Ask Etyme answers from the rules only and sends nothing.'}
       </p>
-      {data.canEdit && (
+      {!data.modelSetUp && <p className="mb-3 text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
+      <ul className="mb-4 space-y-1 text-[13px] text-etyme-muted list-disc pl-5">
+        {BOUNDARY_LINES.map((l) => <li key={l}>{l}</li>)}
+      </ul>
+      {data.canEdit ? (
         <div className="mb-4 space-y-3">
-          <Check label="Let Ask Etyme send free-text questions to the model" checked={want} disabled={busy} onChange={(e) => setWant(e.target.checked)} />
+          <Check label="Send what the rules did not answer, masked" checked={want} disabled={busy} onChange={(e) => setWant(e.target.checked)} />
           {want !== data.on && (
             <Field label="Why?" help="Kept with the change, with your name and the time.">
               <Textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
@@ -119,6 +143,8 @@ export function AskEtymePanel() {
             {want ? 'Turn it on' : 'Turn it off'}
           </SubmitButton>
         </div>
+      ) : (
+        <p className="mb-4 text-[13px] text-etyme-muted">Only the Owner or an Admin turns this on or off.</p>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mb-4">{setLine(data.setAt, data.setByName)}</p>
       <ListSurface<PromptRow>
@@ -132,5 +158,6 @@ export function AskEtymePanel() {
         exportName="ask-etyme-model-prompts"
       />
     </Panel>
+    </div>
   )
 }

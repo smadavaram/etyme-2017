@@ -30,6 +30,24 @@ export interface ModelSwitch {
   setAt: Date | null
 }
 
+/**
+ * Where the switch is drawn: the Ask Etyme tab of Settings, at the panel
+ * "Ask Etyme and the model". A sentence that says "an owner or admin can
+ * turn it on under Settings" links here, so the person told reaches the
+ * switch in one click (founder, 2026-11-03, on Tapin: the sentence named
+ * a switch no screen showed him). The settings page reads `?tab=` and the
+ * panel carries the anchor; `model-switch-screen.test.ts` holds the three
+ * to one another.
+ */
+export const MODEL_SWITCH_TAB = 'ask-etyme'
+export const MODEL_SWITCH_ANCHOR = 'ask-etyme-model'
+export const MODEL_SWITCH_HREF = `/dashboard/settings?tab=${MODEL_SWITCH_TAB}#${MODEL_SWITCH_ANCHOR}`
+
+/** Whether this deployment has a model at all. With the switch on and no key, nothing leaves. */
+export function modelSetUpHere(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.ANTHROPIC_API_KEY?.trim())
+}
+
 /** Whether Ask Etyme may send a free-text question to a model for this company. Off unless set. */
 export async function modelOnFor(companyId: string): Promise<boolean> {
   const row = await prisma.company.findUnique({ where: { id: companyId }, select: { askEtymeModelOn: true } })

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasAnyPermission, hasPermission } from '@/lib/permissions'
-import { modelPromptsFor, modelSwitchFor, setModelOn } from '@/lib/model-boundary'
+import { modelPromptsFor, modelSetUpHere, modelSwitchFor, setModelOn } from '@/lib/model-boundary'
 
 /**
  * GET   /api/settings/ask-etyme — whether Ask Etyme may send free-text
  *       questions to the model for this company, who set it and when, and
  *       the last twenty prompts that left, masked.
- * PATCH /api/settings/ask-etyme { on, reason } — turn it on or off.
+ * PATCH /api/settings/ask-etyme { on, reason } — turn it on or off; the
+ *       answer is the switch as the panel draws it, with who and when.
  *
  * Read by the desks that read the company's rules; changed only by the
  * settings desk (founder, 2026-10-13, "The model boundary"). The rules are
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
       // Whether this deployment has a model at all. With the switch on and
       // no key, nothing leaves, and the panel says so rather than implying
       // questions go somewhere.
-      modelSetUp: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
+      modelSetUp: modelSetUpHere(),
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
       prompts,
     },
@@ -62,12 +63,19 @@ export async function PATCH(request: NextRequest) {
   if (!out.ok) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: out.says, field: 'reason' } }, { status: 422 })
   }
+  // The answer is what the panel draws, so it never has to guess who set it.
+  const now = await modelSwitchFor(caller.company.id)
+  const modelSetUp = modelSetUpHere()
   return NextResponse.json({
     data: {
-      on: out.on,
-      message: out.on
-        ? 'On. Ask Etyme may send free-text questions to the model, masked, and every one is logged below.'
-        : 'Off. Ask Etyme answers from the rules only and sends nothing to the model.',
+      ...now,
+      modelSetUp,
+      canEdit: true,
+      message: !out.on
+        ? 'Off. Ask Etyme answers from the rules only and sends nothing to the model.'
+        : modelSetUp
+          ? 'On. A question the rules do not answer may be sent to the model, masked, and every one is logged below.'
+          : 'On, recorded. The model is not set up on this deployment yet, so nothing leaves until it is.',
     },
   })
 }
