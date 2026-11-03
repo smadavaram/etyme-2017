@@ -15,6 +15,10 @@ import { isDeskless } from '@/lib/nav-table'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
+// Money's two panels, each drawn by its own route for the seat reading it:
+// nothing is drawn where the route refuses.
+import { ActivatePanel } from '@/app/dashboard/contracts/activate-panel'
+import { PayLinePanel } from '@/app/dashboard/contracts/pay-line-panel'
 
 /**
  * One placement, top to bottom.
@@ -812,6 +816,10 @@ export default function PlacementPage() {
           )}
         </div>
 
+        {/* Where no line pays the worker, the panel says so and leads to the
+            terms page that writes it (money, ee07b2c6c). */}
+        <PayLinePanel contractId={p.id} />
+
         {/* Our own order to the firm below us, where we raised one —
             the same shape as the client's, read from the other end. */}
         {p.viewer.isSupplier && p.contracts.buy?.document?.order && (
@@ -869,6 +877,9 @@ export default function PlacementPage() {
           {p.viewer.isSupplier &&
             p.compliance.supplierCover.map((v, i) => <CoverChip key={`${v.type}-${i}`} cover={v} />)}
         </div>
+        {/* Activate, or Activate with a reason, as the start's own route
+            draws it for this seat (money, d3884b460). */}
+        <ActivatePanel contractId={p.id} />
         {/* Whether the firm below us could put anybody forward today.
             Computed by the same gate the submission door calls, so this
             screen cannot read green on cover that refuses a submission an
