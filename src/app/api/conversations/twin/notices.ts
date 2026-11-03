@@ -159,12 +159,12 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
       const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
       const acted: Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'> | undefined = twin.get(n.id) ?? chain.get(n.id)
       return {
-        id: n.id, title: named.get(n.id) ?? n.title, href: pageOf(n.type, n.entityId, data),
+        id: n.id, title: named.get(n.id) ?? asReceived(n.type, n.title), href: pageOf(n.type, n.entityId, data),
         // What Ask Etyme did alone, in its own words, over the notice's own.
         ...(acted ? { title: acted.title, href: acted.href } : {}),
         ...(acted?.act ? { act: acted.act } : {}),
         ...(acted?.linkText ? { linkText: acted.linkText } : {}),
-        type: n.type, body: typeof n.body === 'string' ? n.body : null,
+        type: n.type, body: typeof n.body === 'string' ? asReceived(n.type, n.body) : null,
         cycleKind: typeof data?.kind === 'string' ? data.kind : null,
         dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
         entityId: n.entityId,
@@ -336,6 +336,22 @@ async function chainNotices(
 export const MISMATCH_TITLE = 'An invoice receipt does not match what was accepted'
 
 /** "PR-2026-0442 from Pinnacle Resourcing does not match what was accepted." */
+/**
+ * What a supplier sent, named in the payer's word, on a notice written
+ * before the source said so (db5318734): "Pinnacle Resourcing’s bill
+ * IN_E5XIVH_004" to a client's AP clerk reads "Pinnacle Resourcing’s
+ * invoice IN_E5XIVH_004". The party who issues a document names it; what
+ * a firm receives from below is its supplier's invoice, never a bill.
+ * Only the payer's own bill notice (type INVOICE) ever said "<firm>’s
+ * bill <number>", so nothing the issuer reads is touched.
+ */
+export function asReceived(type: string | null | undefined, text: string): string {
+  if (type !== 'INVOICE') return text
+  return text
+    .replace(/[’']s bill (?=\S)/g, '’s invoice ')
+    .replace(/\bwho receives its bills\b/g, 'who receives its invoices')
+}
+
 export function mismatchSays(number: string, supplier: string | null): string {
   return `${number}${supplier ? ` from ${supplier}` : ''} does not match what was accepted`
 }

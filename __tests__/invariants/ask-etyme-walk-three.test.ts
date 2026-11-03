@@ -203,7 +203,7 @@ describe('the mismatch notice names the receipt and the supplier (walk three, it
   it('“An invoice receipt does not match what was accepted” is said with the receipt’s number and who sent it', () => {
     expect(MISMATCH_TITLE).toBe('An invoice receipt does not match what was accepted')
     expect(mismatchSays('PR-2026-0442', 'Pinnacle Resourcing')).toBe('PR-2026-0442 from Pinnacle Resourcing does not match what was accepted')
-    expect(src('src/app/api/conversations/twin/notices.ts')).toContain('title: named.get(n.id) ?? n.title')
+    expect(src('src/app/api/conversations/twin/notices.ts')).toContain('title: named.get(n.id) ?? asReceived(n.type, n.title)')
   })
 })
 
