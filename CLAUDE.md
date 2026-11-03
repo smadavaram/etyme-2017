@@ -3218,6 +3218,20 @@ reversible in a sentence: a refusal names the shipped role set for the
 kind of firm, not the roles this company edited; the Consultants page
 reads every record rather than moving search to the route (about
 twenty calls for a very large firm, each logging its bench read once).
+**Architect (8b35511b2, 2fec1d143, a63e849f6, a4fc78a2e), the same
+evening.** The Ask Etyme model switch is the one button, "Turn it on"
+while off and "Turn it off" while on, with no tick box beside it, a
+press with no reason refused in a sentence, and "not set up on this
+deployment" beside it where there is no key; "Grant the seat" refuses
+in a sentence naming the field (the MSP, the role, the reason) and a
+name typed and never looked up is looked up on the press; the shared
+filter bar takes the reader's order, so demand's own copy can go; and
+the placement page says who activates ("…then HR or the Owner
+activates") where the start's route names them. Queued for the
+architect's next schema pass: `ContractorInvitation.pickReason`,
+`pickedById`, `pickedAt`, or a dedicated event name, replacing demand's
+stand-in Event row. The placement page asks the activate route twice
+(the panel and the line) until money exposes `who` through the panel.
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
