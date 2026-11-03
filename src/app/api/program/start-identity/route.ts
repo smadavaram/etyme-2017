@@ -6,7 +6,8 @@ import { hasPermission } from '@/lib/permissions'
 import { actingDesk } from '@/lib/program-seat'
 import { notify } from '@/lib/notify'
 import { recordAccess } from '@/lib/access-log'
-import { answeredSays, noSays, readStartIdentity } from './answer'
+import { notThePersonNotice } from '@/lib/notify/degree-and-start'
+import { answeredSays, readStartIdentity } from './answer'
 
 /**
  * POST /api/program/start-identity — the hiring manager answers "Is the
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
       id: true, personId: true, companyId: true,
       person: { select: { name: true } },
       company: { select: { name: true } },
+      requirement: { select: { title: true } },
     },
   })
   if (!contract) {
@@ -81,11 +83,10 @@ export async function POST(request: NextRequest) {
   })
 
   if (!read.confirmed) {
-    const says = noSays({
+    const { title, body: says } = notThePersonNotice({
+      saidBy: caller.person.name,
       personName: contract.person.name,
-      answeredBy: caller.person.name,
-      supplierName: contract.company.name,
-      clientName: desk.companyName,
+      jobTitle: contract.requirement?.title ?? 'this job',
     })
     const [hr, supplier] = await Promise.all([
       prisma.context.findMany({
@@ -107,7 +108,6 @@ export async function POST(request: NextRequest) {
         take: 5,
       }),
     ])
-    const title = `${contract.person.name}'s start is held: not the person interviewed`
     for (const h of hr) {
       void notify({ personId: h.personId, companyId: desk.companyId, type: 'CONTRACT', title, body: says, entityId: contract.id })
     }

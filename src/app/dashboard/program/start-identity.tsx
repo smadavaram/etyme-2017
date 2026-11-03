@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { STARTED_QUESTION } from '@/app/api/program/start-identity/answer'
+import { START_QUESTION } from '@/lib/notify/degree-and-start'
 import { startIdentityBody } from './start-identity-body'
 
 /**
@@ -44,10 +44,10 @@ export function StartIdentity({
   if (says) return <p className="text-xs text-etyme-muted mt-2">{says}</p>
   return (
     <div className="mt-2">
-      <p className="text-xs text-etyme-ink">{STARTED_QUESTION}</p>
+      <p className="text-xs text-etyme-ink">{START_QUESTION}</p>
       {answered && (
         <p className="text-xs text-etyme-muted mt-0.5">
-          {answered.confirmed ? 'Answered yes' : 'Answered no, and the start is held'}
+          {answered.confirmed ? 'Answered yes' : 'Answered no, and the start is on hold'}
           {answered.by ? ` by ${answered.by}` : ''}.
         </p>
       )}

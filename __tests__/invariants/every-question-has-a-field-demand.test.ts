@@ -239,7 +239,8 @@ describe('every question the supplier’s apply route asks, the apply page has a
 // ── The start's one question and its route (founder, 2026-11-03) ─────
 
 import { startIdentityBody } from '@/app/dashboard/program/start-identity-body'
-import { readStartIdentity, noSays, STARTED_QUESTION } from '@/app/api/program/start-identity/answer'
+import { readStartIdentity } from '@/app/api/program/start-identity/answer'
+import { START_QUESTION, notThePersonNotice } from '@/lib/notify/degree-and-start'
 
 const IDENTITY_ROUTE = readFileSync(join(process.cwd(), 'src/app/api/program/start-identity/route.ts'), 'utf8')
 const IDENTITY_CARD = readFileSync(join(process.cwd(), 'src/app/dashboard/program/start-identity.tsx'), 'utf8')
@@ -247,8 +248,8 @@ const PROGRAM_PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/program
 
 describe('the start asks whoever is hiring whether the person who started is the person interviewed', () => {
   it('the start card asks "Is the person who started the person you interviewed?" with Yes and No, on the start row of the program page', () => {
-    expect(STARTED_QUESTION).toBe('Is the person who started the person you interviewed?')
-    expect(IDENTITY_CARD).toContain('{STARTED_QUESTION}')
+    expect(START_QUESTION).toBe('Is the person who started the person you interviewed?')
+    expect(IDENTITY_CARD).toContain('{START_QUESTION}')
     expect(IDENTITY_CARD).toContain('onClick={() => answer(true)}')
     expect(IDENTITY_CARD).toContain('onClick={() => answer(false)}')
     expect(PROGRAM_PAGE).toContain('<StartIdentity')
@@ -272,11 +273,14 @@ describe('the start asks whoever is hiring whether the person who started is the
     expect(IDENTITY_ROUTE).toContain('startIdentityConfirmedAt: now,')
   })
 
-  it('a No tells the client\'s HR and the supplier in one sentence that the start is held', () => {
-    expect(noSays({ personName: 'Ravi Kalathil', answeredBy: 'Marcus Hollins', supplierName: 'Brightmoor Staffing', clientName: 'Corvane Packaging' })).toBe(
-      'Marcus Hollins at Corvane Packaging said the person who started is not the Ravi Kalathil who was interviewed; ' +
-        'the start is held until Brightmoor Staffing and Corvane Packaging\'s HR confirm who is on site.'
-    )
+  it('a No tells the client\'s HR and the supplier in conversation\'s one sentence that the start is on hold', () => {
+    expect(notThePersonNotice({ saidBy: 'Marcus Hollins', personName: 'Ravi Kalathil', jobTitle: 'HCM integration lead' })).toEqual({
+      title: 'Start on hold: Ravi Kalathil, HCM integration lead',
+      body: 'Marcus Hollins says the person who started is not the person interviewed. The start is on hold until HR confirms who is on site.',
+    })
+    expect(IDENTITY_ROUTE).toContain("from '@/lib/notify/degree-and-start'")
+    expect(IDENTITY_ROUTE).toContain('notThePersonNotice({')
+    expect(IDENTITY_CARD).toContain("from '@/lib/notify/degree-and-start'")
     expect(IDENTITY_ROUTE).toContain("role: { name: { in: ['HR', 'HR Partner', 'Compliance Officer'] } }")
     expect(IDENTITY_ROUTE).toContain('companyId: contract.companyId,')
   })

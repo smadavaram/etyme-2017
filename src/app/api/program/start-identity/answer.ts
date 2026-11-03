@@ -11,10 +11,14 @@
  * one sentence, and the start is held until somebody looks (the
  * coordinator's call, reversible in a sentence).
  *
+ * The question and the No's sentence are conversation's one wording
+ * (`lib/notify/degree-and-start`), so the card, the route and the notice
+ * cannot say it two ways.
+ *
  * Pure: the route reads the rows. No database, no clock.
  */
 
-export const STARTED_QUESTION = 'Is the person who started the person you interviewed?'
+import { START_QUESTION } from '@/lib/notify/degree-and-start'
 
 export type StartIdentityRead =
   | { ok: true; confirmed: boolean }
@@ -24,20 +28,12 @@ export type StartIdentityRead =
 export function readStartIdentity(body: { confirmed?: unknown } | null | undefined): StartIdentityRead {
   const c = body?.confirmed
   if (c === true || c === false) return { ok: true, confirmed: c }
-  return { ok: false, field: 'confirmed', says: `Answer Yes or No: ${STARTED_QUESTION.charAt(0).toLowerCase()}${STARTED_QUESTION.slice(1)}` }
-}
-
-/** What HR and the supplier are told on a No: one sentence, who, what, and what happens next. */
-export function noSays(args: { personName: string; answeredBy: string; supplierName: string; clientName: string }): string {
-  return (
-    `${args.answeredBy} at ${args.clientName} said the person who started is not the ${args.personName} who was interviewed; ` +
-    `the start is held until ${args.supplierName} and ${args.clientName}'s HR confirm who is on site.`
-  )
+  return { ok: false, field: 'confirmed', says: `Answer Yes or No: ${START_QUESTION.charAt(0).toLowerCase()}${START_QUESTION.slice(1)}` }
 }
 
 /** What the person answering reads back. */
 export function answeredSays(confirmed: boolean, personName: string): string {
   return confirmed
     ? `Recorded: the person who started is the ${personName} you interviewed.`
-    : `Recorded: the person who started is not the ${personName} you interviewed. HR and the supplier are told, and the start is held.`
+    : `Recorded: the person who started is not the ${personName} you interviewed. HR and the supplier are told, and the start is on hold.`
 }
