@@ -17,7 +17,7 @@
 
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { generateBill, BILLABLE_LINE_STATES, type BillOutcome } from './bill-generate'
+import { generateBill, BILLABLE_LINE_STATES, type BillOutcome, type PlannedBill } from './bill-generate'
 
 /** A bill a week is already on, at this firm. */
 export interface WeekOnBill { invoiceId: string; number: string; status: string }
@@ -53,6 +53,28 @@ export function mayBillWeek(i: {
     return { ok: false, says: `${who} bills this week.` }
   }
   return { ok: true }
+}
+
+/**
+ * Whether a planned bill carries this week's hours. "Bill this week" bills
+ * the week; a bill drafted from the same days that carries only something
+ * else (an expense, another person's week) is not this week's bill, and a
+ * press that would bill none of its hours is refused in the sentence that
+ * says why they are left off, never drafted.
+ *
+ * The release walk of 2026-11-03 (fault M1): Helena Marsh's Oct 25–31 week
+ * at Techpeple was already on TECH-vv0wk-10, which Computer Systems
+ * recorded; the button was drawn, and the press drafted a $412.60 bill
+ * holding only her travel expense.
+ */
+export function weekOnPlan(
+  planned: Pick<PlannedBill, 'timesheetIds' | 'weeksLeftOff'>,
+  timesheetId: string,
+): { ok: true } | { ok: false; code: 'ALREADY_BILLED' | 'NOT_ON_THE_BILL'; says: string } {
+  if (planned.timesheetIds.includes(timesheetId)) return { ok: true }
+  const off = planned.weeksLeftOff.find((w) => w.timesheetId === timesheetId)
+  if (off) return { ok: false, code: off.billedElsewhere ? 'ALREADY_BILLED' : 'NOT_ON_THE_BILL', says: off.says }
+  return { ok: false, code: 'NOT_ON_THE_BILL', says: 'None of this week’s hours would be on the bill, so no bill is drafted for it.' }
 }
 
 /** What the week's page draws in its bill section. */
@@ -131,7 +153,7 @@ async function read(caller: WeekCaller, timesheetId: string) {
 async function priceWeek(
   caller: WeekCaller,
   engagementId: string,
-  ts: { periodStart: Date; periodEnd: Date },
+  ts: { id: string; periodStart: Date; periodEnd: Date },
   opts: { dryRun?: boolean; status?: 'DRAFT'; by?: string },
 ): Promise<BillOutcome> {
   const who = { company: { id: caller.company!.id, name: caller.company!.name, kind: caller.company!.kind }, person: { id: caller.person.id, name: caller.person.name } }
@@ -143,14 +165,25 @@ async function priceWeek(
     if (d.getUTCDate() === 1 || d.getUTCDate() === 16) windows.push({ periodStart: day(d), periodEnd: day(ts.periodEnd) })
   }
   let out: BillOutcome | null = null
+  let notThisWeek: ReturnType<typeof weekOnPlan> | null = null
   for (const w of windows) {
     // Dry first, so a window that finds nothing writes nothing.
     const dry = await generateBill(who, { engagementId, ...w }, { dryRun: true })
-    if (dry.ok) return opts.dryRun ? dry : generateBill(who, { engagementId, ...w }, { status: opts.status, by: opts.by })
+    if (dry.ok) {
+      // A bill from these days that does not carry the week's hours is not
+      // this week's bill: the next period is asked, and failing that the
+      // press is refused in the sentence that says where the hours are.
+      const on = weekOnPlan(dry.planned, ts.id)
+      if (!on.ok) { notThisWeek = notThisWeek ?? on; continue }
+      return opts.dryRun ? dry : generateBill(who, { engagementId, ...w }, { status: opts.status, by: opts.by })
+    }
     out = out ?? dry
     const code = (dry.body.error as { code?: unknown }).code
     // Only "nothing here" is worth asking the next period; any other refusal is the answer.
     if (code !== 'ZERO_VALUE') return dry
+  }
+  if (notThisWeek && !notThisWeek.ok) {
+    return { ok: false, status: 409, body: { error: { code: notThisWeek.code, message: notThisWeek.says } } }
   }
   return out!
 }
