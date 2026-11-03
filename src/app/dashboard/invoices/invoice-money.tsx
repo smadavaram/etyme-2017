@@ -64,12 +64,13 @@ interface CodingRow {
 
 interface InvoiceCoding {
   workOrder: string | null
+  /** What is left on the order once this bill is on it, the three-way check's own figure; or why it is not given. */
   purchaseOrderBalance: {
     number: string
     remainingCents: number
     consumedPercent: number
     overdrawn: boolean
-  } | null
+  } | { number: string; unreadable: string } | null
   remitTo: {
     legalName: string
     taxId: string | null
@@ -242,11 +243,14 @@ export function InvoiceMoney({
             {coding.workOrder ? (
               <>
                 <p className="text-sm font-mono">{coding.workOrder}</p>
-                {coding.purchaseOrderBalance && (
+                {coding.purchaseOrderBalance && 'unreadable' in coding.purchaseOrderBalance && (
+                  <p className="text-[11px] mt-0.5 text-etyme-muted">{coding.purchaseOrderBalance.unreadable}</p>
+                )}
+                {coding.purchaseOrderBalance && !('unreadable' in coding.purchaseOrderBalance) && (
                   <p className={`text-[11px] tabular-nums mt-0.5 ${
                     coding.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'
                   }`}>
-                    {fmtMinor(coding.purchaseOrderBalance.remainingCents)} left
+                    {fmtMinor(coding.purchaseOrderBalance.remainingCents)} left after this bill
                     {' · '}{coding.purchaseOrderBalance.consumedPercent}% drawn
                   </p>
                 )}

@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { allocateAmount, formatShare, type AllocationShare } from '@/lib/cost-allocation'
 import { poBalance } from '@/lib/purchase-order'
+import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profiles'
 import { partiesOf } from '@/lib/money/invoice-parties'
 
@@ -102,7 +103,7 @@ export async function GET(
       },
       workOrder: {
         select: {
-          id: true, number: true, amount: true, status: true, endDate: true,
+          id: true, number: true, amount: true, currency: true, status: true, endDate: true,
           // Who the two firms are where no agreement says. The order is
           // what authorized the spend either way.
           issuedById: true, issuedToId: true,
@@ -233,26 +234,38 @@ export async function GET(
     }
   }
 
-  // What is left on the PO this invoice draws against. AP checks this before
-  // paying — an invoice that takes the PO past its ceiling needs a change
-  // order, not a payment run.
-  let poState: ReturnType<typeof poBalance> & { number: string } | null = null
+  // What is left on the PO this invoice draws against, once this bill is
+  // on it. AP checks this before paying — an invoice that takes the PO
+  // past its ceiling needs a change order, not a payment run.
+  //
+  // The same figure the three-way check's ceiling reads: everything else
+  // that draws on the order (`drawnOnOrder`: bills sent and typed-in
+  // invoice receipts, never a draft) plus this bill. The release walk of
+  // 2026-11-03 read two figures on one page for PO-2026-NF9BK, because
+  // this route summed every invoice on the order, drafts included. A
+  // document in another currency is never added: the figure is then
+  // withheld with the sentence.
+  let poState: (ReturnType<typeof poBalance> & { number: string; afterThisBill: true }) | { number: string; unreadable: string } | null = null
   if (invoice.workOrder) {
-    const drawn = await prisma.invoice.aggregate({
-      where: {
-        workOrderId: invoice.workOrder.id,
-        status: { not: 'CANCELLED' },
-      },
-      _sum: { total: true },
-    })
-    poState = {
-      number: invoice.workOrder.number,
-      ...poBalance({
-        amountCents: minorFromWhole(invoice.workOrder.amount, invoice.currency),
-        invoicedCents: minorFromWhole(drawn._sum.total ?? 0, invoice.currency),
-        status: invoice.workOrder.status as any,
-        endDate: invoice.workOrder.endDate,
-      }),
+    const ccy = (invoice.workOrder.currency ?? invoice.currency).toUpperCase()
+    const drawn = await drawnOnOrder({ id: invoice.workOrder.id, currency: ccy }, { invoiceId: invoice.id })
+    if (drawn.foreign.length > 0 || invoice.currency.toUpperCase() !== ccy) {
+      const others = [...drawn.foreign, ...(invoice.currency.toUpperCase() !== ccy ? [invoice.number] : [])]
+      poState = {
+        number: invoice.workOrder.number,
+        unreadable: `What is left on ${invoice.workOrder.number} is not given: ${others.join(', ')} ${others.length === 1 ? 'is' : 'are'} in another currency than the order's ${ccy}, and two currencies are never added.`,
+      }
+    } else {
+      poState = {
+        number: invoice.workOrder.number,
+        afterThisBill: true,
+        ...poBalance({
+          amountCents: minorFromWhole(invoice.workOrder.amount, ccy),
+          invoicedCents: drawn.cents + minorFromWhole(invoice.total, ccy),
+          status: invoice.workOrder.status as any,
+          endDate: invoice.workOrder.endDate,
+        }),
+      }
     }
   }
 

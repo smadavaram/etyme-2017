@@ -572,12 +572,8 @@ export default function InvoiceDetail() {
               {((m.notes ?? []) as string[]).map((n) => (
                 <p key={n} className="text-sm text-etyme-muted mt-1">{n}</p>
               ))}
-              {m.workOrder && (
-                <p className="text-sm text-etyme-muted mt-1 tabular-nums">
-                  {amountFromUnits(m.workOrder.remaining)} left on the purchase order
-                  {' · '}{m.workOrder.utilisationPercent}% used
-                </p>
-              )}
+              {/* What is left on the order is said once, under Purchase
+                  order in the money section, from the one reader. */}
             </div>
             {m.matched && inv.status === 'ISSUED' && (
               <button onClick={submit}
