@@ -7,6 +7,7 @@ import { contractsEmpty } from '@/lib/money/contracts-empty'
 import { scopeOf, ownContractsSay, type ListScope } from '@/lib/money/own-scope'
 import { compact, rate as rateText } from '@/lib/money-display'
 import { activeRateTotals } from '@/lib/money/rate-totals'
+import { readEveryContractPage, fetchPage } from '@/lib/money/contract-pages'
 import { sideFromQuery, sideHref, answerFits, rowsOfSide } from '@/lib/money/contract-side'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -316,7 +317,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
         const [meRes, consultantsRes, contractsRes, registerRes, clientsRes] = await Promise.all([
           fetch('/api/me'),
           fetch('/api/consultants?limit=100'),
-          fetch('/api/contracts?side=sell&limit=100'),
+          readEveryContractPage('sell', fetchPage),
           fetch('/api/counterparties'),
           fetch('/api/clients'),
         ])
@@ -356,7 +357,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
         // own sell contracts. Its first contract has no sell contracts to
         // read, so the register is the whole list (`lib/money/client-options`).
         const register = clientsRes.ok ? (await clientsRes.json()).data?.clients ?? [] : []
-        const contracts = contractsRes.ok ? (await contractsRes.json()).data?.contracts ?? [] : []
+        const contracts = contractsRes.ok ? contractsRes.body?.data?.contracts ?? [] : []
         setClientCompanies(clientOptions(register, contracts))
       } catch {
         // Options loading is best-effort
@@ -1331,10 +1332,13 @@ export default function ContractsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/contracts?side=${asked}`)
+      // Every page of the route, never its first page as the whole list:
+      // the counts, the rate total and "1–20 of N" stand on every line
+      // (lib/money/contract-pages, the fourth screen walk's M5).
+      const res = await readEveryContractPage(asked, fetchPage)
       if (stale()) return
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
+        const body = res.body ?? {}
         // A refusal is not an empty book: the page draws the sentence
         // and no figure (sign-up walk, round four, #5).
         const refused = refusalOf(res.status, body)
@@ -1347,8 +1351,7 @@ export default function ContractsPage() {
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
 
-      const body = await res.json()
-      if (stale()) return
+      const body = res.body
       setRefusedSaid(null)
       setScope(scopeOf(body))
       const rawContracts = body.data?.contracts ?? []
