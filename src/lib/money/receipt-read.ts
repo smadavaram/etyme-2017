@@ -34,6 +34,8 @@ export interface ReceiptLine {
   rateCents: number
   contractRateCents: number | null
   amountCents: number
+  /** How a line that does not multiply out was priced, in the line's own words. */
+  working?: string | null
 }
 
 export interface ReceiptCheck {
@@ -78,6 +80,18 @@ function lineSays(l: ReceiptLine, failed: ReceiptCheck[], currency: string): { m
       }
     }
     if (own.length > 0) return { matches: false, says: own[0].reason }
+    // A line with overtime at a premium does not multiply out: 44 h at
+    // $98 is $4,312 and the line is $4,508. Never print the false sum
+    // (the screen walk, 2026-11-03); say how it was priced.
+    const multipliesOut = Math.abs(Math.round(l.hoursSigned * l.rateCents) - l.amountCents) <= 1
+    if (!multipliesOut) {
+      return {
+        matches: true,
+        says: l.working
+          ? `${h(l.hoursSigned)} signed: ${l.working}, from ${rateWords(l.rateCents, currency)} = ${amount(l.amountCents, currency)}`
+          : `${h(l.hoursSigned)} signed from ${rateWords(l.rateCents, currency)}, with the overtime at its own rate = ${amount(l.amountCents, currency)}`,
+      }
+    }
     return {
       matches: true,
       says: `${h(l.hoursSigned)} signed × ${rateWords(l.rateCents, currency)} = ${amount(l.amountCents, currency)}`,

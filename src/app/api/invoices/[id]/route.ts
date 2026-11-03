@@ -13,6 +13,7 @@ import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
+import { payToSays } from '@/lib/money/pay-to-words'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
 
@@ -67,6 +68,8 @@ export async function GET(
   const invoice = await prisma.invoice.findFirst({
     where: { id, ...scope },
     include: {
+      // Where it is paid: the firm's checked details, as four digits.
+      remitTo: { select: { legalName: true, accountName: true, bankName: true, accountLast4: true, paymentMethod: true } },
       workOrder: {
         select: {
           id: true, number: true, amount: true, status: true, endDate: true,
@@ -301,6 +304,7 @@ export async function GET(
         status: invoice.status,
         direction,
         deliverySays,
+        payToSays: payToSays(invoice.remitTo),
         // Minor units, beside the whole-currency figures older readers use.
         totalMinor,
         paidMinor,

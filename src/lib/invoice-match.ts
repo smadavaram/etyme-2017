@@ -216,6 +216,8 @@ export interface LineFact {
   /** The contract's rate on the day the work was done. Null on a line with no hours. */
   contractRateCents: number | null
   amountCents: number
+  /** How the line was priced where it does not multiply out ("40h at the usual rate, 4h at time and a half"), from the line's own words. */
+  working?: string | null
 }
 
 export type MatchWithLines = MatchResult & {
@@ -672,6 +674,8 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts, opts: MatchFor = 
       rateCents: l.rateCents,
       contractRateCents: ts ? ts.contractRateCents : null,
       amountCents: l.amountCents,
+      // The bands the generator wrote after " · " on the line itself.
+      working: l.description?.includes(' · ') ? l.description.split(' · ').slice(1).join(' · ') : null,
     }
   })
   return { ...result, lines, voidedWaiver: waivers.voided }

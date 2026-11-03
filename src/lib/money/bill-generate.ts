@@ -1514,9 +1514,24 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       // Their number where they self-bill. Never both.
       const number = self.number ?? `IN_${engFragment}_${String(n).padStart(3, '0')}`
 
+      // ── Where the customer pays it ─────────────────────────────────
+      //
+      // The firm's own payment details, and only ones a paying firm's
+      // Finance has checked (`RemitTo.verifiedAt`): a bill went out with
+      // no pay-to at all (the screen walk, 2026-11-03). Those checked by
+      // this bill's payer first, then the firm's default. None checked,
+      // none written: the bill says nothing rather than an address
+      // nobody stands behind, and the payment gate refuses until checked.
+      const remits = await tx.remitTo.findMany({
+        where: { companyId: caller.company.id, verifiedAt: { not: null } },
+        select: { id: true, isDefault: true, verifiedByCompanyId: true },
+      })
+      const payTo = payToFor(remits, partners.payer.party.id)
+
       // Create the invoice
       const invoice = await tx.invoice.create({
         data: {
+          remitToId: payTo,
           engagementId,
           number,
           periodStart: period.start,
@@ -1888,4 +1903,22 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     reportError('Invoice generation failed:', err)
     return reply(500, { error: { code: 'INTERNAL', message: 'The bill could not be generated' } })
   }
+}
+
+/**
+ * Which of the firm's checked payment details a bill names, for the
+ * firm that pays it: one that payer's Finance checked, else the firm's
+ * default, else any checked one. Null where none is checked. Pure.
+ */
+export function payToFor(
+  remits: readonly { id: string; isDefault: boolean; verifiedByCompanyId: string | null }[],
+  payerId: string,
+): string | null {
+  return (
+    remits.find((r) => r.verifiedByCompanyId === payerId && r.isDefault)?.id ??
+    remits.find((r) => r.verifiedByCompanyId === payerId)?.id ??
+    remits.find((r) => r.isDefault)?.id ??
+    remits[0]?.id ??
+    null
+  )
 }
