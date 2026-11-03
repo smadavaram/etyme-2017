@@ -5146,6 +5146,40 @@ whole check. So:
   a provider's verdict clearing a warned degree; and the worker told, in
   words, what was asked and why. Each proven through the real routes and
   then pressed on screens by the walk.
+- **The degree is the person's, uploaded once, read as fully as it can
+  be, and kept for good. The founder, the same hour:** *"Why can't
+  people upload degree and we extract as much details — the record is
+  permanent for candidate."* So: the person uploads it from their own
+  page (the copy is already kept on their record since 2026-10-27);
+  everything on it is read, not four fields only: the institution, the
+  qualification and field, the year, the name, honors, the certificate
+  or registrar number, the date it was issued, each shown with the
+  quote it came from and confirmed by the person. **For a paper a person
+  uploads to their own record, the model reads it on the person's own
+  yes**, asked once at the upload ("Read the details from this document
+  for you?"), masked and logged like every other read, rules first
+  always; a company's switch governs a company's papers, and this one is
+  the person's. **Once confirmed, the facts and any provider's verdict
+  stay on the person's record permanently**: a degree never expires,
+  so the next firm and the next client read it by the person's one
+  click (the apply form's reuse), it is never asked for twice, it does
+  not belong to a firm the person leaves, and every read of it by a
+  firm is logged like any other read of a person's paper. A verified
+  degree shown as verified to the next client is the first piece of
+  the moat said in "Tenure is the moat": one person's papers across
+  every supplier, which no VMS and no supplier can produce.
+- **A named "fraud module" is not built and nothing is priced** (the
+  founder's question, tested against the five questions the same
+  hour): the checks go into the record for everybody, called
+  verification, because trust is why they buy, not an add-on, and a
+  module aimed at suppliers breaks neutrality. The verdict stays the
+  provider's; Etyme says only what the person's own papers say against
+  each other. The paid piece, if one comes after the first paying
+  client, is ordering the provider's check through Etyme with the
+  verdict coming back on its own. And the proxy-interview case gets one
+  question, not a module: at the start the hiring manager confirms the
+  person who started is the person interviewed, yes or no on the start
+  card, recorded with who said it.
 - **Built in the wave after the 2026-11-03 deploy**, beside the
   work-country piece: the degree's fields and the rules (regulatory,
   with the schema request to the architect for the four fields on the
