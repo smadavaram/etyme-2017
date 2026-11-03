@@ -1,3 +1,4 @@
+import { authorizationOnRecord } from '@/lib/document-stages/paper-record'
 import { prisma } from '@/lib/db'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import {
@@ -336,10 +337,15 @@ export async function examinationOf(input: {
   }
 
   // ── What was examined, read the way Record a check reads it ──
+  // The person's signed authorization for a screening company's check,
+  // where the record holds one (the release walk, R2: accepted on
+  // Paperwork an hour before, and the verdict said none was named).
+  const consentOn = await authorizationOnRecord(personId, item.key)
   const read = checkInputFrom(body, {
     about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
     // The request's own date is the paper's end where nothing else names one.
     expiresAtFallback: input.validUntil,
+    consentOn,
   })
   if (!read.ok) {
     const door = doorFor(read.field)

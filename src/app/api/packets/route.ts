@@ -25,7 +25,7 @@ import {
 } from '@/lib/document-request'
 import type { EffectiveRequirement } from '@/lib/document-requirements'
 import { papersAsked, papersCounted, countWord, requestReasonNow, RENEWAL_PACKET_KEY, heldFrom } from '@/lib/contract-clearance'
-import { heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
+import { heldAbout, heldFromAcceptedItems, papersOnRecord } from '@/lib/document-stages/paper-record'
 
 const upperFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 import {
@@ -452,9 +452,33 @@ export async function POST(request: NextRequest) {
   // and an accepted item only where the paper itself is what stands (an
   // NDA). A background check accepted with no screening company's report
   // behind it was "already on file" here and "needed" on the placement.
+  //
+  // And the papers on file the placement reads, through the one reader
+  // (`papersOnRecord`, `heldAbout`): the release walk on f2f342723 found an
+  // undertaking accepted on Paperwork "on file" on the placement and
+  // asked for again here, as "Not on file".
+  const askingFirms = [caller.company.id, ...(subjectCompanyId ? [subjectCompanyId] : [])]
+  // The lines between this firm and the person, whose own papers the placement reads too.
+  const [sellLines, buyLines] = subjectPersonId
+    ? await Promise.all([
+        prisma.sellContract.findMany({ where: { companyId: caller.company.id, personId: subjectPersonId }, select: { id: true } }),
+        prisma.buyContract.findMany({ where: { companyId: caller.company.id, candidates: { some: { personId: subjectPersonId } } }, select: { id: true } }),
+      ])
+    : [[], []]
+  const [onRecord, firmTypes] = await Promise.all([
+    papersOnRecord({
+      personIds: subjectPersonId ? [subjectPersonId] : [], companyIds: askingFirms,
+      sellContractIds: sellLines.map((l) => l.id), buyContractIds: buyLines.map((l) => l.id),
+    }),
+    prisma.documentType.findMany({ where: { companyId: caller.company.id }, select: { key: true, label: true } }).catch(() => []),
+  ])
+  const at = { personId: subjectPersonId, companyIds: askingFirms, types: firmTypes }
   const held: HeldDocument[] = [
     ...heldFrom(verifications),
     ...heldFromAcceptedItems(priorItems),
+    ...heldAbout(onRecord, at),
+    ...sellLines.flatMap((l) => heldAbout(onRecord, { ...at, sellContractId: l.id })),
+    ...buyLines.flatMap((l) => heldAbout(onRecord, { ...at, buyContractId: l.id })),
   ]
 
   // ── What the lines actually require, over the packet's own floor ────

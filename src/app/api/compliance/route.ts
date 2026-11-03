@@ -19,7 +19,6 @@ import { labelFor, humanKey } from '@/lib/document-type'
 import type { LineRequirements } from '@/lib/document-requirements'
 import {
   outstandingItems,
-  heldFromDocInstances,
   type HeldKeyRecord,
   type OutstandingItem,
 } from '@/lib/document-request'
@@ -968,7 +967,7 @@ async function whatThisFirmOwes(
   const personIds = [...new Set(lines.map((l) => l.personId).filter((v): v is string => !!v))]
   const clientIds = [...new Set(lines.map((l) => l.clientCompanyId).filter((v): v is string => !!v))]
 
-  const [checks, papers, agreements] = await Promise.all([
+  const [checks, extras, agreements] = await Promise.all([
     prisma.verification.findMany({
       where: {
         OR: [
@@ -981,13 +980,11 @@ async function whatThisFirmOwes(
         issuedAt: true, validFrom: true, expiresAt: true,
       },
     }),
-    prisma.docInstance.findMany({
-      where: { sellContractId: { in: lines.map((l) => l.id) } },
-      select: {
-        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
-        countersignedAt: true, sellContractId: true, template: { select: { name: true } },
-      },
-    }),
+    // What is on file for each line, read the way the placement reads it
+    // (`lineExtrasForSellLines`, through lib/document-stages/paper-record):
+    // the release walk on f2f342723 found an undertaking "on file" on the
+    // placement and owed here, because this read only the line's own papers.
+    setsFor(lines.map((l) => l.id)).then((known) => lineExtrasForSellLines(lines.map((l) => l.id), prisma, on, known)),
     clientIds.length
       ? prisma.masterAgreement.findMany({
           where: { vendorId: companyId, clientId: { in: clientIds } },
@@ -1015,10 +1012,7 @@ async function whatThisFirmOwes(
     const held: HeldKeyRecord[] = [
       ...firmHeld,
       ...checks.filter((v) => v.personId && v.personId === line.personId).map(asHeld),
-      ...heldFromDocInstances(
-        papers.filter((d) => d.sellContractId === line.id),
-        set.items.map((i) => ({ key: i.key, label: i.label }))
-      ),
+      ...(extras.get(line.id)?.extraHeld ?? []).map((h) => ({ ...h, validFrom: h.validFrom ?? null })),
       // An MSA is its own row with its own term, never a `DocInstance`,
       // so a set that asks for one is answered from there rather than
       // reported missing forever.

@@ -34,7 +34,7 @@ describe('asking', () => {
 
 describe('uploading', () => {
   it('the person it is about puts the file on record, and is thanked', () => {
-    expect(mayAct('upload', w9, tariq, { fileUrl: 'https://files/w9.pdf' })).toEqual({ ok: true, next: 'UPLOADED', says: 'W-9 is on file. Thank you.' })
+    expect(mayAct('upload', w9, tariq, { fileUrl: 'https://files/w9.pdf' })).toEqual({ ok: true, next: 'UPLOADED', says: expect.stringMatching(/^W-9 received\. Thank you\. .+ will look at it before it counts\.$/) })
   })
   it('the company can record a file it received', () => {
     expect(mayAct('upload', w9, ruth, { fileUrl: 'https://files/w9.pdf' })).toMatchObject({ ok: true, says: 'W-9 recorded as received.' })

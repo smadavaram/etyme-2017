@@ -128,7 +128,9 @@ export function mayAct(
     if (!extra.fileUrl) {
       return { ok: false, code: 'FILE_REQUIRED', message: `Attach the file. ${name} cannot be on file without one.` }
     }
-    return { ok: true, next: 'UPLOADED', says: subject ? `${name} is on file. Thank you.` : `${name} recorded as received.` }
+    // Received, never "on file": nobody has looked at it yet, and the
+    // start reads the look (the release walk, R3, 2026-11-03).
+    return { ok: true, next: 'UPLOADED', says: subject ? `${name} received. Thank you. ${doc.issuerName} will look at it before it counts.` : `${name} recorded as received.` }
   }
 
   // sign

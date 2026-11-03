@@ -87,7 +87,7 @@ import {
 export { forWorkCountry, workAuthorizationOf, requirementsWhereWorkIsDone, requirementsWhereWorkIsDoneForSellLines } from '@/lib/document-stages/where-work-is-done'
 export type { LineWorkCountry, SetWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { heldFromDocInstances } from '@/lib/document-request'
-import { acceptedRequestPapers, heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
+import { acceptedRequestPapers, heldFromAcceptedItems, heldAbout, paperInstancesWhere, PAPER_ON_FILE_SELECT, type PaperOnFile } from '@/lib/document-stages/paper-record'
 import {
   typesFor,
   typeByKey,
@@ -1666,20 +1666,15 @@ export async function lineExtras(
     // Papers signed against this line, or about this person, or about
     // either firm. A signed NDA is a fact about the person and the firm,
     // not about the row it happened to be raised from.
+    // One reader of what is on file (lib/document-stages/paper-record),
+    // the same the request builder and the Compliance page read.
     db.docInstance.findMany({
-      where: {
-        status: { in: ['SIGNED', 'UPLOADED'] },
-        OR: [
-          sellContractId ? { sellContractId } : { buyContractId: buyContractId! },
-          ...(personId ? [{ subjectType: 'PERSON', subjectId: personId }] : []),
-          { subjectType: 'COMPANY', subjectId: supplierCompanyId },
-          ...(customerCompanyId ? [{ subjectType: 'COMPANY', subjectId: customerCompanyId }] : []),
-        ],
-      },
-      select: {
-        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
-        countersignedAt: true, template: { select: { name: true, needsSignature: true } },
-      },
+      where: paperInstancesWhere({
+        ...(sellContractId ? { sellContractIds: [sellContractId] } : { buyContractIds: [buyContractId!] }),
+        personIds: personId ? [personId] : [],
+        companyIds: [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v),
+      }) as never,
+      select: PAPER_ON_FILE_SELECT,
       orderBy: { id: 'asc' },
     }),
     // The agreement between the two firms. An MSA is not a `DocInstance`
@@ -1722,16 +1717,20 @@ export async function lineExtras(
   const wc = await lineWorkCountry({ buyContractId: buyContractId! }, db as never).catch(() => null)
   // Papers a firm on this line asked the person for and accepted, which
   // stand on the paper itself (an NDA): the rows the request reads.
-  const requested = personId
-    ? await acceptedRequestPapers([personId], [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v), db as never)
-    : []
+  const lineFirms = [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v)
+  const requested = personId ? await acceptedRequestPapers([personId], lineFirms, db as never) : []
   return extrasFrom({
-    requestPapers: heldFromAcceptedItems(requested),
+    requestPapers: heldAbout({ papers: instances as unknown as PaperOnFile[], accepted: requested }, {
+      personId, companyIds: lineFirms,
+      ...(sellContractId ? { sellContractId } : { buyContractId: buyContractId! }),
+      types: (types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label })),
+    }),
+    instances: [],
     setItems: set.items as LineRequirement[],
     workerSets,
     site: siteOf?.workLocation ?? null,
     workCountry: wc ? { country: wc.country, offshore: wc.offshore } : null,
-    certificates, types, instances, agreements,
+    certificates, types, agreements,
   })
 }
 
@@ -1883,19 +1882,8 @@ export async function lineExtrasForSellLines(
     }),
     db.documentType.findMany({ where: { companyId: { in: firmIds } }, orderBy: { id: 'asc' } }).catch(() => []),
     db.docInstance.findMany({
-      where: {
-        status: { in: ['SIGNED', 'UPLOADED'] },
-        OR: [
-          { sellContractId: { in: lineIds } },
-          ...(personIds.length ? [{ subjectType: 'PERSON', subjectId: { in: personIds } }] : []),
-          { subjectType: 'COMPANY', subjectId: { in: firmIds } },
-        ],
-      },
-      select: {
-        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
-        countersignedAt: true, template: { select: { name: true, needsSignature: true } },
-        sellContractId: true, subjectType: true, subjectId: true,
-      },
+      where: paperInstancesWhere({ sellContractIds: lineIds, personIds, companyIds: firmIds }) as never,
+      select: PAPER_ON_FILE_SELECT,
       orderBy: { id: 'asc' },
     }),
     customerIds.length
@@ -1924,10 +1912,13 @@ export async function lineExtrasForSellLines(
     const set = setOf(line.id)
     if (!set) return
     const firms = new Set([line.companyId, line.clientCompanyId].filter((v): v is string => !!v))
+    const lineTypes = (types as { companyId: string | null; key: string; label: string }[]).filter((t) => !!t.companyId && firms.has(t.companyId))
     out.set(line.id, extrasFrom({
-      requestPapers: heldFromAcceptedItems(
-        requested.filter((r) => !!line.personId && r.personId === line.personId && firms.has(r.companyId))
-      ),
+      requestPapers: heldAbout({ papers: instances as unknown as PaperOnFile[], accepted: requested }, {
+        personId: line.personId, companyIds: [...firms], sellContractId: line.id,
+        types: lineTypes.map((t) => ({ key: t.key, label: t.label })),
+      }),
+      instances: [],
       setItems: set.items as LineRequirement[],
       workerSets: links.filter((l) => l.sellContractId === line.id).map((l) => workerOf.get(l.buyContractId) ?? []),
       site: line.workLocation ?? null,
@@ -1943,13 +1934,6 @@ export async function lineExtrasForSellLines(
         .filter((c) => c.companyId === line.companyId)
         .map(({ companyId: _c, ...rest }) => { void _c; return rest }),
       types: (types as { companyId: string | null }[]).filter((t) => !!t.companyId && firms.has(t.companyId)),
-      instances: instances
-        .filter((d) =>
-          d.sellContractId === line.id ||
-          (!!line.personId && d.subjectType === 'PERSON' && d.subjectId === line.personId) ||
-          (d.subjectType === 'COMPANY' && (d.subjectId === line.companyId || (!!line.clientCompanyId && d.subjectId === line.clientCompanyId)))
-        )
-        .map(({ sellContractId: _s, subjectType: _t, subjectId: _i, ...rest }) => { void _s; void _t; void _i; return rest }),
       agreements: line.clientCompanyId
         ? agreements
             .filter((a) => a.vendorId === line.companyId && a.clientId === line.clientCompanyId)

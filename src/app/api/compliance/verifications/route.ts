@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizationOnRecord } from '@/lib/document-stages/paper-record'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
@@ -126,6 +127,10 @@ export async function POST(request: NextRequest) {
       return refuse(422, 'NOT_SIGNED', `${contract.person.name} has not signed that authorization yet, so it cannot be named as consent.`, 'consentDocumentId')
     }
     consentOn = consent.signedAt
+  } else if (about === 'PERSON') {
+    // None named: the one on the record, where the person signed or sent it
+    // and somebody accepted it (the release walk, R2).
+    consentOn = await authorizationOnRecord(contract.personId, type)
   }
 
   const now = new Date()

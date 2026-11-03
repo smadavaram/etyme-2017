@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { RECORDED_AS_A_CHECK, standsOnACheck } from '@/lib/document-stages/paper-record'
+import { RECORDED_AS_A_CHECK, standsOnACheck, papersOnRecord, heldAbout } from '@/lib/document-stages/paper-record'
+import { heldFrom } from '@/lib/contract-clearance'
+import { resolveItems, progressOf, type HeldDocument, type PacketSpec } from '@/lib/packets'
 import { RECORDABLE_ABOUT_A_FIRM } from '@/lib/attestation'
 import { examinationOf, recordSupplierPaper } from './examination'
 
@@ -34,6 +36,12 @@ export interface BackfillReport {
   heldBack: Record<string, { count: number; says: string }>
   /** Accepted papers that stand on the paper itself, which the start already reads. */
   readAsAccepted: number
+  /**
+   * Items still asked for on an open request whose paper is already on the
+   * record, by kind: read as held (`closed` once written).
+   */
+  alreadyOnRecord: Record<string, number>
+  closed: Record<string, number>
   says: string
 }
 
@@ -132,10 +140,121 @@ export async function backfillAcceptedPapers(opts: { write: boolean; now?: Date;
 
   const total = Object.values(found).reduce((a, b) => a + b, 0)
   const wrote = Object.values(written).reduce((a, b) => a + b, 0)
-  const says = total === 0
-    ? 'Every paper accepted through a request already has its record behind it. Nothing to do.'
+  const { alreadyOnRecord, closed } = await closeItemsAlreadyOnRecord({ write: opts.write, now, limit: opts.limit })
+  const onRecord = Object.values(alreadyOnRecord).reduce((a, b) => a + b, 0)
+  const shut = Object.values(closed).reduce((a, b) => a + b, 0)
+  const first = total === 0
+    ? 'Every paper accepted through a request already has its record behind it.'
     : opts.write
       ? `${wrote} of ${total} accepted paper${total === 1 ? '' : 's'} now have the record the start reads; the rest are listed with the reason.`
-      : `${total} accepted paper${total === 1 ? '' : 's'} have no record behind them. Send {"write": true} to write what can be written.`
-  return { write: opts.write, found, written, heldBack, readAsAccepted, says }
+      : `${total} accepted paper${total === 1 ? '' : 's'} have no record behind them.`
+  const second = onRecord === 0
+    ? 'No open request asks for a paper already on the record.'
+    : opts.write
+      ? `${shut} item${shut === 1 ? '' : 's'} still asked for on open requests ${shut === 1 ? 'is' : 'are'} now read as on file, because the paper is on the record.`
+      : `${onRecord} item${onRecord === 1 ? '' : 's'} still asked for on open requests ${onRecord === 1 ? 'is' : 'are'} already on the record.`
+  const says = total === 0 && onRecord === 0
+    ? `${first} ${second} Nothing to do.`
+    : `${first} ${second}${opts.write ? '' : ' Send {"write": true} to write what can be written.'}`
+  return { write: opts.write, found, written, heldBack, readAsAccepted, alreadyOnRecord, closed, says }
+}
+
+// ── Requests still asking for a paper the record already holds ─────────
+//
+// The release walk on f2f342723: Rajesh Iyer's and Camille's requests from
+// Nov 1, and 18 more, read "0 of 4" for papers the placement holds, and
+// this said "Nothing to do", because it looked only at accepted items with
+// no record behind them. An item still asked for, whose paper is on the
+// record the placement reads (`papersOnRecord`, `heldAbout`, and the
+// recorded checks), is read as on file: ACCEPTED, with a note saying the
+// paper was already on the record, pointing at the check where it is one.
+// Nobody is named as having accepted it, because nobody did on the request.
+
+/** An item still asked for, as the rule needs it. */
+export interface OpenItem { id: string; key: string; label: string }
+
+/**
+ * Which open items the record already holds, read the way a fresh request
+ * reads them (`resolveItems`): held, current and accepted. A paper whose
+ * standing is a recorded check is held only where the check is there to
+ * point at. Pure.
+ */
+export function itemsAlreadyOnRecord(
+  items: OpenItem[],
+  held: HeldDocument[],
+  checks: { id: string; type: string }[],
+  now: Date
+): { item: OpenItem; verificationId: string | null; note: string }[] {
+  if (items.length === 0) return []
+  const spec = {
+    key: 'BACKFILL', label: 'backfill', purpose: 'ONBOARDING', subject: 'PERSON', preamble: '',
+    items: items.map((i) => ({ key: i.key, label: i.label, hint: '', required: true, validMonths: null })),
+  } as unknown as PacketSpec
+  const resolved = resolveItems(spec, held, now)
+  const out: { item: OpenItem; verificationId: string | null; note: string }[] = []
+  resolved.forEach((r, n) => {
+    if (r.state !== 'ALREADY_HELD' && r.state !== 'EXPIRING') return
+    const item = items[n]
+    const check = checks.filter((c) => c.type === item.key).at(-1) ?? null
+    if (standsOnACheck(item.key) && !check) return
+    out.push({ item, verificationId: check?.id ?? null, note: `Already on the record when this was asked: ${r.note.charAt(0).toLowerCase()}${r.note.slice(1)}.` })
+  })
+  return out
+}
+
+async function closeItemsAlreadyOnRecord(opts: { write: boolean; now: Date; limit?: number }) {
+  const alreadyOnRecord: Record<string, number> = {}
+  const closed: Record<string, number> = {}
+  const packets = await prisma.documentPacket.findMany({
+    where: { cancelledAt: null, completedAt: null, items: { some: { state: 'PENDING' } } },
+    select: {
+      id: true, companyId: true, subjectPersonId: true, subjectCompanyId: true, completedAt: true,
+      items: { select: { id: true, key: true, label: true, state: true, required: true }, orderBy: { position: 'asc' } },
+    },
+    orderBy: { id: 'asc' },
+    take: opts.limit ?? 2000,
+  })
+  for (const p of packets) {
+    const personId = p.subjectPersonId
+    const firms = [p.companyId, ...(p.subjectCompanyId ? [p.subjectCompanyId] : [])]
+    const [checks, sells, buys, types] = await Promise.all([
+      prisma.verification.findMany({
+        where: personId ? { personId } : { companyId: p.subjectCompanyId ?? '__none__' },
+        select: { id: true, type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      personId ? prisma.sellContract.findMany({ where: { companyId: p.companyId, personId }, select: { id: true } }) : [],
+      personId ? prisma.buyContract.findMany({ where: { companyId: p.companyId, candidates: { some: { personId } } }, select: { id: true } }) : [],
+      prisma.documentType.findMany({ where: { companyId: p.companyId }, select: { key: true, label: true } }).catch(() => []),
+    ])
+    const record = await papersOnRecord({
+      personIds: personId ? [personId] : [], companyIds: firms,
+      sellContractIds: sells.map((l) => l.id), buyContractIds: buys.map((l) => l.id),
+    })
+    const at = { personId, companyIds: firms, types }
+    const held: HeldDocument[] = [
+      ...heldFrom(checks),
+      ...heldAbout(record, at),
+      ...sells.flatMap((l) => heldAbout(record, { ...at, sellContractId: l.id })),
+      ...buys.flatMap((l) => heldAbout(record, { ...at, buyContractId: l.id })),
+    ]
+    const accepted = checks.filter((c) => c.status === 'CLEAR' || c.status === 'CONDITIONAL')
+    const found = itemsAlreadyOnRecord(p.items.filter((i) => i.state === 'PENDING'), held, accepted, opts.now)
+    for (const f of found) bump(alreadyOnRecord, f.item.key)
+    if (!opts.write || found.length === 0) continue
+    for (const f of found) {
+      await prisma.packetItem.update({
+        where: { id: f.item.id },
+        data: { state: 'ACCEPTED', reviewedAt: opts.now, reviewNote: f.note, ...(f.verificationId ? { verificationId: f.verificationId } : {}) },
+      })
+      bump(closed, f.item.key)
+    }
+    const done = new Set(found.map((f) => f.item.id))
+    const progress = progressOf(p.items.map((i) => ({
+      label: i.label, required: i.required,
+      received: done.has(i.id) || i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+    })))
+    if (progress.complete) await prisma.documentPacket.update({ where: { id: p.id }, data: { completedAt: opts.now } })
+  }
+  return { alreadyOnRecord, closed }
 }

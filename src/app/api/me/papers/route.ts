@@ -1,4 +1,5 @@
 import { fileHash } from '@/lib/document-stages/degree'
+import { acceptedRequestPapers, heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
 import { NextRequest, NextResponse } from 'next/server'
 import { employmentOf } from '@/app/api/compliance/verifications/record'
 import { linesForWorker } from '@/lib/document-stages/employer'
@@ -246,15 +247,22 @@ async function whatSheOwes(
   const [sellLines, buyCandidates] = await Promise.all([
     prisma.sellContract.findMany({
       where: { personId, state: live },
-      select: { id: true },
+      select: { id: true, companyId: true, clientCompanyId: true },
       take: 20,
     }),
     prisma.buyContractCandidate.findMany({
       where: { personId, state: 'ACTIVE', buyContract: { state: live } },
-      select: { buyContractId: true },
+      select: { buyContractId: true, buyContract: { select: { companyId: true } } },
       take: 20,
     }),
   ])
+  // What the firms on her lines asked her for and accepted, through the
+  // one reader the placement reads (lib/document-stages/paper-record).
+  const herFirms = [
+    ...sellLines.flatMap((l) => [l.companyId, l.clientCompanyId]),
+    ...buyCandidates.map((c) => c.buyContract.companyId),
+  ].filter((v): v is string => !!v)
+  const acceptedByFirms = heldFromAcceptedItems(await acceptedRequestPapers([personId], herFirms))
 
   const onFile: HeldKeyRecord[] = held.map((v) => ({
     key: v.type,
@@ -285,7 +293,7 @@ async function whatSheOwes(
       // was built to prevent, arriving because nothing ever reached it.
       // The line's own set is the dictionary, so a paper filed against
       // "Hot floor induction" reads back to the type that asked for it.
-      held: [...onFile, ...papersAsHeld(papers, set.items)],
+      held: [...onFile, ...papersAsHeld(papers, set.items), ...acceptedByFirms.map((h) => ({ ...h, validFrom: h.validFrom ?? null }))],
       owedBy: ['WORKER'],
       on,
     })
@@ -309,6 +317,8 @@ type SignedPaperRow = {
   signedAt: Date | null
   countersignedAt: Date | null
   template: { name: string }
+  /** Who looked at it, and when: an upload holds once somebody did. */
+  examinedAt?: Date | null
 }
 
 /**
@@ -374,8 +384,11 @@ function papersAsHeld(
       key,
       validFrom: r.validFrom ?? signed ?? null,
       expiresAt: r.expiresAt ?? null,
-      accepted: r.status === 'SIGNED',
-      received: r.status === 'UPLOADED',
+      // An upload the firm examined is on file, the way the placement
+      // reads it; until somebody looks, it is with them (the release
+      // walk, R3: her NDA read "Not on file" while the placement held it).
+      accepted: r.status === 'SIGNED' || (r.status === 'UPLOADED' && !!r.examinedAt),
+      received: r.status === 'UPLOADED' && !r.examinedAt,
     })
   }
   return out
