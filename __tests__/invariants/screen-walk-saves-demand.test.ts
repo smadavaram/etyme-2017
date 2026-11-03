@@ -376,3 +376,56 @@ describe('the Timesheets page’s words for acting on a week', () => {
     expect(FORWARD_ROUTE).toContain('companyName: desk?.companyName ?? caller.company?.name ?? null,')
   })
 })
+
+// ── 6. Ask Etyme's "Open who applied" opened an empty list ────────────
+//
+// The second screen walk (2026-11-03): a hiring manager's card opened
+// `/dashboard/submissions?requirementId=<job>` and the page read "No
+// submissions yet" for a job with three candidates, because the route
+// read one job's rows as the ones the client had sent.
+
+describe('Candidates, opened on one job', () => {
+  const ASK = src('src/app/api/conversations/twin/ask.ts')
+  const job = (id: string, location: string | null, start: string) =>
+    ({ id, companyId: 'northbend', title: 'HCM integration lead', location, startDate: new Date(start), postedAt: new Date('2026-10-01') })
+
+  it('the Candidates page opened from a card shows that job’s candidates and names the job', async () => {
+    const { whoAppliedSays, jobNamed, EVERY_JOB_SAYS } = await import('@/app/api/submissions/job-heading')
+    // The card and the page read one query name.
+    expect(ASK).toContain('/dashboard/submissions?requirementId=')
+    expect(SUBS_PAGE).toContain("searchParams.get('requirementId')")
+    // The route reads the job's rows whichever way they faced where no
+    // direction was asked, so a client's own job is not read as "sent".
+    expect(SUBS_ROUTE).toMatch(/filterRequirementId && !askedDirection/)
+    // The job named, told apart only where another shares its title.
+    expect(whoAppliedSays(jobNamed(job('a', 'Dayton, Ohio', '2026-11-10'), []))).toBe('Who applied for HCM integration lead')
+    expect(whoAppliedSays(jobNamed(job('a', 'Dayton, Ohio', '2026-11-10'), [job('b', 'Toledo, Ohio', '2026-11-10')])))
+      .toBe('Who applied for HCM integration lead in Dayton, Ohio')
+    expect(whoAppliedSays(jobNamed(job('a', 'Dayton, Ohio', '2026-11-10'), [job('b', 'Dayton, Ohio', '2026-12-01')])))
+      .toBe('Who applied for HCM integration lead starting Nov 10')
+    // The page draws the heading and the way back to every job.
+    expect(SUBS_PAGE).toContain('whoAppliedSays(job?.named')
+    expect(SUBS_PAGE).toContain('href="/dashboard/submissions"')
+    expect(EVERY_JOB_SAYS).toBe('See candidates for every job')
+    // Never the job's key in the words.
+    expect(whoAppliedSays(null)).toBe('Who applied for this job')
+  })
+
+  it('a link to a job’s candidates draws nothing the seat may not open', async () => {
+    const { mayNameJob } = await import('@/app/api/submissions/job-heading')
+    // Named for its own firm, or where the seat already reads rows on it.
+    expect(mayNameJob({ companyId: 'northbend' }, 'northbend', 0)).toBe(true)
+    expect(mayNameJob({ companyId: 'northbend' }, 'brightmoor', 2)).toBe(true)
+    // A stranger's job typed into the address: no rows, no title.
+    expect(mayNameJob({ companyId: 'northbend' }, 'stranger', 0)).toBe(false)
+    expect(mayNameJob(null, 'northbend', 0)).toBe(false)
+    // The rows go through the same scope and row doors as the full list:
+    // the job filter is added to the scoped WHERE, never in place of it.
+    const get = SUBS_ROUTE.slice(SUBS_ROUTE.indexOf('export async function GET'))
+    expect(get.indexOf('const where: any = { ...scope }')).toBeGreaterThan(-1)
+    expect(get.indexOf('const where: any = { ...scope }')).toBeLessThan(get.indexOf('where.requirementId = filterRequirementId'))
+    expect(get).toContain('sendOn: sendOnDoor(sendOnBy, s)')
+    expect(get).toContain('message: messageDoor(messageBy, s)')
+    expect(get).toContain('mayNameJob(asked, deskId, total)')
+  })
+})

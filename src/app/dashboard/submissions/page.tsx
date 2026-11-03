@@ -6,6 +6,7 @@ import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
+import { whoAppliedSays, EVERY_JOB_SAYS } from '@/app/api/submissions/job-heading'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1008,6 +1009,9 @@ export default function SubmissionsPage() {
   // no rate, and the page says so rather than presenting them as the
   // firm's whole list (round five, problem 4).
   const [ownSays, setOwnSays] = useState<string | null>(null)
+  // The one job this list was opened on (Ask Etyme's "Open who applied"),
+  // named by the route only where this seat may open it.
+  const [job, setJob] = useState<{ id: string; named: string | null } | null>(null)
 
   // The words on the page follow the book being read, not the firm the
   // reader is employed by: a program office at a client's desk reads the
@@ -1111,6 +1115,7 @@ export default function SubmissionsPage() {
       setSubmissions(body.data?.submissions ?? [])
       setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
       setOwnSays(body.data?.desk?.ownOnly ? body.data.desk.ownSays ?? null : null)
+      setJob(urlRequirementId ? body.data?.job ?? { id: urlRequirementId, named: null } : null)
     } catch (err: any) {
       setError(err.message)
       setSubmissions([])
@@ -1465,7 +1470,10 @@ export default function SubmissionsPage() {
             </button>
           )}
 
-          {/* Direction toggle — prototype segmented control */}
+          {/* Direction toggle — prototype segmented control. Not on one
+              job's list, which reads that job's candidates whichever way
+              they came. */}
+          {!urlRequirementId && (
           <div role="group" aria-label="Which way" className="flex bg-etyme-canvas rounded-md p-0.5">
             <button
               onClick={() => { faceThisWay('sent'); setStatusFilter('ALL') }}
@@ -1490,9 +1498,20 @@ export default function SubmissionsPage() {
               Received
             </button>
           </div>
+          )}
         </>
         ) : undefined}
       />
+
+      {/* One job's candidates, named, with the way back to every job. */}
+      {urlRequirementId && (
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
+          <p className="text-[14px] font-medium text-etyme-ink">{whoAppliedSays(job?.named ?? null)}</p>
+          <Link href="/dashboard/submissions" className="text-[13px] text-etyme-action hover:underline">
+            {EVERY_JOB_SAYS}
+          </Link>
+        </div>
+      )}
 
       {/* Whose desk this is, where it is not the reader's own firm. */}
       {atDesk?.says && (
@@ -1535,7 +1554,7 @@ export default function SubmissionsPage() {
             options={statusOptions}
           />
         }
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : own ? 'You have not been put forward yet.' : 'No submissions yet.'}
+        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : own ? 'You have not been put forward yet.' : urlRequirementId ? 'Nobody has applied for this job yet.' : 'No submissions yet.'}
         emptyDetail={
           own
             ? undefined

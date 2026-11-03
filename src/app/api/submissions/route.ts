@@ -1,3 +1,4 @@
+import { mayNameJob, jobNamed } from './job-heading'
 import { NextRequest, NextResponse } from 'next/server'
 import { placeOf } from '@/lib/job-site'
 import { whyNotOpen } from './words'
@@ -1570,7 +1571,11 @@ export async function GET(request: NextRequest) {
   const deskId = desk?.companyId ?? caller.company?.id ?? null
 
   const url = request.nextUrl
-  const direction = url.searchParams.get('direction') ?? 'sent'
+  // One job's candidates (Ask Etyme's "Open who applied", a job's own
+  // link) are read whichever way they faced: the scope below already binds
+  // the caller to a side, and a client reading its job as "sent" read none.
+  const askedDirection = url.searchParams.get('direction')
+  const direction = askedDirection ?? 'sent'
   // Under a seat the desk decides, not the query string. The page asks
   // for the caller's own company because that is what `/api/me` told it,
   // and the seat is the later fact.
@@ -1666,6 +1671,8 @@ export async function GET(request: NextRequest) {
     where.personId = caller.person.id
   } else if (filterPersonId) {
     where.personId = filterPersonId
+  } else if (filterRequirementId && !askedDirection) {
+    // Both sides of the scope: the job's own rows, sent or received.
   } else if (companyId && direction === 'sent') {
     where.fromCompanyId = companyId
   } else if (companyId) {
@@ -1737,6 +1744,25 @@ export async function GET(request: NextRequest) {
     companyId: caller.company?.id ?? null,
     consultantSeat: isConsultantSeat(caller),
     seat: desk?.seat ? { clientCompanyId: desk.seat.clientCompany.id, permissions: desk.seat.role.permissions } : null,
+  }
+
+  // One job's candidates: the job named as the heading says it, and only
+  // where the seat may open the job (`mayNameJob`): its own firm's job, or
+  // rows on it this seat already reads. Otherwise "this job", never a title.
+  let job: { id: string; named: string | null } | null = null
+  if (filterRequirementId) {
+    const jobSelect = { id: true, companyId: true, title: true, location: true, startDate: true, createdAt: true, site: { select: { name: true } } } as const
+    const asked = await prisma.requirement.findUnique({ where: { id: filterRequirementId }, select: jobSelect })
+    let named: string | null = null
+    if (asked && mayNameJob(asked, deskId, total)) {
+      const alike = await prisma.requirement.findMany({
+        where: { companyId: asked.companyId, title: asked.title, id: { not: asked.id }, status: { in: ['OPEN', 'DRAFT'] }, archivedAt: null, mirroredFromId: null },
+        select: jobSelect,
+      })
+      const facts = (r: NonNullable<typeof asked>) => ({ id: r.id, companyId: r.companyId, title: r.title, location: placeOf(r), startDate: r.startDate, postedAt: r.createdAt })
+      named = jobNamed(facts(asked), alike.map(facts))
+    }
+    job = { id: filterRequirementId, named }
   }
 
   return NextResponse.json({
@@ -1816,6 +1842,8 @@ export async function GET(request: NextRequest) {
         message: messageDoor(messageBy, s),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // The one job this list was opened on, where it was (`job-heading`).
+      job,
       // Whose book was read. Said out loud so the screen can say it too:
       // a program office reading nine submissions should never have to
       // work out whether they are its own or the client's.
