@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { degreeFromBody, degreeOnRecord, isDegreePaper } from '@/lib/document-stages/degree-check'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -165,6 +166,15 @@ export async function POST(
     )
   }
 
+  // ── A degree is read against the record (founder, 2026-11-03) ──
+  // Said to the reviewer beside the paper, with the three doors; nothing
+  // here stops the accept.
+  let degree: Awaited<ReturnType<typeof degreeOnRecord>> | null = null
+  if (action === 'accept' && packet.subjectPersonId && isDegreePaper(item.key, item.label)) {
+    const kept = await prisma.docInstance.findFirst({ where: { subjectType: 'PACKET_ITEM', subjectId: item.id }, select: { file: { select: { fileHash: true } } } })
+    degree = await degreeOnRecord({ personId: packet.subjectPersonId, paper: degreeFromBody(body), fileHashes: kept?.file?.fileHash ? [kept.file.fileHash] : [], on: now })
+  }
+
   await prisma.packetItem.update({
     where: { id: itemId },
     data: {
@@ -224,11 +234,12 @@ export async function POST(
       // Whether it reaches the start check, said either way: an accepted
       // paper that does not count is never left to look as if it did.
       countsTowardStart: examined ? !!examined.verificationId : null,
+      ...(degree ? { degree: { says: degree.says, verified: degree.verified, doors: degree.doors } } : {}),
       message:
         action === 'accept'
           ? (validUntil
               ? `${item.label} accepted, good until ${validUntil.toISOString().slice(0, 10)}. We will ask again before it lapses.`
-              : `${item.label} accepted.`) + (examined?.says ? ` ${examined.says}` : '')
+              : `${item.label} accepted.`) + (examined?.says ? ` ${examined.says}` : '') + (degree?.says ? ` ${degree.says}` : '')
           : `${item.label} sent back to ${packet.recipientEmail}. They can see why and send another.`,
     },
   })

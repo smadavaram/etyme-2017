@@ -18,7 +18,7 @@ export function emptyRequestsSays(canAsk: boolean): string {
 /**
  * What "Send the request" is still waiting for, said beside it while it is
  * disabled, or null when it may be pressed. A disabled button always says
- * what is missing (release walk three, 2026-11-03: it stayed grey until a
+ * what is missing (release walk three, 2026-11-03: it stayed gray until a
  * person was chosen and nothing said why). Pure.
  */
 export function sendRequestMissing(f: { packetKey: string; email: string; subject: 'PERSON' | 'COMPANY' | null; subjectPersonId: string; subjectCompanyId: string }): string | null {

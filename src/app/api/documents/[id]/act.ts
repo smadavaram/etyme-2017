@@ -5,6 +5,8 @@ import { BUILT_IN } from '@/lib/document-type'
 import { prisma } from '@/lib/db'
 import { notify, notifyBulk } from '@/lib/notify'
 import { paperExaminersAt } from '@/lib/notify/paper-examiners'
+import { degreeOnRecord, isDegreePaper } from '@/lib/document-stages/degree-check'
+import { degreeAskedOfYou } from '@/lib/notify/degree-and-start'
 import {
   mayAct,
   isProfessionalLicense,
@@ -195,8 +197,13 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
     })
   }
 
+  // A degree: asked of the person in words that say why and that it is
+  // asked once; and, sent back to the firm, read against the record for
+  // the roles who examine it (founder, 2026-11-03).
+  const aDegree = isDegreePaper(null, doc.template.name)
   if (action === 'send') {
-    const notice = askNotice(facts)
+    const asked = askNotice(facts)
+    const notice = aDegree && subjectPersonId ? { ...asked, body: degreeAskedOfYou({ firmName: issuer.name }) } : asked
     if (subjectPersonId) {
       // A candidate is reached by email; a company's own person in the app.
       const seat = await prisma.context.findFirst({
@@ -239,7 +246,12 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
           where: { entityId: doc.id, personId: staff[0].personId, title: { startsWith: `${caller.person.name} ` } },
         })
       : 0
-    const told = answeredNotice({ who: caller.person.name, paper: doc.template.name, signed: verdict.next === 'SIGNED', before, note })
+    const answered = answeredNotice({ who: caller.person.name, paper: doc.template.name, signed: verdict.next === 'SIGNED', before, note })
+    // What does not look right on a degree is said to these roles only.
+    const degree = aDegree && subjectPersonId && file
+      ? await degreeOnRecord({ personId: subjectPersonId, fileHashes: [fileHash(file.bytes)], on: now })
+      : null
+    const told = degree?.says ? { ...answered, body: `${answered.body} ${degree.says}`.trim() } : answered
     void notifyBulk(staff.map((s) => ({
       personId: s.personId, companyId: issuer.id, type: 'SYSTEM' as const,
       title: told.title,

@@ -58,6 +58,8 @@ interface Request_ {
   /** How the rule read a sponsorship answer, or that it could not. */
   sponsorshipRead?: string | null
   examinedAt?: string | null
+  /** A degree read against the record: the sentence to HR and the doors, or null. */
+  degree?: { says: string | null; verified: string | null; doors: { kind: 'TRANSCRIPT' | 'PROVIDER' | 'SEND_BACK'; says: string }[] } | null
   expiresAt?: string | null
   examineNeeds?: Partial<ExamineNeeds>
   licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
@@ -202,6 +204,8 @@ export default function DocumentsPage() {
 
       {teamFirm && <OwnPapers about="MY_FIRM" heading="Company paperwork" />}
 
+      {/* Where "Ask for the transcript" on a degree lands. */}
+      <div id="ask" />
       {!onePersonFirm && <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>
         <form onSubmit={askFor} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
@@ -255,6 +259,21 @@ export default function DocumentsPage() {
                   {r.note ? ` · ${r.note}` : ''}
                 </div>
                 {r.sponsorshipRead && <div className="text-xs text-etyme-muted mt-0.5">{r.sponsorshipRead}</div>}
+                {/* A degree read against the record: said beside the paper, and HR decides (2026-11-03). */}
+                {r.degree?.says && (
+                  <div className={`text-xs mt-1 ${r.degree.verified ? 'text-etyme-verified' : 'text-etyme-attention'}`}>
+                    {r.degree.says}
+                    {r.degree.doors.length > 0 && (
+                      <span className="flex flex-wrap gap-3 mt-1">
+                        {r.degree.doors.map((d) => d.kind === 'TRANSCRIPT'
+                          ? <a key={d.kind} href="#ask" className="text-etyme-action hover:underline">{d.says}</a>
+                          : d.kind === 'PROVIDER'
+                            ? <a key={d.kind} href="/dashboard/compliance" className="text-etyme-action hover:underline">{d.says}</a>
+                            : <button key={d.kind} type="button" onClick={() => setExamining(r)} className="text-etyme-action hover:underline">{d.says}</button>)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <Chip tone={tone(r)}>{paperWord(r)}</Chip>
               {(r.status === 'PENDING' || r.status === 'SENT') && (

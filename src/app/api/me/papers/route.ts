@@ -1,5 +1,6 @@
 import { fileHash } from '@/lib/document-stages/degree'
 import { acceptedRequestPapers, heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
+import { DEGREE_POSTED } from '@/lib/document-stages/degree-check'
 import { NextRequest, NextResponse } from 'next/server'
 import { employmentOf } from '@/app/api/compliance/verifications/record'
 import { linesForWorker } from '@/lib/document-stages/employer'
@@ -944,7 +945,7 @@ export async function PUT(request: NextRequest) {
   if (isForm) {
     const form = await request.formData().catch(() => null)
     if (!form) return refuse('That did not arrive. Pick the file again and send it.', 422, 'FILE_REQUIRED')
-    for (const k of OWN_PAPER_POSTED) {
+    for (const k of [...OWN_PAPER_POSTED, ...DEGREE_POSTED]) {
       const v = form.get(k)
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -960,7 +961,7 @@ export async function PUT(request: NextRequest) {
     }
   } else {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-    for (const k of OWN_PAPER_POSTED) {
+    for (const k of [...OWN_PAPER_POSTED, ...DEGREE_POSTED]) {
       const v = body[k]
       fields[k] = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null
     }
@@ -1004,7 +1005,7 @@ export async function PUT(request: NextRequest) {
           validFrom: row.validFrom,
           expiresAt: row.expiresAt,
           edition: row.edition,
-          file: { create: { fileName: file.name, contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedById: me } },
+          file: { create: { fileName: file.name, contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedById: me, fileHash: fileHash(file.bytes) } },
         },
         select: { id: true },
       })
@@ -1023,6 +1024,11 @@ export async function PUT(request: NextRequest) {
           validFrom: row.validFrom,
           expiresAt: row.expiresAt,
           formEdition: row.edition,
+          // What a degree says beyond the school and the year, as she
+          // confirmed it (founder, 2026-11-03): read against her résumé.
+          ...(row.key === 'DEGREE'
+            ? { qualification: fields.qualification ?? null, fieldOfStudy: fields.fieldOfStudy ?? null, nameOnDocument: fields.nameOnDocument ?? null, honors: fields.honors ?? null }
+            : {}),
           uploadedById: me,
           // `credentialDetail` in lib/contract-clearance reads the number
           // and the state from here, so the renewal sentence can name them.
