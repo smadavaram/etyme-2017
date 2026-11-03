@@ -517,3 +517,51 @@ describe('who hears that a paper arrived', () => {
     expect(papersAreTheirWork(OWNER.permissions)).toBe(true)
   })
 })
+
+// ── A degree and the start's one question (decided by the founder, 2026-11-03) ──
+
+import * as degreeWords from '@/lib/notify/degree-and-start'
+
+describe('the words for a degree and the start', () => {
+  const W = degreeWords
+  const all = [
+    W.degreeYearDiffers({ certificateYear: 2016, resumeYear: 2019 }),
+    W.degreeYearAhead({ certificateYear: 2028, on: new Date('2026-11-03T00:00:00Z') }),
+    W.degreeNameDiffers({ printedName: 'R. Mehta', personName: 'Priya Raman' }),
+    W.degreeSchoolDiffers({ certificateSchool: 'Pune University', resumeSchool: 'Anna University' }),
+    W.degreeNotWhatTheJobAsks({ jobTitle: 'ICU nurse', required: 'a nursing degree', onPaper: 'a degree in biology' }),
+    W.sameFileFiledBefore({ otherPersonName: 'Rahul Mehta' }),
+    W.degreeVerifiedBy({ provider: 'Sterling', reference: '4471', on: new Date('2026-03-12T00:00:00Z') }),
+    W.degreeAskedOfYou({ firmName: 'Northbend' }),
+    W.degreeSentBack({ firmName: 'Northbend', reason: 'The name on it is not yours.' }),
+    W.START_QUESTION,
+    W.notThePersonInterviewed({ saidBy: 'Dana Whitfield' }),
+  ]
+
+  it('every degree and start sentence names who, what and the door, in the trade’s words', () => {
+    expect(W.degreeYearDiffers({ certificateYear: 2016, resumeYear: 2019 }))
+      .toBe('The certificate says 2016; the résumé says 2019 for the same degree. Ask for the transcript, send it to a verification provider, or send it back.')
+    expect(W.sameFileFiledBefore({ otherPersonName: 'Rahul Mehta' }))
+      .toBe('This file was already filed by Rahul Mehta. Both records keep it; check which is right.')
+    expect(W.degreeAskedOfYou({ firmName: 'Northbend' }))
+      .toBe('Northbend asks for your degree certificate before the start. Upload it once; it stays on your record for every firm you work with.')
+    expect(W.START_QUESTION).toBe('Is the person who started the person you interviewed?')
+    expect(W.notThePersonInterviewed({ saidBy: 'Dana Whitfield' }))
+      .toBe('Dana Whitfield says the person who started is not the person interviewed. The start is on hold until HR confirms who is on site.')
+    const n = W.notThePersonNotice({ saidBy: 'Dana Whitfield', personName: 'Priya Raman', jobTitle: 'Java developer' })
+    expect(n.title).toBe('Start on hold: Priya Raman, Java developer')
+    // Each warning to HR ends on what to do.
+    for (const s of all.slice(0, 4)) expect(s.endsWith(W.DEGREE_DOORS)).toBe(true)
+    expect(W.degreeVerifiedBy({ provider: 'Sterling', reference: '4471', on: new Date('2026-03-12T00:00:00Z') })).toBe('Sterling verified the degree on Mar 12, 2026, reference 4471. Nothing more to do on it.')
+  })
+
+  it('no degree or start sentence apologizes, accuses, uses a pronoun for the person, or prints a code', () => {
+    for (const s of all) {
+      expect(s).not.toMatch(/sorry|apolog|unfortunately|please/i)
+      expect(s).not.toMatch(/fraud|fake|forg|lie|lying|suspicious/i)
+      expect(s).not.toMatch(/\b(he|she|his|her|him|hers)\b/i)
+      expect(s).not.toMatch(/\b[A-Z]{2,}_[A-Z_]+\b/)
+      expect(s).not.toMatch(/\bdesk\b|program office/i)
+    }
+  })
+})
