@@ -11,6 +11,7 @@ import {
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { rungVerdict } from '@/app/api/timesheets/filing'
+import { filingLabels } from '@/lib/consultant-portfolio/filing-labels'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { paidBook, paidKey, PAYROLL_RUN, PAYROLL_OFF_CYCLE } from '@/lib/payroll-paid'
 import { acceptanceForPay } from '@/lib/money/pay-hours'
@@ -239,6 +240,8 @@ export async function GET(request: NextRequest) {
       clientCompany: { select: { id: true, name: true } },  // who buys this rung
       endClientCompany: { select: { id: true, name: true } }, // where they work
       workLocation: { select: { name: true, city: true, country: true } },
+      // The job, so two lines at one firm read apart in the picker (`filingLabels`).
+      requirement: { select: { title: true } },
     },
     orderBy: { startDate: 'desc' },
   })
@@ -838,7 +841,21 @@ export async function GET(request: NextRequest) {
   const runningOut = await runningOutFor(personId, now)
 
   // Who signs her hours after she sends them, in order, for the filing card.
-  const filingWithSigners = filing.map((f) => ({ ...f, signs: signingOrder(signersOf.get(f.contractId) ?? []) }))
+  // What each option in the Placement picker reads, no two alike (third
+  // screen walk, S2: two lines at Pinnacle read the same).
+  const labels = filingLabels(filing.map((f) => {
+    const c = contracts.find((x) => x.id === f.contractId)!
+    return {
+      contractId: f.contractId,
+      site: c.endClientCompany?.name ?? null,
+      client: c.clientCompany?.name ?? null,
+      payer: f.payer,
+      job: c.requirement?.title ?? null,
+      startDate: f.startDate,
+      endDate: f.endDate,
+    }
+  }))
+  const filingWithSigners = filing.map((f, i) => ({ ...f, label: labels[i], signs: signingOrder(signersOf.get(f.contractId) ?? []) }))
 
   // What the week's own page would answer about approval by email, asked
   // of lib/week-approval for each week still waiting for the client, so

@@ -718,6 +718,8 @@ interface Filing {
   contractId: string
   site: string
   payer: string
+  /** What the Placement option reads, no two alike (`filingLabels`). */
+  label: string
   /** Who signs her hours after she sends them, in order (`signingOrder`). */
   signs?: string
   weeks: OpenWeek[]
@@ -886,7 +888,7 @@ function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: str
                 className="px-2 py-1.5 text-sm border border-etyme-rule rounded bg-white text-etyme-ink"
               >
                 {filing.map((f) => (
-                  <option key={f.contractId} value={f.contractId}>{f.site} · through {f.payer}</option>
+                  <option key={f.contractId} value={f.contractId}>{f.label}</option>
                 ))}
               </select>
             </label>

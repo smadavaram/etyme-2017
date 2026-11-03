@@ -22,6 +22,8 @@ export interface ExpenseOn {
   contractId: string
   site: string
   payer: string
+  /** What the option reads, no two alike (`filingLabels`). */
+  label: string
 }
 
 /** Today on the reader's own device, YYYY-MM-DD: a day spent is a local day. */
@@ -83,7 +85,7 @@ export function YourExpense({ on, currency }: { on: ExpenseOn[]; currency?: stri
             <span className="block mb-1">Placement</span>
             <select value={current.contractId} onChange={(e) => setContractId(e.target.value)} className={field}>
               {on.map((o) => (
-                <option key={o.contractId} value={o.contractId}>{o.site} · through {o.payer}</option>
+                <option key={o.contractId} value={o.contractId}>{o.label}</option>
               ))}
             </select>
           </label>
