@@ -3232,6 +3232,28 @@ architect's next schema pass: `ContractorInvitation.pickReason`,
 `pickedById`, `pickedAt`, or a dedicated event name, replacing demand's
 stand-in Event row. The placement page asks the activate route twice
 (the panel and the line) until money exposes `who` through the panel.
+**Conversation (f60ec26fe, 553191430, 1895c1e44, 4d8aac8f0, 187732257),
+the same evening.** A writing job ("a short poem about our bench", a
+joke, a haiku, a story) is refused in one sentence that says what Ask
+Etyme helps with, before any record is read; who else is asked is said
+by name, once ("Jonas Whitaker for HCM integration lead and Delphine
+Delacroix for Cybersecurity analyst"), never an act kind's description
+pasted twice; the setup line leads the Owner's greeting (it was there
+and the walk missed it below the first screen); the Owner of the firm
+that holds both reads its margin on Rajesh and Omar from Profitability's
+own figures, a seat without `margin.read` is refused in a sentence
+naming who reads it, and a client is still refused a supplier's margin;
+and "Send again" says sent only where an email left to a real address
+(`resentSays`, `resendEmailLeaves` in `lib/notify/resend-words`), the
+route's wiring being regulatory's. Coordinator's calls, each reversible
+in a sentence: the writing refusal covers a narrow list (poem, joke,
+haiku, song, story, essay), so "any news on Rajesh's start?" is still
+answered; a waiting question with no name is counted and not listed;
+"what it made" is the Profitability row's own profit figure, the one
+the page shows; the refusal names roles, not people. Also: the architect
+built the sheet import to supply's `profileEditPlan` (9004f3572), so a
+row about a person with their own account writes the firm's listing
+only and the summary says so per row.
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
