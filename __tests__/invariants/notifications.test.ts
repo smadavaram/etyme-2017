@@ -489,11 +489,27 @@ describe('who hears that a paper arrived', () => {
   const RECRUITER = { personId: 'rec', permissions: ['consultants.read', 'consultants.write', 'requirements.read', 'submissions.create'] }
   const ENGINEER = (id: string) => ({ personId: id, permissions: ['assignments.read', 'timesheets.read'] })
 
-  it('a worker filing her own paper tells HR, and never her colleagues or herself', () => {
+  it('a worker filing her own paper tells HR and the compliance officer, and never the Owner, her colleagues or herself', () => {
     const seats = [OWNER, HR, COMPLIANCE, RECRUITER, ENGINEER('felix'), ENGINEER('deepa'), ENGINEER('karthik'), ENGINEER('ifeoma')]
     const told = paperExaminers(seats, 'ifeoma')
-    expect(told).toEqual(['owner', 'farah', 'comp'])
-    for (const nobody of ['felix', 'deepa', 'karthik', 'ifeoma', 'rec']) expect(told).not.toContain(nobody)
+    expect(told).toEqual(['farah', 'comp'])
+    for (const nobody of ['owner', 'felix', 'deepa', 'karthik', 'ifeoma', 'rec']) expect(told).not.toContain(nobody)
+  })
+
+  it('at a firm with nobody in HR, a worker’s own I-9 is one notice, to the Owner, and not to the Admin', () => {
+    const ADMIN = { personId: 'admin', permissions: ['consultants.read', 'governance.read', 'settings.manage', 'team.manage'] }
+    const seats = [ADMIN, OWNER, RECRUITER, ENGINEER('felix'), ENGINEER('deepa'), ENGINEER('ifeoma')]
+    expect(paperExaminers(seats, 'ifeoma')).toEqual(['owner'])
+  })
+
+  it('at a firm with neither HR nor an Owner seated, the Admin hears it, never nobody', () => {
+    const ADMIN = { personId: 'admin', permissions: ['consultants.read', 'governance.read', 'settings.manage'] }
+    expect(paperExaminers([ADMIN, ENGINEER('ifeoma')], 'ifeoma')).toEqual(['admin'])
+  })
+
+  it('the Owner filing her own paper at a firm with no HR tells whoever else runs the firm', () => {
+    const ADMIN = { personId: 'admin', permissions: ['consultants.read', 'governance.read', 'settings.manage'] }
+    expect(paperExaminers([OWNER, ADMIN], 'owner')).toEqual(['admin'])
   })
 
   it('HR filing her own paper is not told about it, and the compliance officer is', () => {

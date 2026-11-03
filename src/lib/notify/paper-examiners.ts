@@ -11,7 +11,9 @@
  * seat that may examine it (`holdsPaperworkDesk` in lib/document-request,
  * the permission the examine route checks) and reads the firm's rules
  * (`governance.read`): HR, the compliance officer, the Owner and the
- * Admin. A recruiter or an account manager may open a paper and does not
+ * Admin, narrowed to HR and the compliance officer where the firm has
+ * them, else the Owner (`paperExaminers`). A recruiter or an account
+ * manager may open a paper and does not
  * examine one, so is not told every arrival. Where no seat holds both, a
  * firm is not left unheard: every seat that may examine it hears, the
  * fallback, never a refusal. Never the person who sent it, never a
@@ -35,15 +37,38 @@ export function papersAreTheirWork(permissions: readonly string[] | null | undef
   return holdsPaperworkDesk(held) && (held.includes('*') || held.includes('governance.read'))
 }
 
+/** A seat that runs the whole firm (the Owner, the Admin): it may change the firm's settings. */
+function runsTheFirm(permissions: readonly string[] | null | undefined): boolean {
+  const held = permissions ?? []
+  return held.includes('*') || held.includes('settings.manage')
+}
+
+/** The Owner: the firm's every permission, its profit and loss among them. */
+function isOwnerSeat(permissions: readonly string[] | null | undefined): boolean {
+  const held = permissions ?? []
+  return held.includes('*') || held.includes('pnl.read')
+}
+
 /**
  * The seats to tell that a paper arrived, without the person who filed
- * it, each person once: the seats whose work is papers, else every seat
- * that may examine one. Pure: the order is the order given.
+ * it, each person once (the coordinator's brief, 2026-11-03: "one notice
+ * to the seat that holds the paper's permission, HR, else the Owner"):
+ * - the roles whose work papers are and that do not run the whole firm,
+ *   HR and the compliance officer;
+ * - else the Owner, who holds every desk nobody else was given;
+ * - else whoever else runs the firm and may examine it (the Admin);
+ * - else every seat that may examine one, the fallback, never nobody.
+ * Pure: the order is the order given.
  */
 export function paperExaminers(seats: readonly SeatAtFirm[], filedBy: string | null): string[] {
   const others = seats.filter((s) => s.personId !== filedBy)
   const theirWork = others.filter((s) => papersAreTheirWork(s.permissions))
-  const told = theirWork.length ? theirWork : others.filter((s) => holdsPaperworkDesk(s.permissions))
+  const specialists = theirWork.filter((s) => !runsTheFirm(s.permissions))
+  const owners = theirWork.filter((s) => isOwnerSeat(s.permissions))
+  const told = specialists.length ? specialists
+    : owners.length ? owners
+      : theirWork.length ? theirWork
+        : others.filter((s) => holdsPaperworkDesk(s.permissions))
   const out: string[] = []
   for (const s of told) {
     if (!out.includes(s.personId)) out.push(s.personId)
