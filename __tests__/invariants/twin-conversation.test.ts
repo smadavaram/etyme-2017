@@ -435,7 +435,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(hello.more!.map((l) => l.links ?? [])).toEqual([
       [{ text: 'PR-2026-0441', href: '/dashboard/invoices/inv-441' }, { text: 'IN-XSWQQZ-20260901', href: '/dashboard/invoices/inv-cs' }],
       [{ text: 'Tobias Lindqvist', href: '/dashboard/people/p-tobias' }],
-      [{ text: '12 contractors', href: '/dashboard/people' }],
+      [{ text: '12 contractors', href: '/dashboard/contracts' }],
       [{ text: '£1,000', href: '/dashboard/invoices' }, { text: '$11,342.50', href: '/dashboard/invoices' }],
       [],
     ])

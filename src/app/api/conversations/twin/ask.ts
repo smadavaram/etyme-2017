@@ -247,12 +247,18 @@ const NAV_TOPICS: readonly NavTopic[] = [
   { re: /\binvoic(e|es|ed|ing)\b/, subject: 'Your invoices', plural: true, pages: ['Bills', 'Invoice receipts', 'AR'] },
   { re: /\bpayables?\b|\bap\b/, subject: 'What you owe', plural: false, pages: ['AP', 'Invoice receipts'] },
   { re: /\binterviews?\b/, subject: 'Your interviews', plural: true, pages: ['Interviews', 'Your work'] },
-  { re: /\bcandidates?\b|\bapplicants?\b|\bapplied\b|\bapplications?\b|\bsubmissions?\b/, subject: 'Your candidates', plural: true, pages: ['Submissions'] },
+  // Who was put forward to a job is Submissions on every firm's menu
+  // (founder, 2026-11-03: "Candidates = submissions").
+  { re: /\bapplicants?\b|\bapplied\b|\bapplications?\b|\bsubmissions?\b|\bsubmitted\b|\bput forward\b/, subject: 'Your submissions', plural: true, pages: ['Submissions'] },
+  // A supplier's candidates are its people and its bench; a client's are
+  // the people it met through its suppliers and would reach out to again.
+  { re: /\bcandidates?\b/, subject: 'Your candidates', plural: true, pages: ['Candidates', 'Bench'] },
   { re: /\bleads?\b/, subject: 'Leads', plural: true, pages: ['Leads'] },
   { re: /\bjobs?\b|\bjob requests?\b|\brequisitions?\b|\bopenings?\b|\bpositions?\b/, subject: 'Your jobs', plural: true, pages: ['Jobs', 'Leads', 'Shared with you'] },
   { re: /\b(users?|permissions?|teammates?|colleagues?|my team|our team)\b/, subject: 'Your team', plural: false, pages: ['Users & permissions'] },
-  { re: /\bcontractors?\b/, subject: 'Your contractors', plural: true, pages: ['Candidates'] },
-  { re: /\bpeople\b|\bconsultants?\b|\bemployees?\b|\bworkers?\b/, subject: 'Your people', plural: true, pages: ['Candidates'] },
+  // Contractors are the people on contracts ("Contracts, not Contractors").
+  { re: /\bcontractors?\b/, subject: 'Your contractors', plural: true, pages: ['Contracts', 'Sell contracts', 'Buy contracts', 'Your work'] },
+  { re: /\bpeople\b|\bconsultants?\b|\bemployees?\b|\bworkers?\b/, subject: 'Your people', plural: true, pages: ['Candidates', 'Bench', 'Contracts'] },
   { re: /\b(sub-?)?(suppliers?|vendors?)\b/, subject: 'Your suppliers', plural: true, pages: ['Suppliers', 'Companies'] },
   { re: /\bclients?\b|\bcustomers?\b|\bcompan(y|ies)\b|\bpartners?\b/, subject: 'Your companies', plural: true, pages: ['Companies', 'Suppliers'] },
   { re: /\bcontacts?\b/, subject: 'Your contacts', plural: true, pages: ['Contacts'] },
@@ -2333,10 +2339,11 @@ export interface Billing {
   currency: string | null
 }
 
-export const CONTRACTORS_HREF = '/dashboard/people'
+/** Who works here today is on Contracts (founder, 2026-11-03, "Contracts, not Contractors"). */
+export const CONTRACTORS_HREF = '/dashboard/contracts'
 export const RECEIPTS_HREF = '/dashboard/invoices'
 
-/** "Seven contractors are on site today, through four suppliers.", the count linking to Contractors. Null when nobody is. */
+/** "Seven contractors are on site today, through four suppliers.", the count linking to Contracts. Null when nobody is. */
 export function pictureSays(p: Picture | null | undefined): RichLine | null {
   if (!p || p.onSite <= 0) return null
   const who = counted(p.onSite, 'contractor')
@@ -2979,7 +2986,7 @@ export async function respond(
       return {
         kind: 'LIST', says: appliedSays(got.job, got.rows, got.total),
         ...(got.rows.length ? { table: appliedTable(got.rows) } : {}),
-        links: [{ label: 'Open Candidates', href: '/dashboard/submissions' }],
+        links: [{ label: 'Open Submissions', href: '/dashboard/submissions' }],
       }
     }
 
