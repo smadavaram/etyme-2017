@@ -70,7 +70,7 @@ import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type SubmissionJob, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
-  putForwardFromPayload, putForwardItemTitle, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
+  putForwardFromPayload, putForwardItemTitle, questionTitleFrom, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
   type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict, type SetupRead,
 } from './ask'
@@ -401,6 +401,19 @@ export function readersFor(
       const sendable = bills.length
         ? await maySendBills({ personId: caller.person.id, companyId: caller.company.id, permissions: caller.permissions }, bills.map((q) => q.entityId))
         : new Map()
+      // Each question by what it is about, by name: the person and the job,
+      // the number, the person (release walk three, 2026-11-03). Never the
+      // act kind's description, which is the role contract's words.
+      const unnamed = questions.filter((q) => !q.label)
+      const payloads = unnamed.length
+        ? new Map((await prisma.twinApproval.findMany({ where: { id: { in: unnamed.map((q) => q.id) } }, select: { id: true, twinAction: { select: { payload: true } } } }))
+          .map((r) => [r.id, r.twinAction.payload] as const))
+        : new Map<string, unknown>()
+      const personIds = unnamed.filter((q) => q.entityType === 'Person').map((q) => q.entityId)
+      const personNames = personIds.length
+        ? new Map((await prisma.person.findMany({ where: { id: { in: personIds } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]))
+        : new Map<string, string>()
+      if (personIds.length) logPeople(personIds, 'Read in Ask Etyme: what waits on somebody else')
       return questions
         .map((q) => {
           const verdict = q.action === BILL_SEND && q.entityType === 'Invoice' ? sendable.get(q.entityId) : undefined
@@ -410,7 +423,8 @@ export function readersFor(
           return {
             // A bill this firm drafted to send upward is a bill; only what a
             // supplier sent in is an invoice receipt.
-            title: q.label ?? (q.action === BILL_SEND ? 'A drafted bill' : q.entityType === 'Invoice' ? 'An invoice receipt' : TWIN_ACTS[q.action]?.says ?? 'A question'),
+            title: q.label ?? questionTitleFrom(q.action, payloads.get(q.id), personNames.get(q.entityId)) ??
+              (q.action === BILL_SEND ? 'A drafted bill' : q.entityType === 'Invoice' ? 'An invoice receipt' : ''),
             noun: q.action === BILL_SEND ? 'bill' : q.entityType === 'Invoice' ? 'invoice receipt' : 'question',
             desks: desksHolding(q.needsPermission as Permission, caller.company!.kind),
             own,

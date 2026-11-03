@@ -1544,6 +1544,27 @@ function deskWords(desks: readonly string[]): { subject: string; object: string;
     : { subject: raw, object: raw, beside: raw }
 }
 
+/**
+ * What a question waiting on somebody else is called in a sentence: the
+ * person and the job, the number, the thing's own title, the person's
+ * name, in that order; null where the question carries none of them
+ * (release walk three, 2026-11-03: an Owner's greeting read the act
+ * kind's description twice, "Put a person on the firm’s own bench
+ * forward … enters.."). The act kind's description is the role
+ * contract's words for the act, never a name for one question. Pure.
+ */
+export function questionTitleFrom(action: string, payload: unknown, name?: string | null): string | null {
+  const p = isRecord(payload) ? payload : {}
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().replace(/[\s.]+$/u, '') : null)
+  if (action === PUT_FORWARD) {
+    const person = str(p.personName)
+    const job = str(p.jobTitle)
+    if (person && job) return putForwardItemTitle({ personName: person, jobTitle: job })
+    if (person) return person
+  }
+  return str(p.number) ?? str(p.title) ?? str(p.personName) ?? str(name) ?? null
+}
+
 export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
   const out: RichLine[] = []
   const byDesk = new Map<string, OtherWaiting[]>()
@@ -1566,10 +1587,13 @@ export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
     const has = people.length > 1 ? 'have' : 'has'
     const whom = people.length ? people[0].split(/\s+/)[0] : desk ? desk.object : 'somebody else'
     const notYours = xs.length === 1 ? `it is not yours to ${verb}` : `they are not yours to ${verb}`
+    // Each thing by its name, once, with no full stop of its own; a
+    // question that names nothing is counted and not listed.
+    const named = [...new Map(xs.map((x) => [x.title.trim().replace(/[\s.]+$/u, ''), x] as const)).entries()].filter(([t]) => t)
     out.push({
-      says: `${who} ${has} ${lowerNumber(xs.length)} ${noun}${xs.length === 1 ? '' : 's'} to ${verb}: ${listed(xs.map((x) => x.title))}. ` +
+      says: `${who} ${has} ${lowerNumber(xs.length)} ${noun}${xs.length === 1 ? '' : 's'} to ${verb}${named.length ? `: ${listed(named.map(([t]) => t))}` : ''}. ` +
         (own ? `Etyme asked ${whom}; ${notYours}.` : `${cap(notYours)}.`),
-      links: xs.map((x) => ({ text: x.title, href: x.href })),
+      links: named.map(([t, x]) => ({ text: t, href: x.href })),
     })
   }
   return out
@@ -1589,10 +1613,12 @@ export function askOthersSays(others: readonly OtherWaiting[]): RichLine | null 
   const desk = deskWords(first.desks)
   const people = (first.people ?? []).slice(0, 2)
   const who = people.length ? (desk ? `${orNames(people)}, ${desk.beside},` : orNames(people)) : desk ? desk.object : 'whoever answers it'
-  const titles = same.slice(0, 3).map((o) => o.title)
+  const named = [...new Map(same.map((o) => [o.title.trim().replace(/[\s.]+$/u, ''), o] as const)).entries()].filter(([t]) => t)
+  const shown = named.slice(0, 3)
+  if (shown.length === 0) return { says: `Ask ${who} to ${verb} ${same.length === 1 ? 'it' : 'them'}.` }
   return {
-    says: `Ask ${who} to ${verb} ${listed(titles)}${same.length > 3 ? ` and ${same.length - 3} more` : ''}.`,
-    links: same.slice(0, 3).map((o) => ({ text: o.title, href: o.href })),
+    says: `Ask ${who} to ${verb} ${listed(shown.map(([t]) => t))}${named.length > 3 ? ` and ${named.length - 3} more` : ''}.`,
+    links: shown.map(([t, o]) => ({ text: t, href: o.href })),
   }
 }
 
