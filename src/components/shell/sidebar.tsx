@@ -8,7 +8,7 @@ import { DemoChip } from '@/components/shell/demo-chip'
 import { OwedBadge, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { owedBadge, owedLabel } from '@/lib/owed-count'
 import { consoleHome } from '@/lib/console-home'
-import { getNavForKind, activeHref, linksOf, ASK_ETYME_HREF, ETYME_MARK_ICON, type CompanyKind, type NavItem, type NavSection } from '@/lib/nav-table'
+import { getNavForKind, activeHref, linksOf, ASK_ETYME_HREF, ETYME_MARK_ICON, type CompanyKind, type Hat, type NavItem, type NavSection } from '@/lib/nav-table'
 
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -35,6 +35,7 @@ export function Sidebar({
   seatedAtClient = null,
   termsHref = null,
   region = null,
+  hat = null,
   pending = false,
   sheet = false,
   onDismiss,
@@ -53,7 +54,7 @@ export function Sidebar({
   isConsultant?: boolean
   /** True when this person is also somebody the work is about — a GSI's
    *  own billable engineer holds a seat AND is the subject of a
-   *  placement. They get their firm's menu and "You" both. */
+   *  placement. They wear two hats, one at a time (`hat`). */
   worker?: boolean
   /** What this seat holds. Undefined while the session loads, which
    *  shows the menu unfiltered rather than flashing a short one. */
@@ -64,6 +65,8 @@ export function Sidebar({
   termsHref?: string | null
   /** The region this seat reads, if it sits on a REGION unit. */
   region?: string | null
+  /** The hat this person has on: the firm's links, or their own pages, never both. */
+  hat?: Hat | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -81,7 +84,7 @@ export function Sidebar({
   const searchParams = useSearchParams()
   const sections = pending
     ? []
-    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region })
+    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat })
 
   // Where this seat's own front door is. One answer, in lib/console-home,
   // shared with /dashboard's own redirect and the demo door — three

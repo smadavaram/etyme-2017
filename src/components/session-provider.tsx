@@ -1,6 +1,11 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
+import {
+  HAT_COOKIE, ASK_ETYME_HREF, readHatCookie, hatCookieValue, hatForPath, offersYouHat,
+  type Hat, type HatLine,
+} from '@/lib/nav-table'
 
 /**
  * Session context — the caller's person, active company, and permissions,
@@ -103,8 +108,28 @@ export interface SessionState {
    * its region alone.
    */
   region: string | null
+  /**
+   * The hat this person has on (founder, 2026-11-03, "One person, two
+   * hats"): the firm's, or their own as a worker. Already corrected for
+   * the page being read (`hatForPath`), so a link into a worker's own
+   * page reads the You hat. Optional so a fixture describing a seat need
+   * not name one; absent reads as the default (`hatOf`).
+   */
+  hat?: Hat
+  /** Every live seat the person holds, for the account menu's list of hats. */
+  seats?: readonly SessionSeatLine[]
+  /** The seat in use, among `seats`. */
+  activeContextId?: string | null
   loading: boolean
   error: string | null
+}
+
+/** One live seat the person holds, as /api/me lists it. */
+export interface SessionSeatLine {
+  contextId: string
+  type: string | null
+  companyName: string | null
+  roleName: string | null
 }
 
 const EMPTY: SessionState = {
@@ -125,6 +150,21 @@ const EMPTY: SessionState = {
 
 const SessionContext = createContext<SessionState>(EMPTY)
 
+/** Switching hats: one click, remembered on this device. */
+const SwitchHatContext = createContext<(line: HatLine) => void>(() => {})
+
+/** Remember a hat, and a seat where the person holds more than one, on this device for a year. */
+function rememberHat(value: string) {
+  document.cookie = `${HAT_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`
+}
+
+/** The hat cookie as this browser holds it. */
+function hatCookieHere(): string | null {
+  if (typeof document === 'undefined') return null
+  const hit = document.cookie.split('; ').find((c) => c.startsWith(`${HAT_COOKIE}=`))
+  return hit ? hit.slice(HAT_COOKIE.length + 1) : null
+}
+
 /** Company kinds that are not VENDOR still fall back to vendor-shaped nav. */
 function normalizeKind(kind: string | undefined): CompanyKind {
   if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' || kind === 'CONSULTANT_CORP') return kind
@@ -144,8 +184,11 @@ export function SessionProvider({
   termsHref = null,
   filesAWeek = false,
   region = null,
+  hat = null,
 }: {
   children: ReactNode
+  /** The hat remembered on this device, read from the cookie on the server, so the first paint is the right menu. */
+  hat?: Hat | null
   /**
    * Answered on the server, before anything renders, because the shell
    * decides whether to offer this person their own section and a menu
@@ -164,13 +207,18 @@ export function SessionProvider({
   region?: string | null
 }) {
   const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, region })
+  const [storedHat, setStoredHat] = useState<Hat | null>(hat)
+  const pathname = usePathname()
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
       try {
-        const res = await fetch('/api/me')
+        // The seat chosen in the account menu, named the way every route
+        // reads it, so /api/me and the pages agree on which firm this is.
+        const chosen = readHatCookie(hatCookieHere()).contextId
+        const res = await fetch('/api/me', chosen ? { headers: { 'x-context-id': chosen } } : undefined)
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
           throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -208,6 +256,15 @@ export function SessionProvider({
           termsHref,
           filesAWeek,
           region,
+          seats: Array.isArray(body.data?.contexts)
+            ? body.data.contexts.map((c: any) => ({
+                contextId: String(c.id),
+                type: c.type ?? null,
+                companyName: c.company?.name ?? null,
+                roleName: c.role?.name ?? null,
+              }))
+            : [],
+          activeContextId: active?.id ?? null,
           loading: false,
           error: null,
         })
@@ -230,11 +287,68 @@ export function SessionProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worker, demo, termsHref])
 
-  return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>
+  // ── The hat, corrected for the page being read ─────────────────────
+  // Read off the same facts the menu is drawn from, once the session has
+  // answered; until then the hat remembered on the device.
+  const isConsultant = state.contextType === 'CONSULTANT'
+  const kind = state.company?.kind ?? null
+  const facts = {
+    worker: !isConsultant && state.isWorker,
+    permissions: state.seat ? state.seat.permissions : state.permissions,
+    seatedAtClient: state.seat?.clientName ?? null,
+    region: state.region,
+    termsHref: state.termsHref,
+    hat: storedHat,
+  }
+  const menuKind = state.seat && !isConsultant && kind ? 'CLIENT' : kind
+  const effective: Hat = state.loading
+    ? (storedHat ?? 'firm')
+    : hatForPath(menuKind, isConsultant, facts, pathname)
+
+  // A page that belongs to one hat moves the person into it, and the
+  // move is remembered, so Ask Etyme greets the hat they are in.
+  useEffect(() => {
+    if (state.loading || !offersYouHat(menuKind, isConsultant, facts) || effective === storedHat) return
+    const pinned = readHatCookie(hatCookieHere()).contextId
+    rememberHat(hatCookieValue(effective, pinned))
+    setStoredHat(effective)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effective, storedHat, state.loading])
+
+  const switchHat = useCallback((line: HatLine) => {
+    void (async () => {
+      const firmSeats = (state.seats ?? []).filter((x) => x.type !== 'CONSULTANT').length
+      const changesSeat = Boolean(line.contextId && line.contextId !== state.activeContextId)
+      // A seat is pinned only where there is a choice of seat to make.
+      const pin = changesSeat || firmSeats > 1 ? line.contextId : null
+      if (changesSeat) {
+        // The switch is logged by the route that has always logged one.
+        await fetch('/api/me/context', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ contextId: line.contextId }),
+        }).catch(() => null)
+      }
+      rememberHat(hatCookieValue(line.hat, pin))
+      // A whole page, so the shell, the mark and Ask Etyme's greeting are
+      // all read again for the hat now worn.
+      window.location.assign(ASK_ETYME_HREF)
+    })()
+  }, [state.seats, state.activeContextId])
+
+  return (
+    <SessionContext.Provider value={{ ...state, hat: effective }}>
+      <SwitchHatContext.Provider value={switchHat}>{children}</SwitchHatContext.Provider>
+    </SessionContext.Provider>
+  )
 }
 
 export function useSession(): SessionState {
   return useContext(SessionContext)
+}
+
+/** Put on another hat: a firm seat, or the person's own. */
+export function useSwitchHat(): (line: HatLine) => void {
+  return useContext(SwitchHatContext)
 }
 
 /**

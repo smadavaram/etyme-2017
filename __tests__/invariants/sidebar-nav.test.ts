@@ -404,19 +404,20 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
   }
 
   it('states the rule for a person who is also a worker, in the same place as the table', () => {
-    // The table is per company type and a worker's menu is a firm's plus
-    // one list, so the rule cannot be a row. It is the sentence under the
-    // table.
+    // The table is per company type and a worker's two hats are not a
+    // row, so the rule is the sentence under the table.
     expect(
       table,
       'CLAUDE.md no longer states what a menu does for somebody who is also a worker'
-    ).toContain('A person who is also a worker keeps their firm\'s links and gains "You"\nat the end.')
+    ).toContain('A person who is also a worker wears two hats, one at a time.')
   })
 
   for (const party of ['Client', 'Supplier', 'Integrator', 'MSP'] as const) {
-    it(`gives ${party} its own links and then "You" when the reader is also a worker`, () => {
-      const worker = getNavForKind(KIND[party], false, { worker: true })
-      expect(worker.map((s) => s.label)).toEqual([...documented.get(party)!.links, 'You'])
+    it(`gives ${party} its own links and nothing else in the firm hat, and only "You" in the worker's own hat`, () => {
+      const firm = getNavForKind(KIND[party], false, { worker: true, hat: 'firm' })
+      expect(firm.map((s) => s.label)).toEqual(documented.get(party)!.links)
+      const own = getNavForKind(KIND[party], false, { worker: true, hat: 'you' })
+      expect(own.map((s) => s.label)).toEqual(['Ask Etyme', 'You'])
     })
   }
 
@@ -656,18 +657,25 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     // desk, so the firm's Deliver, Operate, Grow and Governance — every
     // submission with its rate, the counterparties, the contacts — are
     // not his reading, on the menu or by URL.
+    // He opens in his own hat (2026-11-03), because his seat holds no desk.
     expect(engineer.map((s) => s.label)).toEqual(['Ask Etyme', 'You'])
     // Needs attention went on 2026-10-12: Ask Etyme's greeting is that list.
     // Notifications went on 2026-10-13: the mark carries the number instead.
-    // Conversations folded into Ask Etyme on 2026-10-19.
+    // Conversations folded into Ask Etyme on 2026-10-19; what is addressed
+    // to him is his in either hat.
     expect(engineer[0].items.map((i) => i.label)).toEqual(['Ask Etyme', 'Conversations'])
+    const firm = getNavForKind('GSI', false, { worker: true, permissions: GSI_PERMS, hat: 'firm' })
+    expect(firm.map((s) => s.label)).toEqual(['Ask Etyme'])
     expect(pinnedOn(engineer).map((i) => i.label)).toEqual(['Ask Etyme'])
   })
 
-  it('a worker who holds a desk at the firm keeps every section of the firm’s menu and gains "You"', () => {
-    const lead = getNavForKind('GSI', false, { worker: true, permissions: [...GSI_PERMS, 'requirements.read', 'consultants.read'] })
+  it('a worker who holds a desk at the firm reads the firm’s menu in the firm hat and their own pages in the You hat, never both', () => {
+    const perms = [...GSI_PERMS, 'requirements.read', 'consultants.read']
+    const lead = getNavForKind('GSI', false, { worker: true, permissions: perms })
     expect(lead.map((s) => s.label)).toContain('Jobs')
-    expect(lead[lead.length - 1].label).toBe('You')
+    expect(lead.map((s) => s.label)).not.toContain('You')
+    const own = getNavForKind('GSI', false, { worker: true, permissions: perms, hat: 'you' })
+    expect(own.map((s) => s.label)).toEqual(['Ask Etyme', 'You'])
   })
 
   it('reads their own work last, after the firm\'s, not instead of it', () => {
@@ -716,7 +724,7 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     })
     expect(karthik.ok).toBe(true)
     expect(karthik.because).toBe('EMPLOYED')
-    expect(getNavForKind('GSI', false, { worker: karthik.ok }).map((s) => s.label))
+    expect(getNavForKind('GSI', false, { worker: karthik.ok, hat: 'you' }).map((s) => s.label))
       .toContain('You')
   })
 
@@ -1080,7 +1088,7 @@ describe('a menu offers only what this seat can actually open', () => {
     // Both read the desk through `deskOf`, the helper the sidebar reads,
     // so a program office at a client's desk is filtered by the seat.
     expect(HEADER_SRC).toContain('deskOf(session)')
-    expect(HEADER_SRC).toContain('{ worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient }')
+    expect(HEADER_SRC).toContain('{ worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat }')
   })
 
   it('does not filter a menu at all until it knows what the seat holds', () => {
@@ -1157,16 +1165,16 @@ describe('the compliance desk and a person’s own record have a door in every m
     }
   })
 
-  it('a GSI’s own engineer is shown Your data once, not twice', () => {
+  it('a GSI’s own engineer is shown Your data once in each hat, never twice in one', () => {
     // Karthik Menon: Teleworld's W2 and the person the work is about, so
-    // he reads his firm's menu and "You" both. The page belongs to both
-    // and may print once — under "You", because it is his.
-    const engineer = getNavForKind('GSI', false, { worker: true })
-    const hrefs = itemsOf(engineer).map((i) => i.href)
-    expect(hrefs.filter((h) => h === OWN_DATA).length).toBe(1)
-    const you = engineer.find((s) => s.label === 'You')!
-    expect(you.items.map((i) => i.href)).toContain(OWN_DATA)
-    expect(engineer.find((s) => s.label === 'Settings')!.items.map((i) => i.href)).not.toContain(OWN_DATA)
+    // he wears two hats. The page belongs to both and prints once in
+    // each: under the firm's Settings, and under "You", because it is his.
+    const firm = getNavForKind('GSI', false, { worker: true, hat: 'firm' })
+    expect(itemsOf(firm).map((i) => i.href).filter((h) => h === OWN_DATA).length).toBe(1)
+    expect(firm.find((s) => s.label === 'Settings')!.items.map((i) => i.href)).toContain(OWN_DATA)
+    const own = getNavForKind('GSI', false, { worker: true, hat: 'you' })
+    expect(itemsOf(own).map((i) => i.href).filter((h) => h === OWN_DATA).length).toBe(1)
+    expect(own.find((s) => s.label === 'You')!.items.map((i) => i.href)).toContain(OWN_DATA)
   })
 
   it('leaves the desk’s own queue on an employed worker’s menu, because it is his firm’s job not his record', () => {

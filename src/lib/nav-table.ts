@@ -655,6 +655,16 @@ const CONSULTANT_NAV: NavSection[] = [
 ]
 
 /**
+ * The You hat at a firm (founder, 2026-11-03): Ask Etyme, with the
+ * threads addressed to the person, and their own five pages. None of
+ * the firm's links.
+ */
+const YOU_HAT_NAV: NavSection[] = [
+  ASK_ETYME_SECTION,
+  { label: 'You', items: [...YOURS] },
+]
+
+/**
  * A company of one: Ask Etyme · Your work · Timesheets · Bills ·
  * Contracts · Paperwork · Settings. Seven: she has no jobs and no
  * candidates.
@@ -792,7 +802,8 @@ export type SeatFacts = {
    * staff — `ownPage()` in lib/consultant-portfolio, read off placements,
    * submissions and contracts rather than off a context type.
    *
-   * Their firm's menu gains a "You" section; it never replaces it.
+   * They are offered the You hat in the account menu (`offersYouHat`); the
+   * firm hat never carries their own pages, since 2026-11-03.
    */
   worker?: boolean
   /**
@@ -831,6 +842,168 @@ export type SeatFacts = {
    * (lib/region-scope). Such a seat reads `REGION_NAV` and nothing else.
    */
   region?: string | null
+  /**
+   * Which hat the person has on (founder, 2026-11-03, "One person, two
+   * hats"): the firm's, or their own as a worker. Absent, `defaultHat`
+   * decides. Only a worker is ever offered "you" (`offersYouHat`); for
+   * anybody else it is read as "firm".
+   */
+  hat?: Hat | null
+}
+
+/**
+ * ── One person, two hats ─────────────────────────────────────────────
+ *
+ * The founder, 2026-11-03, on Tapin's Owner seat reading the firm's
+ * links and then "YOU" with five more underneath: "company user and
+ * individual can be switched on the top right menu", and then "You can
+ * go under profile and they switch to worker account." So the left menu
+ * shows one hat's links and nothing else: in the firm hat, the firm's;
+ * in the You hat, the worker's own pages. The "You" list appended under
+ * the firm's links is gone. Who is a worker is still read off the work
+ * (`ownPage` in lib/consultant-portfolio), never off a seat.
+ *
+ * The hat is a view, never a permission: it changes which menu is drawn
+ * and which greeting Ask Etyme gives, and every route still answers the
+ * seat it always answered.
+ */
+export type Hat = 'firm' | 'you'
+
+/**
+ * The cookie that remembers the hat on this device: `firm` or `you`,
+ * and, after a colon, the seat (a Context id) the person chose when
+ * they hold more than one, as in `firm:ctx_123`. Read by the shell, by
+ * `getCallerContext` (which seat to act at when no header names one,
+ * only ever among the person's own live seats) and by Ask Etyme for
+ * the greeting per hat. Not secret, and not trusted: it chooses among
+ * what the person already holds.
+ */
+export const HAT_COOKIE = 'etyme_hat'
+
+/** The cookie's value read back, or nothing where it is absent or not ours. */
+export function readHatCookie(value: string | null | undefined): { hat: Hat | null; contextId: string | null } {
+  if (!value) return { hat: null, contextId: null }
+  const [head, ...rest] = decodeURIComponent(value).split(':')
+  const hat = head === 'you' || head === 'firm' ? head : null
+  const id = rest.join(':').trim()
+  return { hat, contextId: hat && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null }
+}
+
+/** The cookie's value for a hat and, where the person chose one, a seat. */
+export function hatCookieValue(hat: Hat, contextId?: string | null): string {
+  return contextId ? `${hat}:${contextId}` : hat
+}
+
+/**
+ * Whether this person is offered the You hat at this seat: somebody the
+ * work is about, at a firm. Never a consultant seat, which already is
+ * the person's own menu; never a one-person firm, whose owner is the
+ * firm and reads her two hats as tabs under Paperwork (2026-09-21); and
+ * never an Owner on no placement, submission, bench listing or line
+ * that pays them ("What is the use of You for an Owner?").
+ */
+export function offersYouHat(kind: CompanyKind | null | undefined, isConsultant: boolean, seat: SeatFacts = {}): boolean {
+  if (isConsultant || !kind || !seat.worker) return false
+  if (seat.region && kind === 'CLIENT') return false
+  return !(kind === 'CONSULTANT_CORP' && !seat.seatedAtClient)
+}
+
+/**
+ * The hat a person reads before they have chosen one on this device.
+ * The firm's, except for a worker whose seat holds no desk there: their
+ * firm hat holds only what is addressed to them, so they open in their
+ * own (Karthik Menon, an integrator's own engineer).
+ */
+export function defaultHat(kind: CompanyKind | null | undefined, isConsultant: boolean, seat: SeatFacts = {}): Hat {
+  return offersYouHat(kind, isConsultant, seat) && isDeskless(seat.permissions) ? 'you' : 'firm'
+}
+
+/** The hat this person reads: the one chosen, where it may be worn, else the default. */
+export function hatOf(kind: CompanyKind | null | undefined, isConsultant: boolean, seat: SeatFacts = {}): Hat {
+  if (!offersYouHat(kind, isConsultant, seat)) return 'firm'
+  return seat.hat ?? defaultHat(kind, isConsultant, seat)
+}
+
+/** Whether a path is one of this menu's pages, Ask Etyme and its conversations aside. */
+function pathOnMenu(sections: readonly NavSection[], path: string): boolean {
+  return sections.some((s) => s.items.some((i) => {
+    const itemPath = i.href.split('?')[0]
+    if (itemPath === ASK_ETYME_HREF || itemPath === '/dashboard/conversations') return false
+    return itemPath === '/dashboard' ? path === '/dashboard' : path === itemPath || path.startsWith(itemPath + '/')
+  }))
+}
+
+/**
+ * The hat a page opens in. A link from a notice into a worker's own page
+ * opens the You hat, and a page only the firm's menu holds opens the
+ * firm's, so a person never reads one hat's menu around the other hat's
+ * page; a page on both menus, or on neither (Ask Etyme, a placement's
+ * own page), keeps the hat they had on.
+ */
+export function hatForPath(
+  kind: CompanyKind | null | undefined,
+  isConsultant: boolean,
+  seat: SeatFacts,
+  path: string | null | undefined
+): Hat {
+  const worn = hatOf(kind, isConsultant, seat)
+  if (!path || !offersYouHat(kind, isConsultant, seat)) return worn
+  const inYou = pathOnMenu(getNavForKind(kind, isConsultant, { ...seat, hat: 'you' }), path)
+  const inFirm = pathOnMenu(getNavForKind(kind, isConsultant, { ...seat, hat: 'firm' }), path)
+  if (inYou && !inFirm) return 'you'
+  if (inFirm && !inYou) return 'firm'
+  return worn
+}
+
+/** One line in the account menu: a seat at a firm, or the person's own hat. */
+export interface HatLine {
+  hat: Hat
+  /** The seat this line switches to, where it is a different one from the seat in use. */
+  contextId: string | null
+  /** "Tapin · Owner", "You · Sharath". */
+  label: string
+  current: boolean
+}
+
+/**
+ * The account menu's list of hats: every firm seat the person holds,
+ * "Company · Role", and "You · <first name>" only where the work makes
+ * them a worker. The current one is marked. A one-person firm reads one
+ * firm hat and no You, because she is the firm.
+ */
+export function hatsFor(input: {
+  /** Every live seat the person holds, from /api/me. A consultant seat is not a firm seat. */
+  seats: readonly { contextId: string; companyName: string | null; roleName: string | null; type: string | null }[]
+  /** The seat in use now. */
+  activeContextId: string | null
+  personName: string | null | undefined
+  /** True when the seat in use is a consultant seat, which is the person's own. */
+  isConsultant: boolean
+  /** Offered the You hat at the seat in use (`offersYouHat`). */
+  youOffered: boolean
+  hat: Hat
+}): HatLine[] {
+  const first = (input.personName ?? '').trim().split(/\s+/)[0] || 'yourself'
+  const firm = input.seats.filter((x) => x.type !== 'CONSULTANT' && x.companyName)
+  const own = input.seats.find((x) => x.type === 'CONSULTANT')
+  const wearingYou = input.isConsultant || (input.youOffered && input.hat === 'you')
+  const lines: HatLine[] = firm.map((x) => ({
+    hat: 'firm' as const,
+    contextId: x.contextId,
+    label: x.roleName ? `${x.companyName} · ${x.roleName}` : x.companyName!,
+    current: !wearingYou && x.contextId === input.activeContextId,
+  }))
+  if (input.youOffered || input.isConsultant || own) {
+    lines.push({
+      hat: 'you',
+      // At a firm seat the You hat is the same seat read as a worker; a
+      // person who also holds a consultant seat switches to that one.
+      contextId: input.youOffered ? input.activeContextId : (input.isConsultant ? input.activeContextId : own?.contextId ?? null),
+      label: `You · ${first}`,
+      current: wearingYou,
+    })
+  }
+  return lines
 }
 
 /**
@@ -887,6 +1060,7 @@ export function getNavForKind(
   // A seat that reads one region of a client's program: its region and
   // nothing the region door would refuse.
   if (seat.region && kind === 'CLIENT' && !isConsultant) return REGION_NAV
+  const hat = hatOf(kind, isConsultant, seat)
   // A consultant is a context type, not an absent company. Somebody on a
   // vendor's bench HAS a company — that is what a bench is — and keying on
   // the company would show them their agency's payroll and buy contracts.
@@ -913,15 +1087,15 @@ export function getNavForKind(
   // nothing in his own navigation pointed back to it.
   //
   // He is an employee of Teleworld with a real seat, and he is the
-  // person the work is about. Appending rather than substituting is the
-  // only reading that is true of both.
+  // person the work is about. Appending rather than substituting was the
+  // reading true of both until 2026-11-03, when the founder made them two
+  // hats, switched in the account menu: both are still his, one at a time.
   //
-  // "Your data" is the one page both menus name — a firm's Governance
+  // "Your data" is the one page both menus name — a firm's Settings
   // carries it because everybody signed in has data held about them,
-  // and "You" carries it because it is the reader's own record. Two
-  // doors onto one page is a question the reader has to answer before
-  // they can click, so the firm's copy gives way to the personal one:
-  // somebody who has a "You" section reads it there.
+  // and "You" carries it because it is the reader's own record. Where a
+  // menu carries both (a Member with no desk, below), the firm's copy
+  // gives way to the personal one.
   const ownHrefs = new Set(YOURS.map((i) => i.href))
   // A worker whose seat reads only their own work opens on "Your work"
   // (lib/console-home), so the firm's Today would be a second door onto
@@ -939,39 +1113,55 @@ export function getNavForKind(
   // (CLAUDE.md, "A one-person corporation reads its own short menu"), and
   // her own pages are already inside her seven, so nothing is appended.
   const solo = !isConsultant && kind === 'CONSULTANT_CORP' && !seat.seatedAtClient
-  const worker = Boolean(seat.worker) || deskless
-  const trimmed = (!isConsultant && kind && (worker || solo))
+  // ── One hat at a time (founder, 2026-11-03) ──────────────────────
+  // In the You hat the menu is the person's own pages and none of the
+  // firm's. In the firm hat it is the firm's and none of the person's:
+  // the "You" list that was appended under a worker's firm links is the
+  // You hat in the account menu now. One exception, and it is not a
+  // second hat: a seat with no desk and no work of its own (a Member
+  // nobody has given a desk yet) holds nothing of the firm's, so its own
+  // pages stay beside what is addressed to it.
+  if (hat === 'you' && kind && !isConsultant) {
+    const own = withTermsAfterYourWork(YOU_HAT_NAV, seat.termsHref)
+    return seat.permissions == null ? own : own
+      .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
+      .filter((s) => s.items.length > 0)
+  }
+  const appendsYou = !isConsultant && Boolean(kind) && deskless && !seat.worker && !solo
+  const trimmed = (!isConsultant && kind && (seat.worker || deskless || solo))
     ? base
         .map((s) => ({
           ...s,
           items: s.items.filter((i) =>
-            (solo || !ownHrefs.has(i.href))
+            (solo || !appendsYou || !ownHrefs.has(i.href))
             && !(ownFrontDoor && i.href === '/dashboard')
             && !(deskless && openBecause(i.href) !== ADDRESSED && !(solo && ownHrefs.has(i.href)))),
         }))
         .filter((s) => s.items.length > 0)
     : base
-  const sections = (!isConsultant && kind && worker && !solo)
+  const sections = appendsYou
     ? [...trimmed, { label: 'You', items: YOURS }]
     : trimmed
 
   // "Your terms", right after "Your work", for as long as a placement of
   // theirs waits on terms. Only where a reader has a "Your work": a seat
   // that is neither a consultant nor a worker has no terms of its own.
-  const terms: NavItem | null = seat.termsHref
-    ? { label: 'Your terms', href: seat.termsHref, icon: '◇', api: YOUR_TERMS_READS }
-    : null
-  const withTerms = terms
-    ? sections.map((s) => {
-        const at = s.items.findIndex((i) => i.href === YOUR_WORK.href)
-        return at < 0 ? s : { ...s, items: [...s.items.slice(0, at + 1), terms, ...s.items.slice(at + 1)] }
-      })
-    : sections
+  const withTerms = withTermsAfterYourWork(sections, seat.termsHref)
 
   if (seat.permissions == null) return withTerms
   return withTerms
     .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
     .filter((s) => s.items.length > 0)
+}
+
+/** "Your terms", right after "Your work", wherever a menu has Your work and terms wait. */
+function withTermsAfterYourWork(sections: NavSection[], termsHref: string | null | undefined): NavSection[] {
+  if (!termsHref) return sections
+  const terms: NavItem = { label: 'Your terms', href: termsHref, icon: '◇', api: YOUR_TERMS_READS }
+  return sections.map((s) => {
+    const at = s.items.findIndex((i) => i.href === YOUR_WORK.href)
+    return at < 0 ? s : { ...s, items: [...s.items.slice(0, at + 1), terms, ...s.items.slice(at + 1)] }
+  })
 }
 
 /**

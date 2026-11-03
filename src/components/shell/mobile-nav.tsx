@@ -8,6 +8,7 @@ import { sidebarPropsFrom, deskOf } from '@/components/shell/sidebar-props'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { mayOpen } from '@/lib/nav-table'
+import { HatList } from '@/components/shell/hat-list'
 
 /**
  * The navigation, on a phone.
@@ -185,7 +186,10 @@ function Account({
   onSignOut: () => void
 }) {
   return (
-    <div className="px-4 py-3 border-t border-etyme-rule">
+    <div className="border-t border-etyme-rule">
+      {/* The person's hats, on a phone where the account lives (founder, 2026-11-03). */}
+      <HatList roomy />
+    <div className="px-4 py-3">
       <p className="text-[13px] font-medium text-etyme-ink truncate">{name || 'Signed in'}</p>
       {email && <p className="text-[12px] text-etyme-muted truncate">{email}</p>}
       {role && <p className="text-[12px] text-etyme-faint truncate">{role}</p>}
@@ -209,6 +213,7 @@ function Account({
           Sign out
         </button>
       </div>
+    </div>
     </div>
   )
 }

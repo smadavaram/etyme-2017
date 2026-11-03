@@ -1542,6 +1542,25 @@ is a worker is read off the work, never off a seat type, stands.
   menu, lib/nav-table's hat), conversation (the greeting and chips per
   hat), in the wave after the 2026-11-03 retest deploy, before the Ask
   Etyme full screen, since both touch the shell.
+- **Built 2026-11-03 (architect).** The account menu lists the hats
+  (`hatsFor` in `lib/nav-table`, drawn by `components/shell/hat-list`
+  in the desktop account menu and at the foot of the phone menu); the
+  left menu, search, the + button, the tab row and the eyebrows read
+  one hat (`hat` on the menu's seat facts). The hat is remembered in
+  one cookie, `etyme_hat` (`firm` or `you`, and the seat after a colon
+  where the person holds more than one), which `getCallerContext`
+  reads only to choose among the person's own live seats when no
+  header names one, and which Ask Etyme reads for the greeting and
+  chips per hat (`readHatCookie`); the words per hat are
+  conversation's. A link into a worker's own page opens the You hat
+  (`hatForPath`). Four coordinator's calls, each reversible in a
+  sentence: a worker whose seat holds no desk at the firm (Karthik
+  Menon) opens in the You hat, because the firm hat holds only what is
+  addressed to them; a Member with no desk and no work keeps their own
+  pages beside what is addressed to them, because that is not a second
+  hat; the You hat keeps the threads addressed to the person inside Ask
+  Etyme; and switching hats reloads the page on Ask Etyme, so the
+  greeting and the mark are read again for the hat now worn.
 
 ## On a firm's menu, People reads Candidates and Candidates reads Submissions — the founder, 2026-11-03
 
@@ -4205,8 +4224,18 @@ Two entries reading the same word on one menu is the duplicate class the
 founder has reported three times, and a heading cannot disambiguate it
 for somebody who is both things at once.
 
-**A person who is also a worker keeps their firm's links and gains "You"
-at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
+**A person who is also a worker wears two hats, one at a time.** Since
+2026-11-03 (see "One person, two hats, switched in the account menu"):
+the account menu at the top right lists every firm seat the person
+holds and "You" where the work makes them a worker; the left menu
+shows one hat's links and nothing else, the firm's in the firm hat and
+the worker's own pages in the You hat. A link into a worker's own page
+opens the You hat. The hat is a view, never a permission: every route
+still answers the seat it always answered. The paragraphs below are the
+history it replaces.
+
+**Until 2026-11-03: a person who is also a worker kept their firm's
+links and gained "You" at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
 demo door and saying "Candidate Karthik is all buggy". He is a systems
 integrator's own W2 — the case "Who sells and who buys" added the same day
 — so his only context is EMPLOYEE at Teleworld and the shell read identity

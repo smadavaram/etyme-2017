@@ -69,7 +69,7 @@ vi.mock('@/lib/company-roles', () => ({ ensureDefaultRoles: (...a: unknown[]) =>
 
 import { changeCompanyKind } from '@/app/api/settings/kind'
 import { KIND_CHOICES, choiceByKey, choiceOf, kindChangeVerdict, NO_KIND_FACTS } from '@/lib/company-kind'
-import { getNavForKind } from '@/lib/nav-table'
+import { getNavForKind, offersYouHat } from '@/lib/nav-table'
 import { partyOf, questionsFor } from '@/app/api/conversations/twin/ask'
 import { firstActFor } from '@/app/api/conversations/twin/first-act'
 import { checklistFor, itemsFor, NO_FACTS } from '@/lib/setup-checklist'
@@ -115,8 +115,9 @@ describe('the Owner changes what kind of company it is', () => {
     expect(questionsFor(party, ['*'], r.kind)).toContain('Who is on the bench?')
     expect(firstActFor({ party, companyKind: r.kind, bench: r.supplierPosture === 'BENCH', linked: true, benchPeople: 0 })?.says)
       .toBe('Add the people on your bench and ask each to say yes. Jobs from the firms you sell to land here.')
-    // Her own pages stay hers: the Owner with a page of their own reads "You" at the end.
-    expect(labels(r.kind, true).at(-1)).toBe('You')
+    // Her own pages stay hers: the Owner with a page of their own is offered the You hat.
+    expect(offersYouHat(r.kind as any, false, { worker: true })).toBe(true)
+    expect(labels(r.kind, true)).not.toContain('You')
   })
 
   it('nobody but the Owner changes what kind of company it is', async () => {

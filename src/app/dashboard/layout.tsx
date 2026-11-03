@@ -14,6 +14,8 @@ import { prisma } from '@/lib/db'
 import { demoCompanyFor } from '@/lib/demo-company'
 import { yourTermsHref } from '@/lib/your-terms'
 import { rungsToFile } from '@/lib/consultant-portfolio'
+import { cookies } from 'next/headers'
+import { HAT_COOKIE, readHatCookie, type Hat } from '@/lib/nav-table'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -228,6 +230,21 @@ async function readersRegion(): Promise<string | null> {
   }
 }
 
+/**
+ * The hat remembered on this device (founder, 2026-11-03, "One person,
+ * two hats"), so the first paint draws the menu of the hat the person
+ * has on rather than flipping a fetch later. Never throws: no cookie is
+ * the default hat.
+ */
+async function readersHat(): Promise<Hat | null> {
+  try {
+    const jar = await cookies()
+    return readHatCookie(jar.get(HAT_COOKIE)?.value).hat
+  } catch {
+    return null
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -239,12 +256,12 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref, filesAWeek, region] = await Promise.all([
-    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(),
+  const [worker, seat, demo, termsHref, filesAWeek, region, hat] = await Promise.all([
+    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(), readersHat(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to

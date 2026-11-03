@@ -47,7 +47,8 @@ import { AskEtymeLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen, pinnedOn, ASK_ETYME_HREF } from '@/lib/nav-table'
+import { getNavForKind, mayOpen, pinnedOn, offersYouHat, ASK_ETYME_HREF, type Hat } from '@/lib/nav-table'
+import { HatList } from '@/components/shell/hat-list'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -261,9 +262,14 @@ export function plusMenuFor(
    * `readerFilesAWeek`). `seatedAtClient`: the client whose desk this is,
    * so a desk-less seat's own menu is read the way the sidebar reads it.
    */
-  more: { filesAWeek?: boolean; seatedAtClient?: string | null; region?: string | null } = {}
+  more: { filesAWeek?: boolean; seatedAtClient?: string | null; region?: string | null; hat?: Hat | null } = {}
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
+  // The You hat creates nothing of the firm's (founder, 2026-11-03): a
+  // worker's own + menu is a consultant's, which is none.
+  if (more.hat === 'you' && offersYouHat(kind as Parameters<typeof getNavForKind>[0], false, {
+    worker, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null,
+  })) return []
   // The headings come from the reader's own menu, below; the sections
   // here only order the items within one.
   const sections = kind === 'CLIENT' ? CLIENT_PLUS_MENU : PLUS_MENU
@@ -303,8 +309,10 @@ export function plusMenuFor(
   // for everybody: an item stays only where the page it opens is a link
   // on the reader's own menu, headed by the section that link sits
   // under, in the menu's order.
+  // The hat too: in the You hat the menu is the person's own pages, so
+  // nothing the firm creates is offered over it.
   const nav = getNavForKind(kind as Parameters<typeof getNavForKind>[0], false, {
-    worker, permissions, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null,
+    worker, permissions, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null, hat: more.hat ?? null,
   })
   const sectionOf = (href: string): number => {
     const path = href.split('?')[0]
@@ -411,7 +419,7 @@ export function Header({ title }: HeaderProps) {
   // The role this desk is held under: the client's, at a client's desk.
   const { permissions, roleName } = desk
   const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
-    filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient, region: desk.region,
+    filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
   })
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -438,7 +446,7 @@ export function Header({ title }: HeaderProps) {
   // read once a minute for the whole shell.
   const pathname = usePathname()
   const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
-    worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region,
+    worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
   })).length > 0
   const owed = useOwedCount(asks)
   const onAskEtyme = pathname === ASK_ETYME_HREF || Boolean(pathname?.startsWith(ASK_ETYME_HREF + '/'))
@@ -499,7 +507,7 @@ export function Header({ title }: HeaderProps) {
   const reachablePages = reachablePagesFor(
     desk.companyKind,
     desk.isConsultant,
-    { worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient }
+    { worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat }
   )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1
@@ -745,6 +753,11 @@ export function Header({ title }: HeaderProps) {
                   </p>
                 )}
               </div>
+
+              {/* The person's hats, one line each: every firm seat, and
+                  "You" where the work makes them a worker (founder,
+                  2026-11-03). One click switches the whole app. */}
+              <HatList onPicked={() => setAccountOpen(false)} />
 
               {/* The third door onto the same two pages, and it was the
                   one that refused nobody: the menu and ⌘K both filter on

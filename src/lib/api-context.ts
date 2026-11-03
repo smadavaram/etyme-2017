@@ -13,7 +13,7 @@ import { DESK_ROLES } from '@/lib/demo-desks'
 import { staffAddresses, reportError } from '@/lib/alerts'
 import { desklessDoor, recordNamedBy, READS_PEOPLE, type RecordFamily } from '@/lib/deskless-door'
 import { regionDoor, REGION_UNIT_KIND } from '@/lib/region-scope'
-import { pageNameOf, type CompanyKind } from '@/lib/nav-table'
+import { pageNameOf, HAT_COOKIE, readHatCookie, type CompanyKind } from '@/lib/nav-table'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
@@ -325,6 +325,26 @@ export function asSampleSeat<T>(read: () => Promise<T>): Promise<T> {
   return sampleScope.run(true, read)
 }
 
+/**
+ * The seat the person chose in the account menu on this device, if any
+ * (founder, 2026-11-03, "One person, two hats"). Only a choice among the
+ * person's own live seats: the caller below looks it up under their own
+ * person id and, where it is not theirs or no longer live, uses the
+ * seat it always used. Never a refusal, so a stale cookie locks nobody
+ * out.
+ */
+async function chosenSeat(request?: NextRequest): Promise<string | null> {
+  const onRequest = request?.cookies?.get(HAT_COOKIE)?.value
+  if (onRequest !== undefined) return readHatCookie(onRequest).contextId
+  try {
+    const jar = await cookies()
+    return readHatCookie(jar.get(HAT_COOKIE)?.value).contextId
+  } catch {
+    // Outside a request scope: a cron job, a script. No choice.
+    return null
+  }
+}
+
 /** Whether this request carries the sample cookie. Read off the request where there is one. */
 async function sampleCookieOn(request?: NextRequest): Promise<boolean> {
   const onRequest = request?.cookies?.get(SAMPLE_COOKIE)?.value
@@ -519,12 +539,20 @@ export async function getCallerContext(
     orgUnit: { select: { id: true, name: true, kind: true } },
   } as const
 
+  // Where no header names a seat, the one chosen in the account menu,
+  // if it is still this person's and live; else the most recent.
+  const chosen = contextId ? null : await chosenSeat(request)
   let context = contextId
     ? await prisma.context.findFirst({
         where: { id: contextId, personId: person.id, ...usable },
         include: seatInclude,
       })
-    : await prisma.context.findFirst({
+    : (chosen
+        ? await prisma.context.findFirst({
+            where: { id: chosen, personId: person.id, ...usable },
+            include: seatInclude,
+          })
+        : null) ?? await prisma.context.findFirst({
         where: { personId: person.id, ...usable },
         include: seatInclude,
         orderBy: { grantedAt: 'desc' },

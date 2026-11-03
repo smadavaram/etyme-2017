@@ -18,10 +18,12 @@ describe('"Your terms" under You', () => {
     expect(items[1]).toMatchObject({ label: 'Your terms', href: HREF })
   })
 
-  it('a firm’s own employee who is also the worker reads it in the You section after the firm’s menu', () => {
-    const menu = getNavForKind('GSI', false, { worker: true, termsHref: HREF })
+  it('a firm’s own employee who is also the worker reads it in the You hat, and the firm hat never carries it', () => {
+    const menu = getNavForKind('GSI', false, { worker: true, termsHref: HREF, hat: 'you' })
     expect(menu[menu.length - 1].label).toBe('You')
     expect(you(menu)!.items.map((i) => i.label)).toContain('Your terms')
+    const firm = getNavForKind('GSI', false, { worker: true, termsHref: HREF, hat: 'firm' })
+    expect(JSON.stringify(firm)).not.toContain('Your terms')
   })
 
   it('nobody reads "Your terms" once nothing waits on them', () => {

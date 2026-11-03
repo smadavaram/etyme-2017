@@ -1,4 +1,5 @@
 import type { SessionState } from '@/components/session-provider'
+import type { Hat } from '@/lib/nav-table'
 import { kindLabel } from '@/lib/parties'
 
 /**
@@ -40,6 +41,8 @@ export type SidebarIdentity = {
   termsHref?: string | null
   /** The region this seat reads, where it sits on a REGION unit. Its menu is that region alone. */
   region?: string | null
+  /** The hat this person has on: the firm's, or their own (founder, 2026-11-03). */
+  hat?: Hat | null
   pending: boolean
 }
 
@@ -51,7 +54,7 @@ export function sidebarPropsFrom(
     // company to name.
     // Optional too: a fixture describing a seat need not know about a
     // program office's desk, and almost nobody holds one.
-    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref'>>
+    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref' | 'hat'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -104,6 +107,7 @@ export function sidebarPropsFrom(
     // Their own terms, while a placement of theirs waits on them.
     termsHref: session.termsHref ?? null,
     region: session.region ?? null,
+    hat: session.hat ?? null,
     pending: false,
   }
 }
@@ -143,6 +147,8 @@ export interface Desk {
   seatedAtClient: string | null
   /** The region this seat reads, or null (lib/region-scope). */
   region: string | null
+  /** The hat this person has on, or null where the default is read (`hatOf`). */
+  hat: Hat | null
   /**
    * The role this desk is held under, as the header says it: the client's
    * own role where a client granted the office a seat — the role whose
@@ -156,7 +162,7 @@ export interface Desk {
 
 export function deskOf(
   session: Pick<SessionState, 'company' | 'contextType' | 'isWorker' | 'permissions'> &
-    Partial<Pick<SessionState, 'seat' | 'filesAWeek' | 'roleName' | 'region'>>
+    Partial<Pick<SessionState, 'seat' | 'filesAWeek' | 'roleName' | 'region' | 'hat'>>
 ): Desk {
   const companyKind = session.company?.kind ?? null
   const isConsultant = session.contextType === 'CONSULTANT'
@@ -170,6 +176,7 @@ export function deskOf(
     permissions: seat ? seat.permissions : session.permissions,
     seatedAtClient: seat?.clientName ?? null,
     region: session.region ?? null,
+    hat: session.hat ?? null,
     roleName: seat ? seat.roleName : (session.roleName ?? null),
   }
 }
