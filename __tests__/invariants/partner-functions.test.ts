@@ -41,6 +41,15 @@ describe('Four parties, one client, and only one of them needs setting up', () =
     expect(p.split).toBe(true)
   })
 
+  it('a bill whose sold-to, bill-to and payer are one firm named on the contract says that firm throughout, never that they are not all the same company', () => {
+    const p = partnerFunctions({
+      agreementClient: NIKE,
+      contract: { soldTo: NIKE, billTo: NIKE, payer: NIKE },
+    })
+    expect(p.says).toBe('Northbend Athletic Inc throughout — signs, is billed, and pays.')
+    expect(p.says).not.toContain('not all the same company')
+  })
+
   it('a contract beats the engagement, because the most specific thing somebody said wins', () => {
     const other = { id: 'c-oth', name: 'Northbend Athletic Retail GmbH' }
     const p = partnerFunctions({

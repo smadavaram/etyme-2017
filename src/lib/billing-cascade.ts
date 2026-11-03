@@ -1136,7 +1136,12 @@ export function partnerFunctions(i: PartnerInputs): PartnerFunctions {
     shipTo,
     payer,
     split,
-    says: split
+    // "Not all the same company" only where they are not: the release walk
+    // of 2026-11-03 read it on a bill whose sold-to, bill-to and payer were
+    // one firm, named on the contract rather than taken from the agreement.
+    says: soldTo.party.id === billTo.party.id && billTo.party.id === payer.party.id
+      ? `${soldTo.party.name} throughout — signs, is billed, and pays.`
+      : split
       ? `Sold to ${soldTo.party.name}, billed to ${billTo.party.name}, settled by ` +
         `${payer.party.name}. They are not all the same company, which is ordinary at ` +
         `this size and is the commonest reason a bill ages without anybody chasing it.`
