@@ -3181,6 +3181,44 @@ the walk again on the trust items, and the deploy; the founder's
 retest waits on it, and he is told so rather than handed a build the
 walk refused.
 
+**Demand and supply, the same evening.** Demand (a1a67e31f, f546105c4,
+173750d49, e3d4ed465, 03bca14aa): the client's Candidates page is its
+memory of people, headed Candidates with one line saying what it is,
+the filters Favorites · Recent engagement · Everyone · On site now ·
+Blocked, opened on the first filter with rows and never on Blocked
+(Northbend opens on Helena Marsh), and a person's page says Candidate
+under the name unless they are on site; a start day already gone is
+said as past with the day itself; the job edit form asks where the
+work is done and whether sponsorship is offered through the raise's
+own reader, both word changes that tell the suppliers and never
+re-approve, and a job held on another recorded basis is never
+overwritten by a sponsorship policy; the award's employment line for a
+firm's own employee between projects is paid what their last line
+paid, says which, hangs on no order, and a draft, a cancelled line or a
+pay of nothing is not pay on record, so the firm states it; and a
+supplier on probation is offered under "Pick one of your suppliers"
+with its standing beside its name and asked with a reason recorded
+with who gave it before the firm is asked (vendor tier warns, Addendum
+E), the reason kept as an Event row until the architect gives
+`ContractorInvitation` its `pickReason`, `pickedById` and `pickedAt`.
+Supply (60a646e57, 9dda9c35c, 9378eccfa, 8211b51d6): one gate,
+`mayAddConsultant`, read by the button, the link and the route, so a
+delivery manager is not offered Add consultant and is refused in a
+sentence naming who adds; "Check the contract under Contracts"; the
+Consultants page reads every record a hundred at a time, so a person
+the firm just added is on it, searched and paged, and a person asked
+onto the bench gets the sign-in line beside Resend; and a worker with
+two lines at one firm reads two options that say which is which (the
+client, then the job, then the dates, added only where two would read
+alike). The "a firm that lists a person can overwrite that person's
+own profile" line of 2026-10-30 was already closed on 2026-11-01
+(eaddb1fc2, `profileEditPlan`); the same class through the sheet
+import is the architect's, in this wave. Coordinator's calls, each
+reversible in a sentence: a refusal names the shipped role set for the
+kind of firm, not the roles this company edited; the Consultants page
+reads every record rather than moving search to the route (about
+twenty calls for a very large firm, each logging its bench read once).
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
