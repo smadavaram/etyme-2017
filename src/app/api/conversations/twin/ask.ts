@@ -3126,6 +3126,54 @@ export interface SubmissionJob {
   requirementId: string
   /** `jobApart`'s words, " in Dayton", ", starting Nov 3"; empty where no other job shares the title. */
   apart: string
+  /** The day the candidate was put forward, YYYY-MM-DD, where read: the next thing that tells two cards apart. */
+  putForwardOn?: string | null
+}
+
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
+
+/**
+ * No two candidate cards on one screen read word for word alike.
+ *
+ * The second screen walk (2026-11-03) found Beatrix Chowdhury four times
+ * on one screen as "Warehouse systems analyst, one of eight like it, from
+ * Brightmoor Staffing, $116/hr": four jobs alike in every way a person
+ * tells jobs apart, and the cards said how many, not which. So where the
+ * title and the fact still match another card's, the card says what else
+ * differs, in the order a hiring manager reads it: the day the person was
+ * put forward; and where even that is the same, its place among the
+ * alike cards in the order the queue lists them ("The second of four
+ * alike."), each opening its own job's candidates. Never a key.
+ */
+export function cardsApart(cards: QueueCard[], jobs: ReadonlyMap<string, SubmissionJob> | null = null): QueueCard[] {
+  const said = (c: QueueCard) => `${c.title} ${c.fact}`
+  const groups = new Map<string, QueueCard[]>()
+  for (const c of cards) {
+    if (c.type !== 'SUBMISSION_REVIEW') continue
+    const k = said(c)
+    groups.set(k, [...(groups.get(k) ?? []), c])
+  }
+  const out = new Map<string, string>()
+  for (const alike of groups.values()) {
+    if (alike.length < 2) continue
+    const dayOf = (c: QueueCard) => jobs?.get(c.key.slice(c.key.indexOf(':') + 1))?.putForwardOn ?? null
+    const days = new Set(alike.map(dayOf))
+    const byDay = new Map<string, QueueCard[]>()
+    for (const c of alike) {
+      const d = days.size > 1 ? dayOf(c) : null
+      const fact = d ? `${c.fact} Put forward ${formatDay(d, { year: false })}.` : c.fact
+      out.set(c.key, fact)
+      byDay.set(fact, [...(byDay.get(fact) ?? []), c])
+    }
+    for (const [fact, still] of byDay) {
+      if (still.length < 2) continue
+      still.forEach((c, i) => {
+        const nth = ORDINALS[i] ?? `number ${i + 1}`
+        out.set(c.key, `${fact} The ${nth} of ${lowerNumber(still.length)} alike.`)
+      })
+    }
+  }
+  return out.size ? cards.map((c) => (out.has(c.key) ? { ...c, fact: out.get(c.key)! } : c)) : cards
 }
 
 /** The button on a candidate-to-review card: no act kind decides a candidate in the chat, so it opens who applied. */
@@ -3412,7 +3460,7 @@ export function queueCards(
   jobs: ReadonlyMap<string, SubmissionJob> | null = null,
 ): QueueCard[] {
   if (!q) return []
-  return q.items
+  return cardsApart(q.items
     .filter((d) => d.type !== 'TWIN_QUESTION' && !carriedByTwin(d, twin))
     .map((d) => {
       // A receipt to pay that no Pay card of Etyme's carries (the twin has
@@ -3450,7 +3498,7 @@ export function queueCards(
         act: queueAct(d),
         ...(pay ? { open: 'Pay' } : {}),
       }
-    })
+    }), jobs)
 }
 
 /** "Your professional license is asked of you" read inside a sentence: "your professional license …". An acronym or a name keeps its capital. */

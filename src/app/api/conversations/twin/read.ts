@@ -888,6 +888,7 @@ export function readersFor(
         where: { id: { in: [...submissionIds] }, toCompanyId: companyId },
         select: {
           id: true,
+          submittedAt: true,
           requirement: { select: { id: true, companyId: true, title: true, location: true, startDate: true, createdAt: true, site: { select: { name: true } } } },
         },
       })
@@ -903,7 +904,7 @@ export function readersFor(
       for (const s of subs) {
         const job = s.requirement
         const others = alike.filter((r) => r.companyId === job.companyId && r.title === job.title && r.id !== job.id)
-        out.set(s.id, { requirementId: job.id, apart: jobApart(facts(job), others.map(facts)) })
+        out.set(s.id, { requirementId: job.id, apart: jobApart(facts(job), others.map(facts)), putForwardOn: s.submittedAt.toISOString().slice(0, 10) })
       }
       return out
     },

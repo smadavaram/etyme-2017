@@ -325,6 +325,31 @@ describe('a candidate to review, on the card', () => {
     expect(cards[1].href).toBe('/dashboard/submissions?requirementId=r2')
   })
 
+  it('no two candidate cards on one screen read word for word alike', async () => {
+    // Beatrix Chowdhury, four times, on four jobs alike in every way (the second screen walk, 2026-11-03).
+    const { jobApart } = await import('@/app/api/requisitions/words')
+    const alike = ['r1', 'r2', 'r3', 'r4'].map((id) => ({ id, location: 'Dayton', startDate: new Date('2026-11-16T00:00:00Z'), postedAt: new Date('2026-10-20T00:00:00Z') }))
+    const put = ['2026-10-28', '2026-10-28', '2026-10-30', '2026-10-28']
+    const jobs = new Map(alike.map((j, i) => [`s${i + 1}`, { requirementId: j.id, apart: jobApart(j, alike), putForwardOn: put[i] }]))
+    const items = alike.map((_, i) => review(`s${i + 1}`, 'Beatrix Chowdhury'))
+    const cards = queueCards({ total: 4, items }, [], jobs)
+    const said = cards.map((c) => `${c.title} ${c.fact}`)
+    expect(new Set(said).size).toBe(4)
+    // The day she was put forward first, then the place among the alike cards.
+    expect(cards[2].fact).toContain('Put forward Oct 30.')
+    expect(cards[0].fact).toContain('Put forward Oct 28. The first of three alike.')
+    expect(cards[3].fact).toContain('The third of three alike.')
+    // Never a key, and each opens its own job's candidates.
+    for (const c of cards) expect(c.fact).not.toMatch(/\br\d\b|\bs\d\b|\(job/)
+    expect(cards.map((c) => c.href)).toEqual(alike.map((j) => `/dashboard/submissions?requirementId=${j.id}`))
+  })
+
+  it('a candidate card that already reads apart is left exactly as it was', () => {
+    const cards = queueCards({ total: 2, items: [review('s1', 'Ana Lima'), review('s2', 'Ravi Kumar')] })
+    expect(cards[0].fact).not.toMatch(/alike|Put forward/)
+    expect(cards[1].fact).not.toMatch(/alike|Put forward/)
+  })
+
   it('a candidate-to-review card never draws an act the role contract has no kind for', () => {
     const d = review('s1', 'Ana Lima')
     expect(queueAct(d)).toBeNull()
