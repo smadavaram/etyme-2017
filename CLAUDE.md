@@ -3288,6 +3288,58 @@ the week's own page draws `BillThisWeek` (architect, two lines); the
 employer's acceptance saying "$5,200.00 to pay for the week" where that
 is the client's bill, and the approve route printing figures without a
 currency (demand).
+**Regulatory (23f807d15, a04e78ab7, f494754ae, cdf7e6f99, 2f2ed0d7b,
+f46c605a7, edf824652, 8bb1d03de) and demand's last sentence
+(6dd612db5), the same night.** The second fault that stopped the ship
+is closed: one reader of what is on file for a person and a line
+(`paperInstancesWhere`, `papersOnRecord`, `heldAbout` in
+`lib/document-stages/paper-record`) is read by the placement (both
+paths), a fresh request, the Compliance page, the worker's own page and
+the backfill, which gained a second pass that reads an item still asked
+for on an open request as on file where the paper is already on the
+record ("Already on the record when this was asked", marked ACCEPTED
+with nobody named as reviewer, so 1,587 items do not land back in HR's
+queue); a verdict names the person's accepted authorization for that
+check and never another check's; the worker is told "received, <firm>
+will look at it before it counts", never "on file", and her page reads
+what her firms examined or accepted. Also: a paper that arrived and
+nobody examined reads "Arrived, not examined" and is never green; who
+hears a paper arrived is the selector (HR and the compliance officer,
+else the Owner, else the Admin); the document library shows one row
+per name and reads "voided check"; Send again says sent only where an
+email left and "Choose who the request goes to" sits beside the
+disabled button; a start day gone reads "was due to start <day>" or
+"started <day>" through the one formatter; HR reads "then the <roles
+that start a placement> activates"; the degree rules reach every door
+(Paperwork's accept, Document requests' accept, the worker's upload,
+the Paperwork list: a sentence to HR beside the paper and three doors,
+the worker told in words, nothing that refuses a start; her own page
+writes qualification, field, name on the paper, honors and the file's
+hash); and the seven education cases walk the real routes in the
+documents matrix. Demand: a firm below the top accepting a week is
+told what it bills and how the person below is paid ("$5,200.00 to
+bill Northbend Athletic. Rajesh Iyer is paid through payroll on their
+own pay line"), never a payroll figure, every figure in the line's
+currency. Coordinator's calls, each reversible in a sentence: the
+backfill marks ACCEPTED, not RECEIVED; a provider's verification
+clears a degree warning only with its name, reference and date;
+authorization matching is by the paper's name; HR's three degree doors
+are links that pre-fill nothing; the library merges duplicate names on
+display only. **Still open, with owners:** no job names a required
+qualification, so "not what the job asks" cannot fire (schema request:
+`Requirement.requiredQualification`, written by the job form; architect
+then demand); the examine dialog has no degree fields yet, so HR's
+accept reads the degree on the person's own record (regulatory); the
+placement still counts an unexamined upload as held, and making it
+require an examination changes starts across the seed (the founder's
+call); the person's own list still says "On file" for an unexamined
+item and `POST /api/me/papers` reads held papers without accepted
+request items (regulatory); older stored start sentences keep their
+raw date; the acceptance's "Accepted 40h" shows hours filed, not
+accepted, and the reply's `billAmount` divides by 100 for a currency
+with no cents (money); the backfill's second pass has run on no
+database yet, so the founder runs it once on production with his
+secret after the deploy.
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
