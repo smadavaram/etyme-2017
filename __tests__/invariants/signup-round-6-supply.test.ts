@@ -71,7 +71,7 @@ describe('14 · Consultants draws nothing until its first read', () => {
   })
 
   it('the first answer is recorded whatever it was, so a refusal or a failure is never stuck behind Loading', () => {
-    const fin = page.indexOf('} finally {', page.indexOf("await fetch('/api/consultants')"))
+    const fin = page.indexOf('} finally {', page.indexOf('await fetch(consultantsPageUrl(1))'))
     expect(page.slice(fin, fin + 120)).toContain('setFirstRead(true)')
   })
 })

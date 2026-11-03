@@ -7,6 +7,7 @@ import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, ben
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
+import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { WhatWeNeed, WhatPartnersNeed } from './what-we-need'
 import { BenchProfit } from './bench-profit'
 import { mayReadBenchProfit, type HolidayAnswerRow } from '@/lib/bench-profit'
@@ -578,7 +579,7 @@ export default function BenchPage() {
   const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
   // Whom the firm asked and who has not said yes: listed apart from the
   // bench, never in it (`onTheBench`, the screen walk of 2026-10-22).
-  const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; name: string; consent: string | null }[]>([])
+  const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; personId: string; name: string; consent: string | null }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
@@ -685,7 +686,7 @@ export default function BenchPage() {
       setRosterSays(null)
       setEntries(flat)
       const askedRows = forScope === 'company'
-        ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, name: r.name, consent: r.consent }))
+        ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, personId: r.personId, name: r.name, consent: r.consent }))
         : []
       setAskedPeople(askedRows)
       if (forScope === 'company') {
@@ -1227,6 +1228,10 @@ export default function BenchPage() {
                     className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
                 </span>
               )}
+              {/* How they get into Etyme where no letter can leave: the route
+                  draws it only for somebody with no way to sign in, and only
+                  for a seat that may invite (the third screen walk, S1). */}
+              {a.consent === 'INVITED' && <SignInLink personId={a.personId} className="basis-full" />}
             </div>
           ))}
         </section>

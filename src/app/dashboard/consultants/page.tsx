@@ -12,6 +12,7 @@ import { ProfileEditor } from './profile-editor'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
+import { consultantsPageUrl, pagesAfterFirst } from '@/lib/consultant-portfolio/list-pages'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
@@ -1035,7 +1036,9 @@ export default function ConsultantsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/consultants')
+      // Every page of the list, not the route's first 25 (third screen walk,
+      // S1): the count, the search and the paging stand on the same rows.
+      const res = await fetch(consultantsPageUrl(1))
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}))
         setRefused(body.error?.message ?? 'Consultants are not part of your seat. Ask your company\'s owner if you need them.')
@@ -1050,8 +1053,17 @@ export default function ConsultantsPage() {
       }
 
       const body = await res.json()
+      const rest = await Promise.all(pagesAfterFirst(body.data?.pagination?.pages).map(async (p) => {
+        const r = await fetch(consultantsPageUrl(p))
+        const b = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        return (b.data?.consultants ?? []) as any[]
+      }))
+      // A record on two pages (the list moved between two reads) is one row.
+      const seen = new Set<string>()
+      const every = [...(body.data?.consultants ?? []), ...rest.flat()].filter((c: any) => !seen.has(c.id) && Boolean(seen.add(c.id)))
       // API returns nested person object; flatten for the table
-      const mapped = (body.data?.consultants ?? []).map((c: any) => ({
+      const mapped = every.map((c: any) => ({
         ...c,
         name: c.person?.name ?? c.name ?? 'Unknown',
         email: c.person?.email ?? c.email ?? '',

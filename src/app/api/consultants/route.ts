@@ -194,7 +194,8 @@ export async function GET(request: NextRequest) {
             }
           : false,
       },
-      orderBy: { person: { name: 'asc' } },
+      // The id breaks a tie, so two people of one name never swap between pages.
+      orderBy: [{ person: { name: 'asc' } }, { id: 'asc' }],
       skip,
       take: limit,
     }),
