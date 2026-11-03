@@ -477,3 +477,43 @@ describe('the address a notice links to', () => {
     }
   })
 })
+
+// ── A paper a person files for herself (the second screen walk, 2026-11-03) ──
+
+import { paperExaminers, papersAreTheirWork, EXAMINERS_TOLD } from '@/lib/notify/paper-examiners'
+
+describe('who hears that a paper arrived', () => {
+  const OWNER = { personId: 'owner', permissions: ['*'] }
+  const HR = { personId: 'farah', permissions: ['consultants.read', 'consultants.write', 'assignments.read', 'timesheets.read', 'governance.read'] }
+  const COMPLIANCE = { personId: 'comp', permissions: ['consultants.read', 'assignments.read', 'timesheets.read', 'governance.read', 'privacy.manage'] }
+  const RECRUITER = { personId: 'rec', permissions: ['consultants.read', 'consultants.write', 'requirements.read', 'submissions.create'] }
+  const ENGINEER = (id: string) => ({ personId: id, permissions: ['assignments.read', 'timesheets.read'] })
+
+  it('a worker filing her own paper tells HR, and never her colleagues or herself', () => {
+    const seats = [OWNER, HR, COMPLIANCE, RECRUITER, ENGINEER('felix'), ENGINEER('deepa'), ENGINEER('karthik'), ENGINEER('ifeoma')]
+    const told = paperExaminers(seats, 'ifeoma')
+    expect(told).toEqual(['owner', 'farah', 'comp'])
+    for (const nobody of ['felix', 'deepa', 'karthik', 'ifeoma', 'rec']) expect(told).not.toContain(nobody)
+  })
+
+  it('HR filing her own paper is not told about it, and the compliance officer is', () => {
+    expect(paperExaminers([HR, COMPLIANCE], 'farah')).toEqual(['comp'])
+  })
+
+  it('a firm with nobody whose work is papers is still heard by whoever may examine one, never by nobody', () => {
+    expect(paperExaminers([RECRUITER, ENGINEER('felix')], 'felix')).toEqual(['rec'])
+  })
+
+  it('one notice per examining seat: a person with two seats is told once, and no arrival tells more than ten', () => {
+    expect(paperExaminers([HR, HR], null)).toEqual(['farah'])
+    const many = Array.from({ length: 15 }, (_, i) => ({ personId: `hr${i}`, permissions: HR.permissions }))
+    expect(paperExaminers(many, null)).toHaveLength(EXAMINERS_TOLD)
+  })
+
+  it('a recruiter may open a paper and is not told every arrival; HR and the compliance officer are', () => {
+    expect(papersAreTheirWork(RECRUITER.permissions)).toBe(false)
+    expect(papersAreTheirWork(HR.permissions)).toBe(true)
+    expect(papersAreTheirWork(COMPLIANCE.permissions)).toBe(true)
+    expect(papersAreTheirWork(OWNER.permissions)).toBe(true)
+  })
+})
