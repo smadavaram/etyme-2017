@@ -274,6 +274,9 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Lead.confirmedById': { as: 'RECORD' },
   'Representation.endedBy': { as: 'RECORD' },
   'SellContract.startConfirmedById': { as: 'RECORD' },
+  // The hiring manager's yes or no that the person who started is the
+  // person interviewed (2026-11-03): who answered, kept as history.
+  'SellContract.startIdentityConfirmedById': { as: 'RECORD' },
   'Timesheet.clientApprovedById': { as: 'RECORD' },
   'Timesheet.employerAcceptedById': { as: 'RECORD' },
   'Timesheet.approvedById': { as: 'RECORD' },

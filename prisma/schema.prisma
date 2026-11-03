@@ -1975,12 +1975,12 @@ model CompanyContact {
 // ─────────────────────────────────────────────
 
 model ConsultantProfile {
-  id           String   @id @default(cuid())
-  personId     String   @unique
-  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  headline     String?
-  skills       String[]
-  location     String?
+  id                     String    @id @default(cuid())
+  personId               String    @unique
+  person                 Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  headline               String?
+  skills                 String[]
+  location               String?
   /// The country the person works from, ISO 3166 alpha-2 ("US", "IN").
   ///
   /// Asked for by etyme-supply, 2026-10-05: the Add consultant form had no
@@ -1991,15 +1991,30 @@ model ConsultantProfile {
   /// header and not from a line's defaulted copy (CLAUDE.md). Null means
   /// nobody said. Written by the add form once supply wires it; until
   /// then nothing writes it.
-  country      String?
-  workAuth     String?
+  country                String?
+  workAuth               String?
+  /// Whether the person said they need sponsorship to work, now or later,
+  /// in their own words at screening. Decided by the founder, 2026-11-03
+  /// ("Work authorization is checked where the work is done"): the answer
+  /// was kept as words on a packet item nothing read, so a person who said
+  /// "I will need sponsorship" could be interviewed three times for a job
+  /// that offers none. It is the person's answer, not one submission's,
+  /// because it is reused across jobs and it changes over time; the newest
+  /// answer overwrites the last, with its day and its words.
+  ///
+  /// Null means nobody asked, never "no". The three are written together.
+  needsSponsorship       Boolean?
+  /// When the person gave the answer above.
+  needsSponsorshipSaidAt DateTime?
+  /// The person's own sentence, kept as the quote the answer was read from.
+  needsSponsorshipQuote  String?
   // On corp-to-corp, the company the consultant works through. This is the
   // entity that must carry general liability and workers' compensation —
   // not the staffing vendor — so without it the insurance check is looking
   // at the wrong company.
-  ownCompanyId String?
-  ownCompany   Company? @relation("consultantCorp", fields: [ownCompanyId], references: [id]) // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
-  rateFloor    Int? // the consultant sets this; no listing may go below it
+  ownCompanyId           String?
+  ownCompany             Company?  @relation("consultantCorp", fields: [ownCompanyId], references: [id]) // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
+  rateFloor              Int? // the consultant sets this; no listing may go below it
 
   /// Their own address, and their own page.
   ///
@@ -3017,7 +3032,11 @@ model Requirement {
   /// Skills that would help and are not required. Matching weighs them
   /// below `skills` and never refuses on one.
   niceToHaveSkills String[] @default([])
-  /// ONSITE · HYBRID · REMOTE. Null where the request did not say.
+  /// ONSITE · HYBRID · REMOTE. Null where the request did not say, and
+  /// null reads as onsite: the work is done in the site's country, under
+  /// the founder's rule of 2026-11-03 ("Work authorization is checked
+  /// where the work is done"). One reader, `workCountryOf` in
+  /// lib/work-country.
   workMode         String?
   /// Who the person reports to day to day. Often the owner; named apart
   /// because a coordinator's request can report to somebody else.
@@ -3808,6 +3827,20 @@ model SellContract {
   /// onboarding ends here, and billing before it is billing on a guess.
   startConfirmedAt   DateTime?
   startConfirmedById String?
+
+  /// The hiring manager's answer at the start: is the person who started
+  /// the person who was interviewed? Decided by the founder, 2026-11-03
+  /// (candidate and supplier fraud: collect and forward, and say what the
+  /// record itself can see). A proxy who is not the person interviewed is
+  /// seen only by somebody who met both. True is yes, false is no and is
+  /// said to the role that decides; it is never a verdict and blocks
+  /// nothing on its own. Null means nobody was asked. Demand draws the
+  /// card; the three are written together.
+  startIdentityConfirmed     Boolean?
+  /// Who answered, a person's id kept as history.
+  startIdentityConfirmedById String?
+  /// When they answered.
+  startIdentityConfirmedAt   DateTime?
 
   // ── Where this line differs from the agreement ────────────────
   //
@@ -6411,6 +6444,30 @@ model Verification {
   formEdition String?
   result      Json? // { outcome: "CLEAR", notes: "...", details: {...} }
 
+  // ── What a degree says, read from the paper ─────────────────────
+  //
+  // Decided by the founder, 2026-11-03 ("A degree is read, not just
+  // held"): a DEGREE row was a file and nothing else, so no rule could
+  // see a year that did not look right. Each value is read by rules
+  // first, by the model only on the person's own yes, shown with the
+  // quote it came from and confirmed before it is written. Three of the
+  // degree's facts already have a column and are not repeated here: the
+  // institution is `provider`, the year of graduation is `issuedAt` (the
+  // day it was conferred, or 1 January of the year where only the year
+  // is printed), and the certificate or registrar number is
+  // `referenceId`. All null on every other type.
+
+  /// The qualification as printed — "Bachelor of Science", "MBA", "BSN".
+  qualification  String?
+  /// The field of study as printed — "Computer Science", "Nursing".
+  fieldOfStudy   String?
+  /// The name exactly as it is printed on the paper, kept apart from the
+  /// person's own name so "the name on it is not theirs" is a comparison
+  /// a rule can make rather than a guess.
+  nameOnDocument String?
+  /// Honors as printed — "magna cum laude", "First Class". Null where none.
+  honors         String?
+
   /// Which firm ordered this check from the provider, where one did.
   ///
   /// The founder, 2026-09-22: the screening companies are the ones who
@@ -6480,6 +6537,9 @@ model VerificationDoc {
   bytes          Bytes?
 
   @@index([verificationId])
+  // "The same file filed for somebody else" is a lookup by hash across
+  // people (founder, 2026-11-03), the same read as DocFile.fileHash.
+  @@index([fileHash])
 }
 
 // ─────────────────────────────────────────────
@@ -7083,8 +7143,18 @@ model DocFile {
   uploadedAt   DateTime @default(now())
   uploadedById String?
 
+  /// SHA-256 of `bytes`, hex. Decided by the founder, 2026-11-03 ("A
+  /// degree is read, not just held"): the same file filed for two people
+  /// is something only the record can see, and it is said to HR, never a
+  /// verdict. Written by the upload doors beside the bytes (regulatory),
+  /// the twin of `VerificationDoc.fileHash`. Null on a file stored before
+  /// this column; a reader treats null as unknown, never as unique.
+  fileHash String?
+
   // No @@index on docInstanceId: @unique already builds one, and a
   // second index on the same column is dead weight on every write.
+
+  @@index([fileHash])
 }
 
 /// ─────────────────────────────────────────────────────────────────────

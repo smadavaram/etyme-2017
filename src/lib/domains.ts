@@ -556,6 +556,8 @@ export const DOMAINS: Domain[] = [
       // rules and sentences, and the reads demand's job form calls. The
       // job form's own defaults and the distribute refusal are demand's.
       'lib/site-rules', 'lib/sites',
+      // The country a job's or a line's work is done in, and whether it is offshore (founder, 2026-11-03).
+      'lib/work-country',
       // A company's reporting currency and exchange rates, recorded with who
       // and when (2026-10-27); the rollup over them is money's.
       'lib/reporting-currency-setting',
