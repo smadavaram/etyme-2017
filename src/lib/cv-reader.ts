@@ -39,10 +39,33 @@ export interface ReadCv {
   location: string | null
   /** Years of experience, where the CV says so plainly. */
   years: number | null
+  /**
+   * The résumé's own education lines, read by rules (`readEducation`).
+   * An empty list means the CV was read and names no education; it is
+   * never left out, so "read, nothing there" and "never read" differ.
+   */
+  education: EducationLine[]
   /** The paste, kept whole. It becomes the resume text. */
   text: string
   /** What it could not work out, said plainly rather than left blank. */
   unknowns: string[]
+}
+
+/**
+ * One line of the résumé's education, as the résumé says it.
+ *
+ * This is what the person claims, never a verdict: a degree on file is
+ * checked against it, and a provider verifies the degree itself. Every
+ * field but `quote` is null where the line did not say, and the quote is
+ * the exact line (or the two lines) it was read from, so a person
+ * reading it can see why it reads that way.
+ */
+export interface EducationLine {
+  institution: string | null
+  qualification: string | null
+  fieldOfStudy: string | null
+  year: number | null
+  quote: string
 }
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
@@ -108,6 +131,7 @@ export function readCv(raw: string): ReadCv {
   const skills = readSkills(text)
   const location = readLocation(lines)
   const years = readYears(text)
+  const education = readEducation(text)
 
   const unknowns: string[] = []
   if (!name) unknowns.push('Could not find a name. Type it in.')
@@ -117,7 +141,7 @@ export function readCv(raw: string): ReadCv {
   // permit, and a wrong permit is how a placement collapses in week two.
   unknowns.push('Work authorization is not read from a CV. Say what they hold.')
 
-  return { name, email, phone, headline, skills, location, years, text, unknowns }
+  return { name, email, phone, headline, skills, location, years, education, text, unknowns }
 }
 
 // ── The readers ───────────────────────────────────────────────────────
@@ -215,6 +239,188 @@ export function readYears(text: string): number | null {
   if (m) return Number(m[1])
   const n = text.match(/(?:experience|exp)[^.\n]{0,16}?(\d{1,2})\+?\s*(?:years?|yrs?)/i)
   return n ? Number(n[1]) : null
+}
+
+// ── Education ─────────────────────────────────────────────────────────
+//
+// Rules only, and on purpose. A model may read a résumé better, but the
+// résumé reader's model path (lib/extract) runs only where the company
+// turned the model on, and this reading is the thing a degree is checked
+// against, so it has to be the same reading whether or not a key exists.
+// Nothing here calls a model, and nothing here decides anything: a line
+// that cannot be read keeps its quote and leaves its fields empty.
+
+/** The heading that opens the education section, on a line of its own. */
+const EDUCATION_HEADING =
+  /^(education|education\s*(?:&|and)\s*(?:training|certifications?|qualifications)|academic\s+(?:background|qualifications|history)|qualifications|degrees?)\s*:?$/i
+
+/** A heading that closes it: the next section of the CV. */
+const NEXT_SECTION =
+  /^(curriculum vitae|resume|r[ée]sum[ée]|profile|summary|professional summary|career summary|objective|contact|personal details|skills|technical skills|core skills|key skills|core competencies|experience|work experience|professional experience|relevant experience|employment|employment history|work history|career history|certifications?|licen[cs]es?(?:\s*(?:&|and)\s*certifications?)?|projects?|awards?|honors|publications?|languages?|references?|interests|hobbies|volunteer(?:ing)?|training|courses|memberships?|affiliations)\s*:?$/i
+
+/**
+ * Qualification words, the longest first so "Bachelor of Science" is
+ * read whole rather than as "Bachelor". Abbreviations are matched in
+ * capitals only, so "be" and "ms" in a sentence are not a degree; words
+ * are matched in any case. Horizontal on purpose: nursing, pharmacy and
+ * law degrees read the same way as an engineering one.
+ */
+const DEGREE_NAME =
+  '(?:Applied\\s+)?(?:Science|Arts|Engineering|Technology|Business\\s+Administration|Commerce|Laws|Fine\\s+Arts|Education|Pharmacy|Nursing|Computer\\s+Applications|Public\\s+Health|Social\\s+Work|Philosophy|Medicine|Surgery)'
+const QUALIFICATION_WORDS = new RegExp(
+  `\\b(?:(?:bachelor|master|associate)(?:['’]s)?(?:\\s+degree)?(?:\\s+of\\s+${DEGREE_NAME})?|doctor(?:ate)?(?:\\s+of\\s+${DEGREE_NAME})?|(?:post\\s*graduate\\s+)?diploma|high\\s+school\\s+diploma|GED)\\b`,
+  'i'
+)
+const QUALIFICATION_ABBREVIATIONS =
+  /(?<![A-Za-z.])(?:Ph\.\s?D\.?|PhD|Pharm\.?\s?D\.?|MBA|M\.B\.A\.|B\.\s?Sc\.?|BSc|M\.\s?Sc\.?|MSc|B\.\s?Tech\.?|BTech|M\.\s?Tech\.?|MTech|BSN|MSN|ADN|B\.\s?S\.?|M\.\s?S\.?|B\.\s?A\.?|M\.\s?A\.?|B\.\s?E\.?|M\.\s?E\.?|B\.\s?Com\.?|M\.\s?Com\.?|BCA|MCA|BS|MS|BA|MA|BE|ME|JD|J\.D\.|MD|M\.D\.)(?![A-Za-z])/g
+
+/**
+ * Two capitals after a comma at the end of a place are a state, not a
+ * degree: "Boston, MA" names Massachusetts, and "Baltimore, MD" is not a
+ * doctor of medicine.
+ */
+const STATE_AFTER_COMMA = /^(?:MA|MS|ME|MD)$/
+
+/** Words that mark the part of a line that names a school. */
+const SCHOOL =
+  /\b(university|college|institute|school|academy|polytechnic|conservatory|seminary|universidad|universit[éeà]|hochschule|IIT|NIT|IIM)\b/i
+
+const YEAR_TOKEN = /\b(19[4-9]\d|20\d\d)\b/g
+
+/**
+ * Read the education section into lines.
+ *
+ * Each line of the section is one claim. Where a line names a degree
+ * but no school and the line before named only a school, the two are
+ * read together and both are quoted, which is how most CVs lay it out:
+ * the university on one line, the degree and the year under it.
+ *
+ * `now` sets "this year": a year after it is not a graduation year the
+ * résumé can claim as done, so it is left empty rather than guessed.
+ */
+export function readEducation(raw: string, now: Date = new Date()): EducationLine[] {
+  const lines = raw.replace(/\r\n/g, '\n').split('\n').map((l) => l.trim())
+  const start = lines.findIndex((l) => EDUCATION_HEADING.test(stripBullet(l)))
+  if (start < 0) return []
+
+  const section: string[] = []
+  for (const line of lines.slice(start + 1)) {
+    const bare = stripBullet(line)
+    if (!bare) continue
+    if (NEXT_SECTION.test(bare) || EDUCATION_HEADING.test(bare)) break
+    section.push(bare)
+  }
+
+  const thisYear = now.getUTCFullYear()
+  const out: EducationLine[] = []
+  let pending: string | null = null
+
+  const flushPending = () => {
+    if (pending === null) return
+    out.push(readEducationLine(pending, thisYear))
+    pending = null
+  }
+
+  for (const line of section) {
+    const read = readEducationLine(line, thisYear)
+    if (read.qualification === null) {
+      // A line with no degree in it: a school, a year, an honor. Held
+      // for one line, in case the degree is on the next.
+      flushPending()
+      pending = line
+      continue
+    }
+    if (read.institution === null && pending !== null) {
+      const before = readEducationLine(pending, thisYear)
+      out.push({
+        institution: before.institution ?? cleanSegment(pending.replace(YEAR_TOKEN, '')),
+        qualification: read.qualification,
+        fieldOfStudy: read.fieldOfStudy,
+        year: read.year ?? before.year,
+        quote: `${pending}\n${line}`,
+      })
+      pending = null
+      continue
+    }
+    flushPending()
+    out.push(read)
+  }
+  flushPending()
+  return out
+}
+
+/** One line on its own: the degree, the field after "in" or "of", the year, and the rest as the school. */
+export function readEducationLine(line: string, thisYear: number = new Date().getUTCFullYear()): EducationLine {
+  const quote = line.trim()
+  const years = [...quote.matchAll(YEAR_TOKEN)]
+    .map((m) => Number(m[1]))
+    .filter((y) => y >= 1940 && y <= thisYear)
+  // A range ("2008 – 2012") ends on the graduation year.
+  const year = years.length > 0 ? years[years.length - 1] : null
+
+  const word = quote.match(QUALIFICATION_WORDS)
+  const abbreviation =
+    [...quote.matchAll(QUALIFICATION_ABBREVIATIONS)].find((m) => !isStateCode(quote, m)) ?? null
+  const found =
+    word && abbreviation
+      ? (word.index! <= abbreviation.index! ? word : abbreviation)
+      : word ?? abbreviation
+  if (!found) {
+    return { institution: SCHOOL.test(quote) ? schoolOf(quote) : null, qualification: null, fieldOfStudy: null, year, quote }
+  }
+
+  const qualification = found[0].replace(/\s+/g, ' ').replace(/\s+degree$/i, '').trim()
+  const before = quote.slice(0, found.index!)
+  let after = quote.slice(found.index! + found[0].length)
+
+  // The field: what follows "in" or "of" straight after the degree, up to
+  // the next separator, the year, or "from" / "at" naming the school.
+  let fieldOfStudy: string | null = null
+  const field = after.match(/^\s*,?\s*(?:in|of)\s+([^,|·–—(;]+?)(?=\s*(?:[,|·–—(;]|\s-\s|\b(?:from|at)\b|\b(?:19[4-9]\d|20\d\d)\b|$))/i)
+  if (field) {
+    fieldOfStudy = cleanSegment(field[1])
+    after = after.slice(field[0].length)
+  }
+
+  const rest = `${before} , ${after}`
+    .replace(YEAR_TOKEN, ' ')
+    .replace(/\b(?:class of|graduated|expected|completed|awarded)\b/gi, ' ')
+    .replace(/\(\s*\)/g, ' ')
+  const institution = SCHOOL.test(rest) ? schoolOf(rest) : joinSegments(rest)
+
+  return { institution, qualification, fieldOfStudy, year, quote }
+}
+
+function isStateCode(line: string, m: RegExpMatchArray): boolean {
+  if (!STATE_AFTER_COMMA.test(m[0])) return false
+  const before = line.slice(0, m.index!)
+  const after = line.slice(m.index! + m[0].length)
+  return /,\s*$/.test(before) && /^\s*(?:\d{5}(?:-\d{4})?)?\s*(?:$|[,|·–—;(])/.test(after)
+}
+
+function stripBullet(line: string): string {
+  return line.replace(/^[-–—•·*▪◦|\s]+/, '').trim()
+}
+
+function segmentsOf(text: string): string[] {
+  return text
+    .split(/[,|·–—;]|\s-\s/)
+    .map((s) => cleanSegment(s.replace(/^\s*(?:from|at)\s+/i, '')))
+    .filter((s): s is string => s !== null)
+}
+
+function schoolOf(text: string): string | null {
+  return segmentsOf(text).find((s) => SCHOOL.test(s)) ?? null
+}
+
+function joinSegments(text: string): string | null {
+  const parts = segmentsOf(text)
+  return parts.length > 0 ? parts.join(', ') : null
+}
+
+function cleanSegment(s: string): string | null {
+  const t = s.replace(/[()]/g, ' ').replace(/\s+/g, ' ').replace(/^[\s,.:;-]+|[\s,.:;-]+$/g, '').trim()
+  return t.length >= 2 ? t : null
 }
 
 /**

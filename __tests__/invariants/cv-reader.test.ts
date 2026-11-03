@@ -175,3 +175,110 @@ describe('the sentence above the reading', () => {
     expect(cvSentence(readCv(''))).toBe('Paste a CV and it will fill this in.')
   })
 })
+
+// ── Education, read from the résumé (founder, 2026-11-03) ──────────────
+
+import { readEducation } from '@/lib/cv-reader'
+import { educationAfterResume, educationOf, correctEducation } from '@/lib/consultant-portfolio/education'
+import { readFileSync as readSource } from 'node:fs'
+
+const NURSE_CV = `Priya Raman
+ICU Registered Nurse
+Austin, TX · priya.raman@example.com
+
+EXPERIENCE
+Charge nurse, Seton Medical Center, 2016–present
+
+EDUCATION
+• B.S. in Nursing, University of Texas at Austin, 2012
+Boston University, Boston, MA
+Master of Science in Data Science, 2019
+Coursework in leadership
+
+CERTIFICATIONS
+BLS, ACLS
+`
+const NOV_3 = new Date('2026-11-03T12:00:00Z')
+
+describe('the résumé’s own education lines', () => {
+  it('the résumé’s education lines are read with the institution, the qualification, the field, the year and the line they came from', () => {
+    const lines = readEducation(NURSE_CV, NOV_3)
+    expect(lines[0]).toEqual({
+      institution: 'University of Texas at Austin',
+      qualification: 'B.S.',
+      fieldOfStudy: 'Nursing',
+      year: 2012,
+      quote: 'B.S. in Nursing, University of Texas at Austin, 2012',
+    })
+    // The school on one line and the degree under it are read together,
+    // and both lines are the quote.
+    expect(lines[1]).toEqual({
+      institution: 'Boston University',
+      qualification: 'Master of Science',
+      fieldOfStudy: 'Data Science',
+      year: 2019,
+      quote: 'Boston University, Boston, MA\nMaster of Science in Data Science, 2019',
+    })
+    // And readCv carries them, so every paste reads them the same way.
+    expect(readCv(NURSE_CV).education.length).toBe(3)
+  })
+
+  it('a line the reader cannot fill keeps its quote and leaves the rest empty', () => {
+    const lines = readEducation(NURSE_CV, NOV_3)
+    expect(lines[2]).toEqual({
+      institution: null, qualification: null, fieldOfStudy: null, year: null,
+      quote: 'Coursework in leadership',
+    })
+  })
+
+  it('a year after this year is left empty, never guessed', () => {
+    const [line] = readEducation('EDUCATION\nBachelor’s degree in Chemistry, Rutgers University (2030)', NOV_3)
+    expect(line.year).toBeNull()
+    expect(line.qualification).toBe('Bachelor’s')
+    expect(line.institution).toBe('Rutgers University')
+  })
+
+  it('a state after a comma is a place, not a degree', () => {
+    const [line] = readEducation('EDUCATION\nJohns Hopkins University, Baltimore, MD, 2004', NOV_3)
+    expect(line.qualification).toBeNull()
+    expect(line.institution).toBe('Johns Hopkins University')
+    expect(line.year).toBe(2004)
+  })
+
+  it('the section ends at the next heading, so a certification is not read as education', () => {
+    expect(readEducation(NURSE_CV, NOV_3).some((l) => l.quote.includes('ACLS'))).toBe(false)
+  })
+
+  it('a résumé with no education section is recorded as read with no lines, not as never read', () => {
+    expect(readCv(CV).education).toEqual([])
+    expect(educationAfterResume(null, readCv(CV).education)).toEqual([])
+    // Null on the column stays "never read"; an empty list is "read, none".
+    expect(educationOf(null)).toBeNull()
+    expect(educationOf([])).toEqual([])
+  })
+
+  it('a later résumé replaces the education lines', () => {
+    const first = educationAfterResume(null, readEducation(NURSE_CV, NOV_3))
+    const later = educationAfterResume(first, readEducation('EDUCATION\nMBA, Wharton School, 2021', NOV_3))
+    expect(later).toEqual([
+      { institution: 'Wharton School', qualification: 'MBA', fieldOfStudy: null, year: 2021, quote: 'MBA, Wharton School, 2021', source: 'RESUME' },
+    ])
+  })
+
+  it('the person’s own correction survives a later résumé, and stands in for the line it corrected', () => {
+    const first = educationAfterResume(null, readEducation(NURSE_CV, NOV_3))
+    const fixed = correctEducation(first, { index: 0, year: 2013, sentence: 'I finished in 2013, not 2012.' }, NOV_3)
+    if (!fixed.ok) throw new Error(fixed.says)
+    const again = educationAfterResume(fixed.education, readEducation(NURSE_CV, NOV_3))
+    expect(again.filter((l) => l.quote.startsWith('B.S. in Nursing'))).toEqual([])
+    const theirs = again.find((l) => l.source === 'PERSON')!
+    expect(theirs.year).toBe(2013)
+    expect(theirs.quote).toBe('I finished in 2013, not 2012.')
+  })
+
+  it('the education reading is rules only and calls no model', () => {
+    const src = readSource(`${process.cwd()}/src/lib/cv-reader.ts`, 'utf8')
+    expect(src).not.toMatch(/from '@\/lib\/(extract|model-boundary|anthropic)/)
+    expect(src).toContain('Rules only, and on purpose.')
+  })
+})

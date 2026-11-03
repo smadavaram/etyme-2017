@@ -1,5 +1,6 @@
 'use client'
 
+import { educationEmptySays, type EducationShown } from '@/lib/consultant-portfolio/education'
 import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
 import Link from 'next/link'
@@ -59,6 +60,8 @@ interface Consultant {
   keptBy?: 'FIRM' | 'THEM'
   /** Whether this firm has a listing for them, where its own words are kept. */
   listed?: boolean
+  /** The résumé's education lines, read only; null where the résumé was never read for them. */
+  education?: EducationShown[] | null
 }
 
 /** The firm's bench as Today and Ask Etyme count it (`benchAt`), and who was asked and has not answered. */
@@ -665,6 +668,30 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
               </div>
             ) : (
               <p className="text-sm text-etyme-muted">No skills listed</p>
+            )}
+          </div>
+
+          {/* Education, from the résumé: what the person's own résumé says,
+              each line with the line it came from. Read only here; the
+              person corrects it on their own page. Never a verdict. */}
+          <div>
+            <p className="eyebrow mb-2">Education, from the résumé</p>
+            {consultant.education && consultant.education.length > 0 ? (
+              <ul className="space-y-1.5">
+                {consultant.education.map((e, i) => (
+                  <li key={i} className="text-sm">
+                    <details>
+                      <summary className="cursor-pointer">
+                        {e.says}
+                        <span className="text-[12px] text-etyme-faint ml-1.5">{e.from}</span>
+                      </summary>
+                      <p className="text-[12px] text-etyme-muted mt-1 whitespace-pre-line">“{e.quote}”</p>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-etyme-muted">{educationEmptySays(consultant.education ?? null, 'FIRM')}</p>
             )}
           </div>
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { benchClosedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { educationShown } from '@/lib/consultant-portfolio/education'
 import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
 import { readProfileEdit } from '@/lib/consultant-portfolio/forms'
@@ -201,6 +202,9 @@ export async function GET(
         skills: profile.skills,
         location: profile.location,
         workAuth: profile.workAuth,
+        // The résumé's education lines, read only: the person corrects them
+        // on their own page, and this firm has no door to change them.
+        education: educationShown(profile.education, 'FIRM'),
         rateFloor: showCost ? profile.rateFloor : undefined,
         availableFrom: profile.availableFrom?.toISOString() ?? null,
         visibility: profile.visibility,

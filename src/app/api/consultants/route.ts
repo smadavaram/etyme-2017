@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { educationShown } from '@/lib/consultant-portfolio/education'
 import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
 import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
@@ -268,6 +269,9 @@ export async function GET(request: NextRequest) {
       location: read.location,
       notes: read.notes,
       own: read.own,
+      // The résumé's education lines, read only: the person corrects them
+      // on their own page, and this firm has no door to change them.
+      education: educationShown(p.education, 'FIRM'),
       // Where they stand against the one bench list, and who changes their record.
       standing: benchStanding({ onBench: onBench ? onBench.has(p.personId) : null, listingState: listing?.state ?? null }),
       keptBy,

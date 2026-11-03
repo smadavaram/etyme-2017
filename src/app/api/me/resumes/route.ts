@@ -6,6 +6,8 @@ import { plainDate } from '@/lib/consultant-portfolio'
 import {
   checkUpload, labelFor, mayUpload, visibleTo, lastOne, MAX_BYTES,
 } from '@/lib/resumes'
+import { readEducation } from '@/lib/cv-reader'
+import { recordResumeEducation } from '@/lib/consultant-portfolio/education-write'
 
 /**
  * GET    /api/me/resumes — every version, newest first
@@ -172,6 +174,15 @@ export async function POST(request: NextRequest) {
     })
   })
 
+  // The résumé's education lines, read by rules where the file is plain
+  // text (a PDF or Word file has no text reader here yet, so its lines
+  // are left as they were, and never-read stays never-read). Only onto a
+  // profile that exists: uploading a CV does not make somebody a profile.
+  if (isPlainText(file.name, file.type)) {
+    const profile = await prisma.consultantProfile.findUnique({ where: { personId }, select: { id: true } })
+    if (profile) await recordResumeEducation(profile.id, readEducation(bytes.toString('utf8')))
+  }
+
   void emit({
     type: 'resume.uploaded',
     companyId: caller.company?.id ?? null,
@@ -189,6 +200,10 @@ export async function POST(request: NextRequest) {
       message: `${verdict.reason} This is the one that goes out from now on.`,
     },
   })
+}
+
+function isPlainText(name: string, type: string): boolean {
+  return type === 'text/plain' || /\.txt$/i.test(name)
 }
 
 export async function PATCH(request: NextRequest) {

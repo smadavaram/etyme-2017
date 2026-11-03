@@ -258,3 +258,65 @@ describe('no consultant-facing screen refuses somebody for not being on a bench'
     }
   })
 })
+
+// ── Education, from the résumé (founder, 2026-11-03) ───────────────────
+
+import {
+  mayCorrectEducation, correctEducation, educationShown, readEducationCorrection,
+} from '@/lib/consultant-portfolio/education'
+
+const EDU_NOW = new Date('2026-11-03T12:00:00Z')
+const FROM_RESUME = [
+  { institution: 'University of Texas at Austin', qualification: 'B.S.', fieldOfStudy: 'Nursing', year: 2012,
+    quote: 'B.S. in Nursing, University of Texas at Austin, 2012', source: 'RESUME' },
+]
+const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+describe('education, from the résumé, on the person’s page and the firm’s', () => {
+  it('a firm reads the person’s education lines and never edits them', () => {
+    // The firm reads them, from both of its views of the person.
+    expect(src('src/app/api/consultants/route.ts')).toContain("education: educationShown(p.education, 'FIRM')")
+    expect(src('src/app/api/consultants/[id]/route.ts')).toContain("education: educationShown(profile.education, 'FIRM')")
+    expect(educationShown(FROM_RESUME, 'FIRM')![0]).toMatchObject({
+      says: 'B.S. in Nursing, University of Texas at Austin, 2012',
+      from: 'From the résumé',
+      quote: 'B.S. in Nursing, University of Texas at Austin, 2012',
+    })
+    // And nothing a firm sends can change them: only the person may.
+    expect(mayCorrectEducation({ callerPersonId: 'recruiter', profilePersonId: 'priya' }).ok).toBe(false)
+    expect(mayCorrectEducation({ callerPersonId: 'priya', profilePersonId: 'priya' }).ok).toBe(true)
+    for (const f of ['src/app/api/consultants/[id]/route.ts', 'src/lib/consultant-portfolio/forms.ts', 'src/lib/consultant-portfolio/firm-view.ts']) {
+      expect(src(f)).not.toMatch(/\beducation\s*[:=](?!\s*educationShown)/)
+    }
+    // The one door that corrects them is the person's own session.
+    expect(src('src/app/api/me/portfolio/route.ts')).toContain('correctEducation(p.education, read.correction, new Date())')
+  })
+
+  it('a person’s correction is kept as their own words, with the sentence as the quote', () => {
+    const done = correctEducation(FROM_RESUME, { index: 0, year: 2013, sentence: 'I finished in 2013, not 2012.' }, EDU_NOW)
+    if (!done.ok) throw new Error(done.says)
+    expect(done.education[0]).toMatchObject({
+      year: 2013, institution: 'University of Texas at Austin', source: 'PERSON',
+      quote: 'I finished in 2013, not 2012.', corrects: 'B.S. in Nursing, University of Texas at Austin, 2012', saidOn: '2026-11-03',
+    })
+    expect(educationShown(done.education, 'PERSON')![0].from).toBe('You said')
+  })
+
+  it('a correction says nothing without the person’s own sentence, and a year after this year is refused', () => {
+    expect(readEducationCorrection({ index: 0, year: 2013 }).ok).toBe(false)
+    const late = correctEducation(FROM_RESUME, { index: 0, year: 2030, sentence: 'I finish in 2030.' }, EDU_NOW)
+    expect(late).toEqual({ ok: false, says: 'A year of graduation reads between 1940 and 2026.', field: 'year' })
+  })
+
+  it('the person’s page shows the lines under “Education, from the résumé”, each quote on tap', () => {
+    const page = src('src/app/dashboard/my-page/page.tsx')
+    expect(page).toContain('title="Education, from the résumé"')
+    expect(page).toContain('<details>')
+    expect(src('src/app/dashboard/consultants/page.tsx')).toContain('Education, from the résumé')
+  })
+
+  it('a plain-text résumé uploaded is read for education onto a profile that already exists', () => {
+    const route = src('src/app/api/me/resumes/route.ts')
+    expect(route).toContain('recordResumeEducation(profile.id, readEducation(bytes.toString(\'utf8\')))')
+  })
+})

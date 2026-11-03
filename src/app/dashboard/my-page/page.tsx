@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { Lbl, Panel, LoadingState, ErrorState } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
+import type { EducationShown } from '@/lib/consultant-portfolio/education'
 
 /**
  * The screen where a consultant turns their own page on.
@@ -51,6 +52,9 @@ interface MyPage {
   intro: string | null
   writtenBy: string
   availableFrom: string | null
+  /** The résumé's education lines; null where the résumé was never read for them. */
+  education: EducationShown[] | null
+  educationNote: string | null
   preview: Preview | null
   modelAvailable: boolean
   note: string
@@ -75,6 +79,20 @@ export default function MyPagePage() {
   const [address, setAddress] = useState('')
   const [headline, setHeadline] = useState('')
   const [intro, setIntro] = useState('')
+  // The education line being corrected (its index), or 'new' to add one.
+  const [fixing, setFixing] = useState<number | 'new' | null>(null)
+  const [fix, setFix] = useState({ institution: '', qualification: '', fieldOfStudy: '', year: '', sentence: '' })
+
+  function openFix(at: number | 'new', line?: EducationShown) {
+    setFixing(at)
+    setFix({
+      institution: line?.institution ?? '',
+      qualification: line?.qualification ?? '',
+      fieldOfStudy: line?.fieldOfStudy ?? '',
+      year: line?.year != null ? String(line.year) : '',
+      sentence: '',
+    })
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -96,7 +114,7 @@ export default function MyPagePage() {
 
   useEffect(() => { load() }, [load])
 
-  async function send(path: string, method: string, payload?: unknown) {
+  async function send(path: string, method: string, payload?: unknown): Promise<boolean> {
     setBusy(true)
     setError(null)
     setFlash(null)
@@ -109,8 +127,10 @@ export default function MyPagePage() {
       const body = await readJson(res)
       setFlash(body.data?.message ?? body.data?.note ?? 'Saved.')
       await load()
+      return true
     } catch (e: any) {
       setError(e.message)
+      return false
     } finally {
       setBusy(false)
     }
@@ -144,6 +164,53 @@ export default function MyPagePage() {
   }
 
   const p = data.preview
+
+  function fixForm() {
+    const at = fixing
+    return (
+      <div className="mt-2 space-y-2 border border-etyme-rule rounded p-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label className="text-[12px] text-etyme-muted">School
+            <input className={`${field} mt-1`} value={fix.institution} onChange={(e) => setFix({ ...fix, institution: e.target.value })} />
+          </label>
+          <label className="text-[12px] text-etyme-muted">Degree
+            <input className={`${field} mt-1`} value={fix.qualification} placeholder="B.S., Diploma, MBA" onChange={(e) => setFix({ ...fix, qualification: e.target.value })} />
+          </label>
+          <label className="text-[12px] text-etyme-muted">Field of study
+            <input className={`${field} mt-1`} value={fix.fieldOfStudy} placeholder="Nursing" onChange={(e) => setFix({ ...fix, fieldOfStudy: e.target.value })} />
+          </label>
+          <label className="text-[12px] text-etyme-muted">Year you finished
+            <input className={`${field} mt-1`} value={fix.year} inputMode="numeric" placeholder="2012" onChange={(e) => setFix({ ...fix, year: e.target.value })} />
+          </label>
+        </div>
+        <label className="block text-[12px] text-etyme-muted">In your own words
+          <input className={`${field} mt-1`} value={fix.sentence} placeholder="I finished in 2013, not 2012." onChange={(e) => setFix({ ...fix, sentence: e.target.value })} />
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            className={primary}
+            disabled={busy || fix.sentence.trim().length < 4}
+            onClick={async () => {
+              const saved = await send('/api/me/portfolio', 'PATCH', {
+                education: {
+                  ...(typeof at === 'number' ? { index: at } : {}),
+                  institution: fix.institution,
+                  qualification: fix.qualification,
+                  fieldOfStudy: fix.fieldOfStudy,
+                  year: fix.year.trim() === '' ? null : fix.year.trim(),
+                  sentence: fix.sentence,
+                },
+              })
+              if (saved) setFixing(null)
+            }}
+          >
+            Save
+          </button>
+          <button className={quiet} disabled={busy} onClick={() => setFixing(null)}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-3xl">
@@ -265,6 +332,41 @@ export default function MyPagePage() {
                     : 'Written from your work by rule.'}
             </span>
           </div>
+        </Panel>
+
+        {/* ── Education, from the résumé ────────────────────────────── */}
+        <Panel className="mb-5"
+          title="Education, from the résumé"
+          subtitle="What your résumé says, line by line. Tap a line to see the words it was read from. If a line is wrong, correct it in your own words. A firm can read these lines and cannot change them."
+        >
+          {data.education && data.education.length > 0 ? (
+            <ul className="space-y-3">
+              {data.education.map((e, i) => (
+                <li key={i}>
+                  <details>
+                    <summary className="cursor-pointer text-[14px] text-etyme-ink">
+                      {e.says}
+                      <span className="text-[12px] text-etyme-faint ml-1.5">{e.from}</span>
+                    </summary>
+                    <p className="text-[12px] text-etyme-muted mt-1 whitespace-pre-line">“{e.quote}”</p>
+                  </details>
+                  {fixing !== i && (
+                    <button className="text-[12px] text-etyme-action hover:underline mt-1" onClick={() => openFix(i, e)}>
+                      Correct this line
+                    </button>
+                  )}
+                  {fixing === i && fixForm()}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-etyme-faint">{data.educationNote}</p>
+          )}
+          {fixing === 'new' ? fixForm() : (
+            <button className={`${quiet} mt-4`} disabled={busy} onClick={() => openFix('new')}>
+              Add a line
+            </button>
+          )}
         </Panel>
 
         {/* ── What a stranger sees ─────────────────────────────────── */}

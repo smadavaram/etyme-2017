@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db'
 import { checkSlug, checkBioEdit, bioModelAvailable, buildPortfolio } from '@/lib/consultant-portfolio'
 import { factsFor, addressTaken, suggestAddress, ownPageFor, ensureOwnPage } from '@/lib/portfolio-data'
 import { readOwnSkills } from '@/lib/bench-filter'
+import {
+  correctEducation, educationEmptySays, educationShown, readEducationCorrection,
+} from '@/lib/consultant-portfolio/education'
 
 /**
  * GET   /api/me/portfolio — their page, and whether it is on
@@ -66,6 +69,7 @@ export async function GET(_request: NextRequest) {
     bioIntro: null as string | null,
     bioWrittenBy: null as string | null,
     availableFrom: null as Date | null,
+    education: null as unknown,
   }
 
   // What a stranger would see. Shown whether the page is on or off,
@@ -92,6 +96,10 @@ export async function GET(_request: NextRequest) {
       intro: p.bioIntro,
       writtenBy: p.bioIntro === null ? 'NOT_YET' : p.bioWrittenBy ?? 'PERSON',
       availableFrom: p.availableFrom?.toISOString().slice(0, 10) ?? null,
+      // What their résumé says about their education, each line with the
+      // line it was read from, and theirs to correct. Never a verdict.
+      education: educationShown(p.education, 'PERSON'),
+      educationNote: educationEmptySays(educationShown(p.education, 'PERSON'), 'PERSON'),
       // Their own words win over anything written for them, here exactly
       // as they do on the page itself.
       preview: preview && {
@@ -214,6 +222,23 @@ export async function PATCH(request: NextRequest) {
   if (skills?.ok) {
     data.skills = skills.skills
     said.push(skills.skills.length ? `Your skills read: ${skills.skills.join(', ')}.` : 'Your skills are cleared.')
+  }
+
+  // ── Their education ────────────────────────────────────────────────
+  // The person corrects a line the résumé got wrong, or adds one it
+  // missed, in a sentence kept as the quote (source PERSON). Only here,
+  // on their own session: a firm's route has no door to these lines.
+  if (body.education !== undefined) {
+    const read = readEducationCorrection(body.education)
+    if (!read.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: read.says, field: read.field } }, { status: 422 })
+    }
+    const done = correctEducation(p.education, read.correction, new Date())
+    if (!done.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: done.says, field: done.field } }, { status: 422 })
+    }
+    data.education = done.education
+    said.push(done.says)
   }
 
   if (typeof body.availableFrom === 'string') {
