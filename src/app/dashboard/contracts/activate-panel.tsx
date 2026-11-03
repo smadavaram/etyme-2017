@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Field, FormMessage, SubmitButton, Textarea } from '@/components/ui/form'
 import { activateBody } from './activate-body'
-import { viewBefore, viewAfterRefusal, type PanelView, type StartPreflight } from './activate-view'
+import { viewBefore, viewAfterRefusal, startedSays, startedKey, keptStarted, type PanelView, type StartPreflight } from './activate-view'
 
 /**
  * Activate, and Activate with a reason, as real buttons.
@@ -16,7 +16,7 @@ import { viewBefore, viewAfterRefusal, type PanelView, type StartPreflight } fro
  * own words. What it posts is `activateBody`, the one the field-contract
  * test fills in.
  */
-export function ActivatePanel({ contractId, onDone }: { contractId: string; onDone?: () => void }) {
+export function ActivatePanel({ contractId, onDone }: { contractId: string; onDone?: (says: string) => void }) {
   const [view, setView] = useState<PanelView>({ button: null, says: null, box: null })
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -25,6 +25,13 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
 
   useEffect(() => {
     let live = true
+    // A start pressed a moment ago, before the page reloaded behind it:
+    // its sentence stays on the screen, read once.
+    try {
+      const kept = keptStarted(window.sessionStorage.getItem(startedKey(contractId)), Date.now())
+      window.sessionStorage.removeItem(startedKey(contractId))
+      if (kept) { setDone(kept); return () => { live = false } }
+    } catch { /* storage refused: nothing kept */ }
     ;(async () => {
       try {
         const res = await fetch(`/api/contracts/${contractId}/activate`)
@@ -52,9 +59,17 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
         setView(viewAfterRefusal(body.error))
         return
       }
-      setDone(body.data?.message ?? 'Started.')
+      const says = startedSays(body.data?.message)
+      setDone(says)
       setView({ button: null, says: null, box: null })
-      ;(onDone ?? (() => window.location.reload()))()
+      // The route's sentence stays on the screen while the page behind it
+      // reads the new state: kept for the reload where the page reloads,
+      // and the panel stays mounted where a list refreshes around it.
+      if (onDone) onDone(says)
+      else {
+        try { window.sessionStorage.setItem(startedKey(contractId), JSON.stringify({ says, at: Date.now() })) } catch { /* not kept */ }
+        window.location.reload()
+      }
     } catch {
       setUnreached('The server could not be reached. Check your connection and try again.')
     } finally {
@@ -63,7 +78,9 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
   }
 
   if (done) return <FormMessage tone="ok">{done}</FormMessage>
-  if (!view.button) return null
+  if (!view.button && !view.says) return null
+  // Who starts this placement, said to a seat that does not, and no button.
+  if (!view.button) return <p className="card mt-3 text-[13px] leading-relaxed text-etyme-muted">{view.says}</p>
 
   return (
     <div className="card mt-3 space-y-3">

@@ -8,7 +8,7 @@ import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
 import { siteSay, startSays } from './words'
 import { startPapers } from './papers'
-import { gateRefusal, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
+import { gateRefusal, whoMay, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
 import { startWarningVerdict, startIdentityWarning, type StartWarning } from '@/lib/money/start-warnings'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 
@@ -92,8 +92,14 @@ export async function GET(
     })
     return NextResponse.json({ error: refused.error }, { status: refused.status })
   }
+  // Who starts a placement at the caller's kind of firm, said beside every
+  // answer, so the placement page can name them ("…then HR activates").
+  const who = whoMay('activate', caller.company?.kind)
   if (refused) {
-    return NextResponse.json({ data: { id, state: contract.state, may: false, says: refused.error.message, terms: null, papers: null } })
+    // `code` beside `may`: the panel draws the sentence only for a seat
+    // whose role does not start placements (FORBIDDEN). A placement in a
+    // state a start does not move from says nothing on a screen.
+    return NextResponse.json({ data: { id, state: contract.state, may: false, code: refused.error.code, says: refused.error.message, who, terms: null, papers: null } })
   }
 
   const terms = await termsGate(contract.id)
@@ -107,7 +113,9 @@ export async function GET(
       id,
       state: contract.state,
       may: true,
+      code: null,
       says: null,
+      who,
       terms: terms.blocks ? { blocks: true, says: terms.says } : null,
       papers: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
     },

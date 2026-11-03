@@ -12,7 +12,7 @@
  */
 
 import { contractSide, type ContractSide } from '@/lib/resolve-client-company'
-import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
+import { hasPermission, askTheDesk, desksHolding, type Permission } from '@/lib/permissions'
 import type { CallerContext } from '@/lib/api-context'
 import { partiesSay } from './words'
 
@@ -108,4 +108,14 @@ export function gateRefusal(
     }
   }
   return null
+}
+
+/**
+ * The roles that may press this act at this kind of firm, by their own
+ * names ("Resource Manager", "Contract Manager"), read off the shipped
+ * role set the refusal's own sentence reads. The placement page names
+ * them in "…then HR activates".
+ */
+export function whoMay(action: Action, kind: string | null | undefined): string[] {
+  return desksHolding(NEEDS[action], kind)
 }

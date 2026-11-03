@@ -1065,9 +1065,11 @@ function ContractDetailDrawer({
                   )}
                 </div>
                 {/* Activate is drawn by the start's own route, for the seat it
-                    will take, with the reason box only where a reason clears it. */}
+                    will take, with the reason box only where a reason clears it.
+                    After a start the drawer stays open on the route's own
+                    sentence while the list refreshes behind it. */}
                 {canActivate && tab === 'sell' && (
-                  <ActivatePanel contractId={contract.id} onDone={() => { onRefresh(); onClose() }} />
+                  <ActivatePanel contractId={contract.id} onDone={(says) => { onToast(says, 'success'); onRefresh() }} />
                 )}
               </div>
             </>

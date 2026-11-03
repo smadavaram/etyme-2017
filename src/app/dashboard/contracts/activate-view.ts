@@ -19,12 +19,16 @@ import { reasonAsked } from '@/lib/award/reason-asked'
 export interface StartPreflight {
   may: boolean
   state: string
+  /** Why `may` is false, as the route's code: FORBIDDEN, INVALID_TRANSITION. Null where it may. */
+  code?: string | null
   says: string | null
+  /** The roles that start a placement at this kind of firm. */
+  who?: string[]
   terms: { blocks: boolean; says: string | null } | null
   papers: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null } | null
 }
 
-/** What the panel draws. Nothing at all where `button` is null. */
+/** What the panel draws. Nothing at all where both `button` and `says` are null. */
 export interface PanelView {
   /** The button's words, or null where no button is drawn. */
   button: 'Activate' | 'Activate with a reason' | null
@@ -38,7 +42,13 @@ const NOTHING: PanelView = { button: null, says: null, box: null }
 
 /** Before a press: the route's own verdict on this seat and these papers. */
 export function viewBefore(pre: StartPreflight | null): PanelView {
-  if (!pre || !pre.may) return NOTHING
+  if (!pre) return NOTHING
+  // A seat whose role does not start placements reads who does, and no
+  // button (the release walk of 2026-11-03, fault D1: it read "…or
+  // activate with a reason" with nothing to press and nobody named). Any
+  // other refusal, a placement already started among them, draws nothing:
+  // its text is the route's, not a sentence for a screen.
+  if (!pre.may) return pre.code === 'FORBIDDEN' && pre.says ? { button: null, says: pre.says, box: null } : NOTHING
   // The terms first, as the press asks them first: a block, so no box.
   if (pre.terms?.blocks) return { button: 'Activate', says: pre.terms.says, box: null }
   const p = pre.papers
@@ -72,4 +82,32 @@ export function viewAfterRefusal(error: unknown): PanelView {
     ? (error as { fix: string }).fix
     : null
   return { button: 'Activate', says: fix && !message.includes(fix) ? `${message} ${fix}` : message, box: null }
+}
+
+/**
+ * What the panel says after a start, kept across the page's reload so the
+ * route's own sentence is not lost (the release walk of 2026-11-03, fault
+ * D2: the page reloaded at once and only the header said it happened).
+ */
+export function startedSays(message: string | null | undefined): string {
+  const m = (message ?? '').trim()
+  return m ? `Contract activated. ${m}` : 'Contract activated.'
+}
+
+/** The key the sentence is kept under in the browser, one per contract. */
+export const startedKey = (contractId: string) => `etyme:started:${contractId}`
+
+/** How long a kept sentence is shown after the reload: a minute, then it is gone. */
+export const STARTED_KEPT_MS = 60_000
+
+/** The kept sentence, where it was written less than a minute ago; null otherwise. */
+export function keptStarted(raw: string | null, now: number): string | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw) as { says?: unknown; at?: unknown }
+    if (typeof v.says !== 'string' || typeof v.at !== 'number') return null
+    return now - v.at >= 0 && now - v.at < STARTED_KEPT_MS ? v.says : null
+  } catch {
+    return null
+  }
 }

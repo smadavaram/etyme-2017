@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { gateRefusal, type GateContract } from '@/app/api/contracts/[id]/activate/gate'
-import { viewBefore, viewAfterRefusal, type StartPreflight } from '@/app/dashboard/contracts/activate-view'
+import { gateRefusal, whoMay, type GateContract } from '@/app/api/contracts/[id]/activate/gate'
+import { viewBefore, viewAfterRefusal, startedSays, keptStarted, STARTED_KEPT_MS, type StartPreflight } from '@/app/dashboard/contracts/activate-view'
 import { startIdentityWarning, startWarningVerdict } from '@/lib/money/start-warnings'
 
 /**
@@ -79,6 +79,47 @@ describe('the Activate button on a placement', () => {
     expect(panel).toMatch(/viewAfterRefusal\(body\.error\)/)
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
     expect(page).toMatch(/<ActivatePanel contractId=\{contract\.id\}/)
+  })
+})
+
+describe('a seat that does not start placements, and the sentence after a start (release walk, 2026-11-03)', () => {
+  it('a seat whose role does not start placements reads who does, with no button', () => {
+    const says = gateRefusal(seat('brightmoor', ['timesheets.read']), contract, 'activate')!.error.message
+    expect(says).toMatch(/^Starting a placement is done by .+ at Brightmoor Staffing/)
+    const v = viewBefore({ may: false, state: 'DRAFT', code: 'FORBIDDEN', says, terms: null, papers: null })
+    expect(v).toEqual({ button: null, says, box: null })
+    // The panel draws a sentence with no button, where it used to draw nothing.
+    const panel = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
+    expect(panel).toContain('if (!view.button && !view.says) return null')
+  })
+
+  it('a placement already started draws nothing, so the route’s state words never reach a screen', () => {
+    const r = gateRefusal(seat('brightmoor', ['assignments.write']), { ...contract, state: 'IN_PROGRESS' }, 'activate')!
+    expect(viewBefore({ may: false, state: 'IN_PROGRESS', code: r.error.code, says: r.error.message, terms: null, papers: null }))
+      .toEqual({ button: null, says: null, box: null })
+  })
+
+  it('the start’s route names the roles that start a placement at the reader’s kind of firm, for the placement page’s line', () => {
+    const who = whoMay('activate', 'VENDOR')
+    expect(who.length).toBeGreaterThan(0)
+    expect(who).not.toContain('Owner')
+    const route = readFileSync(join(process.cwd(), 'src/app/api/contracts/[id]/activate/route.ts'), 'utf8')
+    expect(route).toContain("const who = whoMay('activate', caller.company?.kind)")
+    expect(route).toMatch(/may: false, code: refused\.error\.code, says: refused\.error\.message, who,/)
+  })
+
+  it('after Activate the route’s own sentence stays on the screen, across the page’s reload, for a minute', () => {
+    expect(startedSays('Rajesh Iyer starts today at Northbend Athletic.')).toBe('Contract activated. Rajesh Iyer starts today at Northbend Athletic.')
+    expect(startedSays(null)).toBe('Contract activated.')
+    const raw = JSON.stringify({ says: 'Contract activated. Rajesh Iyer starts today.', at: 1_000 })
+    expect(keptStarted(raw, 1_000 + 5_000)).toBe('Contract activated. Rajesh Iyer starts today.')
+    expect(keptStarted(raw, 1_000 + STARTED_KEPT_MS)).toBeNull()
+    expect(keptStarted('not json', 0)).toBeNull()
+    const panel = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
+    expect(panel).toMatch(/sessionStorage\.setItem\(startedKey\(contractId\)/)
+    // The contracts drawer stays open on the sentence while the list refreshes behind it.
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
+    expect(page).toContain("onDone={(says) => { onToast(says, 'success'); onRefresh() }}")
   })
 })
 
