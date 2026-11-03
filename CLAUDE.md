@@ -5240,18 +5240,34 @@ whole check. So:
   degree shown as verified to the next client is the first piece of
   the moat said in "Tenure is the moat": one person's papers across
   every supplier, which no VMS and no supplier can produce.
-- **A named "fraud module" is not built and nothing is priced** (the
-  founder's question, tested against the five questions the same
-  hour): the checks go into the record for everybody, called
-  verification, because trust is why they buy, not an add-on, and a
-  module aimed at suppliers breaks neutrality. The verdict stays the
-  provider's; Etyme says only what the person's own papers say against
-  each other. The paid piece, if one comes after the first paying
-  client, is ordering the provider's check through Etyme with the
-  verdict coming back on its own. And the proxy-interview case gets one
-  question, not a module: at the start the hiring manager confirms the
+- **Candidate and supplier fraud: collect and forward, and say what the
+  record itself can see. Corrected by the founder the same hour:** the
+  "fraud module" he asked about was never about money; it is **a wrong
+  candidate or a wrong supplier**, a proxy who is not the person
+  interviewed, a borrowed identity, a padded résumé, a shell firm, a
+  borrowed certificate. The rule to start with, in his words: *"At this
+  point we collect and forward to background check company to
+  verify."* So the verdict on a person is the background-check
+  provider's and the verdict on a firm is Procurement's and HR's
+  qualification (references, the D&B report, the sanctions and
+  litigation screening, the insurance certificate, good standing), both
+  recorded verbatim with who said it, reference and date; Etyme renders
+  neither. What Etyme itself says, because it is the only party that
+  can see it, is what the record shows against itself: a degree year
+  the résumé contradicts, a name on a paper that is not the person's,
+  the same file filed for two people, one person arriving twice through
+  two suppliers (the Duplicate check page, `/dashboard/identity`, which
+  confirms and never merges), a firm's tax number already on another
+  firm, an insurance certificate whose dates do not cover the start,
+  and the one question at the start: the hiring manager confirms the
   person who started is the person interviewed, yes or no on the start
-  card, recorded with who said it.
+  card, recorded with who said it. Each is a sentence to the role that
+  decides, with one click to send the package to the provider; none is
+  a verdict and none blocks except where the law blocks. It is called
+  verification on every screen and is in the record for everybody;
+  whether any of it is priced is the founder's decision when prices
+  are set, and nothing a supplier reads says "fraud" or reads as aimed
+  at it.
 - **Built in the wave after the 2026-11-03 deploy**, beside the
   work-country piece: the degree's fields and the rules (regulatory,
   with the schema request to the architect for the four fields on the
