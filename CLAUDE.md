@@ -2786,7 +2786,14 @@ start" on a past day, the bill picker naming jobs (demand); Add
 consultant offered to a delivery manager (supply). The three pieces
 decided this day (work country, the degree, setup as a conversation)
 start on this source, the setup conversation on the founder's read of
-https://claude.ai/artifact/3VnXSMPHtFu2uXhSZR1HmM.
+https://claude.ai/artifact/3VnXSMPHtFu2uXhSZR1HmM. **Smoke on
+production after the deploy:** health says "Serving 3a35d888 from
+main" with the database reachable and the schema there, so the four
+columns landed; the home page, the demo, all four doors
+(`/for/program-offices`, `/for/integrators`, `/for/suppliers`,
+`/for/contractors`), documentation, about, contact, security, privacy,
+terms, the DPA, sign-up and `/site/tapin` answer 200; the inbound
+email door answers 404 to a POST.
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
