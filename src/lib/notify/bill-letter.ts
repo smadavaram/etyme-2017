@@ -160,17 +160,42 @@ function whoFor(people: string[]): string | null {
   return `${names.length} people`
 }
 
+// ── Whose word: bill or invoice receipt ───────────────────────────────
+//
+// The party who issues a document names it (CLAUDE.md, "Bill, invoice
+// receipt, payroll"). What a firm issues upward to whoever pays it is a
+// bill; what it receives from below is an invoice receipt, and in a
+// sentence the sender's own document is "its invoice". The second screen
+// walk (2026-11-03) found a client's AP clerk greeted with "Pinnacle
+// Resourcing's bill IN_E5XIVH_004": the supplier's word read on the
+// payer's seat. One reader, so a notice, the greeting and a chip say the
+// party's word.
+
+/** Which end of the document the reader stands at. */
+export type MoneyDocSide = 'ISSUES' | 'RECEIVES'
+
+/** The list and heading word: "bill" to the firm that sends it, "invoice receipt" to the firm that pays it. */
+export function moneyDocWord(side: MoneyDocSide): 'bill' | 'invoice receipt' {
+  return side === 'ISSUES' ? 'bill' : 'invoice receipt'
+}
+
+/** The sender's own document named in a sentence: "Tapin's bill IN-1042" to Tapin, "Tapin's invoice IN-1042" to the payer. */
+export function sendersDocument(supplierName: string, number: string, side: MoneyDocSide): string {
+  return `${supplierName}’s ${side === 'ISSUES' ? 'bill' : 'invoice'} ${number}`
+}
+
 /**
- * "Tapin's bill IN-1042 for Helena Marsh, October 2026: 80 hours,
- * $11,600.00, due Dec 15, 2026" — the bill in one line, in the order an
- * AP clerk reads one. The subject of the letter, and its first sentence.
+ * "Tapin's invoice IN-1042 for Helena Marsh, October 2026: 80 hours,
+ * $11,600.00, due Dec 15, 2026" — the supplier's document in one line, in
+ * the order an AP clerk reads one, said to the payer. The subject of the
+ * letter, and its first sentence.
  */
 export function billLine(f: BillFacts): string {
   const who = whoFor(f.people)
   const what = [f.hours > 0 ? hoursSaid(f.hours) : null, billTotal(f.total, f.currency), `due ${formatDay(f.dueAt)}`]
     .filter(Boolean)
     .join(', ')
-  return `${f.supplierName}’s bill ${f.number}${who ? ` for ${who}` : ''}, ${billPeriod(f.periodStart, f.periodEnd)}: ${what}`
+  return `${sendersDocument(f.supplierName, f.number, 'RECEIVES')}${who ? ` for ${who}` : ''}, ${billPeriod(f.periodStart, f.periodEnd)}: ${what}`
 }
 
 function count(n: number, one: string, many: string): string {
@@ -232,7 +257,7 @@ export function billLetter(i: {
       i.url,
       `You do not need an account. The link works until ${formatDay(i.expiresAt)}.`,
       `You are getting this because ${f.supplierName} recorded you as the person at ${f.clientName} ` +
-        `who receives its bills. If that is wrong, tell ${tell}.`,
+        `who receives its invoices. If that is wrong, tell ${tell}.`,
     ),
   }
 }
@@ -244,7 +269,7 @@ export function billLetter(i: {
  */
 export function billNotice(f: BillFacts): { title: string; body: string } {
   return {
-    title: `${f.supplierName}’s bill ${f.number}: ${billTotal(f.total, f.currency)}, due ${formatDay(f.dueAt)}`,
+    title: `${sendersDocument(f.supplierName, f.number, 'RECEIVES')}: ${billTotal(f.total, f.currency)}, due ${formatDay(f.dueAt)}`,
     body: [
       `${billLine(f)}.`,
       builtFrom(f),
@@ -493,12 +518,12 @@ export function billPageView(i: BillPageInput, now: Date): BillPageView {
 
 // ── Refusals ──────────────────────────────────────────────────────────
 
-export const BILL_LINK_NOT_OURS = 'This link is not one of ours, or the bill it named is gone. Ask whoever sent it for a new one.'
+export const BILL_LINK_NOT_OURS = 'This link is not one of ours, or the invoice it named is gone. Ask whoever sent it for a new one.'
 
 export function billLinkClosedSays(i: { number: string; supplierName: string; expiresAt: Date }): string {
-  return `This link to bill ${i.number} ran out on ${formatDay(i.expiresAt)}, ${BILL_LINK_DAYS_AFTER_DUE} days after the bill was due. Ask ${i.supplierName} for a copy.`
+  return `This link to invoice ${i.number} ran out on ${formatDay(i.expiresAt)}, ${BILL_LINK_DAYS_AFTER_DUE} days after it was due. Ask ${i.supplierName} for a copy.`
 }
 
 export function billCancelledSays(i: { number: string; supplierName: string }): string {
-  return `${i.supplierName} cancelled bill ${i.number}, so there is nothing to pay on it.`
+  return `${i.supplierName} cancelled invoice ${i.number}, so there is nothing to pay on it.`
 }

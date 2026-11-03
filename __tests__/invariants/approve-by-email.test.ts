@@ -7,7 +7,7 @@ import {
 } from '@/app/api/timesheets/approval-by-email'
 import {
   billLetter, billNotice, billLine, builtFrom, billLinkToken, readBillLinkToken, billLinkExpiresAt,
-  billLinkOpen, billPageView, billSentSays, lastFour, BILL_LINK_DAYS_AFTER_DUE,
+  billLinkOpen, billLinkClosedSays, billCancelledSays, billPageView, billSentSays, lastFour, BILL_LINK_DAYS_AFTER_DUE,
   type BillFacts, type BillDelivery, type BillPageInput,
 } from '@/lib/notify/bill-letter'
 import { sign } from '@/lib/signed-link'
@@ -320,7 +320,7 @@ describe('a bill, sent to the firm that pays it', () => {
   const words = (t: string) => t.split(/\s+/).filter(Boolean).length
 
   it('the bill letter opens on the bill itself: whose, which, for whom, which month, how many hours, how much and when it is due', () => {
-    expect(billLine(BILL)).toBe('Tapin’s bill IN-1042 for Helena Marsh, October 2026: 80 hours, $11,600.00, due Dec 15, 2026')
+    expect(billLine(BILL)).toBe('Tapin’s invoice IN-1042 for Helena Marsh, October 2026: 80 hours, $11,600.00, due Dec 15, 2026')
     const l = billLetter({ facts: BILL, contactName: 'Dana Whitfield', url: BILL_URL, expiresAt: billLinkExpiresAt(BILL.dueAt), sender: { name: 'Ana Ruiz', email: 'ana@tapin.test' } })
     expect(l.subject).toBe(billLine(BILL))
     expect(l.body.split('\n\n')[0]).toBe('Dana,')
@@ -332,7 +332,7 @@ describe('a bill, sent to the firm that pays it', () => {
     expect(l.body).toContain('It is built from 2 weeks Northbend Athletic signed.')
     expect(l.body.match(/https?:\/\//g)).toHaveLength(1)
     expect(l.body).toContain('You do not need an account. The link works until Mar 15, 2027.')
-    expect(l.body).toContain('Tapin recorded you as the person at Northbend Athletic who receives its bills. If that is wrong, tell Ana Ruiz at Tapin (ana@tapin.test).')
+    expect(l.body).toContain('Tapin recorded you as the person at Northbend Athletic who receives its invoices. If that is wrong, tell Ana Ruiz at Tapin (ana@tapin.test).')
     expect(words(l.body)).toBeGreaterThanOrEqual(60)
     expect(words(l.body)).toBeLessThanOrEqual(120)
     expect(l.body).not.toMatch(/\bAI\b|platform|powerful|seamless|sorry|apolog/i)
@@ -346,9 +346,23 @@ describe('a bill, sent to the firm that pays it', () => {
 
   it('the notice to a client on Etyme opens the bill inside Etyme and carries no link a stranger could open', () => {
     const n = billNotice(BILL)
-    expect(n.title).toBe('Tapin’s bill IN-1042: $11,600.00, due Dec 15, 2026')
+    expect(n.title).toBe('Tapin’s invoice IN-1042: $11,600.00, due Dec 15, 2026')
     expect(n.body).toContain('It is built from 2 weeks Northbend Athletic signed.')
     expect(n.body).not.toMatch(/https?:\/\//)
+  })
+
+  it('a client’s greeting says invoice receipt for what a supplier sent, and a supplier’s says bill for what it sends', async () => {
+    const { moneyDocWord, sendersDocument } = await import('@/lib/notify/bill-letter')
+    // The second screen walk (2026-11-03): Northbend's AP clerk was greeted with "Pinnacle Resourcing’s bill IN_E5XIVH_004".
+    expect(moneyDocWord('RECEIVES')).toBe('invoice receipt')
+    expect(moneyDocWord('ISSUES')).toBe('bill')
+    expect(sendersDocument('Pinnacle Resourcing', 'IN_E5XIVH_004', 'RECEIVES')).toBe('Pinnacle Resourcing’s invoice IN_E5XIVH_004')
+    expect(sendersDocument('Tapin', 'IN-1042', 'ISSUES')).toBe('Tapin’s bill IN-1042')
+    // Every line the payer reads, the notice the greeting lists among them, names the supplier's document as its invoice.
+    const n = billNotice(BILL)
+    for (const said of [n.title, n.body, billLine(BILL)]) expect(said).not.toMatch(/’s bill\b/)
+    expect(billLinkClosedSays({ number: 'IN-1042', supplierName: 'Tapin', expiresAt: new Date('2027-03-15T00:00:00Z') })).not.toMatch(/\bbill\b/)
+    expect(billCancelledSays({ number: 'IN-1042', supplierName: 'Tapin' })).toBe('Tapin cancelled invoice IN-1042, so there is nothing to pay on it.')
   })
 
   it('the bill link names one bill and one address, and cannot be replayed as any other link', () => {

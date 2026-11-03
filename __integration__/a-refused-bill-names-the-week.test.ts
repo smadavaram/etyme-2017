@@ -382,7 +382,7 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
 
     const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_AP }, select: { id: true } })
     const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: t.draft.id } })
-    expect(notice.title).toContain(`Brightmoor Staffing’s bill ${t.draft.number}`)
+    expect(notice.title).toContain(`Brightmoor Staffing’s invoice ${t.draft.number}`)
 
     // Brightmoor's Bills page says so on the row.
     as('world-brightmoor-finance@demo.etyme.local')

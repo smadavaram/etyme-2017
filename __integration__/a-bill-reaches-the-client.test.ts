@@ -115,9 +115,9 @@ describe('a bill reaches the firm that pays it', () => {
 
     expect(mail).toHaveLength(1)
     expect(mail[0].to).toBe(PAYABLES)
-    expect(mail[0].subject).toBe('Brightmoor Staffing’s bill IN-HARROW-202610 for Ines Okafor, October 2026: 80 hours, $11,600.00, due Dec 15, 2026')
+    expect(mail[0].subject).toBe('Brightmoor Staffing’s invoice IN-HARROW-202610 for Ines Okafor, October 2026: 80 hours, $11,600.00, due Dec 15, 2026')
     expect(mail[0].text).toContain('It is built from 2 weeks Harrow Lane Foods signed.')
-    expect(mail[0].text).toContain('Brightmoor Staffing recorded you as the person at Harrow Lane Foods who receives its bills.')
+    expect(mail[0].text).toContain('Brightmoor Staffing recorded you as the person at Harrow Lane Foods who receives its invoices.')
     // Where to pay is on the page, behind the link; no account digits travel in an email.
     expect(mail[0].text).not.toContain('4421')
 
@@ -183,14 +183,14 @@ describe('a bill reaches the firm that pays it', () => {
     const closed = await openBillLink(token, new Date('2027-03-15T00:00:01.000Z'))
     expect(closed).toEqual({
       ok: false, status: 410, code: 'LINK_EXPIRED',
-      says: 'This link to bill IN-HARROW-202610 ran out on Mar 15, 2027, 90 days after the bill was due. Ask Brightmoor Staffing for a copy.',
+      says: 'This link to invoice IN-HARROW-202610 ran out on Mar 15, 2027, 90 days after it was due. Ask Brightmoor Staffing for a copy.',
     })
     expect(await prisma.accessLog.count({ where: { subjectId: it_.worker, action: 'BILL_LINK_VIEW', allowed: false, actorCompanyId: it_.harrow } })).toBe(1)
     expect((await openBillLink(token, new Date('2027-03-14T23:59:00.000Z'))).ok).toBe(true)
 
     const forged = await getBill(token.slice(0, -3) + 'abc')
     expect(forged.status).toBe(404)
-    expect(forged.body.error.message).toBe('This link is not one of ours, or the bill it named is gone. Ask whoever sent it for a new one.')
+    expect(forged.body.error.message).toBe('This link is not one of ours, or the invoice it named is gone. Ask whoever sent it for a new one.')
   })
 
   it('a bill sent to a client on Etyme reaches the seats that record payments there, in the app and on their channel, and no stranger is emailed a link', async () => {
@@ -209,7 +209,7 @@ describe('a bill reaches the firm that pays it', () => {
 
     const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-nike-ap@demo.etyme.local' }, select: { id: true } })
     const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: seeded.id } })
-    expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s bill ${seeded.number}: \\$`))
+    expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s invoice ${seeded.number}: \\$`))
     expect(notice.body).not.toMatch(/https?:\/\//)
     expect((notice.data as { href: string }).href).toBe(`/dashboard/invoices/${seeded.id}`)
 
@@ -273,7 +273,7 @@ describe('a bill reaches the firm that pays it', () => {
     expect(wrote.first).toMatchObject({ written: 1, payerId: northbend.id, why: null })
     expect(wrote.again.written, 'written once in a bill’s life').toBe(0)
     const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: kept.id } })
-    expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s bill ${kept.number}: \\$`))
+    expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s invoice ${kept.number}: \\$`))
     expect(notice.deliveryState).toBe('PENDING')
 
     // After the commit, the sending delivers that notice by email or Teams and writes no second one.

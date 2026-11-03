@@ -814,7 +814,7 @@ describe('a bill sent from the Bills page reaches the person the supplier record
     expect(out.body.data.delivery).toBe(says)
     expect(mail).toHaveLength(1)
     expect(mail[0].to).toBe(PAYABLES)
-    expect(mail[0].subject).toContain(`Brightmoor Staffing’s bill ${h.number} for Ines Okafor`)
+    expect(mail[0].subject).toContain(`Brightmoor Staffing’s invoice ${h.number} for Ines Okafor`)
     const event = await prisma.event.findFirstOrThrow({ where: { subjectType: 'Invoice', subjectId: h.bill, type: 'invoice.submitted' } })
     expect(event.actorPersonId).toBe(h.owner)
 

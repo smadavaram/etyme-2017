@@ -41,7 +41,7 @@ export default function BillPage() {
       <div className="mx-auto max-w-[720px]">
         <EtymeLogo />
 
-        {!view && !closed && <p className="mt-8 text-[13px] text-etyme-muted">Loading the bill…</p>}
+        {!view && !closed && <p className="mt-8 text-[13px] text-etyme-muted">Loading the invoice…</p>}
 
         {closed && (
           <section className="panel mt-8 space-y-2">
@@ -127,7 +127,7 @@ export default function BillPage() {
             {view.recordOnEtyme && (
               <section className="panel space-y-2">
                 <p className="text-[14px] leading-relaxed">
-                  {view.clientName} is on Etyme. Sign in to record the payment against this bill.
+                  {view.clientName} is on Etyme. Sign in to record the payment against this invoice.
                 </p>
                 <a className="btn-primary inline-block" href={view.recordOnEtyme}>Record on Etyme</a>
               </section>
