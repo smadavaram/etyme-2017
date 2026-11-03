@@ -3128,6 +3128,59 @@ runtime that every act's downstream record exists, the model on behind
 the deterministic checks (the founder's key), and the fifty-question
 set graded against the ledger in every release pass.
 
+**Built in his order the same day, release pass 34 fully green on
+f2f342723 (type check, 13,318 unit, 2,645 integration, build), and the
+third screen walk on that build said: do not ship yet.** What works
+on screens now, in the founder's order: Activate is a real button on
+the placement page, "Activate with a reason" draws its box, two
+placements moved from draft to started and a blocked start was refused
+in a sentence; every paper accepted on Document requests reaches the
+placement, the verdict fields work and a disabled Accept says what is
+missing; stating the pay from the placement wrote the buy line, the
+worker signed the terms and a week was filed against it; Rajesh Iyer's
+worker door on /demo opens, his Sunday-to-Saturday week was filed,
+signed by the client on Today, accepted by his firm and billed at
+40 × $130 = $5,200; the I-9 dialog reads the edition printed on the
+paper ("Rev. March 2024", not 01/20/25), offers a passport card, takes
+the expiry in one box and refuses a bad edition in a sentence; packet
+rows open and "Send again" works; the supplier picker says why a firm
+is held back; Ask Etyme's model refusal links to the switch, "Where do
+I see unpaid bills?" answers with the link and "take me there" opens
+it; the candidate card offers no act and "Open who applied" lists the
+job's candidates. 65 presses on 21 seats: 39 saved and proven, 18
+refused or answered rightly, 5 failed, 3 not proven. **The two that
+stop the ship, each with its owner:** "Bill this week" was offered on
+a week whose hours were already billed and the press drafted a $412.60
+bill holding only a travel expense and no hours, saying the week was
+already billed only afterwards (money: the check runs before the
+button is drawn and a press that bills none of the week's hours
+refuses); and papers are read two ways again, the class the founder
+named: a confidentiality undertaking accepted on Paperwork reads "on
+file" on the placement while a fresh W-2 request asks for it as "Not
+on file" and Compliance lists it as owed, the older requests still read
+"0 of 4" for papers the placement holds, and the backfill finds nothing
+(regulatory: one reader of what is on file, read by the placement, the
+request builder, Compliance and the backfill alike). Also found, each
+with its owner: the week's own page has no bill section, one bill page
+gives two "left on the order" figures, an employer's acceptance of a
+W2's week says the client's $5,200 "to pay" (money); seats that may
+not start read "…or activate with a reason" with no button and no
+sentence saying who may, the route's sentence is lost on the reload,
+"Send the request" is disabled with no reason, a supplier on probation
+is held back where Addendum E says warn and proceed (demand); the
+Owner's greeting misses the setup items and carries pasted act
+descriptions, a poem is answered instead of refused, "Sent again to
+<address>" where no email can leave, a firm's own margin refused to
+its Owner (conversation); the model switch reads "Turn it off" while
+off, Grant the seat with empty fields says nothing (architect); a
+newly added consultant is missing from Consultants and a worker with
+two lines at one firm sees two identical options (supply). Report:
+`scratchpad/walk-saves/report3.md`, 170 screenshots. The fix wave
+runs on every domain at once on disjoint files, then release pass 35,
+the walk again on the trust items, and the deploy; the founder's
+retest waits on it, and he is told so rather than handed a build the
+walk refused.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
