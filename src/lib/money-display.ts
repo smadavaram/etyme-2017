@@ -76,6 +76,17 @@ export function fromUnits(value: number | null | undefined, currency: string = D
   return format(fromMinor(Math.round(value * minorPerUnit(currency)), currency), { compact: true })
 }
 
+/**
+ * "$1,040.00", "₫170" — an amount arriving as WHOLE currency units, with
+ * the decimals the currency actually has. The dong and the yen have none,
+ * so a screen that printed two for every currency showed "₫170.00" (the
+ * screen walk, 2026-11-03).
+ */
+export function units(value: number | null | undefined, currency: string = DEFAULT_CURRENCY): string {
+  if (value == null) return '—'
+  return format(fromMinor(Math.round(value * minorPerUnit(currency)), currency))
+}
+
 /** For a value already carrying its currency. */
 export function show(m: Money): string {
   return format(m)

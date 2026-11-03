@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { units } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
@@ -107,11 +108,8 @@ function categoryLabel(cat: string): string {
  * cents, and neither was true.
  */
 function formatUSD(whole: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(whole)
+  // The currency's own decimals: none for the dong or the yen (lib/money-display).
+  return units(whole, currency)
 }
 
 // ── Date helpers ─────────────────────────────────────

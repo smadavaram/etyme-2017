@@ -8,6 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton } from '@/components/ui'
 import { lineName, type LineSide, type OrderSide } from '@/lib/order-naming'
 import { lineDoesForReader } from '@/lib/money/order-line-words'
+import { rate as displayRate } from '@/lib/money-display'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { useSession } from '@/components/session-provider'
@@ -485,9 +486,9 @@ const PO_COLUMNS: Column<PO>[] = [
   { key: 'canInvoice', label: 'Standing', render: (po) => <Chip tone={po.overdrawn || po.expired ? 'attention' : 'verified'}>{po.overdrawn ? 'Overdrawn' : po.expired ? 'Expired' : 'Open'}</Chip>, sortValue: (po) => (po.canInvoice ? 1 : 0) },
 ]
 
-/** Cents per hour, as a person reads a rate. */
-function rate(cents: number, ccy: string): string {
-  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy, maximumFractionDigits: 2 }).format(cents / 100)}/hr`
+/** Minor units per hour, as a person reads a rate, in the currency's own decimals. */
+function rate(minor: number, ccy: string): string {
+  return displayRate(minor, ccy)
 }
 
 /**
