@@ -44,15 +44,16 @@ describe('the routes ask the rule, and answer in its words', () => {
   })
 
   it('reading and writing a thread checks both companies on it, and a stranger is told nothing is there', () => {
-    expect(MESSAGES).toContain("!canRead(conversation, caller.company?.id)) return notHere")
+    expect(MESSAGES).toContain("if (!canRead(conversation, caller.company?.id)) {")
+    expect(MESSAGES).toContain("if (!program?.writes) return notHere")
     expect(MESSAGES).toContain("if (isConsultantSeat(caller)) return notHere")
     expect(MESSAGES).toContain("message: 'That conversation is not here.'")
     expect(MESSAGES).toMatch(/\{ status: 404 \}/)
   })
 
   it('the list shows mine and the ones opened with me, and says which side I am on', () => {
-    expect(OPEN).toContain('where.OR = [{ companyId: me }, { withCompanyId: me }]')
-    expect(OPEN).toContain('const side = sideOf(c, me)')
+    expect(OPEN).toContain('{ companyId: me }, { withCompanyId: me },')
+    expect(OPEN).toContain("const side = sideOf(c, me) ?? (programIds.has(c.companyId) ? 'OPENED' : null)")
     expect(OPEN).toContain("otherCompany: side === 'OPENED' ? c.withCompany : side === 'ANSWERS' ? c.company : null")
   })
 

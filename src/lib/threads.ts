@@ -72,22 +72,55 @@ export type OpenVerdict =
     }
 
 /**
+ * The permission a firm seated in a client's program writes to the
+ * client's suppliers under: the one the client's own program manager and
+ * hiring managers hold to run its jobs. A seat holding it writes as the
+ * client's program does; a seat without it (the client's AP clerk's role,
+ * say) does not.
+ */
+export const PROGRAM_WRITES: Permission = 'requirements.write'
+
+/** A seat the caller's firm holds in a client's program: whose, and the client role's permissions. */
+export interface ProgramSide {
+  clientCompanyId: string
+  permissions: readonly string[]
+}
+
+/**
+ * Whether a seat writes for this client's program: it is a seat at that
+ * client, and its role holds what the client's own program manager holds
+ * to write to a supplier (`PROGRAM_WRITES`).
+ */
+export function seatWritesFor(seat: ProgramSide | null | undefined, clientCompanyId: string): boolean {
+  return !!seat && seat.clientCompanyId === clientCompanyId && hasAnyPermission(seat.permissions, [PROGRAM_WRITES])
+}
+
+/**
  * Whether this firm may write to the firm that put a candidate forward:
- * only the firm the candidate was submitted to, never the one that sent
- * them and never a third. The Candidates page draws "Message <supplier>"
- * only where this is true (demand), and `whoMayOpen` decides the same way,
- * so the button and the route cannot disagree.
+ * the firm the candidate was submitted to, or a firm seated in that
+ * firm's program whose seat writes for it (`seatWritesFor`); never the
+ * firm that sent them and never a third. The Candidates page draws
+ * "Message <supplier>" only where this is true (demand), and `whoMayOpen`
+ * decides the same way, so the button and the route cannot disagree.
  *
- * A firm seated in a client's program is not the firm the candidate was
- * submitted to, so it is not offered the button (the screen walk,
- * 2026-11-02: Aptiva in Cavanaugh Glassworks' program was offered
- * "Message <supplier>" on every row and refused nine times in nine).
+ * The screen walk, 2026-11-02: Aptiva in Cavanaugh Glassworks' program
+ * was offered "Message <supplier>" on every row and refused nine times in
+ * nine. A seated firm is in that program for the whole session and acts
+ * under the client's rules (2026-10-26), so it writes as the program does
+ * (the coordinator's call, the same day): the thread is the client's.
  */
 export function mayMessageSupplier(
   sub: { toCompanyId: string; fromCompanyId: string },
   callerCompanyId: string | null | undefined,
+  seat: ProgramSide | null = null,
 ): boolean {
-  return !!callerCompanyId && sub.toCompanyId === callerCompanyId && sub.fromCompanyId !== callerCompanyId
+  if (!callerCompanyId || sub.fromCompanyId === callerCompanyId) return false
+  return sub.toCompanyId === callerCompanyId || seatWritesFor(seat, sub.toCompanyId)
+}
+
+/** The client a thread on this topic is the demand side of: who the candidate went to, or whose job it is. */
+export function demandSideOf(facts: TopicFacts): string {
+  return facts.kind === 'SUBMISSION' ? facts.toCompanyId : facts.demandCompanyId
 }
 
 /**
@@ -98,8 +131,18 @@ export function mayMessageSupplier(
  * caller holds a seat in, where it holds one: a job or a candidate that is
  * that client's is refused with the client named as who writes.
  */
-export function whoMayOpen(facts: TopicFacts, caller: Firm, other: Firm, opts: { seatedAt?: Firm | null } = {}): OpenVerdict {
+export function whoMayOpen(
+  facts: TopicFacts,
+  caller: Firm,
+  other: Firm,
+  opts: { seatedAt?: Firm | null; seatWrites?: boolean } = {},
+): OpenVerdict {
   const seatedAt = opts.seatedAt ?? null
+  // A seat that writes for the client's program opens the thread as the
+  // client does, by the client's own rule (the thread is the client's).
+  if (seatedAt && opts.seatWrites && seatedAt.id === demandSideOf(facts) && seatedAt.id !== caller.id) {
+    return whoMayOpen(facts, seatedAt, other)
+  }
   if (other.id === caller.id) {
     return {
       ok: false,
@@ -298,7 +341,10 @@ export function whoAtTheFirmHears(
 export interface Participant {
   personId: string
   name: string
+  /** The side of the thread the person writes for: under a seat, the client's. */
   companyId?: string | null
+  /** For a person writing under a seat in the client's program: their own firm, said beside the client's name. */
+  asOffice?: string | null
   joinedAt?: string
 }
 
@@ -328,10 +374,26 @@ export function whoHears(input: {
   return [...heard]
 }
 
+/**
+ * Which firm a person on a thread writes for, as the thread says it: the
+ * firm's name, or, for somebody writing under a seat in the client's
+ * program, "Aptiva Workforce, for Cavanaugh Glassworks", so the supplier
+ * always knows who wrote. Null for somebody on neither side.
+ */
+export function writesFor(
+  p: Pick<Participant, 'companyId' | 'asOffice'> | null | undefined,
+  sides: { company: Firm; withCompany: Firm | null },
+): string | null {
+  if (!p?.companyId) return null
+  const firm = p.companyId === sides.company.id ? sides.company.name : p.companyId === sides.withCompany?.id ? sides.withCompany.name : null
+  if (!firm) return null
+  return p.asOffice ? `${p.asOffice}, for ${firm}` : firm
+}
+
 /** Add the author to the thread if they are not on it; unchanged otherwise. */
 export function withAuthor(
   participants: Participant[],
-  author: { personId: string; name: string; companyId: string | null },
+  author: { personId: string; name: string; companyId: string | null; asOffice?: string | null },
   now: Date = new Date()
 ): Participant[] {
   if (participants.some((p) => p.personId === author.personId)) return participants

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { canRead, isOnThread, readsOnlyOwnThreads, holdsNoThreadDesk, type Participant } from '@/lib/threads'
+import { canRead, isOnThread, readsOnlyOwnThreads, holdsNoThreadDesk, writesFor, type Participant } from '@/lib/threads'
 import { seatFor } from '@/lib/program-seat'
 import { noDeskYet } from '@/lib/no-desk'
 import { tellThread } from '@/lib/thread-notices'
 import { regionScopeFor } from '@/lib/region-scope'
 import { threadsInRegion } from '../region-threads'
+import { programSideFor, noteSeatThreadRead } from '../program-side'
 
 /**
  * Who may read a thread: both companies on it, and nobody else. A
@@ -47,7 +48,18 @@ async function open(request: NextRequest, conversationId: string) {
     ),
   }
 
-  if (!conversation || !canRead(conversation, caller.company?.id)) return notHere
+  if (!conversation) return notHere
+  if (!canRead(conversation, caller.company?.id)) {
+    // A firm seated in the client's program, whose seat writes for it,
+    // reads and writes the client's threads with its suppliers as the
+    // program does (./program-side); the read is logged as the seat's.
+    // Never the client's own notes, and never for a consultant's seat.
+    if (!conversation.withCompanyId || caller.region || isConsultantSeat(caller)) return notHere
+    const program = await programSideFor(caller, conversation.companyId)
+    if (!program?.writes) return notHere
+    void noteSeatThreadRead(caller, [program.seat], [conversation]).catch(() => undefined)
+    return { ok: true as const, caller, conversation, participants, asProgram: { officeName: caller.company!.name } }
+  }
 
   if (caller.region) {
     const label = caller.region.label
@@ -127,10 +139,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Resolve author names from conversation participants and Person table
   const participantMap = new Map<string, string>()
-  const participantFirm = new Map<string, string | null>()
+  const participantFirm = new Map<string, Participant>()
   for (const p of participants) {
     if (p.personId && p.name) participantMap.set(p.personId, p.name)
-    participantFirm.set(p.personId, p.companyId ?? null)
+    participantFirm.set(p.personId, p)
   }
 
   // Look up any authors not in the participant list
@@ -147,13 +159,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Which firm each author writes for, so a thread across a deal can say
-  // "Dana at Nike" and "Ravi at Pinnacle" without the reader guessing.
-  const firmName = (companyId: string | null | undefined) =>
-    companyId === conversation.company.id
-      ? conversation.company.name
-      : companyId && companyId === conversation.withCompany?.id
-        ? conversation.withCompany.name
-        : null
+  // "Dana at Nike" and "Ravi at Pinnacle" without the reader guessing, and
+  // "Aptiva Workforce, for Cavanaugh Glassworks" under a seat.
+  const firmName = (p: Participant | undefined) =>
+    writesFor(p, { company: conversation.company, withCompany: conversation.withCompany })
 
   return NextResponse.json({
     data: {
@@ -220,13 +229,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   ])
 
   if (caller.company) {
+    // Under a seat that writes for the client's program, the author writes
+    // for the client's side and says whose firm they are at.
+    const asOffice = 'asProgram' in opened && opened.asProgram ? opened.asProgram.officeName : null
     void tellThread({
       conversationId: conversation.id,
       author: {
         personId: caller.person.id,
         name: caller.person.name,
-        companyId: caller.company.id,
-        companyName: caller.company.name,
+        companyId: asOffice ? conversation.companyId : caller.company.id,
+        companyName: asOffice ? `${asOffice}, for ${conversation.company.name}` : caller.company.name,
+        asOffice,
       },
       body: message.body,
     })

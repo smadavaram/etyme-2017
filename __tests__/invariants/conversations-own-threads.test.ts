@@ -97,7 +97,9 @@ describe('the routes ask the rule', () => {
 
   it('a stranger to both companies on a thread is still told it is not here', () => {
     expect(MESSAGES).toContain("message: 'That conversation is not here.'")
-    expect(MESSAGES).toContain('if (!conversation || !canRead(conversation, caller.company?.id)) return notHere')
+    expect(MESSAGES).toContain('if (!conversation) return notHere')
+    // Off both companies, only a seat in the client's program that writes for it gets past, and only on a thread across a deal.
+    expect(MESSAGES).toMatch(/if \(!canRead\(conversation, caller\.company\?\.id\)\) \{[\s\S]{0,600}if \(!program\?\.writes\) return notHere/)
   })
 
   it('bench check-ins already refuse any seat that holds none of the desks that read them, so they need no narrowing', () => {

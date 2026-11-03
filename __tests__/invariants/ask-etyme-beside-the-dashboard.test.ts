@@ -303,6 +303,16 @@ describe('a job’s name is never cut', () => {
   })
 })
 
+describe('an expense card is said in the currency it was spent in', () => {
+  it('a Corvane worker’s claim in Monterrey reads in pesos in the chat, the same words as the Approvals row, and never in dollars', async () => {
+    const { claimSays } = await import('@/lib/expense-currency')
+    const subtitle = `${claimSays(2450, 'MXN')} · Travel · Billable · Corvane Packaging`
+    const cards = queueCards({ total: 1, items: [{ type: 'EXPENSE_APPROVAL', title: 'Approve expense — Fernanda Albuquerque', subtitle, entityId: 'e1' }] })
+    expect(cards[0].fact).toContain(claimSays(2450, 'MXN'))
+    expect(cards[0].fact).not.toMatch(/(^|[^A-Z])\$2,450/)
+  })
+})
+
 // ── Pay an invoice receipt (2026-10-26) ───────────────────────────────
 
 import { payQuestion, paidSays, decisionRequest, itemsAskSays, NEEDS_BANK_REFERENCE as CHAT_NEEDS_REF, RECEIPT_PAY, type WaitingItem } from '@/app/api/conversations/twin/ask'

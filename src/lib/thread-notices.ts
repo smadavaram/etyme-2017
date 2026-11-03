@@ -37,7 +37,13 @@ async function staffAt(
 
 export async function tellThread(input: {
   conversationId: string
-  author: { personId: string; name: string; companyId: string; companyName: string }
+  /**
+   * `companyId` is the side the author writes for; under a seat in the
+   * client's program that is the client's, with the author's own firm as
+   * `asOffice` and both in `companyName` ("Aptiva Workforce, for
+   * Cavanaugh Glassworks").
+   */
+  author: { personId: string; name: string; companyId: string; companyName: string; asOffice?: string | null }
   body: string
 }): Promise<{ heard: string[] }> {
   const thread = await prisma.conversation.findUnique({
@@ -69,6 +75,7 @@ export async function tellThread(input: {
     personId: input.author.personId,
     name: input.author.name,
     companyId: input.author.companyId,
+    ...(input.author.asOffice ? { asOffice: input.author.asOffice } : {}),
   })
   if (joined !== participants) {
     await prisma.conversation.update({

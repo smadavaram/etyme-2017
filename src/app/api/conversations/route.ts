@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { whoMayOpen, sideOf, readsOnlyOwnThreads, holdsNoThreadDesk, isOnThread, type TopicFacts, type Participant } from '@/lib/threads'
+import { whoMayOpen, sideOf, readsOnlyOwnThreads, holdsNoThreadDesk, isOnThread, demandSideOf, withAuthor, type TopicFacts, type Participant } from '@/lib/threads'
+import { programSideFor, programsWrittenFor, noteSeatThreadRead } from './program-side'
 import { seatFor } from '@/lib/program-seat'
 import { tellThread } from '@/lib/thread-notices'
 import { regionScopeFor } from '@/lib/region-scope'
@@ -46,8 +47,18 @@ export async function GET(request: NextRequest) {
   const me = caller.company?.id ?? null
   const where: any = { archivedAt: null }
 
-  // Mine, and the ones somebody opened with me.
-  if (me) where.OR = [{ companyId: me }, { withCompanyId: me }]
+  // Mine, and the ones somebody opened with me. And, for a firm seated in
+  // a client's program whose seat writes for it, that client's threads
+  // with its suppliers (./program-side): never the client's own notes.
+  // A consultant's seat and a region seat speak for no program.
+  const programs = me && !caller.region && !isConsultantSeat(caller) ? await programsWrittenFor(caller) : []
+  const programIds = new Set(programs.map((p) => p.clientCompany.id))
+  if (me) {
+    where.OR = [
+      { companyId: me }, { withCompanyId: me },
+      ...(programIds.size ? [{ companyId: { in: [...programIds] }, withCompanyId: { not: null } }] : []),
+    ]
+  }
 
   if (topic) where.topic = topic.toUpperCase()
   if (topicId) where.topicId = topicId
@@ -101,11 +112,16 @@ export async function GET(request: NextRequest) {
       )
     : mine
   const conversations = shown.slice(0, limit)
+  // A seat's read of the program's threads is the seat's, logged with the seat named.
+  if (programIds.size) {
+    void noteSeatThreadRead(caller, programs, conversations.filter((c) => programIds.has(c.companyId))).catch(() => undefined)
+  }
 
   return NextResponse.json({
     data: {
       conversations: conversations.map((c) => {
-        const side = sideOf(c, me)
+        // On a program's thread the reader is on the client's side.
+        const side = sideOf(c, me) ?? (programIds.has(c.companyId) ? 'OPENED' : null)
         return {
           id: c.id,
           topic: c.topic,
@@ -267,45 +283,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That company is not here.' } }, { status: 404 })
     }
 
+    // The side of the thread the caller writes for: its own firm, or,
+    // under a seat in the client's program that writes for it, the
+    // client's (./program-side). The thread is then the client's.
+    let side = me
+    let asOffice: string | null = null
+    let program: Awaited<ReturnType<typeof programSideFor>> = null
     let verdict = whoMayOpen(facts, me, other)
     if (!verdict.ok && verdict.code === 'NOT_YOURS') {
-      // A firm seated in a client's program is told the client writes,
-      // by name, rather than that the candidate is not its own.
-      const seat = await seatFor(caller, null).catch(() => null)
-      if (seat) verdict = whoMayOpen(facts, me, other, { seatedAt: { id: seat.clientCompany.id, name: seat.clientCompany.name } })
+      program = await programSideFor(caller, demandSideOf(facts))
+      if (program) {
+        const seatedAt = { id: program.seat.clientCompany.id, name: program.seat.clientCompany.name }
+        verdict = whoMayOpen(facts, me, other, { seatedAt, seatWrites: program.writes })
+        if (verdict.ok) { side = seatedAt; asOffice = me.name }
+      }
     }
     if (!verdict.ok) {
       return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
     }
+    const writer: Participant & { companyId: string } = { ...opener, companyId: side.id, ...(asOffice ? { asOffice } : {}) }
 
     // Create-or-get on the four-part key. The unique index catches the
     // race; the second reader gets the first one's thread.
     let thread = await prisma.conversation.findFirst({
-      where: { companyId: me.id, withCompanyId: other.id, topic, topicId },
-      select: { id: true },
+      where: { companyId: side.id, withCompanyId: other.id, topic, topicId },
+      select: { id: true, participants: true },
     })
     let existing = true
     if (!thread) {
       try {
         thread = await prisma.conversation.create({
           data: {
-            companyId: me.id,
+            companyId: side.id,
             withCompanyId: other.id,
             topic,
             topicId,
             title: verdict.title,
-            participants: [opener] as unknown as object,
+            participants: [writer] as unknown as object,
           },
-          select: { id: true },
+          select: { id: true, participants: true },
         })
         existing = false
       } catch (e: any) {
         if (e?.code !== 'P2002') throw e
         thread = await prisma.conversation.findFirstOrThrow({
-          where: { companyId: me.id, withCompanyId: other.id, topic, topicId },
-          select: { id: true },
+          where: { companyId: side.id, withCompanyId: other.id, topic, topicId },
+          select: { id: true, participants: true },
         })
       }
+    }
+    if (program && asOffice) {
+      // A seat that opens the program's thread is on it, so it hears the answer.
+      const was = Array.isArray(thread.participants) ? (thread.participants as unknown as Participant[]) : []
+      const now = withAuthor(was, writer)
+      if (now !== was) await prisma.conversation.update({ where: { id: thread.id }, data: { participants: now as unknown as object } })
+      void noteSeatThreadRead(caller, [program.seat], [{ companyId: side.id, topic, topicId, title: verdict.title }]).catch(() => undefined)
     }
 
     if (typeof initialMessage === 'string' && initialMessage.trim()) {
@@ -314,7 +346,10 @@ export async function POST(request: NextRequest) {
       })
       void tellThread({
         conversationId: thread.id,
-        author: { personId: caller.person.id, name: caller.person.name, companyId: me.id, companyName: me.name },
+        author: {
+          personId: caller.person.id, name: caller.person.name, companyId: side.id,
+          companyName: asOffice ? `${asOffice}, for ${side.name}` : me.name, asOffice,
+        },
         body: initialMessage.trim(),
       })
     }
