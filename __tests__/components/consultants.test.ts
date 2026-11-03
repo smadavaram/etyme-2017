@@ -223,3 +223,25 @@ describe('Consultants rate display', () => {
     expect(display).toBe('—')
   })
 })
+
+// ── The person's sign-in link, on the firm's own screens ────────
+
+describe('The sign-in link for a person with no account', () => {
+  it("a firm's consultant drawer and bench rows draw the person's sign-in link where the person has no account", async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const root = join(__dirname, '..', '..', 'src', 'app', 'dashboard')
+    const drawer = readFileSync(join(root, 'consultants', 'page.tsx'), 'utf8')
+    const bench = readFileSync(join(root, 'bench', 'our-bench.tsx'), 'utf8')
+    const imported = "import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'"
+    expect(drawer).toContain(imported)
+    expect(bench).toContain(imported)
+    // Inside the drawer, beside the person's contact details.
+    const drawerBody = drawer.slice(drawer.indexOf('function ConsultantDrawer'))
+    expect(drawerBody).toContain('<SignInLink personId={consultant.personId}')
+    // On each bench row, for that row's person. The component asks the
+    // route, which draws nothing for a seat without team.manage or a
+    // person who already signs in.
+    expect(bench).toContain('<SignInLink personId={r.personId}')
+  })
+})

@@ -9,6 +9,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
+import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
@@ -655,6 +656,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
           <div>
             <p className="eyebrow mb-2">Contact</p>
             <p className="text-sm">{consultant.email}</p>
+            <SignInLink personId={consultant.personId} className="mt-2" />
           </div>
 
           {/* Skills */}

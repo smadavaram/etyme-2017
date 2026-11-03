@@ -7,6 +7,7 @@ import { plainDate } from '@/lib/plain-date'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Thread } from '@/components/thread'
 import { possessive } from '@/lib/internal-moves'
+import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 
 /**
  * Our bench — an integrator's own people coming off a project or between
@@ -149,6 +150,7 @@ export function OurBench({ firmName }: { firmName: string }) {
         <div>
           <p className="text-[13px] font-medium text-etyme-ink">{r.name}</p>
           <p className="text-[11px] text-etyme-muted">{r.skillsSay}</p>
+          <SignInLink personId={r.personId} className="mt-1" />
         </div>
       ),
       sortValue: (r) => r.name,
