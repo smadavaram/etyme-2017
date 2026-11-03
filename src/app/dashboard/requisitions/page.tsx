@@ -241,6 +241,9 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     title: '', skills: '', location: '', headcount: '1',
     billMin: '', billMax: '', months: '', neededBy: '', justification: '', description: '', costCenterId: '',
     budget: '', hoursPerWeek: '', ownerId: '',
+    // Where the work is done, and whether the job offers sponsorship
+    // (founder, 2026-11-03: work authorization is checked where the work is done).
+    workMode: 'ONSITE', sponsorship: 'YES', sponsorshipPolicy: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
   // The site and who it goes to (founder, 2026-10-28, the Sites drawing):
@@ -306,6 +309,11 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     ))
     if (missing) {
       setError(missing)
+      return
+    }
+    // The raise refuses "no" with no words; asked here first, in its sentence.
+    if (form.sponsorship === 'NO' && !form.sponsorshipPolicy.trim()) {
+      setError('Say your sponsorship policy in a few words, for example "We do not sponsor work visas for this role".')
       return
     }
     setBusy(true)
@@ -538,6 +546,48 @@ function RaiseModal({ onClose, onRaised, team, me }: {
                 placeholder="Lakewood, CO — on site three days a week" className={`${field} mt-1`} />
             </label>
           )}
+
+          <div>
+            <Lbl>Where is the work done?</Lbl>
+            <div className="mt-1 flex gap-2" role="radiogroup" aria-label="Where is the work done?">
+              {([['ONSITE', 'On site'], ['HYBRID', 'Hybrid'], ['REMOTE', 'Remote']] as const).map(([v, label]) => (
+                <label key={v} className={`px-3 py-1.5 border rounded text-sm cursor-pointer ${form.workMode === v ? 'border-etyme-action text-etyme-action' : 'border-etyme-rule text-etyme-ink'}`}>
+                  <input type="radio" name="workMode" value={v} className="sr-only"
+                    checked={form.workMode === v} onChange={() => setForm({ ...form, workMode: v })} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-etyme-muted mt-1">
+              {form.workMode === 'REMOTE'
+                ? 'Papers to work follow the country the person works from.'
+                : 'Papers to work follow the country of the site.'}
+            </p>
+          </div>
+
+          <div>
+            <Lbl>Sponsorship</Lbl>
+            <div className="mt-1 flex gap-2" role="radiogroup" aria-label="Sponsorship">
+              {([['YES', 'Offered'], ['NO', 'Not offered']] as const).map(([v, label]) => (
+                <label key={v} className={`px-3 py-1.5 border rounded text-sm cursor-pointer ${form.sponsorship === v ? 'border-etyme-action text-etyme-action' : 'border-etyme-rule text-etyme-ink'}`}>
+                  <input type="radio" name="sponsorship" value={v} className="sr-only"
+                    checked={form.sponsorship === v} onChange={() => setForm({ ...form, sponsorship: v })} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {form.sponsorship === 'NO' && (
+              <label className="block mt-2">
+                <span className="text-xs text-etyme-muted">Your policy, in a few words</span>
+                <input value={form.sponsorshipPolicy} maxLength={300}
+                  onChange={e => setForm({ ...form, sponsorshipPolicy: e.target.value })}
+                  placeholder="We do not sponsor work visas for this role" className={`${field} mt-1`} />
+                <span className="block text-xs text-etyme-muted mt-1">
+                  Only people who would need a visa filed are held back. Citizens, green card holders and anybody else already allowed to work are not.
+                </span>
+              </label>
+            )}
+          </div>
 
           {siteRead && (
             <div>

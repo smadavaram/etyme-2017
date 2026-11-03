@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { panelFrom } from './panel'
+import { readWorkFacts } from './work-facts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -229,11 +230,23 @@ export async function POST(request: NextRequest) {
     sendTo: sendToAsked,
     // The panel, so the first interview form opens with the room in it.
     interviewers,
+    // Where the work is done (ONSITE · HYBRID · REMOTE), and whether the
+    // job offers sponsorship, with the firm's own words where it does not.
+    workMode, sponsorship, sponsorshipPolicy,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'Title is required (min 3 characters)', field: 'title' } },
+      { status: 422 }
+    )
+  }
+
+  // Refused before anything is gathered, in the field's own sentence.
+  const work = readWorkFacts({ workMode, sponsorship, sponsorshipPolicy })
+  if (!work.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: work.says, field: work.field } },
       { status: 422 }
     )
   }
@@ -506,6 +519,13 @@ export async function POST(request: NextRequest) {
         // that still read it (lib/job-site's `placeOf` reads the site first).
         location: site ? site.name : (typeof location === 'string' && location.trim() ? location.trim() : null),
         locationId: site?.id ?? null,
+        // Where the work is done; null where the caller did not say, which
+        // reads as onsite (lib/work-country).
+        workMode: work.facts.workMode,
+        // No sponsorship offered: the restriction lib/work-authorisation
+        // reads, with its basis and the firm's words, so it holds back only
+        // somebody who would need a visa filed.
+        ...(work.facts.restriction ?? {}),
         // The hiring manager's ticks, kept with who and when, so a job that
         // waits for approval still goes only to the ones left.
         ...(sendTo && sendTo.length > 0

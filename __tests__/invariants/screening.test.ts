@@ -28,6 +28,8 @@ function arriving(over: Partial<Arriving> = {}): Arriving {
     submittedAt: new Date('2026-08-20T09:00:00Z'),
     workAuth: 'US_CITIZEN',
     workAuthRequired: null,
+    workAuthBasis: null,
+    workAuthCite: null,
     availableFrom: new Date('2026-08-25'),
     startDate: new Date('2026-09-01'),
     invited: true,
@@ -235,22 +237,105 @@ describe('whether the client works with this vendor at all', () => {
 })
 
 describe('the work permit', () => {
-  it('holds back a mismatch', () => {
+  it('a status mismatch with no recorded lawful basis warns and never fails', () => {
+    // INA §274B: turning somebody away over their status with no
+    // grounded reason is the unlawful thing, and a screen doing it is a
+    // rule engine doing it on the client's behalf.
     const f = find(
       screenRules(arriving({ workAuthRequired: 'US_CITIZEN', workAuth: 'H1B' }), NOW),
       'WORK_AUTH'
     )
-    expect(f.verdict).toBe('FAIL')
-    expect(f.reason).toBe('This job needs US_CITIZEN; R. Menon holds H1B. Held back.')
+    expect(f.verdict).toBe('WARN')
+    expect(f.reason).toMatch(/no lawful reason is recorded/)
+    expect(f.reason).toMatch(/They stay on the list/)
   })
 
-  it('holds back a submission where the vendor never said, before an interview is booked', () => {
+  it('a status mismatch with a recorded basis fails naming the basis', () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'US_CITIZEN',
+          workAuth: 'H1B',
+          workAuthBasis: 'SECURITY_CLEARANCE',
+          workAuthCite: 'DoD Secret',
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+    expect(f.reason).toMatch(/^A clearance requirement \(DoD Secret\) limits this job to a US citizen\./)
+    expect(f.reason).toMatch(/Held back\.$/)
+  })
+
+  it('no sponsorship never turns away a green card holder', () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuth: 'GC',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('PASS')
+  })
+
+  it('no sponsorship holds back somebody who would need a visa filed, and says the firm\'s own words', () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuth: 'H1B',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+    expect(f.reason).toContain('No sponsorship being available (We do not sponsor work visas for this role)')
+    expect(f.reason).toMatch(/They are on an H-1B/)
+  })
+
+  it('a no-sponsorship job tells a supplier that a citizens-only reading of it would be unlawful', () => {
+    // The commonest refusal in staffing: "we don't sponsor" read as
+    // "citizens only". A job that names a citizen and gives sponsorship
+    // as its reason still lets the green card holder through, and says why.
+    const f = find(
+      screenRules(
+        arriving({ workAuthRequired: 'US_CITIZEN', workAuth: 'GC', workAuthBasis: 'SPONSORSHIP_UNAVAILABLE' }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('WARN')
+    expect(f.reason).toMatch(/need no sponsorship/)
+  })
+
+  it('a basis nobody can check is read as no basis, so it warns', () => {
+    const f = find(
+      screenRules(
+        arriving({ workAuthRequired: 'US_CITIZEN', workAuth: 'H1B', workAuthBasis: 'CLIENT_PREFERENCE' }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('WARN')
+  })
+
+  it('asks the supplier before an interview is booked where it never said what the person holds, and never holds them back for it', () => {
     const f = find(
       screenRules(arriving({ workAuthRequired: 'US_CITIZEN', workAuth: null }), NOW),
       'WORK_AUTH'
     )
-    expect(f.verdict).toBe('FAIL')
+    expect(f.verdict).toBe('WARN')
     expect(f.reason).toMatch(/has not said what R. Menon holds/)
+    expect(f.reason).toMatch(/Ask them before an interview is booked/)
   })
 })
 

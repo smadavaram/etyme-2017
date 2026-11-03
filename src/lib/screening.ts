@@ -41,6 +41,8 @@
  */
 
 import type { Finding } from '@/lib/loop'
+import { jobAsksFor, jobRestriction } from '@/lib/checks'
+import { authDecision, type WorkAuth } from '@/lib/work-authorisation'
 
 export type Code =
   /** At or under what this vendor was told they could charge. */
@@ -109,7 +111,16 @@ export interface Arriving {
   others: OtherSubmission[]
   submittedAt: Date
   workAuth: string | null
+  /** What the job asks of somebody's permission to work. */
   workAuthRequired: string | null
+  /**
+   * Why the job may ask it, from the closed list in lib/work-authorisation.
+   * Null where nobody recorded one, and then a mismatch warns and never
+   * holds anybody back (INA §274B).
+   */
+  workAuthBasis: string | null
+  /** The clause, contract or policy the basis rests on, in the firm's words. */
+  workAuthCite: string | null
   availableFrom: Date | null
   startDate: Date | null
   /** Whether this vendor was invited to this role. */
@@ -317,7 +328,16 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
   }
 
   // ── The permit ──
-  if (a.workAuthRequired == null) {
+  //
+  // A mismatch holds somebody back only where the job recorded a lawful
+  // basis for asking. With none it warns and they stay in the pile:
+  // turning a person away over their status with no grounded reason is
+  // citizenship-status discrimination under INA §274B, and a screen that
+  // did it was a rule engine doing it on the client's behalf. The
+  // decision is lib/work-authorisation's, so the vendor's check and the
+  // client's screen cannot disagree about who may be turned away.
+  const restriction = jobRestriction(a.workAuthRequired, a.workAuthBasis, a.workAuthCite)
+  if (!restriction) {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
@@ -325,27 +345,28 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       reason: 'This job does not name a work authorization.',
     })
   } else if (a.workAuth == null) {
+    // Not knowing is a question, never a refusal.
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
-      verdict: 'FAIL',
+      verdict: 'WARN',
       reason:
-        `This job needs ${a.workAuthRequired} and ${a.vendorName} has not said what ${a.personName} holds. ` +
+        `This job asks for ${jobAsksFor(a.workAuthRequired!)} and ${a.vendorName} has not said what ${a.personName} holds. ` +
         `Ask them before an interview is booked.`,
     })
-  } else if (a.workAuth !== a.workAuthRequired) {
-    out.push({
-      code: 'WORK_AUTH',
-      checker: 'RULE',
-      verdict: 'FAIL',
-      reason: `This job needs ${a.workAuthRequired}; ${a.personName} holds ${a.workAuth}. Held back.`,
-    })
   } else {
+    const d = authDecision(restriction, a.workAuth.toUpperCase() as WorkAuth)
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
-      verdict: 'PASS',
-      reason: `Holds ${a.workAuth}, which is what the job needs.`,
+      verdict: d.verdict === 'BLOCK' ? 'FAIL' : d.verdict,
+      reason:
+        d.verdict === 'BLOCK'
+          ? `${d.reason} Held back.`
+          : d.verdict === 'PASS'
+            ? `Holds ${a.workAuth}, which meets what the job asks.`
+            : d.reason,
+      ...(d.verdict === 'PASS' ? {} : { evidence: `${a.workAuth} against ${a.workAuthRequired}` }),
     })
   }
 

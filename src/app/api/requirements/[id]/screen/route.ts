@@ -54,7 +54,7 @@ export async function POST(
     select: {
       id: true, title: true, skills: true, startDate: true,
       billMax: true, openToNetwork: true, openingId: true,
-      workAuthRequired: true, location: true,
+      workAuthRequired: true, workAuthBasis: true, workAuthCite: true, location: true,
       mirroredFromId: true, mirrors: { select: { id: true } },
     },
   })
@@ -290,6 +290,8 @@ export async function POST(
       submittedAt: s.submittedAt,
       workAuth: profile?.workAuth ?? null,
       workAuthRequired: requirement.workAuthRequired,
+      workAuthBasis: requirement.workAuthBasis,
+      workAuthCite: requirement.workAuthCite,
       availableFrom: profile?.availableFrom ?? null,
       startDate: requirement.startDate,
       invited: invite != null && invite.status !== 'DECLINED',

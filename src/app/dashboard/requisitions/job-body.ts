@@ -16,6 +16,12 @@ export interface JobTyped {
   siteId: string | null
   /** Free text, only where the company has no site. */
   location: string
+  /** Where the work is done: ONSITE · HYBRID · REMOTE. The form opens on ONSITE. */
+  workMode: string
+  /** "Sponsorship": YES or NO. The form opens on YES. */
+  sponsorship: string
+  /** The firm's own words for its policy, asked only when sponsorship is NO. */
+  sponsorshipPolicy: string
   /** The suppliers ticked under "Send the job to", where a site is picked; null where none is. */
   sendTo: string[] | null
   headcount: string
@@ -40,6 +46,13 @@ export function jobBody(t: JobTyped): Record<string, unknown> {
     // The site by id; the free text only where the company has no site.
     locationId: t.siteId ?? null,
     location: t.siteId ? null : (t.location.trim() || null),
+    // Where the work is done, beside the site: the work country follows it.
+    workMode: t.workMode || 'ONSITE',
+    // Whether the job offers sponsorship; the policy's words only where it
+    // does not, because they are the reason on record when somebody who
+    // would need a visa is held back.
+    sponsorship: t.sponsorship === 'NO' ? 'NO' : 'YES',
+    ...(t.sponsorship === 'NO' ? { sponsorshipPolicy: t.sponsorshipPolicy.trim() } : {}),
     // Who it goes to. Sent on the raise where the job clears by rule.
     ...(t.sendTo ? { sendTo: [...t.sendTo] } : {}),
     headcount: parseInt(t.headcount, 10) || 1,

@@ -11,6 +11,13 @@
  * publishes itself or waits on approval, and the stage records which.
  *
  * And one rule held on purpose: the AP clerk may not raise a job.
+ *
+ * Where the work is done (founder, 2026-11-03): every job names its site
+ * by id and its work mode, because the work country is read from them.
+ * The site is the one the copied job was at, else the client's primary
+ * site; the mode is the copied job's (the generated world writes REMOTE
+ * for its offshore work), else ONSITE. The station cannot know who will
+ * fill a job when it posts it, so it never guesses REMOTE on its own.
  */
 import { defineStage, type JobFact } from '../../stage'
 
@@ -25,6 +32,8 @@ interface Template {
   costCenterId: string | null
   orgUnitId: string | null
   description: string | null
+  locationId: string | null
+  workMode: string | null
 }
 
 const DAY = 86_400_000
@@ -44,11 +53,21 @@ export default defineStage({
         select: {
           title: true, skills: true, location: true, billMin: true, billMax: true, months: true,
           hoursPerWeek: true, costCenterId: true, orgUnitId: true, description: true, headcount: true,
+          locationId: true, workMode: true,
         },
         orderBy: { createdAt: 'asc' },
       })
+      const primary = await ctx.read.companyLocation.findFirst({
+        where: { companyId: hm.company!.id },
+        orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }],
+        select: { id: true },
+      })
       // One seat per job: the batch roles ("six automation engineers") are copied as one seat of the same work.
-      templates.set(hm.key, rows.map(({ headcount: _h, ...t }) => t))
+      templates.set(hm.key, rows.map(({ headcount: _h, ...t }) => ({
+        ...t,
+        locationId: t.locationId ?? primary?.id ?? null,
+        workMode: t.workMode === 'REMOTE' || t.workMode === 'HYBRID' ? t.workMode : 'ONSITE',
+      })))
     }
     const usable = managers.filter((hm) => (templates.get(hm.key) ?? []).length > 0)
     if (usable.length === 0) return { closed: 0, says: 'No client has a job in the seed to copy.' }
@@ -63,11 +82,15 @@ export default defineStage({
 
     let open = 0
     let waiting = 0
+    let atSite = 0
+    let siteRefused = 0
     await ctx.parallel(plan, async ({ hm, t, neededBy }) => {
-      const res = await hm.post('/api/requisitions', {
+      const body = {
         title: t.title,
         skills: t.skills,
         location: t.location,
+        locationId: t.locationId,
+        workMode: t.workMode,
         headcount: 1,
         billMin: t.billMin,
         billMax: t.billMax,
@@ -77,7 +100,18 @@ export default defineStage({
         orgUnitId: t.orgUnitId,
         description: t.description,
         neededBy,
-      })
+      }
+      let res = await hm.post('/api/requisitions', body)
+      let named = body.locationId != null
+      // A hiring manager who hires for one region is refused a site outside
+      // it, rightly; she then posts the job the way an older caller did,
+      // with no site named, which reads as the primary site.
+      if (!res.ok && res.json?.error?.code === 'NOT_YOUR_SITE') {
+        siteRefused++
+        named = false
+        res = await hm.post('/api/requisitions', { ...body, locationId: null })
+      }
+      if (res.ok && named && res.json?.data?.requisition) atSite++
       if (!res.ok) return
       const r = res.json?.data?.requisition
       if (!r?.id) return
@@ -100,7 +134,8 @@ export default defineStage({
     return {
       closed: ctx.world.jobs.length,
       of: n,
-      says: `${ctx.world.jobs.length} of ${n} job requests raised: ${open} published themselves within plan, ${waiting} wait on approval.`,
+      says: `${ctx.world.jobs.length} of ${n} job requests raised: ${open} published themselves within plan, ${waiting} wait on approval; ` +
+        `${atSite} named their site by id${siteRefused ? `, ${siteRefused} were refused a site outside the manager's region and posted with none` : ''}.`,
     }
   },
 })

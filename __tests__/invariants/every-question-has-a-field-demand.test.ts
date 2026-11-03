@@ -6,6 +6,7 @@ import { reasonAsked, unanswered, ANSWERED_IN } from '@/lib/award/reason-asked'
 import { startOf } from '@/lib/award/hire-terms'
 import { jobBody, JOB_FIELDS_NOT_SENT, type JobTyped } from '@/app/dashboard/requisitions/job-body'
 import { panelFrom } from '@/app/api/requisitions/panel'
+import { readWorkFacts } from '@/app/api/requisitions/work-facts'
 import { applyBody, reuseBody, type ApplyForm } from '@/app/apply/[token]/apply-body'
 
 /**
@@ -82,6 +83,7 @@ describe('every question the award asks, the Place dialog has a field for', () =
 // ── The job request form and the raise ───────────────────────────────
 
 const RAISE = readFileSync(join(process.cwd(), 'src/app/api/requisitions/route.ts'), 'utf8')
+const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/requisitions/page.tsx'), 'utf8')
 /** The fields the raise destructures from its body, by the name the body carries. */
 const raiseReads = (() => {
   const from = RAISE.indexOf('const body = await request.json()')
@@ -94,6 +96,7 @@ const JOB: JobTyped = {
   sendTo: ['brightmoor', 'veritan'], headcount: '2', budget: '48000', hoursPerWeek: '40',
   billMin: '28', billMax: '34', months: '6', neededBy: '2026-11-16', description: 'Second shift.',
   justification: 'Backfill for the Q4 line.', costCenterId: 'cc_ops', ownerId: 'p_marcus', panel: ['Marcus Hollins', ' Dana Whitfield ', 'Marcus Hollins'],
+  workMode: 'HYBRID', sponsorship: 'NO', sponsorshipPolicy: ' We do not sponsor work visas for this role ',
 }
 
 describe('every question the raise asks, the job request form has a field for, and nothing the form asks is thrown away', () => {
@@ -127,6 +130,57 @@ describe('every question the raise asks, the job request form has a field for, a
     const noSite = jobBody({ ...JOB, siteId: null, sendTo: null, location: 'Dayton, Ohio' })
     expect(noSite).toMatchObject({ locationId: null, location: 'Dayton, Ohio' })
     expect('sendTo' in noSite).toBe(false)
+  })
+
+  it('the job form sends where the work is done, opening on site, and the raise writes it to the job', () => {
+    expect(jobBody(JOB).workMode).toBe('HYBRID')
+    expect(jobBody({ ...JOB, workMode: '' }).workMode).toBe('ONSITE')
+    expect(RAISE).toContain('workMode: work.facts.workMode,')
+    expect(readWorkFacts({ workMode: jobBody(JOB).workMode })).toMatchObject({ ok: true, facts: { workMode: 'HYBRID' } })
+  })
+
+  it('a work mode that is not on site, hybrid or remote is refused in a sentence naming the field', () => {
+    expect(readWorkFacts({ workMode: 'remote-ish' })).toEqual({
+      ok: false, field: 'workMode', says: 'Say where the work is done: on site, hybrid or remote.',
+    })
+  })
+
+  it('a job that offers no sponsorship sends the policy in the firm’s own words, and the raise records it as the reason on record', () => {
+    const body = jobBody(JOB)
+    expect(body).toMatchObject({ sponsorship: 'NO', sponsorshipPolicy: 'We do not sponsor work visas for this role' })
+    expect(readWorkFacts(body)).toEqual({
+      ok: true,
+      facts: {
+        workMode: 'HYBRID',
+        restriction: {
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+        },
+      },
+    })
+    expect(RAISE).toContain('...(work.facts.restriction ?? {}),')
+  })
+
+  it('"no sponsorship" with no words is refused, and the form has the field the refusal names', () => {
+    const refused = readWorkFacts({ sponsorship: 'NO', sponsorshipPolicy: '  ' })
+    expect(refused.ok).toBe(false)
+    expect(refused.ok ? null : refused.field).toBe('sponsorshipPolicy')
+    expect('sponsorshipPolicy' in jobBody(JOB)).toBe(true)
+    expect(PAGE).toContain('Your policy, in a few words')
+  })
+
+  it('a job that offers sponsorship sends no policy and records no restriction', () => {
+    const body = jobBody({ ...JOB, sponsorship: 'YES' })
+    expect('sponsorshipPolicy' in body).toBe(false)
+    expect(readWorkFacts(body)).toEqual({ ok: true, facts: { workMode: 'HYBRID', restriction: null } })
+  })
+
+  it('the job form asks "Where is the work done?" and "Sponsorship" in the trade’s words', () => {
+    expect(PAGE).toContain('<Lbl>Where is the work done?</Lbl>')
+    expect(PAGE).toContain("[['ONSITE', 'On site'], ['HYBRID', 'Hybrid'], ['REMOTE', 'Remote']]")
+    expect(PAGE).toContain('<Lbl>Sponsorship</Lbl>')
+    expect(PAGE).toContain("[['YES', 'Offered'], ['NO', 'Not offered']]")
   })
 
   it('every rate typed in dollars on the job form reaches the raise in cents through the one reader', () => {

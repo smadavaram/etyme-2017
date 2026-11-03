@@ -50,7 +50,58 @@
  */
 
 import type { Finding, Step } from '@/lib/loop'
-import { authDecision, type LawfulBasis, type WorkAuth } from '@/lib/work-authorisation'
+import {
+  authDecision,
+  NEEDS_NO_SPONSOR,
+  type LawfulBasis,
+  type Restriction,
+  type WorkAuth,
+} from '@/lib/work-authorisation'
+
+// ── What a job asks of somebody's permission to work ──────────────────
+
+/**
+ * The value a job stores in `workAuthRequired` when it offers no
+ * sponsorship: "anybody who needs no petition". It names a group, not a
+ * status, so a green card holder, an asylee or a citizen all meet it, and
+ * only somebody who would need a visa filed for them does not.
+ */
+export const NEEDS_NO_SPONSOR_VALUE = 'NEEDS_NO_SPONSOR'
+
+const BASES: readonly LawfulBasis[] = [
+  'EXPORT_CONTROL', 'FEDERAL_CONTRACT_CLAUSE', 'SECURITY_CLEARANCE',
+  'STATUTE_OR_REGULATION', 'SPONSORSHIP_UNAVAILABLE',
+]
+
+/**
+ * A job's three columns read as the restriction lib/work-authorisation
+ * decides on. Null where the job asks nothing.
+ *
+ * A basis that is not on the closed list is read as no basis, so it
+ * warns and never blocks: a typed reason nobody can check is the
+ * "client preference" the closed list exists to keep out.
+ */
+export function jobRestriction(
+  required: string | null | undefined,
+  basis: string | null | undefined,
+  cite: string | null | undefined
+): Restriction | null {
+  const r = required?.trim().toUpperCase()
+  if (!r) return null
+  const b = basis?.trim().toUpperCase() as LawfulBasis | undefined
+  return {
+    requires: r === NEEDS_NO_SPONSOR_VALUE ? [...NEEDS_NO_SPONSOR] : [r as WorkAuth],
+    basis: b && BASES.includes(b) ? b : null,
+    cite: cite?.trim() || null,
+  }
+}
+
+/** What the job asks for, in words: "a status that needs no sponsorship" or the status. */
+export function jobAsksFor(required: string): string {
+  return required.trim().toUpperCase() === NEEDS_NO_SPONSOR_VALUE
+    ? 'somebody who needs no sponsorship'
+    : required
+}
 
 export type Code =
   /** The rate we are asking is inside what the role will pay. */
@@ -227,38 +278,32 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
   // legally grounded, WARN and capture a reason everywhere else.
   //
   // The recruiter still sees it. They see the person too.
-  if (p.workAuthRequired && p.workAuth) {
+  const restriction = jobRestriction(p.workAuthRequired, p.workAuthBasis, p.workAuthCite)
+  if (restriction && p.workAuth) {
     // The basis column exists now, so the rules that were written
     // against it can finally reach BLOCK. Until it did, a genuine
     // clearance requirement could only warn.
-    const d = authDecision(
-      {
-        requires: [p.workAuthRequired.toUpperCase() as WorkAuth],
-        basis: (p.workAuthBasis ?? null) as LawfulBasis | null,
-        cite: p.workAuthCite,
-      },
-      p.workAuth.toUpperCase() as WorkAuth
-    )
+    const d = authDecision(restriction, p.workAuth.toUpperCase() as WorkAuth)
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: d.verdict === 'BLOCK' ? 'FAIL' : d.verdict === 'WARN' ? 'WARN' : 'PASS',
       reason: d.reason,
-      evidence: `${p.workAuth} ≠ ${p.workAuthRequired}`,
+      ...(d.verdict === 'PASS' ? {} : { evidence: `${p.workAuth} ≠ ${p.workAuthRequired}` }),
     })
-  } else if (p.workAuthRequired && !p.workAuth) {
+  } else if (restriction && !p.workAuth) {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'WARN',
-      reason: `The job names ${p.workAuthRequired} and nothing is recorded for them. Ask before sending.`,
+      reason: `The job asks for ${jobAsksFor(p.workAuthRequired!)} and nothing is recorded for them. Ask before sending.`,
     })
   } else {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: p.workAuthRequired ? `${p.workAuth} matches.` : 'Job does not specify one.',
+      reason: 'Job does not specify one.',
     })
   }
 
