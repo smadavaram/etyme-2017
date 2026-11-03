@@ -40,6 +40,7 @@ import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, NOT_ANOTHER_BOOK } from './transaction'
 import type { WorkerAnswer } from './worker'
+import { getNavForKind, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind } from '@/lib/nav-table'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -69,6 +70,10 @@ export type Intent =
   | { kind: 'LAST_PAID' }
   /** Setting up the company, getting started, what to do first (the founder's screen, 2026-11-02). */
   | { kind: 'SETUP'; said: 'SETUP' | 'START'; item?: SetupItemAsked }
+  /** Where a page is, read from the seat's own menu; `go` where the person asked to be taken there (2026-11-03). */
+  | { kind: 'WHERE'; topic: number; go: boolean }
+  /** "Take me there": open the page the last answer named. */
+  | { kind: 'GO' }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -215,6 +220,168 @@ export function setupSays(r: SetupRead, item?: SetupItemAsked): Answer {
   }
 }
 
+// ── Where a page is ──────────────────────────────────────────────────
+//
+// Tapin's Owner, on production, 2026-11-03: "where can I see my
+// contracts" was answered "needs the model", and "take me there" with the
+// standing refusal. Both are rules questions. A question about where a
+// page is is answered from the person's own menu (lib/nav-table, the nine
+// links and their tabs, filtered by the seat's permissions the way the
+// menu itself is), with the page named and its link; never the model.
+
+/** One thing a person asks the place of, and the pages that show it, in the order they are named. */
+interface NavTopic { re: RegExp; subject: string; plural: boolean; pages: readonly string[] }
+
+/** Most specific first: "add people to the bench" is the bench, not people. */
+const NAV_TOPICS: readonly NavTopic[] = [
+  { re: /\bbench\b/, subject: 'The bench', plural: false, pages: ['Bench', 'People', 'Who has you'] },
+  { re: /\binvoice receipts?\b|\bsuppliers?['’]?s? invoices?\b/, subject: 'Invoice receipts', plural: true, pages: ['Invoice receipts', 'AP'] },
+  { re: /\b(purchase|sales|work) orders?\b|\bpos\b/, subject: 'Your orders', plural: true, pages: ['POs'] },
+  { re: /\bagreements?\b|\bmsas?\b/, subject: 'Your agreements', plural: true, pages: ['Agreements', 'Sell contracts', 'Buy contracts', 'Contracts'] },
+  { re: /\bcontracts?\b|\bplacements?\b|\bassignments?\b/, subject: 'Your contracts', plural: true, pages: ['Sell contracts', 'Buy contracts', 'Contracts', 'Your work'] },
+  { re: /\bexpenses?\b/, subject: 'Your expenses', plural: true, pages: ['Expenses'] },
+  { re: /\bcommissions?\b/, subject: 'Commissions', plural: true, pages: ['Commissions'] },
+  { re: /\bpayroll\b|\bpay runs?\b/, subject: 'Payroll', plural: false, pages: ['Payroll'] },
+  { re: /\btime ?sheets?\b|\bhours\b|\bweeks?\b/, subject: 'Your timesheets', plural: true, pages: ['Timesheets', 'Your work'] },
+  { re: /\bbill(s|ed|ing)?\b|\breceivables?\b|\bar\b/, subject: 'What you billed', plural: false, pages: ['Bills', 'AR'] },
+  { re: /\binvoic(e|es|ed|ing)\b/, subject: 'Your invoices', plural: true, pages: ['Bills', 'Invoice receipts', 'AR'] },
+  { re: /\bpayables?\b|\bap\b/, subject: 'What you owe', plural: false, pages: ['AP', 'Invoice receipts'] },
+  { re: /\binterviews?\b/, subject: 'Your interviews', plural: true, pages: ['Interviews', 'Your work'] },
+  { re: /\bcandidates?\b|\bapplicants?\b|\bapplied\b|\bapplications?\b|\bsubmissions?\b/, subject: 'Your candidates', plural: true, pages: ['Candidates'] },
+  { re: /\bleads?\b/, subject: 'Leads', plural: true, pages: ['Leads'] },
+  { re: /\bjobs?\b|\bjob requests?\b|\brequisitions?\b|\bopenings?\b|\bpositions?\b/, subject: 'Your jobs', plural: true, pages: ['Jobs', 'Leads', 'Shared with you'] },
+  { re: /\b(users?|permissions?|teammates?|colleagues?|my team|our team)\b/, subject: 'Your team', plural: false, pages: ['Users & permissions'] },
+  { re: /\bcontractors?\b/, subject: 'Your contractors', plural: true, pages: ['Contractors', 'People'] },
+  { re: /\bpeople\b|\bconsultants?\b|\bemployees?\b|\bworkers?\b/, subject: 'Your people', plural: true, pages: ['People', 'Contractors'] },
+  { re: /\b(sub-?)?(suppliers?|vendors?)\b/, subject: 'Your suppliers', plural: true, pages: ['Suppliers', 'Companies'] },
+  { re: /\bclients?\b|\bcustomers?\b|\bcompan(y|ies)\b|\bpartners?\b/, subject: 'Your companies', plural: true, pages: ['Companies', 'Suppliers'] },
+  { re: /\bcontacts?\b/, subject: 'Your contacts', plural: true, pages: ['Contacts'] },
+  { re: /\bcompliance\b/, subject: 'Compliance', plural: false, pages: ['Compliance', 'Paperwork'] },
+  { re: /\bi-?9s?\b|\bpapers?\b|\bpaperwork\b|\bdocuments?\b|\bdocs\b|\bcertificates?\b|\binsurance\b|\blicen[cs]es?\b/, subject: 'Your paperwork', plural: false, pages: ['Paperwork', 'Your paperwork', 'Company paperwork', 'Document requests', 'Compliance'] },
+  { re: /\bsites?\b|\blocations?\b|\bbranch(es)?\b/, subject: 'Your sites', plural: true, pages: ['Sites'] },
+  { re: /\broll ?offs?\b|\brolling off\b|\bending soon\b/, subject: 'Who rolls off', plural: false, pages: ['Rolloff', 'Ending soon'] },
+  { re: /\btenure\b|\btime limits?\b/, subject: 'The time limit', plural: false, pages: ['Tenure'] },
+  { re: /\bbudgets?\b/, subject: 'Your budget', plural: false, pages: ['Budget'] },
+  { re: /\breports?\b/, subject: 'Reports', plural: true, pages: ['Reports'] },
+  { re: /\bprofit(ability|s)?\b|\bmargins?\b/, subject: 'Profitability', plural: false, pages: ['Profitability'] },
+  { re: /\brates?\b/, subject: 'Rate history', plural: false, pages: ['Rate history', 'Your work'] },
+  { re: /\bscorecards?\b/, subject: 'Scorecards', plural: true, pages: ['Our scorecard', 'Supplier scorecards'] },
+  { re: /\bconsent\b|\bwho has me\b/, subject: 'Who has you', plural: false, pages: ['Who has you'] },
+  { re: /\bmy page\b|\bprofile\b/, subject: 'Your page', plural: false, pages: ['Your page'] },
+  { re: /\bmy data\b/, subject: 'Your data', plural: false, pages: ['Your data'] },
+  { re: /\bpay\b|\bpaid\b|\bpay ?checks?\b|\bpayments?\b/, subject: 'Your pay', plural: false, pages: ['Your work', 'AR', 'AP', 'Invoice receipts'] },
+  { re: /\bsettings?\b/, subject: 'Your settings', plural: true, pages: ['Settings'] },
+  { re: /\bdashboard\b|\btoday\b|\bhome\b/, subject: 'Your dashboard', plural: false, pages: ['Today', 'Your work'] },
+]
+
+/** "Where can I see…", "How do I get to…", "Take me to…", "Which page…": asking the place of a page. */
+const WHERE_ASK = /^(?:(?:please|ok(?:ay)?|so|and|hi|hey)[,!]? )*(?:where\b|how (?:do|can|would|should) (?:i|we) (?:get to|find|open|reach|go to|see|view|look at)\b|(?:take|bring|send) me to\b|(?:go|navigate) to\b|(?:which|what) (?:page|tab|screen)\b|on (?:which|what) (?:page|tab|screen)\b|show me where\b)/
+/** "Show me my contracts", "Open our bills": answered as a place only where no rule reads the record for it. */
+const SHOW_ME = /^(?:(?:please|ok(?:ay)?)[,!]? )?(?:show me|open|pull up|i want to see|i need to see|can i see|can you show me)\s+(?:my|our|the|all)\b/
+/** Asking to be taken, not told: the page opens. */
+const TAKE_ME = /^(?:(?:please|ok(?:ay)?)[,!]? )?(?:(?:take|bring|send) me to|(?:go|navigate) to|open)\b/
+/** "Take me there", "Open it", "Go": after an answer that named a page. */
+const GO_THERE = /^(?:(?:please|ok(?:ay)?|yes|yeah|sure|great|thanks|thank you|then)[,!.]? )*(?:take me (?:there|to it|to that(?: page)?)|bring me there|open (?:it|that|that page|the page|this|them)|go(?: there| to it)?|show me(?: it| that| there)?|let['’]?s go|navigate there)(?: please| now)?[.!?]*$/
+
+/** Which topic a question names, by index, or null. */
+function navTopicOf(lower: string): number | null {
+  const at = NAV_TOPICS.findIndex((t) => t.re.test(lower))
+  return at < 0 ? null : at
+}
+
+/** A question about where a page is, or a request to open one; null for anything else. */
+export function readWhere(raw: string, opts: { loose?: boolean } = {}): Intent | null {
+  const lower = raw.trim().replace(/\s+/g, ' ').toLowerCase().normalize('NFC').replace(/[’‘]/g, "'")
+  if (!lower) return null
+  if (GO_THERE.test(lower)) return { kind: 'GO' }
+  const asked = WHERE_ASK.test(lower) || (opts.loose && SHOW_ME.test(lower))
+  if (!asked) return null
+  if (/\b(?!my\b|our\b|your\b)[a-zÀ-ɏ]+'s\b/.test(lower)) return null
+  const topic = navTopicOf(lower)
+  if (topic === null) return null
+  return { kind: 'WHERE', topic, go: TAKE_ME.test(lower) }
+}
+
+/** The seat's own menu, as the sidebar draws it: its kind, a seat in a client's program, its permissions. */
+export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null }): NavSection[] {
+  const worker = seat.party === 'WORKER'
+  const kind = (seat.companyKind ?? null) as CompanyKind | null
+  return getNavForKind(kind, worker, { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null })
+}
+
+interface Placed { section: NavSection; item: NavItem }
+
+/** Every page on the menu, each with the link it sits under. Ask Etyme itself is not a place to send anybody. */
+function placesOn(menu: readonly NavSection[]): Placed[] {
+  return menu.flatMap((section) => section.items.filter((item) => item.href !== ASK_ETYME_HREF).map((item) => ({ section, item })))
+}
+
+function andNames(xs: readonly string[]): string {
+  if (xs.length <= 1) return xs[0] ?? ''
+  return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+/** "under Companies, on the Sell contracts and Buy contracts tabs"; "under Timesheets"; "on Your work". */
+function whereOn(section: NavSection, items: readonly NavItem[]): string {
+  if (!section.tabbed) return `on ${andNames(items.map((i) => i.label))}`
+  const own = section.items[0]
+  if (items.length === 1 && items[0].href === own?.href) return `under ${section.label}`
+  return `under ${section.label}, on the ${andNames(items.map((i) => i.label))} tab${items.length === 1 ? '' : 's'}`
+}
+
+/** The page an answer named first, where it named one: what "take me there" opens. */
+export function placeOf(a: unknown): string | null {
+  const x = a as { kind?: unknown; place?: unknown } | null
+  return x && typeof x === 'object' && x.kind === 'TEXT' && typeof x.place === 'string' && /^\/(?!\/)/.test(x.place) ? x.place : null
+}
+
+/** Whether a page is on this menu: a page the seat may not open is never offered. */
+function onMenu(menu: readonly NavSection[], href: string): Placed | null {
+  return placesOn(menu).find((p) => p.item.href === href) ?? null
+}
+
+/** What the seat can open, said as its links: "Today, Jobs, … and Settings". */
+function linksSaid(menu: readonly NavSection[]): string {
+  return andNames(menu.filter((s) => !s.items.some((i) => i.href === ASK_ETYME_HREF)).flatMap((s) => (s.tabbed ? [s.label] : s.items.map((i) => i.label))))
+}
+
+export const WHERE_FIRST = 'Ask me where a page is first, for example “Where are my contracts?”'
+
+/**
+ * The answer to where a page is, or to "take me there", read from the
+ * seat's own menu. At most two pages are named; a page the menu does not
+ * show this seat is never named. Rules only.
+ */
+export function whereAnswer(intent: Extract<Intent, { kind: 'WHERE' | 'GO' }>, menu: readonly NavSection[], place?: string | null): Answer {
+  if (intent.kind === 'GO') {
+    const at = place ? onMenu(menu, place) : null
+    if (!at) return { kind: 'TEXT', says: `${WHERE_FIRST}, and I will open it.` }
+    return { kind: 'TEXT', says: `Opening ${at.item.label}.`, links: [{ label: `Open ${at.item.label}`, href: at.item.href }], place: at.item.href, go: true }
+  }
+  const topic = NAV_TOPICS[intent.topic]
+  const places = placesOn(menu)
+  const picked: Placed[] = []
+  for (const label of topic.pages) {
+    const p = places.find((x) => x.item.label === label && !picked.some((y) => y.item.href === x.item.href))
+    if (p) picked.push(p)
+    if (picked.length === 2) break
+  }
+  if (picked.length === 0) {
+    const what = topic.subject.charAt(0).toLowerCase() + topic.subject.slice(1)
+    return { kind: 'TEXT', says: `None of your pages shows ${what}. You can open ${linksSaid(menu)}.` }
+  }
+  const sections: NavSection[] = []
+  for (const p of picked) if (!sections.includes(p.section)) sections.push(p.section)
+  const parts = sections.map((s) => whereOn(s, picked.filter((p) => p.section === s).map((p) => p.item)))
+  const says = `${topic.subject} ${topic.plural ? 'are' : 'is'} ${parts.join(', and ')}.`
+  return {
+    kind: 'TEXT', says,
+    links: picked.map((p) => ({ label: `Open ${p.item.label}`, href: p.item.href })),
+    place: picked[0].item.href,
+    ...(intent.go ? { go: true } : {}),
+  }
+}
+
 /**
  * Read what a person typed into one of the five rule questions, or ASK.
  * Case and trailing punctuation do not matter; word order mostly does,
@@ -228,6 +395,9 @@ export function readAsk(raw: string): Intent {
   const lower = text.toLowerCase()
   const setup = setupAsked(lower)
   if (setup) return { kind: 'SETUP', ...setup }
+  // Where a page is, and "take me there": the person's own menu, never the model.
+  const where = readWhere(text)
+  if (where) return where
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
   if (
     (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
@@ -296,6 +466,10 @@ export function readAsk(raw: string): Intent {
     /\bunsigned\b/.test(lower) ||
     (/\b(weeks?|timesheets?|hours)\b/.test(lower) && /\b(not signed|to sign|waiting|not approved|unapproved|approval)\b/.test(lower))
   ) return { kind: 'WEEKS' }
+
+  // "Show me my contracts": a place, where no rule above reads the record for it.
+  const shown = readWhere(text, { loose: true })
+  if (shown) return shown
 
   return { kind: 'ASK', text }
 }
@@ -752,6 +926,21 @@ export const NO_MODEL =
 export const NO_SWITCH =
   `${NOT_YET} This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.`
 
+/** The same, to a seat that cannot change the switch: who can, and no link to a page it cannot open. */
+export const NO_SWITCH_ASK =
+  `${NOT_YET} This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.`
+
+/**
+ * The switch is off: to a seat holding `settings.manage`, the sentence
+ * with "Settings" linked to the switch's own panel (`MODEL_SWITCH_HREF`
+ * in lib/model-boundary, passed in by the route so this file stays free
+ * of the database); to anybody else, who to ask.
+ */
+export function noSwitch(permissions: readonly string[] | null | undefined, href?: string | null): Answer {
+  if (permissions && !hasPermission(permissions, 'settings.manage')) return { kind: 'TEXT', says: NO_SWITCH_ASK }
+  return href ? { kind: 'TEXT', says: NO_SWITCH, saysLinks: [{ text: 'Settings', href }] } : { kind: 'TEXT', says: NO_SWITCH }
+}
+
 /**
  * The model free text goes to: small, by the founder's word ("we don't
  * want a large model"), the smallest of the family this deployment
@@ -953,7 +1142,13 @@ export interface VarianceRow {
 }
 
 export type Answer =
-  | { kind: 'TEXT'; says: string; links?: Link[] }
+  | { kind: 'TEXT'; says: string; links?: Link[]
+      /** Phrases inside `says` that are links: "Settings" to the model switch. */
+      saysLinks?: { text: string; href: string }[]
+      /** The page this answer named first: what "take me there" opens next. */
+      place?: string
+      /** Open `place` now: the person asked to be taken there. The link is the act; no card. */
+      go?: boolean }
   /**
    * What needs this seat. `more` carries who else is asked and the time
    * limit; `greeting` marks the first message of the chat, which the
@@ -2697,9 +2892,19 @@ export async function respond(
     role?: string | null
     /** The reader's own pay, read from their own work where they have any; null where Etyme keeps none. */
     ownPay?: () => Promise<Answer | null>
+    /** The seat's own menu, as its sidebar draws it; read from the kind and the permissions where not given. */
+    menu?: readonly NavSection[]
+    /** The page the last answer named, for "take me there". */
+    place?: string | null
+    /** Where the company's model switch is drawn (lib/model-boundary's MODEL_SWITCH_HREF). */
+    modelSwitchHref?: string | null
   }
 ): Promise<Answer> {
   let intent = readAsk(text)
+  // Where a page is: the seat's own menu, before any read and never the model.
+  if (intent.kind === 'WHERE' || intent.kind === 'GO') {
+    return whereAnswer(intent, opts.menu ?? menuOf({ companyKind: opts.companyKind, party: opts.party, permissions: opts.permissions ?? null, client: opts.client }), opts.place)
+  }
   const own = [opts.ownCompany, opts.client].filter((x): x is string => !!x && !!x.trim())
   const refuseAs = { self: opts.role ?? null, book: opts.client ?? null }
   // A client or a program asks to approve a week, never to accept one: the
@@ -2987,7 +3192,7 @@ export async function respond(
       // deployment has a key; the company's switch is said first, because
       // it is the one a person can change.
       const state = modelState(await read.modelOn(), opts.env)
-      if (state === 'OFF') return { kind: 'TEXT', says: NO_SWITCH }
+      if (state === 'OFF') return noSwitch(opts.permissions, opts.modelSwitchHref)
       if (state === 'NO_KEY') return { kind: 'TEXT', says: NO_MODEL }
       const lines = await read.ledgerLines()
       if (lines.length === 0) return { kind: 'TEXT', says: `${NOT_YET} Etyme has checked nothing you can read yet. ${WHAT_I_ANSWER}` }

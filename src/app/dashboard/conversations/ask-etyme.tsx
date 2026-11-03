@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { Route } from 'next'
 import { useSession } from '@/components/session-provider'
 import { EtymeMark } from '@/components/logo'
@@ -103,6 +104,7 @@ const SUBTITLE = 'Answers from your record and its rules. Anything it does is re
 
 export function AskEtyme() {
   const session = useSession()
+  const router = useRouter()
   // The saved lines from before this page load, oldest first; then this load's turns, greeting first.
   const [history, setHistory] = useState<Turn[]>([])
   const [turns, setTurns] = useState<Turn[]>([])
@@ -239,6 +241,16 @@ export function AskEtyme() {
     }
   }
 
+  /** The page the newest answer named, where it named one. */
+  function lastPlace(): string | null {
+    const all = [...history, ...turns]
+    for (let i = all.length - 1; i >= 0; i--) {
+      const t = all[i]
+      if (t.from === 'etyme') return t.answer.kind === 'TEXT' && t.answer.place ? t.answer.place : null
+    }
+    return null
+  }
+
   async function ask(question: string) {
     const q = question.trim()
     if (!q || pending) return
@@ -249,12 +261,16 @@ export function AskEtyme() {
       const res = await fetch(THREAD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: q }),
+        // The page the last answer named, for "take me there"; the route checks it against the seat's menu.
+        body: JSON.stringify({ text: q, ...(lastPlace() ? { place: lastPlace() } : {}) }),
       })
       const body = await res.json().catch(() => null)
       if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
       if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
       add({ from: 'etyme', answer: body.data.answer as Answer, ...(typeof body.data.turnId === 'string' ? { savedId: body.data.turnId } : {}) })
+      // "Take me there": the reply carries the page as the act, and the page opens.
+      const said = body.data.answer as Answer
+      if (said.kind === 'TEXT' && said.go && said.place && /^\/(?!\/)/.test(said.place)) router.push(said.place as Route)
       // Kept everywhere but a seat that keeps nothing, which the top line already says.
       if (body.data.kept === false && typeof body.data.notKeptBecause === 'string' && body.data.notKeptBecause !== notKept) {
         add({ from: 'aside', text: body.data.notKeptBecause })
@@ -581,7 +597,7 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, re
       )
 
     case 'TEXT':
-      return <><p>{answer.says}</p><Links links={answer.links} /></>
+      return <><p><Rich line={{ says: answer.says, links: answer.saysLinks }} /></p><Links links={answer.links} /></>
 
     case 'WHY':
       return (

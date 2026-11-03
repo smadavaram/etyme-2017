@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
+import { respond, whereAnswer, menuOf, placeOf, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
 import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
-import { modelSwitchFor } from '@/lib/model-boundary'
+import { modelSwitchFor, MODEL_SWITCH_HREF } from '@/lib/model-boundary'
 import { programView } from '@/app/api/program/view'
 import { programSummary } from '@/app/api/program/summary'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
@@ -633,6 +633,23 @@ async function keep(caller: Caller, question: string, answer: Answer): Promise<{
   }
 }
 
+/**
+ * The page the last answer named, for "take me there": the seat's own
+ * saved line first, else what the screen says it last showed. Either is
+ * checked against the seat's own menu before it is opened (`whereAnswer`),
+ * so nothing sent here opens a page the seat may not open.
+ */
+async function lastPlace(caller: Caller, said: unknown): Promise<string | null> {
+  try {
+    const got = await readThread(caller, { take: 4 })
+    if (got.ok) {
+      const last = [...got.thread.turns].reverse().find((t) => t.speaker === 'ETYME')
+      if (last) return placeOf(last.answer)
+    }
+  } catch { /* the screen's own word stands in */ }
+  return typeof said === 'string' && /^\/(?!\/)/.test(said) ? said.slice(0, 300) : null
+}
+
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
@@ -641,7 +658,11 @@ export async function POST(request: NextRequest) {
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
     let answer: Answer
     try {
-      answer = await respondWorker(text, { facts: () => workerFacts(caller, request) })
+      // Where a page is, and "take me there": her own menu, rules only.
+      const where = readAsk(text)
+      answer = where.kind === 'WHERE' || where.kind === 'GO'
+        ? whereAnswer(where, menuOf({ party: 'WORKER', permissions: caller.permissions }), where.kind === 'GO' ? await lastPlace(caller, body.place) : null)
+        : await respondWorker(text, { facts: () => workerFacts(caller, request) })
     } catch (err) {
       await reportError('Ask Etyme could not answer a worker', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
       return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -677,7 +698,8 @@ export async function POST(request: NextRequest) {
     // papers and her contract are answered from her own pages, as a
     // worker's are; what she billed and the rest, from the firm's book.
     // Setting up her firm is the firm's book too (2026-11-02).
-    const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP'].includes(readAsk(text).kind) &&
+    const asked = readAsk(text)
+    const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP', 'WHERE', 'GO'].includes(asked.kind) &&
       ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS'].includes(readWorkerAsk(text))
     const seat = await seatOf(caller)
     answer = solo
@@ -687,6 +709,11 @@ export async function POST(request: NextRequest) {
         env: process.env, companyKind: seat ? seat.clientCompany.kind : caller.company.kind, permissions: await judgedBy(caller), needs: queueFor(request, caller), party: who.party,
         ownCompany: caller.company.name, client: seat?.clientCompany.name ?? null, ownKind: caller.company.kind,
         role: await roleOf(caller), ownPay: () => ownPayOf(caller, request, text),
+        modelSwitchHref: MODEL_SWITCH_HREF,
+        ...(asked.kind === 'WHERE' || asked.kind === 'GO' ? {
+          menu: menuOf({ companyKind: caller.company.kind, party: who.party, permissions: await judgedBy(caller), client: seat?.clientCompany.name ?? null }),
+          place: asked.kind === 'GO' ? await lastPlace(caller, body.place) : null,
+        } : {}),
       })
     if (!solo) answer = await onThePlant(caller, map, answer, queueFor(request, caller))
   } catch (err) {

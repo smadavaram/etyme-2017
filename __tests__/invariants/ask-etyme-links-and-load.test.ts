@@ -425,7 +425,7 @@ describe('a question about setting up the company is answered from the setup che
 
   it('the route answers a one-person firm’s setup question from the firm’s readers, never from her worker’s pages', () => {
     const route = read('src/app/api/conversations/twin/route.ts')
-    expect(route).toMatch(/who\.party === 'SOLO' && !\['UNPAID', 'SETUP'\]\.includes\(readAsk\(text\)\.kind\)/)
+    expect(route).toMatch(/who\.party === 'SOLO' && !\['UNPAID', 'SETUP', 'WHERE', 'GO'\]\.includes\(asked\.kind\)/)
     const reader = read('src/app/api/conversations/twin/read.ts')
     expect(reader).toMatch(/async setup\(\): Promise<SetupRead>/)
     expect(reader).toMatch(/hasPermission\(caller\.permissions, 'settings\.manage'\)/)

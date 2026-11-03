@@ -26,13 +26,15 @@
 
 import { describe, it, expect, afterAll } from 'vitest'
 import {
-  respond, deskRefusal, matchPerson, voiceBreaks, NOT_YET, LIMIT_IS_THE_CLIENTS,
+  respond, deskRefusal, matchPerson, voiceBreaks, NOT_YET, LIMIT_IS_THE_CLIENTS, readAsk, whereAnswer, menuOf, noSwitch, NO_SWITCH, NO_SWITCH_ASK,
   type Answer, type Readers, type WaitingItem, type VarianceReceipt, type SpendReceipt, type OtherWaiting,
   type LimitEntry, type WeekRow, type ToldReceipt, type RosterEntry,
 } from '@/app/api/conversations/twin/ask'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
 import { respondWorker, type WorkerFacts, type WorkerAnswer } from '@/app/api/conversations/twin/worker'
+import { MODEL_SWITCH_HREF } from '@/lib/model-boundary'
+import { getNavForKind, type CompanyKind } from '@/lib/nav-table'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
 const NO_KEY = {}
@@ -256,17 +258,17 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “How many open jobs do we have?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'How many open jobs do we have?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the program manager asks “Which documents expire this month?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Which documents expire this month?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the program manager asks “What is our average bill rate for data engineers?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'What is our average bill rate for data engineers?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the program manager asks “What is the capital of France?” and is refused in one sentence that says what Ask Etyme helps with', async () => {
@@ -279,7 +281,7 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “Who starts next week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Who starts next week?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
 })
@@ -337,12 +339,12 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
 
   it('the AP clerk asks “Which invoices are due this week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('AP', 'Which invoices are due this week?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the AP clerk asks “How much did we pay Computer Systems last quarter?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('AP', 'How much did we pay Computer Systems last quarter?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the AP clerk asks “What can you do?” and the rules answer it', async () => {
@@ -390,12 +392,12 @@ describe('the hiring manager at Northbend Athletic', () => {
 
   it('the hiring manager asks “Who applied for the data engineer job?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'Who applied for the data engineer job?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the hiring manager asks “When is Omar Haddad\'s interview?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'When is Omar Haddad\'s interview?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('the hiring manager asks “Write a poem about our timesheets” and is refused in one sentence that says what Ask Etyme helps with', async () => {
@@ -451,17 +453,17 @@ describe('the account manager at Pinnacle Resourcing', () => {
 
   it('a supplier’s account manager asks “Did Northbend approve Helena\'s timesheet?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Did Northbend approve Helena\'s timesheet?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('a supplier’s account manager asks “How many of my consultants are on site at Northbend?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'How many of my consultants are on site at Northbend?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
   it('a supplier’s account manager asks “Can you send Pinnacle a reminder about PR-2026-0442?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Can you send Pinnacle a reminder about PR-2026-0442?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 
 })
@@ -612,5 +614,127 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
   it('a worker asks “How many vacation days do I have left?” and is told honestly that Etyme cannot answer it yet', async () => {
     await worker('How many vacation days do I have left?', 'NOT_YET',
       'I cannot answer that yet. Ask about what needs you, your signed weeks, your pay, your papers or your consent.')
+  })
+})
+
+// ── Where a page is (Tapin's Owner on production, 2026-11-03) ───────────
+
+describe('where a page is, asked by a supplier’s Owner, a client’s hiring manager, a worker and a one-person firm', () => {
+  type Who = 'OWNER' | 'HIRING_MANAGER' | 'WORKER' | 'SOLO'
+  const WHO: Record<Who, { companyKind: CompanyKind | null; party: 'FIRM' | 'CLIENT' | 'WORKER' | 'SOLO'; permissions: string[] }> = {
+    OWNER: { companyKind: 'VENDOR', party: 'FIRM', permissions: ['*'] },
+    HIRING_MANAGER: { companyKind: 'CLIENT', party: 'CLIENT', permissions: ['requirements.write', 'timesheets.approve', 'timesheets.read'] },
+    WORKER: { companyKind: null, party: 'WORKER', permissions: ['assignments.read', 'timesheets.read'] },
+    SOLO: { companyKind: 'CONSULTANT_CORP', party: 'SOLO', permissions: ['*'] },
+  }
+
+  /** As the route asks it: a worker's from her own menu, a firm's through respond. */
+  async function where(who: Who, question: string, place: string | null = null): Promise<Answer> {
+    const s = WHO[who]
+    if (who === 'WORKER') {
+      const i = readAsk(question)
+      if (i.kind !== 'WHERE' && i.kind !== 'GO') throw new Error(`${question} was not read as a place: ${i.kind}`)
+      return whereAnswer(i, menuOf({ party: 'WORKER', permissions: s.permissions }), place)
+    }
+    return respond(question, seat('SUPPLIER').read, { env: NO_KEY, now: NOW, companyKind: s.companyKind, permissions: s.permissions, party: s.party, place })
+  }
+
+  async function placed(who: Who, question: string, expected: string, hrefs: string[]) {
+    const a = await where(who, question)
+    expect(a.kind).toBe('TEXT')
+    if (a.kind !== 'TEXT') return
+    expect(a.says).toBe(expected)
+    expect(a.says.startsWith(NOT_YET)).toBe(false)
+    expect((a.links ?? []).map((l) => l.href)).toEqual(hrefs)
+    expect(a.place).toBe(hrefs[0])
+    expect(voiceBreaks(a.says)).toEqual([])
+    score.ANSWERED++
+  }
+
+  it('a question about where a page is is answered from the person’s own menu with the link, never the model', async () => {
+    await placed('OWNER', 'where can I see my contracts', 'Your contracts are under Companies, on the Sell contracts and Buy contracts tabs.',
+      ['/dashboard/contracts?side=sell', '/dashboard/contracts?side=buy'])
+    // The model is off and nothing reached it: the seat's readers throw if the model is asked.
+    expect((await where('OWNER', 'Where are my contracts?')).says).not.toMatch(/needs the model/)
+  })
+
+  it('a supplier’s Owner asks “Where are my contracts?” and reads both tabs under Companies', async () => {
+    await placed('OWNER', 'Where are my contracts?', 'Your contracts are under Companies, on the Sell contracts and Buy contracts tabs.',
+      ['/dashboard/contracts?side=sell', '/dashboard/contracts?side=buy'])
+  })
+
+  it('a supplier’s Owner asks “Where do I see what I billed?” and reads Bills and AR', async () => {
+    await placed('OWNER', 'Where do I see what I billed?', 'What you billed is under Bills, on the Bills and AR tabs.', ['/dashboard/invoices', '/dashboard/ar'])
+  })
+
+  it('a supplier’s Owner asks “Where do I add people to the bench?” and reads the Bench tab, then People', async () => {
+    await placed('OWNER', 'Where do I add people to the bench?', 'The bench is under People, on the Bench and People tabs.', ['/dashboard/bench', '/dashboard/consultants'])
+  })
+
+  it('a client’s hiring manager asks “Where are my contracts?” and reads Contracts under Contractors', async () => {
+    await placed('HIRING_MANAGER', 'Where are my contracts?', 'Your contracts are under Contractors, on the Contracts tab.', ['/dashboard/contracts'])
+  })
+
+  it('a client’s hiring manager asks “Where do I approve timesheets?” and reads Timesheets', async () => {
+    await placed('HIRING_MANAGER', 'Where do I approve timesheets?', 'Your timesheets are under Timesheets.', ['/dashboard/timesheets'])
+  })
+
+  it('a worker asks “Where is my timesheet?” and reads Your work, where she files it', async () => {
+    await placed('WORKER', 'Where is my timesheet?', 'Your timesheets are on Your work.', ['/dashboard/my-work'])
+  })
+
+  it('a one-person firm asks “Where do I see what I billed?” and reads Bills and AR', async () => {
+    await placed('SOLO', 'Where do I see what I billed?', 'What you billed is under Bills, on the Bills and AR tabs.', ['/dashboard/invoices', '/dashboard/ar'])
+  })
+
+  it('a one-person firm asks “Where are my contracts?” and reads both pages that fit, Contracts and Your work', async () => {
+    await placed('SOLO', 'Where are my contracts?', 'Your contracts are under Contracts, and under Your work.', ['/dashboard/contracts', '/dashboard/my-work'])
+  })
+
+  it('take me there after such an answer opens the page', async () => {
+    const first = await where('OWNER', 'where can I see my contracts')
+    const place = first.kind === 'TEXT' ? first.place ?? null : null
+    for (const q of ['take me there', 'Take me there.', 'open it', 'go']) {
+      expect(await where('OWNER', q, place), q).toEqual({
+        kind: 'TEXT', says: 'Opening Sell contracts.', links: [{ label: 'Open Sell contracts', href: '/dashboard/contracts?side=sell' }],
+        place: '/dashboard/contracts?side=sell', go: true,
+      })
+    }
+    // "Take me to my contracts" is the question and the act at once.
+    const taken = await where('HIRING_MANAGER', 'Take me to my contracts')
+    expect(taken).toMatchObject({ kind: 'TEXT', place: '/dashboard/contracts', go: true })
+  })
+
+  it('take me there with no page named before asks where to, and never reaches the model', async () => {
+    expect(await where('OWNER', 'take me there')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
+  })
+
+  it('a page the seat may not open is never offered', async () => {
+    // A hiring manager has no Settings page of the firm's and no payroll.
+    const payroll = await where('HIRING_MANAGER', 'Where do I run payroll?')
+    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Candidates, Timesheets, Invoice receipts, Contractors, Suppliers and Settings.' })
+    // "Take me there" toward a page off the seat's menu opens nothing.
+    expect(await where('HIRING_MANAGER', 'take me there', '/dashboard/payroll')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
+    // Every page offered to any of the four is on that seat's own filtered menu.
+    for (const who of Object.keys(WHO) as Who[]) {
+      const s = WHO[who]
+      const menu = getNavForKind(s.companyKind, who === 'WORKER', { permissions: s.permissions })
+      const hrefs = new Set(menu.flatMap((x) => x.items.map((i) => i.href)))
+      for (const q of ['Where are my contracts?', 'Where do I approve timesheets?', 'Where is my timesheet?', 'Where do I see what I billed?', 'Where do I add people to the bench?', 'Where do I run payroll?', 'Where are my invoice receipts?']) {
+        const a = await where(who, q)
+        for (const l of a.kind === 'TEXT' ? a.links ?? [] : []) expect(hrefs.has(l.href), `${who}: ${q} → ${l.href}`).toBe(true)
+      }
+    }
+  })
+
+  it('a question about somebody else’s thing is not read as a page', () => {
+    expect(readAsk('Where is Helena Marsh’s timesheet?').kind).not.toBe('WHERE')
+  })
+
+  it('the switch refusal links “Settings” to the switch for a seat that can turn it on, and says who to ask otherwise', () => {
+    expect(noSwitch(['settings.manage'], MODEL_SWITCH_HREF)).toEqual({ kind: 'TEXT', says: NO_SWITCH, saysLinks: [{ text: 'Settings', href: MODEL_SWITCH_HREF }] })
+    expect(noSwitch(['*'], MODEL_SWITCH_HREF)).toEqual({ kind: 'TEXT', says: NO_SWITCH, saysLinks: [{ text: 'Settings', href: MODEL_SWITCH_HREF }] })
+    expect(noSwitch(['timesheets.approve'], MODEL_SWITCH_HREF)).toEqual({ kind: 'TEXT', says: NO_SWITCH_ASK })
+    expect(NO_SWITCH_ASK).toBe('I cannot answer that yet. This question needs the model, and your company has not turned it on. Ask the Owner or an Admin to turn it on.')
   })
 })

@@ -1690,7 +1690,7 @@ describe('every first screen names a person and the step in front of them (found
     expect(a.says).toBe('Your contract at Northbend Athletic ends on Mar 28, 2027. Checked just now.')
     // The route sends her week, her papers and her contract to her own pages, and what she billed and her firm's setup to the firm's book.
     const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
-    expect(route).toContain("const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP'].includes(readAsk(text).kind)")
+    expect(route).toContain("const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP', 'WHERE', 'GO'].includes(asked.kind)")
   })
 
   it('a worker’s greeting ends on where she stands against the client’s time limit, in whole months, after the papers', () => {
