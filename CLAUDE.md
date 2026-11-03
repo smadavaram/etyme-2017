@@ -3254,6 +3254,40 @@ the page shows; the refusal names roles, not people. Also: the architect
 built the sheet import to supply's `profileEditPlan` (9004f3572), so a
 row about a person with their own account writes the firm's listing
 only and the summary says so per row.
+**Money (b627ceb7b, 34a8c80ca, 87e27a1ac, 0d770cd8e, 3e8a52167,
+c5493db27, 9568a0f0f), the same evening.** The fault that stopped the
+ship is closed: "Bill this week" is drawn only where the next bill
+would carry the week's own hours (`weekOnPlan` in `lib/money/week-bill`),
+and a press on a week whose hours are already on a bill refuses in the
+generator's own sentence naming that bill and drafts nothing, not even
+the expense alone. The amount left on an order is one figure, read
+through the three-way check's own door (`drawnOnOrder` plus this bill),
+said once as "left after this bill", and not given at all where a
+document on the order is in another currency; a bill sold to, billed
+to and settled by one firm says that firm throughout; the activate
+route returns `code` and `who` beside `may`, a seat that does not start
+reads who does with no button (only for a FORBIDDEN refusal, so the
+route's state words never reach a screen), and after Activate the
+route's own sentence stays on the screen across the reload for a
+minute; the bill picker reads "Helena Marsh · Oct 4 – Oct 10, 2026 ·
+Northbend Athletic" (`lib/money/bill-choice`), the job's name only
+where no person is on the line; a typed-in invoice receipt from a firm
+the payer has no line with, no line billed to it and no order raised
+to is refused in a sentence naming both firms; and an expense is
+accepted and billed in its own currency (`Expense.currency`, else the
+pay currency of the line paying the worker), one in another currency
+than the bill left off in the existing sentence, never converted.
+Premium overtime on the order's posting was already one pricing
+(0a376bb41; `week-overtime-terms.test.ts` pins 40 × $98 + 4 × $147 =
+$4,508). Coordinator's calls, each reversible in a sentence: "left
+after this bill" counts the draft; a typed-in receipt needs a trading
+tie (a buy line, a line billed to the payer, or an order), an agreement
+alone is not enough; the kept activation sentence lasts 60 seconds;
+`who` lists the shipped role set for the caller's kind of firm. Routed:
+the week's own page draws `BillThisWeek` (architect, two lines); the
+employer's acceptance saying "$5,200.00 to pay for the week" where that
+is the client's bill, and the approve route printing figures without a
+currency (demand).
 
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
