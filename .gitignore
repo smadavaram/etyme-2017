@@ -46,6 +46,7 @@ ngrok
 # The simulation's own build, and its run output (scripts/simulate).
 /.next-sim/
 /reports/simulation-*
+/reports/pages-*
 /out/
 next-env.d.ts
 
