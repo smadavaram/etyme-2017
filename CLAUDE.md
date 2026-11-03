@@ -2795,6 +2795,44 @@ columns landed; the home page, the demo, all four doors
 terms, the DPA, sign-up and `/site/tapin` answer 200; the inbound
 email door answers 404 to a POST.
 
+**The founder's own retest of production 3a35d888d, 2026-11-03: partial
+pass on the I-9, still no-go for activation.** His tester reused Rajesh
+Iyer's placement (Brightmoor → Northbend, $95/hr, PO-2026-ADIVD line 4).
+What passed: the demo opens with no account; the I-9 accepted on
+Document requests now flips the placement's chip to "on file" for the
+I-9 and E-Verify, which on Nov 1 did not propagate at all. What still
+fails, in his order: the placement page has no Activate button in
+either seat, only the prose "Get an I-9 and E-Verify on file, then
+activate" and "activate with a reason" with no control behind it, so
+the placement stays draft two days past its start with $0 billed;
+**every paper but the I-9 does not propagate**: background check, drug
+screening, NDA and confidentiality are Accepted on Brightmoor's
+Paperwork page through Nov 1, 2027 and still read "needed / Not on
+file" on the placement, while a fresh W-2 packet request refuses with
+"everything is already on file and current", two truths about one
+worker, the class "success said, nothing the gate reads" again, closed
+for the I-9 in 128465a12 and open for every other kind; "No buy line
+behind this placement", so no pay line and no timesheet; Rajesh has no
+way to sign in, so no week can be filed; Helena Marsh's approved Oct
+4–10 week ($5,800) still has no draft bill and her week page no bill
+section; the I-9 dialog pre-filled edition 01/20/25 for a paper that
+prints "Rev. March 2024", "Passport Card" is missing from the list,
+expiry is typed segment by segment and a disabled Accept says nothing;
+packet rows do nothing when clicked and a stuck packet cannot be
+re-sent in-app; "Ask somebody" disables every person with no reason;
+Ask Etyme says the model is not set up on this deployment (no key on
+production). His order, taken as the build order: Activate as a real
+button and every acceptance read by the placement first, deploy, and
+he retests the same day; then the buy line, Bill this week on an
+approved week, the I-9 dialog, the packet rows, the picker's reasons,
+and a placed person's sign-in link on the row for the employer where
+no email can leave. His separate rating of the harness (design 7.5,
+live 4.5 as of Oct 30; context, actions, boundaries, persistence,
+evals) is answered by three pieces queued after this: a post-check at
+runtime that every act's downstream record exists, the model on behind
+the deterministic checks (the founder's key), and the fifty-question
+set graded against the ledger in every release pass.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
