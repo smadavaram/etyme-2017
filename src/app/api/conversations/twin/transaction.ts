@@ -50,6 +50,25 @@ const GENERAL: readonly RegExp[] = [
   /\b(news|headlines)\b/,
 ]
 
+/**
+ * A writing job, whatever record sits in it: "write me a short poem about
+ * our bench" is a poem, not a bench question (release walk three,
+ * 2026-11-03: it was answered with the bench table). Narrower than
+ * GENERAL on purpose, because it is read before any intent: "any news on
+ * Rajesh's start?" is a question about the record and is left to the rules.
+ */
+const WRITING: readonly RegExp[] = [
+  /\b(poems?|poetry|jokes?|haikus?|limericks?|riddles?|lyrics|sonnets?|raps?|rhymes?|verses?)\b/,
+  /\b(write|compose|make up)\b.*\b(story|stories|song|essay|fairy ?tale|bedtime)\b/,
+  /\bwrite (me )?(an? |the )?(essay|story|blog|tweet|speech|cover letter)\b/,
+]
+
+/** A writing job (a poem, a joke, a story), refused before any intent is read, whatever the record words in it. */
+export function writingAsk(text: string): boolean {
+  const t = lowerOf(text)
+  return WRITING.some((re) => re.test(t))
+}
+
 /** Another company's book, a rival's, or a benchmark across companies — never the reader's own. */
 const ANOTHER_BOOK: readonly RegExp[] = [
   // "other companies", "another client" — but "our other clients" is the reader's own book.

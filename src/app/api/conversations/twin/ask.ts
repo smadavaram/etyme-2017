@@ -38,7 +38,7 @@ import { ITEM_WORDS, itemHref, CHECKLIST_HREF, type ItemKey } from '@/lib/setup-
 import { WEEK_WORDS, weekActOf } from '@/lib/notify/week-words'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
-import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, NOT_ANOTHER_BOOK } from './transaction'
+import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
 import { getNavForKind, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind } from '@/lib/nav-table'
 
@@ -2907,6 +2907,12 @@ export async function respond(
     modelSwitchHref?: string | null
   }
 ): Promise<Answer> {
+  // A writing job (a poem, a joke, a story) is refused before any intent,
+  // whatever record words are in it: Ask Etyme answers about the company's
+  // own work and nothing else (CLAUDE.md, "it never goes beyond the
+  // transaction"; release walk three, 2026-11-03: "Write me a short poem
+  // about our bench" drew the bench table).
+  if (writingAsk(text)) return { kind: 'TEXT', says: ONLY_THE_RECORD }
   let intent = readAsk(text)
   // Where a page is: the seat's own menu, before any read and never the model.
   if (intent.kind === 'WHERE' || intent.kind === 'GO') {
