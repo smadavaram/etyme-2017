@@ -15,13 +15,16 @@
  *   permissions (`actingDesk`), and the kind and name of that book so a
  *   refusal names who there may.
  * - **Message** is `mayMessageSupplier` (`lib/threads`), with the caller's
- *   own company, which is what the conversations route judges by; a
+ *   own company and the seat its firm holds in a client's program, which
+ *   is what the conversations route judges by (`programSideFor`): a seat
+ *   whose role writes for the client opens the client's thread, a seat
+ *   that does not and a firm with none are offered nothing; a
  *   consultant's own seat never speaks for a firm.
  *
  * Pure. The route reads; this decides.
  */
 import { maySendOn, whyNotSendOn, type Actor } from '@/lib/forwarding'
-import { mayMessageSupplier } from '@/lib/threads'
+import { mayMessageSupplier, type ProgramSide } from '@/lib/threads'
 
 export interface DoorRow {
   id: string
@@ -65,11 +68,16 @@ export function sendOnDoor(actor: Actor, s: DoorRow): Door {
 }
 
 export function messageDoor(
-  caller: { companyId: string | null | undefined; consultantSeat: boolean },
+  caller: {
+    companyId: string | null | undefined
+    consultantSeat: boolean
+    /** The seat the caller's firm holds in a client's program, read once per request; null for none. */
+    seat?: ProgramSide | null
+  },
   s: Pick<DoorRow, 'fromCompanyId' | 'toCompanyId'> & { kind: string },
 ): Door {
   // An internal move has no other firm to write to.
   if (s.kind === 'INTERNAL') return { open: false, says: null }
   if (caller.consultantSeat) return { open: false, says: 'Speaking for a company to another company is for its staff.' }
-  return mayMessageSupplier(s, caller.companyId) ? { open: true, says: null } : { open: false, says: null }
+  return mayMessageSupplier(s, caller.companyId, caller.seat ?? null) ? { open: true, says: null } : { open: false, says: null }
 }

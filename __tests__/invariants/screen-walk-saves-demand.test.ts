@@ -260,7 +260,7 @@ describe('Message <supplier>, on the Candidates page', () => {
   }
 
   it('Message is never drawn for a seat the route will refuse', () => {
-    // Aptiva, seated in Cavanaugh's program: the candidate went to Cavanaugh.
+    // Aptiva, with no seat in Cavanaugh's program: the candidate went to Cavanaugh.
     expect(messageDoor({ companyId: 'aptiva', consultantSeat: false }, { ...ROW, kind: 'NETWORK' }).open).toBe(false)
     // A consultant's own seat never speaks for a firm.
     expect(messageDoor({ companyId: 'cavanaugh', consultantSeat: true }, { ...ROW, kind: 'NETWORK' }).open).toBe(false)
@@ -277,6 +277,24 @@ describe('Message <supplier>, on the Candidates page', () => {
     }
     expect(SUBS_ROUTE).toContain('message: messageDoor(messageBy, s),')
     expect(SUBS_PAGE).toContain("(direction === 'received' ? row.message?.open === true : true) && (")
+  })
+
+  it('“Message <supplier>” is drawn on the Candidates page for a seat in the client’s program that writes for it, and not for a seat whose role does not write', () => {
+    const writes = { clientCompanyId: 'cavanaugh', permissions: ['requirements.write', 'requirements.read'] }
+    const readsOnly = { clientCompanyId: 'cavanaugh', permissions: ['invoices.read'] }
+    expect(messageDoor({ companyId: 'aptiva', consultantSeat: false, seat: writes }, { ...ROW, kind: 'NETWORK' })).toEqual({ open: true, says: null })
+    expect(messageDoor({ companyId: 'aptiva', consultantSeat: false, seat: readsOnly }, { ...ROW, kind: 'NETWORK' })).toEqual({ open: false, says: null })
+    // A seat at another client writes nothing for Cavanaugh's candidates.
+    expect(messageDoor({ companyId: 'aptiva', consultantSeat: false, seat: { ...writes, clientCompanyId: 'northbend' } }, { ...ROW, kind: 'NETWORK' }).open).toBe(false)
+    // The button agrees with the route: a writing seat opens the client's thread.
+    expect(whoMayOpen(facts, aptiva, techpeple, { seatedAt: cavanaugh, seatWrites: true }).ok).toBe(true)
+    // The route hands the seat it read once for the request, never one per row.
+    expect(SUBS_ROUTE).toContain('seat: desk?.seat ? { clientCompanyId: desk.seat.clientCompany.id, permissions: desk.seat.role.permissions } : null,')
+  })
+
+  it('a firm with no seat in the program is offered no button and told nothing', () => {
+    expect(messageDoor({ companyId: 'aptiva', consultantSeat: false, seat: null }, { ...ROW, kind: 'NETWORK' })).toEqual({ open: false, says: null })
+    expect(messageDoor({ companyId: 'aptiva', consultantSeat: false }, { ...ROW, kind: 'NETWORK' })).toEqual({ open: false, says: null })
   })
 
   it('a refused message shows the route’s sentence in the dialog', () => {
@@ -352,7 +370,7 @@ describe('the Timesheets page’s words for acting on a week', () => {
   it('Send on is drawn by the one reader of the forward route’s first checks, never a copy of the rule', () => {
     const DOORS = src('src/app/api/submissions/row-doors.ts')
     expect(DOORS).toContain('if (maySendOn(actor, sub)) return { open: true, says: null }')
-    expect(DOORS).toContain('return mayMessageSupplier(s, caller.companyId)')
+    expect(DOORS).toContain('return mayMessageSupplier(s, caller.companyId, caller.seat ?? null)')
     // The forward route passes the book's kind and name, so its refusal names who may.
     expect(FORWARD_ROUTE).toContain("kind: desk?.seat ? desk.seat.clientCompany.kind : caller.company?.kind ?? null,")
     expect(FORWARD_ROUTE).toContain('companyName: desk?.companyName ?? caller.company?.name ?? null,')

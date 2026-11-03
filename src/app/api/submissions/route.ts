@@ -1730,7 +1730,14 @@ export async function GET(request: NextRequest) {
     permissions: desk?.permissions ?? caller.permissions,
     kind: desk?.seat ? desk.seat.clientCompany.kind : caller.company?.kind ?? null,
   })
-  const messageBy = { companyId: caller.company?.id ?? null, consultantSeat: isConsultantSeat(caller) }
+  // The seat is the one `actingDesk` read above, once for the request:
+  // the client it is at and that client role's permissions, the shape the
+  // conversations route judges a seat by (`programSideFor`).
+  const messageBy = {
+    companyId: caller.company?.id ?? null,
+    consultantSeat: isConsultantSeat(caller),
+    seat: desk?.seat ? { clientCompanyId: desk.seat.clientCompany.id, permissions: desk.seat.role.permissions } : null,
+  }
 
   return NextResponse.json({
     data: {
