@@ -5,6 +5,7 @@
  * importing each other.
  */
 import type { Edition } from '@/lib/document-type'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * The editions an issuer published, for every company that has not
@@ -85,8 +86,6 @@ function asPrinted(d: Date): string {
   return `${mm}/${dd}/${String(d.getUTCFullYear()).slice(-2)}`
 }
 
-/** "Nov 3, 2026", read in UTC. A leaf, so it formats its own day. */
-const PLAIN = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 export type EditionToRecord =
   | { ok: true; edition: string }
@@ -124,7 +123,7 @@ export function editionToRecord(type: string, raw: string, completedOn: Date): E
   const on = completedOn.getTime()
   const open = list.filter((e) => e.effectiveFrom.getTime() <= on && (!e.retiredAt || e.retiredAt.getTime() > on))
   const due = open[open.length - 1] ?? list[list.length - 1]
-  const day = PLAIN.format(completedOn)
+  const day = formatDay(completedOn)
   const found = list.find((e) => e.edition === read.edition)
   if (!found) {
     return {
