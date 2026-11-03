@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { readJson, statusMeans } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
-import { I9_SHOWN, VERDICT_OUTCOMES, examineBody, examineFields, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
+import { I9_SHOWN, VERDICT_OUTCOMES, acceptWaitsOn, examineBody, examineFields, shownById, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
 
 /**
  * Look at a paper that arrived, and accept it or send it back.
@@ -46,6 +46,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
     expiresAt: row.licenseFacts?.expiresAt ?? '',
     issuer: row.licenseFacts?.issuer ?? '',
     licenseNumber: row.licenseFacts?.licenseNumber ?? '',
+    shownId: I9_SHOWN[0].id,
     shownType: I9_SHOWN[0].key,
     shownIssuer: I9_SHOWN[0].issuer,
     outcome: VERDICT_OUTCOMES[0].key,
@@ -56,6 +57,26 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
   // The screen that can record what this dialog could not, where the route names one.
   const [door, setDoor] = useState<{ says: string; href: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  // The edition as the paper's own words print it, with the line it was
+  // read from. Never filled for HR from anywhere else (the founder's
+  // tester, 2026-11-03): where the paper prints none, HR types what is
+  // printed at the foot of the form.
+  const [editionQuote, setEditionQuote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!needs.edition || !row.fileName) return
+    let gone = false
+    fetch(`/api/documents/${row.id}/file?read=edition`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const read = j?.data?.read as { edition: string; quote: string } | null | undefined
+        if (gone || !read?.edition) return
+        setV((now) => (now.edition ? now : { ...now, edition: read.edition }))
+        setEditionQuote(read.quote)
+      })
+      .catch(() => undefined)
+    return () => { gone = true }
+  }, [row.id, row.fileName, needs.edition])
+  const waits = verdict === 'ACCEPT' ? acceptWaitsOn(needs, v) : (reason.trim() ? null : { says: 'Say why it goes back.' })
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -115,19 +136,22 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
             {shows.has('validFrom') && (
               <label className="block">
                 <span className={label}>The day it starts, as printed</span>
-                <input type="date" value={v.validFrom ?? ''} onChange={set('validFrom')} required className={field} />
+                <input value={v.validFrom ?? ''} onChange={set('validFrom')} required inputMode="numeric" placeholder="MM/DD/YYYY" className={field} />
               </label>
             )}
             {shows.has('expiresAt') && (
               <label className="block">
                 <span className={label}>The day it runs out, as printed</span>
-                <input type="date" value={v.expiresAt ?? ''} onChange={set('expiresAt')} required className={field} />
+                <input value={v.expiresAt ?? ''} onChange={set('expiresAt')} required inputMode="numeric" placeholder="MM/DD/YYYY" className={field} />
               </label>
             )}
             {shows.has('edition') && (
               <label className="block">
                 <span className={label}>{needs.shown ? 'The edition printed at the foot of the form' : 'The edition printed on the form'}</span>
-                <input value={v.edition ?? ''} onChange={set('edition')} required placeholder={needs.shown ? '01/20/25' : 'Rev. March 2024'} className={field} />
+                <input value={v.edition ?? ''} onChange={(e) => { setEditionQuote(null); set('edition')(e) }} required placeholder="Type it as printed" className={field} />
+                {editionQuote && (
+                  <span className="block text-[12px] text-etyme-muted mt-1">Read from the paper: “{editionQuote}”. Check it against the form.</span>
+                )}
               </label>
             )}
             {/* An I-9 is completed from a document the person chose to
@@ -140,11 +164,11 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
                 <label className="block">
                   <span className={label}>The document shown</span>
                   <select
-                    value={v.shownType}
-                    onChange={(e) => setV({ ...v, shownType: e.target.value, shownIssuer: I9_SHOWN.find((d) => d.key === e.target.value)?.issuer ?? '' })}
+                    value={v.shownId}
+                    onChange={(e) => { const d = shownById(e.target.value); setV({ ...v, shownId: d.id, shownType: d.key, shownIssuer: d.issuer }) }}
                     className={field}
                   >
-                    {I9_SHOWN.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    {I9_SHOWN.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                   </select>
                 </label>
                 <label className="block">
@@ -157,7 +181,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
                 </label>
                 <label className="block">
                   <span className={label}>The day it runs out, as printed on it</span>
-                  <input type="date" value={v.shownExpiresAt ?? ''} onChange={set('shownExpiresAt')} required className={field} />
+                  <input value={v.shownExpiresAt ?? ''} onChange={set('shownExpiresAt')} required inputMode="numeric" placeholder="MM/DD/YYYY" className={field} />
                 </label>
               </>
             )}
@@ -191,7 +215,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
                 </label>
                 <label className="block">
                   <span className={label}>The day they reported</span>
-                  <input type="date" value={v.renderedOn ?? ''} onChange={set('renderedOn')} required className={field} />
+                  <input value={v.renderedOn ?? ''} onChange={set('renderedOn')} required inputMode="numeric" placeholder="MM/DD/YYYY" className={field} />
                 </label>
                 <label className="block">
                   <span className={label}>What they reported</span>
@@ -216,9 +240,11 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
         {door && (
           <a href={door.href} className="block text-sm text-etyme-action hover:underline">{door.says}</a>
         )}
-        <div className="flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
+          {/* A button that cannot be pressed says why, beside it. */}
+          {waits && <span className="mr-auto text-[12px] text-etyme-muted" role="status">{waits.says}</span>}
           <button type="button" onClick={onClose} className="text-sm text-etyme-muted">Cancel</button>
-          <button type="submit" disabled={busy} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+          <button type="submit" disabled={busy || !!waits} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
             {verdict === 'ACCEPT' ? 'Accept' : 'Send back'}
           </button>
         </div>

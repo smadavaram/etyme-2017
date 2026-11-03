@@ -1,3 +1,5 @@
+import { shownById, typedDay } from '@/lib/document-stages/examine-form'
+
 /**
  * What the Compliance page's "Record the I-9" and "Record a screening
  * company's report" forms post to `POST /api/compliance/verifications`,
@@ -18,7 +20,9 @@ export interface I9Typed {
 export function recordI9Body(contractId: string, t: I9Typed): Record<string, unknown> {
   return {
     contractId, about: 'PERSON', type: 'I9_EVERIFY', formEdition: t.edition,
-    evidence: [{ type: t.doc, issuer: t.docIssuer || null, reference: t.docNumber || null, expiresAt: t.docExpires || null }],
+    // The document shown by its screen id (a passport card is kept as a
+    // passport), and the day typed as printed read as the record reads it.
+    evidence: [{ type: shownById(t.doc).key, issuer: t.docIssuer || null, reference: t.docNumber || null, expiresAt: typedDay(t.docExpires) ?? (t.docExpires || null) }],
   }
 }
 

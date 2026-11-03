@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
-import { I9_SHOWN } from '@/lib/document-stages/examine-form'
+import { I9_SHOWN, shownById, typedDay } from '@/lib/document-stages/examine-form'
 import { adverseFields, recordAdverseBody, recordI9Body, recordVerdictBody } from './record-bodies'
 
 /**
@@ -60,8 +60,11 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // I-9
-  const [edition, setEdition] = useState('01/20/25')
-  const [doc, setDoc] = useState(I9_DOCUMENTS[0].key)
+  // Never filled for HR: the edition is what is printed at the foot of the
+  // form HR is holding (the founder's tester, 2026-11-03, accepted
+  // "01/20/25" the screen had typed for a form printed "Rev. March 2024").
+  const [edition, setEdition] = useState('')
+  const [doc, setDoc] = useState(I9_DOCUMENTS[0].id)
   const [docIssuer, setDocIssuer] = useState(I9_DOCUMENTS[0].issuer)
   const [docExpires, setDocExpires] = useState('')
   const [docNumber, setDocNumber] = useState('')
@@ -98,7 +101,7 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
     try {
       let says: string
       if (kind === 'I9') {
-        const shown = I9_DOCUMENTS.find((d) => d.key === doc)!
+        const shown = shownById(doc)
         const r = await postJson('/api/compliance/verifications', recordI9Body(who.contractId, {
           edition, doc: shown.key, docNumber, docIssuer, docExpires,
         }))
@@ -123,6 +126,21 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
     }
   }
 
+  const waits =
+    kind === 'I9'
+      ? !edition.trim() ? 'Fill in the edition printed at the foot of the form to put it on file.'
+        : !docNumber.trim() ? 'Fill in the number on the document shown to put it on file.'
+        : !docIssuer.trim() ? 'Fill in who issued the document shown to put it on file.'
+        : !docExpires.trim() ? 'Fill in the day the document shown runs out to put it on file.'
+        : !typedDay(docExpires) ? 'Type the day the document shown runs out as a date, like 04/30/2030.'
+        : null
+      : kind === 'VERDICT'
+        ? !provider.trim() ? 'Fill in the screening company to put it on file.'
+          : !reference.trim() ? 'Fill in their reference to put it on file.'
+          : outcome !== 'ORDERED' && !providerSays.trim() ? 'Copy what their report says to put it on file.'
+          : null
+        : null
+
   const title =
     kind === 'I9' ? `The I-9 for ${who.name}` : kind === 'VERDICT' ? `A screening company’s report on ${who.name}` : `After ${who.provider ?? 'the screening company'}’s report on ${who.name}`
 
@@ -135,12 +153,12 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
             <p className="text-sm text-etyme-muted">Completed by the firm that employs or places the person, from the document they chose to show.</p>
             <label className="block">
               <span className={label}>Edition printed at the foot of the form</span>
-              <input value={edition} onChange={(e) => setEdition(e.target.value)} required className={field} />
+              <input value={edition} onChange={(e) => setEdition(e.target.value)} required placeholder="Type it as printed" className={field} />
             </label>
             <label className="block">
               <span className={label}>The document shown</span>
-              <select value={doc} onChange={(e) => { setDoc(e.target.value); setDocIssuer(I9_DOCUMENTS.find((d) => d.key === e.target.value)?.issuer ?? '') }} className={field}>
-                {I9_DOCUMENTS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+              <select value={doc} onChange={(e) => { setDoc(e.target.value); setDocIssuer(shownById(e.target.value).issuer) }} className={field}>
+                {I9_DOCUMENTS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>
             <label className="block">
@@ -153,7 +171,7 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
             </label>
             <label className="block">
               <span className={label}>The day it runs out, as printed</span>
-              <input type="date" value={docExpires} onChange={(e) => setDocExpires(e.target.value)} required className={field} />
+              <input value={docExpires} onChange={(e) => setDocExpires(e.target.value)} required inputMode="numeric" placeholder="MM/DD/YYYY" className={field} />
             </label>
           </>
         )}
@@ -218,9 +236,11 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
           </>
         )}
         {error && <FormMessage tone="error">{error}</FormMessage>}
-        <div className="flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
+          {/* A button that cannot be pressed says why, beside it. */}
+          {waits && <span className="mr-auto text-[12px] text-etyme-muted" role="status">{waits}</span>}
           <button type="button" onClick={onClose} className="text-sm text-etyme-muted">Cancel</button>
-          <button type="submit" disabled={busy} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Put it on file</button>
+          <button type="submit" disabled={busy || !!waits} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Put it on file</button>
         </div>
       </form>
     </div>

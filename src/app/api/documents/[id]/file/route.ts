@@ -7,6 +7,8 @@ import { paperSubject, trailSubject } from '@/lib/document-stages/firm-papers'
 import { standingOn } from '@/lib/document-request'
 import { hasPermission } from '@/lib/permissions'
 import { buyerMayExamineKept } from '@/app/api/packets/examination'
+import { textOfUpload } from '@/lib/setup-fill'
+import { editionReadFrom } from '@/lib/document-stages/editions'
 
 /**
  * GET /api/documents/:id/file — the document itself.
@@ -173,6 +175,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: { code: standing.code, message: standing.message } }, { status: 403 })
     }
     return missing
+  }
+
+  // `?read=edition`: the edition the paper's own words print, with the
+  // line it was read from, for the examine dialog to show beside the field
+  // (the founder's tester, 2026-11-03). The same door, the same trail: it
+  // is a read of the file. A paper with no words to read answers nothing,
+  // and HR types what is printed.
+  if (new URL(request.url).searchParams.get('read') === 'edition') {
+    const text = doc.file ? textOfUpload(Buffer.from(doc.file.bytes), doc.file.contentType, doc.file.fileName) : ''
+    return NextResponse.json({ data: { read: editionReadFrom(text) } }, { headers: { 'Cache-Control': 'private, no-store' } })
   }
 
   // A firm that sent a link rather than a file is a real case and is not

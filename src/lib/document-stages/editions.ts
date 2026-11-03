@@ -150,3 +150,26 @@ export function editionToRecord(type: string, raw: string, completedOn: Date): E
   }
   return read
 }
+
+
+/**
+ * The edition a paper's own words print, with the line it was read from,
+ * or null where the words print none. Read, never assumed: the founder's
+ * tester, 2026-11-03, found the I-9 dialog filled with "01/20/25" for a
+ * paper that printed "Rev. March 2024", and HR accepted what the screen
+ * had typed for them. What is printed is returned as printed, so an
+ * edition the issuer never printed is still refused by `editionToRecord`
+ * with its own sentence. Pure.
+ */
+export function editionReadFrom(text: string): { edition: string; quote: string } | null {
+  if (!text) return null
+  const re = /\b(?:edition|rev(?:ision)?\.?)\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})/i
+  for (const line of text.split(/\r?\n/)) {
+    const m = re.exec(line)
+    if (!m) continue
+    const word = /^rev/i.test(m[0]) ? 'Rev. ' : ''
+    const printed = /\d\/\d/.test(m[1]) ? m[1] : `${word}${m[1]}`
+    return { edition: printed.trim(), quote: line.trim().slice(0, 160) }
+  }
+  return null
+}
