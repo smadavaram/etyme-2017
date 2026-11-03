@@ -1552,16 +1552,54 @@ forward to a job are its **submissions**; "People" is nobody's word
 there. So on the supplier's, integrator's and MSP's menus the link that
 read "People" reads **Candidates** (Bench, Bench pay, Bench check-ins,
 Training, Consultants fold under it as before), and the link that read
-"Candidates" reads **Submissions** (Interviews folds under it). The
-client's menu keeps **Candidates** for who applied, because that is
-the hiring manager's word, and the home page's four steps (Job,
-Candidates, Timesheets, Invoices) are the client's and do not move.
-Machine names, routes and keys do not move. The eyebrows, the chips,
+"Candidates" reads **Submissions** (Interviews folds under it). Machine names, routes and keys do not move. The eyebrows, the chips,
 the greeting ("who is on the bench", "who applied") and the
 documentation's party table follow the labels. Architect (lib/nav-table,
 lib/page-framing, the two tables below) with conversation for the
 words, in the wave after the 2026-11-03 retest deploy, with the hat
 switch.
+
+**Corrected by the founder the same hour: the client's menu too.**
+*"Hiring managers also see submissions as submissions or applications.
+Candidates is a memory of candidates they would like to reach out to."*
+So one word means one thing on every menu. **Submissions** is who was
+put forward to a job, on a client's menu as on a supplier's (a hiring
+manager says submissions or applications; Interviews folds under it).
+**Candidates** is the people a firm keeps: a supplier's bench, roster
+and trainees; a client's memory of the people it would like to reach
+out to, which the record already holds as the people put in front of
+it, the ones it starred (`Favorite`) and its past contractors, each
+with "Ask for them" to the supplier holding their consent. So the
+client's menu reads Ask Etyme · Today · Jobs · Submissions · Timesheets
+· Invoice receipts · Contractors · Candidates · Suppliers · Settings:
+the four steps, then the three lists a hiring manager keeps (who is on
+site, who I would like, who supplies), then Settings. Two coordinator's
+calls, each reversible by the founder in a sentence: the client's menu
+grows to ten links rather than folding the memory under Contractors,
+because the founder named it as its own noun; and the home page's four
+chips keep "Candidates" for the step until the founder says the word,
+because the chips are the buyer's four nouns of 2026-10-14 and a chip
+is a step, not a list. The two tables below still state what the code
+draws today, so `sidebar-nav.test.ts` stays green; they move in the
+same commit as `lib/nav-table` and conversation's `NAV_TOPICS` on the
+build, with the hat switch.
+
+**"What is the use of You for an Owner?" The founder, the same hour,
+on Tapin's Owner seat reading a "YOU" list under the firm's links.**
+None, unless the Owner is also on a placement. The list is the
+person's own pages as a worker (Your work, Your page, Who has you,
+Your data, Your paperwork), and the menu draws it whenever the work
+makes the person a worker (`ownPage` in `lib/consultant-portfolio`,
+read off a placement, a submission, a bench listing or a line that
+pays them), never off the seat. Under the two-hats decision above it
+leaves the left menu: it becomes the "You" hat in the account menu,
+offered only where that work exists, so an Owner on no placement sees
+no You at all, and an Owner who is also placed switches to it on
+purpose. Where Tapin's Owner sees it today, the record holds a
+worker's row for that address (the candidate seat made by the account
+mix-up of 2026-10-20 is the likely one); the hat switch takes the list
+off the Owner's menu either way, and the architect reads which row it
+is and says so before anything is ended.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
@@ -4060,11 +4098,19 @@ them.
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
 | Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Candidates. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Contracts, Ending soon, Past contractors, Tenure, Duplicate check → Contractors. Contacts, Agreements, Supplier scorecards → Suppliers. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import, Sites → Settings. |
-| Supplier | Ask Etyme · Today · Jobs · Submissions · Timesheets · Bills · Candidates · Companies · Settings (People read Candidates and Candidates read Submissions until 2026-11-03; the code follows on the build) | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts, Sell contracts, Buy contracts, POs → Companies. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
-| Integrator | Ask Etyme · Today · Jobs · Submissions · Timesheets · Bills · Candidates · Companies · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
-| MSP | Ask Etyme · Today · Jobs · Submissions · Timesheets · Bills · Companies · Settings | The supplier's, with no Candidates link, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Supplier scorecards → Companies. |
+| Supplier | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → People. Suppliers, Contacts, Sell contracts, Buy contracts, POs → Companies. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
+| Integrator | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
+| MSP | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · Companies · Settings | The supplier's, with no People, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Supplier scorecards → Companies. |
 | One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
 | Worker | Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
+
+**Decided 2026-11-03 and not yet in the code:** on every firm's menu
+People reads Candidates and Candidates reads Submissions, and the
+client's menu reads Submissions for who applied and gains Candidates as
+its memory of people it would like to reach out to (see "On a firm's
+menu, People reads Candidates"). The rows above state what
+`lib/nav-table` draws today, so `sidebar-nav.test.ts` reads the truth;
+they move in the same commit as the code, on the build.
 
 Each link opens the first of its pages the reader may open, and on any
 of them the shell draws the tab row under the page header, the noun's
