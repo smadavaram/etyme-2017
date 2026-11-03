@@ -96,3 +96,55 @@ describe('asking for a round', () => {
     expect(body.location).toBeNull()
   })
 })
+
+// ── The interview door, on the permit (founder, 2026-11-03) ──────────
+import { permitRefusal } from '@/app/api/submissions/[id]/interviews/permit'
+import { readFileSync as readPermitSrc } from 'node:fs'
+import { join as joinPermit } from 'node:path'
+
+describe('a round is never booked past a refusal on the permit', () => {
+  const base = {
+    personName: 'Priya Raman',
+    workAuth: 'H1B' as string | null,
+    needsSponsorship: null as boolean | null,
+    saidAt: null as Date | null,
+    quote: null as string | null,
+    job: { workAuthRequired: 'NEEDS_NO_SPONSOR', workAuthBasis: 'SPONSORSHIP_UNAVAILABLE', workAuthCite: 'We do not sponsor work visas for this role' },
+    work: { country: 'US', offshore: false },
+  }
+
+  it('a round is refused where screening fails on a recorded basis, in screening\'s own sentence', () => {
+    const says = permitRefusal(base)
+    expect(says).toContain('No sponsorship being available (We do not sponsor work visas for this role)')
+    expect(says).toMatch(/Held back\.$/)
+  })
+
+  it('a round is refused for a person who said they will need sponsorship, in the put-forward\'s sentence', () => {
+    const says = permitRefusal({ ...base, workAuth: null, needsSponsorship: true, saidAt: new Date('2026-10-12T15:00:00Z') })
+    expect(says).toContain('Priya said on Oct 12, 2026 they will need sponsorship')
+    expect(says).toContain('no interview is booked')
+  })
+
+  it('a warning never stops a round: a restriction with no recorded basis lets the round be booked', () => {
+    expect(permitRefusal({ ...base, job: { workAuthRequired: 'US_CITIZEN', workAuthBasis: null, workAuthCite: null } })).toBeNull()
+  })
+
+  it('a green card holder is never refused a round over a no-sponsorship policy', () => {
+    expect(permitRefusal({ ...base, workAuth: 'GC' })).toBeNull()
+  })
+
+  it('an offshore person is never refused a round over a no-sponsorship policy, and export control still applies offshore', () => {
+    expect(permitRefusal({ ...base, work: { country: 'IN', offshore: true } })).toBeNull()
+    expect(
+      permitRefusal({ ...base, work: { country: 'IN', offshore: true }, job: { workAuthRequired: 'US_CITIZEN', workAuthBasis: 'EXPORT_CONTROL', workAuthCite: 'ITAR' } })
+    ).toMatch(/^Export control \(ITAR\) limits this job/)
+  })
+
+  it('the interview route asks the permit before it books, and logs the refusal before it is sent', () => {
+    const route = readPermitSrc(joinPermit(process.cwd(), 'src/app/api/submissions/[id]/interviews/route.ts'), 'utf8')
+    const asked = route.indexOf('const permit = permitRefusal(')
+    expect(asked).toBeGreaterThan(0)
+    expect(asked).toBeLessThan(route.indexOf('prisma.interview.create('))
+    expect(route).toContain("reason: `PERMIT_REFUSED: ${permit}`")
+  })
+})

@@ -17,7 +17,9 @@
  * Pure. The route reads the rows and passes `now`.
  */
 import { AUTHORISATION_KEYS, heldFrom, type VerificationRow } from '@/lib/contract-clearance'
+import { jobRestriction } from '@/lib/checks'
 import { plainDate } from '@/lib/plain-date'
+import { NEEDS_NO_SPONSOR } from '@/lib/work-authorisation'
 
 export type WorkAuthCode = 'NO_WORK_AUTH' | 'WORK_AUTH_RUNS_OUT' | 'WORK_AUTH_NOT_YET'
 
@@ -79,5 +81,85 @@ export function workAuthAtSubmission(args: {
     says:
       `${personName}'s work authorization on record does not begin until ${day(first)}, after ${startSays}. ` +
       'The submission goes through, but they cannot start before it begins.',
+  }
+}
+
+// ── Sponsorship, where the work is done ─────────────────────────────────
+//
+// Decided by the founder, 2026-11-03 ("Work authorization is checked
+// where the work is done"): a person who said she will need sponsorship
+// is never interviewed for a US job that offers none. The answer is the
+// person's own (`ConsultantProfile.needsSponsorship`, with the day and her
+// words); the job's "no sponsorship" is its restriction, read through the
+// same `jobRestriction` screening reads. Three outcomes:
+//
+//  - the job records a lawful basis for offering none: REFUSED, because
+//    the basis is legally grounded (Addendum E's BLOCK) and an interview
+//    booked past it is three rounds nobody can use;
+//  - the job names only people who need no sponsorship, with no basis:
+//    WARNED with the same facts, and it goes through (INA §274B: an
+//    ungrounded restriction never turns anybody away);
+//  - the work is done offshore: nothing is said about US authorization at
+//    all, because she is not employed in the US.
+//
+// "No sponsorship" never turns away somebody who needs none: a person who
+// said no, or was never asked, passes here whatever the job says.
+
+export type SponsorshipVerdict =
+  | { outcome: 'PASS' }
+  | { outcome: 'BLOCK' | 'WARN'; code: 'NEEDS_SPONSORSHIP'; says: string }
+
+/** Whether the job's restriction leaves out everybody who would need a petition. */
+function offersNoSponsorship(r: { requires: readonly string[] }): boolean {
+  return r.requires.length > 0 && r.requires.every((a) => (NEEDS_NO_SPONSOR as readonly string[]).includes(a))
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name
+}
+
+export function sponsorshipAtSubmission(args: {
+  personName: string
+  /** The person's own answer. Null means nobody asked, never "no". */
+  needsSponsorship: boolean | null
+  saidAt: Date | null
+  quote: string | null
+  /** The job's three columns. */
+  job: { workAuthRequired: string | null; workAuthBasis: string | null; workAuthCite: string | null }
+  /** Where the work is done (`lib/work-country`). Null where it could not be read: read as the site's, the US. */
+  work: { country: string; offshore: boolean } | null
+}): SponsorshipVerdict {
+  const work = args.work ?? { country: 'US', offshore: false }
+  if (work.offshore || work.country !== 'US') return { outcome: 'PASS' }
+  if (args.needsSponsorship !== true) return { outcome: 'PASS' }
+  const r = jobRestriction(args.job.workAuthRequired, args.job.workAuthBasis, args.job.workAuthCite)
+  if (!r || !offersNoSponsorship(r)) return { outcome: 'PASS' }
+  // A job restricted for another reason (export control, a clearance, a
+  // statute) is screening's to decide on the status itself; this sentence
+  // is about sponsorship only.
+  if (r.basis && r.basis !== 'SPONSORSHIP_UNAVAILABLE') return { outcome: 'PASS' }
+
+  const who = firstName(args.personName)
+  const when = args.saidAt ? ` on ${day(args.saidAt)}` : ''
+  const own = args.quote?.trim() ? ` ("${args.quote.trim()}")` : ''
+  // No pronoun: the record stores none.
+  const said = `${who} said${when} they will need sponsorship${own}`
+
+  if (r.basis) {
+    const words = r.cite ? `: "${r.cite.replace(/[.\s]+$/, '')}".` : '.'
+    return {
+      outcome: 'BLOCK',
+      code: 'NEEDS_SPONSORSHIP',
+      says:
+        `${said}; this job offers none${words} ` +
+        `${args.personName} is not put forward, so no interview is booked. Ask the client whether it will sponsor, or put forward somebody who needs none.`,
+    }
+  }
+  return {
+    outcome: 'WARN',
+    code: 'NEEDS_SPONSORSHIP',
+    says:
+      `${said}; this job names only people who need no sponsorship, and no lawful reason is recorded for it. ` +
+      'The submission goes through. Ask the client whether it will sponsor before an interview is booked.',
   }
 }

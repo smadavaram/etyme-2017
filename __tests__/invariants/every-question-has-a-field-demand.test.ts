@@ -235,3 +235,54 @@ describe('every question the supplier’s apply route asks, the apply page has a
     expect(reuseBody([{ requestId: 'r1', key: 'INSURANCE_GL' }], FORM, REFS, DATES)).toMatchObject({ reuse: [{ requestId: 'r1', key: 'INSURANCE_GL' }], dates: DATES })
   })
 })
+
+// ── The start's one question and its route (founder, 2026-11-03) ─────
+
+import { startIdentityBody } from '@/app/dashboard/program/start-identity-body'
+import { readStartIdentity, noSays, STARTED_QUESTION } from '@/app/api/program/start-identity/answer'
+
+const IDENTITY_ROUTE = readFileSync(join(process.cwd(), 'src/app/api/program/start-identity/route.ts'), 'utf8')
+const IDENTITY_CARD = readFileSync(join(process.cwd(), 'src/app/dashboard/program/start-identity.tsx'), 'utf8')
+const PROGRAM_PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/program/page.tsx'), 'utf8')
+
+describe('the start asks whoever is hiring whether the person who started is the person interviewed', () => {
+  it('the start card asks "Is the person who started the person you interviewed?" with Yes and No, on the start row of the program page', () => {
+    expect(STARTED_QUESTION).toBe('Is the person who started the person you interviewed?')
+    expect(IDENTITY_CARD).toContain('{STARTED_QUESTION}')
+    expect(IDENTITY_CARD).toContain('onClick={() => answer(true)}')
+    expect(IDENTITY_CARD).toContain('onClick={() => answer(false)}')
+    expect(PROGRAM_PAGE).toContain('<StartIdentity')
+  })
+
+  it('every field the start question\'s route reads, the card sends, and the route refuses no answer in a sentence naming the field', () => {
+    const body = startIdentityBody({ contractId: 'sc_1', confirmed: false })
+    expect(body).toEqual({ contractId: 'sc_1', confirmed: false })
+    expect(readStartIdentity(body)).toEqual({ ok: true, confirmed: false })
+    expect(IDENTITY_ROUTE).toContain("typeof body?.contractId === 'string' ? body.contractId : ''")
+    expect(IDENTITY_ROUTE).toContain('const read = readStartIdentity(body)')
+    const refused = readStartIdentity({})
+    expect(refused).toEqual({
+      ok: false, field: 'confirmed', says: 'Answer Yes or No: is the person who started the person you interviewed?',
+    })
+  })
+
+  it('the answer is written to the three columns with who and when', () => {
+    expect(IDENTITY_ROUTE).toContain('startIdentityConfirmed: read.confirmed,')
+    expect(IDENTITY_ROUTE).toContain('startIdentityConfirmedById: caller.person.id,')
+    expect(IDENTITY_ROUTE).toContain('startIdentityConfirmedAt: now,')
+  })
+
+  it('a No tells the client\'s HR and the supplier in one sentence that the start is held', () => {
+    expect(noSays({ personName: 'Ravi Kalathil', answeredBy: 'Marcus Hollins', supplierName: 'Brightmoor Staffing', clientName: 'Corvane Packaging' })).toBe(
+      'Marcus Hollins at Corvane Packaging said the person who started is not the Ravi Kalathil who was interviewed; ' +
+        'the start is held until Brightmoor Staffing and Corvane Packaging\'s HR confirm who is on site.'
+    )
+    expect(IDENTITY_ROUTE).toContain("role: { name: { in: ['HR', 'HR Partner', 'Compliance Officer'] } }")
+    expect(IDENTITY_ROUTE).toContain('companyId: contract.companyId,')
+  })
+
+  it('only whoever is hiring answers it, and the refusal says who does', () => {
+    expect(IDENTITY_ROUTE).toContain("hasPermission(permissions, 'requirements.write')")
+    expect(IDENTITY_ROUTE).toContain('is for whoever is hiring: a hiring or program manager.')
+  })
+})

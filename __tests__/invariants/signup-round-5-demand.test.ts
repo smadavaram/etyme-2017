@@ -57,6 +57,14 @@ describe('3: answering a job with a CV is the recruiting desk’s act', () => {
     expect(route).toMatch(/noDeskYet\('Answering a job with a CV'/)
   })
 
+  it("a supplier's pasted CV writes the person's education lines onto their profile", () => {
+    const route = src('app/api/invitations/[id]/answer/route.ts')
+    expect(route).toContain("import { recordResumeEducation } from '@/lib/consultant-portfolio/education-write'")
+    const written = route.indexOf('await recordResumeEducation(profile.id, read.education)')
+    expect(written).toBeGreaterThan(route.indexOf('const profile ='))
+    expect(written).toBeLessThan(route.indexOf('prisma.benchListing.upsert'))
+  })
+
   it('Shared with you offers the CV box only to a seat the route would let answer', () => {
     expect(page('invitations')).toMatch(/\(accepted \|\| open\) && mayAnswer && <AnswerBox/)
   })

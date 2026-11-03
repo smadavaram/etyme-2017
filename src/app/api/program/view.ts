@@ -424,6 +424,16 @@ export async function programView(
         startDate: c.startDate.toISOString(),
         daysUntil: Math.ceil((c.startDate.getTime() - now.getTime()) / 86_400_000),
         paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix, short: papers.short },
+        // The hiring manager's answer to "Is the person who started the
+        // person you interviewed?", where one was given (founder, 2026-11-03).
+        identity:
+          c.startIdentityConfirmed == null
+            ? null
+            : {
+                confirmed: c.startIdentityConfirmed,
+                byId: c.startIdentityConfirmedById,
+                at: c.startIdentityConfirmedAt?.toISOString() ?? null,
+              },
         placement: placementStatus(
           {
             state: c.state, startDate: c.startDate, endDate: c.endDate,

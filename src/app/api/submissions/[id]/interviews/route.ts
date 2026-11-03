@@ -10,6 +10,9 @@ import { tell } from '@/lib/interview-notices'
 import { actingDesk } from '@/lib/program-seat'
 import { reportError } from '@/lib/alerts'
 import { askForNdaAtInterview } from './nda'
+import { permitRefusal } from './permit'
+import { recordRefusal } from '@/lib/access-log'
+import { jobWorkCountry } from '@/lib/work-country'
 
 /**
  * GET  /api/submissions/:id/interviews — the rounds so far
@@ -128,7 +131,9 @@ export async function POST(
     where: { id, toCompanyId: companyId },
     select: {
       id: true, fromCompanyId: true, toCompanyId: true, screenState: true, status: true, personId: true,
+      requirementId: true,
       person: { select: { name: true } },
+      requirement: { select: { workAuthRequired: true, workAuthBasis: true, workAuthCite: true } },
       interviews: { select: { round: true, state: true, outcome: true } },
     },
   })
@@ -174,6 +179,36 @@ export async function POST(
       },
       { status: 409 }
     )
+  }
+
+  // A round is never booked past a refusal on the permit: the same
+  // sentence the put-forward and screening say (`./permit`).
+  const [work, profile] = await Promise.all([
+    jobWorkCountry(submission.requirementId, prisma, { personId: submission.personId }),
+    prisma.consultantProfile.findUnique({
+      where: { personId: submission.personId },
+      select: { workAuth: true, needsSponsorship: true, needsSponsorshipSaidAt: true, needsSponsorshipQuote: true },
+    }),
+  ])
+  const permit = permitRefusal({
+    personName: submission.person.name,
+    workAuth: profile?.workAuth ?? null,
+    needsSponsorship: profile?.needsSponsorship ?? null,
+    saidAt: profile?.needsSponsorshipSaidAt ?? null,
+    quote: profile?.needsSponsorshipQuote ?? null,
+    job: submission.requirement,
+    work,
+  })
+  if (permit) {
+    // The permit was read to refuse, so the refusal is on the record
+    // before it is sent (lib/access-log).
+    await recordRefusal([submission.personId], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'COMPLIANCE_CHECK',
+      reason: `PERMIT_REFUSED: ${permit}`,
+    })
+    return NextResponse.json({ error: { code: 'PERMIT_REFUSED', message: permit } }, { status: 409 })
   }
 
   const body = await request.json().catch(() => ({}))

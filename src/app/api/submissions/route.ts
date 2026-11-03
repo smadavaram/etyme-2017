@@ -26,7 +26,8 @@ import { maySeeOutside } from '@/lib/walls'
 import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
-import { workAuthAtSubmission } from './work-authorization'
+import { sponsorshipAtSubmission, workAuthAtSubmission } from './work-authorization'
+import { jobWorkCountry } from '@/lib/work-country'
 import { licenseAtSubmission } from './license'
 import { licenseAsksFor } from './license-asks'
 import { credentialDetail } from '@/lib/contract-clearance'
@@ -222,6 +223,9 @@ export async function POST(request: NextRequest) {
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
       location: true, locationId: true, startDate: true,
+      // Whether the job offers sponsorship, and why not (lib/checks'
+      // `jobRestriction`), for the put-forward's sponsorship sentence.
+      workAuthRequired: true, workAuthBasis: true, workAuthCite: true,
       // The job's length, for whether it would carry somebody past the
       // client's time limit. Null is "nobody said", and is said so.
       months: true,
@@ -977,16 +981,49 @@ export async function POST(request: NextRequest) {
       }
       if (licensed.note) item.licenseNote = licensed.note
 
-      // 3d. Work authorization: warned here, refused at activation.
-      const auth = workAuthAtSubmission({
+      // 3d. Work authorization, where the work is done (founder,
+      // 2026-11-03). Offshore work says nothing about US authorization.
+      // A person who said they will need sponsorship is refused for a US
+      // job that offers none on a recorded basis, and warned about where
+      // no basis is recorded; otherwise the papers are warned about here
+      // and refused at activation.
+      const [work, said] = await Promise.all([
+        jobWorkCountry(requirementId, prisma, { personId }),
+        prisma.consultantProfile.findUnique({
+          where: { personId },
+          select: { needsSponsorship: true, needsSponsorshipSaidAt: true, needsSponsorshipQuote: true },
+        }),
+      ])
+      const sponsor = sponsorshipAtSubmission({
         personName: person.name,
-        rows: authRows,
-        startsOn: requirement.startDate,
-        now: new Date(),
+        needsSponsorship: said?.needsSponsorship ?? null,
+        saidAt: said?.needsSponsorshipSaidAt ?? null,
+        quote: said?.needsSponsorshipQuote ?? null,
+        job: requirement,
+        work,
       })
-      if (!auth.ok) {
-        item.workAuthWarning = auth.says
-        item.workAuthCode = auth.code
+      if (sponsor.outcome === 'BLOCK') {
+        item.status = 'error'
+        item.code = sponsor.code
+        item.error = sponsor.says
+        await refused(`${sponsor.code}: ${sponsor.says}`)
+        results.push(item)
+        continue
+      }
+      if (sponsor.outcome === 'WARN') {
+        item.workAuthWarning = sponsor.says
+        item.workAuthCode = sponsor.code
+      } else if (!work?.offshore) {
+        const auth = workAuthAtSubmission({
+          personName: person.name,
+          rows: authRows,
+          startsOn: requirement.startDate,
+          now: new Date(),
+        })
+        if (!auth.ok) {
+          item.workAuthWarning = auth.says
+          item.workAuthCode = auth.code
+        }
       }
 
       // 4. Compute SubmissionKind from ownership (never accepted from client)
@@ -1376,7 +1413,10 @@ export async function POST(request: NextRequest) {
           data: {
             companyId: fromCompanyId,
             action: 'SUBMISSION_WORK_AUTH_WARNED',
-            summary: `${person.name} submitted to "${requirement.title}" without work authorization covering the start`,
+            summary:
+              item.workAuthCode === 'NEEDS_SPONSORSHIP'
+                ? `${person.name} submitted to "${requirement.title}", which names only people who need no sponsorship, after saying they will need it`
+                : `${person.name} submitted to "${requirement.title}" without work authorization covering the start`,
             reason: item.workAuthWarning,
             payload: { submissionId: submission.id, requirementId, personId, code: item.workAuthCode },
             reversible: true,

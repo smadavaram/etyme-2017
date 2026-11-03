@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { readCv, cvSentence } from '@/lib/cv-reader'
+import { recordResumeEducation } from '@/lib/consultant-portfolio/education-write'
 import { holdExpiry } from '@/lib/representation'
 import { noDeskYet } from '@/lib/no-desk'
 import { askTheDesk } from '@/lib/permissions'
@@ -208,6 +209,10 @@ export async function POST(
       ...(skills.length ? { skills: { set: skills } } : {}),
     },
   })
+  // The résumé's education lines, through the one write every reader of a
+  // résumé calls, so a degree is checked against what the résumé says; the
+  // person's own corrections stay (lib/consultant-portfolio/education-write).
+  await recordResumeEducation(profile.id, read.education)
 
   // ── The listing that makes them submittable ─────────────────────────
   await prisma.benchListing.upsert({

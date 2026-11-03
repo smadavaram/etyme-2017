@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { timeLimitAtSubmission, reasonGiven, addMonths, type TimeLimitRules } from '@/app/api/submissions/time-limit'
-import { workAuthAtSubmission } from '@/app/api/submissions/work-authorization'
+import { sponsorshipAtSubmission, workAuthAtSubmission } from '@/app/api/submissions/work-authorization'
 import { daysFor } from '@/lib/tenure-days'
 
 /**
@@ -230,5 +232,72 @@ describe('work authorization, warned at submission and refused at activation', (
   it('a background check is not work authorization', () => {
     const v = workAuthAtSubmission({ ...who, rows: [{ type: 'BACKGROUND_CHECK', status: 'CLEAR' }], startsOn: null })
     expect(v.ok).toBe(false)
+  })
+})
+
+describe('sponsorship, checked where the work is done, at the put-forward', () => {
+  const NO_SPONSOR = {
+    workAuthRequired: 'NEEDS_NO_SPONSOR',
+    workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+    workAuthCite: 'We do not sponsor work visas for this role',
+  }
+  const priya = {
+    personName: 'Priya Raman',
+    needsSponsorship: true as boolean | null,
+    saidAt: new Date('2026-10-12T15:00:00Z'),
+    quote: 'I will need an H-1B transfer',
+    job: NO_SPONSOR,
+    work: { country: 'US', offshore: false },
+  }
+
+  it('a person who said they will need sponsorship is refused for a US job that offers none on a recorded basis, in a sentence naming both answers', () => {
+    const v = sponsorshipAtSubmission(priya)
+    expect(v.outcome).toBe('BLOCK')
+    if (v.outcome === 'PASS') throw new Error('expected a refusal')
+    expect(v.code).toBe('NEEDS_SPONSORSHIP')
+    expect(v.says).toBe(
+      'Priya said on Oct 12, 2026 they will need sponsorship ("I will need an H-1B transfer"); ' +
+        'this job offers none: "We do not sponsor work visas for this role". ' +
+        'Priya Raman is not put forward, so no interview is booked. Ask the client whether it will sponsor, or put forward somebody who needs none.'
+    )
+  })
+
+  it('where the job names only people who need no sponsorship and records no basis, it warns with the same facts and the submission goes through', () => {
+    const v = sponsorshipAtSubmission({ ...priya, job: { workAuthRequired: 'US_CITIZEN', workAuthBasis: null, workAuthCite: null } })
+    expect(v.outcome).toBe('WARN')
+    if (v.outcome === 'PASS') throw new Error('expected a warning')
+    expect(v.says).toContain('Priya said on Oct 12, 2026 they will need sponsorship')
+    expect(v.says).toContain('no lawful reason is recorded')
+    expect(v.says).toContain('The submission goes through.')
+  })
+
+  it('offshore work says nothing about US authorization at all', () => {
+    expect(sponsorshipAtSubmission({ ...priya, work: { country: 'IN', offshore: true } })).toEqual({ outcome: 'PASS' })
+  })
+
+  it('no sponsorship never turns away somebody who said they need none, or was never asked', () => {
+    expect(sponsorshipAtSubmission({ ...priya, needsSponsorship: false })).toEqual({ outcome: 'PASS' })
+    expect(sponsorshipAtSubmission({ ...priya, needsSponsorship: null })).toEqual({ outcome: 'PASS' })
+  })
+
+  it('a job that offers sponsorship, or says nothing, lets a person who needs it through', () => {
+    expect(sponsorshipAtSubmission({ ...priya, job: { workAuthRequired: null, workAuthBasis: null, workAuthCite: null } })).toEqual({ outcome: 'PASS' })
+  })
+
+  it('a job restricted on a basis that is not about sponsorship is screening\'s to decide, not this sentence\'s', () => {
+    // Export control limits a job to US persons; an H-1B holder fails it at
+    // screening whatever they said about sponsorship.
+    expect(
+      sponsorshipAtSubmission({ ...priya, job: { workAuthRequired: 'US_CITIZEN', workAuthBasis: 'EXPORT_CONTROL', workAuthCite: 'ITAR' } }).outcome
+    ).toEqual('PASS')
+  })
+
+  it('the put-forward reads where the work is done, the person\'s own answer and the job\'s three facts, and keeps the paper warning for work that is not offshore', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/submissions/route.ts'), 'utf8')
+    expect(route).toContain('jobWorkCountry(requirementId, prisma, { personId })')
+    expect(route).toContain('needsSponsorship: true, needsSponsorshipSaidAt: true, needsSponsorshipQuote: true')
+    expect(route).toContain('workAuthRequired: true, workAuthBasis: true, workAuthCite: true,')
+    expect(route).toContain("await refused(`${sponsor.code}: ${sponsor.says}`)")
+    expect(route).toContain('} else if (!work?.offshore) {')
   })
 })

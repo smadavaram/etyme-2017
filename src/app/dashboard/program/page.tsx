@@ -22,6 +22,7 @@ import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named
 import { formatDay } from '@/lib/format-date'
 import { ExtendForm } from './extend-form'
 import { ByRegion } from './by-region'
+import { StartIdentity } from './start-identity'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -140,6 +141,8 @@ interface ProgramData {
     paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null; short?: string | null }
     /** The one word every screen reads for this placement (`placementStatus`). */
     placement?: { status: string; word: string }
+    /** "Is the person who started the person you interviewed?", where answered. */
+    identity?: { confirmed: boolean; byId: string | null; at: string | null } | null
   }[]
   /** Every start paperwork will refuse, not only the five shown — what the headline counts. */
   heldStarts?: ProgramData['startingSoon']
@@ -668,6 +671,8 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
   /** The seat may end a placement: the roll-off route's own permission. */
   mayRollOff: boolean
 }) {
+  // The start's one question is for whoever is hiring, the permission its route asks for.
+  const canHire = hasPermission(useSession().permissions, 'requirements.write')
   const s = data.summary
   const [extending, setExtending] = useState<string | null>(null)
   const [reasonFor, setReasonFor] = useState<string | null>(null)
@@ -867,6 +872,13 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
                           : c.paperwork.short ?? c.paperwork.says}
                         {c.paperwork.outcome !== 'PASS' && !c.paperwork.short && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}
                       </p>
+                      {/* On the day, or after: the one question only whoever met both can answer. */}
+                      {c.daysUntil <= 0 && canHire && (
+                        <StartIdentity
+                          contractId={c.contractId}
+                          answered={c.identity ? { confirmed: c.identity.confirmed, by: null, at: c.identity.at ?? '' } : null}
+                        />
+                      )}
                     </div>
                     <div className="text-right">
                       <p className={`text-sm tabular-nums ${c.daysUntil <= 7 && c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
