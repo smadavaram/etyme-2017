@@ -177,7 +177,7 @@ describe('The award is the handoff, and both desks hear about it in their own wo
     expect(row.title).toBe('Paper the contract — Priya Raman')
     expect(row.subtitle).toContain('awarded today, still a draft')
     expect(row.subtitle).toContain('Northbend Athletic')
-    expect(row.actionUrl).toBe(`/dashboard/contracts/${it_.contract}`)
+    expect(row.actionUrl).toBe(`/dashboard/placements/${it_.contract}`)
     // Never a state name on a screen.
     expect(`${row.title} ${row.subtitle}`).not.toContain('DRAFT')
   })

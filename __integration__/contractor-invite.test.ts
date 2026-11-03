@@ -76,7 +76,12 @@ describe('the hiring manager asks somebody they already know', () => {
     const row = r.body.data.pending.find((p: any) => p.name === 'Lucía Fernández')
     expect(row, JSON.stringify(r.body.data.pending)).toBeTruthy()
     expect(row.stateWord).toBe('Asked')
-    expect(row.says).toContain('has not answered yet')
+    // No email can leave this test deployment, so the sentence says the ask
+    // shows in Etyme and that Lucía has not been sent the link, never that
+    // she was sent one and is silent.
+    expect(row.says).toContain('The ask for Lucía shows in Etyme')
+    expect(row.says).toContain('has not been sent the link')
+    expect(row.says).not.toMatch(/\$|\/hr/)
     expect(row.pending).toBe(true)
     expect(row.onSite).toBe(false)
   })
