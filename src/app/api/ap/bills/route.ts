@@ -274,6 +274,35 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ── Only from a firm this firm pays ─────────────────────────────────
+  //
+  // An invoice receipt with no line named is still from a firm this firm
+  // pays: a buy line of ours to it, a line of its billed to us, or an order
+  // we raised to it. The list the form offers is exactly those firms
+  // (`suppliersFor` in lib/money/receipt-options); a receipt typed against
+  // any other firm is refused in a sentence rather than recorded as owed.
+  if (!buyContractId && !sellContractId) {
+    const [buys, sells, orders] = await Promise.all([
+      prisma.buyContract.count({ where: { companyId, vendorCompanyId } }),
+      prisma.sellContract.count({ where: { companyId: vendorCompanyId, clientCompanyId: companyId } }),
+      prisma.workOrder.count({ where: { issuedById: companyId, issuedToId: vendorCompanyId } }),
+    ])
+    if (buys + sells + orders === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_A_SUPPLIER',
+            message:
+              `${reading.companyName} does not pay ${vendor.name}: there is no line with them and no order raised to them. ` +
+              `An invoice receipt is recorded only from a firm you pay. Raise the order or record the line first.`,
+            field: 'vendorCompanyId',
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+
   // ── A client's side: the supplier's line whose customer it is ───────
   //
   // A client holds no buy line; what it pays is the supplier's sell line
