@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import type { Route } from 'next'
 
 /**
  * A placement with no buy line says so, and offers the contract manager
@@ -26,7 +27,7 @@ export function PayLinePanel({ contractId }: { contractId: string }) {
     <div className="card mt-3">
       <p className="text-[13px] leading-relaxed text-etyme-attention">{view.says}</p>
       {view.door && (
-        <Link href={view.door.href} className="btn-primary mt-3 inline-flex">{view.door.label}</Link>
+        <Link href={view.door.href as Route} className="btn-primary mt-3 inline-flex">{view.door.label}</Link>
       )}
     </div>
   )
