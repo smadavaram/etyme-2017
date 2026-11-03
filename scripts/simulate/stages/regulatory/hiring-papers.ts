@@ -47,6 +47,23 @@ export interface HirePlacement {
 
 export type Status = 'PASSPORT' | 'WORK_PERMIT' | 'VISA'
 
+/** Who issues a passport in this country, for the evidence a start is read from. Pure. */
+export function passportIssuerOf(country: string): string {
+  const issuers: Record<string, string> = {
+    US: 'U.S. Department of State',
+    IN: 'Ministry of External Affairs, Government of India',
+    GB: 'HM Passport Office',
+    'GB-NIR': 'HM Passport Office',
+    AU: 'Australian Passport Office',
+    MX: 'Secretaría de Relaciones Exteriores',
+    BR: 'Polícia Federal',
+    CO: 'Cancillería de Colombia',
+    VN: 'Immigration Department, Ministry of Public Security',
+    BE: 'FPS Foreign Affairs',
+  }
+  return issuers[country.toUpperCase()] ?? `The passport office of ${country.toUpperCase()}`
+}
+
 /** Who shows what, stable per person. Pure. */
 export function statusOf(personId: string): Status {
   const n = hashOf(personId) % 6
@@ -74,10 +91,14 @@ export interface I9Evidence {
  * the date printed on it, and records it on her file. Returns the
  * evidence the I-9 is completed from.
  */
-export async function statusPapers(ctx: Ctx, hr: Actor, worker: Actor | null, p: HirePlacement): Promise<I9Evidence> {
+export async function statusPapers(ctx: Ctx, hr: Actor, worker: Actor | null, p: HirePlacement, workCountry = 'US'): Promise<I9Evidence> {
   const status = statusOf(p.personId)
-  const passport: I9Evidence = { type: 'PASSPORT', issuer: 'U.S. Department of State', expiresAt: plusDays(900 + (hashOf(p.personId) % 2400)) }
-  if (status === 'PASSPORT' || !worker) return passport
+  // The passport is issued by the person's own country, where the record knows it.
+  const profile = await ctx.read.consultantProfile.findUnique({ where: { personId: p.personId }, select: { country: true } }).catch(() => null)
+  const passport: I9Evidence = { type: 'PASSPORT', issuer: passportIssuerOf(profile?.country ?? workCountry), expiresAt: plusDays(900 + (hashOf(p.personId) % 2400)) }
+  // A US visa, I-94 and work permit are US papers: for work done in another
+  // country the person shows her own passport and nothing American.
+  if (status === 'PASSPORT' || !worker || workCountry !== 'US') return passport
   const slug = slugOf(p.personName)
   const papersFor: { name: string; key: 'WORK_PERMIT' | 'VISA' | 'I94'; expiresAt: Date; issuer: string }[] =
     status === 'WORK_PERMIT'

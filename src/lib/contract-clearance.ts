@@ -74,6 +74,18 @@ import {
 import { prisma } from '@/lib/db'
 import { plainDate } from '@/lib/plain-date'
 import { requirementsFor, requirementsForLines, type LineRequirements } from '@/lib/document-requirements'
+import type { WorkAuthorizationRule } from '@/lib/document-stages/countries'
+import { workCountryOf, lineWorkCountry, NO_SITE_COUNTRY } from '@/lib/work-country'
+import {
+  forWorkCountry,
+  notAskedHere,
+  workAuthorizationOf,
+  requirementsWhereWorkIsDoneForSellLines,
+  type LineWorkCountry,
+} from '@/lib/document-stages/where-work-is-done'
+
+export { forWorkCountry, workAuthorizationOf, requirementsWhereWorkIsDone, requirementsWhereWorkIsDoneForSellLines } from '@/lib/document-stages/where-work-is-done'
+export type { LineWorkCountry, SetWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { heldFromDocInstances } from '@/lib/document-request'
 import {
   typesFor,
@@ -251,6 +263,12 @@ export interface Clearance {
    * no recorded edition at all. An audit finding, not a bar to work.
    */
   editions: EditionFinding[]
+  /**
+   * The work-authorization paper of the country the work is done in, and
+   * the sentence where none is enforced there yet. Null where the caller
+   * named no work country (the US set, as before).
+   */
+  workAuthorization: WorkAuthorizationRule | null
   says: string
   /** What to do about it, where there is one thing to do. */
   fix: string | null
@@ -629,6 +647,12 @@ export function contractClearance(input: {
    * reads it is inert — the verdict is the packet's, exactly as before.
    */
   requirements?: LineRequirement[]
+  /**
+   * Where the line's work is done (`lib/work-country`). Decides which
+   * work-authorization paper the start asks for. Omitted means the US
+   * set, exactly as before.
+   */
+  workCountry?: LineWorkCountry | null
 }): Clearance {
   const credentials = credentialKeys(input.documentTypes ?? [])
   const basePacket = packetByKey(input.packetKey ?? startPacketFor(input.role))
@@ -644,17 +668,21 @@ export function contractClearance(input: {
   // placement checklist and inside a refusal a hiring manager was meant
   // to act on. The key is for the machine; the sentence is the product.
   // Nothing is invented — the words inside the key are all we know.
-  const required = (input.requirements ?? []).map((r) =>
+  const required = forWorkCountry(input.requirements ?? [], input.workCountry).map((r) =>
     r.label === r.key ? { ...r, label: humanKey(r.key) } : r
   )
+  const workAuthorization = workAuthorizationOf(input.workCountry)
   const standing = required.filter(isSupplierStanding)
   const personSide = required.filter((r) => !isSupplierStanding(r))
   const byKey = new Map(personSide.map((r) => [r.key, r]))
 
-  const spec = basePacket ? withRequirements(basePacket, personSide) : null
+  const spec = basePacket
+    ? withRequirements({ ...basePacket, items: forWorkCountry(basePacket.items, input.workCountry) }, personSide)
+    : null
   const resolved = spec ? resolveItems(spec, held, input.on) : []
 
   const blockingKeys = blockingKeysFor(input.documentTypes ?? [])
+  for (const k of notAskedHere(input.workCountry)) blockingKeys.delete(k)
 
   // ── Which license, issued by whom ──
   //
@@ -921,7 +949,12 @@ export function contractClearance(input: {
     license,
     unsupported,
     editions,
-    says: oneStop(sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived, adverse)),
+    workAuthorization,
+    says: oneStop(
+      [sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived, adverse), workAuthorization?.says ?? '']
+        .filter(Boolean)
+        .join(' ')
+    ),
     fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
   }
 }
@@ -1564,6 +1597,7 @@ export async function lineExtras(
   extraHeld?: HeldDocument[]
   supplierCertificates?: CoverCertificate[]
   documentTypes?: DefinedType[]
+  workCountry?: LineWorkCountry | null
 }> {
   // A sell line is answered by the many-lines read, so one line and many
   // lines cannot come to different answers, and a caller holding several
@@ -1684,10 +1718,12 @@ export async function lineExtras(
       }))?.sellLinks[0]?.sellContract ?? null)
 
   void now
+  const wc = await lineWorkCountry({ buyContractId: buyContractId! }, db as never).catch(() => null)
   return extrasFrom({
     setItems: set.items as LineRequirement[],
     workerSets,
     site: siteOf?.workLocation ?? null,
+    workCountry: wc ? { country: wc.country, offshore: wc.offshore } : null,
     certificates, types, instances, agreements,
   })
 }
@@ -1704,6 +1740,8 @@ function extrasFrom(input: {
   /** The WORKER items of each buy line linked to this sell line, in link order. */
   workerSets: LineRequirement[][]
   site: { country: string | null; state: string | null } | null
+  /** Where the line's work is done; null keeps the US set. */
+  workCountry?: LineWorkCountry | null
   certificates: unknown[]
   types: unknown[]
   instances: Parameters<typeof heldFromDocInstances>[0]
@@ -1713,6 +1751,7 @@ function extrasFrom(input: {
   extraHeld: HeldDocument[]
   supplierCertificates: CoverCertificate[]
   documentTypes: DefinedType[]
+  workCountry: LineWorkCountry | null
 } {
   const known = (input.types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label }))
   const extraHeld: HeldDocument[] = heldFromDocInstances(input.instances, known)
@@ -1737,8 +1776,10 @@ function extrasFrom(input: {
     items = [...items.filter((i) => !keys.has(i.key)), ...hers]
   }
   items = withoutVoidNonCompete(items, input.site)
+  items = forWorkCountry(items, input.workCountry)
 
   return {
+    workCountry: input.workCountry ?? null,
     requirements: items,
     extraHeld,
     supplierCertificates: input.certificates as CoverCertificate[],
@@ -1777,7 +1818,9 @@ export async function requirementsForSellLines(
   db: LineDb = prisma
 ): Promise<Map<string, LineRequirements | null>> {
   const ids = [...new Set(sellContractIds.filter(Boolean))]
-  const sets = ids.length ? await requirementsForLines({ sellContractIds: ids }, db) : new Map<string, LineRequirements>()
+  // Read where each line's work is done, so the compliance page and the
+  // start ask one set (2026-11-03).
+  const sets = ids.length ? await requirementsWhereWorkIsDoneForSellLines(ids, db) : new Map<string, LineRequirements>()
   return new Map(ids.map((id) => [id, sets.get(id) ?? null]))
 }
 
@@ -1798,6 +1841,10 @@ export async function lineExtrasForSellLines(
     select: {
       id: true, companyId: true, personId: true, clientCompanyId: true,
       workLocation: { select: { country: true, state: true } },
+      // The three facts of the work country, read with the line so the
+      // nightly read of every line asks nothing more per line.
+      requirement: { select: { workMode: true, site: { select: { country: true } } } },
+      person: { select: { consultant: { select: { country: true } } } },
     },
   })
   if (lines.length === 0) return out
@@ -1865,6 +1912,14 @@ export async function lineExtrasForSellLines(
       setItems: set.items as LineRequirement[],
       workerSets: links.filter((l) => l.sellContractId === line.id).map((l) => workerOf.get(l.buyContractId) ?? []),
       site: line.workLocation ?? null,
+      workCountry: (() => {
+        const wc = workCountryOf({
+          workMode: line.requirement?.workMode ?? null,
+          siteCountry: line.workLocation?.country ?? line.requirement?.site?.country ?? NO_SITE_COUNTRY,
+          personCountry: line.person?.consultant?.country ?? null,
+        })
+        return { country: wc.country, offshore: wc.offshore }
+      })(),
       certificates: certificates
         .filter((c) => c.companyId === line.companyId)
         .map(({ companyId: _c, ...rest }) => { void _c; return rest }),
@@ -2001,11 +2056,22 @@ export function extensionPapers(input: {
   from?: Date
   person: PaperDates[]
   supplier: PaperDates[]
+  /**
+   * Where the line's work is done. A US form is not this check's business
+   * for work done elsewhere: an offshore line's extension checks no I-9
+   * and no I-94. Omitted means every paper is checked, as before.
+   */
+  workCountry?: LineWorkCountry | null
 }): ExtensionPapers {
   const newEnd = plainDate(input.newEnd.toISOString())
   const from = input.from ?? new Date()
   const items: ExtensionPaper[] = []
+  const drop = notAskedHere(input.workCountry)
+  // The I-94 is the US's own record of an arrival; it answers nothing for
+  // work done in another country.
+  if (drop.has('I9_EVERIFY')) drop.add('I94')
   for (const [key, rule] of Object.entries(EXTENSION_PAPERS)) {
+    if (drop.has(key)) continue
     const held = (rule.about === 'PERSON' ? input.person : input.supplier).filter((r) => r.type === key && HELD_STATUSES.includes(r.status))
     if (held.length === 0) continue
     const gap = firstGap(held, from, input.newEnd)

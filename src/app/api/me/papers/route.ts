@@ -13,7 +13,7 @@ import {
   type OutstandingItem,
   type SentDocument,
 } from '@/lib/document-request'
-import { requirementsFor } from '@/lib/document-requirements'
+import { requirementsWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { orderedNotCollected } from '@/lib/attestation'
 import { credentialChaseNow } from '@/lib/contract-clearance'
 import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
@@ -267,8 +267,8 @@ async function whatSheOwes(
   }))
 
   const sets = await Promise.all([
-    ...sellLines.map((l) => requirementsFor({ sellContractId: l.id })),
-    ...buyCandidates.map((c) => requirementsFor({ buyContractId: c.buyContractId })),
+    ...sellLines.map((l) => requirementsWhereWorkIsDone({ sellContractId: l.id })),
+    ...buyCandidates.map((c) => requirementsWhereWorkIsDone({ buyContractId: c.buyContractId })),
   ])
 
   const byKey = new Map<string, OutstandingItem>()
@@ -659,7 +659,7 @@ async function lineOwing(
   const tried = linesForWorker({ candidates, sellLines: chain, facts, key })
 
   for (const c of tried) {
-    const set = await requirementsFor(c.side === 'SELL' ? { sellContractId: c.lineId } : { buyContractId: c.lineId })
+    const set = await requirementsWhereWorkIsDone(c.side === 'SELL' ? { sellContractId: c.lineId } : { buyContractId: c.lineId })
     if (!set) continue
     const item = outstandingItems({
       items: set.items,

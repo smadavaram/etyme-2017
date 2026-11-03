@@ -381,6 +381,43 @@ export function questionOf(templateName: string): (typeof QUESTION_SAID)[string]
   return null
 }
 
+/**
+ * What a screening answer says about sponsorship, read by rule from the
+ * person's own words, never by the model.
+ *
+ * True where the words say sponsorship will be needed (or name a status
+ * that needs it: H-1B, OPT, TN, L-1, a visa); false where they say it will
+ * not, or name a status that never needs it (a citizen, a permanent
+ * resident or green card, an asylee, a refugee); null where the rule
+ * cannot tell, which decides nothing and keeps the words for HR to read.
+ * The person's answer is recorded as the person's; it is never a verdict.
+ */
+export function sponsorshipFromWords(words: string | null | undefined): boolean | null {
+  const t = ` ${(words ?? '').toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ')} `
+  if (!t.trim()) return null
+  const sponsorWord = /sponsor/
+  const negated =
+    /\b(will not|won't|wont|do not|don't|dont|does not|doesn't|shall not|never|no longer|not)\b[^.;]{0,30}\b(need|require|requir)\w*[^.;]{0,25}sponsor/.test(t) ||
+    /\bno\b[^.;]{0,15}sponsor/.test(t) ||
+    /sponsor\w*[^.;]{0,20}\b(not|never)\b[^.;]{0,10}\b(needed|required|necessary)\b/.test(t)
+  const asked =
+    !negated &&
+    sponsorWord.test(t) &&
+    (/\b(need|needs|needed|require|requires|required)\b[^.;]{0,40}sponsor/.test(t) || /sponsor\w*[^.;]{0,20}\b(needed|required)\b/.test(t) || /^\s*yes\b/.test(t))
+  const needsNone = /\b(citizen|green card|permanent resident|lawful permanent|asylee|refugee)\b/.test(t)
+  const onAVisa = /\b(h-?1-?b|opt|stem opt|cpt|tn|l-?1|f-?1|visa)\b/.test(t)
+  if (asked) return true
+  if (negated) return onAVisa && !needsNone ? null : false
+  if (needsNone && !onAVisa) return false
+  if (onAVisa && !needsNone) return true
+  return null
+}
+
+/** Whether this paper is the work-authorization screening question. */
+export function isWorkAuthQuestion(templateName: string): boolean {
+  return questionOf(templateName) === QUESTION_SAID.RIGHT_TO_WORK
+}
+
 /** What the person is told when it is asked for. */
 export function askNotice(doc: DocFacts): { title: string; body: string } {
   const q = questionOf(doc.templateName)
@@ -1702,13 +1739,13 @@ export const EXAMINED_NOT_SENT: readonly string[] = ['I9_EVERIFY', 'RIGHT_TO_WOR
 
 import { prisma } from '@/lib/db'
 import {
-  requirementsFor,
   SHAPE_SAYS,
   type EffectiveRequirement,
   type LineRequirements,
   type OwedBy,
 } from '@/lib/document-requirements'
 import { labelFor } from '@/lib/document-type'
+import { requirementsWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { possessive } from '@/lib/requisition-approval'
 import { gateChases, partyOfShape, workerPartyAt, withheldDetail, type WithheldChase } from '@/lib/document-stages/chase-gate'
 import type { Party } from '@/lib/document-stages/required-sets'
@@ -1836,7 +1873,7 @@ export async function lookAtDocInstances(
     if (!r.expiresAt) continue
     const lineId = r.sellContractId ?? r.buyContractId!
     const side: 'SELL' | 'BUY' = r.sellContractId ? 'SELL' : 'BUY'
-    const set = await requirementsFor(
+    const set = await requirementsWhereWorkIsDone(
       side === 'SELL' ? { sellContractId: lineId } : { buyContractId: lineId },
       db as never
     )
@@ -2272,8 +2309,8 @@ export async function requiredOfSupplier(input: {
     ...sell.map((r) => ({ side: 'SELL' as const, id: r.id })),
   ]
   const sets = await Promise.all([
-    ...buy.map((r) => requirementsFor({ buyContractId: r.id }, db as never)),
-    ...sell.map((r) => requirementsFor({ sellContractId: r.id }, db as never)),
+    ...buy.map((r) => requirementsWhereWorkIsDone({ buyContractId: r.id }, db as never)),
+    ...sell.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)),
   ])
   return foldForParty(sets, ['SUPPLIER'], lines)
 }
@@ -2327,8 +2364,8 @@ export async function requiredOfWorker(input: {
     ...buy.map((r) => ({ side: 'BUY' as const, id: r.id })),
   ]
   const sets = await Promise.all([
-    ...sell.map((r) => requirementsFor({ sellContractId: r.id }, db as never)),
-    ...buy.map((r) => requirementsFor({ buyContractId: r.id }, db as never)),
+    ...sell.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)),
+    ...buy.map((r) => requirementsWhereWorkIsDone({ buyContractId: r.id }, db as never)),
   ])
   return foldForParty(sets, ['WORKER'], lines)
 }
@@ -2361,7 +2398,7 @@ export async function requiredOfUsBy(input: {
     take: 40,
   })
   const lines: RequiredLine[] = rows.map((r) => ({ side: 'SELL' as const, id: r.id }))
-  const sets = await Promise.all(rows.map((r) => requirementsFor({ sellContractId: r.id }, db as never)))
+  const sets = await Promise.all(rows.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)))
   return foldForParty(sets, ['SUPPLIER', 'US'], lines)
 }
 

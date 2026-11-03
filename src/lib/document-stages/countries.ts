@@ -423,3 +423,83 @@ export function timeLimitAt(country: string | null | undefined): (TimeAtClient &
   if (!r || !r.rule.confirmed || !r.rule.timeAtClient) return null
   return { ...r.rule.timeAtClient, source: r.rule.source }
 }
+
+// ── The work-authorization paper, by the country the work is done in ──
+//
+// The founder, 2026-11-03: "Especially for the onsite jobs — offshore jobs
+// is fine." So the start asks for the work-authorization paper of the
+// country where the work is done (`lib/work-country`), and nothing else:
+// an engineer in Pune working for a client in Ohio is not employed in the
+// US and completes no I-9.
+//
+// Read off the rows above, so a change of law is a change of a row: a
+// country asks for a paper here only where its row carries a confirmed
+// worker-authorization paper. Today that is the US (the I-9, which also
+// answers "proof of right to work", as it always has) and the UK (the
+// right-to-work check). Great Britain reads Northern Ireland's row,
+// because the statute behind it extends to the whole UK (Immigration,
+// Asylum and Nationality Act 2006 s.15). Every other country asks for no
+// authorization paper until its own paper is confirmed with a source, and
+// says so in a sentence, never silently nothing.
+
+/** The shipped types a start's work authorization is recorded on. */
+export const WORK_AUTHORIZATION_TYPES = ['I9_EVERIFY', 'RIGHT_TO_WORK'] as const
+
+export interface WorkAuthorizationRule {
+  /** The work country, as asked (upper case). */
+  country: string
+  /** The country in words. */
+  name: string
+  /** The shipped types this country's start asks for. Empty where none is confirmed. */
+  keys: string[]
+  /** True where a confirmed paper is enforced. */
+  enforced: boolean
+  /** The law behind the paper, where there is one. */
+  source: string | null
+  /** The sentence a screen shows where nothing is enforced. Null where a paper is. */
+  says: string | null
+}
+
+const UK_WIDE: Record<string, CountryCode> = { GB: 'GB-NIR', UK: 'GB-NIR' }
+
+function countryName(code: string): string {
+  const row = countryRow(code)
+  if (row) return row.name
+  try {
+    const name = new Intl.DisplayNames(['en-US'], { type: 'region' }).of(code)
+    if (name && name !== code) return name
+  } catch {
+    // An unknown code falls through to itself.
+  }
+  return code
+}
+
+function possessiveOf(name: string): string {
+  return /s$/i.test(name) ? `${name}’` : `${name}’s`
+}
+
+/** What a start asks for to show the right to work, for work done in this country. */
+export function workAuthorizationFor(country: string | null | undefined): WorkAuthorizationRule {
+  const asked = (country ?? '').trim().toUpperCase() || 'US'
+  const row = countryRow(UK_WIDE[asked] ?? asked)
+  const papers = (row?.papers ?? []).filter(
+    (p) => p.confirmed && !!p.builtInKey && (WORK_AUTHORIZATION_TYPES as readonly string[]).includes(p.builtInKey)
+  )
+  const keys = [...new Set(papers.map((p) => p.builtInKey!))]
+  // In the US the I-9 is the right-to-work document, and the start packet
+  // has always listed both with one satisfying the other.
+  if (keys.includes('I9_EVERIFY') && !keys.includes('RIGHT_TO_WORK')) keys.push('RIGHT_TO_WORK')
+  const name = asked === 'GB' || asked === 'UK' ? 'the United Kingdom' : countryName(asked)
+  if (keys.length > 0) {
+    return { country: asked, name, keys, enforced: true, source: papers.map((p) => p.source).join('; '), says: null }
+  }
+  const bare = name.replace(/^the /, '')
+  return {
+    country: asked,
+    name,
+    keys: [],
+    enforced: false,
+    source: null,
+    says: `No work-authorization paper is enforced for work done in ${name} yet: ${possessiveOf(bare)} paper set is not confirmed.`,
+  }
+}

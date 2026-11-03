@@ -140,3 +140,14 @@ describe('an extension reads the papers across every added day, not only their l
     expect(v.says).toContain('certificate of good standing on file starts on Feb 1, 2027, so Jan 1, 2027 to Jan 31, 2027 are not covered')
   })
 })
+
+describe('an extension reads where the work is done', () => {
+  it('the extension of an offshore line checks no I-9', () => {
+    const lapsing = [{ type: 'I9_EVERIFY', status: 'CLEAR', expiresAt: d('2027-01-15') }, { type: 'I94', status: 'CLEAR', expiresAt: d('2027-01-15') }]
+    const offshore = extensionPapers({ ...base, person: lapsing, workCountry: { country: 'IN', offshore: true } })
+    expect(offshore.outcome).toBe('PASS')
+    expect(offshore.items).toEqual([])
+    // At a US site the same papers still stop it.
+    expect(extensionPapers({ ...base, person: lapsing, workCountry: { country: 'US', offshore: false } }).outcome).toBe('BLOCK')
+  })
+})

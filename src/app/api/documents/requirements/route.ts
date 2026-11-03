@@ -3,6 +3,7 @@ import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { seatFor, seatTrail, type LiveSeat } from '@/lib/program-seat'
+import { requirementsWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import {
   requirementsFor,
   effectiveRequirements,
@@ -246,7 +247,7 @@ export async function GET(request: NextRequest) {
   // a rule nobody can check.
   const set = workOrderId
     ? await orderRequirements(target)
-    : await requirementsFor(sellContractId ? { sellContractId } : { buyContractId: buyContractId! })
+    : await requirementsWhereWorkIsDone(sellContractId ? { sellContractId } : { buyContractId: buyContractId! })
   if (!set) return refuse('There is nothing with that id.', 404, 'NOT_FOUND')
 
   // Whether this reader may change the set: the same standing POST

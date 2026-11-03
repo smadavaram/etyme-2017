@@ -10,6 +10,8 @@ import {
   typeKeyForTemplate,
   standingOn,
   askNotice, answeredNotice,
+  isWorkAuthQuestion,
+  sponsorshipFromWords,
   checkDocumentUpload,
   MAX_DOCUMENT_BYTES,
   sizeSaid,
@@ -170,6 +172,24 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
       })
     }
   })
+
+  // ── The screening answer, as the person's own answer ──────────────
+  //
+  // "Are you authorized to work in the US, and will you need sponsorship
+  // now or in the future?" was kept as words on the paper and read by
+  // nothing, so somebody who said she will need sponsorship could be
+  // interviewed three times for a job that offers none (2026-11-03). The
+  // words are read by rule (`sponsorshipFromWords`), never by the model;
+  // where the rule cannot tell, the answer decides nothing and the words
+  // stay for HR to read. Recorded on the person's profile, where the
+  // put-forward reads it. A person with no profile keeps the words on the
+  // paper only.
+  if (action !== 'send' && note && subjectPersonId && caller.person.id === subjectPersonId && isWorkAuthQuestion(doc.template.name)) {
+    await prisma.consultantProfile.updateMany({
+      where: { personId: subjectPersonId },
+      data: { needsSponsorship: sponsorshipFromWords(note), needsSponsorshipSaidAt: now, needsSponsorshipQuote: note },
+    })
+  }
 
   if (action === 'send') {
     const notice = askNotice(facts)

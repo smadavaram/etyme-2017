@@ -233,3 +233,29 @@ describe('the screens', () => {
     expect(act).toContain("channel: seat ? 'IN_APP' : 'EMAIL'")
   })
 })
+
+// ── The screening answer, kept as the person's own (2026-11-03) ───────
+import { sponsorshipFromWords, isWorkAuthQuestion } from '@/lib/document-request'
+
+describe('the work-authorization answer, read by rule', () => {
+  it('a screening answer that says sponsorship will be needed is recorded as the person’s answer with the words kept', () => {
+    expect(isWorkAuthQuestion('Work authorization — the question')).toBe(true)
+    expect(sponsorshipFromWords('Yes, I am authorized now, but I will need H-1B sponsorship next year.')).toBe(true)
+    expect(sponsorshipFromWords('I am on OPT.')).toBe(true)
+    expect(sponsorshipFromWords('I am a US citizen.')).toBe(false)
+    expect(sponsorshipFromWords('Green card holder, no sponsorship needed.')).toBe(false)
+    expect(sponsorshipFromWords('Authorized to work; I will not need sponsorship now or in the future.')).toBe(false)
+    expect(sponsorshipFromWords('I do not require sponsorship.')).toBe(false)
+    // The route keeps the words beside the reading (documents/[id]/act.ts).
+    const act = readFileSync(join(process.cwd(), 'src/app/api/documents/[id]/act.ts'), 'utf8')
+    expect(act).toMatch(/needsSponsorship: sponsorshipFromWords\(note\), needsSponsorshipSaidAt: now, needsSponsorshipQuote: note/)
+  })
+
+  it('an answer the rule cannot read keeps the words and decides nothing', () => {
+    expect(sponsorshipFromWords('It depends on the project.')).toBeNull()
+    expect(sponsorshipFromWords('Yes')).toBeNull()
+    expect(sponsorshipFromWords('')).toBeNull()
+    // A visa named and "no sponsorship" said in one breath is for HR to read.
+    expect(sponsorshipFromWords('I am on H-1B and will not need sponsorship.')).toBeNull()
+  })
+})

@@ -1,4 +1,7 @@
 import type { ItemSpec, Purpose, SubjectKind } from '@/lib/packets'
+import { workAuthorizationFor } from '@/lib/document-stages/countries'
+
+const authHere = (c: { country: string }) => workAuthorizationFor(c.country)
 
 /**
  * Working out what somebody actually needs to send.
@@ -150,9 +153,13 @@ const SUPPLIER_RULES: Rule[] = [
 // ── Starting somebody ─────────────────────────────────────────────────
 
 const START_RULES: Rule[] = [
+  // The work-authorization paper is the work country's, read from the one
+  // rule every start reads (`workAuthorizationFor` in
+  // lib/document-stages/countries), so this list and the start gate
+  // cannot disagree about which country asks for what.
   {
     id: 'us-work-auth',
-    when: (c) => c.country === 'US' && (c.classification === 'W2' || c.classification === 'C2H_W2'),
+    when: (c) => authHere(c).keys.includes('I9_EVERIFY') && (c.classification === 'W2' || c.classification === 'C2H_W2'),
     because: 'federal law requires it before any work is done, and it cannot be waived',
     items: [
       { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Nobody may start without it.', required: true, validMonths: null },
@@ -160,15 +167,23 @@ const START_RULES: Rule[] = [
   },
   {
     id: 'uk-work-auth',
-    when: (c) => c.country === 'GB',
+    when: (c) => !authHere(c).keys.includes('I9_EVERIFY') && authHere(c).keys.includes('RIGHT_TO_WORK'),
     because: 'a UK right-to-work check is the employer’s legal duty, and there is no I-9 here',
     items: [
-      { key: 'RIGHT_TO_WORK_UK', label: 'Right to work check', hint: 'Share code, or passport and visa.', required: true, validMonths: null },
+      { key: 'RIGHT_TO_WORK', label: 'Right to work check', hint: 'Share code, or passport and visa.', required: true, validMonths: null },
     ],
   },
   {
+    // Never silently nothing: where the work country's paper is not
+    // confirmed, the list says so rather than asking for a US form.
+    id: 'work-auth-unconfirmed',
+    when: (c) => !authHere(c).enforced,
+    because: 'no work-authorization paper is asked yet for work done there, because that country’s paper set is not confirmed',
+    items: [],
+  },
+  {
     id: 'visa-evidence',
-    when: (c) => ['H1B', 'OPT', 'L1', 'TN'].includes(String(c.workAuth ?? '')),
+    when: (c) => authHere(c).keys.includes('I9_EVERIFY') && ['H1B', 'OPT', 'L1', 'TN'].includes(String(c.workAuth ?? '')),
     because: 'your status has an end date, and we have to know it before it arrives',
     items: [
       { key: 'VISA_APPROVAL', label: 'Approval notice', hint: 'Your most recent I-797, or EAD card for OPT.', required: true, validMonths: null },

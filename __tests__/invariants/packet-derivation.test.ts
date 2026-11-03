@@ -77,7 +77,7 @@ describe('starting somebody', () => {
     // An I-9 in the UK is a form that does not exist, and asking for it
     // makes the whole request look automated and wrong.
     const d = deriveStartPacket({ country: 'GB', classification: 'W2' })
-    expect(keys(d.items)).toContain('RIGHT_TO_WORK_UK')
+    expect(keys(d.items)).toContain('RIGHT_TO_WORK')
     expect(keys(d.items)).not.toContain('I9_EVERIFY')
   })
 

@@ -208,3 +208,111 @@ describe('a checklist never reports a check as verified without the provider’s
     expect(item.note).not.toContain('reported')
   })
 })
+
+// ── Where the work is done (founder, 2026-11-03) ──────────────────────
+//
+// "Especially for the onsite jobs — offshore jobs is fine." The start asks
+// for the work-authorization paper of the country the line's work is done
+// in, read through lib/work-country.
+import { workCountryOf } from '@/lib/work-country'
+import { workAuthorizationFor } from '@/lib/document-stages/countries'
+import { whereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
+import { startPreview } from '@/lib/contract-clearance'
+
+describe('the start reads the country where the work is done', () => {
+  const at = (country: string, offshore = country !== 'US') => ({ country, offshore })
+  const lineSet = (keys: string[]) => ({
+    side: 'BUY' as const,
+    shape: 'W2' as const,
+    order: null,
+    says: 'This line asks for the start packet.',
+    items: keys.map((key) => ({ key, label: key, required: true, blocks: true, owedBy: 'WORKER' as const, from: 'DEFAULT' as const })) as never,
+  })
+  const offshoreStart = (personVerifications: { type: string; status: string; expiresAt: Date | null }[], extraHeld = signedNda) =>
+    contractClearance({
+      personName: 'Ananya Iyer', personVerifications, supplierName: 'Pune Talent', supplierCertificates: insured,
+      clientName: 'Harlow Health', on, extraHeld, workCountry: at('IN'),
+    })
+
+  it('a W2 line worked from India asks for no I-9 and says India’s set is not confirmed', () => {
+    const v = offshoreStart([clear('BACKGROUND_CHECK', inDays(300))])
+    const keys = v.items.map((i) => i.key)
+    expect(keys).not.toContain('I9_EVERIFY')
+    expect(keys).not.toContain('RIGHT_TO_WORK')
+    expect(v.outcome).toBe('PASS')
+    expect(v.says).toContain('No work-authorization paper is enforced for work done in India yet: India’s paper set is not confirmed.')
+    expect(v.workAuthorization?.enforced).toBe(false)
+    // And the line's set on screen says it at its top.
+    const set = whereWorkIsDone(lineSet(['I9_EVERIFY', 'RIGHT_TO_WORK', 'NDA']), at('IN'))
+    expect(set.items.map((i) => i.key)).toEqual(['NDA'])
+    expect(set.says).toBe('This line asks for the start packet. No work-authorization paper is enforced for work done in India yet: India’s paper set is not confirmed.')
+  })
+
+  it('a W2 line at a US site asks for the I-9 as before', () => {
+    const v = contractClearance({
+      personName: 'Priya Raman', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Techpeple',
+      supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: at('US'),
+    })
+    expect(v.outcome).toBe('BLOCK')
+    expect(v.blocking.map((b) => b.key)).toContain('I9_EVERIFY')
+    expect(v.workAuthorization?.enforced).toBe(true)
+    expect(v.says).not.toMatch(/not confirmed/)
+    // Nothing named about the country is the US set, unchanged.
+    expect(verdict([clear('BACKGROUND_CHECK', inDays(300))]).blocking.map((b) => b.key)).toContain('I9_EVERIFY')
+  })
+
+  it('a line worked from the UK asks for the right-to-work check and never an I-9', () => {
+    for (const country of ['GB', 'GB-NIR']) {
+      expect(workAuthorizationFor(country).keys, country).toEqual(['RIGHT_TO_WORK'])
+      const v = contractClearance({
+        personName: 'Siobhan Kerr', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Lagan Talent',
+        supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: at(country),
+      })
+      expect(v.items.map((i) => i.key), country).not.toContain('I9_EVERIFY')
+      expect(v.blocking.map((b) => b.key), country).toEqual(['RIGHT_TO_WORK'])
+      expect(v.outcome, country).toBe('BLOCK')
+    }
+  })
+
+  it('a remote line worked from the site’s own country asks for the site’s set', () => {
+    const wc = workCountryOf({ workMode: 'REMOTE', siteCountry: 'US', personCountry: 'US' })
+    expect(wc).toMatchObject({ country: 'US', offshore: false })
+    const v = contractClearance({
+      personName: 'Dana Ruiz', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Techpeple',
+      supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: wc,
+    })
+    expect(v.blocking.map((b) => b.key)).toContain('I9_EVERIFY')
+  })
+
+  it('an offshore line’s start is not held for authorization and still holds for the papers the set does ask', () => {
+    // No NDA signed, and the line's order asked for one: still warned.
+    const v = contractClearance({
+      personName: 'Ananya Iyer', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Pune Talent',
+      supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: [], workCountry: at('IN'),
+      requirements: [
+        { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', required: true, blocks: true, owedBy: 'WORKER', from: 'DEFAULT' },
+        { key: 'NDA', label: 'Signed non-disclosure agreement', required: true, blocks: false, owedBy: 'WORKER', from: 'ORDER' },
+      ] as never,
+    })
+    expect(v.blocking).toEqual([])
+    expect(v.items.map((i) => i.key)).not.toContain('I9_EVERIFY')
+    expect(v.chasing.map((c) => c.key)).toContain('NDA')
+    expect(v.outcome).toBe('WARN')
+    // A missing background check on an offshore line is still asked.
+    expect(offshoreStart([]).chasing.map((c) => c.key)).toContain('BACKGROUND_CHECK')
+  })
+
+  it('the nightly chase never asks an offshore worker for an I-9', () => {
+    // The nightly letter is drawn from the clearance's items still needed
+    // (lib/notify/documents) and the start's ask from `startPreview`; an
+    // offshore line carries no I-9 in either.
+    const v = offshoreStart([])
+    expect(v.items.filter((i) => i.required && i.state === 'NEEDED').map((i) => i.key)).not.toContain('I9_EVERIFY')
+    const preview = startPreview({
+      personName: 'Ananya Iyer', personVerifications: [], supplierName: 'Pune Talent', supplierCertificates: insured,
+      clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: at('IN'),
+    } as never)
+    expect(preview.askOfPerson.map((a) => a.key)).not.toContain('I9_EVERIFY')
+    expect(preview.askOfPerson.map((a) => a.key)).not.toContain('RIGHT_TO_WORK')
+  })
+})

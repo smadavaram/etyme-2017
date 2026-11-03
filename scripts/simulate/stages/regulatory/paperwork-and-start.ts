@@ -46,6 +46,8 @@ import { agreements, drugScreen, statusPapers, type I9Evidence } from './hiring-
 import { expectAt, tally } from './stage-tally'
 import { standingLeftForTheStart } from './documents'
 import { hrBeingSeated, hrSeatAt, isHrRefusal } from './hr-seat'
+import { lineWorkCountry } from '@/lib/work-country'
+import { workAuthorizationFor } from '@/lib/document-stages/countries'
 
 const DAY = 86_400_000
 
@@ -56,6 +58,25 @@ function count(kind: string, move: Move): void {
   else if (move === 'received') tally.answered('hiring')
   else tally.examined('hiring')
 }
+/**
+ * Where the work is done decides whether an I-9 is recorded at all
+ * (founder, 2026-11-03): only for work done in the US. Every other
+ * country's start is recorded as the finding its own rule says, once per
+ * country, so the report shows which countries' sets are not confirmed.
+ */
+const offshoreFindings = new Map<string, { says: string; lines: number }>()
+
+async function workIsInTheUS(ctx: Ctx, p: { id: string }): Promise<{ us: boolean; country: string }> {
+  const wc = await lineWorkCountry({ sellContractId: p.id }, ctx.read as never).catch(() => null)
+  const country = wc?.country ?? 'US'
+  const rule = workAuthorizationFor(country)
+  if (rule.keys.includes('I9_EVERIFY')) return { us: true, country }
+  const known = offshoreFindings.get(country)
+  if (known) known.lines += 1
+  else offshoreFindings.set(country, { says: rule.says ?? `${rule.name} asks for its own right-to-work check, never an I-9.`, lines: 1 })
+  return { us: false, country }
+}
+
 /** The I-9 edition USCIS published on January 20, 2025, printed at the foot of every page. */
 const I9_EDITION = '01/20/25'
 const NOT_STARTED = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] as const
@@ -172,6 +193,8 @@ export default defineStage({
     const warned = walks.filter((w) => w.warnedThrough)
     const stuck = walks.filter((w) => !w.started)
     const stuckWhy = [...new Set(stuck.map((w) => w.stoppedBecause ?? 'it did not start'))]
+    for (const [country, f] of offshoreFindings) ctx.log(`${country}: ${f.lines} line(s) with no I-9 recorded. ${f.says}`)
+    const offshore = [...offshoreFindings.values()].reduce((n, f) => n + f.lines, 0)
 
     return {
       closed: started.length,
@@ -181,6 +204,7 @@ export default defineStage({
         `${learned.length} were refused first and learned (filed the I-9, sent a current certificate, or had the firm’s Owner seat somebody in HR: ` +
         `${walks.filter((w) => w.hit.includes('nobody seated in HR')).length} walks), ` +
         `${warned.length} started past a warning with the reason on the record.` +
+        (offshore ? ` ${offshore} placements are worked outside the US and recorded no I-9: ${[...offshoreFindings.values()].map((f) => f.says).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3).join(' ')}` : '') +
         (stuck.length ? ` ${stuck.length} did not start: ${stuckWhy.slice(0, 3).join('; ')}.` : '') +
         ` Papers this run, both stations: ${papers.total.toLocaleString('en-US')} document moves, ${papers.files.toLocaleString('en-US')} files, ` +
         `${kb(papers.bytes)} stored, ${papers.sentBack} sent back and answered again. By kind: ${papers.says()}.`,
@@ -484,7 +508,9 @@ async function walkOne(
     select: { type: true, expiresAt: true },
   })
   const holds = (type: string) => held.some((v) => v.type === type && (!v.expiresAt || v.expiresAt.getTime() > Date.now()))
-  const hasI9 = holds('I9_EVERIFY')
+  // An I-9 only for work done in the US; elsewhere the line asks none.
+  const where = await workIsInTheUS(ctx, p)
+  const hasI9 = holds('I9_EVERIFY') || !where.us
   const hasBackground = holds('BACKGROUND_CHECK')
 
   // EAGER: the start is pressed before the I-9 is in, and refused.
@@ -498,7 +524,7 @@ async function walkOne(
 
   // The visa, the I-94 and the work permit, where they apply; the I-9 is
   // completed from what she showed.
-  const shown = await statusPapers(ctx, hr, worker, p)
+  const shown = await statusPapers(ctx, hr, worker, p, where.country)
   // HR examines what she showed and completes the I-9.
   if (!hasI9 && (await recordI9(await i9Recorder(ctx, p, hr), p, held, shown)).ok) count('I-9 and E-Verify', 'examined')
   // The drug screen where the client is a hospital or a clinic, and on one placement in four elsewhere.
@@ -611,7 +637,7 @@ async function walkOne(
         continue
       }
     }
-    if (code === 'DOCUMENTS_BLOCK' && /I-9|work authori/i.test(res.sentence ?? '')) {
+    if (code === 'DOCUMENTS_BLOCK' && where.us && /I-9|work authori/i.test(res.sentence ?? '')) {
       // Learn: the I-9 again, from the worker's documents.
       walk.hit.push('no I-9 on file')
       await recordI9(await i9Recorder(ctx, p, hr), p, held, shown)
