@@ -23,7 +23,7 @@ describe('the five questions every Network list answers', () => {
   it('Pending is whoever is still in a pipeline — a firm walking the desks, or somebody asked who no supplier has put forward yet', () => {
     const rows = [row({ id: 'p', pending: { stageWord: 'HR' } } as any), row({ id: 'q' })]
     expect(applyFilter(rows, 'PENDING', null, now).map((r) => r.id)).toEqual(['p'])
-    expect(read('src/components/network-view.tsx')).toContain('NETWORK_FILTERS.filter((f) => counts[f] !== undefined)')
+    expect(read('src/components/network-view.tsx')).toContain('order.filter((f) => counts[f] !== undefined)')
     expect(read('src/app/dashboard/suppliers/page.tsx')).toContain('PENDING: listed.filter((r) => !!r.pending).length')
   })
 

@@ -32,8 +32,13 @@ export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View)
   )
 }
 
-/** The five questions, and where. */
-export function FilterBar({ filter, onFilter, counts, places, place, onPlace }: {
+/**
+ * The five questions, and where. `order` is the reader's order of the
+ * chips (a client reads Favorites first, `filterOrderFor` in
+ * lib/network-filters); left out, the fixed order of NETWORK_FILTERS.
+ */
+export function FilterBar({ order = NETWORK_FILTERS, filter, onFilter, counts, places, place, onPlace }: {
+  order?: readonly NetworkFilter[]
   filter: NetworkFilter
   onFilter: (f: NetworkFilter) => void
   /** A filter with no count is not offered — Contractors has nothing pending. */
@@ -47,7 +52,7 @@ export function FilterBar({ filter, onFilter, counts, places, place, onPlace }: 
       label="Show"
       value={filter}
       onChange={onFilter}
-      options={NETWORK_FILTERS.filter((f) => counts[f] !== undefined).map((f) => ({
+      options={order.filter((f) => counts[f] !== undefined).map((f) => ({
         key: f, label: FILTER_WORD[f], count: counts[f], warn: f === 'BLOCKED',
       }))}
       end={places.length > 0 && (

@@ -740,7 +740,9 @@ const CLIENT_NAV: NavSection[] = [
   // The client's memory of people it would like to reach out to
   // (founder, 2026-11-03): everybody put in front of it, the ones it
   // starred, its recent engagements, each with "Ask for them". Opens on
-  // Everyone, so it is never empty where anybody was ever put forward.
+  // the first filter in the reader's order that has rows, Favorites first
+  // (demand, a1a67e31f), so it is never empty where anybody was ever put
+  // forward.
   tabbed('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
   tabbed('Suppliers', [
     SUPPLIERS,
