@@ -1394,7 +1394,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
     const branch = route.indexOf("if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)")
     expect(branch).toBeGreaterThan(0)
-    expect(branch).toBeLessThan(route.indexOf('if (asWorker(caller) && !caller.region) return workerGreeting(caller, request)'))
+    expect(branch).toBeLessThan(route.indexOf('if (await asYou(caller, request)) return workerGreeting(caller, request)'))
     const body = route.slice(route.indexOf('async function owedCount('), route.indexOf("/** The worker's greeting and her saved thread."))
     expect(body).toContain('return NextResponse.json({ data: { total } })')
     expect(body).not.toMatch(/markNoticesSeen|unreadNotices|appendTurn|markCard|clearThread|prisma\./)
@@ -1707,7 +1707,8 @@ describe('every first screen names a person and the step in front of them (found
     // The picture starts once the party is known, which a client knows at once, and is never awaited on its own.
     expect(greet).toContain('const picture = who.then((w) => pictureFor(caller, w.party))')
     expect(greet).not.toMatch(/picture: await pictureFor/)
-    expect(greet).toMatch(/await Promise\.all\(\[\s+unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\),\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), who,/)
+    expect(greet).toMatch(/const firmNotices = Promise\.all\(\[\s+unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\),/)
+    expect(greet).toMatch(/await Promise\.all\(\[\s+firmNotices,\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), who,/)
     // And the rules' own reads start beside them (2026-11-01), not after them.
     expect(greet.indexOf('startedReaders(readersFor(')).toBeLessThan(greet.indexOf('await Promise.all(['))
     // The paying clerk's receipts are each checked at the same time, not in turn.

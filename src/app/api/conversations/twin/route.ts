@@ -22,6 +22,9 @@ import { hasPermission } from '@/lib/permissions'
 import { firstActFacts } from './first-act-read'
 import { linkAsksFor, joinAsksFor, firmAskItems, withFirmAsks } from './firm-asks'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { ownPageFor } from '@/lib/portfolio-data'
+import { cookieHatOf, greetsAsYou, noticesForHat, youOffered, type HatFacts } from './hat'
+import type { CompanyKind } from '@/lib/nav-table'
 
 /**
  * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
@@ -163,6 +166,41 @@ function seatOf(caller: Caller): Promise<LiveSeat | null> {
     seats.set(caller, got)
   }
   return got
+}
+
+/**
+ * Which hat this request is greeted in (./hat), read once per request.
+ * The work is asked about (`ownPage`) only where it can change the
+ * answer: a firm seat whose cookie names the You hat, or a firm greeting
+ * that must leave the person's own notices for the You hat.
+ */
+const hats = new WeakMap<object, Promise<HatFacts>>()
+const hatsWithWork = new WeakMap<object, Promise<HatFacts>>()
+function hatFactsOf(caller: Caller, request: NextRequest, opts: { askWork?: boolean } = {}): Promise<HatFacts> {
+  const memo = opts.askWork ? hatsWithWork : hats
+  let got = memo.get(caller)
+  if (!got) {
+    got = (async (): Promise<HatFacts> => {
+      const workerSeat = asWorker(caller)
+      const region = caller.region?.label ?? null
+      const cookieHat = cookieHatOf(request)
+      const seat = await seatOf(caller)
+      const menuKind = ((seat ? 'CLIENT' : caller.company?.kind) ?? null) as CompanyKind | null
+      const ask = !workerSeat && !region && !!caller.company && (opts.askWork || cookieHat === 'you')
+      const worker = ask ? (await ownPageFor(caller.person.id).catch(() => ({ ok: false }))).ok : false
+      return { workerSeat, region, cookieHat, menuKind, worker, seatedAtClient: seat?.clientCompany.name ?? null, permissions: await judgedBy(caller) }
+    })()
+    memo.set(caller, got)
+  }
+  return got
+}
+
+/** Whether this request is answered as the person's own Ask Etyme: a worker's seat, or the You hat. */
+async function asYou(caller: Caller, request: NextRequest): Promise<boolean> {
+  if (caller.region) return false
+  if (asWorker(caller)) return true
+  if (cookieHatOf(request) !== 'you') return false
+  return greetsAsYou(await hatFactsOf(caller, request))
 }
 
 /**
@@ -390,7 +428,8 @@ export async function GET(request: NextRequest) {
   // The mark's number: the greeting's own count, read with no notice
   // marked seen and no line kept, so polling it changes nothing.
   if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)
-  if (asWorker(caller) && !caller.region) return workerGreeting(caller, request)
+  // The person's own hat (founder, 2026-11-03): their week, pay and papers.
+  if (await asYou(caller, request)) return workerGreeting(caller, request)
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -423,8 +462,14 @@ export async function GET(request: NextRequest) {
     const setupLine = setupLineOf(caller)
     const seat = await seatOf(caller)
     const readers = startedReaders(readersFor(caller, company.id, request, { seat }), who)
-    const [notices, threads, modelSwitch, party, week] = await Promise.all([
+    // A notice about the person's own work is said in the You hat, and left
+    // unread here for it, where the person wears two hats (./hat).
+    const firmNotices = Promise.all([
       unreadNotices(caller, { program: seat?.clientCompany.id ?? null }),
+      hatFactsOf(caller, request, { askWork: true }).catch(() => null),
+    ]).then(([n, f]) => (f ? { ...n, shown: noticesForHat(f, 'firm', n.shown) } : n))
+    const [notices, threads, modelSwitch, party, week] = await Promise.all([
+      firmNotices,
       unreadThreads(caller), modelSwitchFor(company.id), who, ownWeek,
     ])
     // The boundary line reads the company's own switch, so it says what is
@@ -577,7 +622,8 @@ function notReadByRegion(caller: Caller) {
  * firm seat's decisions total; null where it could not be read. Reads only.
  */
 async function owedCount(caller: Caller, request: NextRequest) {
-  const worker = asWorker(caller) && !caller.region
+  // The mark follows the hat: the person's own cards in the You hat, the firm's queue in a firm hat.
+  const worker = await asYou(caller, request)
   if (!worker && !caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -600,7 +646,13 @@ async function workerGreeting(caller: Caller, request: NextRequest) {
   }
   try {
     const saved = thread()
-    const [notices, threads, facts] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request)])
+    // In the You hat a firm seat's notices about the firm's book, and the
+    // threads other companies wrote to the firm, wait for the firm hat.
+    const hat = await hatFactsOf(caller, request)
+    const own = youOffered(hat)
+    const [allNotices, allThreads, facts] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request)])
+    const notices = own ? { ...allNotices, shown: noticesForHat(hat, 'you', allNotices.shown) } : allNotices
+    const threads = own ? { shown: [], more: 0, noticeIds: [] } : allThreads
     const answer = workerToday(facts, { greeting: true, notices, threads })
     await Promise.all([
       markNoticesSeen(caller, notices.shown.map((n) => n.id)),
@@ -653,7 +705,7 @@ async function lastPlace(caller: Caller, said: unknown): Promise<string | null> 
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
-  if (asWorker(caller) && !caller.region) {
+  if (await asYou(caller, request)) {
     const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
     let answer: Answer

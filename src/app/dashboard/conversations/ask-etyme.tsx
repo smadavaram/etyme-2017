@@ -129,7 +129,8 @@ export function AskEtyme() {
   // are the greeting's first line (founder, 2026-10-13).
   const desk = deskOf(session)
   // Whose Ask Etyme this is: the route says, and until it has, the session.
-  const [party, setParty] = useState<Party>(() => partyOf({ companyKind: desk.companyKind, worker: desk.isConsultant || desk.worker, seatedAt: desk.seatedAtClient }))
+  // The You hat reads as a worker; a firm hat as the firm, even for somebody who is a worker too (2026-11-03).
+  const [party, setParty] = useState<Party>(() => partyOf({ companyKind: desk.companyKind, worker: desk.isConsultant || (desk.worker && desk.hat === 'you'), seatedAt: desk.seatedAtClient }))
   // Null until the greeting says which questions this desk gets an answer to.
   const [chips, setChips] = useState<readonly string[] | null>(null)
   const seat = seatSays({
