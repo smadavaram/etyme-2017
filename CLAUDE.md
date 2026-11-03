@@ -1608,6 +1608,53 @@ Switching there is switching the whole app to the worker's view (the
 menu, Ask Etyme, the mark and Today), and switching back is the same
 one click; the person is never shown both at once.
 
+**Contracts, not Contractors, and Contracts stands between Submissions
+and Timesheets on every firm's menu. The founder, the same hour:**
+*"What is contractors — is it Contracts Buy or sell? We already have
+candidates, so don't see a need for contractors — but see a utility for
+contracts on sell side or buy where documentation happens and hiring
+happens, followed by timesheet and expense submit, sometimes to client
+or sometimes to employer."* So the noun is the document, not the
+person: a person is a candidate until the award, and from the award on
+the thing a firm holds is a **contract**, the line that carries the
+papers, the start, the rate and the dates, with the weeks and the
+expenses hanging off it. Decided, each a coordinator's call reversible
+by the founder in a sentence:
+- **The client's menu reads Contracts where it read Contractors**: its
+  buy side, one row per person placed, with the supplier, the order
+  line, the rate it pays, the papers, the start and the time on site,
+  and the tabs that folded under Contractors (Ending soon, Past, Tenure,
+  Duplicate check) folding under Contracts instead. "Contractors" leaves
+  every menu. It stays the buyer's word for the person on the public
+  pages ("Know what every contractor costs"), because a page speaks of
+  people and a menu names what the firm holds.
+- **A supplier's, integrator's and MSP's Contracts is a link of its
+  own**, no longer three tabs under Companies, with **Sell** (the line
+  that bills the client or the prime) and **Buy** (the line that pays a
+  sub-vendor by order or the firm's own employee by payroll) side by
+  side and the POs beside them; Companies keeps who the firm trades
+  with (clients, suppliers, contacts, agreements). This answers the
+  founder's "Where are the contracts for Buy and sell" of the same
+  morning.
+- **The order on every firm's menu is the process order:** Jobs ·
+  Submissions · Contracts · Timesheets · then the money document
+  (Invoice receipts for a client, Bills for a supplier), then the two
+  lists the firm keeps (Candidates and Suppliers for a client;
+  Candidates and Companies for a supplier), then Settings. Ten links
+  with Ask Etyme and Today; the one-person firm already reads Contracts
+  and is unchanged.
+- **An expense follows the contract the way a week does**: filed once
+  by the worker against the line, reimbursed by the employer on the buy
+  line, and billed to the client on the sell line only where the
+  agreement between that pair says the kind is billable (the
+  2026-10-19 rule); "sometimes to client or sometimes to employer" is
+  that rule read from the worker's side, and nothing new is built for
+  it.
+Built with the hat switch and the Submissions and Candidates rename,
+in one commit per domain, the two tables below moving with
+`lib/nav-table` so `sidebar-nav.test.ts` stays green. Machine names,
+routes and keys do not move.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
