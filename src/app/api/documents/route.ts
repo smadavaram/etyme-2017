@@ -5,7 +5,7 @@ import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN } from '@/lib/document-type'
-import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
+import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER, libraryOf } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { hasPermission } from '@/lib/permissions'
@@ -218,17 +218,19 @@ export async function GET(request: NextRequest) {
     orderBy: { name: 'asc' },
   })
 
+  const library = libraryOf(templates.map((t) => ({
+    id: t.id,
+    name: t.name,
+    audience: t.audience,
+    needsSignature: t.needsSignature,
+    hasFile: !!t.fileUrl,
+    instanceCount: t._count.instances,
+  })))
   return NextResponse.json({
     data: {
-      templates: templates.map((t) => ({
-        id: t.id,
-        name: t.name,
-        audience: t.audience,
-        needsSignature: t.needsSignature,
-        hasFile: !!t.fileUrl,
-        instanceCount: t._count.instances,
-      })),
-      total: templates.length,
+      // One row per paper, in American English (`libraryOf`).
+      templates: library,
+      total: library.length,
     },
   })
 }

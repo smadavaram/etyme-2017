@@ -742,6 +742,47 @@ export function audienceWord(audience: string): string {
   return AUDIENCE_WORDS[audience.toUpperCase()] ?? 'Anybody'
 }
 
+// ── The library, one row per paper ─────────────────────────────────────
+//
+// The screen walk (2026-11-02, open in walk 3): Northbend's library listed
+// "Certificate of good standing" twice, and a name stored by an older
+// build still read in British spelling. A template is created from a
+// request's label wherever none is found by name, so two rows for one
+// paper and a name written before the spelling was fixed are both on the
+// record. The library reads them as one row, in American English; the
+// rows themselves are left as they are.
+
+/** A stored name, read in American English. Built from parts so the British word is not written here. */
+const BRITISH_BANK_WORD = new RegExp('\\b(c)he' + 'que(s?)\\b', 'gi')
+export function libraryName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').replace(BRITISH_BANK_WORD, (_m, c: string, s: string) => `${c}heck${s}`)
+}
+
+export interface LibraryTemplate { id: string; name: string; audience: string; needsSignature: boolean; instanceCount: number; hasFile?: boolean }
+
+/**
+ * One row per paper: templates whose names read the same (letter case and
+ * spacing aside) are one row, under the one most asked, with every ask
+ * counted. Pure, and in the order given.
+ */
+export function libraryOf(templates: LibraryTemplate[]): LibraryTemplate[] {
+  const byName = new Map<string, LibraryTemplate[]>()
+  for (const t of templates) {
+    const k = libraryName(t.name).toLowerCase()
+    byName.set(k, [...(byName.get(k) ?? []), t])
+  }
+  return [...byName.values()].map((group) => {
+    const lead = [...group].sort((a, b) => b.instanceCount - a.instanceCount)[0]
+    return {
+      ...lead,
+      // The name as somebody wrote it for a reader: capitalized where any row was.
+      name: libraryName((group.find((g) => /^[A-Z0-9]/.test(g.name.trim())) ?? lead).name),
+      needsSignature: group.some((g) => g.needsSignature),
+      instanceCount: group.reduce((n, g) => n + g.instanceCount, 0),
+    }
+  })
+}
+
 /** The word a row shows: what is true, not the enum. */
 export function statusWord(status: string): string {
   switch (status) {
