@@ -15,6 +15,8 @@ import {
 } from '@/lib/importable'
 import type { reviewOf } from '@/lib/extract'
 import { readImportContent } from './read'
+import { consultantRowPlan } from './consultant-row'
+import { hasOwnAccount } from '@/lib/consultant-portfolio/firm-view'
 
 /**
  * GET  /api/imports/sheets — what this person may load
@@ -244,7 +246,7 @@ export async function POST(request: NextRequest) {
 
   // ── Commit ──────────────────────────────────────────────────────────
   const good = parsed.filter((r) => r.ok)
-  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller))
+  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller), caller.company.name)
 
   await prisma.automationLog.create({
     data: {
@@ -259,6 +261,7 @@ export async function POST(request: NextRequest) {
         updated: written.updated,
         skipped: parsed.length - good.length,
         failures: written.failures,
+        kept: written.kept,
         // Whether a model read this file or the column headings did.
         // Recorded because it varies run to run — a week where the key
         // was misconfigured must not later read as a week the model
@@ -281,14 +284,18 @@ export async function POST(request: NextRequest) {
       // Rows that passed reading and still failed writing — a supplier
       // name that matches nothing, a duplicate inside the same file.
       failures: written.failures,
+      // Rows about somebody whose record is theirs, each in a sentence:
+      // "Kept on your listing; <name> has their own account."
+      kept: written.kept,
       problems: parsed.filter((r) => !r.ok).slice(0, 50).map((r) => ({
         row: r.rowNumber,
         problems: r.problems,
       })),
       message:
-        written.failures.length > 0
+        (written.failures.length > 0
           ? `${written.created} new, ${written.updated} updated. ${written.failures.length} row(s) could not be written — see below.`
-          : `${written.created} new, ${written.updated} updated, ${parsed.length - good.length} skipped.`,
+          : `${written.created} new, ${written.updated} updated, ${parsed.length - good.length} skipped.`) +
+        written.kept.map((k) => ` Row ${k.row}: ${k.says}`).join(''),
     },
   })
 }
@@ -327,6 +334,8 @@ interface WriteResult {
   created: number
   updated: number
   failures: { row: number; reason: string }[]
+  /** Rows about somebody whose record is theirs: what was kept, said per row. */
+  kept: { row: number; says: string }[]
 }
 
 /**
@@ -337,10 +346,11 @@ interface WriteResult {
  * report of the two that were not — rolling everything back over two bad
  * rows means the file gets loaded by hand instead.
  */
-async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[], byId: string | null): Promise<WriteResult> {
+async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[], byId: string | null, firmName: string): Promise<WriteResult> {
   let created = 0
   let updated = 0
   const failures: { row: number; reason: string }[] = []
+  const kept: { row: number; says: string }[] = []
 
   for (const r of rows) {
     try {
@@ -387,6 +397,49 @@ async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[],
         }
 
         case 'CONSULTANTS': {
+          // Somebody already here: whose record is it to change? The edit
+          // route's own rule decides (profileEditPlan), read the same way.
+          const found = await prisma.person.findUnique({
+            where: { primaryEmail: v.email },
+            select: {
+              id: true,
+              name: true,
+              passwordHash: true,
+              _count: { select: { credentials: true, contexts: { where: { type: 'CONSULTANT', companyId: null } } } },
+              consultant: {
+                select: {
+                  listings: { where: { companyId, revokedAt: null }, select: { id: true } },
+                  _count: { select: { listings: { where: { revokedAt: null, companyId: { not: companyId } } } } },
+                },
+              },
+            },
+          })
+          if (found) {
+            const listing = found.consultant?.listings[0] ?? null
+            const plan = consultantRowPlan({
+              isSubject: found.id === byId,
+              ownAccount: hasOwnAccount({
+                passwordSet: Boolean(found.passwordHash),
+                signIns: found._count.credentials,
+                ownSeats: found._count.contexts,
+              }),
+              otherFirms: found.consultant?._count.listings ?? 0,
+              hasListing: listing != null,
+              name: found.name,
+              firm: firmName,
+              values: v,
+            })
+            if (plan.write === 'LISTING' && listing) {
+              await prisma.benchListing.update({ where: { id: listing.id }, data: plan.listing })
+              kept.push({ row: r.rowNumber, says: plan.says })
+              updated++
+              break
+            }
+            if (plan.write !== 'PROFILE') {
+              kept.push({ row: r.rowNumber, says: plan.says })
+              break
+            }
+          }
           const person = await prisma.person.upsert({
             where: { primaryEmail: v.email },
             update: { name: v.name },
@@ -476,5 +529,5 @@ async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[],
     }
   }
 
-  return { created, updated, failures }
+  return { created, updated, failures, kept }
 }
