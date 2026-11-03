@@ -133,7 +133,11 @@ describe('the scheduler’s secret', () => {
   })
 
   it('every cron route uses the shared check, and none compares the header by hand', () => {
-    const routes = walk(join(ROOT, 'src/app/api/cron')).map((f) => f.replace(ROOT + '/', ''))
+    // A cron route is a route.ts; a helper beside it (a queue, a shape) is
+    // not a door and has no request to check.
+    const routes = walk(join(ROOT, 'src/app/api/cron'))
+      .filter((f) => /\/route\.tsx?$/.test(f))
+      .map((f) => f.replace(ROOT + '/', ''))
     expect(routes.length).toBeGreaterThan(10)
     for (const r of routes) {
       const src = read(r)

@@ -511,6 +511,10 @@ const RULE_ATTRIBUTED = [
   // seating her on a second one (claimOrJoin, 2026-10-27). She started it,
   // so it has no rung; the row says why and that it cannot be undone.
   'FIRM_JOINED',
+  // The Owner changed what kind of company this is (a client, a supplier,
+  // a one-person firm) from settings (2026-11-02). Her own act; the row
+  // says from what to what, and she can change it back.
+  'COMPANY_TYPE_CHANGED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }

@@ -245,6 +245,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Company.paySettingsSetById': { as: 'RECORD' },
   // Who last chose the company's reporting currency (PATCH /api/settings/reporting-currency). A record of a person, never followed.
   'Company.reportingCurrencySetById': { as: 'RECORD' },
+  // Who last changed the company's type (PATCH /api/settings/kind). A record of a person, never followed.
+  'Company.kindSetById': { as: 'RECORD' },
   // The setup checklist (2026-10-28): who answered, who recorded, who
   // typed the bank details and which firm's Finance checked them. Records
   // of a person or a firm, never followed.
