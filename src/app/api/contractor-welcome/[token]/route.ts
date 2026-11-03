@@ -154,7 +154,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     body: !interested
       ? `${row.name} said they are not looking at the moment.${note ? ` "${note}"` : ''}`
       : state === 'NEEDS_SUPPLIER'
-        ? `${row.name} is interested and no firm represents them. Pick one of your suppliers to take them on — open Contractors, under Pending.`
+        ? `${row.name} is interested and no firm represents them. Pick one of your suppliers to take them on — open Candidates, under Pending.`
         : `${row.name} is interested. ${answer.firmName ?? 'Their firm'} represents them.`,
     data: { href: '/dashboard/people' },
   })

@@ -78,10 +78,16 @@ describe('the two Network pages', () => {
   it('both pages have a feed and a table of the same rows, and the same filter bar', () => {
     for (const src of [people, suppliers]) {
       expect(src).toContain("<ViewToggle view={view} onChange={setView} />")
-      expect(src).toContain("<FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />")
       expect(src).toContain("view === 'table'")
       expect(src).toContain("view === 'feed'")
     }
+    expect(suppliers).toContain("<FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />")
+    // The client's Candidates reads the same chips in its own order,
+    // Favorites first (2026-11-03), with the same words and the same rule.
+    expect(people).toContain("<OrderedFilterBar order={order} filter={filter} onFilter={choose} counts={counts} places={places} place={place} onPlace={setPlace} />")
+    const bar = read('src/app/dashboard/people/filter-bar.tsx')
+    expect(bar).toContain('order.filter((f) => counts[f] !== undefined)')
+    expect(bar).toContain('label: FILTER_WORD[f]')
   })
   it('a supplier row says how many of its people are on site now, and when we last dealt with it', () => {
     expect(suppliersApi).toContain("if (c.state === 'IN_PROGRESS') onSiteCount.set(c.companyId")

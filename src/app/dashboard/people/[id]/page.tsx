@@ -7,6 +7,7 @@ import { usePageSection } from '@/components/page-section'
 import { Star } from '@/components/network-view'
 import Link from 'next/link'
 import { submissionStatusWord } from '@/app/dashboard/submissions/words'
+import { personWord } from '../list-words'
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -119,17 +120,18 @@ export default function PersonPage() {
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      {/* The eyebrow is the section Contractors sits under on the reader's
-          own menu; the way back is offered only where that menu has it. */}
+      {/* The eyebrow is the section this page sits under on the reader's
+          own menu (Candidates, at a client); the way back is offered only
+          where that menu has it, under the same word. */}
       <DetailHead
         from="/dashboard/people"
-        back={section ? { href: '/dashboard/people', label: 'Contractors' } : undefined}
+        back={section ? { href: '/dashboard/people', label: section } : undefined}
         title={<span className="inline-flex items-center gap-3">
           {person.name}
           <Star on={data.favorite} onClick={star} name={person.name} />
         </span>}
         subtitle={<>
-          {['Contractor', ...([person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean) as string[])].join(' · ')}{!person.headline && !person.location && !person.workAuth ? ' · No profile on file yet.' : ''}
+          {[personWord(data.onSite), ...([person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean) as string[])].join(' · ')}{!person.headline && !person.location && !person.workAuth ? ' · No profile on file yet.' : ''}
         </>}
         meta={(data.onSite || data.blocked || data.favorite) ? <>
           {data.onSite && <Chip tone="verified">On site</Chip>}

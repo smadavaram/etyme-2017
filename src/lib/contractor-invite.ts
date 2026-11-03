@@ -36,7 +36,7 @@ import { NO_MAIL_HERE } from '@/lib/notify/mail-leaves'
  *   NOBODY     nobody represents them — the client picks one of its own
  *              approved suppliers to take them on
  *
- * Until one of those settles, they sit on Contractors as Pending with
+ * Until one of those settles, they sit on Candidates as Pending with
  * the step in words, exactly as a firm does on Suppliers.
  */
 
@@ -225,7 +225,7 @@ export function mayInvite(input: {
     return {
       ok: false,
       code: 'ALREADY_ASKED',
-      message: `${first} has already been asked. Read where it got to on Contractors, under Pending.`,
+      message: `${first} has already been asked. Read where it got to on Candidates, under Pending.`,
     }
   }
   return { ok: true }

@@ -279,11 +279,11 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
     })
   }
 
-  it('a person’s page heads with the section Contractors sits under, and says "Contractor" in the line under the name', () => {
+  it('a person’s page heads with the section its list sits under (Candidates, at a client), and says Contractor or Candidate in the line under the name', () => {
     const page = src('app/dashboard/people/[id]/page.tsx')
     expect(page).toContain("usePageSection('/dashboard/people')")
     expect(page).not.toContain('Network · Contractor')
-    expect(page).toContain("['Contractor', ...")
+    expect(page).toContain('[personWord(data.onSite), ...')
   })
 
   it('a job request’s page heads with the section of Job requests, and names its team under the title instead', () => {

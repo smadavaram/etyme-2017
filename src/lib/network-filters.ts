@@ -65,3 +65,38 @@ export function applyFilter<T extends NetworkRow>(
 export function locationsOf(rows: { location: string | null }[]): string[] {
   return [...new Set(rows.map((r) => r.location).filter((x): x is string => !!x))].sort()
 }
+
+/**
+ * The order a client reads its Candidates in, and the filter the page
+ * opens on (founder, 2026-11-03: a client's Candidates is its memory of
+ * people). A client comes back to this page to find somebody it would
+ * take again, so the stars lead, then who it worked with lately, then
+ * everybody; who is on site now is the Contracts page's question and
+ * comes after. A firm reading the same page keeps the order it had.
+ */
+export const CLIENT_CANDIDATE_ORDER: readonly NetworkFilter[] = ['FAVORITES', 'RECENT', 'ALL', 'ON_SITE', 'PENDING', 'BLOCKED']
+
+/** Who is reading the list: a client (or a seat in a client's program), or a firm. */
+export type ListReader = 'CLIENT' | 'FIRM'
+
+export function filterOrderFor(reader: ListReader): readonly NetworkFilter[] {
+  return reader === 'CLIENT' ? CLIENT_CANDIDATE_ORDER : NETWORK_FILTERS
+}
+
+/**
+ * The first filter in the reader's order that has rows behind it, so the
+ * page never opens on an empty list where anybody is on it. Blocked is
+ * never opened on by itself: a page that greets a hiring manager with the
+ * people she barred is answering a question she did not ask. Where
+ * nothing has rows, Everyone, whose empty state says what to do first.
+ */
+export function openingFilter(
+  order: readonly NetworkFilter[],
+  counts: Partial<Record<NetworkFilter, number>>,
+): NetworkFilter {
+  for (const f of order) {
+    if (f === 'BLOCKED') continue
+    if ((counts[f] ?? 0) > 0) return f
+  }
+  return 'ALL'
+}
