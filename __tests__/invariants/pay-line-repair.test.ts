@@ -59,3 +59,19 @@ describe('the contracts page and a placed person with no account', () => {
     expect(link).toMatch(/export function SignInLink/)
   })
 })
+
+import { billStateSays, mayBillWeek } from '@/lib/money/week-bill'
+
+describe('Bill this week, as words and a rule', () => {
+  it('the bill’s state reads drafted, sent or paid in a sentence with its number', () => {
+    expect(billStateSays({ invoiceId: 'i', number: 'IN-1', status: 'DRAFT' })).toBe('On bill IN-1, drafted and not sent yet.')
+    expect(billStateSays({ invoiceId: 'i', number: 'IN-1', status: 'SUBMITTED' })).toBe('On bill IN-1, sent and not yet paid.')
+    expect(billStateSays({ invoiceId: 'i', number: 'IN-1', status: 'PAID' })).toBe('On bill IN-1, paid.')
+  })
+  it('the Owner bills a week only where nobody else at the firm sends bills', () => {
+    expect(mayBillWeek({ permitted: true, holdsEverything: true, otherBillers: [] })).toEqual({ ok: true })
+    expect(mayBillWeek({ permitted: true, holdsEverything: true, otherBillers: ['Imelda Santoro'] })).toEqual({ ok: false, says: 'Imelda Santoro bills this week.' })
+    expect(mayBillWeek({ permitted: true, holdsEverything: false, otherBillers: [] })).toEqual({ ok: true })
+    expect(mayBillWeek({ permitted: false, holdsEverything: false, otherBillers: [] }).ok).toBe(false)
+  })
+})
