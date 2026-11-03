@@ -204,7 +204,9 @@ describe('who owes a document', () => {
 })
 
 describe('the start says who may change a placement, what the I-9 was completed from, and where the work is (simulation, 2026-10-20)', () => {
-  const route = readFileSync('src/app/api/contracts/[id]/activate/route.ts', 'utf8')
+  // The route, with the gate and the papers read it asks (gate.ts, papers.ts, 2026-11-03).
+  const route = ['route.ts', 'gate.ts', 'papers.ts']
+    .map((f) => readFileSync(`src/app/api/contracts/[id]/activate/${f}`, 'utf8')).join('\n')
 
   it('names each firm that may change it once, with "or" before the last', () => {
     expect(partiesSay(['Brightmoor Staffing', 'Northbend Athletic', 'Northbend Athletic'])).toBe('Brightmoor Staffing or Northbend Athletic')
@@ -214,7 +216,7 @@ describe('the start says who may change a placement, what the I-9 was completed 
 
   it('a role that does not start placements is told "Starting a placement is done by", never "activated is done by"', () => {
     expect(route).toContain("activate: 'Starting a placement'")
-    expect(route).toMatch(/askTheDesk\(\{ doing: DOING\[action as Action\]/)
+    expect(route).toMatch(/askTheDesk\(\{ doing: DOING\[action\]/)
   })
 
   it('the start reads the I-9’s edition and the documents behind it, the two columns the placement page reads', () => {

@@ -3,13 +3,14 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
-import { contractClearance, lineExtras, ADVERSE_STEPS } from '@/lib/contract-clearance'
 import { contractSide } from '@/lib/resolve-client-company'
-import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
-import { partiesSay, siteSay, startSays } from './words'
+import { siteSay, startSays } from './words'
+import { startPapers } from './papers'
+import { gateRefusal, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
 import { startWarningVerdict, type StartWarning } from '@/lib/money/start-warnings'
+import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 
 /**
  * POST /api/contracts/:id/activate
@@ -28,43 +29,6 @@ import { startWarningVerdict, type StartWarning } from '@/lib/money/start-warnin
  *
  * CLAUDE.md invariant: writes AutomationLog with plain-English reason and honest reversible flag.
  */
-
-const VALID_ACTIONS = ['verify', 'activate', 'pause', 'resume', 'complete', 'cancel'] as const
-type Action = typeof VALID_ACTIONS[number]
-
-// Map action → { allowed source states, target state }
-const TRANSITIONS: Record<Action, { from: string[]; to: string }> = {
-  verify:   { from: ['DRAFT'],                                      to: 'PENDING_VERIFICATION' },
-  activate: { from: ['PENDING_VERIFICATION', 'VERIFIED', 'DRAFT'],  to: 'IN_PROGRESS' },
-  pause:    { from: ['IN_PROGRESS'],                                 to: 'PAUSED' },
-  resume:   { from: ['PAUSED'],                                      to: 'IN_PROGRESS' },
-  complete: { from: ['IN_PROGRESS'],                                 to: 'ENDED' },
-  cancel:   { from: ['DRAFT', 'PENDING_VERIFICATION'],              to: 'CANCELLED' },
-}
-
-// What each action asks of the caller. Starting, pausing and resuming
-// somebody is running the placement; ending or cancelling it is a
-// termination, which is its own permission because it is its own job.
-const NEEDS: Record<Action, Permission> = {
-  verify:   'assignments.write',
-  activate: 'assignments.write',
-  pause:    'assignments.write',
-  resume:   'assignments.write',
-  complete: 'assignments.terminate',
-  cancel:   'assignments.terminate',
-}
-
-// What each action is, said as the start of a refusal to somebody whose
-// role does not do it: "Starting a placement is done by …". The log's
-// past-tense summaries below read wrong there ("activated is done by").
-const DOING: Record<Action, string> = {
-  verify:   'Sending a placement for verification',
-  activate: 'Starting a placement',
-  pause:    'Pausing a placement',
-  resume:   'Resuming a placement',
-  complete: 'Ending a placement',
-  cancel:   'Canceling a placement before it starts',
-}
 
 // What the worker reads about their own placement, after "Your placement
 // at <client>". Each names the client, so the notice says what it is about.
@@ -85,6 +49,69 @@ const ACTION_SUMMARIES: Record<Action, string> = {
   resume:   'resumed',
   complete: 'completed',
   cancel:   'cancelled',
+}
+
+/**
+ * GET /api/contracts/:id/activate
+ *
+ * What the Activate panel draws, asked of the same gate the press goes
+ * through: whether this seat may start this placement today, and, where it
+ * may, what the terms and the papers say before it presses. A seat the
+ * press would refuse is answered `may: false`, so no button is drawn for
+ * it; a firm that is not a party is refused in the press's own words.
+ *
+ * Nothing is written but the access log: the papers' verdict is a read of
+ * the person's file.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const { id } = await params
+
+  const contract = await prisma.sellContract.findUnique({
+    where: { id },
+    include: {
+      person: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      requirement: { select: { title: true } },
+    },
+  })
+  if (!contract) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Contract not found' } }, { status: 404 })
+  }
+
+  const refused = gateRefusal(caller, contract, 'activate')
+  if (refused?.error.code === 'NOT_A_PARTY') {
+    await recordRefusal([contract.personId], {
+      ...accessActor(caller), action: 'COMPLIANCE_CHECK', reason: 'Asked whether a placement may start, at a firm not party to it.',
+    })
+    return NextResponse.json({ error: refused.error }, { status: refused.status })
+  }
+  if (refused) {
+    return NextResponse.json({ data: { id, state: contract.state, may: false, says: refused.error.message, terms: null, papers: null } })
+  }
+
+  const terms = await termsGate(contract.id)
+  const papers = await startPapers(contract)
+  logAccess({
+    subjectId: contract.personId, ...accessActor(caller), action: 'COMPLIANCE_CHECK',
+    reason: 'Read the papers a start needs, to draw the Activate button.',
+  })
+  return NextResponse.json({
+    data: {
+      id,
+      state: contract.state,
+      may: true,
+      says: null,
+      terms: terms.blocks ? { blocks: true, says: terms.says } : null,
+      papers: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
+    },
+  })
 }
 
 export async function POST(
@@ -143,38 +170,10 @@ export async function POST(
   // A stranger is told so in words. A party without the permission is
   // told which one, because "forbidden" on a button that is on their own
   // screen reads as a fault.
-  const side = contractSide(caller, contract)
-  if (!side) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_A_PARTY',
-          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${partiesSay([contract.company.name, contract.clientCompany.name, contract.endClientCompany?.name])} can change it.`,
-        },
-      },
-      { status: 403 }
-    )
-  }
-  const needs = NEEDS[action as Action]
-  if (!hasPermission(caller.permissions, needs)) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: askTheDesk({ doing: DOING[action as Action], needs: needs, kind: caller.company?.kind, companyName: caller.company?.name }),
-        },
-      },
-      { status: 403 }
-    )
-  }
-
+  const refused = gateRefusal(caller, contract, action as Action)
+  if (refused) return NextResponse.json({ error: refused.error }, { status: refused.status })
+  const side = contractSide(caller, contract)!
   const transition = TRANSITIONS[action as Action]
-  if (!transition.from.includes(contract.state)) {
-    return NextResponse.json(
-      { error: { code: 'INVALID_TRANSITION', message: `Cannot ${action} a contract in state ${contract.state}. Allowed from: ${transition.from.join(', ')}` } },
-      { status: 409 }
-    )
-  }
 
   const previousState = contract.state
   const newState = transition.to
@@ -227,102 +226,7 @@ export async function POST(
   // tenure rules say. Same contract as governance below: BLOCK where
   // legally grounded, WARN with a reason recorded everywhere else.
   if (action === 'activate') {
-    // Both selects ask when a document starts, not only when it runs out.
-    // Without `validFrom` the floor added on 2026-09-16 reads undefined
-    // and the clearance falls back to the day the certificate was issued
-    // — so a policy printed today for cover beginning in October passed
-    // here as held, at the one moment that matters: somebody starting
-    // work. Addendum E names lapsed supplier insurance as a block, and
-    // cover that has not begun is the same exposure a month early.
-    //
-    // 2026-09-17, on the same precedent and for the same reason a column
-    // nobody selects is invisible to arithmetic that is already right:
-    // `provider` and `result` carry who issued a license and its number
-    // and state, which is what the refusal has to name — "RN 154-882, WI
-    // expired" is something a compliance officer can check against a
-    // register and "your license expired" is not.
-    const FLOOR_AND_CEILING = {
-      type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
-      provider: true, result: true,
-    } as const
-    // 2026-10-20, found by the simulation: the person's own rows also need
-    // the form's edition and the documents recorded behind it, the two
-    // columns the placement page already selects. Without them every I-9
-    // read "on file with nothing behind it" at the start, and an edition
-    // was never judged — the same column-nobody-selects fault as above.
-    const now = new Date()
-    const [personRows, supplier, supplierCertificates] = await Promise.all([
-      prisma.verification.findMany({
-        where: { personId: contract.personId },
-        select: {
-          ...FLOOR_AND_CEILING,
-          // The firm's steps after a flagged report, rows of their own since
-          // 2026-10-21: a decision not to act on one stops the start warning.
-          ...ADVERSE_STEPS,
-          formEdition: true,
-          backedBy: {
-            select: {
-              evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } },
-            },
-          },
-        },
-      }),
-      prisma.company.findUnique({ where: { id: contract.companyId }, select: { name: true } }),
-      prisma.verification.findMany({
-        where: {
-          companyId: contract.companyId,
-          type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
-        },
-        select: FLOOR_AND_CEILING,
-      }),
-    ])
-    // What each form was completed from, and whether that document is in
-    // force today — read the way the placement page reads it, so the page
-    // and the button give one verdict.
-    const personVerifications = personRows.map((v) => ({
-      ...v,
-      backedBy: v.backedBy.map((b) => {
-        const from = b.evidence.validFrom ?? b.evidence.issuedAt
-        return {
-          key: b.evidence.type,
-          inForce:
-            (b.evidence.status === 'CLEAR' || b.evidence.status === 'CONDITIONAL') &&
-            !(from && from > now) &&
-            !(b.evidence.expiresAt && b.evidence.expiresAt < now),
-        }
-      }),
-    }))
-    const papers = contractClearance({
-      personName: contract.person.name,
-      personVerifications,
-      supplierName: supplier?.name ?? 'the supplier',
-      supplierCertificates,
-      clientName: contract.clientCompany.name,
-      on: now,
-      // 2026-09-17. The role decides which start packet is run, and a
-      // licensed role's packet requires the license — so a nurse with no
-      // license on file at all is refused here, where before there was
-      // no row to be lapsed and nothing to refuse. The last day says
-      // whether a license in date today runs out inside the assignment.
-      role: contract.requirement?.title ?? null,
-      through: contract.endDate,
-      // ── What this line itself asks for ──────────────────────────────
-      //
-      // Spread last, and it must be: it supersedes `supplierCertificates`
-      // above with a superset that also carries the certificate of good
-      // standing — every caller here selected keys beginning INSURANCE_,
-      // so a supplier whose registration had been suspended read as
-      // fully covered — and it supersedes nothing else that is set, while
-      // adding the line's own required set, the papers signed against it
-      // and both firms' document dictionaries.
-      //
-      // Until this was passed, a start was refused on the old fixed list
-      // and a client's own order could ask for a drug screen, a clearance
-      // or a code of conduct and nothing at activation would read it. A
-      // requirement a client typed and nobody enforces is worse than one
-      // it was never offered.
-      ...(await lineExtras({ sellContractId: contract.id })),
-    })
+    const papers = await startPapers(contract)
 
     if (papers.outcome === 'BLOCK') {
       return NextResponse.json(

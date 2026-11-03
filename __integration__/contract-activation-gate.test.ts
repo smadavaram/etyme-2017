@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
-import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
+import { POST as activate, GET as preflight } from '@/app/api/contracts/[id]/activate/route'
+import { viewBefore } from '@/app/dashboard/contracts/activate-view'
 
 /**
  * A contract cannot go live on missing paperwork.
@@ -41,6 +42,8 @@ describe('activating a contract on paperwork', () => {
   let personId: string
   let i9Id: string
 
+  const ask = async () =>
+    json(await preflight(req('GET', `/api/contracts/${contractId}/activate`), { params: Promise.resolve({ id: contractId }) }))
   const post = async (body: Record<string, unknown>) =>
     json(await activate(req('POST', `/api/contracts/${contractId}/activate`, body), { params: Promise.resolve({ id: contractId }) }))
 
@@ -91,6 +94,27 @@ describe('activating a contract on paperwork', () => {
     expect(still.state).toBe('DRAFT')
   })
 
+  it('the panel asks the start before it draws: the employer that may start reads a block and no reason box', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.status).toBe(200)
+    expect(r.body.data.may).toBe(true)
+    expect(r.body.data.papers.outcome).toBe('BLOCK')
+    const view = viewBefore(r.body.data)
+    expect(view.button).toBe('Activate')
+    expect(view.box).toBeNull()
+    expect(view.says).toMatch(/cannot start without/)
+  })
+
+  it('a firm not party to the placement is refused the panel in the start’s own words, and the refusal is logged', async () => {
+    as('world-brightmoor@demo.etyme.local')
+    const r = await ask()
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NOT_A_PARTY')
+    const row = await prisma.accessLog.findFirst({ where: { subjectId: personId, allowed: false, action: 'COMPLIANCE_CHECK' } })
+    expect(row).not.toBeNull()
+  })
+
   it('with an I-9 but no background check, it warns and asks for a reason', async () => {
     i9Id = (await prisma.verification.create({
       data: {
@@ -114,6 +138,15 @@ describe('activating a contract on paperwork', () => {
     expect(r.body.error.message).toMatch(/on file with nothing behind it/)
     const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })
     expect(still.state).toBe('DRAFT')
+  })
+
+  it('with an I-9 and no background check the panel draws Activate with a reason and its box', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.body.data.papers.outcome).toBe('WARN')
+    const view = viewBefore(r.body.data)
+    expect(view.button).toBe('Activate with a reason')
+    expect(view.box).toEqual({ answering: ['DOCUMENTS_WARN'] })
   })
 
   it('an I-9 completed from a passport recorded behind it reads as backed at the start, the way the placement page reads it', async () => {

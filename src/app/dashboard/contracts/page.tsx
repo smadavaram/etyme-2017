@@ -28,6 +28,7 @@ import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 import { reasonAsked } from '@/lib/award/reason-asked'
 import { activateBody } from './activate-body'
+import { ActivatePanel } from './activate-panel'
 
 /**
  * The documents, and their lines.
@@ -1050,15 +1051,6 @@ function ContractDetailDrawer({
               <div>
                 <p className="eyebrow mb-3">Contract lifecycle</p>
                 <div className="flex gap-3">
-                  {canActivate && (
-                    <button
-                      onClick={() => handleActivation('activate', 'Activate')}
-                      disabled={activating}
-                      className="btn-primary flex-1 disabled:opacity-50"
-                    >
-                      {activating ? 'Activating…' : '▶ Activate'}
-                    </button>
-                  )}
                   {canCancel && (
                     <button
                       onClick={() => handleActivation('cancel', 'Cancel')}
@@ -1069,6 +1061,11 @@ function ContractDetailDrawer({
                     </button>
                   )}
                 </div>
+                {/* Activate is drawn by the start's own route, for the seat it
+                    will take, with the reason box only where a reason clears it. */}
+                {canActivate && tab === 'sell' && (
+                  <ActivatePanel contractId={contract.id} onDone={() => { onRefresh(); onClose() }} />
+                )}
               </div>
             </>
           )}

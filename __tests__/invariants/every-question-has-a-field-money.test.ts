@@ -17,6 +17,7 @@ import { reasonAsked } from '@/lib/award/reason-asked'
 
 const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/contracts/[id]/activate/route.ts'), 'utf8')
 const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
+const PANEL = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
 
 const PAPERS: StartWarning = { code: 'DOCUMENTS_WARN', says: 'Priya Raman has no background check on file.' }
 const RULE: StartWarning = { code: 'GOVERNANCE_WARN', says: 'This rate is 12% over the band for the job.', detail: { evaluations: [] } }
@@ -81,5 +82,10 @@ describe('every question the start asks, the Activate dialog has a field for', (
   it('the Activate dialog posts what the builder builds, and draws its box from the refusal the start sends', () => {
     expect(PAGE).toMatch(/const payload = activateBody\(\{ action, reason: overrideReasonText, answering \}\)/)
     expect(PAGE).toMatch(/const q = reasonAsked\(body\.error\)\s+if \(q && q\.field === 'overrideReason'\)/)
+  })
+
+  it('the Activate panel on the placement page posts what the builder builds, with the reason box’s answer and the warnings it showed', () => {
+    expect(PANEL).toMatch(/activateBody\(\{ action: 'activate', reason: view\.box \? reason\.trim\(\) : undefined, answering: view\.box\?\.answering \}\)/)
+    expect(PANEL).toMatch(/<Textarea/)
   })
 })
