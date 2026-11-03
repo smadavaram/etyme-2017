@@ -83,3 +83,26 @@ export const JOB_FIELDS_NOT_SENT: Readonly<Record<string, string>> = {
   overtimeAfterHours: 'Straight time unless the role says otherwise; an import or the simulation may send it.',
   overtimeMultiplierBps: 'The overtime multiplier has its default; an import or the simulation may send it.',
 }
+
+/**
+ * The two work questions as the edit form sends them (`PATCH
+ * /api/requisitions/:id`, action "edit"), as a pure function of what it
+ * draws: where the work is done, always; sponsorship and the policy's
+ * words only where the form drew the question, which it does not for a
+ * job held back on another recorded basis.
+ */
+export function editWorkBody(t: {
+  workMode: string
+  sponsorship: string
+  sponsorshipPolicy: string
+  /** Set where the job is held back on another basis, so no sponsorship question was drawn. */
+  otherBasis: string | null
+}): Record<string, unknown> {
+  return {
+    workMode: t.workMode || 'ONSITE',
+    ...(t.otherBasis ? {} : {
+      sponsorship: t.sponsorship === 'NO' ? 'NO' : 'YES',
+      ...(t.sponsorship === 'NO' ? { sponsorshipPolicy: t.sponsorshipPolicy.trim() } : {}),
+    }),
+  }
+}

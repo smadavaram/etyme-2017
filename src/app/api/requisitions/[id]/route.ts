@@ -8,6 +8,7 @@ import { assessFit } from '@/lib/candidate-fit'
 import { awardDoor } from '@/lib/award'
 import { hasPermission } from '@/lib/permissions'
 import { diff, mayChange, said, noticeForSuppliers } from '@/lib/requisition-change'
+import { readWorkEdit, workFactsOf, sponsorshipValue } from '../work-facts'
 import { mayEdit, stageOf } from '@/lib/requisition-stage'
 import {
   evaluateRequisition,
@@ -391,6 +392,9 @@ export async function PATCH(
       billMin: true, billMax: true, months: true, headcount: true,
       budgetCents: true, hoursPerWeek: true,
       costCenterId: true, orgUnitId: true,
+      // Where the work is done and whether sponsorship is offered, which
+      // the edit form asks as the raise form does.
+      workMode: true, workAuthRequired: true, workAuthBasis: true, workAuthCite: true,
     },
   })
 
@@ -552,8 +556,20 @@ export async function PATCH(
   // changed; money goes back through the checks and the suppliers are
   // told to hold. Everything below is the writing down and the telling.
 
-  const before = asItStands(requisition)
-  const after = proposed(body)
+  // Where the work is done and whether sponsorship is offered: read by
+  // the raise's own reader, compared as the form opens on them (a job
+  // that never said reads as on site), and refused in the field's own
+  // sentence before anything is compared.
+  const workEdit = readWorkEdit(requisition, body)
+  if (!workEdit.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: workEdit.says, field: workEdit.field } },
+      { status: 422 }
+    )
+  }
+  const workNow = workFactsOf(requisition)
+  const before = { ...asItStands(requisition), workMode: workNow.workMode, sponsorship: sponsorshipValue(workNow) }
+  const after: Record<string, unknown> = { ...proposed(body), ...workEdit.after }
   const changes = diff(before, after)
 
   // Whose need it is. Not one of the rule's fields, because a supplier
@@ -629,6 +645,10 @@ export async function PATCH(
   // What actually gets written. `neededBy` is compared as a day and
   // stored as a date; everything else is written as the rule read it.
   const data: Record<string, unknown> = { ...after }
+  // Sponsorship is compared as one value and written as the three
+  // columns the vendor's check reads (lib/work-authorisation).
+  delete data.sponsorship
+  Object.assign(data, workEdit.columns)
   if ('neededBy' in data) data.neededBy = after.neededBy ? new Date(`${String(after.neededBy)}T00:00:00.000Z`) : null
   if (!out && 'costCenterId' in body) data.costCenterId = body.costCenterId || null
   if (ownerMoves) data.ownerId = newOwner!.id

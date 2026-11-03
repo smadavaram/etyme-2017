@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
 import { stageOf } from '@/lib/requisition-stage'
+import { workFactsOf } from '@/app/api/requisitions/work-facts'
+import { editWorkBody } from './job-body'
 import { Lbl, Chip } from '@/components/ui'
 
 /**
@@ -607,6 +609,11 @@ export interface EditableRequisition {
   hoursPerWeek?: number | null
   /** The budget that pays for it, where named. */
   costCenterId?: string | null
+  /** Where the work is done, and the restriction's three columns, as the job holds them. */
+  workMode?: string | null
+  workAuthRequired?: string | null
+  workAuthBasis?: string | null
+  workAuthCite?: string | null
 }
 
 /**
@@ -643,6 +650,14 @@ export function EditRequisition({
   const [justification, setJustification] = useState(req.justification ?? '')
   const [description, setDescription] = useState(req.description ?? '')
   const [panel, setPanel] = useState<string[]>(req.interviewers ?? [])
+  // The two questions the job form asks, opened on what the job holds.
+  const work = workFactsOf({
+    workMode: req.workMode ?? null, workAuthRequired: req.workAuthRequired ?? null,
+    workAuthBasis: req.workAuthBasis ?? null, workAuthCite: req.workAuthCite ?? null,
+  })
+  const [workMode, setWorkMode] = useState<string>(work.workMode)
+  const [sponsorship, setSponsorship] = useState<string>(work.sponsorship)
+  const [sponsorshipPolicy, setSponsorshipPolicy] = useState(work.sponsorshipPolicy)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   /** The route's own sentence, once it has saved. */
@@ -677,6 +692,10 @@ export function EditRequisition({
       setErr('The bottom of the rate band is above the top of it.')
       return
     }
+    if (!work.otherBasis && sponsorship === 'NO' && !sponsorshipPolicy.trim()) {
+      setErr('Say your sponsorship policy in a few words, for example "We do not sponsor work visas for this role".')
+      return
+    }
     setSaving(true)
     setErr(null)
     try {
@@ -699,6 +718,8 @@ export function EditRequisition({
           // The panel travels with the requirement, so every interview
           // round starts with it. Never a form whose answer is thrown away.
           interviewers: panel,
+          // Where the work is done, and whether sponsorship is offered.
+          ...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis }),
         }),
       })
       const body = await readJson(res)
@@ -776,6 +797,54 @@ export function EditRequisition({
               <input className={field} type="number" min="1" value={headcount}
                 onChange={e => setHeadcount(e.target.value)} />
             </div>
+          </div>
+          <div>
+            <label className={label}>Where is the work done?</label>
+            <div className="flex gap-2" role="radiogroup" aria-label="Where is the work done?">
+              {([['ONSITE', 'On site'], ['HYBRID', 'Hybrid'], ['REMOTE', 'Remote']] as const).map(([v, text]) => (
+                <label key={v} className={`px-3 py-1.5 border rounded text-sm cursor-pointer ${workMode === v ? 'border-etyme-action text-etyme-action' : 'border-etyme-rule text-etyme-ink'}`}>
+                  <input type="radio" name="edit-workMode" value={v} className="sr-only"
+                    checked={workMode === v} onChange={() => setWorkMode(v)} />
+                  {text}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-etyme-muted mt-1">
+              {workMode === 'REMOTE'
+                ? 'Papers to work follow the country the person works from.'
+                : 'Papers to work follow the country of the site.'}
+            </p>
+          </div>
+          <div>
+            <label className={label}>Sponsorship</label>
+            {work.otherBasis ? (
+              <p className="text-sm text-etyme-muted">
+                This job already holds people back on its own recorded basis, which is stricter than a sponsorship policy, so sponsorship is not changed here.
+              </p>
+            ) : (
+              <>
+                <div className="flex gap-2" role="radiogroup" aria-label="Sponsorship">
+                  {([['YES', 'Offered'], ['NO', 'Not offered']] as const).map(([v, text]) => (
+                    <label key={v} className={`px-3 py-1.5 border rounded text-sm cursor-pointer ${sponsorship === v ? 'border-etyme-action text-etyme-action' : 'border-etyme-rule text-etyme-ink'}`}>
+                      <input type="radio" name="edit-sponsorship" value={v} className="sr-only"
+                        checked={sponsorship === v} onChange={() => setSponsorship(v)} />
+                      {text}
+                    </label>
+                  ))}
+                </div>
+                {sponsorship === 'NO' && (
+                  <div className="mt-2">
+                    <label className="block text-xs text-etyme-muted mb-1" htmlFor="edit-sponsorship-policy">Your policy, in a few words</label>
+                    <input id="edit-sponsorship-policy" className={field} maxLength={300} value={sponsorshipPolicy}
+                      onChange={e => setSponsorshipPolicy(e.target.value)}
+                      placeholder="We do not sponsor work visas for this role" />
+                    <p className="text-xs text-etyme-muted mt-1">
+                      Only people who would need a visa filed are held back. Citizens, green card holders and anybody else already allowed to work are not.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
