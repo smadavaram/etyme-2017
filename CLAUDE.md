@@ -5105,6 +5105,54 @@ the country the person works from (`ConsultantProfile.country`).
   is enforced, and the offshore line's set (regulatory). The simulation
   gets an offshore chain so "horizontal, never vertical" is proven on it.
 
+### A degree is read, not just held, and a year that does not look right is said — decided by the founder, 2026-11-03
+
+The founder, the same hour: *"Also negative tests on education — year of
+graduation — when something doesn't look right."* Today a degree is a
+file and nothing else: `DEGREE` is a verification type with no
+institution, no qualification and no year on it, `EDUCATION_EVALUATION`
+is a provider's verdict, and no rule reads either. "On file" is the
+whole check. So:
+
+- **A degree is recorded with its fields**, the way a license carries
+  its number, issuer and expiry: the institution, the qualification, the
+  name on it and **the year of graduation**, read by rules first, by the
+  model only where the company turned it on (masked, logged, each value
+  shown with the quote it came from) and confirmed by a person before it
+  is recorded. The copy stays on the person's record as before.
+- **Education stays proof, not compliance** (the purpose table above):
+  nothing about a degree blocks a start. When something does not look
+  right the record **warns, says why in a sentence beside the paper, and
+  HR decides** — ask for the transcript, send the package to an
+  education-verification provider, or send the paper back with the
+  reason. Etyme renders no verdict on a degree; the provider does
+  ("Who renders the verdict").
+- **What "does not look right" means, as rules, each a sentence on the
+  screen:** the year is in the future; the year is before or after what
+  the person's own résumé says for the same degree; the name on the
+  certificate is not the person's; the institution is not the one the
+  résumé names; the same file was already filed for a different person;
+  a qualification the job requires (a nursing degree for an RN role) is
+  not the qualification on the paper. A degree a provider has verified
+  (`EDUCATION_EVALUATION` with name, reference and date) clears every
+  warning on that degree. Date of birth is not held and is not asked
+  for this; age is never a check.
+- **Negative cases in the documents matrix.** The both-ways matrix
+  (regulatory, `scripts/simulate/stages/regulatory/doc-matrix.ts`) gains
+  education: a degree attached with every field right (accepted); a
+  future year (warned, HR told why); a year the résumé contradicts
+  (warned); another person's name (sent back with the reason); a file
+  already filed for somebody else (warned, both names said to HR only);
+  a provider's verdict clearing a warned degree; and the worker told, in
+  words, what was asked and why. Each proven through the real routes and
+  then pressed on screens by the walk.
+- **Built in the wave after the 2026-11-03 deploy**, beside the
+  work-country piece: the degree's fields and the rules (regulatory,
+  with the schema request to the architect for the four fields on the
+  verification), the résumé's own education lines as the thing a degree
+  is checked against (supply, which owns the consultant's page and
+  parse), the warning's wording to HR and to the worker (conversation).
+
 **Four models overlap here and none is a superset:** `Verification` and
 `VerificationDoc` (the person's compliance evidence, expiry watched by
 `cron/watch`), `DocInstance` and `DocTemplate` (papers sent for signature,
