@@ -752,6 +752,30 @@ export function statusWord(status: string): string {
   }
 }
 
+/**
+ * The word a paper on the firm's Paperwork reads, from what is on the
+ * record about it: "On file" only once somebody examined it, or a
+ * provider's verdict on it is recorded.
+ *
+ * The second screen walk (2026-11-03) found Paperwork saying "On file"
+ * for a paper that had only arrived: a file somebody sent is not a file
+ * somebody looked at, and the start reads the second. Pure.
+ */
+export function paperWord(p: { status: string; examinedAt?: Date | string | null; verdictRecorded?: boolean }): string {
+  const looked = !!p.examinedAt || !!p.verdictRecorded
+  switch (p.status) {
+    case 'UPLOADED': return looked ? 'On file' : 'Arrived, not examined'
+    case 'SIGNED': return looked ? 'Signed and accepted' : 'Signed, not examined'
+    case KEPT_BY_HOLDER: return looked ? 'On file' : 'On file, not examined'
+    default: return statusWord(p.status)
+  }
+}
+
+/** Whether a paper arrived and is waiting for somebody to look at it. */
+export function waitsToBeExamined(p: { status: string; examinedAt?: Date | string | null; verdictRecorded?: boolean }): boolean {
+  return ['UPLOADED', 'SIGNED', KEPT_BY_HOLDER].includes(p.status) && !p.examinedAt && !p.verdictRecorded
+}
+
 // ── Everything asked of one person, from wherever it was asked ────────
 //
 // A person's paperwork page listed `DocInstance` only, because that was

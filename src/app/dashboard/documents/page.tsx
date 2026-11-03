@@ -5,7 +5,7 @@ import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
-import { statusWord, audienceWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
+import { paperWord, waitsToBeExamined, audienceWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { ExaminePaper, type ExamineRow } from './examine'
 import { plainDate } from '@/lib/plain-date'
 import { OwnPapers, readOwnPapers } from './own-papers'
@@ -163,10 +163,13 @@ export default function DocumentsPage() {
     } catch (e: any) { setError(e.message) }
   }
 
-  const tone = (status: string): ChipTone =>
-    status === 'SIGNED' || status === 'UPLOADED' ? 'verified'
-      : status === 'SENT' ? 'attention'
-        : 'passive'
+  // Green only once somebody examined it: a paper that arrived is waiting
+  // on this firm, which is attention, not done (the second screen walk).
+  const tone = (r: Request_): ChipTone =>
+    waitsToBeExamined(r) ? 'attention'
+      : (r.status === 'SIGNED' || r.status === 'UPLOADED' || r.status === 'KEPT') ? 'verified'
+        : r.status === 'SENT' ? 'attention'
+          : 'passive'
 
   // A library that could not be read is the sentence alone. Not
   // "Requests 0" and a form to ask with, which say there is nothing here
@@ -247,13 +250,13 @@ export default function DocumentsPage() {
               <div className="flex-1 min-w-[220px]">
                 <div className="text-sm text-etyme-ink">{r.template.name} <span className="text-etyme-muted">· {r.subject}</span></div>
                 <div className="text-xs text-etyme-faint tabular-nums mt-0.5">
-                  {r.signedAt ? `${statusWord(r.status)} ${new Date(r.signedAt).toLocaleDateString()}` : r.sentAt ? `Asked ${new Date(r.sentAt).toLocaleDateString()}` : 'Not asked yet'}
+                  {r.signedAt ? `${r.status === 'SIGNED' ? 'Signed' : 'Arrived'} ${plainDate(r.signedAt)}` : r.sentAt ? `Asked ${new Date(r.sentAt).toLocaleDateString()}` : 'Not asked yet'}
                   {r.fileName ? ` · ${r.fileName}` : ''}
                   {r.note ? ` · ${r.note}` : ''}
                 </div>
                 {r.sponsorshipRead && <div className="text-xs text-etyme-muted mt-0.5">{r.sponsorshipRead}</div>}
               </div>
-              <Chip tone={tone(r.status)}>{statusWord(r.status)}</Chip>
+              <Chip tone={tone(r)}>{paperWord(r)}</Chip>
               {(r.status === 'PENDING' || r.status === 'SENT') && (
                 <button onClick={() => send(r.id)} className="text-xs text-etyme-action hover:underline">
                   {r.status === 'PENDING' ? 'Ask for it' : 'Ask again'}
