@@ -1494,8 +1494,13 @@ of them reverses an earlier line on purpose:
   answer, the why on tap.
 - **Drawn before it is built**, because the founder has corrected the
   chat three times: a prototype of the full screen with the rail, a
-  conversation, a data panel and a card, in the seed's own names, for
-  his "build it". Built then in this order: the conversation list and
+  conversation, a data panel and a card, in the seed's own names
+  (https://claude.ai/artifact/VHwGBBhtQ2soYXJScnYe86), and his answer
+  the same hour: *"Claude chat works really well."* Read as "build it",
+  with Claude's own chat as the reference: the rail of conversations,
+  the composer fixed at the bottom, an answer's table inside the reply
+  and the fuller data beside it, keyboard first, one screen on a phone.
+  Built in this order: the conversation list and
   "New conversation" on the saved thread (conversation, with the
   architect for the thread table's `title` and the list's read); the
   full-screen layout and the rail (architect); the data panel reading
