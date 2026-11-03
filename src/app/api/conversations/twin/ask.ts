@@ -2804,11 +2804,12 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // ones it passed in here. A hold already drawn as a card is not said
   // again as a notice; the route still marks that notice read, because the
   // card said it.
-  // The setup line (lib/setup-checklist-state): after what needs the
-  // reader and before what was said since, once, outside the six lines so
-  // the cap never drops it, and never in the headline or the mark: setup is
-  // not a decision anybody else waits on.
-  if (opts.greeting && opts.setup) more.push(opts.setup)
+  // The setup line (lib/setup-checklist-state): first under the headline,
+  // once, outside the six lines so the cap never drops it, and never in the
+  // headline or the mark: setup is not a decision anybody else waits on.
+  // First, because said after the facts it sat below the first screen and
+  // the release walk read the greeting as having none (2026-11-03).
+  if (opts.greeting && opts.setup) more.unshift(opts.setup)
   // Start papers Ask Etyme could not ask for, because the set was never
   // confirmed: the gate's own sentence, once however many starts it held,
   // and like the setup line never counted.
