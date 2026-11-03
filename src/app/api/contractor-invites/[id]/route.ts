@@ -7,7 +7,8 @@ import { notify } from '@/lib/notify'
 import { newChecklist } from '@/lib/supplier-onboarding'
 import { newApplyToken, applyUrl, sendLink } from '@/lib/supplier-link'
 import { desksFor, deskPeople } from '@/lib/supplier-desks'
-import { says, type Answer, type InviteState } from '@/lib/contractor-invite'
+import { says, probationAsks, takesAReason, type Answer, type InviteState } from '@/lib/contractor-invite'
+import { emit } from '@/lib/events'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { supplierOptions } from '../suppliers'
 
@@ -70,15 +71,50 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (action === 'pick') {
     const supplierId = typeof body?.supplierCompanyId === 'string' ? body.supplierCompanyId : ''
     // The same rule the picker draws from (`supplierOptions`): a firm
-    // the client approved is offered with or without a standing set, and
-    // one on probation, still a prospect or blocked is refused with the
-    // sentence the picker showed beside its name.
+    // the client approved is offered with or without a standing set; one
+    // still a prospect or blocked is refused with the sentence the picker
+    // showed beside its name; one on probation goes ahead with a reason,
+    // because vendor tier warns and never blocks (Addendum E).
     const [option] = supplierId ? await supplierOptions(companyId, now, supplierId) : []
-    if (!option || !option.offered) {
+    const warned = option ? takesAReason(option) : false
+    if (!option || (!option.offered && !warned)) {
       return NextResponse.json(
         { error: { code: 'NOT_A_SUPPLIER', message: option?.why ?? 'Pick one of your own suppliers. A firm you do not have yet goes through your supplier approvals under Suppliers first.' } },
         { status: 409 }
       )
+    }
+    if (warned) {
+      const reason = typeof body?.reason === 'string' ? body.reason.trim() : ''
+      if (!reason) {
+        return NextResponse.json(
+          { error: { code: 'VENDOR_TIER_REASON', message: probationAsks(option.name), field: 'reason' } },
+          { status: 422 }
+        )
+      }
+      // The reason, with who gave it, before anything moves: a warning
+      // passed with no trail is a warning silently permitted.
+      const recorded = await emit({
+        type: 'representation.requested',
+        companyId,
+        subjectType: 'ContractorInvitation',
+        subjectId: id,
+        actorPersonId: caller.person.id,
+        payload: {
+          supplierCompanyId: option.companyId,
+          supplierName: option.name,
+          rule: 'VENDOR_TIER',
+          outcome: 'WARN',
+          standing: 'PROBATION',
+          reason,
+          givenBy: caller.person.name,
+        },
+      })
+      if (!recorded) {
+        return NextResponse.json(
+          { error: { code: 'NOT_RECORDED', message: `Your reason could not be recorded, so ${option.name} was not asked. Try again in a minute.` } },
+          { status: 503 }
+        )
+      }
     }
     const approved = { otherCompany: { id: option.companyId, name: option.name } }
     await prisma.contractorInvitation.update({
@@ -91,7 +127,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         state: 'REPRESENTED',
         says:
           `${approved.otherCompany.name} has been asked to take ${row.name} on. They will contact ` +
-          `${row.name.split(' ')[0]} and put them forward; ${row.name.split(' ')[0]} joins your network when they do.`,
+          `${row.name.split(' ')[0]} and put them forward; ${row.name.split(' ')[0]} joins your network when they do.` +
+          (warned ? ` Your reason for asking a firm on probation is recorded with your name.` : ''),
       },
     })
   }

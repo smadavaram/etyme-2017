@@ -298,6 +298,13 @@ describe('every question the pick route asks, the supplier picker has a field fo
   const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/people/page.tsx'), 'utf8')
   it('the pick route reads supplierCompanyId, and the picker sends the firm pressed as supplierCompanyId', () => {
     expect(PICK).toContain('body.supplierCompanyId')
-    expect(PAGE).toContain("act(p.inviteId, { action: 'pick', supplierCompanyId })")
+    expect(PAGE).toContain("act(p.inviteId, { action: 'pick', supplierCompanyId, ...(reason ? { reason } : {}) })")
+  })
+  it('the pick route asks for a reason for a firm on probation, and the picker has a reason box that sends it as reason', () => {
+    const PICKER = readFileSync(join(process.cwd(), 'src/app/dashboard/people/supplier-picker.tsx'), 'utf8')
+    expect(PICK).toContain("field: 'reason'")
+    expect(PICK).toContain('body?.reason')
+    expect(PICKER).toContain('<textarea')
+    expect(PICKER).toContain('onPick(c.companyId, reason.trim())')
   })
 })

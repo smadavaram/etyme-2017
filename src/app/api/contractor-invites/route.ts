@@ -10,7 +10,7 @@ import {
 } from '@/lib/contractor-invite'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { supplierOptions } from './suppliers'
-import { NO_SUPPLIER_TO_PICK } from '@/lib/contractor-invite'
+import { NO_SUPPLIER_TO_PICK, anyToPick } from '@/lib/contractor-invite'
 
 /**
  * GET  /api/contractor-invites   — who we have asked, and where it got to
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get('choices') === '1') {
     const choices = await supplierOptions(companyId, new Date())
     return NextResponse.json({
-      data: { choices, says: choices.some((c) => c.offered) ? null : NO_SUPPLIER_TO_PICK },
+      data: { choices, says: anyToPick(choices) ? null : NO_SUPPLIER_TO_PICK },
     })
   }
 

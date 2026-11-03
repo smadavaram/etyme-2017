@@ -416,7 +416,7 @@ export default function PeoplePage() {
                       choices={suppliers}
                       says={suppliersSay}
                       busy={busy}
-                      onPick={(supplierCompanyId) => act(p.inviteId, { action: 'pick', supplierCompanyId })}
+                      onPick={(supplierCompanyId, reason) => act(p.inviteId, { action: 'pick', supplierCompanyId, ...(reason ? { reason } : {}) })}
                     />
                   ) : (
                     <button

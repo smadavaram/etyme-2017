@@ -177,7 +177,8 @@ describe('the Pending list says what it holds', () => {
 
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { supplierChoice, NO_SUPPLIER_TO_PICK } from '@/lib/contractor-invite'
+import { supplierChoice, NO_SUPPLIER_TO_PICK, probationAsks, takesAReason, anyToPick } from '@/lib/contractor-invite'
+import { REASON_FIRST } from '@/app/dashboard/people/supplier-picker'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const PICKER = read('src/app/dashboard/people/supplier-picker.tsx')
@@ -206,9 +207,6 @@ describe('picking a supplier to take somebody on', () => {
   })
 
   it('every disabled choice under Ask somebody says why', () => {
-    expect(supplierChoice({ ...firm, tier: 'PROBATION' })).toEqual({
-      offered: false, why: 'Pinnacle Resourcing is on probation; Procurement sets its standing under Suppliers.',
-    })
     expect(supplierChoice({ ...firm, blocked: true, blockedReason: 'Missed two starts.' })).toEqual({
       offered: false, why: 'Pinnacle Resourcing is blocked here: Missed two starts. Lift the block under Suppliers first.',
     })
@@ -222,9 +220,59 @@ describe('picking a supplier to take somebody on', () => {
     expect(PICKER).not.toContain('<option')
     expect(PICKER).toContain('{c.why}')
     expect(PICKER).toContain('{says}')
-    expect(PICKER.match(/disabled=\{[^}]*\}/g)).toEqual(['disabled={busy}'])
+    // The one control that waits on the reader, the reason button, says
+    // what it waits on beside it.
+    expect(PICKER.match(/disabled=\{[^}]*\}/g)).toEqual(['disabled={busy}', 'disabled={busy}', 'disabled={busy || !reason.trim()}'])
+    expect(PICKER).toContain('{REASON_FIRST}')
+    expect(REASON_FIRST).toBe('Write the reason first.')
     expect(CONTRACTORS).not.toContain('No approved suppliers yet')
     // The pick refuses with the sentence the picker showed beside the name.
     expect(PICK_ROUTE).toContain('message: option?.why ??')
+  })
+
+  it('a supplier on probation is offered with its standing beside its name, and asked with a reason, because vendor tier warns and never blocks', () => {
+    const c = supplierChoice({ ...firm, tier: 'PROBATION' })
+    expect(c).toEqual({
+      offered: false, withReason: true,
+      why: 'Pinnacle Resourcing is on probation here. You can still ask them, with a reason; it is recorded with your name.',
+    })
+    expect(takesAReason(c)).toBe(true)
+    // A probation firm alone is still somebody to pick, so the empty-list sentence is not said.
+    expect(anyToPick([c])).toBe(true)
+    expect(LIST_ROUTE).toContain('anyToPick(choices)')
+    expect(PICKER).toContain('{c.name} · on probation')
+    expect(PICKER).toContain('onPick(c.companyId, reason.trim())')
+    expect(CONTRACTORS).toContain("...(reason ? { reason } : {})")
+  })
+
+  it('a blocked firm or one not yet approved is still refused in a sentence, and never takes a reason', () => {
+    for (const f of [{ ...firm, blocked: true, blockedReason: null }, { ...firm, status: 'BLOCKED' }, { ...firm, status: 'PROSPECT' }, { ...firm, status: 'PROSPECT', tier: 'PROBATION' }, { ...firm, blocked: true, blockedReason: null, tier: 'PROBATION' }]) {
+      const c = supplierChoice(f)
+      expect(c.offered).toBe(false)
+      expect(takesAReason(c)).toBe(false)
+      expect(c.why).toMatch(/\.$/)
+    }
+    expect(anyToPick([supplierChoice({ ...firm, status: 'PROSPECT' })])).toBe(false)
+  })
+
+  it('asking a firm on probation with no reason is refused with the question, and the reason is recorded with who gave it before the firm is asked', () => {
+    expect(probationAsks('Pinnacle Resourcing')).toBe(
+      'Pinnacle Resourcing is on probation here. Say why you are asking them anyway; the reason is recorded with your name.'
+    )
+    expect(PICK_ROUTE).toContain("code: 'VENDOR_TIER_REASON', message: probationAsks(option.name), field: 'reason'")
+    // The trail first, awaited: no reason recorded, nobody asked.
+    const recordAt = PICK_ROUTE.indexOf('const recorded = await emit(')
+    const moveAt = PICK_ROUTE.indexOf("data: { state: 'REPRESENTED'")
+    expect(recordAt).toBeGreaterThan(0)
+    expect(recordAt).toBeLessThan(moveAt)
+    expect(PICK_ROUTE).toContain('actorPersonId: caller.person.id')
+    expect(PICK_ROUTE).toContain("rule: 'VENDOR_TIER'")
+    expect(PICK_ROUTE).toContain('givenBy: caller.person.name')
+    expect(PICK_ROUTE).toContain('was not asked. Try again in a minute.')
+  })
+
+  it('the person’s own link never offers a firm on probation, because only the client can give the reason', () => {
+    expect(WELCOME_ROUTE).toContain('.filter((o) => o.offered)')
+    expect(WELCOME_ROUTE).toContain('option?.offered ?')
   })
 })
