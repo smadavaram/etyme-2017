@@ -2666,6 +2666,59 @@ and "employs … at $85/hr" before the person said yes. Report:
 `scratchpad/walk-saves/report.md`, screenshots before and after every
 press.
 
+**The second screen walk, 2026-11-03, on the build after the fixes
+(f84db49d9), said: the class "the screen cannot reach the rule" is
+closed for the I-9 and the license, and the build still does not ship
+as "every screen saves".** 59 presses on 24 seats on the scale world:
+35 saved and proven, 17 refused rightly in a sentence, 7 failed, 8 not
+proven. The I-9 cases one by one: a paper a firm named its own way
+("I-9, with the document it is completed from") is read as the I-9, the
+worker sends it from her page, HR accepts it on Paperwork with the
+edition, the passport, its number, issuer and expiry, the Verification
+and its backing are written and the person starts; the founder's own
+case on Document requests (Casimir Kestrel at Ardley Systems) now has
+the fields and is accepted; Record the I-9 on Compliance is offered for
+an employee with no held start and saves, and for nobody the firm does
+not employ; a license through Document requests carries its number and
+board; an I-94 is never read as an I-9; an expired passport is refused
+rightly. The money chain holds on screens: an over-hours week on Today
+draws its reason box and the overtime question and says "44 hours",
+never "$45.00"; the supplier accepts from Ask Etyme; the bill is
+generated right ($4,508 = 40 × $98 + 4 × $147); the AP clerk pays from
+the chat with a bank reference. Also confirmed: a seated MSP's "Message
+<supplier>" drawn only where the route opens it and the supplier
+reading "Aptiva Workforce, for Cavanaugh Glassworks"; "Ask the supplier"
+a field; Roll off and Accept-expense not drawn for a program manager;
+the Owner changing the company type and three other seats refused;
+setup questions answered with the next item; every machine sentence and
+empty email promise of the first walk reworded; Propose a round and
+Edit a job request saving. **Three failed, two of them this wave's
+own and fixed before the deploy:** an I-9 accepted on Paperwork on an
+edition the issuer never printed or on a retired one, because that
+path did not read `editions.ts` (regulatory); Ask Etyme's "Open who
+applied" landing on an empty Candidates page because the page did not
+read the job in the link (demand). **Pre-existing, each with its
+owner:** a client's typed-in invoice receipt can never name a supplier
+because `receipt-options` reads only the caller's own buy lines, the
+last of the class "the screen cannot reach the rule" (money); the
+client's signature posts the order's drawn figure at straight time
+after a premium was chosen, $4,312 against the $4,508 billed (money, a
+money figure, so it goes first in money's next wave); a bill generated
+from Bills carries no pay-to and reads "44 h × $98/hr = $4,508.00";
+"₫170.00" shows cents the dong does not have (money); Compliance says
+every I-9 "is on file with nothing behind it" though the backing is
+recorded, and Paperwork says "On file" for a paper nobody examined
+(regulatory); a worker's own I-9 upload notifies every seat at her
+employer, nine notices (conversation); candidate cards still read word
+for word alike; the client's greeting calls an invoice receipt a
+"bill" (conversation); Grant the seat with empty fields says nothing,
+Activate offered to HR, the worker's link saying "due to start" on a
+past day (demand); Add consultant offered to a delivery manager whose
+route refuses it (supply). Not proven: a non-dollar expense on a
+client's Approvals row (no Corvane agreement names billable expense
+kinds, so none reaches a client), and the 390 px phone pass. Report:
+`scratchpad/walk-saves/report2.md`, shots under `shots2/`.
+
 ## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
 
 **The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
