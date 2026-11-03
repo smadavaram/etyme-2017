@@ -21,6 +21,24 @@ import { Panel, Lbl } from './panel-bits'
  * client reader. `onGranted` lets the page read its seats again.
  */
 
+/**
+ * What the form still lacks before a grant, said as one sentence naming the
+ * field, or null when nothing is missing (walk 3: pressing "Grant the seat"
+ * with empty fields said nothing, because the find returned silently on a
+ * name under two characters and the button was enabled whenever a role was
+ * picked). The route refuses the same things; this says it before the press
+ * leaves the page.
+ */
+export function grantRefusal(f: { name: string; reason: string; roleId: string }): string | null {
+  const noName = f.name.trim().length < 2
+  const noReason = !f.reason.trim()
+  if (noName && noReason) return 'Name the MSP and say why before you grant a seat.'
+  if (noName) return 'Name the MSP before you grant a seat: its name, or its Etyme address.'
+  if (!f.roleId) return 'Choose the role the MSP holds here before you grant a seat.'
+  if (noReason) return 'Say why before you grant a seat. The reason is kept with the seat.'
+  return null
+}
+
 interface Ask { id: string; office: { id: string; name: string; slug: string }; says: string }
 interface Role { id: string; name: string }
 
@@ -48,14 +66,19 @@ export function GrantSeat({ onGranted }: { onGranted?: () => void }) {
   }
   useEffect(() => { void load() }, [])
 
-  async function find() {
+  // On blur a short name is still being typed, so nothing is said; the
+  // press says it (grantRefusal).
+  async function find(): Promise<{ id: string; name: string } | null> {
     setError(null); setOffice(null)
-    if (word.trim().length < 2) return
+    if (word.trim().length < 2) return null
     try {
       const j = await readJson(await fetch(`/api/firms?as=MSP&q=${encodeURIComponent(word.trim())}`))
-      setOffice({ id: j.data.firm.id, name: j.data.firm.name })
+      const found = { id: j.data.firm.id as string, name: j.data.firm.name as string }
+      setOffice(found)
+      return found
     } catch (err: any) {
       setError(err.message)
+      return null
     }
   }
 
@@ -67,12 +90,18 @@ export function GrantSeat({ onGranted }: { onGranted?: () => void }) {
 
   async function grant(e: React.FormEvent) {
     e.preventDefault()
-    if (!office) { await find(); return }
-    setBusy(true); setError(null); setDone(null)
+    setDone(null)
+    const missing = grantRefusal({ name: word, reason, roleId })
+    if (missing) { setError(missing); return }
+    // A name typed and never looked up is looked up now, and the grant goes
+    // on from the same press; a firm not found says so in the route's words.
+    const firm = office ?? (await find())
+    if (!firm) return
+    setBusy(true); setError(null)
     try {
       const j = await readJson(await fetch('/api/program/seats', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ officeCompanyId: office.id, roleId, reason }),
+        body: JSON.stringify({ officeCompanyId: firm.id, roleId, reason }),
       }))
       setDone(j.data.says)
       setWord(''); setOffice(null); setReason('')
@@ -136,7 +165,7 @@ export function GrantSeat({ onGranted }: { onGranted?: () => void }) {
         </div>
         {error && <FormMessage tone="error">{error}</FormMessage>}
         {done && <FormMessage tone="ok">{done}</FormMessage>}
-        <button type="submit" disabled={busy || !roleId} className="btn-primary disabled:opacity-50">
+        <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">
           {busy ? 'Granting…' : 'Grant the seat'}
         </button>
       </form>
