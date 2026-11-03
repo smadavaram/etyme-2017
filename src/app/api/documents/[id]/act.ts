@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { BUILT_IN } from '@/lib/document-type'
 import { prisma } from '@/lib/db'
 import { notify, notifyBulk } from '@/lib/notify'
+import { paperExaminersAt } from '@/lib/notify/paper-examiners'
 import {
   mayAct,
   isProfessionalLicense,
@@ -225,12 +226,11 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
   ) {
     // The person answered, or the firm answered its own paper; the
     // company that asked hears it either way.
-    const staff = await prisma.context.findMany({
-      where: { companyId: issuer.id, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
-      select: { personId: true },
-      orderBy: { id: 'asc' },
-      take: 10,
-    })
+    // The roles whose work papers are, at the firm that asked, once each,
+    // never the sender (`paperExaminersAt`): a worker's own I-9 sent from
+    // her page told every seat at her employer, nine notices (the second
+    // screen walk, 2026-11-03).
+    const staff = (await paperExaminersAt(issuer.id, caller.person.id)).map((personId) => ({ personId }))
     // A paper sent back and answered again is told as the second answer,
     // never as the first one word for word: each seat read the first line
     // already. Counted off what the firm was told about this paper before.
