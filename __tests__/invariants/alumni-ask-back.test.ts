@@ -210,3 +210,26 @@ describe('the alumni routes import pure modules only', () => {
     expect(emptyAlumniSays('Northbend Athletic', 3)).toBeNull()
   })
 })
+
+describe('a row with no ask-back button always says why', () => {
+  it('a person who needs a break with no known day is told so in a sentence, never an empty row', async () => {
+    const { noButtonSays } = await import('@/app/api/alumni/no-button-says')
+    // Past the limit on a line still open with no end date: the ledger
+    // counts it to today, so there is no last day to count the break from.
+    const lines = [line(ago(700), null, true)]
+    const a = askBack(lines, RULES, NOW, 'Northbend Athletic')
+    expect(a.ledgerStatus).toBe('BREAK_REQUIRED')
+    expect(a.eligibleDate).toBeNull()
+    expect(a.canReengage).toBe(false)
+    expect(a.reengageBlockReason).toBe(
+      'A break from Northbend Athletic is required before asking back; the day is not known because the last ' +
+      'contract has no end date on record. Check the contract under Contractors.'
+    )
+    // The page's floor: even with no reason sent, the row has a sentence.
+    expect(noButtonSays({ ledgerStatus: 'BREAK_REQUIRED', eligibleDate: null, reengageBlockReason: null }))
+      .toContain('A break is required before asking back')
+    expect(noButtonSays({ ledgerStatus: 'OK', eligibleDate: null, reengageBlockReason: null }).length).toBeGreaterThan(0)
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/alumni/page.tsx'), 'utf8')
+    expect(page).toContain('{noButtonSays(person)}')
+  })
+})

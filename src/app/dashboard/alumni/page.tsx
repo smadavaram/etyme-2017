@@ -5,6 +5,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
 import { FilterChips } from '@/components/ui'
 import { NO_WEEKS_SAYS } from '@/app/api/alumni/hours-on-record'
+import { noButtonSays } from '@/app/api/alumni/no-button-says'
 
 /**
  * Alumni — "Worked here before"
@@ -431,11 +432,9 @@ function AlumniAction({ person, onAskBack, acting, desk }: {
           Past the limit
         </div>
       )}
-      {person.reengageBlockReason && (
-        <div className="text-[10px] text-etyme-muted mt-0.5 max-w-[180px] ml-auto leading-tight">
-          {person.reengageBlockReason}
-        </div>
-      )}
+      <div className="text-[10px] text-etyme-muted mt-0.5 max-w-[180px] ml-auto leading-tight">
+        {noButtonSays(person)}
+      </div>
     </div>
   )
 }

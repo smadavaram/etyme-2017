@@ -281,7 +281,8 @@ export async function GET(request: NextRequest) {
         startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED',
       })),
       limitRules,
-      now
+      now,
+      clientCompany.name
     )
 
     return {

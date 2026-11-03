@@ -35,14 +35,27 @@ export interface AskBack {
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 
-export function askBack(lines: SiteLine[], rules: LimitRules, now: Date = new Date()): AskBack {
+export function askBack(
+  lines: SiteLine[],
+  rules: LimitRules,
+  now: Date = new Date(),
+  clientName: string = 'this client'
+): AskBack {
   const standing = standingAgainstLimit(lines, rules, now)
   const status = ledgerStatus(standing)
 
-  // On contract here — any live line, begun or not. Nobody is asked back
-  // to a site they have not left; the page says "On contract".
+  // On contract here — any line not ENDED, begun or not. Nobody is asked
+  // back to a site they have not left. The page draws "On contract" only
+  // for a line in progress or paused, so a line still open in any other
+  // state (verified, a draft, cancelled with no end) reaches the page as
+  // a row with no button, and the row must say why in a sentence.
   if (lines.some((l) => l.live)) {
-    return { canReengage: false, ledgerStatus: status, eligibleDate: null, reengageBlockReason: null }
+    return {
+      canReengage: false,
+      ledgerStatus: status,
+      eligibleDate: null,
+      reengageBlockReason: openLineSays(lines, status, standing.eligibleOn, clientName, rules),
+    }
   }
 
   if (status === 'IN_BREAK') {
@@ -73,6 +86,51 @@ export function askBack(lines: SiteLine[], rules: LimitRules, now: Date = new Da
 
   // OK, Approaching, or Eligible after a served break.
   return { canReengage: true, ledgerStatus: status, eligibleDate: null, reengageBlockReason: null }
+}
+
+/**
+ * Why there is no button while a line here is still open on the record,
+ * where the ledger says a break is required. Null otherwise.
+ *
+ * Past the limit with no day: the ledger counts a line with no end date
+ * as running to today, so there is no last day to count a break from.
+ * That is the true reason the day is missing, and the sentence says it.
+ */
+export function openLineSays(
+  lines: SiteLine[],
+  status: LedgerStatus,
+  eligibleOn: Date | null,
+  clientName: string,
+  rules: LimitRules
+): string | null {
+  if (status === 'BREAK_REQUIRED' && eligibleOn == null) {
+    if (lines.some((l) => l.live && l.endDate == null)) {
+      return breakWithNoDaySays(clientName)
+    }
+    if (rules.breakDays == null || rules.breakDays <= 0) {
+      return (
+        `Past the limit. They have served the ${rules.capMonths}-month time limit at ${clientName}, and ` +
+        `${clientName} has no break rule that would reset it, so there is no day on which they may come back.`
+      )
+    }
+  }
+  if (status === 'BREAK_REQUIRED' && eligibleOn) {
+    return (
+      `A break from ${clientName} is required before asking back, so they may come back from ` +
+      `${plainDate(iso(eligibleOn))}.`
+    )
+  }
+  // Under the limit and on contract: the page says "On contract", and the
+  // page's own floor (no-button-says) covers a line open in another state.
+  return null
+}
+
+/** Past the limit, and the last contract has no end date to count the break from. */
+export function breakWithNoDaySays(clientName: string): string {
+  return (
+    `A break from ${clientName} is required before asking back; the day is not known because the last ` +
+    `contract has no end date on record. Check the contract under Contractors.`
+  )
 }
 
 /**
