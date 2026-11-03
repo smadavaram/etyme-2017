@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { MODEL_SWITCH_ANCHOR, MODEL_SWITCH_HREF, MODEL_SWITCH_TAB, modelSetUpHere } from '@/lib/model-boundary'
-import { BOUNDARY_LINES, NOT_SET_UP_LINE, PANEL_ANCHOR } from '@/components/settings/ask-etyme-panel'
+import { BOUNDARY_LINES, NOT_SET_UP_LINE, PANEL_ANCHOR, switchLabel } from '@/components/settings/ask-etyme-panel'
 import { ACTIONS } from '@/lib/autonomy'
 
 /**
@@ -73,7 +73,36 @@ describe('the Owner reaches the model switch from the sentence that names it', (
     expect(route).toContain("field: 'on'")
     expect(route).toContain("field: 'reason'")
     expect(panel).toContain('JSON.stringify({ on: want, reason })')
-    expect(panel).toMatch(/<Check [^>]*checked=\{want\}/)
+    expect(panel).toContain('const want = !data.on')
     expect(panel).toMatch(/<Field label="Why\?"[\s\S]*?<Textarea value=\{reason\}/)
+  })
+
+  it('the switch reads "Turn it on" while the model is off and "Turn it off" while it is on', () => {
+    expect(switchLabel(false)).toBe('Turn it on')
+    expect(switchLabel(true)).toBe('Turn it off')
+    // The label is read from the one read of the company's switch.
+    expect(panel).toContain('{switchLabel(data.on)}')
+  })
+
+  it('the switch has no tick box beside it that could say the opposite of the button', () => {
+    expect(panel).not.toMatch(/<Check\b/)
+    expect(panel).not.toContain('setWant')
+  })
+
+  it('pressing the switch with no reason is refused in a sentence that says what to write', () => {
+    expect(panel).toContain("'Say why you are turning the model on.'")
+    expect(panel).toContain("'Say why you are turning the model off.'")
+    // The button is never silently disabled for a missing reason.
+    expect(panel).not.toMatch(/disabled=\{[^}]*reason/)
+  })
+
+  it('where the deployment has no model key, the sentence sits beside the switch for whoever reads it', () => {
+    const beside = panel.indexOf('{switchLabel(data.on)}')
+    const line = panel.indexOf('{!data.modelSetUp && ', beside)
+    expect(line).toBeGreaterThan(beside)
+    expect(line - beside).toBeLessThan(300)
+    // And a reader who may not change it is told too.
+    const readOnly = panel.indexOf('Only the Owner or an Admin turns this on or off.')
+    expect(panel.indexOf('{!data.modelSetUp && ', readOnly)).toBeGreaterThan(readOnly)
   })
 })

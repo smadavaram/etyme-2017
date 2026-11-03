@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { momentFor, readerZone } from '@/lib/when'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { Field, Check, Textarea, SubmitButton, FormMessage } from '@/components/ui/form'
+import { Field, Textarea, SubmitButton, FormMessage } from '@/components/ui/form'
 import { Empty, Panel, setLine } from './panel-bits'
 
 /**
@@ -27,6 +27,17 @@ export const BOUNDARY_LINES = [
   'The provider keeps nothing.',
   'Every prompt and answer is logged on your record, below.',
 ] as const
+
+/**
+ * The switch's button says the act it will do, read from the one read of
+ * the company's switch: "Turn it on" while the model is off, "Turn it off"
+ * while it is on (walk 3, fault A1: an unticked box sat beside a button
+ * reading "Turn it off" while the model was off). The button is the switch;
+ * there is no second control that can disagree with it.
+ */
+export function switchLabel(on: boolean): 'Turn it on' | 'Turn it off' {
+  return on ? 'Turn it off' : 'Turn it on'
+}
 
 /** Said where this deployment has no model key; the choice is still recorded. */
 export const NOT_SET_UP_LINE = 'The model is not set up on this deployment yet; turning it on here takes effect when it is.'
@@ -56,7 +67,6 @@ interface ModelSetting {
 
 export function AskEtymePanel() {
   const [data, setData] = useState<ModelSetting | null>(null)
-  const [want, setWant] = useState(false)
   const [reason, setReason] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -66,7 +76,6 @@ export function AskEtymePanel() {
     try {
       const body = await readJson(await fetch('/api/settings/ask-etyme'))
       setData(body.data)
-      setWant(body.data.on)
     } catch (e: any) {
       setErr(e.message)
     }
@@ -78,6 +87,13 @@ export function AskEtymePanel() {
   }, [data])
 
   async function save() {
+    if (!data) return
+    // The act is always the opposite of what is set now, never a box's guess.
+    const want = !data.on
+    if (!reason.trim()) {
+      setErr(want ? 'Say why you are turning the model on.' : 'Say why you are turning the model off.')
+      return
+    }
     setBusy(true); setErr(null); setNote(null)
     try {
       const body = await readJson(await fetch('/api/settings/ask-etyme', {
@@ -121,30 +137,32 @@ export function AskEtymePanel() {
           ? 'On. A question the rules do not answer may be sent, masked.'
           : 'Off. Ask Etyme answers from the rules only and sends nothing.'}
       </p>
-      {!data.modelSetUp && <p className="mb-3 text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
       <ul className="mb-4 space-y-1 text-[13px] text-etyme-muted list-disc pl-5">
         {BOUNDARY_LINES.map((l) => <li key={l}>{l}</li>)}
       </ul>
       {data.canEdit ? (
         <div className="mb-4 space-y-3">
-          <Check label="Send what the rules did not answer, masked" checked={want} disabled={busy} onChange={(e) => setWant(e.target.checked)} />
-          {want !== data.on && (
-            <Field label="Why?" help="Kept with the change, with your name and the time.">
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
-            </Field>
-          )}
+          <Field label="Why?" help="Kept with the change, with your name and the time.">
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
+          </Field>
           {(err || note) && (
             <div>
               {err && <FormMessage tone="error">{err}</FormMessage>}
               {note && <FormMessage tone="ok">{note}</FormMessage>}
             </div>
           )}
-          <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={want === data.on || !reason.trim()}>
-            {want ? 'Turn it on' : 'Turn it off'}
-          </SubmitButton>
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…">
+              {switchLabel(data.on)}
+            </SubmitButton>
+            {!data.modelSetUp && <p className="text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
+          </div>
         </div>
       ) : (
-        <p className="mb-4 text-[13px] text-etyme-muted">Only the Owner or an Admin turns this on or off.</p>
+        <div className="mb-4 space-y-1">
+          <p className="text-[13px] text-etyme-muted">Only the Owner or an Admin turns this on or off.</p>
+          {!data.modelSetUp && <p className="text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
+        </div>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mb-4">{setLine(data.setAt, data.setByName)}</p>
       <ListSurface<PromptRow>
