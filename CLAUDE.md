@@ -1600,6 +1600,13 @@ worker's row for that address (the candidate seat made by the account
 mix-up of 2026-10-20 is the likely one); the hat switch takes the list
 off the Owner's menu either way, and the architect reads which row it
 is and says so before anything is ended.
+**Confirmed by the founder the same hour:** *"You can go under
+profile and they switch to worker account."* So the worker's pages
+live under the profile, the account menu at the top right, as the
+switch to the worker account, and nowhere on the firm's left menu.
+Switching there is switching the whole app to the worker's view (the
+menu, Ask Etyme, the mark and Today), and switching back is the same
+one click; the person is never shown both at once.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
