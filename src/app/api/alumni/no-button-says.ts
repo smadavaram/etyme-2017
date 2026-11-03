@@ -16,8 +16,8 @@ export interface NoButtonRow {
 export function noButtonSays(row: NoButtonRow): string {
   if (row.reengageBlockReason) return row.reengageBlockReason
   if (row.ledgerStatus === 'BREAK_REQUIRED' && !row.eligibleDate) {
-    return 'A break is required before asking back, and the day is not on record. Check the contract under Contractors.'
+    return 'A break is required before asking back, and the day is not on record. Check the contract under Contracts.'
   }
   if (row.eligibleDate) return 'A break is required before asking back.'
-  return 'Not offered: a contract here is still open on the record. Check the contract under Contractors.'
+  return 'Not offered: a contract here is still open on the record. Check the contract under Contracts.'
 }

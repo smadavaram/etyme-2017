@@ -223,7 +223,7 @@ describe('a row with no ask-back button always says why', () => {
     expect(a.canReengage).toBe(false)
     expect(a.reengageBlockReason).toBe(
       'A break from Northbend Athletic is required before asking back; the day is not known because the last ' +
-      'contract has no end date on record. Check the contract under Contractors.'
+      'contract has no end date on record. Check the contract under Contracts.'
     )
     // The page's floor: even with no reason sent, the row has a sentence.
     expect(noButtonSays({ ledgerStatus: 'BREAK_REQUIRED', eligibleDate: null, reengageBlockReason: null }))

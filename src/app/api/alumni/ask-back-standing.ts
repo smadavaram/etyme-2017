@@ -129,7 +129,7 @@ export function openLineSays(
 export function breakWithNoDaySays(clientName: string): string {
   return (
     `A break from ${clientName} is required before asking back; the day is not known because the last ` +
-    `contract has no end date on record. Check the contract under Contractors.`
+    `contract has no end date on record. Check the contract under Contracts.`
   )
 }
 
