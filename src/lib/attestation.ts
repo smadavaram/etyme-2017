@@ -833,6 +833,16 @@ const COUNTED_MONTHS: Record<string, number> = {
   INSURANCE_GL: 12, INSURANCE_WC: 12, INSURANCE_EO: 12, INSURANCE_CYBER: 12, GOOD_STANDING: 12,
 }
 
+/**
+ * The day a screening company's report stops counting, counted from the
+ * day it reported, where the report prints no end of its own. Null for a
+ * kind that is not counted in months. Pure.
+ */
+export function reportRunsOutOn(documentKey: string, renderedOn: Date): Date | null {
+  const months = COUNTED_MONTHS[documentKey]
+  return months ? addMonthsUtc(renderedOn, months) : null
+}
+
 /** What a provider may have said, in the four words a report uses, or that it went out. */
 export const PROVIDER_OUTCOMES = ['ORDERED', 'CLEAR', 'CONDITIONAL', 'FLAGGED', 'FAILED'] as const
 export type ProviderOutcome = (typeof PROVIDER_OUTCOMES)[number]

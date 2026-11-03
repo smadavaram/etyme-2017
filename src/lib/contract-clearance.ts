@@ -87,6 +87,7 @@ import {
 export { forWorkCountry, workAuthorizationOf, requirementsWhereWorkIsDone, requirementsWhereWorkIsDoneForSellLines } from '@/lib/document-stages/where-work-is-done'
 export type { LineWorkCountry, SetWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { heldFromDocInstances } from '@/lib/document-request'
+import { acceptedRequestPapers, heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
 import {
   typesFor,
   typeByKey,
@@ -1719,7 +1720,13 @@ export async function lineExtras(
 
   void now
   const wc = await lineWorkCountry({ buyContractId: buyContractId! }, db as never).catch(() => null)
+  // Papers a firm on this line asked the person for and accepted, which
+  // stand on the paper itself (an NDA): the rows the request reads.
+  const requested = personId
+    ? await acceptedRequestPapers([personId], [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v), db as never)
+    : []
   return extrasFrom({
+    requestPapers: heldFromAcceptedItems(requested),
     setItems: set.items as LineRequirement[],
     workerSets,
     site: siteOf?.workLocation ?? null,
@@ -1746,6 +1753,13 @@ function extrasFrom(input: {
   types: unknown[]
   instances: Parameters<typeof heldFromDocInstances>[0]
   agreements: { status: string; effectiveDate: Date | null; expiresAt: Date | null; signedAt: Date | null }[]
+  /**
+   * Papers a firm on the line asked the person for through a request and
+   * accepted, which stand on the paper itself (lib/document-stages/
+   * paper-record). Until 2026-11-03 nothing here read them, so an NDA
+   * accepted on Paperwork stayed "not on file" on the placement.
+   */
+  requestPapers?: HeldDocument[]
 }): {
   requirements: LineRequirement[]
   extraHeld: HeldDocument[]
@@ -1754,7 +1768,7 @@ function extrasFrom(input: {
   workCountry: LineWorkCountry | null
 } {
   const known = (input.types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label }))
-  const extraHeld: HeldDocument[] = heldFromDocInstances(input.instances, known)
+  const extraHeld: HeldDocument[] = [...heldFromDocInstances(input.instances, known), ...(input.requestPapers ?? [])]
 
   for (const a of input.agreements) {
     // DRAFT is a paper nobody has executed and EXPIRED is one that ran
@@ -1893,6 +1907,8 @@ export async function lineExtrasForSellLines(
       : Promise.resolve([] as { vendorId: string; clientId: string; status: string; effectiveDate: Date | null; expiresAt: Date | null; signedAt: Date | null }[]),
     db.contractLink.findMany({ where: { sellContractId: { in: lineIds } }, select: { sellContractId: true, buyContractId: true }, orderBy: { id: 'asc' } }),
   ])
+  // Papers the firms on these lines asked the people for and accepted, in one read.
+  const requested = await acceptedRequestPapers(personIds, firmIds, db as never)
 
   const setOf = (id: string): LineRequirements | null => (known?.has(id) ? known.get(id) ?? null : read.get(id) ?? null)
 
@@ -1909,6 +1925,9 @@ export async function lineExtrasForSellLines(
     if (!set) return
     const firms = new Set([line.companyId, line.clientCompanyId].filter((v): v is string => !!v))
     out.set(line.id, extrasFrom({
+      requestPapers: heldFromAcceptedItems(
+        requested.filter((r) => !!line.personId && r.personId === line.personId && firms.has(r.companyId))
+      ),
       setItems: set.items as LineRequirement[],
       workerSets: links.filter((l) => l.sellContractId === line.id).map((l) => workerOf.get(l.buyContractId) ?? []),
       site: line.workLocation ?? null,

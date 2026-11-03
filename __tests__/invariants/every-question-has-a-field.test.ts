@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILT_IN } from '@/lib/document-type'
 import { mayExamine } from '@/lib/document-request'
-import { RECORDABLE_ABOUT_A_FIRM, adverseRecordFrom, adverseStep, adverseWaitFor, checkInputFrom, checkToRecord, examinedFromAPacket } from '@/lib/attestation'
+import { RECORDABLE_ABOUT_A_FIRM, adverseRecordFrom, adverseStep, adverseWaitFor, checkInputFrom, checkToRecord, examinedFromAPacket, orderedNotCollected, reportRunsOutOn } from '@/lib/attestation'
 import { licenseRenewal } from '@/lib/document-request'
 import { OWN_PAPER_POSTED, mayFileOwnPaper, ownPaperFields, ownPaperInput, ownPaperMenu, ownPaperPost, type OwnPaperTyped } from '@/lib/document-stages/own-papers'
 import { licenseFieldsFor } from '@/app/dashboard/my-work/paperwork-rows'
@@ -41,6 +41,11 @@ const TYPED = (key: string): ExamineValues => ({
   shownNumber: 'X1234567',
   shownIssuer: 'U.S. Department of State',
   shownExpiresAt: '2030-04-30',
+  provider: 'Sterling',
+  reference: 'ST-4471',
+  renderedOn: '2026-10-28',
+  outcome: 'CLEAR',
+  providerSays: 'Clear. No records found.',
 })
 
 /** Only what the dialog draws is typed; everything else stays empty, as on the screen. */
@@ -69,14 +74,19 @@ describe('every question a route asks, its screen has a field for', () => {
             type: { key: t.key, label: t.label, validityShape: t.validityShape, signedBy: t.signedBy, reissued: t.reissued },
           },
           { staffOfIssuer: true, isSender: false, examinerName: 'Petra Kalnins' },
-          { verdict: 'ACCEPT', validFrom: date(body.validFrom), expiresAt: date(body.expiresAt), edition: (body.edition as string) ?? null },
+          {
+            verdict: 'ACCEPT', validFrom: date(body.validFrom),
+            // The route counts a screening company's report from the day it reported, as the record does.
+            expiresAt: date(body.expiresAt) ?? (!aboutAFirm && orderedNotCollected(t.key) && date(body.renderedOn) ? reportRunsOutOn(t.key, date(body.renderedOn)!) : null),
+            edition: (body.edition as string) ?? null,
+          },
           ON
         )
         expect(seen.ok, `${t.key}: ${!seen.ok ? `${seen.field}: ${seen.message}` : ''}`).toBe(true)
 
         // What the review records from it: a person's paper the record reads,
         // or a supplier's certificate onto its standing.
-        const records = aboutAFirm ? (RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(t.key) : examinedFromAPacket(t.key)
+        const records = aboutAFirm ? (RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(t.key) : examinedFromAPacket(t.key) || orderedNotCollected(t.key)
         if (!records) return
         const read = checkInputFrom(examinationBody(body), {
           about: aboutAFirm ? 'FIRM' : 'PERSON', type: t.key, subjectName: aboutAFirm ? 'Tapin' : 'Ravi Kumar', recordedBy: 'Petra Kalnins',
@@ -92,6 +102,12 @@ describe('every question a route asks, its screen has a field for', () => {
   it('the I-9 dialog asks for the document shown, its number, who issued it and the day it runs out, and no end of the form’s own', () => {
     const needs = examineNeedsOf('I9_EVERIFY', false)
     expect(examineFields(needs)).toEqual(['edition', 'shownType', 'shownNumber', 'shownIssuer', 'shownExpiresAt'])
+  })
+
+  it('a background check or a drug screen accepted from a request asks for the screening company, its reference, the day it reported, its word and its words', () => {
+    for (const key of ['BACKGROUND_CHECK', 'DRUG_SCREENING']) {
+      expect(examineFields(examineNeedsOf(key, false))).toEqual(['provider', 'reference', 'renderedOn', 'outcome', 'providerSays'])
+    }
   })
 
   it('a license accepted from a request carries its number and its board, filled from what the worker sent', () => {
@@ -227,11 +243,11 @@ describe('every field a rule can ask for is answered by a field on a screen, or 
     issuer: 'who issued it (examine dialog, for a license or a firm’s certificate)',
     licenseNumber: 'the license number (examine dialog)',
     reason: 'why it goes back (examine dialog)',
-    provider: 'the screening company (Record a screening company’s report)',
-    reference: 'their reference (Record a screening company’s report)',
-    renderedOn: 'the day they reported (Record a screening company’s report)',
-    outcome: 'their answer (Record a screening company’s report)',
-    providerSays: 'their words (Record a screening company’s report)',
+    provider: 'the screening company (Record a screening company’s report; the examine dialog for a background check or drug screen)',
+    reference: 'their reference (Record a screening company’s report; the examine dialog)',
+    renderedOn: 'the day they reported (Record a screening company’s report; the examine dialog)',
+    outcome: 'their answer (Record a screening company’s report; the examine dialog)',
+    providerSays: 'their words (Record a screening company’s report; the examine dialog)',
     file: 'the file (Put on file)',
     number: 'the number on it (Put on file)',
     year: 'the year awarded (Put on file)',

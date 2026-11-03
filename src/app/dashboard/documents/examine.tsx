@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { readJson, statusMeans } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
-import { I9_SHOWN, examineBody, examineFields, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
+import { I9_SHOWN, VERDICT_OUTCOMES, examineBody, examineFields, type ExamineNeeds, type ExamineValues } from '@/lib/document-stages/examine-form'
 
 /**
  * Look at a paper that arrived, and accept it or send it back.
@@ -36,7 +36,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
   const given = row.examineNeeds ?? {}
   const needs: ExamineNeeds = {
     start: !!given.start, end: !!given.end, edition: !!given.edition,
-    shown: !!given.shown, license: !!given.license,
+    shown: !!given.shown, license: !!given.license, verdict: !!given.verdict,
     // A list that predates the field: a firm's certificate with an end names its issuer.
     firmIssuer: given.firmIssuer ?? (aboutAFirm && !!given.end),
   }
@@ -48,6 +48,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
     licenseNumber: row.licenseFacts?.licenseNumber ?? '',
     shownType: I9_SHOWN[0].key,
     shownIssuer: I9_SHOWN[0].issuer,
+    outcome: VERDICT_OUTCOMES[0].key,
   })
   const set = (k: keyof ExamineValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value })
   const [reason, setReason] = useState('')
@@ -172,6 +173,37 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
                 <span className={label}>{needs.license ? 'The board that issued it' : 'Who issued it: the insurer, or the state'}</span>
                 <input value={v.issuer ?? ''} onChange={set('issuer')} required placeholder={needs.license ? 'Oregon State Board of Nursing' : 'The Hartford'} className={field} />
               </label>
+            )}
+            {/* A background check or a drug screen is the screening
+                company's report, recorded as they said it: whose it is,
+                their reference, the day they reported, their word and
+                their own words. Etyme renders no verdict (2026-11-03). */}
+            {shows.has('provider') && (
+              <>
+                <p className="text-sm text-etyme-muted">Record the screening company’s report as they wrote it. The verdict is theirs.</p>
+                <label className="block">
+                  <span className={label}>The screening company, as named on the report</span>
+                  <input value={v.provider ?? ''} onChange={set('provider')} required className={field} />
+                </label>
+                <label className="block">
+                  <span className={label}>Their reference</span>
+                  <input value={v.reference ?? ''} onChange={set('reference')} required className={field} />
+                </label>
+                <label className="block">
+                  <span className={label}>The day they reported</span>
+                  <input type="date" value={v.renderedOn ?? ''} onChange={set('renderedOn')} required className={field} />
+                </label>
+                <label className="block">
+                  <span className={label}>What they reported</span>
+                  <select value={v.outcome} onChange={set('outcome')} className={field}>
+                    {VERDICT_OUTCOMES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={label}>Their words, copied as written</span>
+                  <input value={v.providerSays ?? ''} onChange={set('providerSays')} required className={field} />
+                </label>
+              </>
             )}
           </>
         ) : (

@@ -14,6 +14,7 @@
  * Pure.
  */
 import { builtInType } from '@/lib/document-type'
+import { orderedNotCollected } from '@/lib/attestation'
 
 /**
  * Papers completed from a document the person shows: the paper has no end
@@ -44,13 +45,24 @@ export interface ExamineNeeds {
   license: boolean
   /** Who issued a firm's certificate: the insurer, or the state. */
   firmIssuer: boolean
+  /**
+   * A screening company's or a laboratory's report on a person: its name,
+   * its reference, the day it reported, its word and its own words. A
+   * background check or a drug screen stands only on the provider's
+   * verdict (the founder's tester, 2026-11-03), so accepting one records
+   * that verdict, and the dialog asks for it.
+   */
+  verdict?: boolean
 }
 
 /** What accepting a paper of this type asks for. Nothing for a type nobody knows. */
 export function examineNeedsOf(key: string | null, aboutAFirm: boolean): ExamineNeeds {
   const spec = key ? builtInType(key) : null
   const shown = !!key && COMPLETED_FROM_SHOWN.includes(key)
-  const end = spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY'
+  const verdict = !!key && !aboutAFirm && orderedNotCollected(key)
+  // A screening company's report prints the day it reported, not an end:
+  // it counts for its months from that day, and the route counts them.
+  const end = !verdict && (spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY')
   return {
     start: spec?.validityShape === 'START_AND_END',
     end: end && !shown,
@@ -58,8 +70,17 @@ export function examineNeedsOf(key: string | null, aboutAFirm: boolean): Examine
     shown,
     license: key === 'PROFESSIONAL_LICENSE' && !aboutAFirm,
     firmIssuer: aboutAFirm && end,
+    verdict,
   }
 }
+
+/** A provider's word, as the report says it, in the order a report reads. */
+export const VERDICT_OUTCOMES: { key: string; label: string }[] = [
+  { key: 'CLEAR', label: 'Clear' },
+  { key: 'CONDITIONAL', label: 'Clear with conditions' },
+  { key: 'FLAGGED', label: 'Flagged for review' },
+  { key: 'FAILED', label: 'Not clear' },
+]
 
 export interface ExamineValues {
   validFrom?: string
@@ -72,6 +93,11 @@ export interface ExamineValues {
   shownNumber?: string
   shownIssuer?: string
   shownExpiresAt?: string
+  provider?: string
+  reference?: string
+  renderedOn?: string
+  outcome?: string
+  providerSays?: string
 }
 
 /** The fields the dialog draws, in order, each one required. */
@@ -83,6 +109,7 @@ export function examineFields(needs: ExamineNeeds): (keyof ExamineValues)[] {
     ...(needs.shown ? ['shownType' as const, 'shownNumber' as const, 'shownIssuer' as const, 'shownExpiresAt' as const] : []),
     ...(needs.license ? ['licenseNumber' as const, 'issuer' as const] : []),
     ...(needs.firmIssuer ? ['issuer' as const] : []),
+    ...(needs.verdict ? ['provider' as const, 'reference' as const, 'renderedOn' as const, 'outcome' as const, 'providerSays' as const] : []),
   ]
 }
 
@@ -97,6 +124,15 @@ export function examineBody(needs: ExamineNeeds, v: ExamineValues): Record<strin
     ...put('issuer', v.issuer),
     ...put('licenseNumber', v.licenseNumber),
     ...put('licenseState', v.licenseState),
+    ...(needs.verdict
+      ? {
+          ...put('provider', v.provider),
+          ...put('reference', v.reference),
+          ...put('renderedOn', v.renderedOn),
+          ...put('outcome', v.outcome),
+          ...put('providerSays', v.providerSays),
+        }
+      : {}),
     ...(needs.shown && v.shownType
       ? {
           evidence: [{

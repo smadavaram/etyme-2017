@@ -24,7 +24,8 @@ import {
   type RequiredLine,
 } from '@/lib/document-request'
 import type { EffectiveRequirement } from '@/lib/document-requirements'
-import { papersAsked, papersCounted, countWord, requestReasonNow, RENEWAL_PACKET_KEY } from '@/lib/contract-clearance'
+import { papersAsked, papersCounted, countWord, requestReasonNow, RENEWAL_PACKET_KEY, heldFrom } from '@/lib/contract-clearance'
+import { heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
 
 const upperFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 import {
@@ -422,21 +423,10 @@ export async function POST(request: NextRequest) {
     // `validFrom` as well as `expiresAt`: a packet that treats a policy
     // beginning in October as already held in September asks the supplier
     // for nothing and leaves the gap open.
-    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
   })
 
-  const heldFromVerifications: HeldDocument[] = verifications.map((v) => ({
-    key: v.type,
-    // Where the paper does not say when cover begins, the day it was
-    // issued is the best floor there is — the same fallback clearance uses.
-    validFrom: v.validFrom ?? v.issuedAt,
-    expiresAt: v.expiresAt,
-    // Conditional counts as held — the client decided to accept it, and
-    // asking again would relitigate a decision already taken.
-    accepted: v.status === 'CLEAR' || v.status === 'CONDITIONAL',
-  }))
-
-  // Anything a previous packet already collected and somebody accepted.
+  // Anything a previous request collected and somebody accepted.
   const priorItems = await prisma.packetItem.findMany({
     where: {
       state: 'ACCEPTED',
@@ -446,15 +436,18 @@ export async function POST(request: NextRequest) {
         ...(subjectPersonId ? { subjectPersonId } : {}),
       },
     },
-    select: { key: true, validUntil: true },
+    select: { key: true, state: true, validUntil: true, verificationId: true },
   })
 
+  // Read the way the start reads it, so a request and the placement's
+  // checklist never disagree about a paper (the founder's tester,
+  // 2026-11-03): a recorded check through the clearance's own reading,
+  // and an accepted item only where the paper itself is what stands (an
+  // NDA). A background check accepted with no screening company's report
+  // behind it was "already on file" here and "needed" on the placement.
   const held: HeldDocument[] = [
-    ...heldFromVerifications,
-    // A packet item records the life of the document, not its start —
-    // there is no floor to read here, and claiming one would be inventing
-    // a date nobody typed.
-    ...priorItems.map((i) => ({ key: i.key, validFrom: null, expiresAt: i.validUntil, accepted: true })),
+    ...heldFrom(verifications),
+    ...heldFromAcceptedItems(priorItems),
   ]
 
   // ── What the lines actually require, over the packet's own floor ────

@@ -8,7 +8,7 @@ import { reportError } from '@/lib/alerts'
 import { hasPermission } from '@/lib/permissions'
 import { mayExamine, standingOn, typeKeyForTemplate } from '@/lib/document-request'
 import { BUILT_IN, typeByKey } from '@/lib/document-type'
-import { RECORDABLE_ABOUT_A_FIRM, examinedFromAPacket } from '@/lib/attestation'
+import { RECORDABLE_ABOUT_A_FIRM, examinedFromAPacket, orderedNotCollected, reportRunsOutOn } from '@/lib/attestation'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
 import { answerOpenAsks, buyerMayExamineKept, examinationBody, examinationOf, itemFollowsPaper, recordSupplierPaper, type Door } from '@/app/api/packets/examination'
@@ -134,9 +134,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Number.isNaN(d.getTime()) ? 'BAD' : d
   }
   const validFrom = dateOf('validFrom')
-  const expiresAt = dateOf('expiresAt')
+  let expiresAt = dateOf('expiresAt')
   if (validFrom === 'BAD') return refuse(422, 'VALIDATION', 'Give the day it starts as a date, like 2026-11-01.', 'validFrom')
   if (expiresAt === 'BAD') return refuse(422, 'VALIDATION', 'Give the day it runs out as a date, like 2027-10-31.', 'expiresAt')
+  // A screening company's report about a person prints the day it
+  // reported, not an end: it counts for its months from that day, the
+  // same count the record makes (2026-11-03).
+  const renderedOn = dateOf('renderedOn')
+  if (renderedOn === 'BAD') return refuse(422, 'VALIDATION', 'Give the day they reported as a date, like 2026-10-28.', 'renderedOn')
+  if (!expiresAt && renderedOn && subjectPersonId && key && orderedNotCollected(key)) expiresAt = reportRunsOutOn(key, renderedOn)
 
   const now = new Date()
   const verdict = mayExamine(

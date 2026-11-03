@@ -30,6 +30,7 @@ function fakeDb() {
     docInstance: { findMany: vi.fn(async () => []) },
     masterAgreement: { findMany: vi.fn(async () => []) },
     contractLink: { findMany: vi.fn(async () => []) },
+    packetItem: { findMany: vi.fn(async () => []) },
   }
   /** Every line the door was asked about, once per time it was asked. */
   const asked = () => door.mock.calls.flatMap(([a]) => a.where.id.in)

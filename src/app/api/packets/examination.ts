@@ -169,7 +169,10 @@ export function examinationBody(body: Record<string, unknown>): Record<string, u
 }
 
 /** The fields a recorded check takes, beyond the date a packet already asks for. */
-export const EXAMINATION_FIELDS = ['formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt'] as const
+export const EXAMINATION_FIELDS = [
+  'formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt',
+  'provider', 'renderedOn', 'outcome', 'providerSays',
+] as const
 
 /** A screen that can take what this one could not, and where it is. */
 export interface Door {
@@ -248,16 +251,26 @@ export async function examinationOf(input: {
   const personId = packet.subjectPersonId
   if (!personId) return null
 
-  if (orderedNotCollected(item.key)) {
+  // A background check or a drug screen stands only on the screening
+  // company's report (the founder's tester, 2026-11-03: four papers read
+  // "on file" on Paperwork and "needed" on the placement). Accepting one
+  // records that report, with the provider's name, reference, date and
+  // words, through the same writer as Record a check, or refuses naming
+  // what is missing. Etyme renders no verdict; the record says whose it is.
+  const providerVerdict = orderedNotCollected(item.key)
+  if (!providerVerdict && !examinedFromAPacket(item.key)) return null
+  if (providerVerdict && String(body.outcome ?? '').trim().toUpperCase() === 'ORDERED') {
     return {
-      says:
-        `The ${recordLabel(item.key)} itself counts toward the start once the screening company’s report is recorded; ` +
-        `a file sent here is not their report.`,
+      refused: {
+        status: 422, code: 'NOT_BACK_YET', field: 'outcome',
+        message:
+          `Nothing has come back on the ${recordLabel(item.key)} yet, so there is no report to accept. ` +
+          `Accept it when the screening company’s report is in, with their word on it.`,
+      },
     }
   }
-  if (!examinedFromAPacket(item.key)) return null
 
-  const given = EXAMINATION_FIELDS.some((f) => {
+  const given = providerVerdict || EXAMINATION_FIELDS.some((f) => {
     const v = body[f]
     return Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== ''
   })
@@ -349,9 +362,10 @@ export async function examinationOf(input: {
     action: 'COMPLIANCE_CHECK',
     reason: `Recorded ${withArticle(recordLabel(item.key))} from a document request, for the placement at ${buyerName}`,
   })
+  const counts = verdict.row.status === 'CLEAR' || verdict.row.status === 'CONDITIONAL'
   return {
     verificationId: written.id,
-    says: `${verdict.says} It counts toward the start.`,
+    says: counts ? `${verdict.says} It counts toward the start.` : verdict.says,
   }
 }
 
