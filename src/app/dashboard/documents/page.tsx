@@ -55,6 +55,8 @@ interface Request_ {
   hasSignedFile: boolean
   fileName: string | null
   note: string | null
+  /** How the rule read a sponsorship answer, or that it could not. */
+  sponsorshipRead?: string | null
   examinedAt?: string | null
   expiresAt?: string | null
   examineNeeds?: Partial<ExamineNeeds>
@@ -249,6 +251,7 @@ export default function DocumentsPage() {
                   {r.fileName ? ` · ${r.fileName}` : ''}
                   {r.note ? ` · ${r.note}` : ''}
                 </div>
+                {r.sponsorshipRead && <div className="text-xs text-etyme-muted mt-0.5">{r.sponsorshipRead}</div>}
               </div>
               <Chip tone={tone(r.status)}>{statusWord(r.status)}</Chip>
               {(r.status === 'PENDING' || r.status === 'SENT') && (

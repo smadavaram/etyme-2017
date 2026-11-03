@@ -235,7 +235,7 @@ describe('the screens', () => {
 })
 
 // ── The screening answer, kept as the person's own (2026-11-03) ───────
-import { sponsorshipFromWords, isWorkAuthQuestion } from '@/lib/document-request'
+import { sponsorshipFromWords, isWorkAuthQuestion, sponsorshipReading } from '@/lib/document-request'
 
 describe('the work-authorization answer, read by rule', () => {
   it('a screening answer that says sponsorship will be needed is recorded as the person’s answer with the words kept', () => {
@@ -257,5 +257,18 @@ describe('the work-authorization answer, read by rule', () => {
     expect(sponsorshipFromWords('')).toBeNull()
     // A visa named and "no sponsorship" said in one breath is for HR to read.
     expect(sponsorshipFromWords('I am on H-1B and will not need sponsorship.')).toBeNull()
+  })
+})
+
+describe('HR reads the sponsorship answer as the person said it', () => {
+  it('HR’s Document requests list shows the person’s words with how the rule read them, or that it could not', () => {
+    expect(sponsorshipReading('I will need H-1B sponsorship next year.')).toBe('Read as: will need sponsorship.')
+    expect(sponsorshipReading('I am a US citizen.')).toBe('Read as: will not need sponsorship.')
+    expect(sponsorshipReading('It depends on the project.')).toMatch(/^The words do not say whether sponsorship will be needed\. Read them/)
+    expect(sponsorshipReading('')).toBeNull()
+    const route = readFileSync(join(process.cwd(), 'src/app/api/documents/route.ts'), 'utf8')
+    expect(route).toContain('sponsorshipRead: isWorkAuthQuestion(i.template.name) ? sponsorshipReading(i.note) : null')
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/documents/page.tsx'), 'utf8')
+    expect(page).toContain('{r.sponsorshipRead && ')
   })
 })

@@ -413,6 +413,19 @@ export function sponsorshipFromWords(words: string | null | undefined): boolean 
   return null
 }
 
+/**
+ * What HR reads beside the person's own words on the screening answer:
+ * how the rule read them, or that it could not, so HR reads the words.
+ * It says what the person said; it is never a verdict on the person.
+ */
+export function sponsorshipReading(words: string | null | undefined): string | null {
+  if (!(words ?? '').trim()) return null
+  const read = sponsorshipFromWords(words)
+  if (read === true) return 'Read as: will need sponsorship.'
+  if (read === false) return 'Read as: will not need sponsorship.'
+  return 'The words do not say whether sponsorship will be needed. Read them, and ask if it matters for the job.'
+}
+
 /** Whether this paper is the work-authorization screening question. */
 export function isWorkAuthQuestion(templateName: string): boolean {
   return questionOf(templateName) === QUESTION_SAID.RIGHT_TO_WORK

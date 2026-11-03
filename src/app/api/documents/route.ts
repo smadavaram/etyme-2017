@@ -5,7 +5,7 @@ import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN } from '@/lib/document-type'
-import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
+import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { hasPermission } from '@/lib/permissions'
@@ -195,6 +195,10 @@ export async function GET(request: NextRequest) {
           // A license's number, issuer and expiry as the sender gave them,
           // so the examine step opens with them filled in.
           licenseFacts: licenseFactsFrom(i.note),
+          // The screening answer on sponsorship: the person's own words
+          // stay in `note`; this says how the rule read them, or that it
+          // could not, so HR reads the words (2026-11-03).
+          sponsorshipRead: isWorkAuthQuestion(i.template.name) ? sponsorshipReading(i.note) : null,
         })),
         total: instances.length,
       },
