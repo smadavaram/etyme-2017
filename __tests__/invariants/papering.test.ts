@@ -159,7 +159,13 @@ describe('A contract nobody has papered sits on the supplier’s own queue', () 
   it('a placement whose start date has already passed and which has not started is urgent', () => {
     const row = paperingRow({ ...DRAFT, state: 'VERIFIED', waitingSince: day(-10), startDate: day(-3) }, NOW)!
     expect(row.urgency).toBe('HIGH')
-    expect(row.subtitle).toContain('due to start 3 days ago')
+    expect(row.subtitle).toContain('was due to start Sep 14, 2026, 3 days ago')
+  })
+
+  it('a start day already gone is said as a day in the past with the day itself, never as "due to start" a start still coming', () => {
+    const row = paperingRow({ ...DRAFT, state: 'DRAFT', waitingSince: day(-10), startDate: day(-9) }, NOW)!
+    expect(row.subtitle).toContain('was due to start Sep 8, 2026, 9 days ago')
+    expect(row.subtitle).not.toMatch(/· due to start/)
   })
 
   it('a placement already under way is nobody’s decision and makes no row at all', () => {

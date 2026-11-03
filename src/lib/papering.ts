@@ -1,3 +1,5 @@
+import { formatDay } from '@/lib/format-date'
+
 /**
  * The baton between the desk that wins a deal and the desk that papers it.
  *
@@ -269,10 +271,13 @@ export function paperingRow(c: WaitingContract, now: Date): QueueRow | null {
   // happening and nothing is billable against it.
   const untilStart = c.startDate ? Math.ceil((c.startDate.getTime() - now.getTime()) / 86_400_000) : null
 
+  // A start day already gone is said as a day in the past, with the day
+  // itself: "due to start" over a date nine days back reads as a start
+  // still coming (second screen walk, 2026-11-03).
   const startWords = untilStart == null
     ? 'no start date set'
     : untilStart < 0
-      ? `due to start ${waitWords(-untilStart)} ago`
+      ? `was due to start ${formatDay(c.startDate!)}, ${waitWords(-untilStart)} ago`
       : untilStart === 0
         ? 'due to start today'
         : `starts in ${waitWords(untilStart)}`
