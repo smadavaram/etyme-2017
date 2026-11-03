@@ -1,3 +1,4 @@
+import { startDaySays, RUNNING_STATES } from '@/lib/document-stages/start-day'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
@@ -370,8 +371,10 @@ export async function askForClearance(input: {
 
   // Why they are being asked, written to them. Not "your contract is in
   // DRAFT" — the worker has no idea what that is.
+  // The day through the one formatter, and said as past where it is
+  // (release walk three: "due to start on 2026-08-09" in November).
   const whenPhrase = contract.startDate
-    ? ` You are due to start${clientName ? ` at ${clientName}` : ''} on ${contract.startDate.toISOString().slice(0, 10)}.`
+    ? ` ${startDaySays({ startDate: contract.startDate, now, running: RUNNING_STATES.includes(contract.state), clientName })}`
     : ''
   const reason =
     `You have been placed${roleTitle ? ` as ${roleTitle}` : ''}${clientName ? ` at ${clientName}` : ''}.` +

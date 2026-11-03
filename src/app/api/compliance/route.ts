@@ -6,10 +6,10 @@ import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/walls'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, desksHolding } from '@/lib/permissions'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
-import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, fixForReader, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
 import { chainTop } from '@/lib/chain-top'
 import { checkHealth } from './health'
 import { employedPairs } from './verifications/record'
@@ -653,6 +653,11 @@ export async function GET(request: NextRequest) {
   const checksOf = (personId: string) => startPersonRows.filter((v) => v.personId === personId)
   const firmChecksOf = (companyId: string) => startFirmRows.filter((v) => v.companyId === companyId)
 
+  // Who starts a placement here, for a reader whose role does not.
+  const reader = {
+    mayStart: hasPermission(caller.permissions, 'assignments.write'),
+    startedBy: desksHolding('assignments.write', caller.company?.kind),
+  }
   const starts = startLines.map((c) => {
     const firmName = shown(c.companyId, c.company.name)
     // Whether the firm on this row employs the person, or buys their
@@ -681,7 +686,8 @@ export async function GET(request: NextRequest) {
       startDate: c.startDate.toISOString(),
       outcome: papers.outcome,
       says: papers.says,
-      fix: papers.fix,
+      // Said to this reader: HR reads who activates (`fixForReader`).
+      fix: fixForReader(papers.fix, reader),
       /** What stops the start, by name. */
       blocking: papers.blocking.map(i => i.label),
       /** What is owed and does not stop it — warned, with a reason on the record. */
@@ -716,7 +722,8 @@ export async function GET(request: NextRequest) {
       startDate: c.startDate.toISOString(),
       outcome: papers.outcome,
       says: papers.says,
-      fix: papers.fix,
+      // Said to this reader: HR reads who activates (`fixForReader`).
+      fix: fixForReader(papers.fix, reader),
       blocking: papers.blocking.map(i => i.label),
       chasing: papers.chasing.map(i => i.label),
       /** True: this firm employs the person and completes their papers. */

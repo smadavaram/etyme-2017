@@ -1241,6 +1241,22 @@ function sayIt(
   return reported.length === 0 ? warned : `${warned} ${reported.join(' ')}`
 }
 
+/**
+ * The fix, said to the person reading it. "Then activate" is said to a
+ * seat that may start a placement; a seat that may not (HR, whose route
+ * refuses the start) reads who does, by the role names its own firm
+ * holds: "Get an I-9 on file; then the contract manager or delivery
+ * manager activates." Release walk three, 2026-11-03. Pure.
+ */
+export function fixForReader(fix: string | null, reader: { mayStart: boolean; startedBy: string[] }): string | null {
+  if (!fix || reader.mayStart || reader.startedBy.length === 0) return fix
+  const who = reader.startedBy.map((r) => r.toLowerCase())
+  const named = `the ${who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} or ${who[who.length - 1]}`}`
+  return fix
+    .replace(/, then activate\.$/, `; then ${named} activates.`)
+    .replace(/, or activate with a reason\.$/, `; or ${named} activates with a reason.`)
+}
+
 function fixFor(
   blocking: ChecklistItem[],
   chasing: ChecklistItem[],
