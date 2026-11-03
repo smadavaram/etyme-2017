@@ -41,7 +41,7 @@
  */
 
 import type { Finding } from '@/lib/loop'
-import { jobAsksFor, jobRestriction } from '@/lib/checks'
+import { jobAsksFor, jobRestriction, restrictionAppliesHere, type WorkPlace } from '@/lib/checks'
 import { authDecision, type WorkAuth } from '@/lib/work-authorisation'
 
 export type Code =
@@ -121,6 +121,8 @@ export interface Arriving {
   workAuthBasis: string | null
   /** The clause, contract or policy the basis rests on, in the firm's words. */
   workAuthCite: string | null
+  /** Where the work is done (`jobWorkCountry`); absent reads as the US. */
+  work?: WorkPlace
   availableFrom: Date | null
   startDate: Date | null
   /** Whether this vendor was invited to this role. */
@@ -343,6 +345,14 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       checker: 'RULE',
       verdict: 'PASS',
       reason: 'This job does not name a work authorization.',
+    })
+  } else if (!restrictionAppliesHere(restriction, a.work)) {
+    // Offshore: a no-sponsorship policy says nothing about their status.
+    out.push({
+      code: 'WORK_AUTH',
+      checker: 'RULE',
+      verdict: 'PASS',
+      reason: 'The work is done outside the US, so the job\u2019s sponsorship rule does not apply.',
     })
   } else if (a.workAuth == null) {
     // Not knowing is a question, never a refusal.

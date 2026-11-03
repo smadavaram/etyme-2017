@@ -96,6 +96,24 @@ export function jobRestriction(
   }
 }
 
+/** Where the work is done, read through lib/work-country. Null where the reader did not say. */
+export type WorkPlace = { country: string; offshore: boolean } | null | undefined
+
+/**
+ * Whether the job's restriction has anything to say where this work is
+ * done. A no-sponsorship policy, or a restriction with no basis at all, is
+ * about US employment: offshore work (or work outside the US) is not
+ * employment in the US, so it says nothing about the person's status there
+ * (founder, 2026-11-03, "offshore jobs is fine"). Export control, a
+ * clearance and a statute still apply wherever the work is done.
+ */
+export function restrictionAppliesHere(r: Restriction, work: WorkPlace): boolean {
+  if (!work) return true
+  const outsideUs = work.offshore || work.country.toUpperCase() !== 'US'
+  if (!outsideUs) return true
+  return r.basis != null && r.basis !== 'SPONSORSHIP_UNAVAILABLE'
+}
+
 /** What the job asks for, in words: "a status that needs no sponsorship" or the status. */
 export function jobAsksFor(required: string): string {
   return required.trim().toUpperCase() === NEEDS_NO_SPONSOR_VALUE
@@ -148,6 +166,8 @@ export interface Package {
   /** Why the role may restrict. Null means nobody recorded one. */
   workAuthBasis: string | null
   workAuthCite: string | null
+  /** Where the work is done (`jobWorkCountry`); absent reads as the US. */
+  work?: WorkPlace
   /** Whether the person said yes to this specific submission. */
   consented: boolean
 }
@@ -279,7 +299,14 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
   //
   // The recruiter still sees it. They see the person too.
   const restriction = jobRestriction(p.workAuthRequired, p.workAuthBasis, p.workAuthCite)
-  if (restriction && p.workAuth) {
+  if (restriction && !restrictionAppliesHere(restriction, p.work)) {
+    out.push({
+      code: 'WORK_AUTH',
+      checker: 'RULE',
+      verdict: 'PASS',
+      reason: 'The work is done outside the US, so the job\u2019s sponsorship rule does not apply.',
+    })
+  } else if (restriction && p.workAuth) {
     // The basis column exists now, so the rules that were written
     // against it can finally reach BLOCK. Until it did, a genuine
     // clearance requirement could only warn.

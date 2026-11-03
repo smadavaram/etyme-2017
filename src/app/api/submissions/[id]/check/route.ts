@@ -1,3 +1,4 @@
+import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
@@ -89,7 +90,7 @@ export async function POST(
   const companyId = caller.company!.id
 
   // ── What the checks read ────────────────────────────────────────────
-  const [profile, hold, requiredDocs] = await Promise.all([
+  const [profile, hold, requiredDocs, work] = await Promise.all([
     prisma.consultantProfile.findFirst({
       where: { personId: submission.personId },
       select: { skills: true, availableFrom: true, workAuth: true },
@@ -103,6 +104,8 @@ export async function POST(
       where: { subjectType: 'PERSON', subjectId: submission.personId },
       select: { status: true, template: { select: { name: true } } },
     }),
+    // Where the work is done, so a no-sponsorship rule is applied only in the US.
+    jobWorkCountry(submission.requirementId, prisma, { personId: submission.personId }),
   ])
 
   const pkg: Package = {
@@ -130,6 +133,7 @@ export async function POST(
     workAuthRequired: submission.requirement.workAuthRequired,
     workAuthBasis: submission.requirement.workAuthBasis,
     workAuthCite: submission.requirement.workAuthCite,
+    work,
     consented: hold?.consentedAt != null,
   }
 

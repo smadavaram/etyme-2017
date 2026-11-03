@@ -317,6 +317,59 @@ describe('the work permit', () => {
     expect(f.reason).toMatch(/need no sponsorship/)
   })
 
+  it("a no-sponsorship job says nothing about an offshore person's status", () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuth: 'H1B',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+          work: { country: 'IN', offshore: true },
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('PASS')
+    expect(f.reason).toBe('The work is done outside the US, so the job\u2019s sponsorship rule does not apply.')
+  })
+
+  it('export control still applies offshore', () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'US_CITIZEN',
+          workAuth: 'H1B',
+          workAuthBasis: 'EXPORT_CONTROL',
+          workAuthCite: 'ITAR',
+          work: { country: 'IN', offshore: true },
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+    expect(f.reason).toMatch(/^Export control \(ITAR\) limits this job/)
+  })
+
+  it('a no-sponsorship job still holds back somebody who would need a visa where the work is done in the US', () => {
+    const f = find(
+      screenRules(
+        arriving({
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuth: 'H1B',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+          work: { country: 'US', offshore: false },
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+  })
+
   it('a basis nobody can check is read as no basis, so it warns', () => {
     const f = find(
       screenRules(

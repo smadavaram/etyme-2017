@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   ruleChecks, evidenceCheck, evidencePrompt, MAX_ATTEMPTS, type Package,
 } from '@/lib/checks'
@@ -215,6 +217,49 @@ describe('the permit', () => {
     )
     expect(f.verdict).toBe('FAIL')
     expect(f.reason).toContain('No sponsorship being available (We do not sponsor work visas for this role)')
+  })
+
+  it("a no-sponsorship job says nothing about an offshore person's status", () => {
+    const f = find(
+      ruleChecks(
+        pkg({
+          workAuthRequired: 'NEEDS_NO_SPONSOR',
+          workAuth: 'H1B',
+          workAuthBasis: 'SPONSORSHIP_UNAVAILABLE',
+          workAuthCite: 'We do not sponsor work visas for this role',
+          work: { country: 'IN', offshore: true },
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('PASS')
+    expect(f.reason).toMatch(/outside the US/)
+  })
+
+  it('export control still applies offshore', () => {
+    const f = find(
+      ruleChecks(
+        pkg({
+          workAuthRequired: 'US_CITIZEN',
+          workAuth: 'H1B',
+          workAuthBasis: 'EXPORT_CONTROL',
+          workAuthCite: 'ITAR',
+          work: { country: 'IN', offshore: true },
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+    expect(f.reason).toContain('ITAR')
+  })
+
+  it('the check route and the screen route read where the work is done before they run the permit rule', () => {
+    const check = readFileSync(join(process.cwd(), 'src/app/api/submissions/[id]/check/route.ts'), 'utf8')
+    const screen = readFileSync(join(process.cwd(), 'src/app/api/requirements/[id]/screen/route.ts'), 'utf8')
+    expect(check).toContain('jobWorkCountry(submission.requirementId, prisma, { personId: submission.personId })')
+    expect(screen).toContain('work: await jobWorkCountry(requirement.id, prisma, { personId: s.personId }),')
   })
 
   it('a basis that is not on the closed list is read as none, so a mismatch warns', () => {
