@@ -14,6 +14,8 @@ import { topDown, signersOf, turnOf, signedBy, type Turn, type LadderRung, type 
 export interface LegContract {
   id: string
   billRate: number
+  /** The currency `billRate` is in, so a figure priced on this leg prints in it. */
+  billCurrency?: string
   overtimeAfterHours: number | null
   overtimeMultiplierBps: number | null
   companyId: string
@@ -96,7 +98,7 @@ export async function laddersAbove(
     const rows = await prisma.sellContract.findMany({
       where: { id: { in: wanted } },
       select: {
-        id: true, billRate: true, companyId: true,
+        id: true, billRate: true, billCurrency: true, companyId: true,
         clientCompanyId: true, endClientCompanyId: true,
         overtimeAfterHours: true, overtimeMultiplierBps: true,
         company: { select: { name: true } },
@@ -121,6 +123,7 @@ export async function laddersAbove(
           contract: {
             id: row.id,
             billRate: row.billRate,
+            billCurrency: row.billCurrency,
             overtimeAfterHours: row.overtimeAfterHours,
             overtimeMultiplierBps: row.overtimeMultiplierBps,
             companyId: row.companyId,

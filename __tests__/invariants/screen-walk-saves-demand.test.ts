@@ -437,3 +437,81 @@ describe('Candidates, opened on one job', () => {
     expect(get).toContain('mayNameJob(asked, deskId, total)')
   })
 })
+
+/**
+ * The third screen walk, 2026-11-03, fault M4: Brightmoor's AP & Payroll
+ * seat accepted Rajesh Iyer's week and read "Accepted 40h — $5,200.00 to
+ * pay for the week". $5,200 is the bill to Northbend; Brightmoor pays its
+ * W2 through payroll at his pay rate. And every figure the route printed
+ * was in dollars, whatever the line's currency.
+ */
+describe('a firm below the top accepting a week is told what it bills and how the person below is paid', () => {
+  it('an employer that bills the week upward is told the figure and who it bills', async () => {
+    const { acceptedSays } = await import('@/app/api/timesheets/accepted-says')
+    expect(acceptedSays({ hours: 40, billMinor: 520_000, currency: 'USD', billsName: 'Northbend Athletic', paidBelow: null }))
+      .toBe('Accepted 40h. $5,200.00 to bill Northbend Athletic.')
+  })
+
+  it('an employer accepting its own W2’s week is told he is paid through payroll, with no pay figure', async () => {
+    const { acceptedSays, paidBelowFrom } = await import('@/app/api/timesheets/accepted-says')
+    const paid = paidBelowFrom({ vendorName: null, contractType: 'W2' }, 'Rajesh Iyer')
+    const says = acceptedSays({ hours: 40, billMinor: 520_000, currency: 'USD', billsName: 'Northbend Athletic', paidBelow: paid })
+    expect(says).toBe(
+      'Accepted 40h. $5,200.00 to bill Northbend Athletic. Rajesh Iyer is paid through payroll on their own pay line.'
+    )
+    // Only one figure in the sentence, and it is the bill: nothing is
+    // ever said to be paid.
+    expect(says.match(/\$/g)).toHaveLength(1)
+    expect(says).not.toContain('to pay')
+  })
+
+  it('a firm that pays a sub-vendor is told the sub-vendor’s invoice is checked against the week', async () => {
+    const { acceptedSays, paidBelowFrom } = await import('@/app/api/timesheets/accepted-says')
+    expect(acceptedSays({ hours: 40, billMinor: null, currency: 'USD', billsName: null, paidBelow: { kind: 'SUPPLIER', supplierName: 'Techpeple' } }))
+      .toBe("Accepted 40h; Techpeple's invoice is checked against it.")
+    // An employer's buy line with a vendor on it is the vendor's invoice, not payroll.
+    expect(paidBelowFrom({ vendorName: 'Nimbus Talent', contractType: 'C2C' }, 'Omar Haddad'))
+      .toEqual({ kind: 'SUPPLIER', supplierName: 'Nimbus Talent' })
+  })
+
+  it('an independent contractor is paid on their own pay line, and no line means no claim about pay', async () => {
+    const { acceptedSays, paidBelowFrom } = await import('@/app/api/timesheets/accepted-says')
+    expect(paidBelowFrom({ vendorName: null, contractType: 'IND_1099' }, 'Colleen Byrne'))
+      .toEqual({ kind: 'OWN_LINE', personName: 'Colleen Byrne' })
+    expect(paidBelowFrom(null, 'Rajesh Iyer')).toBeNull()
+    expect(acceptedSays({ hours: 40, billMinor: null, currency: 'USD', billsName: null, paidBelow: null })).toBe('Accepted 40h.')
+  })
+
+  it('a peso week is said in pesos and a dong week without cents', async () => {
+    const { acceptedSays } = await import('@/app/api/timesheets/accepted-says')
+    const pesos = acceptedSays({ hours: 40, billMinor: 4_800_000, currency: 'MXN', billsName: 'Corvane Packaging', paidBelow: null })
+    expect(pesos).toContain('48,000.00 to bill Corvane Packaging')
+    expect(pesos).not.toMatch(/(^|[^A-Z])\$48,000/)
+    const dong = acceptedSays({ hours: 40, billMinor: 3_000_000, currency: 'VND', billsName: 'Corvane Packaging', paidBelow: null })
+    expect(dong).toContain('₫3,000,000 to bill')
+    expect(dong).not.toContain('3,000,000.00')
+  })
+
+  it('the client’s overtime decision still rides on the end of the sentence', async () => {
+    const { acceptedSays } = await import('@/app/api/timesheets/accepted-says')
+    expect(acceptedSays({
+      hours: 45, billMinor: null, currency: 'USD', billsName: null,
+      paidBelow: { kind: 'PAYROLL', personName: 'Rajesh Iyer' },
+      clientDecided: 'Northbend Athletic decided 5 hours at time and a half.',
+    })).toBe('Accepted 45h. Rajesh Iyer is paid through payroll on their own pay line. Northbend Athletic decided 5 hours at time and a half.')
+  })
+
+  it('the approve route says the acceptance through that sentence and prints every figure in the line’s currency', () => {
+    expect(APPROVE_ROUTE).not.toContain('to pay for the week')
+    expect(APPROVE_ROUTE).toContain('? acceptedMessage')
+    expect(APPROVE_ROUTE).toContain('acceptedSays({')
+    // Every amount through the line's currency, never a bare dollar sign.
+    expect(APPROVE_ROUTE).not.toMatch(/amount\([^,)]*\)/)
+    expect(APPROVE_ROUTE).not.toContain('toFixed(2)')
+    expect(APPROVE_ROUTE).toContain('amount(value.totalCents, worthCurrency)')
+    expect(APPROVE_ROUTE).toContain('rate(deciding.billRate, worthCurrency)')
+    // The ladder carries each leg's currency so a figure priced above the
+    // hours prints in that leg's money.
+    expect(src('src/app/api/timesheets/ladder.ts')).toContain('billCurrency: row.billCurrency')
+  })
+})

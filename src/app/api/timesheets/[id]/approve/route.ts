@@ -23,8 +23,9 @@ import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'
 import { weekFlag, flaggedWeekSays, flagAsksReason } from '@/lib/timesheet-flag'
 import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
 import { compTimeLawful } from '@/lib/worker-classification'
-import { amount } from '@/lib/money-display'
+import { amount, rate } from '@/lib/money-display'
 import { clientSignedSays } from '../../client-signed-says'
+import { acceptedSays, paidBelowFrom, type PaidBelow } from '../../accepted-says'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import {
@@ -416,6 +417,7 @@ export async function POST(
   const deciding: LegContract = above?.contract ?? {
         id: timesheet.sellContract.id,
         billRate: timesheet.sellContract.billRate,
+        billCurrency: timesheet.sellContract.billCurrency,
         overtimeAfterHours: timesheet.sellContract.overtimeAfterHours,
         overtimeMultiplierBps: timesheet.sellContract.overtimeMultiplierBps,
         companyId: timesheet.sellContract.companyId,
@@ -649,6 +651,8 @@ export async function POST(
    * because a week priced on a guess is worse than a blank.
    */
   const worth: number | null = carried && !carried.ok ? null : billAmount
+  /** The currency the deciding leg's rate, and so `value.totalCents`, is in. */
+  const worthCurrency = deciding.billCurrency ?? timesheet.sellContract.billCurrency
 
   // Where a row that carries this figure is filed.
   //
@@ -878,14 +882,14 @@ export async function POST(
           // supplier keeps the supplier's.
           summary: clientSays && moneyCompanyId === onBehalfOf
             ? `${clientSays} ${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h ` +
-              `at $${(deciding.billRate / 100).toFixed(2)}/hr` +
+              `at ${rate(deciding.billRate, worthCurrency)}` +
               (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
               (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') + '.'
             :
             `Timesheet approved: ${hours}h filed, ` +
             `${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h billable ` +
-            `at $${(deciding.billRate / 100).toFixed(2)}/hr = ` +
-            (worth == null ? 'not priced' : `$${worth.toFixed(2)}`) +
+            `at ${rate(deciding.billRate, worthCurrency)} = ` +
+            (worth == null ? 'not priced' : amount(value.totalCents, worthCurrency)) +
             (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
             (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') +
             (clientDecided ? `. ${clientDecided}` : ''),
@@ -1258,11 +1262,57 @@ export async function POST(
     })
   }
 
-  // A client's signature is a bill; an acceptance on a leg that pays is
-  // not "billable" — it is what this firm pays for the week.
-  const worthWord = asParty === 'CLIENT' ? 'billable' : 'to pay for the week'
+  // The figure is the week valued at the deciding leg's bill rate, in that
+  // line's currency (`value.totalCents` is in its minor units). At the top
+  // it is what the week bills. Below the top it is never "what this firm
+  // pays": for the employer it is the bill to the firm above it, and what
+  // the employer pays its own W2 is payroll's to work out at the pay rate
+  // (`acceptedSays`, the third screen walk's fault M4).
+  const worthSays = worth == null ? '' : ` — ${amount(value.totalCents, worthCurrency)} billable`
 
-  const worthSays = worth == null ? '' : ` — ${amount(Math.round(worth * 100))} ${worthWord}`
+  // Below the top: what this firm bills upward, and how the person below
+  // it is paid, each only where this press knows it.
+  let acceptedMessage: string | null = null
+  if (belowTop) {
+    let paidBelow: PaidBelow | null = null
+    let billMinor: number | null = null
+    let billsName: string | null = null
+    if (asParty === 'EMPLOYER') {
+      // The employer's figure is on the contract the hours are filed on,
+      // which is its bill to the firm directly above it.
+      if (worth != null && leg.onHoursLeg) {
+        billMinor = value.totalCents
+        billsName = timesheet.sellContract.clientCompany?.name ?? nameOf(timesheet.sellContract.clientCompanyId)
+      }
+      const lines = await prisma.buyContract.findMany({
+        where: { companyId: employer, candidates: { some: { personId: timesheet.personId } } },
+        select: {
+          contractType: true,
+          vendorCompanyId: true,
+          vendorCompany: { select: { name: true } },
+          sellLinks: { select: { sellContractId: true } },
+        },
+      })
+      const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === timesheet.sellContractId)) ?? lines[0] ?? null
+      paidBelow = line && (!line.vendorCompanyId || line.vendorCompany?.name)
+        ? paidBelowFrom({ vendorName: line.vendorCompany?.name ?? null, contractType: line.contractType }, timesheet.person.name)
+        : null
+    } else if (asParty === 'PASS' && !leg.onHoursLeg && deciding.companyName) {
+      // The firm in the middle buys this week from the firm below it; the
+      // figure on that leg is the sub-vendor's to invoice, and it is
+      // checked against this acceptance. Its own bill upward is priced on
+      // a different line, which this press did not value.
+      paidBelow = { kind: 'SUPPLIER', supplierName: deciding.companyName }
+    }
+    acceptedMessage = acceptedSays({
+      hours,
+      billMinor,
+      currency: worthCurrency,
+      billsName,
+      paidBelow,
+      clientDecided,
+    })
+  }
   // The client pays for the week, so it is told what happened and who
   // bills it, never that the week is "billable" (`clientSignedSays`).
   const overSays = writing.length > 0
@@ -1287,7 +1337,7 @@ export async function POST(
       bankedHours: bankedNow,
       message:
         belowTop
-          ? `Accepted ${hours}h${worthSays}.` + (clientDecided ? ` ${clientDecided}` : '')
+          ? acceptedMessage
           : clientSays
             ? clientSays + overSays
           : writing.length > 0
