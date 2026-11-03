@@ -47,7 +47,6 @@ import { fromUnits, amount } from '@/lib/money-display'
 import { whereHoursLive, descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import type { Rung } from '@/lib/work-chain'
-import { lineFor, type Decision } from '@/lib/overtime'
 import {
   ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, moneyTermsFor,
   type OrderLine, type AgreementTerms,
@@ -56,7 +55,7 @@ import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
 import { whatTheRungBills } from '@/lib/money/rung-billing'
 import { billedElsewhere, type ReceiptOnRecord } from '@/lib/money/billed-elsewhere'
-import { carriedOvertime } from '@/lib/money/client-overtime'
+import { weekOvertimeTerms } from '@/lib/money/week-overtime-terms'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
 import { nothingToBillSays } from '@/lib/money/nothing-to-bill'
 
@@ -1000,30 +999,17 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     // bill to the client, and every direct placement — prices from the
     // answer on its own leg at the multiplier chosen there, as before.
     const belowTop = ts.payer != null && ts.top?.sellContractId !== ts.sellContractId
-    const carried = belowTop ? carriedOvertime(rows, ts.top, ts.sellContract.overtimeMultiplierBps, ts.person.name) : null
-    const unreadable = carried && !carried.ok ? carried.says : null
-
-    const ownLeg = rows.filter((d) => d.sellContractId === ts.sellContractId)
-    const answering = carried?.ok ? carried.rows : ownLeg.length > 0 ? ownLeg : rows
-    // The line the week was decided against: the contract's own, else —
-    // where somebody decided the week — the job's hours, the same line
-    // the approval asked the question on. Pricing it against the
-    // contract's silence left decided overtime off the bill.
-    const policy = carried
-      ? carried.ok ? carried.policy : { afterHours: null, multiplierBps: ts.sellContract.overtimeMultiplierBps }
-      : lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })
-
-    const decisions: Decision[] = carried
-      ? carried.ok ? carried.decisions : []
-      : answering.map((d) => ({
-          weekOf: d.weekOf.toISOString().slice(0, 10),
-          treatment: d.treatment as Decision['treatment'],
-          // The price comes from what was applied when somebody decided,
-          // never from the contract's multiplier as it stands today.
-          appliedBps: d.appliedBps,
-          overtimeHours: Number(d.overtimeHours),
-          accrualBps: d.accrualBps ?? undefined,
-        }))
+    // One reading of the week's terms, the one the order's posting reads
+    // at the client's signature too (lib/money/week-overtime-terms), so the
+    // bill and the order's drawn figure cannot disagree.
+    const { unreadable, policy, decisions, answering } = weekOvertimeTerms({
+      rows,
+      line: ts.sellContract,
+      requirement: ts.sellContract.requirement,
+      top: ts.top,
+      belowTop,
+      personName: ts.person.name,
+    })
     // Rows, not their copies: the client's answer reaching a bill below it
     // is billed too, and no longer changes without restating that bill.
     const idOfWeek = new Map(

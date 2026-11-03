@@ -31,6 +31,7 @@ import { ladderFor, laddersOver, type BookRung, type BookBuy } from '@/lib/work-
 import { legsOf, rungView, type PostingLeg } from '@/lib/money/hop-ledger'
 import { priceSheets, type SheetToPrice } from '@/lib/money/placement-earned'
 import { placementPayTermsMany, payTermsKey } from '@/lib/money/placement-pay-terms'
+import { weekOvertimeTerms, overtimeOnSignedWeek } from '@/lib/money/week-overtime-terms'
 
 /**
  * The order a placement belongs to, opened on first use.
@@ -668,7 +669,16 @@ export interface AssertionPlan {
 /** A week as the books read it: the sheet and every signature standing on it. */
 const WEEK_SELECT = {
   id: true, periodStart: true, periodEnd: true, days: true, leaveDays: true, acceptedHours: true,
-  personId: true, sellContractId: true,
+  totalHours: true, personId: true, sellContractId: true,
+  // What was decided about the week's overtime, on every leg: the bill
+  // prices a premium from these, so the posting at the signature does too
+  // (lib/money/week-overtime-terms).
+  overtimeDecisions: {
+    select: {
+      sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true,
+      accrualBps: true, afterHours: true, decidedByCompanyId: true,
+    },
+  },
   assertions: {
     where: { state: 'LIVE' },
     select: {
@@ -716,6 +726,64 @@ async function planWeek(t: Week, sigs: readonly Signature[]): Promise<AssertionP
 
   const at = t.periodStart
   const rungOf = new Map(ladder.map((r) => [r.sellContractId, r]))
+
+  // The overtime terms of each line on the ladder and the person's name,
+  // read only where somebody decided overtime on this week: most weeks
+  // have none, and the seed posts every week against a query budget.
+  const decisionRows = t.overtimeDecisions ?? []
+  const decided = decisionRows.filter((d) => Number(d.overtimeHours) > 0)
+  const otLines = decided.length > 0
+    ? await prisma.sellContract.findMany({
+        where: { id: { in: ladder.map((r) => r.sellContractId) } },
+        select: {
+          id: true, overtimeAfterHours: true, overtimeMultiplierBps: true,
+          requirement: { select: { hoursPerWeek: true } },
+          person: { select: { name: true } },
+        },
+      })
+    : []
+  const otLineOf = new Map(otLines.map((l) => [l.id, l]))
+  const top = ladder[0]
+    ? { sellContractId: ladder[0].sellContractId, clientCompanyId: ladder[0].endClientCompanyId ?? ladder[0].clientCompanyId }
+    : null
+
+  /**
+   * What the week's overtime adds to its straight time on this rung's own
+   * line, priced the way the rung's bill prices it: the same terms
+   * (`weekOvertimeTerms`) and the same banding (`billableInPeriod`).
+   */
+  const overtimeAdds = (rung: BookRung, s: Signature, rateCents: number) => {
+    const line = otLineOf.get(rung.sellContractId)
+    if (!line || decided.length === 0) return null
+    const terms = weekOvertimeTerms({
+      rows: decisionRows,
+      line,
+      requirement: line.requirement,
+      top,
+      belowTop: !!top && top.sellContractId !== rung.sellContractId,
+      personName: line.person?.name ?? 'this person',
+    })
+    // A rung below the top whose client answer cannot be read is not
+    // priced on a guess: its bill holds the week, and the posting stays
+    // at straight time, as it always was.
+    if (terms.unreadable) return null
+    const days = (t.days as Record<string, number> | null) ?? {}
+    const worked = Object.values(days).reduce((n, h) => n + (Number(h) || 0), 0)
+    const hours = Number(s.hours)
+    const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null)
+    return overtimeOnSignedWeek({
+      sheet: {
+        periodStart: t.periodStart, periodEnd: t.periodEnd, days,
+        leaveDays: (t.leaveDays as Record<string, number> | null) ?? {},
+        totalHours: Number(t.totalHours),
+      },
+      rateCents,
+      terms,
+      accepted: Number.isFinite(hours) && hours < worked - 0.001
+        ? { hours, from: iso(s.coversFrom), to: iso(s.coversTo) }
+        : null,
+    })
+  }
 
   // Every rate change on every line these signatures may price, in one read.
   const rates = await prisma.rateHistory.findMany({
@@ -772,13 +840,26 @@ async function planWeek(t: Week, sigs: readonly Signature[]): Promise<AssertionP
           bill: { openingRateCents: rung.billRate, periods: periodsOf('SELL', rung.sellContractId) },
           pay: null,
         })
+        // The overtime, priced the way this rung's bill prices it, at the
+        // rate in force on the week's last day: the walk of 2026-11-03
+        // found a 44-hour week with a premium posted at straight time,
+        // $196 under its bill.
+        const segs = priced.sheets[0]?.billSegments ?? []
+        const lastRate = segs.length > 0 ? segs[segs.length - 1].rateCents : rung.billRate
+        const ot = overtimeAdds(rung, s, lastRate)
+        const adds = ot?.addsCents ?? 0
+        const otSays = ot && adds !== 0
+          ? ot.overtimeHours > 0
+            ? ` ${ot.overtimeHours} of them overtime${ot.multiplierBps ? ` at ${ot.multiplierBps / 10_000} times` : ''}, as the bill prices it.`
+            : ` ${ot.bankedHours} of them banked as time off, billed later as leave.`
+          : ''
         plan.planned.push({
           kind: 'REVENUE', companyId: leg.companyId, ownSellContractId: rung.sellContractId,
           buyContractId: null, personId: t.personId, clientCompanyId: leg.customerId,
-          amountCents: priced.billedCents, txCurrency: rung.billCurrency, postedAt: at,
-          says: s.role === 'CLIENT_APPROVAL'
+          amountCents: priced.billedCents + adds, txCurrency: rung.billCurrency, postedAt: at,
+          says: (s.role === 'CLIENT_APPROVAL'
             ? `${hours} hours approved by the client, at this line’s own ${amount(rung.billRate, rung.billCurrency)} an hour.`
-            : `${hours} hours accepted by the firm this line bills, at this line’s own ${amount(rung.billRate, rung.billCurrency)} an hour.`,
+            : `${hours} hours accepted by the firm this line bills, at this line’s own ${amount(rung.billRate, rung.billCurrency)} an hour.`) + otSays,
         })
         continue
       }

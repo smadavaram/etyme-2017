@@ -37,7 +37,9 @@ describe('an invoice prices a week decided against the job’s hours where the c
 
   it('bill generation and the check both read the line through lineFor with the job’s hours', () => {
     const src = (p: string) => readFileSync(join(__dirname, '..', '..', 'src', p), 'utf8')
-    expect(src('lib/money/bill-generate.ts')).toContain('lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })')
+    // One reading of the week's terms for the bill and the posting (lib/money/week-overtime-terms, 2026-11-03).
+    expect(src('lib/money/bill-generate.ts')).toContain('weekOvertimeTerms({')
+    expect(src('lib/money/week-overtime-terms.ts')).toContain('lineFor(i.line, i.requirement, { stillToSign: false, decided: answering.length > 0 })')
     expect(src('lib/invoice-match.ts')).toContain('lineFor(billed, billed.requirement ?? ts.sellContract.requirement')
   })
 })
