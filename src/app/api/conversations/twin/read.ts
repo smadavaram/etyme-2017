@@ -36,6 +36,8 @@ import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
 import { firmBilling } from './billing'
 import { firmTuesday } from '@/lib/money/firm-today'
 import { benchAt } from '@/app/api/today/reads'
+import { jobApart } from '@/app/api/requisitions/words'
+import { placeOf } from '@/lib/job-site'
 import { todayReads } from '@/lib/today-page'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
@@ -66,7 +68,7 @@ function suppliersOnly(action: string): boolean {
 const PAPERS_GATE_DAYS = 7
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
-  type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
+  type Readers, type SubmissionJob, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
   putForwardFromPayload, putForwardItemTitle, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
   type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
@@ -870,6 +872,40 @@ export function readersFor(
       // A firm's own lines only, read in ./billing, apart from every read
       // here that is scoped by a site.
       return ownCompany ? firmBilling(caller) : null
+    },
+
+    /**
+     * The job each candidate to review was put forward to, told apart from
+     * the same company's other live jobs of that title by demand's own rule
+     * (`jobApart`: the place, then the day it starts, then the day it was
+     * posted; never the job's id). Only candidates put forward to this
+     * company are read, so no other firm's submission is named here.
+     */
+    async submissionJobs(submissionIds: readonly string[]) {
+      const out = new Map<string, SubmissionJob>()
+      if (submissionIds.length === 0) return out
+      const subs = await prisma.submission.findMany({
+        where: { id: { in: [...submissionIds] }, toCompanyId: companyId },
+        select: {
+          id: true,
+          requirement: { select: { id: true, companyId: true, title: true, location: true, startDate: true, createdAt: true, site: { select: { name: true } } } },
+        },
+      })
+      if (subs.length === 0) return out
+      const titles = [...new Set(subs.map((s) => s.requirement.title))]
+      const owners = [...new Set(subs.map((s) => s.requirement.companyId))]
+      const alike = await prisma.requirement.findMany({
+        where: { companyId: { in: owners }, title: { in: titles }, status: { in: ['OPEN', 'DRAFT'] }, archivedAt: null, mirroredFromId: null },
+        select: { id: true, companyId: true, title: true, location: true, startDate: true, createdAt: true, site: { select: { name: true } } },
+      })
+      const facts = (r: { id: string; location: string | null; startDate: Date | null; createdAt: Date; site: { name: string } | null }) =>
+        ({ id: r.id, location: placeOf(r), startDate: r.startDate, postedAt: r.createdAt })
+      for (const s of subs) {
+        const job = s.requirement
+        const others = alike.filter((r) => r.companyId === job.companyId && r.title === job.title && r.id !== job.id)
+        out.set(s.id, { requirementId: job.id, apart: jobApart(facts(job), others.map(facts)) })
+      }
+      return out
     },
 
     async rollingOff(days: number) {

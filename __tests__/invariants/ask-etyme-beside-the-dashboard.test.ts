@@ -128,7 +128,7 @@ describe('every decision in the count is a card, and none offers to pay what fai
 // ── A worker and a one-person firm ────────────────────────────────────
 
 import { respondWorker, workerToday, cardsFor, readWorkerAsk, type WorkerFacts } from '@/app/api/conversations/twin/worker'
-import { withOwnPapers, queueCards, namedNeedsSays } from '@/app/api/conversations/twin/ask'
+import { withOwnPapers, queueCards, queueAct, OPEN_WHO_APPLIED, namedNeedsSays } from '@/app/api/conversations/twin/ask'
 
 function colleen(over: Partial<WorkerFacts> = {}): WorkerFacts {
   return {
@@ -300,6 +300,41 @@ describe('a job’s name is never cut', () => {
   it('a job request whose own name has a dash is named whole on its card', () => {
     const cards = queueCards({ total: 1, items: [{ type: 'REQUISITION_APPROVAL', title: 'Approve job request — Planning transformation — four supply-planning consultants', entityId: 'r1' }] })
     expect(cards[0].title).toBe('The Planning transformation — four supply-planning consultants job request waits for your approval.')
+  })
+})
+
+describe('a candidate to review, on the card', () => {
+  const review = (id: string, name: string) => ({
+    type: 'SUBMISSION_REVIEW', title: `Review submission — ${name}`, entityId: id, actionUrl: '/dashboard/submissions',
+    subtitle: 'Warehouse systems analyst · from Brightmoor Staffing · $85/hr · submitted 2 days ago',
+  })
+
+  it('two candidates to review for jobs with one title are told apart on the card by the day each job starts', async () => {
+    const { jobApart } = await import('@/app/api/requisitions/words')
+    const dayton1 = { id: 'r1', location: 'Dayton', startDate: new Date('2026-11-09T00:00:00Z'), postedAt: new Date('2026-10-20T00:00:00Z') }
+    const dayton2 = { id: 'r2', location: 'Dayton', startDate: new Date('2026-12-07T00:00:00Z'), postedAt: new Date('2026-10-20T00:00:00Z') }
+    const jobs = new Map([
+      ['s1', { requirementId: 'r1', apart: jobApart(dayton1, [dayton2]) }],
+      ['s2', { requirementId: 'r2', apart: jobApart(dayton2, [dayton1]) }],
+    ])
+    const cards = queueCards({ total: 2, items: [review('s1', 'Ana Lima'), review('s2', 'Ravi Kumar')] }, [], jobs)
+    expect(cards[0].fact).toContain('Warehouse systems analyst starting Nov 9')
+    expect(cards[1].fact).toContain('Warehouse systems analyst starting Dec 7')
+    expect(cards[0].fact).not.toMatch(/\(job|r1|r2/)
+    expect(cards[0].href).toBe('/dashboard/submissions?requirementId=r1')
+    expect(cards[1].href).toBe('/dashboard/submissions?requirementId=r2')
+  })
+
+  it('a candidate-to-review card never draws an act the role contract has no kind for', () => {
+    const d = review('s1', 'Ana Lima')
+    expect(queueAct(d)).toBeNull()
+    const [card] = queueCards({ total: 1, items: [d] })
+    expect(card.act).toBeNull()
+    expect(card.open).toBe(OPEN_WHO_APPLIED)
+    expect(OPEN_WHO_APPLIED).toBe('Open who applied')
+    // Nothing in the chat moves a submission: no PATCH and no status route.
+    const askSource = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/ask.ts'), 'utf8')
+    expect(askSource).not.toMatch(/submissions\/\$\{id\}\/status/)
   })
 })
 

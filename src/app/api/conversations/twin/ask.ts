@@ -2029,6 +2029,13 @@ export interface Readers {
   billing?(): Promise<Billing | null>
   /** Where this seat's company stands on the setup checklist; optional so a reader that has none answers as not asked. */
   setup?(): Promise<SetupRead>
+  /**
+   * The job each candidate to review was put forward to, and what tells it
+   * apart from the client's other jobs of that title (demand's `jobApart`):
+   * so two cards for one person on two jobs of one title never read alike,
+   * and each card's Open lands on that job's candidates.
+   */
+  submissionJobs?(submissionIds: readonly string[]): Promise<ReadonlyMap<string, SubmissionJob>>
   /** This firm's people whose last day falls in the next `days` days, soonest first. */
   rollingOff?(days: number): Promise<Refusable<{ rows: RollRow[] }>>
   /** Who is on this firm's bench: the people who agreed to be, or an integrator's own people between projects. */
@@ -2594,7 +2601,10 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // The boundary, the greeting's last line: said on the first screen, once,
   // now that the phone draws no heading over the thread.
   if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model) })
-  const cards = [...queueCards(queue, items), ...sendCards(sendable)]
+  // The jobs behind the candidates to review, read only where there are any.
+  const reviewIds = (queue?.items ?? []).filter((d) => d.type === 'SUBMISSION_REVIEW').map((d) => d.entityId)
+  const jobs = reviewIds.length && read.submissionJobs ? await read.submissionJobs(reviewIds).catch(() => null) : null
+  const cards = [...queueCards(queue, items, jobs), ...sendCards(sendable)]
   return {
     kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
     items, ...(held.length ? { held } : {}), ...(cards.length ? { queue: cards } : {}), more, ...(opts.greeting ? { greeting: true } : {}),
@@ -3111,6 +3121,21 @@ export interface QueueItem {
   twinApprovalId?: string | null
 }
 
+/** The job a candidate to review was put forward to, and the words that tell it apart from the client's other jobs of its title. */
+export interface SubmissionJob {
+  requirementId: string
+  /** `jobApart`'s words, " in Dayton", ", starting Nov 3"; empty where no other job shares the title. */
+  apart: string
+}
+
+/** The button on a candidate-to-review card: no act kind decides a candidate in the chat, so it opens who applied. */
+export const OPEN_WHO_APPLIED = 'Open who applied'
+
+/** Where a candidate's card opens: that job's candidates, which the Candidates page reads by its id. */
+export function candidatesOfJobHref(requirementId: string): string {
+  return `/dashboard/submissions?requirementId=${encodeURIComponent(requirementId)}`
+}
+
 /**
  * The decisions queue as the route read it for this seat: its total, its
  * rows, and its own one-sentence headline with the names in it (`says`,
@@ -3291,6 +3316,13 @@ function lastSentence(x: string | null | undefined): string {
   return parts[parts.length - 1] ?? ''
 }
 
+/** A submission's subtitle with the job told apart: "Warehouse systems analyst in Dayton · from …". */
+function withJobApart(subtitle: string | null | undefined, apart: string): string {
+  const parts = (subtitle ?? '').split(' · ')
+  if (!apart || !parts[0]) return subtitle ?? ''
+  return [`${parts[0]}${apart}`, ...parts.slice(1)].join(' · ')
+}
+
 /** A subtitle's parts as one sentence: "40 hours, through Computer Systems Inc, Oct 11 – Oct 17." */
 function factOf(subtitle: string | null | undefined): string {
   const parts = (subtitle ?? '').split(' · ').map((p) => p.trim()).filter(Boolean).map((p) => {
@@ -3318,6 +3350,9 @@ export function queueAct(d: QueueItem): QueueAct | null {
     const words = WEEK_WORDS[weekActOf({ signedAbove: /^Accept\b/.test(d.title) })]
     return { label: words.button, url: `/api/timesheets/${id}/approve`, body: {}, done: words.done }
   }
+  // A candidate to review has no act in the chat: no act kind in the role
+  // contract shortlists or turns down a candidate, and a new act in the chat
+  // is a new act kind first, with its tier. The card opens who applied.
   // A link request is answered by the one route Companies presses; Not
   // now on the card changes nothing, so the ask stays for the next look.
   if (d.type === LINK_REQUEST) {
@@ -3371,7 +3406,11 @@ export function carriedByTwin(d: QueueItem, twin: readonly WaitingItem[]): boole
 }
 
 /** Every decision in the count that is not one of the twin's own questions, as a card. */
-export function queueCards(q: QueueRead | null | undefined, twin: readonly WaitingItem[] = []): QueueCard[] {
+export function queueCards(
+  q: QueueRead | null | undefined,
+  twin: readonly WaitingItem[] = [],
+  jobs: ReadonlyMap<string, SubmissionJob> | null = null,
+): QueueCard[] {
   if (!q) return []
   return q.items
     .filter((d) => d.type !== 'TWIN_QUESTION' && !carriedByTwin(d, twin))
@@ -3381,6 +3420,23 @@ export function queueCards(q: QueueRead | null | undefined, twin: readonly Waiti
       // "waits for you to pay it" — its button is Pay, to the receipt's own
       // page, where the payment and its bank reference are recorded.
       const pay = d.type === 'INVOICE_RECEIPT_TO_PAY'
+      // A candidate to review, on the job it was put forward to: told apart
+      // from the client's other jobs of that title, and opening that job's
+      // candidates (the screen walk, 2026-11-02: two identical cards, each
+      // opening the whole Candidates list).
+      // No act kind decides a candidate, so the card opens who applied.
+      if (d.type === 'SUBMISSION_REVIEW') {
+        const job = jobs?.get(d.entityId) ?? null
+        return {
+          key: `${d.type}:${d.entityId}`,
+          type: d.type,
+          title: `${queueName(d)}.`,
+          fact: factOf(job ? withJobApart(d.subtitle, job.apart) : d.subtitle),
+          href: job ? candidatesOfJobHref(job.requirementId) : d.actionUrl ?? DECISIONS_HREF,
+          act: null,
+          open: OPEN_WHO_APPLIED,
+        }
+      }
       return {
         key: `${d.type}:${d.entityId}`,
         type: d.type,
