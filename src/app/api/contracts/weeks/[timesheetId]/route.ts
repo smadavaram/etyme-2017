@@ -5,8 +5,8 @@ import { prisma } from '@/lib/db'
 import { weekBillFor, billThisWeek } from '@/lib/money/week-bill'
 
 /**
- * GET  /api/invoices/week/:timesheetId — the week's bill section for this seat.
- * POST /api/invoices/week/:timesheetId — "Bill this week": draft its bill.
+ * GET  /api/contracts/weeks/:timesheetId — the week's bill section for this seat.
+ * POST /api/contracts/weeks/:timesheetId — "Bill this week": draft its bill.
  *
  * Only the firm whose sell line the week is on reads anything here; the
  * bill is drafted by the Bills page's own generator (lib/money/week-bill).

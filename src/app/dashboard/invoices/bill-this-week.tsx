@@ -19,7 +19,7 @@ export function BillThisWeek({ timesheetId }: { timesheetId: string }) {
     let live = true
     ;(async () => {
       try {
-        const res = await fetch(`/api/invoices/week/${timesheetId}`)
+        const res = await fetch(`/api/contracts/weeks/${timesheetId}`)
         const body = await res.json().catch(() => ({}))
         if (live && res.ok) setView(body.data ?? null)
       } catch { /* nothing drawn */ }
@@ -31,7 +31,7 @@ export function BillThisWeek({ timesheetId }: { timesheetId: string }) {
     setBusy(true)
     setRefused(null)
     try {
-      const res = await fetch(`/api/invoices/week/${timesheetId}`, { method: 'POST' })
+      const res = await fetch(`/api/contracts/weeks/${timesheetId}`, { method: 'POST' })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { setRefused(body.error?.message ?? 'The week could not be billed.'); return }
       setView(body.data?.week ?? null)

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
-import { GET as section, POST as billIt } from '@/app/api/invoices/week/[timesheetId]/route'
+import { GET as section, POST as billIt } from '@/app/api/contracts/weeks/[timesheetId]/route'
 
 /**
  * "Bill this week" on the seeded world. Rosa Delgado's signed week of
@@ -16,7 +16,7 @@ describe('an approved week’s page and its bill', () => {
   let imelda = ''
   const OWNER = 'world-brightmoor@demo.etyme.local'
   const at = (id: string) => ({ params: Promise.resolve({ timesheetId: id }) })
-  const read = async (id: string) => json(await section(req('GET', `/api/invoices/week/${id}`), at(id)))
+  const read = async (id: string) => json(await section(req('GET', `/api/contracts/weeks/${id}`), at(id)))
 
   beforeAll(async () => {
     await freshWorld()
@@ -37,7 +37,7 @@ describe('an approved week’s page and its bill', () => {
     expect(before.body.data, JSON.stringify(before.body)).toMatchObject({ approved: true, bill: null, mayBill: true, says: null })
 
     as(imelda)
-    const r = await json(await billIt(req('POST', `/api/invoices/week/${rosaWeek}`), at(rosaWeek)))
+    const r = await json(await billIt(req('POST', `/api/contracts/weeks/${rosaWeek}`), at(rosaWeek)))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.week.mayBill).toBe(false)
     expect(r.body.data.week.bill.status).toBe('DRAFT')
@@ -46,9 +46,12 @@ describe('an approved week’s page and its bill', () => {
     const lines = await prisma.invoiceLine.findMany({ where: { invoiceId: r.body.data.week.bill.invoiceId } })
     expect(lines.length).toBeGreaterThan(0)
     expect(lines.every((l) => l.timesheetId === rosaWeek)).toBe(true)
+    // And it names where it is paid: Brightmoor's checked payment details.
+    const drafted = await prisma.invoice.findUniqueOrThrow({ where: { id: r.body.data.week.bill.invoiceId }, select: { remitTo: { select: { companyId: true, verifiedAt: true } } } })
+    expect(drafted.remitTo?.verifiedAt).not.toBeNull()
 
     as(imelda)
-    const again = await json(await billIt(req('POST', `/api/invoices/week/${rosaWeek}`), at(rosaWeek)))
+    const again = await json(await billIt(req('POST', `/api/contracts/weeks/${rosaWeek}`), at(rosaWeek)))
     expect(again.status).toBe(409)
     expect(again.body.error.message).toMatch(/drafted and not sent yet/)
   })
@@ -65,7 +68,7 @@ describe('an approved week’s page and its bill', () => {
     expect(r.body.data.says).toMatch(/Imelda Santoro/)
     expect(r.body.data.says).toMatch(/bills this week\.$/)
     as(OWNER)
-    expect((await json(await billIt(req('POST', `/api/invoices/week/${next.id}`), at(next.id)))).status).toBe(403)
+    expect((await json(await billIt(req('POST', `/api/contracts/weeks/${next.id}`), at(next.id)))).status).toBe(403)
   })
 
   it('a week the firm above already holds from this firm is offered no second bill, and each rung reads its own bill', async () => {
