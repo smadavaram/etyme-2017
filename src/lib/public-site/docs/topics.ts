@@ -12,6 +12,12 @@
  * stayed. The headings are the drawing's: Customers, Suppliers and
  * Contractors under "Your records"; Who matches a job, Screening and Who
  * applied under "Recruiting". The addresses did not move.
+ *
+ * "Contractors" stays the heading: it is the buyer's word for a person.
+ * Where a page names a menu link it reads as the menu reads since
+ * 2026-11-03 (`lib/nav-table`): Submissions is who was put forward,
+ * Candidates a client's people it may ask for again or a supplier's bench
+ * and roster, Contracts the people placed and their lines.
  */
 
 import type { DemoTarget } from '../flow'
@@ -71,11 +77,12 @@ export const TOPICS: TopicPage[] = [
     title: 'Contractors',
     lede: 'A contractor is one person on the record, whichever supplier puts them forward.',
     lines: [
-      'A supplier puts a person forward only with their consent.',
-      'A firm’s own employee is the exception. They are told, not asked.',
+      'A supplier puts a person forward only with their consent. Its own employee is told, not asked.',
       'The contractor’s own page names every firm between them and the client.',
       'Only the contractor files their own week.',
       'At the client, each person has one page: time here, interviews and papers. Every look at it is logged.',
+      'On a client’s menu, people it may ask for again are under Candidates. People working there now are under Contracts.',
+      'On a supplier’s menu, its bench and its own people are under Candidates. Its sell and buy lines are under Contracts.',
     ],
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/people', seat: 'the program manager' },
   },
@@ -118,6 +125,7 @@ export const TOPICS: TopicPage[] = [
       'A rate above the range warns. It does not block.',
       'The client’s interview notes never leave the client.',
       'When the last position is filled, the other suppliers are told.',
+      'On the menu this is Submissions: who applied, at the client, and who it put forward, at a supplier.',
     ],
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
