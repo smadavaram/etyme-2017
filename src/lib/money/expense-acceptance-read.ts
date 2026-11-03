@@ -16,6 +16,7 @@ import { minorPerUnit } from '@/lib/money'
 import { laddersOver } from '@/lib/work-chain-read'
 import type { AcceptanceRow, ExpenseOnRecord, Leg, LegAgreement } from '@/lib/money/expense-acceptance'
 import { acceptanceChain, waitingOn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
+import { currencyOfExpense, currencyOfLine, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 
 const AGREEMENT = {
   select: {
@@ -108,20 +109,46 @@ const EXPENSE_SELECT = {
   total: true, periodStart: true,
   company: { select: { name: true } },
   person: { select: { name: true } },
+  currency: true,
   sellContractId: true,
-  sellContract: { select: { billCurrency: true } },
+  sellContract: { select: LINE_CURRENCY_SELECT },
 } as const
 
 type ExpenseRow = {
   id: string; companyId: string; personId: string; category: string; billable: boolean; status: string
   total: { toString(): string }; periodStart: Date
   company: { name: string }; person: { name: string }
-  sellContractId: string; sellContract: { billCurrency: string | null }
+  currency?: string | null
+  sellContractId: string; sellContract: ExpenseLineCurrency
+}
+
+/** What the line under an expense carries for its currency; `buyLinks` where it was read. */
+export interface ExpenseLineCurrency {
+  billCurrency: string | null
+  personId?: string
+  buyLinks?: Parameters<typeof currencyOfLine>[0]['buyLinks']
+}
+
+/**
+ * The currency an expense is in: the one written on it when it was raised
+ * (`Expense.currency`), else its line's by the same rule
+ * (`currencyOfExpense` in lib/expense-currency). Never the line's bill
+ * currency read over the expense's own: the second screen walk of
+ * 2026-11-03 found the acceptance reading `billCurrency`, so a claim spent
+ * in pesos on a line billed in dollars was accepted as dollars.
+ */
+export function expenseCurrency(e: { currency?: string | null; sellContract: ExpenseLineCurrency }): string {
+  if (e.currency) return e.currency.toUpperCase()
+  const l = e.sellContract
+  if (l.buyLinks && l.personId) {
+    return currencyOfExpense({ currency: null, sellContract: { personId: l.personId, billCurrency: l.billCurrency ?? 'USD', buyLinks: l.buyLinks } })!
+  }
+  return (l.billCurrency ?? 'USD').toUpperCase()
 }
 
 /** `Expense.total` is a Decimal in whole currency; everything here is minor units. */
 export function expenseOf(e: ExpenseRow): ExpenseOnRecord {
-  const currency = (e.sellContract.billCurrency ?? 'USD').toUpperCase()
+  const currency = expenseCurrency(e)
   return {
     id: e.id, companyId: e.companyId, companyName: e.company.name,
     personId: e.personId, personName: e.person.name,

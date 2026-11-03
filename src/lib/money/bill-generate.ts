@@ -34,7 +34,8 @@ import { prisma } from '@/lib/db'
 import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
 import { billsOnLeg, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
-import { legsOverMany, acceptancesOn } from '@/lib/money/expense-acceptance-read'
+import { legsOverMany, acceptancesOn, expenseCurrency } from '@/lib/money/expense-acceptance-read'
+import { LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 import { emit } from '@/lib/events'
 import { billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
@@ -240,6 +241,10 @@ const BILL_EXPENSE_INCLUDE = {
       billFrequency: true, billAnchor: true, billStraddle: true,
       workOrder: { select: ORDER_HEADER_SELECT },
       ...SELL_LINE_TERMS_SELECT,
+      // What an expense raised before `Expense.currency` existed is in:
+      // the pay currency of the line paying the worker (lib/expense-currency).
+      personId: true,
+      buyLinks: LINE_CURRENCY_SELECT.buyLinks,
     },
   },
 } as const
@@ -924,7 +929,10 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         // Billed on our line, which is the employer's own where we are the employer.
         sellContractId: ours, personId: e.personId, personName: e.person.name,
         category: e.category, description: e.description, total: Number(e.total),
-        currency: e.sellContract.billCurrency, periodStart: e.periodStart, periodEnd: e.periodEnd,
+        // The currency it was spent in, never the line's bill currency read
+        // over it: an expense in another currency than the bill is left
+        // off, said (lib/expense-billing), because two currencies are never added.
+        currency: expenseCurrency(e), periodStart: e.periodStart, periodEnd: e.periodEnd,
         payerName: leg?.payerName,
         own: leg ? payersOwn(leg.payerId, expenseDecisions.get(e.id) ?? []) : { kind: 'NONE' as const },
         leg: leg ? billsOnLeg(e, chain, ours) : undefined,
