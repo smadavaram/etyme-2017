@@ -18,6 +18,7 @@ import { dayOfMomentFor, readerZone } from '@/lib/when'
 // Money's two panels, each drawn by its own route for the seat reading it:
 // nothing is drawn where the route refuses.
 import { ActivatePanel } from '@/app/dashboard/contracts/activate-panel'
+import { fixWithWho, whoFrom } from './activate-who'
 import { PayLinePanel } from '@/app/dashboard/contracts/pay-line-panel'
 
 /**
@@ -564,6 +565,9 @@ export default function PlacementPage() {
   const session = useSession()
   const [p, setP] = useState<Placement | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Who may activate, from the start's own route (`who`, money's); null
+  // until it answers or where it carries none, and the line stays as it is.
+  const [who, setWho] = useState<string[] | null>(null)
   // A detail page is headed by the section its list sits under on the
   // reader's own menu, never by a company's name (sign-up walk, round
   // six, problem 6). A seat with no desk reaches its placement from Your
@@ -590,6 +594,16 @@ export default function PlacementPage() {
     })()
     return () => { live = false }
   }, [id, session.company?.kind, session.company?.name])
+
+  useEffect(() => {
+    if (!p?.id) return
+    let live = true
+    fetch(`/api/contracts/${p.id}/activate`)
+      .then((res) => res.json())
+      .then((body) => { if (live) setWho(whoFrom(body?.data)) })
+      .catch(() => { /* the line stays as it is */ })
+    return () => { live = false }
+  }, [p?.id])
 
   // A refusal is the page: its sentence alone (round six, problem 12).
   if (error) return <RefusedState says={error} />
@@ -851,7 +865,7 @@ export default function PlacementPage() {
           p.checklist.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-muted'
         }`}>
           {p.checklist.says}
-          {p.checklist.fix && <span className="text-etyme-ink"> {p.checklist.fix}</span>}
+          {p.checklist.fix && <span className="text-etyme-ink"> {fixWithWho(p.checklist.fix, who)}</span>}
         </p>
         <div className="flex flex-wrap gap-2">
           {p.checklist.items.map((it) => (
