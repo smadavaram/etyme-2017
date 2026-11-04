@@ -29,6 +29,7 @@ import { invoiceBetween, partiesOf, directionFrom } from '@/lib/money/invoice-pa
 import { minorFromWhole } from '@/lib/money'
 import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptance'
 import { expensesWaitingOn } from '@/lib/money/expense-acceptance-read'
+import { ownFirmExpenseIds } from '@/lib/money/own-firm-expense'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
 import { waitingQuestions } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
@@ -437,7 +438,10 @@ export async function GET(request: NextRequest) {
       take: 10,
     })
 
-    for (const exp of pendingExpenses) {
+    // A one-person firm's own expense is never put to her (money's rule, 2026-11-04).
+    const ownFirm = await ownFirmExpenseIds(companyId, pendingExpenses)
+
+    for (const exp of pendingExpenses.filter((e) => !ownFirm.has(e.id))) {
       const daysSinceSubmit = exp.submittedAt
         ? Math.floor((now.getTime() - exp.submittedAt.getTime()) / (1000 * 60 * 60 * 24))
         : 0
