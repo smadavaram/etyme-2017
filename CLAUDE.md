@@ -1858,6 +1858,13 @@ nothing on a menu, a chip or a greeting is hidden by a firm's posture
 (prime, sub-vendor, bench are positions on a deal, never a kind). Built
 by the architect in the same navigation wave, after Network and the
 Paperwork tab, the CLAUDE.md table moving with the code.
+**Network sits above Jobs. The founder, the same hour:** *"Network
+can stay above the jobs."* The master data comes first and the process
+follows it, so every firm's menu reads **Ask Etyme · Today · Network ·
+Jobs · Submissions · Contracts · Timesheets · Bills · Invoice receipts ·
+Payroll · Settings**, a client's without Bills and Payroll, an MSP's
+without Payroll. This replaces "the network after the money" in the
+Network paragraph above.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
