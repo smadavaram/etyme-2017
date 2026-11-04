@@ -1904,6 +1904,26 @@ commit made while an agent may be editing the table checks `git diff
 sentence) and market (the documentation's menu words) follow in the
 same hour, then the matrix rows, release pass 36, the walk with the
 navigation screenshots, and the deploy.
+**Conversation (a46289407, 0d69fbd25), market (09b5cdc41) and the matrix
+(56eca337b), the same hour.** Ask Etyme says where a page is on the new
+menu: "Where is our master data?" and "Where is our network?" answer
+Network with its two groups, "Where is our paperwork?" and "Where is
+compliance?" the Paperwork tab under Contracts, "payments in" the AR
+tab under Bills, "payments out" and "what suppliers sent" Invoice
+receipts, "payroll" and "commissions" Payroll, and a client asking for
+payments in or payroll is told no page of hers shows them, because a
+client bills nobody and employs no contractor; Ask Etyme's own sentence
+names the steps the way the public pages do ("jobs, submissions,
+timesheets and invoice receipts") and its refusal lists "jobs,
+submissions, contracts, timesheets, bills, invoice receipts, payroll,
+papers and people". The documentation's master-data pages say "under
+Network", "under Contracts, their papers on the Paperwork tab", and the
+time-and-money page says Bills, Invoice receipts and Payroll. Open from
+it, conversation's: when a supplier asks Ask Etyme to pay an invoice,
+the refusal's "Open Invoice receipts" link opens `/dashboard/invoices`
+(its Bills) rather than `/dashboard/ap`, because `neverSays` is not
+told whether the seat is in a client's program; money's `receiptsLink`
+already decides it and is the fix.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
