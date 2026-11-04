@@ -1924,6 +1924,25 @@ the refusal's "Open Invoice receipts" link opens `/dashboard/invoices`
 (its Bills) rather than `/dashboard/ap`, because `neverSays` is not
 told whether the seat is in a client's program; money's `receiptsLink`
 already decides it and is the fix.
+**Release pass 36 on 0d69fbd25:** type check clean, 13,605 of 13,612
+unit, 2,642 of 2,645 integration, build clean. The seven unit reds were
+old assertions naming the eyebrows and links the navigation moved
+(Candidates, Companies and Settings, now Network and Contracts; a
+nav-table comment that wrapped), brought up to the code in cd4f95f5c
+with no product file touched, each green alone. **The three integration
+reds were a real regression from eded7ecdc, found by the pass and not
+by any walk:** the papers fix stopped listing any request item asking
+for a kind already on file and in date, and the nightly license renewal
+asks for exactly that, so Colleen Byrne's renewal ask vanished from her
+page and her greeting and "who asked" read the Wisconsin Board of
+Nursing, the issuer of the only license row left. Fixed in 4cf29d862: a
+renewal request (`CREDENTIAL_RENEWAL`) is marked as a renewal by
+`/api/me/papers` and `myPapers` never treats the paper being renewed as
+its answer; every other request keeps eded7ecdc's rule; "who asked" is
+the firm that raised it. One gap, said once: a renewal is recognized
+by its packet key, so a route asking for a renewal under another key
+would need to set the same flag. Release pass 37 runs on the quiet
+tree after both.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
