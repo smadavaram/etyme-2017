@@ -106,7 +106,9 @@ describe('a menu is nine links at most, and every other page is a tab of one of 
     const vendor = getNavForKind('VENDOR', false)
     expect(tabsFor(vendor, '/dashboard/interviews')).toEqual({ label: 'Submissions', tabs: vendor.find((s) => s.label === 'Submissions')!.items })
     expect(tabsFor(vendor, '/dashboard/interviews')!.tabs.map((t) => t.label)).toEqual(['Submissions', 'Interviews'])
-    expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(['Sell contracts', 'Buy contracts', 'POs'])
+    expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(
+      ['Sell contracts', 'Buy contracts', 'POs', 'Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']
+    )
     expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR', 'AP', 'Payroll', 'Commissions'])
   })
 
@@ -124,10 +126,10 @@ describe('a menu is nine links at most, and every other page is a tab of one of 
     expect(linksOf(network)[0]).toMatchObject({ label: 'Network', href: '/dashboard/bench' })
   })
 
-  it('groups tabs only under Network: every other page that was a neighbor is a plain tab', () => {
+  it('groups tabs only under Network and Contracts: every other page that was a neighbor is a plain tab', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
       for (const worker of [false, true]) {
-        const items = getNavForKind(kind, false, { worker }).flatMap((s) => s.label === 'Network' ? [] : s.items)
+        const items = getNavForKind(kind, false, { worker }).flatMap((s) => s.label === 'Network' || s.label === 'Contracts' ? [] : s.items)
         expect(items.filter((i) => i.group).map((i) => i.label), kind).toEqual([])
       }
     }
@@ -1204,13 +1206,14 @@ describe('the compliance desk and a person’s own record have a door in every m
       .toContain(PRIVACY_DESK)
   })
 
-  it('names Data requests and Document requests apart, as two tabs of Settings with two names', () => {
+  it('names Data requests and Document requests apart, Data requests a tab of Settings and Document requests a tab of Contracts, with two names', () => {
     // Two different things that would read as the pair of near-duplicates
-    // this menu has been corrected for three times.
+    // this menu has been corrected for three times. Document requests
+    // moved to Contracts with the paperwork on 2026-11-04.
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
-      const settings = getNavForKind(kind, false).find((s) => s.label === 'Settings')!
-      const desk = settings.items.find((i) => pathOf(i.href) === PRIVACY_DESK)!
-      const packets = settings.items.find((i) => i.href === '/dashboard/packets')!
+      const nav = getNavForKind(kind, false)
+      const desk = nav.find((s) => s.label === 'Settings')!.items.find((i) => pathOf(i.href) === PRIVACY_DESK)!
+      const packets = nav.find((s) => s.label === 'Contracts')!.items.find((i) => i.href === '/dashboard/packets')!
       expect(desk.label, kind).toBe('Data requests')
       expect(packets.label, kind).toBe('Document requests')
     }
@@ -1539,5 +1542,45 @@ describe('master data sits under Network: the people a firm keeps and the firms 
       const nav = getNavForKind(kind, false)
       expect(nav.find((s) => s.items.some((i) => i.href === '/dashboard/settings/sites'))!.label, kind).toBe('Settings')
     }
+  })
+})
+
+describe('paperwork is a tab of Contracts, not a thing of its own (founder, 2026-11-04)', () => {
+  const PAPER_PAGES = ['/dashboard/documents', '/dashboard/loose-ends', '/dashboard/packets', '/dashboard/outbound-pack', '/dashboard/compliance', '/dashboard/checks']
+
+  it('Paperwork is a tab of Contracts on every firm’s menu, beside the lines it protects', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+      const nav = getNavForKind(kind, false)
+      const row = tabsFor(nav, '/dashboard/documents')!
+      expect(row.label, kind).toBe('Contracts')
+      expect(row.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)]), kind).toEqual([
+        ['Contracts', ['Sell contracts', 'Buy contracts', 'POs']],
+        ['Paperwork', ['Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']],
+      ])
+    }
+    const client = tabsFor(getNavForKind('CLIENT', false), '/dashboard/packets')!
+    expect(client.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
+      ['Contracts', ['Contracts', 'Ending soon', 'Past contractors', 'Tenure', 'Duplicate check']],
+      ['Paperwork', ['Compliance', 'Document requests']],
+    ])
+  })
+
+  it('nothing under Settings that is a paper’s page remains there but the DNR list, and Papers you require is the setup checklist’s own item', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const settings = getNavForKind(kind, false).find((s) => s.label === 'Settings')!.items.map((i) => i.href)
+      for (const href of PAPER_PAGES) expect(settings, `${kind} ${href}`).not.toContain(href)
+      if (kind !== 'CLIENT') expect(settings, kind).toContain('/dashboard/blacklist')
+    }
+  })
+
+  it('no paper’s page lost its address, and the one-person firm’s Paperwork and the worker’s own Your paperwork are unchanged', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+      const contracts = getNavForKind(kind, false).find((s) => s.label === 'Contracts')!.items.map((i) => i.href)
+      for (const href of PAPER_PAGES) expect(contracts, `${kind} ${href}`).toContain(href)
+    }
+    const solo = getNavForKind('CONSULTANT_CORP', false).find((s) => s.label === 'Paperwork')!
+    expect(solo.items.map((i) => i.label)).toEqual(['Company paperwork', 'Your paperwork', 'Compliance'])
+    const worker = getNavForKind(null, true).find((s) => s.label === 'You')!
+    expect(worker.items.map((i) => i.label)).toContain('Your paperwork')
   })
 })

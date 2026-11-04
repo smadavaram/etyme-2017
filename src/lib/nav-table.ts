@@ -63,7 +63,8 @@ export type NavItem = {
   badge?: number
   /**
    * The group a tab sits in, inside a tabbed section that holds two
-   * lists. Only Network sets one (founder, 2026-11-04, "bring all master
+   * lists. Network and Contracts set one (Contracts: its lines, and
+   * Paperwork beside them, since 2026-11-04). Network (founder, 2026-11-04, "bring all master
    * data under network hierarchy"): its tabs are the people a firm keeps
    * (Candidates) and the firms it trades with (Companies, or a client's
    * Suppliers), and the tab row draws each group's name and then its
@@ -525,10 +526,15 @@ const DNR_LIST: NavItem = { label: 'DNR list', href: '/dashboard/blacklist', ico
 const DATA_REQUESTS: NavItem = { label: 'Data requests', href: '/dashboard/privacy', icon: '⚖', needs: ['governance.read'], api: 'data-requests' }
 const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' }
 
-/** A supplier's Settings, every tab in the order a firm reaches for it. */
+/**
+ * A supplier's Settings, every tab in the order a firm reaches for it.
+ * The papers' working pages left it for Contracts on 2026-11-04 (founder:
+ * "Should the paperwork be connected to contracts — why is it
+ * navigationally independent?"); the DNR list and the automation ladder
+ * stay, and Papers you require is the setup checklist's item.
+ */
 const FIRM_SETTINGS: NavItem[] = [
-  SETTINGS, SITES, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION,
-  PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECK_QUEUE, DNR_LIST,
+  SETTINGS, SITES, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
   DATA_REQUESTS, YOUR_DATA_HERE,
 ]
 
@@ -563,7 +569,13 @@ const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CONTACTS])
  * or the prime; Buy, the line that pays a sub-vendor or the firm's own
  * employee; and the orders beside them.
  */
-const FIRM_CONTRACTS: NavItem[] = [SELL_CONTRACTS, BUY_CONTRACTS, POS]
+const FIRM_CONTRACTS: NavItem[] = [
+  ...inGroup('Contracts', [SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  // Paperwork is a tab of Contracts, not a thing of its own (founder,
+  // 2026-11-04): a paper lives on the line, on the side it protects. The
+  // firm's own Paperwork page first, then HR's working lists beside it.
+  ...inGroup('Paperwork', [PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECK_QUEUE]),
+]
 
 /**
  * A staffing vendor: Ask Etyme · Today · Jobs · Submissions · Contracts ·
@@ -748,12 +760,16 @@ const CLIENT_NAV: NavSection[] = [
   // "Contracts, not Contractors" (founder, 2026-11-03): from the award on
   // the thing a client holds is the line, with its papers, rate and dates.
   tabbed('Contracts', [
-    { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
-    { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
-    { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎' },
-    { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
-    // Where a chain we can only see part of makes one person look like two.
-    { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉' },
+    ...inGroup('Contracts', [
+      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
+      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
+      { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎' },
+      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+      // Where a chain we can only see part of makes one person look like two.
+      { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉' },
+    ]),
+    // The papers on its lines, beside the lines (founder, 2026-11-04).
+    ...inGroup('Paperwork', [COMPLIANCE, DOCUMENT_REQUESTS]),
   ]),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES]),
   // What a firm receives from below is an invoice receipt (founder, 2026-09-28).
@@ -792,8 +808,6 @@ const CLIENT_NAV: NavSection[] = [
     // The MSP the client seats in its program, granted and taken back here.
     { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', needs: ['governance.read'] },
     { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
-    COMPLIANCE,
-    DOCUMENT_REQUESTS,
     // The program manager's twin (2026-10-12): what it did, what it is
     // waiting on a person for, and what it may do.
     { label: 'Program twin', href: '/dashboard/twin', icon: '◎', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },

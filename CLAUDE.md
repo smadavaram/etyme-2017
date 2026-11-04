@@ -4627,8 +4627,8 @@ Suppliers).
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Network · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check → Contracts. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Candidates, Suppliers, Contacts, Agreements, Supplier scorecards → Network. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import, Sites → Settings. |
-| Supplier | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs → Contracts. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Candidates, Bench, Bench pay, Bench check-ins, Training, Companies, Suppliers, Contacts → Network. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
+| Client | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Network · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Candidates, Suppliers, Contacts, Agreements, Supplier scorecards → Network. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites → Settings. |
+| Supplier | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Candidates, Bench, Bench pay, Bench check-ins, Training, Companies, Suppliers, Contacts → Network. Users & permissions, Setup, Sites, Import, Integrations, Automation, DNR list, Data requests, Your data → Settings. |
 | Integrator | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
 | MSP | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | The supplier's, with no Candidates under Network, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Companies, Suppliers, Supplier scorecards, Contacts → Network. |
 | One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
@@ -4638,11 +4638,14 @@ Each link opens the first of its pages the reader may open, and on any
 of them the shell draws the tab row under the page header, the noun's
 own page first (`components/shell/section-pills`). Nothing behind the
 menu is deleted: every page keeps its address, and search and the +
-button still find it. Network is the one link whose tab row is
-grouped: each group's name, then its pages ("Candidates: Bench · Bench
-pay · … | Companies: Suppliers · Contacts"), the group's name being the
-link to its own register, so Bench or Contacts is one click from the
-Network link. The menu never prints a group, and the eyebrow over every
+button still find it. Network and Contracts are the two links whose
+tab rows are grouped: each group's name, then its pages ("Candidates:
+Bench · Bench pay · … | Companies: Suppliers · Contacts"; "Contracts:
+Sell contracts · Buy contracts · POs | Paperwork: Missing paperwork ·
+Document requests · …"), the group's name being the link to its own
+register where one is named after it, so Bench, Contacts or Document
+requests is one click from the link. Settings keeps Papers you require
+(the setup checklist's item), the DNR list and the automation ladder. The menu never prints a group, and the eyebrow over every
 page in it reads Network. Both lines of a contract sit side by side
 under Contracts, a link of its own; Sites stay under Settings. A link
 is one of the nine on every firm's menu; the worker's "You" is the one

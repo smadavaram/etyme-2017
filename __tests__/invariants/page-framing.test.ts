@@ -659,9 +659,9 @@ describe('sign-up walk, round three: a page is headed by the link the reader cli
     expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Network')
   })
 
-  it('Paperwork, Screening packs and Check queue are headed Settings for a staffing vendor, where its menu files them as tabs', () => {
+  it('Paperwork, Screening packs and Check queue are headed Contracts for a staffing vendor, where its menu files them as tabs since 2026-11-04', () => {
     for (const href of ['/dashboard/documents', '/dashboard/outbound-pack', '/dashboard/checks']) {
-      expect(sectionOfHref('VENDOR', href), href).toBe('Settings')
+      expect(sectionOfHref('VENDOR', href), href).toBe('Contracts')
     }
   })
 
