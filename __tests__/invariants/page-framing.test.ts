@@ -41,7 +41,7 @@ const OWNER = { permissions: ['*'] as string[] }
 
 const ALL_PAGES: PageKey[] = [
   'contracts.sell', 'contracts.buy', 'requirements', 'submissions',
-  'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants',
+  'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants', 'ap',
 ]
 
 const ALL_KINDS: CompanyKind[] = ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']
@@ -193,6 +193,28 @@ describe('an integrator and an MSP are headed by the same links a supplier reads
     expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
   })
 
+  it('the page under a supplier’s Invoice receipts link is headed Invoice receipts, never Accounts payable', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
+      const f = pageFraming(kind, 'ap', null, OWNER)
+      expect(f.eyebrow, kind).toBe('Invoice receipts')
+      expect(f.title, kind).toBe('Invoice receipts')
+      expect(`${f.title} ${f.subtitle}`, kind).not.toMatch(/accounts payable/i)
+    }
+  })
+
+  it('a client’s AP tab is headed by its Invoice receipts link, and the title says the tab', () => {
+    const f = pageFraming('CLIENT', 'ap', null, OWNER)
+    expect(f.eyebrow).toBe('Invoice receipts')
+    expect(f.title).toBe('Accounts payable')
+  })
+
+  it('the people a supplier keeps are headed Network · Candidates, never Consultants', () => {
+    for (const kind of ['VENDOR', 'GSI'] as CompanyKind[]) {
+      const f = pageFraming(kind, 'consultants', null, OWNER)
+      expect(`${f.eyebrow} · ${f.title}`, kind).toBe('Network · Candidates')
+    }
+  })
+
   it('an MSP reads Jobs over the job requests it works', () => {
     expect(pageFraming('MSP', 'requirements', null, OWNER).eyebrow).toBe('Jobs')
   })
@@ -287,8 +309,8 @@ describe('a client sees demand-side framing', () => {
 
 describe('every page is framed for every company type', () => {
 
-  it('nine shared pages carry framing for both sides', () => {
-    expect(ALL_PAGES).toHaveLength(9)
+  it('ten shared pages carry framing for both sides', () => {
+    expect(ALL_PAGES).toHaveLength(10)
   })
 
   it('no page is missing a title, eyebrow, or subtitle', () => {

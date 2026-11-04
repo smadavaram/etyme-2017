@@ -108,6 +108,7 @@ export type PageKey =
   | 'invoices'
   | 'expenses'
   | 'consultants'
+  | 'ap'
 
 /** The words on the page, with no section name and no seat among them. */
 type Words = Omit<PageFraming, 'eyebrow' | 'whose'>
@@ -219,6 +220,15 @@ const SUPPLIER: Record<PageKey, Words> = {
     subtitle: 'Your talent pool. Skills, availability, work authorization, and bench tier.',
     create: null,
   },
+  ap: {
+    // The page under the Invoice receipts link (the fifth screen walk,
+    // 2026-11-04, A4: it was headed "Accounts payable" under a link that
+    // said Invoice receipts). What a firm receives from below is an
+    // invoice receipt; the party who issues a document names it.
+    title: 'Invoice receipts',
+    subtitle: 'What your suppliers sent you, what you owe each one, and when it is due.',
+    create: null,
+  },
 }
 
 const CLIENT: Record<PageKey, Words> = {
@@ -301,6 +311,14 @@ const CLIENT: Record<PageKey, Words> = {
     subtitle: 'Everyone your suppliers put in front of you: who is here now, who worked here before, and who you would ask for again.',
     create: null,
   },
+  ap: {
+    // A client's AP is a tab under its Invoice receipts link, beside the
+    // list of receipts itself, so the title says the tab and the eyebrow
+    // says the link.
+    title: 'Accounts payable',
+    subtitle: 'What you owe your suppliers, to whom, and when each one is due.',
+    create: null,
+  },
 }
 
 /**
@@ -322,6 +340,7 @@ const BOOK: Record<PageKey, string> = {
   invoices: 'invoice receipts',
   expenses: 'expenses',
   consultants: 'candidates',
+  ap: 'accounts payable',
 }
 
 /**
@@ -343,6 +362,7 @@ const ROUTE: Record<PageKey, string> = {
   invoices: '/dashboard/invoices',
   expenses: '/dashboard/expenses',
   consultants: '/dashboard/consultants',
+  ap: '/dashboard/ap',
 }
 
 /**
