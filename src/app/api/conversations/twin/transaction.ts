@@ -4,8 +4,8 @@
  * CLAUDE.md, "One Ask Etyme conversation per person, saved").
  *
  * It answers about this company's own work on the record — its jobs,
- * candidates, timesheets, bills, invoice receipts, payroll, papers and
- * people — and refuses anything else in one sentence that says what it
+ * submissions, contracts, timesheets, bills, invoice receipts, payroll,
+ * papers and people — and refuses anything else in one sentence that says what it
  * can help with. A question about another company's book, or a general
  * question with no record behind it, is refused here, by rules, before
  * any model is called; never answered from a model's own knowledge.
@@ -25,7 +25,7 @@
 
 /** Refused: no record behind the question. One sentence, under twenty words, saying what Ask Etyme helps with. */
 export const ONLY_THE_RECORD =
-  'I answer only about your company’s own record: jobs, candidates, timesheets, bills, invoice receipts, payroll, papers and people.'
+  'I answer only about your company’s own record: jobs, submissions, contracts, timesheets, bills, invoice receipts, payroll, papers and people.'
 
 /** Refused: another company's book, or a benchmark across companies. */
 export const NOT_ANOTHER_BOOK =

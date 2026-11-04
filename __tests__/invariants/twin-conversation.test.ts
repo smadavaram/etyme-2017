@@ -1081,7 +1081,7 @@ describe('Ask Etyme never goes beyond the transaction', () => {
       expect(read.model, q).not.toHaveBeenCalled()
       expect(read.logPrompt, q).not.toHaveBeenCalled()
     }
-    expect(ONLY_THE_RECORD).toBe('I answer only about your company’s own record: jobs, candidates, timesheets, bills, invoice receipts, payroll, papers and people.')
+    expect(ONLY_THE_RECORD).toBe('I answer only about your company’s own record: jobs, submissions, contracts, timesheets, bills, invoice receipts, payroll, papers and people.')
     expect(voiceBreaks(ONLY_THE_RECORD)).toEqual([])
     // It is refused even where the company has the model off: no model would be allowed to answer it.
     const off = readers({ modelOn: vi.fn(async () => false) })
@@ -1605,6 +1605,13 @@ describe('every first screen names a person and the step in front of them (found
     expect(notices).toContain("where: { id: { in: order }, archivedAt: null, ...(me ? { OR: [{ companyId: me }, { withCompanyId: me }] } : {}) }")
   })
 
+  it('Ask Etyme names the steps in the public pages’ words, jobs, submissions, timesheets and invoice receipts, and never calls who applied “candidates”', () => {
+    for (const line of [closeFor('CLIENT'), closeFor('MSP', 'Cavanaugh Glassworks'), GREETING_CLOSE, ONLY_THE_RECORD]) {
+      expect(line).toMatch(/jobs, submissions, /)
+      expect(line).not.toMatch(/\bcandidates\b/)
+    }
+  })
+
   it('the closing line, the four chips and the box are the party’s own: a client and an MSP ask about contractors, a supplier about its people and money, a one-person firm about her own work', () => {
     expect(partyOf({ companyKind: 'CLIENT' })).toBe('CLIENT')
     expect(partyOf({ companyKind: 'MSP', seatedAt: 'Cavanaugh Glassworks' })).toBe('MSP')
@@ -1612,8 +1619,8 @@ describe('every first screen names a person and the step in front of them (found
     expect(partyOf({ companyKind: 'GSI' })).toBe('FIRM')
     expect(partyOf({ companyKind: 'CONSULTANT_CORP' })).toBe('SOLO')
     expect(partyOf({ companyKind: 'VENDOR', worker: true })).toBe('WORKER')
-    expect(closeFor('CLIENT')).toBe('Ask me about your jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.')
-    expect(closeFor('MSP', 'Cavanaugh Glassworks')).toBe('Ask me about Cavanaugh Glassworks’ jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.')
+    expect(closeFor('CLIENT')).toBe('Ask me about your jobs, submissions, timesheets and invoice receipts. I answer from the record, and I never move money without a person.')
+    expect(closeFor('MSP', 'Cavanaugh Glassworks')).toBe('Ask me about Cavanaugh Glassworks’ jobs, submissions, timesheets and invoice receipts. I answer from the record, and I never move money without a person.')
     expect(closeFor('FIRM')).toBe('Ask me about our people, our bench, our weeks and our bills. I answer from the record, and I never move money without a person.')
     expect(closeFor('SOLO')).toBe('Ask me about your weeks, your bills, your papers and your contract. I never file or sign anything for you.')
     expect(GREETING_CLOSE).toBe(closeFor('CLIENT'))

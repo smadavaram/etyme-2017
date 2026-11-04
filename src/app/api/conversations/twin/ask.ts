@@ -853,7 +853,7 @@ export function closeFor(party: Party, client?: string | null): string {
   if (party === 'FIRM') return 'Ask me about our people, our bench, our weeks and our bills. I answer from the record, and I never move money without a person.'
   if (party === 'SOLO') return 'Ask me about your weeks, your bills, your papers and your contract. I never file or sign anything for you.'
   const whose = party === 'MSP' && client?.trim() ? possessive(client) : 'your'
-  return `Ask me about ${whose} jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.`
+  return `Ask me about ${whose} jobs, submissions, timesheets and invoice receipts. I answer from the record, and I never move money without a person.`
 }
 
 /** What the box says before anybody types. */
@@ -1855,7 +1855,7 @@ export function weeksSay(total: number, oldest: WeekRow | null, company: string,
 }
 
 /** The closing line of the greeting, word for word from the approved prototype. */
-export const GREETING_CLOSE = 'Ask me about your jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.'
+export const GREETING_CLOSE = 'Ask me about your jobs, submissions, timesheets and invoice receipts. I answer from the record, and I never move money without a person.'
 
 /** "Good morning", by the reader's own clock. */
 export function partOfDay(hour: number): string {
