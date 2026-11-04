@@ -620,9 +620,10 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
 // ── Where a page is (Tapin's Owner on production, 2026-11-03) ───────────
 
 describe('where a page is, asked by a supplier’s Owner, a client’s hiring manager, a worker and a one-person firm', () => {
-  type Who = 'OWNER' | 'HIRING_MANAGER' | 'WORKER' | 'SOLO'
+  type Who = 'OWNER' | 'HIRING_MANAGER' | 'CLIENT_OWNER' | 'WORKER' | 'SOLO'
   const WHO: Record<Who, { companyKind: CompanyKind | null; party: 'FIRM' | 'CLIENT' | 'WORKER' | 'SOLO'; permissions: string[] }> = {
     OWNER: { companyKind: 'VENDOR', party: 'FIRM', permissions: ['*'] },
+    CLIENT_OWNER: { companyKind: 'CLIENT', party: 'CLIENT', permissions: ['*'] },
     HIRING_MANAGER: { companyKind: 'CLIENT', party: 'CLIENT', permissions: ['requirements.write', 'timesheets.approve', 'timesheets.read'] },
     WORKER: { companyKind: null, party: 'WORKER', permissions: ['assignments.read', 'timesheets.read'] },
     SOLO: { companyKind: 'CONSULTANT_CORP', party: 'SOLO', permissions: ['*'] },
@@ -689,6 +690,102 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
 
   it('a one-person firm asks “Where are my contracts?” and reads both pages that fit, Contracts and Your work', async () => {
     await placed('SOLO', 'Where are my contracts?', 'Your contracts are under Contracts, and under Your work.', ['/dashboard/contracts', '/dashboard/my-work'])
+  })
+
+  // ── The 2026-11-04 menu: Network above Jobs, Paperwork under Contracts, the money in the founder's order ──
+
+  it('a supplier’s Owner asks “Where is our network?” and reads Candidates and Companies under Network', async () => {
+    await placed('OWNER', 'Where is our network?', 'Your network is under Network, on the Candidates and Companies tabs.', ['/dashboard/consultants', '/dashboard/companies'])
+  })
+
+  it('a supplier’s Owner asks “Where is our master data?” and reads Network, where the people and the firms it keeps are', async () => {
+    await placed('OWNER', 'Where is our master data?', 'Your master data is under Network, on the Candidates and Companies tabs.', ['/dashboard/consultants', '/dashboard/companies'])
+  })
+
+  it('a client’s Owner asks “Where is our master data?” and reads Candidates and Suppliers under Network', async () => {
+    await placed('CLIENT_OWNER', 'Where is our master data?', 'Your master data is under Network, on the Candidates and Suppliers tabs.', ['/dashboard/people', '/dashboard/suppliers'])
+  })
+
+  it('a supplier’s Owner asks “Where are my suppliers?” and reads Network, never a link of its own', async () => {
+    await placed('OWNER', 'Where are my suppliers?', 'Your suppliers are under Network, on the Suppliers and Companies tabs.', ['/dashboard/suppliers', '/dashboard/companies'])
+  })
+
+  it('a supplier’s Owner asks “Where are our clients?” and reads Companies under Network', async () => {
+    await placed('OWNER', 'Where are our clients?', 'Your companies are under Network, on the Companies and Suppliers tabs.', ['/dashboard/companies', '/dashboard/suppliers'])
+  })
+
+  it('a client’s Owner asks “Where are my suppliers?” and reads Suppliers under Network', async () => {
+    await placed('CLIENT_OWNER', 'Where are my suppliers?', 'Your suppliers are under Network, on the Suppliers tab.', ['/dashboard/suppliers'])
+  })
+
+  it('a supplier’s Owner asks “Where is our paperwork?” and reads the Paperwork tab under Contracts', async () => {
+    await placed('OWNER', 'Where is our paperwork?', 'Your paperwork is under Contracts, on the Paperwork and Document requests tabs.', ['/dashboard/documents', '/dashboard/packets'])
+  })
+
+  it('a supplier’s Owner asks “Where are the papers?” and reads the Paperwork tab under Contracts', async () => {
+    await placed('OWNER', 'Where are the papers?', 'Your paperwork is under Contracts, on the Paperwork and Document requests tabs.', ['/dashboard/documents', '/dashboard/packets'])
+  })
+
+  it('a supplier’s Owner asks “Where are document requests?” and reads them under Contracts, beside Paperwork', async () => {
+    await placed('OWNER', 'Where are document requests?', 'Document requests are under Contracts, on the Document requests and Paperwork tabs.', ['/dashboard/packets', '/dashboard/documents'])
+  })
+
+  it('a supplier’s Owner asks “Where is compliance?” and reads it under Contracts, never under Settings', async () => {
+    await placed('OWNER', 'Where is compliance?', 'Compliance is under Contracts, on the Compliance and Paperwork tabs.', ['/dashboard/compliance', '/dashboard/documents'])
+  })
+
+  it('a client’s Owner asks “Where are document requests?” and reads them under Contracts', async () => {
+    await placed('CLIENT_OWNER', 'Where are document requests?', 'Document requests are under Contracts, on the Document requests tab.', ['/dashboard/packets'])
+  })
+
+  it('a client’s Owner asks “Where is compliance?” and reads it under Contracts', async () => {
+    await placed('CLIENT_OWNER', 'Where is compliance?', 'Compliance is under Contracts, on the Compliance tab.', ['/dashboard/compliance'])
+  })
+
+  it('a supplier’s Owner asks “Where are my invoice receipts?” and reads Invoice receipts, its own link', async () => {
+    await placed('OWNER', 'Where are my invoice receipts?', 'Invoice receipts are under Invoice receipts.', ['/dashboard/ap'])
+  })
+
+  it('a supplier’s Owner asks “Where do I see what suppliers sent?” and reads Invoice receipts', async () => {
+    await placed('OWNER', 'Where do I see what suppliers sent?', 'Invoice receipts are under Invoice receipts.', ['/dashboard/ap'])
+  })
+
+  it('a client’s Owner asks “Where do I see what my suppliers sent?” and reads Invoice receipts and AP', async () => {
+    await placed('CLIENT_OWNER', 'Where do I see what my suppliers sent?', 'Invoice receipts are under Invoice receipts, on the Invoice receipts and AP tabs.', ['/dashboard/invoices', '/dashboard/ap'])
+  })
+
+  it('a supplier’s Owner asks “Where are payments out?” and reads Invoice receipts, where they are recorded', async () => {
+    await placed('OWNER', 'Where are payments out?', 'Payments out are under Invoice receipts.', ['/dashboard/ap'])
+  })
+
+  it('a client’s Owner asks “Where are payments out?” and reads the AP tab under Invoice receipts', async () => {
+    await placed('CLIENT_OWNER', 'Where are payments out?', 'Payments out are under Invoice receipts, on the AP tab.', ['/dashboard/ap'])
+  })
+
+  it('a supplier’s Owner asks “Where are payments in?” and reads the AR tab under Bills', async () => {
+    await placed('OWNER', 'Where are payments in?', 'Payments in are under Bills, on the AR tab.', ['/dashboard/ar'])
+  })
+
+  it('a supplier’s Owner asks “Where do I see what came in?” and reads the AR tab under Bills', async () => {
+    await placed('OWNER', 'Where do I see what came in?', 'Payments in are under Bills, on the AR tab.', ['/dashboard/ar'])
+  })
+
+  it('a client’s Owner asks “Where are payments in?” and is told no page of hers shows them, because a client bills nobody', async () => {
+    const a = await where('CLIENT_OWNER', 'Where are payments in?')
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payments in. You can open Today, Network, Jobs, Submissions, Contracts, Timesheets, Invoice receipts and Settings.' })
+  })
+
+  it('a supplier’s Owner asks “Where do I run payroll?” and reads Payroll, a link of its own', async () => {
+    await placed('OWNER', 'Where do I run payroll?', 'Payroll is under Payroll.', ['/dashboard/payroll'])
+  })
+
+  it('a supplier’s Owner asks “Where are commissions?” and reads the Commissions tab under Payroll', async () => {
+    await placed('OWNER', 'Where are commissions?', 'Commissions are under Payroll, on the Commissions tab.', ['/dashboard/payroll/commissions'])
+  })
+
+  it('a client’s Owner asks “Where do I run payroll?” and is told no page of hers shows it', async () => {
+    const a = await where('CLIENT_OWNER', 'Where do I run payroll?')
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Network, Jobs, Submissions, Contracts, Timesheets, Invoice receipts and Settings.' })
   })
 
   it('take me there after such an answer opens the page', async () => {

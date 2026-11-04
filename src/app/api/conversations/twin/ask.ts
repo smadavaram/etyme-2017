@@ -234,8 +234,17 @@ interface NavTopic { re: RegExp; subject: string; plural: boolean; pages: readon
 
 /** Most specific first: "add people to the bench" is the bench, not people. */
 const NAV_TOPICS: readonly NavTopic[] = [
+  // The master data sits under Network on every firm's menu (founder,
+  // 2026-11-04): the people a firm keeps and the firms it trades with.
+  { re: /\bmaster data\b/, subject: 'Your master data', plural: false, pages: ['Candidates', 'Companies', 'Suppliers'] },
+  { re: /\bnetwork\b/, subject: 'Your network', plural: false, pages: ['Candidates', 'Companies', 'Suppliers'] },
   { re: /\bbench\b/, subject: 'The bench', plural: false, pages: ['Bench', 'Candidates', 'Who has you'] },
-  { re: /\binvoice receipts?\b|\bsuppliers?['’]?s? invoices?\b/, subject: 'Invoice receipts', plural: true, pages: ['Invoice receipts', 'AP'] },
+  // Money in and money out, in the founder's process order: payments in are
+  // recorded on AR under Bills, payments out on AP under Invoice receipts.
+  { re: /\bpayments? (?:in|received)\b|\bincoming payments?\b|\bwhat came in\b|\bmoney (?:in|that came in)\b/, subject: 'Payments in', plural: true, pages: ['AR'] },
+  { re: /\bpayments? (?:out|made)\b|\boutgoing payments?\b|\bpaid out\b|\bmoney out\b/, subject: 'Payments out', plural: true, pages: ['AP'] },
+  { re: /\binvoice receipts?\b|\bsuppliers?['’]?s? invoices?\b|\bwhat (?:my |our |the )?(?:sub-?)?(?:suppliers?|vendors?) (?:sent|billed|invoiced)\b/, subject: 'Invoice receipts', plural: true, pages: ['Invoice receipts', 'AP'] },
+  { re: /\bdocument requests?\b/, subject: 'Document requests', plural: true, pages: ['Document requests', 'Paperwork'] },
   { re: /\b(purchase|sales|work) orders?\b|\bpos\b/, subject: 'Your orders', plural: true, pages: ['POs'] },
   { re: /\bagreements?\b|\bmsas?\b/, subject: 'Your agreements', plural: true, pages: ['Agreements', 'Sell contracts', 'Buy contracts', 'Contracts'] },
   { re: /\bcontracts?\b|\bplacements?\b|\bassignments?\b/, subject: 'Your contracts', plural: true, pages: ['Sell contracts', 'Buy contracts', 'Contracts', 'Your work'] },
