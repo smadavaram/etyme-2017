@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession, useSwitchHat } from '@/components/session-provider'
+import { useSession, useSwitchHat, type SessionState } from '@/components/session-provider'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { hatsFor, offersYouHat, type HatLine } from '@/lib/nav-table'
 
@@ -17,7 +17,15 @@ import { hatsFor, offersYouHat, type HatLine } from '@/lib/nav-table'
  * who and where.
  */
 export function useHats(): HatLine[] {
-  const session = useSession()
+  return hatsForSession(useSession())
+}
+
+/**
+ * The account menu's lines for a session, as the screen draws them: the
+ * hook above is this and nothing else, so a test that reads it reads the
+ * screen's own path.
+ */
+export function hatsForSession(session: SessionState): HatLine[] {
   const desk = deskOf(session)
   if (session.loading) return []
   const youOffered = offersYouHat(desk.menuKind, desk.isConsultant, {

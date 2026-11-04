@@ -129,7 +129,24 @@ export interface SessionSeatLine {
   contextId: string
   type: string | null
   companyName: string | null
+  /**
+   * The kind of company the seat is at. The account menu needs it: a seat
+   * at a one-person firm is the person's own firm, and she wears one hat.
+   */
+  companyKind?: string | null
   roleName: string | null
+}
+
+/** The seats /api/me lists, as the account menu reads them. */
+export function seatLinesFrom(contexts: unknown): SessionSeatLine[] {
+  if (!Array.isArray(contexts)) return []
+  return contexts.map((c: any) => ({
+    contextId: String(c.id),
+    type: c.type ?? null,
+    companyName: c.company?.name ?? null,
+    companyKind: c.company?.kind ?? null,
+    roleName: c.role?.name ?? null,
+  }))
 }
 
 const EMPTY: SessionState = {
@@ -256,14 +273,7 @@ export function SessionProvider({
           termsHref,
           filesAWeek,
           region,
-          seats: Array.isArray(body.data?.contexts)
-            ? body.data.contexts.map((c: any) => ({
-                contextId: String(c.id),
-                type: c.type ?? null,
-                companyName: c.company?.name ?? null,
-                roleName: c.role?.name ?? null,
-              }))
-            : [],
+          seats: seatLinesFrom(body.data?.contexts),
           activeContextId: active?.id ?? null,
           loading: false,
           error: null,

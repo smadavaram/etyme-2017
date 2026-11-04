@@ -975,7 +975,11 @@ export interface HatLine {
  */
 export function hatsFor(input: {
   /** Every live seat the person holds, from /api/me. A consultant seat is not a firm seat. */
-  seats: readonly { contextId: string; companyName: string | null; roleName: string | null; type: string | null }[]
+  seats: readonly {
+    contextId: string; companyName: string | null; roleName: string | null; type: string | null
+    /** The kind of company the seat is at, where known. */
+    companyKind?: string | null
+  }[]
   /** The seat in use now. */
   activeContextId: string | null
   personName: string | null | undefined
@@ -988,6 +992,13 @@ export function hatsFor(input: {
   const first = (input.personName ?? '').trim().split(/\s+/)[0] || 'yourself'
   const firm = input.seats.filter((x) => x.type !== 'CONSULTANT' && x.companyName)
   const own = input.seats.find((x) => x.type === 'CONSULTANT')
+  // A person who owns a one-person firm is the firm: her own pages are
+  // inside its menu, and her two hats are tabs under Paperwork. So a
+  // consultant seat she also holds (the bench listing at the firm that
+  // buys from her company) never adds a You line. Found by the fourth
+  // screen walk, 2026-11-03: Colleen Byrne holds one at Halcyon, and the
+  // account menu offered "You · Colleen" beside her own firm.
+  const soloFirm = firm.some((x) => x.companyKind === 'CONSULTANT_CORP')
   const wearingYou = input.isConsultant || (input.youOffered && input.hat === 'you')
   const lines: HatLine[] = firm.map((x) => ({
     hat: 'firm' as const,
@@ -995,7 +1006,9 @@ export function hatsFor(input: {
     label: x.roleName ? `${x.companyName} · ${x.roleName}` : x.companyName!,
     current: !wearingYou && x.contextId === input.activeContextId,
   }))
-  if (input.youOffered || input.isConsultant || own) {
+  // Where she is in that consultant seat right now, the line stays, marked,
+  // so the menu still says which hat is on and her firm is one click back.
+  if (soloFirm ? input.isConsultant : (input.youOffered || input.isConsultant || own)) {
     lines.push({
       hat: 'you',
       // At a firm seat the You hat is the same seat read as a worker; a

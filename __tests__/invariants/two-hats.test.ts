@@ -6,6 +6,8 @@ import {
   HAT_COOKIE, type NavSection,
 } from '@/lib/nav-table'
 import { plusMenuFor, reachablePagesFor } from '@/components/shell/header'
+import { hatsForSession } from '@/components/shell/hat-list'
+import { seatLinesFrom, type SessionState } from '@/components/session-provider'
 
 /**
  * One person, two hats, switched in the account menu — the founder,
@@ -69,6 +71,26 @@ describe('who is offered which hats', () => {
       activeContextId: 's1', personName: 'Colleen Byrne', isConsultant: false, youOffered: false, hat: 'firm',
     })
     expect(lines).toHaveLength(1)
+  })
+
+  it('the account menu drawn for a one-person firm offers no You hat', () => {
+    // Colleen Byrne as /api/me lists her: the Owner's seat at her own
+    // firm, and the consultant seat at Halcyon that her bench listing
+    // gives her. The fourth screen walk found "You · Colleen" drawn from
+    // the second, where the sentence above was handed only the first.
+    const contexts = [
+      { id: 's1', type: 'EMPLOYEE', company: { id: 'byrne', name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' }, role: { id: 'r1', name: 'Owner', permissions: ['*'] } },
+      { id: 's2', type: 'CONSULTANT', company: { id: 'halcyon', name: 'Halcyon Talent', kind: 'VENDOR' }, role: null },
+    ]
+    const session = {
+      person: { id: 'p1', name: 'Colleen Byrne' },
+      company: { id: 'byrne', name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' },
+      contextType: 'EMPLOYEE', roleName: 'Owner', permissions: ['*'],
+      isWorker: true, seat: null, isDemo: false, termsHref: null, filesAWeek: true, region: null,
+      seats: seatLinesFrom(contexts), activeContextId: 's1', hat: 'firm',
+      loading: false, error: null,
+    } as unknown as SessionState
+    expect(hatsForSession(session).map((l) => l.label)).toEqual(['Byrne Critical Care LLC · Owner'])
   })
 
   it('the account menu lists every seat the person holds, each as the company and the role', () => {
