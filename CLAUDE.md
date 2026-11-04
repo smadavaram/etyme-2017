@@ -1831,6 +1831,34 @@ held (the founder's open line); Ask Etyme's own sentence still says
 "jobs, candidates, timesheets and invoices" (conversation, with the
 Network words); the backfill's wider reach has run on no database.
 
+**The process order, in the founder's words, 2026-11-04:** *"Jobs,
+Submissions, Contracts for Buy & Sell, Timesheets, expenses, Billing
+(AR), Invoice Receipt (AP), Payment in, Payment out and Payroll.
+Remember even bench vendor can have c2c contracts and restricted only
+to bench business."* So the menu follows that sequence, each station
+a noun or a tab of the noun before it, in this order: **Jobs ·
+Submissions · Contracts** (Sell · Buy · POs · Paperwork) **· Timesheets**
+(Timesheets · Expenses) **· Bills** (the firm's billing upward, AR:
+Bills · Payments in) **· Invoice receipts** (what it receives from
+below, AP: Invoice receipts · Payments out) **· Payroll** (its own
+employees) **· Network · Settings**, with Ask Etyme and Today first. A
+supplier, integrator or bench vendor reads all of them, eleven links;
+a client reads no Bills and no Payroll (it sells nothing and employs
+no contractor), nine; an MSP reads no Payroll. Two coordinator's calls,
+each reversible by the founder in a sentence: Expenses, Payments in
+and Payments out are tabs of the noun before them rather than links
+of their own, so the menu stays short while every station is one
+click away in his order (say "each its own link" and they become
+links); and Payroll is a link of its own because it is neither a bill
+nor an invoice receipt (the party who issues a document names it).
+**A bench vendor is never restricted to its bench**: it reads the
+supplier's whole menu, its Contracts carry its corp-to-corp buy lines
+paid by invoice receipt beside its W2 lines paid by payroll, and
+nothing on a menu, a chip or a greeting is hidden by a firm's posture
+(prime, sub-vendor, bench are positions on a deal, never a kind). Built
+by the architect in the same navigation wave, after Network and the
+Paperwork tab, the CLAUDE.md table moving with the code.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
@@ -4579,20 +4607,23 @@ attention. What changes is density and voice.
 
 ### Navigation per company type
 
-Ten links at a firm, in the process order, and a process step is a tab
+Nine links at a firm, in the process order, and a process step is a tab
 (founder, 2026-10-19 for the tabs; 2026-11-03 for the words and the
 order: see "On a firm's menu, People reads Candidates and Candidates
-reads Submissions"). A menu entry is a noun on the person's own work;
+reads Submissions"; 2026-11-04 for Network: see "Master data sits
+under Network"). A menu entry is a noun on the person's own work;
 every other page is a tab inside one of them. Submissions is who was
-put forward to a job, Contracts is the line from the award on,
-Candidates is the people a firm keeps.
+put forward to a job, Contracts is the line from the award on, and
+Network holds the two lists a firm keeps: Candidates, the people it
+keeps, and the firms it trades with (Companies, or a client's
+Suppliers).
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Candidates · Suppliers · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check → Contracts. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Contacts, Agreements, Supplier scorecards → Suppliers. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import, Sites → Settings. |
-| Supplier | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Candidates · Companies · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs → Contracts. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts → Companies. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
-| Integrator | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Candidates · Companies · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
-| MSP | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Companies · Settings | The supplier's, with no Candidates link, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Supplier scorecards → Companies. |
+| Client | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Network · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check → Contracts. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Candidates, Suppliers, Contacts, Agreements, Supplier scorecards → Network. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import, Sites → Settings. |
+| Supplier | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs → Contracts. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Candidates, Bench, Bench pay, Bench check-ins, Training, Companies, Suppliers, Contacts → Network. Users & permissions, Setup, Sites, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
+| Integrator | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
+| MSP | Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings | The supplier's, with no Candidates under Network, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Companies, Suppliers, Supplier scorecards, Contacts → Network. |
 | One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
 | Worker | Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
 
@@ -4600,11 +4631,15 @@ Each link opens the first of its pages the reader may open, and on any
 of them the shell draws the tab row under the page header, the noun's
 own page first (`components/shell/section-pills`). Nothing behind the
 menu is deleted: every page keeps its address, and search and the +
-button still find it. There are no sub-headings and no Network group
-any more: the firms a party trades with are one noun (Companies, or a
-client's Suppliers), and both lines of a contract sit side by side
-under Contracts, a link of its own. A link is one of the ten on every
-firm's menu; the worker's "You" is the one list.
+button still find it. Network is the one link whose tab row is
+grouped: each group's name, then its pages ("Candidates: Bench · Bench
+pay · … | Companies: Suppliers · Contacts"), the group's name being the
+link to its own register, so Bench or Contacts is one click from the
+Network link. The menu never prints a group, and the eyebrow over every
+page in it reads Network. Both lines of a contract sit side by side
+under Contracts, a link of its own; Sites stay under Settings. A link
+is one of the nine on every firm's menu; the worker's "You" is the one
+list.
 `__tests__/invariants/sidebar-nav.test.ts` reads this table — the links
 and every page named in the third column — and fails when the code and
 it disagree, so a link renamed in one and not the other breaks the
