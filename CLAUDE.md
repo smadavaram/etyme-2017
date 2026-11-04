@@ -1754,6 +1754,28 @@ maps, and "Candidates" means one thing everywhere a buyer reads it:
 the people a firm keeps. This supersedes the second noun of 2026-10-14
 and the coordinator's call of the day before; market builds it.
 
+**Master data sits under Network. The founder, 2026-11-04:** *"Also
+bring all master data under network hierarchy."* The master data is
+what the documentation split named on 2026-09-30: the business partners
+(customers and suppliers) and the consultants. So on every firm's menu
+the two lists it keeps fold under one link, **Network**: for a supplier,
+integrator or MSP the tabs **Candidates** (Bench, Bench pay, Bench
+check-ins, Training, Consultants under it) and **Companies** (Clients,
+Suppliers, Contacts, Agreements, Scorecards); for a client the tabs
+**Candidates** (its memory of people) and **Suppliers** (Contacts,
+Agreements, Supplier scorecards). The menu reads Ask Etyme · Today ·
+Jobs · Submissions · Contracts · Timesheets · the money document ·
+Network · Settings, nine links again, in the process order with the
+network after the money. The shell draws Network's two groups as one
+grouped tab row (the group's name, then its pages), so a person reaches
+Bench or Contacts in one click from the link; every page keeps its
+address. Two coordinator's calls, each reversible in a sentence: Sites
+stay under Settings, because a site is the firm's own place and a
+setup item, not its network; and an MSP's Network holds Companies
+alone. Built by the architect from the sentence, the CLAUDE.md table
+moving in the same commit, with conversation (`NAV_TOPICS`, the
+greeting's links) and market (the documentation's menu words) after.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
