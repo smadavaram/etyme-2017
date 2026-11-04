@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { RECORDED_AS_A_CHECK, standsOnACheck, papersOnRecord, heldAbout } from '@/lib/document-stages/paper-record'
-import { heldFrom } from '@/lib/contract-clearance'
+import { RECORDED_AS_A_CHECK, standsOnACheck, heldOnRecord, linesOfPerson } from '@/lib/document-stages/paper-record'
+import { heldFrom, checksThatAnswer } from '@/lib/contract-clearance'
 import { resolveItems, progressOf, type HeldDocument, type PacketSpec } from '@/lib/packets'
 import { RECORDABLE_ABOUT_A_FIRM } from '@/lib/attestation'
 import { examinationOf, recordSupplierPaper } from './examination'
@@ -195,7 +195,12 @@ export function itemsAlreadyOnRecord(
   resolved.forEach((r, n) => {
     if (r.state !== 'ALREADY_HELD' && r.state !== 'EXPIRING') return
     const item = items[n]
-    const check = checks.filter((c) => c.type === item.key).at(-1) ?? null
+    // The check behind it, or the check that stands in for it: proof of
+    // right to work is answered by an I-9 on file (`checksThatAnswer`), the way
+    // the placement and a fresh request read it (R1b: Rajesh Iyer's right
+    // to work stayed asked for beside his I-9).
+    const answers = checksThatAnswer(item.key)
+    const check = checks.filter((c) => answers.includes(c.type)).at(-1) ?? null
     if (standsOnACheck(item.key) && !check) return
     out.push({ item, verificationId: check?.id ?? null, note: `Already on the record when this was asked: ${r.note.charAt(0).toLowerCase()}${r.note.slice(1)}.` })
   })
@@ -217,26 +222,21 @@ async function closeItemsAlreadyOnRecord(opts: { write: boolean; now: Date; limi
   for (const p of packets) {
     const personId = p.subjectPersonId
     const firms = [p.companyId, ...(p.subjectCompanyId ? [p.subjectCompanyId] : [])]
-    const [checks, sells, buys, types] = await Promise.all([
+    // Read the way a fresh request reads it, through the one reader:
+    // every line the asking firm and the person share, each typed by both
+    // firms' names (the fourth screen walk, R1b: an undertaking Northbend's
+    // order names, accepted by Brightmoor, was never read here).
+    const [checks, lines] = await Promise.all([
       prisma.verification.findMany({
         where: personId ? { personId } : { companyId: p.subjectCompanyId ?? '__none__' },
         select: { id: true, type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
         orderBy: { createdAt: 'asc' },
       }),
-      personId ? prisma.sellContract.findMany({ where: { companyId: p.companyId, personId }, select: { id: true } }) : [],
-      personId ? prisma.buyContract.findMany({ where: { companyId: p.companyId, candidates: { some: { personId } } }, select: { id: true } }) : [],
-      prisma.documentType.findMany({ where: { companyId: p.companyId }, select: { key: true, label: true } }).catch(() => []),
+      linesOfPerson(personId, { firm: p.companyId }),
     ])
-    const record = await papersOnRecord({
-      personIds: personId ? [personId] : [], companyIds: firms,
-      sellContractIds: sells.map((l) => l.id), buyContractIds: buys.map((l) => l.id),
-    })
-    const at = { personId, companyIds: firms, types }
     const held: HeldDocument[] = [
       ...heldFrom(checks),
-      ...heldAbout(record, at),
-      ...sells.flatMap((l) => heldAbout(record, { ...at, sellContractId: l.id })),
-      ...buys.flatMap((l) => heldAbout(record, { ...at, buyContractId: l.id })),
+      ...(await heldOnRecord({ personId, firms, lines })),
     ]
     const accepted = checks.filter((c) => c.status === 'CLEAR' || c.status === 'CONDITIONAL')
     const found = itemsAlreadyOnRecord(p.items.filter((i) => i.state === 'PENDING'), held, accepted, opts.now)

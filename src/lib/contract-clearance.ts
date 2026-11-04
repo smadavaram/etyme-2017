@@ -122,6 +122,11 @@ const SATISFIED_BY: Record<string, readonly string[]> = {
   RIGHT_TO_WORK: ['I9_EVERIFY'],
 }
 
+/** The checks whose record answers an item: its own kind, and what stands in for it here. Pure. */
+export function checksThatAnswer(key: string): readonly string[] {
+  return [key, ...(SATISFIED_BY[key] ?? [])]
+}
+
 /**
  * The shipped license item, which is the one a start packet asks for.
  *

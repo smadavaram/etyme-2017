@@ -854,6 +854,8 @@ export interface SentDocument {
 /** One thing asked for inside a packet. */
 export interface AskedItem {
   id: string
+  /** The kind of paper asked for, where the request says, so one already on file is read as such. */
+  key?: string | null
   label: string
   /** PENDING · RECEIVED · ACCEPTED · REJECTED */
   state: string
@@ -1426,11 +1428,23 @@ export function myPapers(input: {
    * second press is the same request rather than a second one.
    */
   asksByKey?: Record<string, string>
+  /**
+   * The kinds on file and in force for her today, read the way the
+   * placement reads them. A request item still asking for one of them is
+   * not listed: the paper is on her file, and showing it as both "On file"
+   * and "Asked for" is two truths about one paper (the fourth screen walk, R3).
+   */
+  onFileKeys?: string[]
   /** The day it is read on. Only used to say how long is left. */
   on?: Date
 }): Paper[] {
   const papers: Paper[] = []
   const now = input.on ?? new Date()
+  // A kind is on file where it, or anything that stands in for it, is.
+  const held = new Set(input.onFileKeys ?? [])
+  const onFile = {
+    has: (key: string) => [key, ...(SATISFIED_BY[key] ?? [])].some((k) => held.has(k)),
+  }
 
   // ── One document is one row on her page ────────────────────────────
   //
@@ -1491,6 +1505,7 @@ export function myPapers(input: {
     const mine =
       !!input.myEmail && p.recipientEmail.trim().toLowerCase() === input.myEmail.trim().toLowerCase()
     for (const item of [...p.items].sort((a, b) => a.position - b.position)) {
+      if (item.state === 'PENDING' && item.key && onFile.has(item.key)) continue
       const answered = ANSWERED.includes(item.state)
       papers.push({
         id: item.id,

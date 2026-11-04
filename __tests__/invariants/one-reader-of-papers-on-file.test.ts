@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  heldAbout, paperInstancesWhere, isAuthorizationFor, authorizationOnRecord,
+  heldAbout, heldAcross, heldOnRecord, paperInstancesWhere, isAuthorizationFor, authorizationOnRecord,
   type PapersOnRecord, type PaperOnFile,
 } from '@/lib/document-stages/paper-record'
 import { resolveItems, type PacketSpec } from '@/lib/packets'
-import { mayAct } from '@/lib/document-request'
+import { mayAct, myPapers, type SentDocument } from '@/lib/document-request'
 import { itemsAlreadyOnRecord } from '@/app/api/packets/backfill'
+import { heldFrom } from '@/lib/contract-clearance'
 
 /**
  * The release walk on f2f342723 (2026-11-03): an undertaking accepted on
@@ -37,7 +38,7 @@ describe('one reader of what is on file for a person and a line', () => {
     // And each door reads through the one reader.
     expect(read('src/lib/contract-clearance.ts')).toContain('heldAbout(')
     expect(read('src/lib/contract-clearance.ts').match(/paperInstancesWhere\(/g)?.length).toBe(2)
-    expect(read('src/app/api/packets/route.ts')).toContain('papersOnRecord(')
+    expect(read('src/app/api/packets/route.ts')).toContain('heldOnRecord(')
     expect(read('src/app/api/compliance/route.ts')).toMatch(/lineExtrasForSellLines\(lines\.map/)
     expect(read('src/app/api/compliance/route.ts')).not.toContain('where: { sellContractId: { in: lines.map((l) => l.id) } }')
   })
@@ -124,6 +125,108 @@ describe('the worker is told what is true about her own papers', () => {
   it('her own page reads an upload the firm examined as on file, and what her firms accepted through a request, as the placement does', () => {
     const src = read('src/app/api/me/papers/route.ts')
     expect(src).toContain("accepted: r.status === 'SIGNED' || (r.status === 'UPLOADED' && !!r.examinedAt)")
-    expect(src).toContain('acceptedRequestPapers([personId], herFirms)')
+    expect(src).toContain('heldOnRecord({ personId, firms: [], lines, examinedOnly: true })')
+  })
+})
+
+// ── The fourth screen walk (2026-11-03), R1, R1b and R3 ────────────────
+//
+// Rosa Delgado's product confidentiality undertaking is Brightmoor's paper
+// on file, and the type it answers is Northbend's, named on Northbend's
+// order. The placement reads it with both firms' names; the request, the
+// backfill and the worker's page now read it the same way.
+
+const UNDERTAKING = paper({
+  id: 'u1', subjectId: 'rosa', status: 'SIGNED', buyContractId: null, sellContractId: null,
+  template: { name: 'Product confidentiality undertaking', needsSignature: true },
+})
+const NORTHBEND_TYPES = [{ companyId: 'northbend', key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking' }]
+const BRIGHTMOOR_TYPES = [{ companyId: 'brightmoor', key: 'W2_NDA', label: 'Brightmoor NDA' }]
+const ROSA_LINE = { sellContractId: 's-rosa', firms: ['brightmoor', 'northbend'] }
+
+describe('a fresh request, the backfill and the worker read what the placement reads', () => {
+  it('a paper the client named, accepted by the supplier on Paperwork, is skipped by a fresh request for that line', () => {
+    const record: PapersOnRecord = { papers: [UNDERTAKING], accepted: [] }
+    // Brightmoor asks; the line it shares with Rosa is Northbend's too.
+    const held = heldAcross(record, [...NORTHBEND_TYPES, ...BRIGHTMOOR_TYPES], { personId: 'rosa', firms: ['brightmoor'], lines: [ROSA_LINE] })
+    expect(held.map((h) => h.key)).toContain('PRODUCT_CONFIDENTIALITY')
+    const spec = { items: [{ key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking', hint: '', required: true, validMonths: null }] } as unknown as PacketSpec
+    expect(resolveItems(spec, held, NOW)[0].state).toBe('ALREADY_HELD')
+    // With only the asking firm's names, the old read, it matched nothing.
+    expect(heldAbout(record, { personId: 'rosa', companyIds: ['brightmoor'], types: BRIGHTMOOR_TYPES }).map((h) => h.key)).not.toContain('PRODUCT_CONFIDENTIALITY')
+  })
+
+  it('the request builder and the placement read one answer for every paper on the line’s set', () => {
+    const record: PapersOnRecord = {
+      papers: [
+        UNDERTAKING,
+        paper({ id: 'n1', subjectType: 'COMPANY', subjectId: 'brightmoor', status: 'SIGNED', template: { name: 'Brightmoor NDA', needsSignature: true } }),
+        paper({ id: 'x1', subjectId: 'rosa', status: 'SIGNED', sellContractId: 's-rosa', template: { name: 'Site safety induction', needsSignature: false } }),
+      ],
+      accepted: [{ key: 'NDA', state: 'ACCEPTED', validUntil: null, personId: 'rosa', companyId: 'brightmoor' }],
+    }
+    const types = [...NORTHBEND_TYPES, ...BRIGHTMOOR_TYPES, { companyId: 'northbend', key: 'SITE_INDUCTION', label: 'Site safety induction' }]
+    // The placement: per line, both firms' names (contract-clearance's read).
+    const placement = heldAbout(record, {
+      personId: 'rosa', companyIds: ROSA_LINE.firms, sellContractId: 's-rosa',
+      types: types.map((t) => ({ key: t.key, label: t.label })),
+    })
+    const request = heldAcross(record, types, { personId: 'rosa', firms: ['brightmoor'], lines: [ROSA_LINE] })
+    const keys = (h: { key: string }[]) => [...new Set(h.map((x) => x.key))].sort()
+    expect(keys(request)).toEqual(keys(placement))
+    expect(keys(placement)).toEqual(['NDA', 'PRODUCT_CONFIDENTIALITY', 'SITE_INDUCTION', 'W2_NDA'])
+    // And the route reads it through the one reader, never the asking firm's names alone.
+    const route = read('src/app/api/packets/route.ts')
+    expect(route).toContain('linesOfPerson(subjectPersonId, { firm: caller.company.id })')
+    expect(route).not.toMatch(/documentType\.findMany\(\{ where: \{ companyId: caller\.company\.id \}/)
+  })
+
+  it('heldOnRecord reads the names of every firm on the person’s lines, not only the asking firm’s', async () => {
+    const asked: unknown[] = []
+    const db = {
+      packetItem: { findMany: async () => [] },
+      docInstance: { findMany: async () => [UNDERTAKING] },
+      documentType: { findMany: async (q: unknown) => { asked.push(q); return [...NORTHBEND_TYPES, ...BRIGHTMOOR_TYPES] } },
+    }
+    const held = await heldOnRecord({ personId: 'rosa', firms: ['brightmoor'], lines: [ROSA_LINE] }, db as never)
+    expect(held.map((h) => h.key)).toContain('PRODUCT_CONFIDENTIALITY')
+    expect(JSON.stringify(asked[0])).toContain('northbend')
+  })
+
+  it('the backfill closes a request item for the right to work and for the undertaking where the placement holds them', () => {
+    const items = [
+      { id: 'i1', key: 'RIGHT_TO_WORK', label: 'Proof of right to work' },
+      { id: 'i2', key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking' },
+    ]
+    const record: PapersOnRecord = { papers: [UNDERTAKING], accepted: [] }
+    const held = [
+      // Rajesh's I-9, a recorded check that stands in for the right to work,
+      // read the way the backfill reads its checks.
+      ...heldFrom([{ id: 'v-i9', type: 'I9_EVERIFY', status: 'CLEAR', issuedAt: new Date('2026-10-20'), validFrom: null, expiresAt: null, verifiedAt: new Date('2026-10-20') }] as never),
+      ...heldAcross(record, NORTHBEND_TYPES, { personId: 'rosa', firms: ['brightmoor'], lines: [ROSA_LINE] }),
+    ]
+    const closed = itemsAlreadyOnRecord(items, held, [{ id: 'v-i9', type: 'I9_EVERIFY' }], NOW)
+    expect(closed.map((c) => [c.item.key, c.verificationId])).toEqual([['RIGHT_TO_WORK', 'v-i9'], ['PRODUCT_CONFIDENTIALITY', null]])
+    expect(read('src/app/api/packets/backfill.ts')).toContain('heldOnRecord({ personId, firms, lines })')
+  })
+
+  it('the worker’s page never lists as still needed a paper her placement reads as on file', () => {
+    const request = {
+      id: 'p1', label: 'W-2 start papers', askedBy: 'Brightmoor Staffing', recipientEmail: 'rosa@example.invalid', token: 't1',
+      expiresAt: new Date('2026-11-20T00:00:00Z'), cancelledAt: null, createdAt: new Date('2026-11-03T09:00:00Z'), reason: null,
+      items: [
+        { id: 'i1', key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking', state: 'PENDING', required: true, position: 0 },
+        { id: 'i2', key: 'DRUG_SCREENING', label: 'Drug screening', state: 'PENDING', required: true, position: 1 },
+      ],
+    }
+    const base = { documents: [] as SentDocument[], packets: [request], myEmail: 'rosa@example.invalid', held: [], owed: [], on: NOW } as unknown as Parameters<typeof myPapers>[0]
+    const shown = (onFileKeys?: string[]) => myPapers({ ...base, onFileKeys }).map((p) => p.name)
+    expect(shown()).toContain('Product confidentiality undertaking')
+    expect(shown(['PRODUCT_CONFIDENTIALITY'])).not.toContain('Product confidentiality undertaking')
+    expect(shown(['PRODUCT_CONFIDENTIALITY'])).toContain('Drug screening')
+    // The route hands her page what is on file on her lines, read the placement's way.
+    const src = read('src/app/api/me/papers/route.ts')
+    expect(src).toContain('linesOfPerson(personId, { live: true })')
+    expect(src).toContain('onFileKeys,')
   })
 })

@@ -1,5 +1,5 @@
 import { fileHash } from '@/lib/document-stages/degree'
-import { acceptedRequestPapers, heldFromAcceptedItems } from '@/lib/document-stages/paper-record'
+import { heldOnRecord, linesOfPerson } from '@/lib/document-stages/paper-record'
 import { DEGREE_POSTED } from '@/lib/document-stages/degree-check'
 import { NextRequest, NextResponse } from 'next/server'
 import { employmentOf } from '@/app/api/compliance/verifications/record'
@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
     reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date(), p.company.name) ?? p.reopenedReason) : p.reopenedReason,
     items: p.items.map((i) => ({
       id: i.id,
+      key: i.key,
       label: i.label,
       state: i.state,
       required: i.required,
@@ -174,7 +175,7 @@ export async function GET(request: NextRequest) {
   // Read through the one door, `lib/document-requirements`, so the items
   // she is shown and the items the refusal at activation is built from
   // are the same items rather than two lists that agree by coincidence.
-  const owed = await whatSheOwes(me, held, instances, new Date())
+  const { owed, onFileKeys } = await whatSheOwes(me, held, instances, new Date())
 
   // Where a request has already been opened for one of them, the row is
   // that request's — it has an id, and the page answers it at
@@ -212,6 +213,7 @@ export async function GET(request: NextRequest) {
         held: onFile,
         owed,
         asksByKey,
+        onFileKeys,
       }),
     },
   })
@@ -238,33 +240,24 @@ async function whatSheOwes(
   held: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
   papers: SignedPaperRow[],
   on: Date
-): Promise<OutstandingItem[]> {
+): Promise<{ owed: OutstandingItem[]; onFileKeys: string[] }> {
   // Anything not finished. Said as what it is not, because the two
   // enums differ — a buy line has BENCH_PAID, INTERNAL and TRAINING and
   // a sell line has none of them — and a list of the live ones would go
   // stale on the next state somebody adds.
   const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
 
-  const [sellLines, buyCandidates] = await Promise.all([
-    prisma.sellContract.findMany({
-      where: { personId, state: live },
-      select: { id: true, companyId: true, clientCompanyId: true },
-      take: 20,
-    }),
-    prisma.buyContractCandidate.findMany({
-      where: { personId, state: 'ACTIVE', buyContract: { state: live } },
-      select: { buyContractId: true, buyContract: { select: { companyId: true } } },
-      take: 20,
-    }),
-  ])
-  // What the firms on her lines asked her for and accepted, through the
-  // one reader the placement reads (lib/document-stages/paper-record).
-  const herFirms = [
-    ...sellLines.flatMap((l) => [l.companyId, l.clientCompanyId]),
-    ...buyCandidates.map((c) => c.buyContract.companyId),
-  ].filter((v): v is string => !!v)
-  const acceptedByFirms = heldFromAcceptedItems(await acceptedRequestPapers([personId], herFirms))
-
+  // Her lines, and what is on file for her on each, through the one
+  // reader the placement reads (lib/document-stages/paper-record): the
+  // papers against the line, about her and about either firm on it, typed
+  // by both firms' names, and what those firms asked her for and
+  // accepted. The fourth screen walk, R3: her firm's NDA with Northbend
+  // read "on file" on her placement and "Not on file" here, because this
+  // page never read a paper about the firm. A file nobody has examined is
+  // left to `papersAsHeld`, which says "sent, waiting" of it.
+  const lines = await linesOfPerson(personId, { live: true })
+  const onTheLines: HeldKeyRecord[] = (await heldOnRecord({ personId, firms: [], lines, examinedOnly: true }))
+    .map((h) => ({ ...h, validFrom: h.validFrom ?? null, expiresAt: h.expiresAt ?? null }))
   const onFile: HeldKeyRecord[] = held.map((v) => ({
     key: v.type,
     validFrom: v.validFrom ?? v.issuedAt ?? null,
@@ -276,10 +269,9 @@ async function whatSheOwes(
     received: WITH_THEM.includes(v.status),
   }))
 
-  const sets = await Promise.all([
-    ...sellLines.map((l) => requirementsWhereWorkIsDone({ sellContractId: l.id })),
-    ...buyCandidates.map((c) => requirementsWhereWorkIsDone({ buyContractId: c.buyContractId })),
-  ])
+  const sets = await Promise.all(
+    lines.map((l) => requirementsWhereWorkIsDone(l.sellContractId ? { sellContractId: l.sellContractId } : { buyContractId: l.buyContractId! }))
+  )
 
   const byKey = new Map<string, OutstandingItem>()
   for (const set of sets) {
@@ -294,7 +286,7 @@ async function whatSheOwes(
       // was built to prevent, arriving because nothing ever reached it.
       // The line's own set is the dictionary, so a paper filed against
       // "Hot floor induction" reads back to the type that asked for it.
-      held: [...onFile, ...papersAsHeld(papers, set.items), ...acceptedByFirms.map((h) => ({ ...h, validFrom: h.validFrom ?? null }))],
+      held: [...onFile, ...papersAsHeld(papers, set.items), ...onTheLines],
       owedBy: ['WORKER'],
       on,
     })
@@ -306,7 +298,12 @@ async function whatSheOwes(
       if (!already || (item.stopsWork && !already.stopsWork)) byKey.set(item.key, item)
     }
   }
-  return [...byKey.values()]
+  // What is on file and in date for her today, by kind, so a request still
+  // asking for one of them is not shown to her as asked (R3).
+  const inForce = (h: { validFrom: Date | null; expiresAt: Date | null }) =>
+    !(h.validFrom && h.validFrom.getTime() > on.getTime()) && !(h.expiresAt && h.expiresAt.getTime() < on.getTime())
+  const onFileKeys = [...new Set([...onFile, ...onTheLines].filter((h) => h.accepted && inForce(h)).map((h) => h.key))]
+  return { owed: [...byKey.values()], onFileKeys }
 }
 
 /** A `DocInstance` row, as the arithmetic needs it. */

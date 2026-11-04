@@ -154,7 +154,7 @@ export function paperInstancesWhere(scope: PaperScope) {
 /** What each reader selects of a paper on file. */
 export const PAPER_ON_FILE_SELECT = {
   id: true, status: true, validFrom: true, expiresAt: true, signedAt: true, countersignedAt: true,
-  sellContractId: true, buyContractId: true, subjectType: true, subjectId: true,
+  sellContractId: true, buyContractId: true, subjectType: true, subjectId: true, examinedAt: true,
   template: { select: { name: true, needsSignature: true } },
 } as const
 
@@ -169,6 +169,8 @@ export interface PaperOnFile {
   buyContractId: string | null
   subjectType: string
   subjectId: string
+  /** Who looked at it, and when. Read only where a reader asks for what was examined. */
+  examinedAt?: Date | null
   template: { name: string; needsSignature: boolean }
 }
 
@@ -220,6 +222,128 @@ export function heldAbout(
     ...heldFromDocInstances(papers, at.types ?? []),
     ...heldFromAcceptedItems(record.accepted.filter((r) => !!at.personId && r.personId === at.personId && firms.has(r.companyId))),
   ]
+}
+
+// ── One answer for a person, across every line the firms share ─────────
+//
+// The fourth screen walk (2026-11-03, R1): Rosa Delgado's product
+// confidentiality undertaking, accepted on Paperwork, read on file on her
+// placement and "Not on file" in a fresh W-2 request. The paper is
+// Brightmoor's; the type it answers, PRODUCT_CONFIDENTIALITY, is
+// Northbend's, named on Northbend's order. The placement reads a paper
+// back to its type through the dictionary of both firms on the line; the
+// request read only the asking firm's, so the name matched nothing and
+// the paper answered nothing. The backfill read the same way (R1b), and
+// the worker's own page never read the firm's papers at all (R3).
+//
+// So which lines, which firms and which names are read is said here once
+// (`linesOfPerson`, `heldOnRecord`), and the request builder, the
+// backfill and the worker's page read through it, the way the placement
+// does: per line, the papers against it, about the person and about
+// either firm on it, typed by both firms' names for their papers.
+
+/** One line a person is on, and the two firms on it: the one paid and the one paying. */
+export interface PersonLine {
+  sellContractId?: string | null
+  buyContractId?: string | null
+  /** The supplier and the customer on the line, as the placement reads them. */
+  firms: string[]
+}
+
+type LineReadDb = Pick<typeof prisma, 'sellContract' | 'buyContract'>
+
+/**
+ * The lines a person is on, with the firms on each. Where a firm is named,
+ * only the lines that firm is a party to, from either end; where `live`,
+ * only lines still running.
+ */
+export async function linesOfPerson(
+  personId: string | null,
+  opts: { firm?: string | null; live?: boolean } = {},
+  db: LineReadDb = prisma
+): Promise<PersonLine[]> {
+  if (!personId) return []
+  const live = opts.live ? { state: { notIn: ['ENDED', 'CANCELLED'] as never[] } } : {}
+  const [sells, buys] = await Promise.all([
+    db.sellContract.findMany({
+      where: {
+        personId, ...live,
+        ...(opts.firm ? { OR: [{ companyId: opts.firm }, { clientCompanyId: opts.firm }] } : {}),
+      },
+      select: { id: true, companyId: true, clientCompanyId: true },
+      orderBy: { id: 'asc' },
+      take: 50,
+    }),
+    db.buyContract.findMany({
+      where: {
+        ...live,
+        candidates: { some: { personId, ...(opts.live ? { state: 'ACTIVE' } : {}) } },
+        ...(opts.firm ? { OR: [{ companyId: opts.firm }, { vendorCompanyId: opts.firm }] } : {}),
+      },
+      select: { id: true, companyId: true, vendorCompanyId: true },
+      orderBy: { id: 'asc' },
+      take: 50,
+    }),
+  ])
+  return [
+    ...sells.map((l) => ({ sellContractId: l.id, firms: [l.companyId, l.clientCompanyId].filter((v): v is string => !!v) })),
+    ...buys.map((l) => ({ buyContractId: l.id, firms: [l.vendorCompanyId ?? l.companyId, l.companyId].filter((v, i, a): v is string => !!v && a.indexOf(v) === i) })),
+  ]
+}
+
+/** A firm's own name for one of its papers. */
+export interface FirmType { companyId: string | null; key: string; label: string }
+
+/**
+ * What is held for a person, read the way the placement reads it: per
+ * line, the papers on it typed by the names of both firms on that line,
+ * and, beside the lines, the papers about the person and the asking firms
+ * typed by those firms' names. `examinedOnly` leaves out a file that
+ * arrived and nobody looked at, for the person's own page, which says
+ * "sent, waiting" of it. Pure.
+ */
+export function heldAcross(
+  record: PapersOnRecord,
+  types: FirmType[],
+  at: { personId: string | null; firms: string[]; lines: PersonLine[]; examinedOnly?: boolean }
+): HeldDocument[] {
+  const r: PapersOnRecord = at.examinedOnly
+    ? { ...record, papers: record.papers.filter((p) => !(p.status === 'UPLOADED' && !p.examinedAt)) }
+    : record
+  const typesOf = (firms: string[]) => {
+    const set = new Set(firms)
+    return types.filter((t) => !!t.companyId && set.has(t.companyId)).map((t) => ({ key: t.key, label: t.label }))
+  }
+  return [
+    ...heldAbout(r, { personId: at.personId, companyIds: at.firms, types: typesOf(at.firms) }),
+    ...at.lines.flatMap((l) =>
+      heldAbout(r, {
+        personId: at.personId, companyIds: l.firms, types: typesOf(l.firms),
+        ...(l.sellContractId ? { sellContractId: l.sellContractId } : { buyContractId: l.buyContractId ?? null }),
+      })
+    ),
+  ]
+}
+
+type HeldReadDb = Pick<typeof prisma, 'packetItem' | 'docInstance' | 'documentType'>
+
+/** Read and answer `heldAcross` for a person and the firms asking, in three reads. */
+export async function heldOnRecord(
+  at: { personId: string | null; firms: string[]; lines: PersonLine[]; examinedOnly?: boolean },
+  db: HeldReadDb = prisma
+): Promise<HeldDocument[]> {
+  const allFirms = [...new Set([...at.firms, ...at.lines.flatMap((l) => l.firms)].filter(Boolean))]
+  const [record, types] = await Promise.all([
+    papersOnRecord({
+      personIds: at.personId ? [at.personId] : [], companyIds: allFirms,
+      sellContractIds: at.lines.map((l) => l.sellContractId).filter((v): v is string => !!v),
+      buyContractIds: at.lines.map((l) => l.buyContractId).filter((v): v is string => !!v),
+    }, db as never),
+    allFirms.length
+      ? db.documentType.findMany({ where: { companyId: { in: allFirms } }, select: { companyId: true, key: true, label: true }, orderBy: { id: 'asc' } }).catch(() => [])
+      : Promise.resolve([]),
+  ])
+  return heldAcross(record, types as FirmType[], at)
 }
 
 // ── The person's authorization for a check, read off the record ────────
