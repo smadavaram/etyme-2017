@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { HAT_COOKIE, readHatCookie, offersYouHat, hatForPath, type Hat, type CompanyKind, type SeatFacts } from '@/lib/nav-table'
+import { HAT_COOKIE, readHatCookie, offersYouHat, hatForPath, hatOf, type Hat, type CompanyKind, type SeatFacts } from '@/lib/nav-table'
 
 /**
  * Which hat Ask Etyme greets (founder, 2026-11-03, "One person, two hats,
@@ -23,6 +23,8 @@ import { HAT_COOKIE, readHatCookie, offersYouHat, hatForPath, type Hat, type Com
 export interface HatFacts {
   /** The seat reads Ask Etyme as a worker already: a consultant seat, or a firm seat with no desk (`isWorkerSeat`). */
   workerSeat: boolean
+  /** The seat is the person's own consultant seat, which already is the You menu; it has no firm hat. */
+  consultantSeat?: boolean
   /** The seat reads one region of a client's program; it has no You hat. */
   region: string | null
   /** The hat the cookie names, or null where there is none. */
@@ -44,23 +46,48 @@ export function seatFactsOf(f: HatFacts, hat?: Hat): SeatFacts {
 
 /** Whether this person is offered the You hat at this seat: the account menu's own rule. */
 export function youOffered(f: HatFacts): boolean {
-  if (f.workerSeat) return false
+  if (f.consultantSeat) return false
   return offersYouHat(f.menuKind, false, seatFactsOf(f))
 }
 
 /**
  * Whether Ask Etyme greets this request as the person's own (the You hat).
  *
- * - A worker's seat is greeted as a worker, as it always was, whatever the
- *   cookie says: a seat with no desk has no firm queue to read.
+ * - A consultant seat is the person's own, whatever the cookie says.
  * - A region seat never is: it reads its region and nothing else.
- * - A firm seat is greeted as the person only where the cookie says "you"
- *   and the account menu offers them the You hat; anywhere else, the firm.
+ * - A firm seat that holds nothing beyond its own work (Karthik Menon, an
+ *   integrator's own engineer) wears the hat the account menu says it
+ *   wears: the You hat until the person puts on the firm's, as the menu
+ *   opens it (`hatOf`). Where the menu offers no You hat it is greeted as
+ *   a worker, as before, because it has nothing of the firm's to read.
+ *   Reversed on the fourth screen walk, 2026-11-03: the earlier call
+ *   greeted such a seat as a worker in either hat, so in the Teleworld hat
+ *   Karthik still read his own week and the worker's chips.
+ * - Any other firm seat is greeted as the person only where the cookie
+ *   says "you" and the account menu offers them the You hat.
  */
 export function greetsAsYou(f: HatFacts): boolean {
   if (f.region) return false
-  if (f.workerSeat) return true
+  if (f.consultantSeat) return true
+  if (f.workerSeat) return !youOffered(f) || hatOf(f.menuKind, false, seatFactsOf(f, f.cookieHat ?? undefined)) === 'you'
   return f.cookieHat === 'you' && youOffered(f)
+}
+
+/**
+ * A firm hat on a seat that holds nothing of the firm's beyond its own
+ * work: the firm's greeting, read with the seat's own permissions, which
+ * finds nothing of the firm's to say. Said in one line rather than drawn
+ * as the worker's greeting.
+ */
+export function firmHatWithNothing(f: HatFacts): boolean {
+  return f.workerSeat && !f.consultantSeat && !f.region && !greetsAsYou(f)
+}
+
+/** "Nothing of Teleworld Solutions's is addressed to you; your own work is under You." */
+export function nothingOfTheFirm(firmName: string, saidElse = false): string {
+  return saidElse
+    ? 'Your own work is under You, in the account menu.'
+    : `Nothing of ${firmName}${firmName.endsWith('s') ? '’' : '’s'} is addressed to you; your own work is under You, in the account menu.`
 }
 
 /** The hat the cookie on this request names, or null. */

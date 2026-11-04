@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { greetsAsYou, youOffered, noticeHat, noticesForHat, type HatFacts } from '@/app/api/conversations/twin/hat'
+import { greetsAsYou, youOffered, noticeHat, noticesForHat, firmHatWithNothing, nothingOfTheFirm, type HatFacts } from '@/app/api/conversations/twin/hat'
+import { hearsPaperNotice } from '@/app/api/conversations/twin/notices'
 import { partyOf } from '@/app/api/conversations/twin/ask'
 
 /**
@@ -44,10 +45,13 @@ describe('which hat Ask Etyme greets', () => {
     expect(greetsAsYou(owner({ workerSeat: true, region: 'Latin America' }))).toBe(false)
   })
 
-  it('a worker’s own seat is greeted as a worker in either hat, as it always was', () => {
-    expect(greetsAsYou(owner({ workerSeat: true, cookieHat: 'firm' }))).toBe(true)
-    expect(greetsAsYou(owner({ workerSeat: true, cookieHat: null, worker: false }))).toBe(true)
-    expect(youOffered(owner({ workerSeat: true }))).toBe(false)
+  it('a worker’s own consultant seat is greeted as a worker whatever the cookie says, and has no firm hat', () => {
+    expect(greetsAsYou(owner({ workerSeat: true, consultantSeat: true, cookieHat: 'firm' }))).toBe(true)
+    expect(youOffered(owner({ workerSeat: true, consultantSeat: true }))).toBe(false)
+  })
+
+  it('a seat with no role of its own and no work of its own is greeted as a worker, because it has nothing of the firm’s to read', () => {
+    expect(greetsAsYou(owner({ workerSeat: true, cookieHat: null, worker: false, permissions: [] }))).toBe(true)
   })
 })
 
@@ -90,10 +94,70 @@ describe('"Since you last looked" says each notice in the hat it belongs to', ()
 
   it('a person with one hat hears every notice in it, as before', () => {
     expect(noticesForHat(owner({ worker: false }), 'firm', notices)).toHaveLength(3)
-    expect(noticesForHat(owner({ workerSeat: true }), 'you', notices)).toHaveLength(3)
+    expect(noticesForHat(owner({ workerSeat: true, consultantSeat: true }), 'you', notices)).toHaveLength(3)
   })
 
   it('in the You hat the threads other companies wrote to the firm wait for the firm hat', () => {
     expect(ROUTE).toMatch(/const threads = own \? \{ shown: \[\], more: 0, noticeIds: \[\] \} : allThreads/)
+  })
+})
+
+/**
+ * The fourth screen walk, 2026-11-03: Karthik Menon, Teleworld's own
+ * engineer placed at Corveldt, switched to the Teleworld hat and Ask
+ * Etyme still read his own week and the worker's chips, and listed
+ * colleagues' paper uploads. This reverses the call of f7692126c that a
+ * seat with no role of its own is greeted as a worker in either hat.
+ */
+describe('Karthik Menon, an integrator’s own engineer with no role on the firm’s book', () => {
+  const karthik = (over: Partial<HatFacts> = {}): HatFacts => ({
+    workerSeat: true, consultantSeat: false, region: null, cookieHat: null, menuKind: 'GSI',
+    worker: true, seatedAtClient: null, permissions: ['assignments.read', 'timesheets.read'], ...over,
+  })
+
+  it('Karthik Menon in his firm hat reads a firm greeting that says nothing of the firm’s is addressed to him', () => {
+    const f = karthik({ cookieHat: 'firm' })
+    expect(youOffered(f)).toBe(true)
+    expect(greetsAsYou(f)).toBe(false)
+    expect(firmHatWithNothing(f)).toBe(true)
+    expect(nothingOfTheFirm('Teleworld')).toBe('Nothing of Teleworld’s is addressed to you; your own work is under You, in the account menu.')
+    expect(nothingOfTheFirm('Teleworld Solutions')).toBe('Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu.')
+    expect(ROUTE).toMatch(/if \(await inFirmHatWithNothing\(caller, request\)\) return nothingOfTheFirmGreeting\(caller, request\)/)
+    // No chips and no number in that hat: nothing of the firm's is his to decide.
+    expect(ROUTE).toMatch(/party: 'FIRM', client: null, chips: \[\]/)
+    expect(ROUTE).toMatch(/inFirmHatWithNothing\(caller, request\)\)\) return NextResponse\.json\(\{ data: \{ total: 0 \} \}\)/)
+  })
+
+  it('Karthik Menon in his You hat reads his own week, pay and papers', () => {
+    expect(greetsAsYou(karthik({ cookieHat: 'you' }))).toBe(true)
+    expect(firmHatWithNothing(karthik({ cookieHat: 'you' }))).toBe(false)
+    // Before he chooses, he opens in his own hat, as the account menu does.
+    expect(greetsAsYou(karthik())).toBe(true)
+  })
+
+  it('a firm seat that holds a role is never told it has nothing of the firm’s', () => {
+    expect(firmHatWithNothing(owner({ cookieHat: 'firm' }))).toBe(false)
+  })
+})
+
+describe('a colleague’s paper is said only to the roles that examine papers', () => {
+  const colleague = { subjectPersonId: 'deepa' }
+
+  it('a colleague’s paper upload is never said to a seat without the paper’s permission, in either hat', () => {
+    expect(hearsPaperNotice({ personId: 'karthik', permissions: ['assignments.read', 'timesheets.read'] }, colleague)).toBe(false)
+    expect(hearsPaperNotice({ personId: 'karthik', permissions: [] }, colleague)).toBe(false)
+    // The filter runs before either hat's greeting, and what it holds back is marked read with the rest.
+    expect(ROUTE).toMatch(/\.\.\.all\.withheld/)
+    expect(ROUTE).toMatch(/\[\.\.\.allNotices\.withheld\]/)
+    expect(ROUTE).toMatch(/\.\.\.\(notices\.withheld \?\? \[\]\)/)
+  })
+
+  it('HR, the compliance officer and the Owner still hear a colleague’s paper', () => {
+    expect(hearsPaperNotice({ personId: 'farah', permissions: ['consultants.read'] }, colleague)).toBe(true)
+    expect(hearsPaperNotice({ personId: 'owner', permissions: ['*'] }, colleague)).toBe(true)
+  })
+
+  it('a person always hears about their own paper', () => {
+    expect(hearsPaperNotice({ personId: 'deepa', permissions: [] }, colleague)).toBe(true)
   })
 })

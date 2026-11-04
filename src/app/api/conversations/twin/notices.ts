@@ -24,6 +24,7 @@ import {
 } from './ask'
 import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-performers'
 import { labelFor } from '@/lib/document-type'
+import { holdsPaperworkDesk } from '@/lib/document-request'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
@@ -129,9 +130,9 @@ export const DIGEST_PREFIX = 'twin-digest:'
  * Each comes with its body and, for a date coming due, the cycle and the
  * day, so the greeting can say who and what rather than the title.
  */
-export async function unreadNotices(caller: CallerContext, opts: { program?: string | null } = {}): Promise<{ shown: NoticeLine[]; older: number }> {
+export async function unreadNotices(caller: CallerContext, opts: { program?: string | null } = {}): Promise<{ shown: NoticeLine[]; older: number; withheld: string[] }> {
   const where = { ...(await unreadWhere(caller, opts)), type: { not: 'CONVERSATION' } }
-  const [rows, total] = await Promise.all([
+  const [read, total] = await Promise.all([
     prisma.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -140,6 +141,9 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
     }),
     prisma.notification.count({ where }),
   ])
+  // A colleague's paper is never said to a seat whose work is not papers.
+  const withheld = await papersNotTheirs(caller, read).catch(() => new Set<string>())
+  const rows = read.filter((n) => !withheld.has(n.id))
   const [twin, chain] = await Promise.all([
     twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()),
     chainNotices(rows, caller.company?.id ?? null).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()),
@@ -171,8 +175,59 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
         ...(approval && settled.has(approval) ? { settled: true } : {}),
       }
     }),
-    older: Math.max(0, total - rows.length),
+    older: Math.max(0, total - read.length),
+    withheld: [...withheld],
   }
+}
+
+/** What a notice about a person's paper says it is about. */
+export interface PaperAbout {
+  /** The person the paper is about, or null where the record no longer says. */
+  subjectPersonId: string | null
+}
+
+/**
+ * Whether a seat hears a notice about a paper (the fourth screen walk,
+ * 2026-11-03: Karthik Menon, an integrator's engineer with no role on the
+ * firm's book, read "Deepa Varma uploaded Form I-94" and "Amara Nwosu
+ * uploaded I-9" in his greeting). A paper is said to the person it is
+ * about, and otherwise only to a seat that may examine papers
+ * (`holdsPaperworkDesk`, the permission the examine route checks and
+ * `paperExaminersAt` tells): never to a colleague who only reads their
+ * own work, in either hat. Pure.
+ */
+export function hearsPaperNotice(reader: { personId: string; permissions: readonly string[] | null | undefined }, paper: PaperAbout): boolean {
+  if (paper.subjectPersonId && paper.subjectPersonId === reader.personId) return true
+  return holdsPaperworkDesk(reader.permissions)
+}
+
+/**
+ * The notices among these that are about somebody else's paper, and
+ * that this seat may not examine: withheld from the greeting
+ * and marked read with the rest, so they never fill the list's room. Read
+ * in two queries at most, never per notice.
+ */
+async function papersNotTheirs(caller: CallerContext, rows: readonly { id: string; entityId: string | null }[]): Promise<Set<string>> {
+  if (holdsPaperworkDesk(caller.permissions)) return new Set()
+  const ids = [...new Set(rows.map((r) => r.entityId).filter((x): x is string => !!x))]
+  if (ids.length === 0) return new Set()
+  // A person's paper only: a firm's own paper or a contract's is told by its own rule.
+  const docs = await prisma.docInstance.findMany({ where: { id: { in: ids }, subjectType: { in: ['PERSON', 'PACKET_ITEM'] } }, select: { id: true, subjectType: true, subjectId: true } })
+  if (docs.length === 0) return new Set()
+  const itemIds = docs.filter((d) => d.subjectType === 'PACKET_ITEM').map((d) => d.subjectId)
+  const items = itemIds.length
+    ? await prisma.packetItem.findMany({ where: { id: { in: itemIds } }, select: { id: true, packet: { select: { subjectPersonId: true } } } })
+    : []
+  const itemPerson = new Map(items.map((i) => [i.id, i.packet.subjectPersonId ?? null]))
+  const about = new Map(docs.map((d) => [d.id, {
+    subjectPersonId: d.subjectType === 'PERSON' ? d.subjectId : itemPerson.get(d.subjectId) ?? null,
+  }]))
+  const out = new Set<string>()
+  for (const r of rows) {
+    const paper = r.entityId ? about.get(r.entityId) : undefined
+    if (paper && !hearsPaperNotice({ personId: caller.person.id, permissions: caller.permissions }, paper)) out.add(r.id)
+  }
+  return out
 }
 
 /** How near the ledger's entry a notice must be written to be the notice of that act. */
