@@ -2016,6 +2016,39 @@ cron secret (`{}` first to read the counts), which closes the older
 requests' items for papers their placements hold; and, when he wants
 Ask Etyme to read free text, the model key on the production project.
 
+**The post-deploy fix wave, the same morning, from the fifth walk's
+leftovers.** Money (9b7a22853): a one-person firm's own expense is
+approved on filing where every seat that may approve is her own (the
+automation log says why, reversible while no firm above accepted), so
+no card, no queue item and no Approve, and she reads "Filed. It is
+waiting on Halcyon Talent to accept it. Your firm is yours alone, so
+you are not asked to approve your own expense" in the second person
+(`lib/money/own-firm-expense`); demand (fbd7dc47e): the decisions
+queue drops her own expenses through money's `ownFirmExpenseIds`, so
+her mark, her greeting and Today never ask her. Conversation
+(5eb96c9a7, 3bfd8e1a7, 1f308d7ce, 616f05999): a "<firm> needs … from
+you" notice is read against the record on the day it is said
+(`paper-asks.ts` with `heldOnRecord`), so a paper on file is never
+asked for again and a notice names only what is left; a role a firm
+named itself is said as the role, "as Validation Engineer", never "in
+validation engineer", and a seat with no role "as Member"; the framing
+for the AP page (a supplier reads Invoice receipts; a client its
+Invoice receipts link above "Accounts payable") and for the people
+page (Network · Candidates); and the pay refusal's link is built from
+money's `receiptsLink`. Coordinator's and owners' calls, each
+reversible in a sentence: her filing counts as her firm's approval
+rather than a queue item nobody can take; the queue reads the ten
+oldest submitted expenses and then drops hers, so a turn may list
+fewer than ten; the AP page and the Consultants page type their own
+headings and read the framing only when money and supply wire it
+(in flight). Still in flight: regulatory's F1 (each person owed is
+one named row on Compliance) and F2 (the worker told when her degree
+is warned), Rosa's page listing accepted papers under "Asked for",
+"Finished" on a request whose I-9 is unexamined, the raw past date on
+the request link; and money's call on where a supplier's "Open Invoice
+receipts" lands now that its menu has that link. Then the matrix rows,
+release pass 38, a short walk on those cases, and the next deploy.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
