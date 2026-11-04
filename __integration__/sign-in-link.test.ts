@@ -38,9 +38,25 @@ let placed = { id: '', name: '' }
 beforeAll(async () => {
   await freshWorld()
   brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })).id
-  // Somebody Brightmoor pays direct on a pay line: its own placed W2.
+  // Somebody Brightmoor pays direct on a pay line: its own placed W2, and
+  // on nobody else's books. The seed also pays Lucía Fernández and Tobias
+  // Lindqvist from Pinnacle, and a firm that pays a person direct may hand
+  // them a sign-in link, so a pick with no order could land on one of them
+  // and read Pinnacle as a stranger that is not one (release pass 37).
+  const pinnacle = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' } })).id
   const line = await prisma.buyContractCandidate.findFirstOrThrow({
-    where: { buyContract: { companyId: brightmoor, vendorCompanyId: null } },
+    where: {
+      buyContract: { companyId: brightmoor, vendorCompanyId: null },
+      person: {
+        buyCandidacies: { none: { buyContract: { companyId: pinnacle } } },
+        contexts: { none: { companyId: pinnacle, type: 'EMPLOYEE', revokedAt: null } },
+        OR: [
+          { consultant: null },
+          { consultant: { is: { listings: { none: { companyId: pinnacle, revokedAt: null } } } } },
+        ],
+      },
+    },
+    orderBy: { id: 'asc' },
     select: { person: { select: { id: true, name: true } } },
   })
   placed = line.person
