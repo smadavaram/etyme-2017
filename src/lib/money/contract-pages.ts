@@ -3,7 +3,7 @@
  * page (the fourth screen walk, 2026-11-03, M5).
  *
  * The page asked `GET /api/contracts?side=…` once, got its default 20 of
- * 28, and counted, totalled and paged only those: "All 20 · Active 20 ·
+ * 28, and counted, totaled and paged only those: "All 20 · Active 20 ·
  * $2,441/hr · 1–20 of 20" where the firm had 28 lines, 26 running, at
  * $3,206/hr. A partial list shown as the whole one. So the page reads the
  * route's pages in turn, by its own `pagination.totalPages`, and every
