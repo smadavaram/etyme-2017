@@ -99,11 +99,11 @@ describe('The four steps are the one spine of the site', () => {
     // The founder's home page of 2026-10-14 replaced the three steps of
     // 2026-10-09 (Connect, Control, Reconcile) and the four step cards with
     // four chips; his "Build it" the same evening put them on the panel
-    // that shows the product working, named Job, Candidates, Timesheets
+    // that shows the product working, named Job, Submissions, Timesheets
     // and Invoices. The four steps stay the spine of the product pages
     // and the documentation, under the same names.
     const page = read('src/app/page.tsx')
-    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices'])
     expect(STORY.map((s) => s.chip)).toEqual(STEPS.map((s) => s.name))
     expect(page).not.toContain('const HOW')
     // The header's menu sheet drew them too, from 2026-10-15 until it left
@@ -122,7 +122,7 @@ describe('The four steps are the one spine of the site', () => {
 
   it('the spine and the product pages read the four steps in one order, and every product page is one step', () => {
     // Since 2026-10-15 there are four product pages, not eight: Job at
-    // /requisitions, Candidates at /submissions, Timesheets, Invoices.
+    // /requisitions, Submissions at /submissions, Timesheets, Invoices.
     expect(SPINE_ORDER).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
     expect(STEPS.map((s) => s.route)).toEqual(SPINE_ORDER)
     expect(MODULES.map((m) => m.route)).toEqual(SPINE_ORDER)
@@ -142,10 +142,10 @@ describe('The four steps are the one spine of the site', () => {
     // Previous and Next walk the four as one story: Job's Previous is the
     // documentation's "How Etyme works", Invoices' Next is Sign up.
     expect(MODULES.map((m) => [m.prev.t, m.prev.href])).toEqual([
-      ['How Etyme works', '/docs'], ['Job', '/requisitions'], ['Candidates', '/submissions'], ['Timesheets', '/timesheets'],
+      ['How Etyme works', '/docs'], ['Job', '/requisitions'], ['Submissions', '/submissions'], ['Timesheets', '/timesheets'],
     ])
     expect(MODULES.map((m) => [m.next.t, m.next.href])).toEqual([
-      ['Candidates', '/submissions'], ['Timesheets', '/timesheets'], ['Invoices', '/invoices'], ['Sign up', '/signup'],
+      ['Submissions', '/submissions'], ['Timesheets', '/timesheets'], ['Invoices', '/invoices'], ['Sign up', '/signup'],
     ])
     expect(DOCS_HOME.title).toBe(MODULES[0].prev.t)
   })
@@ -343,7 +343,7 @@ describe('The documentation is the four steps and the end of the work, then your
     expect(DOCS_HOME.lede).toBe('Four steps from a job to paying your suppliers, one page each. No account needed.')
     expect(DOCS_HOME.groups.map((g) => g.heading)).toEqual(['The steps', 'Your records', 'Recruiting', 'More'])
     const links = (i: number) => DOCS_HOME.groups[i].links.map((l) => l.t)
-    expect(links(0)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices', 'When the work ends'])
+    expect(links(0)).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices', 'When the work ends'])
     expect(DOCS_HOME.groups[0].links.map((l) => l.k)).toEqual(['Step 1', 'Step 2', 'Step 3', 'Step 4', 'After'])
     expect(links(1)).toEqual(['Customers', 'Suppliers', 'Contractors'])
     expect(links(2)).toEqual(['Who matches a job', 'Screening', 'Who applied'])
@@ -432,7 +432,7 @@ describe('Every old documentation address still works', () => {
 
 describe('The four product pages that folded into the steps still answer', () => {
 
-  it('governance leads to Job, contracts and compliance to Candidates, and the chain to Invoices, each permanently', () => {
+  it('governance leads to Job, contracts and compliance to Submissions, and the chain to Invoices, each permanently', () => {
     expect(FOLDED).toEqual({
       '/governance': '/requisitions',
       '/contracts': '/submissions',
@@ -475,7 +475,7 @@ describe('Every step page is the same one screen', () => {
     const job = html(createElement(StepPageView, { slug: 'job' }))
     expect(job).toContain('href="/docs" rel="prev"')
     expect(job).toContain('href="/docs/candidates" rel="next"')
-    expect(job).toContain('Step 2 · Candidates')
+    expect(job).toContain('Step 2 · Submissions')
   })
 
   it('every step page reads who does what as a flow of four to six boxes, then the rules, then what it stops, in that order', () => {

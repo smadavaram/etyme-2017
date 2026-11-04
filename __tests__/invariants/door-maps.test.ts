@@ -461,7 +461,7 @@ describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat
     )
     expect(v.rows.map((r) => r[0].t)).toEqual(['Vertex Global', 'Halcyon Talent', 'Arcadia Tech Group', 'Wrenfield Technical', 'Quarrystone Industrial Staffing'])
     expect(cells(v)).toEqual(expect.arrayContaining(['Yuki Tanaka, $106', 'Priyanka Rao, $99', 'Aisha Bello: background check missing; Samuel Adeyinka: no I-9']))
-    expect(stat(v, 'Candidates in').sub).toBe('$90–$110 an hour')
+    expect(stat(v, 'Submissions').sub).toBe('$90–$110 an hour')
   })
 
   it('no supplier’s liability cover is drawn, because Halcyon Talent’s is written first by its own Meridian Bank chain and the program’s twelve days never land', () => {

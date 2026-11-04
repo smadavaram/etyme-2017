@@ -11,7 +11,7 @@
  * and the documentation, in the same order:
  *
  *   1. Job          /requisitions
- *   2. Candidates   /submissions
+ *   2. Submissions  /submissions
  *   3. Timesheets   /timesheets
  *   4. Invoices     /invoices
  *
@@ -31,7 +31,7 @@
  * Etyme, the panel at that step, three lines, Previous and Next. The
  * other four product pages folded into the step they belonged to and
  * redirect there (`./folded`): governance into Job; contracts and
- * compliance into Candidates; the chain into Invoices. Candidates' page
+ * compliance into Submissions; the chain into Invoices. Submissions' page
  * is /submissions, where who applied is read, rather than /contracts.
  *
  * The home page's own list of steps stays in `app/page.tsx`, word for
@@ -107,7 +107,7 @@ export const STEPS: Step[] = [
   {
     n: 2,
     route: '/submissions',
-    name: 'Candidates',
+    name: 'Submissions',
     menu: 'Everyone who applied, on one screen.',
     home: 'Interview, choose, and the paperwork is written',
     flow: [

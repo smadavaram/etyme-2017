@@ -333,7 +333,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     }
   })
 
-  it('each step page opens the panel at its own step: Job, Candidates, Timesheets, Invoices', () => {
+  it('each step page opens the panel at its own step: Job, Submissions, Timesheets, Invoices', () => {
     const at = Object.fromEntries(MODULES.map((m) => [m.route, m.step]))
     expect(at).toEqual({
       '/requisitions': 'source', '/submissions': 'submit', '/timesheets': 'approve', '/invoices': 'pay',

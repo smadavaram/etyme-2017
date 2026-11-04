@@ -92,7 +92,7 @@ export const ABOUT: CompanyPage = {
         // as software staffing to the horizontal guard (lib/positioning),
         // which a buyer of travel nurses must not read. "A system" says the
         // same thing.
-        { lead: 'What we build.', t: 'A system a company uses to manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.' },
+        { lead: 'What we build.', t: 'A system a company uses to manage contractors from all its suppliers: jobs, submissions, timesheets and invoices.' },
         { lead: 'What we never do.', t: 'Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.' },
         { lead: 'Two ways to use it.', t: `Your team runs it: Etyme as ${TWO_WAYS[0].label}. Or Etyme runs it for you: Etyme as ${TWO_WAYS[1].label}.` },
         // The second half brought back by the founder, 2026-10-15: how Etyme

@@ -7,7 +7,7 @@
  * "Build it", on the drawing that replaced the big live frame: one
  * compact panel that plays the four steps as an Ask Etyme conversation —
  * a question, an answer, a decision card that presses itself — beside the
- * table that answer changes. The four steps are Job, Candidates,
+ * table that answer changes. The four steps are Job, Submissions,
  * Timesheets and Invoices: the four nouns a buyer already has on their
  * own desk. Every line is the trade's phrasing.
  *
@@ -253,7 +253,7 @@ export const STORY: StoryStep[] = [
   },
   {
     n: 2,
-    chip: 'Candidates',
+    chip: 'Submissions',
     embed: 'submit',
     who: NORTHBEND_PEOPLE.hiring,
     chat: [
@@ -269,7 +269,7 @@ export const STORY: StoryStep[] = [
       },
     ],
     table: {
-      title: 'Candidates · HCM integration lead',
+      title: 'Submissions · HCM integration lead',
       head: [{ t: 'Candidate' }, { t: 'Supplier', wide: true }, { t: 'Rate', right: true }, { t: 'Status', right: true }],
       rows: [
         ['Rajesh Iyer', 'Brightmoor Staffing', '$134', { pill: 'wait', t: 'Interview booked' }],
@@ -319,7 +319,7 @@ export function storyIndex(step: EmbedStep | undefined): number {
 }
 
 /** The four step names, in order: the one spine, on every public page. */
-export const STEP_NAMES = STORY.map((s) => s.chip) as ['Job', 'Candidates', 'Timesheets', 'Invoices']
+export const STEP_NAMES = STORY.map((s) => s.chip) as ['Job', 'Submissions', 'Timesheets', 'Invoices']
 
 /**
  * ── The MSP's story, told from Aptiva Workforce's seat ───────────────
@@ -392,7 +392,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
   },
   {
     n: 2,
-    chip: 'Candidates',
+    chip: 'Submissions',
     embed: 'submit',
     who: APTIVA_WHO,
     phone: APTIVA_PHONE,
@@ -409,7 +409,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
       },
     ],
     table: {
-      title: 'Candidates · Environmental health and safety lead',
+      title: 'Submissions · Environmental health and safety lead',
       head: [{ t: 'Candidate' }, { t: 'Supplier', wide: true }, { t: 'Rate', right: true }, { t: 'Status', right: true }],
       rows: [
         ['Yuki Tanaka', 'Arcadia Tech Group', '$106', { pill: 'wait', t: 'Interview proposed' }],
@@ -495,7 +495,7 @@ export const BRIGHTMOOR_STORY: Story = {
   steps: [
     {
       n: 2,
-      chip: 'Candidates',
+      chip: 'Submissions',
       embed: 'submit',
       who: 'Marisa Delacroix, account manager',
       phone: 'account manager',
@@ -513,7 +513,7 @@ export const BRIGHTMOOR_STORY: Story = {
         },
       ],
       table: {
-        title: 'Your candidates · HCM integration lead',
+        title: 'Your submissions · HCM integration lead',
         head: [{ t: 'Candidate' }, { t: 'From', wide: true }, { t: 'Rate', right: true }, { t: 'Status', right: true }],
         rows: [
           ['Rajesh Iyer', 'Applied', '$134', { pill: 'wait', t: 'Interview booked' }],
@@ -571,7 +571,7 @@ export const TECHPEPLE_BENCH_STORY: Story = {
   steps: [
     {
       n: 2,
-      chip: 'Candidates',
+      chip: 'Submissions',
       embed: 'submit',
       who: 'Linnea Qadri, recruiter',
       chat: [
@@ -609,7 +609,7 @@ export const TELEWORLD_STORY: Story = {
   steps: [
     {
       n: 2,
-      chip: 'Candidates',
+      chip: 'Submissions',
       embed: 'submit',
       who: 'Sunil Raghavan, delivery manager',
       phone: 'delivery manager',

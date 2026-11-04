@@ -111,7 +111,7 @@ export interface FourLine { lead: string; text: string; links?: readonly { words
 export const FOUR_LINES: readonly FourLine[] = [
   {
     lead: 'In it:',
-    text: 'Jobs · Candidates · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+    text: 'Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
     links: [
       { words: 'Signs in with your work account', href: '/security' },
       { words: 'Exports to your accounting system', href: '/docs/integrations' },

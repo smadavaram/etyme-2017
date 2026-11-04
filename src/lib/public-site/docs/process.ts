@@ -11,7 +11,7 @@
  * drawing read as one of ten parties. The nine are five now:
  *
  *   Job                 took "Job: from job request to award"
- *   Candidates          took "Award to first day"
+ *   Submissions         took "Award to first day"
  *   Timesheets          took "Week filed to week signed" and expenses
  *   Invoices            took billing, paying and posting to your books
  *   When the work ends  took time on site and the logs
@@ -123,7 +123,7 @@ export const STEP_PAGES: StepPage[] = [
   {
     slug: 'candidates',
     n: 2,
-    title: 'Candidates',
+    title: 'Submissions',
     lede: 'Suppliers send people who agreed to it. You interview, choose one, and the papers are checked.',
     home: 'suppliers send people, you interview and choose',
     flow: [
@@ -282,7 +282,7 @@ export function stepEyebrow(p: StepPage): string {
   return p.n ? `Step ${p.n} of 4` : 'After step 4'
 }
 
-/** The short label a link to a step page carries: "Step 2 · Candidates", "After · When the work ends". */
+/** The short label a link to a step page carries: "Step 2 · Submissions", "After · When the work ends". */
 export function stepLabel(p: StepPage): string {
   return `${p.n ? `Step ${p.n}` : 'After'} · ${p.title}`
 }

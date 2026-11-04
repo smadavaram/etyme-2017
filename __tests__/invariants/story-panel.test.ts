@@ -2,7 +2,7 @@
  * The panel that shows the product working, read against the seed.
  *
  * The founder said "Build it" on 2026-10-14 to a drawing of one compact
- * panel replacing the big live frame: the four steps — Job, Candidates,
+ * panel replacing the big live frame: the four steps — Job, Submissions,
  * Timesheets, Invoices — each an Ask Etyme question, an answer and a
  * decision card beside the table it changes. CLAUDE.md: "A test checks
  * every name and figure in it against the seed, so the page never shows
@@ -201,7 +201,7 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
   })
 
   it('the candidates step lists the seeded job’s three candidates, each with the supplier, rate and interview state the seed gives them', () => {
-    const rows = step('Candidates').table.rows.map((r) => r.map(text))
+    const rows = step('Submissions').table.rows.map((r) => r.map(text))
     expect(rows.map((r) => r[0])).toEqual(nike.open.candidates.map((c) => c.person))
     for (const [i, c] of nike.open.candidates.entries()) {
       expect(rows[i][1], c.person).toBe(firm(c.from))
@@ -214,9 +214,9 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(rows[1][3]).toBe('Submitted')
     expect(status['Daniel Okafor'].round).toMatchObject({ state: 'DONE', outcome: 'ADVANCE' })
     expect(rows[2][3]).toBe('Round 1 passed')
-    const card = step('Candidates').chat[1].card!
+    const card = step('Submissions').chat[1].card!
     expect(card.s).toBe(`${firm('computer-systems')} · ${dollars(status['Daniel Okafor'].rate)} an hour · passed round one`)
-    expect(said('Candidates')).toContain(`3 candidates from ${new Set(nike.open.candidates.map((c) => c.from)).size} suppliers`)
+    expect(said('Submissions')).toContain(`3 candidates from ${new Set(nike.open.candidates.map((c) => c.from)).size} suppliers`)
   })
 
   it('the timesheets step is Helena’s own week, waiting on Marcus Oyelaran, who signs it, and flipping to signed where a card would press', () => {
@@ -403,7 +403,7 @@ describe('The MSP door’s story is Aptiva Workforce’s seat in Cavanaugh Glass
   })
 
   it('the candidates step lists the job’s two seeded candidates, each with the supplier, rate and interview state the seed gives them, and the seat may schedule the interview', () => {
-    const r = rows('Candidates')
+    const r = rows('Submissions')
     expect(r.map((x) => x[0])).toEqual(corning.open.candidates.map((c) => c.person))
     for (const [i, c] of corning.open.candidates.entries()) {
       expect(r[i][1], c.person).toBe(firm(c.from))
@@ -414,12 +414,12 @@ describe('The MSP door’s story is Aptiva Workforce’s seat in Cavanaugh Glass
     // Proposed: waiting on the supplier to confirm.
     expect(yuki.round?.state).toBe('PROPOSED')
     expect(r[0][3]).toBe('Interview proposed')
-    expect(saidAt('Candidates')).toContain(`Yuki Tanaka’s interview is proposed and waits for ${firm(yuki.from)} to confirm`)
+    expect(saidAt('Submissions')).toContain(`Yuki Tanaka’s interview is proposed and waits for ${firm(yuki.from)} to confirm`)
     expect(priyanka.status).toBe('SUBMITTED')
     expect(priyanka.round).toBeUndefined()
     expect(r[1][3]).toBe('Submitted')
-    expect(at('Candidates').chat[1].card!.s).toBe(`${firm(priyanka.from)} · ${dollars(priyanka.rate)} an hour · submitted`)
-    expect(saidAt('Candidates')).toContain(`${corning.open.candidates.length} candidates from ${new Set(corning.open.candidates.map((c) => c.from)).size} suppliers`)
+    expect(at('Submissions').chat[1].card!.s).toBe(`${firm(priyanka.from)} · ${dollars(priyanka.rate)} an hour · submitted`)
+    expect(saidAt('Submissions')).toContain(`${corning.open.candidates.length} candidates from ${new Set(corning.open.candidates.map((c) => c.from)).size} suppliers`)
     // Setting up a round asks for requirements.write, read under the seat's role.
     expect(read('src/app/api/submissions/[id]/interviews/route.ts')).toContain("hasPermission(deskPermissions, 'requirements.write')")
     expect(hasPermission(pm, 'requirements.write')).toBe(true)
@@ -870,10 +870,10 @@ describe('The panel plays the four steps and is never blank', () => {
   })
 })
 
-describe('The four steps are Job, Candidates, Timesheets and Invoices everywhere public', () => {
+describe('The four steps are Job, Submissions, Timesheets and Invoices everywhere public', () => {
 
   it('the chips, the spine, the menu and the documentation say the same four names in the same order', () => {
-    expect(STEP_NAMES).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STEP_NAMES).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices'])
     expect(STEPS.map((s) => s.name)).toEqual(STEP_NAMES)
     // The step pages' eyebrows. (The header's menu sheet carried the four
     // from 2026-10-15 until it left on 2026-10-19.)
@@ -882,7 +882,7 @@ describe('The four steps are Job, Candidates, Timesheets and Invoices everywhere
     const docSteps = STEP_PAGES.filter((p) => p.n !== null)
     expect(docSteps.map((p) => p.title)).toEqual(STEP_NAMES)
     expect(docSteps.map(stepEyebrow)).toEqual(STEP_NAMES.map((_, i) => `Step ${i + 1} of 4`))
-    // One page per step since 2026-10-15: Candidates is /submissions, where
+    // One page per step since 2026-10-15: Submissions is /submissions, where
     // who applied is read; /contracts folded into it and redirects there.
     expect(STEPS.map((s) => s.route)).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
   })

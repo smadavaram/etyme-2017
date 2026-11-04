@@ -26,7 +26,7 @@
  *
  *   How Etyme works
  *   Four steps. Every contractor, every supplier, one place.
- *   1 Job · 2 Candidates · 3 Timesheets · 4 Invoices, one line each,
+ *   1 Job · 2 Submissions · 3 Timesheets · 4 Invoices, one line each,
  *     each the top of its step page
  *   Security · Documentation · About · Contact, small
  *   "See it working, no account" and "Sign up"

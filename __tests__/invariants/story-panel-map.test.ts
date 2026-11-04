@@ -463,7 +463,7 @@ describe('Under the panel, two drawings and four lines, every name and figure th
 
   it('the four lines are the drawing’s, word for word, and the security line opens the security page', () => {
     expect(FOUR_LINES.map((l) => `${l.lead} ${l.text}`)).toEqual([
-      'In it: Jobs · Candidates · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+      'In it: Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
       'Price: free while we test. Founding firms keep their terms.',
       'Security: what is done and what is not, on one page. No SOC 2 yet; it is next.',
       'Talk to a person: support@etyme.com. One sentence is enough.',

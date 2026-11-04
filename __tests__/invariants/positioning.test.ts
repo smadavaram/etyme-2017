@@ -450,8 +450,8 @@ describe('Below the hero, the page says what the business is', () => {
     // drawing cut About to five lines, and the first says the four steps
     // in the trade's words. The documentation's spine carries the same four
     // in order (the header's menu sheet carried them until 2026-10-19).
-    expect(ABOUT_PAGE).toContain('manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.')
-    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(ABOUT_PAGE).toContain('manage contractors from all its suppliers: jobs, submissions, timesheets and invoices.')
+    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices'])
   })
 
   it('leaves the hero to say what the software is, and argues nothing about other people’s companies anywhere', () => {
@@ -474,7 +474,7 @@ describe('Below the hero, the page says what the business is', () => {
     const mentions = (all.toLowerCase().match(/tenure/g) ?? []).length
     expect(mentions, `the word "tenure" is on the page ${mentions} times`).toBeLessThanOrEqual(5)
     expect(body).not.toContain('One person worked 14 months')
-    // The compliance page said it until it folded into Candidates on
+    // The compliance page said it until it folded into Submissions on
     // 2026-10-15; the documentation's end-of-work page says the rule in one line.
     expect(TIME_ON_SITE_DOC).toContain('Time on site is the person’s, across every supplier. A day counts once.')
   })
@@ -615,7 +615,7 @@ describe('Below the hero, the page says what the business is', () => {
     // refusal under "What it refuses". Since the founder's drawing of
     // 2026-10-15 each gate is a line of its step page's "With Etyme", and
     // the panel shows the screen it happens on. The lapsed insurance
-    // certificate is on the documentation's Candidates page, above.
+    // certificate is on the documentation's Submissions page, above.
     expect(CANDIDATES_PAGE).toContain('Nobody starts without a US work form (I-9).')
     expect(onModule('timesheets')).toContain('Nobody approves their own hours.')
     expect(INVOICES_PAGE).toContain('The hours, the invoice and the contract rate must agree. If they do, pay. If not, it says why.')
@@ -943,7 +943,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     // The documentation says an extension is checked against the time
     // limit and blocked at it, and no public page says a submission is
     // refused on it (the compliance page said so until it folded into
-    // Candidates on 2026-10-15).
+    // Submissions on 2026-10-15).
     expect(TIME_ON_SITE_DOC).toContain('At the limit it is blocked.')
     for (const text of [...STEP_PAGES_TEXT, TIME_ON_SITE_DOC]) expect(text).not.toMatch(/blocks a new submission|submission is refused/)
   })
@@ -1166,11 +1166,11 @@ describe('The page shows the product before it describes it', () => {
     expect(PANEL).not.toContain('<iframe')
     expect(PANEL).toContain('aria-label={`Etyme shown working on ${story.bar.company}, a sample company`}')
   })
-  it('walks the four steps as four chips — Job, Candidates, Timesheets, Invoices — each playing its own step in the same panel', () => {
+  it('walks the four steps as four chips — Job, Submissions, Timesheets, Invoices — each playing its own step in the same panel', () => {
     // The founder, 2026-10-14: the four nouns a buyer already has on their
     // own desk. Each chip is the step's own, and the machine names of the
     // sample screens (source, submit, approve, pay) do not move.
-    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices'])
     expect(EMBED_STEPS).toEqual(['overview', ...STORY.map((s) => s.embed)])
     for (const s of STORY) expect(embedStep(s.embed), s.chip).not.toBeNull()
     expect(PANEL).toContain('onClick={() => playStep(i)}')
@@ -1440,7 +1440,7 @@ describe('The header reads as an enterprise product, not a job board', () => {
     expect(PAGE).toContain('<SiteHeader />')
     expect(Object.keys(HEADER)).toEqual(['signIn'])
     expect(FRAME_SRC).not.toContain('<details')
-    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Submissions', 'Timesheets', 'Invoices'])
     expect(frameCopy().join(' ')).not.toMatch(/\b(?:Platform|Solutions|How It Works)\b/)
   })
   it('never says "I\'m hiring" — that is job-board language, not an enterprise layer', () => {
@@ -1904,7 +1904,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
       { was: 'ways', to: '/about', anchor: '/about', text: ABOUT_PAGE,
         phrase: 'Etyme as VMS software' },
       { was: 'the hero’s span line', to: '/about', anchor: '/about', text: ABOUT_PAGE,
-        phrase: 'jobs, candidates, timesheets and invoices' },
+        phrase: 'jobs, submissions, timesheets and invoices' },
     ]
     for (const m of MOVED) {
       expect(m.anchor, `#${m.was} has no section on ${m.to}`).toBeTruthy()
@@ -1921,7 +1921,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     for (const route of ['/about', '/docs/when-work-ends']) {
       expect(PUBLIC_PAGES.some((p) => p.route === route), route).toBe(true)
     }
-    // And the gate that was quoted here is a line on the Candidates page.
+    // And the gate that was quoted here is a line on the Submissions page.
     expect(CANDIDATES_PAGE).toContain('Nobody starts without a US work form (I-9)')
   })
 
@@ -1935,7 +1935,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(PAGE).not.toContain('STEPS.map')
     expect(STEPS.map((s) => [s.name, s.menu])).toEqual([
       ['Job', 'Send it once. Every approved supplier gets it.'],
-      ['Candidates', 'Everyone who applied, on one screen.'],
+      ['Submissions', 'Everyone who applied, on one screen.'],
       ['Timesheets', 'Approve the week in one tap.'],
       ['Invoices', 'Pay only what you approved.'],
     ])
@@ -2332,12 +2332,12 @@ function inOurWords(text: string): string {
   // "A role for every seat" is an access role, on the security page.
   t = t.replace(/\bA role for every seat\b/g, ' ')
   // "Invoices" is the fourth step's name, the founder's of 2026-10-14
-  // (Job, Candidates, Timesheets, Invoices): the step is paying what the
+  // (Job, Submissions, Timesheets, Invoices): the step is paying what the
   // suppliers sent, so its noun is theirs. Set aside as the chips and as
   // "Step 4 · Invoices", and since 2026-10-15 as the documentation's step
   // page ("Step 4 of 4 Invoices") and About's list of the four steps.
-  t = t.replace(/\bJob Candidates Timesheets Invoices\b/g, ' ').replace(/\bStep 4 · Invoices\b/g, ' ')
-    .replace(/\bStep 4 of 4 Invoices\b/g, ' ').replace(/\bjobs, candidates, timesheets and invoices\b/g, ' ')
+  t = t.replace(/\bJob Submissions Timesheets Invoices\b/g, ' ').replace(/\bStep 4 · Invoices\b/g, ' ')
+    .replace(/\bStep 4 of 4 Invoices\b/g, ' ').replace(/\bjobs, submissions, timesheets and invoices\b/g, ' ')
   // And since 2026-10-15 as a step page's Previous and Next, which name
   // the steps either side: Timesheets' Next is "Invoices".
   for (const m of MODULES) t = t.split(`${m.prev.t} ${m.next.t}`).join(' ')
@@ -2541,14 +2541,14 @@ describe('Plain words on public pages, defined once', () => {
       expect(text, route).not.toMatch(/\btenure caps?\b/i)
     }
     // The compliance page named it in its question until it folded into
-    // Candidates on 2026-10-15. The end-of-work page names the limit
+    // Submissions on 2026-10-15. The end-of-work page names the limit
     // beside what it counts and what it does.
     expect(TIME_ON_SITE_DOC).toContain('Time on site is the person’s, across every supplier. A day counts once.')
     expect(TIME_ON_SITE_DOC).toContain('An extension is checked against the time limit first. At the limit it is blocked.')
   })
 
   it('a trade word a buyer may not know is glossed on the page that uses it', () => {
-    // The I-9 on the Candidates page (2026-10-15). As drawn, its "Today"
+    // The I-9 on the Submissions page (2026-10-15). As drawn, its "Today"
     // names the I-9 one line before "With Etyme" glosses it; reported to
     // the founder rather than reworded, because the words are his.
     expect(CANDIDATES_PAGE).toContain('a US work form (I-9)')

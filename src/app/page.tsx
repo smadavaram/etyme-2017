@@ -34,7 +34,7 @@ import { WhyBelow } from '@/lib/public-site/why-below'
  *               (`lib/public-site/story-panel`, since the founder's
  *               "Build it" later on 2026-10-14): Ask Etyme answers, a
  *               decision card presses itself, the table changes, across
- *               four chips — Job, Candidates, Timesheets, Invoices — with
+ *               four chips — Job, Submissions, Timesheets, Invoices — with
  *               every name and figure the seeded demo's, and one button
  *               to the full demo. Since 2026-10-19 the bar names the
  *               person in front of each step (Marcus Oyelaran, Helena

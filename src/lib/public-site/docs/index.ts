@@ -16,7 +16,7 @@
  *
  *   - the home, "How Etyme works": the steps, your records, recruiting
  *     and more, each listed once
- *   - five step pages (`./process`): Job, Candidates, Timesheets,
+ *   - five step pages (`./process`): Job, Submissions, Timesheets,
  *     Invoices, and When the work ends
  *   - your records and recruiting (`./topics`), six short pages
  *   - "Who does what": one table that replaced the ten party pages, each

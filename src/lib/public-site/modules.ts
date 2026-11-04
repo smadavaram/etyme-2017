@@ -17,7 +17,7 @@
  *   3. the panel that shows the product working, opened at this step
  *      (`./story-panel`), with the line under it naming the person in
  *      front of the step (founder, 2026-10-19): Marcus Oyelaran for Job
- *      and Candidates, Helena Marsh for Timesheets, Renata Kowal for
+ *      and Submissions, Helena Marsh for Timesheets, Renata Kowal for
  *      Invoices
  *   4. three lines: what you do, who is involved, what happens next
  *   5. Previous and Next, so the four pages read as one story: Job's
@@ -26,7 +26,7 @@
  *   6. the sign-up band, the security line and the footer, as everywhere
  *
  * Eight pages became four. Governance folded into Job; contracts and
- * compliance into Candidates; the chain into Invoices. Their addresses
+ * compliance into Submissions; the chain into Invoices. Their addresses
  * redirect (`./folded`). What those pages said is still said where a
  * reader who asks will find it: the documentation's step pages carry the
  * rules, the blocks and what runs on its own; the security position and
@@ -56,7 +56,7 @@ export interface ModulePage {
   route: `/${string}`
   /** 1 to 4: the step this page is (`./steps`). */
   n: 1 | 2 | 3 | 4
-  /** The step's name: Job, Candidates, Timesheets, Invoices. Also the tab's title. */
+  /** The step's name: Job, Submissions, Timesheets, Invoices. Also the tab's title. */
   title: string
   /** "Step n of 4 · Name", above the headline. */
   eyebrow: string
