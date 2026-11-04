@@ -1943,6 +1943,16 @@ the firm that raised it. One gap, said once: a renewal is recognized
 by its packet key, so a route asking for a renewal under another key
 would need to set the same flag. Release pass 37 runs on the quiet
 tree after both.
+**Release pass 37 on 4cf29d862:** type check clean, 13,613 of 13,613
+unit, 2,644 of 2,645 integration, build clean. The one red,
+`__integration__/sign-in-link.test.ts`, was the test's own pick: it
+drew Brightmoor's "placed person" with no order, the seed pays Lucía
+Fernández and Tobias Lindqvist from Pinnacle too, and a firm that pays
+a person direct may hand them a sign-in link, so Pinnacle rightly read
+it; the test now asks for a person nobody at Pinnacle pays, lists or
+seats (77c5c2b40, test only, green alone). The fifth walk runs on this
+build with the navigation screenshots the founder asked for, and the
+deploy follows its yes.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
