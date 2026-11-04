@@ -15,6 +15,8 @@ import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-ad
 import { consultantsPageUrl, pagesAfterFirst } from '@/lib/consultant-portfolio/list-pages'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
+import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
 
@@ -964,6 +966,12 @@ export default function ConsultantsPage() {
   const readerKind = session.company?.kind ?? null
   // The section on the reader's own menu (round seven).
   const section = usePageSection('/dashboard/consultants')
+  // The heading is the menu's own word, read where the menu reads it:
+  // a supplier reaches this page from Network's Candidates group, so it
+  // reads "Network · Candidates", never a typed "Consultants" (the fifth
+  // screen walk saw "NETWORK / Consultants"). Null until the session
+  // says who is reading, so no guessed kind heads the page.
+  const framing = readerKind != null ? pageFraming(readerKind, 'consultants', null, sidebarPropsFrom(session)) : null
   const searchParams = useSearchParams()
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
@@ -1271,11 +1279,11 @@ export default function ConsultantsPage() {
               kind is a supplier's eyebrow on a client's page while the
               session loads (sign-up walk round three, 16). */}
           {readerKind != null && (
-            <p className="eyebrow">{section ?? ''}</p>
+            <p className="eyebrow">{framing?.eyebrow || section || ''}</p>
           )}
-          <h1>Consultants</h1>
+          <h1>{framing?.title ?? ''}</h1>
           {readerKind != null && (
-            <p>Consultant records — the people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
+            <p>The people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
           )}
         </div>
         {mayAdd && (
