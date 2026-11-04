@@ -229,4 +229,25 @@ describe('a fresh request, the backfill and the worker read what the placement r
     expect(src).toContain('linesOfPerson(personId, { live: true })')
     expect(src).toContain('onFileKeys,')
   })
+
+  it('a renewal asked for a license still in date stays on the worker’s page with the firm that asked, until the renewal arrives', () => {
+    const renewal = {
+      id: 'p2', label: 'License renewal', askedBy: 'Halcyon Talent', recipientEmail: 'colleen@example.invalid', token: 't2',
+      expiresAt: new Date('2026-11-20T00:00:00Z'), cancelledAt: null, createdAt: new Date('2026-11-03T09:00:00Z'), reason: null,
+      renewal: true,
+      items: [{ id: 'r1', key: 'PROFESSIONAL_LICENSE', label: 'Professional license', state: 'PENDING', required: true, position: 0 }],
+    }
+    const base = { documents: [] as SentDocument[], packets: [renewal], myEmail: 'colleen@example.invalid', held: [], owed: [], on: NOW } as unknown as Parameters<typeof myPapers>[0]
+    // Her license is on file and in date: the renewal is still asked, by Halcyon.
+    const asked = myPapers({ ...base, onFileKeys: ['PROFESSIONAL_LICENSE'] }).filter((p) => p.kind === 'REQUEST')
+    expect(asked.map((p) => p.name)).toContain('Professional license')
+    expect(asked[0].askedBy).toBe('Halcyon Talent')
+    expect(asked[0].todo).toBe('open')
+    // Once the renewal arrives the item is answered, and says so.
+    const arrived = { ...renewal, items: [{ ...renewal.items[0], state: 'RECEIVED', receivedAt: NOW }] }
+    const after = myPapers({ ...base, packets: [arrived], onFileKeys: ['PROFESSIONAL_LICENSE'] }).filter((p) => p.kind === 'REQUEST')
+    expect(after[0].todo).toBeNull()
+    // The route marks the nightly chase's renewal as a renewal.
+    expect(read('src/app/api/me/papers/route.ts')).toContain('renewal: p.packetKey === CREDENTIAL_PACKET_KEY')
+  })
 })

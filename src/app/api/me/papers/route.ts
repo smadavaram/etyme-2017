@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
     // A renewal request's sentence is said again today rather than as it
     // was stored, so its count of days matches the line above it.
     reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date(), p.company.name) ?? p.reopenedReason) : p.reopenedReason,
+    renewal: p.packetKey === CREDENTIAL_PACKET_KEY,
     items: p.items.map((i) => ({
       id: i.id,
       key: i.key,

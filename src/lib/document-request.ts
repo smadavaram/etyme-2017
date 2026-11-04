@@ -882,6 +882,13 @@ export interface AskedPacket {
    * them. Null where the packet carried none.
    */
   reason: string | null
+  /**
+   * A renewal: it asks for a new copy of a paper that is on file and still
+   * in date, because that paper is about to lapse. The paper on file does
+   * not answer it, only the renewal does, so it stays listed until the
+   * renewal arrives (release pass 36, Colleen Byrne's license).
+   */
+  renewal?: boolean
   items: AskedItem[]
 }
 
@@ -1505,7 +1512,10 @@ export function myPapers(input: {
     const mine =
       !!input.myEmail && p.recipientEmail.trim().toLowerCase() === input.myEmail.trim().toLowerCase()
     for (const item of [...p.items].sort((a, b) => a.position - b.position)) {
-      if (item.state === 'PENDING' && item.key && onFile.has(item.key)) continue
+      // An item asking for a paper already on file and in force is answered
+      // by that paper, so it is not listed twice (R3). A renewal is never
+      // answered by the paper it renews.
+      if (!p.renewal && item.state === 'PENDING' && item.key && onFile.has(item.key)) continue
       const answered = ANSWERED.includes(item.state)
       papers.push({
         id: item.id,
