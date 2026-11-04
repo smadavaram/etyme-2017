@@ -59,10 +59,20 @@ export function owedSentence(o: {
   toName: string | null
   /** Where it came from, in the words whoever asked for it wrote. */
   asked: string
+  /**
+   * WORKER · SUPPLIER · US · CUSTOMER. A paper about a person that the
+   * firm owes (a background check it orders) is the firm's to produce
+   * for that person, never the person's (the fifth screen walk).
+   */
+  owedBy?: string
 }): string {
-  const whose = o.aboutName ?? o.owedByName
   const where = o.toName ? `, on the line billing ${o.toName}` : ''
   const asked = o.asked.trim().replace(/[.]$/, '')
+  if (o.aboutName && o.owedBy && o.owedBy !== 'WORKER') {
+    const firm = o.owedByName ?? 'This firm'
+    return `${possessive(firm, '’')} to produce for ${o.aboutName} — ${lowerFirst(asked)}${where}.`
+  }
+  const whose = o.aboutName ?? o.owedByName
   return whose
     ? `${possessive(whose, '’')} to produce — ${lowerFirst(asked)}${where}.`
     : `${upperFirst(asked)}${where}.`

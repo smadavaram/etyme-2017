@@ -619,7 +619,7 @@ export default function CompliancePage() {
           </div>
           <div className="divide-y divide-etyme-rule">
             {owes.map(o => (
-              <div key={`${o.key}-${o.toName ?? ''}-${o.aboutName ?? ''}`} className="px-4 py-3">
+              <div key={`${o.key}-${o.lineId}`} className="px-4 py-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`chip ${o.state === 'WAIVED' ? 'chip--passive' : o.stopsWork ? 'chip--danger' : 'chip--attention'}`}>
                     {o.state === 'WAIVED' ? 'Waived' : o.stopsWork ? 'Stops work' : 'Owed'}

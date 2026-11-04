@@ -12,6 +12,7 @@ import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential,
 import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, fixForReader, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
 import { chainTop } from '@/lib/chain-top'
 import { checkHealth } from './health'
+import { aboutThePerson, owedRowKey } from './owed-rows'
 import { employedPairs } from './verifications/record'
 import { whoPutsItOnFile, type WhoEmploys } from '@/app/dashboard/compliance/says'
 import { orderedNotCollected, readVerdict } from '@/lib/attestation'
@@ -935,7 +936,7 @@ interface Owed {
   word: string
   asked: string
   waivedSays: string | null
-  /** The person the line is for, where the worker owes it. */
+  /** The person the paper is about, where it is about one. */
   personId: string | null
   /**
    * Whether this firm records it from this row: an I-9 it owes as the
@@ -1044,11 +1045,15 @@ async function whatThisFirmOwes(
     })
 
     for (const item of items) {
-      // One document per customer per person. Six consultants at one
-      // client wanting one agreement is one row, not six.
-      const id = `${item.key}:${line.clientCompanyId ?? ''}:${item.owedBy === 'WORKER' ? (line.personId ?? '') : ''}`
+      // A paper about the firm is one row per customer: six consultants at
+      // one client wanting one agreement is one row, not six. A paper about
+      // a person is one row per person, named, whoever owes it: six people
+      // missing a background check the firm orders are six rows
+      // (`owed-rows`, the fifth screen walk).
+      const id = owedRowKey(item, line)
       if (seen.has(id)) continue
       seen.add(id)
+      const about = aboutThePerson(item, line.personId)
       out.push({
         lineId: line.id,
         key: item.key,
@@ -1056,13 +1061,13 @@ async function whatThisFirmOwes(
         owedBy: item.owedBy,
         owedByName: item.owedByName,
         toName: line.clientCompany?.name ?? null,
-        aboutName: item.owedBy === 'WORKER' ? (line.person?.name ?? null) : null,
+        aboutName: about ? (line.person?.name ?? null) : null,
         stopsWork: item.stopsWork,
         state: item.state,
         word: item.word,
         asked: item.asked,
         waivedSays: item.waivedSays,
-        personId: item.owedBy === 'WORKER' ? (line.personId ?? null) : null,
+        personId: about ? (line.personId ?? null) : null,
         recordI9: false,
       })
     }
