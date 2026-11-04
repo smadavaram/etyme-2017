@@ -1954,6 +1954,68 @@ seats (77c5c2b40, test only, green alone). The fifth walk runs on this
 build with the navigation screenshots the founder asked for, and the
 deploy follows its yes.
 
+**The fifth walk and the deploy, 2026-11-04.** The walk on pass 37's
+build (31 checks on 14 seats: 3 saved and proven, 25 refused or answered
+rightly, 2 failed, 1 not proven) said the founder's blocker is closed:
+Rosa Delgado's and Omar Haddad's accepted undertakings read on file on
+the placement and on Compliance, a fresh W-2 request asks for nothing
+and creates no request, Rosa's own page lists nothing still needed, and
+the backfill closed 640 items (right to work 464, the undertaking 57,
+hot-floor induction 80, sterile-field training 39), so Rajesh Iyer's
+request reads "Everything is in". The navigation holds on every seat:
+a supplier, a bench vendor (Techpeple) and an integrator read the
+eleven links and a client the nine, Network opens its grouped tab row,
+Paperwork is a tab of Contracts and gone from Settings, all 60 tabs
+and every old address open, the home chips read Job · Submissions ·
+Timesheets · Invoices and Step 2 of 4 is headed Submissions; 91
+navigation screenshots for the founder under
+`scratchpad/walk-saves/shots5/nav/`, every menu and tab row on a
+supplier and a client at desktop and phone width. Every fix of pass
+36 and 37 holds (Contracts "All 28 · Active 26 · $3,206/hr · 1–20 of
+28"; Karthik's firm hat; Colleen's one hat). The walker's verdict was
+"does not ship" on two faults this wave did not introduce: Compliance
+collapses six people's missing background checks into one row naming
+nobody, because `whatThisFirmOwes` leaves the person out of its key
+when the firm owes the paper (regulatory; walk 4 had read the same
+single row as the truth); and the degree warning is still not told to
+the worker, because `degreeCheckForYou` is called only by its own test
+while the test name and the matrix row say it is built (regulatory's
+call site, conversation's words). **The coordinator's call, reversible
+by the founder in a sentence: deploy.** The founder's own blockers are
+proven on screens, neither fault makes production worse than it was
+(both were there on the 3a35d888d build), his retest has waited a day,
+and both are fixed in the same hour for the next deploy. Also found:
+Rosa's page lists accepted papers under "Asked for", one twice;
+Rajesh's request reads "Finished" while its I-9 is unexamined; the
+request link prints a raw past date; Rosa's greeting still asks for
+the accepted undertaking; Karthik's greeting reads "You are in
+validation engineer"; Colleen's one-person firm is asked to approve
+her own expense; the page under Invoice receipts is headed "Accounts
+payable" and under Network "Consultants"; an MSP seat could not be
+opened outside a client's program, so its own ten-link menu is not
+proven on screens. **Shipped to production 2026-11-04 (374f522bd on
+the deploy branch, source f55f389b1):** the founder's retest wave
+(Activate, every acceptance read by the placement, the pay line, Bill
+this week, the I-9 dialog, the packet rows, the picker's reasons, the
+sign-in link, the worker door on /demo, the model switch link, the nav
+answers), the money and papers fixes of walks 3 and 4, the menu wave
+(the hats, Submissions and Candidates, Contracts, Network above Jobs,
+Paperwork under Contracts, the process order through the money, the
+Submissions step), with release pass 37 green on the product code.
+Gates on the replay: no Ruby, brand kit present, no source difference;
+the twelve additive columns and two indexes of the two waves land
+through `DB_PUSH_ON_BUILD`, still on since October 21. Smoke: health
+says "Serving 374f522b from main" with the database reachable and the
+schema there; the home page, the demo, the four doors, the
+documentation and `/docs/candidates`, about, contact, security,
+privacy, terms, the DPA, sign-up and `/site/tapin` answer 200; the home
+page's chips read Submissions; the inbound email door answers 404 to a
+POST. **The founder's two steps:** run the backfill once on
+production, `POST /api/packets/backfill` with `{"write": true}` and his
+cron secret (`{}` first to read the counts), which closes the older
+requests' items for papers their placements hold; and, when he wants
+Ask Etyme to read free text, the model key on the production project.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
