@@ -77,9 +77,9 @@ describe('15: an eyebrow names the section the page sits under on the reader’s
     expect(src).not.toMatch(/<p className="eyebrow">Network<\/p>/)
   })
 
-  it('an MSP reads Suppliers under Companies, and a client reads it as its own link, Suppliers', () => {
-    expect(sectionOfHref('MSP', '/dashboard/suppliers')).toBe('Companies')
-    expect(sectionOfHref('CLIENT', '/dashboard/suppliers')).toBe('Suppliers')
+  it('an MSP and a client both read Suppliers under Network, the link their own menu files it under', () => {
+    expect(sectionOfHref('MSP', '/dashboard/suppliers')).toBe('Network')
+    expect(sectionOfHref('CLIENT', '/dashboard/suppliers')).toBe('Network')
   })
 
   it('Budget reads its section from the menu and no longer types "Governance"', () => {

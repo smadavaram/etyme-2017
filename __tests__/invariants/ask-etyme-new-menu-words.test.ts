@@ -39,13 +39,13 @@ describe('where a page is, in the words of the new menu', () => {
 
   it('a client asks “Where are my candidates?” and is sent to the people it met through its suppliers', () => {
     const a = where('Where are my candidates?', CLIENT)
-    expect(a.says).toBe('Your candidates are under Candidates.')
+    expect(a.says).toBe('Your candidates are under Network.')
     expect(hrefs(a)).toEqual(['/dashboard/people'])
   })
 
   it('a supplier asks “Where are my candidates?” and is sent to its candidates and its bench', () => {
     const a = where('Where are my candidates?', SUPPLIER)
-    expect(a.says).toBe('Your candidates are under Candidates, on the Candidates and Bench tabs.')
+    expect(a.says).toBe('Your candidates are under Network, on the Candidates and Bench tabs.')
     expect(hrefs(a)).toEqual(['/dashboard/consultants', '/dashboard/bench'])
   })
 

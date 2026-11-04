@@ -59,7 +59,7 @@ describe('a client’s Interviews and AP pages read the client’s own links, ne
     const heads: Record<string, string> = {
       'contracts.sell': 'Contracts', 'contracts.buy': 'Contracts', requirements: 'Jobs', submissions: 'Submissions',
       interviews: 'Submissions', rolloff: 'Contracts', timesheets: 'Timesheets', invoices: 'Invoice receipts',
-      expenses: 'Timesheets', consultants: 'Candidates',
+      expenses: 'Timesheets', consultants: 'Network',
     }
     for (const k of keys) expect([k, pageFraming('CLIENT', k, null, OWNER).eyebrow]).toEqual([k, heads[k]])
   })

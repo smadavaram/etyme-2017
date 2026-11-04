@@ -128,10 +128,10 @@ describe('16 · Training says job requests, and three eyebrows follow the menu',
     expect(sectionOfHref('MSP', '/dashboard/alumni', { seated: true, clientName: 'Cavanaugh Glassworks' } as any)).toBe('Contracts')
   })
 
-  it('the menu puts Supplier scorecards under Companies for an MSP, and Training under Candidates for a supplier and an integrator', () => {
-    expect(sectionOfHref('MSP', '/dashboard/scorecards')).toBe('Companies')
-    expect(sectionOfHref('VENDOR', '/dashboard/training')).toBe('Candidates')
-    expect(sectionOfHref('GSI', '/dashboard/training')).toBe('Candidates')
+  it('the menu puts Supplier scorecards under Network for an MSP, and Training under Network for a supplier and an integrator', () => {
+    expect(sectionOfHref('MSP', '/dashboard/scorecards')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/training')).toBe('Network')
+    expect(sectionOfHref('GSI', '/dashboard/training')).toBe('Network')
   })
 })
 

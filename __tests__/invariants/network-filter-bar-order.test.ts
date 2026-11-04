@@ -12,6 +12,9 @@ import { NETWORK_FILTERS, filterOrderFor } from '@/lib/network-filters'
 const root = join(__dirname, '../..')
 const bar = readFileSync(join(root, 'src/components/network-view.tsx'), 'utf8')
 const nav = readFileSync(join(root, 'src/lib/nav-table.ts'), 'utf8')
+// The note is a comment, so a line break inside it is "\n    // ";
+// read it as the sentence it is, however the comment is wrapped.
+const navSaid = nav.replace(/\n\s*\/\/ /g, ' ')
 
 describe('the Network filter bar follows the reader’s order', () => {
   it('the shared filter bar takes the reader’s order of the chips, and keeps the fixed order where none is given', () => {
@@ -26,7 +29,7 @@ describe('the Network filter bar follows the reader’s order', () => {
   })
 
   it('the menu’s note on the client’s Candidates says it opens on the first filter with rows, not on Everyone', () => {
-    expect(nav).not.toContain('Opens on\n  // Everyone')
-    expect(nav).toContain('the first filter in the reader’s order that has rows, Favorites first'.replace('’', "'"))
+    expect(navSaid).not.toContain('Opens on Everyone')
+    expect(navSaid).toContain('Opens on the first filter in the reader’s order that has rows, Favorites first'.replace('’', "'"))
   })
 })

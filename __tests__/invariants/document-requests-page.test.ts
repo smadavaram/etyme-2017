@@ -48,20 +48,21 @@ describe('what a client is offered to ask for', () => {
 describe('the Document requests page', () => {
   const page = readFileSync(join(process.cwd(), 'src/app/dashboard/packets/page.tsx'), 'utf8')
 
-  it('sits under Governance, where the menu puts it', () => {
+  it('sits under Contracts, on the Paperwork tab, where the menu puts it', () => {
     // The heading is read off the reader's own menu, never typed: a word
     // typed over the page is how it once read "Operate".
     expect(page).toContain("usePageSection('/dashboard/packets')")
     expect(page).not.toMatch(/className="eyebrow">\s*(Governance|Operate|Compliance)\s*</)
     // A client's compliance officer — the desk the tester walked as —
-    // reads Settings, the link its menu files the page under as a tab.
+    // reads Contracts, the link its menu files the page under as a tab
+    // since the 2026-11-04 menu put the papers beside the lines.
     const officer = rolesFor('CLIENT').find((r) => r.name === 'Compliance Officer')!
     const asClient = sectionForReader(
       { companyKind: 'CLIENT', permissions: officer.permissions as readonly string[] }, '/dashboard/packets')
-    expect(asClient).toBe('Settings')
-    // A supplier's menu puts it under Settings too, and the page says so
+    expect(asClient).toBe('Contracts')
+    // A supplier's menu puts it under Contracts too, and the page says so
     // rather than a word that menu does not print.
-    expect(sectionForReader({ companyKind: 'VENDOR' }, '/dashboard/packets')).toBe('Settings')
+    expect(sectionForReader({ companyKind: 'VENDOR' }, '/dashboard/packets')).toBe('Contracts')
   })
 
   it('offers a Request documents button when nothing has been asked yet, rather than an explanation', () => {
