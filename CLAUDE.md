@@ -2048,6 +2048,39 @@ is warned), Rosa's page listing accepted papers under "Asked for",
 the request link; and money's call on where a supplier's "Open Invoice
 receipts" lands now that its menu has that link. Then the matrix rows,
 release pass 38, a short walk on those cases, and the next deploy.
+**Landed, the same hour.** Regulatory (9cfcf3f52, 5d1852ae6, 1a73799ca):
+Compliance classes each item as about the firm (the agreement,
+insurance, good standing, the W-9, the business partner form: one row
+per customer) or about a person (everything else, a background check
+the firm owes included: one named row per person, whoever owes it,
+keyed by line so two people with one name stay two rows), and a check
+the firm owes says "Brightmoor Staffing's to produce for Anders
+Achterberg" (`src/app/api/compliance/owed-rows.ts`); the worker hears
+about her degree at every door that reads it (her own upload, her
+answer to a request, HR's accept on Paperwork and on a request),
+through conversation's `degreeCheckForYou`, once per firm and sentence
+and never HR's words (`lib/document-stages/degree-told`), and her own
+upload now also tells HR at every firm that reads her papers; an
+accepted paper is listed once on her page under on file with the firm
+that accepted it; a request reads "Received, waiting on HR to look at
+I-9 and E-Verify" until every paper is examined or on file, and
+"Finished" only then (`progressOf` in `lib/packets`); a stored start
+sentence is rebuilt on the day the worker's link is read
+(`startSentenceNow`). Money (d5dea6f9c): the AP page is headed by the
+reader's Invoice receipts link through the framing, and a supplier,
+integrator or MSP asked to pay is sent to `/dashboard/ap`, the page its
+menu calls Invoice receipts (reversible: send them back to Bills opened
+on what they owe); a one-person firm, with no such link, still goes to
+Bills. Supply (77bd11036): the Consultants page is headed Network ·
+Candidates through the framing, its subtitle the founder's words.
+Corrected in the matrix: the degree row had listed
+`degree-told-to-the-worker.test.ts` as built since 3b01b83b2, and until
+5d1852ae6 the function was called only by its test. Still open, with
+owners: HR's request list prints an older request's stored start
+sentence as written (regulatory); an item sent and not yet examined
+still reads "On file" on the worker's own list (regulatory, the class
+of "On file" without an examination); the `receiptsLink` comment in
+the Ask Etyme route still says "a supplier at Bills" (conversation).
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
