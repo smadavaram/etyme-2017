@@ -1902,12 +1902,25 @@ export function seatSays(seat: { role: string | null; company: string | null; sa
   if (client && client !== company) {
     return `You run ${possessive(client)} program for ${company}${seat.sample ? `, a sample ${seat.party === 'MSP' ? 'MSP' : 'company'}` : ''}.`
   }
-  const at = `${company}${seat.sample ? ', a sample company' : ''}.`
+  const sample = seat.sample ? ', a sample company' : ''
+  const at = `${company}${sample}.`
   const role = seat.role?.trim()
-  if (!role) return `You are signed in at ${at}`
+  // No role: the seat is a Member, as the foot of the menu says (`footerRole`).
+  if (!role) return `You are signed in at ${company} as Member${sample}.`
   const words = roleWords(role)
-  return namesAPerson(words) ? `You are the ${words} at ${at}` : `You are in ${words} at ${at}`
+  if (namesAPerson(words)) return `You are the ${words} at ${at}`
+  if (TEAM_ROLES.has(words.toLowerCase())) return `You are in ${words} at ${at}`
+  // Any other role is the seat's own name for it ("Validation Engineer"):
+  // said as the role the seat holds, never as a place (walk 5, C9).
+  return `You are signed in at ${company} as ${role}${sample}.`
 }
+
+/**
+ * The roles that name a team a person works in, so "You are in finance at
+ * Brightmoor" reads right. Only these; a role a firm named itself, often a
+ * job title, is never said as a place.
+ */
+const TEAM_ROLES = new Set(['finance', 'hr', 'accounts receivable', 'accounts payable', 'ap & payroll', 'payroll', 'procurement', 'compliance', 'contractor sourcing'])
 
 /**
  * Find the item a person meant: its number in the list, its question's

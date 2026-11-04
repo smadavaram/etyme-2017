@@ -391,6 +391,17 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(asked.kind === 'NEEDS' && (asked.more ?? []).map((l) => l.says)).not.toContain(boundarySays('OFF'))
   })
 
+  it('a role a firm named itself, like a job title, is said as the role the seat holds and never as a place: “as Validation Engineer”, never “in validation engineer”', () => {
+    expect(seatSays({ role: 'Validation Engineer', company: 'Teleworld Solutions', sample: true }))
+      .toBe('You are signed in at Teleworld Solutions as Validation Engineer, a sample company.')
+    expect(seatSays({ role: 'Data Engineer', company: 'Teleworld Solutions', sample: false })).not.toMatch(/You are in /)
+    // A seat with no role is a Member, as the foot of the menu says.
+    expect(seatSays({ role: '  ', company: 'Teleworld Solutions', sample: false })).toBe('You are signed in at Teleworld Solutions as Member.')
+    // A team keeps "in": Accounts Receivable, AP & Payroll.
+    expect(seatSays({ role: 'Accounts Receivable', company: 'Brightmoor', sample: false })).toBe('You are in accounts receivable at Brightmoor.')
+    expect(seatSays({ role: 'AP & Payroll', company: 'Brightmoor', sample: false })).toBe('You are in AP & payroll at Brightmoor.')
+  })
+
   it('the greeting says the role and the company, and in the demo that the company is a sample; an MSP says whose program it runs, and a one-person firm is her own company', () => {
     expect(seatSays({ role: 'Hiring Manager', company: 'Northbend Athletic', sample: true })).toBe('You are the hiring manager at Northbend Athletic, a sample company.')
     expect(seatSays({ role: 'Hiring Manager', company: 'Acme Corp', sample: false })).toBe('You are the hiring manager at Acme Corp.')
@@ -399,7 +410,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(seatSays({ role: 'Finance', company: 'Brightmoor', sample: false })).toBe('You are in finance at Brightmoor.')
     expect(seatSays({ role: 'HR', company: 'Brightmoor', sample: false })).toBe('You are in HR at Brightmoor.')
     // No role: where, without a role it does not have. No company: nothing said.
-    expect(seatSays({ role: null, company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor.')
+    expect(seatSays({ role: null, company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor as Member.')
     expect(seatSays({ role: 'Owner', company: null, sample: true })).toBeNull()
     // An MSP seated in a client's program says where it sits (founder, 2026-10-19).
     expect(seatSays({ role: 'Owner', company: 'Aptiva Workforce', sample: true, party: 'MSP', seatedAt: 'Cavanaugh Glassworks' }))
