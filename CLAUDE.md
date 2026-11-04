@@ -1746,10 +1746,13 @@ paper beside HR. The documentation names the menu links where they
 help ("On a client's menu, people it may ask for again are under
 Candidates. People working there now are under Contracts.") and keeps
 "Contractors" as the heading of the people page, the buyer's word for
-a person. **One word for the founder:** on the home page and the step
-pages "Candidates" is the step (who applied), and on every menu
-"Candidates" is now the memory and who applied is "Submissions"; the
-chip stays until he says the word.
+a person. **One word, said by the founder on 2026-11-04 ("Update
+it"):** the home page's second step reads **Submissions**, so the four
+steps are Job · Submissions · Timesheets · Invoices on the chips, the
+product pages, the documentation spine, the flow charts and the door
+maps, and "Candidates" means one thing everywhere a buyer reads it:
+the people a firm keeps. This supersedes the second noun of 2026-10-14
+and the coordinator's call of the day before; market builds it.
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
