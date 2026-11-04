@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { degreeFromBody, degreeOnRecord, isDegreePaper } from '@/lib/document-stages/degree-check'
+import { tellTheWorkerAboutHerDegree } from '@/lib/document-stages/degree-told'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -210,6 +211,13 @@ export async function POST(
     where: { id },
     data: { completedAt: progress.complete ? (packet.completedAt ?? new Date()) : null },
   })
+
+  // A degree accepted with something that does not look right: the
+  // person is told which firm is checking it and why, in her own words,
+  // in the same press HR reads the warning (the fifth screen walk).
+  if (degree && packet.subjectPersonId) {
+    await tellTheWorkerAboutHerDegree({ personId: packet.subjectPersonId, firms: [{ id: caller.company.id, name: caller.company.name }], reading: degree, entityId: itemId })
+  }
 
   void emit({
     type: 'verification.recorded',

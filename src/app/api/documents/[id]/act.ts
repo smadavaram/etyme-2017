@@ -7,6 +7,7 @@ import { notify, notifyBulk } from '@/lib/notify'
 import { paperExaminersAt } from '@/lib/notify/paper-examiners'
 import { degreeOnRecord, isDegreePaper } from '@/lib/document-stages/degree-check'
 import { degreeAskedOfYou } from '@/lib/notify/degree-and-start'
+import { tellTheWorkerAboutHerDegree } from '@/lib/document-stages/degree-told'
 import {
   mayAct,
   isProfessionalLicense,
@@ -252,6 +253,12 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
       ? await degreeOnRecord({ personId: subjectPersonId, fileHashes: [fileHash(file.bytes)], on: now })
       : null
     const told = degree?.says ? { ...answered, body: `${answered.body} ${degree.says}`.trim() } : answered
+    // And the person hears it in her own words, in the same press: which
+    // firm is checking it and why, never what HR was told (the fifth
+    // screen walk, 2026-11-04).
+    if (degree && subjectPersonId) {
+      await tellTheWorkerAboutHerDegree({ personId: subjectPersonId, firms: [{ id: issuer.id, name: issuer.name }], reading: degree, entityId: doc.id })
+    }
     void notifyBulk(staff.map((s) => ({
       personId: s.personId, companyId: issuer.id, type: 'SYSTEM' as const,
       title: told.title,

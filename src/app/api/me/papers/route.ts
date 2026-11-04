@@ -1,6 +1,9 @@
 import { fileHash } from '@/lib/document-stages/degree'
 import { heldOnRecord, linesOfPerson } from '@/lib/document-stages/paper-record'
-import { DEGREE_POSTED } from '@/lib/document-stages/degree-check'
+import { DEGREE_POSTED, degreeOnRecord } from '@/lib/document-stages/degree-check'
+import { notifyBulk } from '@/lib/notify'
+import { paperExaminersAt } from '@/lib/notify/paper-examiners'
+import { firmsReadingHerPapers, tellTheWorkerAboutHerDegree } from '@/lib/document-stages/degree-told'
 import { NextRequest, NextResponse } from 'next/server'
 import { employmentOf } from '@/app/api/compliance/verifications/record'
 import { linesForWorker } from '@/lib/document-stages/employer'
@@ -1054,13 +1057,39 @@ export async function PUT(request: NextRequest) {
     return { docId, verificationId }
   })
 
+  // ── A degree she put on her own record, read against it ──
+  // The fifth screen walk (2026-11-04): Rosa Delgado's 2016 certificate
+  // against a 2014 résumé line warned HR and told her nothing. Where the
+  // rules warn, HR at each firm reading her papers hears the sentence and
+  // its doors, and she hears in her own words which firm is checking it
+  // and why, in the same press (`degree-told`).
+  let degreeForYou: string[] = []
+  if (row.key === 'DEGREE' && about === 'ME') {
+    const degree = await degreeOnRecord({ personId: me, fileHashes: file ? [fileHash(file.bytes)] : [], on })
+    if (degree.findings.length && !degree.verified) {
+      const firms = await firmsReadingHerPapers(me)
+      for (const f of firms) {
+        const staff = await paperExaminersAt(f.id, me)
+        if (degree.says) {
+          void notifyBulk(staff.map((personId) => ({
+            personId, companyId: f.id, type: 'SYSTEM' as const,
+            title: `${caller.person.name} put a degree certificate on file`,
+            body: degree.says!,
+            ...(written.docId ? { entityId: written.docId } : {}),
+          })))
+        }
+      }
+      degreeForYou = await tellTheWorkerAboutHerDegree({ personId: me, firms, reading: degree, entityId: written.verificationId })
+    }
+  }
+
   return NextResponse.json({
     data: {
       ...written,
       key: row.key,
       about,
       expiresAt: row.expiresAt ? plainDate(row.expiresAt.toISOString()) : null,
-      says: row.says,
+      says: degreeForYou.length ? `${row.says} ${degreeForYou.join(' ')}` : row.says,
     },
   }, { status: 201 })
 }
