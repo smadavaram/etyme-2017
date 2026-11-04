@@ -139,7 +139,8 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     'Only the person who worked the week files it. Nobody else may.',
     'The client approves it first. Then each firm below accepts the same week, in turn.',
     'A supplier sends its invoice only for weeks the client approved, and only for the hours accepted.',
-    'A supplier is paid on its matched invoice. An employee is paid by payroll.',
+    'On the menu, a firm’s own bills are under Bills.',
+    'A supplier is paid on its matched invoice, under Invoice receipts. An employee is paid under Payroll.',
   ],
   table: {
     columns: ['A failed check on an invoice receipt', 'Can a person waive it?'],
