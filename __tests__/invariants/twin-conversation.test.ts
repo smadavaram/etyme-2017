@@ -62,7 +62,7 @@ import {
   FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, latestWeekLine, type WorkerFacts, type WorkerAnswer, type SentWeek,
 } from '@/app/api/conversations/twin/worker'
 import {
-  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
+  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, neverSays, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   FIRM_QUESTIONS, SOLO_QUESTIONS, questionsFor, closeFor, placeholderFor, partyOf, queueFrom, queueCards, queueName, namedNeedsSays,
   threadsSay, whenSays, weekDueOn, billedSays, billingSays, rolloffSays, benchSays, unbilledSays, unpaidSays, OPEN_THE_LIST,
@@ -545,6 +545,16 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(payingDesks('MSP')).toEqual(['AP Clerk'])
     expect(payingDesks('CLIENT')).toEqual(['AP Clerk'])
     expect(read.model).not.toHaveBeenCalled()
+  })
+
+  it('a supplier asked to pay an invoice is sent to its Bills, at the invoice receipts it owes; a client, or a firm seated in a client’s program, to Invoice receipts', () => {
+    const supplier = neverSays('PAY', 'VENDOR', [])
+    expect(supplier.links).toEqual([{ label: 'Open Bills, at the invoice receipts you owe', href: '/dashboard/invoices?side=PAYABLE' }])
+    expect(supplier.links[0].href).not.toBe('/dashboard/ap')
+    expect(neverSays('PAY', 'CLIENT', []).links).toEqual([{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }])
+    expect(neverSays('PAY', 'MSP', [], {}, { seatedAtClient: true }).links).toEqual([{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }])
+    // Every other act keeps its own door.
+    expect(neverSays('PAYROLL', 'VENDOR', []).links).toEqual([{ label: 'Open Payroll', href: '/dashboard/payroll' }])
   })
 
   it('free text leaves only when the company switch and the key are both on, masked, and is logged with its answer', async () => {

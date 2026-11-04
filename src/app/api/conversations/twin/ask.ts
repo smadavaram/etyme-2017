@@ -31,6 +31,7 @@
  */
 
 import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
+import { receiptsLink } from '@/lib/money/ap-words'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
@@ -656,6 +657,8 @@ export function neverSays(
   companyKind: string | null | undefined,
   permissions: readonly string[] = [],
   named: Named = {},
+  /** Whether the reader sits in a client's program: a pay refusal's door is then the client's Invoice receipts. */
+  at: { seatedAtClient?: boolean } = {},
 ): { says: string; links: Link[] } {
   const f = NEVER_FLOOR[act]
   const asksWho = act === 'EXTEND' || act === 'END' || act === 'SIGN_WEEK'
@@ -679,9 +682,13 @@ export function neverSays(
     : desks.length
       ? `your ${twoDesks(desks)} does it ${where}`
       : `nobody here has that role yet; it is done ${where}`
+  // Where invoice receipts are paid, by money's one rule (`receiptsLink`):
+  // a client, or a firm seated in one's program, at its Invoice receipts;
+  // a supplier at Bills, on the receipts it owes (walk 5, item 4).
+  const pays = act === 'PAY' ? receiptsLink({ companyKind, seatedAtClient: !!at.seatedAtClient }) : null
   const link: Link = receipt
     ? { label: `Open ${receipt.number}`, href: hrefFor('Invoice', receipt.invoiceId) }
-    : f.link
+    : pays ? { label: pays.says, href: pays.href } : f.link
   return { says: `Etyme never ${f.verb}; ${who}.`, links: [link] }
 }
 
@@ -3154,7 +3161,7 @@ export async function respond(
     }
 
     case 'NEVER':
-      return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text)) }
+      return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text), { seatedAtClient: !!opts.client }) }
 
     // A firm's own margin is its own to read (release walk three,
     // 2026-11-03): answered from Profitability's own figures where this
