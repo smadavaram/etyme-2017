@@ -19,20 +19,35 @@ export interface ReceiptsLink {
 }
 
 /**
- * The link from the AP page to where invoice receipts are paid.
+ * The link to where invoice receipts are paid, read by the AP page and by
+ * Ask Etyme's refusal to pay (`neverSays`), so the two cannot disagree.
  *
  * A client — or a program office reading a client's book — has one menu
  * entry for them, "Invoice receipts", and the page opens on what it owes.
- * Any other firm reads the same page as "Bills", where it both bills and
- * pays, so the link opens it on the payable side rather than naming a
- * switch the reader then has to find.
+ *
+ * A supplier, an integrator or an MSP has, since 2026-11-03, a menu link
+ * of its own called "Invoice receipts", and it opens the AP page, where
+ * every invoice receipt it owes is listed and the typed-in ones are paid.
+ * So a firm asked to pay is sent to the page its menu calls Invoice
+ * receipts, never to Bills, which is what it issues upward. (Money's call,
+ * 2026-11-04; reversible in a sentence by sending it back to
+ * `/dashboard/invoices?side=PAYABLE`.)
+ *
+ * A one-person firm pays nobody below her and has no Invoice receipts
+ * link, so she keeps Bills, opened on the payable side.
  */
 export function receiptsLink(reader: { companyKind: string | null | undefined; seatedAtClient: boolean }): ReceiptsLink {
   if (reader.companyKind === 'CLIENT' || reader.seatedAtClient) {
     return { href: '/dashboard/invoices', says: 'Open Invoice receipts' }
   }
+  if (reader.companyKind === 'VENDOR' || reader.companyKind === 'GSI' || reader.companyKind === 'MSP') {
+    return { href: AP_PAGE, says: 'Open Invoice receipts' }
+  }
   return { href: '/dashboard/invoices?side=PAYABLE', says: 'Open Bills, at the invoice receipts you owe' }
 }
+
+/** The AP page's own address: the page a firm's Invoice receipts link opens. */
+export const AP_PAGE = '/dashboard/ap'
 
 /**
  * The note under the list when every invoice receipt came from a supplier

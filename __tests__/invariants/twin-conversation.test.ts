@@ -547,10 +547,11 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(read.model).not.toHaveBeenCalled()
   })
 
-  it('a supplier asked to pay an invoice is sent to its Bills, at the invoice receipts it owes; a client, or a firm seated in a client’s program, to Invoice receipts', () => {
-    const supplier = neverSays('PAY', 'VENDOR', [])
-    expect(supplier.links).toEqual([{ label: 'Open Bills, at the invoice receipts you owe', href: '/dashboard/invoices?side=PAYABLE' }])
-    expect(supplier.links[0].href).not.toBe('/dashboard/ap')
+  it('a supplier asked to pay is sent to the page its menu calls Invoice receipts; a client, or a firm seated in a client’s program, to Invoice receipts on Invoices', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP']) {
+      expect(neverSays('PAY', kind, []).links, kind).toEqual([{ label: 'Open Invoice receipts', href: '/dashboard/ap' }])
+    }
+    expect(neverSays('PAY', 'VENDOR', []).links[0].label).not.toContain('Bills')
     expect(neverSays('PAY', 'CLIENT', []).links).toEqual([{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }])
     expect(neverSays('PAY', 'MSP', [], {}, { seatedAtClient: true }).links).toEqual([{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }])
     // Every other act keeps its own door.

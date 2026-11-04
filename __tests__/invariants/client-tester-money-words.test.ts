@@ -13,6 +13,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { receiptsLink, RECEIPTS_ONLY_NOTE } from '@/lib/money/ap-words'
+import { sectionOfHref } from '@/lib/page-framing'
 import { supplierInvoicesOwed } from '@/lib/money/supplier-invoices'
 import { dueOn } from '@/lib/billing-cascade'
 import { nothingToBillSays, type WeekNotBillable } from '@/lib/money/nothing-to-bill'
@@ -45,11 +46,19 @@ describe('Accounts payable speaks the reader’s words', () => {
     expect(receiptsLink({ companyKind: 'MSP', seatedAtClient: true }).says).toBe('Open Invoice receipts')
   })
 
-  it('a firm that both bills and pays is sent to Bills, opened on what it owes', () => {
-    const link = receiptsLink({ companyKind: 'VENDOR', seatedAtClient: false })
-    expect(link.says).toContain(menuLabelFor('VENDOR', '/dashboard/invoices')!)
+  it('a supplier asked to pay is sent to the page its menu calls Invoice receipts, never to Bills', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP']) {
+      const link = receiptsLink({ companyKind: kind, seatedAtClient: false })
+      expect(link.href, kind).toBe('/dashboard/ap')
+      expect(link.says, kind).toBe(`Open ${sectionOfHref(kind as any, '/dashboard/ap')}`)
+      expect(link.says, kind).toBe('Open Invoice receipts')
+      expect(link.says, kind).not.toContain('We owe')
+    }
+  })
+
+  it('a one-person firm, which has no Invoice receipts link, is sent to Bills, opened on what it owes', () => {
+    const link = receiptsLink({ companyKind: 'CONSULTANT_CORP', seatedAtClient: false })
     expect(link.href).toBe('/dashboard/invoices?side=PAYABLE')
-    expect(link.says).not.toContain('We owe')
   })
 
   it('the accounts payable page explains itself in plain words and never says chain float', () => {

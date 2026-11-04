@@ -106,10 +106,17 @@ describe('the list opens on what the reader owes, and offers no side it does not
 })
 
 describe('the accounts payable page opens on one plain line', () => {
-  it('its opening line is one short sentence, not a paragraph of finance theory', () => {
+  it('its opening line is one short sentence, not a paragraph of finance theory', async () => {
     const ap = read('app/dashboard/ap/page.tsx')
     expect(ap).not.toMatch(/Float is your cash out/)
-    expect(ap).toContain('What you owe, to whom, and when each one is due.')
+    // The line is the reader's own framing now, one short sentence for each side.
+    expect(ap).toContain('subtitle={framing.subtitle}')
+    const { pageFraming } = await import('@/lib/page-framing')
+    for (const kind of ['CLIENT', 'VENDOR'] as const) {
+      const line = pageFraming(kind, 'ap').subtitle
+      expect(line.split('. ').length, kind).toBe(1)
+      expect(line, kind).not.toMatch(/float/i)
+    }
   })
 })
 

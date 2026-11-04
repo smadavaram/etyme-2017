@@ -737,6 +737,14 @@ describe('the payables and orders pages', () => {
     expect(po).not.toContain('<p className="eyebrow">Operate</p>')
     expect(po).toContain("usePageSection('/dashboard/purchase-orders')")
   })
+
+  it('the AP page is headed by the reader’s own Invoice receipts link, never a typed “Accounts payable” for a supplier', () => {
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    const ap = readFileSync(`${process.cwd()}/src/app/dashboard/ap/page.tsx`, 'utf8')
+    expect(ap).toContain("pageFraming(company.kind, 'ap', data?.reading, sidebarPropsFrom(session))")
+    expect(ap).not.toContain('title="Accounts payable"')
+    expect(ap).toContain('title={framing.title}')
+  })
 })
 
 /**

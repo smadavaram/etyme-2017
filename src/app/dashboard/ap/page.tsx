@@ -9,7 +9,9 @@ import { EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, Refus
 import { compact, amount } from '@/lib/money-display'
 import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
-import { receiptsLink } from '@/lib/money/ap-words'
+import { receiptsLink, AP_PAGE } from '@/lib/money/ap-words'
+import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
@@ -115,9 +117,15 @@ export default function ApPage() {
   if (!company) {
     return session.loading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
+  // The heading is the reader's own menu link: a supplier's Invoice
+  // receipts, a client's Invoice receipts link over its Accounts payable
+  // tab, never a typed "Accounts payable" over a supplier's page (walk 5,
+  // A4). The framing reads the seat, so a program office in a client's
+  // program reads the client's words.
+  const framing = pageFraming(company.kind, 'ap', data?.reading, sidebarPropsFrom(session))
   // Refused: the sentence and nothing else — no tile, no zero, no tab
   // (sign-up walk, round four, #5).
-  const refused = refusedRead(denied, { what: 'Accounts payable', kind: company.kind, company: company.name })
+  const refused = refusedRead(denied, { what: framing.title, kind: company.kind, company: company.name })
   if (refused) {
     return <RefusedState says={refused} />
   }
@@ -128,9 +136,9 @@ export default function ApPage() {
           No eyebrow until the session says whose menu it is, and none
           where the menu does not list the page — never a typed "Money". */}
       <PageHead
-        eyebrow={section}
-        title="Accounts payable"
-        subtitle="What you owe, to whom, and when each one is due."
+        eyebrow={framing.eyebrow || section}
+        title={framing.title}
+        subtitle={framing.subtitle}
       />
 
       <SeatBanner
@@ -156,7 +164,7 @@ export default function ApPage() {
         <SupplierInvoices
           owed={data.supplierInvoices}
           note={data.note}
-          link={receiptsLink({ companyKind: company?.kind, seatedAtClient: !!data.reading?.inASeat })}
+          link={linkAway(receiptsLink({ companyKind: company?.kind, seatedAtClient: !!data.reading?.inASeat }))}
         />
       )}
 
@@ -266,7 +274,15 @@ export default function ApPage() {
  * are not claimed: they are measured from bills keyed in against a
  * supplier contract, and there are none.
  */
-function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link: { href: string; says: string } }) {
+/**
+ * A link to where invoice receipts are paid, or none where that place is
+ * this page: a supplier's Invoice receipts link opens the AP page itself.
+ */
+function linkAway(link: { href: string; says: string }): { href: string; says: string } | null {
+  return link.href === AP_PAGE ? null : link
+}
+
+function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link: { href: string; says: string } | null }) {
   const rows = owed?.rows ?? []
 
   const columns: Column<any>[] = [
@@ -327,9 +343,11 @@ function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link:
       <div className="panel">
         <p className="text-[13px] text-etyme-ink">{owed?.says}</p>
         <p className="mt-2 text-[13px] text-etyme-muted">{note}</p>
-        <a href={link.href} className="mt-3 inline-block text-[13px] text-etyme-action">
-          {link.says} →
-        </a>
+        {link && (
+          <a href={link.href} className="mt-3 inline-block text-[13px] text-etyme-action">
+            {link.says} →
+          </a>
+        )}
       </div>
 
       {owed?.books?.length > 0 && (
