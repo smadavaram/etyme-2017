@@ -1,6 +1,6 @@
 import type { SessionState } from '@/components/session-provider'
 import type { Hat } from '@/lib/nav-table'
-import { kindLabel } from '@/lib/parties'
+import { kindLabel, kindWord } from '@/lib/parties'
 
 /**
  * The sidebar's props, read off the session.
@@ -54,7 +54,7 @@ export function sidebarPropsFrom(
     // company to name.
     // Optional too: a fixture describing a seat need not know about a
     // program office's desk, and almost nobody holds one.
-    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref' | 'hat'>>
+    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref' | 'hat' | 'roleName'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -99,7 +99,7 @@ export function sidebarPropsFrom(
     // their banner.
     companyLabel: session.seat
       ? `At ${session.seat.clientName}${session.seat.roleName ? ` · ${session.seat.roleName}` : ''}`
-      : isConsultant ? 'Consultant' : kindLabel(kind),
+      : isConsultant ? 'Consultant' : footerRole(kind, session.roleName),
     // A seat is exactly the desk the client granted: the client's own
     // role's permissions, never the office's. Read through `deskOf`, so
     // the + button and ⌘K cannot read it another way.
@@ -179,4 +179,18 @@ export function deskOf(
     hat: session.hat ?? null,
     roleName: seat ? seat.roleName : (session.roleName ?? null),
   }
+}
+
+/**
+ * The line under the company's name at the foot of the menu: the kind of
+ * firm, then the role this person actually holds there, or "Member"
+ * where the seat holds none. Never the kind's own tagline, which read as
+ * a role: "Integrator · Delivery" for Karthik Menon at Teleworld, who
+ * holds no delivery role (walk 4, A3). A role the seat does not hold is
+ * never named.
+ */
+export function footerRole(kind: SidebarIdentity['companyKind'] | undefined, roleName: string | null | undefined): string {
+  if (!kind) return kindLabel(kind)
+  const role = roleName?.trim()
+  return `${kindWord(kind)} · ${role || 'Member'}`
 }

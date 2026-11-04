@@ -667,8 +667,8 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
     await placed('OWNER', 'Where do I see what I billed?', 'What you billed is under Bills, on the Bills and AR tabs.', ['/dashboard/invoices', '/dashboard/ar'])
   })
 
-  it('a supplier’s Owner asks “Where do I add people to the bench?” and reads the Bench tab, then Candidates', async () => {
-    await placed('OWNER', 'Where do I add people to the bench?', 'The bench is under Candidates, on the Bench and Candidates tabs.', ['/dashboard/bench', '/dashboard/consultants'])
+  it('a supplier’s Owner asks “Where do I add people to the bench?” and reads the Bench tab, then Candidates, under Network', async () => {
+    await placed('OWNER', 'Where do I add people to the bench?', 'The bench is under Network, on the Bench and Candidates tabs.', ['/dashboard/bench', '/dashboard/consultants'])
   })
 
   it('a client’s hiring manager asks “Where are my contracts?” and reads Contracts', async () => {
@@ -712,7 +712,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
   it('a page the seat may not open is never offered', async () => {
     // A hiring manager has no Settings page of the firm's and no payroll.
     const payroll = await where('HIRING_MANAGER', 'Where do I run payroll?')
-    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Submissions, Contracts, Timesheets, Invoice receipts, Candidates, Suppliers and Settings.' })
+    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Submissions, Contracts, Timesheets, Invoice receipts, Network and Settings.' })
     // "Take me there" toward a page off the seat's menu opens nothing.
     expect(await where('HIRING_MANAGER', 'take me there', '/dashboard/payroll')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
     // Every page offered to any of the four is on that seat's own filtered menu.

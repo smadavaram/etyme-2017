@@ -163,7 +163,7 @@ describe('the sidebar props are read off the session the same way for both surfa
       contextType: 'CLIENT_CONTACT',
       company: { id: 'c', name: 'Northbend Athletic', slug: 'nike', kind: 'CLIENT' },
     })
-    expect(props).toMatchObject({ companyKind: 'CLIENT', isConsultant: false, companyName: 'Northbend Athletic', companyLabel: 'Client · Enterprise' })
+    expect(props).toMatchObject({ companyKind: 'CLIENT', isConsultant: false, companyName: 'Northbend Athletic', companyLabel: 'Client · Member' })
   })
 
   it('treats somebody on a bench as a consultant, whatever company holds the bench', () => {

@@ -117,12 +117,14 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     }
   })
 
-  it('bench check-ins are headed by the reader\'s own link, Candidates, never by Talent or People', () => {
+  it('bench check-ins are headed by the reader\'s own link, Network, never by Talent or People', () => {
     // The page typed "Talent" into its own header rather than asking the
     // framing, so it outlived the section by the same route. "People"
     // read "Candidates" from 2026-11-03 (founder: "People = candidates").
-    expect(sectionOfHref('VENDOR', '/dashboard/texts')).toBe('Candidates')
-    expect(sectionOfHref('GSI', '/dashboard/texts')).toBe('Candidates')
+    // Under Network since 2026-11-04 (founder: "bring all master data
+    // under network hierarchy").
+    expect(sectionOfHref('VENDOR', '/dashboard/texts')).toBe('Network')
+    expect(sectionOfHref('GSI', '/dashboard/texts')).toBe('Network')
     // An MSP runs no bench, so it has no check-ins to head
     // (sign-up walk, round five, problem 21).
     expect(sectionOfHref('MSP', '/dashboard/texts')).toBeNull()
@@ -161,8 +163,8 @@ describe('a staffing vendor reads its own menu over its own pages', () => {
     expect(pageFraming('VENDOR', 'timesheets', null, OWNER).eyebrow).toBe('Timesheets')
   })
 
-  it('the firm’s own consultants are headed Candidates, never Talent or People — the sections that stopped existing', () => {
-    expect(pageFraming('VENDOR', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
+  it('the firm’s own consultants are headed Network, the link they sit under, never Talent or People — the sections that stopped existing', () => {
+    expect(pageFraming('VENDOR', 'consultants', null, OWNER).eyebrow).toBe('Network')
   })
 
   it('the jobs a vendor is working are headed Jobs, who it put forward Submissions, and who rolls off Timesheets', () => {
@@ -194,8 +196,8 @@ describe('an integrator and an MSP are headed by the same links a supplier reads
     expect(pageFraming('MSP', 'requirements', null, OWNER).eyebrow).toBe('Jobs')
   })
 
-  it('an integrator files its own people under Candidates, and an MSP, which places nobody, has no people to file', () => {
-    expect(pageFraming('GSI', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
+  it('an integrator files its own people under Network, and an MSP, which places nobody, has no people to file', () => {
+    expect(pageFraming('GSI', 'consultants', null, OWNER).eyebrow).toBe('Network')
     expect(pageFraming('MSP', 'consultants', null, OWNER).eyebrow).toBe('')
   })
 
@@ -627,9 +629,9 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
 })
 
 describe('Contacts is headed by the reader’s own menu, never by a word typed on the page', () => {
-  it('a client reads Contacts under its own Suppliers, not under a supplier’s Companies', () => {
-    expect(sectionOfHref('CLIENT', '/dashboard/contacts')).toBe('Suppliers')
-    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Companies')
+  it('a client and a supplier both read Contacts under their own Network, the link they clicked', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/contacts')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Network')
   })
 
   it('the Contacts page reads its eyebrow from the menu rather than typing one', () => {
@@ -648,13 +650,13 @@ describe('Contacts is headed by the reader’s own menu, never by a word typed o
  * link itself, so every page is headed by the link it is a tab of.
  */
 describe('sign-up walk, round three: a page is headed by the link the reader clicked to reach it', () => {
-  it('Companies and Contacts are headed Companies for a staffing vendor, where its menu lists them', () => {
-    expect(sectionOfHref('VENDOR', '/dashboard/companies')).toBe('Companies')
-    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Companies')
+  it('Companies and Contacts are headed Network for a staffing vendor, where its menu lists them', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/companies')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Network')
   })
 
-  it('a client’s people are headed Candidates, the link they sit under', () => {
-    expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Candidates')
+  it('a client’s people are headed Network, the link they sit under', () => {
+    expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Network')
   })
 
   it('Paperwork, Screening packs and Check queue are headed Settings for a staffing vendor, where its menu files them as tabs', () => {

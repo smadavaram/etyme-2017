@@ -66,14 +66,17 @@ describe('the two Network pages', () => {
   const suppliersApi = read('src/app/api/suppliers/route.ts')
   const favorites = read('src/app/api/favorites/route.ts')
 
-  it('a client reaches the people it keeps as one link, and its suppliers and their contacts as another', () => {
+  it('a client reaches the people it keeps and its suppliers with their contacts under one link, Network, as two groups', () => {
     // The Network group became two of the nine links (founder,
     // 2026-10-19): Contractors, and Suppliers with Contacts as a tab.
     // The people are the client's Candidates since 2026-11-03.
     expect(sidebar).not.toContain("group: 'People & suppliers'")
     const client = getNavForKind('CLIENT', false)
-    expect(client.find((s) => s.label === 'Candidates')!.items[0].href).toBe('/dashboard/people')
-    expect(client.find((s) => s.label === 'Suppliers')!.items.map((i) => i.label).slice(0, 2)).toEqual(['Suppliers', 'Contacts'])
+    // Both under Network since 2026-11-04 (founder: "bring all master
+    // data under network hierarchy"), as its two groups.
+    const network = client.find((s) => s.label === 'Network')!
+    expect(network.items.filter((i) => i.group === 'Candidates').map((i) => i.href)).toEqual(['/dashboard/people'])
+    expect(network.items.filter((i) => i.group === 'Suppliers').map((i) => i.label).slice(0, 2)).toEqual(['Suppliers', 'Contacts'])
   })
   it('both pages have a feed and a table of the same rows, and the same filter bar', () => {
     for (const src of [people, suppliers]) {

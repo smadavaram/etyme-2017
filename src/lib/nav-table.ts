@@ -23,14 +23,15 @@ import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 /**
  * Sidebar navigation — from CLAUDE.md, "Navigation per company type".
  *
- * Nine links per party (founder, 2026-10-19), ten at a firm since the
- * process order of 2026-11-03, and this file and CLAUDE.md's table are
- * held together by a test rather than by anybody remembering:
+ * Nine links per party (founder, 2026-10-19; again since 2026-11-04,
+ * when the two lists a firm keeps folded under Network), and this file
+ * and CLAUDE.md's table are held together by a test rather than by
+ * anybody remembering:
  *
- *   Client      Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Candidates · Suppliers · Settings
- *   Supplier,   Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Candidates · Companies · Settings
+ *   Client      Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Network · Settings
+ *   Supplier,   Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings
  *   integrator
- *   MSP         the supplier's, with no Candidates (an MSP places nobody)
+ *   MSP         the supplier's, its Network holding Companies alone (an MSP places nobody)
  *   Solo        Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings
  *   Consultant  Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork
  *
@@ -61,9 +62,14 @@ export type NavItem = {
   icon: string  // emoji for now; SVG icons later
   badge?: number
   /**
-   * A sub-heading inside a section. No menu sets one since the nine
-   * links (2026-10-19): a page that was a neighbor is a tab now. Kept on
-   * the type because lib/page-framing reads it structurally.
+   * The group a tab sits in, inside a tabbed section that holds two
+   * lists. Only Network sets one (founder, 2026-11-04, "bring all master
+   * data under network hierarchy"): its tabs are the people a firm keeps
+   * (Candidates) and the firms it trades with (Companies, or a client's
+   * Suppliers), and the tab row draws each group's name and then its
+   * pages. The menu never prints a group: the link is Network. The
+   * eyebrow over every page in it reads Network (lib/page-framing heads
+   * a page by its group only for its own register headings).
    */
   group?: string
   /**
@@ -528,6 +534,27 @@ const FIRM_SETTINGS: NavItem[] = [
 
 const tabbed = (label: string, items: NavItem[]): NavSection => ({ label, tabbed: true, items })
 
+/** Tabs that sit in one group of a section's tab row. */
+const inGroup = (group: string, items: NavItem[]): NavItem[] => items.map((i) => ({ ...i, group }))
+
+/**
+ * ── Network: the master data a firm keeps ───────────────────────────
+ *
+ * The founder, 2026-11-04: "Also bring all master data under network
+ * hierarchy." The master data is what the documentation split named on
+ * 2026-09-30: the business partners (customers and suppliers) and the
+ * consultants. So the two lists every firm keeps are one link, Network,
+ * after the money and before Settings, and inside it two groups: the
+ * people it keeps (Candidates) and the firms it trades with. Each group
+ * opens on its own register, named after the group, so the tab row reads
+ * "Candidates: Bench · Bench pay · … | Companies: Suppliers · Contacts"
+ * with the group's name as the link to its register. Sites stay under
+ * Settings: a site is the firm's own place and a setup item, not its
+ * network.
+ */
+const FIRM_CANDIDATES = inGroup('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING])
+const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CONTACTS])
+
 /**
  * A firm's contracts, a link of its own between Submissions and
  * Timesheets (founder, 2026-11-03: "a utility for contracts on sell side
@@ -540,8 +567,8 @@ const FIRM_CONTRACTS: NavItem[] = [SELL_CONTRACTS, BUY_CONTRACTS, POS]
 
 /**
  * A staffing vendor: Ask Etyme · Today · Jobs · Submissions · Contracts ·
- * Timesheets · Bills · Candidates · Companies · Settings — the process
- * order, then the two lists it keeps.
+ * Timesheets · Bills · Network · Settings — the process order, then the
+ * two lists it keeps, under Network.
  */
 const VENDOR_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
@@ -551,13 +578,12 @@ const VENDOR_NAV: NavSection[] = [
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS]),
+  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An integrator: the supplier's ten. No Leads: a GSI's demand arrives
+ * An integrator: the supplier's nine. No Leads: a GSI's demand arrives
  * through the client relationship it already has, not through a capture
  * form. Its Candidates are its own employees, rolling off one project and
  * onto the next — checked first on a job request before a role reaches a
@@ -572,19 +598,18 @@ const GSI_NAV: NavSection[] = [
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS]),
+  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An MSP: the supplier's ten, less Candidates. An MSP runs the program and
+ * An MSP: the supplier's nine, its Network holding Companies alone. An MSP runs the program and
  * places nobody (CLAUDE.md, "Etyme runs the program"): it holds no bench
  * and no consultants of its own, and its own setup tells it so (sign-up
  * walk, round five, problem 21), so the menu offers no Candidates with
  * nothing behind it. No payroll and no commission run either: it pays
  * nobody and is paid a fee on the program. The supplier base it manages
- * and how each firm scores are under Companies.
+ * and how each firm scores are under Network, in Companies.
  *
  * What is deliberately not here: the client's own program screens. An
  * MSP acts inside a client's program through a seat the client grants
@@ -598,7 +623,8 @@ const MSP_NAV: NavSection[] = [
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
   tabbed('Bills', [BILLS, AR, AP]),
-  tabbed('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS]),
+  // Companies alone: an MSP keeps no candidates of its own.
+  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS])),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
@@ -697,7 +723,7 @@ const SOLO_NAV: NavSection[] = [
 
 /**
  * A client: Ask Etyme · Today · Jobs · Submissions · Contracts ·
- * Timesheets · Invoice receipts · Candidates · Suppliers · Settings —
+ * Timesheets · Invoice receipts · Network · Settings —
  * the process order, then the two lists it keeps (founder, 2026-11-03).
  *
  * A client only buys, so its money noun is what it receives: invoice
@@ -743,13 +769,17 @@ const CLIENT_NAV: NavSection[] = [
   // the first filter in the reader's order that has rows, Favorites first
   // (demand, a1a67e31f), so it is never empty where anybody was ever put
   // forward.
-  tabbed('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
-  tabbed('Suppliers', [
-    SUPPLIERS,
-    CONTACTS,
-    { label: 'Agreements', href: '/dashboard/program/agreements', icon: '▤' },
-    // Only computable here: no supplier can work these out about itself.
-    SUPPLIER_SCORECARDS,
+  // Network (founder, 2026-11-04): its memory of people, and the firms
+  // it buys from with the people at them.
+  tabbed('Network', [
+    ...inGroup('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
+    ...inGroup('Suppliers', [
+      SUPPLIERS,
+      CONTACTS,
+      { label: 'Agreements', href: '/dashboard/program/agreements', icon: '▤' },
+      // Only computable here: no supplier can work these out about itself.
+      SUPPLIER_SCORECARDS,
+    ]),
   ]),
   tabbed('Settings', [
     SETTINGS,
@@ -773,13 +803,39 @@ const CLIENT_NAV: NavSection[] = [
   ]),
 ]
 
-/** The tab row for the page being read: the noun's pages, when it has more than one. */
-export function tabsFor(sections: readonly NavSection[], current: string | null): { label: string; tabs: NavItem[] } | null {
+/** One group of a tab row: its name, and its pages in order. */
+export type TabGroup = { name: string; tabs: NavItem[] }
+
+/**
+ * The tab row for the page being read: the noun's pages, when it has
+ * more than one. Where its tabs sit in groups (Network), `groups` holds
+ * them in order, each with its name, so the row draws "Candidates:
+ * Bench · … | Companies: Suppliers · Contacts"; `tabs` is still every
+ * page, flat.
+ */
+export function tabsFor(
+  sections: readonly NavSection[],
+  current: string | null
+): { label: string; tabs: NavItem[]; groups?: TabGroup[] } | null {
   if (!current) return null
   const section = sections.find((s) => s.tabbed && s.items.some((i) => i.href === current))
   // Ask Etyme draws its own column of threads, so it never carries a tab row.
   if (!section || section.items.length < 2 || section.items.some((i) => i.href === ASK_ETYME_HREF)) return null
-  return { label: section.label, tabs: section.items }
+  const groups = groupsOf(section.items)
+  return groups ? { label: section.label, tabs: section.items, groups } : { label: section.label, tabs: section.items }
+}
+
+/** A section's tabs by group, in order, or null where none is grouped. */
+export function groupsOf(items: readonly NavItem[]): TabGroup[] | null {
+  if (!items.some((i) => i.group)) return null
+  const out: TabGroup[] = []
+  for (const item of items) {
+    const name = item.group ?? ''
+    const last = out[out.length - 1]
+    if (last && last.name === name) last.tabs.push(item)
+    else out.push({ name, tabs: [item] })
+  }
+  return out
 }
 
 /** The one link a menu prints for a section: the noun, opening its first page; or, for "You", each page. */

@@ -94,7 +94,7 @@ beforeEach(() => {
 })
 
 describe('the Owner changes what kind of company it is', () => {
-  it('the Owner of a one-person firm turns it into a bench vendor from Settings, and reads a bench firm’s ten links and greeting on the next screen', async () => {
+  it('the Owner of a one-person firm turns it into a bench vendor from Settings, and reads a bench firm’s nine links and greeting on the next screen', async () => {
     world = tapin()
     // Before: the solopreneur's seven links and her own four questions.
     expect(labels('CONSULTANT_CORP')).toEqual(['Ask Etyme', 'Your work', 'Timesheets', 'Bills', 'Contracts', 'Paperwork', 'Settings'])
@@ -109,7 +109,7 @@ describe('the Owner changes what kind of company it is', () => {
 
     // After: every menu, greeting and chip reads the kind on each request,
     // so the next screen is a bench firm's.
-    expect(labels(r.kind)).toEqual(['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Candidates', 'Companies', 'Settings'])
+    expect(labels(r.kind)).toEqual(['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Network', 'Settings'])
     const party = partyOf({ companyKind: r.kind })
     expect(party).toBe('FIRM')
     expect(questionsFor(party, ['*'], r.kind)).toContain('Who is on the bench?')
