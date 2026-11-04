@@ -26,6 +26,7 @@ import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-perform
 import { labelFor } from '@/lib/document-type'
 import { holdsPaperworkDesk } from '@/lib/document-request'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
+import { paperAsksToday } from './paper-asks'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
@@ -143,7 +144,13 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
   ])
   // A colleague's paper is never said to a seat whose work is not papers.
   const withheld = await papersNotTheirs(caller, read).catch(() => new Set<string>())
-  const rows = read.filter((n) => !withheld.has(n.id))
+  // A paper request is said for what is still owed today, never as it was
+  // written: a paper on file since is not asked for again (walk 5, C8).
+  const asks = await paperAsksToday(read).catch(() => new Map<string, never>())
+  for (const [id, a] of asks) if (a.kind === 'ANSWERED') withheld.add(id)
+  const rows = read
+    .filter((n) => !withheld.has(n.id))
+    .map((n) => { const a = asks.get(n.id); return a?.kind === 'LEFT' ? { ...n, title: a.title, body: null } : n })
   const [twin, chain] = await Promise.all([
     twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()),
     chainNotices(rows, caller.company?.id ?? null).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()),
