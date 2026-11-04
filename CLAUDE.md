@@ -2136,6 +2136,15 @@ sentence as written (regulatory); an item sent and not yet examined
 still reads "On file" on the worker's own list (regulatory, the class
 of "On file" without an examination); the `receiptsLink` comment in
 the Ask Etyme route still says "a supplier at Bills" (conversation).
+**Release pass 38 on 3ff7b7f9f, fully green:** type check, 13,658 unit,
+2,645 integration, build. The sixth walk runs on its build
+(`scratchpad/walk6-brief.md`: the Compliance rows, the worker told
+about her degree, Rosa's greeting and page, Rajesh's request and link,
+Colleen's own expense, Karthik's role line, the two headings, where a
+supplier pays, and an MSP's own ten-link menu), and the fix deploy
+follows its yes. The UX vision the founder asked for the same hour
+("don't code right away") is drawn, not built; see "One app, two
+views".
 
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
