@@ -1776,6 +1776,34 @@ alone. Built by the architect from the sentence, the CLAUDE.md table
 moving in the same commit, with conversation (`NAV_TOPICS`, the
 greeting's links) and market (the documentation's menu words) after.
 
+**Paperwork is a tab of Contracts, not a thing of its own. The founder,
+2026-11-04:** *"Let's fix all navigation and then update screenshot.
+Should the paperwork be connected to contracts — why is it
+navigationally independent? Does it make it easier?"* It should, and
+it does: a paper lives on the line, on the side it protects
+(2026-09-18), and documentation happens on the contract (his own words
+of 2026-11-03). What was still independent is HR's working list and
+the firm's own papers, filed under Settings (Paperwork, Missing
+paperwork, Document requests, Screening packs, Compliance, Check queue)
+and, at a client, Compliance and Document requests under Settings too.
+So **Contracts** carries the tabs **Sell · Buy · POs · Paperwork**, and
+Paperwork is one list across every line, each row a line (the person
+or the firm, the paper, asked · arrived · examined · on file, who owes
+it, the start it holds), opening the line; Document requests, Missing
+paperwork, Screening packs, Compliance's starts and the check queue
+fold into it, and a client's Compliance and Document requests the same;
+the firm's own papers (its W-9, insurance, good standing, the papers a
+customer holds it to) sit on the same tab as the firm's own rows,
+because they are the sell side's papers. Settings keeps **Papers you
+require** (the sets, a setup item), the DNR list and the automation
+ladder. Every page keeps its address. Two coordinator's calls, each
+reversible in a sentence: the one-person firm's Paperwork link stays
+as it is (her two hats as two tabs, decided 2026-09-21); and the
+worker's "Your paperwork" stays on her own list. Built by the architect
+after Network, in the same navigation wave; the walk then retakes every
+screenshot on the fixed navigation before the deploy, per "fix all
+navigation and then update screenshot".
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
