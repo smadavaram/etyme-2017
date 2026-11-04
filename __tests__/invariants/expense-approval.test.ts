@@ -419,7 +419,7 @@ describe('a worker files their own expense; nobody else files it for them', () =
   it('the expense route takes the worker’s own filing as submitted, and still refuses a firm raising one in another person’s name', () => {
     const src = readFileSync('src/app/api/expenses/route.ts', 'utf8')
     expect(src).toContain('mayFileOwnExpense(')
-    expect(src).toMatch(/personId: caller\.person\.id,[\s\S]*status: 'SUBMITTED'/)
+    expect(src).toMatch(/personId: caller\.person\.id,[\s\S]*status: (ownFirm \? 'APPROVED' : )?'SUBMITTED'/)
     expect(src).toContain("code: 'NOT_THIS_PERSON'")
   })
 })
@@ -475,6 +475,6 @@ describe('whether a worker’s own expense bills the firm above is the agreement
     const src = readFileSync('src/app/api/expenses/route.ts', 'utf8')
     expect(src).not.toMatch(/billable = true/)
     expect(src).toMatch(/billableOnFiling\(\{ category: String\(category\)\.toUpperCase\(\), leg: legOf\(line!\) \}\)/)
-    expect(src).toMatch(/billable: decided\.billable,[\s\S]*status: 'SUBMITTED'/)
+    expect(src).toMatch(/billable: decided\.billable,[\s\S]*status: (ownFirm \? 'APPROVED' : )?'SUBMITTED'/)
   })
 })

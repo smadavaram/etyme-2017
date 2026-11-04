@@ -4,12 +4,13 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { isConsultantSeat } from '@/lib/seat'
-import { rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
-import { acceptancesOn, expenseOf, legOf, legsFor, legsOverMany, linesBelowPaid, EXPENSE_SELECT, LEG_SELECT } from '@/lib/money/expense-acceptance-read'
+import { acceptanceChain, rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, expenseOf, legOf, legsFor, legsOver, legsOverMany, linesBelowPaid, EXPENSE_SELECT, LEG_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
 import { expenseDecideRefusal } from '@/lib/money/expense-decides'
 import { billableOnFiling, mayFileOwnExpense } from '@/lib/money/own-expense'
 import { expenseCurrencyFor } from '@/lib/expense-currency'
+import { filedAtOwnFirmSays, firmApprovesOnlyFor, ownCostSays, standsAsApprovalSays } from '@/lib/money/own-firm-expense'
 
 /**
  * GET /api/expenses
@@ -176,6 +177,12 @@ export async function GET(request: NextRequest) {
         caller.company ? writingDesk(caller, request) : Promise.resolve(null),
       ])
   const decidedBy = deciding ? expenseDecideRefusal(deciding, caller.company?.kind) : null
+  // A one-person firm reading the expenses its only person filed: her
+  // filing stood as the approval, so her row opens on the firm it waits
+  // on, never "Approved by you" (lib/money/own-firm-expense).
+  const readsOwnFirm = !consultant && readerId !== '' &&
+    rows.some((r) => r.companyId === readerId && r.personId === caller.person.id) &&
+    (await firmApprovesOnlyFor(readerId, caller.person.id))
 
   const shaped = rows
     .map((r) => {
@@ -185,6 +192,7 @@ export async function GET(request: NextRequest) {
             expense: expenseOf(r), legsTopFirst: legs.get(r.sellContractId) ?? [], acceptances: decisions.get(r.id) ?? [],
             reader: { id: readerId, name: readerName }, personId: caller.person.id,
             billed: rungBilled(readerId, bills.get(r.id) ?? []),
+            ownFirm: readsOwnFirm && r.personId === caller.person.id,
           })
       // Billed and paid are the reader's own rung's. The column is the
       // employer's, so a firm above it reads its own bills instead.
@@ -385,6 +393,33 @@ export async function POST(request: NextRequest) {
     // or nobody has yet. The worker's own `billable`, if the body carries
     // one, is never read (founder, 2026-10-19).
     const decided = billableOnFiling({ category: String(category).toUpperCase(), leg: legOf(line!) })
+
+    // ── A one-person firm is never asked to approve its own expense ──
+    //
+    // Where every seat at the employer that may approve an expense is the
+    // worker's own (Colleen Byrne at Byrne Critical Care LLC), the
+    // approval would be her paying herself back on her own word. So her
+    // filing stands as the firm's approval, written now and said why, and
+    // it goes straight to the firm above her (lib/money/own-firm-expense),
+    // the way her week does (lib/money/own-firm-acceptance).
+    const alone = await firmApprovesOnlyFor(line!.companyId, caller.person.id)
+    let ownFirm: { waitingOn: string | null; says: string } | null = null
+    if (alone) {
+      const kind = String(category).toUpperCase()
+      const legs = await legsOver(line!.id)
+      const chain = acceptanceChain({ category: kind, billable: decided.billable }, legs)
+      const waitingOn = chain.steps[0]?.name ?? null
+      const bottom = legs[legs.length - 1] ?? legOf(line!)
+      ownFirm = {
+        waitingOn,
+        says: filedAtOwnFirmSays({
+          waitingOn,
+          whyOwnCost: waitingOn ? null : ownCostSays({ payerName: bottom.payerName, agreementSaid: decided.from === 'AGREEMENT', kind }),
+        }),
+      }
+    }
+
+    const filedAt = new Date()
     const expense = await prisma.expense.create({
       data: {
         // The firm whose contract bills it: the worker's employer, which
@@ -402,17 +437,35 @@ export async function POST(request: NextRequest) {
         // In the pay currency of the line that pays the worker (lib/expense-currency).
         currency: await expenseCurrencyFor(line!.id, prisma),
         receiptUrl: receiptUrl ?? null,
-        // Filed by the person who spent it: that is the submission.
-        status: 'SUBMITTED',
-        submittedAt: new Date(),
+        // Filed by the person who spent it: that is the submission. At a
+        // firm that is hers alone it is the approval too, by nobody.
+        status: ownFirm ? 'APPROVED' : 'SUBMITTED',
+        submittedAt: filedAt,
+        ...(ownFirm ? { approvedAt: filedAt, approvedById: null } : {}),
       },
     })
+    if (ownFirm) {
+      await prisma.automationLog.create({
+        data: {
+          companyId: line!.companyId,
+          action: 'EXPENSE_APPROVED',
+          summary: `${caller.person.name}’s expense approved for ${line!.company.name} on filing`,
+          reason: standsAsApprovalSays({ firmName: line!.company.name, personName: caller.person.name, waitingOn: ownFirm.waitingOn }),
+          payload: { expenseIds: [expense.id], actor: caller.person.id, standsAsApproval: true },
+          // Taken back as any approval is, while nobody above has accepted it.
+          reversible: true,
+        },
+      })
+    }
     return NextResponse.json(
       {
         data: {
           expense: { id: expense.id, status: expense.status, total: Number(expense.total), billable: expense.billable },
           billable: { decidedBy: decided.from, says: decided.says },
-          message: `Filed. ${line!.company.name} approves it before it is paid back to you. ${decided.says}`,
+          message: ownFirm
+            ? ownFirm.says
+            : `Filed. ${line!.company.name} approves it before it is paid back to you. ${decided.says}`,
+          ...(ownFirm ? { waitingOn: ownFirm.waitingOn } : {}),
         },
       },
       { status: 201 }

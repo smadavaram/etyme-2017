@@ -518,6 +518,13 @@ export function rowFor(i: {
    * reader — from `rungBilled`. Absent: the row says nothing about bills.
    */
   billed?: RungBilled
+  /**
+   * The reader is a one-person firm reading its own worker's expense,
+   * and the worker is the reader (`lib/money/own-firm-expense`). Her
+   * filing stood as the firm's approval, so the line never says she
+   * approved it: it opens on the firm it waits on.
+   */
+  ownFirm?: boolean
 }): ExpenseRow {
   const { expense: e, legsTopFirst: legs, acceptances, reader } = i
   const own = e.companyId === reader.id
@@ -546,7 +553,8 @@ export function rowFor(i: {
 
   const money = (c: number) => amount(c, e.currency)
   const employer = own ? 'you' : paysLeg!.sellerId === e.companyId ? e.companyName : 'the employer'
-  const parts = [`Approved by ${employer}`]
+  const ownFirm = own && i.ownFirm === true
+  const parts = ownFirm ? [] : [`Approved by ${employer}`]
 
   if (at < 0 && !own) {
     // The reader's own agreement leaves this kind out.
@@ -594,8 +602,10 @@ export function rowFor(i: {
   // Where the reader is the last firm it travels to, it carries the cost:
   // the agreement above it says why, in the words it already uses.
   const goesNoHigher = chain.stopped && (own ? true : chain.stopped.leg.sellerId === reader.id)
+  const said = parts.join(' · ')
   return {
-    visible: true, state, billable: own ? chain.steps.length > 0 : true, line: parts.join(' · '), upToCents,
+    visible: true, state, billable: own ? chain.steps.length > 0 : true,
+    line: ownFirm ? (said ? said.charAt(0).toUpperCase() + said.slice(1) : null) : said, upToCents,
     notBillableSays: goesNoHigher ? chain.stopped!.says : null, counterparty,
   }
 }
