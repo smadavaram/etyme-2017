@@ -494,6 +494,13 @@ export interface Progress {
   outstanding: number
   requiredOutstanding: number
   complete: boolean
+  /**
+   * Everything received has been looked at. Only a complete request whose
+   * every item was examined (or was on file already) is finished; a
+   * request whose I-9 nobody has examined is received and waiting on HR
+   * (the fifth screen walk, R6: Rajesh Iyer's read "4/4 · Finished").
+   */
+  examined: boolean
   /** Said the way somebody would say it on the phone. */
   summary: string
 }
@@ -505,7 +512,7 @@ export interface Progress {
  * call this process is otherwise made of.
  */
 export function progressOf(
-  items: { label: string; required: boolean; received: boolean }[]
+  items: { label: string; required: boolean; received: boolean; examined?: boolean }[]
 ): Progress {
   const total = items.length
   const received = items.filter((i) => i.received).length
@@ -513,10 +520,18 @@ export function progressOf(
   const requiredOutstanding = outstandingItems.filter((i) => i.required)
 
   const complete = requiredOutstanding.length === 0
+  // An item a caller says nothing about is read as examined, so a reader
+  // that never passed the flag reads as it did.
+  const unexamined = items.filter((i) => i.received && i.examined === false)
+  const examined = unexamined.length === 0
 
   let summary: string
   if (total === 0) {
     summary = 'Nothing to send — we already hold everything.'
+  } else if (complete && !examined) {
+    const names = unexamined.slice(0, 3).map((i) => i.label)
+    const andMore = unexamined.length > 3 ? `, and ${unexamined.length - 3} more` : ''
+    summary = `Received, waiting on HR to look at ${names.join(', ')}${andMore}.`
   } else if (complete && received === total) {
     summary = 'Everything is in.'
   } else if (complete) {
@@ -533,6 +548,7 @@ export function progressOf(
     outstanding: outstandingItems.length,
     requiredOutstanding: requiredOutstanding.length,
     complete,
+    examined,
     summary,
   }
 }

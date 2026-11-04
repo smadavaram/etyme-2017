@@ -30,7 +30,7 @@ interface Packet {
   recipientEmail: string
   askedBy: string
   askedAt: string
-  progress: { total: number; received: number; complete: boolean; summary: string }
+  progress: { total: number; received: number; complete: boolean; examined?: boolean; summary: string }
   completedAt: string | null
   reopenedReason: string | null
   expiresInDays: number
@@ -386,8 +386,13 @@ function Group({ title, rows, note, onLook, onAnswer, onResend }: {
               </span>
             </button>
             <p className={`text-[12px] mt-2 ${p.linkExpired && !p.completedAt ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
-              {p.completedAt
+              {/* Finished only once every item is examined or on file; a
+                  request whose I-9 nobody has looked at is received and
+                  waiting on HR (the fifth screen walk, R6). */}
+              {p.completedAt && p.progress.examined !== false
                 ? `Finished ${plainDate(p.completedAt)}`
+                : p.completedAt
+                ? p.progress.summary
                 : p.linkExpired
                   ? `Their link expired ${Math.abs(p.expiresInDays)} days ago, so they cannot reply.`
                   : p.progress.summary}

@@ -203,6 +203,7 @@ export async function POST(
       label: i.label,
       required: i.required,
       received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+      examined: i.state === 'ACCEPTED',
     }))
   )
 

@@ -38,7 +38,7 @@ interface Packet {
   reopenedReason: string | null
   expiresAt: string
   complete: boolean
-  progress: { total: number; received: number; complete: boolean; summary: string }
+  progress: { total: number; received: number; complete: boolean; examined?: boolean; summary: string }
   items: Item[]
 }
 

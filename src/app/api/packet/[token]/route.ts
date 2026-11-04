@@ -7,6 +7,7 @@ import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { progressOf } from '@/lib/packets'
+import { startSentenceNow, RUNNING_STATES } from '@/lib/document-stages/start-day'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 
 /**
@@ -27,6 +28,23 @@ import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/documen
  * nothing about the company beyond its name, never lists other packets,
  * and refuses the moment the link is out of date.
  */
+
+/**
+ * A start sentence stored the day the request was raised, said as of
+ * today (the fifth screen walk: "due to start on 2026-08-09" in
+ * November). The person's own line that starts on that day says whether
+ * she started.
+ */
+async function startSaidToday(reason: string | null, personId: string | null): Promise<string | null> {
+  if (!reason || !personId || !/due to start/.test(reason)) return reason
+  const lines = await prisma.sellContract.findMany({
+    where: { personId },
+    select: { startDate: true, state: true },
+    take: 40,
+  })
+  return startSentenceNow(reason, new Date(), (day) =>
+    lines.some((l) => l.startDate && l.startDate.toISOString().slice(0, 10) === day.toISOString().slice(0, 10) && RUNNING_STATES.includes(l.state)))
+}
 
 async function loadByToken(token: string) {
   return prisma.documentPacket.findUnique({
@@ -84,6 +102,7 @@ export async function GET(
       label: i.label,
       required: i.required,
       received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+      examined: i.state === 'ACCEPTED',
     }))
   )
 
@@ -110,7 +129,7 @@ export async function GET(
               new Date(),
               packet.company.name,
             ) ?? packet.reopenedReason)
-          : packet.reopenedReason,
+          : await startSaidToday(packet.reopenedReason, packet.subjectPersonId),
       expiresAt: packet.expiresAt.toISOString().slice(0, 10),
       complete: Boolean(packet.completedAt),
       progress,
@@ -262,6 +281,7 @@ export async function POST(
       label: i.label,
       required: i.required,
       received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+      examined: i.state === 'ACCEPTED',
     }))
   )
 

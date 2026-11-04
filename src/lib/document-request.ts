@@ -1503,6 +1503,7 @@ export function myPapers(input: {
     })
   }
 
+  const acceptedOnce = new Map<string, { id: string; key: string | null; label: string; askedBy: string; at: Date | null }>()
   for (const p of input.packets) {
     // A withdrawn ask is not still asking anybody for anything.
     if (p.cancelledAt) continue
@@ -1516,6 +1517,16 @@ export function myPapers(input: {
       // by that paper, so it is not listed twice (R3). A renewal is never
       // answered by the paper it renews.
       if (!p.renewal && item.state === 'PENDING' && item.key && onFile.has(item.key)) continue
+      // An item the firm accepted is on her file, not a link still asking
+      // her for something: it is listed once, under on file, however many
+      // finished requests asked for it (the fifth screen walk, R5: Rosa
+      // Delgado read three accepted papers under "Asked for, with a
+      // link", her undertaking twice).
+      if (item.state === 'ACCEPTED') {
+        const k = (item.key ?? item.label).trim().toLowerCase()
+        if (!acceptedOnce.has(k)) acceptedOnce.set(k, { id: item.id, key: item.key ?? null, label: item.label, askedBy: p.askedBy, at: item.receivedAt ?? null })
+        continue
+      }
       const answered = ANSWERED.includes(item.state)
       papers.push({
         id: item.id,
@@ -1580,6 +1591,34 @@ export function myPapers(input: {
       doneAt: (h.validFrom ?? null)?.toISOString() ?? null,
       dueOn: h.expiresAt?.toISOString() ?? null,
       runsOutOn: h.expiresAt?.toISOString() ?? null,
+      todo: null,
+      link: null,
+    })
+  }
+
+  // What a firm accepted from a request, once, where the record above
+  // did not already list the same kind as on file.
+  const heldKeys = new Set((input.held ?? []).filter((h) => ACCEPTED_CHECK.includes(h.status)).map((h) => h.key.toLowerCase()))
+  const named = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ')
+  const listed = new Set(papers.filter((x) => x.kind === 'DOCUMENT' || x.kind === 'HELD').map((x) => named(x.name)))
+  for (const a of acceptedOnce.values()) {
+    if (a.key && heldKeys.has(a.key.toLowerCase())) continue
+    // The same paper already on her page as a document she holds.
+    if (listed.has(named(asRow(a.label)))) continue
+    papers.push({
+      id: a.id,
+      kind: 'HELD',
+      name: asRow(a.label),
+      partOf: null,
+      askedBy: a.askedBy,
+      why: null,
+      needsSignature: false,
+      status: 'ACCEPTED',
+      word: `On file · ${a.askedBy}`,
+      askedAt: a.at?.toISOString() ?? null,
+      doneAt: a.at?.toISOString() ?? null,
+      dueOn: null,
+      runsOutOn: null,
       todo: null,
       link: null,
     })

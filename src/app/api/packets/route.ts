@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
         // Received is enough for progress. Whether somebody has reviewed it
         // is a separate question, answered on the packet itself.
         received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+        examined: i.state === 'ACCEPTED',
       }))
     )
     const daysLeft = Math.ceil((p.expiresAt.getTime() - Date.now()) / 86_400_000)
