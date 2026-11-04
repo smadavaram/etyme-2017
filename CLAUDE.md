@@ -1804,6 +1804,33 @@ after Network, in the same navigation wave; the walk then retakes every
 screenshot on the fixed navigation before the deploy, per "fix all
 navigation and then update screenshot".
 
+**The morning of 2026-11-04, after the box restart.** The three
+agents cut off by the hourly limit were finished by fresh agents of
+the same domain from the diffs in the tree: regulatory (eded7ecdc) made
+the request builder, the backfill and the worker's page read what the
+placement reads through one reader (`heldOnRecord`, `heldAcross` in
+`lib/document-stages/paper-record`, typed by every firm on the person's
+lines, with `checksThatAnswer` closing proof of right to work by the
+I-9 behind it), closing R1, R1b and R3 in tests; conversation
+(e0a4e2fa7) reversed f7692126c's call so a seat with no role of its own
+wears the hat the account menu says (Karthik Menon's firm hat reads
+"Nothing of Teleworld's is addressed to you; your own work is under
+You"), and a colleague's paper is never said to a seat without the
+paper's permission in either hat (`hearsPaperNotice`); the architect
+(c3a397f3c) made a one-person firm's account menu offer no You hat
+through the same code the screen reads (`seatLinesFrom`,
+`hatsForSession`; the old test fed the menu a hand-made seat list the
+screen never receives, which is why it passed while the screen did
+not); market (ceba23d4a) made the second step read Submissions on every
+public page (the step name in one place, `steps.ts`, read by the chips,
+the step pages, the panels' table titles, the "In it" line, About and
+the MSP door map), with the address `/docs/candidates` kept because
+routes do not move. Open from it: the worker's page reads an
+unexamined upload as "sent, waiting" while the placement reads it as
+held (the founder's open line); Ask Etyme's own sentence still says
+"jobs, candidates, timesheets and invoices" (conversation, with the
+Network words); the backfill's wider reach has run on no database.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
