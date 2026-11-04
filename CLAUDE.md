@@ -1866,6 +1866,45 @@ Payroll · Settings**, a client's without Bills and Payroll, an MSP's
 without Payroll. This replaces "the network after the money" in the
 Network paragraph above.
 
+**The navigation wave is built (architect, 36b0408e2, e9241d9e7,
+730d712fb), the same morning.** Supplier and integrator read Ask Etyme
+· Today · Network · Jobs · Submissions · Contracts · Timesheets · Bills
+· Invoice receipts · Payroll · Settings (eleven); an MSP the same with
+no Payroll (ten); a client Ask Etyme · Today · Network · Jobs ·
+Submissions · Contracts · Timesheets · Invoice receipts · Settings
+(nine). Network's groups: a supplier's Candidates (Candidates, Bench,
+Bench pay, Bench check-ins, Training) and Companies (Companies,
+Suppliers, Contacts); a client's Candidates and Suppliers (Suppliers,
+Contacts, Agreements, Supplier scorecards); an MSP's Companies alone.
+Contracts' groups: the lines (Sell contracts · Buy contracts · POs) and
+Paperwork (Paperwork · Missing paperwork · Document requests · Screening
+packs · Compliance · Check queue; a client's Compliance · Document
+requests). Bills holds AR, Invoice receipts is the AP page, Payroll
+holds Commissions; Rolloff stays under Timesheets and Reports under
+Today; Sites stay under Settings. The grouped tab row is
+`GroupedTabRow` in `components/shell/section-pills`, the grouping
+`NavItem.group` through `tabsFor().groups`; a group with a page named
+after it links to that page, otherwise the name is plain text. The
+foot of the menu names the role a seat actually holds, or "Member"
+(Karthik Menon reads "Integrator · Member", never "Delivery";
+`footerRole` in `components/shell/sidebar-props`). Every page keeps its
+address; `lib/page-framing` was not changed. Coordinator's calls on the
+way, each reversible in a sentence: no separate payments pages exist,
+so "Payments in" is the AR page and "Payments out" the AP page under
+their own labels; "Papers you require" has no Settings link of its own
+(its address is the setup checklist's dynamic one, reached from the
+checklist, Today and the greeting); a supplier's Network carries no
+Scorecards or Agreements tab because those pages are a client's; the
+tab labels stay "Sell contracts" and "Buy contracts". One lesson, so
+it is not paid for twice: the coordinator's CLAUDE.md commit 2e2bfb5cc
+swept the architect's uncommitted edit of the navigation table into
+itself, because `git add CLAUDE.md` stages the whole file; a CLAUDE.md
+commit made while an agent may be editing the table checks `git diff
+--cached` first, or waits. Conversation (`NAV_TOPICS`, the four steps'
+sentence) and market (the documentation's menu words) follow in the
+same hour, then the matrix rows, release pass 36, the walk with the
+navigation screenshots, and the deploy.
+
 ## Onboarding is tested as every party and fills itself from what the company already has — decided by the founder, 2026-10-27
 
 *"So test and ease onboarding for every party; fetch from any source of
