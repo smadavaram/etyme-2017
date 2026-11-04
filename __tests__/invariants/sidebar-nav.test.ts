@@ -87,16 +87,18 @@ describe('a candidate never lands on the vendor staff\'s own screens', () => {
   })
 })
 
-describe('a menu is nine links at most, and every other page is a tab of one of them', () => {
+describe('a menu is eleven links at most, and every other page is a tab of one of them', () => {
   // The founder, 2026-10-19: "left navigation is also exhaustive … [it]
   // will scare anyone from our app." The table carried 133 labels and a
   // supplier's owner read about forty. Nine links then; ten for a day
   // once Contracts became a link of its own (2026-11-03); nine again
-  // since the two lists a firm keeps folded under Network (2026-11-04).
+  // since the two lists a firm keeps folded under Network; eleven at a
+  // supplier since the money became three links in the founder's process
+  // order, Bills, Invoice receipts and Payroll (2026-11-04).
   for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
-    it(`gives ${kind} at most nine links, each one noun whose other pages are its tabs`, () => {
+    it(`gives ${kind} at most eleven links, each one noun whose other pages are its tabs`, () => {
       const nav = getNavForKind(kind, false, { permissions: ['*'] })
-      expect(nav.length, kind).toBeLessThanOrEqual(9)
+      expect(nav.length, kind).toBeLessThanOrEqual(11)
       for (const s of nav) expect(s.tabbed, `${kind} ${s.label}`).toBe(true)
       expect(nav.flatMap(linksOf).map((l) => l.label)).toEqual(nav.map((s) => s.label))
     })
@@ -109,7 +111,8 @@ describe('a menu is nine links at most, and every other page is a tab of one of 
     expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(
       ['Sell contracts', 'Buy contracts', 'POs', 'Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']
     )
-    expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR', 'AP', 'Payroll', 'Commissions'])
+    expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Payroll', 'Commissions'])
+    expect(tabsFor(vendor, '/dashboard/ar')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR'])
   })
 
   it('draws no tab row on a noun with one page, nor on Ask Etyme, which draws its own column of threads', () => {
@@ -171,9 +174,9 @@ describe('an integrator gets the links a supplier gets, its own people under Net
   const gsi = getNavForKind('GSI', false)
   const hrefs = gsi.flatMap((s) => s.items.map((i) => i.href))
 
-  it('reads the supplier’s nine, with no Leads, because its demand arrives through the client it already has', () => {
+  it('reads the supplier’s eleven, with no Leads, because its demand arrives through the client it already has', () => {
     expect(gsi.map((s) => s.label)).toEqual(
-      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Network', 'Settings']
+      ['Ask Etyme', 'Today', 'Network', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Invoice receipts', 'Payroll', 'Settings']
     )
     expect(hrefs).not.toContain('/dashboard/leads')
   })
@@ -253,15 +256,24 @@ describe('a nav label names a thing, in the words the trade uses', () => {
     expect(client.find((s) => s.label === 'Submissions')!.items[0].href).toBe('/dashboard/submissions')
   })
 
-  it('every firm’s menu has nine links in the process order, and Network comes after the money and before Settings', () => {
-    expect(getNavForKind('CLIENT', false).map((s) => s.label)).toEqual(
-      ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Invoice receipts', 'Network', 'Settings']
-    )
-    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+  it('a supplier and an integrator read eleven links in the founder’s process order, Network first, then the work, then the money', () => {
+    for (const kind of ['VENDOR', 'GSI'] as const) {
       expect(getNavForKind(kind, false).map((s) => s.label), kind).toEqual(
-        ['Ask Etyme', 'Today', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Network', 'Settings']
+        ['Ask Etyme', 'Today', 'Network', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Invoice receipts', 'Payroll', 'Settings']
       )
     }
+  })
+
+  it('a client reads nine, with no Bills and no Payroll, because it sells nothing and employs no contractor', () => {
+    expect(getNavForKind('CLIENT', false).map((s) => s.label)).toEqual(
+      ['Ask Etyme', 'Today', 'Network', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Invoice receipts', 'Settings']
+    )
+  })
+
+  it('an MSP reads ten, with no Payroll, because it places nobody and pays nobody', () => {
+    expect(getNavForKind('MSP', false).map((s) => s.label)).toEqual(
+      ['Ask Etyme', 'Today', 'Network', 'Jobs', 'Submissions', 'Contracts', 'Timesheets', 'Bills', 'Invoice receipts', 'Settings']
+    )
   })
 })
 
@@ -441,14 +453,14 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
 })
 
 describe('no menu offers a wall of links', () => {
-  it('never prints more than nine links to any party, for any seat', () => {
+  it('never prints more than eleven links to any party, for any seat', () => {
     for (const [party, sections] of Object.entries(MENUS)) {
-      expect(entriesOf(sections).length, party).toBeLessThanOrEqual(9)
+      expect(entriesOf(sections).length, party).toBeLessThanOrEqual(11)
     }
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
       const worker = getNavForKind(kind, false, { worker: true })
-      // Nine of the firm's; the worker's own five are the You hat.
-      expect(worker.filter((s) => s.tabbed).length, kind).toBeLessThanOrEqual(9)
+      // The firm's eleven at most; the worker's own five are the You hat.
+      expect(worker.filter((s) => s.tabbed).length, kind).toBeLessThanOrEqual(11)
     }
   })
 })
@@ -1582,5 +1594,49 @@ describe('paperwork is a tab of Contracts, not a thing of its own (founder, 2026
     expect(solo.items.map((i) => i.label)).toEqual(['Company paperwork', 'Your paperwork', 'Compliance'])
     const worker = getNavForKind(null, true).find((s) => s.label === 'You')!
     expect(worker.items.map((i) => i.label)).toContain('Your paperwork')
+  })
+})
+
+describe('the money follows the founder’s process order, and a bench vendor is never restricted to its bench (2026-11-04)', () => {
+  it('Network sits above Jobs on every firm’s menu: the master data first, the process after it', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const labels = getNavForKind(kind, false).map((s) => s.label)
+      expect(labels.slice(0, 4), kind).toEqual(['Ask Etyme', 'Today', 'Network', 'Jobs'])
+    }
+  })
+
+  it('Bills is what the firm issues upward with AR beside it, Invoice receipts is what it receives from below on AP, and Payroll pays its own people with Commissions', () => {
+    const vendor = getNavForKind('VENDOR', false)
+    const tabs = (label: string) => vendor.find((s) => s.label === label)!.items.map((i) => [i.label, i.href])
+    expect(tabs('Bills')).toEqual([['Bills', '/dashboard/invoices'], ['AR', '/dashboard/ar']])
+    expect(tabs('Invoice receipts')).toEqual([['AP', '/dashboard/ap']])
+    expect(tabs('Payroll')).toEqual([['Payroll', '/dashboard/payroll'], ['Commissions', '/dashboard/payroll/commissions']])
+    // The client's money noun is unchanged: what it receives, and what it owes on it.
+    const client = getNavForKind('CLIENT', false).find((s) => s.label === 'Invoice receipts')!
+    expect(client.items.map((i) => i.label)).toEqual(['Invoice receipts', 'AP', 'Budget', 'POs'])
+  })
+
+  it('Rolloff stays a tab of Timesheets and Reports a tab of Today, where they fold today', () => {
+    const vendor = getNavForKind('VENDOR', false)
+    expect(vendor.find((s) => s.items.some((i) => i.href === '/dashboard/rolloff'))!.label).toBe('Timesheets')
+    expect(vendor.find((s) => s.items.some((i) => i.href === '/dashboard/reports'))!.label).toBe('Today')
+  })
+
+  it('a bench vendor reads every link a supplier reads, and its Contracts carry a corp-to-corp buy line beside a W2 line', () => {
+    // Prime, sub-vendor and bench are positions on a deal, never a kind:
+    // a bench firm is a VENDOR with supplierPosture BENCH, and nothing that
+    // draws a menu, a tab or the contracts list reads the posture.
+    for (const file of ['src/lib/nav-table.ts', 'src/components/shell/section-pills.tsx', 'src/components/shell/sidebar.tsx', 'src/components/shell/sidebar-props.ts', 'src/app/dashboard/contracts/page.tsx', 'src/app/api/contracts/route.ts']) {
+      expect(readFileSync(join(process.cwd(), file), 'utf8'), file).not.toMatch(/supplierPosture|postureWord/)
+    }
+    const vendor = getNavForKind('VENDOR', false)
+    expect(vendor.map((s) => s.label)).toContain('Payroll')
+    expect(vendor.map((s) => s.label)).toContain('Invoice receipts')
+    // One Buy tab for every buy line, whichever way it pays: by invoice
+    // receipt to the firm below (C2C) or by payroll to its own W2.
+    const buy = vendor.find((s) => s.label === 'Contracts')!.items.filter((i) => i.href.startsWith('/dashboard/contracts?side=buy'))
+    expect(buy.map((i) => i.label)).toEqual(['Buy contracts'])
+    const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8')
+    expect(schema).toMatch(/enum ContractType \{[^}]*\bW2\b[^}]*\bC2C\b/)
   })
 })

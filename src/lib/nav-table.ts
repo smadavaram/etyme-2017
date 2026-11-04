@@ -23,15 +23,16 @@ import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 /**
  * Sidebar navigation — from CLAUDE.md, "Navigation per company type".
  *
- * Nine links per party (founder, 2026-10-19; again since 2026-11-04,
- * when the two lists a firm keeps folded under Network), and this file
+ * Nine links per party (founder, 2026-10-19), and since 2026-11-04 the
+ * founder's process order: Network above Jobs, then the money as Bills,
+ * Invoice receipts and Payroll, eleven at a supplier; and this file
  * and CLAUDE.md's table are held together by a test rather than by
  * anybody remembering:
  *
- *   Client      Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Network · Settings
- *   Supplier,   Ask Etyme · Today · Jobs · Submissions · Contracts · Timesheets · Bills · Network · Settings
+ *   Client      Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Settings
+ *   Supplier,   Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Bills · Invoice receipts · Payroll · Settings
  *   integrator
- *   MSP         the supplier's, its Network holding Companies alone (an MSP places nobody)
+ *   MSP         the supplier's, with no Payroll, its Network holding Companies alone (an MSP places nobody and pays nobody)
  *   Solo        Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings
  *   Consultant  Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork
  *
@@ -578,24 +579,43 @@ const FIRM_CONTRACTS: NavItem[] = [
 ]
 
 /**
- * A staffing vendor: Ask Etyme · Today · Jobs · Submissions · Contracts ·
- * Timesheets · Bills · Network · Settings — the process order, then the
- * two lists it keeps, under Network.
+ * The money, in the founder's process order (2026-11-04: "Billing (AR),
+ * Invoice Receipt (AP), Payment in, Payment out and Payroll"). Bills is
+ * what the firm issues upward, with AR, where what came in is recorded:
+ * there is no separate payments page, so "Payments in" is the AR page in
+ * its own word. Invoice receipts is what it receives from below, the AP
+ * page, where what went out is recorded, "Payments out" by the same
+ * reading. Payroll is a link of its own, because it is neither a bill
+ * nor an invoice receipt: the party who issues a document names it.
+ */
+const FIRM_BILLS: NavItem[] = [BILLS, AR]
+const FIRM_RECEIPTS: NavItem[] = [AP]
+const FIRM_PAYROLL: NavItem[] = [PAYROLL, COMMISSIONS]
+
+/**
+ * A staffing vendor: Ask Etyme · Today · Network · Jobs · Submissions ·
+ * Contracts · Timesheets · Bills · Invoice receipts · Payroll · Settings
+ * — the master data first, then the process in the founder's order
+ * (2026-11-04). A bench vendor reads every one of them: prime, sub-vendor
+ * and bench are positions on a deal, never a kind, and nothing here reads
+ * a firm's posture.
  */
 const VENDOR_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
+  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
   tabbed('Jobs', [JOBS, LEADS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
-  tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
+  tabbed('Bills', FIRM_BILLS),
+  tabbed('Invoice receipts', FIRM_RECEIPTS),
+  tabbed('Payroll', FIRM_PAYROLL),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An integrator: the supplier's nine. No Leads: a GSI's demand arrives
+ * An integrator: the supplier's eleven. No Leads: a GSI's demand arrives
  * through the client relationship it already has, not through a capture
  * form. Its Candidates are its own employees, rolling off one project and
  * onto the next — checked first on a job request before a role reaches a
@@ -605,17 +625,19 @@ const VENDOR_NAV: NavSection[] = [
 const GSI_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
+  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
-  tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
-  tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
+  tabbed('Bills', FIRM_BILLS),
+  tabbed('Invoice receipts', FIRM_RECEIPTS),
+  tabbed('Payroll', FIRM_PAYROLL),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An MSP: the supplier's nine, its Network holding Companies alone. An MSP runs the program and
+ * An MSP: the supplier's, with no Payroll, its Network holding Companies alone. An MSP runs the program and
  * places nobody (CLAUDE.md, "Etyme runs the program"): it holds no bench
  * and no consultants of its own, and its own setup tells it so (sign-up
  * walk, round five, problem 21), so the menu offers no Candidates with
@@ -630,13 +652,14 @@ const GSI_NAV: NavSection[] = [
 const MSP_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY]),
+  // Companies alone: an MSP keeps no candidates of its own.
+  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS])),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
-  tabbed('Bills', [BILLS, AR, AP]),
-  // Companies alone: an MSP keeps no candidates of its own.
-  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS])),
+  tabbed('Bills', FIRM_BILLS),
+  tabbed('Invoice receipts', FIRM_RECEIPTS),
   tabbed('Settings', FIRM_SETTINGS),
 ]
 
@@ -734,8 +757,9 @@ const SOLO_NAV: NavSection[] = [
 ]
 
 /**
- * A client: Ask Etyme · Today · Jobs · Submissions · Contracts ·
- * Timesheets · Invoice receipts · Network · Settings —
+ * A client: Ask Etyme · Today · Network · Jobs · Submissions · Contracts ·
+ * Timesheets · Invoice receipts · Settings, nine: no Bills and no Payroll,
+ * because it sells nothing and employs no contractor —
  * the process order, then the two lists it keeps (founder, 2026-11-03).
  *
  * A client only buys, so its money noun is what it receives: invoice
@@ -751,6 +775,24 @@ const SOLO_NAV: NavSection[] = [
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION]),
+  // Network (founder, 2026-11-04): its memory of people, and the firms
+  // it buys from with the people at them. Above Jobs ("Network can stay
+  // above the jobs"): the master data first, the process after it.
+  tabbed('Network', [
+    // Its memory of people it would like to reach out to (founder,
+    // 2026-11-03): everybody put in front of it, the ones it starred, its
+    // recent engagements, each with "Ask for them". Opens on the first
+    // filter in the reader's order that has rows, Favorites first (demand,
+    // a1a67e31f), so it is never empty where anybody was ever put forward.
+    ...inGroup('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
+    ...inGroup('Suppliers', [
+      SUPPLIERS,
+      CONTACTS,
+      { label: 'Agreements', href: '/dashboard/program/agreements', icon: '▤' },
+      // Only computable here: no supplier can work these out about itself.
+      SUPPLIER_SCORECARDS,
+    ]),
+  ]),
   // One entry for a job, at every stage: the stage is a filter on the
   // screen, never a fork in the menu (raised twice by the founder).
   tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞' }]),
@@ -778,24 +820,6 @@ const CLIENT_NAV: NavSection[] = [
     AP,
     { label: 'Budget', href: '/dashboard/program/budget', icon: '◱' },
     POS,
-  ]),
-  // The client's memory of people it would like to reach out to
-  // (founder, 2026-11-03): everybody put in front of it, the ones it
-  // starred, its recent engagements, each with "Ask for them". Opens on
-  // the first filter in the reader's order that has rows, Favorites first
-  // (demand, a1a67e31f), so it is never empty where anybody was ever put
-  // forward.
-  // Network (founder, 2026-11-04): its memory of people, and the firms
-  // it buys from with the people at them.
-  tabbed('Network', [
-    ...inGroup('Candidates', [{ label: 'Candidates', href: '/dashboard/people', icon: '◍' }]),
-    ...inGroup('Suppliers', [
-      SUPPLIERS,
-      CONTACTS,
-      { label: 'Agreements', href: '/dashboard/program/agreements', icon: '▤' },
-      // Only computable here: no supplier can work these out about itself.
-      SUPPLIER_SCORECARDS,
-    ]),
   ]),
   tabbed('Settings', [
     SETTINGS,

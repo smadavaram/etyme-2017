@@ -144,7 +144,8 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     // state today and the test above is what proves it.
     expect(sectionOfHref('CLIENT', '/dashboard/payroll')).toBeNull()
     expect(sectionOfHref('CLIENT', '/dashboard/ar')).toBeNull()
-    expect(sectionOfHref('VENDOR', '/dashboard/payroll')).toBe('Bills')
+    // Payroll is a link of its own at a supplier since 2026-11-04.
+    expect(sectionOfHref('VENDOR', '/dashboard/payroll')).toBe('Payroll')
   })
 })
 

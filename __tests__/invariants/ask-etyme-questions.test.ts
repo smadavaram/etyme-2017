@@ -712,7 +712,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
   it('a page the seat may not open is never offered', async () => {
     // A hiring manager has no Settings page of the firm's and no payroll.
     const payroll = await where('HIRING_MANAGER', 'Where do I run payroll?')
-    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Jobs, Submissions, Contracts, Timesheets, Invoice receipts, Network and Settings.' })
+    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Network, Jobs, Submissions, Contracts, Timesheets, Invoice receipts and Settings.' })
     // "Take me there" toward a page off the seat's menu opens nothing.
     expect(await where('HIRING_MANAGER', 'take me there', '/dashboard/payroll')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
     // Every page offered to any of the four is on that seat's own filtered menu.
