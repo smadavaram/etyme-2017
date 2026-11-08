@@ -61,7 +61,7 @@ export function SectionPills() {
 
   const sections = getNavForKind(id.companyKind, id.isConsultant, {
     worker: id.worker, permissions: id.permissions, seatedAtClient: id.seatedAtClient, termsHref: id.termsHref,
-    region: id.region, hat: id.hat,
+    region: id.region, hat: id.hat, earnsCommission: id.earnsCommission,
   })
   const home = consoleHome({
     kind: id.companyKind ?? null,

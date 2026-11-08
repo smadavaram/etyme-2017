@@ -152,10 +152,10 @@ describe('the allowlist is the menu’s, never a second list', () => {
     expect(missing).toEqual([])
   })
 
-  it('every route on the menu half of the allowlist is behind a link a desk-less seat is shown, or behind its own terms', () => {
+  it('every route on the menu half of the allowlist is behind a link a desk-less seat is shown, or behind its own terms, or its own commissions where it earns them', () => {
     const shown = new Set<string>(['submissions/*/terms'])
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
-      for (const s of getNavForKind(kind, false, { permissions: [] })) for (const i of s.items) for (const r of routesOf(i)) shown.add(r)
+      for (const s of getNavForKind(kind, false, { permissions: [], earnsCommission: true })) for (const i of s.items) for (const r of routesOf(i)) shown.add(r)
     }
     for (const s of getNavForKind(null, true, { permissions: [] })) for (const i of s.items) for (const r of routesOf(i)) shown.add(r)
     expect(desklessAllowlist().menu.filter((r) => !shown.has(r))).toEqual([])

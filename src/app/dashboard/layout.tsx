@@ -236,6 +236,26 @@ async function readerFilesAWeek(): Promise<boolean> {
  * any fetch comes back. Never throws; null is the ordinary menu, which
  * the region door still refuses route by route.
  */
+/**
+ * Whether this person earns commission at the seat's firm: a commission
+ * row on one of its lines names them (2026-11-08), so the menu offers
+ * "Your commissions". Never throws: a failed read offers no link, and the
+ * page stays reachable by its address.
+ */
+async function readerEarnsCommission(): Promise<boolean> {
+  try {
+    const { caller } = await getCallerContext()
+    if (!caller?.company || caller.isService) return false
+    const row = await prisma.contractCommission.findFirst({
+      where: { companyId: caller.company.id, earnedById: caller.person.id },
+      select: { id: true },
+    })
+    return Boolean(row)
+  } catch {
+    return false
+  }
+}
+
 async function readersRegion(): Promise<string | null> {
   try {
     const { caller } = await getCallerContext()
@@ -271,13 +291,13 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted] = await Promise.all([
+  const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted, earnsCommission] = await Promise.all([
     readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(), readersHat(),
-    readersGrants(),
+    readersGrants(), readerEarnsCommission(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted} earnsCommission={earnsCommission}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to

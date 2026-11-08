@@ -102,6 +102,12 @@ export interface SessionState {
    */
   filesAWeek: boolean
   /**
+   * This person earns commission at the seat's firm (a commission row
+   * names them), read on the server by the layout. The menu offers "Your
+   * commissions" (lib/nav-table, `earnsCommission`).
+   */
+  earnsCommission: boolean
+  /**
    * The region this seat reads, where it sits on a REGION unit
    * (lib/region-scope), or null. Read on the server for the reason `seat`
    * is: the menu is drawn before any fetch, and a region seat's menu is
@@ -160,6 +166,7 @@ const EMPTY: SessionState = {
   isDemo: false,
   termsHref: null,
   filesAWeek: false,
+  earnsCommission: false,
   region: null,
   loading: true,
   error: null,
@@ -215,6 +222,23 @@ export function withGrants(
   return out
 }
 
+/**
+ * The permissions the menu filters by: /api/me's own answer for the active
+ * seat (`activeContext.permissions`, the role's with the Owner's grants at
+ * that seat, the list the one caller check asks `hasPermission` over), so
+ * the menu and the routes read one list. Where /api/me gives no list (an
+ * older answer), the role's permissions with the layout's grants. Pure.
+ */
+export function seatPermissions(
+  active: { id?: string | null; permissions?: unknown; role?: { permissions?: readonly string[] | null } | null } | null,
+  granted: SessionGrants | null,
+): string[] {
+  if (active && Array.isArray(active.permissions) && active.permissions.every((p) => typeof p === 'string')) {
+    return [...new Set(active.permissions as string[])]
+  }
+  return withGrants(active?.role?.permissions ?? [], active?.id ?? null, granted)
+}
+
 export function SessionProvider({
   children,
   worker = false,
@@ -222,6 +246,7 @@ export function SessionProvider({
   demo = false,
   termsHref = null,
   filesAWeek = false,
+  earnsCommission = false,
   region = null,
   hat = null,
   granted = null,
@@ -249,10 +274,12 @@ export function SessionProvider({
   termsHref?: string | null
   /** A live line to file a week on. Read on the server. */
   filesAWeek?: boolean
+  /** This person earns commission at the seat's firm, read on the server. */
+  earnsCommission?: boolean
   /** The region this seat reads, if it sits on a REGION unit. Read on the server. */
   region?: string | null
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, region })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, earnsCommission, region })
   const [storedHat, setStoredHat] = useState<Hat | null>(hat)
   const pathname = usePathname()
 
@@ -295,12 +322,13 @@ export function SessionProvider({
               }
             : null,
           roleName: active?.role?.name ?? null,
-          permissions: withGrants(active?.role?.permissions ?? [], active?.id ?? null, granted),
+          permissions: seatPermissions(active, granted),
           isWorker: worker,
           seat,
           isDemo: demo,
           termsHref,
           filesAWeek,
+          earnsCommission,
           region,
           seats: seatLinesFrom(body.data?.contexts),
           activeContextId: active?.id ?? null,
@@ -311,7 +339,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, region, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, earnsCommission, region, loading: false, error: err.message })
       }
     }
 
@@ -324,7 +352,7 @@ export function SessionProvider({
     // session forever. A seat granted or revoked mid-session is picked
     // up on the next page load, which is how the client granted it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worker, demo, termsHref])
+  }, [worker, demo, termsHref, earnsCommission])
 
   // ── The hat, corrected for the page being read ─────────────────────
   // Read off the same facts the menu is drawn from, once the session has
@@ -337,6 +365,7 @@ export function SessionProvider({
     seatedAtClient: state.seat?.clientName ?? null,
     region: state.region,
     termsHref: state.termsHref,
+    earnsCommission: state.earnsCommission,
     hat: storedHat,
   }
   const menuKind = state.seat && !isConsultant && kind ? 'CLIENT' : kind

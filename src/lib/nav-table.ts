@@ -283,6 +283,7 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/my-standing': DRAWN_FROM,
   '/dashboard/my-work': ABOUT_THEM,
   '/dashboard/my-work/paperwork': ABOUT_THEM,
+  '/dashboard/my-work/commissions': ABOUT_THEM,
   '/dashboard/my-page': ABOUT_THEM,
   '/dashboard/my-benches': ABOUT_THEM,
   '/dashboard/my-data': ABOUT_THEM,
@@ -688,6 +689,21 @@ const MY_WORK_READS = [
  * them: the page is keyed on the submission waiting on its terms.
  */
 export const YOUR_TERMS_READS = ['submissions/*/terms'] as const
+/**
+ * The routes behind "Your commissions": the person's own commission rows
+ * (supply's GET /api/me/commissions), which answer the person about
+ * themselves and nobody else.
+ */
+export const YOUR_COMMISSIONS_READS = ['me', 'me/commissions'] as const
+/**
+ * What a person earns in commission, on their own page (2026-11-08). A
+ * link of its own in the firm's menu, under Accounting, for a seat whose
+ * person earns commission at this firm and cannot already read every
+ * commission under Payroll.
+ */
+export const YOUR_COMMISSIONS: NavItem = {
+  label: 'Your commissions', href: '/dashboard/my-work/commissions', icon: '◈', api: YOUR_COMMISSIONS_READS,
+}
 
 const MY_PAPERWORK_READS = ['me', 'me/papers', 'documents/*/sign', 'documents/*/upload'] as const
 
@@ -948,6 +964,15 @@ export type SeatFacts = {
    * anybody else it is read as "firm".
    */
   hat?: Hat | null
+  /**
+   * This person earns commission at this firm: a commission row on one of
+   * its lines names them (`ContractCommission.earnedById`), read on the
+   * server by the dashboard layout. Offered as "Your commissions" under
+   * Accounting in the firm hat, unless the seat reads every commission
+   * under Payroll already. A fact about the person's work, never a
+   * permission: the route answers each person about themselves.
+   */
+  earnsCommission?: boolean
 }
 
 /**
@@ -1141,6 +1166,8 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
   for (const s of sections) {
     // The switch above the column is Ask Etyme.
     if (s.items.some((i) => i.href === ASK_ETYME_HREF)) continue
+    // A person's own commissions close Accounting, after Reports.
+    if (grouped && s.items.some((i) => i.href === YOUR_COMMISSIONS.href)) settle()
     if (!s.tabbed) {
       for (const i of s.items) push(s.label, linkOf(i.label, [i]))
       continue
@@ -1486,12 +1513,28 @@ export function getNavForKind(
   // "Your terms", right after "Your work", for as long as a placement of
   // theirs waits on terms. Only where a reader has a "Your work": a seat
   // that is neither a consultant nor a worker has no terms of its own.
-  const withTerms = withTermsAfterYourWork(sections, seat.termsHref)
+  const withTerms = withCommissionsBeforeSettings(
+    withTermsAfterYourWork(sections, seat.termsHref),
+    Boolean(seat.earnsCommission) && !isConsultant && !solo && !(seat.permissions ?? []).includes('payroll.read'),
+  )
 
   if (seat.permissions == null) return withTerms
   return withTerms
     .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
     .filter((s) => s.items.length > 0)
+}
+
+/**
+ * "Your commissions", as a link of its own under Accounting just before
+ * Settings, for a person who earns commission at this firm. Untabbed, so
+ * the column draws it under the Accounting heading, beside the ledgers
+ * where the seat reads them and on its own where it does not.
+ */
+function withCommissionsBeforeSettings(sections: NavSection[], earns: boolean): NavSection[] {
+  if (!earns || sections.some((s) => s.items.some((i) => i.href === YOUR_COMMISSIONS.href))) return sections
+  const own: NavSection = { label: 'Accounting', items: [YOUR_COMMISSIONS] }
+  const at = sections.findIndex((s) => s.label === 'Settings')
+  return at < 0 ? [...sections, own] : [...sections.slice(0, at), own, ...sections.slice(at)]
 }
 
 /** "Your terms", right after "Your work", wherever a menu has Your work and terms wait. */
@@ -1622,7 +1665,8 @@ export function routesOpenToADesklessSeat(): { menu: string[]; scopesItself: str
   const menu = new Set<string>(YOUR_TERMS_READS)
   const kinds: CompanyKind[] = ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP']
   const navs = [
-    ...kinds.map((k) => getNavForKind(k, false, { permissions: [] })),
+    // A desk-less seat that earns commission is shown "Your commissions".
+    ...kinds.map((k) => getNavForKind(k, false, { permissions: [], earnsCommission: true })),
     getNavForKind(null, true, { permissions: [] }),
   ]
   for (const nav of navs) for (const s of nav) for (const i of s.items) for (const r of routesOf(i)) menu.add(r)

@@ -448,6 +448,7 @@ export function Header({ title }: HeaderProps) {
   // own rule — with the one owed count, read once a minute for the shell.
   const seatFacts = {
     worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
+    earnsCommission: Boolean(session.earnsCommission),
   }
   const asks = !session.loading && pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, seatFacts)).length > 0
   const owed = useOwedCount(asks)

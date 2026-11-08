@@ -43,6 +43,8 @@ export type SidebarIdentity = {
   region?: string | null
   /** The hat this person has on: the firm's, or their own (founder, 2026-11-03). */
   hat?: Hat | null
+  /** This person earns commission at this firm: "Your commissions" under Accounting. */
+  earnsCommission?: boolean
   pending: boolean
 }
 
@@ -54,7 +56,7 @@ export function sidebarPropsFrom(
     // company to name.
     // Optional too: a fixture describing a seat need not know about a
     // program office's desk, and almost nobody holds one.
-    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref' | 'hat' | 'roleName'>>
+    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref' | 'hat' | 'roleName' | 'earnsCommission'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -108,6 +110,7 @@ export function sidebarPropsFrom(
     termsHref: session.termsHref ?? null,
     region: session.region ?? null,
     hat: session.hat ?? null,
+    earnsCommission: Boolean(session.earnsCommission),
     pending: false,
   }
 }
