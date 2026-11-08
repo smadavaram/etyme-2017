@@ -231,15 +231,18 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     }
     const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
     expect(chat).toContain('decisionRequest(item.approvalId, decision, reason, answer)')
-    // The chat reaches four places only: its own route (the greeting and the
+    // The chat reaches five places only: its own route (the greeting and the
     // saved lines, Show earlier, Clear, a card's mark, each question), the
     // one approval route, a decision card's own act on the one route that
-    // already performs it, and — for a worker's own Renew — the bench route
-    // her Who has you page already renews a stay through.
+    // already performs it, the Owner's give-access card on Give access's
+    // own route, and — for a worker's own Renew — the bench route her Who
+    // has you page already renews a stay through.
     expect(chat).toContain("const THREAD = '/api/conversations/twin'")
     expect(chat).toContain("const RENEW = '/api/me/benches'")
     const calls = [...chat.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
-    expect(calls).toEqual(['THREAD', '`${THREAD}?only=thread&take=1000`', 'THREAD', 'THREAD', 'THREAD', 'url', 'card.act.url', 'RENEW'])
+    expect(calls).toEqual(['THREAD', '`${THREAD}?only=thread&take=1000`', 'THREAD', 'THREAD', 'THREAD', 'url', 'card.act.url', 'RENEW', 'GRANTS'])
+    // The Owner's give-access card posts to Give access's one route and nowhere else (2026-11-08).
+    expect(chat).toContain("const GRANTS = '/api/settings/grants'")
     // After a yes the reply links to the record and to the ledger entry,
     // and only then is the yes recorded on the line that drew the card.
     expect(chat).toContain("{ label: 'See it in the ledger', href: entryHref(entry) }")
@@ -1376,7 +1379,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     // The line under her box is hers too: never the firm's line about outside messages and money.
     expect(WORKER_FOOTER).toBe('Etyme answers from your own record. It never files, signs or sends anything for you.')
     // A saved worker answer is drawn again on a reload, as a worker answer.
-    expect(chat).toContain("'MODEL', 'WORKER', 'LIST']")
+    expect(chat).toContain("'MODEL', 'WORKER', 'LIST', 'GIVE_ACCESS']")
     const asAnswer: Answer = workerToday(helena())
     expect(cardIdsOf(asAnswer)).toEqual([])
   })

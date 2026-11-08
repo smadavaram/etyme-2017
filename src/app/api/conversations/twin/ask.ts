@@ -41,6 +41,11 @@ import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
+import { isTwinAct } from '@/lib/autonomy'
+import {
+  readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, ACCESS_LINK, GIVE_ACCESS_ACT,
+  type GiveAccessAsked, type GrantOffer, type GrantBody, type RoleHolders, type GrantHeld,
+} from './access'
 import { getNavForKind, menuFor, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind, type MenuGroup } from '@/lib/nav-table'
 
 // ── What was asked ───────────────────────────────────────────────────
@@ -56,6 +61,10 @@ export type Intent =
   | { kind: 'WEEKS' }
   | { kind: 'NEVER'; act: NeverAct }
   | { kind: 'MARGIN' }
+  /** "Who can see margin?": the roles and the grants that hold a permission, by name (2026-11-08). */
+  | { kind: 'WHO_HOLDS'; permission: string }
+  /** "Let Maya read margin for the Dayton team": the Owner giving access, drawn as a card (2026-11-08). */
+  | { kind: 'GIVE_ACCESS'; asked: GiveAccessAsked }
   /** What the firm made by consultant, office, client or recruiter, this month or this quarter (2026-11-08). */
   | { kind: 'MARGIN_CUT'; cut: 'consultant' | 'recruiter' | 'office' | 'client'; period: 'month' | 'quarter' }
   /** "What is on hold, and why?": starts held for papers and invoice receipts held by the check. */
@@ -488,6 +497,12 @@ export function readAsk(raw: string): Intent {
   if (!text || /^(help|\?|what can you do\??|what do you answer\??)$/i.test(text)) return { kind: 'HELP' }
 
   const lower = text.toLowerCase()
+  // Who sees what (founder, 2026-11-08), before setup and the menu, so
+  // "Who can see margin?" is never read as a margin question or a page.
+  const holds = readWhoHolds(text)
+  if (holds) return { kind: 'WHO_HOLDS', permission: holds }
+  const give = readGiveAccess(text)
+  if (give) return { kind: 'GIVE_ACCESS', asked: give }
   const setup = setupAsked(lower)
   if (setup) return { kind: 'SETUP', ...setup }
   // Where a page is, and "take me there": the person's own menu, never the model.
@@ -496,6 +511,8 @@ export function readAsk(raw: string): Intent {
   const cut = readMarginCut(lower)
   if (cut) return cut
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
+  // What placements make, said as profit: the same Profitability read (2026-11-08).
+  if (/\bprofits?\b|\bp ?& ?l\b|\bprofit and loss\b/.test(lower) && !/\bwhere\b/.test(lower)) return { kind: 'MARGIN' }
   if (
     (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
     // The twin page's own line, "how invoice receipts compare by supplier",
@@ -1274,6 +1291,12 @@ export type Answer =
   | { kind: 'CONFIRM'; says: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; item: WaitingItem }
   | { kind: 'VARIANCE'; says: string; period: { from: string; to: string; label: string }; rows: VarianceRow[] }
   | { kind: 'MODEL'; says: string; links: Link[] }
+  /**
+   * The Owner's give-access card (2026-11-08): the question, the line under
+   * it, and exactly what the yes posts to POST /api/settings/grants, the one
+   * route. Drawn only where the role contract holds `access.grant`.
+   */
+  | { kind: 'GIVE_ACCESS'; says: string; under: string; body: GrantBody; links?: Link[] }
   /** A worker's own work: what needs her, where her weeks stand, her chain (./worker). */
   | WorkerAnswer
 
@@ -2384,6 +2407,17 @@ export interface Readers {
   bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
   /** What this firm's own placements earn, as Profitability reads them; refused to a seat without `margin.read` in the route's own sentence. */
   margins?(): Promise<Refusable<{ rows: MarginRow[] }>>
+  /**
+   * Over what this seat reads a permission, as one sentence where it reads
+   * less than the firm's ("You read what placements make for the Dayton
+   * team; ask the Owner for the firm's."); null where it reads the firm's
+   * or nothing (2026-11-08, lib/permission-grants' `permissionScope`).
+   */
+  scopeLine?(permission: string): Promise<string | null>
+  /** What Give access offers this seat, read through GET /api/settings/grants itself. */
+  grantOffer?(): Promise<Refusable<{ offer: GrantOffer }>>
+  /** Who holds a permission at this company: the roles by name with their people, and every live grant of it. */
+  holdersOf?(permission: string): Promise<Refusable<{ roles: RoleHolders[]; grants: GrantHeld[] }>>
   /** Profitability's own cut, read through its route (`by=cut`); nothing is added up here. */
   marginCut?(cut: 'consultant' | 'office' | 'client', period: 'month' | 'quarter'): Promise<Refusable<MarginCutRead>>
   /** Weeks signed at the top that are on none of this firm's bills, oldest first. */
@@ -3030,6 +3064,21 @@ async function queueOf(needs?: () => Promise<number | QueueRead | null>): Promis
   return got == null || typeof got === 'number' ? null : got
 }
 
+/** The reader's reach over a permission, as one sentence, or null; a read that fails says nothing extra. */
+async function reachOf(read: Readers, permission: string): Promise<string | null> {
+  if (!read.scopeLine) return null
+  try {
+    return await read.scopeLine(permission)
+  } catch {
+    return null
+  }
+}
+
+/** An answer read at less than the firm's reach carries that reach as its last sentence. */
+export function withReach(says: string, reach: string | null | undefined): string {
+  return reach ? `${says} ${reach}` : says
+}
+
 export async function respond(
   text: string,
   read: Readers,
@@ -3051,6 +3100,13 @@ export async function respond(
     place?: string | null
     /** Where the company's model switch is drawn (lib/model-boundary's MODEL_SWITCH_HREF). */
     modelSwitchHref?: string | null
+    /**
+     * Whether the role contract holds `access.grant` (lib/autonomy). The
+     * give-access card is drawn only where it does (the 2026-10-12 rule: an
+     * act kind first, then a card); until then the Owner is sent to Users
+     * & permissions with what to choose there.
+     */
+    giveAccessAct?: boolean
   }
 ): Promise<Answer> {
   // A writing job (a poem, a joke, a story) is refused before any intent,
@@ -3080,7 +3136,7 @@ export async function respond(
   // refused by rule before any intent and before the model is considered.
   // Found by the walk of 2026-10-22: "What does Brightmoor Staffing pay
   // Helena Marsh?" was answered "needs the model".
-  if (!['HELP', 'WHY', 'DECIDE', 'NEEDS', 'SETUP'].includes(intent.kind) && asksAboutFirmMoney(text, own)) {
+  if (!['HELP', 'WHY', 'DECIDE', 'NEEDS', 'SETUP', 'WHO_HOLDS', 'GIVE_ACCESS'].includes(intent.kind) && asksAboutFirmMoney(text, own)) {
     if (anotherFirmsMoney(text, own, await read.vocabulary())) return { kind: 'TEXT', says: NOT_ANOTHER_BOOK }
   }
   // A firm's own book is answered only where this seat has the read; a
@@ -3251,6 +3307,39 @@ export async function respond(
     case 'NEVER':
       return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text), { seatedAtClient: !!opts.client }) }
 
+    // Who holds a permission here, by name: the roles that carry it and
+    // every live grant of it, read through Give access's own route, so the
+    // chat and Users & permissions cannot disagree (2026-11-08).
+    case 'WHO_HOLDS': {
+      if (!read.holdersOf) return { kind: 'TEXT', says: 'Who holds what is read at your own company; switch to it first.' }
+      const got = await read.holdersOf(intent.permission)
+      if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      return {
+        kind: 'LIST', says: whoHoldsSays(intent.permission, got.roles, got.grants),
+        ...(got.roles.length || got.grants.length ? { table: whoHoldsTable(got.roles, got.grants) } : {}),
+        links: [ACCESS_LINK],
+      }
+    }
+
+    // The Owner giving access in words (2026-11-08): a card whose yes posts
+    // to POST /api/settings/grants, the one route; nothing is written here.
+    case 'GIVE_ACCESS': {
+      if (!read.grantOffer) return { kind: 'TEXT', says: 'Access is given at your own company; switch to it first.' }
+      const got = await read.grantOffer()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      const draft = draftGiveAccess(intent.asked, got.offer)
+      if (!draft.ok) return { kind: 'TEXT', says: draft.says, links: [ACCESS_LINK] }
+      const act = opts.giveAccessAct ?? isTwinAct(GIVE_ACCESS_ACT)
+      if (!act) {
+        return {
+          kind: 'TEXT',
+          says: `Ask Etyme cannot give access yet. On Users & permissions, choose Give access: ${draft.holder}, “${draft.what}”, ${draft.reach}.`,
+          links: [ACCESS_LINK],
+        }
+      }
+      return { kind: 'GIVE_ACCESS', says: draft.question, under: draft.under, body: draft.body, links: [ACCESS_LINK] }
+    }
+
     // A firm's own margin is its own to read (release walk three,
     // 2026-11-03): answered from Profitability's own figures where this
     // seat holds `margin.read`, refused in the route's sentence where it
@@ -3263,8 +3352,9 @@ export async function respond(
       if (!read.marginCut) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
       const got = await read.marginCut(intent.cut, intent.period)
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      const reach = await reachOf(read, 'margin.read')
       return {
-        kind: 'LIST', says: marginCutSays(intent.cut, got),
+        kind: 'LIST', says: withReach(marginCutSays(intent.cut, got), reach),
         ...(got.lines.length ? { table: marginCutTable(intent.cut, got) } : {}),
         links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
       }
@@ -3297,8 +3387,9 @@ export async function respond(
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
       const named = marginRowsNamed(text, got.rows)
       const rows = named.length ? named : got.rows
+      const reach = await reachOf(read, 'margin.read')
       return {
-        kind: 'LIST', says: marginSays(rows, { named: named.length > 0 }),
+        kind: 'LIST', says: withReach(marginSays(rows, { named: named.length > 0 }), reach),
         ...(rows.length ? { table: marginTable(rows) } : {}),
         links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
       }

@@ -79,13 +79,15 @@ interface SavedLine {
 interface ThreadIn { saved: boolean; notKeptBecause: string | null; earlier: boolean; turns: SavedLine[] }
 
 const THREAD = '/api/conversations/twin'
+/** Give access's one route (lib/permission-grants): the card's yes posts here and nowhere else. */
+const GRANTS = '/api/settings/grants'
 /** Her bench stays: the route Who has you renews a stay through. */
 const RENEW = '/api/me/benches'
 
 /** Whether a saved answer is one this screen draws; an older shape reads as its words. */
 function asAnswer(line: SavedLine): Answer {
   const a = line.answer as { kind?: unknown; says?: unknown } | null
-  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL', 'WORKER', 'LIST']
+  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL', 'WORKER', 'LIST', 'GIVE_ACCESS']
   if (a && typeof a === 'object' && typeof a.kind === 'string' && kinds.includes(a.kind) && typeof a.says === 'string') return a as Answer
   return { kind: 'TEXT', says: line.text }
 }
@@ -619,6 +621,9 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, re
     case 'TEXT':
       return <><p><Rich line={{ says: answer.says, links: answer.saysLinks }} /></p><Links links={answer.links} /></>
 
+    case 'GIVE_ACCESS':
+      return <><ol className="mt-1"><GiveAccessCard answer={answer} /></ol><Links links={answer.links} /></>
+
     case 'WHY':
       return (
         <>
@@ -1018,6 +1023,50 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
           <p className="mt-1 text-[12.5px]"><Link href={card.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">Open</Link></p>
         </div>
       )}
+    </li>
+  )
+}
+
+/**
+ * The Owner's give-access card (2026-11-08). Yes posts exactly the
+ * drafted body to POST /api/settings/grants, the one route Give access on
+ * Users & permissions also posts to, and says the route's own sentence;
+ * a refusal is the route's sentence and the card stays. Nothing is
+ * written until Yes.
+ */
+function GiveAccessCard({ answer }: { answer: Extract<Answer, { kind: 'GIVE_ACCESS' }> }) {
+  const [state, setState] = useState<{ state: 'DONE' | 'LATER' | 'ERROR'; says: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function yes() {
+    setBusy(true)
+    try {
+      const res = await fetch(GRANTS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answer.body) })
+      const body = await res.json().catch(() => null)
+      if (res.ok && typeof body?.data?.says === 'string') setState({ state: 'DONE', says: body.data.says })
+      else setState({ state: 'ERROR', says: body?.error?.message ?? statusMeans(res.status) })
+    } catch {
+      setState({ state: 'ERROR', says: 'Nothing was saved: the connection dropped. Press Yes again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+  const settled = state && state.state !== 'ERROR'
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{answer.says}</p>
+      <p className="mt-0.5 text-[12.5px] text-etyme-muted">{answer.under}</p>
+      {settled ? (
+        <p className="mt-2">
+          <span className={`chip ${state.state === 'DONE' ? 'chip--verified' : 'chip--passive'}`}>{state.state === 'DONE' ? 'Given' : 'Not given'}</span>
+          <span className="ml-2 text-[12.5px] text-etyme-muted">{state.says}</span>
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={yes}>{busy ? 'Saving…' : 'Yes'}</button>
+          <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => setState({ state: 'LATER', says: 'Nothing was given.' })}>Not now</button>
+        </div>
+      )}
+      {state?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{state.says}</FormMessage></div>}
     </li>
   )
 }

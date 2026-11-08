@@ -41,6 +41,9 @@ import { placeOf } from '@/lib/job-site'
 import { todayReads } from '@/lib/today-page'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as profitabilityRoute } from '@/app/api/profitability/route'
+import { GET as grantsRoute } from '@/app/api/settings/grants/route'
+import { permissionScope, GRANT_RIGHT } from '@/lib/permission-grants'
+import { scopeLine, teamsGranted, noAccessSays, ACCESS_LINK, type GrantOffer, type RoleHolders, type GrantHeld } from './access'
 import { marginRefusal, type MarginRow, type MarginCutLine } from './ask'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import { GET as submissionsRoute } from '@/app/api/submissions/route'
@@ -215,7 +218,94 @@ export function readersFor(
       reason,
     })
 
+  /** The people the Owner gave the right to give access, by name: who the reader may ask beside the Owner. */
+  const giversHere = async (): Promise<string[]> => {
+    if (!caller.company) return []
+    const rows = await prisma.permissionGrant.findMany({
+      where: { companyId: caller.company.id, permission: GRANT_RIGHT, revokedAt: null, contextId: { not: null } },
+      select: { context: { select: { revokedAt: true, person: { select: { name: true } } } } },
+      take: 20,
+    }).catch(() => [])
+    return rows.filter((r) => r.context && !r.context.revokedAt).map((r) => r.context!.person.name)
+  }
+
+  /**
+   * A margin read refused because the seat holds none of it: the roles
+   * that read it here, the reader's own left out, and who may give access,
+   * in one sentence (2026-11-08).
+   */
+  const refusedMargin = async (kind: string | null | undefined): Promise<string> => {
+    const self = caller.context.roleId
+      ? await prisma.role.findFirst({ where: { id: caller.context.roleId }, select: { name: true } }).then((r) => r?.name ?? null).catch(() => null)
+      : null
+    const all = desksHolding('margin.read', kind)
+    const desks = self ? all.filter((d) => d.trim().toLowerCase() !== self.trim().toLowerCase()) : all
+    return noAccessSays({ reads: 'what your placements earn', desks, holdsDesk: all.length > 0, givers: await giversHere() })
+  }
+
+  /** GET /api/settings/grants, in-process under this seat: its gate and its lists, read by both doors. */
+  const grantsRead = async (): Promise<{ ok: true; data: any } | { ok: false; says: string }> => {
+    if (!ownCompany || seat || !caller.company || !request) return { ok: false, says: 'Who holds what is read at your own company; switch to it first.' }
+    const url = new URL(request.url)
+    url.pathname = '/api/settings/grants'
+    url.search = ''
+    const res = await grantsRoute(new NextRequest(url, { headers: request.headers }))
+    const body = await res.json().catch(() => null)
+    if (!res.ok || !body?.data) {
+      return { ok: false, says: typeof body?.error?.message === 'string' ? body.error.message : 'Who holds what could not be read just now. Open Users & permissions to see it.' }
+    }
+    return { ok: true, data: body.data }
+  }
+
   return {
+    /**
+     * Over what this seat reads a permission (lib/permission-grants), said
+     * only where it reads less than the firm's: a team, or its own work.
+     */
+    async scopeLine(permission: string): Promise<string | null> {
+      if (!ownCompany || seat || !caller.company) return null
+      const s = await permissionScope(caller, permission)
+      if (!s.has || (s.scope !== 'UNIT' && s.scope !== 'PERSON')) return null
+      const units = s.scope === 'UNIT' && s.unitIds.length
+        ? await prisma.orgUnit.findMany({ where: { companyId: caller.company.id, id: { in: s.unitIds } }, select: { id: true, name: true, parentId: true } }).catch(() => [])
+        : []
+      return scopeLine(permission, s.scope, teamsGranted(s.unitIds, units), await giversHere())
+    },
+
+    async grantOffer() {
+      const got = await grantsRead()
+      if (!got.ok) return { ok: false as const, says: got.says, links: [ACCESS_LINK] }
+      const d = got.data
+      const offer: GrantOffer = {
+        canGive: d.canGive === true,
+        isOwner: d.isOwner === true,
+        permissions: Array.isArray(d.permissions) ? d.permissions : [],
+        roles: Array.isArray(d.roles) ? d.roles : [],
+        people: Array.isArray(d.people) ? d.people : [],
+        units: Array.isArray(d.units) ? d.units : [],
+      }
+      return { ok: true as const, offer }
+    },
+
+    async holdersOf(permission: string) {
+      const got = await grantsRead()
+      if (!got.ok) return { ok: false as const, says: got.says, links: [ACCESS_LINK] }
+      const roleRows = await prisma.role.findMany({
+        where: { companyId: caller.company!.id },
+        select: { name: true, permissions: true, contexts: { where: { revokedAt: null }, select: { person: { select: { name: true } } }, take: 50 } },
+        orderBy: { name: 'asc' },
+      })
+      const roles: RoleHolders[] = roleRows
+        .filter((r) => r.permissions.includes('*') || r.permissions.includes(permission))
+        .map((r) => ({ role: r.name, people: r.contexts.map((c) => c.person.name).sort((a, b) => a.localeCompare(b)), everything: r.permissions.includes('*') }))
+        // The Owner first, then the rest by name.
+        .sort((a, b) => (a.role === 'Owner' ? -1 : b.role === 'Owner' ? 1 : a.role.localeCompare(b.role)))
+      const grants: GrantHeld[] = (Array.isArray(got.data.grants) ? got.data.grants : [])
+        .filter((g: any) => g?.permission === permission && !g.revokedAt && typeof g.says === 'string')
+        .map((g: any) => ({ says: g.says, grantedBy: String(g.grantedBy ?? ''), reason: typeof g.reason === 'string' ? g.reason : null }))
+      return { ok: true as const, roles, grants }
+    },
+
     /**
      * Where this company stands on the setup checklist, read the way the
      * setup page and the greeting's line read it (lib/setup-checklist-state).
@@ -1039,7 +1129,7 @@ export function readersFor(
       // The Profitability page's own gate, named before the read: the seat
       // that does not hold it is told who does (release walk three, 2026-11-03).
       if (!hasAnyPermission(caller.permissions, ['margin.read', 'pnl.read'])) {
-        return { ok: false as const, says: deskRefusal('reads what your placements earn', 'margin.read', company.kind) }
+        return { ok: false as const, says: await refusedMargin(company.kind) }
       }
       // The page's own read, in-process under this seat: one list, read by
       // both doors, and no margin computed a second way here.
@@ -1092,7 +1182,7 @@ export function readersFor(
       if (!ownCompany || !company || !request) return { ok: false as const, says: 'A firm’s margin is read at your own company; switch to it first.' }
       if (company.kind === 'CLIENT') return { ok: false as const, ...marginRefusal('CLIENT') }
       if (!hasAnyPermission(caller.permissions, ['margin.read', 'pnl.read'])) {
-        return { ok: false as const, says: deskRefusal('reads what your placements earn', 'margin.read', company.kind) }
+        return { ok: false as const, says: await refusedMargin(company.kind) }
       }
       const url = new URL(request.url)
       url.pathname = '/api/profitability'
