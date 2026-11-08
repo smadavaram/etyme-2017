@@ -1825,6 +1825,42 @@ Activate sentence, the stale count; release pass 41 on the quiet tree
 after the simulation; walk 6 on screens as Noor, her employer's HR, the
 client's AP clerk and Finance; deploy on its yes.
 
+**The thousand-job run, 2026-11-08 13:29 UTC
+(`reports/simulation-20261108132939.md`, on a42275500, 2,000 people
+rebuilt with the worker classes, 40 at once, 29 minutes).** 338 firms,
+3,763 seats. 1,000 jobs: 686 published themselves within plan, 314
+approved by the people they were routed to; 784 sent to suppliers with
+5,278 invitations, each with its own band; 1,338 of 1,529 people said
+yes to a bench from their own seat and 191 said no; 1,692 people put
+forward on 767 jobs (519 as the firm's own employee); matching ran
+6,278 times, all by rules; 1,208 interview rounds booked with all three
+sides and answered from the person's own page; 531 awards; 337 bills
+raised and passed the three-way check at their payer, 70 keyed-in
+receipts, 2 held over the hours (one waived with a reason, one left
+held); 408 invoice receipts paid through the one gate; 202 pay periods
+worked out, approved and paid; 512 complete transactions; no server
+error on any route but four on the document upload. **Every kind of
+worker met its rule**: citizens, permanent residents, H-1B, TN, OPT,
+CPT, EAD and domestic students all started where their papers held;
+the three international students with no CPT or OPT who were awarded
+were interviewed and never started, in the rule's own sentence; one
+EAD worker was refused on a lapsed nursing license; the 2,038 people
+outside the US were asked nothing about US status. **Twenty-three
+awards walked four rungs at the client (target 20, met) and none had
+every rung below awarded**: the prime's and sub-vendor's awards stopped
+on the time-limit rule reading the lower rung's line as open-ended
+(the client's end date was not carried down) and on lapsed insurance
+at two sub-vendors (the generated world lapses one in eight on
+purpose), so the chain's invoice receipt at every rung is not yet
+proven (demand). Also found: a second submission of the same person
+was not refused as a duplicate three times (demand, the invariant);
+four server errors on the upload route (regulatory); seven routes over
+two seconds at p95, the nightly agent run 45.5 s for 338 firms, sending
+a job 6.0 s, the bill submit 5.1 s (known). The rules held as expected:
+327 submissions went ahead past the client's time limit with the reason
+written down; the 90-day break refused a return in a sentence; a
+licensed job turned away a person with no license.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
