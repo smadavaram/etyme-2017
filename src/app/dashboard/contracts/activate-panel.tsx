@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Field, FormMessage, SubmitButton, Textarea } from '@/components/ui/form'
 import { activateBody } from './activate-body'
 import { viewBefore, viewAfterRefusal, startedSays, startedKey, keptStarted, type PanelView, type StartPreflight } from './activate-view'
+import { keepRefusal, keptRefusal, refusalKey } from '@/lib/award/start-refusal'
 
 /**
  * Activate, and Activate with a reason, as real buttons.
@@ -21,7 +22,6 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<string | null>(null)
-  const [unreached, setUnreached] = useState<string | null>(null)
 
   useEffect(() => {
     let live = true
@@ -32,11 +32,16 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
       window.sessionStorage.removeItem(startedKey(contractId))
       if (kept) { setDone(kept); return () => { live = false } }
     } catch { /* storage refused: nothing kept */ }
+    // A refusal said a moment ago, before a reload: it stays for a minute,
+    // above the button, and the route is still asked for the button itself.
+    let refused: string | null = null
+    try { refused = keptRefusal(window.sessionStorage.getItem(refusalKey(contractId)), Date.now()) } catch { /* nothing kept */ }
     ;(async () => {
       try {
         const res = await fetch(`/api/contracts/${contractId}/activate`)
         const body = await res.json().catch(() => ({}))
-        if (live) setView(res.ok ? viewBefore(body.data as StartPreflight) : viewBefore(null))
+        const before = res.ok ? viewBefore(body.data as StartPreflight) : viewBefore(null)
+        if (live) setView(refused && before.button ? { ...before, says: refused } : before)
       } catch {
         if (live) setView(viewBefore(null))
       }
@@ -44,9 +49,17 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
     return () => { live = false }
   }, [contractId])
 
+  // A refusal is always a sentence on the screen, never a silent revert,
+  // and it is kept for a minute across a reload.
+  function refuse(next: PanelView) {
+    setView(next)
+    if (next.says) {
+      try { window.sessionStorage.setItem(refusalKey(contractId), keepRefusal(next.says, Date.now())) } catch { /* not kept */ }
+    }
+  }
+
   async function press() {
     setBusy(true)
-    setUnreached(null)
     try {
       const payload = activateBody({ action: 'activate', reason: view.box ? reason.trim() : undefined, answering: view.box?.answering })
       const res = await fetch(`/api/contracts/${contractId}/activate`, {
@@ -56,9 +69,10 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setView(viewAfterRefusal(body.error))
+        refuse(viewAfterRefusal(body.error, res.status))
         return
       }
+      try { window.sessionStorage.removeItem(refusalKey(contractId)) } catch { /* nothing kept */ }
       const says = startedSays(body.data?.message)
       setDone(says)
       setView({ button: null, says: null, box: null })
@@ -71,7 +85,7 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
         window.location.reload()
       }
     } catch {
-      setUnreached('The server could not be reached. Check your connection and try again.')
+      refuse(viewAfterRefusal(null, null))
     } finally {
       setBusy(false)
     }
@@ -106,7 +120,6 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
       >
         {view.button}
       </SubmitButton>
-      {unreached && <FormMessage tone="error">{unreached}</FormMessage>}
     </div>
   )
 }

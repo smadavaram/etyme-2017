@@ -72,11 +72,24 @@ describe('the Activate button on a placement', () => {
     expect(forbidden.says).toBe('Starting a placement is done by HR at Brightmoor Staffing.')
   })
 
+  it('a refusal with any code, or none, is said in a sentence and the button stays', () => {
+    const odd = viewAfterRefusal({ code: 'SOMETHING_NEW', message: 'Northbend Athletic holds starts on Fridays.' }, 409)
+    expect(odd).toEqual({ button: 'Activate', says: 'Northbend Athletic holds starts on Fridays.', box: null })
+    expect(viewAfterRefusal({}, 422).says).toBe('The start could not be checked. Try again.')
+  })
+
+  it('a server that did not answer, or answered with an error page, reads that the start could not be checked', () => {
+    expect(viewAfterRefusal(null, null)).toEqual({ button: 'Activate', says: 'The start could not be checked. Try again.', box: null })
+    expect(viewAfterRefusal({ message: 'Internal error' }, 502).says).toBe('The start could not be checked. Try again.')
+  })
+
   it('the panel asks the start’s own route before it draws, and posts what the field contract fills in', () => {
     const panel = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
     expect(panel).toMatch(/fetch\(`\/api\/contracts\/\$\{contractId\}\/activate`\)/)
     expect(panel).toMatch(/const payload = activateBody\(/)
-    expect(panel).toMatch(/viewAfterRefusal\(body\.error\)/)
+    expect(panel).toMatch(/viewAfterRefusal\(body\.error, res\.status\)/)
+    expect(panel).toMatch(/viewAfterRefusal\(null, null\)/)
+    expect(panel).toMatch(/keptRefusal\(/)
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
     expect(page).toMatch(/<ActivatePanel contractId=\{contract\.id\}/)
   })

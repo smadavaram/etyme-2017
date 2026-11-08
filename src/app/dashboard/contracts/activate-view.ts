@@ -14,6 +14,7 @@
  */
 
 import { reasonAsked } from '@/lib/award/reason-asked'
+import { startRefusalSays } from '@/lib/award/start-refusal'
 
 /** The route's answer before a press (GET /api/contracts/:id/activate). */
 export interface StartPreflight {
@@ -65,9 +66,16 @@ export function viewBefore(pre: StartPreflight | null): PanelView {
  * After a press the route refused: its question with a box where it asked
  * for a reason, else its sentence alone. The button stays, so a paper
  * filed since can be pressed for again.
+ *
+ * Every refusal draws a sentence, whatever its code (the founder's tester,
+ * 2026-11-08: Activate showed "Starting…" and then the button again, with
+ * nothing said). `status` is the HTTP status, or null where the request
+ * never came back; a server that did not answer in words reads "The start
+ * could not be checked. Try again." (`startRefusalSays`, demand's rule).
+ * Omitted, the error is read as a refusal the route wrote.
  */
-export function viewAfterRefusal(error: unknown): PanelView {
-  const q = reasonAsked(error)
+export function viewAfterRefusal(error: unknown, status: number | null = 400): PanelView {
+  const q = status !== null && status < 500 ? reasonAsked(error) : null
   if (q && q.field === 'overrideReason') {
     const e = error as { warnings?: unknown; code?: unknown }
     const answering = Array.isArray(e.warnings)
@@ -75,13 +83,7 @@ export function viewAfterRefusal(error: unknown): PanelView {
       : typeof e.code === 'string' ? [e.code] : []
     return { button: 'Activate with a reason', says: q.says, box: { answering } }
   }
-  const message = error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string'
-    ? (error as { message: string }).message
-    : 'The placement could not be started.'
-  const fix = error && typeof error === 'object' && typeof (error as { fix?: unknown }).fix === 'string'
-    ? (error as { fix: string }).fix
-    : null
-  return { button: 'Activate', says: fix && !message.includes(fix) ? `${message} ${fix}` : message, box: null }
+  return { button: 'Activate', says: startRefusalSays(status, error), box: null }
 }
 
 /**
