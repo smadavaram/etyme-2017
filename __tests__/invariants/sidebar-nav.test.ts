@@ -1747,10 +1747,11 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(accounting.links[accounting.links.length - 1].label).toBe('Reports')
   })
 
-  it('a client reads Accounting with Payables and Reports only, because it bills nobody and employs no contractor', () => {
+  it('a client reads Accounting with Payables only, and no Reports until the Reports page has been read as a client', () => {
     const accounting = menuFor('CLIENT', false).find((g) => g.heading === 'Accounting')!
-    expect(accounting.links.map((l) => l.label)).toEqual(['Payables', 'Reports'])
+    expect(accounting.links.map((l) => l.label)).toEqual(['Payables'])
     expect(accounting.links[0].covers.map((i) => i.href)).toEqual(['/dashboard/invoices', '/dashboard/ap', '/dashboard/program/budget', '/dashboard/purchase-orders'])
+    expect(getNavForKind('CLIENT', false).flatMap((s) => s.items).map((i) => i.href)).not.toContain('/dashboard/reports')
   })
 
   it('Profitability stays a link of its own, after Accounting and before Settings', () => {

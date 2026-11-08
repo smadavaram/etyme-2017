@@ -774,10 +774,10 @@ const SOLO_NAV: NavSection[] = [
  */
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
-  // Reports (founder, 2026-11-08, "Money is Accounting"): a client reads
-  // Accounting with Payables and Reports, so its Today carries the page as a
-  // tab, as a supplier's does, and the column prints it under Accounting.
-  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION, REPORTS]),
+  // No Reports here yet (coordinator's call, 2026-11-08): the Reports page
+  // was written for a firm that sells, and is not shown to a client until
+  // it has been read as one. A client reads Accounting with Payables only.
+  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION]),
   // Network (founder, 2026-11-04): its memory of people, and the firms
   // it buys from with the people at them. Above Jobs ("Network can stay
   // above the jobs"): the master data first, the process after it.

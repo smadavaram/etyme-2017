@@ -16,6 +16,7 @@ import {
   type QueueRowIn, type QueueRowView, type TodayReads,
 } from '@/lib/today-page'
 import { decisionsAddress } from './decisions/chips'
+import { DecisionRows } from '@/components/twin-conversation/decision-rows'
 
 /**
  * A selling firm's Today — a supplier's, an integrator's, an MSP's own
@@ -279,6 +280,14 @@ export default function DashboardPage() {
         <p className="text-body text-etyme-muted max-w-2xl">{t.picture}</p>
       </div>
 
+      {/* The queue as rows, each with Yes and Not now, and "Yes to all N"
+          for a batch (founder, 2026-11-08, "One app, two tabs"): the same
+          decisions list the number on Ask Etyme counts, through the one
+          route that performs each act. Conversation's component. */}
+      <div className="mb-8">
+        <DecisionRows />
+      </div>
+
       {/* Four figures, each with the names under it. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Figure
@@ -324,15 +333,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Two columns from the large breakpoint up; one, stacked, on a phone. */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3">
-          <Decide rows={rows} busy={busy} said={said} onAct={act} />
-        </div>
-
-        <div className="lg:col-span-2 space-y-6">
-          <WhoIsWhere t={t} />
-          <Bills t={t} busy={busy} said={said} onAct={act} />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <WhoIsWhere t={t} />
+        <Bills t={t} busy={busy} said={said} onAct={act} />
       </div>
 
       {ledger && (
@@ -347,56 +350,6 @@ export default function DashboardPage() {
 }
 
 // ─── Sub-components ────────────────────────────────
-
-/** "Yours to decide": the queue by name, a plain button where one route does the act, Look otherwise. */
-function Decide({ rows, busy, said, onAct }: {
-  rows: QueueRowView[]
-  busy: string | null
-  said: { key: string; text: string } | null
-  onAct: (key: string, url: string) => void
-}) {
-  return (
-    <div className="panel">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="headline-serif text-[18px] text-etyme-ink">Yours to decide</h2>
-        <Link href="/dashboard/decisions" className="text-[12px] text-etyme-action hover:underline">See all</Link>
-      </div>
-      {rows.length === 0 && (
-        <p className="py-6 text-center text-[13px] text-etyme-muted">Nothing is waiting on you.</p>
-      )}
-      <div>
-        {rows.slice(0, 8).map((r) => (
-          <div key={r.key} className="py-3 border-b border-etyme-rule last:border-b-0">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-medium text-etyme-ink">{r.who}</div>
-                <div className="text-[12px] text-etyme-muted mt-0.5">{r.says}</div>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                {r.act ? (
-                  <>
-                    <button className="btn-primary" disabled={busy === r.key} onClick={() => onAct(r.key, r.act!.url)}>
-                      {busy === r.key ? r.act.busy : r.act.label}
-                    </button>
-                    <Link href={r.href as any} className="btn-secondary">Look</Link>
-                  </>
-                ) : (
-                  <Link href={r.href as any} className="btn-secondary">Look</Link>
-                )}
-              </div>
-            </div>
-            {said?.key === r.key && <p className="mt-2 text-[12px] text-etyme-ink">{said.text}</p>}
-          </div>
-        ))}
-      </div>
-      {rows.length > 8 && (
-        <p className="mt-3 text-[12px] text-etyme-muted">
-          And {rows.length - 8} more. <Link href="/dashboard/decisions" className="text-etyme-action hover:underline">See all</Link>
-        </p>
-      )}
-    </div>
-  )
-}
 
 /** "Who is where": the firm's people by client, the monthly figure beside each, and Our bench last. */
 function WhoIsWhere({ t }: { t: TodayData }) {
