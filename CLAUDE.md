@@ -1764,6 +1764,67 @@ may carry both, and a line may carry none.
   (money); the line's commission panel and the person's own page
   (money, supply); Ask Etyme's answers (conversation).
 
+## The founder's tester on production, 2026-11-08: blocked at activation, and the paper and the payment have no checker
+
+The tester walked a fresh flow on production (still 374f522bd of
+2026-11-04: nothing has shipped since, because the sixth walk never
+ran and the UX build took the box). What now works: a job with dual
+approval publishes itself to three suppliers, submissions land, a
+clean placement (Noor Rahman, $100/hr, one order line, no duplicate),
+and supplier ticks persist (they are hidden until approval and the
+Edit form shows no supplier section, so they read as lost). What
+blocks, in the tester's order, each with its owner:
+1. **No seat can check what a worker sent from her own page.** Noor's
+   I-9 and right to work read "4 documents are with them, waiting to be
+   checked"; the client's Document requests reads "waiting on you 0";
+   the background check and drug screen the placement needs are not on
+   her page at all (right: she does not hold the report, the firm
+   orders it) and nothing on the placement offers to record the
+   provider's verdict; Activate is inert in both seats ("Starting…"
+   then a revert, no sentence). Regulatory: a worker's own upload
+   lands on her employer's Paperwork list as "Arrived, not examined"
+   and counts on the examiner's "waiting on you"; every paper the
+   placement needs carries its own door on the placement (check what
+   arrived; record the provider's verdict with name, reference, date;
+   ask the worker). Demand: Activate always shows the route's sentence,
+   whatever the code, and never reverts silently.
+2. **Payment dead-ends on the bank check.** Every CSI bill is held
+   "bank details not checked", and the demo client has no Finance
+   seat, so nobody can check. Money, coordinator's call reversible in a
+   sentence: where a client has no Finance seat the AP clerk checks the
+   supplier's bank (the fallback rule: a role nobody has named falls
+   back, never refuses), the hold's sentence names who checks and
+   links to the check, and the check records who and when as Finance's
+   does.
+3. **A supplier's certificate has lapsed on production while the
+   picker still says "runs out in 20 days"**: a stored count, rebuilt on
+   the day it is read (demand reads regulatory's standing). The seeded
+   world is aging on production; a reseed is the founder's secret.
+4. **Still there from 2026-11-04** because undeployed: Rajesh's
+   duplicate drafts and background/drug mismatch (money, regulatory:
+   fixed on the branch, to be proven on the walk); Helena's "No weeks
+   filed yet" over 200 hours accepted and $23,200 invoiced, with no CSI
+   Timesheets row (money); a recruiter reading a rate band (demand: a
+   supplier's recruiter reads its own invitation's band by design; what
+   the tester saw is read against that rule before anything is hidden);
+   Kwame at 135% not read as over the limit on the Tenure tab (demand,
+   with regulatory's words); Ask Etyme right in one of three seats
+   (conversation, once the three seats are named); the first click on
+   any menu link doing nothing (architect: the client-side tab redirect
+   and hydration).
+5. **The public site: the tester's "10 of 16 footer links 404" is not
+   etyme2040.vercel.app.** Checked the same hour: every footer link
+   (the five doors, documentation, security, privacy, terms, DPA,
+   contact) answers 200; `/product` and `/pricing` 404 and are on no
+   footer of ours. The tester was on another host, likely the marketing
+   site. About's price line ("paid by suppliers, as a share of what they
+   bill") is the founder's own line of 2026-10-15 about a program Etyme
+   runs, beside "free while we test"; whether it should go is his word.
+**The order:** the two checkers first (they are the trust flows), the
+Activate sentence, the stale count; release pass 41 on the quiet tree
+after the simulation; walk 6 on screens as Noor, her employer's HR, the
+client's AP clerk and Finance; deploy on its yes.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
