@@ -1,3 +1,4 @@
+import { jobCurrency } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
 import { placeOf, sendToSays, readTickEdit, ticksToEdit, goesOnceApprovedSays } from '@/lib/job-site'
@@ -1053,15 +1054,19 @@ async function checksFor(
 
   const skillMedianCents = await medianRateForSkills(companyId, r.skills)
 
+  // The client's own money, as the raise reads it (`jobCurrency`).
+  const currency = await jobCurrency(companyId)
   const value = annualValue({
     budgetCents: r.budgetCents,
     billMaxCents: r.billMax,
     headcount: r.headcount,
     months: r.months,
     hoursPerWeek: r.hoursPerWeek,
+    currency,
   })
 
   const facts: RequisitionFacts = {
+    currency,
     annualValueCents: value.cents,
     valueBasis: value.basis,
     valueSays: value.says,

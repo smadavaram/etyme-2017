@@ -1,3 +1,5 @@
+import { wholeFromMinor } from '@/lib/money'
+import { jobCurrency } from './job-currency'
 import { readQualification } from './qualification'
 import { NextRequest, NextResponse } from 'next/server'
 import { panelFrom } from './panel'
@@ -309,15 +311,20 @@ export async function POST(request: NextRequest) {
   const skillMedianCents = await medianRateForSkills(client.id, Array.isArray(skills) ? skills : [])
 
   // A stated budget beats an estimate, and the answer says which it was.
+  // The client's own money, so the band, the budget, the estimate and the
+  // limit are said in it; dollars where none is on record.
+  const currency = await jobCurrency(client.id)
   const value = annualValue({
     budgetCents: Number.isFinite(budget) ? Number(budget) : null,
     billMaxCents: billMax ?? null,
     headcount: heads,
     months: months ?? null,
     hoursPerWeek: Number.isFinite(hoursPerWeek) ? Number(hoursPerWeek) : null,
+    currency,
   })
 
   const facts: RequisitionFacts = {
+    currency,
     annualValueCents: value.cents,
     valueBasis: value.basis,
     valueSays: value.says,
@@ -688,7 +695,8 @@ export async function POST(request: NextRequest) {
         // The figure, and where it came from — so the person reading a
         // routing decision can see whether it rests on their own budget
         // or on an estimate.
-        annualValue: value.cents / 100,
+        // Whole units of the job's own currency, never minor units over a hundred.
+        annualValue: wholeFromMinor(value.cents, currency),
         valueBasis: value.basis,
         valueSays: value.says,
         site: site ? { id: site.id, name: site.name } : null,
