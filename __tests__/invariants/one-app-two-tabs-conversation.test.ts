@@ -79,11 +79,11 @@ describe('a pinned question sends the question', () => {
 
   it('the column’s pinned button opens that address, and Ask Etyme sends the carried question once and takes it off the address', () => {
     const page = read('src/app/dashboard/conversations/page.tsx')
-    expect(page).toContain('onClick={() => router.push(askHref(question) as Route)}')
+    expect(page).toContain('onClick={() => router.push(askHref(question, showAsk ? askThread : null) as Route)}')
     const chat = read('src/app/dashboard/conversations/ask-etyme.tsx')
     expect(chat).toContain("const carried = askOf(searchParams.get('ask'))")
     expect(chat).toContain('sentFromLink.current = carried')
-    expect(chat).toMatch(/router\.replace\(\(pathname[^)]*\) as Route, \{ scroll: false \}\)\s*\n\s*void ask\(carried\)/)
+    expect(chat).toMatch(/router\.replace\(named\(pathname[^)]*\) as Route, \{ scroll: false \}\)\s*\n\s*void ask\(carried\)/)
   })
 
   it('a link to Conversations with a question, as Profitability’s “Ask about this table” is, opens Ask Etyme with it', () => {

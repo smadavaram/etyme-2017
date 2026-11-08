@@ -9,6 +9,8 @@ import { AskEtyme } from './ask-etyme'
 import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
 import { openThread } from './open-thread'
+import { AskConversationList } from './ask-list'
+import { threadIdOf, conversationHref, THREAD_PARAM, type ListedConversation } from '@/app/api/conversations/twin/thread-id'
 import { conversationsFraming } from '@/lib/page-framing'
 import { usePageSection } from '@/components/page-section'
 import {
@@ -44,6 +46,15 @@ import {
  * (RailSlot); the shell draws the column, and on a phone its menu sheet.
  * The pane is the open thread, or Ask Etyme when none is open, at
  * /dashboard/conversations/etyme or here.
+ *
+ * The conversations in the column are the seat's own Ask Etyme
+ * conversations first (founder, 2026-11-03, "Conversations are kept and
+ * listed"), newest first, each titled by its first question, the open one
+ * marked; New conversation makes an empty one that the greeting opens, at
+ * /dashboard/conversations/etyme?thread=<id>, so a reload keeps it. Under
+ * them, as before, the threads with other companies and the firm's own
+ * people, which the greeting still says. The search reads both. The mark
+ * and the queue read the one decisions list, never a conversation.
  */
 
 const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
@@ -272,6 +283,13 @@ export default function ConversationsPage() {
   // The route's own refusal when a link opens a thread this seat may not
   // read (release walk, 2026-10-27): said in place of "Select a conversation".
   const [openRefused, setOpenRefused] = useState<string | null>(null)
+  // The seat's own Ask Etyme conversations, newest first, and which one the chat has open.
+  const askThread = threadIdOf(searchParams.get(THREAD_PARAM))
+  const [askThreads, setAskThreads] = useState<ListedConversation[]>([])
+  const [askOpenId, setAskOpenId] = useState<string | null>(askThread)
+  const [starting, setStarting] = useState(false)
+  // On a phone, the list of conversations is its own screen, behind the back arrow.
+  const [phoneList, setPhoneList] = useState(false)
 
   // Open the new-conversation modal when navigated with ?new=1
   useEffect(() => {
@@ -329,6 +347,47 @@ export default function ConversationsPage() {
     // conversations is read once the list has loaded; re-running per item would re-open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, loading])
+
+  // The seat's conversations for the column, read with nothing marked seen.
+  const fetchAskThreads = useCallback(async () => {
+    try {
+      const res = await fetch('/api/conversations/twin?only=threads')
+      const body = res.ok ? await res.json().catch(() => null) : null
+      const got = body?.data?.threads
+      if (Array.isArray(got)) setAskThreads(got as ListedConversation[])
+    } catch {
+      // No list is a column without one; the open conversation is unchanged.
+    }
+  }, [])
+  useEffect(() => { void fetchAskThreads() }, [fetchAskThreads])
+
+  /** One of the seat's own conversations, opened in Ask Etyme; its address names it, so a reload keeps it. */
+  const openAsk = (id: string) => {
+    setPhoneList(false)
+    router.push(conversationHref(ASK_ETYME_HREF, id) as Route)
+  }
+
+  /** New conversation: an empty one, which leads the list; the greeting is its first message. */
+  async function newAskConversation() {
+    if (starting) return
+    setStarting(true)
+    try {
+      const res = await fetch('/api/conversations/twin', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ start: true }),
+      })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) { setToast(body?.error?.message ?? 'A new conversation was not started. Try again in a minute.'); return }
+      const id = body?.data?.thread?.id
+      await fetchAskThreads()
+      // A seat that keeps no conversation (the shared demo) starts over from the greeting.
+      setPhoneList(false)
+      router.push((typeof id === 'string' ? conversationHref(ASK_ETYME_HREF, id) : ASK_ETYME_HREF) as Route)
+    } catch {
+      setToast('A new conversation was not started. Check your connection and try again.')
+    } finally {
+      setStarting(false)
+    }
+  }
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -441,13 +500,21 @@ export default function ConversationsPage() {
           menu sheet shows the same three. */}
       <RailSlot name="top">
         <div className="space-y-1.5 px-0.5 pt-1">
+          <button
+            type="button"
+            disabled={starting}
+            onClick={() => void newAskConversation()}
+            className="w-full rounded-nav border border-etyme-rule bg-etyme-raised px-2.5 py-1.5 text-left text-[13px] text-etyme-ink hover:border-etyme-action-line disabled:opacity-60"
+          >
+            + New conversation
+          </button>
           {!session.loading && words.mayStart && (
             <button
               type="button"
               onClick={() => setShowNew(true)}
-              className="w-full rounded-nav border border-etyme-rule bg-etyme-raised px-2.5 py-1.5 text-left text-[13px] text-etyme-ink hover:border-etyme-action-line"
+              className="w-full rounded-nav px-2.5 py-1 text-left text-[12.5px] text-etyme-action-press hover:bg-etyme-sunk"
             >
-              + New conversation
+              + Note to your own people
             </button>
           )}
           <label className="sr-only" htmlFor="conversation-search">Search conversations</label>
@@ -470,7 +537,7 @@ export default function ConversationsPage() {
                 {/* One press sends the question, as if it were typed. */}
                 <button
                   type="button"
-                  onClick={() => router.push(askHref(question) as Route)}
+                  onClick={() => router.push(askHref(question, showAsk ? askThread : null) as Route)}
                   className="flex w-full items-center gap-2 rounded-nav px-2.5 py-1.5 text-left text-[13px] text-etyme-ink hover:bg-etyme-sunk"
                 >
                   <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-action" />
@@ -484,11 +551,15 @@ export default function ConversationsPage() {
 
       {!loading && (
         <RailSlot name="conversations">
+          <AskConversationList threads={askThreads} query={query} openId={showAsk ? askOpenId : null} onOpen={openAsk} />
+          {askThreads.length > 0 && (conversations.length > 0 || error) && (
+            <div className="eyebrow px-2.5 pt-3 pb-1">Messages</div>
+          )}
           {error ? (
             <p className="px-2.5 py-1.5 text-[12.5px] text-etyme-muted">
               {error} <button type="button" className="text-etyme-action-press underline-offset-2 hover:underline" onClick={() => { void fetchConversations() }}>Try again</button>
             </p>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && askThreads.length > 0 ? null : filtered.length === 0 ? (
             // The sentence is the reader's own (conversationsFraming).
             <p className="px-2.5 py-1.5 text-[12.5px] leading-snug text-etyme-muted">
               {q ? 'No conversation matches that.' : words.empty}
@@ -536,8 +607,37 @@ export default function ConversationsPage() {
           ? '-mx-4 -mb-6 h-[calc(100dvh-150px)] min-h-[420px] border-y border-etyme-rule sm:mx-0 sm:mb-0 sm:rounded-xl sm:border md:h-[calc(100vh-130px)] md:min-h-[520px]'
           : 'border border-etyme-rule rounded-xl h-[calc(100vh-220px)] min-h-[460px]'}`}
       >
-        {showAsk ? (
-          <AskEtyme />
+        {showAsk && phoneList ? (
+          // On a phone, the list is one screen and the chat another (2026-10-12).
+          <div className="flex-1 overflow-y-auto p-3 md:hidden">
+            <button
+              type="button"
+              disabled={starting}
+              onClick={() => void newAskConversation()}
+              className="mb-3 w-full rounded-nav border border-etyme-rule bg-etyme-raised px-3 py-2 text-left text-[14px] text-etyme-ink disabled:opacity-60"
+            >
+              + New conversation
+            </button>
+            <label className="sr-only" htmlFor="conversation-search-phone">Search conversations</label>
+            <input
+              id="conversation-search-phone"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search conversations"
+              className="mb-3 w-full rounded-nav border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink placeholder:text-etyme-faint focus-visible:outline-none focus-visible:border-etyme-action"
+            />
+            <AskConversationList threads={askThreads} query={query} openId={askOpenId} onOpen={openAsk} />
+          </div>
+        ) : showAsk ? (
+          <AskEtyme
+            // A conversation named on the address is its own chat: a new one opens on its greeting.
+            key={askThread ?? 'newest'}
+            threadId={askThread}
+            onOpen={(t) => setAskOpenId(t.id)}
+            onKept={(id) => { if (id) setAskOpenId(id); void fetchAskThreads() }}
+            onShowList={() => { void fetchAskThreads(); setPhoneList(true) }}
+          />
         ) : !activeConvo ? (
           <div className="flex-1 flex items-center justify-center">
             {openRefused

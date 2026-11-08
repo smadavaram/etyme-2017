@@ -19,6 +19,7 @@ import {
   type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
 import { askOf } from './ask-href'
+import { THREAD_PARAM } from '@/app/api/conversations/twin/thread-id'
 import { WORKER_QUESTIONS, WORKER_FOOTER, type WorkerAnswer, type WorkerCard as WorkerCardFact } from '@/app/api/conversations/twin/worker'
 
 /**
@@ -76,7 +77,7 @@ interface SavedLine {
   at: string
 }
 
-interface ThreadIn { saved: boolean; notKeptBecause: string | null; earlier: boolean; turns: SavedLine[] }
+interface ThreadIn { id?: string; title?: string; saved: boolean; notKeptBecause: string | null; earlier: boolean; turns: SavedLine[] }
 
 const THREAD = '/api/conversations/twin'
 /** Give access's one route (lib/permission-grants): the card's yes posts here and nowhere else. */
@@ -105,8 +106,23 @@ const RULES_HREF = '/dashboard/twin/rules'
 
 const SUBTITLE = 'Answers from your record and its rules. Anything it does is recorded.'
 
-export function AskEtyme() {
+/**
+ * `threadId` is the conversation the address names, null for the seat's
+ * newest; every read and write here names it, so a reload keeps the
+ * conversation that was open. The page is told which conversation the
+ * chat read (`onOpen`) and when a line was kept in one (`onKept`), so the
+ * list in the column marks it and picks up its title.
+ */
+export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
+  threadId?: string | null
+  onOpen?: (thread: { id: string | null; title: string | null }) => void
+  onKept?: (threadId: string | null) => void
+  /** On a phone, the back arrow to the list of conversations. */
+  onShowList?: () => void
+} = {}) {
   const session = useSession()
+  // Every request names the conversation open: the address's own, or none for the newest.
+  const named = (url: string) => (threadId ? `${url}${url.includes('?') ? '&' : '?'}${THREAD_PARAM}=${encodeURIComponent(threadId)}` : url)
   const router = useRouter()
   // The saved lines from before this page load, oldest first; then this load's turns, greeting first.
   const [history, setHistory] = useState<Turn[]>([])
@@ -152,12 +168,14 @@ export function AskEtyme() {
   async function load(aside?: string) {
     setPending(true)
     try {
-      const res = await fetch(THREAD)
+      const res = await fetch(named(THREAD))
       const body = await res.json().catch(() => null)
       if (!live.current) return
-      if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
+      // A link to a conversation that is not the reader's own is refused in the route's sentence.
+      if (res.status === 401 || res.status === 403 || (res.status === 404 && threadId)) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
       const thread: ThreadIn | null = body?.data?.thread ?? null
       if (thread) {
+        onOpen?.({ id: thread.id ?? null, title: thread.title ?? null })
         setHistory(fromSaved(thread.turns))
         setNotKept(thread.saved ? null : thread.notKeptBecause)
         setEarlier(thread.earlier)
@@ -193,7 +211,7 @@ export function AskEtyme() {
   async function showEarlier() {
     if (!oldestAt) return
     try {
-      const res = await fetch(`${THREAD}?only=thread&take=1000`)
+      const res = await fetch(named(`${THREAD}?only=thread&take=1000`))
       const body = await res.json().catch(() => null)
       const thread: ThreadIn | null = body?.data?.thread ?? null
       if (!res.ok || !thread) return
@@ -211,7 +229,7 @@ export function AskEtyme() {
     if (pending) return
     setPending(true)
     try {
-      const res = await fetch(THREAD, { method: 'DELETE' })
+      const res = await fetch(named(THREAD), { method: 'DELETE' })
       const body = await res.json().catch(() => null)
       if (!res.ok) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); setPending(false); return }
       setHistory([])
@@ -236,7 +254,7 @@ export function AskEtyme() {
       const res = await fetch(THREAD, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mark),
+        body: JSON.stringify({ ...mark, ...(threadId ? { threadId } : {}) }),
       })
       const body = await res.json().catch(() => null)
       if (!res.ok) add({ from: 'aside', text: body?.error?.message ?? 'This answer was not kept, so it will not be here after a reload.' })
@@ -266,12 +284,14 @@ export function AskEtyme() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // The page the last answer named, for "take me there"; the route checks it against the seat's menu.
-        body: JSON.stringify({ text: q, ...(lastPlace() ? { place: lastPlace() } : {}) }),
+        body: JSON.stringify({ text: q, ...(lastPlace() ? { place: lastPlace() } : {}), ...(threadId ? { threadId } : {}) }),
       })
       const body = await res.json().catch(() => null)
       if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
       if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
       add({ from: 'etyme', answer: body.data.answer as Answer, ...(typeof body.data.turnId === 'string' ? { savedId: body.data.turnId } : {}) })
+      // The list in the column takes the conversation's title from its first question.
+      if (body.data.kept === true) onKept?.(typeof body.data.threadId === 'string' ? body.data.threadId : threadId)
       // "Take me there": the reply carries the page as the act, and the page opens.
       const said = body.data.answer as Answer
       if (said.kind === 'TEXT' && said.go && said.place && /^\/(?!\/)/.test(said.place)) router.push(said.place as Route)
@@ -298,7 +318,8 @@ export function AskEtyme() {
     if (!carried) { sentFromLink.current = null; return }
     if (pending || refused || sentFromLink.current === carried) return
     sentFromLink.current = carried
-    router.replace((pathname ?? '/dashboard/conversations/etyme') as Route, { scroll: false })
+    // The conversation open stays named, so the question goes in it and a reload keeps it.
+    router.replace(named(pathname ?? '/dashboard/conversations/etyme') as Route, { scroll: false })
     void ask(carried)
     // ask reads the latest state when called; it is not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -431,6 +452,24 @@ export function AskEtyme() {
           </svg>
         </Link>
       </header>
+
+      {/* On a phone, one screen at a time (2026-10-12): the list of
+          conversations is behind this back arrow, and the chat is the
+          screen. No title words beyond the arrow's own. */}
+      {onShowList && (
+        <div className="flex items-center border-b border-etyme-rule/60 px-2 py-1.5 md:hidden">
+          <button
+            type="button"
+            onClick={onShowList}
+            className="flex items-center gap-1 rounded-nav px-1.5 py-1 text-[13px] text-etyme-action-press"
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Your conversations
+          </button>
+        </div>
+      )}
 
       {refused ? (
         <div className="flex-1 overflow-y-auto p-4"><RefusedState says={refused} /></div>
