@@ -123,7 +123,7 @@ export interface Slot {
  * lib/overtime); the first and last week are clipped to the window, so a
  * figure is never counted in a day the period does not hold.
  */
-export function slotsFor(w: Window, grain: Grain): Slot[] {
+export function slotsFor(w: Pick<Window, 'start' | 'end'>, grain: Grain): Slot[] {
   const out: Slot[] = []
   if (grain === 'week') {
     let s = new Date(`${weekStart(iso(w.start))}T00:00:00.000Z`)

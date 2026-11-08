@@ -104,7 +104,8 @@ describe('the money pages draw their states through the shared primitives', () =
       expect(page(path), path).toContain('<Stat')
     }
     // The unpriced book on Reports and Profitability, and the bill rates a seat may not read on Contracts.
-    expect(page('reports')).toContain('value={avgMargin != null ? fmtPercent(avgMargin) : null}')
+    expect(page('reports')).toContain('value={figureOf(flow.totals.net, cur)}')
+    expect(page('reports')).toContain('return minor == null ? null : amount(minor, currency)')
     expect(page('profitability')).toContain('value={data.agreed.pct == null ? null : `${data.agreed.pct}%`}')
     expect(page('contracts')).toContain('<Stat label="Active bill rates" value={null} sub={activeTotals.refusedBecause} />')
   })
@@ -113,7 +114,8 @@ describe('the money pages draw their states through the shared primitives', () =
     for (const path of ['reports', 'profitability', 'payroll/commissions', 'loose-ends', 'purchase-orders', 'contracts', 'ar']) {
       expect(page(path), path).toContain('<EmptyState')
     }
-    expect(page('reports')).toContain('<EmptyState says={data.narrowed.says} />')
+    expect(page('reports')).toContain('<EmptyState says={emptySays(data)} />')
+    expect(page('reports')).toContain('[data.reading?.says, ')
     expect(page('contracts')).toContain('<EmptyState says={ownContractsSay(contracts.length)} />')
     expect(page('purchase-orders')).toContain('<EmptyState says={words.empty} />')
   })
@@ -122,7 +124,7 @@ describe('the money pages draw their states through the shared primitives', () =
     for (const path of ['reports', 'profitability', 'payroll/commissions', 'loose-ends', 'purchase-orders', 'invoices/[id]', 'ar', 'ap']) {
       expect(page(path), path).toContain('<ErrorState')
     }
-    expect(page('reports')).toContain("action={{ label: 'Try again', onClick: fetchAll }}")
+    expect(page('reports')).toContain("action={{ label: 'Try again', onClick: load }}")
     expect(page('invoices/[id]')).toContain("action={{ label: 'Try again', onClick: load }}")
   })
 

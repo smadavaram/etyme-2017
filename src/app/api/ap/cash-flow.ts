@@ -10,8 +10,10 @@ import {
   cashFlow, isCashPeriod, isGrain,
   type CashInputs, type Flow, type OpenDoc,
 } from '@/lib/money/cash-flow'
+import { cashForecast } from '@/lib/money/cash-forecast'
 import { loadBook, loadUnplacedPayments } from '../ar/book'
 import { GET as payrollRoute } from '../payroll/route'
+import { forecastInputs } from './cash-forecast'
 
 /**
  * GET /api/ap?view=cash-flow&period=month|quarter|90d&grain=week|month
@@ -36,6 +38,11 @@ import { GET as payrollRoute } from '../payroll/route'
  *     this seat, each row not yet processed at its next pay date;
  *   · payroll paid — `paidRunHours` in lib/payroll-paid, what processed
  *     runs paid, which is what the payroll export and the W-2 read.
+ *
+ * Beside it, `forecast`: the next 90 days, expected in and out, by the
+ * same week or month (lib/money/cash-forecast, read by ./cash-forecast).
+ * It is its own answer and never added into the actuals: the actuals'
+ * totals are computed before it and from inputs it does not touch.
  *
  * A client's book (a client, or a program office seated at one) reads
  * what it owes its suppliers and nothing else: no bill, no payroll and no
@@ -72,9 +79,13 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
     owedToUs: [], weOwe,
   }
 
+  let sentBills: Awaited<ReturnType<typeof loadBook>>['invoices'] = []
+  let payrollRows: any[] | null = null
+
   if (!client) {
     // ── What the firm billed and what came in ─────────────────────────
-    const { raw, book } = await loadBook(companyId, now)
+    const { raw, book, invoices } = await loadBook(companyId, now)
+    sentBills = invoices
     for (const i of raw) {
       input.billed.push({
         currency: i.currency,
@@ -92,16 +103,25 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
 
     // ── Payroll, where this seat reads it ─────────────────────────────
     if (hasPermission(reading.caller.permissions, 'payroll.read')) {
-      const due = await payrollDue(request)
-      if (due) {
-        input.payrollDue = due
+      payrollRows = await payrollPage(request)
+      if (payrollRows) {
+        input.payrollDue = payrollDue(payrollRows)
         const runs = await paidRunHours(companyId)
         input.payrollPaid = runs.runs.map((r) => ({ currency: r.currency, at: r.paidAt, minor: r.paidCents }))
       }
     }
   }
 
-  return NextResponse.json({ data: { asOf: now.toISOString(), reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says }, ...cashFlow(input, period, grain, now) } })
+  const actuals = cashFlow(input, period, grain, now)
+  const forecast = cashForecast(
+    await forecastInputs({
+      companyId, companyName: reading.companyName, client, sentBills,
+      receiptsDue, payrollRows, today: now,
+    }),
+    grain,
+    now,
+  )
+  return NextResponse.json({ data: { asOf: now.toISOString(), reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says }, ...actuals, forecast } })
 }
 
 /**
@@ -113,14 +133,17 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
  * placing it. Null where the page could not be read, so payroll is blank
  * rather than nought.
  */
-async function payrollDue(request: NextRequest): Promise<Flow[] | null> {
+async function payrollPage(request: NextRequest): Promise<any[] | null> {
   const url = new URL(request.url)
   url.pathname = '/api/payroll'
   url.search = ''
   const res = await payrollRoute(new NextRequest(url, { headers: request.headers }))
   if (!res.ok) return null
   const body = await res.json().catch(() => null)
-  const items: any[] = body?.data?.payItems ?? []
+  return body?.data?.payItems ?? []
+}
+
+function payrollDue(items: any[]): Flow[] {
   return items
     .filter((p) => (p.payStatus === 'PENDING' || p.payStatus === 'CALCULATED') && typeof p.grossPay === 'number' && p.grossPay > 0)
     .map((p) => ({

@@ -18,6 +18,10 @@ import {
   CASH_PERIODS, CASH_PERIOD_WORD, GRAINS, GRAIN_WORD, FIGURE_WORD, varies,
   type Bands, type CashPeriod, type CashRow, type CurrencyFlow, type Figure, type Grain,
 } from '@/lib/money/cash-flow'
+import {
+  FORECAST_WORD, CLIENT_FORECAST_WORD,
+  type CurrencyForecast, type Forecast, type ForecastFigure, type ForecastRow,
+} from '@/lib/money/cash-forecast'
 import { CutTable } from '../profitability/cut-table'
 
 /**
@@ -34,7 +38,10 @@ import { CutTable } from '../profitability/cut-table'
  *     table per currency: rupees and dollars are never added. Every
  *     figure is the route's (`/api/ap?view=cash-flow`), which reads the
  *     Accounts receivable, Accounts payable and Payroll pages' own
- *     readers; this screen computes nothing.
+ *     readers; this screen computes nothing. Under it, **Forecast**: the
+ *     next 90 days, expected in and out, by the same week or month, one
+ *     table per currency, its assumptions said once, never added into
+ *     the actuals above (the founder, 2026-11-08).
  *   · **Profitability** (`?tab=profitability`) — the Profitability page's
  *     own cut table, the same component, so the two addresses cannot say
  *     two margins. `/dashboard/profitability` keeps its address and its
@@ -121,6 +128,9 @@ interface CashBody {
   figures: Figure[]
   currencies: CurrencyFlow[]
   says: string[]
+  /** The sentence about a narrowed reader's own lines, where there is one. */
+  reading?: { says: string | null }
+  forecast?: Forecast
 }
 
 function CashFlowTab({ kind, name }: { kind: string; name: string }) {
@@ -179,14 +189,19 @@ function CashFlowTab({ kind, name }: { kind: string; name: string }) {
 
       {loading ? <LoadingState says="Reading cash flow…" /> : error ? (
         <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
-      ) : !data ? null : data.currencies.length === 0 ? (
-        <EmptyState says={`No money moved in ${data.window.label}, and nothing is owed either way.`} />
-      ) : (
+      ) : !data ? null : (
         <>
-          {data.says.map((s) => <p key={s} className="text-[12.5px] text-etyme-muted">{s}</p>)}
-          {data.currencies.map((c) => (
-            <CurrencyPanel key={c.currency} flow={c} figures={data.figures} label={data.window.label} several={data.currencies.length > 1} grain={grain} />
-          ))}
+          {data.currencies.length === 0 ? (
+            <EmptyState says={emptySays(data)} />
+          ) : (
+            <>
+              {data.says.map((s) => <p key={s} className="text-[12.5px] text-etyme-muted">{s}</p>)}
+              {data.currencies.map((c) => (
+                <CurrencyPanel key={c.currency} flow={c} figures={data.figures} label={data.window.label} several={data.currencies.length > 1} grain={grain} />
+              ))}
+            </>
+          )}
+          {data.forecast && <ForecastHalf forecast={data.forecast} grain={grain} client={kind === 'CLIENT'} />}
         </>
       )}
     </div>
@@ -195,6 +210,16 @@ function CashFlowTab({ kind, name }: { kind: string; name: string }) {
 
 function money(minor: number | null | undefined, currency: string): string {
   return minor == null ? '—' : amount(minor, currency)
+}
+
+/** A headline figure, or no figure where nobody can stand behind one — never a nought. */
+function figureOf(minor: number | null | undefined, currency: string): string | null {
+  return minor == null ? null : amount(minor, currency)
+}
+
+/** The empty book, with the narrowed reader's own sentence first where there is one. */
+function emptySays(data: CashBody): string {
+  return [data.reading?.says, `No money moved in ${data.window.label}, and nothing is owed either way.`].filter(Boolean).join(' ')
 }
 
 function CurrencyPanel({ flow, figures, label, several, grain }: {
@@ -225,9 +250,9 @@ function CurrencyPanel({ flow, figures, label, several, grain }: {
       title={several ? `${label}, in ${cur}` : label}
       subtitle={several ? 'Each currency is its own table. They are never added together.' : undefined}
     >
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {figures.map((f) => <Stat key={f} label={FIGURE_WORD[f]} value={money(flow.totals.figures[f], cur)} />)}
-        <Stat label={FIGURE_WORD.net} value={money(flow.totals.net, cur)} tone={flow.totals.net != null && flow.totals.net < 0 ? 'attention' : 'default'} />
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {figures.map((f) => <Stat key={f} label={FIGURE_WORD[f]} value={figureOf(flow.totals.figures[f], cur)} />)}
+        <Stat label={FIGURE_WORD.net} value={figureOf(flow.totals.net, cur)} tone={flow.totals.net != null && flow.totals.net < 0 ? 'attention' : 'default'} />
       </div>
 
       <ListSurface<CashRow>
@@ -288,5 +313,97 @@ function AgeBands({ title, bands, currency }: { title: string; bands: Bands; cur
         ))}
       </ul>
     </div>
+  )
+}
+
+// ── Forecast ───────────────────────────────────────────
+
+/**
+ * The next 90 days, under the actuals and never added into them. The
+ * assumptions are said once, above the tables; each currency is its own
+ * table; a blank is a blank, never a nought.
+ */
+function ForecastHalf({ forecast, grain, client }: { forecast: Forecast; grain: Grain; client: boolean }) {
+  return (
+    <section aria-label="Forecast" className="space-y-4 border-t border-etyme-rule pt-6">
+      <div>
+        <h2 className="font-serif text-[20px] text-etyme-ink">Forecast</h2>
+        <p className="text-[12.5px] text-etyme-muted">
+          Expected, not happened: the next 90 days, {forecast.window.label}. It is never added to the figures above.
+        </p>
+      </div>
+      <div>
+        <Lbl className="mb-1">What this assumes</Lbl>
+        <ul className="list-disc space-y-0.5 pl-5 text-[12.5px] text-etyme-muted">
+          {forecast.assumptions.map((a) => <li key={a}>{a}</li>)}
+        </ul>
+      </div>
+      {forecast.says.map((s) => <p key={s} className="text-[12.5px] text-etyme-muted">{s}</p>)}
+      {forecast.currencies.length === 0 ? (
+        <EmptyState says={`Nothing is expected in or out in the next 90 days.`} />
+      ) : forecast.currencies.map((c) => (
+        <ForecastPanel key={c.currency} flow={c} figures={forecast.figures} several={forecast.currencies.length > 1} grain={grain} client={client} />
+      ))}
+    </section>
+  )
+}
+
+function forecastWord(f: ForecastFigure, client: boolean): string {
+  return (client && CLIENT_FORECAST_WORD[f]) || FORECAST_WORD[f]
+}
+
+function ForecastPanel({ flow, figures, several, grain, client }: {
+  flow: CurrencyForecast; figures: ForecastFigure[]; several: boolean; grain: Grain; client: boolean
+}) {
+  const cur = flow.currency
+  const columns: Column<ForecastRow>[] = [
+    { key: 'label', label: grain === 'week' ? 'Week' : 'Month', sortValue: (r) => r.start, exportValue: (r) => r.label },
+    ...figures.map((f): Column<ForecastRow> => ({
+      key: f,
+      label: forecastWord(f, client),
+      align: 'right',
+      render: (r) => money(r.figures[f], cur),
+      sortValue: (r) => r.figures[f] ?? null,
+      exportValue: (r) => r.figures[f] ?? null,
+    })),
+    ...(client ? [] : [{
+      key: 'in', label: FORECAST_WORD.in, align: 'right' as const,
+      render: (r: ForecastRow) => money(r.expectedIn, cur), sortValue: (r: ForecastRow) => r.expectedIn, exportValue: (r: ForecastRow) => r.expectedIn,
+    }]),
+    {
+      key: 'out', label: FORECAST_WORD.out, align: 'right',
+      render: (r) => money(r.expectedOut, cur), sortValue: (r) => r.expectedOut, exportValue: (r) => r.expectedOut,
+    },
+    ...(client ? [] : [{
+      key: 'net', label: FORECAST_WORD.net, align: 'right' as const,
+      render: (r: ForecastRow) => (
+        <span className={r.net != null && r.net < 0 ? 'text-etyme-attention' : undefined}>{money(r.net, cur)}</span>
+      ),
+      sortValue: (r: ForecastRow) => r.net, exportValue: (r: ForecastRow) => r.net,
+    }]),
+  ]
+
+  return (
+    <Panel
+      title={several ? `Next 90 days, in ${cur}` : 'Next 90 days'}
+      subtitle={several ? 'Each currency is its own table. They are never added together.' : 'Expected, by the dates and rates already on the record.'}
+    >
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {!client && <Stat label={FORECAST_WORD.in} value={figureOf(flow.totals.expectedIn, cur)} />}
+        <Stat label={FORECAST_WORD.out} value={figureOf(flow.totals.expectedOut, cur)} />
+        {!client && (
+          <Stat label={FORECAST_WORD.net} value={figureOf(flow.totals.net, cur)} tone={flow.totals.net != null && flow.totals.net < 0 ? 'attention' : 'default'} />
+        )}
+      </div>
+      <ListSurface<ForecastRow>
+        name={`reports-cash-forecast-${cur}`}
+        exportName={`cash-forecast-${cur}-${grain}`}
+        columns={columns}
+        data={flow.rows}
+        rowKey={(r) => r.key}
+        searchable={false}
+        emptyMessage="Nothing expected in these 90 days."
+      />
+    </Panel>
   )
 }
