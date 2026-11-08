@@ -34,8 +34,9 @@ describe('1 · a prime puts a supplier’s person forward at two prices', () => 
 
   it('the row shows both boxes where a supplier stands between', () => {
     const page = src('src/app/dashboard/requirements/[id]/matches.tsx')
-    expect(page).toContain('{m.firm.name} charges you $')
-    expect(page).toContain("{m.action.offeredBy ? 'You bill $' : '$'}")
+    // Each box carries the firm's own currency sign (2026-11-08), "$" at a dollar firm.
+    expect(page).toContain('{m.firm.name} charges you {currencySign(firmCurrency)}')
+    expect(page).toContain('{m.action.offeredBy ? `You bill ${currencySign(firmCurrency)}` : currencySign(firmCurrency)}')
     expect(page).not.toContain('payRate: m.action.payRate }')
   })
 })

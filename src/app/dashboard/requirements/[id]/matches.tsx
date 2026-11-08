@@ -5,6 +5,8 @@ import { confidenceWords } from './confidence-words'
 import { readJson } from '@/lib/read-response'
 import { range } from '@/lib/money-display'
 import { submitFields } from '@/lib/bench-filter'
+import { useFirmCurrency } from '@/app/dashboard/consultants/firm-currency'
+import { currencySign, typedFromMinor } from './match-rate'
 import { EmptyState, LoadingState, FormMessage } from '@/components/ui'
 
 /**
@@ -143,6 +145,8 @@ export function MatchList({
   // Asked in this sitting, before the list is read again — the button
   // goes the moment the ask does.
   const [askedNow, setAskedNow] = useState<Record<string, NonNullable<MatchRow['askedFor']>>>({})
+  // The seat's own firm's currency, read from /api/me; dollars until read.
+  const firmCurrency = useFirmCurrency()
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -154,7 +158,9 @@ export function MatchList({
 
   async function submit(m: MatchRow) {
     if (m.action.kind !== 'SUBMIT' || !m.consultant.personId) return
-    const fields = submitFields(m.action, { bill: rates[m.id], pay: pays[m.id] }, { person: m.consultant.name ?? 'this person', firm: m.firm.name })
+    // Typed in the putting-forward firm's own money, by its own exponent: a
+    // rate typed at a dong firm is whole dong (supply's `useFirmCurrency`).
+    const fields = submitFields(m.action, { bill: rates[m.id], pay: pays[m.id] }, { person: m.consultant.name ?? 'this person', firm: m.firm.name }, firmCurrency)
     if (!fields.ok) {
       setFlash({ id: m.id, text: fields.says, bad: true })
       return
@@ -276,14 +282,14 @@ export function MatchList({
                               you bill. */}
                           {m.action.offeredBy && (
                             <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
-                              {m.firm.name} charges you $
+                              {m.firm.name} charges you {currencySign(firmCurrency)}
                               <input
                                 type="number"
                                 min="1"
                                 step="1"
                                 inputMode="numeric"
                                 aria-label={`What ${m.firm.name} charges you an hour for ${title}`}
-                                value={pays[m.id] ?? (m.action.payRate != null ? String(Math.round(m.action.payRate / 100)) : '')}
+                                value={pays[m.id] ?? typedFromMinor(m.action.payRate, firmCurrency)}
                                 placeholder="rate"
                                 onChange={(e) => setPays((r) => ({ ...r, [m.id]: e.target.value }))}
                                 className="w-20 rounded-md border border-etyme-rule bg-etyme-surface px-2 py-1 text-[12px] tabular-nums text-etyme-ink"
@@ -292,14 +298,14 @@ export function MatchList({
                             </label>
                           )}
                           <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
-                            {m.action.offeredBy ? 'You bill $' : '$'}
+                            {m.action.offeredBy ? `You bill ${currencySign(firmCurrency)}` : currencySign(firmCurrency)}
                             <input
                               type="number"
                               min="1"
                               step="1"
                               inputMode="numeric"
                               aria-label={`Hourly rate for ${title}`}
-                              value={rates[m.id] ?? (m.action.rate != null ? String(Math.round(m.action.rate / 100)) : '')}
+                              value={rates[m.id] ?? typedFromMinor(m.action.rate, firmCurrency)}
                               placeholder="rate"
                               onChange={(e) => setRates((r) => ({ ...r, [m.id]: e.target.value }))}
                               className="w-20 rounded-md border border-etyme-rule bg-etyme-surface px-2 py-1 text-[12px] tabular-nums text-etyme-ink"
