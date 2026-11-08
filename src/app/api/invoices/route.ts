@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/alerts'
 import { NextRequest, NextResponse } from 'next/server'
 import { duplicateDraftsAt } from '@/lib/money/duplicate-drafts'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
@@ -141,7 +142,20 @@ export async function GET(request: NextRequest) {
   if (url.searchParams.get('duplicates') === 'drafts') {
     // The repair is drawn only for a seat the withdraw route takes.
     const mayWithdraw = hasPermission(caller.permissions, 'invoices.issue')
-    return NextResponse.json({ data: companyId && mayWithdraw ? await duplicateDraftsAt(companyId) : [], mayWithdraw })
+    if (!companyId || !mayWithdraw) return NextResponse.json({ data: [], mayWithdraw })
+    // Walk 7, 2026-11-08: a read that failed here answered 500 on every
+    // Bills open. The repair is a side panel; a failure is reported to
+    // staff and said in a sentence, and the Bills list beside it is never
+    // taken down with it.
+    try {
+      return NextResponse.json({ data: await duplicateDraftsAt(companyId), mayWithdraw })
+    } catch (err) {
+      await reportError('Duplicate drafts read failed', err)
+      return NextResponse.json(
+        { error: { code: 'DUPLICATES_UNREADABLE', message: 'Drafts that hold the same week could not be read just now. The bills below are unaffected.' } },
+        { status: 503 },
+      )
+    }
   }
 
   const where: any = {}

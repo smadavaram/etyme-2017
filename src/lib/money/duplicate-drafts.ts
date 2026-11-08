@@ -30,12 +30,20 @@
 import { prisma } from '@/lib/db'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import { daySpan } from '@/lib/plain-date'
+import type { Prisma } from '@prisma/client'
 
 export interface BillOnRecord {
   id: string
   number: string
   status: string
-  createdAt: Date
+  /**
+   * When it was drafted. `Invoice` carries no created stamp of its own
+   * (it has issuedAt, submittedAt, receivedAt, dueAt; a draft has none of
+   * the first three), and a draft is written with its lines in one go, so
+   * the earliest line's `createdAt` is the day it was drafted. Null on a
+   * bill with no lines and no issue or send day: it sorts last.
+   */
+  createdAt: Date | null
   periodStart: Date | null
   periodEnd: Date | null
   lines: { timesheetId: string | null; personId: string | null; personName: string | null }[]
@@ -86,7 +94,7 @@ export function duplicateDrafts(bills: readonly BillOnRecord[]): DuplicateDrafts
   const out: DuplicateDrafts[] = []
   for (const g of groups.values()) {
     if (g.length < 2) continue
-    const rank = (b: BillOnRecord) => [b.status === 'DRAFT' ? 1 : 0, b.lines.some((l) => l.timesheetId) ? 0 : 1, b.createdAt.getTime()]
+    const rank = (b: BillOnRecord) => [b.status === 'DRAFT' ? 1 : 0, b.lines.some((l) => l.timesheetId) ? 0 : 1, b.createdAt ? b.createdAt.getTime() : Number.MAX_SAFE_INTEGER]
     const sorted = [...g].sort((a, b) => {
       const ra = rank(a), rb = rank(b)
       for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i]
@@ -132,17 +140,29 @@ export async function duplicateDraftsAt(companyId: string): Promise<DuplicateDra
   return duplicateDrafts([...drafts, ...others].map(toBill))
 }
 
+// Walk 7, 2026-11-08: this selected `createdAt`, which `Invoice` does not
+// have, and every Bills open answered 500. The drafted day is read off the
+// lines (see `BillOnRecord.createdAt`); the integration test
+// `duplicate-drafts-read` runs this select against the real client.
 const SELECT = {
-  id: true, number: true, status: true, createdAt: true, periodStart: true, periodEnd: true,
-  invoiceLines: { select: { timesheetId: true, personId: true, sellContract: { select: { person: { select: { name: true } } } } } },
-} as const
+  id: true, number: true, status: true, issuedAt: true, submittedAt: true, periodStart: true, periodEnd: true,
+  invoiceLines: {
+    select: { timesheetId: true, personId: true, createdAt: true, sellContract: { select: { person: { select: { name: true } } } } },
+  },
+} satisfies Prisma.InvoiceSelect
+
+/** The day a bill was drafted: its first line, else the day it was issued or sent. */
+export function draftedAt(b: { issuedAt: Date | null; submittedAt: Date | null; invoiceLines: { createdAt: Date }[] }): Date | null {
+  const first = b.invoiceLines.reduce<Date | null>((min, l) => (min == null || l.createdAt < min ? l.createdAt : min), null)
+  return first ?? b.issuedAt ?? b.submittedAt ?? null
+}
 
 function toBill(b: {
-  id: string; number: string; status: string; createdAt: Date; periodStart: Date | null; periodEnd: Date | null
-  invoiceLines: { timesheetId: string | null; personId: string | null; sellContract: { person: { name: string } | null } | null }[]
+  id: string; number: string; status: string; issuedAt: Date | null; submittedAt: Date | null; periodStart: Date | null; periodEnd: Date | null
+  invoiceLines: { timesheetId: string | null; personId: string | null; createdAt: Date; sellContract: { person: { name: string } | null } | null }[]
 }): BillOnRecord {
   return {
-    id: b.id, number: b.number, status: b.status, createdAt: b.createdAt, periodStart: b.periodStart, periodEnd: b.periodEnd,
+    id: b.id, number: b.number, status: b.status, createdAt: draftedAt(b), periodStart: b.periodStart, periodEnd: b.periodEnd,
     lines: b.invoiceLines.map((l) => ({ timesheetId: l.timesheetId, personId: l.personId, personName: l.sellContract?.person?.name ?? null })),
   }
 }

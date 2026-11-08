@@ -21,11 +21,17 @@ export function DuplicateDrafts({
   const [groups, setGroups] = useState<Group[]>([])
   const [busy, setBusy] = useState<string | null>(null)
 
+  // A failed read draws nothing and never throws: the Bills list beside
+  // it stays (walk 7, 2026-11-08, when this read answered 500 on every open).
   const load = useCallback(async () => {
-    const res = await fetch('/api/invoices?duplicates=drafts')
-    if (!res.ok) return setGroups([])
-    const json = await res.json().catch(() => ({}))
-    setGroups(Array.isArray(json?.data) ? json.data : [])
+    try {
+      const res = await fetch('/api/invoices?duplicates=drafts')
+      if (!res.ok) return setGroups([])
+      const json = await res.json().catch(() => ({}))
+      setGroups(Array.isArray(json?.data) ? json.data : [])
+    } catch {
+      setGroups([])
+    }
   }, [])
   useEffect(() => { load() }, [load])
 
