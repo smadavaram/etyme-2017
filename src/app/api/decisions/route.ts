@@ -33,6 +33,7 @@ import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptanc
 import { expensesWaitingOn } from '@/lib/money/expense-acceptance-read'
 import { ownFirmExpenseIds } from '@/lib/money/own-firm-expense'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
+import { billRateReach } from '@/lib/consultant-portfolio/margin-reach'
 import { waitingQuestions } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
@@ -797,6 +798,11 @@ export async function GET(request: NextRequest) {
         : []
     )
 
+    // Which lines this seat reads a price on (supply's `billRateReach`, as
+    // Rolloff and the consultant's page read it): a team grant of
+    // margin.read opens that team's lines only, never every line here.
+    const priceReach = hasPermission(caller.permissions, 'margin.read') ? await billRateReach(caller) : null
+
     for (const sc of endingSoon) {
       const daysLeft = Math.ceil(
         (sc.endDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
@@ -806,7 +812,7 @@ export async function GET(request: NextRequest) {
       const endClientName = sc.endClientCompany?.name ?? sc.clientCompany?.name ?? 'Unknown'
       // Null where this seat may not read a bill rate; then no rate at all.
       const shownRate = rateOnEndingSoon(
-        { companyId: caller.company?.id ?? null, permissions: caller.permissions },
+        { companyId: caller.company?.id ?? null, permissions: caller.permissions, lines: priceReach },
         sc
       )
       decisions.push({
