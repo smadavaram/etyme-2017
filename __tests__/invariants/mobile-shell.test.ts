@@ -31,6 +31,7 @@ const LAYOUT = read('src/app/dashboard/layout.tsx')
 const SHELL = read('src/app/dashboard/shell.tsx')
 const MARK = read('src/components/shell/ask-etyme-mark.tsx')
 const PILLS = read('src/components/shell/section-pills.tsx')
+const SWITCH = read('src/components/shell/view-switch.tsx')
 const LIST = read('src/components/list-surface.tsx')
 const SIGN_OUT = read('src/components/shell/sign-out.ts')
 const SIGN_OUT_ROUTE = read('src/app/api/demo/sign-out/route.ts')
@@ -94,7 +95,7 @@ describe('the header fits a phone', () => {
     // The strip has to have found the block, or the check below reads it.
     expect(withoutDesktopSearch.length).toBeLessThan(HEADER.length)
     // And it stops at the search block's own end: what follows it stays checked.
-    expect(withoutDesktopSearch).toContain('<AskEtymeLink')
+    expect(withoutDesktopSearch).toContain('<ViewSwitch')
     const wide = [...withoutDesktopSearch.matchAll(/(?<![\w:-])w-(\d+)\b/g)]
       .map((m) => Number(m[1]))
       .filter((n) => n >= 40)
@@ -180,7 +181,7 @@ describe('the sidebar props are read off the session the same way for both surfa
   })
 })
 
-describe('the flip is gone: on a phone the header is the logo, Ask Etyme with its number, and the menu', () => {
+describe('on a phone the header is the logo and the menu, and the Ask Etyme | Dashboard switch is the first row under it (founder, 2026-11-08)', () => {
   it('the logo is the logo: it carries no number and goes to the seat’s own home', () => {
     expect(HEADER).toMatch(/<Link href=\{home as any\} aria-label="Home" className=\{`md:hidden \$\{PHONE_ICON\}`\}>\s*<EtymeMark size=\{22\} \/>/)
     expect(HEADER.match(/<EtymeMark\b/g)?.length).toBe(1)
@@ -189,38 +190,29 @@ describe('the flip is gone: on a phone the header is the logo, Ask Etyme with it
     expect(MARK).not.toContain('EtymeMark')
   })
 
-  it('Ask Etyme in the header is a chat bubble wearing the number, and opens Ask Etyme on every page', () => {
-    expect(MARK).toContain('href={ASK_ETYME_HREF as any}')
-    expect(MARK).toContain('<ChatIcon />')
-    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1 -right-1.5" />')
+  it('the header’s own Ask Etyme link and its chat bubble are gone, and nothing in the header flips', () => {
+    expect(HEADER).not.toContain('AskEtymeLink')
+    expect(MARK).not.toContain('AskEtymeLink')
+    expect(MARK).not.toContain('ChatIcon')
     expect(MARK).not.toContain('AskEtymeFlip')
     expect(MARK).not.toContain('DashboardIcon')
-    expect(MARK.match(/<rect /g)).toBeNull()
   })
 
-  it('the chat icon is a rounded speech bubble drawn inline, outline only, with its tail at the lower left', () => {
-    expect(MARK).toMatch(/function ChatIcon[\s\S]*fill="none" stroke="currentColor"[\s\S]*<path d="M8 4h8a5 5 0 0 1 5 5v3a5 5 0 0 1-5 5h-6l-5 4/)
-    expect(MARK).toContain('text-etyme-ink')
+  it('the switch is drawn once in the header, on a phone only, under the bar, and only for a seat whose menu has Ask Etyme', () => {
+    expect(HEADER.match(/<ViewSwitch\b/g)?.length).toBe(1)
+    expect(HEADER).toMatch(/\{asks && \(\s*<div className="md:hidden[^"]*">\s*<ViewSwitch/)
+    // Under the bar: after the row that holds the logo and the menu button.
+    expect(HEADER.indexOf('<MobileNav />')).toBeLessThan(HEADER.indexOf('<ViewSwitch'))
   })
 
-  it('on Ask Etyme itself the header’s Ask Etyme is marked as the page being read, never swapped for a dashboard door', () => {
-    expect(HEADER).toContain('{asks && <AskEtymeLink n={owed} here={onAskEtyme} />}')
-    expect(MARK).toContain("aria-current={here ? 'page' : undefined}")
-  })
-
-  it('it is drawn on a phone only, once, and a seat with no Ask Etyme has none; from md up the sidebar carries it', () => {
-    expect(HEADER.match(/<AskEtymeLink\b/g)?.length).toBe(1)
-    expect(HEADER).toMatch(/\{asks && <AskEtymeLink/)
-    expect(MARK).toMatch(/className=\{`md:hidden relative w-9 h-9 sm:w-8 sm:h-8 shrink-0/)
-  })
-
-  it('it is the size of the logo’s box and the menu button, and the number hangs off its corner, adding no width at 375', () => {
-    expect(MARK).toContain('relative w-9 h-9 sm:w-8 sm:h-8 shrink-0')
-    expect(MARK).not.toMatch(/(?<![\w:-])w-(\d{2,})\b/)
-  })
-
-  it('a screen reader hears Ask Etyme and the number', () => {
-    expect(MARK).toMatch(/AskEtymeLink[\s\S]*const label = owedLabel\(n\)[\s\S]*aria-label=\{label\}/)
+  it('the Ask Etyme half wears the number and a screen reader hears both; the Dashboard half opens the seat’s own first page', () => {
+    expect(SWITCH).toContain('href={ASK_ETYME_HREF as any}')
+    expect(SWITCH).toContain('aria-label={owedLabel(owed)}')
+    expect(SWITCH).toContain('<OwedBadge n={owed} />')
+    expect(SWITCH).toContain('href={dashboardHref as any}')
+    expect(SWITCH).toMatch(/>\s*Dashboard\s*</)
+    expect(SWITCH).toContain("aria-current={view === 'ask' ? 'page' : undefined}")
+    expect(SWITCH).toContain("aria-current={view === 'dashboard' ? 'page' : undefined}")
   })
 
   it('"Switch to dashboard" is gone from the header', () => {
@@ -228,15 +220,14 @@ describe('the flip is gone: on a phone the header is the logo, Ask Etyme with it
   })
 })
 
-describe('the phone header has no words: the logo, Ask Etyme and the menu, on every page', () => {
+describe('the phone header has no words: the logo and the menu, on every page', () => {
   it('the menu button is drawn on every page, Ask Etyme included, because nothing else on the phone opens the nine', () => {
     expect(HEADER).not.toContain('{!onAskEtyme && <MobileNav />}')
     expect(HEADER).toContain('        <MobileNav />')
     expect(HEADER.match(/<MobileNav\b/g)?.length).toBe(1)
   })
 
-  it('the menu button stands on the right, after Ask Etyme', () => {
-    expect(HEADER.indexOf('<AskEtymeLink')).toBeLessThan(HEADER.indexOf('<MobileNav />'))
+  it('the menu button stands on the right of the bar', () => {
     expect(HEADER.indexOf('ref={accountRef}')).toBeLessThan(HEADER.indexOf('<MobileNav />'))
   })
 
@@ -252,10 +243,9 @@ describe('the phone header has no words: the logo, Ask Etyme and the menu, on ev
     }
   })
 
-  it('the logo, Ask Etyme and the menu button sit in one icon size', () => {
+  it('the logo and the menu button sit in one icon size', () => {
     const box = 'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center'
     expect(HEADER).toContain(`const PHONE_ICON =\n  '${box}'`)
-    expect(MARK).toContain(box.replace(' rounded-nav flex items-center justify-center', ''))
     expect(MOBILE).toContain('className="md:hidden w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center')
   })
 

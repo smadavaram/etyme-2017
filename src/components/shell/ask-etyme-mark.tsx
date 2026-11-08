@@ -1,8 +1,12 @@
 'use client'
 
 /**
- * The Ask Etyme mark with its number — where the bell was (founder,
- * 2026-10-13, "Notifications are deleted; Ask Etyme carries the number").
+ * The number this seat owes — where the bell was (founder, 2026-10-13,
+ * "Notifications are deleted; Ask Etyme carries the number"). Since
+ * 2026-11-08 it is worn by the Ask Etyme half of the Ask Etyme |
+ * Dashboard switch (components/shell/view-switch), at the top of the
+ * left column and, on a phone, under the header. The header's own link
+ * and its chat bubble are gone.
  *
  * One read for the whole shell. The header and the sidebar — drawn twice
  * on a phone, once as the rail and once in the sheet — all subscribe to
@@ -34,9 +38,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { ASK_ETYME_HREF } from '@/lib/nav-table'
-import { OWED_CHANGED_EVENT, OWED_REFRESH_MS, OWED_SETTLE_MS, isAct, mayReadOnReturn, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
+import { OWED_CHANGED_EVENT, OWED_REFRESH_MS, OWED_SETTLE_MS, isAct, mayReadOnReturn, mayRefresh, owedBadge, owedFrom } from '@/lib/owed-count'
 
 let owed: number | null = null
 let lastAt: number | null = null
@@ -166,47 +168,5 @@ export function OwedBadge({ n, className = '' }: { n: number | null; className?:
     >
       {text}
     </span>
-  )
-}
-
-/**
- * Ask Etyme in the phone header, with its number (founder, 2026-10-19,
- * "Nine links, no flip"). Below md the header is the logo, this and the
- * menu icon; it opens the chat, on every page, Ask Etyme included, where
- * it is marked as the page being read. From md up it is not drawn: the
- * sidebar's own Ask Etyme entry carries the same number from the same
- * read, an inch away.
- *
- * It replaces the flip of 2026-10-13, whose second face — four squares
- * opening the desk's tables — was a second door to Today, which the menu
- * already has. The number hangs off the icon's corner, so it adds no
- * width at 375, and the label says Ask Etyme and the number, so a screen
- * reader hears both.
- */
-export function AskEtymeLink({ n, here }: { n: number | null; here: boolean }) {
-  const label = owedLabel(n)
-  return (
-    <Link
-      href={ASK_ETYME_HREF as any}
-      aria-label={label}
-      aria-current={here ? 'page' : undefined}
-      title={label}
-      data-ask-etyme="header"
-      className={`md:hidden relative w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
-                 text-etyme-ink transition-colors hover:bg-etyme-sunk ${here ? 'bg-etyme-action-wash' : ''}`}
-    >
-      <ChatIcon />
-      <OwedBadge n={n} className="absolute -top-1 -right-1.5" />
-    </Link>
-  )
-}
-
-/** A chat app's "Chats" icon: a rounded bubble, tail at the lower left, outline only. */
-function ChatIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 4h8a5 5 0 0 1 5 5v3a5 5 0 0 1-5 5h-6l-5 4v-4.5A5 5 0 0 1 3 12V9a5 5 0 0 1 5-5z" />
-    </svg>
   )
 }

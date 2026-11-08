@@ -5,10 +5,11 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeLogo, EtymeMark } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
-import { OwedBadge, useOwedCount } from '@/components/shell/ask-etyme-mark'
-import { owedBadge, owedLabel } from '@/lib/owed-count'
+import { useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { consoleHome } from '@/lib/console-home'
-import { getNavForKind, activeHref, linksOf, ASK_ETYME_HREF, ETYME_MARK_ICON, type CompanyKind, type Hat, type NavItem, type NavSection } from '@/lib/nav-table'
+import { getNavForKind, activeHref, menuFor, menuLinks, viewOf, ASK_ETYME_HREF, ETYME_MARK_ICON, type CompanyKind, type Hat, type MenuGroup, type MenuLink } from '@/lib/nav-table'
+import { ViewSwitch } from '@/components/shell/view-switch'
+import { RailSlotOutlet } from '@/components/shell/rail-slots'
 
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -98,19 +99,23 @@ export function Sidebar({
   }).href
 
   // The page being read, by the longest match across every page on the
-  // menu, tabs included: a noun's link is lit on any of its tabs.
+  // menu, tabs included: a link is lit on any of its pages.
   const current = activeHref(sections, pathname, searchParams, dashboardHref)
-  // The number on Ask Etyme, the same the phone header's mark carries,
-  // from the same one read.
+  // The number on Ask Etyme, the same the phone's switch carries, from
+  // the same one read.
   const asks = sections.some((s) => s.items.some((i) => i.href === ASK_ETYME_HREF))
   const owed = useOwedCount(asks)
 
+  // What the Dashboard column prints: the role's links under the
+  // founder's headings (founder, 2026-11-08, "One app, two tabs").
+  const groups = pending ? [] : menuFor(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat })
+  const view = viewOf(pathname)
+  // The Dashboard tab opens the first link of this seat's own menu.
+  const dashboardTab = menuLinks(groups)[0]?.href ?? dashboardHref
+
   // The link for the page being read is brought into view when the menu
-  // opens. A worker who is also staff reads their firm's sections first
-  // and "You" at the end (CLAUDE.md: appended, never substituted), and
-  // Karthik Menon scrolled past twenty of Teleworld's links to find his
-  // own work on the phone (worker tester, 2026-10-03). The order stays;
-  // the menu opens where he is.
+  // opens, so a long menu opens where the reader is (worker tester,
+  // 2026-10-03).
   const navRef = useRef<HTMLElement>(null)
   useEffect(() => {
     const here = navRef.current?.querySelector<HTMLElement>('[data-current="true"]')
@@ -153,35 +158,53 @@ export function Sidebar({
         )}
       </div>
 
+      {/* Ask Etyme | Dashboard, at the top of the column in both views. On
+          a phone it is the first row under the header, so the sheet does
+          not draw it a second time. */}
+      {asks && !sheet && !pending && (
+        <div className="px-3 pb-2">
+          <ViewSwitch dashboardHref={dashboardTab} owed={owed} />
+        </div>
+      )}
+
       {/* Nav sections */}
       <nav ref={navRef} aria-label="Main" className="flex-1 overflow-y-auto px-3 pb-4">
-        {/* A worker who is also staff reads "You" last, after the firm's
-            sections (CLAUDE.md: appended, never substituted). On a phone
-            that was twenty links of the firm's before his own work
-            (worker tester, 2026-10-03), so the top of the menu says
-            where his own pages are and takes him there. It scrolls the
-            menu; it is not a second link to any page. */}
-        {sections.findIndex((s) => s.label === 'You') > 0 && (
-          <button
-            type="button"
-            onClick={() => navRef.current?.querySelector<HTMLElement>('[data-section="You"]')
-              ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}
-            className={`mt-2 w-full text-left px-2.5 py-2 rounded-nav text-etyme-action-press
-                        hover:bg-etyme-action-wash transition-colors ${sheet ? 'text-[14px]' : 'text-[12.5px]'}`}
-          >
-            Your own pages ↓
-          </button>
+        {asks && view === 'ask' ? (
+          // Ask Etyme's column: New conversation and search, Pinned, then
+          // the conversations. The Ask Etyme page fills each (RailSlot).
+          <div data-column="ask">
+            <RailSlotOutlet name="top" />
+            <RailSlotOutlet name="pinned" heading="Pinned" />
+            <RailSlotOutlet name="conversations" heading="Conversations" />
+          </div>
+        ) : (
+          <>
+            {/* A Member with no desk reads what is addressed to them and
+                their own pages under "You"; the top of the menu says
+                where those are and takes them there. It scrolls the menu;
+                it is not a second link to any page. */}
+            {groups.findIndex((g) => g.heading === 'You') > 0 && (
+              <button
+                type="button"
+                onClick={() => navRef.current?.querySelector<HTMLElement>('[data-section="You"]')
+                  ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}
+                className={`mt-2 w-full text-left px-2.5 py-2 rounded-nav text-etyme-action-press
+                            hover:bg-etyme-action-wash transition-colors ${sheet ? 'text-[14px]' : 'text-[12.5px]'}`}
+              >
+                Your own pages ↓
+              </button>
+            )}
+            {groups.map((group, n) => (
+              <MenuGroupBlock
+                key={`${group.heading ?? ''}:${n}`}
+                group={group}
+                current={current}
+                sheet={sheet}
+                onDismiss={onDismiss}
+              />
+            ))}
+          </>
         )}
-        {sections.map((section) => (
-          <MenuSection
-            key={section.label}
-            section={section}
-            current={current}
-            sheet={sheet}
-            onDismiss={onDismiss}
-            owed={owed}
-          />
-        ))}
       </nav>
 
       {/* Bottom — company info */}
@@ -235,46 +258,39 @@ function NavIcon({ icon, active }: { icon: string; active: boolean }) {
 }
 
 /**
- * One section of the menu. One of the nine is one link — the noun,
- * opening the first of its pages this seat may open, lit on any of them
- * (its other pages are the tab row under the page header). "You" is a
- * heading and its own pages under it.
+ * One group of the Dashboard column: a heading over its links (Network,
+ * HR, Money, or "You" over a worker's own pages), or links with none.
+ * A heading is a label and never a link. Each link is lit on any of the
+ * pages it stands for; the others are the tab row under the page header.
  */
-function MenuSection({ section, current, sheet, onDismiss, owed }: {
-  section: NavSection; current: string | null; sheet?: boolean; onDismiss?: () => void; owed: number | null
+function MenuGroupBlock({ group, current, sheet, onDismiss }: {
+  group: MenuGroup; current: string | null; sheet?: boolean; onDismiss?: () => void
 }) {
-  if (section.tabbed) {
-    const [link] = linksOf(section)
-    if (!link) return null
-    const active = section.items.some((i) => i.href === current)
-    const isAsk = section.items.some((i) => i.href === ASK_ETYME_HREF)
-    return (
-      <div className={isAsk ? 'mt-3 mb-1' : ''} data-section={section.label}>
-        <NavLink item={link} active={active} sheet={sheet} onDismiss={onDismiss} owed={isAsk ? owed : null} />
-      </div>
-    )
-  }
   return (
-    <div className="mb-1" data-section={section.label}>
-      <div className="eyebrow px-2.5 pt-4 pb-1">
-        {section.label}
-      </div>
-      {section.items.map((item) => (
-        <NavLink key={item.href} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} />
-      ))}
+    <div className={group.heading ? 'mb-1' : ''} data-section={group.heading ?? group.links[0]?.label}>
+      {group.heading && (
+        <div className="eyebrow px-2.5 pt-4 pb-1">
+          {group.heading}
+        </div>
+      )}
+      {group.links.map((link) => {
+        const active = link.covers.some((i) => i.href === current)
+        return (
+          <NavLink key={link.label + link.href} item={link} active={active} sheet={sheet} onDismiss={onDismiss} />
+        )
+      })}
     </div>
   )
 }
 
 /** One row on the menu. The active page is marked three ways — the fill, a bar at the left edge and aria-current — so it never rests on color alone. */
-function NavLink({ item, active, sheet, onDismiss, owed = null }: { item: NavItem; active: boolean; sheet?: boolean; onDismiss?: () => void; owed?: number | null }) {
+function NavLink({ item, active, sheet, onDismiss }: { item: Pick<MenuLink, 'label' | 'href' | 'icon'> & { badge?: number }; active: boolean; sheet?: boolean; onDismiss?: () => void }) {
   return (
     <Link
       href={item.href as any}
       onClick={onDismiss}
       data-current={active ? 'true' : undefined}
       aria-current={active ? 'page' : undefined}
-      aria-label={owedBadge(owed) ? owedLabel(owed) : undefined}
       className={`
         relative flex items-center gap-2.5 px-2.5 rounded-nav
         ${sheet ? 'py-2.5 text-[14px]' : 'py-1.5 text-[13px]'}
@@ -296,7 +312,6 @@ function NavLink({ item, active, sheet, onDismiss, owed = null }: { item: NavIte
           {item.badge}
         </span>
       )}
-      <OwedBadge n={owed} className="ml-auto" />
     </Link>
   )
 }

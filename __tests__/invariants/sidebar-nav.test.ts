@@ -16,7 +16,7 @@ import { PERMISSIONS } from '@/lib/permissions'
 import { rolesFor } from '@/lib/company-defaults'
 import { BENCH_PROFIT_DESKS } from '@/lib/bench-profit'
 import { BENCH_PAY_DESKS } from '@/lib/bench-holiday-switch'
-import { pinnedOn, activeHref, linksOf, tabsFor, ASK_ETYME_HREF, ETYME_MARK_ICON, type NavSection } from '@/lib/nav-table'
+import { pinnedOn, activeHref, linksOf, tabsFor, menuFor, menuOf, menuLinks, viewOf, firstTabFor, readTab, tabKey, ASK_ETYME_HREF, ETYME_MARK_ICON, type NavSection, type MenuGroup } from '@/lib/nav-table'
 import { groupRow } from '@/components/shell/section-pills'
 import { owedFrom, owedBadge, owedLabel, mayRefresh, OWED_REFRESH_MS } from '@/lib/owed-count'
 
@@ -371,6 +371,14 @@ function entriesOf(sections: readonly NavSection[]): string[] {
   return sections.flatMap((s) => s.tabbed ? [s.label] : s.items.map((i) => i.label))
 }
 
+/**
+ * What the Dashboard column prints, in CLAUDE.md's words: a link alone, or
+ * a heading and its links ("Network: Candidates, Companies").
+ */
+function printed(groups: readonly MenuGroup[]): string[] {
+  return groups.flatMap((g) => g.heading ? [`${g.heading}: ${g.links.map((l) => l.label).join(', ')}`] : g.links.map((l) => l.label))
+}
+
 describe('every party reads the menu CLAUDE.md says it reads', () => {
   // The code and the table had drifted once already: the table said
   // Procure and the build shipped "Talent". A table in a document cannot
@@ -391,7 +399,8 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
   const KIND: Record<string, Parameters<typeof getNavForKind>[0]> = {
     Client: 'CLIENT', Supplier: 'VENDOR', Integrator: 'GSI', MSP: 'MSP', 'One-person firm': 'CONSULTANT_CORP', Worker: null,
   }
-  const menuOf = (party: string) => getNavForKind(KIND[party], KIND[party] == null)
+  const sectionsOf = (party: string) => getNavForKind(KIND[party], KIND[party] == null)
+  const columnOf = (party: string) => menuFor(KIND[party], KIND[party] == null)
 
   it('names all six parties in the table, and nobody else', () => {
     expect([...documented.keys()].sort()).toEqual(
@@ -400,19 +409,21 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
   })
 
   for (const party of ['Client', 'Supplier', 'Integrator', 'MSP', 'One-person firm', 'Worker']) {
-    it(`shows ${party} exactly the links the table names, in that order`, () => {
-      expect(entriesOf(menuOf(party))).toEqual(documented.get(party)!.links)
+    it(`shows ${party} exactly the links and headings the table names, in that order`, () => {
+      expect(printed(columnOf(party))).toEqual(documented.get(party)!.links)
     })
 
-    it(`files every page the table folds for ${party} as a tab of the link it names`, () => {
-      const menu = menuOf(party)
+    it(`files every page the table folds for ${party} under the link it names`, () => {
+      const links = menuLinks(columnOf(party))
+      const sections = sectionsOf(party)
       const wrong: string[] = []
       for (const sentence of documented.get(party)!.folded.split(/\.\s*/)) {
         const [pages, noun] = sentence.split('→').map((x) => x?.trim())
         if (!noun) continue
-        const section = menu.find((s) => s.label === noun)
+        // A link on the column, or Ask Etyme, which is the switch above it.
+        const covers = links.find((l) => l.label === noun)?.covers ?? sections.find((s) => s.label === noun)?.items
         for (const page of pages.split(',').map((x) => x.trim())) {
-          if (!section?.items.some((i) => i.label === page)) wrong.push(`${page} → ${noun}`)
+          if (!covers?.some((i) => i.label === page)) wrong.push(`${page} → ${noun}`)
         }
       }
       expect(wrong, `the table folds these and the menu does not`).toEqual([])
@@ -430,16 +441,16 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
 
   for (const party of ['Client', 'Supplier', 'Integrator', 'MSP'] as const) {
     it(`gives ${party} its own links and nothing else in the firm hat, and only "You" in the worker's own hat`, () => {
-      const firm = getNavForKind(KIND[party], false, { worker: true, hat: 'firm' })
-      expect(firm.map((s) => s.label)).toEqual(documented.get(party)!.links)
+      const firm = menuFor(KIND[party], false, { worker: true, hat: 'firm' })
+      expect(printed(firm)).toEqual(documented.get(party)!.links)
       const own = getNavForKind(KIND[party], false, { worker: true, hat: 'you' })
       expect(own.map((s) => s.label)).toEqual(['Ask Etyme', 'You'])
     })
   }
 
   it('a one-person firm reads her own pages inside her seven from her first day, with no "You" appended', () => {
-    expect(entriesOf(getNavForKind('CONSULTANT_CORP', false))).toEqual(documented.get('One-person firm')!.links)
-    expect(entriesOf(getNavForKind('CONSULTANT_CORP', false, { worker: true }))).toEqual(documented.get('One-person firm')!.links)
+    expect(printed(menuFor('CONSULTANT_CORP', false))).toEqual(documented.get('One-person firm')!.links)
+    expect(printed(menuFor('CONSULTANT_CORP', false, { worker: true }))).toEqual(documented.get('One-person firm')!.links)
     const hrefs = getNavForKind('CONSULTANT_CORP', false).flatMap((s) => s.items.map((i) => i.href))
     for (const own of ['/dashboard/my-work', '/dashboard/my-page', '/dashboard/my-benches', '/dashboard/my-data', '/dashboard/my-work/paperwork']) {
       expect(hrefs, own).toContain(own)
@@ -447,7 +458,7 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
   })
 
   it('changes nothing for somebody whose seat already is the consultant seat', () => {
-    expect(entriesOf(getNavForKind(null, true, { worker: true })))
+    expect(printed(menuFor(null, true, { worker: true })))
       .toEqual(documented.get('Worker')!.links)
   })
 })
@@ -995,8 +1006,9 @@ describe('a menu offers only what this seat can actually open', () => {
 
   it('a worker who is also staff is offered a way to their own pages from the top of the menu', () => {
     const src = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
-    expect(src).toContain('Your own pages \u2193')
-    expect(src).toContain('data-section={section.label}')
+    expect(src).toMatch(/Your own pages (\u2193|↓)/)
+    expect(src).toContain("groups.findIndex((g) => g.heading === 'You') > 0")
+    expect(src).toContain('data-section={group.heading ?? group.links[0]?.label}')
   })
 
   it('the firm\u2019s scorecard reads as the firm\u2019s on a worker\u2019s menu, never as his own, and a worker with no desk is not shown it', () => {
@@ -1377,8 +1389,11 @@ describe('Ask Etyme is the first link on every menu, and Conversations is inside
     expect(activeHref(menu, ASK_ETYME_HREF, none, '/dashboard/program')).toBe(ASK_ETYME_HREF)
     const onThreads = activeHref(menu, '/dashboard/conversations', none, '/dashboard/program')
     expect(menu[0].items.map((i) => i.href)).toContain(onThreads)
+    // The switch's Ask Etyme half is lit on both (lib/nav-table, `viewOf`).
+    expect(viewOf(ASK_ETYME_HREF)).toBe('ask')
+    expect(viewOf('/dashboard/conversations')).toBe('ask')
     const sidebar = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
-    expect(sidebar).toContain('const active = section.items.some((i) => i.href === current)')
+    expect(sidebar).toContain('const active = link.covers.some((i) => i.href === current)')
   })
 
   it('carries the Etyme mark as its icon, not an emoji', () => {
@@ -1463,27 +1478,28 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(mark.match(/fetch\(/g)?.length).toBe(1)
   })
 
-  it('the bell and the flip are gone from the header, and on a phone Ask Etyme stands there carrying the number', () => {
+  it('the bell, the flip and the header’s Ask Etyme link are gone, and the switch carries the number', () => {
     const header = shell('header.tsx')
     expect(header).not.toContain('NotificationBell')
     expect(existsSync(join(process.cwd(), 'src/components/notification-bell.tsx'))).toBe(false)
     expect(header).not.toContain('AskEtymeFlip')
     expect(shell('ask-etyme-mark.tsx')).not.toContain('AskEtymeFlip')
-    expect(header).toContain('<AskEtymeLink n={owed}')
-    expect(shell('ask-etyme-mark.tsx')).toContain('href={ASK_ETYME_HREF as any}')
+    expect(header).not.toContain('AskEtymeLink')
+    expect(header).toContain('<ViewSwitch dashboardHref={dashboardTab} owed={owed} roomy />')
+    expect(shell('view-switch.tsx')).toContain('href={ASK_ETYME_HREF as any}')
   })
 
-  it('the header draws Ask Etyme only for a seat whose menu has it, and reads the number only for it', () => {
+  it('the header draws the switch only for a seat whose menu has Ask Etyme, and reads the number only for it', () => {
     const header = shell('header.tsx')
-    expect(header).toMatch(/const asks = pinnedOn\(getNavForKind\(/)
+    expect(header).toMatch(/const asks = !session\.loading && pinnedOn\(getNavForKind\(/)
     expect(header).toContain('const owed = useOwedCount(asks)')
-    expect(header).toContain('{asks && <AskEtymeLink')
+    expect(header).toContain('{asks && (')
   })
 
-  it('the Ask Etyme link in the sidebar carries the same number from the same read', () => {
+  it('the switch at the top of the rail carries the same number from the same read', () => {
     const sidebar = shell('sidebar.tsx')
     expect(sidebar).toContain('const owed = useOwedCount(asks)')
-    expect(sidebar).toContain('<OwedBadge n={owed}')
+    expect(sidebar).toContain('<ViewSwitch dashboardHref={dashboardTab} owed={owed} />')
   })
 
   it('no face of the header opens the dashboard any more: no four squares, no Dashboard label, and no Switch to dashboard', () => {
@@ -1638,5 +1654,125 @@ describe('the money follows the founder’s process order, and a bench vendor is
     expect(buy.map((i) => i.label)).toEqual(['Buy contracts'])
     const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8')
     expect(schema).toMatch(/enum ContractType \{[^}]*\bW2\b[^}]*\bC2C\b/)
+  })
+})
+
+describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column (founder, 2026-11-08)', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+  const linksAt = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT', permissions?: string[]) =>
+    menuLinks(menuFor(kind, false, permissions ? { permissions } : {}))
+
+  it('a supplier’s Dashboard column reads Today, Network over Candidates and Companies, Jobs, Submissions, HR over Contracts, Timesheets and Expenses, Money over Bills, Invoice receipts and Payroll, then Profitability and Settings', () => {
+    const groups = menuFor('VENDOR', false)
+    expect(groups.map((g) => [g.heading, g.links.map((l) => l.label)])).toEqual([
+      [null, ['Today']],
+      ['Network', ['Candidates', 'Companies']],
+      [null, ['Jobs']],
+      [null, ['Submissions']],
+      ['HR', ['Contracts', 'Timesheets', 'Expenses']],
+      ['Money', ['Bills', 'Invoice receipts', 'Payroll']],
+      [null, ['Profitability']],
+      [null, ['Settings']],
+    ])
+  })
+
+  it('a group is a heading and never a link, on every firm’s column', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const labels = linksAt(kind).map((l) => l.label)
+      for (const heading of ['Network', 'HR', 'Money']) expect(labels, `${kind} ${heading}`).not.toContain(heading)
+    }
+  })
+
+  it('Ask Etyme is not on the Dashboard column for anybody, because the switch above it is Ask Etyme', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      const hrefs = menuLinks(menuFor(kind, false)).flatMap((l) => l.covers.map((i) => i.href))
+      expect(hrefs, kind).not.toContain(ASK_ETYME_HREF)
+      expect(hrefs, kind).not.toContain('/dashboard/conversations')
+    }
+    expect(menuLinks(menuFor(null, true)).map((l) => l.href)).not.toContain(ASK_ETYME_HREF)
+  })
+
+  it('a link is drawn only where the role may open one of its pages: a seat that reads invoices and nothing of payroll or margin sees no Payroll and no Profitability', () => {
+    const labels = linksAt('VENDOR', ['invoices.read']).map((l) => l.label)
+    expect(labels).toContain('Bills')
+    expect(labels).not.toContain('Payroll')
+    expect(labels).not.toContain('Profitability')
+    expect(linksAt('VENDOR', ['*']).map((l) => l.label)).toContain('Profitability')
+  })
+
+  it('the finance seat that reads bench profit and no people opens Candidates on Bench, the first of its pages it may open', () => {
+    const candidates = linksAt('VENDOR', ['pnl.read', 'invoices.read']).find((l) => l.label === 'Candidates')!
+    expect(candidates.href).toBe('/dashboard/bench')
+  })
+
+  it('Expenses and Profitability are links of their own and still tabs of Timesheets and Today, so no page lost its tab row', () => {
+    const nav = getNavForKind('VENDOR', false)
+    const links = menuLinks(menuOf(nav, true))
+    expect(links.find((l) => l.label === 'Expenses')!.covers.map((i) => i.href)).toEqual(['/dashboard/expenses'])
+    expect(links.find((l) => l.label === 'Profitability')!.covers.map((i) => i.href)).toEqual(['/dashboard/profitability'])
+    expect(links.find((l) => l.label === 'Timesheets')!.covers.map((i) => i.href)).not.toContain('/dashboard/expenses')
+    expect(tabsFor(nav, '/dashboard/expenses')!.label).toBe('Timesheets')
+    expect(tabsFor(nav, '/dashboard/profitability')!.label).toBe('Today')
+  })
+
+  it('every page a firm’s menu named before is still reached from one link on the column, once', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const nav = getNavForKind(kind, false)
+      const before = nav.flatMap((s) => s.items).filter((i) => i.href !== ASK_ETYME_HREF && i.href !== '/dashboard/conversations').map((i) => i.href)
+      const after = menuLinks(menuFor(kind, false)).flatMap((l) => l.covers.map((i) => i.href))
+      expect([...after].sort(), kind).toEqual([...before].sort())
+    }
+  })
+
+  it('a one-person firm and a worker read their own links with no firm headings', () => {
+    expect(menuFor('CONSULTANT_CORP', false).every((g) => g.heading === null)).toBe(true)
+    expect(menuFor(null, true).map((g) => g.heading)).toEqual(['You'])
+  })
+
+  it('Ask Etyme and its conversations are the Ask Etyme view, and every other page is the Dashboard view', () => {
+    expect(viewOf(ASK_ETYME_HREF)).toBe('ask')
+    expect(viewOf('/dashboard/conversations')).toBe('ask')
+    expect(viewOf('/dashboard/conversations/abc')).toBe('ask')
+    expect(viewOf('/dashboard')).toBe('dashboard')
+    expect(viewOf('/dashboard/conversationsx')).toBe('dashboard')
+    expect(viewOf(null)).toBe('dashboard')
+  })
+
+  it('an AP clerk, AP & Payroll and a coordinator open on Dashboard, everybody else on Ask Etyme, and a person’s own last choice beats both', () => {
+    expect(firstTabFor('AP Clerk', null)).toBe('dashboard')
+    expect(firstTabFor('AP & Payroll', null)).toBe('dashboard')
+    expect(firstTabFor('Coordinator', null)).toBe('dashboard')
+    expect(firstTabFor('Hiring Manager', null)).toBe('ask')
+    expect(firstTabFor('Owner', null)).toBe('ask')
+    expect(firstTabFor(null, null)).toBe('ask')
+    expect(firstTabFor('AP Clerk', 'ask')).toBe('ask')
+    expect(firstTabFor('Owner', 'dashboard')).toBe('dashboard')
+  })
+
+  it('the last tab is kept per person on the device, and anything stored that is not one of the two tabs is read as no choice', () => {
+    expect(tabKey('p1')).not.toBe(tabKey('p2'))
+    expect(readTab('ask')).toBe('ask')
+    expect(readTab('dashboard')).toBe('dashboard')
+    expect(readTab('chat')).toBeNull()
+    expect(readTab(null)).toBeNull()
+  })
+
+  it('a browser that refuses storage still opens the app: every read and write of the remembered tab is inside try and catch', () => {
+    const sw = read('src/components/shell/view-switch.tsx')
+    expect(sw).toContain('try { return get() } catch { return null }')
+    const touches = sw.split('\n').filter((l) => /Storage\./.test(l))
+    expect(touches.length).toBeGreaterThan(0)
+    for (const line of touches) expect(line).toContain('stored(() =>')
+  })
+
+  it('the switch sits at the top of the rail in both views, and in Ask Etyme the column holds the three places the Ask Etyme page fills', () => {
+    const sidebar = read('src/components/shell/sidebar.tsx')
+    expect(sidebar.indexOf('<ViewSwitch')).toBeLessThan(sidebar.indexOf('<nav ref={navRef}'))
+    expect(sidebar).toContain('<RailSlotOutlet name="top" />')
+    expect(sidebar).toContain('<RailSlotOutlet name="pinned" heading="Pinned" />')
+    expect(sidebar).toContain('<RailSlotOutlet name="conversations" heading="Conversations" />')
+    const slots = read('src/components/shell/rail-slots.tsx')
+    expect(slots).toContain('createPortal(children, target)')
+    expect(slots).toContain('{heading && filled &&')
   })
 })

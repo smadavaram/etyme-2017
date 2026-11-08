@@ -10,16 +10,17 @@
  *
  * ── On a phone ────────────────────────────────────────────────────────
  *
- * No words in the header (founder, 2026-10-13, the phone header cut), and
- * no flip (founder, 2026-10-19, "Nine links, no flip"). Below md the bar
- * is three icons, each in the same 36px box, on every page:
+ * No words in the header (founder, 2026-10-13, the phone header cut). Below
+ * md the bar is two icons, each in the same 36px box, on every page:
  *
- *   the logo · Ask Etyme with its number · ☰
+ *   the logo · ☰
  *
- * The logo is the logo and goes home. Ask Etyme opens the chat and
- * carries the number of what this seat owes off its corner, so it adds
- * no width. The ☰ opens the nine. What used to crowd the bar went where
- * it is used:
+ * and under the bar, its first row, the Ask Etyme | Dashboard switch with
+ * the number this seat owes on the Ask Etyme half (founder, 2026-11-08,
+ * "One app, two tabs"). The switch replaces the header's Ask Etyme link
+ * and every flip before it. The logo is the logo and goes home. The ☰
+ * opens the left column: the conversations in Ask Etyme, the role's menu
+ * in Dashboard. What used to crowd the bar went where it is used:
  *
  * - Company and role, and the demo chip: the menu drawer says who you are
  *   (the company at its foot, the person and their role in the account
@@ -32,22 +33,23 @@
  *   menu drawer (components/shell/mobile-nav).
  *
  * This bar was once wider than the screen it sat on, which made every
- * phone page scroll sideways. Three icons cannot be.
+ * phone page scroll sideways. Two icons cannot be.
  *
- * From md up the logo is the rail's and the bar is search, + New and the
- * account menu. Ask Etyme and its number are the sidebar's first entry,
- * so the bar draws no second door to it.
+ * From md up the logo is the rail's and the bar is the company and role,
+ * search, + New and the account menu with the hats. The switch is at the
+ * top of the rail, so the bar draws no second door to Ask Etyme.
  */
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import { AskEtymeLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { ViewSwitch, useRememberedTab } from '@/components/shell/view-switch'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen, pinnedOn, offersYouHat, ASK_ETYME_HREF, type Hat } from '@/lib/nav-table'
+import { getNavForKind, mayOpen, pinnedOn, offersYouHat, menuFor, menuLinks, type Hat } from '@/lib/nav-table'
 import { HatList } from '@/components/shell/hat-list'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
@@ -439,17 +441,20 @@ export function Header({ title }: HeaderProps) {
     permissions: desk.permissions,
   }).href
 
-  // Ask Etyme stands where the bell was (CLAUDE.md, "Notifications are
-  // deleted; Ask Etyme carries the number"), on a phone, for the seats
-  // whose menu has it — the sidebar's own rule, so the header never
-  // offers a door the menu does not. Its number is the one owed count,
-  // read once a minute for the whole shell.
-  const pathname = usePathname()
-  const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
+  // Ask Etyme | Dashboard (founder, 2026-11-08, "One app, two tabs"):
+  // the switch is at the top of the left column, and on a phone it is
+  // the first row under this bar. The header's own Ask Etyme link is
+  // gone. Drawn for the seats whose menu has Ask Etyme — the sidebar's
+  // own rule — with the one owed count, read once a minute for the shell.
+  const seatFacts = {
     worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
-  })).length > 0
+  }
+  const asks = !session.loading && pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, seatFacts)).length > 0
   const owed = useOwedCount(asks)
-  const onAskEtyme = pathname === ASK_ETYME_HREF || Boolean(pathname?.startsWith(ASK_ETYME_HREF + '/'))
+  // The Dashboard tab opens the first link of this seat's own menu.
+  const dashboardTab = menuLinks(menuFor(desk.companyKind, desk.isConsultant, { ...seatFacts, termsHref: session.termsHref ?? null }))[0]?.href ?? home
+  // The last tab, kept per person on this device; the first tab once a browser session.
+  useRememberedTab(dashboardTab, asks)
 
   // Close the account menu on an outside click, the same way the plus menu
   // does. A menu that stays open while you click elsewhere feels stuck.
@@ -792,12 +797,18 @@ export function Header({ title }: HeaderProps) {
           )}
         </div>
 
-        {/* Ask Etyme with its number, then ☰ — the nine — below md, on
-            every page, Ask Etyme included. Both render nothing from md
-            up, where the rail carries them. */}
-        {asks && <AskEtymeLink n={owed} here={onAskEtyme} />}
+        {/* ☰ — the column — below md, on every page, Ask Etyme
+            included. Nothing from md up, where the rail is the column. */}
         <MobileNav />
       </div>
+
+      {/* Ask Etyme | Dashboard, the first row under the bar on a phone.
+          From md up it is at the top of the rail. */}
+      {asks && (
+        <div className="md:hidden px-4 pb-2">
+          <ViewSwitch dashboardHref={dashboardTab} owed={owed} roomy />
+        </div>
+      )}
     </header>
   )
 }

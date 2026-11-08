@@ -281,8 +281,11 @@ describe('the shell', () => {
 
   it('the active page on the menu is marked by a fill, a bar and aria-current, never by color alone', () => {
     const out = html(h(Sidebar, client))
-    const link = out.match(/<a[^>]*aria-current="page"[^>]*>[\s\S]*?<\/a>/)
+    // The menu's own link, not the Ask Etyme | Dashboard switch above it,
+    // whose tab is marked by a raised fill (2026-11-08).
+    const link = out.match(/<a[^>]*data-current="true"[^>]*>[\s\S]*?<\/a>/)
     expect(link, 'no link on the menu is marked as the page being read').not.toBeNull()
+    expect(link![0]).toContain('aria-current="page"')
     expect(link![0]).toContain('bg-etyme-action-wash')
     expect(link![0]).toMatch(/absolute left-0[^"]*w-\[2px\]/)
   })

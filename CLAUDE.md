@@ -1552,6 +1552,19 @@ header flip of 2026-11-04 and keeps everything else in "One app, two views".
   (architect, `lib/nav-table`, the shell); Pinned questions and the chat's
   rail and Today's decision rows (conversation, with demand and money for
   the rows); Profitability's page (money). Then a release pass and a walk.
+- **Built, piece 1, 2026-11-08 (architect).** The switch at the top of the
+  rail and, on a phone, as the first row under the header; the header's
+  Ask Etyme link gone. In Ask Etyme the column draws three slots the Ask
+  Etyme page fills (`RailSlot` in `components/shell/rail-slots`: `top` for
+  New conversation and search, `pinned`, `conversations`), each heading
+  shown only while filled; until conversation fills them the column under
+  the switch is empty and the page's own list stays where it is. In
+  Dashboard the column is `menuFor` in `lib/nav-table`, cut from the same
+  sections, so tabs, eyebrows and addresses did not move: Expenses and
+  Profitability are links of their own and still tabs of Timesheets and
+  Today. The last tab is kept per person on the device; the first time a
+  browser opens the app for a person, an AP clerk, AP & Payroll or a
+  coordinator who landed in Ask Etyme is taken to Dashboard, once.
 
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
@@ -4932,27 +4945,37 @@ attention. What changes is density and voice.
 
 ### Navigation per company type
 
-Eleven links at a supplier, an integrator or a bench vendor, ten at an
-MSP and nine at a client, in the founder's process order with Network
-first, and a process step is a tab (founder, 2026-10-19 for the tabs;
-2026-11-03 for the words; 2026-11-04 for Network, the Paperwork tab and
-the order: see "Master data sits under Network", "Paperwork is a tab of
-Contracts", "The process order, in the founder's words" and "Network
-sits above Jobs"). A menu entry is a noun on the person's own work;
-every other page is a tab inside one of them. Submissions is who was
-put forward to a job, Contracts is the line from the award on, and
+**Since 2026-11-08 ("One app, two tabs"), the top of the left column is
+one switch, Ask Etyme | Dashboard, with the seat's number on Ask Etyme.**
+In Ask Etyme the column holds New conversation, search, Pinned and the
+conversations; in Dashboard it holds the role's menu, below. A firm's
+menu reads the founder's sketch: Today · Network (Candidates, Companies)
+· Jobs · Submissions · HR (Contracts, Timesheets, Expenses) · Money
+(Bills, Invoice receipts, Payroll) · Profitability · Settings. A group
+is a heading and never a link, and a link is drawn only where the role
+may open one of its pages. Ask Etyme is not on the menu: the switch is
+Ask Etyme. In the table, "Network: Candidates, Companies" is the heading
+Network over two links.
+
+The tabs behind each link have not moved (founder, 2026-10-19 for the
+tabs; 2026-11-03 for the words; 2026-11-04 for Network, the Paperwork
+tab and the order: see "Master data sits under Network", "Paperwork is
+a tab of Contracts", "The process order, in the founder's words" and
+"Network sits above Jobs"). A menu entry is a noun on the person's own
+work; every other page is a tab inside one of them. Submissions is who
+was put forward to a job, Contracts is the line from the award on, and
 Network holds the two lists a firm keeps: Candidates, the people it
 keeps, and the firms it trades with (Companies, or a client's
 Suppliers).
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Invoice receipts · Settings | Conversations → Ask Etyme. By region → Today. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Candidates, Suppliers, Contacts, Agreements, Supplier scorecards → Network. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites → Settings. |
-| Supplier | Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Bills · Invoice receipts · Payroll · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Expenses, Rolloff → Timesheets. AR → Bills. AP → Invoice receipts. Commissions → Payroll. Candidates, Bench, Bench pay, Bench check-ins, Training, Companies, Suppliers, Contacts → Network. Users & permissions, Setup, Sites, Import, Integrations, Automation, DNR list, Data requests, Your data → Settings. |
-| Integrator | Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Bills · Invoice receipts · Payroll · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
-| MSP | Ask Etyme · Today · Network · Jobs · Submissions · Contracts · Timesheets · Bills · Invoice receipts · Settings | The supplier's, with no Candidates under Network, no Payroll link and no Our scorecard: an MSP places nobody and pays nobody. AR → Bills. AP → Invoice receipts. Companies, Suppliers, Supplier scorecards, Contacts → Network. |
-| One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
-| Worker | Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
+| Client | Today · Network: Candidates, Suppliers · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Money: Invoice receipts · Settings | Conversations → Ask Etyme. By region → Today. Contacts, Agreements, Supplier scorecards → Suppliers. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. AP, Budget, POs → Invoice receipts. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites → Settings. |
+| Supplier | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Money: Bills, Invoice receipts, Payroll · Profitability · Settings | Conversations → Ask Etyme. Reports, Rate history, Our scorecard → Today. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts → Companies. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Rolloff → Timesheets. AR → Bills. AP → Invoice receipts. Commissions → Payroll. Users & permissions, Setup, Sites, Import, Integrations, Automation, DNR list, Data requests, Your data → Settings. |
+| Integrator | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Money: Bills, Invoice receipts, Payroll · Profitability · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
+| MSP | Today · Network: Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Money: Bills, Invoice receipts · Profitability · Settings | The supplier's, with no Candidates under Network, no Payroll link and no Our scorecard: an MSP places nobody and pays nobody. AR → Bills. AP → Invoice receipts. Suppliers, Supplier scorecards, Contacts → Companies. |
+| One-person firm | Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
+| Worker | You: Your work, Your page, Who has you, Your data, Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
 
 Each link opens the first of its pages the reader may open, and on any
 of them the shell draws the tab row under the page header, the noun's
@@ -4966,8 +4989,9 @@ Document requests · …"), the group's name being the link to its own
 register where one is named after it, so Bench, Contacts or Document
 requests is one click from the link. Settings keeps Papers you require
 (the setup checklist's item), the DNR list and the automation ladder.
-The menu never prints a group, and the eyebrow over a page reads the
-link it is a tab of. The money is three links in the founder's order:
+The tab row's groups are not the menu's headings: the eyebrow over a
+page still reads the noun it is a tab of (Network over Bench, Timesheets
+over Expenses, Today over Profitability), because the tabs did not move. The money is three links in the founder's order:
 Bills (what the firm issues upward, with AR, where payments in are
 recorded), Invoice receipts (what it receives from below: AP, where
 payments out are recorded; there is no separate payments page, so each
@@ -4976,6 +5000,7 @@ with Commissions). Nothing on a menu is hidden by a firm's posture: a
 bench vendor reads the supplier's whole menu. Sites stay under
 Settings; the worker's "You" is the one list.
 `__tests__/invariants/sidebar-nav.test.ts` reads this table — the links
+and headings the Dashboard column prints (`menuFor` in lib/nav-table)
 and every page named in the third column — and fails when the code and
 it disagree, so a link renamed in one and not the other breaks the
 build rather than the founder's walk.
