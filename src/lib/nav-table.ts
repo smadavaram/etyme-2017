@@ -1040,7 +1040,11 @@ export function hatOf(kind: CompanyKind | null | undefined, isConsultant: boolea
  *
  *   Today · Network (Candidates, Companies) · Jobs · Submissions ·
  *   HR (Contracts, Timesheets, Expenses) · Accounting (Receivables,
- *   Payables, Payroll, Reports) · Profitability · Settings
+ *   Payables, Payroll, Reports) · Settings
+ *
+ * Reports is cash flow and profitability, nothing else (founder,
+ * 2026-11-08): Profitability is a page of the Reports link, at its own
+ * address, and is no link of its own.
  *
  * A group is a heading and never a link. Each link is drawn only where
  * the seat may open one of its pages, because the sections it is cut
@@ -1089,6 +1093,15 @@ const LINK_LABEL_OF: Readonly<Record<string, string>> = {
 const ACCOUNTING = 'Accounting'
 const PROFITABILITY_HREF = '/dashboard/profitability'
 const REPORTS_HREF = '/dashboard/reports'
+/**
+ * The pages whose reader Reports is for (founder, 2026-11-08: "Reports
+ * is nothing but cashflow and profitability margin analysis tools"): its
+ * cash flow is drawn from the Receivables and Payables readers and its
+ * other tab is Profitability, so the link is offered only where the seat
+ * may open one of them. A recruiter who reads none of the money is not
+ * offered a page of nothing but money.
+ */
+const REPORTS_READERS: readonly string[] = ['/dashboard/ar', '/dashboard/ap', PROFITABILITY_HREF]
 const EXPENSES_HREF = '/dashboard/expenses'
 
 function linkOf(label: string, covers: NavItem[]): MenuLink | null {
@@ -1113,8 +1126,9 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
     if (last && last.heading === heading && heading !== null) last.links.push(link)
     else out.push({ heading, links: [link] })
   }
-  let profitability: MenuLink | null = null
-  // Reports leaves Today for Accounting, after its ledgers and Payroll.
+  // Reports leaves Today for Accounting, after its ledgers and Payroll,
+  // with Profitability as its second page.
+  const readsMoney = sections.some((s) => s.items.some((i) => REPORTS_READERS.includes(i.href)))
   let reports: MenuLink | null = null
   const settle = () => {
     if (reports) {
@@ -1122,10 +1136,6 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
       if (accounting) accounting.links.push(reports)
       else out.push({ heading: ACCOUNTING, links: [reports] })
       reports = null
-    }
-    if (profitability) {
-      push(null, profitability)
-      profitability = null
     }
   }
   for (const s of sections) {
@@ -1144,8 +1154,12 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
     if (s.label === 'Today') {
       const rest = s.items.filter((i) => i.href !== PROFITABILITY_HREF && i.href !== REPORTS_HREF)
       push(null, linkOf('Today', rest))
-      profitability = linkOf('Profitability', s.items.filter((i) => i.href === PROFITABILITY_HREF))
-      reports = linkOf('Reports', s.items.filter((i) => i.href === REPORTS_HREF))
+      reports = readsMoney
+        ? linkOf('Reports', [
+            ...s.items.filter((i) => i.href === REPORTS_HREF),
+            ...s.items.filter((i) => i.href === PROFITABILITY_HREF),
+          ])
+        : null
       continue
     }
     if (s.label === 'Network') {

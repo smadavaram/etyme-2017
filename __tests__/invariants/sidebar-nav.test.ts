@@ -1662,7 +1662,7 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
   const linksAt = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT', permissions?: string[]) =>
     menuLinks(menuFor(kind, false, permissions ? { permissions } : {}))
 
-  it('a supplier’s Dashboard column reads Today, Network over Candidates and Companies, Jobs, Submissions, HR over Contracts, Timesheets and Expenses, Accounting over Receivables, Payables, Payroll and Reports, then Profitability and Settings', () => {
+  it('a supplier’s Dashboard column reads Today, Network over Candidates and Companies, Jobs, Submissions, HR over Contracts, Timesheets and Expenses, Accounting over Receivables, Payables, Payroll and Reports, then Settings', () => {
     const groups = menuFor('VENDOR', false)
     expect(groups.map((g) => [g.heading, g.links.map((l) => l.label)])).toEqual([
       [null, ['Today']],
@@ -1671,7 +1671,6 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
       [null, ['Submissions']],
       ['HR', ['Contracts', 'Timesheets', 'Expenses']],
       ['Accounting', ['Receivables', 'Payables', 'Payroll', 'Reports']],
-      [null, ['Profitability']],
       [null, ['Settings']],
     ])
   })
@@ -1692,12 +1691,13 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(menuLinks(menuFor(null, true)).map((l) => l.href)).not.toContain(ASK_ETYME_HREF)
   })
 
-  it('a link is drawn only where the role may open one of its pages: a seat that reads invoices and nothing of payroll or margin sees no Payroll and no Profitability', () => {
-    const labels = linksAt('VENDOR', ['invoices.read']).map((l) => l.label)
+  it('a link is drawn only where the role may open one of its pages: a seat that reads invoices and nothing of payroll or margin sees no Payroll, and its Reports holds no Profitability', () => {
+    const links = linksAt('VENDOR', ['invoices.read'])
+    const labels = links.map((l) => l.label)
     expect(labels).toContain('Receivables')
     expect(labels).not.toContain('Payroll')
-    expect(labels).not.toContain('Profitability')
-    expect(linksAt('VENDOR', ['*']).map((l) => l.label)).toContain('Profitability')
+    expect(links.find((l) => l.label === 'Reports')!.covers.map((i) => i.href)).toEqual(['/dashboard/reports'])
+    expect(linksAt('VENDOR', ['*']).find((l) => l.label === 'Reports')!.covers.map((i) => i.href)).toContain('/dashboard/profitability')
   })
 
   it('the finance seat that reads bench profit and no people opens Candidates on Bench, the first of its pages it may open', () => {
@@ -1705,11 +1705,11 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(candidates.href).toBe('/dashboard/bench')
   })
 
-  it('Expenses and Profitability are links of their own and still tabs of Timesheets and Today, so no page lost its tab row', () => {
+  it('Expenses is a link of its own and Profitability a page of Reports, and both are still tabs of Timesheets and Today, so no page lost its tab row', () => {
     const nav = getNavForKind('VENDOR', false)
     const links = menuLinks(menuOf(nav, true))
     expect(links.find((l) => l.label === 'Expenses')!.covers.map((i) => i.href)).toEqual(['/dashboard/expenses'])
-    expect(links.find((l) => l.label === 'Profitability')!.covers.map((i) => i.href)).toEqual(['/dashboard/profitability'])
+    expect(links.find((l) => l.label === 'Reports')!.covers.map((i) => i.href)).toEqual(['/dashboard/reports', '/dashboard/profitability'])
     expect(links.find((l) => l.label === 'Timesheets')!.covers.map((i) => i.href)).not.toContain('/dashboard/expenses')
     expect(tabsFor(nav, '/dashboard/expenses')!.label).toBe('Timesheets')
     expect(tabsFor(nav, '/dashboard/profitability')!.label).toBe('Today')
@@ -1754,9 +1754,21 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(getNavForKind('CLIENT', false).flatMap((s) => s.items).map((i) => i.href)).not.toContain('/dashboard/reports')
   })
 
-  it('Profitability stays a link of its own, after Accounting and before Settings', () => {
-    const labels = menuFor('VENDOR', false).map((g) => g.heading ?? g.links[0].label)
-    expect(labels.slice(-3)).toEqual(['Accounting', 'Profitability', 'Settings'])
+  it('Reports is cash flow and profitability, so Profitability is no link of its own: its page is reached under Reports, at the address it always had', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+      const groups = menuFor(kind, false)
+      expect(menuLinks(groups).map((l) => l.label), kind).not.toContain('Profitability')
+      expect(groups.map((g) => g.heading ?? g.links[0].label).slice(-2), kind).toEqual(['Accounting', 'Settings'])
+      const reports = groups.find((g) => g.heading === 'Accounting')!.links.find((l) => l.label === 'Reports')!
+      expect(reports.href, kind).toBe('/dashboard/reports')
+      expect(reports.covers.map((i) => i.href), kind).toContain('/dashboard/profitability')
+    }
+  })
+
+  it('Reports is offered only where the seat may open Receivables\u2019 AR, Payables or Profitability, so a recruiter is not offered a page of nothing but money', () => {
+    expect(linksAt('VENDOR', ['requirements.read', 'submissions.create']).map((l) => l.label)).not.toContain('Reports')
+    expect(linksAt('VENDOR', ['invoices.read']).map((l) => l.label)).toContain('Reports')
+    expect(linksAt('VENDOR', ['margin.read']).map((l) => l.label)).toContain('Reports')
   })
 
   it('a one-person firm keeps Bills, because her short menu has no Accounting heading', () => {

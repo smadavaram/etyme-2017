@@ -1254,11 +1254,11 @@ describe('Money is Accounting: a page is headed by the Accounting link the reade
     }
   })
 
-  it('payroll and commissions are headed Payroll, reports Reports, profitability Profitability and expenses Expenses', () => {
+  it('payroll and commissions are headed Payroll, reports and profitability Reports, and expenses Expenses', () => {
     expect(sectionOfHref('VENDOR', '/dashboard/payroll')).toBe('Payroll')
     expect(sectionOfHref('VENDOR', '/dashboard/payroll/commissions')).toBe('Payroll')
     expect(sectionOfHref('VENDOR', '/dashboard/reports')).toBe('Reports')
-    expect(sectionOfHref('VENDOR', '/dashboard/profitability')).toBe('Profitability')
+    expect(sectionOfHref('VENDOR', '/dashboard/profitability')).toBe('Reports')
     expect(sectionOfHref('VENDOR', '/dashboard/expenses')).toBe('Expenses')
   })
 

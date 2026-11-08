@@ -145,7 +145,7 @@ export const SCALE_SLUG_PREFIX = 'world-sx-'
 export const SCALE_KEY_PREFIX = 'sx/'
 
 /** The version stamped on every generated step's marker; bump it to re-walk them all. */
-export const SCALE_VERSION = 1
+export const SCALE_VERSION = 2
 
 // ── The vocabulary ────────────────────────────────────────────────────
 

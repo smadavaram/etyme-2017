@@ -110,8 +110,8 @@ describe('where a page is, in the words of the Dashboard column (founder, 2026-1
     expect(where('Where are my reports?', SUPPLIER).says).toBe('Reports are under Accounting, Reports.')
   })
 
-  it('a supplier asks where profitability is and is told it is its own link', () => {
-    expect(where('Where is profitability?', SUPPLIER).says).toBe('Profitability is its own link in the left column.')
+  it('a supplier asks where profitability is and is told it is under Accounting, Reports, now that Reports is cash flow and profitability', () => {
+    expect(where('Where is profitability?', SUPPLIER).says).toBe('Profitability is under Accounting, Reports, on the Profitability tab.')
   })
 
   it('anybody asking where Ask Etyme is is told it is the switch at the top of the left column, not a menu link', () => {
