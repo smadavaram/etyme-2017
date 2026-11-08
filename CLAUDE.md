@@ -1912,6 +1912,29 @@ over a bank hold (demand); Document requests' "At your suppliers" and
 three money faults first; the fix deploy follows their green files and
 a short re-walk of items 5, 6 and 11.
 
+**Shipped to production 2026-11-08, evening (a4b67b905 on the deploy
+branch, source fda026207).** Money (aed73debf, 8d97d8316, f62a350fa):
+Bills opens again, the duplicate-drafts read dating a draft by its
+first line because a bill has no created stamp, with the select typed
+against the client so a missing column fails the type check and an
+integration test on the real database; a typed-in invoice receipt is
+paid through one gate with the bank check (`keyedPayGateNow`), read by
+the route and the screen, the hold naming who checks and the checker
+checking from the receipt. Architect (fda026207): the twin's nightly
+run decides on `receiptFlag`, so a bank hold reads "held: the bank
+details are not checked" and its line closes once the receipt is paid.
+Coordinator (aa88ea5fe): the bank check's facts stack on a phone.
+Release pass 44 fully green: type check, 14,067 unit, 2,652
+integration, build. The re-walk on that build proved all three on
+screens and in the rows (Rosa's later draft withdrawn with a reason;
+AP & Payroll refused Consultis' receipt until Rosalind Tay checked the
+bank, then paid $4,160; PR-2026-0441 told as held and gone after
+payment). Smoke: health "Serving a4b67b90" with the database ready;
+every public page and `/site/tapin` 200; the inbound email door 404 to
+a POST. Still open: the pay card says Pay over a bank hold (demand);
+Document requests' two counts (regulatory); notices written with the
+old mismatch title keep it until paid (conversation).
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
