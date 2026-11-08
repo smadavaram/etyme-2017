@@ -772,7 +772,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
 
   it('a client’s Owner asks “Where are payments in?” and is told no page of hers shows them, because a client bills nobody', async () => {
     const a = await where('CLIENT_OWNER', 'Where are payments in?')
-    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payments in. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables, Reports and Settings.' })
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payments in. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables and Settings.' })
   })
 
   it('a supplier’s Owner asks “Where do I run payroll?” and reads Payroll under Accounting', async () => {
@@ -785,7 +785,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
 
   it('a client’s Owner asks “Where do I run payroll?” and is told no page of hers shows it', async () => {
     const a = await where('CLIENT_OWNER', 'Where do I run payroll?')
-    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables, Reports and Settings.' })
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables and Settings.' })
   })
 
   it('take me there after such an answer opens the page', async () => {
@@ -809,7 +809,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
   it('a page the seat may not open is never offered', async () => {
     // A hiring manager has no Settings page of the firm's and no payroll.
     const payroll = await where('HIRING_MANAGER', 'Where do I run payroll?')
-    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Payables, Reports and Settings.' })
+    expect(payroll).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Payables and Settings.' })
     // "Take me there" toward a page off the seat's menu opens nothing.
     expect(await where('HIRING_MANAGER', 'take me there', '/dashboard/payroll')).toEqual({ kind: 'TEXT', says: 'Ask me where a page is first, for example “Where are my contracts?”, and I will open it.' })
     // Every page offered to any of the four is on that seat's own filtered menu.
