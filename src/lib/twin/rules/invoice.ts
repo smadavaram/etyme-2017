@@ -145,6 +145,13 @@ export interface InvoiceVerdict {
    * tolerance is not a payment; this is the payment gate's own answer.
    */
   payable: boolean
+  /**
+   * What holds a receipt the check passed, where it is not the check:
+   * `BANK` where the supplier's bank details are not checked
+   * (`withBankHold`). Absent or null otherwise. A bank hold is never a
+   * mismatch, and is never said as one (walk 7, 2026-11-08).
+   */
+  heldOn?: 'BANK' | null
   /** The checks that failed, by code, for the machine. */
   failing: MatchCode[]
   lines: LineVerdict[]
@@ -425,7 +432,58 @@ export async function invoiceVerdict(
  */
 export function withBankHold(verdict: InvoiceVerdict, says: string): InvoiceVerdict {
   if (verdict.verdict !== 'CLEAN' || !verdict.payable) return verdict
-  return { ...verdict, payable: false, rationale: says }
+  return { ...verdict, payable: false, rationale: says, heldOn: 'BANK' }
+}
+
+/**
+ * What the paying team is told about a receipt, decided once, so the
+ * nightly run, the notice and the greeting cannot disagree:
+ *
+ *   · MISMATCH — the check found a difference (verdict MISMATCH or BLOCKED);
+ *   · BANK_HOLD — the check passed and the supplier's bank details are
+ *     not checked: a hold that names who checks, never "does not match";
+ *   · NOT_PAYABLE — the check passed and something else holds it (a week
+ *     not accepted, a draft, past the order's ceiling); the rationale says what;
+ *   · NONE — payable: the twin asks its pay question instead.
+ *
+ * Walk 7, 2026-11-08: a bank hold on PR-2026-0441, a clean receipt, was
+ * recorded as `invoice_receipt.flag_mismatch`, so both seats read
+ * "PR-2026-0441 from Pinnacle Resourcing does not match what was
+ * accepted" while the greeting said it "matches now". Pure.
+ */
+export type ReceiptFlag = 'MISMATCH' | 'BANK_HOLD' | 'NOT_PAYABLE' | 'NONE'
+
+export function receiptFlag(v: Pick<InvoiceVerdict, 'verdict' | 'payable' | 'heldOn'>): ReceiptFlag {
+  if (v.verdict !== 'CLEAN') return 'MISMATCH'
+  if (v.payable) return 'NONE'
+  return v.heldOn === 'BANK' ? 'BANK_HOLD' : 'NOT_PAYABLE'
+}
+
+/**
+ * The title of the notice about a receipt held on the supplier's bank:
+ * "PR-2026-0441 from Pinnacle Resourcing is held: the bank details are not
+ * checked". Who checks is the rationale's (`bankHeldSays`), said under it.
+ * A part the payload lacks is left out, never invented. Pure.
+ */
+export function bankHoldTitle(payload: { number?: unknown; supplierName?: unknown }): string {
+  const number = typeof payload.number === 'string' && payload.number.trim() ? payload.number.trim() : null
+  const supplier = typeof payload.supplierName === 'string' && payload.supplierName.trim() ? payload.supplierName.trim() : null
+  const what = number && supplier ? `${number} from ${supplier}`
+    : number ? `Invoice receipt ${number}`
+    : supplier ? `An invoice receipt from ${supplier}`
+    : 'An invoice receipt'
+  return `${what} is held: the bank details are not checked`
+}
+
+/**
+ * Whether a receipt still needs telling about, read live: false once it
+ * is paid or once nothing holds it, so a line said last night is not
+ * carried after the payment. `verdict` is `invoiceVerdict` read now;
+ * null where the receipt is gone. Pure.
+ */
+export function stillHeld(verdict: Pick<InvoiceVerdict, 'verdict' | 'payable' | 'heldOn'> | null, status: string | null): boolean {
+  if (!verdict || status === 'PAID' || status === 'VOID' || status === 'CANCELLED') return false
+  return receiptFlag(verdict) !== 'NONE'
 }
 
 /** Nothing is owed on these, the same list the payable book uses. */
