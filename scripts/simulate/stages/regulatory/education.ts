@@ -2,12 +2,13 @@
  * The education cases of the document matrix, through the real routes as
  * the real seats (founder, 2026-11-03: "A degree is read, not just held").
  *
- * Seven cases, in the decision's order: a degree with every field right
+ * Eight cases, seven in the decision's order: a degree with every field right
  * (accepted); a future year (warned, HR told why); a year the résumé
  * contradicts (warned); another person's name (sent back with the
  * reason); a file already filed for somebody else (warned, both names to
  * HR only); a provider's verdict clearing a warned degree; and the worker
- * told, in words, what was asked and why. A warning is the route taking
+ * told, in words, what was asked and why; and (2026-11-08) a degree that
+ * is not the qualification the job on the line asks for. A warning is the route taking
  * the paper and saying, beside it, what does not look right: counted as
  * held, never as refused, because nothing about a degree stops a start.
  *
@@ -160,4 +161,17 @@ export async function education(ctx: Ctx, s: EducationSubject, other: { actor: A
       if (leaked) docMatrix.finding(DEGREE_KIND, 'a person was told that a file was already filed by somebody else; that is HR’s to read only', 'regulatory')
     } else docMatrix.skipped(`${s.supplier.name} could not ask ${other.personName} for a degree, so the same file for two people was not tried`)
   } else docMatrix.skipped('a second worker, to file the same degree for somebody else')
+
+  // 8. Not what the job asks: the job the line was awarded from names a
+  // qualification and the paper shows another. Warned, never refused.
+  const job = await ctx.read.sellContract.findUnique({ where: { id: s.lineId }, select: { requirement: { select: { title: true, requiredQualification: true } } } })
+  const asks = job?.requirement?.requiredQualification?.trim()
+  if (asks) {
+    const notIt = { ...right, qualification: 'Associate of Applied Arts' }
+    const off = await ask(s)
+    if (off && (await answerWith(ctx, 'hiring', s.worker, off, degreeFile(s.supplier.id, notIt), false)).ok) {
+      const res = await examineAt('hiring', s.hr, off, { verdict: 'ACCEPT', ...printedFields(notIt) })
+      docMatrix.held(DEGREE_KIND, FILL, degreeSaid(res) ?? res.sentence, res.ok, `warned: not the ${asks} the ${job!.requirement!.title} job asks for`, /job asks for/)
+    }
+  } else docMatrix.skipped(`the job on ${s.personName}’s line names no qualification, so “not what the job asks” cannot be tried`)
 }

@@ -220,7 +220,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Nothing here stops the accept: what does not look right is said to
   // the person accepting it, beside the paper, with the three doors.
   const degree = subjectPersonId && isDegreePaper(key, doc.template.name)
-    ? await degreeOnRecord({ personId: subjectPersonId, paper: degreeFromBody(body), fileHashes: doc.file?.fileHash ? [doc.file.fileHash] : [], on: now })
+    ? await degreeOnRecord({ personId: subjectPersonId, paper: degreeFromBody(body), fileHashes: doc.file?.fileHash ? [doc.file.fileHash] : [], firmId: issuer.id, on: now })
     : null
 
   const note = [doc.note, verdict.note].filter(Boolean).join('\n').slice(-2000)

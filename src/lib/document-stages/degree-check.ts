@@ -69,7 +69,7 @@ export interface DegreeOnRecord extends DegreeReading {
   says: string | null
 }
 
-type Db = Pick<typeof prisma, 'person' | 'consultantProfile' | 'verification' | 'docFile' | 'verificationDoc' | 'packetItem'>
+type Db = Pick<typeof prisma, 'person' | 'consultantProfile' | 'verification' | 'docFile' | 'verificationDoc' | 'packetItem' | 'sellContract'>
 
 /** The other people a copy of a file with one of these hashes was filed for, by name. */
 async function sameFileFor(personId: string, hashes: string[], db: Db): Promise<string[]> {
@@ -103,10 +103,18 @@ async function sameFileFor(personId: string, hashes: string[], db: Db): Promise<
  * copy being looked at.
  */
 export async function degreeOnRecord(
-  input: { personId: string; paper?: DegreeOnPaper | null; fileHashes?: string[]; job?: { title: string; requires: string | null } | null; on?: Date },
+  input: {
+    personId: string; paper?: DegreeOnPaper | null; fileHashes?: string[]
+    /** One job to read against. Left out, the jobs on the person's lines are read (`jobsAskingOf`). */
+    job?: { title: string; requires: string | null } | null
+    /** The firm reading the paper: only the jobs on its own chain for the person are read. */
+    firmId?: string | null
+    on?: Date
+  },
   db: Db = prisma
 ): Promise<DegreeOnRecord> {
   const on = input.on ?? new Date()
+  const jobs = input.job !== undefined ? (input.job ? [input.job] : []) : await jobsAskingOf({ personId: input.personId, firmId: input.firmId ?? null }, db)
   const [person, profile, degrees, evaluation] = await Promise.all([
     db.person.findUnique({ where: { id: input.personId }, select: { name: true } }),
     db.consultantProfile.findUnique({ where: { personId: input.personId }, select: { education: true } }),
@@ -133,16 +141,68 @@ export async function degreeOnRecord(
   }
   const hashes = [...(input.fileHashes ?? []), ...(input.paper ? [] : (latest?.documents ?? []).map((d) => d.fileHash ?? ''))]
   const evalOn = evaluation?.verifiedAt ?? evaluation?.issuedAt ?? null
-  const reading = degreeReading({
+  const read = {
     paper,
     personName: person?.name ?? '',
     resume: resumeEducationFrom(profile?.education),
-    job: input.job ?? null,
     sameFileFor: await sameFileFor(input.personId, hashes, db),
     verifiedBy: evaluation && evalOn ? { provider: evaluation.provider!, reference: evaluation.referenceId, on: evalOn } : null,
     on,
+  }
+  return withDoors(readAgainstJobs(read, jobs))
+}
+
+/**
+ * A degree read against every job on the person's lines that names a
+ * qualification: everything the paper itself says once, and one "not what
+ * the job asks" per job the paper does not meet. A job that asks none
+ * says nothing; a provider's verification clears all of it. Pure.
+ */
+export function readAgainstJobs(
+  read: Omit<Parameters<typeof degreeReading>[0], 'job'>,
+  jobs: readonly { title: string; requires: string | null }[]
+): DegreeReading {
+  const base = degreeReading({ ...read, job: null })
+  if (base.verified) return base
+  const findings = [...base.findings]
+  for (const job of jobs) {
+    if (!job.requires) continue
+    for (const f of degreeReading({ ...read, job, sameFileFor: [] }).findings) {
+      if (f.code === 'NOT_WHAT_THE_JOB_ASKS' && !findings.some((x) => x.says === f.says)) findings.push(f)
+    }
+  }
+  return { verified: null, findings }
+}
+
+/**
+ * The jobs on a person's live lines that name a qualification
+ * (`Requirement.requiredQualification`, the hiring manager's words), each
+ * read through the job the line was awarded from. Where a firm is
+ * reading, only the lines of the chain it is on for the person: a sub-
+ * vendor reads the job its line under the client's line delivers, never
+ * another client's.
+ */
+export async function jobsAskingOf(input: { personId: string; firmId: string | null }, db: Db = prisma): Promise<{ title: string; requires: string }[]> {
+  const lines = await db.sellContract.findMany({
+    where: { personId: input.personId, state: { notIn: ['ENDED', 'CANCELLED'] } },
+    select: {
+      companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      requirement: { select: { title: true, requiredQualification: true } },
+    },
+    take: 40,
   })
-  return withDoors(reading)
+  const endOf = (l: (typeof lines)[number]) => l.endClientCompanyId ?? l.clientCompanyId
+  const chains = input.firmId
+    ? new Set(lines.filter((l) => l.companyId === input.firmId || l.clientCompanyId === input.firmId || endOf(l) === input.firmId).map(endOf))
+    : null
+  const out: { title: string; requires: string }[] = []
+  for (const l of lines) {
+    if (chains && !chains.has(endOf(l))) continue
+    const requires = l.requirement?.requiredQualification?.trim()
+    if (!requires || !l.requirement) continue
+    if (!out.some((o) => o.title === l.requirement!.title && o.requires === requires)) out.push({ title: l.requirement.title, requires })
+  }
+  return out
 }
 
 /** The doors and the one line, from a reading. Pure. */

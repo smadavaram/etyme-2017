@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
         const about = aboutOf(i)
         if (about.kind !== 'PERSON' || !['UPLOADED', 'SIGNED', KEPT_BY_HOLDER].includes(i.status)) continue
         if (!isDegreePaper(itemOf.get(i.subjectId)?.key ?? null, i.template.name)) continue
-        degreeOf.set(i.id, await degreeOnRecord({ personId: about.personId, fileHashes: i.file?.fileHash ? [i.file.fileHash] : [] }))
+        degreeOf.set(i.id, await degreeOnRecord({ personId: about.personId, fileHashes: i.file?.fileHash ? [i.file.fileHash] : [], firmId: companyId }))
       }
     }
 

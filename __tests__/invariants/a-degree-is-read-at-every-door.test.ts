@@ -26,6 +26,8 @@ function world(over: { resume?: unknown; evaluation?: unknown; others?: { name: 
     docFile: { findMany: async () => (over.others?.length ? [{ docInstance: { subjectType: 'PERSON', subjectId: 'anita' } }] : []) },
     verificationDoc: { findMany: async () => [] },
     packetItem: { findMany: async () => [] },
+    // The jobs on her lines (2026-11-08): none name a qualification here.
+    sellContract: { findMany: async () => [] },
   }
 }
 const RIGHT = { institution: 'University of Pune', qualification: 'Bachelor of Engineering', fieldOfStudy: 'Computer Science', nameOnDocument: 'Priya Raman', year: 2016 }

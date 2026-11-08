@@ -262,7 +262,7 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
     const answered = answeredNotice({ who: caller.person.name, paper: doc.template.name, signed: verdict.next === 'SIGNED', before, note })
     // What does not look right on a degree is said to these roles only.
     const degree = aDegree && subjectPersonId && file
-      ? await degreeOnRecord({ personId: subjectPersonId, fileHashes: [fileHash(file.bytes)], on: now })
+      ? await degreeOnRecord({ personId: subjectPersonId, fileHashes: [fileHash(file.bytes)], firmId: issuer.id, on: now })
       : null
     const told = degree?.says ? { ...answered, body: `${answered.body} ${degree.says}`.trim() } : answered
     // And the person hears it in her own words, in the same press: which
