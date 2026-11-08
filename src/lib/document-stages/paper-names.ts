@@ -18,6 +18,11 @@ import { PACKETS } from '@/lib/packets'
 
 type Name = { key: string; label: string }
 
+/** A name as two names are compared: case, edges and the apostrophe's shape do not count. */
+export function sameName(name: string): string {
+  return name.trim().toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ')
+}
+
 const PRODUCT_NAMES: Name[] = (() => {
   const all: Name[] = [
     ...BUILT_IN.map((t) => ({ key: t.key, label: t.label })),
@@ -25,12 +30,12 @@ const PRODUCT_NAMES: Name[] = (() => {
   ]
   const keysOf = new Map<string, Set<string>>()
   for (const n of all) {
-    const k = n.label.trim().toLowerCase()
+    const k = sameName(n.label)
     keysOf.set(k, (keysOf.get(k) ?? new Set()).add(n.key))
   }
   const seen = new Set<string>()
   return all.filter((n) => {
-    const k = n.label.trim().toLowerCase()
+    const k = sameName(n.label)
     if ((keysOf.get(k)?.size ?? 0) > 1 || seen.has(k)) return false
     seen.add(k)
     return true
@@ -42,6 +47,16 @@ const PRODUCT_NAMES: Name[] = (() => {
  * a firm's own names win), then every name the product gives a kind.
  */
 export function paperNames(own: readonly Name[] = []): Name[] {
-  const taken = new Set(own.map((n) => n.label.trim().toLowerCase()))
-  return [...own, ...PRODUCT_NAMES.filter((n) => !taken.has(n.label.trim().toLowerCase()))]
+  const taken = new Set(own.map((n) => sameName(n.label)))
+  return [...own, ...PRODUCT_NAMES.filter((n) => !taken.has(sameName(n.label)))]
+}
+
+/**
+ * The kind a paper's name is, where the product itself gave that name to
+ * exactly one kind; null otherwise. Read by `typeKeyForTemplate` after a
+ * caller's own names, so every reader knows every name. Never a guess.
+ */
+export function productNameKey(name: string): string | null {
+  const k = sameName(name)
+  return PRODUCT_NAMES.find((n) => sameName(n.label) === k || n.key.toLowerCase() === k)?.key ?? null
 }

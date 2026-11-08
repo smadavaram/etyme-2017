@@ -14,7 +14,8 @@ const sent = (id: string, firm: string): SentDocument => ({ id, status: 'SENT', 
 
 describe('one row per paper per firm that asked, on the worker’s own page', () => {
   it('a request the placement opened as “Signed non-disclosure agreement” is read as the NDA she owes, by a name the product gave it and never by a guess', () => {
-    expect(typeKeyForTemplate('Signed non-disclosure agreement', [{ key: 'NDA', label: 'Non-disclosure agreement' }], { guess: false })).toBeNull()
+    // Since 2026-11-08 the one door knows every name the product gives a kind.
+    expect(typeKeyForTemplate('Signed non-disclosure agreement', [{ key: 'NDA', label: 'Non-disclosure agreement' }], { guess: false })).toBe('NDA')
     expect(typeKeyForTemplate('Signed non-disclosure agreement', paperNames([{ key: 'NDA', label: 'Non-disclosure agreement' }]), { guess: false })).toBe('NDA')
   })
 

@@ -22,6 +22,7 @@
 import { plainDate } from '@/lib/plain-date'
 import { calendarDaysBetween } from '@/lib/document-stages'
 import { humanKey } from '@/lib/document-type'
+import { productNameKey, sameName } from '@/lib/document-stages/paper-names'
 import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
 import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
 // The bench answer is read through one door — `lib/bench-filter` — so two
@@ -1813,10 +1814,17 @@ export function typeKeyForTemplate(
 ): string | null {
   const name = templateName.trim()
   if (!name) return null
+  const asSaid = sameName(name)
   const exact = types.find(
-    (t) => t.label.trim().toLowerCase() === name.toLowerCase() || t.key.toLowerCase() === name.toLowerCase()
+    (t) => sameName(t.label) === asSaid || t.key.toLowerCase() === name.toLowerCase()
   )
   if (exact) return exact.key
+  // Every name the product itself gives one kind (the dictionary and the
+  // start packets), after the caller's own, so a reader that knows the NDA
+  // as "Non-disclosure agreement" still knows "Signed non-disclosure
+  // agreement" (walk 7). An exact name, never a guess.
+  const named = productNameKey(name)
+  if (named) return named
   // A form named by its number is that form, guessing or not.
   const form = formNumberKey(name)
   if (form) return form
