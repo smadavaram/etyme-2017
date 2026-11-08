@@ -8,6 +8,7 @@ import { GET as askGet, POST as askPost, PATCH as askPatch, DELETE as askDelete 
 import { ONLY_THE_RECORD } from '@/app/api/conversations/twin/transaction'
 import { NOT_THEIR_RATE, FILE_IT_YOURSELF, NEVER_FILES, WORKER_CLOSE } from '@/app/api/conversations/twin/worker'
 import { ensureDefaultRoles } from '@/lib/company-roles'
+import { PAYROLL_RUN } from '@/lib/payroll-paid'
 
 /**
  * Sign-up walk, round four: the one door opens Conversations to a seat
@@ -545,6 +546,28 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     await prisma.context.create({ data: { personId: ines.id, companyId: techpeple, type: 'CONSULTANT', grantReason: 'Said yes to the bench' } })
     const rui = await prisma.person.create({ data: { primaryEmail: SOLO, name: 'Rui Costa' }, select: { id: true } })
     await prisma.context.create({ data: { personId: rui.id, type: 'CONSULTANT', grantReason: 'Signed up as a candidate' } })
+    // Techpeple has not run Helena's latest month yet. The seed runs every
+    // month whose run fell five days after it ended, before the world was
+    // born (lib/seed-payroll-runs), so from about the 6th of a month until
+    // the first week of the new month is accepted, every week Techpeple
+    // accepted is paid and nothing is owed to her: the release passes of
+    // 2026-11-08 met exactly that day. The sentences below are about the
+    // moment a week becomes owed, so they read a world where her newest
+    // month is still Techpeple's to run, as the seed itself reads it on
+    // the 1st to the 5th. Only her lines leave that one run.
+    const runs = await prisma.automationLog.findMany({
+      where: { companyId: techpeple, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'process' } },
+      select: { id: true, at: true, payload: true },
+      orderBy: { at: 'desc' },
+    })
+    type Run = { contracts?: Array<{ paid?: Array<{ personId?: string }> }> }
+    const paysHer = (p: unknown) => ((p as Run)?.contracts ?? []).some((c) => (c.paid ?? []).some((l) => l.personId === helena))
+    const latest = runs.find((r) => paysHer(r.payload))
+    if (latest) {
+      const p = latest.payload as Run & Record<string, unknown>
+      const contracts = (p.contracts ?? []).filter((c) => !(c.paid ?? []).some((l) => l.personId === helena))
+      await prisma.automationLog.update({ where: { id: latest.id }, data: { payload: { ...p, contracts } as object } })
+    }
   }, 600_000)
 
   it('a worker’s greeting opens on her chain in one line, then the week to file, what is signed and what is owed, the papers after the money, and ends on her months against the time limit, with no rate but her own', async () => {
