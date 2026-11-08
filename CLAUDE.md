@@ -1573,6 +1573,23 @@ header flip of 2026-11-04 and keeps everything else in "One app, two views".
   until its cash flow tab reads a client's own book (what it owes its
   suppliers, paid and due) and shows no margin, ever. Built: the cash
   flow reader and the two tabs (money); the menu's one link (architect).
+- **Cash flow has a forecast, by week or month, for the next 90 days.
+  The founder, 2026-11-08:** *"Also add cash flow forecast by week or
+  month for next 90 days."* So the Cash flow tab has two halves: what
+  happened (above) and **Forecast**, the next 90 days by week or by
+  month: money expected in (bills sent, at their due date on the
+  agreement's terms; weeks signed and not yet billed, on the day the
+  agreement's rhythm would bill them; running lines at their rate and
+  expected hours on the cycle dates already generated) and money
+  expected out (invoice receipts due; payroll on each line's pay
+  period dates; a sub-vendor's expected invoice on its line's dates),
+  and the net per period. Every date is the cycle generator's and every
+  rate the line's own, never a second computation; a forecast is
+  labelled as expected, per currency, with the assumptions said once on
+  the tab (expected hours per week, no overtime, every bill paid on its
+  due day); nothing in it is ever added into the actuals above. A
+  client's forecast is what it will owe suppliers, no margin. Money
+  builds it on the cash flow reader.
 - **Left out of Copilot on purpose**: Library, Agents, Notebooks, the model
   picker, the grid and task icons.
 - **Not changed**: routes, rules, the approval route, the ledger, every read
