@@ -16,11 +16,19 @@ import { GRANT_LABELS, GRANT_RIGHT_LABEL } from './words'
  * the yes-or-no answer until the reader behind that permission narrows its
  * query to the team: otherwise "margin for the Dayton team" would open the
  * firm's whole Profitability page. `NARROWED_AT_THE_QUERY` names the
- * permissions whose readers do narrow (margin and profit and loss, since
- * 0313aad3a), and a team or own-work grant of anything else is refused in a sentence rather than
- * stored and silently widened. A domain whose reader starts calling
- * `permissionScope` asks the architect to add its permission here, in the
- * same commit.
+ * permissions whose every reader narrows (margin and profit and loss, since
+ * 0313aad3a): only for those does a team or own-work grant enter the
+ * yes-or-no answer.
+ *
+ * `GRANTABLE_TO_A_TEAM` is wider (2026-11-08, the coordinator's call): it
+ * names what the Owner may give to a team or as somebody's own work. For a
+ * permission in it and not in the narrowed set (jobs and submissions), a
+ * narrower grant is stored and opens nothing anywhere through
+ * `hasPermission`; it is read only by a route that gates on
+ * `permissionScope` and narrows its own query by the answer. So a route
+ * that has not been narrowed stays closed to it, and a route that has been
+ * opens exactly the team. A permission in neither is refused at team scope
+ * in a sentence rather than stored and silently widened.
  */
 
 export const GRANT_RIGHT = 'grants.give' as const
@@ -38,6 +46,17 @@ export const PERSON_ONLY: readonly Permission[] = ['pnl.read', 'payroll.read', '
 // flow's payroll reads the whole firm only and asks payroll.read, which is
 // not here.
 export const NARROWED_AT_THE_QUERY: ReadonlySet<string> = new Set<string>(['margin.read', 'pnl.read'])
+
+/**
+ * What may be given to one team or as somebody's own work: every narrowed
+ * permission, and the four that open jobs and submissions, which a route
+ * reads only through `permissionScope` (demand narrows its readers of
+ * requisitions, requirements and submissions by it).
+ */
+export const GRANTABLE_TO_A_TEAM: ReadonlySet<string> = new Set<string>([
+  ...NARROWED_AT_THE_QUERY,
+  'requirements.read', 'requirements.write', 'submissions.read', 'submissions.create',
+])
 
 /** Held by construction, and never named in a held-apart refusal (lib/permissions). */
 const HOLDS_EVERYTHING = new Set(['Owner', 'Admin'])
@@ -104,6 +123,11 @@ function opensTheDoor(grant: GrantRow): boolean {
   return grant.scope === 'COMPANY' || NARROWED_AT_THE_QUERY.has(grant.permission)
 }
 
+/** Whether a grant is read at its reach by `permissionScope`: anything the door opens, and a team grant of what may be given to a team. */
+function readAtItsReach(grant: GrantRow): boolean {
+  return grant.scope === 'COMPANY' || GRANTABLE_TO_A_TEAM.has(grant.permission)
+}
+
 /**
  * The permissions a seat holds beyond its role, through grants that open
  * the door. Never the right to give access, which is not a permission any
@@ -146,8 +170,12 @@ export function unitAndBelow(unitId: string, units: readonly Unit[]): string[] {
  * Over what does this seat hold this permission? The role's own
  * permissions read as the whole company; a grant reads at its scope, the
  * widest of several winning; `units` are the seat's own company's, so a
- * grant naming another company's unit reaches nothing. `has` is always the
- * answer `hasPermission` gives over `effectivePermissions`.
+ * grant naming another company's unit reaches nothing. `has` says the seat
+ * holds it at some reach. For a narrowed permission it is the answer
+ * `hasPermission` gives over `effectivePermissions`; for one only
+ * `GRANTABLE_TO_A_TEAM` (jobs, submissions) a team grant answers `has` at
+ * UNIT or PERSON while `hasPermission` still says no, so only a route that
+ * gates on this answer and narrows by it is opened.
  */
 export function scopeFrom(
   args: { rolePermissions: readonly string[]; seat: Seat; grants: readonly GrantRow[]; units: readonly Unit[] },
@@ -158,7 +186,7 @@ export function scopeFrom(
   if (args.rolePermissions.includes('*') || args.rolePermissions.includes(permission)) {
     return { has: true, scope: 'COMPANY', unitIds: [] }
   }
-  const live = args.grants.filter((g) => g.permission === permission && reaches(g, args.seat) && opensTheDoor(g))
+  const live = args.grants.filter((g) => g.permission === permission && reaches(g, args.seat) && readAtItsReach(g))
   if (live.some((g) => g.scope === 'COMPANY')) return { has: true, scope: 'COMPANY', unitIds: [] }
 
   const unitIds = new Set<string>()
@@ -258,7 +286,7 @@ export function checkGrant(ask: GrantAsk): Verdict {
   }
 
   if (p !== GRANT_RIGHT) {
-    if (!g.isOwner && !g.permissions.includes(p) && !g.permissions.includes('*')) {
+    if (!g.isOwner && !g.permissions.includes(p) && !g.permissions.includes('*') && !g.scope.has) {
       return no('permission', `You cannot give what you do not hold yourself, and you cannot ${label}.`)
     }
     if (!g.isOwner && g.scope.scope !== 'COMPANY') {
@@ -271,7 +299,7 @@ export function checkGrant(ask: GrantAsk): Verdict {
           : `You ${label} for your own work only, so you can give it only as their own work.`)
       }
     }
-    if (scope !== 'COMPANY' && !NARROWED_AT_THE_QUERY.has(p)) {
+    if (scope !== 'COMPANY' && !GRANTABLE_TO_A_TEAM.has(p)) {
       return no('scope',
         `Etyme does not yet narrow the right to ${label} to one team or to somebody’s own work, so a narrower grant would open the whole company’s. ` +
         'Give it for the whole company, or wait until that page reads by team.')

@@ -104,7 +104,11 @@ export async function GET(request: NextRequest) {
     key,
     label: labelOf(key),
     personOnly: key === GRANT_RIGHT || (PERSON_ONLY as readonly string[]).includes(key),
-    // Only the scopes a reader narrows by are offered; the rest are refused by the rules.
+    // Only the scopes every reader narrows by are offered. Jobs and
+    // submissions may be stored at a team's reach (GRANTABLE_TO_A_TEAM) and
+    // open nothing until demand's routes read them through permissionScope;
+    // the dialog offers their team scope once those routes narrow, so an
+    // Owner is never handed a grant that silently does nothing.
     scopes: key !== GRANT_RIGHT && NARROWED_AT_THE_QUERY.has(key) ? GRANT_SCOPES : ['COMPANY'],
   }))
 

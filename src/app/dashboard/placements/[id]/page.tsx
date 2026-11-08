@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
+import { rate as moneyRate } from '@/lib/money-display'
 import { saveForm } from '@/lib/form-save'
 import { refusalSentence } from '@/lib/refusal-words'
 import { useSession } from '@/components/session-provider'
@@ -177,7 +178,8 @@ interface Placement {
     // "Earned margin", from the service, so the word cannot drift.
     marginLabel: string | null
     // The agreed spread: the two rates' difference per hour, never money.
-    agreed: { label: string; perHour: number | null; pct: number | null; says: string } | null
+    /** The agreed spread per hour: `perHourCents` in minor units of `currency`, `perHour` in whole units. */
+    agreed: { label: string; perHour: number | null; perHourCents?: number | null; currency?: string | null; pct: number | null; says: string } | null
     // Why the margin reads as it does: blank and why, or over which weeks.
     marginSays: string | null
     // Where the pay rate changed inside the hours priced, in a sentence.
@@ -211,6 +213,13 @@ interface Placement {
 type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
 
 const rate = (n: number | null) => (n == null ? '—' : `$${n.toFixed(0)}/hr`)
+/**
+ * The agreed spread in its own currency, through money's one formatter,
+ * so a dong spread reads whole dong and a dollar one keeps its cents. An
+ * answer from before the currency was sent reads as dollars, as it did.
+ */
+const agreedRate = (a: { perHour: number | null; perHourCents?: number | null; currency?: string | null }) =>
+  a.perHourCents != null && a.currency ? moneyRate(a.perHourCents, a.currency) : rate(a.perHour)
 const cash = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
 /**
  * A calendar day — a start, a due date, a last day — is stored as
@@ -678,7 +687,7 @@ export default function PlacementPage() {
               value={
                 p.money.agreed.perHour == null
                   ? <span className="text-etyme-faint">not set</span>
-                  : `${rate(p.money.agreed.perHour)}${p.money.agreed.pct == null ? '' : ` · ${p.money.agreed.pct.toFixed(1)}%`}`
+                  : `${agreedRate(p.money.agreed)}${p.money.agreed.pct == null ? '' : ` · ${p.money.agreed.pct.toFixed(1)}%`}`
               }
             />
           )}

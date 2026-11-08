@@ -24,6 +24,7 @@ import { ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
 import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
+import { wholeFromMinor } from '@/lib/money'
 import { chainBelow } from './chain'
 import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
@@ -1329,7 +1330,13 @@ export async function GET(
         agreed: seeMargin && books?.agreed
           ? {
               label: AGREED_SPREAD,
-              perHour: books.agreed.spreadRateCents == null ? null : books.agreed.spreadRateCents / 100,
+              // In the agreement's own currency: a dong spread has no cents
+              // to divide off (the \u20ab170.00 class, 2026-11-08).
+              currency: books.agreed.currency ?? placement.billCurrency,
+              perHourCents: books.agreed.spreadRateCents,
+              perHour: books.agreed.spreadRateCents == null
+                ? null
+                : wholeFromMinor(books.agreed.spreadRateCents, books.agreed.currency ?? placement.billCurrency),
               pct: books.agreed.pct,
               says: books.agreed.refusedBecause ?? books.agreed.says,
             }
