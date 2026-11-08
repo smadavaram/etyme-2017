@@ -22,6 +22,7 @@
  */
 
 import { addSkillTags } from '@/lib/bench-filter'
+import { minorPerUnit } from '@/lib/money'
 
 /** A refusal for one field, in the route's words. */
 export interface FieldRefusal {
@@ -60,7 +61,12 @@ export const ADD_CONSULTANT_FIELDS = [
 ] as const
 
 /** The body Add consultant posts. The rates come in cents from `listingRates`, which the form checks first. */
-export function addConsultantBody(form: AddConsultantTyped, rates: { rateMin: number | null; rateMax: number | null }) {
+export function addConsultantBody(
+  form: AddConsultantTyped,
+  rates: { rateMin: number | null; rateMax: number | null },
+  /** The firm's currency; the pay typed is turned into minor units by its own exponent. */
+  currency: string = 'USD'
+) {
   return {
     name: form.name,
     email: form.email,
@@ -71,11 +77,12 @@ export function addConsultantBody(form: AddConsultantTyped, rates: { rateMin: nu
     tier: form.tier,
     rateMin: rates.rateMin,
     rateMax: rates.rateMax,
-    // Dollars an hour typed, minor units sent. The route checks it with
+    // Whole units an hour typed, minor units sent, by the currency's own
+    // exponent (whole dong stays whole dong). The route checks it with
     // the terms page's own rule and says what is wrong.
     termsEngagementType: form.termsEngagementType || null,
     termsPayRateCents: form.termsPay.trim()
-      ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * 100) : form.termsPay
+      ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * minorPerUnit(currency)) : form.termsPay
       : null,
     notes: form.notes.trim() || null,
   }

@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   // Verify target company exists
   const targetCompany = await prisma.company.findUnique({
     where: { id: toCompanyId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, homeCurrency: true },
   })
 
   if (!targetCompany) {
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
           personId: source.consultant.personId,
           name: source.consultant.person.name,
           email: source.consultant.person.primaryEmail,
-          terms: termsShown(newListing, targetCompany.name),
+          terms: termsShown(newListing, targetCompany),
         })
 
         shared++

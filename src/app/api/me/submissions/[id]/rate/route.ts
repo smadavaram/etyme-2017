@@ -30,7 +30,7 @@ async function load(submissionId: string, personId: string) {
     select: {
       id: true, personId: true, status: true, fromCompanyId: true,
       requirement: { select: { title: true } },
-      fromCompany: { select: { id: true, name: true } },
+      fromCompany: { select: { id: true, name: true, homeCurrency: true } },
     },
   })
   if (!submission) return { error: 'NOT_FOUND' as const }
@@ -83,7 +83,10 @@ async function load(submissionId: string, personId: string) {
     })
   }
 
-  return { submission, threadId: thread?.id ?? null, state: negotiation(events) }
+  // The figure is what the firm that put them forward pays them, so it is
+  // said in that firm's currency: a job request carries none of its own.
+  const currency = submission.fromCompany.homeCurrency ?? 'USD'
+  return { submission, threadId: thread?.id ?? null, currency, state: negotiation(events, currency) }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -173,7 +176,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         conversationId: threadId,
         authorId: caller.person.id,
         type: 'RATE_CONFIRMATION',
-        body: messageFor(event, caller.person.name),
+        body: messageFor(event, caller.person.name, r.currency),
         // The figure lives here, and nothing is ever demoted or
         // rewritten — the negotiation stays readable the first time
         // somebody disputes what was agreed.
@@ -185,7 +188,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         personId: caller.person.id,
         companyId: r.submission.fromCompanyId,
         type: 'SUBMISSION',
-        title: messageFor(event, caller.person.name),
+        title: messageFor(event, caller.person.name, r.currency),
         body: `On ${r.submission.requirement.title}.`,
         entityId: id,
         channel: 'IN_APP',

@@ -1217,6 +1217,14 @@ const TO_THE_PERSON: Record<Exclude<EngagementType, 'OTHER_EMPLOYER'>, string> =
   OWN_COMPANY: 'through your own company',
 }
 
+/** The firm that states a listing's terms: its name, and the currency it pays in. */
+export type TermsFirm = string | { name: string; homeCurrency?: string | null }
+
+/** The name and the currency of a terms firm; a bare name reads as dollars. Pure. */
+export function firmFacts(firm: TermsFirm): { name: string; currency: string } {
+  return typeof firm === 'string' ? { name: firm, currency: 'USD' } : { name: firm.name, currency: firm.homeCurrency || 'USD' }
+}
+
 export interface TermsShown {
   engagementType: EngagementType
   payRateCents: number
@@ -1232,14 +1240,20 @@ export interface TermsShown {
  * The stated terms as the person reads them, or null where nothing was
  * stated — or where what is on the row is not something the listing door
  * would have written, which is shown as nothing rather than guessed at.
+ *
+ * The pay is said in the listing firm's own currency (`Company.homeCurrency`):
+ * a listing carries no currency of its own, and the firm that states the
+ * terms is the one that pays them. A firm passed by name alone reads as
+ * dollars, as before; every door passes the firm with its currency.
  */
 export function termsShown(
   l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
-  firmName: string
+  firm: TermsFirm
 ): TermsShown | null {
+  const { name: firmName, currency } = firmFacts(firm)
   const type = l.termsEngagementType as EngagementType | null
   if (!type || !ENGAGEMENT_TYPES.includes(type) || type === 'OTHER_EMPLOYER') return null
-  const rate = perHour(l.termsPayRateCents)
+  const rate = perHour(l.termsPayRateCents, currency)
   if (!rate) return null
   const words = TO_THE_PERSON[type]
   const agreed = l.termsAgreedAt != null
@@ -1266,12 +1280,13 @@ export function termsShown(
 export function agreeingTerms(
   l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
   seen: unknown,
-  firmName: string,
+  firm: TermsFirm,
   now: Date
 ):
   | { ok: true; data: { termsAgreedAt: Date } | Record<string, never>; agreed: boolean; says: string }
   | { ok: false; says: string } {
-  const stated = termsShown(l, firmName)
+  const firmName = firmFacts(firm).name
+  const stated = termsShown(l, firm)
   if (!stated) {
     return {
       ok: true,

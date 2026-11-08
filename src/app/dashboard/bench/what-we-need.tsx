@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { addSkillTags, listingRates } from '@/lib/bench-filter'
 import { formatDay } from '@/lib/format-date'
 import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui'
+import { useFirmCurrency } from '@/app/dashboard/consultants/firm-currency'
 
 /**
  * "What we need" — what this firm asks its partners to offer, at the top
@@ -52,6 +53,8 @@ function useWants() {
 
 /** At the top of Partner bench: what we ask our partners for, and the form to ask. */
 export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: string }) => void }) {
+  // Rates typed here are in the firm’s own currency, by its own exponent.
+  const currency = useFirmCurrency()
   const { data, why, reload } = useWants()
   const [open, setOpen] = useState(false)
   const [skills, setSkills] = useState('')
@@ -64,7 +67,7 @@ export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: str
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    const rates = listingRates({ min, max }, null)
+    const rates = listingRates({ min, max }, null, currency)
     if (!rates.ok) { setError(rates.says); return }
     const [kind, id] = desk.split(':')
     setBusy(true)

@@ -211,7 +211,11 @@ export async function POST(request: NextRequest) {
       vendorName: caller.company!.name,
       url,
       // The terms stated on the listing, so the email names what a yes agrees.
-      terms: termsShown(result, caller.company!.name),
+      // In the firm's own currency: a dong rate reads whole dong.
+      terms: termsShown(result, {
+        name: caller.company!.name,
+        homeCurrency: (await prisma.company.findUnique({ where: { id: caller.company!.id }, select: { homeCurrency: true } }))?.homeCurrency,
+      }),
     })
     // The same sender as Add consultant: where no email can leave, the link
     // is kept on the notice for staff, and the answer says so.

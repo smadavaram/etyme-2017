@@ -20,6 +20,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Stat, FormMessage } from '@/components/ui'
 import { addToBenchBody, nudgeBody } from '@/lib/consultant-portfolio/forms'
+import { useFirmCurrency } from '@/app/dashboard/consultants/firm-currency'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -237,6 +238,8 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
   /** Your own listings, by consultant: the listing and what the person said. */
   listed: Map<string, { listingId: string; consent: string | null }>
 }) {
+  // Rates typed here are in the firm’s own currency, by its own exponent.
+  const currency = useFirmCurrency()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ConsultantOption[]>([])
   const [searching, setSearching] = useState(false)
@@ -313,7 +316,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
       return
     }
 
-    const rates = listingRates({ min: rateMin, max: rateMax }, null)
+    const rates = listingRates({ min: rateMin, max: rateMax }, null, currency)
     if (!rates.ok) {
       setError(rates.says)
       return

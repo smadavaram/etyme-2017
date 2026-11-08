@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         where: { revokedAt: null },
         include: {
           company: {
-            select: { id: true, name: true, slug: true, kind: true },
+            select: { id: true, name: true, slug: true, kind: true, homeCurrency: true },
           },
           role: {
             select: { id: true, name: true, permissions: true },

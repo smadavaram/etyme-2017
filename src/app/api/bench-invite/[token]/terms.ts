@@ -1,4 +1,4 @@
-import { termsShown, type TermsShown } from '@/lib/bench-filter'
+import { termsShown, firmFacts, type TermsShown, type TermsFirm } from '@/lib/bench-filter'
 
 /**
  * The pay terms on a bench invitation, as the person reads them on the
@@ -27,9 +27,10 @@ export interface InviteTerms {
 
 export function inviteTerms(
   l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
-  vendor: string
+  firm: TermsFirm
 ): InviteTerms {
-  const shown = termsShown(l, vendor)
+  const vendor = firmFacts(firm).name
+  const shown = termsShown(l, firm)
   if (!shown) {
     return {
       shown: null,

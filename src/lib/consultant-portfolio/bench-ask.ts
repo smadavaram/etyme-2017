@@ -60,7 +60,8 @@ import { firmViewOf, firmTypedAnything, type FirmView } from './firm-view'
 export type BenchAskDoor = 'ADD_CONSULTANT' | 'PUBLIC_PAGE'
 
 export interface BenchAskInput {
-  firm: { id: string; name: string }
+  /** The firm asking; its currency is read here where a caller does not pass it. */
+  firm: { id: string; name: string; homeCurrency?: string | null }
   /** The name typed. Used only where a new person is made; an existing one keeps hers. */
   name: string
   email: string
@@ -347,7 +348,20 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
 
   // Outside the transaction: a slow mail provider never rolls back an ask
   // that was rightly recorded, and it can be sent again from Bench.
-  const shown = termsShown(asked.row, firm.name)
+  // The terms are said in the firm's own currency, read once where the
+  // caller did not hand it over (the public page's door does not).
+  // A read that fails reads as dollars, the old behavior, rather than
+  // failing an ask that was rightly recorded.
+  let homeCurrency = firm.homeCurrency ?? null
+  if (!homeCurrency) {
+    try {
+      homeCurrency = (await prisma.company.findUnique({ where: { id: firm.id }, select: { homeCurrency: true } }))?.homeCurrency ?? null
+    } catch {
+      homeCurrency = null
+    }
+  }
+  homeCurrency = homeCurrency ?? 'USD'
+  const shown = termsShown(asked.row, { name: firm.name, homeCurrency })
   const url = inviteUrl(asked.row.id)
   const msg = inviteText({ personName: asked.person.name, vendorName: firm.name, url, terms: shown })
   const mail = await askByEmail({

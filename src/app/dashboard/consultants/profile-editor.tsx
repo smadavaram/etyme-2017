@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { profileEditBody } from '@/lib/bench-filter'
 import { firmViewEditBody, keptOnListingSays, SAVED_ON_RECORD_SAYS } from '@/lib/consultant-portfolio/firm-view'
+import { useFirmCurrency } from './firm-currency'
+import { wholeFromMinor } from '@/lib/money'
 
 /**
  * Edit a consultant from the firm's side, in one of two ways, and never
@@ -58,17 +60,24 @@ function RecordEditor({ consultantId, skills, availableFrom, rateFloor, mayRate,
   mayRate: boolean
   onSaved: () => void
 }) {
+  // Rates typed here are in the firm’s own currency, by its own exponent.
+  const currency = useFirmCurrency()
   const [form, setForm] = useState({
     skills: skills.join(', '),
     availableFrom: availableFrom ? availableFrom.slice(0, 10) : '',
-    rateFloor: rateFloor != null ? String(Math.round(rateFloor / 100)) : '',
+    rateFloor: rateFloor != null ? String(wholeFromMinor(rateFloor, currency)) : '',
   })
+  // The firm's currency arrives after the first paint: the stored floor is
+  // shown again in it, so a dong floor never reads as hundredths.
+  useEffect(() => {
+    setForm((f) => ({ ...f, rateFloor: rateFloor != null ? String(wholeFromMinor(rateFloor, currency)) : '' }))
+  }, [currency, rateFloor])
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<{ text: string; ok: boolean } | null>(null)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    const out = profileEditBody(form, mayRate)
+    const out = profileEditBody(form, mayRate, currency)
     if (!out.ok) { setSaid({ text: out.says, ok: false }); return }
     setBusy(true)
     try {

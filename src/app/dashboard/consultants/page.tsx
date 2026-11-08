@@ -19,6 +19,7 @@ import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
+import { useFirmCurrency } from './firm-currency'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -78,6 +79,8 @@ interface BenchCount {
 // ── Add Consultant Modal ───────────────────────────────────
 
 function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
+  // Rates typed here are in the firm’s own currency, by its own exponent.
+  const currency = useFirmCurrency()
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -143,7 +146,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
       return
     }
 
-    const rates = listingRates({ min: form.rateMin, max: form.rateMax }, null)
+    const rates = listingRates({ min: form.rateMin, max: form.rateMax }, null, currency)
     if (!rates.ok) {
       setError(rates.says)
       return
@@ -158,7 +161,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
         headers: { 'Content-Type': 'application/json' },
         // What the form posts is built in one place the route's own
         // reader is tested against (`addConsultantBody`, lib/consultant-portfolio/forms).
-        body: JSON.stringify(addConsultantBody(form, rates)),
+        body: JSON.stringify(addConsultantBody(form, rates, currency)),
       })
 
       if (!res.ok) {
@@ -963,6 +966,7 @@ function formatWorkAuth(auth: string | null): string {
 export default function ConsultantsPage() {
   const router = useRouter()
   const session = useSession()
+  const firmCurrency = useFirmCurrency()
   const readerKind = session.company?.kind ?? null
   // The section on the reader's own menu (round seven).
   const section = usePageSection('/dashboard/consultants')
@@ -1176,7 +1180,7 @@ export default function ConsultantsPage() {
         hasCostPermission ? (
           row.payRateCents != null ? (
             <span className="tabular-nums">
-              ${Math.round(row.payRateCents / 100)}<span className="text-etyme-faint">/hr</span>
+              {compact(row.payRateCents, firmCurrency)}<span className="text-etyme-faint">/hr</span>
             </span>
           ) : (
             <span className="text-etyme-faint">—</span>

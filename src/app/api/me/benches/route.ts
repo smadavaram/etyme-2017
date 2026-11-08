@@ -65,14 +65,14 @@ export async function GET(_request: NextRequest) {
           id: true, state: true, invitedAt: true,
           stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, showInMatches: true,
           termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
-          company: { select: { name: true } },
+          company: { select: { name: true, homeCurrency: true } },
         },
       })
     ).map((l) => [l.id, l])
   )
   const termsOf = (id: string) => {
     const l = states.get(id)
-    return l ? termsShown(l, l.company.name) : null
+    return l ? termsShown(l, l.company) : null
   }
   const invitedToo = data.benches
     .filter((b) => states.get(b.listingId)?.state === 'INVITED')
@@ -109,13 +109,13 @@ export async function GET(_request: NextRequest) {
       showInMatches: l.showInMatches,
       // Stated with the listing, and whether they have agreed them. A yes
       // given through the emailed link agreed no pay; they can agree here.
-      terms: termsShown(l, l.company.name),
+      terms: termsShown(l, l.company),
     }
   }
   const ranOut = (
     await prisma.benchListing.findMany({
       where: { consultant: { personId: person.id }, lapsedAt: { not: null }, state: 'GRANTED' },
-      select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true } } },
+      select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true, homeCurrency: true } } },
     })
   ).map((l) => ({
     listingId: l.id,
@@ -159,7 +159,7 @@ export async function GET(_request: NextRequest) {
   const notThese = (
     await prisma.doNotSubmit.findMany({
       where: { personId: person.id },
-      select: { id: true, companyId: true, companyName: true, note: true, company: { select: { name: true } } },
+      select: { id: true, companyId: true, companyName: true, note: true, company: { select: { name: true, homeCurrency: true } } },
       orderBy: { createdAt: 'desc' },
     })
   ).map(notSentToRow)
@@ -196,7 +196,7 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.listingId === 'string' && typeof body.askFirst === 'boolean') {
     const listing = await prisma.benchListing.findFirst({
       where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null },
-      select: { id: true, company: { select: { name: true } } },
+      select: { id: true, company: { select: { name: true, homeCurrency: true } } },
     })
     if (!listing) {
       return NextResponse.json(
@@ -231,7 +231,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null, state: 'GRANTED' },
       select: {
         id: true, companyId: true, termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
-        company: { select: { name: true } },
+        company: { select: { name: true, homeCurrency: true } },
       },
     })
     if (!listing) {
@@ -240,14 +240,14 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       )
     }
-    if (!termsShown(listing, listing.company.name)) {
+    if (!termsShown(listing, listing.company)) {
       return NextResponse.json(
         { error: { code: 'NO_TERMS', message: `${listing.company.name} has not said what it would pay you, so there is nothing to agree.` } },
         { status: 409 }
       )
     }
     const now = new Date()
-    const verdict = agreeingTerms(listing, body.agreeTerms, listing.company.name, now)
+    const verdict = agreeingTerms(listing, body.agreeTerms, listing.company, now)
     if (!verdict.ok) {
       return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: verdict.says, field: 'agreeTerms' } }, { status: 409 })
     }
@@ -281,7 +281,7 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.listingId === 'string' && typeof body.showInMatches === 'boolean') {
     const listing = await prisma.benchListing.findFirst({
       where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null },
-      select: { id: true, companyId: true, company: { select: { name: true } } },
+      select: { id: true, companyId: true, company: { select: { name: true, homeCurrency: true } } },
     })
     if (!listing) {
       return NextResponse.json(
@@ -309,7 +309,7 @@ export async function PATCH(request: NextRequest) {
     }
     const listing = await prisma.benchListing.findFirst({
       where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null, state: 'GRANTED' },
-      select: { id: true, companyId: true, company: { select: { name: true } } },
+      select: { id: true, companyId: true, company: { select: { name: true, homeCurrency: true } } },
     })
     if (!listing) {
       return NextResponse.json(
@@ -450,7 +450,7 @@ export async function PATCH(request: NextRequest) {
       select: {
         id: true,
         companyId: true,
-        company: { select: { name: true } },
+        company: { select: { name: true, homeCurrency: true } },
         clientCompany: { select: { name: true } },
         opening: { select: { inferredClient: true } },
       },
@@ -518,7 +518,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: body.answer, personId: person.id, state: 'REQUESTED' },
       select: {
         id: true, companyId: true, clientCompanyId: true,
-        company: { select: { name: true } },
+        company: { select: { name: true, homeCurrency: true } },
         clientCompany: { select: { name: true } },
         opening: { select: { inferredClient: true } },
       },
@@ -593,7 +593,7 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.revokeListing === 'string') {
     const listing = await prisma.benchListing.findFirst({
       where: { id: body.revokeListing, consultant: { personId: person.id }, revokedAt: null },
-      select: { id: true, companyId: true, company: { select: { name: true } } },
+      select: { id: true, companyId: true, company: { select: { name: true, homeCurrency: true } } },
     })
     if (!listing) {
       return NextResponse.json(

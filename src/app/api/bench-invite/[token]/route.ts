@@ -54,7 +54,7 @@ async function load(token: string) {
   const listing = await prisma.benchListing.findUnique({
     where: { id: t.listingId },
     include: {
-      company: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true, homeCurrency: true } },
       consultant: { select: { personId: true, person: { select: { name: true } } } },
     },
   })
@@ -101,7 +101,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       yesMeansIfAsked: whatYesMeans({ vendor: listing.company.name, askFirst: true }),
       // The pay terms the firm stated, in the words their own page uses,
       // and what the yes sends back to agree them (2026-10-06).
-      terms: inviteTerms(listing, listing.company.name),
+      terms: inviteTerms(listing, listing.company),
     },
   })
 }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // What the yes agrees about pay. A no agrees nothing and needs no check.
-  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company.name, now) : null
+  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company, now) : null
   if (terms && !terms.ok) {
     return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
   }

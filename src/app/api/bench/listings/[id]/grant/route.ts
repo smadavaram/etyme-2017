@@ -38,7 +38,7 @@ export async function PATCH(
         },
       },
       company: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, homeCurrency: true },
       },
     },
   })
@@ -113,7 +113,7 @@ export async function PATCH(
   // Terms stated with the listing are agreed by this yes only where the
   // caller sends back the terms it was shown (`termsSeen`), the same rule
   // as the person's own page. Nothing stated agrees only the marketing.
-  const terms = agreeingTerms(listing, body?.termsSeen, listing.company.name, grantedOn)
+  const terms = agreeingTerms(listing, body?.termsSeen, listing.company, grantedOn)
   if (!terms.ok) {
     return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
   }

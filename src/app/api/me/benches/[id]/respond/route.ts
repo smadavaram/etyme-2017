@@ -47,7 +47,7 @@ export async function POST(
     where: { id },
     include: {
       consultant: { select: { personId: true } },
-      company: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true, homeCurrency: true } },
     },
   })
 
@@ -86,7 +86,7 @@ export async function POST(
   const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
 
   // What the yes agrees about pay. A no agrees nothing and needs no check.
-  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company.name, now) : null
+  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company, now) : null
   if (terms && !terms.ok) {
     return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
   }

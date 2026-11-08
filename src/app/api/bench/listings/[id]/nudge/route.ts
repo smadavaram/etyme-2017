@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     select: {
       id: true, companyId: true, state: true, revokedAt: true, lapsedAt: true, staysUntil: true, stayDays: true,
       termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
-      company: { select: { name: true } },
+      company: { select: { name: true, homeCurrency: true } },
       consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } },
     },
   })
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const letter = waiting
-    ? inviteText({ personName: person.name, vendorName: listing.company.name, url, terms: termsShown(listing, listing.company.name) })
+    ? inviteText({ personName: person.name, vendorName: listing.company.name, url, terms: termsShown(listing, listing.company) })
     : renewAskText({ personName: person.name, firm: listing.company.name, endedOn: listing.lapsedAt ?? listing.staysUntil!, days: listing.stayDays, url })
   const sent = await send({
     companyId: listing.companyId, personId: person.id, kind: 'LINK', to: person.primaryEmail,
