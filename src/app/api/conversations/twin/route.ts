@@ -851,8 +851,11 @@ async function keep(caller: Caller, question: string, answer: Answer): Promise<{
     const asked = await appendTurn(caller, { speaker: 'PERSON', text: question, threadId })
     if (!asked.ok) return { kept: false, turnId: null, notKeptBecause: asked.says, threadId }
     if (!asked.saved) return { kept: false, turnId: null, notKeptBecause: asked.says, threadId: null }
-    // The seat's first line ever made its first conversation.
-    threadId ??= await newestId(caller)
+    // The answer goes in the conversation the question was written to,
+    // which the library names (the seat's first line ever makes its first
+    // conversation), so a New conversation pressed in another tab at that
+    // instant can never take the answer.
+    threadId = asked.threadId
     const said = await appendTurn(caller, { speaker: 'ETYME', text: answer.says || 'Ask Etyme answered.', answer, cardApprovalIds: cardIdsOf(answer), threadId })
     if (!said.ok) return { kept: false, turnId: null, notKeptBecause: said.says, threadId }
     if (!said.saved) return { kept: false, turnId: null, notKeptBecause: said.says, threadId }
