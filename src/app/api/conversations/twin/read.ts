@@ -784,7 +784,7 @@ export function readersFor(
         orderBy: { ts: 'desc' },
         distinct: ['entityId'],
         take: 20,
-        select: { entityId: true, ts: true },
+        select: { entityId: true, ts: true, payload: true },
       })
       if (flagged.length === 0) return { told: [], stale: [] }
       const rules = await invoiceRulesFor(companyId)
@@ -802,7 +802,9 @@ export function readersFor(
         const v = verdicts[i]
         if (!v) continue
         if (v.verdict === 'CLEAN' || v.payable) {
-          if (new Date(f.ts).getTime() >= lastNight && v.number) stale.push(v.number)
+          // "Matches now" only where it did not match; a bank hold always did (walk 7).
+          const was = f.payload as { flag?: string; verdict?: string } | null
+          if ((was?.flag ? was.flag === 'MISMATCH' : was?.verdict !== 'CLEAN') && new Date(f.ts).getTime() >= lastNight && v.number) stale.push(v.number)
           continue
         }
         const hours = v.lines.filter((l) => l.on !== 'NONE' && l.hoursAccepted != null)

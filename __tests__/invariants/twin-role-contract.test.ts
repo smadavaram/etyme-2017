@@ -91,7 +91,7 @@ vi.mock('@/lib/access-log', () => ({ logBulkAccess: h.logBulkAccess }))
 // The nightly run's inputs, so what it does with a verdict is what is
 // tested: the rules themselves are tested in twin-invoice-rule.
 vi.mock('@/lib/twin/rules/tenure', () => ({ tenureWarnings: async () => [] }))
-vi.mock('@/lib/twin/rules/invoice', () => ({ pendingReceiptsFor: async () => h.receipts }))
+vi.mock('@/lib/twin/rules/invoice', async (actual) => ({ ...(await actual<typeof import('@/lib/twin/rules/invoice')>()), pendingReceiptsFor: async () => h.receipts }))
 vi.mock('@/lib/twin/rule-set', () => ({ ruleSetFor: async () => ({ version: 1, tenureWarnAtDays: [90, 60, 30], hoursTolerancePct: 0.5, source: 'DEFAULT' }) }))
 vi.mock('@/lib/teams/digest', () => ({ tellProgramOwnerOnTeams: async () => [] }))
 vi.mock('@/lib/money/keyed-receipt', () => ({ mayPayKeyedReceipt: async () => ({ ok: true }) }))

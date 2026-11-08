@@ -27,6 +27,7 @@ import { labelFor } from '@/lib/document-type'
 import { holdsPaperworkDesk } from '@/lib/document-request'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { paperAsksToday } from './paper-asks'
+import { closedFlagNotices } from '@/lib/twin/held-notices'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
@@ -148,6 +149,8 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
   // written: a paper on file since is not asked for again (walk 5, C8).
   const asks = await paperAsksToday(read).catch(() => new Map<string, never>())
   for (const [id, a] of asks) if (a.kind === 'ANSWERED') withheld.add(id)
+  // A receipt held or flagged last night and paid since is not said again (walk 7).
+  for (const id of await closedFlagNotices(read)) withheld.add(id)
   const rows = read
     .filter((n) => !withheld.has(n.id))
     .map((n) => { const a = asks.get(n.id); return a?.kind === 'LEFT' ? { ...n, title: a.title, body: null } : n })

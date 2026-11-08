@@ -30,7 +30,7 @@ import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
-import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
+import { pendingReceiptsFor, receiptFlag } from '@/lib/twin/rules/invoice'
 import { ruleSetFor } from '@/lib/twin/rule-set'
 import { act, closeOvertaken, runMemo, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
 import { tierIn } from '@/lib/twin/role-contract'
@@ -322,7 +322,11 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
   for (const v of verdicts) {
     const supplier = suppliers.get(v.invoiceId) ?? null
     const entity = { type: 'Invoice', id: v.invoiceId, partyCompanyIds: supplier ? [companyId, supplier] : [companyId] }
-    const payload = { number: v.number, supplierName: v.supplierName, verdict: v.verdict, payable: v.payable, failing: v.failing, ruleSetVersion: rules.version }
+    // What the paying team is told, decided once (`receiptFlag`); a bank
+    // hold rides in the payload as `heldOn`, so the notice says "held"
+    // and never "does not match" (walk 7, 2026-11-08).
+    const flag = receiptFlag(v)
+    const payload = { number: v.number, supplierName: v.supplierName, verdict: v.verdict, payable: v.payable, failing: v.failing, heldOn: v.heldOn ?? null, flag, ruleSetVersion: rules.version }
     const key = `${v.invoiceId}:${v.verdict}`
     const recorded = tally(await act({
       companyId, action: 'invoice_receipt.record', entity, rule: v.ruleCited, rationale: v.rationale,
@@ -368,20 +372,20 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
       continue
     }
     if (recorded.outcome !== 'PERFORMED') continue
-    if (v.verdict !== 'CLEAN') {
-      tally(await act({
-        companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
-        surface, authority, payload, dedupKey: key, memo,
-      }))
-    } else if (v.payable) {
+    if (flag === 'NONE') {
       tally(await act({
         companyId, action: RECEIPT_APPROVE, entity, rule: v.ruleCited, rationale: v.rationale,
         surface, authority, payload, dedupKey: v.invoiceId, memo,
       }))
     } else {
-      // Inside the hours tolerance but not payable — a week not accepted,
-      // a draft, past its ceiling. Never silently permitted: the paying
-      // team is told why, the same way a mismatch is.
+      // MISMATCH: the check found a difference. BANK_HOLD: the check
+      // passed and the supplier's bank is not checked; the rationale names
+      // who checks, and the notice is titled as a hold (`bankHoldTitle`),
+      // never as a mismatch. NOT_PAYABLE: inside the tolerance but held
+      // for another reason (a week not accepted, a draft, past its
+      // ceiling). Never silently permitted: the paying team is told why.
+      // One act kind for the three, acting alone with an internal notice
+      // only, so the role contract's tier is unchanged.
       tally(await act({
         companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
         surface, authority, payload, dedupKey: key, memo,

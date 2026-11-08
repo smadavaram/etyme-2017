@@ -32,6 +32,7 @@ import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
 import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import type { TwinKindName } from '@/lib/autonomy'
 import { SUPPLIER_ACT_PERFORMERS } from '@/lib/twin/supplier-performers'
+import { bankHoldTitle } from '@/lib/twin/rules/invoice'
 
 export interface PerformContext {
   companyId: string
@@ -303,6 +304,9 @@ const payInvoiceReceipt: Performer = {
  * neither). A part the payload lacks is left out, never invented.
  */
 export function mismatchTitle(payload: Record<string, unknown>): string {
+  // A clean receipt held on the supplier's bank is a hold, never a
+  // mismatch (walk 7, 2026-11-08).
+  if (payload.heldOn === 'BANK' || payload.flag === 'BANK_HOLD') return bankHoldTitle(payload)
   const number = typeof payload.number === 'string' && payload.number.trim() ? payload.number.trim() : null
   const supplier = typeof payload.supplierName === 'string' && payload.supplierName.trim() ? payload.supplierName.trim() : null
   const what = number && supplier ? `${number} from ${supplier}`
