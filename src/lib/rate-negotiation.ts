@@ -32,6 +32,8 @@
  * 'RATE_CONFIRMATION'` already exist. This needed no schema change.
  */
 
+import { rate } from '@/lib/money-display'
+
 export type Side = 'CANDIDATE' | 'VENDOR'
 export type Move = 'OFFER' | 'ACCEPT' | 'DECLINE'
 
@@ -39,7 +41,7 @@ export interface Event {
   at: Date
   by: Side
   move: Move
-  /** Cents per hour. Required on an OFFER, ignored otherwise. */
+  /** Minor units per hour, in the negotiation's currency. Required on an OFFER, ignored otherwise. */
   cents?: number | null
 }
 
@@ -55,8 +57,10 @@ export type Stage =
 
 export interface State {
   stage: Stage
-  /** The figure currently on the table, in cents per hour. */
+  /** The figure currently on the table, in minor units per hour. */
   liveCents: number | null
+  /** The currency the figure is in, so it is said as that currency: whole dong, dollars with cents. */
+  currency: string
   /** Who made it. */
   offeredBy: Side | null
   /** Who has to move next. Null when nothing is owed. */
@@ -67,7 +71,8 @@ export interface State {
 }
 
 const other = (s: Side): Side => (s === 'CANDIDATE' ? 'VENDOR' : 'CANDIDATE')
-const money = (c: number) => `$${(c / 100).toFixed(2).replace(/\.00$/, '')}/hr`
+/** "$130.50/hr", "₫170,000/hr": the currency's own decimals, through money's one formatter. */
+const money = (c: number, currency: string) => rate(c, currency)
 
 /**
  * Read the negotiation off the thread.
@@ -75,7 +80,7 @@ const money = (c: number) => `$${(c / 100).toFixed(2).replace(/\.00$/, '')}/hr`
  * Events are taken in order and the last one that matters wins, which is
  * the whole reason for not storing a summary alongside them.
  */
-export function negotiation(events: Event[]): State {
+export function negotiation(events: Event[], currency: string = 'USD'): State {
   const ordered = [...events].sort((a, b) => a.at.getTime() - b.at.getTime())
 
   let liveCents: number | null = null
@@ -121,22 +126,23 @@ export function negotiation(events: Event[]): State {
     // the rate once accepted by you"* — and it should bind the vendor
     // just as tightly, or an agreement is only an agreement one way.
     mayCounter: () => stage === 'AWAITING' || stage === 'NOT_STARTED',
-    says: saysOf(stage, liveCents, offeredBy, awaiting),
+    currency,
+    says: saysOf(stage, liveCents, offeredBy, awaiting, currency),
   }
 }
 
-function saysOf(stage: Stage, cents: number | null, by: Side | null, awaiting: Side | null): string {
+function saysOf(stage: Stage, cents: number | null, by: Side | null, awaiting: Side | null, currency: string): string {
   switch (stage) {
     case 'NOT_STARTED':
       return 'No rate has been proposed yet.'
     case 'AGREED':
-      return `Agreed at ${money(cents!)}. Neither side can change it now.`
+      return `Agreed at ${money(cents!, currency)}. Neither side can change it now.`
     case 'DECLINED':
       return 'Somebody walked away from this rate. Nothing is on the table.'
     case 'AWAITING':
       return by === 'CANDIDATE'
-        ? `You asked for ${money(cents!)}. Waiting on them.`
-        : `They have offered ${money(cents!)}. It is with you.`
+        ? `You asked for ${money(cents!, currency)}. Waiting on them.`
+        : `They have offered ${money(cents!, currency)}. It is with you.`
   }
 }
 
@@ -149,7 +155,7 @@ function saysOf(stage: Stage, cents: number | null, by: Side | null, awaiting: S
  */
 export function mayMove(s: State, side: Side, move: Move): { ok: boolean; reason: string } {
   if (s.stage === 'AGREED') {
-    return { ok: false, reason: `This was agreed at ${money(s.liveCents!)}. Neither side can reopen it.` }
+    return { ok: false, reason: `This was agreed at ${money(s.liveCents!, s.currency)}. Neither side can reopen it.` }
   }
   if (s.stage === 'DECLINED') {
     return { ok: false, reason: 'This rate was declined. Somebody has to make a fresh offer.' }
@@ -160,7 +166,7 @@ export function mayMove(s: State, side: Side, move: Move): { ok: boolean; reason
     if (s.offeredBy === side) {
       return { ok: false, reason: 'That is your own offer. You are waiting on them, not the other way round.' }
     }
-    return { ok: true, reason: `Accepting ${money(s.liveCents)}.` }
+    return { ok: true, reason: `Accepting ${money(s.liveCents, s.currency)}.` }
   }
 
   if (move === 'OFFER') {
@@ -180,10 +186,10 @@ export function mayMove(s: State, side: Side, move: Move): { ok: boolean; reason
  * In the third person on purpose — everybody in the thread reads the
  * same sentence, and "you countered" is wrong for every reader but one.
  */
-export function messageFor(e: Event, name: string): string {
+export function messageFor(e: Event, name: string, currency: string = 'USD'): string {
   switch (e.move) {
     case 'OFFER':
-      return `${name} proposed ${money(e.cents!)}.`
+      return `${name} proposed ${money(e.cents!, currency)}.`
     case 'ACCEPT':
       return `${name} accepted.`
     case 'DECLINE':

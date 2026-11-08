@@ -20,6 +20,7 @@
 
 import type { Treatment } from './overtime'
 import { possessive } from '@/lib/requisition-approval'
+import { amount } from '@/lib/money-display'
 
 export type WorkerType = 'W2' | 'C2C' | 'IND_1099' | 'C2H_W2'
 
@@ -1106,6 +1107,8 @@ interface WageRules {
   compTimeLawfulForPrivateEmployer: boolean
   /** Where a state or region may require more than this table holds. */
   mayBeHigherLocally: string | null
+  /** The currency the statute's pay floors are written in; null where it sets none. */
+  currency: string | null
 }
 
 const WAGE_RULES: Record<WageRuleName, WageRules> = {
@@ -1133,6 +1136,7 @@ const WAGE_RULES: Record<WageRuleName, WageRules> = {
     salaryFloorCentsPerWeek: 68_400,
     computerHourlyFloorCents: 2_763,
     compTimeLawfulForPrivateEmployer: false,
+    currency: 'USD',
     mayBeHigherLocally:
       'Several states require more than the federal floor — California prices a ninth ' +
       'hour in a day and a seventh consecutive day, and sets its own salary level. This ' +
@@ -1153,6 +1157,7 @@ const WAGE_RULES: Record<WageRuleName, WageRules> = {
     computerHourlyFloorCents: null,
     compTimeLawfulForPrivateEmployer: true,
     mayBeHigherLocally: null,
+    currency: null,
   },
 
   // Everywhere we have not written a table for. Not a default of "no
@@ -1167,6 +1172,7 @@ const WAGE_RULES: Record<WageRuleName, WageRules> = {
     computerHourlyFloorCents: null,
     compTimeLawfulForPrivateEmployer: false,
     mayBeHigherLocally: null,
+    currency: null,
   },
 }
 
@@ -1202,6 +1208,11 @@ export interface PayShape {
   paidOnSalaryBasis: boolean
   /** Where a salary is paid, what it is per week in cents. */
   weeklySalaryCents?: number | null
+  /**
+   * The currency the line pays in (`BuyContract.payCurrency`). Unstated
+   * reads as dollars, the shape every caller had before it was carried.
+   */
+  payCurrency?: string | null
 }
 
 export interface ExemptionScreen {
@@ -1234,6 +1245,21 @@ export function screenExemption(pay: PayShape, rule: WageRuleName = 'US_FLSA'): 
       says:
         `There is no overtime exemption to test under ${r.label} — statute does not price ` +
         `an overtime hour here, so what these hours are worth is whatever the contract says.`,
+    }
+  }
+
+  // The floors are written in the statute's currency. A line paid in
+  // another is not compared against them: Etyme converts no money, so the
+  // pay test is not run and the read is the honest one, never an exemption.
+  const paidIn = (pay.payCurrency ?? 'USD').toUpperCase()
+  if (r.currency && paidIn !== r.currency) {
+    return {
+      outcome: 'ETYME_CANNOT_SAY',
+      rulesOut: [],
+      leavesOpen: [],
+      says:
+        `Paid in ${paidIn}. The ${r.label} writes its pay floors in ${r.currency}, and Etyme does not ` +
+        `convert one into the other, so the pay test is not run. Whether an exemption applies is the employer's to say.`,
     }
   }
 
@@ -1279,7 +1305,9 @@ export function screenExemption(pay: PayShape, rule: WageRuleName = 'US_FLSA'): 
     }
   }
 
-  const money = (c: number) => `$${(c / 100).toFixed(2)}`
+  // The pay in the line's own currency; the floors in the statute's.
+  const paid = (c: number) => amount(c, paidIn)
+  const floor = (c: number) => amount(c, r.currency ?? paidIn)
 
   if (leavesOpen.length <= 1) {
     return {
@@ -1287,8 +1315,8 @@ export function screenExemption(pay: PayShape, rule: WageRuleName = 'US_FLSA'): 
       rulesOut,
       leavesOpen,
       says:
-        `Paid ${money(pay.payRateCents)} an hour with no guaranteed salary. That is below the ` +
-        `${money(r.computerHourlyFloorCents ?? 0)} an hour the computer employee exemption requires ` +
+        `Paid ${paid(pay.payRateCents)} an hour with no guaranteed salary. That is below the ` +
+        `${floor(r.computerHourlyFloorCents ?? 0)} an hour the computer employee exemption requires ` +
         `and it is not a salary at all, so every exemption with a pay test fails on arithmetic ` +
         `alone — no view of the duties needed. These hours are nonexempt unless somebody can ` +
         `explain in writing why they are not.`,
@@ -1302,7 +1330,7 @@ export function screenExemption(pay: PayShape, rule: WageRuleName = 'US_FLSA'): 
     says:
       `Not paid on a salary basis, so the ${rulesOut.map((e) => EXEMPTION_LABEL[e]).join(', ')} ` +
       `exemption${rulesOut.length === 1 ? '' : 's'} cannot apply — each requires a predetermined ` +
-      `salary of at least ${money(r.salaryFloorCentsPerWeek)} a week. ` +
+      `salary of at least ${floor(r.salaryFloorCentsPerWeek)} a week. ` +
       `${leavesOpen.map((e) => EXEMPTION_LABEL[e]).join(' and ')} are untouched by the pay test ` +
       `and turn on the duties, which is the employer's to say.`,
   }
@@ -1557,8 +1585,8 @@ const DAY_NAME = (iso: string): string =>
 
 const HRS = (n: number): string => `${n} ${n === 1 ? 'hour' : 'hours'}`
 
-const USD = (c: number): string =>
-  `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** An amount in the line's own currency, with that currency's own decimals. */
+const inPay = (c: number, currency: string | null | undefined): string => amount(c, currency ?? 'USD')
 
 function multiple(bps: number): string {
   const x = bps / 10_000
@@ -1767,27 +1795,27 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
       `as paid time off. That is how ${client} is billed and it does not reach the pay line: time ` +
       `off instead of overtime pay is lawful for public agencies only (29 U.S.C. §207(o)), and ` +
       `${employer} is not one. ${who} is owed ${HRS(week.overHours)} at ${multiple(r.floorBps)} ` +
-      `— ${USD(overtimeCents)} — on this period's payroll.`
+      `— ${inPay(overtimeCents, at.pay.payCurrency)} — on this period's payroll.`
   } else if (at.client.treatment === 'SAME_RATE') {
     says =
       `${client} is billed ${possessive(who)} ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
       `at the usual rate. ${who} is nonexempt, so ${employer} owes ${multiple(r.floorBps)} on them ` +
-      `regardless — ${USD(overtimeCents)}. What a client agrees to pay its supplier does not set ` +
+      `regardless — ${inPay(overtimeCents, at.pay.payCurrency)}. What a client agrees to pay its supplier does not set ` +
       `what the supplier owes its employee.`
   } else if (at.client.treatment === 'PREMIUM' && uncovered != null && uncovered > 0) {
     says =
       `${client} priced ${possessive(who)} ${HRS(week.overHours)} at ${multiple(clientBps!)}, which is under ` +
       `the ${multiple(r.floorBps)} a nonexempt employee is owed. ${employer} pays ` +
-      `${USD(overtimeCents)}.`
+      `${inPay(overtimeCents, at.pay.payCurrency)}.`
   } else {
     says =
       `${who} is nonexempt, so ${HRS(week.overHours)} over the line are owed in money at ` +
-      `${multiple(r.floorBps)} — ${USD(overtimeCents)}.`
+      `${multiple(r.floorBps)} — ${inPay(overtimeCents, at.pay.payCurrency)}.`
   }
 
   if (uncovered != null && uncovered > 0) {
     says +=
-      ` ${USD(uncovered)} of that is premium ${possessive(client)} own choice did not price, and ` +
+      ` ${inPay(uncovered, at.pay.payCurrency)} of that is premium ${possessive(client)} own choice did not price, and ` +
       `${employer} carries it.`
   }
 

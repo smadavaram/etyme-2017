@@ -49,6 +49,9 @@
  * grounded, WARN and route everywhere else, never silently permit.
  */
 
+import { compact, rate } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
+
 export type CheckOutcome = 'PASS' | 'ROUTE' | 'BLOCK'
 
 /** Which desk a check belongs to. */
@@ -70,8 +73,14 @@ export interface Seat {
 }
 
 export interface RequisitionFacts {
-  /** Annualized value of the requisition, in cents. */
+  /** Annualized value of the requisition, in minor units. */
   annualValueCents: number
+  /**
+   * The currency every amount here is in: the job's, the cost center's
+   * budget and the plan's. Unstated reads as dollars. Amounts are said in
+   * it with its own decimals and are never added across currencies.
+   */
+  currency?: string | null
   /**
    * Where that figure came from, and how it reads in a sentence.
    *
@@ -169,7 +178,26 @@ export function deskFor(rules: ApprovalRuleFacts[], kind: 'HR' | 'PROCUREMENT'):
   return { personId: nearest.approverId, name: nearest.approverName, ruleId: nearest.id }
 }
 
-const dollars = (cents: number) => `$${Math.round(cents / 100).toLocaleString()}`
+/**
+ * A whole amount in its own currency, through money's one formatter: the
+ * currency's own exponent decides what a whole unit is, so a dollar figure
+ * rounds to dollars and a dong figure is already whole ("$12,400",
+ * "₫170,000"), never a figure divided by a hundred with "$" in front.
+ */
+function wholeAmount(minor: number, currency: string): string {
+  const per = minorPerUnit(currency)
+  return compact(Math.round(minor / per) * per, currency)
+}
+
+/** "$130/hr", "₫170,000/hr": a rate in whole units of its own currency. */
+function wholeRate(minor: number, currency: string | null | undefined): string {
+  const ccy = currency ?? 'USD'
+  const per = minorPerUnit(ccy)
+  return rate(Math.round(minor / per) * per, ccy)
+}
+
+/** A whole amount in its own currency: "$12,400", "₫170,000". */
+const dollars = (minor: number, currency: string | null | undefined = 'USD') => wholeAmount(minor, currency ?? 'USD')
 
 /**
  * Run the checks and build the chain. Pure — no database, no clock — so
@@ -245,7 +273,7 @@ export function evaluateRequisition(
           code: 'BUDGET',
           outcome: 'ROUTE',
           stage: 'FINAL',
-          reason: `Exceeds ${cc.code} budget by ${dollars(over)}`,
+          reason: `Exceeds ${cc.code} budget by ${dollars(over, facts.currency)}`,
         })
       } else {
         const left = cc.annualBudgetCents - after
@@ -253,7 +281,7 @@ export function evaluateRequisition(
           code: 'BUDGET',
           outcome: 'PASS',
           stage: 'FINAL',
-          reason: `${dollars(left)} left in ${cc.code}`,
+          reason: `${dollars(left, facts.currency)} left in ${cc.code}`,
         })
       }
     }
@@ -272,14 +300,14 @@ export function evaluateRequisition(
         code: 'RATE_BAND',
         outcome: 'ROUTE',
         stage: 'SOURCING',
-        reason: `$${Math.round(facts.billMaxCents / 100)}/hr is ${overPercent}% above the $${Math.round(facts.skillMedianCents / 100)}/hr you already pay for this skill`,
+        reason: `${wholeRate(facts.billMaxCents, facts.currency)} is ${overPercent}% above the ${wholeRate(facts.skillMedianCents, facts.currency)} you already pay for this skill`,
       })
     } else {
       checks.push({
         code: 'RATE_BAND',
         outcome: 'PASS',
         stage: 'SOURCING',
-        reason: `$${Math.round(facts.billMaxCents / 100)}/hr is in line with the $${Math.round(facts.skillMedianCents / 100)}/hr you already pay`,
+        reason: `${wholeRate(facts.billMaxCents, facts.currency)} is in line with the ${wholeRate(facts.skillMedianCents, facts.currency)} you already pay`,
       })
     }
   } else {
@@ -486,13 +514,16 @@ export function overTheLimitSays(o: {
   estimated: boolean
   rules: { approverId: string; approverName: string; thresholdCents: number | null }[]
   notAsked?: (string | null | undefined)[]
+  /** The currency the limits are written in; unstated reads as dollars. */
+  currency?: string | null
 }): string {
   const amount = o.estimated
-    ? (o.valueSays.match(/\$\d(?:[\d,]*\d)?(?:\.\d+)?/)?.[0] ?? null)
+    // The amount the estimate leads with, in whatever currency it was said.
+    ? (o.valueSays.match(/^about (.+?), estimated from/)?.[1] ?? null)
     : null
   const what = amount ? `About ${amount}` : upperFirst(o.valueSays.trim())
   const limits = o.rules.map((r) => r.thresholdCents).filter((c): c is number => c !== null)
-  const limit = limits.length > 0 ? `the ${dollars(Math.min(...limits))} limit` : 'the limit'
+  const limit = limits.length > 0 ? `the ${dollars(Math.min(...limits), o.currency)} limit` : 'the limit'
   const skip = new Set(o.notAsked?.filter(Boolean) as string[] | undefined)
   const who = Array.from(new Set(o.rules.filter((r) => !skip.has(r.approverId)).map((r) => r.approverName)))
   const signs = who.length === 0
@@ -711,8 +742,11 @@ export function annualValue(input: {
   months: number | null
   /** Hours a week this seat works. Null or absent means full time. */
   hoursPerWeek?: number | null
+  /** The job's currency; unstated reads as dollars. */
+  currency?: string | null
 }): AnnualValue {
   const { budgetCents, billMaxCents, headcount, months, hoursPerWeek } = input
+  const ccy = input.currency ?? 'USD'
   const effectiveMonths = Math.min(months ?? 12, 12)
 
   if (budgetCents && budgetCents > 0) {
@@ -726,8 +760,8 @@ export function annualValue(input: {
       basis: 'BUDGET',
       says:
         over > 12
-          ? `$${Math.round(cents / 100).toLocaleString()} a year, from the $${Math.round(budgetCents / 100).toLocaleString()} budget you stated over ${over} months`
-          : `the $${Math.round(cents / 100).toLocaleString()} budget you stated`,
+          ? `${dollars(cents, ccy)} a year, from the ${dollars(budgetCents, ccy)} budget you stated over ${over} months`
+          : `the ${dollars(cents, ccy)} budget you stated`,
     }
   }
 
@@ -744,8 +778,8 @@ export function annualValue(input: {
     cents,
     basis: 'ESTIMATE',
     says:
-      `about $${Math.round(cents / 100).toLocaleString()}, estimated from ` +
-      `$${Math.round(billMaxCents / 100)}/hr at ${hoursPerMonth / 4} hours a week ` +
+      `about ${dollars(cents, ccy)}, estimated from ` +
+      `${wholeRate(billMaxCents, ccy)} at ${hoursPerMonth / 4} hours a week ` +
       `for ${effectiveMonths} month${effectiveMonths === 1 ? '' : 's'}` +
       `${headcount > 1 ? ` across ${headcount} people` : ''}`,
   }

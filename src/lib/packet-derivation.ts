@@ -1,5 +1,7 @@
 import type { ItemSpec, Purpose, SubjectKind } from '@/lib/packets'
 import { workAuthorizationFor } from '@/lib/document-stages/countries'
+import { compact } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
 
 const authHere = (c: { country: string }) => workAuthorizationFor(c.country)
 
@@ -28,8 +30,10 @@ export interface Circumstances {
   classification?: string | null
   /** US_CITIZEN · GC · H1B · OPT · null when unknown. */
   workAuth?: string | null
-  /** Annualized value in cents. Bigger engagements carry more cover. */
+  /** Annualized value in minor units. Bigger engagements carry more cover. */
   valueCents?: number | null
+  /** The currency of `valueCents`; unstated reads as dollars. */
+  valueCurrency?: string | null
   /** Whether the person will be on the client's own premises. */
   onSite?: boolean
   /** Whether they touch the client's systems. */
@@ -62,7 +66,19 @@ interface Rule {
   items: ItemSpec[]
 }
 
-const money = (cents: number) => `$${Math.round(cents / 100).toLocaleString()}`
+/**
+ * A whole amount in its own currency, through money's one formatter: the
+ * currency's own exponent decides what a whole unit is, so a dollar figure
+ * rounds to dollars and a dong figure is already whole ("$12,400",
+ * "₫170,000"), never a figure divided by a hundred with "$" in front.
+ */
+function wholeAmount(minor: number, currency: string): string {
+  const per = minorPerUnit(currency)
+  return compact(Math.round(minor / per) * per, currency)
+}
+
+/** A whole amount in its own currency: "$500,000", "₫12,000,000,000". */
+const money = (minor: number, currency: string | null | undefined) => wholeAmount(minor, currency ?? 'USD')
 
 // ── Bringing on a supplier ────────────────────────────────────────────
 
@@ -329,7 +345,7 @@ export function explainDerivation(d: Derived, c: Circumstances): string {
   }
   if (c.workAuth && c.workAuth !== 'US_CITIZEN') bits.push(`on ${c.workAuth}`)
   if (c.systemsAccess) bits.push('with access to our systems')
-  if ((c.valueCents ?? 0) >= 500_000_00) bits.push(`at ${money(c.valueCents!)} a year`)
+  if ((c.valueCents ?? 0) >= 500_000_00) bits.push(`at ${money(c.valueCents!, c.valueCurrency)} a year`)
 
   return `${d.items.length} item(s), because this is ${bits.join(', ')}.`
 }
