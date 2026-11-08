@@ -165,7 +165,7 @@ export default function CommissionsPage() {
 
       {!loading && rows.length > 0 && (
         <section className="panel space-y-2">
-          <p className="eyebrow">Commissions on lines, this period</p>
+          <p className="lbl">Commissions on lines, this period</p>
           {rows.map((r) => (
             <div key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-etyme-rule pt-2 text-[13px] first:border-t-0 first:pt-0">
               <div>
