@@ -373,7 +373,20 @@ export interface PlacementBooks {
  */
 export async function placementBooks(
   companyId: string,
-  opts: { scope?: Scope; sellContractIds?: readonly string[]; pairs?: Pairs } = {}
+  opts: {
+    scope?: Scope
+    sellContractIds?: readonly string[]
+    pairs?: Pairs
+    /**
+     * Only the weeks that start inside [from, to). Profitability's cut by
+     * month or quarter reads this, so a period's figure is the same
+     * pricing over fewer weeks and never a second piece of arithmetic. A
+     * week counts in the period its Sunday falls in. Bill lines are kept
+     * where their week is in the window; a line with no week behind it (an
+     * expense, a milestone) has no week to place it, and is left out.
+     */
+    window?: { from: Date; to: Date }
+  } = {}
 ): Promise<PlacementBooks[]> {
   if (!companyId) throw new Error('placementBooks needs the viewing company: a figure belongs to one firm.')
   const scope = opts.scope ?? 'ALL'
@@ -432,7 +445,10 @@ export async function placementBooks(
     const own = rowOf.get(p.sell.id)
     if (!own) continue
     const r = read.get(p.sell.id)
-    const sheets = r?.sheets ?? []
+    const allSheets = r?.sheets ?? []
+    const w = opts.window
+    const sheets = w ? allSheets.filter((s) => s.periodStart >= w.from && s.periodStart < w.to) : allSheets
+    const inWindow = w ? new Set(sheets.map((s) => s.id)) : null
     const at = r?.rung ? hopsAround(companyId, r.ladder) : null
     const hop0 = !!r?.rung && !r.rung.supplierSellContractId
     const cand = p.buy ? openingPay.find((x) => x.buyContractId === p.buy!.id && x.personId === p.sell.personId) ?? null : null
@@ -449,7 +465,7 @@ export async function placementBooks(
         : null
     // The books' rate for this employer, read for the year the work began
     // on this line, at hop 0 only. A supplier carries its own people's burden.
-    const firstWeek = sheets[0]?.periodStart ?? new Date()
+    const firstWeek = allSheets[0]?.periodStart ?? new Date()
     const b = hop0 && p.buy ? await burdenOn(p.buy.contractType, firstWeek) : null
     const bill = { openingRateCents: own.billRate, periods: periodsFor('SELL', p.sell.id), currency: billCurrency }
     const earned = placementEarned({ sheets, bill, pay, burdenRate: b?.rate ?? 0 })
@@ -459,6 +475,7 @@ export async function placementBooks(
       weeks: sheets.map((s, i) => ({ sheetId: s.id, revenueCents: priced[i]?.billedCents ?? 0 })),
       lines: billLines
         .filter((l) => l.sellContractId === p.sell.id)
+        .filter((l) => !inWindow || (!!l.timesheetId && inWindow.has(l.timesheetId)))
         .map((l) => ({
           amountCents: l.amountCents,
           timesheetId: l.timesheetId,

@@ -6,6 +6,9 @@ import { staffOnly } from '@/lib/seat'
 import {
   total, forCandidate, forCustomer, health, belowFloor,
 } from '@/lib/profitability'
+import {
+  CUTS, CUT_HEADING, NO_OFFICE, askAbout, cutOf, mayReadCut, periodOf, periodWindow, profitCut,
+} from '@/lib/money/profit-cut'
 import { placementBooks, pairsFor, bookEarned, billingTotal, REVENUE_HEADING, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 import {
   spreadOn, blendedSpread, sellSideRate, isLive, scopeSays, spreadHealth,
@@ -104,6 +107,56 @@ export async function GET(request: NextRequest) {
   // firm that has never opened a master contract. Loaded once and used by
   // `by=book` and by the order view's fallback.
   const pairs = await pairsFor(companyId, scope)
+
+  // ── Cut by consultant, office or client, for a month or a quarter ───
+  //
+  // "One app, two tabs" (2026-11-08): the founder's table. The same margin
+  // service over the weeks of the period, added up by a key
+  // (lib/money/profit-cut); nothing here prices anything.
+  if (by === 'cut') {
+    const refused = mayReadCut({ kind: caller.company?.kind })
+    if (refused) {
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: refused } }, { status: 403 })
+    }
+    const cut = cutOf(params.get('cut'))
+    const period = periodOf(params.get('period'))
+    const window = periodWindow(period, new Date())
+    const option = CUTS.find((c) => c.key === cut)!
+    const head = {
+      by: 'cut', cut, period, periodSays: window.says,
+      heading: CUT_HEADING,
+      cuts: CUTS,
+      ask: askAbout(cut, period),
+      // No admin cost is on the record for any firm yet, so none is
+      // subtracted and none is shown (2026-10-08: "not set" until entered).
+      adminCostSet: false,
+      adminCostSays: 'No admin cost is set for your firm, so every figure here is before it, and before commission.',
+    }
+    if (option.cannotBecause) {
+      return NextResponse.json({ data: { ...head, lines: [], total: null, cannotBecause: option.cannotBecause, says: option.cannotBecause } })
+    }
+    // A period reads every placement that worked in it, finished or not.
+    const all = scope === 'ALL' ? pairs : await pairsFor(companyId, 'ALL')
+    const inPeriod = await placementBooks(companyId, { scope: 'ALL', pairs: all, window })
+    const offices = cut === 'office' && inPeriod.length > 0
+      ? new Map(
+          (await prisma.sellContract.findMany({
+            where: { id: { in: inPeriod.map((b) => b.sellContractId) }, companyId },
+            select: { id: true, deliveryUnit: { select: { id: true, name: true } } },
+          })).map((c) => [c.id, c.deliveryUnit])
+        )
+      : new Map<string, { id: string; name: string } | null>()
+    const keyed = inPeriod.map((b) => {
+      const office = offices.get(b.sellContractId) ?? null
+      const [key, label] =
+        cut === 'client' ? [b.customer.id, b.customer.name]
+        : cut === 'office' ? [office?.id ?? 'none', office?.name ?? NO_OFFICE]
+        : [b.person.id, b.person.name]
+      return { key, label, currency: b.currency, earned: b.earned }
+    })
+    const answer = profitCut(keyed)
+    return NextResponse.json({ data: { ...head, ...answer, cannotBecause: null } })
+  }
 
   // The one margin service (lib/money/margin), read once for every view:
   // each placement this firm sells, priced on its own rates.

@@ -7,6 +7,7 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { Chip, EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
+import { CutTable } from './cut-table'
 
 /**
  * What placements actually made.
@@ -130,13 +131,21 @@ export default function ProfitabilityPage() {
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <PageHead
         eyebrow={eyebrow}
-        title="Profitability"
+        title="What did we make, and on whom?"
         subtitle={<>
           From what was actually approved and accepted, not from a rate card.
-          Employer burden, commission and expenses are counted — and on the
-          candidate view, so is the bench.
         </>}
       />
+
+      {/* The founder's table, 2026-11-08: one cut at a time, a month or a
+          quarter. The views under it are the detail behind the same figures. */}
+      <CutTable />
+
+      <h2 className="pt-2 text-[14px] font-medium text-etyme-ink">The detail</h2>
+      <p className="-mt-4 text-[12.5px] text-etyme-muted">
+        Every placement to date. Employer burden, commission and expenses are counted, and on the
+        candidate view, so is the bench.
+      </p>
 
       <FilterChips<By>
         label="Profitability by"

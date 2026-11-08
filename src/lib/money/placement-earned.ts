@@ -330,6 +330,14 @@ export interface PlacementEarned {
   costRefusedBecause: string | null
   /** Why the margin is blank, where it is. */
   marginRefusedBecause: string | null
+  /**
+   * Which kind of blank, for a reader that adds placements up: NO_COST and
+   * CURRENCY blank any total they are part of (a placement with no cost is
+   * not a perfect margin, and two currencies are never subtracted);
+   * NOTHING_SIGNED is a placement with no week both sides signed, which
+   * adds nothing and blanks nothing. Null where there is a margin.
+   */
+  marginBlankedBy: 'NO_COST' | 'CURRENCY' | 'NOTHING_SIGNED' | null
   /** Where a rate changed inside the hours priced, the pay line's runs of days in a sentence. */
   payRateChangeSays: string | null
   billRateChangeSays: string | null
@@ -407,11 +415,14 @@ export function placementEarned(input: {
   const awaiting = priced.sheets.filter((s) => s.billedHours > 0 && s.paidHours == null).length
 
   let marginRefusedBecause: string | null = costRefusedBecause
+  let marginBlankedBy: PlacementEarned['marginBlankedBy'] = costRefusedBecause ? 'NO_COST' : null
   if (!marginRefusedBecause && input.pay && input.bill.currency !== input.pay.currency) {
     marginRefusedBecause =
       `Billed in ${input.bill.currency} and paid in ${input.pay.currency}. One cannot be subtracted from the other.`
+    marginBlankedBy = 'CURRENCY'
   }
   if (!marginRefusedBecause && matched.length === 0) {
+    marginBlankedBy = 'NOTHING_SIGNED'
     marginRefusedBecause = priced.sheets.length === 0
       ? 'No hours have been signed on this placement yet.'
       : 'No week has been both approved by the client and accepted by the employer yet.'
@@ -449,6 +460,7 @@ export function placementEarned(input: {
     overtimeSays: costCents == null ? null : overtimeSaid(priced, input.pay!.currency),
     costRefusedBecause,
     marginRefusedBecause,
+    marginBlankedBy,
     payRateChangeSays: hasPayLine ? segmentsSay(paySegs, input.pay!.currency) : null,
     billRateChangeSays: segmentsSay(billSegs, input.bill.currency),
     says,
