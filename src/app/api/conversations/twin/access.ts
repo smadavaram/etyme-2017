@@ -7,7 +7,7 @@
  *
  * Three things:
  *  - a refused or narrowed read says how far the reader reaches, and who
- *    may give more ("You read what placements make for the Dayton team;
+ *    may give more ("You read margin for the Dayton team;
  *    ask the Owner for the firm's.");
  *  - the Owner's words "let Maya read margin for the Dayton team" become
  *    a give-access card, Yes and Not now, whose yes posts to the one route;
@@ -79,9 +79,36 @@ export function giversSaid(named: readonly string[] = []): string {
  * where the reader reads the firm's. One sentence, never a code.
  */
 export function scopeLine(permission: string, scope: AccessScope, teams: readonly string[] = [], givers: readonly string[] = []): string | null {
-  if (scope === 'UNIT') return `You ${label(permission)} for ${teamWords(teams)}; ask ${giversSaid(givers)} for the firm’s.`
-  if (scope === 'PERSON') return `You ${label(permission)} for your own work; ask ${giversSaid(givers)} for the firm’s.`
+  const reads = SCOPE_WORDS[permission] ?? label(permission)
+  if (scope === 'UNIT') return `You ${reads} for ${teamWords(teams)}; ask ${giversSaid(givers)} for the firm’s.`
+  if (scope === 'PERSON') return `You ${reads} for your own work; ask ${giversSaid(givers)} for the firm’s.`
   return null
+}
+
+/**
+ * The short words a narrowed read is said in, where the grant's own label
+ * reads long beside a figure: "You read margin for the Dayton team" (the
+ * founder's sentence, 2026-11-08), not "You read what placements make for
+ * the Dayton team".
+ */
+const SCOPE_WORDS: Readonly<Record<string, string>> = {
+  'margin.read': 'read margin',
+}
+
+/**
+ * A question that asks for the firm's whole figure rather than the
+ * reader's own reach: "What is the firm's margin?", "our total margin",
+ * "margin across the company", "for every team". Pure.
+ */
+export function asksFirmWide(lower: string): boolean {
+  return (
+    /\b(the|our|my|this) (whole |entire )?(firm|company|business)['’]s\b/.test(lower) ||
+    /\b(whole|entire) (firm|company|business|book)\b/.test(lower) ||
+    /\b(across|for) (the|our) (firm|company|business)\b/.test(lower) ||
+    /\b(firm|company)[- ]wide\b/.test(lower) ||
+    /\b(total|overall|all) (of our |our |the )?(margin|profit|profitability)\b/.test(lower) ||
+    /\b(every|all) (teams?|offices?|branch(es)?)\b/.test(lower)
+  )
 }
 
 /**

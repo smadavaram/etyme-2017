@@ -35,6 +35,11 @@ import { receiptsLink } from '@/lib/money/ap-words'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
+import {
+  readCommission, commissionAnswer, commissionTable, CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK,
+  type CommissionAsked, type CommissionRead,
+} from './commission-answer'
+import { isBankHeld, heldReason, checksTheBank, heldHref, bankHeldName, heldOnBankSays, CHECK_THE_BANK, OPEN_THE_RECEIPT } from './held-receipt'
 import { ITEM_WORDS, itemHref, CHECKLIST_HREF, type ItemKey } from '@/lib/setup-checklist'
 import { WEEK_WORDS, weekActOf } from '@/lib/notify/week-words'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
@@ -43,7 +48,7 @@ import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, writingAsk, NOT_ANOTH
 import type { WorkerAnswer } from './worker'
 import { isTwinAct } from '@/lib/autonomy'
 import {
-  readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, ACCESS_LINK, GIVE_ACCESS_ACT,
+  readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, asksFirmWide, ACCESS_LINK, GIVE_ACCESS_ACT,
   type GiveAccessAsked, type GrantOffer, type GrantBody, type RoleHolders, type GrantHeld,
 } from './access'
 import { getNavForKind, menuFor, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind, type MenuGroup } from '@/lib/nav-table'
@@ -61,6 +66,8 @@ export type Intent =
   | { kind: 'WEEKS' }
   | { kind: 'NEVER'; act: NeverAct }
   | { kind: 'MARGIN' }
+  /** "What did I earn in commission this period?": money's commission rows, the reader's own or, at the firm's reach, others' (2026-11-08). */
+  | { kind: 'COMMISSION'; asked: CommissionAsked }
   /** "Who can see margin?": the roles and the grants that hold a permission, by name (2026-11-08). */
   | { kind: 'WHO_HOLDS'; permission: string }
   /** "Let Maya read margin for the Dayton team": the Owner giving access, drawn as a card (2026-11-08). */
@@ -508,6 +515,9 @@ export function readAsk(raw: string): Intent {
   // Where a page is, and "take me there": the person's own menu, never the model.
   const where = readWhere(text)
   if (where) return where
+  // Commission before the margin cut: "which recruiter earned the most commission" is a commission question.
+  const commission = readCommission(text)
+  if (commission) return { kind: 'COMMISSION', asked: commission }
   const cut = readMarginCut(lower)
   if (cut) return cut
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
@@ -2407,9 +2417,11 @@ export interface Readers {
   bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
   /** What this firm's own placements earn, as Profitability reads them; refused to a seat without `margin.read` in the route's own sentence. */
   margins?(): Promise<Refusable<{ rows: MarginRow[] }>>
+  /** Money's commission rows for this month at the reader's own firm: every row where the seat reads the firm's, else its own only. */
+  commissions?(): Promise<Refusable<CommissionRead>>
   /**
    * Over what this seat reads a permission, as one sentence where it reads
-   * less than the firm's ("You read what placements make for the Dayton
+   * less than the firm's ("You read margin for the Dayton
    * team; ask the Owner for the firm's."); null where it reads the firm's
    * or nothing (2026-11-08, lib/permission-grants' `permissionScope`).
    */
@@ -3217,9 +3229,13 @@ export async function respond(
       const rows = q.items.filter((d) => d.type === 'INVOICE_RECEIPT_TO_PAY')
       // A receipt that fails the check is never offered; what the paying desk may do about it is said.
       const told = toldSays((await read.told()).told)
+      // A receipt held on the bank is said in the hold's own sentence, never offered as Pay.
+      const bankHeld = q.items.filter(isBankHeld)
+      const onBank = heldOnBankSays(bankHeld)
+      const checks = bankHeld.find(checksTheBank)
       return {
         kind: 'LIST',
-        says: payableSays(rows) + (told ? ` ${told.says}` : ''),
+        says: payableSays(rows) + (onBank ? ` ${onBank}` : '') + (told ? ` ${told.says}` : ''),
         ...(rows.length ? {
           table: {
             caption: 'Invoice receipts ready to pay',
@@ -3227,7 +3243,7 @@ export async function respond(
             rows: rows.map((d) => ({ cells: [afterDash(d.title), factOf(d.subtitle) || '—', d.dueDate ? DAY_UTC(d.dueDate) : '—'], href: d.actionUrl ?? RECEIPTS_HREF })),
           },
         } : {}),
-        links: [{ label: 'Open Invoice receipts', href: RECEIPTS_HREF }],
+        links: [...(checks ? [{ label: CHECK_THE_BANK, href: heldHref(checks, RECEIPTS_HREF) }] : []), { label: 'Open Invoice receipts', href: RECEIPTS_HREF }],
       }
     }
 
@@ -3350,9 +3366,11 @@ export async function respond(
       if (opts.party === 'CLIENT' || opts.party === 'MSP') return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
       if (intent.cut === 'recruiter') return { kind: 'TEXT', says: NO_RECRUITER_CUT, links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }] }
       if (!read.marginCut) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+      // Read at a team's reach, the firm's figure is refused before any is read.
+      const reach = await reachOf(read, 'margin.read')
+      if (reach && asksFirmWide(text.toLowerCase())) return { kind: 'TEXT', says: reach, links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }] }
       const got = await read.marginCut(intent.cut, intent.period)
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
-      const reach = await reachOf(read, 'margin.read')
       return {
         kind: 'LIST', says: withReach(marginCutSays(intent.cut, got), reach),
         ...(got.lines.length ? { table: marginCutTable(intent.cut, got) } : {}),
@@ -3383,16 +3401,31 @@ export async function respond(
 
     case 'MARGIN': {
       if (opts.party === 'CLIENT' || opts.party === 'MSP' || !read.margins) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+      // A seat given margin on one team reads that team's figures; asked for
+      // the firm's, it is refused in the one sentence that names its reach,
+      // before anything is read (founder, 2026-11-08).
+      const reach = await reachOf(read, 'margin.read')
+      if (reach && asksFirmWide(text.toLowerCase())) return { kind: 'TEXT', says: reach, links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }] }
       const got = await read.margins()
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
       const named = marginRowsNamed(text, got.rows)
       const rows = named.length ? named : got.rows
-      const reach = await reachOf(read, 'margin.read')
       return {
         kind: 'LIST', says: withReach(marginSays(rows, { named: named.length > 0 }), reach),
         ...(rows.length ? { table: marginTable(rows) } : {}),
         links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
       }
+    }
+
+    case 'COMMISSION': {
+      // A client never hears a supplier's commissions, seated or not.
+      if (opts.party === 'CLIENT' || opts.companyKind === 'CLIENT') return { kind: 'TEXT', says: CLIENT_COMMISSION_REFUSAL }
+      if (!read.commissions) return { kind: 'TEXT', says: 'Commissions could not be read just now. Open Commissions to see yours.', links: [COMMISSIONS_LINK] }
+      const got = await read.commissions()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      const a = commissionAnswer(got, intent.asked)
+      if (a.rows.length === 0) return { kind: 'TEXT', says: a.says, ...(a.links.length ? { links: a.links } : {}) }
+      return { kind: 'LIST', says: a.says, table: commissionTable(a.rows), links: a.links }
     }
 
     case 'TIME_LIMIT': {
@@ -3624,6 +3657,10 @@ export interface QueueItem {
   flag?: string | null
   /** Etyme's question folded into this row by the queue (`twinApprovalId` on GET /api/decisions' rows). */
   twinApprovalId?: string | null
+  /** A held row's own sentence, where the queue gave one apart from its line (`reason` or `says`). */
+  reason?: string | null
+  /** A receipt held on the bank: whether this seat is the one that checks, where the queue says. */
+  mayCheck?: boolean | null
 }
 
 /** The job a candidate to review was put forward to, and the words that tell it apart from the client's other jobs of its title. */
@@ -3717,6 +3754,9 @@ export function queueFrom(body: unknown): QueueRead | null {
       actionUrl: typeof x.actionUrl === 'string' && /^\/(?!\/)/.test(x.actionUrl) ? x.actionUrl : null,
       flag: typeof x.flag === 'string' && x.flag.trim() ? x.flag : null,
       twinApprovalId: typeof x.twinApprovalId === 'string' && x.twinApprovalId ? x.twinApprovalId : null,
+      ...(typeof x.reason === 'string' && x.reason.trim() ? { reason: x.reason.trim() }
+        : typeof x.says === 'string' && x.says.trim() ? { reason: x.says.trim() } : {}),
+      ...(typeof x.mayCheck === 'boolean' ? { mayCheck: x.mayCheck } : {}),
     })
   }
   const says = typeof (data as { says?: unknown }).says === 'string' && (data as { says: string }).says.trim() ? (data as { says: string }).says.trim() : null
@@ -3822,6 +3862,12 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
     case 'INVOICE_RECEIPT_TO_PAY': {
       const number = (d.subtitle ?? '').match(/^Invoice (\S+)/)?.[1]
       return `${possessive(who)} invoice receipt${number ? ` ${number}` : ''} waits for you to pay it`
+    }
+    case 'INVOICE_RECEIPT_HELD': {
+      // Held on the bank: said as the hold, in the twin's own words for it,
+      // never as a receipt waiting to be paid (walk 7, 2026-11-08).
+      if (!isBankHeld(d)) return cap(d.title)
+      return bankHeldName(d, d.whose?.trim() || afterDash(d.title))
     }
     case 'SUPPLIER_REVIEW':
       return `${who} waits for your review as a supplier`
@@ -3973,6 +4019,19 @@ export function queueCards(
       // "waits for you to pay it" — its button is Pay, to the receipt's own
       // page, where the payment and its bank reference are recorded.
       const pay = d.type === 'INVOICE_RECEIPT_TO_PAY'
+      // Held on the supplier's bank: the row's own sentence, never Pay. The
+      // seat that checks opens the check; anybody else opens the receipt.
+      if (isBankHeld(d)) {
+        return {
+          key: `${d.type}:${d.entityId}`,
+          type: d.type,
+          title: `${queueName(d)}.`,
+          fact: heldReason(d) ?? factOf(d.subtitle),
+          href: heldHref(d, RECEIPTS_HREF),
+          act: null,
+          open: checksTheBank(d) ? CHECK_THE_BANK : OPEN_THE_RECEIPT,
+        }
+      }
       // A candidate to review, on the job it was put forward to: told apart
       // from the client's other jobs of that title, and opening that job's
       // candidates (the screen walk, 2026-11-02: two identical cards, each

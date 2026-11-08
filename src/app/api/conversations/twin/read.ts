@@ -43,6 +43,10 @@ import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as profitabilityRoute } from '@/app/api/profitability/route'
 import { GET as grantsRoute } from '@/app/api/settings/grants/route'
 import { permissionScope, GRANT_RIGHT } from '@/lib/permission-grants'
+import { marginReachFor } from '@/lib/money/margin-reach'
+import { commissionReader } from '@/lib/money/commission-write'
+import { commissionAccruals, monthPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
+import { CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK, type CommissionLine } from './commission-answer'
 import { scopeLine, teamsGranted, noAccessSays, ACCESS_LINK, type GrantOffer, type RoleHolders, type GrantHeld } from './access'
 import { marginRefusal, type MarginRow, type MarginCutLine } from './ask'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
@@ -264,7 +268,10 @@ export function readersFor(
      */
     async scopeLine(permission: string): Promise<string | null> {
       if (!ownCompany || seat || !caller.company) return null
-      const s = await permissionScope(caller, permission)
+      // What placements make opens on margin.read or pnl.read, and its reach
+      // is the wider of the two: the one money's Profitability reads at the
+      // query (lib/money/margin-reach), so the line and the figures agree.
+      const s = permission === 'margin.read' ? await marginReachFor(caller) : await permissionScope(caller, permission)
       if (!s.has || (s.scope !== 'UNIT' && s.scope !== 'PERSON')) return null
       const units = s.scope === 'UNIT' && s.unitIds.length
         ? await prisma.orgUnit.findMany({ where: { companyId: caller.company.id, id: { in: s.unitIds } }, select: { id: true, name: true, parentId: true } }).catch(() => [])
@@ -1171,6 +1178,60 @@ export function readersFor(
       const ids = [...new Set(rows.map((r) => r.personId).filter(Boolean))]
       if (ids.length) logPeople(ids, 'Read in Ask Etyme: what our placements earn')
       return { ok: true as const, rows }
+    },
+
+    /**
+     * Money's commission rows on this firm's lines for this month
+     * (lib/money/commission-accrual), at the reach money's rule gives this
+     * seat (`commissionReader`): the firm's for the Owner, a Contract
+     * Manager and whoever reads payroll; the seat's own for anybody else,
+     * read with only its own rows asked for, so nobody else's figure is
+     * ever loaded. Every other person whose commission is read is logged.
+     */
+    async commissions() {
+      const company = caller.company
+      if (!ownCompany || seat || !company) return { ok: false as const, says: 'Commissions are read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') return { ok: false as const, says: CLIENT_COMMISSION_REFUSAL }
+      const roleName = caller.context.roleId
+        ? await prisma.role.findFirst({ where: { id: caller.context.roleId }, select: { name: true } }).then((r) => r?.name ?? null).catch(() => null)
+        : null
+      const reach = commissionReader({
+        callerCompanyId: company.id, lineCompanyId: company.id, roleName,
+        readsPayroll: hasPermission(caller.permissions, 'payroll.read'),
+      })
+      if (reach === 'NONE') return { ok: false as const, says: CLIENT_COMMISSION_REFUSAL }
+      const period = monthPeriod(new Date())
+      let accruals: RowAccrual[]
+      try {
+        accruals = await commissionAccruals(company.id, period, reach === 'OWN' ? { earnedById: caller.person.id } : {})
+      } catch {
+        return { ok: false as const, says: 'Commissions could not be read just now, so no figure is said. Try again in a minute.', links: [COMMISSIONS_LINK] }
+      }
+      const others = [...new Set(accruals.map((a) => a.earnedBy.id).filter((id) => id !== caller.person.id))]
+      if (others.length) {
+        logBulkAccess(others, { actorPersonId: caller.person.id, actorCompanyId: company.id, action: 'PAYROLL_VIEW', reason: 'Read in Ask Etyme: commissions earned this month' })
+      }
+      const self = roleName?.trim().toLowerCase() ?? null
+      const readers = [...new Set(['Owner', 'Contract Manager', ...desksHolding('payroll.read', company.kind)])]
+        .filter((r) => r.trim().toLowerCase() !== self)
+      return {
+        ok: true as const,
+        reach: reach as 'FIRM' | 'OWN',
+        from: period.from.toISOString().slice(0, 10),
+        to: period.to.toISOString().slice(0, 10),
+        selfId: caller.person.id,
+        readers,
+        rows: accruals.map((a): CommissionLine => ({
+          earnedById: a.earnedBy.id,
+          earnedBy: a.earnedBy.name,
+          kind: a.kind,
+          person: a.person?.name ?? null,
+          client: a.client?.name ?? null,
+          amountMinor: a.postedCents ?? a.accrual.amountCents,
+          currency: a.accrual.currency,
+          blankedBecause: a.accrual.blankedBecause,
+        })),
+      }
     },
 
     /**

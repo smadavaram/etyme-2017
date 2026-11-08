@@ -41,7 +41,7 @@ describe('a client’s greeting calls what a supplier sent its invoice, never a 
 
   it('the greeting reads every notice’s title and body through that one reader', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/notices.ts'), 'utf8')
-    expect(src).toContain('title: named.get(n.id) ?? asReceived(n.type, n.title)')
-    expect(src).toContain("body: typeof n.body === 'string' ? asReceived(n.type, n.body) : null")
+    expect(src).toContain('title: today?.title ?? asReceived(n.type, n.title)')
+    expect(src).toContain("body: today?.body ?? (typeof n.body === 'string' ? asReceived(n.type, n.body) : null)")
   })
 })

@@ -57,11 +57,11 @@ describe('a read says how far the reader reaches', () => {
       scopeLine: async () => scopeLine('margin.read', 'UNIT', ['Dayton']),
     }))
     if (a.kind !== 'LIST') throw new Error(JSON.stringify(a))
-    expect(a.says.endsWith('You read what placements make for the Dayton team; ask the Owner for the firm’s.')).toBe(true)
+    expect(a.says.endsWith('You read margin for the Dayton team; ask the Owner for the firm’s.')).toBe(true)
   })
 
   it('a seat given margin for its own work is told it reads its own work only', () => {
-    expect(scopeLine('margin.read', 'PERSON')).toBe('You read what placements make for your own work; ask the Owner for the firm’s.')
+    expect(scopeLine('margin.read', 'PERSON')).toBe('You read margin for your own work; ask the Owner for the firm’s.')
   })
 
   it('a seat that reads the firm’s margin is told nothing extra', async () => {
@@ -76,7 +76,7 @@ describe('a read says how far the reader reaches', () => {
   })
 
   it('somebody the Owner gave the right to give access is named beside the Owner', () => {
-    expect(scopeLine('margin.read', 'UNIT', ['Dayton'], ['Dana Whitfield'])).toBe('You read what placements make for the Dayton team; ask the Owner or Dana Whitfield for the firm’s.')
+    expect(scopeLine('margin.read', 'UNIT', ['Dayton'], ['Dana Whitfield'])).toBe('You read margin for the Dayton team; ask the Owner or Dana Whitfield for the firm’s.')
   })
 
   it('a seat with no margin at all is told who reads it and that the Owner gives access, in one sentence', () => {

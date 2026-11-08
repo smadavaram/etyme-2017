@@ -25,9 +25,9 @@ import {
 import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-performers'
 import { labelFor } from '@/lib/document-type'
 import { holdsPaperworkDesk } from '@/lib/document-request'
-import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { paperAsksToday } from './paper-asks'
 import { closedFlagNotices } from '@/lib/twin/held-notices'
+import { receiptNoticesToday } from './receipt-notices'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
@@ -166,19 +166,23 @@ export async function unreadNotices(caller: CallerContext, opts: { program?: str
   const settled = asked.length
     ? new Set((await prisma.twinApproval.findMany({ where: { id: { in: asked }, decision: { not: 'PENDING' } }, select: { id: true } })).map((a) => a.id))
     : new Set<string>()
-  const named = await mismatchTitles(rows, caller.company?.id ?? null)
+  // A receipt the twin told about is said as it stands today: held on its
+  // bank is a hold, never a mismatch, and a line nothing holds is closed.
+  const receipts = await receiptNoticesToday(rows, caller.company?.id ?? null)
+  for (const id of receipts.closed) withheld.add(id)
   return {
-    shown: rows.map((n) => {
+    shown: rows.filter((n) => !receipts.closed.has(n.id)).map((n) => {
+      const today = receipts.titles.get(n.id)
       const data = asRecord(n.data)
       const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
       const acted: Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'> | undefined = twin.get(n.id) ?? chain.get(n.id)
       return {
-        id: n.id, title: named.get(n.id) ?? asReceived(n.type, n.title), href: pageOf(n.type, n.entityId, data),
+        id: n.id, title: today?.title ?? asReceived(n.type, n.title), href: pageOf(n.type, n.entityId, data),
         // What Ask Etyme did alone, in its own words, over the notice's own.
         ...(acted ? { title: acted.title, href: acted.href } : {}),
         ...(acted?.act ? { act: acted.act } : {}),
         ...(acted?.linkText ? { linkText: acted.linkText } : {}),
-        type: n.type, body: typeof n.body === 'string' ? asReceived(n.type, n.body) : null,
+        type: n.type, body: today?.body ?? (typeof n.body === 'string' ? asReceived(n.type, n.body) : null),
         cycleKind: typeof data?.kind === 'string' ? data.kind : null,
         dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
         entityId: n.entityId,
@@ -397,10 +401,9 @@ async function chainNotices(
   return out
 }
 
-/** The twin's mismatch notice, as the nightly run titles it (lib/twin/performers, flagMismatch). */
-export const MISMATCH_TITLE = 'An invoice receipt does not match what was accepted'
+/** The twin's notice about a receipt is read against the receipt today (./receipt-notices). */
+export { MISMATCH_TITLE, mismatchSays } from './receipt-notices'
 
-/** "PR-2026-0442 from Pinnacle Resourcing does not match what was accepted." */
 /**
  * What a supplier sent, named in the payer's word, on a notice written
  * before the source said so (db5318734): "Pinnacle Resourcing’s bill
@@ -415,53 +418,6 @@ export function asReceived(type: string | null | undefined, text: string): strin
   return text
     .replace(/[’']s bill (?=\S)/g, '’s invoice ')
     .replace(/\bwho receives its bills\b/g, 'who receives its invoices')
-}
-
-export function mismatchSays(number: string, supplier: string | null): string {
-  return `${number}${supplier ? ` from ${supplier}` : ''} does not match what was accepted`
-}
-
-/**
- * The mismatch notice says which receipt and whose (walk three,
- * 2026-10-26): its title names neither, so the receipt it is about is
- * read and named here. A receipt that cannot be read keeps the title.
- */
-async function mismatchTitles(
-  rows: ReadonlyArray<{ id: string; title: string; entityId: string | null; data: unknown }>,
-  companyId: string | null,
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  const flagged = rows.filter((n) => n.title === MISMATCH_TITLE && n.entityId)
-  if (flagged.length === 0) return out
-  const ids = [...new Set(flagged.map((n) => n.entityId!))]
-  try {
-    const [invoices, keyed] = await Promise.all([
-      prisma.invoice.findMany({
-        where: { id: { in: ids } },
-        select: {
-          id: true, number: true,
-          engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
-          workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
-        },
-      }),
-      prisma.vendorBill.findMany({ where: { id: { in: ids } }, select: { id: true, number: true, vendorCompany: { select: { name: true } } } }),
-    ])
-    const said = new Map<string, string>()
-    for (const i of invoices) {
-      const parties = partiesOf({ agreement: i.engagement?.msa ?? null, order: i.workOrder ?? null })
-      // The supplier is the firm that billed the reader; a receipt the reader is not paying keeps its title.
-      if (companyId && directionFrom(parties, companyId) !== 'PAYABLE') continue
-      said.set(i.id, mismatchSays(i.number, parties.vendor?.name ?? null))
-    }
-    for (const b of keyed) said.set(b.id, mismatchSays(b.number, b.vendorCompany?.name ?? null))
-    for (const n of flagged) {
-      const t = said.get(n.entityId!)
-      if (t) out.set(n.id, t)
-    }
-  } catch {
-    // The title as it was written; never a guess.
-  }
-  return out
 }
 
 /** What a thread is about, in the trade's words: "the HCM integration lead job". */
