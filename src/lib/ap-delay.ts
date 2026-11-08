@@ -64,6 +64,8 @@
  * database import here.
  */
 
+import { format, fromMinor } from '@/lib/money'
+
 const DAY = 86_400_000
 
 /** Whole days between two instants, floored, the way aging counts them. */
@@ -1168,7 +1170,7 @@ export function proposeRun(
             ? ` ${excluded.length} invoice receipt${excluded.length === 1 ? '' : 's'} looked at and left out, each with a reason.`
             : '')
         : `${lines.length} invoice receipt${lines.length === 1 ? '' : 's'} to ${vendors} ` +
-          `supplier${vendors === 1 ? '' : 's'}, ${ccy} ${cents(total)}, paying ` +
+          `supplier${vendors === 1 ? '' : 's'}, ${ccy} ${cents(total, ccy)}, paying ` +
           `${iso(scheduledFor)}.` +
           (excluded.length > 0
             ? ` ${excluded.length} left out — see why before releasing.`
@@ -1208,7 +1210,7 @@ export function remittanceAdvice(
     .map(([vendorCompanyId, lines]) => {
       const total = lines.reduce((n, l) => n + l.amountCents, 0)
       const listed = lines
-        .map((l) => `  ${l.billNumber}   ${run.currency} ${cents(l.amountCents)}   due ${iso(l.dueAt)}`)
+        .map((l) => `  ${l.billNumber}   ${run.currency} ${cents(l.amountCents, run.currency)}   due ${iso(l.dueAt)}`)
         .join('\n')
 
       return {
@@ -1226,7 +1228,7 @@ export function remittanceAdvice(
           `Payment dated ${iso(run.scheduledFor)}\n\n` +
           `Covering ${lines.length} invoice${lines.length === 1 ? '' : 's'}:\n` +
           `${listed}\n\n` +
-          `Total ${run.currency} ${cents(total)}\n\n` +
+          `Total ${run.currency} ${cents(total, run.currency)}\n\n` +
           `Your own invoice numbers are used above so this can be placed against them ` +
           `without a phone call.`,
       }
@@ -1313,6 +1315,7 @@ function iso(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function cents(n: number): string {
-  return (n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** Minor units as a bare figure in the currency's own decimals; the code is said beside it. */
+function cents(n: number, currency: string): string {
+  return format(fromMinor(n, currency), { symbol: false })
 }

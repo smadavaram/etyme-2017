@@ -26,6 +26,8 @@
  * difference matters to somebody who has already spent the money.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type State =
   /** Being written. Nobody has seen it. */
   | 'DRAFT'
@@ -91,7 +93,8 @@ export const STALE_AFTER_DAYS = 90
  */
 export function check(e: Expense, p: Policy, now: Date): Check[] {
   const out: Check[] = []
-  const money = (c: number) => `${e.currency === 'USD' ? '$' : ''}${(c / 100).toFixed(2)}`
+  // In the expense's own currency and its own decimals: no cents on a dong.
+  const money = (c: number) => amount(c, e.currency)
 
   // ── Receipt ──
   const needsReceipt =
@@ -193,7 +196,8 @@ function gateSays(
   billable: number,
   reimbursable: number
 ): string {
-  const money = (c: number) => `${e.currency === 'USD' ? '$' : ''}${(c / 100).toFixed(2)}`
+  // In the expense's own currency and its own decimals: no cents on a dong.
+  const money = (c: number) => amount(c, e.currency)
 
   if (blocked.length > 0) return blocked.map((b) => b.says).join(' ')
 

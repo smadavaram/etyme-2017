@@ -1,3 +1,4 @@
+import { amount } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -262,7 +263,7 @@ export async function POST(request: NextRequest) {
         companyId,
         action: 'ORDER_SETTLED',
         summary:
-          `${order.code} settled — ${(plan.balanceCents / 100).toFixed(2)} ${order.currency} ` +
+          `${order.code} settled — ${amount(plan.balanceCents, order.currency)} ` +
           `to ${order.settlesTo?.code ?? 'its cost center'}`,
         reason: body.reason ? String(body.reason) : `Closed by ${caller.person.name}`,
         payload: {

@@ -29,6 +29,7 @@
  * written rather than reconciled afterwards.
  */
 
+import { decimalsFor, wholeFromMinor } from '@/lib/money'
 import type { PostingKind } from '@/lib/order'
 
 export type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
@@ -363,8 +364,9 @@ export function toExport(
   return {
     rows: e.lines.map((l) => ({
       account: map[l.accountCode].account,
-      debit: l.debitCents === 0 ? '' : (l.debitCents / 100).toFixed(2),
-      credit: l.creditCents === 0 ? '' : (l.creditCents / 100).toFixed(2),
+      // Whole currency by the currency's own exponent: 450,000 yen is 450000, never 4500.00.
+      debit: l.debitCents === 0 ? '' : wholeOf(l.debitCents, currency),
+      credit: l.creditCents === 0 ? '' : wholeOf(l.creditCents, currency),
       currency,
       date,
       memo: l.memo ?? e.memo,
@@ -373,6 +375,11 @@ export function toExport(
     })),
     unmapped: [],
   }
+}
+
+/** A figure for an accounting file: whole units, the currency's own decimals, no grouping. */
+function wholeOf(minor: number, currency: string): string {
+  return wholeFromMinor(minor, currency).toFixed(decimalsFor(currency))
 }
 
 function money(cents: number): string {

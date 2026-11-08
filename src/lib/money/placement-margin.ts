@@ -64,6 +64,7 @@
  * Every field carrying a rate is named `...RateCents` for that reason.
  */
 
+import { rate as fmtRate, compact as compactAmount } from '@/lib/money-display'
 import type { ContractType } from '@/lib/profitability'
 
 /** Which placements a figure was read over. Said on every screen. */
@@ -488,26 +489,13 @@ export function spreadHealth(s: Spread, floorPct: number | null): SpreadHealth {
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 
-function symbolFor(currency: string): string {
-  return currency === 'USD'
-    ? '$'
-    : currency === 'GBP'
-      ? '£'
-      : currency === 'EUR'
-        ? '€'
-        : currency === 'INR'
-          ? '₹'
-          : ''
-}
 
+// Through the one formatter, in the currency's own decimals: a dong rate
+// is never divided by a hundred.
 function rate(cents: number, currency: string): string {
-  const sym = symbolFor(currency)
-  const body = (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-  return sym ? `${sym}${body}/hr` : `${body} ${currency}/hr`
+  return fmtRate(cents, currency)
 }
 
 function money(cents: number, currency: string): string {
-  const sym = symbolFor(currency)
-  const body = Math.round(cents / 100).toLocaleString('en-US')
-  return sym ? `${sym}${body}` : `${body} ${currency}`
+  return compactAmount(cents, currency)
 }

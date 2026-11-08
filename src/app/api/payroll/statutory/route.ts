@@ -1,3 +1,4 @@
+import { amount } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { blankShortWages, type RunPaidTotal } from '@/lib/payroll-export'
 import { paidOnDay } from '@/lib/money/pay-day-period'
@@ -253,7 +254,7 @@ export async function GET(request: NextRequest) {
     const people = [...new Set(list.map((l) => l.personName))]
     const currencies = [...new Set(list.map((l) => l.currency))]
     const sum = currencies.length === 1
-      ? ` (${(list.reduce((n, l) => n + l.amountCents, 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencies[0]})`
+      ? ` (${amount(list.reduce((n, l) => n + l.amountCents, 0), currencies[0])})`
       : ''
     return `${people.length} ${people.length === 1 ? 'person has' : 'people have'} ${what}${sum}: ${people.slice(0, 5).join(', ')}${people.length > 5 ? ', and others' : ''}.`
   }
