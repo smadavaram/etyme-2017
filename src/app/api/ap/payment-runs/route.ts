@@ -345,7 +345,9 @@ export async function PATCH(request: NextRequest) {
   const stopped: string[] = []
   for (const i of run.items) {
     const gate = await mayPayKeyedReceipt(i.vendorBillId)
-    if (gate && !gate.ok) stopped.push(gate.says)
+    // A bank hold is the gate's too now, and is told below, in the
+    // bank's own words, never as a receipt that fails the check.
+    if (gate && !gate.ok && gate.code !== 'BANK_NOT_CHECKED') stopped.push(gate.says)
   }
   if (stopped.length > 0) {
     return NextResponse.json(

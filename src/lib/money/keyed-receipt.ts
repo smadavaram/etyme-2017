@@ -1019,16 +1019,24 @@ export const KEYED_SELECT = {
  * May the payer pay this typed-in receipt now — for a caller that holds
  * only the id: the payment, a payment run, and the twin's approval.
  * Writes nothing.
+ *
+ * Bank included, through `keyedPayGateNow`, since 2026-11-08: until then
+ * this door answered on the three-way check alone, so the twin could put
+ * "approve this receipt" to the AP desk, and a payment run could list it
+ * as payable, over a supplier whose bank nobody had checked — a yes asked
+ * for a payment that could not happen. Every reader of "may this receipt
+ * be paid" now asks the one gate the Pay button and the payment route ask.
  */
 export async function mayPayKeyedReceipt(
   vendorBillId: string,
-): Promise<(KeyedGate & { check: KeyedCheck | null }) | null> {
+  viewerId: string | null = null,
+): Promise<(KeyedGate & { check: KeyedCheck | null; bank?: KeyedBankHold }) | null> {
   const b = await prisma.vendorBill.findUnique({ where: { id: vendorBillId }, select: KEYED_SELECT })
   if (!b) return null
   const byState = keyedStateRefusal(b, b.vendorCompany.name)
   if (byState) return { ...byState, check: null }
   const check = await checkKeyedReceipt(asKeyed(b), 'pay')
-  return { ...keyedPayGate(b, b.vendorCompany.name, check), check }
+  return { ...(await keyedPayGateNow(b, b.vendorCompany.name, check, viewerId)), check }
 }
 
 export function asKeyed(b: {
