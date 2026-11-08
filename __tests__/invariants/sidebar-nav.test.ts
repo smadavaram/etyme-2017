@@ -1662,7 +1662,7 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
   const linksAt = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT', permissions?: string[]) =>
     menuLinks(menuFor(kind, false, permissions ? { permissions } : {}))
 
-  it('a supplier’s Dashboard column reads Today, Network over Candidates and Companies, Jobs, Submissions, HR over Contracts, Timesheets and Expenses, Money over Bills, Invoice receipts and Payroll, then Profitability and Settings', () => {
+  it('a supplier’s Dashboard column reads Today, Network over Candidates and Companies, Jobs, Submissions, HR over Contracts, Timesheets and Expenses, Accounting over Receivables, Payables, Payroll and Reports, then Profitability and Settings', () => {
     const groups = menuFor('VENDOR', false)
     expect(groups.map((g) => [g.heading, g.links.map((l) => l.label)])).toEqual([
       [null, ['Today']],
@@ -1670,7 +1670,7 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
       [null, ['Jobs']],
       [null, ['Submissions']],
       ['HR', ['Contracts', 'Timesheets', 'Expenses']],
-      ['Money', ['Bills', 'Invoice receipts', 'Payroll']],
+      ['Accounting', ['Receivables', 'Payables', 'Payroll', 'Reports']],
       [null, ['Profitability']],
       [null, ['Settings']],
     ])
@@ -1679,7 +1679,7 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
   it('a group is a heading and never a link, on every firm’s column', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
       const labels = linksAt(kind).map((l) => l.label)
-      for (const heading of ['Network', 'HR', 'Money']) expect(labels, `${kind} ${heading}`).not.toContain(heading)
+      for (const heading of ['Network', 'HR', 'Accounting']) expect(labels, `${kind} ${heading}`).not.toContain(heading)
     }
   })
 
@@ -1694,7 +1694,7 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
 
   it('a link is drawn only where the role may open one of its pages: a seat that reads invoices and nothing of payroll or margin sees no Payroll and no Profitability', () => {
     const labels = linksAt('VENDOR', ['invoices.read']).map((l) => l.label)
-    expect(labels).toContain('Bills')
+    expect(labels).toContain('Receivables')
     expect(labels).not.toContain('Payroll')
     expect(labels).not.toContain('Profitability')
     expect(linksAt('VENDOR', ['*']).map((l) => l.label)).toContain('Profitability')
@@ -1722,6 +1722,44 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
       const after = menuLinks(menuFor(kind, false)).flatMap((l) => l.covers.map((i) => i.href))
       expect([...after].sort(), kind).toEqual([...before].sort())
     }
+  })
+
+  it('Money is Accounting: Receivables opens the Bills page and Payables the Invoice receipts page, and the pages keep their own tabs and words', () => {
+    const links = linksAt('VENDOR')
+    const receivables = links.find((l) => l.label === 'Receivables')!
+    const payables = links.find((l) => l.label === 'Payables')!
+    expect(receivables.covers.map((i) => i.href)).toEqual(['/dashboard/invoices', '/dashboard/ar'])
+    expect(payables.covers.map((i) => i.href)).toEqual(['/dashboard/ap'])
+    const nav = getNavForKind('VENDOR', false)
+    expect(tabsFor(nav, '/dashboard/ar')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR'])
+    for (const old of ['Bills', 'Invoice receipts', 'Money']) {
+      for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+        expect(menuFor(kind, false).flatMap((g) => [g.heading, ...g.links.map((l) => l.label)]), `${kind} ${old}`).not.toContain(old)
+      }
+    }
+  })
+
+  it('Reports leaves Today for Accounting, after the ledgers and Payroll, and keeps its address', () => {
+    const vendor = linksAt('VENDOR')
+    expect(vendor.find((l) => l.label === 'Today')!.covers.map((i) => i.href)).not.toContain('/dashboard/reports')
+    expect(vendor.find((l) => l.label === 'Reports')!.href).toBe('/dashboard/reports')
+    const accounting = menuFor('VENDOR', false).find((g) => g.heading === 'Accounting')!
+    expect(accounting.links[accounting.links.length - 1].label).toBe('Reports')
+  })
+
+  it('a client reads Accounting with Payables and Reports only, because it bills nobody and employs no contractor', () => {
+    const accounting = menuFor('CLIENT', false).find((g) => g.heading === 'Accounting')!
+    expect(accounting.links.map((l) => l.label)).toEqual(['Payables', 'Reports'])
+    expect(accounting.links[0].covers.map((i) => i.href)).toEqual(['/dashboard/invoices', '/dashboard/ap', '/dashboard/program/budget', '/dashboard/purchase-orders'])
+  })
+
+  it('Profitability stays a link of its own, after Accounting and before Settings', () => {
+    const labels = menuFor('VENDOR', false).map((g) => g.heading ?? g.links[0].label)
+    expect(labels.slice(-3)).toEqual(['Accounting', 'Profitability', 'Settings'])
+  })
+
+  it('a one-person firm keeps Bills, because her short menu has no Accounting heading', () => {
+    expect(menuLinks(menuFor('CONSULTANT_CORP', false)).map((l) => l.label)).toContain('Bills')
   })
 
   it('a one-person firm and a worker read their own links with no firm headings', () => {

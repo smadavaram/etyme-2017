@@ -96,7 +96,8 @@ describe('By region on the menu', () => {
 
   it('a client’s Today carries a By region tab beside the program page', () => {
     const today = getNavForKind('CLIENT', false, { permissions: clientPerms }).find((s) => s.label === 'Today')!
-    expect(today.items.map((i) => i.label)).toEqual(['Today', 'By region'])
+    // Reports is a tab of Today too since 2026-11-08, printed under Accounting on the column.
+    expect(today.items.map((i) => i.label)).toEqual(['Today', 'By region', 'Reports'])
     expect(today.items[1].href).toBe(BY_REGION_HREF)
     expect(openBecause(BY_REGION_HREF)).toBeTruthy()
   })

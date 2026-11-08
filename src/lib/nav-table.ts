@@ -774,7 +774,10 @@ const SOLO_NAV: NavSection[] = [
  */
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
-  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION]),
+  // Reports (founder, 2026-11-08, "Money is Accounting"): a client reads
+  // Accounting with Payables and Reports, so its Today carries the page as a
+  // tab, as a supplier's does, and the column prints it under Accounting.
+  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION, REPORTS]),
   // Network (founder, 2026-11-04): its memory of people, and the firms
   // it buys from with the people at them. Above Jobs ("Network can stay
   // above the jobs"): the master data first, the process after it.
@@ -1036,8 +1039,8 @@ export function hatOf(kind: CompanyKind | null | undefined, isConsultant: boolea
  * What changes is only what the column prints, in the founder's sketch:
  *
  *   Today · Network (Candidates, Companies) · Jobs · Submissions ·
- *   HR (Contracts, Timesheets, Expenses) · Money (Bills, Invoice
- *   receipts, Payroll) · Profitability · Settings
+ *   HR (Contracts, Timesheets, Expenses) · Accounting (Receivables,
+ *   Payables, Payroll, Reports) · Profitability · Settings
  *
  * A group is a heading and never a link. Each link is drawn only where
  * the seat may open one of its pages, because the sections it is cut
@@ -1061,17 +1064,31 @@ export interface MenuGroup {
   links: MenuLink[]
 }
 
-/** The founder's headings over a firm's links (2026-11-08). */
+/**
+ * The founder's headings over a firm's links (2026-11-08). The money is
+ * Accounting ("Instead of money, call it Accounting: Receivables,
+ * Payables, Payroll, Reports"): the accountant's two ledgers name the
+ * links, and the pages inside keep the trade's words, a bill issued and
+ * an invoice receipt received.
+ */
 const HEADING_OF: Readonly<Record<string, string>> = {
   Network: 'Network',
   Contracts: 'HR',
   Timesheets: 'HR',
-  Bills: 'Money',
-  'Invoice receipts': 'Money',
-  Payroll: 'Money',
+  Bills: 'Accounting',
+  'Invoice receipts': 'Accounting',
+  Payroll: 'Accounting',
 }
 
+/** What a firm's column calls a section, where it is not the section's own noun. */
+const LINK_LABEL_OF: Readonly<Record<string, string>> = {
+  Bills: 'Receivables',
+  'Invoice receipts': 'Payables',
+}
+
+const ACCOUNTING = 'Accounting'
 const PROFITABILITY_HREF = '/dashboard/profitability'
+const REPORTS_HREF = '/dashboard/reports'
 const EXPENSES_HREF = '/dashboard/expenses'
 
 function linkOf(label: string, covers: NavItem[]): MenuLink | null {
@@ -1097,6 +1114,20 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
     else out.push({ heading, links: [link] })
   }
   let profitability: MenuLink | null = null
+  // Reports leaves Today for Accounting, after its ledgers and Payroll.
+  let reports: MenuLink | null = null
+  const settle = () => {
+    if (reports) {
+      const accounting = out.find((g) => g.heading === ACCOUNTING)
+      if (accounting) accounting.links.push(reports)
+      else out.push({ heading: ACCOUNTING, links: [reports] })
+      reports = null
+    }
+    if (profitability) {
+      push(null, profitability)
+      profitability = null
+    }
+  }
   for (const s of sections) {
     // The switch above the column is Ask Etyme.
     if (s.items.some((i) => i.href === ASK_ETYME_HREF)) continue
@@ -1108,16 +1139,13 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
       push(null, linkOf(s.label, s.items))
       continue
     }
-    if (s.label === 'Settings' && profitability) {
-      push(null, profitability)
-      profitability = null
-    }
+    if (s.label === 'Settings') settle()
     const heading = HEADING_OF[s.label] ?? null
     if (s.label === 'Today') {
-      const rest = s.items.filter((i) => i.href !== PROFITABILITY_HREF)
-      const profit = s.items.filter((i) => i.href === PROFITABILITY_HREF)
+      const rest = s.items.filter((i) => i.href !== PROFITABILITY_HREF && i.href !== REPORTS_HREF)
       push(null, linkOf('Today', rest))
-      profitability = linkOf('Profitability', profit)
+      profitability = linkOf('Profitability', s.items.filter((i) => i.href === PROFITABILITY_HREF))
+      reports = linkOf('Reports', s.items.filter((i) => i.href === REPORTS_HREF))
       continue
     }
     if (s.label === 'Network') {
@@ -1130,9 +1158,9 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
       push(heading, linkOf('Expenses', s.items.filter((i) => i.href === EXPENSES_HREF)))
       continue
     }
-    push(heading, linkOf(s.label, s.items))
+    push(heading, linkOf(LINK_LABEL_OF[s.label] ?? s.label, s.items))
   }
-  if (profitability) push(null, profitability)
+  settle()
   return out
 }
 
