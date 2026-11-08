@@ -1,5 +1,6 @@
 import { fileHash } from '@/lib/document-stages/degree'
 import { startSentenceNow, startedOn } from '@/lib/document-stages/start-day'
+import { paperNames } from '@/lib/document-stages/paper-names'
 import { heldOnRecord, linesOfPerson } from '@/lib/document-stages/paper-record'
 import { DEGREE_POSTED, degreeOnRecord } from '@/lib/document-stages/degree-check'
 import { notifyBulk } from '@/lib/notify'
@@ -209,7 +210,9 @@ export async function GET(request: NextRequest) {
   // that is still open is preferred over one already answered, because
   // that is the one there is anything left to do about.
   const asksByKey: Record<string, string> = {}
-  const named = owed.map((o) => ({ key: o.key, label: o.label }))
+  // Every name the product gives each kind, so a request the placement
+  // opened as "Signed non-disclosure agreement" is the NDA she owes (walk 7).
+  const named = paperNames(owed.map((o) => ({ key: o.key, label: o.label })))
   const answered = ['SIGNED', 'UPLOADED']
   for (const takeAnswered of [false, true]) {
     for (const r of instances) {
@@ -395,7 +398,7 @@ function papersAsHeld(
     // Guessing from a word in a title put one uploaded paper on two
     // rows of a worker's file, one of them reporting a document that
     // does not exist.
-    const key = typeKeyForTemplate(r.template.name, namesOf(items), { guess: false })
+    const key = typeKeyForTemplate(r.template.name, paperNames(namesOf(items)), { guess: false })
     if (!key) continue
     const signed =
       r.countersignedAt && r.signedAt

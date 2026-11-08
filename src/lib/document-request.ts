@@ -1665,8 +1665,9 @@ export function myPapers(input: {
       partOf: null,
       // Nobody has asked yet. `owedByName` is the party that OWES it,
       // which on her own page is her, and "Helena Marsh asked for Helena
-      // Marsh's I-9" reads as though she asked herself.
-      askedBy: null,
+      // Marsh's I-9" reads as though she asked herself. Where a firm opened
+      // the request, it is that firm who asked, as the placement says (walk 7).
+      askedBy: opened?.issuerName ?? null,
       // Whose move it is comes first on a check she cannot produce. The
       // order's own words still follow it, so the row never loses who
       // asked for the check in the first place.
