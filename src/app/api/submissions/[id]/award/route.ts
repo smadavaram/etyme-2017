@@ -1,4 +1,5 @@
 import { lineEnd } from '@/lib/award/line-end'
+import { awardCommissions } from './commission-earners'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
@@ -1051,6 +1052,24 @@ export async function POST(
     return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, lineCheck, calledOff }
   })
 
+  // The firm's default commissions on the two lines the award wrote
+  // (CLAUDE.md, "Commission is an object on the sell line and on the buy
+  // line"): recruiting on the buy line, earned by whoever put the person
+  // forward; sales on the sell line, earned by the job's owner or the
+  // account manager on the client relationship. The shipped default is
+  // none, so most awards write nothing; a missing person or rate is said
+  // in the result below and never refuses the award.
+  const commissions = await awardCommissions({
+    sellingFirmId: submission.fromCompanyId,
+    clientFirmId: submission.toCompanyId,
+    sellContractId: result.contract.id,
+    buyContractId: result.buyContract?.id ?? null,
+    startDate: start,
+    submittedById: submission.submittedById ?? null,
+    job: { ownerId: req.ownerId ?? null, raisedById: req.raisedById ?? null },
+    setById: caller.person.id,
+  })
+
   // Everybody who was going to be in each room, on their own channel —
   // the supplier's desks in the app, the candidate by email — in the
   // same words the round now carries. Recorded on the award's own log
@@ -1555,6 +1574,10 @@ export async function POST(
         checks: decision.checks,
         notes: [...decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason), ...orderNotes],
         interviewsCalledOff: result.calledOff.length,
+        // The default commission rows written on the two lines, and a
+        // sentence for each default that could not be (nobody named, no
+        // buy line). Never a refusal.
+        commissions,
         // Where it went next, in the supplier's own words. The award is
         // the handoff, and saying so is how a person learns the rule
         // without being trained on it.
