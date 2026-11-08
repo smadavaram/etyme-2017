@@ -258,7 +258,7 @@ export const SUPPLIER_SEATS: Program[] = [
     name: 'Brightmoor Staffing',
     where: 'Prime supplier',
     industry: 'Staffing · retail systems and supply planning',
-    waiting: 'Its liability insurance runs out in 20 days.',
+    waiting: 'Its liability insurance needs renewing.',
     about:
       'Sells three contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
       'a bench vendor and sells them to a retailer. A person holds each of its nine roles.',

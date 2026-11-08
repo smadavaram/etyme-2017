@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { PaperDoorButtons } from '@/app/dashboard/documents/paper-doors'
+import type { PaperDoors } from '@/lib/document-stages/paper-doors'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
@@ -201,6 +203,8 @@ interface Placement {
     fix: string | null
     items: Array<{ key: string; label: string; required: boolean; state: string; note: string; blocks: boolean }>
     cover: 'PASS' | 'WARN' | 'BLOCK'
+    /** The door each paper carries for this seat, by the paper's key (regulatory's paperDoorsForLine). */
+    paperDoors?: Record<string, PaperDoors>
   }
 }
 
@@ -568,6 +572,9 @@ export default function PlacementPage() {
   // Who may activate, from the start's own route (`who`, money's); null
   // until it answers or where it carries none, and the line stays as it is.
   const [who, setWho] = useState<string[] | null>(null)
+  // After a paper's door acts: the route's own sentence, and the page read again.
+  const [paperSays, setPaperSays] = useState<string | null>(null)
+  const [reads, setReads] = useState(0)
   // A detail page is headed by the section its list sits under on the
   // reader's own menu, never by a company's name (sign-up walk, round
   // six, problem 6). A seat with no desk reaches its placement from Your
@@ -593,7 +600,7 @@ export default function PlacementPage() {
       }
     })()
     return () => { live = false }
-  }, [id, session.company?.kind, session.company?.name])
+  }, [id, session.company?.kind, session.company?.name, reads])
 
   useEffect(() => {
     if (!p?.id) return
@@ -883,6 +890,23 @@ export default function PlacementPage() {
               {inSentence(it.label)} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
             </span>
           ))}
+        </div>
+        {/* Beside each paper, the door it carries for this seat: check what
+            arrived, record the provider's verdict, or ask the worker. */}
+        <div className="mt-2 space-y-1">
+          {p.checklist.items.map((it) => {
+            const doors = p.checklist.paperDoors?.[it.key]
+            if (!doors || (doors.doors.length === 0 && !doors.says)) return null
+            return (
+              <div key={it.key} className="flex flex-wrap items-baseline gap-2 text-[12.5px]">
+                <span className="text-etyme-ink">{inSentence(it.label)}</span>
+                <PaperDoorButtons doors={doors} onDone={(says) => { setPaperSays(says); setReads((n) => n + 1) }} />
+              </div>
+            )
+          })}
+          {paperSays && <FormMessage tone="ok">{paperSays}</FormMessage>}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
           {/* The sub-vendor's certificates, in the words the compliance
               page uses for the same rows. Shown to the supplier only:
               the firm below us is the buy side, which Station 4 already

@@ -26,6 +26,7 @@ import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 import { chainBelow } from './chain'
 import { weeksWhere } from '@/lib/money/weeks-read'
+import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
 
 /**
  * GET /api/placements/:id
@@ -873,6 +874,16 @@ export async function GET(
     ...(await lineExtras({ sellContractId: placement.id })),
   })
 
+  // The door each required paper carries for this seat: check what
+  // arrived, record a provider's verdict, or ask the worker (regulatory's
+  // paperDoorsForLine). Never throws a page away: a failed read draws the
+  // chips without doors, as before.
+  const paperDoors = await paperDoorsForLine({
+    contractId: placement.id,
+    caller: { companyId: mine, permissions: caller.permissions },
+    items: checklist.items.map((it) => ({ key: it.key, label: it.label, state: it.state, owedBy: it.owedByRole ?? null })),
+  }).catch(() => ({}))
+
   // The firm below us, read the same way we read the firm above. Null
   // where we employ the person ourselves, which is a fact rather than a
   // gap and is said as `weEmployThem` in the chain.
@@ -1225,6 +1236,7 @@ export async function GET(
         fix: checklist.fix,
         items: checklist.items,
         cover: checklist.cover.outcome,
+        paperDoors,
       },
 
       // ── Station 8 · the money ──
