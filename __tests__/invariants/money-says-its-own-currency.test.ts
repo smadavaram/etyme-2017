@@ -180,3 +180,28 @@ describe('a pay line recorded by hand says its own currency', () => {
     expect(r.ok && r.says).not.toContain('$')
   })
 })
+
+describe('a line paid in pounds is never read against the dollar wage floors', () => {
+  it('the wage facts of a buy line carry its pay currency', async () => {
+    const { wageLineFor } = await import('@/lib/money/sheet-overtime')
+    const line = wageLineFor({
+      contractType: 'W2', vendorCompanyId: null, supplierSellContractId: null, payModel: 'FIXED_HOURLY',
+      overtimeAfterHours: 40, overtimeMultiplierBps: 15_000, payCurrency: 'GBP',
+    } as any, 'Aoife Kelly', null)
+    expect(line.payCurrency).toBe('GBP')
+  })
+
+  it('a line paid in pounds is not screened against the dollar salary floor', async () => {
+    const { screenExemption } = await import('@/lib/worker-classification')
+    const s = screenExemption({ payModel: 'FIXED_HOURLY', payRateCents: 9_000, paidOnSalaryBasis: false, payCurrency: 'GBP' })
+    expect(s.outcome).toBe('ETYME_CANNOT_SAY')
+    expect(s.says).toContain('Paid in GBP')
+  })
+
+  it('the exempt route and the payroll file pass the buy line’s pay currency to the screen', () => {
+    const fs = require('node:fs') as typeof import('node:fs')
+    expect(fs.readFileSync('src/app/api/contracts/[id]/exempt/route.ts', 'utf8').match(/payCurrency: contract\.payCurrency/g)?.length).toBe(2)
+    expect(fs.readFileSync('src/lib/payroll-export.ts', 'utf8')).toContain('payCurrency: s.currency')
+    expect(fs.readFileSync('src/lib/money/sheet-overtime.ts', 'utf8')).toContain('payCurrency: input.line.payCurrency')
+  })
+})

@@ -366,6 +366,8 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
           payModel: s.payModel,
           payRateCents: rateOf(w),
           paidOnSalaryBasis: s.paidOnSalaryBasis,
+          // The line's own currency, so the wage floors are never read against it in dollars.
+          payCurrency: s.currency,
         },
         rule: s.rule,
         assertion: s.assertion,

@@ -139,6 +139,12 @@ export interface WageLine {
    * default to a worker whose employer chose otherwise.
    */
   cutOvertime: CutOvertime
+  /**
+   * The currency the buy line pays in (`BuyContract.payCurrency`), so a
+   * week paid in pounds says its overtime in pounds and is never compared
+   * against a dollar floor. Unstated reads as dollars.
+   */
+  payCurrency?: string | null
 }
 
 export interface SheetWeek {
@@ -203,7 +209,7 @@ export function sheetOvertime(input: {
         personName: input.line.personName,
         contractType: input.line.contractType,
         weAreTheEmployer: input.line.weAreTheEmployer,
-        pay: { payModel: input.line.payModel, payRateCents: worked[0].rateCents, paidOnSalaryBasis: false },
+        pay: { payModel: input.line.payModel, payRateCents: worked[0].rateCents, paidOnSalaryBasis: false, payCurrency: input.line.payCurrency ?? null },
         rule: input.line.rule,
         assertion: input.line.assertion,
         // The client's billing decision is a fact about a different
@@ -381,6 +387,8 @@ export function wageLineFor(
     overtimeAfterHours: number | null
     overtimeMultiplierBps: number
     company?: { name: string } | null
+    /** The currency the line pays in, where the reader selected it. */
+    payCurrency?: string | null
     /** Who chose how a cut week is paid, and why; read by `cutOvertimeFor`. */
     cutOvertime?: string | null
     cutOvertimeById?: string | null
@@ -402,6 +410,7 @@ export function wageLineFor(
     // The one reader of the stored choice. A value with nobody named or no
     // reason behind it reads as the default there, not here.
     cutOvertime: cutOvertimeFor(bc).rule,
+    payCurrency: bc.payCurrency ?? null,
   }
 }
 

@@ -66,7 +66,7 @@ export async function GET(
   const contract = await prisma.buyContract.findFirst({
     where: { id, companyId: caller.company.id },
     select: {
-      id: true, contractType: true, payModel: true,
+      id: true, contractType: true, payModel: true, payCurrency: true,
       candidates: {
         select: {
           personId: true, payRate: true, state: true,
@@ -116,7 +116,7 @@ export async function GET(
       people: contract.candidates.map((c) => {
         const said = contract.exemptAssertions.find((a) => a.personId === c.personId) ?? null
         const screen = screenExemption(
-          { payModel: contract.payModel ?? 'FIXED_HOURLY', payRateCents: c.payRate, paidOnSalaryBasis: false },
+          { payModel: contract.payModel ?? 'FIXED_HOURLY', payRateCents: c.payRate, paidOnSalaryBasis: false, payCurrency: contract.payCurrency },
           (said?.wageRule as WageRuleName) ?? 'US_FLSA'
         )
         return {
@@ -165,7 +165,7 @@ export async function POST(
   const contract = await prisma.buyContract.findUnique({
     where: { id },
     select: {
-      id: true, companyId: true, payModel: true,
+      id: true, companyId: true, payModel: true, payCurrency: true,
       company: { select: { name: true } },
       candidates: {
         select: { personId: true, payRate: true, person: { select: { name: true } } },
@@ -201,6 +201,7 @@ export async function POST(
     {
       payModel: contract.payModel ?? 'FIXED_HOURLY',
       payRateCents: candidate.payRate,
+      payCurrency: contract.payCurrency,
       // Nothing in the schema records a salary basis, so the honest,
       // conservative read: paid by the hour unless somebody says.
       paidOnSalaryBasis: body.paidOnSalaryBasis === true,
