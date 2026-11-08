@@ -43,7 +43,8 @@ import type { Actor, Res } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
 import { kb, papers, pdf, photo, sendFile, type Move } from './paper-files'
 import { agreements, drugScreen, statusPapers, type I9Evidence } from './hiring-papers'
-import { expectAt, tally } from './stage-tally'
+import { classTally, expectAt, tally } from './stage-tally'
+import { walkClass, type ClassWalk } from './worker-classes'
 import { standingLeftForTheStart } from './documents'
 import { hrBeingSeated, hrSeatAt, isHrRefusal } from './hr-seat'
 import { lineWorkCountry } from '@/lib/work-country'
@@ -575,6 +576,17 @@ async function walkOne(
     }
   }
 
+  // The class of worker (2026-11-08): the start pressed and refused in the
+  // class rule's words where it applies, then the firm's fix; a student
+  // with no CPT or OPT is never started for US work.
+  const classWalk: ClassWalk = await walkClass(ctx, p, { starter, hr }, where)
+  if (classWalk.learned) walk.hit.push(classWalk.learned)
+  if (classWalk.stop) {
+    walk.stoppedBecause = classWalk.sentence ?? `${p.personName} may not start US work`
+    classTally.refused(classWalk.key, classWalk.sentence, classWalk.rule)
+    return walk
+  }
+
   // Start. A warning is read, the reason written, and the start goes ahead;
   // a refusal is read and learned from where the fix is ours to make.
   //
@@ -649,9 +661,11 @@ async function walkOne(
 
   if (res.ok) {
     walk.started = true
+    classTally.started(classWalk.key)
     await intoTheWorld(ctx, p, starter.key)
   } else {
     walk.stoppedBecause = res.sentence ?? `the start answered ${res.status}`
+    classTally.refused(classWalk.key, walk.stoppedBecause, classWalk.rule)
   }
   return walk
 }

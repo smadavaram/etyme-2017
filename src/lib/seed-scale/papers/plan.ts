@@ -28,7 +28,22 @@
  *
  *   A visa petition for every H-1B person, with its trail and its papers:
  *   filed, evidence asked for and sent, approved, stamped, working on it;
- *   a few running out inside the assignment.
+ *   a few running out inside the assignment. The FILED event names the
+ *   petitioning employer (`employerNamedNote`), and a share of people on a
+ *   live line with a new employer carry a transfer petition that employer
+ *   filed (portability, INA 214(n)).
+ *
+ *   The papers each class of worker holds (2026-11-08,
+ *   lib/document-stages/worker-class): a citizen, a permanent resident or
+ *   a domestic student only the I-9's list document; an OPT student the
+ *   card (Form I-766, C03B, or C03C on the STEM extension where the field
+ *   allows) and the OPT record with its I-20; a CPT student the I-20's CPT
+ *   page naming the employer and the school's dates; a worker on an EAD
+ *   the card with its category; a TN worker the I-94 admitting them in TN
+ *   for their employer; an international student with no permit a
+ *   passport and the I-20 and nothing else. A share of cards and I-94s on
+ *   people with no live line have run out, and a share of CPT pages name a
+ *   past employer, so a start of any of them meets its class's refusal.
  *
  *   The employer's own position on overtime for every live W2 line at a
  *   US site: nonexempt by default, exempt as a computer employee where
@@ -59,6 +74,7 @@ import { checkToRecord, type CheckRow } from '@/lib/attestation'
 import { PUBLISHED_EDITIONS } from '@/lib/contract-clearance'
 import { checkAssertion, screenExemption } from '@/lib/worker-classification'
 import { applyMove, EVENT_FOR, type PetitionStatus } from '@/lib/visa-petition'
+import { employerNamedNote } from '@/lib/document-stages/worker-class'
 import { planPeople, rungIds, type LinePlan, type PersonPlan } from '../people'
 import { between, idFor, keyed, pick } from '../kit'
 import { SCALE, type PersonFacts, type ScaleFirm, type ScaleFrame } from '../types'
@@ -207,6 +223,12 @@ function record(input: Parameters<typeof checkToRecord>[0], on: Date): CheckRow 
   return v.row
 }
 
+/** A status record's status on a day, the way the nightly watch would leave it (`byCalendar`). */
+function statusByDay(expiresAt: Date, today: Date): PetitionStatus {
+  if (expiresAt.getTime() < today.getTime()) return 'EXPIRED'
+  return expiresAt.getTime() - today.getTime() <= 90 * DAY ? 'EXPIRING' : 'ACTIVE'
+}
+
 function stateOf2(expiresAt: Date | null | undefined, validFrom: Date | null | undefined, today: Date): PaperState {
   if (validFrom && validFrom.getTime() > today.getTime()) return 'NOT_STARTED'
   if (!expiresAt) return 'NO_EXPIRY'
@@ -248,6 +270,8 @@ class Planner {
     waived: [], states: new Map(), missingBackground: [], missingCover: [], placedUs: [],
   }
   private today = day(0)
+  /** A card planned for a person, used as the I-9's evidence where one is completed, else written on its own. */
+  private cards = new Map<string, { expiresAt: Date; validFrom: Date; category: string; stem: boolean; used: boolean }>()
 
   constructor(private frame: ScaleFrame, private people: PersonPlan[]) {}
 
@@ -255,7 +279,9 @@ class Planner {
     const waivedPeople = this.planWaivers()
     for (const p of this.people) {
       const visaEnds = this.planPetition(p)
+      this.planClassPapers(p)
       this.planI9s(p, visaEnds)
+      this.planLooseCard(p)
       this.planRightToWork(p)
       this.planScreening(p, waivedPeople)
       this.planLicense(p)
@@ -343,8 +369,16 @@ class Planner {
     const left = expires ? Math.round((expires.getTime() - this.today.getTime()) / DAY) : 0
     const filed = expires ? day(Math.min(-200, left - 1095 - 150)) : day(-between(r, 120, 200))
     const rfe = status === 'RFE' || (status !== 'FILED' && r() < 1 / 3)
+    // The employer that petitioned: the one paying on the live line, else the person's own firm. On a
+    // share of live lines with a new employer, the first petition was a past employer's and the new one
+    // filed a transfer before the start (8 CFR 214.2(h)(2)(i)(H)), planned after this one.
+    const employerNow = this.firm(live ? bottomOf(live).employerId : p.facts.firmId)
+    const past = this.latestEnded(p)
+    const pastEmployer = past && !past.ownCompany ? this.firm(bottomOf(past).employerId) : null
+    const transferred = !!(live && pastEmployer && employerNow && pastEmployer.id !== employerNow.id && r() < 1 / 3)
+    const petitioner = transferred ? pastEmployer : employerNow
     const trail: { type: string; on: Date; notes: string }[] = [
-      { type: 'FILED', on: filed, notes: 'Filed with premium processing.' },
+      { type: 'FILED', on: filed, notes: petitioner ? employerNamedNote(petitioner.name, 'Filed with premium processing.') : 'Filed with premium processing.' },
       { type: 'RECEIVED', on: plus(filed, 3), notes: 'Receipt notice issued.' },
     ]
     // Each step through the one rule a person's move goes through, so the trail is one the screen could have walked.
@@ -385,13 +419,172 @@ class Planner {
       id: idFor(`${pkey(p, 'petition')}/doc/${d.docType}`), petitionId: id, docType: d.docType, fileName: d.file,
       fileUrl: `/files/visas/${id}/${d.file}`, expiresAt: d.docType === 'LCA' ? null : expires, uploadedAt: d.on,
     }))
+    if (transferred && live && employerNow) this.planTransfer(p, live, employerNow, expires)
     return ['ACTIVE', 'EXPIRING'].includes(status) || (!live && ['APPROVED', 'STAMPED'].includes(status)) ? expires : null
+  }
+
+  /**
+   * The transfer petition a new employer filed before the start: portability lets the work begin on
+   * filing (INA 214(n); 8 CFR 214.2(h)(2)(i)(H)). Approved where it was filed long enough ago.
+   */
+  private planTransfer(p: PersonPlan, live: LinePlan, employer: ScaleFirm, expires: Date | null): void {
+    const r = keyed(pkey(p, 'petition/transfer'))
+    const id = idFor(pkey(p, 'petition/transfer'))
+    const filed = earliest(plus(live.start, -between(r, 5, 20)), day(-1))
+    const approved = plus(filed, 120)
+    const done = approved.getTime() < this.today.getTime() && !!expires && expires.getTime() > this.today.getTime()
+    const status = done ? statusByDay(expires!, this.today) : 'FILED'
+    this.out.petitions.push({
+      id, personId: p.facts.id, type: 'H1B', country: 'US', status,
+      filedAt: filed, approvedAt: done ? approved : null, expiresAt: done ? expires : null,
+      worksiteAddress: this.firm(live.clientId)?.sites.find((s) => s.primary)?.city ?? null,
+      transferOk: done,
+    })
+    const trail = [
+      { type: 'FILED', on: filed, notes: employerNamedNote(employer.name, 'Transfer petition filed; work may begin on filing.') },
+      { type: 'RECEIVED', on: plus(filed, 3), notes: 'Receipt notice issued.' },
+      ...(done ? [{ type: EVENT_FOR.APPROVED, on: approved, notes: 'Approved to the date on the I-797.' }, { type: EVENT_FOR.ACTIVE, on: plus(approved, 1), notes: 'Working on it.' }] : []),
+    ]
+    trail.forEach((e, i) => this.out.visaEvents.push({
+      id: idFor(`${pkey(p, 'petition/transfer')}/event/${i}`), petitionId: id, eventType: e.type, occurredAt: e.on, notes: e.notes, createdAt: e.on,
+    }))
+    const docs = [{ docType: 'I797_RECEIPT', file: 'i797-receipt-notice.pdf', on: plus(filed, 3) }, ...(done ? [{ docType: 'I797', file: 'i797-approval-notice.pdf', on: approved }] : [])]
+    docs.forEach((d) => this.out.visaDocuments.push({
+      id: idFor(`${pkey(p, 'petition/transfer')}/doc/${d.docType}`), petitionId: id, docType: d.docType, fileName: d.file,
+      fileUrl: `/files/visas/${id}/${d.file}`, expiresAt: d.docType === 'I797' ? expires : null, uploadedAt: d.on,
+    }))
+  }
+
+  // ── The papers each class of worker holds ─────────────────────────
+
+  /** The firm whose papers seat records a person's status papers: the employer on the live line, else their own firm. */
+  private holderOf(p: PersonPlan): ScaleFirm | null {
+    const live = this.live(p)
+    const ended = this.latestEnded(p)
+    // A one-person company is not a firm of the frame: the firm that places them keeps the copy.
+    return this.firm(live && !live.ownCompany ? bottomOf(live).employerId : p.facts.firmId)
+      ?? (live ? this.firm(live.chain[0]) : null)
+      ?? (ended ? this.firm(ended.chain[0]) : null)
+  }
+
+  private planClassPapers(p: PersonPlan): void {
+    if (p.facts.country !== 'US') return
+    const auth = p.facts.workAuth as string
+    const holder = this.holderOf(p)
+    if (!holder) return
+    const seat = papersSeat(holder)
+    const r = keyed(pkey(p, 'class'))
+    const live = this.live(p)
+    const lapsedShare = live ? 0 : 1 / 8
+    switch (auth) {
+      case 'OPT':
+      case 'EAD': {
+        const field = live?.industry ?? p.facts.industry
+        const stem = auth === 'OPT' && (field === 'IT' || field === 'MANUFACTURING' || field === 'FINANCE') && r() < 0.5
+        const category = auth === 'OPT' ? (stem ? 'C03C' : 'C03B') : pick(r, ['C09', 'C08', 'A12', 'C10'])
+        const lapsed = r() < lapsedShare
+        const expiresAt = lapsed ? day(-between(r, 5, 90)) : live ? day(between(r, 120, 700)) : day(between(r, 30, 600))
+        const validFrom = earliest(plus(expiresAt, -(stem ? 730 : auth === 'OPT' ? 365 : 540)), live ? plus(live.start, -between(r, 5, 30)) : day(-between(r, 10, 200)))
+        this.cards.set(p.facts.id, { expiresAt, validFrom, category, stem, used: false })
+        if (auth === 'OPT') {
+          this.statusRecord(p, 'F1_OPT', validFrom, expiresAt, 'OPT recommended by the school on the I-20 and approved on the card.', [
+            { docType: 'I20', file: 'i20-opt-recommendation.pdf' }, { docType: 'EAD', file: 'ead-card.pdf' },
+          ])
+        }
+        return
+      }
+      case 'F1_CPT': {
+        // The I-20's CPT page names the employer the school authorized. On a share of people with no live
+        // line it names a past employer, so a new employer's start meets the CPT refusal.
+        const past = this.latestEnded(p)
+        const pastFirm = past && !past.ownCompany ? this.firm(bottomOf(past).employerId) : null
+        const named = !live && pastFirm && pastFirm.id !== holder.id && r() < 0.25 ? pastFirm : holder
+        const from = live ? earliest(plus(live.start, -between(r, 3, 20)), day(-1)) : day(-between(r, 10, 120))
+        const to = r() < lapsedShare ? day(-between(r, 3, 40)) : day(between(r, 95, 300))
+        this.statusRecord(p, 'F1_CPT', from, to, employerNamedNote(named.name, 'CPT authorized by the school’s designated official on the I-20.'), [
+          { docType: 'I20_CPT', file: 'i20-cpt-page.pdf' },
+        ])
+        this.passport(p, seat, r)
+        return
+      }
+      case 'F1_NO_PERMIT': {
+        this.statusRecord(p, 'F1', day(-between(r, 100, 900)), day(between(r, 120, 900)), 'I-20 issued by the school. No CPT or OPT authorized.', [
+          { docType: 'I20', file: 'i20.pdf' },
+        ])
+        this.passport(p, seat, r)
+        return
+      }
+      case 'TN': {
+        const lapsed = r() < lapsedShare
+        const on = live ? earliest(plus(live.start, -between(r, 2, 10)), day(-1)) : day(-between(r, 100, 700))
+        const ends = lapsed ? day(-between(r, 5, 60)) : day(between(r, 90, 1000))
+        const row = record({
+          about: 'PERSON', type: 'I94', subjectName: p.facts.name, recordedBy: seat.name,
+          issuer: 'US Customs and Border Protection', issuedOn: on, expiresAt: ends, reference: `${between(r, 10000000, 99999999)}A${between(r, 1, 9)}`,
+        }, on)
+        const id = idFor(pkey(p, 'class/i94'))
+        this.out.person.push({ ...rowFrom(id, row, { personId: p.facts.id }, seat.personId, null), result: { classOfAdmission: 'TN', employerNamed: holder.name } })
+        this.note(id, 'I94', stateOf2(row.expiresAt, null, this.today))
+        return
+      }
+      default:
+        // A citizen, a permanent resident and a domestic student show only the I-9's list document,
+        // which the I-9 itself records. H-1B papers are the petition's.
+        return
+    }
+  }
+
+  /** A card nobody completed an I-9 from: written on its own, so the class rule reads it. */
+  private planLooseCard(p: PersonPlan): void {
+    const card = this.cards.get(p.facts.id)
+    if (!card || card.used) return
+    const holder = this.holderOf(p)
+    if (!holder) return
+    const seat = papersSeat(holder)
+    const r = keyed(pkey(p, 'class/card'))
+    const row = record({
+      about: 'PERSON', type: 'WORK_PERMIT', subjectName: p.facts.name, recordedBy: seat.name,
+      issuer: 'US Citizenship and Immigration Services', issuedOn: card.validFrom, expiresAt: card.expiresAt,
+      reference: `IOE${between(r, 1000000000, 9999999999)}`,
+    }, earliest(card.validFrom, day(-1)))
+    const id = idFor(pkey(p, 'class/card'))
+    this.out.person.push({ ...rowFrom(id, row, { personId: p.facts.id }, seat.personId, null), validFrom: card.validFrom, result: { category: card.category, stem: card.stem } })
+    this.note(id, 'WORK_PERMIT', stateOf2(card.expiresAt, card.validFrom, this.today))
+  }
+
+  private passport(p: PersonPlan, seat: { personId: string; name: string }, r: () => number): void {
+    const on = day(-between(r, 20, 400))
+    const row = record({
+      about: 'PERSON', type: 'PASSPORT', subjectName: p.facts.name, recordedBy: seat.name,
+      issuer: 'The passport office of the person’s own country', issuedOn: plus(on, -between(r, 200, 2000)), expiresAt: day(between(r, 400, 2500)),
+      reference: `P${between(r, 1000000, 9999999)}`,
+    }, on)
+    const id = idFor(pkey(p, 'class/passport'))
+    this.out.person.push(rowFrom(id, row, { personId: p.facts.id }, seat.personId, null))
+    this.note(id, 'PASSPORT', stateOf2(row.expiresAt, null, this.today))
+  }
+
+  /** A student's status record (the I-20, CPT or OPT) with its dates, kept beside the petitions. */
+  private statusRecord(p: PersonPlan, type: string, from: Date, to: Date, notes: string, docs: { docType: string; file: string }[]): void {
+    const id = idFor(pkey(p, `class/${type}`))
+    const filed = earliest(from, day(-1))
+    this.out.petitions.push({
+      id, personId: p.facts.id, type, country: 'US', status: statusByDay(to, this.today),
+      filedAt: filed, approvedAt: from, expiresAt: to, worksiteAddress: null, transferOk: false,
+    })
+    this.out.visaEvents.push({ id: idFor(`${pkey(p, `class/${type}`)}/event/0`), petitionId: id, eventType: 'FILED', occurredAt: filed, notes, createdAt: filed })
+    docs.forEach((d) => this.out.visaDocuments.push({
+      id: idFor(`${pkey(p, `class/${type}`)}/doc/${d.docType}`), petitionId: id, docType: d.docType, fileName: d.file,
+      fileUrl: `/files/visas/${id}/${d.file}`, expiresAt: d.docType === 'I20' || d.docType === 'I20_CPT' ? to : null, uploadedAt: filed,
+    }))
   }
 
   // ── The I-9, from a named document ────────────────────────────────
 
   private planI9s(p: PersonPlan, visaEnds: Date | null): void {
     if (p.facts.country !== 'US') return
+    // A student with no CPT or OPT holds nothing an I-9 could be completed from for off-campus work.
+    if ((p.facts.workAuth as string) === 'F1_NO_PERMIT') return
     const live = this.live(p)
     if (live) {
       const b = bottomOf(live)
@@ -415,11 +608,14 @@ class Planner {
     const seat = papersSeat(employer)
     const completed = earliest(plus(l.start, -between(r, 1, 3)), day(-1))
     // The document shown, by the person's authorization, always in date on the day it was shown.
-    const auth = p.facts.workAuth
-    const evidenceType = auth === 'GREEN_CARD' ? 'GREEN_CARD' : auth === 'OPT' ? 'WORK_PERMIT' : auth === 'H1B' || auth === 'TN' ? 'VISA' : 'PASSPORT'
+    const auth = p.facts.workAuth as string
+    const evidenceType = auth === 'GREEN_CARD' ? 'GREEN_CARD' : auth === 'OPT' || auth === 'EAD' ? 'WORK_PERMIT' : auth === 'H1B' || auth === 'TN' ? 'VISA' : 'PASSPORT'
+    // The card the class papers planned is the one shown, on the live line.
+    const card = which === 'live' && evidenceType === 'WORK_PERMIT' ? this.cards.get(p.facts.id) ?? null : null
     const issuer = { GREEN_CARD: 'US Citizenship and Immigration Services', WORK_PERMIT: 'US Citizenship and Immigration Services', VISA: 'US Department of State', PASSPORT: 'US Department of State' }[evidenceType]
     let evidenceEnds: Date
     if (evidenceType === 'VISA' && visaEnds && visaEnds.getTime() > completed.getTime()) evidenceEnds = visaEnds
+    else if (card && card.expiresAt.getTime() > completed.getTime()) evidenceEnds = card.expiresAt
     else if (evidenceType === 'WORK_PERMIT') evidenceEnds = plus(completed, between(r, 200, 700))
     else if (evidenceType === 'VISA') evidenceEnds = plus(completed, between(r, 300, 1000))
     else evidenceEnds = plus(completed, between(r, 900, 3400))
@@ -445,9 +641,12 @@ class Planner {
     this.note(id, 'I9_EVERIFY', noEdition ? 'NO_EDITION' : retired ? 'RETIRED_EDITION' : stateOf2(row.expiresAt, null, this.today))
     row.evidence.forEach((e, i) => {
       const evId = idFor(pkey(p, `i9/${which}/${employerId}/evidence/${i}`))
+      const asCard = card && e.type === 'WORK_PERMIT' ? card : null
+      if (asCard) asCard.used = true
       this.out.evidence.push({
         id: evId, personId: p.facts.id, type: e.type as never, status: 'CLEAR', provider: e.provider, referenceId: e.referenceId,
         expiresAt: e.expiresAt, uploadedById: seat.personId, verifiedById: seat.personId, verifiedAt: completed, createdAt: completed,
+        ...(asCard ? { result: { category: asCard.category, stem: asCard.stem } } : {}),
       })
       this.note(evId, e.type, stateOf2(e.expiresAt, null, this.today))
       this.out.backings.push({

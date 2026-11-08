@@ -221,7 +221,8 @@ describe('the generated world’s papers, before anything is written', () => {
 
   it('every H-1B person has a petition whose status, trail and papers agree, and a few run out inside the assignment', () => {
     const h1b = planPeople(frame).filter((p) => p.facts.workAuth === 'H1B')
-    expect(plan.petitions.length).toBe(h1b.length)
+    // A transfer petition is a second H-1B for one person; students' status records sit beside them.
+    expect(new Set(plan.petitions.filter((p) => p.type === 'H1B').map((p) => p.personId)).size).toBe(h1b.length)
     for (const pet of plan.petitions) {
       const trail = plan.visaEvents.filter((e) => e.petitionId === pet.id).sort((a, b) => (a.occurredAt as Date).getTime() - (b.occurredAt as Date).getTime())
       expect(trail[0].eventType).toBe('FILED')
@@ -231,12 +232,12 @@ describe('the generated world’s papers, before anything is written', () => {
         const moved = byCalendar(pet.status, pet.expiresAt as Date, day(0))
         expect(moved === null || moved === pet.status, `${pet.id} ${pet.status}`).toBe(true)
       }
-      if (pet.approvedAt) expect(plan.visaDocuments.some((d) => d.petitionId === pet.id && d.docType === 'I797')).toBe(true)
+      if (pet.approvedAt && pet.type === 'H1B') expect(plan.visaDocuments.some((d) => d.petitionId === pet.id && d.docType === 'I797')).toBe(true)
     }
     const working = new Set(plan.placedUs)
     expect(plan.petitions.filter((p) => working.has(p.personId) && p.status === 'EXPIRING').length).toBeGreaterThan(0)
     for (const s of ['FILED', 'RFE', 'APPROVED', 'STAMPED', 'ACTIVE', 'EXPIRING', 'EXPIRED', 'DENIED']) {
-      expect(plan.petitions.some((p) => p.status === s), s).toBe(true)
+      expect(plan.petitions.some((p) => p.type === 'H1B' && p.status === s), s).toBe(true)
     }
   })
 

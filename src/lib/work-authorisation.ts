@@ -63,6 +63,21 @@ export type WorkAuth =
   | 'E3'
   | 'OPT'
   | 'CPT'
+  /** CPT as the generated world and supply's profile spell it (2026-11-08). Read as CPT. */
+  | 'F1_CPT'
+  /**
+   * A domestic student: a citizen or permanent resident still studying.
+   * Needs no permit and no sponsorship; whether citizen or resident is not
+   * said, so a citizenship-only basis asks rather than refuses.
+   */
+  | 'STUDENT'
+  /**
+   * An F-1 student with no CPT or OPT. May be screened and interviewed;
+   * may not start off-campus US work (8 CFR 214.2(f)(9)–(10)). That is
+   * the start's rule (lib/document-stages/worker-class), not a reason to
+   * refuse anybody here.
+   */
+  | 'F1_NO_PERMIT'
 
 /**
  * Statuses that carry the right to work for anybody, with no employer
@@ -72,7 +87,7 @@ export type WorkAuth =
  * ones a blanket "citizens only" rule unlawfully sweeps up.
  */
 export const NEEDS_NO_SPONSOR: readonly WorkAuth[] = [
-  'US_CITIZEN', 'GC', 'ASYLEE', 'REFUGEE', 'EAD',
+  'US_CITIZEN', 'GC', 'ASYLEE', 'REFUGEE', 'EAD', 'STUDENT',
 ]
 
 /**
@@ -84,7 +99,7 @@ export const NEEDS_NO_SPONSOR: readonly WorkAuth[] = [
  * the commonest real-world version of this restriction is therefore
  * over-broad on its own stated grounds.
  */
-export const US_PERSON: readonly WorkAuth[] = ['US_CITIZEN', 'GC', 'ASYLEE', 'REFUGEE']
+export const US_PERSON: readonly WorkAuth[] = ['US_CITIZEN', 'GC', 'ASYLEE', 'REFUGEE', 'STUDENT']
 
 /**
  * The only reasons a role may narrow who can hold it.
@@ -170,6 +185,11 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
     }
   }
 
+  // One status, two spellings: the profile's F1_CPT is CPT.
+  if (has === 'F1_CPT' && r.requires.includes('CPT')) {
+    return { verdict: 'PASS', reason: 'Their permission to work meets what the job states.', restrictionSuspect: false }
+  }
+
   if (r.requires.includes(has)) {
     return { verdict: 'PASS', reason: 'Their permission to work meets what the job states.', restrictionSuspect: false }
   }
@@ -213,6 +233,16 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
     }
   }
 
+  // A domestic student is a citizen or a resident, and the record does not say which:
+  // a citizenship-only basis is a question to ask, never a refusal on a guess.
+  if (has === 'STUDENT' && permitted !== 'ALL' && permitted.includes('US_CITIZEN')) {
+    return {
+      verdict: 'WARN',
+      reason: `${basisLabel(r.basis)} limits this job to US citizens, and the record says only that they are a student who is a citizen or resident. Ask which before turning them away.`,
+      restrictionSuspect: false,
+    }
+  }
+
   return {
     verdict: 'BLOCK',
     reason:
@@ -247,6 +277,9 @@ function label(a: WorkAuth): string {
     E3: 'on an E-3',
     OPT: 'on OPT',
     CPT: 'on CPT',
+    F1_CPT: 'on CPT',
+    STUDENT: 'a student who is a citizen or resident',
+    F1_NO_PERMIT: 'an international student with no CPT or OPT',
   }
   return words[a] ?? a
 }

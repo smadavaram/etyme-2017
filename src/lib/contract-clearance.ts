@@ -87,6 +87,8 @@ import {
 export { forWorkCountry, workAuthorizationOf, requirementsWhereWorkIsDone, requirementsWhereWorkIsDoneForSellLines } from '@/lib/document-stages/where-work-is-done'
 export type { LineWorkCountry, SetWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
 import { heldFromDocInstances } from '@/lib/document-request'
+import { workerClassStart, type WorkerClassDecision } from '@/lib/document-stages/worker-class'
+import { workerClassFactsFor } from '@/lib/document-stages/worker-class-facts'
 import { acceptedRequestPapers, heldFromAcceptedItems, heldAbout, paperInstancesWhere, PAPER_ON_FILE_SELECT, type PaperOnFile } from '@/lib/document-stages/paper-record'
 import {
   typesFor,
@@ -275,6 +277,12 @@ export interface Clearance {
    * named no work country (the US set, as before).
    */
   workAuthorization: WorkAuthorizationRule | null
+  /**
+   * What the person's class of worker needs at the start of US work
+   * (lib/document-stages/worker-class), where a caller read it. Absent
+   * means nobody read it, and nothing about it moved the verdict.
+   */
+  workerClass?: WorkerClassDecision | null
   says: string
   /** What to do about it, where there is one thing to do. */
   fix: string | null
@@ -659,6 +667,12 @@ export function contractClearance(input: {
    * set, exactly as before.
    */
   workCountry?: LineWorkCountry | null
+  /**
+   * The class rule's decision for this person on this line
+   * (`workerClassStart`), from `lineExtras`. BLOCK refuses the start,
+   * WARN warns, NOTE is said and moves nothing. Omitted is inert.
+   */
+  workerClass?: WorkerClassDecision | null
 }): Clearance {
   const credentials = credentialKeys(input.documentTypes ?? [])
   const basePacket = packetByKey(input.packetKey ?? startPacketFor(input.role))
@@ -940,10 +954,15 @@ export function contractClearance(input: {
     editions.some((e) => e.standing === 'SUPERSEDED') ||
     adverse.length > 0
 
+  // The class of worker (2026-11-08): a student with no permit, a card
+  // that ran out, CPT for another employer. Each rule is confirmed with
+  // its source before it blocks; an unconfirmed one only warns.
+  const cls = input.workerClass ?? null
   const outcome: Outcome =
-    blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK' ? 'BLOCK'
-    : chasing.length > 0 || cover.outcome === 'WARN' || license.outcome === 'WARN' || paperworkWarns ? 'WARN'
+    blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK' || cls?.verdict === 'BLOCK' ? 'BLOCK'
+    : chasing.length > 0 || cover.outcome === 'WARN' || license.outcome === 'WARN' || paperworkWarns || cls?.verdict === 'WARN' ? 'WARN'
     : 'PASS'
+  const clsSays = cls && cls.verdict !== 'PASS' ? cls.says : ''
 
   return {
     outcome,
@@ -956,8 +975,16 @@ export function contractClearance(input: {
     unsupported,
     editions,
     workAuthorization,
+    ...(input.workerClass !== undefined ? { workerClass: cls } : {}),
     says: oneStop(
-      [sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived, adverse), workAuthorization?.says ?? '']
+      ((): string[] => {
+        const others = sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived, adverse)
+        const othersBlock = blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK'
+        // The class's own sentence leads where it is what decides the verdict.
+        if (cls?.verdict === 'BLOCK') return [clsSays, othersBlock ? others : '', workAuthorization?.says ?? '']
+        if (cls?.verdict === 'WARN' && !othersBlock) return [clsSays, others, workAuthorization?.says ?? '']
+        return [others, clsSays, workAuthorization?.says ?? '']
+      })()
         .filter(Boolean)
         .join(' ')
     ),
@@ -1620,6 +1647,7 @@ export async function lineExtras(
   supplierCertificates?: CoverCertificate[]
   documentTypes?: DefinedType[]
   workCountry?: LineWorkCountry | null
+  workerClass?: WorkerClassDecision | null
 }> {
   // A sell line is answered by the many-lines read, so one line and many
   // lines cannot come to different answers, and a caller holding several
@@ -1740,7 +1768,11 @@ export async function lineExtras(
   // stand on the paper itself (an NDA): the rows the request reads.
   const lineFirms = [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v)
   const requested = personId ? await acceptedRequestPapers([personId], lineFirms, db as never) : []
-  return extrasFrom({
+  const classFacts = personId ? (await workerClassFactsFor([personId], db as never).catch(() => new Map())).get(personId) : undefined
+  const workerClass = classFacts
+    ? workerClassStart({ ...classFacts, workCountry: wc ? { country: wc.country, offshore: wc.offshore } : null, on: now })
+    : null
+  return { ...extrasFrom({
     requestPapers: heldAbout({ papers: instances as unknown as PaperOnFile[], accepted: requested }, {
       personId, companyIds: lineFirms,
       ...(sellContractId ? { sellContractId } : { buyContractId: buyContractId! }),
@@ -1752,7 +1784,7 @@ export async function lineExtras(
     site: siteOf?.workLocation ?? null,
     workCountry: wc ? { country: wc.country, offshore: wc.offshore } : null,
     certificates, types, agreements,
-  })
+  }), workerClass }
 }
 
 /**
@@ -1918,6 +1950,9 @@ export async function lineExtrasForSellLines(
   ])
   // Papers the firms on these lines asked the people for and accepted, in one read.
   const requested = await acceptedRequestPapers(personIds, firmIds, db as never)
+  // What each person's class of worker holds (2026-11-08), in one read of many people.
+  // A reader that cannot answer (a test's stand-in database) reads nothing, never refuses.
+  const classFacts = await workerClassFactsFor(personIds, db as never).catch(() => new Map<string, never>())
 
   const setOf = (id: string): LineRequirements | null => (known?.has(id) ? known.get(id) ?? null : read.get(id) ?? null)
 
@@ -1934,7 +1969,16 @@ export async function lineExtrasForSellLines(
     if (!set) return
     const firms = new Set([line.companyId, line.clientCompanyId].filter((v): v is string => !!v))
     const lineTypes = (types as { companyId: string | null; key: string; label: string }[]).filter((t) => !!t.companyId && firms.has(t.companyId))
-    out.set(line.id, extrasFrom({
+    const wcOfLine = workCountryOf({
+      workMode: line.requirement?.workMode ?? null,
+      siteCountry: line.workLocation?.country ?? line.requirement?.site?.country ?? NO_SITE_COUNTRY,
+      personCountry: line.person?.consultant?.country ?? null,
+    })
+    const facts = line.personId ? classFacts.get(line.personId) : undefined
+    const workerClass = facts
+      ? workerClassStart({ ...facts, workCountry: { country: wcOfLine.country, offshore: wcOfLine.offshore }, on: now })
+      : null
+    out.set(line.id, { ...extrasFrom({
       requestPapers: heldAbout({ papers: instances as unknown as PaperOnFile[], accepted: requested }, {
         personId: line.personId, companyIds: [...firms], sellContractId: line.id,
         types: lineTypes.map((t) => ({ key: t.key, label: t.label })),
@@ -1960,7 +2004,7 @@ export async function lineExtrasForSellLines(
             .filter((a) => a.vendorId === line.companyId && a.clientId === line.clientCompanyId)
             .map(({ vendorId: _v, clientId: _c, ...rest }) => { void _v; void _c; return rest })
         : [],
-    }))
+    }), workerClass })
   })
   return out
 }

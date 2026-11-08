@@ -148,3 +148,66 @@ export function notHeldLines(t: StageTally): string[] {
   for (const s of DOC_STAGES) for (const n of t.rows.get(s)!.notHeld) out.push(`- ${s}: ${n}`)
   return out
 }
+
+// ── By worker class (the founder, 2026-11-08) ─────────────────────────
+//
+// "Include all types of workers." Every award the start station walks is
+// counted by the person's class: awarded, started, refused at the start
+// and why (the route's own sentence, first one kept), and the class rule
+// that refused it. Read by the architect's report through
+// `tallyByWorkerClass()` (scripts/simulate/tallies.ts).
+
+export interface WorkerClassTallyRow {
+  key: string
+  people: number | null
+  awarded: number
+  started: number
+  refused: number
+  /** The first refusal sentence the route gave for this class, verbatim. */
+  reason: string | null
+  /** The class rules that spoke, by rule key, with how often. */
+  rules: Record<string, number>
+  /** Expected refusals that did not come: the rule did not hold. */
+  notHeld: string[]
+}
+
+export class WorkerClassTally {
+  readonly rows = new Map<string, WorkerClassTallyRow>()
+
+  row(key: string): WorkerClassTallyRow {
+    let r = this.rows.get(key)
+    if (!r) {
+      r = { key, people: null, awarded: 0, started: 0, refused: 0, reason: null, rules: {}, notHeld: [] }
+      this.rows.set(key, r)
+    }
+    return r
+  }
+  people(key: string, n: number): void { this.row(key).people = n }
+  awarded(key: string): void { this.row(key).awarded++ }
+  started(key: string): void { this.row(key).started++ }
+  /** A start refused, with the route's sentence and the class rule behind it where one spoke. */
+  refused(key: string, sentence: string | null, rule?: string | null): void {
+    const r = this.row(key)
+    r.refused++
+    if (sentence && !r.reason) r.reason = sentence
+    if (rule) r.rules[rule] = (r.rules[rule] ?? 0) + 1
+  }
+  /** A class rule the station expected to refuse, which did not. */
+  notHeldFor(key: string, line: string): void { this.row(key).notHeld.push(line) }
+}
+
+/** One count for the whole run. */
+export const classTally = new WorkerClassTally()
+
+/**
+ * The count by worker class, for the report. Keys are the generated
+ * world's class names (supply's `WorkAuth`): CITIZEN, GREEN_CARD, … ,
+ * OTHER for work done outside the US or a person with no class. A class
+ * nobody was awarded in still has a row where the world holds its people.
+ * Pure over the tally; `world` is accepted for the report's call and not
+ * read.
+ */
+export function tallyByWorkerClass(world?: unknown, t: WorkerClassTally = classTally): WorkerClassTallyRow[] {
+  void world
+  return [...t.rows.values()].map((r) => ({ ...r, rules: { ...r.rules }, notHeld: [...r.notHeld] }))
+}
