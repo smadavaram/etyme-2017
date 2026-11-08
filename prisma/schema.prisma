@@ -9681,14 +9681,16 @@ model AskEtymeThread {
   /// (2026-10-19).
   companyId    String?
   company      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  /// The person's id, set exactly where `companyId` is null, so a person
-  /// has one thread of their own with no company behind it. The unique on
-  /// (personId, companyId) cannot say that: Postgres reads two nulls as
-  /// different, so it would let one person hold two null-company threads
-  /// (regulatory's note, 2026-10-19). This unique is what stops it. Written
-  /// only by `threadRowFor` in lib/ask-etyme-thread, never from a request.
-  personOnlyId String?  @unique
+  /// The person's id, set exactly where `companyId` is null, so a
+  /// person's own conversations with no company behind them are read by
+  /// one key. Since 2026-11-08 a seat keeps several conversations
+  /// ("Conversations are kept and listed", 2026-11-03), so it is an index,
+  /// not a unique. Written only by lib/ask-etyme-thread, never from a request.
+  personOnlyId String?
 
+  /// The conversation's name on the list: its first question, as the
+  /// person asked it, cut to a line. Null until the first question.
+  title      String?
   createdAt  DateTime  @default(now())
   /// When the last line was said, so a screen can say "last spoke …".
   lastTurnAt DateTime?
@@ -9698,7 +9700,10 @@ model AskEtymeThread {
 
   turns AskEtymeTurn[]
 
-  @@unique([personId, companyId])
+  /// A seat's conversations, newest first. Not unique since 2026-11-08: a
+  /// seat keeps every conversation, and the greeting opens a new one.
+  @@index([personId, companyId, lastTurnAt])
+  @@index([personOnlyId])
   @@index([companyId])
 }
 

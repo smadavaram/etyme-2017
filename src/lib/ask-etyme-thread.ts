@@ -3,15 +3,22 @@
  *
  * Decided by the founder, 2026-10-18 (CLAUDE.md, "One Ask Etyme
  * conversation per person, saved, and it never leaves the tenant or the
- * transaction"): each seat has one thread, kept on the record, so it
- * survives a reload, a phone switch and a sign-out; Clear starts over;
- * there is no list of old chats; a card already answered stays answered.
+ * transaction"): a seat's conversation is kept on the record, so it
+ * survives a reload, a phone switch and a sign-out; Clear starts over; a
+ * card already answered stays answered. Since 2026-11-08 a seat keeps
+ * every conversation, titled by its first question, newest first
+ * ("Conversations are kept and listed", the founder, 2026-11-03, which
+ * reverses "there is no list of old chats"). Without a conversation named,
+ * every door reads and writes the seat's newest one, so a screen that
+ * names none behaves exactly as it did with one.
  *
- *   readThread(seat, { personId?, take? })   the seat's own thread, oldest line first
- *   appendTurn(seat, { speaker, text, ... }) one line said, by the person or by Ask Etyme
+ *   readThread(seat, { personId?, take?, threadId? })  one conversation of the seat's own, oldest line first
+ *   appendTurn(seat, { speaker, text, threadId?, ... }) one line said, by the person or by Ask Etyme
  *   markCard(seat, { turnId, approvalId, state, number? })
  *                                            what became of one card on one line
- *   clearThread(seat)                        Clear: start over, the old lines kept on the record
+ *   clearThread(seat, { threadId? })         Clear: start over, the old lines kept on the record
+ *   listThreads(seat, { take? })             the seat's conversations, newest first, with their titles
+ *   startThread(seat)                        New conversation: an empty one, which is now the newest
  *
  * ── Isolation at the query ───────────────────────────────────────────
  *
@@ -22,11 +29,14 @@
  * screen that asks by id — is refused unless it is the caller, and the
  * refusal is written to the access log before it is returned
  * (`recordRefusal`), like any other read of another person's data. The
- * same person seated at two companies has two threads, and each seat
- * reads only its own. Nothing here reads across tenants. A person with no
- * company seat — a candidate on a firm's bench — has one thread of their
- * own, keyed on the person alone (`threadKey`), and it carries no card a
- * company asked, because a question is always a company's.
+ * same person seated at two companies keeps each company's conversations
+ * apart, and each seat reads only its own. A conversation named by id is
+ * read only where it is the seat's own (`seatThreads`); anybody else's is
+ * refused as a line that is not there, the attempt logged against its
+ * person. Nothing here reads across tenants. A person with no company
+ * seat — a candidate on a firm's bench — keeps conversations of their
+ * own, keyed on the person alone, and they carry no card a company
+ * asked, because a question is always a company's.
  *
  * ── Who has no saved thread ──────────────────────────────────────────
  *
@@ -100,6 +110,8 @@ export interface SavedTurn {
 export interface SavedThread {
   /** Null where nothing has been said yet, or where nothing is kept. */
   id: string | null
+  /** Its first question, cut to a line; null until one is asked. */
+  title: string | null
   /** False for a seat whose conversation is not kept; `notKeptBecause` says why. */
   saved: boolean
   notKeptBecause: string | null
@@ -117,11 +129,22 @@ export interface NewTurn {
   answer?: unknown
   cardApprovalIds?: readonly string[]
   approvalId?: string | null
+  /** The conversation it is said in; the seat's newest where none is named. */
+  threadId?: string | null
+}
+
+/** One of the seat's conversations, as the list shows it. */
+export interface ThreadSummary {
+  id: string
+  /** Its first question, cut to a line; null until one is asked. */
+  title: string | null
+  createdAt: Date
+  lastTurnAt: Date | null
 }
 
 export type ThreadRefusalCode =
   | 'NO_PERSON' | 'NOT_YOUR_THREAD' | 'NOT_IN_YOUR_THREAD' | 'NOT_A_CARD'
-  | 'NO_SUCH_QUESTION' | 'EMPTY' | 'TOO_LONG' | 'BAD_STATE'
+  | 'NO_SUCH_QUESTION' | 'EMPTY' | 'TOO_LONG' | 'BAD_STATE' | 'NO_SUCH_THREAD'
 
 export interface ThreadRefusal {
   ok: false
@@ -143,6 +166,7 @@ export const NOT_KEPT_IN_SAMPLE =
 export const notYourThread = (company: string) =>
   `An Ask Etyme conversation is read only by the person it belongs to. Nobody else at ${company} can open it, and nobody at another company.`
 export const NOT_IN_YOUR_THREAD = 'That line is not in your Ask Etyme conversation.'
+export const NO_SUCH_THREAD = 'That conversation is not one of yours.'
 export const NOT_A_CARD = 'That card is not on this line of your conversation.'
 export const NO_SUCH_QUESTION = 'That question is not on the record, so this line cannot say it answered it.'
 export const EMPTY_SAYS = 'A line in the conversation needs words.'
@@ -162,6 +186,10 @@ export const SHOWN_TURNS = 200
 export const MAX_TEXT = 8_000
 /** The largest answer kept, as JSON, in bytes. */
 export const MAX_ANSWER_BYTES = 256_000
+/** The longest title kept, in characters. */
+export const TITLE_LENGTH = 80
+/** How many conversations the list returns by default, newest first. */
+export const LISTED_THREADS = 50
 
 const CARD_STATES: readonly CardState[] = ['APPROVED', 'REJECTED', 'LATER', 'OVERTAKEN']
 
@@ -238,6 +266,19 @@ export function stampAfter(now: Date, lastTurnAt: Date | null, clearedAt: Date |
   return new Date(t)
 }
 
+/**
+ * A conversation's title: the person's first question on one line, cut at
+ * a word to TITLE_LENGTH with an ellipsis. Null for words that are empty.
+ */
+export function titleOf(question: string): string | null {
+  const line = question.replace(/\s+/g, ' ').trim()
+  if (!line) return null
+  if (line.length <= TITLE_LENGTH) return line
+  const cut = line.slice(0, TITLE_LENGTH - 1)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > TITLE_LENGTH / 2 ? cut.slice(0, space) : cut).trimEnd()}\u2026`
+}
+
 // ── The door ──────────────────────────────────────────────────────────
 
 type Row = {
@@ -284,31 +325,83 @@ function toTurn(row: Row, decisions: ReadonlyMap<string, { decision: string; dec
 }
 
 function emptyThread(notKeptBecause: string | null): SavedThread {
-  return { id: null, saved: notKeptBecause === null, notKeptBecause, clearedAt: null, lastTurnAt: null, turns: [], earlier: false }
+  return { id: null, title: null, saved: notKeptBecause === null, notKeptBecause, clearedAt: null, lastTurnAt: null, turns: [], earlier: false }
 }
 
 /**
- * Which thread is the seat's: at its company, or the person's own where
- * there is no company. Never from the request.
+ * The seat's conversations: at its company, or the person's own where
+ * there is no company. Never from the request. `companyId: null` alone
+ * would match nothing wrongly here, but the person-only key is said as
+ * well so a row written for a company seat is never read as the person's own.
  */
-export function threadKey(personId: string, companyId: string | null): Prisma.AskEtymeThreadWhereUniqueInput {
-  return companyId ? { personId_companyId: { personId, companyId } } : { personOnlyId: personId }
+export function seatThreads(personId: string, companyId: string | null): Prisma.AskEtymeThreadWhereInput {
+  return companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }
 }
 
-/** The seat's thread row, made the first time a line is said. */
-async function threadRowFor(personId: string, companyId: string | null) {
-  const where = threadKey(personId, companyId)
-  const select = { id: true, lastTurnAt: true, clearedAt: true } as const
-  const create = companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }
-  try {
-    return await prisma.askEtymeThread.upsert({ where, create, update: {}, select })
-  } catch (err) {
-    // Two first lines at once: the other one made it.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return prisma.askEtymeThread.findUniqueOrThrow({ where, select })
-    }
-    throw err
+const THREAD_SELECT = { id: true, title: true, lastTurnAt: true, clearedAt: true } as const
+type ThreadRow = { id: string; title: string | null; lastTurnAt: Date | null; clearedAt: Date | null }
+
+/**
+ * Newest first: a conversation nothing has been said in yet (New
+ * conversation, just pressed) leads, then the last spoken in, then the
+ * last made.
+ */
+const NEWEST_FIRST: Prisma.AskEtymeThreadOrderByWithRelationInput[] = [
+  { lastTurnAt: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }, { id: 'desc' },
+]
+
+/**
+ * The seat's newest conversation, or the one named where it is the seat's
+ * own. A named one that is not the seat's reads as none, and the attempt
+ * on another person's is logged against them before this returns.
+ */
+async function seatThread(seat: ThreadSeat, threadId: string | null | undefined): Promise<ThreadRow | null | 'NOT_YOURS'> {
+  const companyId = seat.company?.id ?? null
+  const mine = seatThreads(seat.person.id, companyId)
+  if (!threadId) {
+    const rows = await prisma.askEtymeThread.findMany({ where: mine, orderBy: NEWEST_FIRST, take: 1, select: THREAD_SELECT })
+    return rows[0] ?? null
   }
+  const row = await prisma.askEtymeThread.findFirst({ where: { AND: [mine, { id: threadId }] }, select: THREAD_SELECT })
+  if (row) return row
+  const other = await prisma.askEtymeThread.findUnique({ where: { id: threadId }, select: { personId: true } })
+  if (other && other.personId !== seat.person.id) {
+    await recordRefusal([other.personId], {
+      ...accessActor(seat),
+      action: THREAD_READ_ACTION,
+      allowed: false,
+      reason: `Asked for another person\u2019s Ask Etyme conversation${seat.company ? ` at ${seat.company.name}` : ''}; a conversation is read only by its own person.`,
+    })
+  }
+  return 'NOT_YOURS'
+}
+
+/**
+ * A new conversation for the seat. Where `onlyIfNone`, made only if the
+ * seat has none yet, under a lock on the seat so two first lines at once
+ * make one conversation and not two: the unique that used to stop that
+ * went when a seat could keep several (2026-11-08).
+ */
+async function makeThread(personId: string, companyId: string | null, onlyIfNone: boolean): Promise<ThreadRow> {
+  const data = companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`ask-etyme:${personId}:${companyId ?? ''}`}))`
+    if (onlyIfNone) {
+      const rows = await tx.askEtymeThread.findMany({
+        where: seatThreads(personId, companyId), orderBy: NEWEST_FIRST, take: 1, select: THREAD_SELECT,
+      })
+      if (rows[0]) return rows[0]
+    }
+    return tx.askEtymeThread.create({ data, select: THREAD_SELECT })
+  })
+}
+
+/** The conversation a line goes in: the one named, else the newest, made the first time a line is said. */
+async function threadRowFor(seat: ThreadSeat, threadId: string | null | undefined): Promise<ThreadRow | 'NOT_YOURS'> {
+  const found = await seatThread(seat, threadId)
+  if (found) return found
+  if (threadId) return 'NOT_YOURS'
+  return makeThread(seat.person.id, seat.company?.id ?? null, true)
 }
 
 /**
@@ -321,7 +414,7 @@ async function threadRowFor(personId: string, companyId: string | null) {
  */
 export async function readThread(
   seat: ThreadSeat,
-  opts: { personId?: string | null; take?: number } = {},
+  opts: { personId?: string | null; take?: number; threadId?: string | null } = {},
 ): Promise<{ ok: true; thread: SavedThread } | ThreadRefusal> {
   const kept = keptFor(seat)
   if ('ok' in kept) return kept
@@ -343,10 +436,8 @@ export async function readThread(
 
   if (!kept.kept) return { ok: true, thread: emptyThread(kept.says) }
 
-  const thread = await prisma.askEtymeThread.findUnique({
-    where: threadKey(seat.person.id, company?.id ?? null),
-    select: { id: true, lastTurnAt: true, clearedAt: true },
-  })
+  const thread = await seatThread(seat, opts.threadId)
+  if (thread === 'NOT_YOURS') return { ok: false, status: 404, code: 'NO_SUCH_THREAD', says: NO_SUCH_THREAD }
   if (!thread) return { ok: true, thread: emptyThread(null) }
 
   const take = Math.max(1, Math.min(opts.take ?? SHOWN_TURNS, 1_000))
@@ -363,6 +454,7 @@ export async function readThread(
     ok: true,
     thread: {
       id: thread.id,
+      title: thread.title,
       saved: true,
       notKeptBecause: null,
       clearedAt: thread.clearedAt,
@@ -405,8 +497,11 @@ export async function appendTurn(
     if (!q) return { ok: false, status: 404, code: 'NO_SUCH_QUESTION', says: NO_SUCH_QUESTION }
   }
 
-  const thread = await threadRowFor(seat.person.id, company?.id ?? null)
+  const thread = await threadRowFor(seat, line.threadId)
+  if (thread === 'NOT_YOURS') return { ok: false, status: 404, code: 'NO_SUCH_THREAD', says: NO_SUCH_THREAD }
   const at = stampAfter(new Date(), thread.lastTurnAt, thread.clearedAt)
+  // The first question names the conversation, once; Ask Etyme's lines never do.
+  const title = thread.title === null && line.speaker === 'PERSON' ? titleOf(text) : null
   const row = await prisma.$transaction(async (tx) => {
     const made = await tx.askEtymeTurn.create({
       data: {
@@ -420,7 +515,7 @@ export async function appendTurn(
       },
       select: TURN_SELECT,
     })
-    await tx.askEtymeThread.update({ where: { id: thread.id }, data: { lastTurnAt: at } })
+    await tx.askEtymeThread.update({ where: { id: thread.id }, data: { lastTurnAt: at, ...(title ? { title } : {}) } })
     return made as Row
   })
   return { ok: true, saved: true, turn: toTurn(row, await decisionsFor(company?.id ?? null, row.cardApprovalIds)) }
@@ -480,14 +575,56 @@ export async function markCard(
  * Clear: the seat starts over. The lines said so far stay on the record
  * and are no longer shown; nothing is deleted.
  */
-export async function clearThread(seat: ThreadSeat): Promise<{ ok: true; saved: true; clearedAt: Date } | NotKept | ThreadRefusal> {
+export async function clearThread(
+  seat: ThreadSeat,
+  opts: { threadId?: string | null } = {},
+): Promise<{ ok: true; saved: true; clearedAt: Date } | NotKept | ThreadRefusal> {
   const kept = keptFor(seat)
   if ('ok' in kept) return kept
   if (!kept.kept) return { ok: true, saved: false, says: kept.says }
-  const company = seat.company
-  const thread = await threadRowFor(seat.person.id, company?.id ?? null)
+  const thread = await threadRowFor(seat, opts.threadId)
+  if (thread === 'NOT_YOURS') return { ok: false, status: 404, code: 'NO_SUCH_THREAD', says: NO_SUCH_THREAD }
   // After the last line, so a line said in the same millisecond is cleared with the rest.
   const clearedAt = stampAfter(new Date(), thread.lastTurnAt, thread.clearedAt)
   await prisma.askEtymeThread.update({ where: { id: thread.id }, data: { clearedAt } })
   return { ok: true, saved: true, clearedAt }
+}
+
+/**
+ * The seat's conversations, newest first, each with its title. Only the
+ * seat's own: the key is the caller's person and company, never the request.
+ */
+export async function listThreads(
+  seat: ThreadSeat,
+  opts: { take?: number } = {},
+): Promise<{ ok: true; saved: boolean; notKeptBecause: string | null; threads: ThreadSummary[] } | ThreadRefusal> {
+  const kept = keptFor(seat)
+  if ('ok' in kept) return kept
+  if (!kept.kept) return { ok: true, saved: false, notKeptBecause: kept.says, threads: [] }
+  const take = Math.max(1, Math.min(opts.take ?? LISTED_THREADS, 500))
+  const threads = await prisma.askEtymeThread.findMany({
+    where: seatThreads(seat.person.id, seat.company?.id ?? null),
+    orderBy: NEWEST_FIRST,
+    take,
+    select: { id: true, title: true, createdAt: true, lastTurnAt: true },
+  })
+  return { ok: true, saved: true, notKeptBecause: null, threads }
+}
+
+/**
+ * New conversation: an empty one for the seat, which is now its newest,
+ * so the next line said with no conversation named goes in it. The
+ * conversations before it are kept as they were.
+ */
+export async function startThread(
+  seat: ThreadSeat,
+): Promise<{ ok: true; saved: true; thread: ThreadSummary } | NotKept | ThreadRefusal> {
+  const kept = keptFor(seat)
+  if ('ok' in kept) return kept
+  if (!kept.kept) return { ok: true, saved: false, says: kept.says }
+  const made = await makeThread(seat.person.id, seat.company?.id ?? null, false)
+  const row = await prisma.askEtymeThread.findUniqueOrThrow({
+    where: { id: made.id }, select: { id: true, title: true, createdAt: true, lastTurnAt: true },
+  })
+  return { ok: true, saved: true, thread: row }
 }

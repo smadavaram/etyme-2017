@@ -367,9 +367,14 @@ describe('Billing and paying follow the agreement between each pair (founder, 20
 })
 
 describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () => {
-  it('a seat has exactly one saved Ask Etyme conversation: the thread is unique on the person and the company, so the same person at two companies has two', () => {
-    expect(uniques('AskEtymeThread')).toContainEqual(['personId', 'companyId'])
+  it('a seat keeps several titled Ask Etyme conversations (2026-11-08): nothing on the thread is unique to the seat, its conversations are read newest first by the person and the company, and each carries the title its first question gave it', () => {
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personId', 'companyId'])
     expect(uniques('AskEtymeThread')).not.toContainEqual(['personId'])
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personOnlyId'])
+    const body = schema.match(/model AskEtymeThread \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/@@index\(\[personId, companyId, lastTurnAt\]\)/)
+    expect(body).toMatch(/@@index\(\[personOnlyId\]\)/)
+    expect(field('AskEtymeThread', 'title')).toMatchObject({ type: 'String', isRequired: false })
     expect(field('AskEtymeThread', 'person').type).toBe('Person')
     expect(field('AskEtymeThread', 'company').type).toBe('Company')
   })
@@ -404,10 +409,13 @@ describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () 
     const door = readFileSync(join(process.cwd(), 'src/lib/ask-etyme-thread.ts'), 'utf8')
     // Every query keys on the caller's own seat: its person at its company,
     // or the person alone where there is no company (2026-10-19).
-    expect(door).toMatch(/threadKey\(seat\.person\.id, company\?\.id \?\? null\)/)
-    expect(door).toContain('companyId ? { personId_companyId: { personId, companyId } } : { personOnlyId: personId }')
-    // and the row-maker is only ever handed the seat's own person.
-    expect(door).not.toMatch(/threadRowFor\((?!seat\.person\.id|personId: string)/)
+    expect(door).toMatch(/seatThreads\(seat\.person\.id, companyId\)/)
+    expect(door).toContain('companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }')
+    // and the row-makers are only ever handed the seat itself, or the seat's own person.
+    expect(door).not.toMatch(/threadRowFor\((?!seat[,:])/)
+    expect(door).not.toMatch(/makeThread\((?!seat\.person\.id|personId: string)/)
+    // A conversation named by id is read only inside the seat's own.
+    expect(door).toContain('where: { AND: [mine, { id: threadId }] }')
     // A refused read goes through the awaited refusal, never fire-and-forget.
     expect(door).toContain('await recordRefusal(')
     expect(door).not.toMatch(/\blogAccess\(/)

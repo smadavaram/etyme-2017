@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as list } from '@/app/api/conversations/route'
 import { GET as readMessages, POST as writeThread } from '@/app/api/conversations/messages/route'
 import { getCallerContext } from '@/lib/api-context'
-import { readThread, appendTurn, markCard, clearThread, NOT_KEPT_IN_DEMO } from '@/lib/ask-etyme-thread'
+import { readThread, appendTurn, markCard, clearThread, startThread, listThreads, NOT_KEPT_IN_DEMO } from '@/lib/ask-etyme-thread'
 import { GET as askGet, POST as askPost, PATCH as askPatch, DELETE as askDelete } from '@/app/api/conversations/twin/route'
 import { ONLY_THE_RECORD } from '@/app/api/conversations/twin/transaction'
 import { NOT_THEIR_RATE, FILE_IT_YOURSELF, NEVER_FILES, WORKER_CLOSE } from '@/app/api/conversations/twin/worker'
@@ -364,8 +364,16 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     expect(back.thread.saved).toBe(true)
     expect(back.thread.turns.map((t) => t.text).sort()).toEqual(['When am I paid?', 'Which week do I still need to file?'])
 
-    // The unique on person and company reads two nulls as different; personOnlyId is what refuses a second.
-    await expect(prisma.askEtymeThread.create({ data: { personId: noor.id, companyId: null, personOnlyId: noor.id } })).rejects.toThrow()
+    // Two first lines at once made one conversation above: since 2026-11-08 the
+    // lock on the seat does that, not a unique, so a second conversation is
+    // made only by New conversation, and the line said with none named goes there.
+    const fresh = await startThread(hers)
+    if (!fresh.ok || !fresh.saved) throw new Error('a new conversation was not made')
+    await appendTurn(hers, { speaker: 'PERSON', text: 'A new question in a new conversation.' })
+    const listed = await listThreads(hers)
+    if (!listed.ok) throw new Error(listed.says)
+    expect(listed.threads.map((t) => t.title)).toEqual(['A new question in a new conversation.', expect.any(String)])
+    expect(listed.threads[0].id).toBe(fresh.thread.id)
 
     // Avery's own thread with no company is hers alone, and never her Pinnacle thread.
     const me = await seatOf(AVERY, avery.seat)
@@ -376,6 +384,39 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     const ownOnly = await readThread({ ...me, company: null })
     if (!ownOnly.ok) throw new Error(ownOnly.says)
     expect(ownOnly.thread.turns.map((t) => t.text)).toEqual(['Only mine, no firm.'])
+  })
+
+  it('a person keeps every Ask Etyme conversation, titled by its first question, newest first; a line said with none named goes in the newest; and a conversation of somebody else named by id is refused as not theirs and logged against its person', async () => {
+    const ada = await prisma.person.create({ data: { primaryEmail: 'ada.several@inbox-mail.test', name: 'Ada Okoro' }, select: { id: true } })
+    const ben = await prisma.person.create({ data: { primaryEmail: 'ben.several@inbox-mail.test', name: 'Ben Ilori' }, select: { id: true } })
+    const hers = { person: { id: ada.id, primaryEmail: 'ada.several@inbox-mail.test' }, company: null, context: null }
+    const his = { person: { id: ben.id, primaryEmail: 'ben.several@inbox-mail.test' }, company: null, context: null }
+
+    await appendTurn(hers, { speaker: 'PERSON', text: 'When is my week due?' })
+    await appendTurn(hers, { speaker: 'ETYME', text: 'Monday.' })
+    const second = await startThread(hers)
+    if (!second.ok || !second.saved) throw new Error('no new conversation')
+    await appendTurn(hers, { speaker: 'PERSON', text: 'Who asked for my license?' })
+
+    const listed = await listThreads(hers)
+    if (!listed.ok) throw new Error(listed.says)
+    expect(listed.threads.map((t) => t.title)).toEqual(['Who asked for my license?', 'When is my week due?'])
+    const first = listed.threads[1].id
+
+    // The older one is still hers, whole, read by naming it.
+    const older = await readThread(hers, { threadId: first })
+    if (!older.ok) throw new Error(older.says)
+    expect(older.thread.turns.map((t) => t.text)).toEqual(['When is my week due?', 'Monday.'])
+    // Read with none named, it is the newest.
+    const newest = await readThread(hers)
+    if (!newest.ok) throw new Error(newest.says)
+    expect(newest.thread.turns.map((t) => t.text)).toEqual(['Who asked for my license?'])
+
+    // Ben cannot read or write in it, and the attempt is on Ada's trail.
+    expect(await readThread(his, { threadId: first })).toMatchObject({ ok: false, code: 'NO_SUCH_THREAD' })
+    expect(await appendTurn(his, { speaker: 'PERSON', text: 'hello', threadId: first })).toMatchObject({ ok: false, code: 'NO_SUCH_THREAD' })
+    expect(await prisma.accessLog.count({ where: { subjectId: ada.id, actorPersonId: ben.id, allowed: false, action: 'ASK_ETYME_THREAD_VIEW' } })).toBe(2)
+    expect(await prisma.askEtymeTurn.count({ where: { thread: { personId: ada.id } } })).toBe(3)
   })
 
   it('a seeded demo seat, which every visitor who asks for it shares, keeps no thread and says why; the shared sample and an API key keep none either', async () => {
