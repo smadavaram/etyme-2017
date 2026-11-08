@@ -252,17 +252,46 @@ function nextOnDay(from: Date, dayOfWeek: number): Date {
   // local time, a server east of Greenwich saw a Monday as the Sunday
   // before it, and one west of it moved across a daylight-saving change
   // by an hour and landed a day out (CLAUDE.md, "The cycle engine,
-  // honestly", items 8 and 9). The step loop in `generatePeriodEnds` and
-  // `dayInMonth` still count in local time; that is item 9's own piece
-  // of work, because moving them moves every contract's dates.
+  // honestly", items 8 and 9). The monthly range check reads calendar
+  // days since 2026-11-08 (`boundaryKey`); the weekly step loop still
+  // steps in local time, which is the rest of item 8's piece of work.
   const d = new Date(from)
   while (d.getUTCDay() !== dayOfWeek) d.setUTCDate(d.getUTCDate() + 1)
   return d
 }
 
+/**
+ * The calendar day a contract boundary names, YYYY-MM-DD.
+ *
+ * A contract's dates are stored as UTC midnights, and a caller building a
+ * date by hand builds it at local midnight; the two agree only under UTC.
+ * Item 9 of "The cycle engine, honestly": the monthly range check compared
+ * a local-midnight month end against a UTC-midnight contract end, so west
+ * of Greenwich the contract's last day was "after" its own end by a few
+ * hours and a twelve-month series wrote eleven dates. So a boundary is read
+ * as the day it was written for: a UTC midnight as its UTC day, anything
+ * else as its local day. Under UTC both readings are the same day, so no
+ * date moves where production runs.
+ */
+function boundaryKey(d: Date): string {
+  const utcMidnight = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0
+  if (!utcMidnight) return localDayKey(d)
+  return d.toISOString().slice(0, 10)
+}
+
+/** The year and month (0-based) of a contract boundary's calendar day. */
+function boundaryMonth(d: Date): { year: number; month: number } {
+  const [y, m] = boundaryKey(d).split('-').map(Number)
+  return { year: y, month: m - 1 }
+}
+
 /** Period end dates for one definition between start and end, inclusive. */
 function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[] {
   const periods: Date[] = []
+  const startKey = boundaryKey(start)
+  const endKey = boundaryKey(end)
+  /** A month's date (built at local midnight) inside the contract, by calendar day. */
+  const inRange = (on: Date) => { const k = localDayKey(on); return k >= startKey && k <= endKey }
 
   switch (def.frequency) {
     case 'WEEKLY':
@@ -334,14 +363,14 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
       // header's copy and a line's. Naming the column in a sentence is
       // not reading it, which is what `terms-through-one-door` had to
       // learn on 2026-09-22 — see the note on `codeOnly` there.
-      let year = start.getFullYear()
-      let month = start.getMonth()
+      // In range by calendar day, never by instant (item 9, above).
+      let { year, month } = boundaryMonth(start)
       const firstCut = def.dayOfMonth ?? DEFAULT_SEMIMONTHLY_CUT
-      while (new Date(year, month, 1) <= end) {
+      while (localDayKey(new Date(year, month, 1)) <= endKey) {
         const first = dayInMonth(year, month, firstCut)
         const last = dayInMonth(year, month, undefined)
-        if (first >= start && first <= end) periods.push(first)
-        if (last.getTime() !== first.getTime() && last >= start && last <= end) periods.push(last)
+        if (inRange(first)) periods.push(first)
+        if (last.getTime() !== first.getTime() && inRange(last)) periods.push(last)
         month++
         if (month > 11) { month = 0; year++ }
       }
@@ -349,11 +378,10 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
     }
 
     case 'MONTHLY': {
-      let year = start.getFullYear()
-      let month = start.getMonth()
-      while (new Date(year, month, 1) <= end) {
+      let { year, month } = boundaryMonth(start)
+      while (localDayKey(new Date(year, month, 1)) <= endKey) {
         const on = dayInMonth(year, month, def.dayOfMonth)
-        if (on >= start && on <= end) periods.push(on)
+        if (inRange(on)) periods.push(on)
         month++
         if (month > 11) { month = 0; year++ }
       }
