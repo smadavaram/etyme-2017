@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
+import { range, rate } from '@/lib/money-display'
 import { record } from '@/lib/agent-run'
 import { poolFor } from '@/lib/match-pool'
 
@@ -64,6 +65,8 @@ interface RequirementData {
   months: number | null
   startDate: Date | null
   companyId: string
+  /** The raising firm; its currency is the rates', since a job request carries none. */
+  company?: { kind: string; homeCurrency?: string } | null
 }
 
 interface CandidateData {
@@ -148,7 +151,7 @@ export async function runMatchEngine(
       companyId: true,
       payerCompanyId: true,
       endClientCompanyId: true,
-      company: { select: { kind: true } },
+      company: { select: { kind: true, homeCurrency: true } },
     },
   })
 
@@ -235,6 +238,7 @@ export async function runMatchEngine(
       billMax: requirement.billMax,
       startDate: requirement.startDate,
       workAuth: null,
+      currency: requirement.company?.homeCurrency ?? 'USD',
     },
     everyone.map(
       (c): Siftable => ({
@@ -372,7 +376,7 @@ async function scoreWithClaude(
       headline: c.headline,
       location: c.location,
       workAuth: c.workAuth,
-      rateFloor: c.rateFloor ? `$${(c.rateFloor / 100).toFixed(0)}/hr` : null,
+      rateFloor: c.rateFloor ? rate(c.rateFloor, req.company?.homeCurrency ?? 'USD') : null,
       availableFrom: c.availableFrom?.toISOString().slice(0, 10) ?? null,
     }))
 
@@ -391,7 +395,7 @@ REQUIREMENT:
 - Title: ${req.title}
 - Required Skills: ${req.skills.join(', ')}
 - Location: ${req.location ?? 'Not specified'}
-- Rate Range: ${req.billMin && req.billMax ? `$${(req.billMin / 100).toFixed(0)}-$${(req.billMax / 100).toFixed(0)}/hr` : 'Not specified'}
+- Rate Range: ${req.billMin && req.billMax ? range(req.billMin, req.billMax, req.company?.homeCurrency ?? 'USD') : 'Not specified'}
 - Duration: ${req.months ? `${req.months} months` : 'Not specified'}
 - Start Date: ${req.startDate?.toISOString().slice(0, 10) ?? 'Not specified'}
 
@@ -627,11 +631,11 @@ function scoreDeterministic(
     if (c.rateFloor && req.billMax) {
       if (c.rateFloor <= req.billMax) {
         rateScore = 100
-        rateDetail = `Floor $${(c.rateFloor / 100).toFixed(0)}/hr within budget`
+        rateDetail = `Floor ${rate(c.rateFloor, req.company?.homeCurrency ?? 'USD')} within budget`
       } else {
         const overBy = ((c.rateFloor - req.billMax) / req.billMax) * 100
         rateScore = Math.max(0, Math.round(100 - overBy * 2))
-        rateDetail = `Floor $${(c.rateFloor / 100).toFixed(0)}/hr exceeds max by ${overBy.toFixed(0)}%`
+        rateDetail = `Floor ${rate(c.rateFloor, req.company?.homeCurrency ?? 'USD')} exceeds max by ${overBy.toFixed(0)}%`
       }
     }
 

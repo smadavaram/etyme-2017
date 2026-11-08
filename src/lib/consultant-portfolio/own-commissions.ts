@@ -14,8 +14,8 @@
  *   $4,000 margin over 4 weeks"). A recruiter reads no margin unless the
  *   Owner gives it (2026-11-08), so where the seat's margin does not reach
  *   the placement the row says what was earned and the share, and not the
- *   margin. The same for a share of what was billed: the bill is the price
- *   desk's figure (`margin.read`), not the recruiter's.
+ *   margin. The same for a share of what was billed: the bill is the
+ *   figure the Owner, the Admin and whoever reads margin hold (`margin.read`), not the recruiter's.
  *
  * Pure: no database, so every branch has a sentence in a test.
  */
@@ -151,7 +151,7 @@ export function ownCommissionsAsk(callerPersonId: string, asked: string | null):
     ok: false,
     says:
       'This page shows your own commissions only. Another person’s are read under Payroll, Commissions, by the Owner, ' +
-      'a Contract Manager, the payroll desk, and anybody the Owner gives payroll to by name.',
+      'a Contract Manager, AP & Payroll, Finance, and anybody the Owner gives payroll to by name.',
   }
 }
 

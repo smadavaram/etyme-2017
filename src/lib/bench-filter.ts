@@ -33,7 +33,8 @@
  */
 
 import { checkStatedTerms, perHour, ENGAGEMENT_TYPES, type EngagementType } from '@/lib/award/hire-terms'
-import { range } from '@/lib/money-display'
+import { range, compact, amount } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
 
 /** How many reach the model, unless somebody says otherwise. */
 export const DEFAULT_SHORTLIST = 15
@@ -54,6 +55,12 @@ export interface Role {
   billMax: number | null
   startDate: Date | null
   workAuth?: string | null
+  /**
+   * The currency the rates are in: the firm's own, since a job request
+   * carries none. A rate is said in it through money's one formatter, so
+   * a dong rate reads whole dong and a dollar rate keeps its cents.
+   */
+  currency?: string
 }
 
 export interface Candidate {
@@ -237,7 +244,7 @@ export function sift(
         personId: c.personId,
         name: c.name,
         code: 'RATE',
-        because: `wants $${Math.round((c.rateFloor ?? 0) / 100)}, the job tops out at $${Math.round((role.billMax ?? 0) / 100)}`,
+        because: `wants ${compact(c.rateFloor ?? 0, role.currency ?? 'USD')}, the job tops out at ${compact(role.billMax ?? 0, role.currency ?? 'USD')}`,
       })
       continue
     }
@@ -701,12 +708,14 @@ export const BURN_READ_BY = 'What the bench costs is read by payroll and finance
 export function submitFields(
   action: { rate: number | null; payRate: number | null; offeredBy: string | null },
   typed: { bill?: string | null; pay?: string | null },
-  names: { person: string; firm: string }
+  names: { person: string; firm: string },
+  /** The currency the rates are typed in; its own exponent turns them into minor units. */
+  currency: string = 'USD'
 ): { ok: true; rate: number; payRate: number | null } | { ok: false; says: string } {
   const read = (t: string | null | undefined, fallback: number | null) => {
     if (t != null && t.trim() !== '') {
       const n = Number(t)
-      return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : NaN
+      return Number.isFinite(n) && n > 0 ? Math.round(n * minorPerUnit(currency)) : NaN
     }
     return fallback
   }
@@ -732,7 +741,9 @@ export function submitFields(
  */
 export function profileEditBody(
   typed: { skills: string; availableFrom: string; rateFloor: string },
-  mayRate: boolean
+  mayRate: boolean,
+  /** The currency the rate is typed in; its own exponent turns it into minor units. */
+  currency: string = 'USD'
 ): { ok: true; body: { skills: string[]; availableFrom: string | null; rateFloor?: number | null } } | { ok: false; says: string } {
   const skills = [...new Set(typed.skills.split(',').map((x) => x.trim()).filter(Boolean))]
   const day = typed.availableFrom.trim()
@@ -743,7 +754,7 @@ export function profileEditBody(
     if (!mayRate) return { ok: false, says: 'The lowest rate somebody takes is pay, set by payroll, finance or the person.' }
     const n = Number(rate)
     if (!Number.isFinite(n) || n <= 0) return { ok: false, says: 'Say the lowest hourly rate as a number of dollars.' }
-    body.rateFloor = Math.round(n * 100)
+    body.rateFloor = Math.round(n * minorPerUnit(currency))
   } else if (mayRate) {
     body.rateFloor = null
   }
@@ -1096,19 +1107,21 @@ export function addSkillTags(current: readonly string[], typed: string): string[
  */
 export function listingRates(
   typed: { min: string; max: string },
-  floorCents: number | null
+  floorCents: number | null,
+  /** The currency the rates are typed in; its own exponent turns them into minor units. */
+  currency: string = 'USD'
 ): { ok: true; rateMin: number | null; rateMax: number | null } | { ok: false; says: string } {
   const read = (t: string) => {
     if (!t.trim()) return null
     const n = Number(t)
-    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : NaN
+    return Number.isFinite(n) && n > 0 ? Math.round(n * minorPerUnit(currency)) : NaN
   }
   const rateMin = read(typed.min)
   const rateMax = read(typed.max)
-  if (Number.isNaN(rateMin) || Number.isNaN(rateMax)) return { ok: false, says: 'Say each rate as a number of dollars an hour.' }
+  if (Number.isNaN(rateMin) || Number.isNaN(rateMax)) return { ok: false, says: currency.toUpperCase() === 'USD' ? 'Say each rate as a number of dollars an hour.' : `Say each rate as a number an hour, in ${currency.toUpperCase()}.` }
   if (rateMin != null && rateMax != null && rateMin > rateMax) return { ok: false, says: 'The lowest rate is above the highest. Swap them.' }
   if (floorCents != null && rateMax != null && rateMax < floorCents) {
-    return { ok: false, says: `The highest rate is under the $${(floorCents / 100).toFixed(2)} an hour they said they take at the least.` }
+    return { ok: false, says: `The highest rate is under the ${amount(floorCents, currency)} an hour they said they take at the least.` }
   }
   return { ok: true, rateMin, rateMax }
 }
@@ -1477,4 +1490,13 @@ export function readOwnSkills(raw: unknown): { ok: true; skills: string[] } | { 
   const skills = addSkillTags([], typed).map((s) => s.slice(0, 60))
   if (skills.length > OWN_SKILLS_MAX) return { ok: false, says: `Name ${OWN_SKILLS_MAX} skills at most.` }
   return { ok: true, skills }
+}
+
+/**
+ * One end of a rate band, in its currency, or "open" (the listing route's
+ * sentence). Through money's one formatter: a dong rate reads whole dong,
+ * a dollar rate keeps its cents where it has any.
+ */
+export function rateEnd(minor: number | null, currency: string = 'USD'): string {
+  return minor == null ? 'open' : compact(minor, currency)
 }

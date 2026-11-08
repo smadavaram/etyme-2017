@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notAtACompany } from '@/lib/bench-filter'
+import { notAtACompany, rateEnd } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { recordAccess } from '@/lib/access-log'
@@ -213,12 +213,13 @@ async function setRates(
     )
   }
   await prisma.benchListing.update({ where: { id }, data: { rateMin: min, rateMax: max } })
-  const said = min == null && max == null ? 'no rate' : `${dollars(min)}–${dollars(max)} an hour`
+  // Said in the firm's own currency through money's one formatter: a dong
+  // rate reads whole dong, a dollar rate keeps its cents.
+  const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { homeCurrency: true } })
+  const currency = firm?.homeCurrency ?? 'USD'
+  const said = min == null && max == null ? 'no rate' : `${rateEnd(min, currency)}–${rateEnd(max, currency)} an hour`
   return NextResponse.json({
     data: { listing: { id, rateMin: min, rateMax: max }, message: `${name} is already on your bench. Their rate is now ${said}.` },
   })
 }
 
-function dollars(c: number | null): string {
-  return c == null ? 'open' : `$${(c / 100).toFixed(2).replace(/\.00$/, '')}`
-}
