@@ -1558,6 +1558,21 @@ header flip of 2026-11-04 and keeps everything else in "One app, two views".
   shown Reports until `/dashboard/reports`, written for a firm that sells,
   has been read as a client; until then a client reads Accounting with
   Payables only.
+- **Reports is cash flow and profitability, nothing else. The founder,
+  2026-11-08:** *"Reports is nothing but cashflow and profitability
+  margin analysis tools."* So Reports, under Accounting, is two tabs:
+  **Cash flow** (what the firm has billed and been paid, what it owes
+  suppliers and payroll and when, what is overdue, net by week and
+  month, every figure the Bills, Invoice receipts and Payroll pages
+  already compute and never a second computation) and **Profitability**
+  (the cut by consultant, office or client, built 2026-11-08).
+  Profitability leaves the menu as a link of its own and lives under
+  Reports; its address does not move. The old Reports page's other
+  views (the pipeline, the bench) leave Reports: what a page already
+  shows elsewhere is reached there. A client's Reports stays held back
+  until its cash flow tab reads a client's own book (what it owes its
+  suppliers, paid and due) and shows no margin, ever. Built: the cash
+  flow reader and the two tabs (money); the menu's one link (architect).
 - **Left out of Copilot on purpose**: Library, Agents, Notebooks, the model
   picker, the grid and task icons.
 - **Not changed**: routes, rules, the approval route, the ledger, every read
