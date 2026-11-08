@@ -26,6 +26,7 @@ import { compTimeLawful } from '@/lib/worker-classification'
 import { amount, rate } from '@/lib/money-display'
 import { clientSignedSays } from '../../client-signed-says'
 import { acceptedSays, paidBelowFrom, type PaidBelow } from '../../accepted-says'
+import { hoursAccepted, billAmountOf } from './reply-figures'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import {
@@ -643,7 +644,11 @@ export async function POST(
     decisions: settled,
   })
   const value = valueOf(finalSplit, deciding.billRate)
-  const billAmount = value.totalCents / 100
+  /** The currency the deciding leg's rate, and so `value.totalCents`, is in. */
+  const worthCurrency = deciding.billCurrency ?? timesheet.sellContract.billCurrency
+  // In whole units of that currency: a week billed in dong has no cents to
+  // divide by a hundred (`billAmountOf`, money's `wholeFromMinor`).
+  const billAmount = billAmountOf(value.totalCents, worthCurrency)
   /**
    * The figure this press may stand behind. Null below the top where the
    * client's overtime answer could not be read: the acceptance stands —
@@ -651,8 +656,6 @@ export async function POST(
    * because a week priced on a guess is worse than a blank.
    */
   const worth: number | null = carried && !carried.ok ? null : billAmount
-  /** The currency the deciding leg's rate, and so `value.totalCents`, is in. */
-  const worthCurrency = deciding.billCurrency ?? timesheet.sellContract.billCurrency
 
   // Where a row that carries this figure is filed.
   //
@@ -1305,7 +1308,8 @@ export async function POST(
       paidBelow = { kind: 'SUPPLIER', supplierName: deciding.companyName }
     }
     acceptedMessage = acceptedSays({
-      hours,
+      // The hours accepted, not the hours filed: 38 of 40 reads 38.
+      hours: hoursAccepted(accepted, hours),
       billMinor,
       currency: worthCurrency,
       billsName,

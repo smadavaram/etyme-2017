@@ -79,7 +79,7 @@ describe('what the invoice is told', () => {
     // placement is the contract the hours are filed against, and in a
     // chain is the answering firm's own.
     expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
-    expect(APPROVE).toContain('const billAmount = value.totalCents / 100')
+    expect(APPROVE).toContain('const billAmount = billAmountOf(value.totalCents, worthCurrency)')
     // The old line, which multiplied every hour by the rate whatever
     // anybody had decided about the week.
     expect(APPROVE).not.toContain('hours * timesheet.sellContract.billRate / 100')
