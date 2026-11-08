@@ -7,6 +7,7 @@ vi.mock('@/lib/db', () => ({ prisma: {} }))
 import { paperDoorsFor, arrivalReads, waitingOnYouSays, firmThatOwes, type DoorLine, type DoorPaper } from '@/lib/document-stages/paper-doors'
 import { itemsFollowArrival, itemsFollowExamination, paperFileUrl } from '@/lib/document-stages/arrived-papers'
 import { answeredNotice } from '@/lib/document-request'
+import { keptPaperSays } from '@/lib/document-stages/own-papers'
 
 /**
  * The founder's tester on production, 2026-11-08: Noor Rahman, placed at
@@ -171,5 +172,30 @@ describe('Paperwork counts what waits on the seats whose work papers are', () =>
     expect(route).toContain('await examinesAt(companyId, caller.person.id)')
     expect(route).toContain('waitingOnYou:')
     expect(route).toMatch(/if \(orderedNotCollected\(key\)\)/)
+  })
+})
+
+describe('a paper she keeps on her own record says where it is', () => {
+  it('a paper she keeps on her own record that no line asks for reads on your record, never with them', () => {
+    const r = keptPaperSays({ examinedAt: null, checkStatus: 'PENDING', ownRecord: true, sentTo: null })
+    expect(r).toEqual({ examined: false, says: 'On your record. Nobody has been sent it, because no work you are on asks for it.' })
+    expect(r.says).not.toMatch(/with them|waiting to be checked/)
+  })
+
+  it('a paper she kept and that went to the firm a line asks it for names that firm until it is examined', () => {
+    expect(keptPaperSays({ examinedAt: null, checkStatus: 'PENDING', ownRecord: true, sentTo: 'CSI' }).says).toBe('Sent to CSI, not examined yet')
+  })
+
+  it('a paper she put on her own record is not counted as with a firm, on her page or at the door that sends it', () => {
+    const me = src('app/api/me/papers/route.ts')
+    expect(me.match(/received: WITH_THEM\.includes\(v\.status\) && !keptOnHerOwnRecord\(v\.result\)/g)).toHaveLength(2)
+  })
+})
+
+describe('sending back an answer on Document requests asks for the reason in a field', () => {
+  it('Document requests never asks for a reason in a browser prompt', () => {
+    const page = src('app/dashboard/packets/page.tsx')
+    expect(page).not.toContain('window.prompt')
+    expect(page).toContain('Why it goes back.')
   })
 })

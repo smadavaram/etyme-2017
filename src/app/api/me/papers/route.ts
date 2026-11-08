@@ -232,6 +232,16 @@ const CAME_BACK = ['CLEAR', 'CONDITIONAL']
 const WITH_THEM = ['PENDING', 'IN_PROGRESS']
 
 /**
+ * A paper she put on her own record herself. It is with nobody: where a
+ * line asks for it, the copy sent to that firm is the paper that is "with
+ * them" (`papersAsHeld` reads it), and where none does it is on her record
+ * and nothing more (the founder's tester, 2026-11-08).
+ */
+function keptOnHerOwnRecord(result: unknown): boolean {
+  return !!result && typeof result === 'object' && (result as { selfFiled?: unknown }).selfFiled === true
+}
+
+/**
  * Every document this person owes on every line she is live on.
  *
  * Only `owedBy: 'WORKER'` — the firm's insurance and the customer's
@@ -243,7 +253,7 @@ const WITH_THEM = ['PENDING', 'IN_PROGRESS']
  */
 async function whatSheOwes(
   personId: string,
-  held: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  held: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null; result?: unknown }[],
   papers: SignedPaperRow[],
   on: Date
 ): Promise<{ owed: OutstandingItem[]; onFileKeys: string[] }> {
@@ -272,7 +282,7 @@ async function whatSheOwes(
     // Sent and with whoever asked. It holds nothing, and it is no longer
     // her move — asking her again for what is sitting in somebody's
     // queue is how a worker learns the page is not worth reading.
-    received: WITH_THEM.includes(v.status),
+    received: WITH_THEM.includes(v.status) && !keptOnHerOwnRecord(v.result),
   }))
 
   const sets = await Promise.all(
@@ -441,7 +451,7 @@ export async function POST(request: NextRequest) {
   const [checks, papers] = await Promise.all([
     prisma.verification.findMany({
       where: { personId: me },
-      select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
+      select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, result: true },
     }),
     // Read for the same reason the page reads them: a paper she sent is
     // a paper she has sent, and a door that cannot see it offers to open
@@ -611,7 +621,7 @@ function refuse(message: string, status: number, code: string) {
 async function lineOwing(
   personId: string,
   key: string,
-  checks: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  checks: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null; result?: unknown }[],
   papers: SignedPaperRow[],
   on: Date
 ): Promise<{
@@ -655,7 +665,7 @@ async function lineOwing(
     validFrom: v.validFrom ?? v.issuedAt ?? null,
     expiresAt: v.expiresAt ?? null,
     accepted: CAME_BACK.includes(v.status),
-    received: WITH_THEM.includes(v.status),
+    received: WITH_THEM.includes(v.status) && !keptOnHerOwnRecord(v.result),
   }))
 
   const candidates: { side: 'SELL' | 'BUY'; lineId: string; companyId: string; companyName: string }[] = [
@@ -849,6 +859,13 @@ async function ownView(caller: Caller) {
     },
     orderBy: { signedAt: 'desc' },
   })
+  // Her own papers sent on to the firm a line asks them for (sendToTheFirmThatAsks).
+  const forwarded = firmId ? [] : await prisma.docInstance.findMany({
+    where: { subjectType: 'PERSON', subjectId: me, signedById: me, status: { in: ['UPLOADED', 'SIGNED'] } },
+    select: { examinedAt: true, template: { select: { name: true, company: { select: { name: true } } } } },
+    orderBy: { signedAt: 'desc' },
+    take: 50,
+  })
   // A kept file with a verification behind it is one paper, not two rows.
   const linked = new Set(rows.flatMap((r) => r.documents.map((d) => d.fileUrl)))
 
@@ -874,13 +891,19 @@ async function ownView(caller: Caller) {
   const examinerName = new Map(examiners.map((p) => [p.id, p.name]))
   const examinerFirm = new Map<string, string>()
   for (const c of examinerSeats) if (c.company && !examinerFirm.has(c.personId)) examinerFirm.set(c.personId, c.company.name)
-  const examinedSays = (k: (typeof kept)[number] | undefined, checkStatus: string | null) =>
-    keptPaperSays({
-      examinedAt: k?.examinedAt ?? null,
+  const examinedSays = (k: (typeof kept)[number] | undefined, checkStatus: string | null, mine?: { label: string } | null) => {
+    // A worker's own paper with no firm of hers: where it went, or that it
+    // is on her record and nowhere else (the founder's tester, 2026-11-08).
+    const sent = mine ? forwarded.find((f) => f.template.name.toLowerCase() === mine.label.toLowerCase()) : undefined
+    return keptPaperSays({
+      examinedAt: k?.examinedAt ?? sent?.examinedAt ?? null,
       examinedBy: k?.examinedById ? examinerName.get(k.examinedById) ?? null : null,
-      examinedFor: k?.examinedById ? examinerFirm.get(k.examinedById) ?? null : null,
+      examinedFor: k?.examinedById ? examinerFirm.get(k.examinedById) ?? null : sent?.examinedAt ? sent.template.company.name : null,
       checkStatus,
+      sentTo: sent ? sent.template.company.name : null,
+      ownRecord: !!mine,
     })
+  }
 
   const onFile = [
     ...rows.map((r) => ({
@@ -895,7 +918,7 @@ async function ownView(caller: Caller) {
       edition: r.formEdition,
       fileName: r.documents[0]?.fileName ?? null,
       fileUrl: r.documents[0]?.fileUrl ?? null,
-      ...examinedSays(keptByFile.get(r.documents[0]?.fileUrl ?? ''), r.status),
+      ...examinedSays(keptByFile.get(r.documents[0]?.fileUrl ?? ''), r.status, r.personId && !firmId ? { label: labelFor(r.type) } : null),
     })),
     ...kept
       .filter((k) => !linked.has(`/api/documents/${k.id}/file`))
@@ -1122,7 +1145,7 @@ async function sendToTheFirmThatAsks(
 ): Promise<{ firm: string; paperId: string } | null> {
   const me = caller.person.id
   const [checks, papers] = await Promise.all([
-    prisma.verification.findMany({ where: { personId: me }, select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true } }),
+    prisma.verification.findMany({ where: { personId: me }, select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, result: true } }),
     prisma.docInstance.findMany({
       where: {
         status: { not: KEPT_BY_HOLDER },

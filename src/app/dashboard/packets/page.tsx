@@ -92,6 +92,9 @@ export default function PacketsPage() {
   // Looking at what arrived: the same look, and the same route, as Paperwork
   // (the Tapin walk, 2026-10-29: this page had no way to open anything).
   const [examining, setExamining] = useState<ExamineRow | null>(null)
+  // An answer with no file, being sent back: the reason is typed here.
+  const [sendingBack, setSendingBack] = useState<{ p: Packet; a: Arrived } | null>(null)
+  const [backReason, setBackReason] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -332,8 +335,10 @@ export default function PacketsPage() {
         })}
         onAnswer={async (p, a, accept) => {
           setError(null); setFlash(null)
-          const note = accept ? '' : (window.prompt(`Why does ${a.label} go back? ${p.subject} reads this.`) ?? '').trim()
-          if (!accept && !note) return
+          // Sending back asks for the reason in a field on the page, never
+          // a browser prompt (the 2026-11-02 rule): the person reads it.
+          if (!accept) { setSendingBack({ p, a }); setBackReason(''); return }
+          const note = ''
           try {
             const res = await fetch(`/api/packets/${p.id}/review`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -345,6 +350,43 @@ export default function PacketsPage() {
           } catch (e: any) { setError(e.message) }
         }}
         onResend={resend} />
+      {sendingBack && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setSendingBack(null)} role="dialog" aria-modal="true" aria-label={`Send back ${sendingBack.a.label}`}>
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const { p, a } = sendingBack
+              const note = backReason.trim()
+              if (!note) return
+              setError(null); setFlash(null)
+              try {
+                const res = await fetch(`/api/packets/${p.id}/review`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ itemId: a.itemId, action: 'reject', note }),
+                })
+                const body = await readJson(res)
+                setFlash(body.data.message)
+                setSendingBack(null)
+                load()
+              } catch (err: any) { setError(err.message) }
+            }}
+            className="w-full max-w-lg bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4"
+          >
+            <h2 className="font-serif text-lg text-etyme-ink">Send back {sendingBack.a.label}</h2>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Why it goes back. {sendingBack.p.subject} reads this.</span>
+              <textarea value={backReason} onChange={(e) => setBackReason(e.target.value)} required rows={3}
+                className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            </label>
+            {!backReason.trim() && <p className="text-xs text-etyme-muted">Say why it goes back.</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setSendingBack(null)} className="text-sm text-etyme-muted">Cancel</button>
+              <button type="submit" disabled={!backReason.trim()} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Send it back</button>
+            </div>
+          </form>
+        </div>
+      )}
       {examining && (
         <ExaminePaper
           row={examining}

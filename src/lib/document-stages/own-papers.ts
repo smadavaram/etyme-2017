@@ -387,6 +387,14 @@ export function keptPaperSays(p: {
   examinedFor?: string | null
   /** The status of a check recorded about it, where one is linked. */
   checkStatus?: string | null
+  /**
+   * Where a paper a worker kept on her own record was sent: the firm a
+   * line asks it for. Null where it was sent nowhere, which reads "On your
+   * record", never "with them" (the founder's tester, 2026-11-08).
+   */
+  sentTo?: string | null
+  /** A worker's own paper, kept on her own record rather than under a firm of hers. */
+  ownRecord?: boolean
 }): { examined: boolean; says: string } {
   if (p.examinedAt) {
     const by = p.examinedFor && p.examinedBy
@@ -395,6 +403,8 @@ export function keptPaperSays(p: {
     return { examined: true, says: by ? `Accepted by ${by} on ${plainDate(p.examinedAt.toISOString())}` : `Accepted on ${plainDate(p.examinedAt.toISOString())}` }
   }
   if (p.checkStatus === 'CLEAR' || p.checkStatus === 'CONDITIONAL') return { examined: true, says: 'On file and examined' }
+  if (p.sentTo) return { examined: false, says: `Sent to ${p.sentTo}, not examined yet` }
+  if (p.ownRecord) return { examined: false, says: 'On your record. Nobody has been sent it, because no work you are on asks for it.' }
   return { examined: false, says: 'On file, not examined' }
 }
 
