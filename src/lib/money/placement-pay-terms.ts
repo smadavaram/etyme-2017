@@ -26,7 +26,7 @@ import { methodFor } from '@/lib/money/overtime-method'
 import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import type { PayOvertime, SheetToPrice } from '@/lib/money/placement-earned'
 import { ladderFor, laddersOver, type BookRung } from '@/lib/work-chain-read'
-import { whereHoursLive } from '@/lib/work-chain'
+import { weekLinesFor } from '@/lib/money/weeks-read'
 import { rungView } from '@/lib/money/hop-ledger'
 
 /** One person on one buy line, for the sell line the hours are filed on. */
@@ -147,7 +147,7 @@ export async function readRungs(sellContractIds: readonly string[]): Promise<Map
   if (ids.length === 0) return out
   // Where each line's hours are filed: the bottom of its ladder.
   const rungs = await ladderFor(ids)
-  const bottomOf = new Map(ids.map((id) => [id, whereHoursLive(id, rungs)]))
+  const bottomOf = weekLinesFor(ids, rungs)
   const bottoms = [...new Set(bottomOf.values())]
   const [sheets, ladders] = await Promise.all([
     prisma.timesheet.findMany({

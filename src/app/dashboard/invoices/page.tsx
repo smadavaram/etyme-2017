@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { DuplicateDrafts } from './duplicate-drafts'
 import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
@@ -1105,6 +1106,10 @@ export default function InvoicesPage() {
           </button>
         </div>
       )}
+
+      {/* Drafts written twice for one week, before the fix: keep the
+          first, withdraw the later draft with a reason. Own book only. */}
+      {!reading?.inASeat && <DuplicateDrafts onDone={fetchInvoices} onToast={showToast} />}
 
       {/* Which side of the ledger, and which currency. Never summed. */}
       {/* The two sides are offered only to a reader who has both. A

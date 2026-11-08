@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { partiesOf } from '@/lib/money/invoice-parties'
 import { mayPayFirm, type Gate } from '@/lib/setup-gates'
+import { bankHoldAt } from '@/lib/money/bank-check-read'
 
 /**
  * Whether the firm an invoice receipt pays has had its bank details
@@ -14,16 +15,34 @@ import { mayPayFirm, type Gate } from '@/lib/setup-gates'
  * payment would refuse, and by the receipt's page, so it does not draw a
  * Pay the route would refuse. The payment write asks `mayPayFirm` itself.
  *
+ * Where it holds, the sentence names who checks the details and where
+ * (lib/money/bank-check, the tester's walk of 2026-11-08): a hold nobody
+ * is told how to lift is never said.
+ *
  * Null where the receipt does not exist or cannot say who it is between;
  * the payment write refuses those in its own sentence.
  */
 export async function payeeBankGate(invoiceId: string): Promise<Gate | null> {
+  const parties = await receiptParties(invoiceId)
+  if (!parties) return null
+  const gate = await mayPayFirm(parties.client.id, parties.vendor.id)
+  if (gate.ok) return gate
+  const held = await bankHoldAt({ payer: parties.client, payee: parties.vendor, viewerId: null })
+  return { ...gate, says: held.says }
+}
+
+const FIRM = { id: true, name: true } as const
+
+/** Who an invoice receipt is between: the firm that pays it and the firm it pays. */
+export async function receiptParties(
+  invoiceId: string,
+): Promise<{ client: { id: string; name: string }; vendor: { id: string; name: string } } | null> {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     select: {
-      engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
-      workOrder: { select: { issuedById: true, issuedToId: true } },
-      invoiceLines: { select: { sellContract: { select: { companyId: true, clientCompanyId: true } } } },
+      engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: FIRM }, client: { select: FIRM } } } } },
+      workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: FIRM }, issuedTo: { select: FIRM } } },
+      invoiceLines: { select: { sellContract: { select: { companyId: true, clientCompanyId: true, company: { select: FIRM }, clientCompany: { select: FIRM } } } } },
     },
   })
   if (!invoice) return null
@@ -33,5 +52,8 @@ export async function payeeBankGate(invoiceId: string): Promise<Gate | null> {
     lines: invoice.invoiceLines.map((l) => l.sellContract).filter((c) => c != null),
   })
   if (!parties.vendor || !parties.client) return null
-  return mayPayFirm(parties.client.id, parties.vendor.id)
+  return {
+    client: { id: parties.client.id, name: parties.client.name ?? 'Your company' },
+    vendor: { id: parties.vendor.id, name: parties.vendor.name ?? 'The supplier' },
+  }
 }

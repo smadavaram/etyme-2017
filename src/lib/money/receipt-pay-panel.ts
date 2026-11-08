@@ -1,6 +1,7 @@
 import { payGate, type PayGate } from '@/lib/invoice-match'
 import { heldFor, type FailingCheck } from '@/app/api/decisions/receipt-to-pay'
 import { daySpan } from '@/lib/plain-date'
+import type { BankFactsShown } from '@/lib/money/bank-check'
 
 /**
  * What an invoice receipt's own page draws where the money is paid: the
@@ -55,6 +56,12 @@ export type ReceiptPayPanel =
       hours: HoursHeld[]
       /** One sentence per way forward, in the order a person tries them. */
       wayForward: string[]
+      /**
+       * Set where the hold is the supplier's bank details, not the check
+       * (lib/money/bank-check): whether this reader checks them, and what
+       * the check shows before the yes. Absent on every other hold.
+       */
+      bank?: { mayCheck: boolean; facts: BankFactsShown | null }
     }
 
 export interface ReceiptPanelLine {

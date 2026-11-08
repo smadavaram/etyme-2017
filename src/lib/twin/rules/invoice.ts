@@ -59,6 +59,9 @@ import { matchInvoice, matchInvoices, type MatchWithLines, type LineFact } from 
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
+import { payeeBankGate } from '@/lib/money/payee-bank'
+import { bankHoldAt } from '@/lib/money/bank-check-read'
+import { mayPayFirm } from '@/lib/setup-gates'
 
 // ── The rule set ─────────────────────────────────────────────────────
 
@@ -403,10 +406,26 @@ export async function invoiceVerdict(
   const match = await matchInvoice(invoiceReceiptId)
   if (!match) return null
   const parties = partiesOf({ agreement: head.engagement.msa, order: head.workOrder })
-  return verdictFrom(match, rules, {
+  const verdict = verdictFrom(match, rules, {
     id: head.id, number: head.number, currency: head.currency, dueAt: head.dueAt,
     supplierName: parties.vendor?.name ?? null,
   })
+  // Clean and through the check, and still not paid to a firm whose bank
+  // details nobody checked: the twin never asks a yes the payment would
+  // refuse, and says who checks them instead (lib/money/bank-check).
+  if (verdict.verdict !== 'CLEAN' || !verdict.payable) return verdict
+  const bank = await payeeBankGate(invoiceReceiptId)
+  return bank && !bank.ok ? withBankHold(verdict, bank.says) : verdict
+}
+
+/**
+ * A clean receipt held on the supplier's bank details: not payable, and
+ * the rationale is the hold's own sentence, naming who checks them.
+ * Pure. The check's verdict on the hours and the rate stands.
+ */
+export function withBankHold(verdict: InvoiceVerdict, says: string): InvoiceVerdict {
+  if (verdict.verdict !== 'CLEAN' || !verdict.payable) return verdict
+  return { ...verdict, payable: false, rationale: says }
 }
 
 /** Nothing is owed on these, the same list the payable book uses. */
@@ -454,13 +473,32 @@ export async function pendingReceiptsFor(
   const matches = await matchInvoices(pending.map((p) => p.head.id))
 
   const verdicts: InvoiceVerdict[] = []
+  // The bank hold, asked once per supplier rather than once per receipt.
+  const bankSays = new Map<string, Promise<string | null>>()
+  const heldOnBank = (vendor: { id: string; name: string }) => {
+    let r = bankSays.get(vendor.id)
+    if (!r) {
+      r = (async () => {
+        const gate = await mayPayFirm(companyId, vendor.id)
+        if (gate.ok) return null
+        const payer = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
+        return (await bankHoldAt({ payer: { id: companyId, name: payer?.name ?? 'Your company' }, payee: vendor, viewerId: null })).says
+      })()
+      bankSays.set(vendor.id, r)
+    }
+    return r
+  }
   for (const { head, parties } of pending) {
     const match = matches.get(head.id)
     if (!match) continue
-    verdicts.push(verdictFrom(match, using, {
+    const verdict = verdictFrom(match, using, {
       id: head.id, number: head.number, currency: head.currency, dueAt: head.dueAt,
       supplierName: parties.vendor?.name ?? null,
-    }))
+    })
+    const says = verdict.verdict === 'CLEAN' && verdict.payable && parties.vendor
+      ? await heldOnBank({ id: parties.vendor.id, name: parties.vendor.name ?? 'The supplier' })
+      : null
+    verdicts.push(says ? withBankHold(verdict, says) : verdict)
   }
   return exceptionsFirst(verdicts)
 }

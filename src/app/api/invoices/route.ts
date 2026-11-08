@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { duplicateDraftsAt } from '@/lib/money/duplicate-drafts'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { matchInvoice } from '@/lib/invoice-match'
 import { readReceipt } from '@/lib/money/receipt-read'
@@ -133,6 +134,15 @@ export async function GET(request: NextRequest) {
 
   const companyId = reading?.companyId ?? caller.company?.id ?? null
   if (reading) noteMoneyRead(reading, 'Invoice book read')
+
+  // `?duplicates=drafts`: the firm's drafts that hold a week another of
+  // its bills holds, and which one the repair keeps
+  // (lib/money/duplicate-drafts). The repair itself is the withdraw route.
+  if (url.searchParams.get('duplicates') === 'drafts') {
+    // The repair is drawn only for a seat the withdraw route takes.
+    const mayWithdraw = hasPermission(caller.permissions, 'invoices.issue')
+    return NextResponse.json({ data: companyId && mayWithdraw ? await duplicateDraftsAt(companyId) : [], mayWithdraw })
+  }
 
   const where: any = {}
 

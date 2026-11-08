@@ -45,8 +45,9 @@ import {
 import { minorPerUnit } from '@/lib/money'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { fromUnits, amount } from '@/lib/money-display'
-import { whereHoursLive, descend } from '@/lib/work-chain'
+import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
+import { billedByFor, weekLinesFor } from '@/lib/money/weeks-read'
 import type { Rung } from '@/lib/work-chain'
 import {
   ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, moneyTermsFor,
@@ -266,7 +267,7 @@ type Asked = { start: Date | null; end: Date | null }
  */
 function sharedWeeks(shared: BillShared) {
   return readOnce(shared, 'weeks', () => {
-    const hoursOn = [...new Set([...shared.lineIds].map((id) => whereHoursLive(id, shared.rungs)))]
+    const hoursOn = [...new Set(weekLinesFor([...shared.lineIds], shared.rungs).values())]
     return prisma.timesheet.findMany({
       where: {
         sellContractId: { in: hoursOn },
@@ -572,8 +573,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   const rungs = shared ? [...shared.rungs] : await ladderFor(ownIds)
 
   /** Where the hours are → which of our contracts bills them. */
-  const billedBy = new Map<string, string>()
-  for (const own of ownIds) billedBy.set(whereHoursLive(own, rungs), own)
+  // The one reader of which line a week is filed on (lib/money/weeks-read),
+  // so the bill, the placement's weeks and the Timesheets list agree.
+  const billedBy = billedByFor(ownIds, rungs)
   const contractIds = [...billedBy.keys()]
 
   const timesheetWhere: any = {

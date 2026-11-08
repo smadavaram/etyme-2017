@@ -16,6 +16,8 @@ import { readReceipt } from '@/lib/money/receipt-read'
 import { payToSays } from '@/lib/money/pay-to-words'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
+import { bankHoldAt, checkPayeeBank } from '@/lib/money/bank-check-read'
+import { receiptParties } from '@/lib/money/payee-bank'
 
 /**
  * GET /api/invoices/:id
@@ -291,7 +293,17 @@ export async function GET(
   if (payPanel.kind === 'PAY' && parties.vendor && parties.client) {
     const bank = await mayPayFirm(parties.client.id, parties.vendor.id)
     if (!bank.ok) {
-      payPanel = { kind: 'HELD', headline: 'Held: bank details not checked', says: bank.says, hours: [], wayForward: [bank.says] }
+      // Who checks them, and the check itself where this reader is that
+      // person (lib/money/bank-check): never a hold nobody can lift.
+      const held = await bankHoldAt({
+        payer: { id: parties.client.id, name: parties.client.name ?? 'Your company' },
+        payee: { id: parties.vendor.id, name: parties.vendor.name ?? 'The supplier' },
+        viewerId: caller.isService ? null : caller.person.id,
+      })
+      payPanel = {
+        kind: 'HELD', headline: held.headline, says: held.says, hours: [], wayForward: [held.says],
+        bank: { mayCheck: held.mayCheck, facts: held.facts },
+      }
     }
   }
 
@@ -450,4 +462,51 @@ export async function GET(
       })),
     },
   })
+}
+
+/**
+ * POST /api/invoices/:id   { act: "check-bank" }
+ *
+ * The paying firm checks the supplier's bank details from the invoice
+ * receipt they hold up (the founder's tester, 2026-11-08: every bill to
+ * the demo client was held "bank details not checked" and the client has
+ * no Finance seat). Finance checks where the payer has a Finance seat;
+ * where it has none, the seat that pays (the AP clerk), the fallback rule
+ * (lib/money/bank-check). Writes who, when and for which client on the
+ * supplier's payment details, the same record the supplier walk's Finance
+ * item writes, and shows only the bank, the account name and four digits.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (caller.isService || !caller.company) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'A bank check is made by a person at the firm that pays.' } }, { status: 403 })
+  }
+  const { id } = await params
+  const body = await request.json().catch(() => ({}))
+  if (body?.act !== 'check-bank') {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say what to do with this invoice receipt: check-bank is the one act here.', field: 'act' } }, { status: 422 })
+  }
+
+  // The receipt must be one this reader's firm holds, and theirs to pay.
+  const whose = await booksFor(caller, request)
+  if (whose?.error) return whose.error
+  const scope = whose?.books && invoiceScope(caller) ? whose.books.invoiceWhere : null
+  const found = scope ? await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } }) : null
+  const parties = found ? await receiptParties(id) : null
+  if (!found || !parties) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, { status: 404 })
+  }
+  if (parties.client.id !== caller.company.id) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: `${parties.client.name} checks ${parties.vendor.name}’s bank details, because ${parties.client.name} pays this invoice receipt.` } },
+      { status: 403 }
+    )
+  }
+  const out = await checkPayeeBank({ payer: parties.client, payee: parties.vendor, by: { personId: caller.person.id, name: caller.person.name } })
+  if (!out.ok) return NextResponse.json({ error: { code: out.code, message: out.says } }, { status: out.status })
+  return NextResponse.json({ data: { checked: true, message: out.says } })
 }

@@ -398,6 +398,9 @@ export function InvoiceMoney({
               <p key={n} className="text-sm text-etyme-muted">{w}</p>
             ))}
           </div>
+          {payPanel.bank?.mayCheck && payPanel.bank.facts && (
+            <BankCheck invoiceId={invoice.id} facts={payPanel.bank.facts} onChecked={onPaid} onToast={onToast} />
+          )}
         </div>
       )}
 
@@ -474,5 +477,69 @@ export function InvoiceMoney({
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * The supplier's bank details, as Etyme keeps them (the bank, the name on
+ * the account, four digits), and the one press that records the check:
+ * who, when and for which client (lib/money/bank-check). Drawn only for
+ * the person who checks at the paying firm.
+ */
+function BankCheck({
+  invoiceId,
+  facts,
+  onChecked,
+  onToast,
+}: {
+  invoiceId: string
+  facts: { bankName: string | null; accountName: string | null; accountLast4: string | null }
+  onChecked?: () => void
+  onToast: (message: string, type?: 'success' | 'error') => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+  async function check() {
+    setSaving(true)
+    setSaid(null)
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ act: 'check-bank' }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const message = json?.error?.message ?? 'The check could not be recorded.'
+        setSaid(message)
+        onToast(message, 'error')
+        return
+      }
+      onToast(json?.data?.message ?? 'Bank details checked.')
+      onChecked?.()
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <div className="mt-4 rounded border border-etyme-rule bg-etyme-raised p-3">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-etyme-muted">Bank</dt><dd className="text-etyme-ink">{facts.bankName ?? 'Not given'}</dd>
+        <dt className="text-etyme-muted">Name on the account</dt><dd className="text-etyme-ink">{facts.accountName ?? 'Not given'}</dd>
+        <dt className="text-etyme-muted">Account</dt><dd className="text-etyme-ink tabular-nums">ending {facts.accountLast4 ?? '????'}</dd>
+      </dl>
+      <p className="mt-2 text-sm text-etyme-muted">
+        Check these against the supplier’s own proof, such as a voided check or a bank letter. Your name and today’s date go on the check.
+      </p>
+      <button
+        type="button"
+        onClick={check}
+        disabled={saving}
+        className="mt-3 rounded bg-etyme-action px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+      >
+        {saving ? 'Checking…' : 'They match: record the check'}
+      </button>
+      {said && <p className="mt-2 text-sm text-etyme-danger">{said}</p>}
+    </div>
   )
 }
