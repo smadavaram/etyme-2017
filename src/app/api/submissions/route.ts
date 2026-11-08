@@ -547,6 +547,29 @@ export async function POST(request: NextRequest) {
         continue
       }
 
+      // 2. First submission wins — unique on (requirementId, personId).
+      //
+      // Asked before any other check (the thousand-job run, 2026-11-08):
+      // asked after the consent and representation checks, a second try at
+      // somebody already put forward was answered by one of those as an
+      // error, so the duplicate was never refused as one (0 of 3 held). A person already on this job is refused as a
+      // duplicate, before anything else is asked of them.
+      const existing = await prisma.submission.findUnique({
+        where: {
+          requirementId_personId: { requirementId, personId },
+        },
+      })
+
+      if (existing) {
+        item.status = 'duplicate'
+        item.error = 'This person has already been submitted to this requirement. First submission wins.'
+        item.existingSubmissionId = existing.id
+        item.existingSubmittedAt = existing.submittedAt.toISOString()
+        results.push(item)
+        continue
+      }
+
+
       // ── Ours, or somebody else's? ──────────────────────────────
       //
       // Asked before the bench walls, because for our own W2 employee
@@ -863,22 +886,6 @@ export async function POST(request: NextRequest) {
           listing = benchListing
           representationNote = verdict.note
         }
-      }
-
-      // 3. Check for duplicate — unique on (requirementId, personId)
-      const existing = await prisma.submission.findUnique({
-        where: {
-          requirementId_personId: { requirementId, personId },
-        },
-      })
-
-      if (existing) {
-        item.status = 'duplicate'
-        item.error = 'This person has already been submitted to this requirement. First submission wins.'
-        item.existingSubmissionId = existing.id
-        item.existingSubmittedAt = existing.submittedAt.toISOString()
-        results.push(item)
-        continue
       }
 
       // 3b. The time limit at this client, across every supplier.

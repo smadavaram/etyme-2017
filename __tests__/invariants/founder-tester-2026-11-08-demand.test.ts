@@ -150,3 +150,69 @@ describe('a job’s own rate band stays with the firm whose job it is', () => {
     expect(read('src/app/api/requirements/[id]/screen/route.ts')).toContain('...bandFor(requirement, companyId)')
   })
 })
+
+import { lineEnd } from '@/lib/award/line-end'
+import { pickChains } from '../../scripts/simulate/stages/demand/common'
+
+describe('the thousand-job run, 2026-11-08: duplicates, every rung awarded, and lapsed cover', () => {
+  it('a second submission of the same person to the same job is refused as a duplicate before any other check is asked', () => {
+    const route = read('src/app/api/submissions/route.ts')
+    const dup = route.indexOf('First submission wins — unique on (requirementId, personId)')
+    expect(dup).toBeGreaterThan(0)
+    expect(dup).toBeLessThan(route.indexOf('const verdict = await maySubmit({'))
+    expect(dup).toBeLessThan(route.indexOf('const consented = mayMarket('))
+    expect(route.match(/requirementId_personId: \{ requirementId, personId \}/g)?.length).toBe(1)
+  })
+
+  it('a rung below the client with no end date of its own ends on the day the line above it ends, so the time limit reads one window at every rung', () => {
+    const start = new Date('2026-10-11T00:00:00Z')
+    const above = new Date('2027-04-11T00:00:00Z')
+    expect(lineEnd({ typed: null, start, months: null, above })).toEqual(above)
+    expect(lineEnd({ typed: null, start, months: null, above: null })).toBeNull()
+  })
+
+  it('an end date typed on the award, or the job’s own months, still decide the last day before the line above does', () => {
+    const start = new Date('2026-10-11T00:00:00Z')
+    const typed = new Date('2027-01-31T00:00:00Z')
+    const above = new Date('2027-04-11T00:00:00Z')
+    expect(lineEnd({ typed, start, months: 6, above })).toEqual(typed)
+    expect(lineEnd({ typed: null, start, months: 3, above })?.toISOString().slice(0, 10)).toBe('2027-01-11')
+    expect(read('src/app/api/submissions/[id]/award/route.ts')).toContain('const end = lineEnd({')
+  })
+
+  it('the run never picks a firm whose cover has lapsed for a rung of a chain, because the award refuses it by design', () => {
+    const firms = new Map(['client', 'prime', 'sub', 'subLapsed', 'bench'].map((id) => [id, { id, slug: id, name: id, kind: id === 'client' ? 'CLIENT' : 'VENDOR' }]))
+    const ties = [
+      { seller: 'sub', buyer: 'prime' }, { seller: 'subLapsed', buyer: 'prime' },
+      { seller: 'bench', buyer: 'sub' }, { seller: 'bench', buyer: 'subLapsed' },
+    ] as any
+    const jobs = [{ id: 'j1', clientId: 'client', skills: ['Java'], invited: ['prime'] }]
+    const benchSkills = new Map([['bench', [['Java']]]])
+    const without = pickChains({ jobs, ties, firms, benchSkills, want: 1, lapsed: new Set(['sub']) })
+    expect(without.map((c) => c.sub.id)).toEqual(['subLapsed'])
+    const none = pickChains({ jobs, ties, firms, benchSkills, want: 1, lapsed: new Set(['sub', 'subLapsed']) })
+    expect(none).toEqual([])
+    expect(read('scripts/simulate/stages/demand/send-to-suppliers.ts')).toContain('want: aim, lapsed,')
+  })
+
+  it('the award report never prints "wait on terms: ." over an empty list', () => {
+    const station = read('scripts/simulate/stages/demand/award.ts')
+    expect(station).toContain('placements wait on terms nobody has stated yet')
+    expect(station).toMatch(/termsSaid\.size\s*\?/)
+  })
+})
+
+describe('a supplier’s Timesheets and the examiner’s queue', () => {
+  it('a supplier, integrator or MSP reads every week its own sell lines bill, wherever in the chain the week was filed', () => {
+    const route = read('src/app/api/timesheets/route.ts')
+    expect(route).toContain("await firmWeeksWhere(caller.company!.id)")
+    expect(route).toContain("caller.company.kind !== 'CLIENT'")
+  })
+
+  it('a paper a worker sent and nobody checked is a row in the examiner’s queue, one per paper, so the mark and Today count it', () => {
+    const route = read('src/app/api/decisions/route.ts')
+    expect(route).toContain('papersWaitingOn({ companyId, personId: caller.person.id })')
+    expect(route).toContain("type: 'PAPER_TO_CHECK'")
+    expect(read('src/app/dashboard/decisions/chips.ts')).toContain("['PAPER_TO_CHECK', 'Papers to check']")
+  })
+})

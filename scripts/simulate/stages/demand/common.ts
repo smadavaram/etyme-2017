@@ -271,11 +271,19 @@ export function pickChains(input: {
   /** Skills of the people free on each firm's bench, by firm id. */
   benchSkills: Map<string, string[][]>
   want: number
+  /**
+   * Firms whose insurance or good standing has lapsed today. Never picked
+   * for a rung: the award refuses a firm whose cover lapsed (Addendum E),
+   * so a chain through one stops by design (the thousand-job run,
+   * 2026-11-08). Renewing the cover is regulatory's lesson, not this one's.
+   */
+  lapsed?: ReadonlySet<string>
 }): Array<Pick<ChainPlan, 'jobId' | 'client' | 'prime' | 'sub' | 'bench'>> {
+  const lapsed = input.lapsed ?? new Set<string>()
   const sellersTo = new Map<string, string[]>()
   for (const t of input.ties) sellersTo.set(t.buyer, [...(sellersTo.get(t.buyer) ?? []), t.seller])
   for (const list of sellersTo.values()) list.sort()
-  const sells = (id: string) => SELLS.has(input.firms.get(id)?.kind ?? '')
+  const sells = (id: string) => SELLS.has(input.firms.get(id)?.kind ?? '') && !lapsed.has(id)
   const used = new Map<string, number>()
   const out: Array<Pick<ChainPlan, 'jobId' | 'client' | 'prime' | 'sub' | 'bench'>> = []
   const firm = (id: string): ChainFirm => {

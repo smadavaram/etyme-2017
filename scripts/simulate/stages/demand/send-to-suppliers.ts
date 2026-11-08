@@ -24,6 +24,7 @@
  *   - a firm the client reaches only through a prime is the prime's
  *     sub-vendor, and a job cannot be sent to it.
  */
+import { lapsedCoverSays } from '@/lib/contractor-invite'
 import { defineStage, type JobFact } from '../../stage'
 import {
   bandBelow, chainHiresWanted, chainWords, clientSeat, jobsInPlay, pickChains, said, Said, sellerDesk, sellsToFrom,
@@ -172,11 +173,22 @@ async function sendDownTheChain(ctx: Ctx, jobs: JobFact[]): Promise<{ says: stri
   // A little over the count asked for, because a chain can stop at any rung
   // for a reason the rules give; the run still says how many walked four.
   const aim = want + Math.ceil(want / 4)
+  // Firms whose cover has lapsed today, read by regulatory's own gate.
+  const sellerIds = [...new Set(ties.flatMap((t) => [t.seller, t.buyer]))]
+  const certs = await ctx.read.verification.findMany({
+    where: { companyId: { in: sellerIds }, type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER', 'GOOD_STANDING'] } },
+    select: { companyId: true, type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+  })
+  const lapsed = new Set(sellerIds.filter((id) => lapsedCoverSays(
+    firms.get(id)?.name ?? 'The firm',
+    certs.filter((c) => c.companyId === id).map((c) => ({ ...c, type: String(c.type), status: String(c.status) })),
+    now,
+  ) !== null))
   const chains = pickChains({
     jobs: jobs
       .filter((j) => Array.isArray(j.extra?.invited) && ctx.world.companies[j.clientSlug])
       .map((j) => ({ id: j.id, clientId: ctx.world.companies[j.clientSlug].id, skills: j.skills, invited: j.extra!.invited as string[] })),
-    ties, firms, benchSkills, want: aim,
+    ties, firms, benchSkills, want: aim, lapsed,
   })
   const jobOf = new Map(jobs.map((j) => [j.id, j]))
   const refused = new Said()

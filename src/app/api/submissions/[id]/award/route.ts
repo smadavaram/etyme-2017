@@ -1,3 +1,4 @@
+import { lineEnd } from '@/lib/award/line-end'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
@@ -204,11 +205,32 @@ export async function POST(
   // The last day, from the start the door just settled: read by the time
   // limit below, and computed here so that read can run beside the others.
   const start = begins.start
-  const end = body.endDate
-    ? new Date(body.endDate)
-    : req.months
-      ? new Date(new Date(start).setMonth(start.getMonth() + req.months))
-      : null
+  // Below the top of a chain the window is the one the rung above agreed:
+  // a prime's copy of the client's job often carries no months, so the
+  // prime's and the sub-vendor's awards read as open-ended and the time
+  // limit refused them ("This contract has no end date, so it would run
+  // past …", the thousand-job run, 2026-11-08) while the client's line
+  // ends in its time. The awarding firm's own live line selling this
+  // person upward carries the end date down, so every rung reads one
+  // window. A typed end date or the job's own months still win.
+  const above = !body.endDate && !req.months
+    ? await prisma.sellContract.findFirst({
+        where: {
+          companyId: submission.toCompanyId,
+          personId: submission.personId,
+          state: { notIn: ['ENDED', 'CANCELLED'] },
+          endDate: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { endDate: true },
+      })
+    : null
+  const end = lineEnd({
+    typed: body.endDate ? new Date(body.endDate) : null,
+    start,
+    months: req.months ?? null,
+    above: above?.endDate ?? null,
+  })
 
   // Whose insurance answers for this person (read below, with the rest).
   //

@@ -6,6 +6,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { payerScope, seatedDesk } from '@/lib/resolve-client-company'
+import { firmWeeksWhere } from '@/lib/money/weeks-read'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
@@ -179,7 +180,16 @@ export async function GET(request: NextRequest) {
     rowScope = { AND: [scope, { personId: caller.person.id }] }
   }
 
-  const where: any = { sellContract: rowScope }
+  // A firm that sells (a supplier, an integrator, an MSP) reads every week
+  // its own sell lines bill, wherever in the chain it was filed (money's
+  // `firmWeeksWhere`): the founder's tester, 2026-11-08, found no row on
+  // Computer Systems' Timesheets for Helena Marsh's weeks, filed on
+  // Techpeple's line below it and billed by Computer Systems. Rates on a
+  // line the firm is not party to stay withheld (`mayReadBillRate`).
+  const firmWide = !asClient && !onBench && !deskless && !ownOnly && !!caller.company && caller.company.kind !== 'CLIENT'
+  const where: any = firmWide
+    ? { OR: [{ sellContract: rowScope }, await firmWeeksWhere(caller.company!.id)] }
+    : { sellContract: rowScope }
   if (whose.personId) where.personId = whose.personId
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId

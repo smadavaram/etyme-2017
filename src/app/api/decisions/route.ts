@@ -43,6 +43,7 @@ import { OVERDUE_BILL_STATUSES } from './overdue-bills'
 import { linkAsksFor, joinAsksFor, firmAskItems, LINK_REQUEST } from '@/app/api/conversations/twin/firm-asks'
 import { emailSender } from '@/lib/senders'
 import { readerScope } from '@/app/api/program/reader-scope'
+import { papersWaitingOn } from '@/lib/document-stages/arrived-papers'
 import { regionContracts } from '@/lib/region-scope'
 import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 
@@ -1169,6 +1170,53 @@ export async function GET(request: NextRequest) {
   if (foldedQuestions.size > 0) {
     for (let i = decisions.length - 1; i >= 0; i--) {
       if (decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)) decisions.splice(i, 1)
+    }
+  }
+
+  // ── 8b. Papers a worker sent, waiting on a paper examiner here ───
+  //
+  // The founder's tester, 2026-11-08: Noor Rahman's I-9 read "with them,
+  // waiting to be checked" on her page while every examiner's "waiting on
+  // you" read 0. Regulatory's reader (`papersWaitingOn`) answers only for
+  // a seat that examines papers here and never counts the seat's own; each
+  // paper is one row, so the mark and Today count what the examiner owes.
+  if (companyId) {
+    const waitingPapers = await papersWaitingOn({ companyId, personId: caller.person.id }).catch(() => ({ count: 0, paperIds: [] as string[] }))
+    if (waitingPapers.paperIds.length > 0) {
+      const papers = await prisma.docInstance.findMany({
+        where: { id: { in: waitingPapers.paperIds } },
+        select: { id: true, subjectType: true, subjectId: true, sentAt: true, template: { select: { name: true } } },
+        orderBy: { sentAt: 'asc' },
+      })
+      const aboutIds = [...new Set(papers.filter((d) => d.subjectType === 'PERSON').map((d) => d.subjectId))]
+      const names = new Map(
+        (aboutIds.length ? await prisma.person.findMany({ where: { id: { in: aboutIds } }, select: { id: true, name: true } }) : [])
+          .map((x) => [x.id, x.name])
+      )
+      if (aboutIds.length > 0) {
+        logBulkAccess(aboutIds, {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'COMPLIANCE_CHECK',
+          reason: 'Read in the decision queue: a paper this person sent, waiting on this seat to check it',
+        })
+      }
+      for (const d of papers) {
+        const who = d.subjectType === 'PERSON' ? names.get(d.subjectId) ?? null : null
+        decisions.push({
+          type: 'PAPER_TO_CHECK',
+          title: who ? `Check ${who}’s ${d.template.name}` : `Check the ${d.template.name} that arrived`,
+          named: { whose: who, what: d.template.name, whats: 'papers to check' },
+          // No day: the paper carries when it was asked for, not when it
+          // arrived, and a wrong "2 days ago" is worse than none.
+          subtitle: 'Arrived, not checked yet',
+          urgency: 'MEDIUM',
+          entityType: 'DOC_INSTANCE',
+          entityId: d.id,
+          actionUrl: '/dashboard/documents',
+          createdAt: (d.sentAt ?? now).toISOString(),
+        })
+      }
     }
   }
 

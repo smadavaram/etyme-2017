@@ -266,7 +266,12 @@ export default defineStage({
     const noBuy = ctx.world.awards.filter((a) => !a.extra?.buyContractId).length
     if (noBuy) parts.push(`${noBuy} placements have no line the firm pays from yet.`)
     const pending = ctx.world.awards.filter((a) => !a.extra?.termsOnRecord).length
-    if (pending) parts.push(`${pending} placements wait on terms: ${termsSaid.toString()}.`)
+    // Never a colon over nothing: where no refusal was said, the placements
+    // wait because nobody stated the terms yet (a chain stopped above the
+    // bottom rung, where the employer states them), and that is said.
+    if (pending) parts.push(termsSaid.size
+      ? `${pending} placements wait on terms: ${termsSaid.toString()}.`
+      : `${pending} placements wait on terms nobody has stated yet: the firm that employs the person states them at the bottom rung of its chain.`)
     if (reasoned) parts.push(`${reasoned} went past the client's time limit with the reason written down.`)
     if (jobs.length > withPeople.length) parts.push(`${jobs.length - withPeople.length} open jobs had nobody to place.`)
     if (refused.size) parts.push(`Refused: ${refused.toString()}.`)
