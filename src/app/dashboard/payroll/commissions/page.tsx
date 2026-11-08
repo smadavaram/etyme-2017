@@ -8,6 +8,7 @@ import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { EmptyState, ErrorState, Field, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
+import { DefaultsPanel, type DefaultsRead } from './defaults-panel'
 
 /**
  * What a recruiter earned, and the run that posted it.
@@ -53,7 +54,8 @@ const STATE_WORD: Record<CommissionRow['state'], string> = {
   BLANK: 'No figure',
 }
 
-const cash = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+// Each figure in its own currency: a recruiter paid in rupees is never shown dollars.
+const cash = (cents: number, currency: string) => amount(cents, currency)
 const monthName = (p: string) =>
   new Date(`${p}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
@@ -62,6 +64,7 @@ export default function CommissionsPage() {
   const [rows, setRows] = useState<CommissionRow[]>([])
   const [summary, setSummary] = useState('')
   const [mayRun, setMayRun] = useState(false)
+  const [defaults, setDefaults] = useState<DefaultsRead | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -91,6 +94,7 @@ export default function CommissionsPage() {
       setRows(body.data.rows ?? [])
       setSummary(body.data.summary)
       setMayRun(body.data.mayRun)
+      setDefaults(body.data.defaults ?? null)
       setError(null)
     } catch (err: any) { setError(err.message) } finally { setLoading(false) }
   }, [])
@@ -113,7 +117,7 @@ export default function CommissionsPage() {
     { key: 'name', label: 'Who', render: (e) => <span className="text-etyme-ink">{e.name}</span>, sortValue: (e) => e.name },
     { key: 'period', label: 'Period', render: (e) => <span className="text-etyme-muted">{monthName(e.period)}</span>, sortValue: (e) => e.period },
     { key: 'lines', label: 'Placements', align: 'right', render: (e) => <span className="tabular-nums text-etyme-muted">{e.lines.length}</span>, sortValue: (e) => e.lines.length, hideOnMobile: true },
-    { key: 'amountCents', label: 'Earned', align: 'right', render: (e) => <span className="tabular-nums">{cash(e.amountCents)}</span>, sortValue: (e) => e.amountCents },
+    { key: 'amountCents', label: 'Earned', align: 'right', render: (e) => <span className="tabular-nums">{cash(e.amountCents, e.currency)}</span>, sortValue: (e) => e.amountCents },
   ], [])
 
   // Money pages wait (sign-up walk, round three, #17): until the session
@@ -159,6 +163,8 @@ export default function CommissionsPage() {
         </form>
       )}
 
+      {defaults && <DefaultsPanel key={JSON.stringify(defaults.set)} read={defaults} onSaved={setDefaults} />}
+
       {said && <div className="panel" role="status"><p className="text-[13px] text-etyme-ink">{said}</p></div>}
       {error && <ErrorState says={error} />}
       {loading && <LoadingState says="Opening commissions…" />}
@@ -199,7 +205,7 @@ export default function CommissionsPage() {
                   <p className="text-[15px] font-semibold text-etyme-ink">{e.name}</p>
                   <p className="text-[12px] text-etyme-faint">{monthName(e.period)}</p>
                 </div>
-                <p className="font-serif text-[22px] tabular-nums text-etyme-ink">{cash(e.amountCents)}</p>
+                <p className="font-serif text-[22px] tabular-nums text-etyme-ink">{cash(e.amountCents, e.currency)}</p>
               </div>
               <button
                 onClick={() => setOpen(open === `${e.personId}:${e.period}` ? null : `${e.personId}:${e.period}`)}
@@ -212,7 +218,7 @@ export default function CommissionsPage() {
                   {e.lines.map((l, i) => (
                     <div key={i} className="flex flex-wrap items-baseline justify-between gap-2 text-[12.5px]">
                       <span className="text-etyme-muted">{l.says || l.order}</span>
-                      <span className="tabular-nums text-etyme-ink">{cash(l.amountCents)}</span>
+                      <span className="tabular-nums text-etyme-ink">{cash(l.amountCents, e.currency)}</span>
                     </div>
                   ))}
                 </div>

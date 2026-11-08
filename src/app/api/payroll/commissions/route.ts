@@ -8,7 +8,24 @@ import { staffOnly } from '@/lib/seat'
 import { commissionFor } from '@/lib/commission'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
 import { commissionAccruals, monthPeriod, postingKey, type CommissionPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
-import { KIND_WORD, termsSay } from '@/lib/money/commission-rows'
+import { KIND_WORD, KINDS, termsSay } from '@/lib/money/commission-rows'
+import { checkDefaults, stampDefaults, storedFrom, mayEditDefaults, defaultSays } from '@/lib/money/commission-defaults'
+
+async function roleName(roleId: string | null): Promise<string | null> {
+  if (!roleId) return null
+  return (await prisma.role.findUnique({ where: { id: roleId }, select: { name: true } }))?.name ?? null
+}
+
+/**
+ * The firm's default commission rates, as the page reads them
+ * (lib/money/commission-defaults): what the award writes on a new line.
+ * Read by the Owner, a Contract Manager and whoever reads payroll; null
+ * for anybody else, who is told nothing about them.
+ */
+function defaultsAnswer(company: { currency: string; commissionDefaults: unknown }, mayEdit: boolean) {
+  const stored = storedFrom(company.commissionDefaults)
+  return { currency: company.currency, mayEdit, set: stored, lines: KINDS.map((k) => defaultSays(k, stored[k])) }
+}
 
 /** The period a read asks for (`from`, `to` as days), else this calendar month. */
 function periodFrom(params: URLSearchParams, now: Date): CommissionPeriod {
@@ -96,7 +113,16 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  if (!hasPermission(caller.permissions, 'payroll.read') && !ownAgreement && postings.length === 0 && rowsShown.length === 0) {
+  // The firm's default rates: the Owner or a Contract Manager sets them,
+  // and payroll reads them beside what was earned.
+  const role = await roleName(caller.context.roleId)
+  const setsDefaults = mayEditDefaults(role, caller.company!.name) === null
+  const firm = setsDefaults || everybody
+    ? await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true, commissionDefaults: true } })
+    : null
+  const defaults = firm ? defaultsAnswer(firm, setsDefaults) : null
+
+  if (!hasPermission(caller.permissions, 'payroll.read') && !setsDefaults && !ownAgreement && postings.length === 0 && rowsShown.length === 0) {
     return NextResponse.json(
       {
         error: {
@@ -145,6 +171,8 @@ export async function GET(request: NextRequest) {
       /** True where only the reader's own earnings are here. */
       onlyYours: !everybody,
       mayRun: hasPermission(caller.permissions, 'payroll.run'),
+      /** The firm's default commission rates; null where this seat does not read them. */
+      defaults,
       summary: !everybody
         ? earnings.length === 0
           ? 'You are on a commission agreement, and nothing has been posted to you yet.'
@@ -324,6 +352,47 @@ export async function POST(request: NextRequest) {
       says: posted.length
         ? `${posted.length} commission${posted.length === 1 ? '' : 's'} posted for the period to ${periodKey}.`
         : 'Nothing earned this period.',
+    },
+  })
+}
+
+/**
+ * PATCH /api/payroll/commissions   { defaults: { SALES?, RECRUITING? } }
+ *
+ * Say the firm's default commission rates, which the award writes on a new
+ * sell line (sales) and buy line (recruiting). A kind sent as null has no
+ * default. The Owner or a Contract Manager only; every bad value refused
+ * in a sentence naming the kind and the field; who set each and when kept
+ * beside it. A commission already on a line is never changed by this.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Commission defaults')
+  if (notStaff) return notStaff
+  if (!caller.company) {
+    return NextResponse.json({ error: { code: 'NO_COMPANY', message: 'Default commission rates belong to a firm, and you are not signed in at one.' } }, { status: 403 })
+  }
+  const refused = mayEditDefaults(await roleName(caller.context.roleId), caller.company.name)
+  if (refused) return NextResponse.json({ error: { code: 'FORBIDDEN', message: refused } }, { status: 403 })
+
+  const company = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { currency: true, commissionDefaults: true } })
+  if (!company) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That firm is not on the record.' } }, { status: 404 })
+  const body = await request.json().catch(() => null)
+  const checked = checkDefaults(body?.defaults ?? {}, company.currency)
+  if (!checked.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', field: checked.field, message: checked.says } }, { status: 422 })
+  }
+  const next = stampDefaults(company.commissionDefaults, checked.defaults, { personId: caller.person.id, name: caller.person.name }, new Date())
+  const saved = await prisma.company.update({
+    where: { id: caller.company.id },
+    data: { commissionDefaults: next as object },
+    select: { currency: true, commissionDefaults: true },
+  })
+  return NextResponse.json({
+    data: {
+      defaults: defaultsAnswer(saved, true),
+      says: 'Saved. Every award from now on writes these defaults. A commission already on a line is not changed.',
     },
   })
 }

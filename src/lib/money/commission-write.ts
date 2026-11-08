@@ -24,6 +24,7 @@ import {
   checkCommission, maySetCommission, defaultsFrom, defaultCommissionRows,
   type CommissionDraft, type CommissionTerms, type AwardFacts, type DefaultRows,
 } from '@/lib/money/commission-rows'
+import { storedFrom, defaultFitsLine } from '@/lib/money/commission-defaults'
 
 export type WriteResult =
   | { ok: true; id: string; terms: CommissionTerms }
@@ -108,12 +109,21 @@ export async function defaultCommissionRowsFor(companyId: string, award: AwardFa
  * out and said, never written.
  */
 export async function writeDefaultCommissions(companyId: string, award: AwardFacts): Promise<{ written: string[]; notWritten: string[] }> {
-  const { rows, notWritten } = await defaultCommissionRowsFor(companyId, award)
+  const co = await prisma.company.findUnique({ where: { id: companyId }, select: { commissionDefaults: true } })
+  const json = co?.commissionDefaults ?? null
+  const { rows, notWritten } = defaultCommissionRows(defaultsFrom(json), award)
+  // Who set each default, and the currency of a fixed amount or a cap
+  // (lib/money/commission-defaults). A share fits a line in any currency;
+  // a fixed figure only a line in its own.
+  const stored = storedFrom(json)
   const written: string[] = []
   for (const t of rows) {
     const shape = checkCommission(t)
     if (!shape.ok) { notWritten.push(shape.says); continue }
-    if ((await lineCompany(t)) !== companyId) { notWritten.push('A default commission was not written: the line is not this firm’s.'); continue }
+    const line = await lineOf(t)
+    if (line?.companyId !== companyId) { notWritten.push('A default commission was not written: the line is not this firm’s.'); continue }
+    const misfit = defaultFitsLine(t.kind, stored[t.kind] ?? t, line.currency)
+    if (misfit) { notWritten.push(misfit); continue }
     if (!(await seatedAt(t.earnedById, companyId))) { notWritten.push('A default commission was not written: whoever would earn it is not seated at the firm.'); continue }
     const row = await prisma.contractCommission.create({
       data: { companyId, ...t, setById: award.setById, setAt: new Date() },
@@ -122,6 +132,16 @@ export async function writeDefaultCommissions(companyId: string, award: AwardFac
     written.push(row.id)
   }
   return { written, notWritten }
+}
+
+/** The line's firm and the currency it bills or pays in. */
+async function lineOf(terms: Pick<CommissionTerms, 'sellContractId' | 'buyContractId'>): Promise<{ companyId: string; currency: string | null } | null> {
+  if (terms.sellContractId) {
+    const s = await prisma.sellContract.findUnique({ where: { id: terms.sellContractId }, select: { companyId: true, billCurrency: true } })
+    return s ? { companyId: s.companyId, currency: s.billCurrency ?? null } : null
+  }
+  const b = await prisma.buyContract.findUnique({ where: { id: terms.buyContractId! }, select: { companyId: true, payCurrency: true } })
+  return b ? { companyId: b.companyId, currency: b.payCurrency ?? null } : null
 }
 
 /**
