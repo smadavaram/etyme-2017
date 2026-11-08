@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
-import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle, tenureView } from './words'
+import { eligibleWords, ledgerRank, limitDayWords, limitLine, runsPastWords, standingWords, tenureSubtitle, tenureView } from './words'
 import { TenureRefused } from './refused'
 import { usePageSection } from '@/components/page-section'
 import { PageHead } from '@/components/ui'
@@ -32,6 +32,8 @@ interface TenureData {
     ok: number
     warning: number
     breakRequired: number
+    /** Everybody past the limit, on site, in break or away. */
+    pastLimit?: number
     inBreak: number
     eligible: number
     runsPast: number
@@ -67,6 +69,8 @@ interface TenurePerson {
   runsPast: { contractId: string; firm: string; endDate: string | null; daysPast: number | null }[]
   contractCount: number
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
+  /** Days counted at or over the limit, whatever the person's status. */
+  pastLimit?: boolean
   eligibleDate: string | null
   hasActive: boolean
   /** On site today, under any live contract. */
@@ -216,13 +220,15 @@ export default function TenurePage() {
     {
       key: 'status',
       label: 'Status',
-      sortValue: (row) => {
-        const order = { BREAK_REQUIRED: 0, WARNING: 1, IN_BREAK: 2, OK: 3, ELIGIBLE: 4 }
-        return order[row.status]
-      },
+      sortValue: (row) => ledgerRank({ status: row.status, pastLimit: row.pastLimit ?? false }),
       render: (row) => {
-        const config = STATUS_CONFIG[row.status]
-        return <span className={`chip ${config.chipClass}`}>{statusLabel(row.status, row.onSite ?? row.hasActive)}</span>
+        const past = row.pastLimit ?? false
+        const chipClass = past ? 'chip--danger' : STATUS_CONFIG[row.status].chipClass
+        return (
+          <span className={`chip ${chipClass}`}>
+            {standingWords({ status: row.status, onSite: row.onSite ?? row.hasActive, pastLimit: past, eligibleDate: row.eligibleDate })}
+          </span>
+        )
       },
     },
     {
@@ -293,8 +299,8 @@ export default function TenurePage() {
         </div>
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Over the limit</p>
-          <p className={`stat-value ${summary.breakRequired > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
-            {summary.breakRequired}
+          <p className={`stat-value ${(summary.pastLimit ?? summary.breakRequired) > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
+            {summary.pastLimit ?? summary.breakRequired}
           </p>
         </div>
         <div className="panel flex-1 min-w-[100px]">

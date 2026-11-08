@@ -104,6 +104,53 @@ export function statusLabel(status: string, onSite: boolean): string {
 }
 
 /**
+ * The status chip's words, past the limit first.
+ *
+ * Found by the founder's tester, 2026-11-08: Kwame Mensah read 135% of
+ * the client's time limit and the chip said only "In break", because
+ * `statusLabel` names where somebody is (on site, away, back) and never
+ * whether they are past the limit. Being past it is the fact a program
+ * manager acts on, so it is said first, and where somebody is comes
+ * second. One sentence per state:
+ *
+ *   past, on site                 "Past the time limit · still on site"
+ *   past, in break, a day known   "Past the time limit · in break until Nov 18, 2026"
+ *   past, away, no break rule     "Past the time limit"
+ *   not past                      statusLabel's words, unchanged
+ *
+ * "Past" is the standing's own `pastLimit` (days counted at or over the
+ * limit), the same test the block fires on, so the chip and the refusal
+ * cannot disagree. A served break resets the count, so somebody eligible
+ * again is never read as past.
+ */
+export function standingWords(o: {
+  status: string
+  onSite: boolean
+  pastLimit: boolean
+  eligibleDate: string | null
+}): string {
+  if (!o.pastLimit) return statusLabel(o.status, o.onSite)
+  const past = 'Past the time limit'
+  if (o.onSite) return `${past} · still on site`
+  if (o.status === 'IN_BREAK') {
+    return o.eligibleDate ? `${past} · in break until ${plainDate(o.eligibleDate)}` : `${past} · in break`
+  }
+  return past
+}
+
+/**
+ * Where a row sorts on the ledger: everybody past the time limit first,
+ * in break or not, then approaching, in break, OK and eligible. Read by
+ * the route's own order and by the page's Status column, so the two
+ * cannot disagree.
+ */
+export function ledgerRank(o: { status: string; pastLimit: boolean }): number {
+  if (o.pastLimit) return 0
+  const order: Record<string, number> = { BREAK_REQUIRED: 0, WARNING: 1, IN_BREAK: 2, OK: 3, ELIGIBLE: 4 }
+  return order[o.status] ?? 5
+}
+
+/**
  * What the page may draw, given what the route said.
  *
  * Sign-up walk, round four: a Member the route refused read "TRACKED 0 …

@@ -9,6 +9,7 @@ import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { isDeskless } from '@/lib/nav-table'
 import { askTheDesk } from '@/lib/permissions'
+import { ledgerRank } from '@/app/dashboard/tenure/words'
 import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
@@ -326,6 +327,8 @@ export async function GET(request: NextRequest) {
       againstLimit: capMonths ? againstLimit(standing.countedDays, capMonths) : null,
       contractCount: data.contracts.length,
       status,
+      // Days counted at or over the limit, the test the block fires on.
+      pastLimit: standing.pastLimit,
       eligibleDate,
       hasActive: data.hasActive,
       onSite: standing.onSiteNow,
@@ -365,15 +368,20 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Sort: BREAK_REQUIRED first, then WARNING, then IN_BREAK, then OK, then ELIGIBLE
-  const statusOrder = { BREAK_REQUIRED: 0, WARNING: 1, IN_BREAK: 2, OK: 3, ELIGIBLE: 4 }
-  people.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+  // Sort: everybody past the time limit first, in break or not, then
+  // approaching, in break, OK and eligible (`ledgerRank`, which the
+  // page's Status column reads too).
+  people.sort((a, b) => ledgerRank(a) - ledgerRank(b))
 
   const summary = {
     totalTracked: people.length,
     ok: people.filter(p => p.status === 'OK').length,
     warning: people.filter(p => p.status === 'WARNING').length,
     breakRequired: people.filter(p => p.status === 'BREAK_REQUIRED').length,
+    // Everybody past the limit, on site, in break or away: the figure
+    // "Over the limit" draws, so a row that reads "Past the time limit ·
+    // in break" is counted there too.
+    pastLimit: people.filter(p => p.pastLimit).length,
     inBreak: people.filter(p => p.status === 'IN_BREAK').length,
     eligible: people.filter(p => p.status === 'ELIGIBLE').length,
     // People with a live contract booked past the day they reach the limit.
