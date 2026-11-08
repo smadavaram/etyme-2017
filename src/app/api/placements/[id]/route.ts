@@ -25,6 +25,7 @@ import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
 import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 import { chainBelow } from './chain'
+import { weeksWhere } from '@/lib/money/weeks-read'
 
 /**
  * GET /api/placements/:id
@@ -215,18 +216,6 @@ export async function GET(
           company: { select: { id: true, name: true } },
         },
       },
-      timesheets: {
-        orderBy: { periodStart: 'desc' },
-        take: 12,
-        select: {
-          id: true, periodStart: true, periodEnd: true, totalHours: true, status: true,
-          assertions: {
-            where: { state: 'LIVE' },
-            select: { role: true, hours: true, rateCents: true, companyId: true, at: true, auto: true },
-          },
-          invoiceLines: { select: { id: true, sellContractId: true, amountCents: true } },
-        },
-      },
     },
   })
 
@@ -239,6 +228,29 @@ export async function GET(
       { status: 404 }
     )
   }
+
+  // ── Station 7's weeks, where they were filed ──
+  //
+  // In a chain the worker files once, on her own rung, and every rung
+  // above bills that same signed week (CLAUDE.md, 2026-09-28). So this
+  // line's weeks are read where its bill was priced, the bottom of its
+  // ladder, through money's one reader (lib/money/weeks-read), never the
+  // weeks hanging on this line itself, which in a chain are none: Helena
+  // Marsh's placement at Computer Systems read "No weeks filed yet" beside
+  // 200 hours billed (the founder's tester, 2026-11-08).
+  const weeks = await prisma.timesheet.findMany({
+    where: await weeksWhere([placement.id]),
+    orderBy: { periodStart: 'desc' },
+    take: 12,
+    select: {
+      id: true, periodStart: true, periodEnd: true, totalHours: true, status: true,
+      assertions: {
+        where: { state: 'LIVE' },
+        select: { role: true, hours: true, rateCents: true, companyId: true, at: true, auto: true },
+      },
+      invoiceLines: { select: { id: true, sellContractId: true, amountCents: true } },
+    },
+  })
 
   logAccess({
     subjectId: placement.personId,
@@ -1175,7 +1187,7 @@ export async function GET(
       },
 
       // ── Station 7 · the hours ──
-      timesheets: placement.timesheets.map((t) => {
+      timesheets: weeks.map((t) => {
         const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
         const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
         return {

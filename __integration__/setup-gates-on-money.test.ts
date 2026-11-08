@@ -10,7 +10,7 @@ import { draftSend } from '@/lib/today-page'
 import { recordInvoicePayment } from '@/lib/money/invoice-payment'
 import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf } from '@/lib/money/invoice-parties'
-import { mayIssueBill, mayPayFirm, NO_BILLING_ADDRESS, bankNotChecked } from '@/lib/setup-gates'
+import { mayIssueBill, mayPayFirm, NO_BILLING_ADDRESS, bankNotChecked, bankCheckerNamesAt } from '@/lib/setup-gates'
 
 /**
  * What a skipped setup step refuses on money's doors, and nothing else
@@ -151,7 +151,7 @@ describe('a skipped setup step refuses only the money act that needs it', () => 
   })
 
   it('a firm is not paid until its bank details are checked, and the refusal names the step', async () => {
-    const says = bankNotChecked(s.payeeName)
+    const says = bankNotChecked(s.payeeName, await bankCheckerNamesAt(s.payer))
     await withUncheckedBank(s.payer, s.payee, async () => {
       expect(await mayPayFirm(s.payer, s.payee)).toEqual({ ok: false, says, step: 'BANK' })
 

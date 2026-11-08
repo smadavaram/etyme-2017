@@ -47,8 +47,30 @@ export function billingAddressGate(f: {
   return { ok: false, says: NO_BILLING_ADDRESS, step: 'ADDRESSES' }
 }
 
-export function bankNotChecked(payee: string): string {
-  return `Pay ${payee} once its bank details are checked. ${payee} enters them under ${STEP_PLACE.BANK}, and your Finance team checks them before anybody pays.`
+/**
+ * Who checks a supplier's bank details at the paying firm, as money's
+ * reader names them (`bankCheckers` in lib/money/bank-check): its Finance
+ * seats; where it has none, the seats that pay; or nobody yet.
+ */
+export interface BankCheckerNames {
+  by: 'FINANCE' | 'FALLBACK' | 'NOBODY'
+  /** "Imelda Santoro", "Imelda Santoro or Rosalind Tay". */
+  names: string
+  payer: string
+}
+
+/**
+ * The refusal a payment and a payment run say. Names who checks where it
+ * is known (founder's tester, 2026-11-08: a firm with no Finance seat was
+ * told its Finance team checks them); without the names, the old line.
+ */
+export function bankNotChecked(payee: string, who?: BankCheckerNames | null): string {
+  const head = `Pay ${payee} once its bank details are checked. ${payee} enters them under ${STEP_PLACE.BANK}`
+  if (!who) return `${head}, and your Finance team checks them before anybody pays.`
+  if (who.by === 'NOBODY') {
+    return `${head}. Nobody at ${who.payer} pays suppliers yet: give a seat the AP Clerk or Finance role, and that seat checks them before anybody pays.`
+  }
+  return `${head}, and ${who.names} checks them before anybody pays.`
 }
 
 /**
@@ -60,10 +82,11 @@ export function bankGate(f: {
   payee: string
   remitVerified: boolean
   walkBankState: string | null
+  who?: BankCheckerNames | null
 }): Gate {
   if (f.remitVerified) return { ok: true }
   if (f.walkBankState === 'HELD' || f.walkBankState === 'WAIVED') return { ok: true }
-  return { ok: false, says: bankNotChecked(f.payee), step: 'BANK' }
+  return { ok: false, says: bankNotChecked(f.payee, f.who), step: 'BANK' }
 }
 
 export function domainNotVerified(company: string, domain: string): string {

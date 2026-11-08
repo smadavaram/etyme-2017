@@ -41,13 +41,18 @@ export function GiveAccess() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [refused, setRefused] = useState(false)
 
   async function load() {
+    // A seat that may not read who holds what is shown nothing: the page
+    // around it already says what that seat can do, and a red box over a
+    // read it never asked for reads as something broken.
     try {
-      const j = await readJson(await fetch('/api/settings/grants'))
-      setData(j.data)
-    } catch (err: any) {
-      setError(err.message)
+      const res = await fetch('/api/settings/grants')
+      if (!res.ok) { setData(null); setRefused(true); return }
+      setData((await res.json()).data)
+    } catch {
+      setRefused(true)
     }
   }
   useEffect(() => { void load() }, [])
@@ -86,7 +91,7 @@ export function GiveAccess() {
     }
   }
 
-  if (!data) return error ? <FormMessage tone="error">{error}</FormMessage> : null
+  if (refused || !data) return null
   const live = data.grants.filter((g) => !g.revokedAt)
   const past = data.grants.filter((g) => g.revokedAt)
   const drawn = fieldsDrawn(v.scope)
@@ -167,7 +172,6 @@ export function GiveAccess() {
           </ul>
         </details>
       )}
-      {!data.canGive && error && <FormMessage tone="error">{error}</FormMessage>}
     </Panel>
   )
 }

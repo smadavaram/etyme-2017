@@ -341,3 +341,16 @@ describe('the one caller check and the menu read grants', () => {
     expect(withGrants(RECRUITER, 'ctx-dana', null)).toEqual(RECRUITER)
   })
 })
+
+describe('Give access on Users & permissions', () => {
+  it('a seat that may not read who holds what is shown nothing, never the route’s refusal in a red box', () => {
+    const src = readFileSync('src/components/settings/give-access.tsx', 'utf8')
+    expect(src).toMatch(/if \(!res\.ok\) \{ setData\(null\); setRefused\(true\); return \}/)
+    expect(src).toContain('if (refused || !data) return null')
+  })
+
+  it('the form is drawn only for a seat that may give access', () => {
+    const src = readFileSync('src/components/settings/give-access.tsx', 'utf8')
+    expect(src).toMatch(/\{data\.canGive && \(\s*<form/)
+  })
+})

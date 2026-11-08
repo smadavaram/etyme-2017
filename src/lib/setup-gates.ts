@@ -19,7 +19,7 @@
 import { prisma } from '@/lib/db'
 import { PARTY_SAYS, type Party } from '@/lib/document-stages/required-sets'
 import {
-  NO_BILLING_ADDRESS, billingAddressGate, bankGate, paperChaseGate, type Gate,
+  NO_BILLING_ADDRESS, billingAddressGate, bankGate, paperChaseGate, type Gate, type BankCheckerNames,
 } from '@/lib/setup-gate-rules'
 
 export * from '@/lib/setup-gate-rules'
@@ -68,11 +68,37 @@ export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string,
     }),
   ])
   const states = walks.map((w) => (Array.isArray(w.checklist) ? (w.checklist as any[]).find((i) => i?.key === 'BANK')?.state ?? null : null))
-  return bankGate({
+  const facts = {
     payee: payee?.name ?? 'This firm',
     remitVerified: !!remit,
     walkBankState: states.find((s) => s === 'HELD' || s === 'WAIVED') ?? states[0] ?? null,
-  })
+  }
+  const open = bankGate(facts)
+  if (open.ok) return open
+  // Refused: say who checks at the paying firm, read the way money reads
+  // it for a held receipt, so the payment, the payment run and the receipt
+  // name the same people.
+  return bankGate({ ...facts, who: await bankCheckerNamesAt(payerCompanyId) })
+}
+
+/**
+ * Who checks a supplier's bank details at this firm, by name, through
+ * money's reader (`payerSeats`, `bankCheckers` in lib/money). Imported at
+ * the call, because lib/money/bank-check-read reads this file's gate.
+ * Null where the read fails, which says the old line rather than nothing.
+ */
+export async function bankCheckerNamesAt(payerCompanyId: string): Promise<BankCheckerNames | null> {
+  try {
+    const [{ payerSeats }, { bankCheckers, namesOf }, payer] = await Promise.all([
+      import('@/lib/money/bank-check-read'),
+      import('@/lib/money/bank-check'),
+      prisma.company.findUnique({ where: { id: payerCompanyId }, select: { name: true } }),
+    ])
+    const checkers = bankCheckers(await payerSeats(payerCompanyId))
+    return { by: checkers.by, names: namesOf(checkers), payer: payer?.name ?? 'your company' }
+  } catch {
+    return null
+  }
 }
 
 // ── No colleague joining by domain until it is verified ──────────────
