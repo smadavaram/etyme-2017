@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { seatGrantFacts, type SeatGrantFacts } from './grants'
 
 /**
  * GET /api/me
@@ -15,6 +16,13 @@ import { prisma } from '@/lib/db'
  *
  * Field filtering: payRate, billRate, and cost fields are stripped
  * unless the caller holds the required permission (BUILD.md §2).
+ *
+ * Each seat carries what a grant gave it (founder, 2026-11-08): `role` is
+ * the role's own permissions as before; `permissions` is what the seat
+ * holds, the role's and every grant's that opens the door, the same list
+ * `hasPermission` is asked over; `granted` is the grants' part alone; and
+ * `grants` says each one's reach, in words, so a screen never reads a team
+ * grant as the whole company's.
  */
 export async function GET(request: NextRequest) {
   const email = await getSessionEmail()
@@ -78,6 +86,18 @@ export async function GET(request: NextRequest) {
       ? person.contexts.find((c) => c.id === requestedContextId)
       : null) ?? person.contexts[0] ?? null
 
+  // What the Owner gave each seat beyond its role (2026-11-08), so a screen
+  // that draws a link or a button from here sees a granted permission the
+  // way the one caller check does. A view of reach, never more: only the
+  // person's own seats, only grants at that seat's own company.
+  const grantFacts = new Map<string, SeatGrantFacts>()
+  await Promise.all(
+    person.contexts.map(async (c) => {
+      grantFacts.set(c.id, await seatGrantFacts({ companyId: c.companyId, roleId: c.roleId, contextId: c.id }, (c.role?.permissions as string[]) ?? []))
+    })
+  )
+  const seatFacts = (id: string) => grantFacts.get(id) ?? { permissions: [], granted: [], grants: [], mayGiveAccess: false }
+
   return NextResponse.json({
     data: {
       person: {
@@ -99,6 +119,7 @@ export async function GET(request: NextRequest) {
         role: ctx.role
           ? { id: ctx.role.id, name: ctx.role.name, permissions: ctx.role.permissions }
           : null,
+        ...seatFacts(ctx.id),
         grantedAt: ctx.grantedAt.toISOString(),
       })),
       activeContext: activeContext
@@ -109,6 +130,7 @@ export async function GET(request: NextRequest) {
             role: activeContext.role
               ? { id: activeContext.role.id, name: activeContext.role.name, permissions: activeContext.role.permissions }
               : null,
+            ...seatFacts(activeContext.id),
           }
         : null,
     },
