@@ -768,6 +768,12 @@ export default function RequisitionDetail() {
                   : r.approvalState === 'REJECTED'
                     ? 'This was rejected, so it goes to no supplier. Raising a fresh one is the way back.'
                     : 'Not sent for approval yet. Suppliers see it once it has been through approval.'}
+              {/* Who it goes to once approved, by name, so the hiring
+                  manager's ticks never read as lost (the founder's tester,
+                  2026-11-08). */}
+              {data.goesTo?.says && r.approvalState !== 'REJECTED' && (
+                <p className="mt-2 text-etyme-ink">{data.goesTo.says}</p>
+              )}
             </div>}
       </ListSection>
       )}

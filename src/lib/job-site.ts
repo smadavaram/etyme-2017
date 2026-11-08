@@ -138,3 +138,91 @@ export function raisedSays(input: {
   if (!went) return head
   return `${/[.!?]$/.test(head) ? head : `${head}.`} ${went}`
 }
+
+/**
+ * The ticks the edit form opens on (the founder's tester, 2026-11-08: the
+ * Edit form drew no supplier section, so a hiring manager's ticks read as
+ * lost). The job's own ticks where it kept some, read against the firms
+ * the site still sends to; every one the site sends to where it kept none,
+ * because an empty list is the site's default.
+ */
+export function ticksToEdit(offered: readonly string[], kept: readonly string[]): string[] {
+  const at = new Set(offered)
+  const still = kept.filter((id) => at.has(id))
+  return kept.length > 0 && still.length > 0 ? offered.filter((id) => still.includes(id)) : [...offered]
+}
+
+/**
+ * What an edit may do to who a job goes to, as a verdict. Narrow only
+ * (founder, 2026-10-28, "Keep it"): a hiring manager removes names from
+ * the site's list and never adds one, so a firm the site does not send to
+ * is refused in the site's sentence; nothing ticked is refused, because a
+ * job that goes to nobody was never somebody's intent; and once the job is
+ * out, who it went to is fixed, and a further firm is sent it from the
+ * job's page.
+ */
+export type TickEdit =
+  | { ok: true; ids: string[]; changed: boolean }
+  | { ok: false; says: string; field: 'sendTo' }
+
+export function readTickEdit(input: {
+  asked: unknown
+  /** The firms the job's site sends to, in the order offered. */
+  offered: readonly { id: string; name: string }[]
+  /** The ticks the job keeps now; empty means the site's default. */
+  kept: readonly string[]
+  /** Out to suppliers already. */
+  out: boolean
+  site: { name: string; city?: string | null } | null
+}): TickEdit {
+  const asked = Array.isArray(input.asked)
+    ? [...new Set(input.asked.filter((v): v is string => typeof v === 'string' && v.length > 0))]
+    : []
+  const before = ticksToEdit(input.offered.map((f) => f.id), input.kept)
+  const same = asked.length === before.length && asked.every((id) => before.includes(id))
+  if (same) return { ok: true, ids: before, changed: false }
+  if (input.out) {
+    return {
+      ok: false, field: 'sendTo',
+      says: 'This job is already with its suppliers, so who it went to does not change here. Send it to another supplier from the job’s page.',
+    }
+  }
+  if (asked.length === 0) {
+    return { ok: false, field: 'sendTo', says: 'Leave at least one supplier ticked, or this job goes to nobody once it is approved.' }
+  }
+  const allowed = new Set(input.offered.map((f) => f.id))
+  const stranger = asked.find((id) => !allowed.has(id))
+  if (stranger) {
+    const at = input.site ? siteShortName(input.site) : null
+    return {
+      ok: false, field: 'sendTo',
+      says: at
+        ? `That firm is not one of the suppliers ${at} sends to. Ask Procurement to add it to the site first.`
+        : 'That firm is not one of your approved suppliers. Ask Procurement to approve it first.',
+    }
+  }
+  return { ok: true, ids: input.offered.map((f) => f.id).filter((id) => asked.includes(id)), changed: true }
+}
+
+/**
+ * On a job's page before approval: who it goes to once approved, by name
+ * (the founder's tester, 2026-11-08: ticks hidden until approval read as
+ * lost). Null once the job is out, where "Who was asked" says it.
+ */
+export function goesOnceApprovedSays(input: {
+  /** The firms it goes to, by name; empty where none is left. */
+  names: readonly string[]
+  /** No list at all: the job goes to every approved supplier. */
+  everyApproved: boolean
+  site: { name: string; city?: string | null } | null
+}): string {
+  if (input.everyApproved) return 'Goes to every approved supplier once approved.'
+  const n = input.names.length
+  if (n === 0) {
+    const at = input.site ? ` at ${siteShortName(input.site)}` : ''
+    return `Goes to no supplier once approved: none is approved${at} any more. Ask Procurement to add one, then edit the job.`
+  }
+  return n === 1
+    ? `Goes to one supplier once approved: ${input.names[0]}.`
+    : `Goes to ${countWord(n).toLowerCase()} suppliers once approved: ${namesList(input.names)}.`
+}

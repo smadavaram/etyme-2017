@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
-import { placeOf, sendToSays } from '@/lib/job-site'
+import { placeOf, sendToSays, readTickEdit, ticksToEdit, goesOnceApprovedSays } from '@/lib/job-site'
+import { offeredFor } from '../offered'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { waitingOnSays } from '../words'
@@ -182,12 +183,37 @@ export async function GET(
       }
     : null
 
+  // Before it is out: who it goes to once approved, by name (the founder's
+  // tester, 2026-11-08: the ticks were hidden until approval and read as
+  // lost). The job's own ticks, read against the firms its site still
+  // sends to, else every one the site sends to.
+  const stage = stageOf(req)
+  const beforeOut = stage === 'DRAFT' || stage === 'AWAITING' || stage === 'CHANGES'
+  const goesTo = beforeOut
+    ? await (async () => {
+        const at = await offeredFor({ companyId: req.companyId, locationId: req.site?.id ?? null })
+        const ids = ticksToEdit(at.offered.map((f) => f.id), req.sendToSupplierIds)
+        const name = new Map(at.offered.map((f) => [f.id, f.name]))
+        const picked = req.sendToSupplierIds.length > 0
+        const names = ids.map((i) => name.get(i) ?? 'A supplier')
+        return {
+          ids, names,
+          // Every firm the edit form may leave ticked, in the order offered.
+          offered: at.offered.map((f) => ({ id: f.id, name: f.name })),
+          site: at.site,
+          says: goesOnceApprovedSays({ names, everyApproved: at.everyApproved && !picked, site: at.site }),
+        }
+      })()
+    : null
+
   return NextResponse.json({
     data: {
       // What each desk checked the job against, with the facts in the
       // sentence, and whether that is the record of the decision or a
       // re-run on today's plan.
       checked,
+      // Who it goes to once approved, before it is out; null after.
+      goesTo,
       requisition: {
         id: req.id,
         title: req.title,
@@ -395,6 +421,10 @@ export async function PATCH(
       // Where the work is done and whether sponsorship is offered, which
       // the edit form asks as the raise form does.
       workMode: true, workAuthRequired: true, workAuthBasis: true, workAuthCite: true,
+      // Who it goes to: the site, and the hiring manager's ticks, which the
+      // edit form draws as the raise form does (the founder's tester,
+      // 2026-11-08).
+      locationId: true, sendToSupplierIds: true,
     },
   })
 
@@ -579,8 +609,28 @@ export async function PATCH(
   const askedOwner = typeof body.ownerId === 'string' && body.ownerId.trim() ? body.ownerId.trim() : null
   const ownerMoves = askedOwner !== null && askedOwner !== requisition.ownerId
 
+  // Who it goes to, narrow only (founder, 2026-10-28): the ticks are read
+  // against the firms the site sends to, refused in a sentence where one
+  // is not among them, where none is left, or where the job is already
+  // out; a list unchanged is not a change.
+  let ticks: { ids: string[]; names: string[]; site: { name: string; city: string | null } | null } | null = null
+  if (Array.isArray(body.sendTo)) {
+    const at = await offeredFor(requisition)
+    const t = readTickEdit({
+      asked: body.sendTo, offered: at.offered, kept: requisition.sendToSupplierIds,
+      out: stageOf(requisition) === 'OPEN', site: at.site,
+    })
+    if (!t.ok) {
+      return NextResponse.json({ error: { code: 'NOT_SENT_THERE', message: t.says, field: t.field } }, { status: 422 })
+    }
+    if (t.changed) {
+      const name = new Map(at.offered.map((f) => [f.id, f.name]))
+      ticks = { ids: t.ids, names: t.ids.map((i) => name.get(i) ?? 'A supplier'), site: at.site }
+    }
+  }
+
   const verdict = mayChange(requisition, changes)
-  const ownerOnly = changes.length === 0 && ownerMoves && mayEdit(requisition)
+  const ownerOnly = changes.length === 0 && (ownerMoves || ticks !== null) && mayEdit(requisition)
 
   if (!verdict.allowed && !ownerOnly) {
     return NextResponse.json(
@@ -652,6 +702,7 @@ export async function PATCH(
   if ('neededBy' in data) data.neededBy = after.neededBy ? new Date(`${String(after.neededBy)}T00:00:00.000Z`) : null
   if (!out && 'costCenterId' in body) data.costCenterId = body.costCenterId || null
   if (ownerMoves) data.ownerId = newOwner!.id
+  if (ticks) Object.assign(data, { sendToSupplierIds: ticks.ids, sendToSetById: caller.person.id, sendToSetAt: new Date() })
 
   // ── The money moved, so the checks run again ───────────────────────
   //
@@ -727,12 +778,17 @@ export async function PATCH(
       data: {
         companyId: requisition.companyId,
         action: 'REQUISITION_CHANGED',
-        summary: changes.length > 0 ? said(changes) : `Changed who it is for — ${newOwner?.name ?? 'nobody'}`,
+        summary: changes.length > 0
+          ? said(changes)
+          : ownerMoves
+            ? `Changed who it is for — ${newOwner?.name ?? 'nobody'}`
+            : `Changed who it goes to — ${ticks?.names.join(', ') ?? 'nobody'}`,
         reason: changes.length > 0 ? verdict.reason : 'Changed before it went out.',
         payload: {
           requirementId: id,
           changes: changes as any,
           ownerId: ownerMoves ? newOwner!.id : undefined,
+          sendTo: ticks ? ticks.ids : undefined,
           reapproved: Boolean(decision),
           // The figure the checks were re-run on, and whether it was
           // stated or estimated — a routing decision nobody can reproduce
@@ -812,6 +868,7 @@ export async function PATCH(
   }
 
   const handedOn = ownerMoves ? ` Now ${newOwner!.name}'s to fill.` : ''
+  const goesTo = ticks ? ` ${goesOnceApprovedSays({ names: ticks.names, everyApproved: false, site: ticks.site })}` : ''
 
   return NextResponse.json({
     data: {
@@ -824,7 +881,7 @@ export async function PATCH(
       suppliersTold: told,
       checks: decision?.checks ?? null,
       // The sentence the rule wrote, which is what the form shows back.
-      message: (changes.length > 0 ? verdict.reason : 'Changed who it is for.') + handedOn,
+      message: (changes.length > 0 ? verdict.reason : ownerMoves ? 'Changed who it is for.' : 'Changed who it goes to.') + handedOn + goesTo,
     },
   })
 }

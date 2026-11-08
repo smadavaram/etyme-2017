@@ -1,3 +1,4 @@
+import { jobBandReadable } from '../band-readable'
 import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
@@ -407,6 +408,7 @@ export async function GET(
     select: {
       id: true, title: true, location: true, billMin: true, billMax: true,
       startDate: true, openingId: true, mirroredFromId: true,
+      companyId: true, payerCompanyId: true,
       mirrors: { select: { id: true } },
     },
   })
@@ -479,8 +481,12 @@ export async function GET(
       title: requirement.title,
       role: {
         location: requirement.location,
-        billMin: requirement.billMin,
-        billMax: requirement.billMax,
+        // The job's own band, to the firm whose job it is and nobody
+        // else: a prime with arrivals on its copy of a client's job reached
+        // this read-back by the client's id and read the client's band.
+        // Rate bands live on the invitation, never on a job another firm
+        // reads (CLAUDE.md).
+        ...bandFor(requirement, companyId),
         startDate: requirement.startDate,
       },
       screened: neverRun ? 0 : results.length,
@@ -547,4 +553,12 @@ function monthsHere(
   )
 
   return { months: monthsOf(days), lastEnded: last }
+}
+
+/** The job's band where the reader's firm raised or pays for it; nothing otherwise. */
+function bandFor(
+  r: { companyId: string; payerCompanyId: string | null; billMin: number | null; billMax: number | null },
+  companyId: string
+): { billMin: number | null; billMax: number | null } {
+  return jobBandReadable(r, companyId) ? { billMin: r.billMin, billMax: r.billMax } : { billMin: null, billMax: null }
 }

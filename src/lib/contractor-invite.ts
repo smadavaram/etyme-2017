@@ -1,3 +1,5 @@
+import { supplierCoverGate, type CoverCertificate } from '@/lib/document-stages'
+import { plainDate } from '@/lib/plain-date'
 import { NO_MAIL_HERE } from '@/lib/notify/mail-leaves'
 
 /**
@@ -289,6 +291,11 @@ export function supplierChoice(f: {
   /** Whether a live block stands on the firm here, with its reason where one was given. */
   blocked: boolean
   blockedReason: string | null
+  /**
+   * The sentence where the firm's cover has lapsed today (`lapsedCoverSays`),
+   * else null. Read on the day the picker is drawn, never stored.
+   */
+  lapsed?: string | null
 }): SupplierChoice {
   if (f.blocked || f.status === 'BLOCKED') {
     const why = (f.blockedReason ?? '').trim().replace(/[.\s]+$/, '')
@@ -297,6 +304,9 @@ export function supplierChoice(f: {
   if (f.status === 'PROSPECT') {
     return { offered: false, why: `${f.name} is not approved yet; it goes through your supplier approvals under Suppliers.` }
   }
+  // Lapsed cover is a block (Addendum E: lapsed supplier insurance), so it
+  // is held back with its sentence before probation, which only warns.
+  if (f.lapsed) return { offered: false, why: f.lapsed }
   if (f.tier === 'PROBATION') {
     return { offered: false, withReason: true, why: probationSays(f.name) }
   }
@@ -325,3 +335,29 @@ export function anyToPick(choices: ReadonlyArray<SupplierChoice>): boolean {
 
 /** Said where the client has no supplier that may take somebody on. */
 export const NO_SUPPLIER_TO_PICK = 'No approved suppliers yet. Approve one under Suppliers, then ask.'
+
+/**
+ * Where a supplier's cover has lapsed today, the sentence the picker holds
+ * it back with; null where nothing has lapsed.
+ *
+ * The founder's tester, 2026-11-08: a certificate that had lapsed still
+ * read "runs out in 20 days", because the count was written down on the
+ * day it was true. So the day is read from regulatory's own reader
+ * (`supplierCoverGate`) on the day the picker is drawn, and a lapsed
+ * certificate says the day it lapsed. Cover that was never filed is not
+ * said here: that is the supplier approvals' question, not a lapse.
+ */
+export function lapsedCoverSays(name: string, certificates: CoverCertificate[], on: Date): string | null {
+  const gate = supplierCoverGate({ supplierName: name, certificates, on })
+  const lapsed = gate.blocking.filter((d) => d.standing === 'EXPIRED')
+  if (lapsed.length === 0) return null
+  const first = lapsed[0]
+  const ends = certificates
+    .filter((c) => c.type === first.key && c.expiresAt)
+    .map((c) => c.expiresAt!.getTime())
+  const day = ends.length > 0 ? plainDate(new Date(Math.max(...ends)).toISOString()) : null
+  const what = lapsed.length === 1 ? `${possessiveOf(name)} ${first.label}` : `${possessiveOf(name)} ${first.label} and ${lapsed.length - 1} more`
+  return `${what} lapsed${day ? ` ${day}` : ''}. Ask them for the renewal before they take anybody on.`
+}
+
+const possessiveOf = (name: string) => (/s$/i.test(name) ? `${name}’` : `${name}’s`)

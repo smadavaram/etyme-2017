@@ -1,7 +1,8 @@
 'use client'
 
 import { missingForApproval, missingSays, day, withoutRepeat, centsTyped, typedFromCents } from './facts'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { goesOnceApprovedSays } from '@/lib/job-site'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
 import { stageOf } from '@/lib/requisition-stage'
@@ -666,6 +667,28 @@ export function EditRequisition({
   // Out to suppliers, read the same way every other screen reads it.
   const out = stageOf(req) === 'OPEN'
 
+  // Who it goes to, drawn as the raise form draws it (the founder's
+  // tester, 2026-11-08: the Edit form showed no supplier section, so the
+  // hiring manager's ticks read as lost). Only before it is out: once it
+  // is with its suppliers, who it went to is on the job's page. Narrow
+  // only: the firms the site sends to, and none other.
+  const [sendTo, setSendTo] = useState<{ offered: { id: string; name: string }[]; site: { name: string; city?: string | null } | null } | null>(null)
+  const [ticked, setTicked] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (out) return
+    let live = true
+    fetch(`/api/requisitions/${req.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const g = j?.data?.goesTo
+        if (!live || !g || !Array.isArray(g.offered)) return
+        setSendTo({ offered: g.offered, site: g.site ?? null })
+        setTicked(new Set(g.ids))
+      })
+      .catch(() => { /* the section is not drawn; the job keeps its ticks */ })
+    return () => { live = false }
+  }, [req.id, out])
+
   /** Empty means "no figure", which is not the same as zero. */
   const cents = (v: string) => centsTyped(v)
   const whole = (v: string) => (v.trim() === '' ? null : Number(v))
@@ -690,6 +713,10 @@ export function EditRequisition({
     const max = cents(billMax)
     if (min !== null && max !== null && min > max) {
       setErr('The bottom of the rate band is above the top of it.')
+      return
+    }
+    if (sendTo && sendTo.offered.length > 0 && ticked.size === 0) {
+      setErr('Leave at least one supplier ticked, or this job goes to nobody once it is approved.')
       return
     }
     if (!work.otherBasis && sponsorship === 'NO' && !sponsorshipPolicy.trim()) {
@@ -720,6 +747,8 @@ export function EditRequisition({
           interviewers: panel,
           // Where the work is done, and whether sponsorship is offered.
           ...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis }),
+          // The ticks, narrowed only; sent only where the section was drawn.
+          ...(sendTo && sendTo.offered.length > 0 ? { sendTo: sendTo.offered.map((f) => f.id).filter((i) => ticked.has(i)) } : {}),
         }),
       })
       const body = await readJson(res)
@@ -846,6 +875,32 @@ export function EditRequisition({
               </>
             )}
           </div>
+          {sendTo && (
+            <div>
+              <label className={label}>Send the job to</label>
+              {sendTo.offered.length > 0 && (
+                <ul className="space-y-1.5">
+                  {sendTo.offered.map((f) => (
+                    <li key={f.id}>
+                      <label className="flex items-center gap-2 text-sm text-etyme-ink">
+                        <input type="checkbox" className="accent-etyme-action" checked={ticked.has(f.id)}
+                          onChange={(e) => {
+                            const next = new Set(ticked)
+                            if (e.target.checked) next.add(f.id)
+                            else next.delete(f.id)
+                            setTicked(next)
+                          }} />
+                        <span>{f.name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-etyme-muted mt-1">
+                {goesOnceApprovedSays({ names: sendTo.offered.filter((f) => ticked.has(f.id)).map((f) => f.name), everyApproved: false, site: sendTo.site })}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={label}>Rate from ($/hr)</label>
