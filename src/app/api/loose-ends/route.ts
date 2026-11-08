@@ -90,8 +90,9 @@ export async function GET(request: NextRequest) {
       // legs. Carried on every subject so a buy-side finding names the
       // buy record in its sentence and still opens somewhere real.
       placementId: s.id,
-      // What is billed against the gap, roughly, so the list sorts by
-      // consequence rather than by row count.
+      // What is billed against the gap, roughly, shown beside it in its
+      // own currency. The list is ranked by severity and age (`rank`),
+      // never by this amount: two currencies are never ranked as raw numbers.
       amountCents: Math.round(s.billRate * 160),
       currency: s.billCurrency,
       since: s.startDate ?? s.createdAt,

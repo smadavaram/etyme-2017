@@ -452,6 +452,56 @@ export function allocate(
   }))
 }
 
+/** An order to spread overhead onto, in the currency its own postings are in. */
+export interface CurrencyTarget extends AllocationTarget {
+  currency: string
+}
+
+export interface CurrencyAllocation extends Allocation {
+  currency: string
+}
+
+export interface OverheadSpread {
+  allocations: CurrencyAllocation[]
+  /** A pot in a currency no order is in: left where it is, and said. */
+  unspread: { currency: string; amountCents: number; says: string }[]
+}
+
+/**
+ * Overhead in several currencies, spread within each.
+ *
+ * Coordinator's call, 2026-11-08, reversible by the founder in a sentence:
+ * two currencies are never added or weighed against each other as raw
+ * numbers. So rupee overhead is spread over the orders billed in rupees,
+ * by their rupee revenue, and dollar overhead over the dollar orders; no
+ * rate is needed and none is guessed. A pot in a currency no order is in
+ * is not moved onto another currency's orders: it is left and said.
+ */
+export function allocateByCurrency(
+  pots: readonly { currency: string; amountCents: number }[],
+  targets: readonly CurrencyTarget[],
+  basis: Basis = 'EVEN',
+): OverheadSpread {
+  const up = (c: string) => (c || 'USD').toUpperCase()
+  const byCurrency = new Map<string, number>()
+  for (const p of pots) byCurrency.set(up(p.currency), (byCurrency.get(up(p.currency)) ?? 0) + p.amountCents)
+  const allocations: CurrencyAllocation[] = []
+  const unspread: OverheadSpread['unspread'] = []
+  for (const [currency, cents] of byCurrency) {
+    if (cents === 0) continue
+    const mine = targets.filter((t) => up(t.currency) === currency)
+    if (mine.length === 0) {
+      unspread.push({
+        currency, amountCents: cents,
+        says: `${moneyOf(Math.abs(cents), currency)} of overhead in ${currency} is not spread: no order here bills in ${currency}, and it is never moved onto another currency's orders.`,
+      })
+      continue
+    }
+    for (const a of allocate(cents, mine, basis, currency)) allocations.push({ ...a, currency })
+  }
+  return { allocations, unspread }
+}
+
 // ── The budget ────────────────────────────────────────────────────────
 
 export interface BudgetStanding {
