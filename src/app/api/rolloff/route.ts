@@ -3,7 +3,8 @@ import { notAtACompany } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { hasAnyPermission } from '@/lib/permissions'
+import { hasAnyPermission, hasPermission } from '@/lib/permissions'
+import { billRateReach } from '@/lib/consultant-portfolio/margin-reach'
 import { rateOnEndingSoon } from '@/lib/releasing-soon'
 import { ENDING_SOON_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { sellContractScope } from '@/lib/resolve-client-company'
@@ -118,9 +119,12 @@ export async function GET(request: NextRequest) {
   // pays, a supplier's price desk reads what it charges, and any other seat
   // reads none (`rateOnEndingSoon`). It was printed for every seat that
   // could open the page.
-  const rate = (c: { billRate: number; companyId: string; clientCompanyId: string }) =>
+  // A seat the Owner gave margin for one team or its own work reads the
+  // price on those lines only (2026-11-08).
+  const lines = hasPermission(caller.permissions, 'margin.read') ? await billRateReach(caller) : null
+  const rate = (c: { id: string; billRate: number; companyId: string; clientCompanyId: string }) =>
     rateOnEndingSoon(
-      { companyId: caller.company?.id ?? null, permissions: caller.permissions },
+      { companyId: caller.company?.id ?? null, permissions: caller.permissions, lines },
       c
     )
 

@@ -79,7 +79,7 @@ describe('a desk that reads no people', () => {
     as(PELLWRIGHT_RECRUITER)
     const no = await json(await profit(req('GET', '/api/bench/profit')))
     expect(no.status).toBe(403)
-    expect(no.body.error.message).toContain('is none of them')
+    expect(no.body.error.message).toContain('has neither. Ask the Owner.')
   })
 })
 

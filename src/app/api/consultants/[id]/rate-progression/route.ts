@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, canReadCostAggregates, askTheDesk, type FieldContext } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { billRateReach, opensLine } from '@/lib/consultant-portfolio/margin-reach'
 import { payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import { progressionFigures } from '@/lib/consultant-portfolio'
@@ -198,6 +199,7 @@ export async function GET(
   }
 
   const progression: ProgressionPoint[] = []
+  const lineReach = may.bill ? await billRateReach(caller) : null
 
   // Match buy and sell contracts by overlapping dates
   for (const bc of buyContracts) {
@@ -215,17 +217,21 @@ export async function GET(
       })
     }
 
+    // The bill rate, and the margin it makes, only on a line the seat's
+    // margin reaches: a team grant reads its team's lines, an own-work
+    // grant its own (2026-11-08).
+    const billHere = may.bill && !!matchedSell && !!lineReach && opensLine(lineReach, matchedSell.id)
     const billRate = matchedSell?.billRate ?? null
     const payRate = may.pay ? bc.payRate : null
-    const margin = may.margin && billRate != null && payRate != null ? billRate - payRate : null
-    const marginPercent = may.margin && billRate != null && payRate != null && billRate > 0
+    const margin = may.margin && billHere && billRate != null && payRate != null ? billRate - payRate : null
+    const marginPercent = may.margin && billHere && billRate != null && payRate != null && billRate > 0
       ? Math.round(((billRate - payRate) / billRate) * 100)
       : null
 
     progression.push({
       date: bc.startDate.toISOString().slice(0, 10),
       payRate,
-      billRate: may.bill ? billRate : null,
+      billRate: billHere ? billRate : null,
       margin,
       marginPercent,
       contractType: bc.contractType,

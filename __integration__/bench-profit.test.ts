@@ -280,8 +280,8 @@ describe('who reads it', () => {
     expect(r.status).toBe(403)
     expect(r.body.data).toBeUndefined()
     expect(r.body.error.message).toBe(
-      'Bench profit at Pellwright Validation Partners is read by the owner, the admin and finance. ' +
-        'Your seat (Recruiter) is none of them. Ask one of them, or ask whoever manages roles there.'
+      'Bench profit at Pellwright Validation Partners is read by the owner, the admin and finance, and by anybody the Owner gives the right to read what placements make. ' +
+        'Your seat (Recruiter) has neither. Ask the Owner.'
     )
   })
 

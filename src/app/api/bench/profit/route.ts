@@ -13,8 +13,11 @@ import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import type { Policy } from '@/lib/bench-policy'
 import {
   mayReadBenchProfit, benchSpell, benchToBill, courseGroup, utilization, moveSaving, policySays, isMove,
+  benchReachSays, FIRM_WIDE_ONLY_SAYS,
   type Earned, type LineSpan, type Placed, type Standing,
 } from '@/lib/bench-profit'
+import { marginReachFor, teamsSay } from '@/lib/money/margin-reach'
+import { benchPeopleInReach } from '@/lib/consultant-portfolio/margin-reach'
 import { benchHolidays } from '../holiday-pay'
 
 /**
@@ -25,8 +28,13 @@ import { benchHolidays } from '../holiday-pay'
  * course, what it cost and what it placed; for an integrator, utilization
  * and what its internal moves cost on the bench.
  *
- * Read by the owner, the admin and the finance desk and by nobody else
- * (`mayReadBenchProfit`). Never a client: a supplier's margin is the one
+ * Read by the owner, the admin and the finance desk, and by anybody the
+ * Owner gives the right to read what placements make, at the reach the
+ * grant gives (`mayReadBenchProfit`, 2026-11-08): a team grant reads the
+ * team's people, an own-work grant the reader's own people, narrowed here
+ * at the query and never only on the screen. A narrowed reader is shown no
+ * course and no utilization, which are figures about the whole firm. Never
+ * a client: a supplier's margin is the one
  * thing it keeps from its client. Every figure is the firm's own — its
  * own lines, its own pay, its own courses — and every person whose pay a
  * figure was worked from is on the access trail before the answer leaves.
@@ -50,11 +58,15 @@ export async function GET(request: NextRequest) {
   const role = caller.context.roleId
     ? await prisma.role.findUnique({ where: { id: caller.context.roleId }, select: { name: true } })
     : null
+  // Over what this seat reads what placements make: the reach
+  // Profitability reads by, the wider of margin.read and pnl.read.
+  const reach = caller.company ? await marginReachFor(caller) : null
   const verdict = mayReadBenchProfit({
     companyName: caller.company?.name ?? 'your firm',
     companyKind: caller.company?.kind ?? null,
     roleName: role?.name ?? null,
     consultantSeat: isConsultantSeat(caller),
+    marginScope: reach?.scope ?? 'NONE',
   })
   if (!verdict.ok) {
     return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
@@ -62,6 +74,13 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
   const now = new Date()
+  // Null for the firm's whole bench; otherwise the people this reader's
+  // grant reaches, and nobody else is read below.
+  const firmWide = verdict.scope === 'COMPANY'
+  const inReach = firmWide
+    ? null
+    : await benchPeopleInReach(companyId, { scope: verdict.scope, unitIds: reach?.unitIds ?? [] }, caller.person.id)
+  const reaches = (personId: string) => inReach == null || inReach.has(personId)
 
   const firm = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
@@ -100,7 +119,7 @@ export async function GET(request: NextRequest) {
     if (!had || l.grantedAt < had) joined.set(l.consultant.personId, l.grantedAt)
   }
   for (const e of employees) names.set(e.personId, e.person.name)
-  const ids = [...names.keys()]
+  const ids = [...names.keys()].filter(reaches)
 
   const [sells, benchPay] = await Promise.all([
     prisma.sellContract.findMany({
@@ -312,7 +331,7 @@ export async function GET(request: NextRequest) {
   const byCourse = new Map<string, typeof enrollments>()
   for (const e of enrollments) byCourse.set(e.course.id, [...(byCourse.get(e.course.id) ?? []), e])
   const courses = []
-  for (const [, seats] of byCourse) {
+  for (const [, seats] of firmWide ? byCourse : new Map<string, typeof enrollments>()) {
     const c = seats[0].course
     const placed = new Map<string, Placed>()
     for (const s of seats) {
@@ -361,7 +380,8 @@ export async function GET(request: NextRequest) {
       const v = standingOf({ personId: pid, name: names.get(pid)!, seat: null, practice: null, skills: [], listed: listed.has(pid), lines }, now)
       return { standing: v.standing as Standing, project: v.on }
     })
-    util = utilization(roster)
+    // Utilization is the firm's whole roster, so a narrowed reader is not shown it.
+    util = firmWide ? utilization(roster) : null
 
     const endedPlaced = await prisma.projectHold.findMany({
       where: { companyId, endedHow: 'PLACED' },
@@ -381,7 +401,7 @@ export async function GET(request: NextRequest) {
         : []
       ).map((x) => [x.id, x.status])
     )
-    const placedHolds = endedPlaced.filter((h) =>
+    const placedHolds = endedPlaced.filter((h) => reaches(h.personId) &&
       isMove({
         placedSellContractId: h.placedSellContractId,
         placedSubmissionId: h.placedSubmissionId,
@@ -432,6 +452,13 @@ export async function GET(request: NextRequest) {
       courses,
       utilization: util,
       moves,
+      // Whose figures these are, said beside every narrowed answer so a
+      // narrowed bench never reads as the firm's. Null for the firm's.
+      reach: {
+        scope: verdict.scope,
+        says: benchReachSays(verdict.scope, teamsSay(reach?.unitNames ?? []), firm.name),
+        firmWideOnly: firmWide ? null : FIRM_WIDE_ONLY_SAYS,
+      },
       basis: [
         'Days on the bench run from the day somebody joined your bench, or the day their last placement here ended, to the day their next one started or today.',
         'What those days cost is your bench pay policy applied to what they are paid on the line that pays them when they bill, for an eight-hour day. Housing and other costs carried for them are not on record, so they are not counted.',

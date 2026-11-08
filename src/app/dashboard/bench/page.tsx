@@ -535,12 +535,16 @@ export default function BenchPage() {
   const [scope, setScope] = useState<BenchScope>(opensOn)
   const [scopeChosen, setScopeChosen] = useState(false)
   // Bench profit (2026-09-30): the owner's, the admin's and the finance
-  // desk's, and drawn for nobody else — the same rule the route refuses by.
+  // desk's, and since 2026-11-08 anybody the Owner gives the right to read
+  // what placements make — the same rule the route refuses by. The session
+  // carries the granted permissions; which people the grant reaches is the
+  // route's to decide, so any reach but none draws the tab.
   const readsProfit = mayReadBenchProfit({
     companyName: session.company?.name ?? 'your firm',
     companyKind: session.company?.kind ?? null,
     roleName: session.roleName,
     consultantSeat: session.contextType === 'CONSULTANT',
+    marginScope: hasPermission(session.permissions, 'margin.read') || hasPermission(session.permissions, 'pnl.read') ? 'PERSON' : 'NONE',
   }).ok
   // A seat that reads people opens on the bench; the finance desk, which
   // reads bench profit and no people, opens on bench profit; a client

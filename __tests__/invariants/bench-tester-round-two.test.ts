@@ -245,7 +245,7 @@ describe('13 · a link to bench profit shows the server’s sentence to a seat t
   it('the recruiter and the client are each refused in a sentence', () => {
     const rec = mayReadBenchProfit({ companyName: 'Pellwright Validation Partners', companyKind: 'VENDOR', roleName: 'Recruiter', consultantSeat: false })
     const client = mayReadBenchProfit({ companyName: 'Corveldt Aerospace', companyKind: 'CLIENT', roleName: 'Owner', consultantSeat: false })
-    expect(rec.ok || rec.message).toContain('Your seat (Recruiter) is none of them.')
+    expect(rec.ok || rec.message).toContain('Your seat (Recruiter) has neither. Ask the Owner.')
     expect(client.ok || client.message).toContain('no client reads it')
   })
 

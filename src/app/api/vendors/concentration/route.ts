@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { readsFirmMargin, firmWideRefusal } from '@/lib/consultant-portfolio/margin-reach'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
@@ -115,6 +116,18 @@ export async function GET(request: NextRequest) {
           message: concentrationRefusal(sells, caller.company?.kind ?? null, caller.company?.name ?? null),
         },
       },
+      { status: 403 }
+    )
+  }
+
+  // The whole firm's turnover and spend, so a seat the Owner gave margin
+  // for one team or for its own work reads none of it (2026-11-08): a
+  // share of the firm's book is not narrowed to a team by reading fewer
+  // rows, it becomes a different figure under the same name.
+  const firmMargin = await readsFirmMargin(caller)
+  if (!firmMargin.firm) {
+    return NextResponse.json(
+      { error: { code: 'FIRM_WIDE', message: firmWideRefusal('Concentration', firmMargin.reach, caller.company?.name ?? 'your firm') } },
       { status: 403 }
     )
   }

@@ -95,6 +95,8 @@ interface Data {
   } | null
   moves: Move[]
   basis: string[]
+  /** Whose figures these are: the firm's, or the team's or own work the Owner's grant reaches (2026-11-08). */
+  reach?: { scope: 'COMPANY' | 'UNIT' | 'PERSON'; says: string | null; firmWideOnly: string | null }
 }
 
 /** A figure, or the words "Not known yet" — never a zero standing in for a blank. */
@@ -241,6 +243,11 @@ export function BenchProfit() {
           What each person’s days on the bench cost, against the margin earned since they were placed.
         </p>
         {data && <p className="text-[12px] text-etyme-muted mb-3">Your bench pay policy: {data.policySays}</p>}
+        {data?.reach?.says && (
+          <p role="note" className="text-[13px] rounded border border-etyme-rule bg-etyme-surface px-3 py-2 mb-3 text-etyme-ink">
+            {data.reach.says}
+          </p>
+        )}
         {said && (
           <p role="status" className={`text-[13px] rounded border px-3 py-2 mb-3 ${said.ok ? 'border-etyme-verified/30 bg-etyme-verified/5' : 'border-etyme-attention/40 bg-etyme-attention/5'} text-etyme-ink`}>
             {said.text}
@@ -282,6 +289,9 @@ export function BenchProfit() {
         <p className="text-[13px] text-etyme-muted mb-3">
           What each course cost, how many it placed, how fast, and the margin they earned.
         </p>
+        {data?.reach?.firmWideOnly ? (
+          <p className="text-[13px] text-etyme-muted">{data.reach.firmWideOnly}</p>
+        ) : (
         <ListSurface
           name="bench-profit-courses"
           columns={courseCols}
@@ -292,6 +302,7 @@ export function BenchProfit() {
           emptyDetail="Add a course under Training, with its price per seat, and enroll people in it."
           exportName="etyme-bench-profit-courses"
         />
+        )}
       </section>
 
       {data?.utilization && (

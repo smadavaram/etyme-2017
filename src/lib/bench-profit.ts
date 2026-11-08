@@ -44,25 +44,42 @@ import { plainDate } from '@/lib/plain-date'
 /** The three desks the founder named, by the role's own name. */
 export const BENCH_PROFIT_DESKS = ['Owner', 'Admin', 'Finance'] as const
 
+/** COMPANY · UNIT · PERSON · NONE, the answer `permissionScope` gives (lib/permission-grants). */
+export type BenchReach = 'COMPANY' | 'UNIT' | 'PERSON' | 'NONE'
+
 export interface BenchProfitReader {
   companyName: string
   companyKind: string | null
   roleName: string | null
   /** True where the seat is a consultant's own, not the firm's staff. */
   consultantSeat: boolean
+  /**
+   * Over what the seat reads what placements make: the wider of
+   * `margin.read` and `pnl.read`, the reach Profitability reads by
+   * (`marginReachFor` in lib/money/margin-reach). The route passes the
+   * real answer. A screen that knows only that the seat holds one of the
+   * two passes any reach but NONE: it decides whether to draw the tab, and
+   * the route decides whose people are on it.
+   */
+  marginScope?: BenchReach
 }
 
 export type BenchProfitVerdict =
-  | { ok: true }
+  | { ok: true; scope: Exclude<BenchReach, 'NONE'> }
   | { ok: false; code: 'NOT_STAFF' | 'NO_COMPANY' | 'CLIENT' | 'NOT_THIS_DESK'; message: string }
 
 /**
- * Whether this seat reads bench profit.
+ * Whether this seat reads bench profit, and over what.
  *
- * Owner, Admin and Finance, and nobody else. A margin is the one figure a
- * supplier keeps from its client (Addendum D), and a bench cost worked
- * backwards from one person is that person's pay, so a recruiter or a
- * delivery engineer is refused in a sentence naming the desks that do.
+ * The owner, the admin and finance read the firm's whole bench, as they
+ * always have. Since 2026-11-08 the Owner may give anybody the right to
+ * read what placements make, for the whole company, for one team, or for
+ * their own work ("The Owner decides who sees what"), and bench profit is
+ * read at exactly that reach: a team's people for a team, the reader's own
+ * people for their own work. Nobody else reads it. A margin is the one
+ * figure a supplier keeps from its client (Addendum D), and a bench cost
+ * worked backwards from one person is that person's pay, so a recruiter
+ * with no grant is refused in a sentence naming who reads it.
  */
 export function mayReadBenchProfit(r: BenchProfitReader): BenchProfitVerdict {
   if (r.consultantSeat) {
@@ -82,14 +99,81 @@ export function mayReadBenchProfit(r: BenchProfitReader): BenchProfitVerdict {
         'the people matched to its job requests.',
     }
   }
-  if (r.roleName && (BENCH_PROFIT_DESKS as readonly string[]).includes(r.roleName)) return { ok: true }
+  if (r.roleName && (BENCH_PROFIT_DESKS as readonly string[]).includes(r.roleName)) return { ok: true, scope: 'COMPANY' }
+  if (r.marginScope && r.marginScope !== 'NONE') return { ok: true, scope: r.marginScope }
   return {
     ok: false, code: 'NOT_THIS_DESK',
     message:
-      `Bench profit at ${r.companyName} is read by the owner, the admin and finance. ` +
-      `Your seat${r.roleName ? ` (${r.roleName})` : ''} is none of them. Ask one of them, or ask whoever manages roles there.`,
+      `Bench profit at ${r.companyName} is read by the owner, the admin and finance, and by anybody the Owner gives the right to read what placements make. ` +
+      `Your seat${r.roleName ? ` (${r.roleName})` : ''} has neither. Ask the Owner.`,
   }
 }
+
+/**
+ * The facts that decide whose people a narrowed reader sees. Every set is
+ * at the reader's own firm; the route reads them.
+ */
+export interface ReachFacts {
+  scope: BenchReach
+  /** The people on the firm's sell lines the reach opens (money's `sellLinesInReach`). */
+  onLinesInReach: readonly string[]
+  /** UNIT: the firm's own people seated in a granted team or a team under it. */
+  seatedInUnits?: readonly string[]
+  /** PERSON: the people the reader put forward. */
+  putForwardByReader?: readonly string[]
+  /** PERSON: the reader, who is their own book. */
+  readerPersonId?: string
+}
+
+/**
+ * Whose people a reader sees on bench profit: null for everybody (the
+ * firm's whole bench), otherwise the set. Pure.
+ *
+ *   COMPANY  everybody
+ *   UNIT     the people on lines charged to or delivered by the team, and
+ *            the firm's own people seated in it
+ *   PERSON   the people on the reader's own placements (worked, sold,
+ *            recruited, put forward and placed), the people the reader put
+ *            forward, and the reader
+ *   NONE     nobody
+ *
+ * Somebody on the bench through a listing alone, with no line and no seat
+ * in a team, belongs to no team, so a team reader does not see them: a
+ * reach the record cannot answer reads as fewer people, never more.
+ */
+export function peopleInReach(f: ReachFacts): Set<string> | null {
+  if (f.scope === 'COMPANY') return null
+  const out = new Set<string>()
+  if (f.scope === 'NONE') return out
+  for (const id of f.onLinesInReach) out.add(id)
+  if (f.scope === 'UNIT') for (const id of f.seatedInUnits ?? []) out.add(id)
+  if (f.scope === 'PERSON') {
+    for (const id of f.putForwardByReader ?? []) out.add(id)
+    if (f.readerPersonId) out.add(f.readerPersonId)
+  }
+  return out
+}
+
+/**
+ * What the page says about whose figures these are, or null for the
+ * firm's. Pure. Said beside every narrowed answer, so a narrowed bench
+ * never reads as the firm's.
+ */
+export function benchReachSays(scope: BenchReach, teams: string, companyName: string): string | null {
+  if (scope === 'UNIT') {
+    return `You read bench profit for ${teams} and every team under it: the people placed through it and the firm’s own people seated in it. ` +
+      `The Owner reads ${companyName}’s whole bench.`
+  }
+  if (scope === 'PERSON') {
+    return `You read bench profit for your own people only: the ones you put forward, sold or recruited. The Owner reads ${companyName}’s whole bench.`
+  }
+  return null
+}
+
+/** Why the course and utilization figures are not shown to a narrowed reader. Pure. */
+export const FIRM_WIDE_ONLY_SAYS =
+  'What a course cost and what it placed, and utilization across projects, are figures about the whole firm, ' +
+  'so they are read by the owner, the admin and finance, and by anybody the Owner gives the whole company’s margin.'
 
 // ── Days ──────────────────────────────────────────────────────────────
 

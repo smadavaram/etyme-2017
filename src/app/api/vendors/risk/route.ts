@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { readsFirmMargin } from '@/lib/consultant-portfolio/margin-reach'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
@@ -95,8 +96,13 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // What the firm bills and pays each counterparty is the firm's whole
+  // book, so it is shown only at the whole company's reach: a seat the
+  // Owner gave margin for one team or its own work sees the standing and
+  // not the money (2026-11-08).
   const seesMoney =
-    hasPermission(caller.permissions, 'margin.read') || hasPermission(caller.permissions, 'pnl.read')
+    (hasPermission(caller.permissions, 'margin.read') || hasPermission(caller.permissions, 'pnl.read')) &&
+    (await readsFirmMargin(caller)).firm
 
   const companyId = caller.company!.id
   const now = new Date()

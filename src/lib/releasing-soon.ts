@@ -254,16 +254,22 @@ export function notYoursToRead(surface: string, company: string | null | undefin
 // `canReadBillRate`): the firm it bills reads what it pays, and the
 // supplier's own seats read it only with the price desk's permission.
 
+//
+// And since 2026-11-08 a supplier's seat may hold margin for one team or
+// for its own work, by the Owner's grant: `lines` then names the lines it
+// reads the price on (`billRateReach` in lib/consultant-portfolio/
+// margin-reach), and a line outside them reads no rate. Absent, the seat's
+// permission decides alone, as before.
+
 export function rateOnEndingSoon(
-  reader: { companyId: string | null; permissions: readonly string[] },
-  line: { billRate: number; companyId: string; clientCompanyId: string }
+  reader: { companyId: string | null; permissions: readonly string[]; lines?: { all: boolean; ids: ReadonlySet<string> } | null },
+  line: { id?: string; billRate: number; companyId: string; clientCompanyId: string }
 ): number | null {
-  return canReadBillRate({
-    permissions: reader.permissions,
-    isClientOnMsa: reader.companyId !== null && reader.companyId === line.clientCompanyId,
-  })
-    ? line.billRate
-    : null
+  const client = reader.companyId !== null && reader.companyId === line.clientCompanyId
+  if (client) return line.billRate
+  if (!canReadBillRate({ permissions: reader.permissions })) return null
+  if (reader.lines && !reader.lines.all && !(line.id && reader.lines.ids.has(line.id))) return null
+  return line.billRate
 }
 
 // ── What a client does about somebody ending ─────────────────────────────

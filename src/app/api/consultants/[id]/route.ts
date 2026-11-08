@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { benchClosedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { billRateReach, opensLine } from '@/lib/consultant-portfolio/margin-reach'
 import { educationShown } from '@/lib/consultant-portfolio/education'
 import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
@@ -174,9 +175,14 @@ export async function GET(
       isSubject,
     }
 
+    // The bill rate is margin.read's field. A seat the Owner gave margin
+    // for one team or for its own work reads it on those lines and on no
+    // other (2026-11-08), so the field is narrowed by the line, not only by
+    // the yes-or-no answer.
+    const lineReach = canReadBillRate(billCtx) ? await billRateReach(caller) : null
     contracts = rawContracts.map((c) => ({
       id: c.id,
-      billRate: canReadBillRate(billCtx) ? c.billRate : undefined,
+      billRate: lineReach && opensLine(lineReach, c.id) ? c.billRate : undefined,
       billCurrency: c.billCurrency,
       state: c.state,
       startDate: c.startDate.toISOString(),
