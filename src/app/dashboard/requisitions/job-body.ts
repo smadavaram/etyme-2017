@@ -22,6 +22,8 @@ export interface JobTyped {
   sponsorship: string
   /** The firm's own words for its policy, asked only when sponsorship is NO. */
   sponsorshipPolicy: string
+  /** The qualification the job asks for, in the manager's words; blank asks none. */
+  requiredQualification: string
   /** The suppliers ticked under "Send the job to", where a site is picked; null where none is. */
   sendTo: string[] | null
   headcount: string
@@ -53,6 +55,9 @@ export function jobBody(t: JobTyped): Record<string, unknown> {
     // would need a visa is held back.
     sponsorship: t.sponsorship === 'NO' ? 'NO' : 'YES',
     ...(t.sponsorship === 'NO' ? { sponsorshipPolicy: t.sponsorshipPolicy.trim() } : {}),
+    // The qualification it asks for; null asks none. Read by the degree
+    // rules as "not what the job asks", which warns and never blocks.
+    requiredQualification: t.requiredQualification.trim() || null,
     // Who it goes to. Sent on the raise where the job clears by rule.
     ...(t.sendTo ? { sendTo: [...t.sendTo] } : {}),
     headcount: parseInt(t.headcount, 10) || 1,
@@ -97,9 +102,12 @@ export function editWorkBody(t: {
   sponsorshipPolicy: string
   /** Set where the job is held back on another basis, so no sponsorship question was drawn. */
   otherBasis: string | null
+  /** The qualification the job asks for, as the edit form holds it; absent where the form does not draw it. */
+  requiredQualification?: string
 }): Record<string, unknown> {
   return {
     workMode: t.workMode || 'ONSITE',
+    ...(t.requiredQualification !== undefined ? { requiredQualification: t.requiredQualification.trim() || null } : {}),
     ...(t.otherBasis ? {} : {
       sponsorship: t.sponsorship === 'NO' ? 'NO' : 'YES',
       ...(t.sponsorship === 'NO' ? { sponsorshipPolicy: t.sponsorshipPolicy.trim() } : {}),

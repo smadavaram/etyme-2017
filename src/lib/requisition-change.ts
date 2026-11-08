@@ -12,7 +12,8 @@
  *
  *   WORDS   title, description, skills, location, needed by,
  *           justification, the panel, where the work is done and
- *           whether sponsorship is offered — say it, tell the suppliers
+ *           whether sponsorship is offered, the qualification asked
+ *           for — say it, tell the suppliers
  *           (who is put forward changes, the money does not)
  *   MONEY   rate band, months, headcount, budget, hours a week — the
  *           checks run again; if anything routes, it waits on the desk
@@ -24,11 +25,11 @@
 
 export type WordField =
   | 'title' | 'description' | 'skills' | 'location' | 'neededBy' | 'justification' | 'interviewers'
-  | 'workMode' | 'sponsorship'
+  | 'workMode' | 'sponsorship' | 'requiredQualification'
 export type MoneyField = 'billMin' | 'billMax' | 'months' | 'headcount' | 'budgetCents' | 'hoursPerWeek'
 export type Field = WordField | MoneyField
 
-export const WORDS: readonly WordField[] = ['title', 'description', 'skills', 'location', 'neededBy', 'justification', 'interviewers', 'workMode', 'sponsorship']
+export const WORDS: readonly WordField[] = ['title', 'description', 'skills', 'location', 'neededBy', 'justification', 'interviewers', 'workMode', 'sponsorship', 'requiredQualification']
 export const MONEY: readonly MoneyField[] = ['billMin', 'billMax', 'months', 'headcount', 'budgetCents', 'hoursPerWeek']
 
 export interface Change {
@@ -105,6 +106,7 @@ const LABEL: Record<Field, string> = {
   title: 'the title', description: 'the description', skills: 'the skills', location: 'the location',
   neededBy: 'the date needed', justification: 'the justification', interviewers: 'the panel',
   workMode: 'where the work is done', sponsorship: 'whether sponsorship is offered',
+  requiredQualification: 'the qualification asked for',
   billMin: 'the rate band', billMax: 'the rate band', months: 'the duration', headcount: 'the headcount',
   budgetCents: 'the budget', hoursPerWeek: 'the hours a week',
 }

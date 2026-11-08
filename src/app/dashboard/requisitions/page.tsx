@@ -244,6 +244,8 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     // Where the work is done, and whether the job offers sponsorship
     // (founder, 2026-11-03: work authorization is checked where the work is done).
     workMode: 'ONSITE', sponsorship: 'YES', sponsorshipPolicy: '',
+    // The qualification it asks for, if any (regulatory's degree rules read it).
+    requiredQualification: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
   // The site and who it goes to (founder, 2026-10-28, the Sites drawing):
@@ -588,6 +590,16 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               </label>
             )}
           </div>
+
+          <label className="block">
+            <Lbl>Qualification it asks for</Lbl>
+            <input value={form.requiredQualification} maxLength={200}
+              onChange={e => setForm({ ...form, requiredQualification: e.target.value })}
+              placeholder="Bachelor’s in mechanical engineering, or leave empty" className={`${field} mt-1`} />
+            <span className="block text-xs text-etyme-muted mt-1">
+              Optional. A degree that is not this is pointed out to HR. It never stops anybody starting.
+            </span>
+          </label>
 
           {siteRead && (
             <div>

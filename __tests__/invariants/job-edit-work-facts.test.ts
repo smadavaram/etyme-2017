@@ -37,7 +37,7 @@ describe('the job edit form asks where the work is done and whether sponsorship 
     expect(CHAIN).toContain("[['ONSITE', 'On site'], ['HYBRID', 'Hybrid'], ['REMOTE', 'Remote']]")
     expect(CHAIN).toContain("[['YES', 'Offered'], ['NO', 'Not offered']]")
     expect(CHAIN).toContain('Your policy, in a few words')
-    expect(CHAIN).toContain('...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis })')
+    expect(CHAIN).toContain('...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis, requiredQualification })')
   })
 
   it('a job that never said where the work is done opens as on site with sponsorship offered, and saving it unchanged changes nothing', () => {

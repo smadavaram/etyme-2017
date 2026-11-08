@@ -83,8 +83,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         { status: 409 }
       )
     }
+    const reason = warned && typeof body?.reason === 'string' ? body.reason.trim() : ''
     if (warned) {
-      const reason = typeof body?.reason === 'string' ? body.reason.trim() : ''
       if (!reason) {
         return NextResponse.json(
           { error: { code: 'VENDOR_TIER_REASON', message: probationAsks(option.name), field: 'reason' } },
@@ -117,9 +117,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
     const approved = { otherCompany: { id: option.companyId, name: option.name } }
+    // The reason, who gave it and when, on the invitation itself, in the
+    // same write that asks the firm: the record a reader reads. The Event
+    // above stays as the trail. Cleared where the firm picked is not on
+    // probation, so an earlier pick's reason never reads as this one's.
     await prisma.contractorInvitation.update({
       where: { id },
-      data: { state: 'REPRESENTED', supplierCompanyId: approved.otherCompany.id },
+      data: {
+        state: 'REPRESENTED',
+        supplierCompanyId: approved.otherCompany.id,
+        ...(warned
+          ? { pickReason: reason, pickedById: caller.person.id, pickedAt: now }
+          : { pickReason: null, pickedById: null, pickedAt: null }),
+      },
     })
     await tellSupplier(approved.otherCompany.id, approved.otherCompany.name)
     return NextResponse.json({

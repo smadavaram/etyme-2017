@@ -140,6 +140,11 @@ export interface Facts {
   asked: Asked[]
   /** Null where the reader holds no desk that reads invoice receipts. */
   receipts: Receipt[] | null
+  /**
+   * Region label → its place in the company's own order (`OrgUnit.position`
+   * on its REGION unit, 1 first). A region with no position is absent.
+   */
+  regionPosition?: ReadonlyMap<string, number>
 }
 
 export interface SpendLine {
@@ -378,11 +383,9 @@ function busy(r: Figures): boolean {
 /**
  * One row per region, each the sum of its cells. The client's home region
  * (where its primary site is) first, the way the home page's map reads a
- * company from where it is run; then most contractors first; "No region
- * set" last.
- *
- * The record keeps no order of its own for regions, so the regions after
- * the first are ordered by size, not by the order the client listed them.
+ * company from where it is run; then the regions in the company's own
+ * order (`OrgUnit.position`, 1 first); then any region with no place in
+ * that order, most contractors first; "No region set" last.
  *
  * A hiring manager is counted once per region they manage in: two plants
  * of one manager in one region are one manager.
@@ -397,8 +400,12 @@ export function regionRows(f: Facts, all: ManagerRow[] = cells(f)): RegionRow[] 
   })
   const primary = f.sites.find((s) => s.primary)
   const home = primary ? regionOfSite(primary) : null
-  const rank = (label: string) => (label === NO_REGION ? 2 : label === home ? 0 : 1)
-  return rows.sort((a, b) => rank(a.label) - rank(b.label) || b.contractors - a.contractors || a.label.localeCompare(b.label))
+  const position = f.regionPosition ?? new Map<string, number>()
+  const rank = (label: string) => (label === NO_REGION ? 3 : label === home ? 0 : position.has(label) ? 1 : 2)
+  const placeOf = (label: string) => position.get(label) ?? 0
+  return rows.sort((a, b) =>
+    rank(a.label) - rank(b.label) || placeOf(a.label) - placeOf(b.label) ||
+    b.contractors - a.contractors || a.label.localeCompare(b.label))
 }
 
 /**

@@ -262,7 +262,9 @@ describe('picking a supplier to take somebody on', () => {
     expect(PICK_ROUTE).toContain("code: 'VENDOR_TIER_REASON', message: probationAsks(option.name), field: 'reason'")
     // The trail first, awaited: no reason recorded, nobody asked.
     const recordAt = PICK_ROUTE.indexOf('const recorded = await emit(')
-    const moveAt = PICK_ROUTE.indexOf("data: { state: 'REPRESENTED'")
+    // The move is the write that asks the firm, which since 2026-11-08 also
+    // carries the reason on the invitation (pickReason, pickedById, pickedAt).
+    const moveAt = PICK_ROUTE.indexOf("state: 'REPRESENTED',\n        supplierCompanyId: approved.otherCompany.id,")
     expect(recordAt).toBeGreaterThan(0)
     expect(recordAt).toBeLessThan(moveAt)
     expect(PICK_ROUTE).toContain('actorPersonId: caller.person.id')

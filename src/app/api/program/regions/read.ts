@@ -331,7 +331,7 @@ async function readFacts(
       select: { id: true, name: true, city: true, state: true, country: true, region: true, isPrimary: true },
       orderBy: { name: 'asc' },
     }),
-    prisma.orgUnit.findMany({ where: { companyId: client.id }, select: { id: true, name: true, kind: true, parentId: true } }),
+    prisma.orgUnit.findMany({ where: { companyId: client.id }, select: { id: true, name: true, kind: true, parentId: true, position: true } }),
     prisma.context.findMany({
       where: { companyId: client.id, revokedAt: null, orgUnit: { kind: 'REGION' } },
       select: { person: { select: { name: true } }, orgUnit: { select: { name: true } } },
@@ -533,7 +533,11 @@ async function readFacts(
     leads.set(s.orgUnit.name, [...(leads.get(s.orgUnit.name) ?? []), s.person.name].sort())
   }
 
-  return { sites, leads, onSite, held, open, weeks, asked, receipts, limitMonths }
+  // Each region's place in the company's own order, where it set one.
+  const regionPosition = new Map(
+    units.filter((u) => u.kind === 'REGION' && u.position != null).map((u) => [u.name, u.position as number])
+  )
+  return { sites, leads, onSite, held, open, weeks, asked, receipts, limitMonths, regionPosition }
 }
 
 function managerOf(p: { id: string; name: string } | null): Manager {

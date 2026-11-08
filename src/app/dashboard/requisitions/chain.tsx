@@ -615,6 +615,8 @@ export interface EditableRequisition {
   workAuthRequired?: string | null
   workAuthBasis?: string | null
   workAuthCite?: string | null
+  /** The qualification the job asks for; null asks none. */
+  requiredQualification?: string | null
 }
 
 /**
@@ -659,6 +661,7 @@ export function EditRequisition({
   const [workMode, setWorkMode] = useState<string>(work.workMode)
   const [sponsorship, setSponsorship] = useState<string>(work.sponsorship)
   const [sponsorshipPolicy, setSponsorshipPolicy] = useState(work.sponsorshipPolicy)
+  const [requiredQualification, setRequiredQualification] = useState(req.requiredQualification ?? '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   /** The route's own sentence, once it has saved. */
@@ -746,7 +749,7 @@ export function EditRequisition({
           // round starts with it. Never a form whose answer is thrown away.
           interviewers: panel,
           // Where the work is done, and whether sponsorship is offered.
-          ...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis }),
+          ...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis, requiredQualification }),
           // The ticks, narrowed only; sent only where the section was drawn.
           ...(sendTo && sendTo.offered.length > 0 ? { sendTo: sendTo.offered.map((f) => f.id).filter((i) => ticked.has(i)) } : {}),
         }),
@@ -874,6 +877,15 @@ export function EditRequisition({
                 )}
               </>
             )}
+          </div>
+          <div>
+            <label className={label} htmlFor="edit-required-qualification">Qualification it asks for</label>
+            <input id="edit-required-qualification" className={field} maxLength={200} value={requiredQualification}
+              onChange={e => setRequiredQualification(e.target.value)}
+              placeholder="Bachelor’s in mechanical engineering, or leave empty" />
+            <p className="text-xs text-etyme-muted mt-1">
+              Optional. A degree that is not this is pointed out to HR. It never stops anybody starting.
+            </p>
           </div>
           {sendTo && (
             <div>

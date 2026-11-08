@@ -97,6 +97,7 @@ const JOB: JobTyped = {
   billMin: '28', billMax: '34', months: '6', neededBy: '2026-11-16', description: 'Second shift.',
   justification: 'Backfill for the Q4 line.', costCenterId: 'cc_ops', ownerId: 'p_marcus', panel: ['Marcus Hollins', ' Dana Whitfield ', 'Marcus Hollins'],
   workMode: 'HYBRID', sponsorship: 'NO', sponsorshipPolicy: ' We do not sponsor work visas for this role ',
+  requiredQualification: ' Bachelor’s in mechanical engineering ',
 }
 
 describe('every question the raise asks, the job request form has a field for, and nothing the form asks is thrown away', () => {

@@ -1,3 +1,4 @@
+import { readQualification } from './qualification'
 import { NextRequest, NextResponse } from 'next/server'
 import { panelFrom } from './panel'
 import { readWorkFacts } from './work-facts'
@@ -233,6 +234,9 @@ export async function POST(request: NextRequest) {
     // Where the work is done (ONSITE · HYBRID · REMOTE), and whether the
     // job offers sponsorship, with the firm's own words where it does not.
     workMode, sponsorship, sponsorshipPolicy,
+    // The qualification the job asks for, in the hiring manager's words;
+    // regulatory's degree rules read it (warn, never block).
+    requiredQualification,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -247,6 +251,14 @@ export async function POST(request: NextRequest) {
   if (!work.ok) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: work.says, field: work.field } },
+      { status: 422 }
+    )
+  }
+
+  const qualification = readQualification(requiredQualification)
+  if (!qualification.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: qualification.says, field: qualification.field } },
       { status: 422 }
     )
   }
@@ -522,6 +534,7 @@ export async function POST(request: NextRequest) {
         // Where the work is done; null where the caller did not say, which
         // reads as onsite (lib/work-country).
         workMode: work.facts.workMode,
+        requiredQualification: qualification.value,
         // No sponsorship offered: the restriction lib/work-authorisation
         // reads, with its basis and the firm's words, so it holds back only
         // somebody who would need a visa filed.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { mayApplyFromAdvert } from '@/lib/work-authorisation'
 import { getSessionEmail } from '@/lib/api-context'
+import { qualificationFromText } from '@/app/api/requisitions/qualification'
 
 /**
  * POST /api/requirements/parse
@@ -167,6 +168,10 @@ function extractFields(text: string): Record<string, FieldResult> {
   } else {
     fields.workAuth = { value: null, confidence: 0, flagged: true }
   }
+
+  // The qualification the job asks for, read by rules: a labeled line as
+  // written, else the first degree named, flagged for a person to confirm.
+  fields.requiredQualification = qualificationFromText(text)
 
   return fields
 }
