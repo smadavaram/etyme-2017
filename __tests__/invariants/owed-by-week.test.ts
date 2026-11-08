@@ -520,7 +520,7 @@ describe("the worker's page prices her pay with payroll's own functions", () => 
     expect(route).toContain('acceptanceForPay(t.assertions, t, bc.companyId)')
     // The method a line is paid on is the one payroll reads off the line.
     expect(route).toContain('methodFor(bc).method')
-    expect(route).toContain('wageLineFor(bc,')
+    expect(route).toContain('wageLineFor({ ...bc, payCurrency: pay.payCurrency ?? bc.payCurrency },')
   })
 
   it('the weekly line on her page is the one payroll judges pay on, the law\u2019s forty included, never a line of its own', () => {

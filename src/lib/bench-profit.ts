@@ -349,8 +349,10 @@ export function costOfDays(input: {
       why: 'no pay rate is on record for them',
     }
   }
-  const daily = burnOf({ payRateCents: input.payRateCents, billing: false, benchSince: new Date(0) }, new Date(0)).dailyCents!
-  const c = benchCost(policy, {
+  const daily = burnOf({ payRateCents: input.payRateCents, billing: false, benchSince: new Date(0) }, new Date(0), input.currency).dailyCents!
+  // The policy is applied to amounts in the person's own pay currency, so a
+  // bench day paid in rupees costs rupees (lib/bench-policy `Policy.currency`).
+  const c = benchCost({ ...policy, currency: input.currency }, {
     idleDays: days, billingDayRateCents: daily, since: input.since ?? null, holidayPay: input.holidayPay ?? null,
   })
   const how =

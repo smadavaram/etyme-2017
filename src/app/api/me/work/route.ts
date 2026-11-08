@@ -630,7 +630,9 @@ export async function GET(request: NextRequest) {
       if (!paidByPayroll(bc)) continue
       const book = paidBy.get(bc.id)
       const row = bc.exemptAssertions.find((a) => a.personId === personId)
-      const wage = wageLineFor(bc, caller.person.name, row)
+      // In her own pay line's currency, else the line's: a worker paid in
+      // pounds reads her own overtime in pounds (money's wageLineFor).
+      const wage = wageLineFor({ ...bc, payCurrency: pay.payCurrency ?? bc.payCurrency }, caller.person.name, row)
       const mine = accepted.filter((t) => sellOf.get(t.sellContractId)?.companyId === bc.companyId)
       // One call per placement, because the weekly line may be the
       // placement's own where the pay line names none.
