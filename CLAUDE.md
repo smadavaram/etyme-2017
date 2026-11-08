@@ -1887,6 +1887,31 @@ public page and `/site/tapin` 200; the inbound email door 404 to a POST.
 Walked on production afterward per decision 10, not before; walk 7's
 brief is `scratchpad/walk7-brief.md`.
 
+**Walk 7, the same day, on a local copy of 609ea2228 (27 checks: 17
+saved and proven, 4 refused rightly, 4 failed, 2 not proven), said: do
+not ship as "the tester's blockers are closed".** The papers flow works
+on screens end to end: a worker's own I-9 reaches HR as "Arrived, not
+examined" and is accepted with the document shown, a provider's verdict
+is recorded verbatim, "Ask <worker>" sends and refuses a report she does
+not hold, Activate refuses in the route's sentence and starts once the
+papers hold; the AP clerk checks a bank where no Finance seat exists and
+pays on the page and in Ask Etyme; the send-to ticks persist, a lapsed
+certificate reads lapsed, Kwame reads past the limit, Helena's weeks
+show on both sides, every first click navigates, Reports and the
+forecast open and are refused to a client and a recruiter, Give access
+to a person saves and revokes, the switch works on three seats. Two
+faults stop it, both money and both in production: the Bills page's
+duplicate-drafts read selects a column `Invoice` does not have, so it
+answers 500 on every open and the duplicate-draft fix never draws; and a
+typed-in invoice receipt pays a firm whose bank nobody checked
+(`PATCH /api/ap/bills` never reads the bank gate). Also: the twin
+writes a bank hold as an hours mismatch (money); the pay card says Pay
+over a bank hold (demand); Document requests' "At your suppliers" and
+"Waiting on you" miss what the placement and Paperwork show
+(regulatory). Report `scratchpad/walk-saves/report7.md`. Money fixes the
+three money faults first; the fix deploy follows their green files and
+a short re-walk of items 5, 6 and 11.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
