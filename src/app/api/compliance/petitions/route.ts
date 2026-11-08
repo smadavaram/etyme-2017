@@ -111,6 +111,8 @@ export async function POST(request: NextRequest) {
     const page = await prisma.visaPetition.create({
       data: {
         personId, type, country, status: 'ACTIVE', filedAt: from, approvedAt: from, expiresAt: to,
+        // The employer as the school spelled it on the CPT page, which the start rule reads.
+        employerNamed,
         events: { create: { eventType: 'FILED', occurredAt: from, notes: employerNamedNote(employerNamed, notes ?? `CPT authorized by the school, recorded by ${caller.company!.name}.`) } },
       },
       select: { id: true },
@@ -126,7 +128,9 @@ export async function POST(request: NextRequest) {
       personId, type, country, status: 'FILED', filedAt,
       worksiteAddress: typeof body.worksiteAddress === 'string' ? body.worksiteAddress : null,
       petitionedArea: typeof body.petitionedArea === 'string' ? body.petitionedArea : null,
-      // Which firm filed it, in the words the start reads (no column holds it yet).
+      // Which firm filed it: the column the start rule reads by id, and the
+      // words on the FILED event that a petition recorded before it is read by.
+      ...(type === 'H1B' ? { petitionerCompanyId: caller.company!.id } : {}),
       events: { create: { eventType: 'FILED', occurredAt: filedAt, notes: type === 'H1B' ? employerNamedNote(caller.company!.name, notes) : notes } },
     },
     select: { id: true },

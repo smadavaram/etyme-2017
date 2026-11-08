@@ -404,6 +404,7 @@ class Planner {
     const where = live ? this.firm(live.clientId) : null
     this.out.petitions.push({
       id, personId: p.facts.id, type: 'H1B', country: 'US', status,
+      petitionerCompanyId: petitioner?.id ?? null,
       filedAt: filed, approvedAt: ['APPROVED', 'STAMPED', 'ACTIVE', 'EXPIRING', 'EXPIRED'].includes(status) ? approved : null,
       expiresAt: expires,
       worksiteAddress: where ? (where.sites.find((s) => s.primary)?.city ?? null) : null,
@@ -436,6 +437,7 @@ class Planner {
     const status = done ? statusByDay(expires!, this.today) : 'FILED'
     this.out.petitions.push({
       id, personId: p.facts.id, type: 'H1B', country: 'US', status,
+      petitionerCompanyId: employer.id,
       filedAt: filed, approvedAt: done ? approved : null, expiresAt: done ? expires : null,
       worksiteAddress: this.firm(live.clientId)?.sites.find((s) => s.primary)?.city ?? null,
       transferOk: done,
@@ -503,7 +505,7 @@ class Planner {
         const to = r() < lapsedShare ? day(-between(r, 3, 40)) : day(between(r, 95, 300))
         this.statusRecord(p, 'F1_CPT', from, to, employerNamedNote(named.name, 'CPT authorized by the school’s designated official on the I-20.'), [
           { docType: 'I20_CPT', file: 'i20-cpt-page.pdf' },
-        ])
+        ], named.name)
         this.passport(p, seat, r)
         return
       }
@@ -565,11 +567,13 @@ class Planner {
   }
 
   /** A student's status record (the I-20, CPT or OPT) with its dates, kept beside the petitions. */
-  private statusRecord(p: PersonPlan, type: string, from: Date, to: Date, notes: string, docs: { docType: string; file: string }[]): void {
+  private statusRecord(p: PersonPlan, type: string, from: Date, to: Date, notes: string, docs: { docType: string; file: string }[], employerNamed: string | null = null): void {
     const id = idFor(pkey(p, `class/${type}`))
     const filed = earliest(from, day(-1))
     this.out.petitions.push({
       id, personId: p.facts.id, type, country: 'US', status: statusByDay(to, this.today),
+      // The employer the I-20's CPT page names, as the school spelled it.
+      employerNamed,
       filedAt: filed, approvedAt: from, expiresAt: to, worksiteAddress: null, transferOk: false,
     })
     this.out.visaEvents.push({ id: idFor(`${pkey(p, `class/${type}`)}/event/0`), petitionId: id, eventType: 'FILED', occurredAt: filed, notes, createdAt: filed })

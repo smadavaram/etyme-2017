@@ -48,8 +48,17 @@ export function factsFrom(input: {
   workAuth: string | null
   permits: { validFrom: Date | null; issuedAt?: Date | null; expiresAt: Date | null; status: string; result: unknown }[]
   i94: { expiresAt: Date | null; status: string; result: unknown }[]
-  petitions: { type: string; status: string; filedAt: Date | null; approvedAt: Date | null; expiresAt: Date | null; events: { eventType: string; notes: string | null }[] }[]
+  petitions: {
+    type: string; status: string; filedAt: Date | null; approvedAt: Date | null; expiresAt: Date | null
+    /** The firm that petitioned, by id and name, where the column holds it. */
+    petitionerCompanyId?: string | null
+    petitionerName?: string | null
+    /** The employer the I-20's CPT page names, as the school spelled it, where the column holds it. */
+    employerNamed?: string | null
+    events: { eventType: string; notes: string | null }[]
+  }[]
   employerName: string | null
+  employerCompanyId?: string | null
 }): PersonClassFacts {
   const held = (s: string) => s === 'CLEAR' || s === 'CONDITIONAL'
   const permits: PermitFact[] = input.permits.filter((p) => held(p.status)).map((p) => {
@@ -70,11 +79,16 @@ export function factsFrom(input: {
     events.map((e) => employerNamedIn(e.notes)).find((n): n is string => !!n) ?? null
   const cpt: CptFact[] = input.petitions
     .filter((p) => p.type.toUpperCase() === CPT_RECORD && !['DENIED', 'EXPIRED'].includes(p.status.toUpperCase()))
-    .map((p) => ({ employerNamed: named(p.events), from: p.approvedAt ?? p.filedAt, to: p.expiresAt }))
+    .map((p) => ({ employerNamed: p.employerNamed ?? named(p.events), from: p.approvedAt ?? p.filedAt, to: p.expiresAt }))
   const petitions: PetitionFact[] = input.petitions
     .filter((p) => p.type.toUpperCase() === 'H1B')
-    .map((p) => ({ petitionerName: named(p.events), status: p.status, filedAt: p.filedAt, expiresAt: p.expiresAt }))
-  return { personName: input.personName, cls: classOfWorkAuth(input.workAuth), employerName: input.employerName, permits, i94, cpt, petitions }
+    .map((p) => ({
+      // The column first; a petition recorded before it keeps the name its FILED event wrote.
+      petitionerCompanyId: p.petitionerCompanyId ?? null,
+      petitionerName: p.petitionerName ?? named(p.events),
+      status: p.status, filedAt: p.filedAt, expiresAt: p.expiresAt,
+    }))
+  return { personName: input.personName, cls: classOfWorkAuth(input.workAuth), employerName: input.employerName, employerCompanyId: input.employerCompanyId ?? null, permits, i94, cpt, petitions }
 }
 
 /** Every person's facts, in six reads however many people. */
@@ -94,6 +108,7 @@ export async function workerClassFactsFor(personIds: string[], db: Db): Promise<
       where: { personId: { in: ids } },
       select: {
         personId: true, type: true, status: true, filedAt: true, approvedAt: true, expiresAt: true,
+        petitionerCompanyId: true, employerNamed: true, petitioner: { select: { name: true } },
         events: { where: { eventType: 'FILED' }, select: { eventType: true, notes: true }, orderBy: { occurredAt: 'asc' } },
       },
       orderBy: { id: 'asc' },
@@ -101,13 +116,13 @@ export async function workerClassFactsFor(personIds: string[], db: Db): Promise<
     // The firm that pays the person on its own payroll: a buy line with no vendor below.
     db.buyContract.findMany({
       where: { vendorCompanyId: null, state: { in: [...PAYROLL_STATES] }, candidates: { some: { personId: { in: ids } } } },
-      select: { createdAt: true, company: { select: { name: true } }, candidates: { select: { personId: true } } },
+      select: { createdAt: true, company: { select: { id: true, name: true } }, candidates: { select: { personId: true } } },
       orderBy: { createdAt: 'desc' },
     }),
   ])
   const auth = new Map(profiles.map((p) => [p.personId, p.workAuth]))
-  const employerOf = new Map<string, string>()
-  for (const b of payroll) for (const c of b.candidates) if (!employerOf.has(c.personId)) employerOf.set(c.personId, b.company.name)
+  const employerOf = new Map<string, { id: string; name: string }>()
+  for (const b of payroll) for (const c of b.candidates) if (!employerOf.has(c.personId)) employerOf.set(c.personId, b.company)
   for (const p of people) {
     const mine = verifications.filter((v) => v.personId === p.id)
     out.set(p.id, factsFrom({
@@ -115,8 +130,9 @@ export async function workerClassFactsFor(personIds: string[], db: Db): Promise<
       workAuth: auth.get(p.id) ?? null,
       permits: mine.filter((v) => v.type === 'WORK_PERMIT'),
       i94: mine.filter((v) => v.type === 'I94'),
-      petitions: petitions.filter((v) => v.personId === p.id),
-      employerName: employerOf.get(p.id) ?? null,
+      petitions: petitions.filter((v) => v.personId === p.id).map((v) => ({ ...v, petitionerName: v.petitioner?.name ?? null })),
+      employerName: employerOf.get(p.id)?.name ?? null,
+      employerCompanyId: employerOf.get(p.id)?.id ?? null,
     }))
   }
   return out

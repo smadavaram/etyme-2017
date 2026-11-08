@@ -265,6 +265,8 @@ export interface CptFact {
 export interface PetitionFact {
   /** The firm that filed it, as recorded; null where nobody recorded it. */
   petitionerName: string | null
+  /** The firm that filed it, by id (`VisaPetition.petitionerCompanyId`); null on a petition recorded before the column. */
+  petitionerCompanyId?: string | null
   status: string
   filedAt: Date | null
   expiresAt?: Date | null
@@ -284,6 +286,8 @@ export interface WorkerClassFacts {
   on: Date
   /** The firm that pays the person (the payroll line's firm), where known. */
   employerName: string | null
+  /** The same firm, by id, where known: what a petition's petitioner is compared with first. */
+  employerCompanyId?: string | null
   permits?: PermitFact[]
   cpt?: CptFact[]
   petitions?: PetitionFact[]
@@ -441,13 +445,17 @@ export function workerClassStart(f: WorkerClassFacts): WorkerClassDecision {
 
     case 'H1B': {
       const petitions = (f.petitions ?? []).filter((p) => !['DENIED', 'EXPIRED'].includes(p.status.toUpperCase()))
-      const named = petitions.filter((p) => p.petitionerName)
+      const named = petitions.filter((p) => p.petitionerCompanyId || p.petitionerName)
       if (named.length === 0) {
         say('H1B_PETITIONER_UNKNOWN', `The record does not say which firm petitioned for ${who}’s H-1B. Check the I-797 names ${employer}.`)
         break
       }
-      if (!f.employerName || named.some((p) => sameFirm(p.petitionerName, f.employerName))) break
-      const by = [...new Set(named.map((p) => p.petitionerName!))]
+      if (!f.employerName && !f.employerCompanyId) break
+      // By id where both are on the record; by the name as written where either is not.
+      const forUs = (p: PetitionFact) =>
+        p.petitionerCompanyId && f.employerCompanyId ? p.petitionerCompanyId === f.employerCompanyId : sameFirm(p.petitionerName, f.employerName)
+      if (named.some(forUs)) break
+      const by = [...new Set(named.map((p) => p.petitionerName ?? 'another firm'))]
       say('H1B_OTHER_PETITIONER', `${who}’s H-1B was filed by ${by.join(' and ')}, not ${employer}. ${employer} may start ${who} once its own petition is filed: record the filing receipt.`)
       break
     }
