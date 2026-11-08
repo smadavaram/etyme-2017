@@ -1544,6 +1544,16 @@ header flip of 2026-11-04 and keeps everything else in "One app, two views".
   it, though at a client HR is also a role; the first tab is Dashboard for
   roles that clear queues all day (AP, coordinators) and Ask Etyme for the
   rest, each person's last choice remembered on the device.
+- **Money is Accounting, decided by the founder, 2026-11-08** ("Instead of
+  money, call it Accounting: Receivables, Payables, Payroll, Reports").
+  This replaces the coordinator's call above: the group is **Accounting**
+  and its links are **Receivables** (what the firm bills upward: the
+  Bills page), **Payables** (what it receives from below: the Invoice
+  receipts page), **Payroll** and **Reports**. The words inside those
+  pages keep the trade's rule (a bill issued, an invoice receipt
+  received); only the menu names the accountant's two ledgers. A client
+  reads Accounting with Payables and Reports only. Reports leaves Today
+  for here. Profitability stays its own link until he says otherwise.
 - **Left out of Copilot on purpose**: Library, Agents, Notebooks, the model
   picker, the grid and task icons.
 - **Not changed**: routes, rules, the approval route, the ledger, every read
