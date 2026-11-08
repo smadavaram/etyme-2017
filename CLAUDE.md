@@ -1515,6 +1515,44 @@ the worker told about her degree, the headings, a one-person firm's
 own expense) finishes its release pass and deploy as fixes; nothing
 new is built on this vision until the founder has read the drawing.
 
+## One app, two tabs: Ask Etyme | Dashboard at the top of the left column — the founder, 2026-11-08
+
+"Build it", on the second drawing (https://claude.ai/artifact/M8bP6g59S351VDsdg5FMum), after he sent Copilot's
+screen (a Chat | Cowork switch over a left rail) and asked for it with the
+dashboard in Cowork's place and "don't lose our branding". This replaces the
+header flip of 2026-11-04 and keeps everything else in "One app, two views".
+- **One switch, top of the left column, in both views**: "Ask Etyme" with the
+  seat's number, and "Dashboard". The header is the logo, the company and
+  role, and the account menu (the hats). No flip in the header.
+- **The left column stays.** In Ask Etyme: New conversation, search, Pinned
+  (the person's saved questions, three per role to start), then the
+  conversations. In Dashboard: the role's menu. On a phone the switch is
+  the first row under the header.
+- **Dashboard's Today is the queue**: each decision a row with Yes and Not
+  now, "Yes to all N" for a batch, all through the one approval route, so a
+  card in the chat and a row here are one decision and the number cannot
+  disagree. This is the path for the principle "100 transactions a day".
+- **The menu follows the founder's sketch**: Network (Candidates, Companies)
+  · Jobs · Submissions · HR (Contracts, Timesheets, Expenses) · Money
+  (Bills, Invoice receipts, Payroll) · Profitability · Settings, each link
+  drawn only where the role's permissions do that work. Profitability is a
+  page (margin before admin cost and commission, cut by consultant,
+  recruiter, office or client) and a question to Ask Etyme.
+- **Three coordinator's calls, each reversible in a sentence** (the founder
+  has not answered them): Money keeps the trade's words Bills and Invoice
+  receipts, not Receivables and Payables; the group is called HR as he drew
+  it, though at a client HR is also a role; the first tab is Dashboard for
+  roles that clear queues all day (AP, coordinators) and Ask Etyme for the
+  rest, each person's last choice remembered on the device.
+- **Left out of Copilot on purpose**: Library, Agents, Notebooks, the model
+  picker, the grid and task icons.
+- **Not changed**: routes, rules, the approval route, the ledger, every read
+  logged, the hats, the words, every page's address.
+- **Built in this order**: the switch, the left column and the menu's groups
+  (architect, `lib/nav-table`, the shell); Pinned questions and the chat's
+  rail and Today's decision rows (conversation, with demand and money for
+  the rows); Profitability's page (money). Then a release pass and a walk.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
