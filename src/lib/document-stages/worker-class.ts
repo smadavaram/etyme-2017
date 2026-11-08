@@ -387,7 +387,7 @@ export function workerClassStart(f: WorkerClassFacts): WorkerClassDecision {
     case 'F1_CPT': {
       const cpts = f.cpt ?? []
       if (cpts.length === 0) {
-        say('CPT_NONE', `${who} is on CPT, and no I-20 with a CPT page is on the record. Record the page the school endorsed, naming ${employer}, before the start.`)
+        say('CPT_NONE', `${who} is on CPT, and no I-20 with a CPT page is on the record. Record the page the school endorsed, naming ${employer}, on Compliance under Visas before the start.`)
         break
       }
       const forUs = cpts.filter((c) => sameFirm(c.employerNamed, f.employerName))

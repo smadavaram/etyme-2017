@@ -6,7 +6,8 @@ import { prisma } from '@/lib/db'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { EMPLOYER_COMPLETES } from '@/lib/document-stages/employer'
 import { arrivalReads } from '@/lib/document-stages/paper-doors'
-import { arrivedAtSuppliers } from '@/lib/document-stages/arrived-papers'
+import { arrivedAtSuppliers, waitingOnYou, paperIdOfFileUrl } from '@/lib/document-stages/arrived-papers'
+import { startSentenceAboutNow, startedOn } from '@/lib/document-stages/start-day'
 import { employedPairs } from '@/app/api/compliance/verifications/record'
 import { mayAskForDocuments, packetsForKind } from '@/lib/packets'
 import { logBulkAccess } from '@/lib/access-log'
@@ -175,6 +176,18 @@ export async function GET(request: NextRequest) {
     return arrivalReads({ readerCompanyId: caller.company!.id, holderCompanyId: caller.company!.id, holderName: caller.company!.name, key, employerCompanyId: employerId, employerName: employerNames.get(employerId) ?? null }).says
   }
 
+  // A start sentence stored on an older request is said today, about the
+  // person (walk 7: HR read "You are due to start … on 2026-08-09" in
+  // November). One read of the lines of everybody such a request is about.
+  const startPeople = [...new Set(packets.filter((p) => p.subjectPerson && p.reopenedReason && /due to start/.test(p.reopenedReason)).map((p) => p.subjectPerson!.id))]
+  const startLines = startPeople.length
+    ? await prisma.sellContract.findMany({ where: { personId: { in: startPeople } }, select: { personId: true, startDate: true, state: true }, take: 2000 })
+    : []
+  const reasonToday = (p: (typeof packets)[number], reason: string | null) =>
+    p.subjectPerson
+      ? startSentenceAboutNow(reason, p.subjectPerson.name, now, (day) => startedOn(startLines.filter((l) => l.personId === p.subjectPerson!.id), day))
+      : reason
+
   // The link is the credential: shown only to a seat that may ask for
   // papers, which is the seat that sends it on (2026-11-03: a row opened
   // nothing, so a stuck request's link could not be found again).
@@ -202,11 +215,11 @@ export async function GET(request: NextRequest) {
       askedAt: p.createdAt.toISOString().slice(0, 10),
       progress,
       completedAt: p.completedAt?.toISOString().slice(0, 10) ?? null,
-      reopenedReason: requestReasonNow(
+      reopenedReason: reasonToday(p, requestReasonNow(
         { packetKey: p.packetKey, reopenedReason: p.reopenedReason, subjectPersonId: p.subjectPerson?.id ?? null, askerName: caller.company!.name },
         (personId) => credentials.filter((c) => c.personId === personId),
         now,
-      ),
+      )),
       expiresInDays: daysLeft,
       // A request whose link has expired is one the recipient can no longer
       // act on, which looks identical to them ignoring it.
@@ -292,13 +305,24 @@ export async function GET(request: NextRequest) {
     ? await arrivedAtSuppliers({ clientCompanyId: caller.company.id, actorPersonId: caller.person.id })
     : []
 
+  // ── Waiting on you: the one count Paperwork reads too ──
+  // Walk 7, 2026-11-08: a worker's own upload, answering no request, read
+  // "2 papers … waiting on you" on Paperwork and "Waiting on you 0" here.
+  // Both read `waitingOnYou`; a paper that waits and answers no request on
+  // this page is counted and said, with Paperwork as the place to open it.
+  const waiting = await waitingOnYou({ companyId: caller.company.id, personId: caller.person.id, permissions: caller.permissions ?? [] })
+  const onARequest = new Set(rows.flatMap((r) => r.arrived.map((a) => a.paperId).filter((x): x is string => !!x)))
+  const outsideRequests = waiting.paperIds.filter((id) => !onARequest.has(id)).length
+
   return NextResponse.json({
     data: {
       atSuppliers,
       packets: rows,
       // The three things somebody would actually act on.
       open: rows.filter((r) => !r.completedAt && !r.linkExpired).length,
-      awaitingReview: rows.reduce((n, r) => n + r.awaitingReview, 0),
+      awaitingReview: waiting.count,
+      // Of those, the papers that answer no request here: opened on Paperwork.
+      waitingOutsideRequests: outsideRequests,
       stale: rows.filter((r) => !r.completedAt && r.linkExpired).length,
       available: offer.offered.map((p) => ({
         key: p.key,
@@ -674,8 +698,5 @@ export async function POST(request: NextRequest) {
 }
 
 /** The paper an answer is kept as: its file lives at /api/documents/<id>/file. */
-function paperIdOf(fileUrl: string | null): string | null {
-  const m = fileUrl ? /^\/api\/documents\/([^/]+)\/file$/.exec(fileUrl) : null
-  return m ? m[1] : null
-}
+const paperIdOf = paperIdOfFileUrl
 

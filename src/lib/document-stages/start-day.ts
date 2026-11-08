@@ -53,3 +53,37 @@ export function startSentenceNow(reason: string | null, now: Date, running: (sta
   const clientName = m[1] ? m[1].slice(' at '.length) : null
   return reason.replace(m[0], startDaySays({ startDate, now, running: running(startDate), clientName }))
 }
+
+/** The start day said about a person, to the firm's HR, rather than to her. */
+export function startDaySaysAbout(i: { personName: string; startDate: Date; now: Date; running: boolean; clientName?: string | null }): string {
+  const at = i.clientName ? ` at ${i.clientName}` : ''
+  const day = formatDay(i.startDate)
+  const today = Date.UTC(i.now.getUTCFullYear(), i.now.getUTCMonth(), i.now.getUTCDate())
+  const past = i.startDate.getTime() < today
+  if (!past) return `${i.personName} is due to start${at} on ${day}.`
+  return i.running ? `${i.personName} started${at} on ${day}.` : `${i.personName} was due to start${at} on ${day}.`
+}
+
+/**
+ * A stored start sentence, said on the day it is read and about the
+ * person, for the list HR reads (`GET /api/packets`). Walk 5 and 7 left
+ * this open: HR's request list printed "You are due to start at Northbend
+ * Athletic on 2026-08-09" in November, a raw past day, addressed to the
+ * worker. Anything else in the reason is left as written. Pure.
+ */
+export function startSentenceAboutNow(reason: string | null, personName: string | null, now: Date, running: (startDate: Date) => boolean): string | null {
+  if (!reason) return reason
+  const m = STORED_START.exec(reason)
+  if (!m) return reason
+  const startDate = dayIn(m[2])
+  if (!startDate) return reason
+  const clientName = m[1] ? m[1].slice(' at '.length) : null
+  if (!personName) return reason.replace(m[0], startDaySays({ startDate, now, running: running(startDate), clientName }))
+  return reason.replace(m[0], startDaySaysAbout({ personName, startDate, now, running: running(startDate), clientName }))
+}
+
+/** Whether a line of the person's that starts on `day` has begun. Pure. */
+export function startedOn(lines: { startDate: Date | null; state: string }[], day: Date): boolean {
+  const d = day.toISOString().slice(0, 10)
+  return lines.some((l) => !!l.startDate && l.startDate.toISOString().slice(0, 10) === d && RUNNING_STATES.includes(l.state))
+}

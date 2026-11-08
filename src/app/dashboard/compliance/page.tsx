@@ -9,6 +9,7 @@ import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
 import { RecordCheck, type RecordFor, type RecordKind } from './record-check'
 import { i9RecordFor } from './record-for'
+import { CPT_PAGE_FIELDS, CPT_PAGE_TYPE as CPT_RECORD, petitionBody } from '@/lib/document-stages/cpt-page'
 import { usePageSection } from '@/components/page-section'
 import { EmptyState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
@@ -1327,7 +1328,7 @@ interface Petition {
 function VisasTab() {
   const [rows, setRows] = useState<Petition[]>([])
   const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
-  const [form, setForm] = useState({ personId: '', type: 'H1B', country: 'US' })
+  const [form, setForm] = useState<Record<string, string>>({ personId: '', type: 'H1B', country: 'US' })
   const [ask, setAsk] = useState<{ id: string; move: string; word: string; expiresAt: string; notes: string } | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -1356,7 +1357,7 @@ function VisasTab() {
     e.preventDefault()
     setErr(null)
     try {
-      const j = await post('/api/compliance/petitions', form)
+      const j = await post('/api/compliance/petitions', petitionBody(form))
       setSaid(j.data.says)
       setForm({ personId: '', type: 'H1B', country: 'US' })
       await load()
@@ -1398,13 +1399,26 @@ function VisasTab() {
           <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Visa</span>
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
             {['H1B', 'L1', 'TN', 'GC', 'SKILLED_WORKER'].map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+            {/* A student's CPT page is a status record, not a petition, and
+                the start rule reads the employer it names and the school's
+                dates (walk 7, 2026-11-08). */}
+            <option value={CPT_RECORD}>F-1 student’s CPT page (I-20)</option>
           </select>
         </label>
+        {form.type === CPT_RECORD && CPT_PAGE_FIELDS.map((f) => (
+          <label key={f.name} className={f.type === 'text' ? 'flex-1 min-w-[200px]' : ''}>
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{f.label}</span>
+            <input type={f.type} value={form[f.name] ?? ''} onChange={(e) => setForm({ ...form, [f.name]: e.target.value })} required
+              aria-describedby={`cpt-${f.name}-hint`}
+              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            <span id={`cpt-${f.name}-hint`} className="block mt-1 text-xs text-etyme-muted">{f.hint}</span>
+          </label>
+        ))}
         <label>
           <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Country</span>
           <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-20 border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
         </label>
-        <button type="submit" disabled={!form.personId} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">File it</button>
+        <button type="submit" disabled={!form.personId} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">{form.type === CPT_RECORD ? 'Record it' : 'File it'}</button>
       </form>
 
       <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">

@@ -7,6 +7,7 @@ import { MOVES, MOVE_WORDS, statusWord } from '@/lib/visa-petition'
 import { possessive } from '@/lib/requisition-approval'
 import { employerNamedNote } from '@/lib/document-stages/worker-class'
 import { CPT_RECORD } from '@/lib/document-stages/worker-class-facts'
+import { readCptPage } from '@/lib/document-stages/cpt-page'
 
 /**
  * GET  /api/compliance/petitions            the petitions of people on our books
@@ -102,18 +103,11 @@ export async function POST(request: NextRequest) {
   const notes = typeof body.notes === 'string' ? body.notes : null
 
   if (type === CPT_RECORD) {
-    const employerNamed = typeof body.employerNamed === 'string' ? body.employerNamed.trim() : ''
-    const from = body.authorizedFrom ? new Date(body.authorizedFrom) : null
-    const to = body.authorizedTo ? new Date(body.authorizedTo) : null
-    if (!employerNamed) {
-      return NextResponse.json({ error: { code: 'VALIDATION', message: `Say which employer ${possessive(person.name)} CPT page names, as the school wrote it.`, field: 'employerNamed' } }, { status: 422 })
+    const page_ = readCptPage(body, person.name)
+    if (!page_.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: page_.message, field: page_.field } }, { status: 422 })
     }
-    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Give the dates the school authorized the CPT from and to, as printed on the I-20.', field: !from || Number.isNaN(from.getTime()) ? 'authorizedFrom' : 'authorizedTo' } }, { status: 422 })
-    }
-    if (to.getTime() < from.getTime()) {
-      return NextResponse.json({ error: { code: 'VALIDATION', message: 'The CPT cannot end before it starts. Check the dates on the I-20.', field: 'authorizedTo' } }, { status: 422 })
-    }
+    const { employerNamed, from, to } = page_
     const page = await prisma.visaPetition.create({
       data: {
         personId, type, country, status: 'ACTIVE', filedAt: from, approvedAt: from, expiresAt: to,

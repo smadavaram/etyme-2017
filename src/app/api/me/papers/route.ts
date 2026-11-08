@@ -1,4 +1,5 @@
 import { fileHash } from '@/lib/document-stages/degree'
+import { startSentenceNow, startedOn } from '@/lib/document-stages/start-day'
 import { heldOnRecord, linesOfPerson } from '@/lib/document-stages/paper-record'
 import { DEGREE_POSTED, degreeOnRecord } from '@/lib/document-stages/degree-check'
 import { notifyBulk } from '@/lib/notify'
@@ -126,7 +127,15 @@ export async function GET(request: NextRequest) {
     issuerName: r.template.company.name,
     sentAt: r.sentAt,
     signedAt: r.signedAt,
+    examinedAt: r.examinedAt,
   }))
+
+  // A start sentence stored on an older request, said today (walk 7):
+  // "due to start on 2026-08-09" in November reads as a day gone.
+  const myStarts = packets.some((p) => p.reopenedReason && /due to start/.test(p.reopenedReason))
+    ? await prisma.sellContract.findMany({ where: { personId: me }, select: { startDate: true, state: true }, take: 40 })
+    : []
+  const startToday = (reason: string | null) => startSentenceNow(reason, new Date(), (day) => startedOn(myStarts, day))
 
   const asked: AskedPacket[] = packets.map((p) => ({
     id: p.id,
@@ -142,7 +151,7 @@ export async function GET(request: NextRequest) {
     // runs out in 24 days" — which is why it may be shown here.
     // A renewal request's sentence is said again today rather than as it
     // was stored, so its count of days matches the line above it.
-    reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date(), p.company.name) ?? p.reopenedReason) : p.reopenedReason,
+    reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date(), p.company.name) ?? p.reopenedReason) : startToday(p.reopenedReason),
     renewal: p.packetKey === CREDENTIAL_PACKET_KEY,
     items: p.items.map((i) => ({
       id: i.id,

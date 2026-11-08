@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { CPT_PAGE_FIELDS, CPT_PAGE_TYPE, petitionBody, readCptPage } from '@/lib/document-stages/cpt-page'
+import { factsFrom } from '@/lib/document-stages/worker-class-facts'
+import { employerNamedNote, workerClassStart } from '@/lib/document-stages/worker-class'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILT_IN } from '@/lib/document-type'
@@ -598,5 +601,47 @@ describe('the screen walk’s papers, on the build after it', () => {
       expect(read(file), file).toContain("'Bank letter or voided check'")
       expect(read(file), file).not.toMatch(/cheque/i)
     }
+  })
+})
+
+describe('a student’s CPT page: every field the start rule reads, the Visas tab draws', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+  const typed: Record<string, string> = { personId: 'p-mei', type: CPT_PAGE_TYPE, country: 'US', employerNamed: 'Brightmoor Staffing', authorizedFrom: '2026-09-01', authorizedTo: '2027-05-31' }
+
+  it('recording an F-1 student’s CPT page on the Visas tab, with every field it draws filled in, is not refused for a field it did not draw', () => {
+    const read = readCptPage(petitionBody(typed), 'Mei Lin')
+    expect(read.ok, !read.ok ? `${read.field}: ${read.message}` : '').toBe(true)
+  })
+
+  it('every field the CPT page can be refused for is one the Visas tab draws', () => {
+    const drawn = new Set<string>(CPT_PAGE_FIELDS.map((f) => f.name))
+    for (const f of CPT_PAGE_FIELDS) {
+      const read = readCptPage(petitionBody({ ...typed, [f.name]: '' }), 'Mei Lin')
+      expect(read.ok).toBe(false)
+      if (!read.ok) expect(drawn.has(read.field), read.field).toBe(true)
+    }
+  })
+
+  it('the page the Visas tab records names the employer and the school’s dates, and the start rule then lets her start at that employer', () => {
+    const read = readCptPage(petitionBody(typed), 'Mei Lin')
+    if (!read.ok) throw new Error(read.message)
+    const facts = factsFrom({
+      personName: 'Mei Lin', workAuth: 'F1_CPT', permits: [], i94: [], employerName: 'Brightmoor Staffing',
+      petitions: [{ type: CPT_PAGE_TYPE, status: 'ACTIVE', filedAt: read.from, approvedAt: read.from, expiresAt: read.to, events: [{ eventType: 'FILED', notes: employerNamedNote(read.employerNamed) }] }],
+    })
+    expect(workerClassStart({ ...facts, workCountry: null, on: new Date('2026-11-08T00:00:00Z') }).verdict).toBe('PASS')
+    expect(workerClassStart({ ...facts, employerName: 'Pinnacle Resourcing', workCountry: null, on: new Date('2026-11-08T00:00:00Z') }).verdict).toBe('BLOCK')
+  })
+
+  it('the Visas tab offers the CPT page, draws its fields from the one description and posts the body built for it; the route reads the same description', () => {
+    const page = read('src/app/dashboard/compliance/page.tsx')
+    expect(page).toContain('<option value={CPT_RECORD}>')
+    expect(page).toContain('CPT_PAGE_FIELDS.map(')
+    expect(page).toContain("post('/api/compliance/petitions', petitionBody(form))")
+    expect(read('src/app/api/compliance/petitions/route.ts')).toContain('readCptPage(body, person.name)')
+  })
+
+  it('a petition of any other kind posts only who, which visa and the country', () => {
+    expect(petitionBody({ personId: 'p', type: 'H1B', country: 'US', employerNamed: 'x' })).toEqual({ personId: 'p', type: 'H1B', country: 'US' })
   })
 })

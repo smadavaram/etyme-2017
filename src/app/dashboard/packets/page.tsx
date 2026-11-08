@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
 import { plainDate } from '@/lib/plain-date'
@@ -68,7 +69,7 @@ export default function PacketsPage() {
   const section = usePageSection('/dashboard/packets')
   const [packets, setPackets] = useState<Packet[] | null>(null)
   const [available, setAvailable] = useState<Available[]>([])
-  const [counts, setCounts] = useState({ open: 0, awaitingReview: 0, stale: 0 })
+  const [counts, setCounts] = useState({ open: 0, awaitingReview: 0, stale: 0, outside: 0 })
   // Papers this firm's orders ask for that arrived at its supplier: said, never examined here.
   const [atSuppliers, setAtSuppliers] = useState<{ personId: string; says: string }[]>([])
   const [canAsk, setCanAsk] = useState(false)
@@ -106,6 +107,7 @@ export default function PacketsPage() {
         open: body.data.open,
         awaitingReview: body.data.awaitingReview,
         stale: body.data.stale,
+        outside: body.data.waitingOutsideRequests ?? 0,
       })
       setCanAsk(body.data.canAsk)
       setAtSuppliers(body.data.atSuppliers ?? [])
@@ -305,6 +307,12 @@ export default function PacketsPage() {
         <Stat label="Still open" value={counts.open} sub="waiting on them" />
         <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'default'} sub="they cannot reply" />
       </div>
+      {counts.outside > 0 && (
+        <p className="-mt-6 mb-8 text-[13px] text-etyme-muted">
+          {counts.outside === 1 ? 'One of them was sent without a request.' : `${counts.outside} of them were sent without a request.`}{' '}
+          <Link href="/dashboard/documents" className="text-etyme-action hover:underline">Open them on Paperwork</Link>
+        </p>
+      )}
 
       {atSuppliers.length > 0 && (
         <section className="mb-8">

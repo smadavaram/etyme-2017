@@ -66,7 +66,7 @@ describe('what people read', () => {
   it('the compliance page has a Visas tab to file and move petitions from', () => {
     const page = read('src/app/dashboard/compliance/page.tsx')
     expect(page).toContain("{ key: 'visas' as const, label: 'Visas' }")
-    expect(page).toContain("post('/api/compliance/petitions', form)")
+    expect(page).toContain("post('/api/compliance/petitions', petitionBody(form))")
   })
   it('the watch job moves petitions by the calendar and writes an event', () => {
     const watch = read('src/app/api/cron/visa-watch/route.ts')

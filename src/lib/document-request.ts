@@ -852,6 +852,19 @@ export interface SentDocument {
   issuerName: string
   sentAt: Date | null
   signedAt: Date | null
+  /** When the firm examined it, where it has. Until then an upload is sent, never on file. */
+  examinedAt?: Date | null
+}
+
+/**
+ * The word the worker's own list reads for a paper she sent. "On file"
+ * only once the firm examined it; until then it is sent and waiting to be
+ * checked (walk 5 and 7: an upload nobody had looked at read "On file" on
+ * her own list while Paperwork read "Arrived, not examined"). Pure.
+ */
+export function workerPaperWord(p: { status: string; examinedAt?: Date | string | null }): string {
+  if (p.status === 'UPLOADED') return p.examinedAt ? 'On file' : 'Sent, waiting to be checked'
+  return statusWord(p.status)
 }
 
 /** One thing asked for inside a packet. */
@@ -1004,7 +1017,8 @@ export interface Paper {
 export function askWord(state: string): string {
   switch (state) {
     case 'PENDING': return 'Asked for'
-    case 'RECEIVED': return 'On file'
+    // Sent at the link and nobody has looked yet: never "On file" (walk 7).
+    case 'RECEIVED': return 'Sent, waiting to be checked'
     case 'ACCEPTED': return 'Accepted'
     case 'REJECTED': return 'Sent back'
     default: return state.toLowerCase()
@@ -1492,7 +1506,7 @@ export function myPapers(input: {
         : null,
       needsSignature: d.needsSignature,
       status: d.status,
-      word: statusWord(d.status),
+      word: workerPaperWord(d),
       askedAt: d.sentAt?.toISOString() ?? null,
       doneAt: d.signedAt?.toISOString() ?? null,
       dueOn: null,

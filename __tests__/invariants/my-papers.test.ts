@@ -116,7 +116,7 @@ describe('what a person sees on their own paperwork page', () => {
         }),
       ],
     })
-    expect(renewal.word).toBe('On file')
+    expect(renewal.word).toBe('Sent, waiting to be checked')
     expect(renewal.todo).toBeNull()
     expect(renewal.doneAt).toBe('2026-09-16T00:00:00.000Z')
   })
@@ -156,7 +156,7 @@ describe('what a person sees on their own paperwork page', () => {
 
   it('names every state of an ask in words a person reads, never as the stored code', () => {
     expect(askWord('PENDING')).toBe('Asked for')
-    expect(askWord('RECEIVED')).toBe('On file')
+    expect(askWord('RECEIVED')).toBe('Sent, waiting to be checked')
     expect(askWord('ACCEPTED')).toBe('Accepted')
     expect(askWord('REJECTED')).toBe('Sent back')
   })

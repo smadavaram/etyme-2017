@@ -90,11 +90,11 @@ describe('paperwork asked for, answered, on file', () => {
     expect(row.signedAt).not.toBeNull()
   })
 
-  it('Pinnacle sees both on file, and nothing is asked of him any more', async () => {
+  it('nothing is asked of him any more: his signed NDA reads signed, and the W-9 nobody has examined yet reads sent and waiting to be checked, never on file', async () => {
     as(WORKER)
     const r = await json(await myPapers(req('GET', '/api/me/papers')))
     expect(r.body.data.papers.every((p: any) => p.todo === null)).toBe(true)
-    expect(r.body.data.papers.map((p: any) => p.word).sort()).toEqual(['On file', 'Signed'])
+    expect(r.body.data.papers.map((p: any) => p.word).sort()).toEqual(['Sent, waiting to be checked', 'Signed'])
   })
 
   it('a firm that asked for nothing cannot touch the request, and is told nothing is there', async () => {

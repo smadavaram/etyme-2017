@@ -16,6 +16,7 @@
  * Owned by regulatory.
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
+import { CPT_PAGE_TYPE } from './cpt-page'
 import {
   classOfWorkAuth, employerNamedIn,
   type CptFact, type I94Fact, type PermitFact, type PetitionFact, type WorkerClassFacts,
@@ -26,7 +27,7 @@ type Db = PrismaClient | Prisma.TransactionClient
 export type PersonClassFacts = Omit<WorkerClassFacts, 'workCountry' | 'on'>
 
 /** The kinds of status record the petitions table holds for a student. */
-export const CPT_RECORD = 'F1_CPT'
+export const CPT_RECORD = CPT_PAGE_TYPE
 
 const PAYROLL_STATES = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING', 'PAUSED'] as const
 

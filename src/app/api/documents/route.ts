@@ -10,9 +10,7 @@ import { orderedNotCollected } from '@/lib/attestation'
 import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER, libraryOf, holdsPaperworkDesk } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
-import { hasPermission } from '@/lib/permissions'
-import { waitsToBeExamined } from '@/lib/document-request'
-import { examinesAt } from '@/lib/document-stages/arrived-papers'
+import { examinesAt, waitingOnYou, keptBySuppliersOf, looksAtSupplierPapers as looksAtSupplierPapersOf } from '@/lib/document-stages/arrived-papers'
 import { waitingOnYouSays } from '@/lib/document-stages/paper-doors'
 
 /**
@@ -96,22 +94,8 @@ export async function GET(request: NextRequest) {
     // A supplier's own papers, filed on its record (Company paperwork),
     // waiting for this client's look: only the firms it buys from, only
     // where this seat looks at supplier papers, and never twice.
-    const looksAtSupplierPapers = !isConsultantSeat(caller) && !subjectId && !status &&
-      ['vendors.manage', 'privacy.manage', 'governance.write'].some((p) => hasPermission(caller.permissions ?? [], p as never))
-    let keptBySuppliers: string[] = []
-    if (looksAtSupplierPapers) {
-      const ties = await prisma.counterparty.findMany({
-        where: { companyId, relationship: 'SUPPLIER', status: { not: 'BLOCKED' } },
-        select: { otherCompanyId: true },
-        take: 500,
-      })
-      const asked = await prisma.documentPacket.findMany({
-        where: { companyId, subjectCompanyId: { not: null }, cancelledAt: null },
-        select: { subjectCompanyId: true },
-        take: 500,
-      })
-      keptBySuppliers = [...new Set([...ties.map((t) => t.otherCompanyId), ...asked.map((a) => a.subjectCompanyId!)])].filter((id) => id !== companyId)
-    }
+    const looksAtSupplierPapers = !isConsultantSeat(caller) && !subjectId && !status && looksAtSupplierPapersOf(caller.permissions ?? [])
+    const keptBySuppliers: string[] = looksAtSupplierPapers ? await keptBySuppliersOf(companyId) : []
 
     const instances = await prisma.docInstance.findMany({
       where: keptBySuppliers.length
@@ -190,8 +174,10 @@ export async function GET(request: NextRequest) {
     // Owner, else the Admin: `paperExaminersAt`), so a worker's own upload
     // is in front of the people whose work it is (the founder's tester,
     // 2026-11-08). A recruiter reads the list and is never counted.
+    // The one count Document requests' "Waiting on you" reads too
+    // (`waitingOnYou`, walk 7, 2026-11-08), so the two pages never differ.
     const examiner = !isConsultantSeat(caller) && !subjectId && !status && await examinesAt(companyId, caller.person.id)
-    const waiting = examiner ? instances.filter((i) => waitsToBeExamined(i) && !(i.subjectType === 'PERSON' && i.subjectId === caller.person.id)).length : 0
+    const waiting = examiner ? (await waitingOnYou({ companyId, personId: caller.person.id, permissions: caller.permissions ?? [] })).count : 0
 
     return NextResponse.json({
       data: {
