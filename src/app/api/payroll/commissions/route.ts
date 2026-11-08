@@ -9,6 +9,7 @@ import { commissionFor } from '@/lib/commission'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
 import { commissionAccruals, monthPeriod, postingKey, type CommissionPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
 import { KIND_WORD, KINDS, termsSay } from '@/lib/money/commission-rows'
+import { earningsByPersonMonth, personMonths } from '@/lib/money/commission-earnings'
 import { checkDefaults, stampDefaults, storedFrom, mayEditDefaults, defaultSays } from '@/lib/money/commission-defaults'
 
 async function roleName(roleId: string | null): Promise<string | null> {
@@ -136,26 +137,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Grouped by the person who earned it and the period it landed in,
-  // because "what did Ruth earn in September" is the only question
-  // anybody opens this for.
-  const byKey = new Map<string, {
-    personId: string | null; name: string; period: string
-    amountCents: number; currency: string; lines: { says: string; amountCents: number; order: string }[]
-  }>()
-  for (const p of postings) {
-    const period = p.postedAt.toISOString().slice(0, 7)
-    const key = `${p.person?.id ?? 'none'}:${period}`
-    const row = byKey.get(key) ?? {
-      personId: p.person?.id ?? null,
-      name: p.person?.name ?? 'Unattributed',
-      period, amountCents: 0, currency: p.currency, lines: [],
-    }
-    row.amountCents += p.amountCents
-    row.lines.push({ says: p.says ?? '', amountCents: p.amountCents, order: p.projectOrder?.code ?? '—' })
-    byKey.set(key, row)
-  }
-  const earnings = [...byKey.values()].sort((a, b) => b.period.localeCompare(a.period) || b.amountCents - a.amountCents)
+  // Grouped by the person who earned it, the period it landed in and the
+  // currency, because "what did Ruth earn in September" is the only
+  // question anybody opens this for, and rupees and dollars are never
+  // added (lib/money/commission-earnings).
+  const earnings = earningsByPersonMonth(postings)
+  const periods = personMonths(earnings)
   const earned = totals(earnings.map((e) => ({ minor: e.amountCents, currency: e.currency })))
 
   const agents = !everybody ? 0 : await prisma.buyContract.count({
@@ -176,14 +163,14 @@ export async function GET(request: NextRequest) {
       summary: !everybody
         ? earnings.length === 0
           ? 'You are on a commission agreement, and nothing has been posted to you yet.'
-          : `${earned} earned by you across ${earnings.length} ${earnings.length === 1 ? 'period' : 'periods'}. Only your own is shown here.`
+          : `${earned} earned by you across ${periods} ${periods === 1 ? 'period' : 'periods'}. Only your own is shown here.`
         : agents === 0 && rowsShown.length === 0
         ? 'Nobody is on a commission here yet. A commission set on a sell or buy line, by the Owner or a Contract Manager, is what puts them on one.'
         : agents === 0
         ? `${rowsShown.length} commission${rowsShown.length === 1 ? '' : 's'} on lines this period, worked out below. None is posted until the period is run.`
         : earnings.length === 0
           ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`
-          : `${earned} earned across ${earnings.length} ${earnings.length === 1 ? 'person-period' : 'person-periods'}.`,
+          : `${earned} earned across ${periods} ${periods === 1 ? 'person-period' : 'person-periods'}.`,
     },
   })
 }

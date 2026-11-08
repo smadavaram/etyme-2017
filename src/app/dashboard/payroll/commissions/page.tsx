@@ -116,8 +116,11 @@ export default function CommissionsPage() {
   const columns: Column<Earning>[] = useMemo(() => [
     { key: 'name', label: 'Who', render: (e) => <span className="text-etyme-ink">{e.name}</span>, sortValue: (e) => e.name },
     { key: 'period', label: 'Period', render: (e) => <span className="text-etyme-muted">{monthName(e.period)}</span>, sortValue: (e) => e.period },
+    { key: 'currency', label: 'Currency', render: (e) => <span className="text-etyme-muted">{e.currency}</span>, sortValue: (e) => e.currency, hideOnMobile: true },
     { key: 'lines', label: 'Placements', align: 'right', render: (e) => <span className="tabular-nums text-etyme-muted">{e.lines.length}</span>, sortValue: (e) => e.lines.length, hideOnMobile: true },
-    { key: 'amountCents', label: 'Earned', align: 'right', render: (e) => <span className="tabular-nums">{cash(e.amountCents, e.currency)}</span>, sortValue: (e) => e.amountCents },
+    { key: 'amountCents', label: 'Earned', align: 'right', render: (e) => <span className="tabular-nums">{cash(e.amountCents, e.currency)}</span>,
+      // Sorted within a currency, never across one: 5,000 rupees is not more than $100.
+      sortValue: (e) => `${e.currency} ${String(e.amountCents).padStart(15, '0')}` },
   ], [])
 
   // Money pages wait (sign-up walk, round three, #17): until the session
@@ -193,7 +196,7 @@ export default function CommissionsPage() {
           defaultView="feed"
           columns={columns}
           data={earnings}
-          rowKey={(e) => `${e.personId ?? 'none'}:${e.period}`}
+          rowKey={(e) => `${e.personId ?? 'none'}:${e.period}:${e.currency}`}
           searchPlaceholder="Search by name…"
           searchFilter={(e, q) => e.name.toLowerCase().includes(q.toLowerCase())}
           exportName="commissions"
@@ -208,12 +211,12 @@ export default function CommissionsPage() {
                 <p className="font-serif text-[22px] tabular-nums text-etyme-ink">{cash(e.amountCents, e.currency)}</p>
               </div>
               <button
-                onClick={() => setOpen(open === `${e.personId}:${e.period}` ? null : `${e.personId}:${e.period}`)}
+                onClick={() => setOpen(open === `${e.personId}:${e.period}:${e.currency}` ? null : `${e.personId}:${e.period}:${e.currency}`)}
                 className="mt-2 text-[12px] text-etyme-muted hover:text-etyme-ink"
               >
-                {open === `${e.personId}:${e.period}` ? 'Hide' : `What it came from (${e.lines.length})`}
+                {open === `${e.personId}:${e.period}:${e.currency}` ? 'Hide' : `What it came from (${e.lines.length})`}
               </button>
-              {open === `${e.personId}:${e.period}` && (
+              {open === `${e.personId}:${e.period}:${e.currency}` && (
                 <div className="mt-2 space-y-1 border-t border-etyme-rule pt-2">
                   {e.lines.map((l, i) => (
                     <div key={i} className="flex flex-wrap items-baseline justify-between gap-2 text-[12.5px]">
