@@ -5,14 +5,14 @@
  * not, and who paid whom.
  *
  * The check is the one the payment runs (`checkKeyedReceipt`, then
- * `keyedPayGate`), so the screen's Pay button and the payment route
+ * `keyedPayGateNow`, bank included), so the screen's Pay button and the payment route
  * cannot disagree about one receipt. The doors are `receiptDoors`, which
  * holds the same two refusals as the cancel door and the same waiver
  * rules as the waiver route.
  */
 
 import { prisma } from '@/lib/db'
-import { checkKeyedReceipt, keyedPayGate, asKeyed, KEYED_SELECT } from '@/lib/money/keyed-receipt'
+import { checkKeyedReceipt, keyedPayGateNow, asKeyed, KEYED_SELECT } from '@/lib/money/keyed-receipt'
 import { receiptDoors, paymentSays, type Doors, type ReaderRole } from '@/lib/money/receipt-screen'
 import { decimalsFor } from '@/lib/money'
 import { formatDay } from '@/lib/format-date'
@@ -45,7 +45,11 @@ export interface ReceiptRow {
   cancelled: string | null
 }
 
-export async function receiptsFor(companyId: string, role: ReaderRole): Promise<ReceiptRow[]> {
+/**
+ * `viewerId`: the person reading, so a bank hold tells the person who
+ * checks to check (and offers the check) and everybody else whom to ask.
+ */
+export async function receiptsFor(companyId: string, role: ReaderRole, viewerId: string | null = null): Promise<ReceiptRow[]> {
   const bills = await prisma.vendorBill.findMany({
     where: { companyId },
     select: {
@@ -97,7 +101,7 @@ export async function receiptsFor(companyId: string, role: ReaderRole): Promise<
       ? { ok: false, says: null }
       : check.notAccepted
         ? { ok: false, says: check.notAccepted.says }
-        : keyedPayGate(b, vendorName, check)
+        : await keyedPayGateNow(b, vendorName, check, viewerId)
     const run = b.paymentRunItems[0]?.run ?? null
     const doors = receiptDoors(
       {

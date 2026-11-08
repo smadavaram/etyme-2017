@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkPayeeBank } from '@/lib/money/bank-check-read'
 import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
@@ -13,7 +14,7 @@ import { decimalsFor } from '@/lib/money'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { exceptionQueue, CHECK_PHRASE } from '@/lib/three-way-match'
 import {
-  checkKeyedReceipt, keyedPayGate, asKeyed, KEYED_SELECT,
+  checkKeyedReceipt, keyedPayGateNow, asKeyed, KEYED_SELECT,
 } from '@/lib/money/keyed-receipt'
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
@@ -697,6 +698,12 @@ export async function POST(request: NextRequest) {
 /**
  * PATCH /api/ap/bills — record that a bill was paid.
  *
+ * `{ id, act: 'check-bank' }` instead records the check of the
+ * supplier's bank details this receipt is held on, by the person at the
+ * paying firm who checks them (`checkPayeeBank`, the same check the
+ * ordinary invoice receipt's page makes): the hold is lifted where it is
+ * said, never only on another screen.
+ *
  * `paidAt` is the day money left and it is never inferred from a status.
  * Marking a bill APPROVED is a decision somebody made; it is not a
  * payment, and treating it as one would make every float figure on the
@@ -723,6 +730,17 @@ export async function PATCH(request: NextRequest) {
   const { books: reading, error: booksError } = await booksFor(caller, request)
   if (booksError) return booksError
 
+  const body = await request.json().catch(() => ({}))
+  const id = String(body.id ?? '')
+  if (!id) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Which invoice receipt?', field: 'id' } },
+      { status: 422 }
+    )
+  }
+
+  if (body.act === 'check-bank') return checkBankOn(id, caller, reading.companyId)
+
   if (!hasPermission(reading.caller.permissions, 'payments.record')) {
     const seated = reading.seat ? seatMayPay(reading.seat) : null
     return NextResponse.json(
@@ -736,15 +754,6 @@ export async function PATCH(request: NextRequest) {
         },
       },
       { status: 403 }
-    )
-  }
-
-  const body = await request.json().catch(() => ({}))
-  const id = String(body.id ?? '')
-  if (!id) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Which invoice receipt?', field: 'id' } },
-      { status: 422 }
     )
   }
 
@@ -773,7 +782,12 @@ export async function PATCH(request: NextRequest) {
       { status: 422 }
     )
   }
-  const gate = keyedPayGate(bill, vendorName, check)
+  // And no money to a firm whose bank details nobody checked: the same
+  // gate the screen's Pay button reads (`keyedPayGateNow`), so a receipt
+  // the screen holds is never paid here (walk 7, 2026-11-08: $4,160 went
+  // to Consultis with its bank unchecked, because this door asked only
+  // the three-way check). The sentence names who checks.
+  const gate = await keyedPayGateNow(bill, vendorName, check, caller.isService ? null : caller.person.id)
   if (!gate.ok) {
     return NextResponse.json(
       { error: { code: gate.code, message: gate.says, checks: check?.match.checks ?? [] } },
@@ -1042,4 +1056,34 @@ export async function GET(request: NextRequest) {
 /** Whether the body carries lines at all; their shape is `readLines`'. */
 function linesFromBody(body: { lines?: unknown }): boolean {
   return Array.isArray(body.lines) && body.lines.length > 0
+}
+
+/**
+ * The check of a supplier's bank details, made from the typed-in receipt
+ * it holds. The receipt must be this firm's own to pay; who may check is
+ * `checkPayeeBank`'s rule (the AP clerk where no Finance seat exists,
+ * else Finance), refused in its sentence.
+ */
+async function checkBankOn(
+  id: string,
+  caller: { isService?: boolean; person: { id: string; name: string } },
+  payerCompanyId: string,
+): Promise<NextResponse> {
+  if (caller.isService) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'A bank check is made by a person at the firm that pays.' } }, { status: 403 })
+  }
+  const bill = await prisma.vendorBill.findUnique({
+    where: { id },
+    select: { companyId: true, vendorCompanyId: true, company: { select: { name: true } }, vendorCompany: { select: { name: true } } },
+  })
+  if (!bill || bill.companyId !== payerCompanyId) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such invoice receipt here' } }, { status: 404 })
+  }
+  const out = await checkPayeeBank({
+    payer: { id: bill.companyId, name: bill.company.name },
+    payee: { id: bill.vendorCompanyId, name: bill.vendorCompany.name },
+    by: { personId: caller.person.id, name: caller.person.name },
+  })
+  if (!out.ok) return NextResponse.json({ error: { code: out.code, message: out.says } }, { status: out.status })
+  return NextResponse.json({ data: { checked: true, message: out.says, note: out.says } })
 }

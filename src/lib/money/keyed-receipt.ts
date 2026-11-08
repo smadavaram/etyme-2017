@@ -67,6 +67,9 @@ import {
 } from '@/lib/three-way-match'
 import type { WaitingWeek } from '@/lib/money/payers-acceptance'
 import type { Prisma } from '@prisma/client'
+import { mayPayFirm } from '@/lib/setup-gates'
+import { bankHoldAt } from '@/lib/money/bank-check-read'
+import type { BankFactsShown } from '@/lib/money/bank-check'
 
 export interface KeyedReceipt {
   /** Null while it is being recorded. */
@@ -886,7 +889,7 @@ async function checkLines(
 
 // ── The payer's gate on a typed-in receipt ────────────────────────────
 
-export type KeyedRefusalCode = 'INVALID_STATE' | 'MATCH_FAILED' | 'NOT_CHECKED'
+export type KeyedRefusalCode = 'INVALID_STATE' | 'MATCH_FAILED' | 'NOT_CHECKED' | 'BANK_NOT_CHECKED'
 
 export type KeyedGate =
   | { ok: true }
@@ -950,6 +953,48 @@ export function keyedPayGate(
         ? `${check.voidedWaiver ? `${check.voidedWaiver} ` : ''}Record an exception with a reason on it if the difference should be paid, or ask ${vendorName} for a corrected invoice.`
         : `Nobody can wave this through.`),
   }
+}
+
+/** A bank hold on a typed-in receipt, as the screen draws it: may this reader check, and what they would check. */
+export interface KeyedBankHold {
+  mayCheck: boolean
+  facts: BankFactsShown | null
+}
+
+/**
+ * May this typed-in receipt be paid now, bank included: the check above
+ * (`keyedPayGate`), then the setup checklist's Bank details step
+ * (`mayPayFirm` in lib/setup-gates), the same gate the ordinary invoice
+ * receipt's payment, the payment run and the twin read.
+ *
+ * Walk 7, 2026-11-08: Brightmoor's AP & Payroll seat opened Consultis'
+ * typed-in receipt, saw no hold and no "Ask Rosalind Tay", pressed Pay,
+ * and $4,160 left for a firm whose bank nobody had checked, because this
+ * door asked only the three-way check. Now the payment route and the
+ * screen's Pay button both read this one function, so they cannot
+ * disagree, and the hold says who checks (`bankHoldAt`, lib/money/bank-check):
+ * "Bank details not checked. Ask Rosalind Tay to check them, then pay."
+ *
+ * `viewerId` is the person reading, so a checker is told to check and is
+ * offered the check; null for a reader with no person (a run, the twin).
+ */
+export async function keyedPayGateNow(
+  bill: { number: string; status: string; totalCents: number; paidCents: number; currency: string; companyId: string; vendorCompanyId: string },
+  vendorName: string,
+  check: Pick<KeyedCheck, 'match' | 'hard'> & { voidedWaiver?: string | null } | null,
+  viewerId: string | null,
+): Promise<KeyedGate & { bank?: KeyedBankHold }> {
+  const gate = keyedPayGate(bill, vendorName, check)
+  if (!gate.ok) return gate
+  const bank = await mayPayFirm(bill.companyId, bill.vendorCompanyId)
+  if (bank.ok) return gate
+  const payer = await prisma.company.findUnique({ where: { id: bill.companyId }, select: { name: true } })
+  const held = await bankHoldAt({
+    payer: { id: bill.companyId, name: payer?.name ?? 'Your company' },
+    payee: { id: bill.vendorCompanyId, name: vendorName },
+    viewerId,
+  })
+  return { ok: false, code: 'BANK_NOT_CHECKED', says: held.says, bank: { mayCheck: held.mayCheck, facts: held.facts } }
 }
 
 /** The bill as the gate reads it. */

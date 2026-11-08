@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   noteMoneyRead(reading, 'Invoice receipts read')
 
   const role = receiptRole(reading)
-  const receipts = await receiptsFor(reading.companyId, role)
+  const receipts = await receiptsFor(reading.companyId, role, caller.isService ? null : caller.person.id)
   return NextResponse.json({
     data: {
       reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says },

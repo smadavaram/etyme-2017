@@ -352,7 +352,30 @@ function ReceiptPanel({ receipt: r, books, onClose, onMoved }: {
             </button>
           )
         ) : (
-          r.doors.pay.says && <p className="text-[13px] text-etyme-muted"><span className="font-medium text-etyme-ink">Not payable now.</span> {r.doors.pay.says}</p>
+          <>
+            {r.doors.pay.says && <p className="text-[13px] text-etyme-muted"><span className="font-medium text-etyme-ink">Not payable now.</span> {r.doors.pay.says}</p>}
+            {/* Held on the supplier's bank, and this reader is who checks it: the check, here. */}
+            {r.doors.pay.bank?.mayCheck && r.doors.pay.bank.facts && (
+              <div className="rounded border border-etyme-rule p-3">
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+                  <dt className="text-etyme-muted">Bank</dt><dd className="text-etyme-ink">{r.doors.pay.bank.facts.bankName ?? 'Not given'}</dd>
+                  <dt className="text-etyme-muted">Name on the account</dt><dd className="text-etyme-ink">{r.doors.pay.bank.facts.accountName ?? 'Not given'}</dd>
+                  <dt className="text-etyme-muted">Account</dt><dd className="text-etyme-ink tabular-nums">ending {r.doors.pay.bank.facts.accountLast4 ?? '????'}</dd>
+                </dl>
+                <p className="mt-2 text-[13px] text-etyme-muted">
+                  Check these against the supplier’s own proof, such as a voided check or a bank letter. Your name and today’s date go on the check.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary mt-3"
+                  disabled={busy}
+                  onClick={() => act('/api/ap/bills', { method: 'PATCH', body: JSON.stringify({ id: r.id, act: 'check-bank' }) }, (b) => b.data.message)}
+                >
+                  They match: record the check
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {r.doors.cancel.offered ? (

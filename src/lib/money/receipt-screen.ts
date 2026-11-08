@@ -84,7 +84,12 @@ export interface Doors {
   /** The sentence where an exception was recorded for another total. */
   voidedWaiver: string | null
   cancel: { offered: boolean; says: string | null }
-  pay: { offered: boolean; says: string | null }
+  pay: {
+    offered: boolean
+    says: string | null
+    /** Held on the payee's bank: may this reader check it here, and what they would check. Absent otherwise. */
+    bank?: { mayCheck: boolean; facts: { bankName: string | null; accountName: string | null; accountLast4: string | null } | null }
+  }
 }
 
 export const NOBODY_WAIVES = 'Nobody can wave this through.'
@@ -103,7 +108,11 @@ const waivedOn = (at: Date) => dayOfMomentFor(at, null)
  * (`keyedPayGate`), passed through, so the Pay button and the payment
  * route cannot disagree.
  */
-export function receiptDoors(r: ReceiptFacts, role: ReaderRole, gate: { ok: boolean; says?: string | null }): Doors {
+export function receiptDoors(
+  r: ReceiptFacts,
+  role: ReaderRole,
+  gate: { ok: boolean; says?: string | null; bank?: Doors['pay']['bank'] },
+): Doors {
   const open = r.status !== 'PAID' && r.status !== 'CANCELLED'
 
   const failing: FailingCheck[] = open
@@ -157,7 +166,7 @@ export function receiptDoors(r: ReceiptFacts, role: ReaderRole, gate: { ok: bool
         ? { offered: false, says: null }
         : gate.ok
           ? { offered: true, says: null }
-          : { offered: false, says: gate.says ?? r.hard ?? null },
+          : { offered: false, says: gate.says ?? r.hard ?? null, ...(gate.bank ? { bank: gate.bank } : {}) },
   }
 }
 
