@@ -30,6 +30,7 @@ import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 import { reasonAsked } from '@/lib/award/reason-asked'
 import { activateBody } from './activate-body'
 import { ActivatePanel } from './activate-panel'
+import { CommissionPanel } from './commission-panel'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 
 /**
@@ -1136,6 +1137,10 @@ function ContractDetailDrawer({
               </div>
             </>
           )}
+
+          {/* The commissions on this line, for the firm that holds it: drawn
+              only where the line's own route answers this seat. */}
+          {(tab === 'sell' || tab === 'buy') && <CommissionPanel contractId={contract.id} />}
         </div>
       </div>
 

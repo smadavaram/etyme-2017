@@ -17,13 +17,14 @@ import { CUTS, CUT_HEADING, type Cut, type CutLine, type CutOption, type Period 
  * commission". Every figure is the route's (`by=cut`), which adds up the
  * margin service's own figures; this screen computes nothing.
  *
- * Recruiter is in the drawing and not offered as a chip, because a chip
- * with nothing behind it is not offered: the record does not say who
- * recruited a placement. The route's sentence says so under the chips.
+ * Recruiter and account manager are read from the commission rows on the
+ * lines (2026-11-08); "After commission" is drawn only where the route says
+ * the firm has commission rows. A reader whose reach is a team or their own
+ * placements reads the route's sentence above the table.
  */
 
 const CUT_WORD: Record<Cut, string> = {
-  consultant: 'Consultant', recruiter: 'Recruiter', office: 'Office', client: 'Client',
+  consultant: 'Consultant', recruiter: 'Recruiter', 'account-manager': 'Account manager', office: 'Office', client: 'Client',
 }
 
 export function CutTable() {
@@ -81,6 +82,11 @@ export function CutTable() {
       <span className={l.marginCents != null && l.marginCents < 0 ? 'text-etyme-attention' : ''}>{money(l.marginCents, l)}</span>
     ), exportValue: (l) => l.marginCents == null ? null : l.marginCents / 100 },
     { key: 'marginPct', label: 'Margin %', align: 'right', render: (l) => (l.marginPct == null ? '—' : `${l.marginPct}%`) },
+    ...(data?.afterCommission ? [{
+      key: 'afterCommissionCents', label: 'After commission', align: 'right' as const, render: (l: CutLine) => (
+        <span title={l.commissionBlankedBecause ?? undefined}>{money(l.afterCommissionCents ?? null, l)}</span>
+      ), exportValue: (l: CutLine) => l.afterCommissionCents == null ? null : l.afterCommissionCents / 100,
+    }] : []),
   ]
 
   const total: CutLine | null = data?.total ?? null
@@ -111,6 +117,7 @@ export function CutTable() {
           {data?.periodSays && <span className="text-[12.5px] text-etyme-muted">{data.periodSays}</span>}
         </div>
 
+        {data?.reach?.says && <p className="text-[12.5px] text-etyme-ink">{data.reach.says}</p>}
         {loading && <LoadingState says="Adding up what each one made…" />}
         {error && <ErrorState says={error} />}
 
@@ -134,7 +141,7 @@ export function CutTable() {
             <p className="text-[12.5px] text-etyme-muted">{data.says}</p>
             <p className="text-[12.5px] text-etyme-muted">
               Billed is the weeks both sides signed, at your rate. Paid is what those weeks cost you: pay,
-              overtime and, for your own employees, the employer’s taxes. {data.adminCostSays}
+              overtime and, for your own employees, the employer’s taxes. {data.adminCostSays} {data.commissionSays}
             </p>
           </>
         )}

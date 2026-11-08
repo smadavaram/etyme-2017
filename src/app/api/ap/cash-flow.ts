@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { fromPrismaDecimal } from '@/lib/money'
-import { hasPermission } from '@/lib/permissions'
+import { permissionScope } from '@/lib/permission-grants'
 import { paidRunHours } from '@/lib/payroll-paid'
 import { payablesOf } from '@/lib/money/what-we-owe'
 import { owedOn } from '@/lib/money/supplier-invoices'
@@ -102,7 +102,13 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
     input.owedToUs = book.byCurrency.map((b) => ({ currency: b.currency, buckets: b.buckets }))
 
     // ── Payroll, where this seat reads it ─────────────────────────────
-    if (hasPermission(reading.caller.permissions, 'payroll.read')) {
+    //
+    // Over the whole firm only (2026-11-08, the Owner's grants): cash flow
+    // is the firm's book, and payroll paid by one team is not the firm's
+    // payroll. A reach narrower than the firm is read as no payroll, which
+    // blanks the column and the net with the reason, never a part shown as
+    // the whole.
+    if ((await permissionScope(reading.caller, 'payroll.read')).scope === 'COMPANY') {
       payrollRows = await payrollPage(request)
       if (payrollRows) {
         input.payrollDue = payrollDue(payrollRows)

@@ -7,6 +7,27 @@ import { writeRateTrail } from '@/lib/money/pay-trail'
 import { staffOnly } from '@/lib/seat'
 import { commissionFor } from '@/lib/commission'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
+import { commissionAccruals, monthPeriod, postingKey, type CommissionPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
+import { KIND_WORD, termsSay } from '@/lib/money/commission-rows'
+
+/** The period a read asks for (`from`, `to` as days), else this calendar month. */
+function periodFrom(params: URLSearchParams, now: Date): CommissionPeriod {
+  const from = params.get('from') ? new Date(params.get('from')!) : null
+  const to = params.get('to') ? new Date(params.get('to')!) : null
+  if (from && to && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && to >= from) return { from, to }
+  return monthPeriod(now)
+}
+
+/** One commission row's answer for the page: who, on what, the terms, what it earned. */
+function rowAnswer(a: RowAccrual) {
+  return {
+    id: a.id, kind: a.kind, kindSays: KIND_WORD[a.kind],
+    earnedBy: a.earnedBy, person: a.person, client: a.client,
+    termsSay: termsSay(a.terms, a.accrual.currency ?? undefined),
+    amountCents: a.postedCents ?? a.accrual.amountCents, currency: a.accrual.currency,
+    state: a.state, says: a.accrual.says, capped: a.accrual.capped,
+  }
+}
 
 /**
  * GET — what has been earned, and on what.
@@ -58,7 +79,24 @@ export async function GET(request: NextRequest) {
     read: 'Commission earnings read by a role holding payroll.read.',
   })
 
-  if (!hasPermission(caller.permissions, 'payroll.read') && !ownAgreement && postings.length === 0) {
+  // ── The commission rows on the lines (2026-11-08) ───────────────────
+  //
+  // Beside the older agreements above, which keep paying as they do: each
+  // row on a sell or buy line, with what it earned in the period. The
+  // firm's for whoever reads payroll; the reader's own for anybody else.
+  const period = periodFrom(new URL(request.url).searchParams, new Date())
+  const allRows = await commissionAccruals(companyId, period)
+  const rowsShown = everybody ? allRows : allRows.filter((a) => a.earnedBy.id === caller.person.id)
+  const rowOthers = [...new Set(allRows.filter((a) => a.earnedBy.id !== caller.person.id).map((a) => a.earnedBy.id))]
+  if (rowOthers.length) {
+    await writeRateTrail(caller, everybody ? { refused: [], read: rowOthers } : { refused: rowOthers, read: [] }, {
+      action: 'PAYROLL_VIEW',
+      refused: 'Commission rows withheld: this seat does not hold payroll.read, the permission payroll holds.',
+      read: 'Commission rows read by a role holding payroll.read.',
+    })
+  }
+
+  if (!hasPermission(caller.permissions, 'payroll.read') && !ownAgreement && postings.length === 0 && rowsShown.length === 0) {
     return NextResponse.json(
       {
         error: {
@@ -101,6 +139,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       earnings, agents,
+      /** The commission rows on lines, for the period, beside the older agreements' postings. */
+      rows: rowsShown.map(rowAnswer),
+      period: { from: period.from.toISOString().slice(0, 10), to: period.to.toISOString().slice(0, 10) },
       /** True where only the reader's own earnings are here. */
       onlyYours: !everybody,
       mayRun: hasPermission(caller.permissions, 'payroll.run'),
@@ -108,8 +149,10 @@ export async function GET(request: NextRequest) {
         ? earnings.length === 0
           ? 'You are on a commission agreement, and nothing has been posted to you yet.'
           : `${earned} earned by you across ${earnings.length} ${earnings.length === 1 ? 'period' : 'periods'}. Only your own is shown here.`
+        : agents === 0 && rowsShown.length === 0
+        ? 'Nobody is on a commission here yet. A commission set on a sell or buy line, by the Owner or a Contract Manager, is what puts them on one.'
         : agents === 0
-        ? 'Nobody is on a commission agreement here yet. A buy contract with a commission type is what puts them on one.'
+        ? `${rowsShown.length} commission${rowsShown.length === 1 ? '' : 's'} on lines this period, worked out below. None is posted until the period is run.`
         : earnings.length === 0
           ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`
           : `${earned} earned across ${earnings.length} ${earnings.length === 1 ? 'person-period' : 'person-periods'}.`,
@@ -228,6 +271,38 @@ export async function POST(request: NextRequest) {
       }
     }
     posted.push({ agent: agent?.person.name ?? 'Commission', buyContractId: bc.id, amountCents: result.amountCents, currency: orders[0].currency, says: result.says })
+  }
+
+  // ── The commission rows on lines (2026-11-08) ───────────────────────
+  //
+  // Each row's accrual for the period, posted once (keyed by row and
+  // period) against the order its placement bills to, under its cap. A row
+  // whose figure is blank posts nothing and says why; nothing is posted on
+  // an award, only on accepted weeks or on cash received.
+  const accruals = await commissionAccruals(companyId, { from: periodStart, to: periodEnd })
+  for (const a of accruals) {
+    if (a.state === 'POSTED') { skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: already posted for the period to ${periodKey}.` }); continue }
+    const cents = a.accrual.amountCents
+    if (cents == null || cents <= 0 || !a.accrual.currency) { skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: ${a.accrual.says}` }); continue }
+    const sellId = a.sellContractIds[0] ?? null
+    if (!sellId || a.sellContractIds.length > 1) {
+      skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: the commission is not on exactly one placement, so there is no one order to post it to.` })
+      continue
+    }
+    const orderId = await orderFor(sellId)
+    if (!orderId) { skipped.push({ buyContractId: a.lineId, why: 'No project order behind the placement.' }); continue }
+    try {
+      await postCommission({
+        projectOrderId: orderId, companyId, personId: a.earnedBy.id,
+        buyContractId: a.terms.buyContractId, sellContractId: sellId,
+        amountCents: cents, postedAt: periodEnd, sourceId: postingKey(a.id, { from: periodStart, to: periodEnd }),
+        says: `${a.earnedBy.name}, ${KIND_WORD[a.kind].toLowerCase()} — ${a.accrual.says}`, txCurrency: a.accrual.currency, createdById: caller.person.id,
+      })
+    } catch (e) {
+      if (e instanceof NoRate) { skipped.push({ buyContractId: a.lineId, why: e.message }); continue }
+      throw e
+    }
+    posted.push({ agent: a.earnedBy.name, buyContractId: a.lineId, amountCents: cents, currency: a.accrual.currency, says: a.accrual.says })
   }
 
   await prisma.automationLog.create({

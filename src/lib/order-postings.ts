@@ -1487,7 +1487,8 @@ export interface CommissionWrite {
   companyId: string
   /** The agent. */
   personId: string | null
-  buyContractId: string
+  /** The buy line it is paid on; null for a sales commission on a sell line with no buy line behind it. */
+  buyContractId: string | null
   sellContractId: string | null
   amountCents: number
   postedAt: Date

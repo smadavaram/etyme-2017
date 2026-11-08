@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
@@ -31,12 +32,34 @@ interface Earning {
   lines: { says: string; amountCents: number; order: string }[]
 }
 
+interface CommissionRow {
+  id: string
+  kindSays: string
+  earnedBy: { id: string; name: string }
+  person: { id: string; name: string } | null
+  client: { id: string; name: string } | null
+  termsSay: string
+  amountCents: number | null
+  currency: string | null
+  state: 'ACCRUED' | 'POSTED' | 'WAITING' | 'NOTHING' | 'BLANK'
+  says: string
+}
+
+const STATE_WORD: Record<CommissionRow['state'], string> = {
+  ACCRUED: 'Earned, not yet run',
+  POSTED: 'Posted',
+  WAITING: 'Waiting on the bill being paid',
+  NOTHING: 'Nothing earned',
+  BLANK: 'No figure',
+}
+
 const cash = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const monthName = (p: string) =>
   new Date(`${p}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 export default function CommissionsPage() {
   const [earnings, setEarnings] = useState<Earning[]>([])
+  const [rows, setRows] = useState<CommissionRow[]>([])
   const [summary, setSummary] = useState('')
   const [mayRun, setMayRun] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
@@ -65,6 +88,7 @@ export default function CommissionsPage() {
       setRefusedSaid(null)
       const body = await readJson(res)
       setEarnings(body.data.earnings)
+      setRows(body.data.rows ?? [])
       setSummary(body.data.summary)
       setMayRun(body.data.mayRun)
       setError(null)
@@ -139,6 +163,24 @@ export default function CommissionsPage() {
       {error && <ErrorState says={error} />}
       {loading && <LoadingState says="Opening commissions…" />}
 
+      {!loading && rows.length > 0 && (
+        <section className="panel space-y-2">
+          <p className="eyebrow">Commissions on lines, this period</p>
+          {rows.map((r) => (
+            <div key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-etyme-rule pt-2 text-[13px] first:border-t-0 first:pt-0">
+              <div>
+                <p className="text-etyme-ink">{r.earnedBy.name} · {r.kindSays}{r.person ? ` · ${r.person.name}` : ''}{r.client ? ` at ${r.client.name}` : ''}</p>
+                <p className="text-[12px] text-etyme-muted">{r.termsSay}. {r.says}</p>
+              </div>
+              <div className="text-right">
+                <p className="tabular-nums text-etyme-ink">{r.amountCents == null ? '—' : amount(r.amountCents, r.currency ?? undefined)}</p>
+                <p className="text-[11px] text-etyme-faint">{STATE_WORD[r.state]}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {!loading && earnings.length > 0 && (
         <ListSurface<Earning>
           name="commissions"
@@ -180,7 +222,7 @@ export default function CommissionsPage() {
         />
       )}
 
-      {!loading && earnings.length === 0 && !error && (
+      {!loading && earnings.length === 0 && rows.length === 0 && !error && (
         <EmptyState
           says="Nothing posted yet."
           detail={mayRun ? 'Pick a period above and run it.' : 'Whoever runs payroll here can run a period.'}

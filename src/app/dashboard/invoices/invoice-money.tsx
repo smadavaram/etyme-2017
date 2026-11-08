@@ -523,7 +523,7 @@ function BankCheck({
   }
   return (
     <div className="mt-4 rounded border border-etyme-rule bg-etyme-raised p-3">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <dl className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-etyme-muted">Bank</dt><dd className="text-etyme-ink">{facts.bankName ?? 'Not given'}</dd>
         <dt className="text-etyme-muted">Name on the account</dt><dd className="text-etyme-ink">{facts.accountName ?? 'Not given'}</dd>
         <dt className="text-etyme-muted">Account</dt><dd className="text-etyme-ink tabular-nums">ending {facts.accountLast4 ?? '????'}</dd>

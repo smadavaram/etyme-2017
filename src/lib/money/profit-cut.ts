@@ -25,7 +25,10 @@
  *   - a week the client approved and the employer has not yet accepted is
  *     billed and not yet costed, so it is left out and counted in words.
  *
- * Admin cost and commission are not subtracted, and the heading says so.
+ * Admin cost is not subtracted, and the heading says so. Commission is
+ * shown beside the margin, as "After commission", where the firm has
+ * commission rows on its lines (2026-11-08); the margin columns stay
+ * before it, so the heading stays true.
  * The firm's admin cost (2026-10-08: fixed costs for the period, shared
  * equally over the contracts live in it) has no column on the record yet,
  * so it is never shown, never guessed and never typed in here.
@@ -36,7 +39,7 @@ import { amount } from '@/lib/money-display'
 
 export const CUT_HEADING = 'Margin before admin cost and commission'
 
-export type Cut = 'consultant' | 'recruiter' | 'office' | 'client'
+export type Cut = 'consultant' | 'recruiter' | 'account-manager' | 'office' | 'client'
 export type Period = 'month' | 'quarter'
 
 export interface CutOption {
@@ -47,13 +50,16 @@ export interface CutOption {
 }
 
 /**
- * The four cuts the founder drew, and which the record can stand behind.
+ * The cuts the founder drew, and which the record can stand behind.
  *
- * Recruiter cannot be cut: no submission, contract or line records who
- * recruited a placement (a `Submission` names the firm, never the person),
- * so any figure "by recruiter" would be invented. A commission line is not
- * a stand-in: it is paid to referrers and partners as well, and most
- * placements carry none.
+ * Recruiter and account manager are read off the commission rows on the
+ * line (founder, 2026-11-08: "Commission is object on sell and buy
+ * contracts"): the recruiter is whoever earns the recruiting commission
+ * on the buy line behind the placement, the account manager whoever
+ * earns the sales commission on the sell line. A placement with none is
+ * listed under "Nobody named on the line", so the cut still adds up to
+ * the firm; one with two earners of a kind reads under both names
+ * together, never counted twice.
  *
  * Office is the part of this firm named on the contract as delivering it
  * (`SellContract.deliveryUnitId`), and a line with none reads under "Not
@@ -61,16 +67,26 @@ export interface CutOption {
  */
 export const CUTS: readonly CutOption[] = [
   { key: 'consultant', label: 'Consultant', cannotBecause: null },
-  {
-    key: 'recruiter',
-    label: 'Recruiter',
-    cannotBecause:
-      'No placement records who recruited it yet, so there is no cut by recruiter. ' +
-      'A figure by recruiter would be a guess.',
-  },
+  { key: 'recruiter', label: 'Recruiter', cannotBecause: null },
+  { key: 'account-manager', label: 'Account manager', cannotBecause: null },
   { key: 'office', label: 'Office', cannotBecause: null },
   { key: 'client', label: 'Client', cannotBecause: null },
 ]
+
+/** Where a placement goes in the recruiter or account manager cut when no row names anybody. */
+export const NOBODY_NAMED = 'Nobody named on the line'
+
+/**
+ * The key and label for a placement in the recruiter or account manager
+ * cut, from the earners of that kind in force on it. Pure.
+ */
+export function earnerKey(earners: readonly { id: string; name: string }[]): [string, string] {
+  const unique = [...new Map(earners.map((e) => [e.id, e])).values()].sort((a, b) => a.name.localeCompare(b.name))
+  if (unique.length === 0) return ['none', NOBODY_NAMED]
+  if (unique.length === 1) return [unique[0].id, unique[0].name]
+  const names = unique.map((e) => e.name)
+  return [unique.map((e) => e.id).join('+'), `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`]
+}
 
 export const NO_OFFICE = 'Not set on the contract'
 
@@ -134,6 +150,12 @@ export interface CutInput {
   label: string
   currency: string
   earned: EarnedForCut
+  /**
+   * The placement's commission for the period (lib/money/commission-accrual),
+   * where the firm has commission rows: cents in a currency, or null with
+   * the reason. Absent, no "after commission" figure is drawn.
+   */
+  commission?: { cents: number | null; currency: string | null; blankedBecause: string | null }
 }
 
 export interface CutLine {
@@ -149,6 +171,12 @@ export interface CutLine {
   blankedBecause: string | null
   /** Weeks the client approved and the employer has not accepted: billed, not yet costed, left out. */
   weeksAwaitingPay: number
+  /** The commission accrued on these placements in the period; null where it cannot be stood behind, or none was asked. */
+  commissionCents?: number | null
+  /** Margin less commission, still before admin cost. Null where either is. */
+  afterCommissionCents?: number | null
+  /** Why the commission or the figure after it is blank, where it is. */
+  commissionBlankedBecause?: string | null
 }
 
 export interface ProfitCut {
@@ -165,6 +193,10 @@ function workedIn(e: EarnedForCut): boolean {
 }
 
 function lineOf(key: string, label: string, rows: CutInput[]): CutLine {
+  return withCommission(marginLineOf(key, label, rows), rows)
+}
+
+function marginLineOf(key: string, label: string, rows: CutInput[]): CutLine {
   const placements = rows.length
   const weeksAwaitingPay = rows.reduce((n, r) => n + r.earned.weeksAwaitingPay, 0)
   const currencies = new Set(rows.map((r) => r.currency))
@@ -214,6 +246,25 @@ function lineOf(key: string, label: string, rows: CutInput[]): CutLine {
 }
 
 /**
+ * Margin after commission, where commissions were asked for: the line's
+ * margin less every placement's commission, in one currency, before admin
+ * cost still. Blank, with the reason, where the margin is blank, a
+ * placement's commission cannot be worked out, or a currency differs.
+ */
+function withCommission(line: CutLine, rows: CutInput[]): CutLine {
+  if (!rows.some((r) => r.commission)) return line
+  const blank = (why: string, commissionCents: number | null = null): CutLine =>
+    ({ ...line, commissionCents, afterCommissionCents: null, commissionBlankedBecause: why })
+  const unknown = rows.find((r) => r.commission && r.commission.cents == null)
+  if (unknown) return blank(unknown.commission!.blankedBecause ?? 'A commission here cannot be worked out for the period.')
+  const other = rows.find((r) => r.commission && (r.commission.cents ?? 0) !== 0 && r.commission.currency && r.commission.currency !== line.currency)
+  if (other) return blank('A commission here is in another currency from the margin, and two currencies are never subtracted.')
+  const commissionCents = rows.reduce((n, r) => n + (r.commission?.cents ?? 0), 0)
+  if (line.marginCents == null) return blank(line.blankedBecause ?? 'There is no margin to take the commission from.', commissionCents)
+  return { ...line, commissionCents, afterCommissionCents: line.marginCents - commissionCents, commissionBlankedBecause: null }
+}
+
+/**
  * The placements of a period, added up by the key each one carries.
  * Lines sort by margin, largest first; a blank margin sorts last, because
  * unknown is not small.
@@ -256,6 +307,7 @@ export function askAbout(cut: Cut, period: Period): string {
     case 'client': return `Which client made us the most ${when}?`
     case 'office': return `Which office made us the most ${when}?`
     case 'recruiter': return `Which recruiter made the most ${when}?`
+    case 'account-manager': return `Which account manager made the most ${when}?`
     default: return `Which consultant made us the most ${when}?`
   }
 }

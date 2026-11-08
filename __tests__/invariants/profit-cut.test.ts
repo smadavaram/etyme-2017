@@ -149,10 +149,10 @@ describe('who reads it', () => {
 })
 
 describe('the cuts and the periods', () => {
-  it('the record cannot cut by recruiter yet, so recruiter is said in a sentence and never computed', () => {
-    const recruiter = CUTS.find((c) => c.key === 'recruiter')!
-    expect(recruiter.cannotBecause).toContain('No placement records who recruited it')
-    expect(CUTS.filter((c) => !c.cannotBecause).map((c) => c.label)).toEqual(['Consultant', 'Office', 'Client'])
+  it('every cut the founder drew is offered, recruiter and account manager among them, read off the commission rows', () => {
+    expect(CUTS.filter((c) => !c.cannotBecause).map((c) => c.label)).toEqual(['Consultant', 'Recruiter', 'Account manager', 'Office', 'Client'])
+    expect(cutOf('account-manager')).toBe('account-manager')
+    expect(askAbout('account-manager', 'quarter')).toBe('Which account manager made the most this quarter?')
   })
 
   it('a line with no office on its contract reads under its own heading, so the office cut still adds up to the firm', () => {

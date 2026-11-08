@@ -7,8 +7,10 @@ import {
   total, forCandidate, forCustomer, health, belowFloor,
 } from '@/lib/profitability'
 import {
-  CUTS, CUT_HEADING, NO_OFFICE, askAbout, cutOf, mayReadCut, periodOf, periodWindow, profitCut,
+  CUTS, CUT_HEADING, NO_OFFICE, askAbout, cutOf, earnerKey, mayReadCut, periodOf, periodWindow, profitCut,
 } from '@/lib/money/profit-cut'
+import { marginReachFor, reachSays, sellLinesInReach } from '@/lib/money/margin-reach'
+import { commissionAccruals, commissionByPlacement } from '@/lib/money/commission-accrual'
 import { placementBooks, pairsFor, bookEarned, billingTotal, REVENUE_HEADING, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 import {
   spreadOn, blendedSpread, sellSideRate, isLive, scopeSays, spreadHealth,
@@ -76,6 +78,8 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Profitability')
   if (notStaff) return notStaff
 
+  // The door is yes or no, as every route's is; how far the yes reaches is
+  // `reach`, read just below and applied at the query.
   if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
       {
@@ -96,17 +100,26 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Over what this seat reads margin (founder, 2026-11-08): the whole firm,
+  // a team and every team under it, or its own placements, narrowed at the
+  // query below, never only on the screen (lib/money/margin-reach). A yes
+  // the scope reader cannot place reads no lines, never the firm's.
+  const reach = await marginReachFor(caller)
+
   const companyId = caller.company!.id
   const params = new URL(request.url).searchParams
   const by = params.get('by') ?? 'contract'
   const scope: Scope = params.get('scope')?.toLowerCase() === 'live' ? 'LIVE' : 'ALL'
+  // The sell lines this reach opens; undefined is every line the firm sells.
+  const only = (await sellLinesInReach(companyId, reach, caller.person.id)) ?? undefined
+  const reachInfo = { scope: reach.scope, teams: reach.unitNames, says: reachSays(reach, caller.company!.name) }
 
   // ── The pairs, which exist whether or not anybody tagged them ───────
   //
   // Read before the postings, because the book has to be answerable for a
   // firm that has never opened a master contract. Loaded once and used by
   // `by=book` and by the order view's fallback.
-  const pairs = await pairsFor(companyId, scope)
+  const pairs = await pairsFor(companyId, scope, only)
 
   // ── Cut by consultant, office or client, for a month or a quarter ───
   //
@@ -123,20 +136,20 @@ export async function GET(request: NextRequest) {
     const window = periodWindow(period, new Date())
     const option = CUTS.find((c) => c.key === cut)!
     const head = {
-      by: 'cut', cut, period, periodSays: window.says,
+      by: 'cut', cut, period, periodSays: window.says, reach: reachInfo,
       heading: CUT_HEADING,
       cuts: CUTS,
       ask: askAbout(cut, period),
       // No admin cost is on the record for any firm yet, so none is
       // subtracted and none is shown (2026-10-08: "not set" until entered).
       adminCostSet: false,
-      adminCostSays: 'No admin cost is set for your firm, so every figure here is before it, and before commission.',
+      adminCostSays: 'No admin cost is set for your firm, so every figure here is before it.',
     }
     if (option.cannotBecause) {
       return NextResponse.json({ data: { ...head, lines: [], total: null, cannotBecause: option.cannotBecause, says: option.cannotBecause } })
     }
     // A period reads every placement that worked in it, finished or not.
-    const all = scope === 'ALL' ? pairs : await pairsFor(companyId, 'ALL')
+    const all = scope === 'ALL' ? pairs : await pairsFor(companyId, 'ALL', only)
     const inPeriod = await placementBooks(companyId, { scope: 'ALL', pairs: all, window })
     const offices = cut === 'office' && inPeriod.length > 0
       ? new Map(
@@ -146,16 +159,61 @@ export async function GET(request: NextRequest) {
           })).map((c) => [c.id, c.deliveryUnit])
         )
       : new Map<string, { id: string; name: string } | null>()
+
+    // The commission rows in force in the period, on these placements: who
+    // recruited and who sold each one, and what each earned (2026-11-08).
+    const sellIds = inPeriod.map((b) => b.sellContractId)
+    const accruals = sellIds.length
+      ? await commissionAccruals(companyId, { from: window.from, to: new Date(window.to.getTime() - 86_400_000) }, { sellContractIds: sellIds })
+      : []
+    const earnersOn = (kind: 'RECRUITING' | 'SALES') => {
+      const m = new Map<string, { id: string; name: string }[]>()
+      for (const a of accruals) {
+        if (a.kind !== kind) continue
+        for (const id of a.sellContractIds) m.set(id, [...(m.get(id) ?? []), a.earnedBy])
+      }
+      return m
+    }
+    const recruiters = cut === 'recruiter' ? earnersOn('RECRUITING') : null
+    const sellers = cut === 'account-manager' ? earnersOn('SALES') : null
+
+    // Margin after commission, only where the firm has rows at all. A
+    // placement an older commission agreement pays on (a commission-type
+    // buy line linked to it) has a commission this period that is not on
+    // the line, so its figure after commission is blank, not too high.
+    const anyRows = accruals.length > 0 || (sellIds.length > 0 && (await prisma.contractCommission.count({ where: { companyId } })) > 0)
+    const perPlacement = commissionByPlacement(accruals)
+    const umbrella = anyRows && sellIds.length
+      ? new Set((await prisma.contractLink.findMany({
+          where: { sellContractId: { in: sellIds }, buyContract: { commissionType: { not: null } } },
+          select: { sellContractId: true },
+        })).map((l) => l.sellContractId))
+      : new Set<string>()
+
     const keyed = inPeriod.map((b) => {
       const office = offices.get(b.sellContractId) ?? null
       const [key, label] =
         cut === 'client' ? [b.customer.id, b.customer.name]
         : cut === 'office' ? [office?.id ?? 'none', office?.name ?? NO_OFFICE]
+        : cut === 'recruiter' ? earnerKey(recruiters!.get(b.sellContractId) ?? [])
+        : cut === 'account-manager' ? earnerKey(sellers!.get(b.sellContractId) ?? [])
         : [b.person.id, b.person.name]
-      return { key, label, currency: b.currency, earned: b.earned }
+      const commission = !anyRows ? undefined
+        : umbrella.has(b.sellContractId)
+          ? { cents: null, currency: null, blankedBecause: 'An older commission agreement pays on this placement, and its share for the period is not on the line.' }
+          : perPlacement.get(b.sellContractId) ?? { cents: 0, currency: b.currency, blankedBecause: null }
+      return { key, label, currency: b.currency, earned: b.earned, commission }
     })
     const answer = profitCut(keyed)
-    return NextResponse.json({ data: { ...head, ...answer, cannotBecause: null } })
+    return NextResponse.json({
+      data: {
+        ...head, ...answer, cannotBecause: null,
+        afterCommission: anyRows,
+        commissionSays: anyRows
+          ? 'After commission is the margin less the commissions earned on these placements in the period, still before admin cost.'
+          : 'No commission is set on any line here, so nothing is taken off for commission.',
+      },
+    })
   }
 
   // The one margin service (lib/money/margin), read once for every view:
@@ -165,6 +223,7 @@ export async function GET(request: NextRequest) {
   // The earned figure across the book and the three revenue figures, on
   // every answer, under the names every screen uses.
   const common = {
+    reach: reachInfo,
     labels: { agreed: AGREED_SPREAD, earned: EARNED_MARGIN, revenue: REVENUE_HEADING },
     earned: bookEarned(booksInScope.map((b) => ({ earned: b.earned, currency: b.currency }))),
     billing: billingTotal(booksInScope.map((b) => b.billing)),
@@ -213,7 +272,9 @@ export async function GET(request: NextRequest) {
   // since orders went in — the contract-derived views below still
   // answer, and the note says which is being read.
   const posted = await prisma.orderPosting.findMany({
-    where: { companyId },
+    // Narrowed with the pairs: a team or own-book reader reads only the
+    // postings on its own lines, and never the firm's unattached overhead.
+    where: { companyId, ...(only ? { sellContractId: { in: only } } : {}) },
     select: {
       id: true, kind: true, amountCents: true, postedAt: true, says: true,
       reversalOfId: true, sellContractId: true, buyContractId: true,
