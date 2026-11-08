@@ -9,7 +9,9 @@ import { employmentOf } from '@/app/api/compliance/verifications/record'
 import { linesForWorker } from '@/lib/document-stages/employer'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { itemsFollowArrival } from '@/lib/document-stages/arrived-papers'
 import {
+  answeredNotice,
   myPapers,
   outstandingItems,
   typeKeyForTemplate,
@@ -1057,6 +1059,16 @@ export async function PUT(request: NextRequest) {
     return { docId, verificationId }
   })
 
+  // ── Sent to the firm that asks her for it ──
+  // A paper she keeps on her own record, where a line she is on asks for
+  // it, also goes to the firm that line makes responsible for her papers,
+  // as a paper that arrived and nobody examined: on that firm's Paperwork,
+  // counted for its examiners, and answering its request for it. Until
+  // the founder's tester (2026-11-08) it stayed on her record alone while
+  // her page said it was "with them, waiting to be checked", and no seat
+  // anywhere could check it.
+  const sentTo = about === 'ME' && !filer && file ? await sendToTheFirmThatAsks(caller, row, label, file, on) : null
+
   // ── A degree she put on her own record, read against it ──
   // The fifth screen walk (2026-11-04): Rosa Delgado's 2016 certificate
   // against a 2014 résumé line warned HR and told her nothing. Where the
@@ -1089,7 +1101,67 @@ export async function PUT(request: NextRequest) {
       key: row.key,
       about,
       expiresAt: row.expiresAt ? plainDate(row.expiresAt.toISOString()) : null,
-      says: degreeForYou.length ? `${row.says} ${degreeForYou.join(' ')}` : row.says,
+      sentTo,
+      says: [row.says, sentTo ? `It went to ${sentTo.firm}, whose HR looks at it before it counts.` : null, ...degreeForYou].filter(Boolean).join(' '),
     },
   }, { status: 201 })
+}
+
+/**
+ * Put the copy she filed in front of the firm a line she is on makes
+ * responsible for this paper: that firm's open request for it where one
+ * is open, else a new one, at "arrived, not examined". Nothing where no
+ * line asks for it, or where she already sent one that waits.
+ */
+async function sendToTheFirmThatAsks(
+  caller: Caller,
+  row: { key: string; validFrom: Date | null; expiresAt: Date | null; edition: string | null },
+  label: string,
+  file: { name: string; type: string; bytes: Buffer },
+  on: Date,
+): Promise<{ firm: string; paperId: string } | null> {
+  const me = caller.person.id
+  const [checks, papers] = await Promise.all([
+    prisma.verification.findMany({ where: { personId: me }, select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true } }),
+    prisma.docInstance.findMany({
+      where: {
+        status: { not: KEPT_BY_HOLDER },
+        OR: [
+          { subjectType: 'PERSON', subjectId: me },
+          { sellContract: { personId: me } },
+          { buyContract: { candidates: { some: { personId: me, state: 'ACTIVE' } } } },
+        ],
+      },
+      select: { id: true, status: true, validFrom: true, expiresAt: true, signedAt: true, countersignedAt: true, template: { select: { name: true } } },
+    }),
+  ])
+  const found = await lineOwing(me, row.key, checks, papers, on)
+  if (!found || found.answeredBy) return null
+  const data = {
+    status: 'UPLOADED', signedAt: on, signedById: me, fileName: file.name,
+    signedFileUrl: 'file://on-record',
+    note: `Sent by ${caller.person.name} from their own paperwork page. Not examined.`,
+    validFrom: row.validFrom, expiresAt: row.expiresAt, edition: row.edition,
+  }
+  const paperId = await prisma.$transaction(async (tx) => {
+    const id = found.openAsk
+      ? (await tx.docInstance.update({ where: { id: found.openAsk }, data, select: { id: true } })).id
+      : (await tx.docInstance.create({
+          data: {
+            templateId: (await templateFor(found.companyId, found.label)).id,
+            subjectType: 'PERSON', subjectId: me, sentAt: on,
+            ...(found.side === 'SELL' ? { sellContractId: found.lineId } : { buyContractId: found.lineId }),
+            ...data,
+          },
+          select: { id: true },
+        })).id
+    const bytes = { fileName: file.name, contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: fileHash(file.bytes), uploadedById: me }
+    await tx.docFile.upsert({ where: { docInstanceId: id }, create: { docInstanceId: id, ...bytes }, update: { ...bytes, uploadedAt: on } })
+    return id
+  })
+  await itemsFollowArrival({ docId: paperId, firmId: found.companyId, personId: me, key: row.key, paperName: label, fileName: file.name, now: on })
+  const staff = await paperExaminersAt(found.companyId, me)
+  const told = answeredNotice({ who: caller.person.name, paper: label, signed: false, before: 0, note: null })
+  void notifyBulk(staff.map((personId) => ({ personId, companyId: found.companyId, type: 'SYSTEM' as const, title: told.title, body: told.body, entityId: paperId })))
+  return { firm: found.companyName, paperId }
 }

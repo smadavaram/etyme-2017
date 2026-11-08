@@ -464,10 +464,13 @@ export function answeredNotice(o: {
   note: string | null
 }): { title: string; body: string } {
   const verb = o.signed ? 'signed' : 'uploaded'
-  if (o.before === 0) return { title: `${o.who} ${verb} ${o.paper}`, body: o.note ?? 'It is on file.' }
+  // A file that arrived is not on file until somebody looks at it (the
+  // founder's tester, 2026-11-08): the examiners are told where to look.
+  const where = o.signed ? 'It is on file.' : 'It arrived and waits for you to look at it under Contracts, on the Paperwork tab.'
+  if (o.before === 0) return { title: `${o.who} ${verb} ${o.paper}`, body: o.note ?? where }
   return {
     title: `${o.who} ${verb} ${o.paper} again${o.before > 1 ? ` (${o.before + 1} times now)` : ''}`,
-    body: o.note ?? 'This is the one sent after it was sent back. It is on file.',
+    body: o.note ?? `This is the one sent after it was sent back. ${where}`,
   }
 }
 

@@ -3,7 +3,11 @@ import { examineNeedsOf } from '@/lib/document-stages/examine-form'
 import { randomBytes } from 'crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { askTheDesk } from '@/lib/permissions'
+import { askTheDesk, hasPermission } from '@/lib/permissions'
+import { EMPLOYER_COMPLETES } from '@/lib/document-stages/employer'
+import { arrivalReads } from '@/lib/document-stages/paper-doors'
+import { arrivedAtSuppliers } from '@/lib/document-stages/arrived-papers'
+import { employedPairs } from '@/app/api/compliance/verifications/record'
 import { mayAskForDocuments, packetsForKind } from '@/lib/packets'
 import { logBulkAccess } from '@/lib/access-log'
 import { emit } from '@/lib/events'
@@ -148,6 +152,29 @@ export async function GET(request: NextRequest) {
     : []
   const now = new Date()
 
+  // ── An I-9 is the employer's to examine, never a client's ──
+  // A paper only the employer completes (the I-9, a right to work check)
+  // that arrived on this firm's request about somebody another firm
+  // employs is said where it is and never counted as waiting on this
+  // firm (the founder's tester, 2026-11-08).
+  const employerOnlyPeople = [...new Set(packets.flatMap((p) =>
+    p.subjectPerson && p.items.some((i) => i.state === 'RECEIVED' && (EMPLOYER_COMPLETES as readonly string[]).includes(i.key)) ? [p.subjectPerson.id] : []))]
+  const employed = await employedPairs(employerOnlyPeople)
+  const employerOf = new Map<string, string>()
+  for (const pair of employed) {
+    const [companyId, personId] = pair.split(':')
+    if (companyId !== caller.company.id && !employed.has(`${caller.company.id}:${personId}`)) employerOf.set(personId, companyId)
+  }
+  const employerNames = employerOf.size
+    ? new Map((await prisma.company.findMany({ where: { id: { in: [...new Set(employerOf.values())] } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]))
+    : new Map<string, string>()
+  const notOurs = (p: (typeof packets)[number], key: string) => {
+    if (!p.subjectPerson || !(EMPLOYER_COMPLETES as readonly string[]).includes(key)) return null
+    const employerId = employerOf.get(p.subjectPerson.id)
+    if (!employerId) return null
+    return arrivalReads({ readerCompanyId: caller.company!.id, holderCompanyId: caller.company!.id, holderName: caller.company!.name, key, employerCompanyId: employerId, employerName: employerNames.get(employerId) ?? null }).says
+  }
+
   // The link is the credential: shown only to a seat that may ask for
   // papers, which is the seat that sends it on (2026-11-03: a row opened
   // nothing, so a stuck request's link could not be found again).
@@ -184,15 +211,15 @@ export async function GET(request: NextRequest) {
       // A request whose link has expired is one the recipient can no longer
       // act on, which looks identical to them ignoring it.
       linkExpired: daysLeft < 0,
-      awaitingReview: p.items.filter((i) => i.state === 'RECEIVED').length,
+      awaitingReview: p.items.filter((i) => i.state === 'RECEIVED' && !notOurs(p, i.key)).length,
       link: showsLinks ? `/packet/${p.token}` : null,
       // Every item and where it stands, so a row opens its request.
-      items: p.items.map((i) => ({ itemId: i.id, label: i.label, required: i.required, state: i.state, fileName: i.fileName })),
+      items: p.items.map((i) => ({ itemId: i.id, label: i.label, required: i.required, state: i.state, fileName: i.fileName, elsewhere: i.state === 'RECEIVED' ? notOurs(p, i.key) : null })),
       // What arrived, so the page opens each one and accepts it or sends it
       // back through the one examine route (the Tapin walk, 2026-10-29:
       // "Waiting on you 4" had no way to look at any of the four).
       arrived: p.items
-        .filter((i) => i.state === 'RECEIVED')
+        .filter((i) => i.state === 'RECEIVED' && !notOurs(p, i.key))
         .map((i) => ({
           itemId: i.id,
           key: i.key,
@@ -257,8 +284,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // What this firm's orders ask of the people on its lines and has arrived
+  // at their supplier: said where it is, never a door, so "Waiting on you
+  // 0" is never the whole answer while a supplier holds a paper a start
+  // here needs. Only for a seat that reads the program's papers.
+  const atSuppliers = mayAskForDocuments(caller.permissions) || hasPermission(caller.permissions ?? [], 'governance.read' as never)
+    ? await arrivedAtSuppliers({ clientCompanyId: caller.company.id, actorPersonId: caller.person.id })
+    : []
+
   return NextResponse.json({
     data: {
+      atSuppliers,
       packets: rows,
       // The three things somebody would actually act on.
       open: rows.filter((r) => !r.completedAt && !r.linkExpired).length,

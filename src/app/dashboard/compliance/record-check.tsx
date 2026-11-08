@@ -45,6 +45,8 @@ export interface RecordFor {
   /** The flagged report, where the form is the steps after it. */
   verificationId?: string
   provider?: string | null
+  /** The check a verdict is for, where the door that opened the form knows it (a placement's drug screen). */
+  checkType?: string
 }
 
 const field = 'w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised'
@@ -69,7 +71,7 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
   const [docExpires, setDocExpires] = useState('')
   const [docNumber, setDocNumber] = useState('')
   // Verdict
-  const [type, setType] = useState('BACKGROUND_CHECK')
+  const [type, setType] = useState(who.checkType === 'DRUG_SCREENING' ? 'DRUG_SCREENING' : 'BACKGROUND_CHECK')
   const [provider, setProvider] = useState('')
   const [reference, setReference] = useState('')
   const [renderedOn, setRenderedOn] = useState(today())

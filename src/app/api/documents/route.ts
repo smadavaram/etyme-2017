@@ -5,11 +5,15 @@ import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
-import { BUILT_IN } from '@/lib/document-type'
+import { BUILT_IN, labelFor } from '@/lib/document-type'
+import { orderedNotCollected } from '@/lib/attestation'
 import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER, libraryOf, holdsPaperworkDesk } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { hasPermission } from '@/lib/permissions'
+import { waitsToBeExamined } from '@/lib/document-request'
+import { examinesAt } from '@/lib/document-stages/arrived-papers'
+import { waitingOnYouSays } from '@/lib/document-stages/paper-doors'
 
 /**
  * GET /api/documents
@@ -180,8 +184,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── What waits on this seat ──
+    // A paper that arrived and nobody examined, counted for the seats a
+    // paper arriving is told to (HR and the compliance officer, else the
+    // Owner, else the Admin: `paperExaminersAt`), so a worker's own upload
+    // is in front of the people whose work it is (the founder's tester,
+    // 2026-11-08). A recruiter reads the list and is never counted.
+    const examiner = !isConsultantSeat(caller) && !subjectId && !status && await examinesAt(companyId, caller.person.id)
+    const waiting = examiner ? instances.filter((i) => waitsToBeExamined(i) && !(i.subjectType === 'PERSON' && i.subjectId === caller.person.id)).length : 0
+
     return NextResponse.json({
       data: {
+        waitingOnYou: examiner ? { count: waiting, says: waitingOnYouSays(waiting) } : null,
         instances: instances.map((i) => ({
           // A degree's reading: the sentence to HR and the three doors, or null.
           degree: degreeOf.has(i.id) ? { says: degreeOf.get(i.id)!.says, verified: degreeOf.get(i.id)!.verified, doors: degreeOf.get(i.id)!.doors } : null,
@@ -272,7 +286,41 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { type } = body
+  let { type } = body
+
+  // ── Ask the person for one paper, from the placement ──
+  // `{ type: 'ask', documentTypeKey, personId, contractId }`: the "Ask
+  // <worker>" door a paper carries on a placement (paper-doors). The paper
+  // is named the way the required set names it, kept under this firm's
+  // own template of that name, and asked through the same rules as any
+  // request below. A screening company's report is never asked of the
+  // person: the firm orders it and records the verdict.
+  let lineId: string | null = null
+  if (type === 'ask') {
+    const key = typeof body.documentTypeKey === 'string' ? body.documentTypeKey.trim() : ''
+    const personId = typeof body.personId === 'string' ? body.personId.trim() : ''
+    if (!key || !personId) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say which paper to ask for, and of whom.' } }, { status: 422 })
+    }
+    if (orderedNotCollected(key)) {
+      return NextResponse.json({
+        error: { code: 'NOT_HERS_TO_SEND', message: `${cap(labelFor(key))} is ordered from a screening company, and the report goes to the firm that ordered it. Record their verdict on the placement; the person is never asked for it.` },
+      }, { status: 409 })
+    }
+    const contractId = typeof body.contractId === 'string' ? body.contractId.trim() : ''
+    if (contractId) {
+      const line = await prisma.sellContract.findFirst({ where: { id: contractId, personId, companyId }, select: { id: true } })
+      lineId = line?.id ?? null
+    }
+    const name = cap(typeof body.paperLabel === 'string' && body.paperLabel.trim() ? body.paperLabel.trim() : labelFor(key))
+    const template =
+      (await prisma.docTemplate.findFirst({ where: { companyId, name }, select: { id: true } })) ??
+      (await prisma.docTemplate.create({ data: { companyId, name, audience: 'CANDIDATE', needsSignature: false }, select: { id: true } }))
+    body.templateId = template.id
+    body.subjectType = 'PERSON'
+    body.subjectId = personId
+    type = 'instance'
+  }
 
   if (type === 'instance') {
     const { templateId, subjectType, subjectId } = body
@@ -366,6 +414,7 @@ export async function POST(request: NextRequest) {
         status: 'PENDING',
         // Link to contract if applicable
         ...(subjectType === 'SELL_CONTRACT' ? { sellContractId: subjectId } : {}),
+        ...(lineId ? { sellContractId: lineId } : {}),
         ...(subjectType === 'BUY_CONTRACT' ? { buyContractId: subjectId } : {}),
       },
     })
@@ -421,6 +470,8 @@ export async function POST(request: NextRequest) {
     },
   }, { status: 201 })
 }
+
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
 /**
  * Whether this firm has offered the person work: a line between them (as

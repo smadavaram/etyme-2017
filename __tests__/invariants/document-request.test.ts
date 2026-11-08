@@ -187,10 +187,10 @@ describe('what people read', () => {
   it('a paper sent back and answered again is told as the second answer, so nobody reads the same line twice', () => {
     const first = answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: false, before: 0, note: null })
     const again = answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: false, before: 1, note: null })
-    expect(first).toEqual({ title: 'Fenna Underhill uploaded W-9', body: 'It is on file.' })
+    expect(first).toEqual({ title: 'Fenna Underhill uploaded W-9', body: 'It arrived and waits for you to look at it under Contracts, on the Paperwork tab.' })
     expect(again.title).toBe('Fenna Underhill uploaded W-9 again')
     expect(again.title).not.toBe(first.title)
-    expect(again.body).toBe('This is the one sent after it was sent back. It is on file.')
+    expect(again.body).toBe('This is the one sent after it was sent back. It arrived and waits for you to look at it under Contracts, on the Paperwork tab.')
     expect(answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: true, before: 2, note: null }).title).toBe('Fenna Underhill signed W-9 again (3 times now)')
   })
   it('a row says what is true, never the enum', () => {

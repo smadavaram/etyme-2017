@@ -8,6 +8,7 @@ import { paperExaminersAt } from '@/lib/notify/paper-examiners'
 import { degreeOnRecord, isDegreePaper } from '@/lib/document-stages/degree-check'
 import { degreeAskedOfYou } from '@/lib/notify/degree-and-start'
 import { tellTheWorkerAboutHerDegree } from '@/lib/document-stages/degree-told'
+import { itemsFollowArrival, keyOfPaper } from '@/lib/document-stages/arrived-papers'
 import {
   mayAct,
   isProfessionalLicense,
@@ -239,6 +240,17 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
     // her page told every seat at her employer, nine notices (the second
     // screen walk, 2026-11-03).
     const staff = (await paperExaminersAt(issuer.id, caller.person.id)).map((personId) => ({ personId }))
+    // A paper she sent from her own page answers the request that firm
+    // made of her for the same paper, so Document requests counts it as
+    // waiting on its examiners and opens it (the founder's tester,
+    // 2026-11-08: "waiting on you 0" while four papers sat with them).
+    if (subjectPersonId && caller.person.id === subjectPersonId && action === 'upload') {
+      await itemsFollowArrival({
+        docId: doc.id, firmId: issuer.id, personId: subjectPersonId,
+        key: keyOfPaper(doc.template.name), paperName: doc.template.name,
+        fileName: fileName ?? doc.fileName, now,
+      })
+    }
     // A paper sent back and answered again is told as the second answer,
     // never as the first one word for word: each seat read the first line
     // already. Counted off what the firm was told about this paper before.

@@ -41,7 +41,7 @@ interface Packet {
   /** The request's own link, for a seat that sends it on; null for any other. */
   link?: string | null
   /** Every item and where it stands. */
-  items?: { itemId: string; label: string; required: boolean; state: string; fileName: string | null }[]
+  items?: { itemId: string; label: string; required: boolean; state: string; fileName: string | null; elsewhere?: string | null }[]
 }
 
 interface Arrived {
@@ -69,6 +69,8 @@ export default function PacketsPage() {
   const [packets, setPackets] = useState<Packet[] | null>(null)
   const [available, setAvailable] = useState<Available[]>([])
   const [counts, setCounts] = useState({ open: 0, awaitingReview: 0, stale: 0 })
+  // Papers this firm's orders ask for that arrived at its supplier: said, never examined here.
+  const [atSuppliers, setAtSuppliers] = useState<{ personId: string; says: string }[]>([])
   const [canAsk, setCanAsk] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -103,6 +105,7 @@ export default function PacketsPage() {
         stale: body.data.stale,
       })
       setCanAsk(body.data.canAsk)
+      setAtSuppliers(body.data.atSuppliers ?? [])
       setPeople(body.data.people ?? [])
       setNotOffered(body.data.notOffered ?? [])
     } catch (e: any) {
@@ -300,6 +303,16 @@ export default function PacketsPage() {
         <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'default'} sub="they cannot reply" />
       </div>
 
+      {atSuppliers.length > 0 && (
+        <section className="mb-8">
+          <h2 className="font-serif text-lg text-etyme-ink mb-1">At your suppliers <span className="text-xs text-etyme-faint tabular-nums font-sans">{atSuppliers.length}</span></h2>
+          <p className="text-[13px] text-etyme-muted mb-2">Papers your orders ask for that arrived at the supplier. The supplier examines them; each reads on the placement once it is on file.</p>
+          <ul className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {atSuppliers.map((r, n) => <li key={`${r.personId}-${n}`} className="px-4 py-2 text-[13px] text-etyme-ink">{r.says}</li>)}
+          </ul>
+        </section>
+      )}
+
       {/* ── Never a dead end ──
           This read "A packet is how you get a W-9…" with no button under
           it, so a compliance officer could not ask for anything from the
@@ -405,7 +418,7 @@ function Group({ title, rows, note, onLook, onAnswer, onResend }: {
                   {(p.items ?? []).map((i) => (
                     <li key={i.itemId} className="flex flex-wrap justify-between gap-3 text-[13px]">
                       <span className="text-etyme-ink">{i.label}{i.fileName ? <span className="text-etyme-faint"> · {i.fileName}</span> : null}</span>
-                      <span className="text-etyme-muted">{itemStateSays(i.state, i.required)}</span>
+                      <span className="text-etyme-muted">{i.elsewhere ?? itemStateSays(i.state, i.required)}</span>
                     </li>
                   ))}
                 </ul>

@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { desksOffered } from '@/lib/access-grant'
 import { formatDay } from '@/lib/format-date'
+import { GiveAccess } from '@/components/settings/give-access'
 
 import { useEffect, useState, useCallback } from 'react'
 import { usePageSection } from '@/components/page-section'
@@ -537,6 +538,12 @@ export default function AccessPage() {
           ))}
         </div>
       </section>
+
+      {/* One more thing than a role allows, by team, by role or for the
+          whole company (the founder, 2026-11-08). The component draws
+          the form only where this seat may grant, and the list for any
+          seat that may read it. */}
+      <div className="mt-8"><GiveAccess /></div>
     </div>
   )
 }

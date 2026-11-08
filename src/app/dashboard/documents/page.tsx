@@ -75,6 +75,8 @@ export default function DocumentsPage() {
   const eyebrow = usePageSection('/dashboard/documents')
   const [templates, setTemplates] = useState<Template[]>([])
   const [requests, setRequests] = useState<Request_[]>([])
+  // What waits on this seat: papers that arrived and nobody examined.
+  const [waiting, setWaiting] = useState<{ count: number; says: string | null } | null>(null)
   const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -109,6 +111,7 @@ export default function DocumentsPage() {
       setTeamFirm(!!own?.teamFirm)
       setTemplates(t?.data?.templates ?? [])
       setRequests(r?.data?.instances ?? [])
+      setWaiting(r?.data?.waitingOnYou ?? null)
       setBooks(whoWeMayAsk)
     } catch (e: any) {
       setUnread(e.message)
@@ -200,6 +203,13 @@ export default function DocumentsPage() {
       )}
       {error && <div className="mb-4"><FormMessage tone="error">{error}</FormMessage></div>}
 
+      {waiting?.says && (
+        <p className="mb-4 text-sm text-etyme-attention">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-medium mr-2">Waiting on you <span className="tabular-nums">{waiting.count}</span></span>
+          {waiting.says}
+        </p>
+      )}
+
       {onePersonFirm && <OwnPapers heading="Your firm’s papers" />}
 
       {teamFirm && <OwnPapers about="MY_FIRM" heading="Company paperwork" />}
@@ -249,7 +259,8 @@ export default function DocumentsPage() {
           {!loading && requests.length === 0 && (
             <EmptyState compact says="Nothing asked for yet." detail="Add a document to the library below, then ask somebody for it above." />
           )}
-          {requests.map((r) => (
+          {/* What arrived and waits on somebody's look first. */}
+          {[...requests].sort((a, b) => Number(waitsToBeExamined(b)) - Number(waitsToBeExamined(a))).map((r) => (
             <div key={r.id} className="p-4 flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[220px]">
                 <div className="text-sm text-etyme-ink">{r.template.name} <span className="text-etyme-muted">· {r.subject}</span></div>

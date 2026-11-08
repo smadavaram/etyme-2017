@@ -14,6 +14,7 @@ import { BUILT_IN, typeByKey } from '@/lib/document-type'
 import { RECORDABLE_ABOUT_A_FIRM, examinedFromAPacket, orderedNotCollected, reportRunsOutOn } from '@/lib/attestation'
 import { paperSubject } from '@/lib/document-stages/firm-papers'
 import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
+import { itemsFollowExamination } from '@/lib/document-stages/arrived-papers'
 import { answerOpenAsks, buyerMayExamineKept, examinationBody, examinationOf, itemFollowsPaper, recordSupplierPaper, type Door } from '@/app/api/packets/examination'
 
 /**
@@ -265,6 +266,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await answerOpenAsks({
       buyerId: caller.company.id, supplierId: subjectCompanyId, key,
       verificationId, reviewerId: caller.person.id, validUntil: verdict.expiresAt, now,
+    })
+  }
+  // A paper a worker sent from her own page answered the firm's own
+  // request for it (`itemsFollowArrival`); the request follows the look.
+  if (!item) {
+    await itemsFollowExamination({
+      docId: id, accepted: verdict.verdict === 'ACCEPT', reviewerId: caller.person.id,
+      note: verdict.verdict === 'ACCEPT' ? null : verdict.note, validUntil: verdict.expiresAt, verificationId,
     })
   }
   if (item) {
