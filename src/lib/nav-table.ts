@@ -1233,6 +1233,24 @@ export function firstTabFor(roleName: string | null | undefined, remembered: She
   return QUEUE_ROLES.some((r) => r.toLowerCase() === role) ? 'dashboard' : 'ask'
 }
 
+/**
+ * Whether the once-a-session landing may move a person from Ask Etyme to
+ * their first tab. Only where the door landed them and they have not
+ * chosen anywhere yet: a link pressed before the session answered is the
+ * person's choice, and replacing the route then swallowed that first
+ * click (the founder's tester on production, 2026-11-08, "the dead first
+ * click on nav"). `path` is the browser's own, read at the moment the
+ * landing would happen, never a pathname a render captured earlier.
+ */
+export function landsOnFirstTab(args: {
+  first: ShellView
+  path: string
+  search: string
+  pressedALink: boolean
+}): boolean {
+  return args.first === 'dashboard' && !args.pressedALink && args.path === ASK_ETYME_HREF && !args.search
+}
+
 /** Whether a path is one of this menu's pages, Ask Etyme and its conversations aside. */
 function pathOnMenu(sections: readonly NavSection[], path: string): boolean {
   return sections.some((s) => s.items.some((i) => {

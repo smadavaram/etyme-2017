@@ -23,9 +23,22 @@ import { OwedBadge } from '@/components/shell/ask-etyme-mark'
 import { owedLabel } from '@/lib/owed-count'
 import { useSession } from '@/components/session-provider'
 import { deskOf } from '@/components/shell/sidebar-props'
-import { ASK_ETYME_HREF, firstTabFor, readTab, tabKey, viewOf, type ShellView } from '@/lib/nav-table'
+import { ASK_ETYME_HREF, firstTabFor, landsOnFirstTab, readTab, tabKey, viewOf, type ShellView } from '@/lib/nav-table'
 
 const SEEN_KEY = 'etyme_tab_landed'
+
+/**
+ * Set by the first press on any link in the page, before the session has
+ * answered. Read by the landing, so it never replaces a route the person
+ * already chose (the dead first click, 2026-11-08).
+ */
+let pressedALink = false
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const t = e.target as Element | null
+    if (t && typeof t.closest === 'function' && t.closest('a[href]')) pressedALink = true
+  }, { capture: true })
+}
 
 function stored(get: () => string | null): string | null {
   try { return get() } catch { return null }
@@ -92,8 +105,10 @@ export function useRememberedTab(dashboardHref: string, enabled: boolean): void 
     if (!stored(() => window.sessionStorage.getItem(seen))) {
       stored(() => { window.sessionStorage.setItem(seen, '1'); return null })
       const first = firstTabFor(roleName, readTab(stored(() => window.localStorage.getItem(key))))
-      // Only where the door landed them: a link to a page opens that page.
-      if (first === 'dashboard' && pathname === ASK_ETYME_HREF && !window.location.search) {
+      // Only where the door landed them and they have not pressed a link
+      // yet: a link to a page opens that page, and a press made while the
+      // session was loading is never replaced (landsOnFirstTab).
+      if (landsOnFirstTab({ first, path: window.location.pathname, search: window.location.search, pressedALink })) {
         router.replace(dashboardHref as any)
         return
       }

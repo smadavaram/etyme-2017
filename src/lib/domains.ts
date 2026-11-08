@@ -425,6 +425,9 @@ export const DOMAINS: Domain[] = [
       // editors. The conversation panel on it is conversation's.
       'app/dashboard/twin',
       'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
+      // What the content area shows the moment a menu link is pressed, while
+      // the next page is on its way (the dead first click, 2026-11-08).
+      'app/dashboard/loading',
       'app/(auth)',
       'app/api/settings', 'app/api/imports', 'app/api/integrations',
       'app/api/onboarding', 'app/api/automation',
