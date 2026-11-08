@@ -357,7 +357,7 @@ function ReceiptPanel({ receipt: r, books, onClose, onMoved }: {
             {/* Held on the supplier's bank, and this reader is who checks it: the check, here. */}
             {r.doors.pay.bank?.mayCheck && r.doors.pay.bank.facts && (
               <div className="rounded border border-etyme-rule p-3">
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+                <dl className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
                   <dt className="text-etyme-muted">Bank</dt><dd className="text-etyme-ink">{r.doors.pay.bank.facts.bankName ?? 'Not given'}</dd>
                   <dt className="text-etyme-muted">Name on the account</dt><dd className="text-etyme-ink">{r.doors.pay.bank.facts.accountName ?? 'Not given'}</dd>
                   <dt className="text-etyme-muted">Account</dt><dd className="text-etyme-ink tabular-nums">ending {r.doors.pay.bank.facts.accountLast4 ?? '????'}</dd>
