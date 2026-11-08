@@ -977,3 +977,21 @@ every unconfirmed line. What the founder should know:
    shows the home page. A firm's own domain (CUSTOM) still opens
    `/site/<host>` with no check. `*.etyme.com` must point at the
    deployment before `tapin.etyme.com` resolves at all.
+
+### Reports: cash flow — etyme-money, 2026-11-08
+
+- **Payroll due is the Payroll page's own rows, and only those.** Cash
+  flow asks `/api/payroll` in-process and places each row not yet
+  processed at its next pay date. With no period asked, that page shows
+  each line's most recent period, so a pay day further ahead than the next
+  one is not on cash flow until the Payroll page shows it.
+- **Payroll paid is what processed runs recorded.** A run that wrote hours
+  and no rate blanks payroll paid, and the net, for its period
+  (`paidRunHours` returns no amount); it is never read as nought.
+- **A payment out on a typed-in receipt with no payment row** is read at
+  the receipt's `paidAt` for its `paidCents`; with no `paidAt` it is in no
+  period and the screen says how many.
+- **A bill is billed on the day it was sent** (`submittedAt`, else
+  `issuedAt` for a bill sent before that column was written).
+- **A client's cash flow is built and not shown**: the page says Reports is
+  not open for a client yet while its link is held back.

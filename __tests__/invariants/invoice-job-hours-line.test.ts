@@ -54,11 +54,13 @@ describe('a seat is told which desk reads what placements earn, and the Reports 
     expect(route).not.toContain('A recruiter role deliberately does not')
   })
 
-  it('the Reports page does not call the bench, bills or profitability for a seat whose menu would not open them', () => {
+  it('the Reports page asks only what the seat’s menu would open: cash flow where Bills or Invoice receipts open, Profitability where Profitability opens, and never the bench', () => {
+    // Reports is cash flow and profitability, nothing else (the founder,
+    // 2026-11-08): the bench and the bills list are no longer read here.
     const page = src('app/dashboard/reports/page.tsx')
-    for (const [href, api] of [['/dashboard/bench', '/api/bench'], ['/dashboard/invoices', '/api/invoices'], ['/dashboard/profitability', '/api/profitability']]) {
-      expect(page).toContain(`mayOpen('${href}', permissions)`)
-      expect(page).toMatch(new RegExp(`\\? fetch\\('${api.replace(/\//g, '\\/')}`))
-    }
+    expect(page).toContain("mayOpen('/dashboard/ap', permissions) || mayOpen('/dashboard/ar', permissions)")
+    expect(page).toContain("mayOpen('/dashboard/profitability', permissions)")
+    expect(page).not.toContain('/api/bench')
+    expect(page).not.toContain('/api/invoices')
   })
 })

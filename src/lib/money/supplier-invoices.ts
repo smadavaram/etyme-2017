@@ -84,6 +84,16 @@ function open(row: SupplierInvoiceRow): boolean {
 }
 
 /**
+ * What is still owed on one supplier invoice, by this file's own test of
+ * open: nought on a cancelled, void or draft one, and on one paid to
+ * within a cent. Cash flow reads it so its "invoice receipts due" is the
+ * figure Accounts payable shows, invoice by invoice.
+ */
+export function owedOn(row: SupplierInvoiceRow): number {
+  return open(row) ? outstanding(row) : 0
+}
+
+/**
  * The supplier invoices a company owes, read as a payable book.
  *
  * `now` is passed rather than read, so a test about an overdue bill is

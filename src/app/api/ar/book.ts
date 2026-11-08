@@ -55,6 +55,10 @@ export async function loadReceivables(companyId: string) {
     select: {
       id: true, number: true, currency: true, total: true, paid: true,
       dueAt: true, status: true, periodStart: true, periodEnd: true, issuedAt: true,
+      // The day it was sent, which is the day it was billed on cash flow
+      // (lib/money/cash-flow). Null on a bill sent before the column was
+      // written, where `issuedAt` is the nearest the record says.
+      submittedAt: true,
       // The day the client confirmed it landed. Null is not "today" — it
       // is nobody having said, and on terms counted from receipt that is
       // the difference between an invoice that is late and one whose
@@ -334,4 +338,27 @@ export async function loadToSend(companyId: string): Promise<ToSend[]> {
     periodStart: r.periodStart,
     periodEnd: r.periodEnd,
   }))
+}
+
+/**
+ * Cash received that names no bill yet: a wire with a reference nobody
+ * recognizes, a client paying four bills at once.
+ *
+ * Read by Accounts receivable, which shows it as its own number, and by
+ * cash flow, which counts it as money in on the day it came. One query,
+ * so the two cannot disagree about which receipts are waiting to be
+ * placed. A payment that settles an invoice receipt somebody typed in
+ * names that receipt (`vendorBillId`); it is placed already, never cash
+ * waiting to be placed.
+ */
+export async function loadUnplacedPayments(companyId: string) {
+  return prisma.payment.findMany({
+    where: { invoiceId: null, vendorBillId: null, receivedByCompanyId: companyId },
+    select: {
+      id: true, amount: true, currency: true, receivedAt: true, reference: true,
+      payerCompany: { select: { id: true, name: true } },
+    },
+    orderBy: { receivedAt: 'desc' },
+    take: 2_000,
+  })
 }

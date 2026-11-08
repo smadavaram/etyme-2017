@@ -1,894 +1,292 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
+import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
-import { refusalOf, refusedRead } from '@/lib/money/refused-read'
-import { scopeOf, narrowedReport } from '@/lib/money/own-scope'
 import { mayOpen } from '@/components/shell/sidebar'
-import { EmptyState, ErrorState, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
-import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
-import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
+import { ListSurface } from '@/components/list-surface'
+import type { Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, Panel, RefusedState, Stat } from '@/components/ui'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
+import { amount } from '@/lib/money-display'
+import { BUCKETS, BUCKET_LABEL } from '@/lib/ar-ageing'
+import {
+  CASH_PERIODS, CASH_PERIOD_WORD, GRAINS, GRAIN_WORD, FIGURE_WORD, varies,
+  type Bands, type CashPeriod, type CashRow, type CurrencyFlow, type Figure, type Grain,
+} from '@/lib/money/cash-flow'
+import { CutTable } from '../profitability/cut-table'
 
 /**
- * Reports — Grow section (vendor)
+ * Reports — cash flow and profitability, and nothing else.
  *
- * BRD §18: Performance metrics, revenue analytics, and operational
- * dashboards.
+ * The founder, 2026-11-08: "Reports is nothing but cashflow and
+ * profitability margin analysis tools." So two tabs, each at its own
+ * address so a link can open it:
  *
- * CLAUDE.md design system:
- *   Decision surfaces: "Prose, reasoning, confidence, calm. 3–10 items.
- *   Serif headlines, generous space. User decides well and leaves."
+ *   · **Cash flow** (`?tab=cash-flow`, the default) — billed, payments in,
+ *     invoice receipts due, payments out, payroll due and paid, and the
+ *     net, by week or by month, for this month, this quarter or the last
+ *     90 days, with what is owed both ways in the five age bands. One
+ *     table per currency: rupees and dollars are never added. Every
+ *     figure is the route's (`/api/ap?view=cash-flow`), which reads the
+ *     Accounts receivable, Accounts payable and Payroll pages' own
+ *     readers; this screen computes nothing.
+ *   · **Profitability** (`?tab=profitability`) — the Profitability page's
+ *     own cut table, the same component, so the two addresses cannot say
+ *     two margins. `/dashboard/profitability` keeps its address and its
+ *     detail views.
  *
- * Fetches from four API endpoints in parallel:
- *   - GET /api/contracts?side=sell   → revenue, client breakdown
- *   - GET /api/contracts?side=buy    → cost, margin calculation
- *   - GET /api/bench                 → bench utilization, skills
- *   - GET /api/invoices              → AR outstanding, aging
+ * Removed on the same day, because none of it is cash or margin and each
+ * is shown on its own page: the revenue and margin tiles computed from
+ * contract lists, revenue by client, the contract pipeline (Contracts),
+ * the bench skills distribution (Network · Candidates) and the bills
+ * summary (Bills and its AR tab).
  *
- * All metrics are computed client-side from raw API responses.
+ * A tab is asked for only where the seat's menu would open what it reads:
+ * cash flow where Bills or Invoice receipts open, Profitability where
+ * Profitability does. A seat that opens neither reads one sentence.
+ *
+ * A client is held back for now (the architect holds its link, the
+ * coordinator's call of 2026-11-08): the route answers a client's own book
+ * — what it owes its suppliers, paid and due, by age band, and never a
+ * margin — and the page says it is not open yet rather than drawing it.
  */
 
-// ── Types ──────────────────────────────────────────────
-
-interface SellContract {
-  id: string
-  billRate: number // cents per hour
-  state: string
-  startDate: string
-  endDate: string | null
-  clientCompany: { id: string; name: string } | null
-  endClientCompany: { id: string; name: string } | null
-  /**
-   * Whose line this is.
-   *
-   * Not cosmetic. `/api/contracts?side=sell` serves a prime or a GSI
-   * `OR: [companyId, clientCompanyId]` — correctly, because a prime both
-   * sells and buys and wants both sides of its placements on one list. So
-   * the list contains the lines this firm sells **and** the lines its own
-   * suppliers sell to it, and the second kind is its cost.
-   *
-   * This page counted both as revenue until 2026-09-26: Teleworld
-   * Solutions read $41,280 a month over two contracts when one of the two
-   * was Nimbus Talent's $116/hr line billing Teleworld. Its revenue is
-   * $22,720. The one live consultant was counted twice, once at each rung
-   * of one chain.
-   */
-  companyId: string | null
-}
-
-/**
- * The margin, from the one route that computes it.
- *
- * This page used to work a margin out in the browser — the mean of every
- * active sell rate less the mean of every active buy rate — and printed
- * 10.1% where the placement's own spread was 18.3%. Two screens each doing
- * their own arithmetic is two numbers, so the figure comes from
- * `/api/profitability?by=book` now, which is the same door
- * `/dashboard/profitability` reads. One door or two numbers; there is no
- * third option.
- *
- * It is also the gate. A margin percentage requires `margin.read`
- * (`lib/permissions`), the Profitability nav link asks for it and this
- * page does not — so a Recruiter who is deliberately refused the
- * Profitability page was reading a margin off this one. The route refuses
- * them and the panel says why instead of printing a number.
- */
-interface Book {
-  agreed: {
-    pct: number | null
-    billRateCents: number | null
-    payRateCents: number | null
-    currency: string | null
-    placements: number
-    unpriced: number
-    refusedBecause: string | null
-    says: string
-  }
-  /** What is billed, whether or not anything is priced behind it. */
-  revenue: {
-    /** The rates added. What a run rate multiplies. */
-    totalBillRateCents: number | null
-    /** The blended rate, which is a rate somebody pays. */
-    billRateCents: number | null
-    monthlyCents: number | null
-    placements: number
-    currency: string | null
-    withoutCost: number
-    refusedBecause: string | null
-    says: string
-  }
-  revenueByClient: {
-    clientId: string
-    name: string
-    placements: number
-    monthlyCents: number | null
-    currency: string | null
-    refusedBecause: string | null
-  }[]
-  /** The firm's own placements by state. Never its suppliers' lines. */
-  pipeline: { counts: Record<string, number>; total: number }
-  placements: number
-  unlinked: number
-  scopeSays: string
-}
-
-interface BuyContract {
-  id: string
-  payRate: number // cents per hour
-  state: string
-  contractType: string
-}
-
-interface BenchEntry {
-  id: string
-  tier: string
-  consultant: {
-    id: string
-    skills: string[]
-    availableFrom: string | null
-  }
-}
-
-type AgingKey = 'current' | '1-30' | '31-60' | '61-90' | '90+'
-
-/**
- * One currency's book, on one side of the ledger.
- *
- * `/api/invoices` no longer returns a single outstanding figure, because
- * a single figure required adding a firm's own supplier bills to what it
- * was owed and adding dollars to rupees. This report shows the largest
- * receivable book and names its currency rather than inventing a total.
- */
-interface CurrencySummary {
-  currency: string
-  outstandingMinor: number
-  overdueMinor: number
-  buckets: Record<AgingKey, { count: number; minor: number }>
-  invoiceCount: number
-}
-
-interface InvoiceSummary {
-  units: 'MINOR'
-  receivable: CurrencySummary[]
-  payable: CurrencySummary[]
-  unattributedCount: number
-  gaps: string[]
-  says: string
-}
-
-interface Invoice {
-  id: string
-  currency: string
-  totalMinor: number
-  paidMinor: number
-  outstandingMinor: number
-  status: string
-  aging: string
-}
-
-interface ReportData {
-  sellContracts: SellContract[]
-  buyContracts: BuyContract[]
-  benchEntries: BenchEntry[]
-  invoices: Invoice[]
-  invoiceSummary: InvoiceSummary | null
-  book: Book | null
-  /** Set where the caller may not read a margin at all. */
-  bookRefusal: string | null
-  /**
-   * Set where `/api/contracts` narrowed this seat to the lines naming it,
-   * so the page never reads them as the firm's book (round five, #9).
-   */
-  narrowed: { alone: boolean; says: string } | null
-}
-
-// ── Helpers ────────────────────────────────────────────
-
-
-function fmtPercent(value: number): string {
-  return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
-}
-
-// ── Page ───────────────────────────────────────────────
-
-
-/** The five age bands of a book, in the order a credit controller reads them. */
-function agingOf(book: any) {
-  return [
-    { key: 'current', label: 'Current', color: AGE_BANDS[0], amount: book.buckets.current.minor },
-    { key: '1-30', label: '1–30d', color: AGE_BANDS[1], amount: book.buckets['1-30'].minor },
-    { key: '31-60', label: '31–60d', color: AGE_BANDS[2], amount: book.buckets['31-60'].minor },
-    { key: '61-90', label: '61–90d', color: AGE_BANDS[3], amount: book.buckets['61-90'].minor },
-    { key: '90+', label: '90+d', color: AGE_BANDS[4], amount: book.buckets['90+'].minor },
-  ]
-}
+type Tab = 'cash-flow' | 'profitability'
+const TAB_WORD: Record<Tab, string> = { 'cash-flow': 'Cash flow', profitability: 'Profitability' }
 
 export default function ReportsPage() {
-  const [data, setData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  /** What the routes said when every read was refused; null where any was not. */
-  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
-
   const { permissions, company, loading: sessionLoading } = useSession()
-  // The section this page sits under on the reader's own menu, and
-  // nothing while that is not known yet — never a word typed by hand.
   const eyebrow = usePageSection('/dashboard/reports')
+  const params = useSearchParams()
 
-  const fetchAll = useCallback(async () => {
-    // Nothing is asked before the seat is known, and then only what the
-    // menu would open for it: a route that would refuse is not called.
-    // Karthik Menon's Reports page fired five requests that each answered
-    // 403 behind a page that looked merely empty.
-    if (permissions == null) return
-    setLoading(true)
-    setError(null)
-    const reads = {
-      bench: mayOpen('/dashboard/bench', permissions),
-      invoices: mayOpen('/dashboard/invoices', permissions),
-      margin: mayOpen('/dashboard/profitability', permissions),
-    }
-    const notAsked = (message: string) =>
-      Promise.resolve(new Response(JSON.stringify({ error: { code: 'NOT_ASKED', message } }), { status: 403 }))
+  const readsCash = permissions != null && (mayOpen('/dashboard/ap', permissions) || mayOpen('/dashboard/ar', permissions))
+  const readsMargin = permissions != null && mayOpen('/dashboard/profitability', permissions)
+  const offered: Tab[] = [...(readsCash ? ['cash-flow' as const] : []), ...(readsMargin ? ['profitability' as const] : [])]
+  const asked = params?.get('tab') === 'profitability' ? 'profitability' : 'cash-flow'
+  const tab: Tab | null = offered.includes(asked) ? asked : offered[0] ?? null
 
-    try {
-      const [sellRes, buyRes, benchRes, invoiceRes, bookRes] = await Promise.all([
-        fetch('/api/contracts?side=sell&limit=100'),
-        fetch('/api/contracts?side=buy&limit=100'),
-        reads.bench ? fetch('/api/bench?scope=company') : notAsked('The bench is shown to the roles that see consultants.'),
-        reads.invoices ? fetch('/api/invoices?limit=100') : notAsked('Bills are shown to the roles that see them.'),
-        // The margin, from the one door. `scope=live` because the panel
-        // beside it is a monthly run rate, and a run rate over finished
-        // work is not a run rate — the two figures on one row have to be
-        // answering the same question about the same placements.
-        reads.margin
-          ? fetch('/api/profitability?by=book&scope=live')
-          : notAsked('What placements earn is shown to the roles that see margin or the P&L, and yours does not.'),
-      ])
-
-      // Parse responses — each might fail independently
-      const sellBody = sellRes.ok ? await sellRes.json() : null
-      const buyBody = buyRes.ok ? await buyRes.json() : null
-      const benchBody = benchRes.ok ? await benchRes.json() : null
-      const invoiceBody = invoiceRes.ok ? await invoiceRes.json() : null
-      const bookBody = bookRes.ok ? await bookRes.json() : null
-
-      // A refusal is not a failure. A seat without `margin.read` reads the
-      // sentence rather than a blank, because a blank invites somebody to
-      // conclude the margin is nothing.
-      let bookRefusal: string | null = null
-      if (!bookRes.ok) {
-        try {
-          const b = await bookRes.json()
-          bookRefusal = b?.error?.message ?? null
-        } catch {
-          bookRefusal = null
-        }
-        if (bookRes.status === 403 && !bookRefusal) {
-          bookRefusal = 'You cannot see what placements earn.'
-        }
-      }
-
-      // Every read refused is a refusal, not a failure to load: the page
-      // draws the one sentence and no figure (sign-up walk, round four, #5).
-      const all = [sellRes, buyRes, benchRes, invoiceRes, bookRes]
-      if (all.every((r) => r.status === 403)) {
-        const first = await sellRes.json().catch(() => null)
-        setRefusedSaid(refusalOf(403, first) ?? '')
-        setData(null)
-        return
-      }
-      setRefusedSaid(null)
-
-      // If all four failed, throw
-      if (!sellBody && !buyBody && !benchBody && !invoiceBody) {
-        throw new Error('Could not load any data. Check your connection and try again.')
-      }
-
-      // Sell contracts
-      const sellContracts: SellContract[] = (sellBody?.data?.contracts ?? []).map((c: any) => ({
-        id: c.id,
-        billRate: c.billRate,
-        state: c.state,
-        startDate: c.startDate,
-        endDate: c.endDate ?? null,
-        clientCompany: c.clientCompany ?? null,
-        endClientCompany: c.endClientCompany ?? null,
-        companyId: c.companyId ?? null,
-      }))
-
-      // Buy contracts
-      const buyContracts: BuyContract[] = (buyBody?.data?.contracts ?? []).map((c: any) => ({
-        id: c.id,
-        payRate: c.payRate,
-        state: c.state,
-        contractType: c.contractType,
-      }))
-
-      // Bench entries — flatten from tiers
-      const benchEntries: BenchEntry[] = []
-      const tiers = benchBody?.data?.tiers ?? {}
-      for (const [tier, listings] of Object.entries(tiers)) {
-        for (const l of listings as any[]) {
-          benchEntries.push({
-            id: l.id,
-            tier,
-            consultant: {
-              id: l.consultant?.id,
-              skills: l.consultant?.skills ?? [],
-              availableFrom: l.consultant?.availableFrom ?? null,
-            },
-          })
-        }
-      }
-
-      // Invoices
-      const invoices: Invoice[] = (invoiceBody?.data?.invoices ?? []).map((inv: any) => ({
-        id: inv.id,
-        currency: inv.currency,
-        totalMinor: inv.totalMinor,
-        paidMinor: inv.paidMinor,
-        outstandingMinor: inv.outstandingMinor,
-        status: inv.status,
-        aging: inv.aging,
-      }))
-
-      const invoiceSummary: InvoiceSummary | null = invoiceBody?.data?.summary ?? null
-
-      const book: Book | null = bookBody?.data
-        ? {
-            agreed: bookBody.data.agreed,
-            revenue: bookBody.data.revenue,
-            revenueByClient: bookBody.data.revenueByClient ?? [],
-            pipeline: bookBody.data.pipeline ?? { counts: {}, total: 0 },
-            placements: bookBody.data.placements,
-            unlinked: bookBody.data.unlinked,
-            scopeSays: bookBody.data.scopeSays,
-          }
-        : null
-
-      const narrowed = narrowedReport({
-        scope: scopeOf(sellBody) === 'own' || scopeOf(buyBody) === 'own' ? 'own' : 'firm',
-        ownLines: Math.max(sellContracts.length, buyContracts.length),
-        readsFirmFigures: Boolean(benchBody || invoiceBody || bookBody),
-      })
-
-      setData({ sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal, narrowed })
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load report data')
-    } finally {
-      setLoading(false)
-    }
-  }, [permissions])
-
-  useEffect(() => {
-    fetchAll()
-  }, [fetchAll])
-
-  // Money pages wait (sign-up walk, round three, #17): until the session
-  // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
     return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
-  // ── Refused ───────────────────────────────────────
-  // The sentence and nothing else — no tile, no zero, no chart.
-  const refused = refusedRead(refusedSaid, { what: 'Reports', kind: company.kind, company: company.name })
-  if (refused && !loading) {
-    return <RefusedState says={refused} />
-  }
-
-  // ── Loading state ─────────────────────────────────
-
-  if (loading) {
-    return (
-      <>
-        <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
-        <LoadingState says="Loading reports…" />
-      </>
-    )
-  }
-
-  // ── Error state ───────────────────────────────────
-
-  if (error) {
-    return (
-      <>
-        <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
-        <ErrorState says={error} action={{ label: 'Try again', onClick: fetchAll }} />
-      </>
-    )
-  }
-
-  if (!data) return null
-
-  // ── Narrowed to the reader's own lines ────────────
-  // The sentence and nothing else: "No data yet" would say the firm has
-  // no book, and the firm's book is simply not this seat's to add up.
-  if (data.narrowed?.alone) {
+  if (permissions == null) return <LoadingState />
+  if (company.kind === 'CLIENT') {
     return (
       <>
         <PageHead eyebrow={eyebrow} title="Reports" />
-        <EmptyState says={data.narrowed.says} />
+        <EmptyState says="Reports is not open for a client yet. What you owe your suppliers is under Payables." />
       </>
     )
   }
-
-  // ── Compute metrics ───────────────────────────────
-
-  const { sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal } = data
-
-  // 1. Active Revenue — from the same door as the margin.
-  //
-  // This was `sum(billRate for IN_PROGRESS sell contracts) x 160` computed
-  // over `/api/contracts?side=sell`, and that list serves a prime or a GSI
-  // both sides of its placements — correctly, because a prime both sells
-  // and buys. So a supplier's line billing *us* was being counted as our
-  // revenue: Teleworld Solutions read $41,280 a month over "2 contracts"
-  // when one of the two was Nimbus Talent's $116/hr line billing Teleworld
-  // for the same consultant. Its revenue is $22,720 from one placement.
-  //
-  // `/api/profitability?by=book` scopes to `companyId` server-side, which
-  // is the only place the question can be answered, and it counts a live
-  // placement with no buy line behind it — revenue does not need a cost.
-  const revenue = book?.revenue ?? null
-  const monthlyRevenue = revenue?.monthlyCents != null ? revenue.monthlyCents / 100 : null
-  const revenuePlacements = revenue?.placements ?? null
-
-  // 2. Avg Margin — from `/api/profitability?by=book&scope=live`, and from
-  //    nowhere else. Never recomputed here; see the `Book` note above.
-  const avgMargin = book?.agreed.pct ?? null
-
-
-  // 3. Bench Utilization — live placements / (live + bench available)
-  //
-  // Also reads the route's count rather than the contract list, and for
-  // the same reason: a GSI's own placements are the numerator, never its
-  // supplier's line billing it, which would have shown a firm as more
-  // utilized the more it subcontracted.
-  const activeContractCount = revenuePlacements ?? 0
-  const benchAvailableCount = benchEntries.length
-  const utilizationDenominator = activeContractCount + benchAvailableCount
-  const benchUtilization = utilizationDenominator > 0
-    ? (activeContractCount / utilizationDenominator) * 100
-    : null
-
-  // 4. AR Outstanding — the receivable side only, one currency at a time.
-  //
-  // The old figure here added payables into the receivable and added two
-  // currencies together. There is no total that fixes either, so the
-  // largest book is shown with its currency named, and a second book is
-  // said out loud rather than folded in.
-  const arBooks = invoiceSummary?.receivable ?? []
-  const arBook = arBooks.length > 0
-    ? arBooks.reduce((a, b) => (b.outstandingMinor > a.outstandingMinor ? b : a))
-    : null
-  const arOutstandingMinor = arBook?.outstandingMinor ?? 0
-  const arCurrency = arBook?.currency ?? 'USD'
-  const otherArBooks = arBooks.filter((b) => b.currency !== arCurrency)
-
-  // ── Revenue by client ─────────────────────────────
-
-  // From the route, over the firm's own sell lines. A client billed in two
-  // currencies carries its reason instead of a bar, because a bar of two
-  // currencies added together is not a length.
-  const revenueByClient = (book?.revenueByClient ?? [])
-    .filter((c) => c.monthlyCents != null)
-    .map((c) => ({ name: c.name, monthly: c.monthlyCents! / 100 }))
-  const clientsWithoutTotal = (book?.revenueByClient ?? []).filter((c) => c.monthlyCents == null)
-
-  const maxClientRevenue = revenueByClient.length > 0 ? revenueByClient[0].monthly : 0
-
-  // ── Contract pipeline ─────────────────────────────
-
-  // From the route, over the firm's own placements. Counted off
-  // `sellContracts` this read "3 total sell contracts" for a firm with
-  // two, because its supplier's line billing it is on that list — the
-  // same correction as the revenue figure, one panel over.
-  const pipelineStates = ['DRAFT', 'IN_PROGRESS', 'ENDED', 'PAUSED'] as const
-  const pipelineCounts: Record<string, number> = {}
-  for (const state of pipelineStates) {
-    pipelineCounts[state] = book?.pipeline.counts[state] ?? 0
+  if (!tab) {
+    return (
+      <RefusedState says="Reports add up your firm’s cash flow and what it made. Your role reads neither. Ask whoever manages roles at your company for Accounts receivable, Accounts payable or Finance." />
+    )
   }
-  const totalPipeline = book?.pipeline.total ?? 0
-
-  // Four states of a contract: identity, not severity — a paused
-  // contract is not "worse" than a draft. The fixed series order, so
-  // the color follows the state and a filter never repaints it. The
-  // green and the gray used to sit side by side at ΔE 5.6 for normal
-  // vision, under the floor of 15.
-  const pipelineColors: Record<string, string> = {
-    DRAFT: SERIES[0],
-    IN_PROGRESS: SERIES[2],
-    ENDED: SERIES[4],
-    PAUSED: SERIES[1],
-  }
-
-  const pipelineLabels: Record<string, string> = {
-    DRAFT: 'Draft',
-    IN_PROGRESS: 'Active',
-    ENDED: 'Ended',
-    PAUSED: 'Paused',
-  }
-
-  // ── Bench skills distribution ─────────────────────
-
-  const skillCounts = new Map<string, number>()
-  for (const entry of benchEntries) {
-    for (const skill of entry.consultant.skills) {
-      skillCounts.set(skill, (skillCounts.get(skill) ?? 0) + 1)
-    }
-  }
-
-  const topSkills = Array.from(skillCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-
-  const maxSkillCount = topSkills.length > 0 ? topSkills[0][1] : 0
-
-  // ── Invoice aging summary ─────────────────────────
-
-  const invoiceStatusCounts: Record<string, number> = {}
-  const statusLabels: Record<string, string> = {
-    DRAFT: 'Draft',
-    ISSUED: 'Issued',
-    SUBMITTED: 'Submitted',
-    PARTIALLY_PAID: 'Partially Paid',
-    PAID: 'Paid',
-    CANCELLED: 'Cancelled',
-  }
-
-  for (const inv of invoices) {
-    invoiceStatusCounts[inv.status] = (invoiceStatusCounts[inv.status] ?? 0) + 1
-  }
-
-  const invoiceStatusEntries = Object.entries(invoiceStatusCounts)
-    .map(([status, count]) => ({
-      status,
-      label: statusLabels[status] ?? status,
-      count,
-    }))
-    .sort((a, b) => b.count - a.count)
-
-  function statusChipClass(status: string): string {
-    const map: Record<string, string> = {
-      DRAFT: 'chip--passive',
-      ISSUED: 'chip--action',
-      SUBMITTED: 'chip--action',
-      PARTIALLY_PAID: 'chip--attention',
-      PAID: 'chip--verified',
-      CANCELLED: 'chip--passive',
-    }
-    return map[status] ?? 'chip--passive'
-  }
-
-  // ── Has data checks ───────────────────────────────
-
-  const hasContracts = sellContracts.length > 0
-  const hasBench = benchEntries.length > 0
-  const hasInvoices = invoices.length > 0
-  const hasAnyData = hasContracts || hasBench || hasInvoices
-
-  // ── Render ────────────────────────────────────────
 
   return (
-    <div className="animate-fade-in">
-      {/* Header — decision surface: eyebrow + serif h1 + prose subtitle */}
-      <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
+    <>
+      <PageHead
+        eyebrow={eyebrow}
+        title="Reports"
+        subtitle="Cash in and out, and what the work made. Nothing else is here."
+      />
+      <nav aria-label="Reports" className="mb-5 flex gap-1 border-b border-etyme-rule">
+        {offered.map((t) => (
+          <Link
+            key={t}
+            href={`/dashboard/reports?tab=${t}` as Route}
+            aria-current={t === tab ? 'page' : undefined}
+            className={`-mb-px border-b-2 px-3 py-2 text-[13px] ${
+              t === tab ? 'border-etyme-ink font-medium text-etyme-ink' : 'border-transparent text-etyme-muted hover:text-etyme-ink'
+            }`}
+          >
+            {TAB_WORD[t]}
+          </Link>
+        ))}
+      </nav>
+      {tab === 'cash-flow' ? <CashFlowTab kind={company.kind} name={company.name} /> : <CutTable />}
+    </>
+  )
+}
 
-      {data.narrowed && (
-        <p role="status" className="mb-4 text-[12px] text-etyme-muted">{data.narrowed.says}</p>
-      )}
+// ── Cash flow ──────────────────────────────────────────
 
-      {!hasAnyData ? (
-        <EmptyState
-          says="No data yet"
-          detail="Reports will populate as you add contracts, bench listings, and bills. Start by creating a contract or importing consultant data."
+interface CashBody {
+  window: { label: string }
+  figures: Figure[]
+  currencies: CurrencyFlow[]
+  says: string[]
+}
+
+function CashFlowTab({ kind, name }: { kind: string; name: string }) {
+  const [period, setPeriod] = useState<CashPeriod>('month')
+  const [grain, setGrain] = useState<Grain>('week')
+  const [data, setData] = useState<CashBody | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/ap?view=cash-flow&period=${period}&grain=${grain}`)
+      const body = await res.json().catch(() => null)
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(403, body) ?? '')
+        setData(null)
+        return
+      }
+      if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Cash flow could not be read just now. Try again in a minute.')
+      setRefusedSaid(null)
+      setData(body.data)
+    } catch (e: any) {
+      setError(e?.message ?? 'Cash flow could not be read just now. Try again in a minute.')
+    } finally {
+      setLoading(false)
+    }
+  }, [period, grain])
+
+  useEffect(() => { load() }, [load])
+
+  // Refused: the sentence and nothing else under the tab — no chip, no figure.
+  const refused = refusedRead(refusedSaid, { what: 'Cash flow', kind, company: name })
+  if (refused) {
+    return <RefusedState says={refused} />
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterChips<CashPeriod>
+          label="Period"
+          options={CASH_PERIODS.map((p) => ({ key: p, label: CASH_PERIOD_WORD[p] }))}
+          value={period}
+          onChange={setPeriod}
         />
+        <FilterChips<Grain>
+          label="Rows"
+          options={GRAINS.map((g) => ({ key: g, label: GRAIN_WORD[g] }))}
+          value={grain}
+          onChange={setGrain}
+        />
+      </div>
+
+      {loading ? <LoadingState says="Reading cash flow…" /> : error ? (
+        <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
+      ) : !data ? null : data.currencies.length === 0 ? (
+        <EmptyState says={`No money moved in ${data.window.label}, and nothing is owed either way.`} />
       ) : (
         <>
-          {/* Stats row — four panels */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-            {/* Active Revenue */}
-            {/* "Placement" rather than "contract": there are two
-                contracts behind one placement in a chain and counting
-                them was how one consultant was billed twice. */}
-            <Stat
-              label="Active Revenue"
-              value={monthlyRevenue == null ? null : fmtCurrency(monthlyRevenue)}
-              sub={monthlyRevenue == null
-                ? revenue?.refusedBecause ?? 'nothing running'
-                : `monthly at 160 hrs (${revenuePlacements} placement${revenuePlacements === 1 ? '' : 's'})`}
-            />
-
-            {/* The agreed spread — "Agreed spread", the name every screen
-                uses for it (lib/money/margin). Never the bare word margin:
-                what the hours earned is on Profitability. */}
-            {/* Never a bare dash. Where there is no figure there is a
-                reason, and a seat that may not read a margin is told
-                that rather than shown an empty box. */}
-            <Stat
-              label="Agreed spread"
-              value={avgMargin != null ? fmtPercent(avgMargin) : null}
-              tone={avgMargin != null && avgMargin > 0 ? 'verified' : 'default'}
-              sub={<>
-                {avgMargin != null
-                  ? 'on the rates, running now'
-                  : bookRefusal ?? book?.agreed.refusedBecause ?? 'needs both sides of a placement'}
-                {book != null && book.unlinked > 0 && (
-                  <span className="mt-0.5 block text-etyme-attention">
-                    {book.unlinked} with no buy line behind {book.unlinked === 1 ? 'it' : 'them'}
-                  </span>
-                )}
-              </>}
-            />
-
-            {/* Bench Utilization */}
-            <Stat
-              label="Bench Utilization"
-              value={benchUtilization != null ? fmtPercent(benchUtilization) : null}
-              tone={benchUtilization != null && benchUtilization >= 70 ? 'verified' : benchUtilization != null && benchUtilization >= 40 ? 'attention' : 'default'}
-              sub={benchUtilization != null
-                ? `${activeContractCount} active / ${benchAvailableCount} bench`
-                : 'no data'}
-            />
-
-            {/* AR Outstanding */}
-            <Stat
-              label="AR Outstanding"
-              value={fmtMinor(arOutstandingMinor, arCurrency)}
-              tone={arOutstandingMinor > 0 ? 'attention' : 'default'}
-              sub={arBook
-                  ? `${arBook.invoiceCount} bill${arBook.invoiceCount !== 1 ? 's' : ''} · ${arCurrency}` +
-                    (otherArBooks.length > 0
-                      ? ` · ${otherArBooks.length} other book${otherArBooks.length !== 1 ? 's' : ''} not added in`
-                      : '')
-                  : 'no bills'}
-            />
-          </div>
-
-          {/* Two-column layout for main sections */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-            {/* Revenue by client */}
-            <div className="panel">
-              <Lbl className="mb-4">Revenue by Client</Lbl>
-              {revenueByClient.length > 0 ? (
-                <div className="space-y-3">
-                  {revenueByClient.map((client) => (
-                    <div key={client.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-etyme-ink truncate mr-3">
-                          {client.name}
-                        </span>
-                        <span className="text-sm font-medium text-etyme-ink whitespace-nowrap"
-                              style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {fmtCurrency(client.monthly)}<span className="text-etyme-faint text-[11px]">/mo</span>
-                        </span>
-                      </div>
-                      <div className="h-2 bg-etyme-canvas rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-etyme-action rounded-full transition-all"
-                          style={{
-                            width: maxClientRevenue > 0
-                              ? `${(client.monthly / maxClientRevenue) * 100}%`
-                              : '0%',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-etyme-faint">Nothing running to bill for right now.</p>
-              )}
-              {/* A client billed in two currencies carries its reason
-                  rather than a bar, because a bar of two currencies added
-                  together is not a length. */}
-              {clientsWithoutTotal.map((c) => (
-                <p key={c.clientId} className="mt-2 text-[11px] text-etyme-attention">
-                  {c.name} — {c.refusedBecause}
-                </p>
-              ))}
-            </div>
-
-            {/* Contract pipeline */}
-            <div className="panel">
-              <Lbl className="mb-4">Contract Pipeline</Lbl>
-              {totalPipeline > 0 ? (
-                <>
-                  {/* Stacked horizontal bar */}
-                  {/* The counts live in the legend below, never inside
-                      the segments: a number printed on a fill is the
-                      first thing a narrow segment clips, and it wore
-                      white on four different backgrounds. */}
-                  <div className="flex h-6 rounded-full overflow-hidden mb-4">
-                    {(() => {
-                      const shown = pipelineStates.filter((st) => pipelineCounts[st] > 0)
-                      return shown.map((state, i) => (
-                        <div
-                          key={state}
-                          className="transition-all"
-                          style={segmentStyle(pipelineCounts[state] / totalPipeline, pipelineColors[state], i === shown.length - 1)}
-                          title={`${pipelineLabels[state]}: ${pipelineCounts[state]}`}
-                        />
-                      ))
-                    })()}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex flex-wrap gap-x-5 gap-y-2">
-                    {pipelineStates.map((state) => (
-                      <div key={state} className="flex items-center gap-1.5">
-                        {/* A swatch stands for a segment on the bar. A
-                            state with nothing in it has no segment, so
-                            it keeps its count and loses its dot. */}
-                        <span
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={pipelineCounts[state] > 0
-                            ? { background: pipelineColors[state] }
-                            : { border: '1px solid var(--color-rule)' }}
-                        />
-                        <span className="text-[12px] text-etyme-muted">{pipelineLabels[state]}</span>
-                        <span className="text-[12px] font-medium text-etyme-ink"
-                              style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {pipelineCounts[state]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-[11px] text-etyme-faint mt-3"
-                     style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {totalPipeline} placement{totalPipeline !== 1 ? 's' : ''} this firm sells
-                  </p>
-                </>
-              ) : book == null ? (
-                /* Not a blank. Counting these off the contract list would
-                   include the lines this firm's own suppliers bill it,
-                   which is how it read "3" for a firm with two, and only
-                   the server can tell those apart. So it says what is
-                   missing rather than showing a number that is wrong. */
-                <p className="text-sm text-etyme-faint">
-                  {bookRefusal
-                    ? `${bookRefusal} The placement count sits behind the same permission.`
-                    : 'Could not read this firm\u2019s own placements just now. Retry above.'}
-                </p>
-              ) : (
-                <p className="text-sm text-etyme-faint">No placements yet.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Second row — bench skills + invoice aging */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* Bench skills distribution */}
-            <div className="panel">
-              <Lbl className="mb-4">Bench Skills Distribution</Lbl>
-              {/* Eight bars of identical length is not a chart; it is
-                  eight skills, one listing each, drawn as though the
-                  lengths meant something. Where nothing varies, the
-                  list is the honest form. */}
-              {topSkills.length > 0 && topSkills.every(([, c]) => c === topSkills[0][1]) ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {topSkills.map(([skill]) => (
-                    <span key={skill} className="chip chip--passive">{skill}</span>
-                  ))}
-                </div>
-              ) : topSkills.length > 0 ? (
-                <div className="space-y-2.5">
-                  {topSkills.map(([skill, count]) => (
-                    <div key={skill} className="flex items-center gap-3">
-                      <span className="text-sm text-etyme-ink truncate min-w-0 flex-1">
-                        {skill}
-                      </span>
-                      <div className="w-24 h-1.5 bg-etyme-canvas rounded-full overflow-hidden flex-shrink-0">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            background: SERIES[0],
-                            width: maxSkillCount > 0
-                              ? `${(count / maxSkillCount) * 100}%`
-                              : '0%',
-                          }}
-                        />
-                      </div>
-                      <span className="text-[12px] font-medium text-etyme-muted w-6 text-right flex-shrink-0"
-                            style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-etyme-faint">
-                  {hasBench ? 'No skills listed on bench profiles.' : 'No bench listings yet.'}
-                </p>
-              )}
-              {hasBench && (
-                <p className="text-[11px] text-etyme-faint mt-3">
-                  {benchEntries.length} bench listing{benchEntries.length !== 1 ? 's' : ''} across {skillCounts.size} unique skill{skillCounts.size !== 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
-
-            {/* Invoice aging summary */}
-            <div className="panel">
-              <Lbl className="mb-4">Bills and invoice receipts</Lbl>
-              {invoiceStatusEntries.length > 0 ? (
-                <>
-                  <div className="space-y-2.5">
-                    {invoiceStatusEntries.map(({ status, label, count }) => (
-                      <div key={status} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`chip ${statusChipClass(status)}`}>{label}</span>
-                        </div>
-                        <span className="text-sm font-medium text-etyme-ink"
-                              style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Aging breakdown if available */}
-                  {arBook && arBook.outstandingMinor > 0 && (
-                    <div className="mt-5 pt-4 border-t border-etyme-rule">
-                      <Lbl className="mb-2">Aging Breakdown — owed to us, {arCurrency}</Lbl>
-                      {/* The third place this book is drawn. All three
-                          wear AGE_BANDS now; they used to be three
-                          different palettes for one set of numbers. */}
-                      <div className="flex h-2.5 rounded-full overflow-hidden mb-3">
-                        {(() => {
-                          const shown = agingOf(arBook).filter((b) => b.amount > 0)
-                          return shown.map((bucket, i) => (
-                            <div
-                              key={bucket.key}
-                              className="transition-all"
-                              style={segmentStyle(bucket.amount / arBook.outstandingMinor, bucket.color, i === shown.length - 1)}
-                              title={`${bucket.label}: ${fmtMinorExact(bucket.amount, arCurrency)}`}
-                            />
-                          ))
-                        })()}
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                        {agingOf(arBook).map((bucket) => (
-                          <div key={bucket.key} className="flex items-center gap-1 text-[11px]">
-                            <span className="w-2 h-2 rounded-full" style={{ background: bucket.color }} />
-                            <span className="text-etyme-muted">{bucket.label}</span>
-                            <span className="font-medium text-etyme-ink"
-                                  style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {fmtMinor(bucket.amount, arCurrency)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-[11px] text-etyme-faint mt-3"
-                     style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {invoices.length} loaded — bills we sent and invoice receipts
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-etyme-faint">No bills or invoice receipts yet.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Refresh footer */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={fetchAll}
-              className="text-[12px] text-etyme-action hover:underline"
-            >
-              Refresh data
-            </button>
-          </div>
+          {data.says.map((s) => <p key={s} className="text-[12.5px] text-etyme-muted">{s}</p>)}
+          {data.currencies.map((c) => (
+            <CurrencyPanel key={c.currency} flow={c} figures={data.figures} label={data.window.label} several={data.currencies.length > 1} grain={grain} />
+          ))}
         </>
       )}
+    </div>
+  )
+}
+
+function money(minor: number | null | undefined, currency: string): string {
+  return minor == null ? '—' : amount(minor, currency)
+}
+
+function CurrencyPanel({ flow, figures, label, several, grain }: {
+  flow: CurrencyFlow; figures: Figure[]; label: string; several: boolean; grain: Grain
+}) {
+  const cur = flow.currency
+  const columns: Column<CashRow>[] = [
+    { key: 'label', label: grain === 'week' ? 'Week' : 'Month', sortValue: (r) => r.start, exportValue: (r) => r.label },
+    ...figures.map((f): Column<CashRow> => ({
+      key: f,
+      label: FIGURE_WORD[f],
+      align: 'right',
+      render: (r) => money(r.figures[f], cur),
+      sortValue: (r) => r.figures[f] ?? null,
+      exportValue: (r) => r.figures[f] ?? null,
+    })),
+    {
+      key: 'net', label: FIGURE_WORD.net, align: 'right',
+      render: (r) => (
+        <span className={r.net != null && r.net < 0 ? 'text-etyme-attention' : undefined}>{money(r.net, cur)}</span>
+      ),
+      sortValue: (r) => r.net, exportValue: (r) => r.net,
+    },
+  ]
+
+  return (
+    <Panel
+      title={several ? `${label}, in ${cur}` : label}
+      subtitle={several ? 'Each currency is its own table. They are never added together.' : undefined}
+    >
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {figures.map((f) => <Stat key={f} label={FIGURE_WORD[f]} value={money(flow.totals.figures[f], cur)} />)}
+        <Stat label={FIGURE_WORD.net} value={money(flow.totals.net, cur)} tone={flow.totals.net != null && flow.totals.net < 0 ? 'attention' : 'default'} />
+      </div>
+
+      <ListSurface<CashRow>
+        name={`reports-cash-flow-${cur}`}
+        exportName={`cash-flow-${cur}-${grain}`}
+        columns={columns}
+        data={flow.rows}
+        rowKey={(r) => r.key}
+        searchable={false}
+        emptyMessage="No rows in this period."
+      />
+
+      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        {flow.owedToUs && <AgeBands title="Owed to you, by how late" bands={flow.owedToUs} currency={cur} />}
+        <AgeBands title="You owe suppliers, by how late" bands={flow.weOwe} currency={cur} />
+      </div>
+    </Panel>
+  )
+}
+
+/**
+ * The five age bands, in AGE_BANDS. A stacked bar only where the values
+ * differ; where they do not, the list is the honest form and no bar is
+ * drawn. The counts live in the legend below, never inside a segment,
+ * where a narrow band clips them.
+ */
+function AgeBands({ title, bands, currency }: { title: string; bands: Bands; currency: string }) {
+  const rows = BUCKETS.map((b, i) => ({ key: b, label: BUCKET_LABEL[b], color: AGE_BANDS[i], ...bands[b] }))
+  const total = rows.reduce((n, r) => n + r.minor, 0)
+  if (total <= 0) {
+    return (
+      <div>
+        <Lbl className="mb-2">{title}</Lbl>
+        <p className="text-[12.5px] text-etyme-muted">Nothing open.</p>
+      </div>
+    )
+  }
+  const drawn = rows.filter((r) => r.minor > 0)
+  return (
+    <div>
+      <Lbl className="mb-2">{title}</Lbl>
+      {varies(rows.map((r) => r.minor)) && (
+        <div className="mb-3 flex h-3 w-full overflow-hidden rounded-pill bg-etyme-sunk" aria-hidden>
+          {drawn.map((r, i) => (
+            <div key={r.key} style={segmentStyle(r.minor / total, r.color, i === drawn.length - 1)} title={`${r.label}: ${amount(r.minor, currency)}`} />
+          ))}
+        </div>
+      )}
+      <ul className="space-y-1 text-[12.5px]">
+        {rows.map((r) => (
+          <li key={r.key} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-etyme-muted">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: r.color }} />
+              {r.label}{r.count ? ` · ${r.count}` : ''}
+            </span>
+            <span className="tabular-nums text-etyme-ink">{amount(r.minor, currency)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

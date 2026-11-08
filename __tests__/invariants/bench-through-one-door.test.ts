@@ -112,7 +112,6 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  * And two more re-derive the shape correctly, so they are right today
  * and one refactor from being wrong:
  *
- *   · `app/dashboard/reports` (etyme-money) — reads `data.tiers`.
  *   · `app/dashboard/submissions` (etyme-demand) — reads `data.tiers`.
  *
  * The list is a ceiling, never a floor. A file leaving it is the fix
@@ -122,7 +121,6 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  * five — and that is a conversation with the bench desk.
  */
 const STILL_READS_BY_HAND = [
-  'src/app/dashboard/reports/page.tsx',
   'src/app/dashboard/submissions/page.tsx',
 ]
 

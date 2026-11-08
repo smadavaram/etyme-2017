@@ -9,7 +9,7 @@ import {
   type BillingPeriod, type CurrencyBook,
   type DunningStep, type SentLetter, type Receipt,
 } from '@/lib/ar-ageing'
-import { customerOf, loadBook, loadToSend, openInvoiceIdsAcross } from './book'
+import { customerOf, loadBook, loadToSend, loadUnplacedPayments, openInvoiceIdsAcross } from './book'
 import {
   committedOf, exposureOf, assess,
   type RunningAssignment, type Committed, type CreditLimit,
@@ -360,18 +360,8 @@ export async function GET(request: NextRequest) {
   // and take them off exposure — money we hold is not money we are
   // carrying — without ever netting them into the receivable, which
   // would hide a debt and a stray receipt in one movement.
-  const orphanRows = await prisma.payment.findMany({
-    // A payment that settles an invoice receipt somebody typed in names
-    // that receipt (`vendorBillId`); it is placed already, never cash
-    // waiting to be placed.
-    where: { invoiceId: null, vendorBillId: null, receivedByCompanyId: companyId },
-    select: {
-      id: true, amount: true, currency: true, receivedAt: true, reference: true,
-      payerCompany: { select: { id: true, name: true } },
-    },
-    orderBy: { receivedAt: 'desc' },
-    take: 2_000,
-  })
+  // The one query, in ./book, that cash flow reads too.
+  const orphanRows = await loadUnplacedPayments(companyId)
 
   const orphanReceipts: Receipt[] = orphanRows.map((r) => ({
     id: r.id,

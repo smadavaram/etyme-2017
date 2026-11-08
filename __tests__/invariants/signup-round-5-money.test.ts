@@ -118,9 +118,16 @@ describe('problem 9: a list narrowed to the reader is said to be narrowed, never
     const r = narrowedReport({ scope: 'own', ownLines: 0, readsFirmFigures: false })
     expect(r?.alone).toBe(true)
     expect(r?.says).toBe('Reports add up your firm’s book. You see only contracts that name you. None do.')
+  })
+
+  it('Reports for a seat that reads neither cash flow nor profitability is one sentence, never an empty book', () => {
+    // Since 2026-11-08 Reports is two tabs, each offered only where the
+    // seat's menu opens what it reads; a seat narrowed to its own lines
+    // opens neither, and reads the sentence alone.
     const page = whatShips(read('src/app/dashboard/reports/page.tsx'))
-    expect(page.indexOf('data.narrowed?.alone')).toBeGreaterThan(-1)
-    expect(page.indexOf('data.narrowed?.alone')).toBeLessThan(page.indexOf('No data yet'))
+    expect(page).toContain('if (!tab) {')
+    expect(page.indexOf('Your role reads neither.')).toBeLessThan(page.indexOf('<ListSurface'))
+    expect(page).not.toContain('No data yet')
   })
 
   it('Reports for a narrowed reader who may read some firm figure draws them and says the contract counts are their own', () => {

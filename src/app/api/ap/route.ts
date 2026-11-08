@@ -18,6 +18,7 @@ import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-pa
 import { supplierInvoicesOwed, type SupplierInvoiceRow } from '@/lib/money/supplier-invoices'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 import { RECEIPTS_ONLY_NOTE } from '@/lib/money/ap-words'
+import { cashFlowAnswer } from './cash-flow'
 
 /**
  * GET /api/ap — how long money takes to travel, and who is paying for the wait.
@@ -126,6 +127,13 @@ export async function GET(request: NextRequest) {
         : refusal(PAYABLE),
       { status: 403 }
     )
+  }
+
+  // The Reports page's Cash flow tab, behind the same door: money in and
+  // money out by week or month, one currency at a time, and no margin
+  // (./cash-flow, lib/money/cash-flow).
+  if (request.nextUrl.searchParams.get('view') === 'cash-flow') {
+    return cashFlowAnswer(request, reading)
   }
 
   // Cost beside revenue for the same piece of work is margin, whoever is
