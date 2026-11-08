@@ -12,8 +12,8 @@ import { daysFor, daysOnSite } from '@/lib/tenure-days'
 import { buildFrame } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, skillsOf } from '@/lib/seed-scale/industries'
 import { sharedTails } from '@/lib/seed-scale/kit'
-import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, type ScaleFrame } from '@/lib/seed-scale/types'
-import { buildPeople, careerCounts, peopleStepNames, planPeople, rungIds, tally, type PersonPlan } from '@/lib/seed-scale/people'
+import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, WORK_AUTH_CLASSES, type ScaleFrame } from '@/lib/seed-scale/types'
+import { buildPeople, careerCounts, peopleStepNames, planPeople, profileAuth, rungIds, tally, type PersonPlan } from '@/lib/seed-scale/people'
 import { roleKeyOf, timeLimitMonths } from '@/lib/seed-scale/frame'
 
 let frame: ScaleFrame
@@ -216,3 +216,55 @@ describe('every generated firm holds the roles the simulation looks for (2026-11
   })
 })
 
+describe('every kind of worker is on the generated world, in proportion (2026-11-08)', () => {
+  it('every worker class the founder named appears among the two thousand: citizens, permanent residents, visa workers, employment authorization, international students on CPT and OPT, domestic students, and students with no permit', () => {
+    const seen = new Set(people.map((p) => p.facts.workAuth))
+    for (const c of WORK_AUTH_CLASSES) expect(seen.has(c.key), c.label).toBe(true)
+  })
+
+  it('an international student with no CPT or OPT is a real share of the people, never more than one in twenty', () => {
+    const n = people.filter((p) => p.facts.workAuth === 'F1_NO_PERMIT').length
+    expect(n).toBeGreaterThan(0)
+    expect(n / people.length).toBeLessThanOrEqual(0.05)
+  })
+
+  it('an international student with no CPT or OPT has never worked a line and is never an integrator’s staff, so nobody is shown at work without a permit', () => {
+    for (const p of people.filter((x) => x.facts.workAuth === 'F1_NO_PERMIT')) {
+      expect(p.lines, p.facts.name).toEqual([])
+      expect(p.gsiStaff, p.facts.name).toBe(false)
+    }
+  })
+
+  it('freshers carry most of the students', () => {
+    const students = people.filter((p) => ['F1_CPT', 'STUDENT_DOMESTIC', 'F1_NO_PERMIT'].includes(p.facts.workAuth))
+    const fresh = students.filter((p) => p.facts.career === 'FRESHER').length
+    expect(fresh / students.length).toBeGreaterThan(0.5)
+  })
+
+  it('a person who does not sit in the US never holds a US worker class, and a person who does always holds one', () => {
+    const usOnly = new Set(WORK_AUTH_CLASSES.filter((c) => c.usOnly).map((c) => c.key))
+    for (const p of people) {
+      if (p.facts.country === 'US') expect(usOnly.has(p.facts.workAuth), p.facts.name).toBe(true)
+      else expect(p.facts.workAuth, p.facts.name).toBe('OTHER')
+    }
+  })
+
+  it('every class is written to the profile in plain words, the old ones unchanged, and nothing US is written for somebody outside it', () => {
+    expect(profileAuth('CITIZEN')).toBe('US_CITIZEN')
+    expect(profileAuth('GREEN_CARD')).toBe('GC')
+    expect(profileAuth('H1B')).toBe('H1B')
+    expect(profileAuth('OPT')).toBe('OPT')
+    expect(profileAuth('TN')).toBe('TN')
+    expect(profileAuth('EAD')).toBe('EAD')
+    expect(profileAuth('F1_CPT')).toBe('F1_CPT')
+    expect(profileAuth('STUDENT_DOMESTIC')).toBe('STUDENT')
+    expect(profileAuth('F1_NO_PERMIT')).toBe('F1_NO_PERMIT')
+    expect(profileAuth('OTHER')).toBeNull()
+  })
+
+  it('every class has a plain label for the report, and no two classes share one', () => {
+    const labels = WORK_AUTH_CLASSES.map((c) => c.label)
+    expect(new Set(labels).size).toBe(labels.length)
+    expect(WORK_AUTH_CLASSES.find((c) => c.key === 'F1_CPT')?.label).toBe('International student on CPT')
+  })
+})

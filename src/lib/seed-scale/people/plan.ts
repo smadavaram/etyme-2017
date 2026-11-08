@@ -155,10 +155,26 @@ function placeOf(r: () => number, country: PersonFacts['country'], ind: Industry
   return `${pick(r, a.cities)}, ${a.word}`
 }
 
-function authFor(r: () => number, country: PersonFacts['country'], career: Career): WorkAuth {
+/**
+ * The worker class of a person, weighted by career. Only a person in the US holds a
+ * US class. Students sit mostly with freshers; an F-1 student with no CPT or OPT is
+ * only ever a fresher, who has no line, so the generated world never shows one at
+ * work (they may be put forward and interviewed, and the start refuses them).
+ * Somebody with their own company holds a status that lets them run one (OPT, not
+ * STEM OPT, permits self-employment; an H-1B or a TN does not).
+ */
+const AUTH_BY_CAREER: Readonly<Record<Career, Array<[WorkAuth, number]>>> = {
+  FRESHER: [['CITIZEN', 28], ['GREEN_CARD', 10], ['OPT', 22], ['F1_CPT', 12], ['STUDENT_DOMESTIC', 12], ['F1_NO_PERMIT', 8], ['EAD', 4], ['H1B', 4]],
+  PLACED: [['CITIZEN', 42], ['GREEN_CARD', 21], ['H1B', 24], ['TN', 4], ['OPT', 4], ['EAD', 4], ['F1_CPT', 2]],
+  BETWEEN_PROJECTS: [['CITIZEN', 42], ['GREEN_CARD', 21], ['H1B', 25], ['TN', 4], ['OPT', 4], ['EAD', 4]],
+  OWN_COMPANY: [['CITIZEN', 52], ['GREEN_CARD', 26], ['EAD', 12], ['OPT', 10]],
+  LOOKING_WHILE_EMPLOYED: [['CITIZEN', 42], ['GREEN_CARD', 21], ['H1B', 24], ['TN', 4], ['OPT', 4], ['EAD', 4], ['STUDENT_DOMESTIC', 2]],
+  OTHER: [['CITIZEN', 40], ['GREEN_CARD', 18], ['H1B', 18], ['OPT', 8], ['EAD', 6], ['TN', 3], ['F1_CPT', 3], ['STUDENT_DOMESTIC', 4]],
+}
+
+export function authFor(r: () => number, country: PersonFacts['country'], career: Career): WorkAuth {
   if (country !== 'US') return 'OTHER'
-  if (career === 'FRESHER') return weighted(r, [['CITIZEN', 40], ['GREEN_CARD', 15], ['OPT', 35], ['H1B', 10]]) as WorkAuth
-  return weighted(r, [['CITIZEN', 45], ['GREEN_CARD', 22], ['H1B', 25], ['TN', 4], ['OPT', 4]]) as WorkAuth
+  return weighted(r, AUTH_BY_CAREER[career]) as WorkAuth
 }
 
 /** The profile's own words for an authorization (lib/work-authorisation). Null where nothing US applies. */
@@ -169,6 +185,10 @@ export function profileAuth(a: WorkAuth): string | null {
     case 'H1B': return 'H1B'
     case 'OPT': return 'OPT'
     case 'TN': return 'TN'
+    case 'EAD': return 'EAD'
+    case 'F1_CPT': return 'F1_CPT'
+    case 'STUDENT_DOMESTIC': return 'STUDENT'
+    case 'F1_NO_PERMIT': return 'F1_NO_PERMIT'
     default: return null
   }
 }
@@ -482,7 +502,7 @@ class Planner {
     }
     this.add({
       id, n, name, career: placed ? 'PLACED' : 'BETWEEN_PROJECTS', ind, role, skills: this.skillsFor(r, role, ind, between(r, 0, 2)),
-      workAuth: authFor(r, country, 'PLACED'), country, firmId: gsi.id, listing: null, gsiStaff: true,
+      workAuth: authFor(r, country, placed ? 'PLACED' : 'BETWEEN_PROJECTS'), country, firmId: gsi.id, listing: null, gsiStaff: true,
       headline: `${role.title}, ${years} years`, location: placeOf(r, country, ind), years, availableFrom,
       confirmedAt: day(-between(r, 1, 30)), lines, listings: [],
       employment: { firmId: gsi.id, side: 'SELL', grantedAt: latest(day(EARLIEST_DAY - 10), earliest(hired, plus(lines[lines.length - 1].start, -14))), practice: `Delivery — ${role.title.toLowerCase()} practice` },

@@ -313,7 +313,39 @@ export const GSI_STAFF = 400
 /** At most this share of people sits within two months of a client's time limit, or matching starves. */
 export const NEAR_TIME_LIMIT_SHARE = 0.05
 
-export type WorkAuth = 'CITIZEN' | 'GREEN_CARD' | 'H1B' | 'OPT' | 'TN' | 'OTHER'
+/**
+ * The worker classes of the generated world (the founder, 2026-11-08: "students,
+ * international students, visa workers, employment authorization, permanent
+ * residents and citizens"). Only a person who sits in the US holds one of the US
+ * classes; everybody else is OTHER. The names that existed before 2026-11-08 do
+ * not move, because papers and the simulation read them.
+ *
+ *   · CITIZEN, GREEN_CARD — need no permit
+ *   · H1B, TN — visa workers
+ *   · EAD — an employment authorization document that is not a student's
+ *   · OPT — an F-1 student after study, on an EAD
+ *   · F1_CPT — an F-1 student still enrolled, on CPT
+ *   · STUDENT_DOMESTIC — a citizen or resident still studying; no permit needed
+ *   · F1_NO_PERMIT — an F-1 student with no CPT or OPT: may be interviewed, never started for US work
+ */
+export type WorkAuth =
+  | 'CITIZEN' | 'GREEN_CARD' | 'H1B' | 'OPT' | 'TN'
+  | 'EAD' | 'F1_CPT' | 'STUDENT_DOMESTIC' | 'F1_NO_PERMIT'
+  | 'OTHER'
+
+/** Every class, with the plain words a report prints for it. OTHER is anybody outside the US. */
+export const WORK_AUTH_CLASSES: ReadonlyArray<{ key: WorkAuth; label: string; usOnly: boolean }> = [
+  { key: 'CITIZEN', label: 'US citizen', usOnly: true },
+  { key: 'GREEN_CARD', label: 'Permanent resident (green card)', usOnly: true },
+  { key: 'H1B', label: 'Visa worker on an H-1B', usOnly: true },
+  { key: 'TN', label: 'Visa worker on TN status', usOnly: true },
+  { key: 'EAD', label: 'Employment authorization document (not a student\u2019s)', usOnly: true },
+  { key: 'OPT', label: 'International student on OPT', usOnly: true },
+  { key: 'F1_CPT', label: 'International student on CPT', usOnly: true },
+  { key: 'STUDENT_DOMESTIC', label: 'Student who is a citizen or resident', usOnly: true },
+  { key: 'F1_NO_PERMIT', label: 'International student with no CPT or OPT', usOnly: true },
+  { key: 'OTHER', label: 'Works outside the US', usOnly: false },
+]
 
 /** One ended or live line in a person's history, as the papers and the rates read it. */
 export interface LineEnd {
