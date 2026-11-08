@@ -171,3 +171,43 @@ export function heldReceiptDecision(
 function num(h: number): string {
   return Number.isInteger(h) ? String(h) : String(Math.round(h * 100) / 100)
 }
+
+// ── Through the check, and held on the supplier's bank details ───────
+//
+// Walk 7, 2026-11-08, item 6: Pinnacle's PR-2026-0441 passed the
+// three-way check, nobody had checked Pinnacle's bank details, and the
+// queue read "waits for you to pay it · Pay" while the payment route
+// refused it. A receipt is "Pay" only where the payment would go through:
+// the check (`payGate`) and then the bank gate the payment write reads
+// (`mayPayFirm` in lib/setup-gates). One that fails the bank gate is held
+// here, in the sentence money's bank check says to this reader
+// (`bankHoldAt` in lib/money/bank-check-read): "Bank details not checked.
+// Ask Rosalind Tay to check them, then pay." to anybody else, "Check them,
+// then pay." to the person who checks. Still one row: it was counted as
+// "Pay" before, and is counted once as held now.
+
+/** What money's bank check says about a held receipt, to the person reading the queue. */
+export interface BankHold {
+  says: string
+  /** This reader is the person who checks, so the row opens the check. */
+  mayCheck: boolean
+}
+
+export function bankHeldReceiptDecision(r: ReceiptToPay, hold: BankHold, now: Date): HeldReceiptDecision {
+  const currency = (r.currency || 'USD').toUpperCase()
+  const daysToDue = Math.floor((r.dueAt.getTime() - now.getTime()) / DAY)
+  return {
+    title: `Held: bank details not checked — ${r.vendorName}`,
+    subtitle: [`Invoice ${r.number}`, amount(r.outstandingCents, currency), hold.says].join(' · '),
+    urgency: daysToDue <= 7 ? 'HIGH' : 'MEDIUM',
+    entityType: 'INVOICE',
+    entityId: r.id,
+    dueDate: r.dueAt.toISOString(),
+    // The receipt's own page. For the person who checks, opened at the
+    // hold (`#pay`), where the page draws the check itself ("They match:
+    // record the check"); for anybody else, the page that says whom to ask.
+    actionUrl: hold.mayCheck ? `/dashboard/invoices/${r.id}#pay` : `/dashboard/invoices/${r.id}`,
+    amount: null,
+    createdAt: (r.receivedAt ?? r.dueAt).toISOString(),
+  }
+}

@@ -73,9 +73,10 @@ describe('one invoice receipt is one item in the count', () => {
     const route = read('src/app/api/decisions/route.ts')
     expect(route).toContain("q.entityType === 'Invoice' && RECEIPT_QUESTIONS.has(q.action)")
     expect(route).toContain("decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)")
-    // Both receipt rows carry the question's id, so Ask Etyme can still
-    // draw the twin's card on the one row.
-    expect(route.match(/twinApprovalId,\n/g)?.length).toBe(2)
+    // Every receipt row carries the question's id (Pay, held by the check,
+    // held on the bank: walk 7, 2026-11-08), so Ask Etyme can still draw
+    // the twin's card on the one row.
+    expect(route.match(/twinApprovalId,\n/g)?.length).toBe(3)
   })
 })
 
