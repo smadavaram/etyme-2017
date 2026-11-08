@@ -106,36 +106,40 @@ model Person {
   doNotSubmit              DoNotSubmit[]
   resumes                  Resume[]
 
-  identityA            IdentityMatch[]       @relation("identityA")
-  identityB            IdentityMatch[]       @relation("identityB")
-  orderPostings        OrderPosting[]
-  postingsAuthored     OrderPosting[]        @relation("postingAuthor")
-  journalLines         JournalLine[]
-  paymentsApplied      Payment[]             @relation("paymentApplier")
-  creditLimitsSet      CustomerCreditLimit[] @relation("creditLimitSetter")
-  dunningLettersSent   DunningSend[]         @relation("dunningSender")
-  counterpartiesAdded  Counterparty[]        @relation("counterpartyCreator")
-  sitesRecorded        CompanyLocation[]     @relation("siteRecordedBy")
-  siteSuppliersNamed   SiteSupplier[]        @relation("siteSupplierNamedBy")
-  sitesHiringAt        SiteHiringManager[]   @relation("siteHiringManager")
-  siteManagersNamed    SiteHiringManager[]   @relation("siteHiringManagerNamedBy")
-  contactIdentities    CompanyContact[]      @relation("contactIdentity")
-  contactsAdded        CompanyContact[]      @relation("contactCreator")
-  creditNotesWritten   CreditNote[]          @relation("creditNoteAuthor")
-  paymentRunsCreated   PaymentRun[]          @relation("paymentRunAuthor")
-  paymentRunsApproved  PaymentRun[]          @relation("paymentRunApprover")
-  classificationsAbout ClassificationCall[]  @relation("classificationSubject")
-  classificationsMade  ClassificationCall[]  @relation("classificationDecider")
-  exemptAbout          ExemptAssertion[]     @relation("exemptSubject")
-  exemptAsserted       ExemptAssertion[]     @relation("exemptDecider")
+  identityA             IdentityMatch[]        @relation("identityA")
+  identityB             IdentityMatch[]        @relation("identityB")
+  orderPostings         OrderPosting[]
+  postingsAuthored      OrderPosting[]         @relation("postingAuthor")
+  journalLines          JournalLine[]
+  paymentsApplied       Payment[]              @relation("paymentApplier")
+  creditLimitsSet       CustomerCreditLimit[]  @relation("creditLimitSetter")
+  dunningLettersSent    DunningSend[]          @relation("dunningSender")
+  counterpartiesAdded   Counterparty[]         @relation("counterpartyCreator")
+  /// The client relationships this person is the account manager on.
+  counterpartiesManaged Counterparty[]         @relation("counterpartyAccountManager")
+  /// Suppliers this person picked for a contractor invitation.
+  invitationPicks       ContractorInvitation[] @relation("invitationPickedBy")
+  sitesRecorded         CompanyLocation[]      @relation("siteRecordedBy")
+  siteSuppliersNamed    SiteSupplier[]         @relation("siteSupplierNamedBy")
+  sitesHiringAt         SiteHiringManager[]    @relation("siteHiringManager")
+  siteManagersNamed     SiteHiringManager[]    @relation("siteHiringManagerNamedBy")
+  contactIdentities     CompanyContact[]       @relation("contactIdentity")
+  contactsAdded         CompanyContact[]       @relation("contactCreator")
+  creditNotesWritten    CreditNote[]           @relation("creditNoteAuthor")
+  paymentRunsCreated    PaymentRun[]           @relation("paymentRunAuthor")
+  paymentRunsApproved   PaymentRun[]           @relation("paymentRunApprover")
+  classificationsAbout  ClassificationCall[]   @relation("classificationSubject")
+  classificationsMade   ClassificationCall[]   @relation("classificationDecider")
+  exemptAbout           ExemptAssertion[]      @relation("exemptSubject")
+  exemptAsserted        ExemptAssertion[]      @relation("exemptDecider")
   /// Pay lines whose overtime method they chose.
-  otMethodsChosen      BuyContract[]         @relation("overtimeMethodChooser")
-  benchTermsStated     BenchListing[]        @relation("benchTermsStater")
+  otMethodsChosen       BuyContract[]          @relation("overtimeMethodChooser")
+  benchTermsStated      BenchListing[]         @relation("benchTermsStater")
   /// Pay lines whose cut-week overtime rule they chose.
-  cutOvertimeChosen    BuyContract[]         @relation("cutOvertimeChooser")
-  reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
+  cutOvertimeChosen     BuyContract[]          @relation("cutOvertimeChooser")
+  reconRunsMade         ReconciliationRun[]    @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
-  approvesContracts    SellContract[]        @relation("contractApprover")
+  approvesContracts     SellContract[]         @relation("contractApprover")
 
   /// Budgets this person is answerable for.
   costCentresOwned CostCenter[] @relation("costCentreOwner")
@@ -1117,7 +1121,9 @@ model Company {
   censusSandboxFor CensusRequest?  @relation("censusSandbox")
   adverseActions   AdverseAction[]
 
-  permissionGrants PermissionGrant[]
+  permissionGrants   PermissionGrant[]
+  /// H-1B petitions this firm filed as the petitioning employer.
+  visaPetitionsFiled VisaPetition[]    @relation("visaPetitioner")
 
   /// The firm's default commission rates, read when the award writes a
   /// line's commission rows (2026-11-08). Null is the shipped default: none.
@@ -1847,6 +1853,9 @@ model OrgUnit {
   children      OrgUnit[]      @relation("tree")
   name          String
   kind          String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT · REGION · SITE (a REGION unit scopes a seat to its sites: lib/region-scope)
+  /// A region's place in the company's own order (1 first). Read on REGION
+  /// units only; null reads after every numbered region, by contractors.
+  position      Int?
   contexts      Context[]
   sellContracts SellContract[] // contingent workers charged to this unit
   deliveredHere SellContract[] @relation("deliveryUnit") // accounts this unit delivers
@@ -1984,10 +1993,18 @@ model Counterparty {
   // never rated, and an agreement on file counts as APPROVED.
   tier String?
 
+  /// The account manager on this relationship: who sold the deal and
+  /// earns the sales commission on lines sold to this client. Null means
+  /// nobody named one; the award then reads who recorded the client and
+  /// holds the Account Manager role (commission-earners, etyme-demand).
+  accountManagerId String?
+  accountManager   Person? @relation("counterpartyAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
   @@index([companyId, status])
   @@index([createdById])
+  @@index([accountManagerId])
 }
 
 /// A person at a counterparty. The rolodex.
@@ -2417,15 +2434,15 @@ enum BenchTier {
 }
 
 model VisaPetition {
-  id              String         @id @default(cuid())
-  personId        String
-  person          Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type            String // H1B · L1 · GC · TN · SKILLED_WORKER
-  country         String
-  status          String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED · DENIED
-  filedAt         DateTime?
-  approvedAt      DateTime?
-  expiresAt       DateTime?
+  id                  String         @id @default(cuid())
+  personId            String
+  person              Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type                String // H1B · L1 · GC · TN · SKILLED_WORKER
+  country             String
+  status              String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED · DENIED
+  filedAt             DateTime?
+  approvedAt          DateTime?
+  expiresAt           DateTime?
   /// The area of intended employment on the approved petition.
   ///
   /// An opaque key from an MSA table, never a city string — Santa Clara
@@ -2436,14 +2453,24 @@ model VisaPetition {
   /// amended petition filed before they start (Matter of Simeio
   /// Solutions, 26 I&N Dec. 542). Null means nobody recorded it, and
   /// lib/visa-worksite blocks the move rather than guessing.
-  petitionedArea  String?
+  petitionedArea      String?
   /// The site as written on the petition, for a human to check against.
-  worksiteAddress String?
-  transferOk      Boolean        @default(false)
-  documents       VisaDocument[]
-  events          VisaEvent[]
+  worksiteAddress     String?
+  transferOk          Boolean        @default(false)
+  /// The firm that petitioned (an H-1B is tied to it: 8 CFR
+  /// 214.2(h)(2)(i)(D)). Null means the record does not say, and the
+  /// start rule says so rather than guessing (lib/document-stages).
+  petitionerCompanyId String?
+  petitioner          Company?       @relation("visaPetitioner", fields: [petitionerCompanyId], references: [id], onDelete: SetNull)
+  /// The employer exactly as the I-20's CPT page spells it. Text, not a
+  /// company: the school writes a name, and a name that matches no firm
+  /// on the record is still what the paper says (etyme-regulatory).
+  employerNamed       String?
+  documents           VisaDocument[]
+  events              VisaEvent[]
 
   @@index([personId, status])
+  @@index([petitionerCompanyId])
 }
 
 // Supporting documents for a visa petition (I-797, EAD card, passport, etc.)
@@ -3090,7 +3117,7 @@ model Requirement {
   /// rule nobody set. Where a client does set it, it is the single
   /// cheapest thing to check and the most expensive to discover in week
   /// two of an assignment.
-  workAuthRequired String?
+  workAuthRequired      String?
   /// Why this role may restrict who holds it.
   ///
   /// EXPORT_CONTROL · FEDERAL_CONTRACT_CLAUSE · SECURITY_CLEARANCE ·
@@ -3101,31 +3128,36 @@ model Requirement {
   /// lawful reason is discrimination under INA §274B, and the product
   /// used to do it automatically off a phrase in an advert. See
   /// lib/work-authorisation.
-  workAuthBasis    String?
+  workAuthBasis         String?
   /// The clause, regulation or contract relied on. What makes the basis
   /// checkable by somebody other than whoever typed it.
-  workAuthCite     String?
-  justification    String?
+  workAuthCite          String?
+  justification         String?
   /// The job in the manager's words, as a list of what the person will
   /// do. Beside `description`, which is the job as a whole; free text for
   /// the same reason.
-  responsibilities String?  @db.Text
+  responsibilities      String?  @db.Text
   /// Skills that would help and are not required. Matching weighs them
   /// below `skills` and never refuses on one.
-  niceToHaveSkills String[] @default([])
+  niceToHaveSkills      String[] @default([])
   /// ONSITE · HYBRID · REMOTE. Null where the request did not say, and
   /// null reads as onsite: the work is done in the site's country, under
   /// the founder's rule of 2026-11-03 ("Work authorization is checked
   /// where the work is done"). One reader, `workCountryOf` in
   /// lib/work-country.
-  workMode         String?
+  workMode              String?
+  /// The qualification the job asks for, in the job's words ("BSN",
+  /// "Bachelor's in mechanical engineering"). Null asks none. Read by the
+  /// degree rules as "not what the job asks", which warns and never
+  /// blocks (founder, 2026-11-03).
+  requiredQualification String?
   /// Who the person reports to day to day. Often the owner; named apart
   /// because a coordinator's request can report to somebody else.
-  reportsToId      String?
-  reportsTo        Person?  @relation("requisitionReportsTo", fields: [reportsToId], references: [id])
+  reportsToId           String?
+  reportsTo             Person?  @relation("requisitionReportsTo", fields: [reportsToId], references: [id])
   /// Why the job exists, in one of four words: NEW_PROJECT · BACKFILL ·
   /// EXTRA_HANDS · OTHER. `justification` carries the sentence.
-  needKind         String?
+  needKind              String?
 
   // Approval is separate from status: a requisition can be APPROVED and still
   // OPEN, or PENDING and never reach the market. Addendum E: most clear
@@ -6238,6 +6270,13 @@ model ContractorInvitation {
   supplierRequestId String?
   /// The person on the register, once a supplier has put them forward.
   personId          String?
+  /// Why a supplier on probation was picked to represent them, who said
+  /// so and when (vendor tier warns, Addendum E). Null where the firm
+  /// picked was not on probation, or before 2026-11-08.
+  pickReason        String?
+  pickedById        String?
+  pickedBy          Person?   @relation("invitationPickedBy", fields: [pickedById], references: [id], onDelete: SetNull)
+  pickedAt          DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -6245,6 +6284,7 @@ model ContractorInvitation {
   /// same ask, not a second one.
   @@unique([companyId, email])
   @@index([companyId, state])
+  @@index([pickedById])
 }
 
 /// The opposite of a block: a person or a firm this company would take
