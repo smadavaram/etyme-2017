@@ -17,7 +17,8 @@ import type { Catalog } from './actors'
 import { faultsOf, isError, isRefusal, routeStats, slowest, SLOW_P95_MS, type Ledger } from './ledger'
 import { lessonsOf } from './lessons'
 import { completeLines, type CompleteCount } from './complete'
-import type { Options, StageResult, World } from './stage'
+import { DEFAULT_CHAIN_HIRES, type Options, type StageResult, type World } from './stage'
+import { chainHeadline, rungLines, workerClassLines, type Tallies } from './tallies'
 
 export interface StageRun {
   name: string
@@ -46,6 +47,8 @@ export interface RunRecord {
   opened: number
   /** Complete transactions and where the chain stops, read at the end of the run (./complete); absent where the run did not get that far. */
   complete?: CompleteCount | { unread: string } | null
+  /** By worker class and by rungs walked (./tallies); absent on a record made before 2026-11-08. */
+  tallies?: Tallies
 }
 
 const owner = (d: DomainKey | null | undefined) => (d ? d.toLowerCase() : 'nobody')
@@ -115,6 +118,18 @@ export function reportMarkdown(r: RunRecord): string {
   // The headline the founder set (2026-11-02): complete transactions, then where the chain stops.
   if (r.complete && 'unread' in r.complete) L.push('## Complete transactions', '', `The count could not be read: ${cell(r.complete.unread)}`, '')
   else if (r.complete) L.push(...completeLines(r.complete))
+  // The founder's twenty hires through every rung, and every kind of worker (2026-11-08).
+  if (r.tallies) {
+    const target = r.options.chainHires ?? DEFAULT_CHAIN_HIRES
+    if (!r.complete) L.push('## Complete transactions', '')
+    L.push(chainHeadline(r.tallies.rungs, target), '')
+    L.push(...workerClassLines(r.tallies.workerClasses))
+    L.push(...rungLines(r.tallies.rungs))
+    if (r.tallies.notes.length) {
+      for (const note of r.tallies.notes) L.push(`- ${cell(note)}`)
+      L.push('')
+    }
+  }
 
   L.push('## What closed at every station')
   L.push('')
@@ -243,7 +258,7 @@ export function reportMarkdown(r: RunRecord): string {
   L.push('')
   L.push(`- Database: \`${r.database.name}\`, copied from \`${r.database.template}\`; ${r.database.kept ? 'kept for inspection' : 'dropped at the end'}.`)
   L.push(`- App: ${r.build}, served at ${r.base} for the run and stopped after.`)
-  L.push(`- Flags: \`--placements ${r.options.placements} --weeks ${r.options.weeks} --concurrency ${r.options.concurrency}${r.options.only.length ? ` --only ${r.options.only.join(',')}` : ''}\`.`)
+  L.push(`- Flags: \`--jobs ${r.options.placements}${r.options.chainHires != null ? ` --chain-hires ${r.options.chainHires}` : ''} --weeks ${r.options.weeks} --concurrency ${r.options.concurrency}${r.options.only.length ? ` --only ${r.options.only.join(',')}` : ''}\`.`)
   L.push('- The clock is the real one: the app has no way to move "today", so the weeks a stage files are real past and present weeks.')
   L.push('- Every call is in the JSON file beside this one.')
   L.push('')
@@ -262,6 +277,7 @@ export function writeReport(r: RunRecord, dir: string): { md: string; json: stri
         stamp: r.stamp, startedAt: r.startedAt, finishedAt: r.finishedAt, options: r.options,
         database: r.database, base: r.base, build: r.build, opened: r.opened,
         complete: r.complete ?? null,
+        tallies: r.tallies ?? null,
         stages: r.stages,
         routes: routeStats(r.ledger.calls), faults: faultsOf(r.ledger.calls), lessons: lessonsOf(r.ledger.calls),
         expectations: r.ledger.expectations,

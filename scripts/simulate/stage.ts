@@ -109,13 +109,30 @@ export interface Options {
   concurrency: number
   /** Only these stages run; empty means all. */
   only: string[]
+  /** How many awards the run walks through four rungs (`--chain-hires`, 20). Absent on an older record. */
+  chainHires?: number
 }
+
+/** The run's flags a station reads beyond `options` (args.ts). */
+export interface Flags {
+  /**
+   * How many awards should walk the whole chain: a bench vendor's person
+   * through a sub-vendor and a prime to the client (`--chain-hires`,
+   * default 20; the founder, 2026-11-08).
+   */
+  chainHires: number
+}
+
+/** The founder's twenty (2026-11-08). */
+export const DEFAULT_CHAIN_HIRES = 20
 
 export interface Ctx {
   cast: Cast
   world: World
   ledger: Ledger
   options: Options
+  /** The run's flags beyond the counts: `ctx.flags.chainHires`. */
+  flags: Flags
   /** Read-only connection to the copied world. Any write is refused by the database. */
   read: PrismaClient
   /** The app under test, e.g. http://localhost:3412. */

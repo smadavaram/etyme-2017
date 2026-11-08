@@ -2,6 +2,7 @@
  * Every transaction, end to end, as each party (CLAUDE.md, 2026-10-20).
  *
  *   npm run simulate -- --placements 200 --weeks 12
+ *   npm run simulate -- --people 2000 --jobs 1000 --chain-hires 20 --weeks 4
  *
  * 1. Copies today's seeded world template to `etyme_sim_<stamp>`
  *    (building the template first if today's is not built yet).
@@ -25,6 +26,7 @@ import { lessonsOf } from './lessons'
 import { writeReport, type StageRun } from './report'
 import { build, freePort, serverEnv, start, type Running } from './server'
 import { emptyWorld, expectRefusalOn, parallel, type Ctx } from './stage'
+import { readTallies } from './tallies'
 import { STAGES } from './stages'
 import { dropWorld, prepareWorld } from './world-db'
 
@@ -96,13 +98,14 @@ async function main() {
 
     const wire: Wire = { base, ledger, secret: nextAuthSecret, cronSecret, timeoutMs: args.timeoutMs }
     cast = new Cast(catalog, wire, reader)
-    const options = { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only }
+    const options = { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only, chainHires: args.chainHires }
+    const flags = { chainHires: args.chainHires }
 
     for (const stage of STAGES) {
       if (args.only.length && !args.only.includes(stage.name)) continue
       ledger.stage = stage.name
       const ctx: Ctx = {
-        cast, world, ledger, options, read: reader, base,
+        cast, world, ledger, options, flags, read: reader, base,
         parallel: (items, fn, n) => parallel(items, fn, n ?? args.concurrency),
         expectRefusal: (seat, call, phrase) => expectRefusalOn(ledger, seat, call, phrase),
         log: (line) => say(`${stage.name}: ${line}`),
@@ -150,11 +153,14 @@ async function main() {
   }
 
   const finishedAt = new Date()
+  // By worker class and by rungs walked (2026-11-08): counted by
+  // regulatory's and demand's stations, read once here.
+  const tallies = readTallies(world)
   const files = writeReport(
     {
-      stamp, startedAt, finishedAt, options: { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only },
+      stamp, startedAt, finishedAt, options: { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only, chainHires: args.chainHires },
       database: { name: db.name, template: db.template, kept: !args.drop }, base, build: buildNote,
-      stages, world, ledger, catalog, opened: cast?.opened ?? 0, complete,
+      stages, world, ledger, catalog, opened: cast?.opened ?? 0, complete, tallies,
     },
     REPORTS
   )

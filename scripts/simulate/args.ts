@@ -2,6 +2,9 @@
  * The run's flags, read once. Pure, so a test can hold the defaults.
  *
  *   --placements N    placements the run aims for (50)
+ *   --jobs N          the same as --placements: the founder says jobs (2026-11-08)
+ *   --chain-hires N   awards the run walks through four rungs, handed to
+ *                     stations as ctx.flags.chainHires (20)
  *   --weeks W         weeks each placement works (12)
  *   --concurrency C   calls at once inside a stage (20)
  *   --only a,b        only these stations, by name
@@ -15,7 +18,7 @@
  *                     --scale. Firms follow the founder's ratios (`sizeFor`)
  *   --timeout MS      per call (60000)
  */
-import { STAGE_ORDER, type Options } from './stage'
+import { DEFAULT_CHAIN_HIRES, STAGE_ORDER, type Options } from './stage'
 import { FEWEST_PEOPLE } from '@/lib/seed-scale/types'
 
 export interface Args extends Options {
@@ -27,6 +30,7 @@ export interface Args extends Options {
   /** The generated world's size, in people (`sizeFor` in lib/seed-scale/types). */
   people: number
   timeoutMs: number
+  chainHires: number
 }
 
 function positiveInt(name: string, v: string | undefined): number {
@@ -36,13 +40,15 @@ function positiveInt(name: string, v: string | undefined): number {
 }
 
 export function parseArgs(argv: string[]): Args {
-  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', scale: false, people: 2000, timeoutMs: 60_000 }
+  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', scale: false, people: 2000, timeoutMs: 60_000, chainHires: DEFAULT_CHAIN_HIRES }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split('=', 2)
     const value = () => inline ?? argv[++i]
     switch (flag) {
       case '--': break
       case '--placements': a.placements = positiveInt('placements', value()); break
+      case '--jobs': a.placements = positiveInt('jobs', value()); break
+      case '--chain-hires': a.chainHires = positiveInt('chain-hires', value()); break
       case '--weeks': a.weeks = positiveInt('weeks', value()); break
       case '--concurrency': a.concurrency = positiveInt('concurrency', value()); break
       case '--timeout': a.timeoutMs = positiveInt('timeout', value()); break
@@ -53,7 +59,7 @@ export function parseArgs(argv: string[]): Args {
       case '--template': a.template = value(); break
       case '--scale': a.scale = true; break
       case '--people': a.people = positiveInt('people', value()); a.scale = true; break
-      default: throw new Error(`There is no flag ${flag}. The flags are --placements, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template, --scale, --people and --timeout.`)
+      default: throw new Error(`There is no flag ${flag}. The flags are --placements (or --jobs), --chain-hires, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template, --scale, --people and --timeout.`)
     }
   }
   const unknown = a.only.filter((s) => !(STAGE_ORDER as readonly string[]).includes(s))
