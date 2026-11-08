@@ -40,6 +40,7 @@ import { demoRequest } from '@/lib/public-site/demo-link'
 import { DESKS } from '@/lib/demo-desks'
 import { CLIENT_DESKS } from '@/app/demo/seats'
 import { longSentences } from '@/lib/positioning'
+import { menuFor } from '@/lib/nav-table'
 import type { DemoTarget, FlowBox } from '@/lib/public-site/flow'
 
 /**
@@ -571,5 +572,62 @@ describe('Every documentation page says its contents once, and in short lines', 
       const long = linesOf(page).flatMap((l) => longSentences(l, 25))
       expect(long, route).toEqual([])
     }
+  })
+})
+
+// The menu changed on 2026-11-08 ("One app, two tabs"; "Money is
+// Accounting"): a firm reads Today · Network (Candidates, Companies) ·
+// Jobs · Submissions · HR (Contracts, Timesheets, Expenses) · Accounting
+// (Receivables, Payables, Payroll, Reports) · Settings, and a client
+// Accounting with Payables only. The documentation names those links,
+// so it is read against the menu the app draws (`menuFor`), not a list
+// typed here.
+describe('The documentation names the menu the app draws', () => {
+  const docLines = (): string[] => [
+    ...STEP_PAGES.flatMap((p) => [p.lede, ...p.rules, ...p.flow.map((b) => b.t), ...(p.more?.lines ?? [])]),
+    ...TOPICS.flatMap((t) => [t.lede, ...t.lines]),
+    ...REFERENCE.flatMap((r) => [r.lede, ...r.lines]),
+    WHO_DOES_WHAT.lede, WHO_DOES_WHAT.closing, ...WHO_DOES_WHAT.rows.map((r) => r.sees),
+  ].filter(Boolean)
+  const namesOn = (kind: 'CLIENT' | 'VENDOR') =>
+    new Set(menuFor(kind, false).flatMap((g) => [g.heading, ...g.links.map((l) => l.label)]).filter((x): x is string => Boolean(x)))
+  const timeAndMoney = () => REFERENCE.find((r) => r.slug === 'time-and-money')!.lines.join(' ')
+
+  it('every menu link the documentation says something is under, or in, is a heading or a link on a client’s or a supplier’s menu today', () => {
+    const onAMenu = new Set([...namesOn('CLIENT'), ...namesOn('VENDOR')])
+    const named = docLines().flatMap((l) => [...l.matchAll(/\b(?:under|in) (Today|Network|Candidates|Companies|Suppliers|Jobs|Submissions|HR|Contracts|Timesheets|Expenses|Accounting|Receivables|Payables|Payroll|Reports|Settings|Bills|Invoice receipts)\b/g)].map((m) => m[1]))
+    expect(named.length).toBeGreaterThan(5)
+    for (const n of named) expect(onAMenu.has(n), `the documentation names “${n}”, which no menu draws`).toBe(true)
+  })
+
+  it('the documentation names the money as the menu does: Accounting, with Receivables, Payables and Payroll, and a client sees Payables only', () => {
+    const t = timeAndMoney()
+    expect(t).toMatch(/a firm’s bills are under Accounting, in Receivables/)
+    expect(t).toMatch(/in Payables/)
+    expect(t).toMatch(/in Payroll/)
+    expect(t).toMatch(/A client has only Payables/)
+    // And that is what the client's menu draws under Accounting.
+    const clientMoney = menuFor('CLIENT', false).find((g) => g.heading === 'Accounting')!
+    expect(clientMoney.links.map((l) => l.label)).toEqual(['Payables'])
+  })
+
+  it('no documentation line still says a link is under Bills, Invoice receipts, Payroll or Contracts, the menu of 2026-11-04', () => {
+    for (const l of docLines()) {
+      expect(l, l).not.toMatch(/\bunder (Bills|Invoice receipts|Payroll|Contracts)\b/)
+    }
+  })
+
+  it('inside the pages the trade’s words stay: what a firm sends up is its bill, and what a supplier sends is its invoice', () => {
+    const t = timeAndMoney()
+    expect(t).toMatch(/a firm’s bills/)
+    expect(t).toMatch(/its matched invoice/)
+    expect(t).not.toMatch(/\b(receivable|payable)s? (is|are) (paid|sent)\b/i)
+  })
+
+  it('a contractor’s and a supplier’s lines are said where the menu draws them: Candidates under Network, Contracts under HR', () => {
+    const lines = TOPICS.flatMap((t) => t.lines).filter((l) => /menu/.test(l))
+    expect(lines.some((l) => /under Network, in Candidates/.test(l))).toBe(true)
+    expect(lines.some((l) => /under HR, in Contracts/.test(l))).toBe(true)
+    expect(lines.some((l) => /under Network, in Suppliers/.test(l))).toBe(true)
   })
 })

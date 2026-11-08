@@ -139,8 +139,11 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     'Only the person who worked the week files it. Nobody else may.',
     'The client approves it first. Then each firm below accepts the same week, in turn.',
     'A supplier sends its invoice only for weeks the client approved, and only for the hours accepted.',
-    'On the menu, a firm’s own bills are under Bills.',
-    'A supplier is paid on its matched invoice, under Invoice receipts. An employee is paid under Payroll.',
+    // The menu's money since 2026-11-08 ("Money is Accounting"): the menu
+    // names the two ledgers; inside the pages a firm still issues a bill
+    // and receives an invoice receipt. A client reads Payables only.
+    'On the menu, a firm’s bills are under Accounting, in Receivables. A client has only Payables.',
+    'A supplier is paid on its matched invoice, in Payables. Employees are paid in Payroll.',
   ],
   table: {
     columns: ['A failed check on an invoice receipt', 'Can a person waive it?'],
