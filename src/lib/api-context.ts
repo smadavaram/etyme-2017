@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { seatPermissions } from '@/lib/permission-grants'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
@@ -81,6 +82,15 @@ export interface CallerContext {
    */
   region?: { unitId: string; label: string } | null
   permissions: readonly string[]
+  /**
+   * The role's own permissions, before any grant (2026-11-08). Absent
+   * where the caller was resolved by a door that reads grants nowhere
+   * (the sample seat, an API key, staff), in which case `permissions` is
+   * the role's. `permissionScope` in lib/permission-grants reads it.
+   */
+  rolePermissions?: readonly string[]
+  /** The permissions this seat holds by a grant rather than its role. */
+  grantedPermissions?: readonly string[]
   /**
    * True when the caller is a machine holding an API key rather than a
    * person holding a session. Its `person.id` is not a real Person row, so
@@ -660,6 +670,17 @@ export async function getCallerContext(
     }
   }
 
+  // The role's permissions and every grant the Owner gave this seat or its
+  // role (founder, 2026-11-08), so a granted seat passes the menu's door and
+  // every `hasPermission` asked over `caller.permissions`. A grant narrowed
+  // to a team counts only where its reader narrows the query
+  // (lib/permission-grants). One query; a failed read is the role alone.
+  const rolePermissions = (context.role?.permissions as string[]) ?? []
+  const held = await seatPermissions(
+    { companyId: context.companyId, roleId: context.roleId, contextId: context.id },
+    rolePermissions
+  )
+
   const caller: CallerContext = {
     person,
     context: {
@@ -669,7 +690,9 @@ export async function getCallerContext(
       roleId: context.roleId,
     },
     company: context.company,
-    permissions: (context.role?.permissions as string[]) ?? [],
+    permissions: held.permissions,
+    rolePermissions,
+    grantedPermissions: held.granted,
     // Where they sit in the firm. Null is firm-wide, and that absence is
     // the deliberate act rather than an oversight.
     orgUnitId: context.orgUnitId,

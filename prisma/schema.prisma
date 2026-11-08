@@ -242,16 +242,21 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash        String?
+  passwordHash         String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt     DateTime?
-  emailTokens         EmailToken[]
-  signInFailures      SignInFailure[]
-  adverseActionsGiven AdverseAction[]
+  emailVerifiedAt      DateTime?
+  emailTokens          EmailToken[]
+  signInFailures       SignInFailure[]
+  adverseActionsGiven  AdverseAction[]
   // Who set an exchange rate (2026-10-27).
-  fxRatesSet          FxRate[]        @relation("fxRateSetBy")
+  fxRatesSet           FxRate[]             @relation("fxRateSetBy")
+  permissionsGranted   PermissionGrant[]    @relation("permissionGrantedBy")
+  permissionsRevoked   PermissionGrant[]    @relation("permissionRevokedBy")
+  submissionsSubmitted Submission[]         @relation("submissionSubmittedBy")
+  commissionsEarned    ContractCommission[] @relation("commissionEarnedBy")
+  commissionsSet       ContractCommission[] @relation("commissionSetBy")
 
   @@index([name])
   @@index([createdAt])
@@ -401,8 +406,9 @@ model Context {
   /// Set when somebody was given a seat before ever signing in. Cleared on
   /// their first sign-in, so "invited" and "working" are never the same
   /// number reported upward.
-  invitedAt   DateTime?
-  invitedById String?
+  invitedAt        DateTime?
+  invitedById      String?
+  permissionGrants PermissionGrant[]
 
   @@index([companyId, suspendedAt])
   @@index([personId, revokedAt])
@@ -1110,6 +1116,13 @@ model Company {
   /// is never reused for a second.
   censusSandboxFor CensusRequest?  @relation("censusSandbox")
   adverseActions   AdverseAction[]
+
+  permissionGrants PermissionGrant[]
+
+  /// The firm's default commission rates, read when the award writes a
+  /// line's commission rows (2026-11-08). Null is the shipped default: none.
+  commissionDefaults  Json?
+  contractCommissions ContractCommission[]
 
   @@index([listedById])
 }
@@ -1844,7 +1857,8 @@ model OrgUnit {
 
   internalOrders InternalOrder[]
 
-  projectOrders ProjectOrder[]
+  projectOrders    ProjectOrder[]
+  permissionGrants PermissionGrant[]
 
   @@index([companyId])
   @@index([parentId])
@@ -1862,7 +1876,62 @@ model Role {
   programSeats       ProgramSeat[]
   benchWantsReceived BenchWant[]
 
+  permissionGrants PermissionGrant[]
+
   @@index([companyId])
+}
+
+/// What a scope reaches (founder, 2026-11-08): the whole company; one unit
+/// of the org tree and everything under it, which is the team hierarchy;
+/// or one person's own book.
+enum GrantScope {
+  COMPANY
+  UNIT
+  PERSON
+}
+
+/// A permission the Owner gave, beyond what a role carries (founder,
+/// 2026-11-08: "Owner should control who should see what, but owner
+/// should give permissions by team hierarchy or individual role or
+/// company as well").
+///
+/// A grant names exactly one holder: a role at the company (everybody
+/// seated in it) or one person's seat. The schema cannot say "exactly
+/// one" and lib/permission-scope refuses anything else on the way in and
+/// reads anything else as nothing on the way out. A revoked grant is kept,
+/// because "who could read the margin in March" is asked after somebody
+/// leaves.
+model PermissionGrant {
+  id         String     @id @default(cuid())
+  companyId  String
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  permission String // one of PERMISSIONS in lib/permissions
+  roleId     String?
+  role       Role?      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  contextId  String?
+  context    Context?   @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  scope      GrantScope @default(COMPANY)
+  /// Required when scope is UNIT: the unit, read with every unit under it.
+  orgUnitId  String?
+  orgUnit    OrgUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  grantedById String
+  grantedBy   Person   @relation("permissionGrantedBy", fields: [grantedById], references: [id])
+  grantedAt   DateTime @default(now())
+  /// Why, in the Owner's own words. Not optional, for the reason a
+  /// program seat's is not.
+  reason      String
+
+  revokedById String?
+  revokedBy   Person?   @relation("permissionRevokedBy", fields: [revokedById], references: [id])
+  revokedAt   DateTime?
+
+  @@index([companyId, permission])
+  @@index([roleId])
+  @@index([contextId])
+  @@index([orgUnitId])
+  @@index([grantedById])
+  @@index([revokedById])
 }
 
 /// Who this firm works with, and as what.
@@ -3398,11 +3467,19 @@ model Submission {
   /// it from a row's last write would report every decision as instant.
   decidedAt DateTime?
 
+  /// Who at the submitting firm put the person forward (2026-11-08), so the
+  /// award can name the recruiter a recruiting commission is earned by.
+  /// Null on every row written before the column, and where nobody is
+  /// known; written by the submit route (demand).
+  submittedById String?
+  submittedBy   Person? @relation("submissionSubmittedBy", fields: [submittedById], references: [id])
+
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])
   @@index([toCompanyId, status])
   @@index([parentSubmissionId])
   @@index([resumeId])
+  @@index([submittedById])
 }
 
 /// A consultant's CV, and specifically the copy that went out.
@@ -3878,10 +3955,11 @@ model SellContract {
   termsDifferReason String?
   /// Who gave the reason.
   termsDifferById   String?
-  termsDifferBy     Person?         @relation("sellTermsDifferBy", fields: [termsDifferById], references: [id])
+  termsDifferBy     Person?              @relation("sellTermsDifferBy", fields: [termsDifferById], references: [id])
   /// When the reason was given.
   termsDifferAt     DateTime?
   adverseActions    AdverseAction[]
+  commissions       ContractCommission[]
 
   @@index([companyId, state])
   @@index([clientCompanyId])
@@ -4179,9 +4257,10 @@ model BuyContract {
   termsDifferReason String?
   /// Who gave the reason.
   termsDifferById   String?
-  termsDifferBy     Person?   @relation("buyTermsDifferBy", fields: [termsDifferById], references: [id])
+  termsDifferBy     Person?              @relation("buyTermsDifferBy", fields: [termsDifferById], references: [id])
   /// When the reason was given.
   termsDifferAt     DateTime?
+  commissions       ContractCommission[]
 
   @@index([companyId, state])
   @@index([vendorCompanyId])
@@ -4295,6 +4374,70 @@ enum CommissionType {
   FIXED_PER_PERIOD // fixed amount per pay period
   ON_PLACEMENT // one-time placement fee
   MARGIN_SHARE // percentage of margin (sell − buy across linked contracts)
+}
+
+/// What a commission is earned for (founder, 2026-11-08): SALES when the
+/// account management team sells, on the sell line; RECRUITING when the
+/// recruiter recruits, on the buy line.
+enum CommissionKind {
+  SALES
+  RECRUITING
+}
+
+/// What a commission's figure is taken from.
+enum CommissionBasis {
+  SHARE_OF_MARGIN
+  SHARE_OF_BILLED
+  PER_HOUR
+  PER_PERIOD
+}
+
+/// When it accrues: on weeks the firm above accepted (the default, the
+/// hours the bill is priced on), or on cash received.
+enum CommissionAccrual {
+  ACCEPTED
+  CASH
+}
+
+/// A commission is a row on the line it is earned on (founder, 2026-11-08:
+/// "Commission is object on sell and buy contracts"). Exactly one of the
+/// sell line and the buy line; the schema cannot say so and the writer
+/// (money) refuses anything else. A share (SHARE_OF_MARGIN,
+/// SHARE_OF_BILLED) is carried in basis points; a fixed figure (PER_HOUR,
+/// PER_PERIOD) in minor units. The older `BuyContract.commissionType`
+/// umbrella is untouched and keeps paying as it does.
+model ContractCommission {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  sellContractId String?
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  buyContractId  String?
+  buyContract    BuyContract?  @relation(fields: [buyContractId], references: [id], onDelete: Cascade)
+
+  earnedById String
+  earnedBy   Person @relation("commissionEarnedBy", fields: [earnedById], references: [id])
+
+  kind        CommissionKind
+  basis       CommissionBasis
+  rateBps     Int? // a share, in basis points
+  amountCents Int? // a fixed figure per hour or per period, minor units
+  capCents    Int?
+  fromDate    DateTime
+  toDate      DateTime?
+  accrueOn    CommissionAccrual @default(ACCEPTED)
+
+  setById String
+  setBy   Person   @relation("commissionSetBy", fields: [setById], references: [id])
+  setAt   DateTime @default(now())
+  reason  String
+
+  @@index([companyId])
+  @@index([sellContractId])
+  @@index([buyContractId])
+  @@index([earnedById])
+  @@index([setById])
 }
 
 // Links buy contracts to sell contracts within ONE company for profitability tracking.

@@ -193,6 +193,28 @@ function normalizeKind(kind: string | undefined): CompanyKind {
   return 'VENDOR'
 }
 
+/** What a seat holds by grant, read on the server by the dashboard layout. */
+export interface SessionGrants {
+  contextId: string
+  permissions: readonly string[]
+}
+
+/**
+ * A seat's role permissions with its grants, the menu's answer and the one
+ * caller check's agreeing. Grants for another seat are not this one's.
+ * Pure.
+ */
+export function withGrants(
+  rolePermissions: readonly string[],
+  activeContextId: string | null,
+  granted: SessionGrants | null
+): string[] {
+  const out = [...rolePermissions]
+  if (!granted || !activeContextId || granted.contextId !== activeContextId) return out
+  for (const p of granted.permissions) if (!out.includes(p)) out.push(p)
+  return out
+}
+
 export function SessionProvider({
   children,
   worker = false,
@@ -202,8 +224,15 @@ export function SessionProvider({
   filesAWeek = false,
   region = null,
   hat = null,
+  granted = null,
 }: {
   children: ReactNode
+  /**
+   * The permissions the Owner granted this seat beyond its role
+   * (2026-11-08), read on the server, with the seat they belong to: merged
+   * into the menu's permissions only where /api/me answers that same seat.
+   */
+  granted?: SessionGrants | null
   /** The hat remembered on this device, read from the cookie on the server, so the first paint is the right menu. */
   hat?: Hat | null
   /**
@@ -266,7 +295,7 @@ export function SessionProvider({
               }
             : null,
           roleName: active?.role?.name ?? null,
-          permissions: active?.role?.permissions ?? [],
+          permissions: withGrants(active?.role?.permissions ?? [], active?.id ?? null, granted),
           isWorker: worker,
           seat,
           isDemo: demo,

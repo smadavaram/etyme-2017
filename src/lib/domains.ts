@@ -403,6 +403,11 @@ export const DOMAINS: Domain[] = [
       // A person on their own work is their own seat, whether or not a firm
       // seated them (simulation, 2026-10-20). Read by the one caller check.
       'lib/own-seat',
+      // The Owner gives access by team, by role or for the whole company
+      // (founder, 2026-11-08): the grant's rules, the scope reader beside
+      // hasPermission, the plain words and the dialog's fields. Read by the
+      // one caller check; the scoped reads are each domain's.
+      'lib/permission-grants',
       // The one door to a seat's saved Ask Etyme conversation (founder,
       // 2026-10-18): the caller's own thread at the caller's own company,
       // and nobody else's. The route and the screen over it are

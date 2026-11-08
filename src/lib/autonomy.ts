@@ -515,6 +515,10 @@ const RULE_ATTRIBUTED = [
   // a one-person firm) from settings (2026-11-02). Her own act; the row
   // says from what to what, and she can change it back.
   'COMPANY_TYPE_CHANGED',
+  // The Owner, or somebody the Owner gave the right to by name, gave a
+  // permission to a role or a person, or took one away, on Users &
+  // permissions (2026-11-08). A person's own act, recorded like a role edit.
+  'PERMISSION_GRANTED', 'PERMISSION_REVOKED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }

@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
-import { SessionProvider, type SessionSeat } from '@/components/session-provider'
+import { SessionProvider, type SessionSeat, type SessionGrants } from '@/components/session-provider'
 import { DemoBanner } from '@/components/demo-banner'
 import { SectionPills } from '@/components/shell/section-pills'
 import { SetupReminder } from '@/components/setup-reminder'
@@ -115,6 +115,21 @@ async function readersTermsHref(): Promise<string | null> {
     const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
     if (!person) return null
     return await yourTermsHref(person.id)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * What the Owner granted this seat beyond its role (2026-11-08), so the
+ * menu draws the link a grant opens, read by the same caller check every
+ * route answers. Never throws: a failed read is the role alone.
+ */
+async function readersGrants(): Promise<SessionGrants | null> {
+  try {
+    const { caller } = await getCallerContext()
+    if (!caller?.company || !caller.grantedPermissions?.length) return null
+    return { contextId: caller.context.id, permissions: caller.grantedPermissions }
   } catch {
     return null
   }
@@ -256,12 +271,13 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref, filesAWeek, region, hat] = await Promise.all([
+  const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted] = await Promise.all([
     readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(), readersHat(),
+    readersGrants(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to
