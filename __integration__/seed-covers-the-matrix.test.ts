@@ -72,6 +72,12 @@ const RUNTIME: Record<string, string> = {
   // Two firms on Etyme asking to link (2026-10-27): nothing writes one
   // until a firm asks; a seeded ask would claim somebody asked.
   tradeLinkRequest: 'written when a firm asks another firm already on Etyme to link',
+  // The Owner giving access (2026-11-08): nothing writes a grant until an
+  // Owner gives one; a seeded grant would claim an Owner decided it.
+  permissionGrant: 'written when an Owner, or somebody the Owner named, gives a role or a person access on Users & permissions',
+  // A commission on a line (2026-11-08): written by the award's defaults and
+  // the line's commission panel (money); the seed sets no firm's rates.
+  contractCommission: 'written when the award or a person sets a commission on a sell or buy line',
   // The job twin (2026-10-12). Its ledger and its questions are what the
   // nightly run or a person wrote, each with the moment it happened; a
   // seeded entry would claim the twin acted on a night it did not run.

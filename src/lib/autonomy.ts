@@ -934,6 +934,21 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     approverNeeds: 'invoices.issue',
     byHand: 'Send it from the Bills page.',
   },
+  // ── The Owner gives access (founder, 2026-11-08) ──
+  //
+  // Every twin's: both kinds of company have an Owner who gives access.
+  // The twin drafts the grant from the Owner's words; the Owner's yes on
+  // the card is the grant, written by the one route Users & permissions
+  // calls (POST /api/settings/grants), under its own rules. No `alone`, so
+  // `checkContract` refuses a contract that moves it to acting alone and
+  // `tierOf` reads a stale row that does as needing a yes. Reversible,
+  // because Revoke takes a grant back in one press.
+  'access.grant': {
+    says: 'Give a role or a person access, for the company, a team or their own work, on the Owner\u2019s yes.',
+    money: false, external: false, reversible: true, decides: true, drafts: false, floor: false,
+    approverNeeds: 'team.manage',
+    byHand: 'Give it from Users & permissions, under Give access.',
+  },
   // ── The supplier's own acts (founder, 2026-10-29, "Tapin gets agents") ──
   //
   // Three acts turned toward a firm that sells people, each placed here,

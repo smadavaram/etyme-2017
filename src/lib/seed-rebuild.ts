@@ -87,10 +87,16 @@ export const CONFIRM_PHRASE = 'delete the demo world'
  * from `Prisma.dmmf` and fails when a model is missing or out of order.
  */
 export const DELETE_ORDER = [
+  // A permission the Owner gave (2026-11-08) names a role, a seat, a unit
+  // and the people who gave and took it, so it goes before all of them.
+  'PermissionGrant',
   'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'ProgramSeatRequest', 'TradeLinkRequest', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
   'RequirementInvitation', 'Match', 'Lead', 'Representation', 'DoNotSubmit', 'BuyContractCandidate',
+  // A commission row (2026-11-08) names a sell or buy line and the people
+  // who earn and set it, so it goes before them.
+  'ContractCommission',
   'ContractLink', 'Cycle', 'TimeOffEntry', 'Payment', 'CustomerCreditLimit', 'DunningSend', 'FxRate',
   'JournalLine', 'ErpAccountMap', 'OrderPosting', 'ContractCostAllocation', 'InvoiceLine',
   'InvoiceMatchOverride', 'VendorBillLine', 'VendorBillMatchOverride', 'IntercompanyPosition', 'RateHistory', 'Blacklist', 'SupplierRequest',
