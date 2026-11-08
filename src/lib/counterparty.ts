@@ -340,3 +340,31 @@ export function supplierStanding(s: Suppliers, sellerId: string): SupplierStandi
   if (s.blocked.has(sellerId)) return 'BLOCKED'
   return 'NONE'
 }
+
+// ── The account manager on a client relationship (2026-11-08) ─────────
+
+/**
+ * The role that names itself the account manager on a client. Shipped by
+ * that name at a supplier, an integrator and an MSP (lib/company-defaults).
+ */
+export const ACCOUNT_MANAGER_ROLE = 'Account Manager'
+
+/**
+ * Who may name the account manager on a client's record: the Owner and
+ * the Admin (they run the team, `team.manage`), and an Account Manager.
+ * Pure.
+ */
+export function mayNameAccountManager(permissions: readonly string[], roleName: string | null | undefined): boolean {
+  return hasPermission(permissions, 'team.manage') || roleName === ACCOUNT_MANAGER_ROLE
+}
+
+export const NAME_ACCOUNT_MANAGER_REFUSED =
+  'The Owner, an Admin or an Account Manager names the account manager on a client.'
+
+export const accountManagerNotSeated = (name: string, firm: string) =>
+  `${name} is not seated at ${firm}, so they cannot be the account manager on its client. Invite them to ${firm} first.`
+
+export const accountManagerSays = (person: string | null, client: string) =>
+  person
+    ? `${person} is the account manager on ${client}. Sales commission on lines sold to ${client} goes to them where the job names no owner here.`
+    : `Nobody is named as the account manager on ${client} now.`

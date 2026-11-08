@@ -7,7 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { Chip, FilterChips, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
+import { Chip, Field, FilterChips, FormMessage, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -404,6 +404,92 @@ interface TrustSignals {
   disclosureRate: number | null
 }
 
+/**
+ * The account manager on a client (2026-11-08): who sold the deal, read by
+ * the award for the sales commission where the job names no owner here.
+ * Drawn only for a firm that is a client on this firm's register; the
+ * Owner, an Admin or an Account Manager names one, from the firm's own
+ * people. Every save says what the route said.
+ */
+function AccountManagerPanel({ clientId }: { clientId: string }) {
+  type Answer = {
+    accountManager: { id: string; name: string } | null
+    says: string
+    mayName: boolean
+    refusedSays?: string
+    colleagues: { id: string; name: string }[]
+  }
+  const [answer, setAnswer] = useState<Answer | null>(null)
+  const [choice, setChoice] = useState('')
+  const [pending, setPending] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+
+  useEffect(() => {
+    let gone = false
+    fetch(`/api/counterparties?accountManagerFor=${encodeURIComponent(clientId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (gone || !body?.data) return
+        setAnswer(body.data)
+        setChoice(body.data.accountManager?.id ?? '')
+      })
+      .catch(() => {})
+    return () => { gone = true }
+  }, [clientId])
+
+  if (!answer) return null
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setPending(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/counterparties', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ accountManagerFor: clientId, personId: choice || null }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMessage({ tone: 'error', says: body?.error?.message ?? 'The account manager was not saved. Try again in a minute.' })
+        return
+      }
+      setAnswer((a) => (a ? { ...a, accountManager: body.data.accountManager, says: body.data.says } : a))
+      setMessage({ tone: 'ok', says: body.data.says })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="eyebrow mb-1">Account manager</p>
+      {!answer.mayName ? (
+        <>
+          <p className="text-sm">{answer.accountManager?.name ?? 'Nobody named'}</p>
+          {answer.refusedSays && <p className="text-[13px] text-etyme-muted mt-1">{answer.refusedSays}</p>}
+        </>
+      ) : (
+        <form onSubmit={save} className="space-y-2">
+          <Field label="Who sold this client">
+            <Select value={choice} onChange={(e) => setChoice(e.target.value)}>
+              <option value="">Nobody named</option>
+              {answer.colleagues.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <SubmitButton pending={pending} pendingLabel="Saving…" disabled={choice === (answer.accountManager?.id ?? '')}>
+            Save
+          </SubmitButton>
+          {message && <FormMessage tone={message.tone}>{message.says}</FormMessage>}
+        </form>
+      )}
+      {!message && <p className="text-[13px] text-etyme-muted mt-1">{answer.says}</p>}
+    </div>
+  )
+}
+
 function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
   const [locations, setLocations] = useState<Location[]>([])
   const [loadingLocations, setLoadingLocations] = useState(true)
@@ -471,6 +557,8 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
             <p className="eyebrow mb-2">Type</p>
             <Chip tone={kindTone(company.kind)}>{kindWord(company.kind)}</Chip>
           </div>
+
+          <AccountManagerPanel clientId={company.id} />
 
           {/* Details grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

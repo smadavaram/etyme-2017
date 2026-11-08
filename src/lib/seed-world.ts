@@ -2290,6 +2290,11 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // here. After Corvane and the sites, which it reads.
   await step('setup-checklists', async () => {
     await seedSetupChecklists({ prefix: PREFIX, slugs: WORLD_SLUGS })
+    // The account manager on each seeded supplier's client record
+    // (Counterparty.accountManagerId, 2026-11-08), where nobody has named
+    // one: the firm's own Account Manager, the first by name. Three reads
+    // and one write per firm, and a second seeding writes nothing.
+    await seedAccountManagers([...WORLD_SLUGS])
   })
 
   // ── Everybody on their own work holds their own seat ───────────────
@@ -2387,4 +2392,43 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
     steps: { ran: steps.ran, skipped: steps.skipped, pending: steps.pending },
   }
+}
+
+/**
+ * The seeded firms' account managers on their clients: for each firm with
+ * a client on its register and nobody named, the person seated in its
+ * Account Manager role, the first by name. Idempotent: only rows with no
+ * account manager are written, so a name somebody chose is never moved.
+ */
+export async function seedAccountManagers(slugs: readonly string[]): Promise<number> {
+  const firms = await db.company.findMany({ where: { slug: { in: [...slugs] } }, select: { id: true } })
+  const ids = firms.map((f) => f.id)
+  const open = await db.counterparty.findMany({
+    where: { companyId: { in: ids }, relationship: 'CLIENT', accountManagerId: null },
+    select: { companyId: true },
+    distinct: ['companyId'],
+  })
+  if (open.length === 0) return 0
+  const seats = await db.context.findMany({
+    where: {
+      companyId: { in: open.map((o) => o.companyId) }, revokedAt: null, suspendedAt: null,
+      role: { name: 'Account Manager' },
+    },
+    select: { companyId: true, person: { select: { id: true, name: true } } },
+  })
+  const first = new Map<string, { id: string; name: string }>()
+  for (const s of seats) {
+    if (!s.companyId) continue
+    const had = first.get(s.companyId)
+    if (!had || s.person.name.localeCompare(had.name) < 0) first.set(s.companyId, s.person)
+  }
+  let written = 0
+  for (const [companyId, person] of first) {
+    const r = await db.counterparty.updateMany({
+      where: { companyId, relationship: 'CLIENT', accountManagerId: null },
+      data: { accountManagerId: person.id },
+    })
+    written += r.count
+  }
+  return written
 }

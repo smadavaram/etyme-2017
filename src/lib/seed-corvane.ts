@@ -460,7 +460,8 @@ async function frame(ctx: Ctx): Promise<void> {
 
   // A unit per region, and one per plant under it.
   await db.orgUnit.createMany({
-    data: CORVANE_REGIONS.map((r) => ({ id: `cv_unit_region_${r.key}`, companyId: co.id, name: r.label, kind: REGION_UNIT_KIND })),
+    // A region's place in Corvane's own order (OrgUnit.position, 2026-11-08), the order CORVANE_REGIONS lists them.
+    data: CORVANE_REGIONS.map((r, i) => ({ id: `cv_unit_region_${r.key}`, companyId: co.id, name: r.label, kind: REGION_UNIT_KIND, position: i + 1 })),
     skipDuplicates: true,
   })
   await db.orgUnit.createMany({

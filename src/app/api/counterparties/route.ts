@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
+import { readAccountManager, nameAccountManager } from './account-manager'
 
 /**
  * GET  /api/counterparties — the register: who we work with, and as what
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Counterparties')
   if (notStaff) return notStaff
+
+  // One client's account manager, for the Companies drawer (2026-11-08).
+  const accountManagerFor = request.nextUrl.searchParams.get('accountManagerFor')
+  if (accountManagerFor !== null) return readAccountManager(caller, accountManagerFor)
 
   const companyId = caller.company!.id
 
@@ -190,8 +195,11 @@ export async function PATCH(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Counterparties')
   if (notStaff) return notStaff
 
-  const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
+  // The account manager on a client (2026-11-08): a write of its own.
+  if (body?.accountManagerFor !== undefined) return nameAccountManager(caller, body)
+
+  const companyId = caller.company!.id
   const otherCompanyId = String(body?.otherCompanyId ?? '')
   const relationship = String(body?.relationship ?? '')
 
