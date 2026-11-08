@@ -9,7 +9,7 @@ import {
   type Policy, type ReserveMovement, type ReserveMovementKind, type LeaveReason,
 } from '@/lib/bench-policy'
 import { postReserve, reserveMovementsFor, orderFor } from '@/lib/order-postings'
-import { amount } from '@/lib/money-display'
+import { amount, totals } from '@/lib/money-display'
 
 /**
  * The bench reserve — what is in somebody's pot, and what moves it.
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       personId: id,
       personName: held.name,
       currency: held.currency,
-      ...reserveBalance(held.movements),
+      ...reserveBalance(held.movements, held.currency),
       movements: held.movements,
     }))
     .sort((a, b) => b.balanceCents - a.balanceCents)
@@ -111,7 +111,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       pots,
-      totalHeldCents: pots.reduce((n, p) => n + Math.max(0, p.balanceCents), 0),
+      // Per currency, never one sum across two (`heldSays`); the sum is kept only where there is one.
+      totalHeldCents: new Set(pots.map((p) => p.currency)).size <= 1 ? pots.reduce((n, p) => n + Math.max(0, p.balanceCents), 0) : null,
+      heldCurrency: new Set(pots.map((p) => p.currency)).size === 1 ? pots[0].currency : null,
+      heldSays: totals(pots.map((p) => ({ minor: Math.max(0, p.balanceCents), currency: p.currency }))),
       overdrawn: overdrawn.map((p) => ({ personName: p.personName, balanceCents: p.balanceCents })),
       note:
         'The balance is the sum of the movements and nothing is stored as a total. A stored ' +
@@ -213,6 +216,8 @@ export async function POST(request: NextRequest) {
     carryDays: house?.benchCarryDays ?? null,
     reserveBps: house?.reserveBps ?? null,
     reserveOnExit: (house?.reserveOnExit ?? 'PAY_OUT') as Policy['reserveOnExit'],
+    // The person's own pay currency, so every sentence below says it.
+    currency: buy.payCurrency,
   }
 
   // Where the movement posts. The share it came out of was earned on a
@@ -267,7 +272,8 @@ export async function POST(request: NextRequest) {
       amountCents: m.amountCents,
       at: m.postedAt,
       says: m.says,
-    }))
+    })),
+    buy.payCurrency,
   )
 
   if (action === 'hold') {
@@ -330,7 +336,7 @@ export async function POST(request: NextRequest) {
       )
     }
     const over = String(body.over ?? `the period from ${periodKey}`)
-    const draw = drawFromReserve(balance.balanceCents, neededCents, over)
+    const draw = drawFromReserve(balance.balanceCents, neededCents, over, buy.payCurrency)
 
     if (!draw.posting) {
       return NextResponse.json({

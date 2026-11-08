@@ -266,7 +266,7 @@ describe('1099 and corp-to-corp payments count in the year they were paid', () =
     expect(p.summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
     expect(p.receiptsWaitingSays).toMatch(/Consultis/)
     // The seeded receipt now holds only the weeks Brightmoor accepted (2026-09-30).
-    expect(p.receiptsWaitingSays).toMatch(/4,160\.00 USD/)
+    expect(p.receiptsWaitingSays).toMatch(/\$4,160\.00/)
   })
 
   it('a corp-to-corp supplier’s invoice paid in January counts toward the next year, and never this one', async () => {

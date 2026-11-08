@@ -56,6 +56,8 @@ export interface RecordedLineInput {
   firmName: string
   /** The person's own company, where they have one on record. */
   ownCompany: { id: string; name: string } | null
+  /** The currency the pay rate is in: the buy line's, else the sell line's. Omitted, dollars. */
+  currency?: string | null
 }
 
 export type RecordedLine =
@@ -134,7 +136,7 @@ export function recordedLine(i: RecordedLineInput): RecordedLine {
       ok: true,
       write: { contractType: 'C2C', vendorCompanyId: supplier.id, payRateCents: rate },
       says:
-        `${i.firmName} buys ${i.personName} from ${supplier.name} at ${perHour(rate)}. ` +
+        `${i.firmName} buys ${i.personName} from ${supplier.name} at ${perHour(rate, i.currency || 'USD')}. ` +
         `How ${supplier.name} engages and pays them is between them.`,
     }
   }
@@ -156,6 +158,7 @@ export function recordedLine(i: RecordedLineInput): RecordedLine {
     personName: i.personName,
     firmName: i.firmName,
     ownCompany: i.ownCompany,
+    currency: i.currency || 'USD',
   })
   if (!verdict.ok) {
     return {

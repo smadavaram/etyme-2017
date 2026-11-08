@@ -181,6 +181,7 @@ export async function POST(request: NextRequest) {
     personName: person.name,
     firmName: caller.company?.name ?? 'Your company',
     ownCompany: person.consultant?.ownCompany ?? null,
+    currency: payCurrency ?? billCurrency ?? null,
   })
   if (!line.ok) {
     return NextResponse.json(

@@ -39,6 +39,8 @@ export interface Policy {
   /** Basis points of each share held back, where the bench is reserve funded. */
   reserveBps?: number | null
   reserveOnExit?: ReserveOnExit
+  /** The currency the amounts this policy is applied to are in: the person's pay line. Omitted, dollars. */
+  currency?: string | null
 }
 
 export interface BenchFacts {
@@ -204,6 +206,7 @@ function saysFor(
   due: boolean,
   daysLeft: number | null
 ): string {
+  const money = moneyIn(p.currency)
   if (idle === 0) return 'Not on the bench.'
 
   const head =
@@ -259,6 +262,7 @@ export function onExit(
   reserveCents: number,
   reason: LeaveReason
 ): ExitOutcome {
+  const money = moneyIn(p.currency)
   const pot = Math.max(0, reserveCents)
   if (pot === 0) {
     return { payOutCents: 0, keptByFirmCents: 0, says: 'Nothing in their reserve.' }
@@ -301,12 +305,13 @@ export function onExit(
       }
 }
 
-function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+/**
+ * An amount in the person's own pay currency and its decimals, through the
+ * one formatter: a rupee reserve reads rupees. Omitted, dollars.
+ */
+function moneyIn(currency: string | null | undefined): (cents: number) => string {
+  const ccy = currency || 'USD'
+  return (cents: number) => amount(cents, ccy)
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -374,7 +379,8 @@ export interface ReserveBalance {
 }
 
 /** What is in one consultant's pot, from the movements alone. */
-export function reserveBalance(movements: ReserveMovement[]): ReserveBalance {
+export function reserveBalance(movements: ReserveMovement[], currency?: string | null): ReserveBalance {
+  const money = moneyIn(currency)
   const sum = (k: ReserveMovementKind) =>
     movements.filter((m) => m.kind === k).reduce((n, m) => n + Math.abs(m.amountCents), 0)
 
@@ -423,6 +429,7 @@ export interface ReservePosting {
  * somebody trying to work out whether the feature is switched on.
  */
 export function holdBackPosting(p: Policy, shareCents: number): ReservePosting | null {
+  const money = moneyIn(p.currency)
   const held = holdBack(p, shareCents)
   if (held <= 0) return null
   return {
@@ -451,7 +458,8 @@ export interface Draw {
  * reported instead, because it is the moment somebody has to decide
  * whether to carry the person out of the firm's own money.
  */
-export function drawFromReserve(balanceCents: number, neededCents: number, over: string): Draw {
+export function drawFromReserve(balanceCents: number, neededCents: number, over: string, currency?: string | null): Draw {
+  const money = moneyIn(currency)
   const pot = Math.max(0, balanceCents)
   const need = Math.max(0, Math.round(neededCents))
   const draw = Math.min(pot, need)

@@ -45,6 +45,8 @@
  * ways without reshaping anything.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type PostingKind =
   | 'REVENUE'
   | 'PAY'
@@ -224,8 +226,8 @@ export function resultOf(all: Posting[]): Result {
     paidOutCents: paidOut,
     weOweCents: weOwe,
     cashCents: collected + paidOut,
-    cashSays: cashSaysFor(collected, paidOut, owedToUs, weOwe),
-    says: saysFor(revenue, gross, net, overhead, costUnknown),
+    cashSays: cashSaysFor(collected, paidOut, owedToUs, weOwe, currencyOf(ps)),
+    says: saysFor(revenue, gross, net, overhead, costUnknown, currencyOf(ps)),
   }
 }
 
@@ -233,8 +235,10 @@ function cashSaysFor(
   collected: number,
   paidOut: number,
   owedToUs: number,
-  weOwe: number
+  weOwe: number,
+  currency: string,
 ): string {
+  const money = (c: number) => moneyOf(c, currency)
   if (collected === 0 && paidOut === 0) {
     return owedToUs === 0 && weOwe === 0
       ? 'No money has moved on this yet.'
@@ -257,8 +261,10 @@ function saysFor(
   gross: number,
   net: number,
   overhead: number,
-  costUnknown: boolean
+  costUnknown: boolean,
+  currency: string,
 ): string {
+  const money = (c: number) => moneyOf(c, currency)
   if (costUnknown) {
     return (
       `${money(revenue)} billed and no cost posted against it. ` +
@@ -396,8 +402,11 @@ export function allocate(
   // one billing two hundred and fifty, so spreading by revenue would make
   // the expensive consultant subsidise the cheap one. Even shares make a
   // low-billing consultant look worse, which may simply be the truth.
-  basis: Basis = 'EVEN'
+  basis: Basis = 'EVEN',
+  /** The pot's currency; omitted, dollars. */
+  currency: string = 'USD',
 ): Allocation[] {
+  const money = (c: number) => moneyOf(c, currency)
   if (targets.length === 0 || potCents === 0) return []
 
   const weightOf = (t: AllocationTarget) =>
@@ -462,6 +471,8 @@ export interface BudgetStanding {
  * pound should see before they commit it, not in a month-end report.
  */
 export function standing(budgetCents: number | null, postings: Posting[]): BudgetStanding {
+  const ccy = currencyOf(postings)
+  const money = (c: number) => moneyOf(c, ccy)
   const spent = -live(postings)
     .filter((p) => p.amountCents < 0)
     .reduce((n, p) => n + p.amountCents, 0)
@@ -542,10 +553,19 @@ export function reversalOf(p: Posting, why: string): Omit<Posting, 'id'> {
   }
 }
 
-export function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  const s = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `${cents < 0 ? '-' : ''}$${s}`
+/**
+ * An amount in the order's own currency and its own decimals, through the
+ * one formatter. Omitted, dollars, which is what a caller naming none meant.
+ */
+export function money(cents: number, currency: string | null | undefined = 'USD'): string {
+  return amount(cents, currency || 'USD')
+}
+
+const moneyOf = (c: number, currency: string) => money(c, currency)
+
+/** The order's currency, read off its postings: every posting on one order is in it. */
+function currencyOf(ps: readonly Posting[]): string {
+  return ps.find((p) => p.currency)?.currency ?? 'USD'
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -626,6 +646,7 @@ export interface SettlementInput {
  * across a closed period.
  */
 export function settlementPlan(i: SettlementInput): SettlementPlan {
+  const money = (c: number) => moneyOf(c, i.currency)
   const nothing = { balanceCents: 0, postings: [], postedAt: null }
 
   if (i.status === 'SETTLED' || i.status === 'CLOSED') {

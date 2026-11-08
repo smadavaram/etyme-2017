@@ -27,6 +27,8 @@
  * and because a pay figure nobody can explain is one somebody argues with.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type PayModel =
   | 'FIXED_HOURLY'
   | 'SHARE_OF_BILL'
@@ -51,6 +53,8 @@ export interface PayInput {
   personalCostCents?: number
   /** Anything the firm spends on the deal that is not about this person. */
   otherCostCents?: number
+  /** The currency of every amount above; omitted, dollars. */
+  currency?: string | null
 }
 
 export interface Pay {
@@ -96,6 +100,7 @@ export function mustSeeBillRate(model: PayModel): boolean {
 }
 
 export function payFor(i: PayInput): Pay {
+  const money = moneyIn(i.currency)
   const hours = Math.max(0, i.hours)
   const gross = Math.round(hours * i.billRateCents)
   const burden = Math.max(0, i.burdenCents ?? 0)
@@ -185,8 +190,10 @@ export function payFor(i: PayInput): Pay {
  */
 export function looksLikeShare(
   billRateCents: number,
-  payRateCents: number
+  payRateCents: number,
+  currency?: string | null,
 ): { share: boolean; bps: number; says: string } | null {
+  const money = moneyIn(currency)
   if (billRateCents <= 0 || payRateCents <= 0) return null
 
   const ratio = payRateCents / billRateCents
@@ -212,12 +219,14 @@ function bps(b: number | null | undefined): string {
   return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)}%`
 }
 
-function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+/**
+ * Amounts in the pay line's own currency and its own decimals, through the
+ * one formatter: a rupee share reads rupees and a dong share whole dong.
+ * Omitted, dollars, which is what every caller that names none meant.
+ */
+function moneyIn(currency: string | null | undefined): (cents: number) => string {
+  const ccy = currency || 'USD'
+  return (cents: number) => amount(cents, ccy)
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -297,7 +306,8 @@ export interface CarryLedger {
  * carry that recovered itself out of May's share when it should have
  * recovered out of April's is a payslip somebody will query.
  */
-export function carryLedger(periods: CarryPeriod[]): CarryLedger {
+export function carryLedger(periods: CarryPeriod[], currency?: string | null): CarryLedger {
+  const money = moneyIn(currency)
   const ordered = [...periods].sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())
 
   let carriedIn = 0
@@ -413,6 +423,8 @@ export interface OffCyclePayment {
   periodStart: Date
   /** The day money actually leaves. */
   payOn: Date
+  /** The currency it is paid in; omitted, dollars. */
+  currency?: string | null
 }
 
 export interface OffCycleVerdict {
@@ -424,6 +436,7 @@ export interface OffCycleVerdict {
 }
 
 export function checkOffCycle(p: OffCyclePayment): OffCycleVerdict {
+  const money = moneyIn(p.currency)
   const problems: string[] = []
   const reason = (Object.keys(OFF_CYCLE_LABEL) as OffCycleReason[]).includes(
     p.reason as OffCycleReason

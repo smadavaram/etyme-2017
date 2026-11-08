@@ -263,6 +263,7 @@ export async function POST(request: NextRequest) {
     const result = commissionFor({
       type: bc.commissionType!, rate: bc.commissionRate ?? 0, capCents: bc.commissionCap,
       alreadyCents: Math.abs(already._sum.amountCents ?? 0), hours, marginCents, placementsStarted,
+      currency: orders[0]?.currency ?? bc.payCurrency,
     })
     if (result.amountCents === 0 || orders.length === 0) {
       skipped.push({ buyContractId: bc.id, why: orders.length === 0 ? 'No project order behind the linked contracts.' : result.says })

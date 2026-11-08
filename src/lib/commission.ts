@@ -19,6 +19,8 @@
  * amount is what is left under it. Pure: the run gathers the facts.
  */
 
+import { amount as formatAmount } from '@/lib/money-display'
+
 export type CommissionType = 'PER_HOUR' | 'FIXED_PER_PERIOD' | 'ON_PLACEMENT' | 'MARGIN_SHARE'
 
 export interface CommissionFacts {
@@ -34,6 +36,8 @@ export interface CommissionFacts {
   marginCents: number
   /** Linked sell contracts that started inside the period. */
   placementsStarted: number
+  /** The currency every amount above is in; omitted, dollars. */
+  currency?: string | null
 }
 
 export interface CommissionResult {
@@ -44,9 +48,10 @@ export interface CommissionResult {
   says: string
 }
 
-const money = (c: number) => `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export function commissionFor(f: CommissionFacts): CommissionResult {
+  // In the agreement's own currency and its decimals, through the one formatter.
+  const money = (c: number) => formatAmount(c, f.currency || 'USD')
   let earned = 0
   let basis = ''
   switch (f.type) {

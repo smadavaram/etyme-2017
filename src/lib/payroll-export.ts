@@ -44,6 +44,8 @@
  * states price overtime differently. The caveats travel with the file.
  */
 
+import { amount, totals } from '@/lib/money-display'
+import { decimalsFor, wholeFromMinor } from '@/lib/money'
 import { paidByPayroll } from '@/lib/money/paid-through'
 import {
   weekWage,
@@ -519,7 +521,7 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
     totalCents,
     uncoveredPremiumCents,
     // People, not lines: somebody paid at two rates is two lines.
-    says: exportSays(new Set(lines.map(whoIs)).size, skipped.length, totalHours, totalOvertimeHours, totalCents, provider),
+    says: exportSays(new Set(lines.map(whoIs)).size, skipped.length, totalHours, totalOvertimeHours, totals(lines.map((l) => ({ minor: l.totalCents, currency: l.currency }))), provider),
     caveats: [...new Set(lines.flatMap((l) => l.notes))],
   }
 }
@@ -619,7 +621,8 @@ function exportSays(
   skippedCount: number,
   hours: number,
   overtimeHours: number,
-  cents: number,
+  /** The file's total, each currency on its own (`totals`); never one sum across two. */
+  money: string,
   provider: Provider
 ): string {
   if (n === 0) {
@@ -628,7 +631,6 @@ function exportSays(
       : 'Nothing to send. No accepted hours in this period.'
   }
 
-  const money = `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const ot = overtimeHours > 0 ? `, ${overtimeHours} of them over the line` : ''
   // Never "nobody has accepted their hours" any more: a row is left out
   // for one of four reasons now, and saying the wrong one sends somebody
@@ -648,7 +650,6 @@ function exportSays(
  */
 export function toCsv(e: Export): string {
   const iso = (d: Date) => d.toISOString().slice(0, 10)
-  const money = (c: number) => (c / 100).toFixed(2)
 
   // Overtime hours get their own column, and on Paychex their own row,
   // because that is how both providers price them. A file that put
@@ -660,7 +661,7 @@ export function toCsv(e: Export): string {
           ['Co Code', 'File #', 'Name', 'Reg Hours', 'O/T Hours', 'Rate', 'Period Start', 'Period End', 'Dept'],
           ...e.lines.map((l) => [
             '', l.payrollId ?? '', l.personName, String(l.hours), String(l.overtimeHours),
-            money(l.rateCents), iso(l.periodStart), iso(l.periodEnd), l.costCode ?? '',
+            fileAmount(l.rateCents, l.currency), iso(l.periodStart), iso(l.periodEnd), l.costCode ?? '',
           ]),
         ]
       : e.provider === 'PAYCHEX'
@@ -669,12 +670,12 @@ export function toCsv(e: Export): string {
             ...e.lines.flatMap((l) => [
               [
                 l.payrollId ?? '', l.personName, 'REG', String(l.hours),
-                money(l.rateCents), money(l.regularCents), iso(l.periodEnd), l.costCode ?? '',
+                fileAmount(l.rateCents, l.currency), fileAmount(l.regularCents, l.currency), iso(l.periodEnd), l.costCode ?? '',
               ],
               ...(l.overtimeHours > 0
                 ? [[
                     l.payrollId ?? '', l.personName, 'OT', String(l.overtimeHours),
-                    money(l.rateCents), money(l.overtimeCents), iso(l.periodEnd), l.costCode ?? '',
+                    fileAmount(l.rateCents, l.currency), fileAmount(l.overtimeCents, l.currency), iso(l.periodEnd), l.costCode ?? '',
                   ]]
                 : []),
             ]),
@@ -683,8 +684,8 @@ export function toCsv(e: Export): string {
             ['payroll_id', 'name', 'contract_type', 'period_start', 'period_end', 'hours', 'overtime_hours', 'rate', 'regular_amount', 'overtime_amount', 'currency', 'cost_code', 'order'],
             ...e.lines.map((l) => [
               l.payrollId ?? '', l.personName, l.contractType, iso(l.periodStart), iso(l.periodEnd),
-              String(l.hours), String(l.overtimeHours), money(l.rateCents),
-              money(l.regularCents), money(l.overtimeCents),
+              String(l.hours), String(l.overtimeHours), fileAmount(l.rateCents, l.currency),
+              fileAmount(l.regularCents, l.currency), fileAmount(l.overtimeCents, l.currency),
               l.currency, l.costCode ?? '', l.orderNumber ?? '',
             ]),
           ]
@@ -1119,7 +1120,7 @@ export function wageSummary(
       grossCents: gross, currency: currencies[0], form: 'W2', box: 'Box 1 — wages, tips, other compensation',
       belowThreshold: false, missingTaxId, postings: theirs.length,
       says:
-        `${cents(gross)} of ${currencies[0]} wages across ${theirs.length} posting` +
+        `${cents(gross, currencies[0])} of ${currencies[0]} wages across ${theirs.length} posting` +
         `${theirs.length === 1 ? '' : 's'}. This is gross earnings only — withholding, ` +
         `pre-tax deductions and the employer's own taxes are the bureau's figures and are ` +
         `deliberately not here.`,
@@ -1135,10 +1136,10 @@ export function wageSummary(
     belowThreshold: below,
     missingTaxId, postings: theirs.length,
     says: below
-      ? `${cents(gross)} — under the ${cents(NEC_THRESHOLD_CENTS)} reporting floor, so no ` +
+      ? `${cents(gross, currencies[0])} — under the ${cents(NEC_THRESHOLD_CENTS)} reporting floor, so no ` +
         `1099-NEC. Listed rather than dropped: "not on the file" and "not in the data" look ` +
         `identical to whoever reconciles, and one of them is a missing person.`
-      : `${cents(gross)} of nonemployee compensation.` +
+      : `${cents(gross, currencies[0])} of nonemployee compensation.` +
         (missingTaxId
           ? ` No taxpayer identification number is held, which the bureau needs before it ` +
             `can file and which triggers backup withholding until it arrives.`
@@ -1195,7 +1196,7 @@ export function yearEndPack(postings: PayPosting[], year: number): YearEndPack {
         ? `Nothing was posted in ${year}.`
         : `${year}: ${w2.length} W-2${w2.length === 1 ? '' : 's'} and ${nec.length} ` +
           `1099-NEC${nec.length === 1 ? '' : 's'} for your bureau to issue` +
-          (single ? `, ${cents(total)} ${single} reportable in total` : '') +
+          (single ? `, ${cents(total, single)} reportable in total` : '') +
           `. ${noForm.length} ${noForm.length === 1 ? 'person needs' : 'people need'} no ` +
           `form, each for a stated reason.` +
           (blocked.length > 0
@@ -1217,7 +1218,7 @@ export function yearEndCsv(pack: YearEndPack): string {
       s.treatment,
       s.form,
       s.box ?? '',
-      s.grossCents == null ? '' : (s.grossCents / 100).toFixed(2),
+      s.grossCents == null ? '' : fileAmount(s.grossCents, s.currency),
       s.currency ?? '',
       s.missingTaxId ? 'no' : 'yes',
       s.says,
@@ -1396,8 +1397,22 @@ function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function cents(n: number): string {
-  return `$${(n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/**
+ * An amount in a sentence, in its own currency and decimals, through the one
+ * formatter. Omitted, dollars: the deposit rules and the 1099 floor are the
+ * IRS's and are in dollars by law.
+ */
+function cents(n: number, currency: string | null | undefined = 'USD'): string {
+  return amount(n, currency || 'USD')
+}
+
+/**
+ * An amount for a provider's file: whole units by the currency's own
+ * exponent, no symbol, no grouping. 450,000 yen is 450000, never 4500.00.
+ */
+function fileAmount(minor: number, currency: string | null | undefined): string {
+  const ccy = currency || 'USD'
+  return wholeFromMinor(minor, ccy).toFixed(decimalsFor(ccy))
 }
 
 

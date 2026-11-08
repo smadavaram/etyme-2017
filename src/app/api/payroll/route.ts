@@ -1,3 +1,4 @@
+import { totals, amount as amountOf } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -606,16 +607,25 @@ export async function GET(request: NextRequest) {
     : onRun
 
   // Summary stats
+  // Rupees and dollars are never added: the gross is said per currency, and
+  // `totalGrossPay` is a sum only where every line is in one currency
+  // (`currency`); with two it is null and `grossSays` names each.
+  const currencies = [...new Set(filtered.map((p) => p.payCurrency))]
+  const oneCurrency = currencies.length === 1 ? currencies[0] : currencies.length === 0 ? 'USD' : null
+  const saysGross = (items: typeof filtered) => totals(items.map((p) => ({ minor: p.grossPay, currency: p.payCurrency })))
   const summary = {
     totalContracts: filtered.length,
-    totalGrossPay: filtered.reduce((sum, p) => sum + p.grossPay, 0),
+    currency: oneCurrency,
+    grossSays: filtered.length === 0 ? amountOf(0, 'USD') : saysGross(filtered),
+    totalGrossPay: oneCurrency ? filtered.reduce((sum, p) => sum + p.grossPay, 0) : null,
     totalHours: filtered.reduce((sum, p) => sum + p.totalApprovedHours, 0),
     byContractType: Object.fromEntries(
       ['W2', 'C2C', 'IND_1099'].map((type) => {
         const items = filtered.filter((p) => p.contractType === type)
         return [type, {
           count: items.length,
-          grossPay: items.reduce((s, p) => s + p.grossPay, 0),
+          grossSays: items.length === 0 ? null : saysGross(items),
+          grossPay: oneCurrency ? items.reduce((s, p) => s + p.grossPay, 0) : null,
           hours: items.reduce((s, p) => s + p.totalApprovedHours, 0),
         }]
       })

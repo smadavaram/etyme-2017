@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     personalCostCents: cell.cost,
   }))
 
-  const ledger = carryLedger(periods)
+  const ledger = carryLedger(periods, buy.payCurrency)
 
   return NextResponse.json({
     data: {
@@ -326,6 +326,7 @@ export async function POST(request: NextRequest) {
     note: body.note ? String(body.note) : null,
     periodStart,
     payOn,
+    currency: pickBuy(sell.buyLinks, payOn)?.payCurrency ?? sell.billCurrency,
   })
 
   if (!verdict.ok) {
@@ -417,7 +418,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId,
       action: 'PAYROLL_OFF_CYCLE',
-      summary: `Off-cycle payment of ${(Math.abs(amountCents) / 100).toFixed(2)}`,
+      summary: `Off-cycle payment of ${amount(Math.abs(amountCents), buy?.payCurrency ?? sell.billCurrency)}`,
       reason: verdict.says,
       payload: {
         sellContractId, personId, amountCents,

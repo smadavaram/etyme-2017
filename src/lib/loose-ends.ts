@@ -33,6 +33,8 @@
  * how long it has been one, and that is what sorts the list.
  */
 
+import { totals } from '@/lib/money-display'
+
 export type EndKind =
   | 'NO_PROJECT_ORDER'
   | 'NO_BUY_CONTRACT'
@@ -52,6 +54,8 @@ export interface Subject {
   client?: string | null
   /** Revenue or cost sitting behind the gap, in cents. */
   amountCents?: number
+  /** The currency of `amountCents`: the line's, else the company's. Omitted, dollars. */
+  currency?: string | null
   /** When the thing that should have been linked happened. */
   since: Date
   /**
@@ -249,8 +253,14 @@ export function rank(ends: LooseEnd[]): LooseEnd[] {
 export interface Standing {
   total: number
   coldTrails: number
-  /** Revenue sitting behind a gap that misstates margin, in cents. */
-  atRiskCents: number
+  /**
+   * Revenue sitting behind a gap that misstates margin, in cents. Null
+   * where it is in more than one currency: rupees and dollars are never
+   * added, and `atRiskSays` names each on its own.
+   */
+  atRiskCents: number | null
+  /** The same, said per currency ("$13,600.00 and ₹4,00,000.00"); null where nothing is at risk. */
+  atRiskSays: string | null
   /** True where no total on the profitability screen can be trusted. */
   reportingBroken: boolean
   says: string
@@ -258,9 +268,17 @@ export interface Standing {
 
 export function standing(ends: LooseEnd[]): Standing {
   const cold = ends.filter((e) => e.coldTrail).length
-  const atRisk = ends
-    .filter((e) => e.severity === 'MISSTATES_MARGIN')
-    .reduce((n, e) => n + (e.subject.amountCents ?? 0), 0)
+  // Per currency, never one sum across two.
+  const risky = ends.filter((e) => e.severity === 'MISSTATES_MARGIN' && (e.subject.amountCents ?? 0) > 0)
+  const byCurrency = new Map<string, number>()
+  for (const e of risky) {
+    const ccy = (e.subject.currency || 'USD').toUpperCase()
+    byCurrency.set(ccy, (byCurrency.get(ccy) ?? 0) + (e.subject.amountCents ?? 0))
+  }
+  const atRisk = byCurrency.size === 0 ? 0 : byCurrency.size === 1 ? [...byCurrency.values()][0] : null
+  const atRiskSays = byCurrency.size === 0
+    ? null
+    : totals([...byCurrency.entries()].map(([currency, minor]) => ({ minor, currency })))
   const breaks = ends.some((e) => e.severity === 'BREAKS_REPORTING')
 
   if (ends.length === 0) {
@@ -268,6 +286,7 @@ export function standing(ends: LooseEnd[]): Standing {
       total: 0,
       coldTrails: 0,
       atRiskCents: 0,
+      atRiskSays: null,
       reportingBroken: false,
       says: 'Every placement has both sides and an order behind it. Nothing to chase.',
     }
@@ -276,7 +295,7 @@ export function standing(ends: LooseEnd[]): Standing {
   const bits: string[] = [
     `${ends.length} loose end${ends.length === 1 ? '' : 's'}`,
   ]
-  if (atRisk > 0) bits.push(`${money(atRisk)} of billing with no cost behind it`)
+  if (atRiskSays) bits.push(`${atRiskSays} of billing with no cost behind it`)
   if (cold > 0) {
     bits.push(
       `${cold} older than ${COLD_AFTER_DAYS} days, where nobody may remember the answer`
@@ -287,6 +306,7 @@ export function standing(ends: LooseEnd[]): Standing {
     total: ends.length,
     coldTrails: cold,
     atRiskCents: atRisk,
+    atRiskSays,
     reportingBroken: breaks,
     says: `${bits.join('. ')}.`,
   }
@@ -312,12 +332,4 @@ export function mayTrustReporting(ends: LooseEnd[]): { ok: boolean; says: string
       `${blocking.length === 1 ? 'is' : 'are'} missing a link, so these totals are ` +
       `understated on cost. Clear the loose ends before quoting a margin.`,
   }
-}
-
-function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
 }

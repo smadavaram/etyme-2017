@@ -1,5 +1,7 @@
 'use client'
 
+import { compact } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState } from 'react'
@@ -19,8 +21,8 @@ import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState, Sta
  * phone call. The same gap in April is archaeology.
  */
 
-const money = (c: number) =>
-  `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
+// In each amount's own currency, whole units, through the one formatter.
+const money = (c: number, currency?: string | null) => compact(Math.round(c / minorPerUnit(currency || 'USD')) * minorPerUnit(currency || 'USD'), currency || 'USD')
 
 const SEVERITY: Record<string, { tone: ChipTone; word: string }> = {
   BREAKS_REPORTING: { tone: 'attention', word: 'breaks reporting' },
@@ -84,8 +86,8 @@ export default function LooseEndsPage() {
       {data?.standing && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Stat label="Loose" value={data.standing.total} />
-          {data.standing.atRiskCents > 0 && (
-            <Stat label="Billed with no cost behind it" value={money(data.standing.atRiskCents)} tone="attention" />
+          {data.standing.atRiskSays && (
+            <Stat label="Billed with no cost behind it" value={data.standing.atRiskSays} tone="attention" />
           )}
           {data.standing.coldTrails > 0 && (
             <Stat label="Cold trails" value={data.standing.coldTrails} />
@@ -126,7 +128,7 @@ export default function LooseEndsPage() {
             )}
             {e.subject.amountCents > 0 && (
               <span className="text-[11px] tabular-nums text-etyme-faint">
-                {money(e.subject.amountCents)}
+                {money(e.subject.amountCents, e.subject.currency)}
               </span>
             )}
             <a href={e.href} className="ml-auto text-[13px]" style={{ color: 'var(--color-action)' }}>

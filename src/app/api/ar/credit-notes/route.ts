@@ -245,6 +245,7 @@ export async function POST(request: NextRequest) {
   )
 
   const verdict = checkCreditNote({
+    currency: invoice.currency,
     reasonCode: String(body.reasonCode ?? ''),
     note: body.note ? String(body.note) : null,
     amountMinor: Math.round(value * per),

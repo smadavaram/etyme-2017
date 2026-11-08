@@ -68,6 +68,8 @@
  * No database import. This is arithmetic and it is tested as arithmetic.
  */
 
+import { amount } from '@/lib/money-display'
+
 // ── Constants, each with a reason ────────────────────────────────────
 
 /**
@@ -1271,10 +1273,10 @@ export function applyReceipt(
       leftOverMinor: receipt.amountMinor,
       invoiceOwesAfterMinor: owed,
       says:
-        `${invoice.number} is owed ${minor(owed)} and this receipt is ${minor(receipt.amountMinor)}. ` +
+        `${invoice.number} is owed ${minor(owed, invoice.currency)} and this receipt is ${minor(receipt.amountMinor, invoice.currency)}. ` +
         `Placing all of it would mark the bill paid and lose the extra ` +
-        `${minor(receipt.amountMinor - owed)} — it would exist on no record. Split the ` +
-        `receipt: ${minor(owed)} here and ${minor(receipt.amountMinor - owed)} left to place.`,
+        `${minor(receipt.amountMinor - owed, invoice.currency)} — it would exist on no record. Split the ` +
+        `receipt: ${minor(owed, invoice.currency)} here and ${minor(receipt.amountMinor - owed, invoice.currency)} left to place.`,
     }
   }
 
@@ -1287,14 +1289,18 @@ export function applyReceipt(
     says:
       receipt.amountMinor === owed
         ? `${invoice.number} settled in full.`
-        : `${minor(receipt.amountMinor)} placed against ${invoice.number}. ` +
-          `${minor(owed - receipt.amountMinor)} still owed on it.`,
+        : `${minor(receipt.amountMinor, invoice.currency)} placed against ${invoice.number}. ` +
+          `${minor(owed - receipt.amountMinor, invoice.currency)} still owed on it.`,
   }
 }
 
-/** Minor units as a bare figure. The currency is said by the caller. */
-function minor(n: number): string {
-  return (n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/**
+ * An amount in its own currency and its own decimals, through the one
+ * formatter: a bill in yen reads whole yen, never a hundredth of it.
+ * Omitted, dollars, which is what a caller naming none meant.
+ */
+function minor(n: number, currency: string | null | undefined = 'USD'): string {
+  return amount(n, currency || 'USD')
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1350,6 +1356,8 @@ export const PROCESS_FAULT_REASONS: CreditReason[] = [
 ]
 
 export interface CreditNoteInput {
+  /** The bill's currency; omitted, dollars. */
+  currency?: string | null
   reasonCode: string
   note?: string | null
   /** Minor units. */
@@ -1405,8 +1413,8 @@ export function checkCreditNote(i: CreditNoteInput): CreditNoteVerdict {
   const room = i.invoiceTotalMinor - i.alreadyCreditedMinor
   if (i.amountMinor > room) {
     problems.push(
-      `That is more than is left on the bill. It is for ${minor(i.invoiceTotalMinor)}, ` +
-        `${minor(i.alreadyCreditedMinor)} has already been credited, and ${minor(room)} ` +
+      `That is more than is left on the bill. It is for ${minor(i.invoiceTotalMinor, i.currency)}, ` +
+        `${minor(i.alreadyCreditedMinor, i.currency)} has already been credited, and ${minor(room, i.currency)} ` +
         `remains. A credit note reduces a debt; paying money back to a client is a refund, ` +
         `which is a different act with different authority behind it.`
     )
@@ -1418,7 +1426,7 @@ export function checkCreditNote(i: CreditNoteInput): CreditNoteVerdict {
     problems,
     says:
       problems.length === 0
-        ? `${minor(i.amountMinor)} credited — ${CREDIT_REASON_LABEL[code!].toLowerCase()}.`
+        ? `${minor(i.amountMinor, i.currency)} credited — ${CREDIT_REASON_LABEL[code!].toLowerCase()}.`
         : problems[0],
   }
 }
@@ -1508,7 +1516,7 @@ export function disputesView(
       reasonCode: null,
       ageDays: Math.max(0, a.daysOverdue),
       says:
-        `${a.customerName} paid and stopped short by ${minor(a.outstandingMinor)}. Nobody ` +
+        `${a.customerName} paid and stopped short by ${minor(a.outstandingMinor, a.currency)}. Nobody ` +
         `has said why yet — until somebody asks, this is neither a debt nor a credit.`,
     })
   }
@@ -1524,7 +1532,7 @@ export function disputesView(
       reasonCode: c.reasonCode,
       ageDays: Math.max(0, Math.floor((now.getTime() - c.issuedAt.getTime()) / DAY)),
       says:
-        `${minor(c.amountMinor)} credited on ${c.invoiceNumber} — ` +
+        `${minor(c.amountMinor, c.currency)} credited on ${c.invoiceNumber} — ` +
         `${CREDIT_REASON_LABEL[c.reasonCode as CreditReason] ?? c.reasonCode}` +
         (c.appliedAt ? '.' : ', issued and not yet posted, so it does not reduce the debt yet.'),
     })
@@ -1661,13 +1669,13 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
     const days = Math.ceil((c.promise.promisedFor.getTime() - now.getTime()) / DAY)
     return {
       stage: 'PROMISED',
-      action: `Wait. ${c.promise.by} promised ${minor(c.promise.amountMinor)} by ${iso(c.promise.promisedFor)}.`,
+      action: `Wait. ${c.promise.by} promised ${minor(c.promise.amountMinor, c.currency)} by ${iso(c.promise.promisedFor)}.`,
       silenceTheLadder: true,
       hasOwner: c.ownerName != null,
       recommendStopWork: false,
       factorable,
       says:
-        `${c.promise.by} at ${c.customerName} committed to ${minor(c.promise.amountMinor)} in ` +
+        `${c.promise.by} at ${c.customerName} committed to ${minor(c.promise.amountMinor, c.currency)} in ` +
         `${days} day${days === 1 ? '' : 's'}. Nothing goes out until that date — chasing ` +
         `somebody between the promise and the date is how a client who was going to pay ` +
         `decides you are not worth dealing with.`,
@@ -1684,7 +1692,7 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
       recommendStopWork: stopWork,
       factorable,
       says:
-        `${c.promise.by} promised ${minor(c.promise.amountMinor)} by ` +
+        `${c.promise.by} promised ${minor(c.promise.amountMinor, c.currency)} by ` +
         `${iso(c.promise.promisedFor)} and it has not arrived. That is a fact about the ` +
         `account rather than a missed email, and it is ${c.brokenPromises + 1} of them. ` +
         (stopWork
@@ -1702,7 +1710,7 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
       recommendStopWork: true,
       factorable,
       says:
-        `${minor(c.overdueMinor)} is overdue against ${minor(c.exposureMinor)} of total ` +
+        `${minor(c.overdueMinor, c.currency)} is overdue against ${minor(c.exposureMinor, c.currency)} of total ` +
         `exposure — ${Math.round(overdueShareBps / 100)}% of everything at stake here. ` +
         `Every further week is work given to somebody who has not paid for the last lot. ` +
         `This is a recommendation and nothing more: there are people on site, pulling them ` +
@@ -1735,7 +1743,7 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
       factorable,
       says:
         `The last automated letter has gone and nobody has taken this on. ` +
-        `${minor(c.overdueMinor)} is overdue at ${c.customerName} and the system has ` +
+        `${minor(c.overdueMinor, c.currency)} is overdue at ${c.customerName} and the system has ` +
         `stopped talking — which means the debt is not being collected, it is being aged. ` +
         `Put a name against it.`,
     }
@@ -1763,7 +1771,7 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
  * the amount is not agreed, and a factor's first act is to verify it with
  * the customer — which turns a quiet dispute into a formal one.
  */
-export function canFactor(c: Pick<CollectionCase, 'overdueMinor' | 'disputedMinor' | 'oldestDaysOverdue'>): {
+export function canFactor(c: Pick<CollectionCase, 'overdueMinor' | 'disputedMinor' | 'oldestDaysOverdue'> & { currency?: string | null }): {
   ok: boolean
   says: string
 } {
@@ -1774,7 +1782,7 @@ export function canFactor(c: Pick<CollectionCase, 'overdueMinor' | 'disputedMino
     return {
       ok: false,
       says:
-        `${minor(c.disputedMinor)} of this is in dispute. A factor buys an undisputed ` +
+        `${minor(c.disputedMinor, c.currency)} of this is in dispute. A factor buys an undisputed ` +
         `receivable — their first act is to verify the balance with the customer, which ` +
         `turns a quiet argument into a formal one. Settle the dispute first.`,
     }
@@ -1813,6 +1821,8 @@ export const WRITE_OFF_LABEL: Record<WriteOffReason, string> = {
 
 export interface WriteOffProposal {
   amountMinor: number
+  /** The bill's currency; omitted, dollars. */
+  currency?: string | null
   reason: string
   note?: string | null
   byPersonId?: string | null
@@ -1860,7 +1870,7 @@ export function checkWriteOff(p: WriteOffProposal): { ok: boolean; problems: str
     problems,
     says:
       problems.length === 0
-        ? `${minor(p.amountMinor)} written off — ${WRITE_OFF_LABEL[reason!].toLowerCase()}.`
+        ? `${minor(p.amountMinor, p.currency)} written off — ${WRITE_OFF_LABEL[reason!].toLowerCase()}.`
         : problems[0],
   }
 }

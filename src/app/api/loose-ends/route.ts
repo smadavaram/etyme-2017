@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
+  const companyCurrency = (await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } }))?.currency ?? 'USD'
   const now = new Date()
   const ends: LooseEnd[] = []
 
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
     select: {
       id: true,
       billRate: true,
+      billCurrency: true,
       startDate: true,
       createdAt: true,
       projectOrderId: true,
@@ -91,6 +93,7 @@ export async function GET(request: NextRequest) {
       // What is billed against the gap, roughly, so the list sorts by
       // consequence rather than by row count.
       amountCents: Math.round(s.billRate * 160),
+      currency: s.billCurrency,
       since: s.startDate ?? s.createdAt,
     }
 
@@ -121,7 +124,7 @@ export async function GET(request: NextRequest) {
   const orders = await prisma.projectOrder.findMany({
     where: { companyId, isOverheadPool: false },
     select: {
-      id: true, code: true, name: true, createdAt: true, opensAt: true,
+      id: true, code: true, name: true, createdAt: true, opensAt: true, currency: true,
       clientCompany: { select: { name: true } },
       postings: { select: { kind: true, amountCents: true }, take: 500 },
     },
@@ -145,6 +148,7 @@ export async function GET(request: NextRequest) {
             label: `${o.code} — ${o.name}`,
             client: o.clientCompany?.name ?? null,
             amountCents: revenue,
+            currency: o.currency,
             since: o.opensAt ?? o.createdAt,
           },
           now
@@ -164,6 +168,7 @@ export async function GET(request: NextRequest) {
       periodStart: true,
       periodEnd: true,
       person: { select: { name: true } },
+      sellContract: { select: { billCurrency: true } },
       assertions: { where: { state: 'LIVE' }, select: { role: true, hours: true, rateCents: true } },
     },
     take: 1000,
@@ -183,6 +188,7 @@ export async function GET(request: NextRequest) {
           id: t.id,
           label: `${t.person.name}, ${t.periodStart.toISOString().slice(0, 10)} to ${t.periodEnd.toISOString().slice(0, 10)}`,
           amountCents: Math.round(Number(approved.hours) * approved.rateCents),
+          currency: t.sellContract.billCurrency,
           since: t.periodEnd,
         },
         now
@@ -231,6 +237,8 @@ export async function GET(request: NextRequest) {
           id: a.id,
           label: `${a.person.name} on ${a.requirement.title}`,
           amountCents: a.rate ? Math.round(a.rate * 160) : 0,
+          // A submission's rate names no currency; the company's is the honest default.
+          currency: companyCurrency,
           since: a.decidedAt ?? a.submittedAt,
           // The submissions list filters by role, which is the nearest
           // thing to the row for a record with no page of its own.

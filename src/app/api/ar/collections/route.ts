@@ -347,7 +347,7 @@ export async function POST(request: NextRequest) {
   // should be starting from the bottom.
   const mine = await prisma.invoice.findMany({
     where: { id: { in: invoiceIds }, ...invoicesRaisedBy(companyId) },
-    select: { id: true },
+    select: { id: true, currency: true },
   })
   if (mine.length === 0) {
     return NextResponse.json(
@@ -368,7 +368,17 @@ export async function POST(request: NextRequest) {
 
   if (step === 'WRITTEN_OFF') {
     const amountCents = Number(body.amountCents)
+    // A write-off is an amount in one currency. Over bills in two it says
+    // nothing anybody can book, so it is refused, never summed.
+    const writeOffCurrencies = [...new Set(mine.map((m) => m.currency.toUpperCase()))]
+    if (writeOffCurrencies.length > 1) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', field: 'invoiceIds', message: `These bills are in ${writeOffCurrencies.join(' and ')}. Write off the bills in each currency on their own.` } },
+        { status: 422 }
+      )
+    }
     const check = checkWriteOff({
+      currency: writeOffCurrencies[0] ?? null,
       amountMinor: Number.isFinite(amountCents) ? amountCents : 0,
       reason: String(body.reason ?? ''),
       note: body.note ? String(body.note) : null,

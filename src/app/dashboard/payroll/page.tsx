@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
-import { compact as formatRate } from '@/lib/money-display'
+import { compact as formatRate, amount } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
@@ -103,9 +103,14 @@ interface PayItem {
 
 interface PayrollSummary {
   totalContracts: number
-  totalGrossPay: number
+  /** The one currency every line is in; null where there are two. */
+  currency?: string | null
+  /** The gross, each currency on its own. */
+  grossSays?: string
+  /** A sum only where there is one currency. */
+  totalGrossPay: number | null
   totalHours: number
-  byContractType: Record<string, { count: number; grossPay: number; hours: number }>
+  byContractType: Record<string, { count: number; grossPay: number | null; grossSays?: string | null; hours: number }>
   byStatus: Record<string, number>
 }
 
@@ -164,8 +169,9 @@ function utcDay(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** An amount in its own currency and its own decimals, through the one formatter. */
+function formatCents(cents: number, currency?: string | null): string {
+  return amount(cents, currency || 'USD')
 }
 
 
@@ -181,6 +187,7 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
   const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle')
   const [says, setSays] = useState<string | null>(null)
   const [cents, setCents] = useState<number | null>(null)
+  const [currency, setCurrency] = useState<string | null>(null)
 
   if (!sellContractId) return <span className="text-etyme-faint">—</span>
 
@@ -191,6 +198,7 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
       const body = await readJson(res)
       setCents(body.data?.carriedCents ?? body.data?.outstandingCents ?? 0)
       setSays(body.data?.says ?? null)
+      setCurrency(body.data?.currency ?? null)
       setState('done')
     } catch (e: any) {
       setSays(e.message)
@@ -211,7 +219,7 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
       className="tabular-nums text-[12px]"
       style={{ color: (cents ?? 0) > 0 ? 'var(--color-attention)' : 'var(--color-muted)' }}
     >
-      {cents == null ? '—' : cents === 0 ? 'none' : formatCents(cents)}
+      {cents == null ? '—' : cents === 0 ? 'none' : formatCents(cents, currency)}
     </span>
   )
 }
@@ -349,9 +357,12 @@ export default function PayrollPage() {
   // ── Stats ─────────────────────────────────────────
   const stats = {
     totalGross: summary?.totalGrossPay ?? 0,
+    currency: summary?.currency ?? null,
+    grossSays: summary?.grossSays ?? formatCents(summary?.totalGrossPay ?? 0, summary?.currency),
     totalHours: summary?.totalHours ?? 0,
     w2Count: summary?.byContractType?.W2?.count ?? 0,
     w2Gross: summary?.byContractType?.W2?.grossPay ?? 0,
+    w2Says: summary?.byContractType?.W2?.grossSays ?? null,
     pending: summary?.byStatus?.PENDING ?? 0,
     calculated: summary?.byStatus?.CALCULATED ?? 0,
     processed: summary?.byStatus?.PROCESSED ?? 0,
@@ -457,7 +468,7 @@ export default function PayrollPage() {
         <span className={`tabular-nums font-medium ${
           row.grossPay > 0 ? 'text-etyme-ink' : 'text-etyme-faint'
         }`}>
-          {row.grossPay > 0 ? formatCents(row.grossPay) : '—'}
+          {row.grossPay > 0 ? formatCents(row.grossPay, row.payCurrency) : '—'}
           {row.overtime && (
             <span
               className={`block text-[11px] font-normal ${
@@ -466,7 +477,7 @@ export default function PayrollPage() {
               title={row.overtime}
             >
               {(row.premiumCents ?? 0) > 0
-                ? `Includes ${formatCents(row.premiumCents ?? 0)} overtime premium on ${row.overtimeHours} hours`
+                ? `Includes ${formatCents(row.premiumCents ?? 0, row.payCurrency)} overtime premium on ${row.overtimeHours} hours`
                 : 'Overtime premium not priced'}
             </span>
           )}
@@ -627,11 +638,11 @@ export default function PayrollPage() {
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Gross payroll" value={formatCents(stats.totalGross)} sub={`${stats.totalHours.toFixed(0)} hours`} />
+        <Stat label="Gross payroll" value={stats.grossSays} sub={`${stats.totalHours.toFixed(0)} hours`} />
         <Stat
           label="W-2 employees"
           value={stats.w2Count}
-          sub={stats.w2Gross > 0 ? formatCents(stats.w2Gross) : '$0.00'}
+          sub={stats.w2Says ?? formatCents(0, stats.currency)}
         />
         <Stat label="Paid by invoice receipt" value={paidElsewhere.length} sub="not on payroll" />
         <Stat
@@ -643,21 +654,21 @@ export default function PayrollPage() {
       </div>
 
       {/* Contract type breakdown bar */}
-      {summary && stats.totalGross > 0 && (
+      {summary && stats.currency && stats.totalGross > 0 && (
         <div className="panel mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-etyme-muted uppercase tracking-wider">
               Payroll by contract type
             </p>
             <p className="text-xs text-etyme-faint tabular-nums">
-              {formatCents(stats.totalGross)} total
+              {formatCents(stats.totalGross, stats.currency)} total
             </p>
           </div>
           <div className="flex h-3 rounded-full overflow-hidden bg-etyme-canvas">
             {Object.entries(summary.byContractType)
-              .filter(([, v]) => v.grossPay > 0)
+              .filter(([, v]) => (v.grossPay ?? 0) > 0)
               .map(([type, v]) => {
-                const pct = (v.grossPay / stats.totalGross) * 100
+                const pct = ((v.grossPay ?? 0) / stats.totalGross) * 100
                 const colors: Record<string, string> = {
                   W2: 'bg-etyme-action',
                   C2C: 'bg-etyme-attention',
@@ -668,7 +679,7 @@ export default function PayrollPage() {
                     key={type}
                     className={`${colors[type] ?? 'bg-etyme-muted'} transition-all`}
                     style={{ width: `${pct}%` }}
-                    title={`${contractTypeLabel(type)}: ${formatCents(v.grossPay)} (${pct.toFixed(0)}%)`}
+                    title={`${contractTypeLabel(type)}: ${formatCents(v.grossPay ?? 0, stats.currency)} (${pct.toFixed(0)}%)`}
                   />
                 )
               })}
@@ -684,7 +695,7 @@ export default function PayrollPage() {
                   }`} />
                   <span>{contractTypeLabel(type)}</span>
                   <span className="tabular-nums text-etyme-faint">
-                    {v.count} · {formatCents(v.grossPay)}
+                    {v.count} · {v.grossSays ?? formatCents(v.grossPay ?? 0, stats.currency)}
                   </span>
                 </div>
               ))}
@@ -748,7 +759,7 @@ export default function PayrollPage() {
           {filtered.length} pay item{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase().replace('_', ' ')}`}
           {selectedPeriod && ` · ${periodLabel(selectedPeriod)}`}
-          {stats.totalGross > 0 && ` · ${formatCents(stats.totalGross)} gross`}
+          {(summary?.totalContracts ?? 0) > 0 && ` · ${stats.grossSays} gross`}
         </p>
       )}
 
@@ -806,7 +817,7 @@ function BenchReserves() {
           <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-3">
             <div>
               <p className="stat-label">Held for people</p>
-              <p className="stat-value tabular-nums">{formatCents(data.totalHeldCents)}</p>
+              <p className="stat-value tabular-nums">{data.heldSays ?? formatCents(data.totalHeldCents ?? 0, data.heldCurrency)}</p>
               <p className="mt-0.5 text-[11px] text-etyme-faint">
                 Their money on our balance sheet, not ours.
               </p>
@@ -819,7 +830,7 @@ function BenchReserves() {
               <ul className="mt-2 space-y-1">
                 {data.overdrawn.map((o: any) => (
                   <li key={o.personName} className="text-[13px] text-etyme-muted">
-                    {o.personName} — {formatCents(o.balanceCents)}. More has come out than
+                    {o.personName} — {formatCents(o.balanceCents, o.currency)}. More has come out than
                     ever went in, which is somebody&rsquo;s real money and is shown rather
                     than floored at zero.
                   </li>
@@ -833,7 +844,7 @@ function BenchReserves() {
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <p className="text-[15px] font-semibold text-etyme-ink">{p.personName}</p>
                 <span className="chip chip--passive tabular-nums">
-                  {formatCents(p.balanceCents)}
+                  {formatCents(p.balanceCents, p.currency)}
                 </span>
               </div>
               <p className="mt-2 text-[13px] text-etyme-ink">{p.says}</p>
@@ -895,7 +906,7 @@ function Statutory() {
           <p className="stat-label">Reportable</p>
           <p className="stat-value tabular-nums">
             {data.pack.currency
-              ? formatCents(data.pack.totalReportableCents)
+              ? formatCents(data.pack.totalReportableCents, data.pack.currency)
               : '—'}
           </p>
           {!data.pack.currency && (
@@ -948,7 +959,7 @@ function Statutory() {
                     {s.form === 'NONE' ? 'no form' : s.form.replace('_', '-')}
                   </span>
                   <span className="chip chip--passive tabular-nums">
-                    {s.grossCents == null ? '—' : formatCents(s.grossCents)}
+                    {s.grossCents == null ? '—' : formatCents(s.grossCents, s.currency)}
                   </span>
                 </div>
               </div>

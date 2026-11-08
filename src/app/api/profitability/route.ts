@@ -389,7 +389,10 @@ export async function GET(request: NextRequest) {
         revenueCents: r.result.revenueCents,
         people: r.people.length,
       })),
-      'REVENUE'
+      'REVENUE',
+      // The pot's own currency where it has one. OPEN (money): overhead in
+      // two currencies is summed above before it is spread.
+      [...new Set(ps.filter((p) => p.kind === 'OVERHEAD' && !p.sellContractId).map((p) => p.currency))][0] ?? 'USD',
     )
 
     return NextResponse.json({
