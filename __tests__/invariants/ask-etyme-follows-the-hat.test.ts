@@ -63,7 +63,7 @@ describe('the greeting, the chips and the mark read one hat', () => {
   })
 
   it('a question asked in the You hat is answered from the person’s own work', () => {
-    expect(ROUTE).toMatch(/export async function POST[\s\S]{0,300}if \(await asYou\(caller, request\)\) \{/)
+    expect(ROUTE).toMatch(/export async function POST[\s\S]{0,900}if \(await asYou\(caller, request\)\) \{/)
   })
 
   it('the hat is read off the account menu’s own cookie and its own rule', () => {

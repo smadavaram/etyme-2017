@@ -5,7 +5,8 @@ import { pinnedFor } from './pinned'
 import { respond, whereAnswer, menuOf, placeOf, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
 import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
-import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
+import { readThread, appendTurn, markCard, clearThread, listThreads, startThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
+import { threadIdOf, THREAD_PARAM, NOT_YOUR_CONVERSATION } from './thread-id'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor, MODEL_SWITCH_HREF } from '@/lib/model-boundary'
 import { programView } from '@/app/api/program/view'
@@ -29,12 +30,23 @@ import { sinceSays } from './ask'
 import type { CompanyKind } from '@/lib/nav-table'
 
 /**
- * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
+ * GET    /api/conversations/twin[?thread=id][&take=n][&only=thread]
+ *                                                        the greeting, and one of the seat's conversations
  * GET    /api/conversations/twin?only=owed       { data: { total } } the mark's number, nothing marked seen (./owed)
- * POST   /api/conversations/twin   { text, companyId? }  one question, one answer, both kept
- * PATCH  /api/conversations/twin   { approvalId, state, turnId?, number?, said? }
+ * GET    /api/conversations/twin?only=threads    { data: { threads } } the seat's conversations, newest first
+ * POST   /api/conversations/twin   { text, companyId?, threadId? }  one question, one answer, both kept
+ * POST   /api/conversations/twin   { start: true }      New conversation: an empty one, which leads
+ * PATCH  /api/conversations/twin   { approvalId, state, turnId?, number?, said?, threadId? }
  *                                                        what became of a card, and the reply after a yes or a no
- * DELETE /api/conversations/twin                         Clear: start over from the greeting
+ * DELETE /api/conversations/twin[?thread=id]             Clear: start that conversation over from the greeting
+ *
+ * Every conversation is the seat's own (founder, 2026-11-03, "Conversations
+ * are kept and listed"). With none named, every call reads the seat's
+ * newest; a conversation named by id is read only inside the seat's own,
+ * and another person's is refused in a sentence before anything is
+ * answered, the refusal logged by lib/ask-etyme-thread. The mark and the
+ * queue read the one decisions list and never a conversation, so several
+ * conversations never split one queue or show two numbers.
  *
  * Ask Etyme, the twin's second door, in Conversations: one message in,
  * one answer out, for the signed-in seat. The greeting is the first
@@ -76,9 +88,10 @@ import type { CompanyKind } from '@/lib/nav-table'
  * bench, or a firm's own employee whose seat reads only their own work —
  * is greeted and answered about her own work, from her own doors
  * (./worker-read), by rules only: no model, no twin act, no firm's queue.
- * Her thread is kept exactly as any seat's. A candidate with no company
- * seat at all keeps one thread of her own, keyed on her alone by the door
- * (`threadKey` in lib/ask-etyme-thread), and Clear clears it.
+ * Her conversations are kept exactly as any seat's. A candidate with no
+ * company seat at all keeps conversations of her own, keyed on her alone
+ * by the door (`seatThreads` in lib/ask-etyme-thread), and Clear clears
+ * the one open.
  *
  * A seat that reads the program by region (./regions, founder 2026-10-27):
  * a regional manager is greeted and answered from By region's own read
@@ -396,6 +409,10 @@ const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no a
 
 /** The thread as the screen reads it: dates as text, nothing the screen does not draw. */
 interface ThreadOut {
+  /** Which conversation this is, where one is on the record; absent where none is yet, or none is kept. */
+  id?: string
+  /** Its first question, on one line; absent before one is asked. */
+  title?: string
   saved: boolean
   notKeptBecause: string | null
   earlier: boolean
@@ -407,6 +424,8 @@ const NOT_KEPT_THIS_TIME = 'This answer was not kept, so it will not be here aft
 
 function threadOut(t: SavedThread): ThreadOut {
   return {
+    ...(t.id ? { id: t.id } : {}),
+    ...(t.title ? { title: t.title } : {}),
     saved: t.saved,
     notKeptBecause: t.notKeptBecause,
     earlier: t.earlier,
@@ -419,10 +438,77 @@ function threadOut(t: SavedThread): ThreadOut {
 
 type Caller = NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>
 
+/**
+ * The conversation this request names, read once per request off the
+ * address (`?thread=`) or the body (`threadId`) and held beside the caller,
+ * the way the program's read is: null where none is named, so the seat's
+ * newest is read, as before there were several.
+ */
+const named = new WeakMap<object, string | null>()
+function nameThread(caller: Caller, request: NextRequest, body?: { threadId?: unknown }): string | null {
+  const id = threadIdOf(body?.threadId) ?? threadIdOf(request.nextUrl.searchParams.get(THREAD_PARAM))
+  named.set(caller, id)
+  return id
+}
+const threadNamed = (caller: Caller): string | null => named.get(caller) ?? null
+
+/**
+ * A conversation named that is not the seat's own: refused in a sentence,
+ * before anything is answered or kept. The attempt on another person's is
+ * written to the access log by lib/ask-etyme-thread before this returns.
+ * Null where none is named, or the one named is the seat's.
+ */
+async function refusedConversation(caller: Caller): Promise<NextResponse | null> {
+  const threadId = threadNamed(caller)
+  if (!threadId) return null
+  const got = await readThread(caller, { threadId, take: 1 })
+  if (got.ok) return null
+  const says = got.code === 'NO_SUCH_THREAD' ? NOT_YOUR_CONVERSATION : got.says
+  return NextResponse.json({ error: { code: got.code, message: says } }, { status: got.status })
+}
+
+/** The seat's conversations, newest first, each titled by its first question. Reads only the seat's own. */
+async function conversationsOnly(caller: Caller) {
+  try {
+    const got = await listThreads(caller, { take: 100 })
+    if (!got.ok) return NextResponse.json({ error: { code: got.code, message: got.says } }, { status: got.status })
+    return NextResponse.json({
+      data: {
+        saved: got.saved,
+        notKeptBecause: got.notKeptBecause,
+        threads: got.threads.map((t) => ({
+          id: t.id, title: t.title, createdAt: t.createdAt.toISOString(), lastTurnAt: t.lastTurnAt?.toISOString() ?? null,
+        })),
+      },
+    })
+  } catch (err) {
+    await reportError('Ask Etyme could not list a seat’s conversations', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+    return NextResponse.json({ error: { code: 'NOT_LISTED', message: 'Your conversations could not be listed just now. The open one is unchanged; try again in a minute.' } }, { status: 500 })
+  }
+}
+
+/** New conversation: an empty one for the seat, which now leads the list. The greeting opens it. */
+async function newConversation(caller: Caller) {
+  try {
+    const made = await startThread(caller)
+    if (!made.ok) return NextResponse.json({ error: { code: made.code, message: made.says } }, { status: made.status })
+    if (!made.saved) return NextResponse.json({ data: { saved: false, notKeptBecause: made.says, thread: null } })
+    return NextResponse.json({
+      data: {
+        saved: true, notKeptBecause: null,
+        thread: { id: made.thread.id, title: made.thread.title, createdAt: made.thread.createdAt.toISOString(), lastTurnAt: null },
+      },
+    })
+  } catch (err) {
+    await reportError('Ask Etyme could not start a conversation', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+    return NextResponse.json({ error: { code: 'NOT_STARTED', message: 'A new conversation was not started, so the open one is unchanged. Try again in a minute.' } }, { status: 500 })
+  }
+}
+
 /** The seat's own thread, or the sentence that says why there is none. Never throws. */
 async function threadFor(caller: Caller, take: number | undefined): Promise<ThreadOut> {
   try {
-    const got = await readThread(caller, { take })
+    const got = await readThread(caller, { take, threadId: threadNamed(caller) })
     if (!got.ok) return { saved: false, notKeptBecause: got.says, earlier: false, turns: [] }
     return threadOut(got.thread)
   } catch (err) {
@@ -445,6 +531,12 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)
   // The pinned questions for the column, read with nothing marked seen.
   if (request.nextUrl.searchParams.get('only') === 'pinned') return pinnedOnly(caller, request)
+  // The seat's conversations for the column, read with nothing marked seen.
+  if (request.nextUrl.searchParams.get('only') === 'threads') return conversationsOnly(caller)
+  // A link that names a conversation: the seat's own, or refused before the greeting is built.
+  nameThread(caller, request)
+  const refused = await refusedConversation(caller)
+  if (refused) return refused
   // The person's own hat (founder, 2026-11-03): their week, pay and papers.
   if (await asYou(caller, request)) return workerGreeting(caller, request)
   if (await inFirmHatWithNothing(caller, request)) return nothingOfTheFirmGreeting(caller, request)
@@ -750,20 +842,34 @@ async function nothingOfTheFirmGreeting(caller: Caller, request: NextRequest) {
  * order. A seat that keeps none is told why; a write that failed leaves
  * the answer standing and says it was not kept.
  */
-async function keep(caller: Caller, question: string, answer: Answer): Promise<{ kept: boolean; turnId: string | null; notKeptBecause: string | null }> {
+async function keep(caller: Caller, question: string, answer: Answer): Promise<{ kept: boolean; turnId: string | null; notKeptBecause: string | null; threadId: string | null }> {
   try {
-    const asked = await appendTurn(caller, { speaker: 'PERSON', text: question })
-    if (!asked.ok) return { kept: false, turnId: null, notKeptBecause: asked.says }
-    if (!asked.saved) return { kept: false, turnId: null, notKeptBecause: asked.says }
-    const said = await appendTurn(caller, { speaker: 'ETYME', text: answer.says || 'Ask Etyme answered.', answer, cardApprovalIds: cardIdsOf(answer) })
-    if (!said.ok) return { kept: false, turnId: null, notKeptBecause: said.says }
-    if (!said.saved) return { kept: false, turnId: null, notKeptBecause: said.says }
-    return { kept: true, turnId: said.turn.id, notKeptBecause: null }
+    // The question and its answer go in one conversation: the one named,
+    // else the newest as it stands now, so a New conversation pressed in
+    // another tab between the two lines never splits them.
+    let threadId = threadNamed(caller) ?? (await newestId(caller))
+    const asked = await appendTurn(caller, { speaker: 'PERSON', text: question, threadId })
+    if (!asked.ok) return { kept: false, turnId: null, notKeptBecause: asked.says, threadId }
+    if (!asked.saved) return { kept: false, turnId: null, notKeptBecause: asked.says, threadId: null }
+    // The seat's first line ever made its first conversation.
+    threadId ??= await newestId(caller)
+    const said = await appendTurn(caller, { speaker: 'ETYME', text: answer.says || 'Ask Etyme answered.', answer, cardApprovalIds: cardIdsOf(answer), threadId })
+    if (!said.ok) return { kept: false, turnId: null, notKeptBecause: said.says, threadId }
+    if (!said.saved) return { kept: false, turnId: null, notKeptBecause: said.says, threadId }
+    return { kept: true, turnId: said.turn.id, notKeptBecause: null, threadId }
   } catch (err) {
     await reportError('Ask Etyme could not keep a line of the conversation', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
-    return { kept: false, turnId: null, notKeptBecause: NOT_KEPT_THIS_TIME }
+    return { kept: false, turnId: null, notKeptBecause: NOT_KEPT_THIS_TIME, threadId: threadNamed(caller) }
   }
 }
+
+/** The seat's newest conversation's id, or null where it has none yet. */
+async function newestId(caller: Caller): Promise<string | null> {
+  const got = await listThreads(caller, { take: 1 })
+  return got.ok ? got.threads[0]?.id ?? null : null
+}
+
+const NOT_KEPT_EMPTY = { kept: false, turnId: null, notKeptBecause: null, threadId: null } as const
 
 /**
  * The page the last answer named, for "take me there": the seat's own
@@ -773,7 +879,7 @@ async function keep(caller: Caller, question: string, answer: Answer): Promise<{
  */
 async function lastPlace(caller: Caller, said: unknown): Promise<string | null> {
   try {
-    const got = await readThread(caller, { take: 4 })
+    const got = await readThread(caller, { take: 4, threadId: threadNamed(caller) })
     if (got.ok) {
       const last = [...got.thread.turns].reverse().find((t) => t.speaker === 'ETYME')
       if (last) return placeOf(last.answer)
@@ -785,8 +891,14 @@ async function lastPlace(caller: Caller, said: unknown): Promise<string | null> 
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
+  const body = await request.json().catch(() => ({}))
+  // New conversation: made for the seat, whatever hat it wears; one seat, one set of conversations.
+  if (body?.start === true) return newConversation(caller)
+  // A question in a conversation named: the seat's own, or refused before it is answered.
+  nameThread(caller, request, body)
+  const refused = await refusedConversation(caller)
+  if (refused) return refused
   if (await asYou(caller, request)) {
-    const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
     let answer: Answer
     try {
@@ -800,23 +912,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
     }
     const kept = !text.trim()
-      ? { kept: false, turnId: null, notKeptBecause: null }
+      ? NOT_KEPT_EMPTY
       : await keep(caller, text.trim(), answer)
     return NextResponse.json({ data: { answer, ...kept } })
   }
   if (await inFirmHatWithNothing(caller, request)) {
     // Nothing of the firm's is this seat's to read: every question in the firm hat is told so, and where its own work is.
-    const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
     const answer: Answer = { kind: 'TEXT', says: nothingOfTheFirm(caller.company!.name) }
-    const kept = text.trim() ? await keep(caller, text.trim(), answer) : { kept: false, turnId: null, notKeptBecause: null }
+    const kept = text.trim() ? await keep(caller, text.trim(), answer) : NOT_KEPT_EMPTY
     return NextResponse.json({ data: { answer, ...kept } })
   }
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({}))
   const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
   const companyId = typeof body.companyId === 'string' && body.companyId ? body.companyId : caller.company.id
 
@@ -830,7 +940,7 @@ export async function POST(request: NextRequest) {
     const byRegion = map ? await mapAnswer(caller, map, text) : null
     if (byRegion || map?.reach === 'REGION') {
       answer = byRegion ?? mapHelp(map!)
-      const kept = text.trim() ? await keep(caller, text.trim(), answer) : { kept: false, turnId: null, notKeptBecause: null }
+      const kept = text.trim() ? await keep(caller, text.trim(), answer) : NOT_KEPT_EMPTY
       return NextResponse.json({ data: { answer, ...kept } })
     }
     const who = await partyFor(caller)
@@ -863,7 +973,7 @@ export async function POST(request: NextRequest) {
   // An empty box is answered ("help") and not kept: nobody said anything.
   const kept = text.trim()
     ? await keep(caller, text.trim(), answer)
-    : { kept: false, turnId: null, notKeptBecause: null }
+    : NOT_KEPT_EMPTY
   return NextResponse.json({ data: { answer, ...kept } })
 }
 
@@ -895,6 +1005,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   const body = await request.json().catch(() => ({}))
+  // The reply after a yes is kept in the conversation the card was drawn in.
+  nameThread(caller, request, body)
+  const refused = await refusedConversation(caller)
+  if (refused) return refused
   const approvalId = typeof body.approvalId === 'string' ? body.approvalId : ''
   const state = body.state as CardState
   const turnId = typeof body.turnId === 'string' && body.turnId ? body.turnId : null
@@ -923,7 +1037,7 @@ export async function PATCH(request: NextRequest) {
       if (onRecord?.decision !== state) {
         return NextResponse.json({ error: { code: 'CONFLICT', message: NOT_DECIDED_SO } }, { status: 409 })
       }
-      const kept = await appendTurn(caller, { speaker: 'ETYME', text: said.says, answer: said, approvalId })
+      const kept = await appendTurn(caller, { speaker: 'ETYME', text: said.says, answer: said, approvalId, threadId: threadNamed(caller) })
       if (!kept.ok) return NextResponse.json({ error: { code: kept.code, message: kept.says } }, { status: kept.status })
       if (kept.saved) reply = kept.turn.id
       else notKeptBecause = kept.says
@@ -943,8 +1057,12 @@ export async function DELETE(request: NextRequest) {
   if (!caller.company && !asWorker(caller)) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
+  // Clear empties the conversation open: the one the address names, else the newest.
+  nameThread(caller, request, await request.json().catch(() => ({})))
+  const refused = await refusedConversation(caller)
+  if (refused) return refused
   try {
-    const cleared = await clearThread(caller)
+    const cleared = await clearThread(caller, { threadId: threadNamed(caller) })
     if (!cleared.ok) return NextResponse.json({ error: { code: cleared.code, message: cleared.says } }, { status: cleared.status })
     return NextResponse.json({
       data: cleared.saved

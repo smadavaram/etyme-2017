@@ -253,7 +253,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     // The route writes the conversation only through lib/ask-etyme-thread,
     // and keeps a yes or a no only where the record already bears it out.
     const route = readFileSync(join(root, 'app/api/conversations/twin/route.ts'), 'utf8')
-    expect(route).toContain("import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'")
+    expect(route).toContain("import { readThread, appendTurn, markCard, clearThread, listThreads, startThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'")
     expect(route).toMatch(/const onRecord = await prisma\.twinApproval\.findUnique\(\{ where: \{ id: approvalId \}, select: \{ decision: true \} \}\)\n\s+if \(onRecord\?\.decision !== state\)/)
   })
 
