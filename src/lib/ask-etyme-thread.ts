@@ -13,7 +13,8 @@
  * names none behaves exactly as it did with one.
  *
  *   readThread(seat, { personId?, take?, threadId? })  one conversation of the seat's own, oldest line first
- *   appendTurn(seat, { speaker, text, threadId?, ... }) one line said, by the person or by Ask Etyme
+ *   appendTurn(seat, { speaker, text, threadId?, ... }) one line said, by the person or by Ask Etyme;
+ *                                            answers the conversation it went in (`threadId`)
  *   markCard(seat, { turnId, approvalId, state, number? })
  *                                            what became of one card on one line
  *   clearThread(seat, { threadId? })         Clear: start over, the old lines kept on the record
@@ -475,7 +476,7 @@ export async function readThread(
 export async function appendTurn(
   seat: ThreadSeat,
   line: NewTurn,
-): Promise<{ ok: true; saved: true; turn: SavedTurn } | NotKept | ThreadRefusal> {
+): Promise<{ ok: true; saved: true; turn: SavedTurn; threadId: string } | NotKept | ThreadRefusal> {
   const kept = keptFor(seat)
   if ('ok' in kept) return kept
   if (line.speaker !== 'PERSON' && line.speaker !== 'ETYME') {
@@ -518,7 +519,10 @@ export async function appendTurn(
     await tx.askEtymeThread.update({ where: { id: thread.id }, data: { lastTurnAt: at, ...(title ? { title } : {}) } })
     return made as Row
   })
-  return { ok: true, saved: true, turn: toTurn(row, await decisionsFor(company?.id ?? null, row.cardApprovalIds)) }
+  // The conversation it went in, so a caller writing the answer next names
+  // the same one rather than reading the newest, which a New conversation
+  // pressed in another tab could change in between.
+  return { ok: true, saved: true, turn: toTurn(row, await decisionsFor(company?.id ?? null, row.cardApprovalIds)), threadId: thread.id }
 }
 
 /**

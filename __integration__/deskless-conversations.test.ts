@@ -396,7 +396,9 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     await appendTurn(hers, { speaker: 'ETYME', text: 'Monday.' })
     const second = await startThread(hers)
     if (!second.ok || !second.saved) throw new Error('no new conversation')
-    await appendTurn(hers, { speaker: 'PERSON', text: 'Who asked for my license?' })
+    const asked = await appendTurn(hers, { speaker: 'PERSON', text: 'Who asked for my license?' })
+    // The line answers the conversation it went in: the new one, named by id.
+    expect(asked).toMatchObject({ ok: true, saved: true, threadId: second.thread.id })
 
     const listed = await listThreads(hers)
     if (!listed.ok) throw new Error(listed.says)
