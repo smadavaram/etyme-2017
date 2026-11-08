@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
+import { pinnedFor } from './pinned'
 import { respond, whereAnswer, menuOf, placeOf, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
 import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
@@ -12,7 +13,7 @@ import { programSummary } from '@/app/api/program/summary'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, paperCards, type WorkerFacts, type PaperAsk } from './worker'
+import { WORKER_QUESTIONS, isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, paperCards, type WorkerFacts, type PaperAsk } from './worker'
 import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat'
 import { workerFacts, workerPapers } from './worker-read'
 import { owedTotal } from './owed'
@@ -442,6 +443,8 @@ export async function GET(request: NextRequest) {
   // The mark's number: the greeting's own count, read with no notice
   // marked seen and no line kept, so polling it changes nothing.
   if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)
+  // The pinned questions for the column, read with nothing marked seen.
+  if (request.nextUrl.searchParams.get('only') === 'pinned') return pinnedOnly(caller, request)
   // The person's own hat (founder, 2026-11-03): their week, pay and papers.
   if (await asYou(caller, request)) return workerGreeting(caller, request)
   if (await inFirmHatWithNothing(caller, request)) return nothingOfTheFirmGreeting(caller, request)
@@ -502,12 +505,39 @@ export async function GET(request: NextRequest) {
     await markNoticesSeen(caller, [...notices.shown.map((n) => n.id), ...(notices.withheld ?? []), ...threads.noticeIds])
     // The chips are the desk's own: only questions this seat gets an answer to.
     // A hiring manager on a plant asks about the time limit at the plant too.
-    const own = questionsFor(party.party, await judgedBy(caller), company.kind)
+    const judged = await judgedBy(caller)
+    const own = questionsFor(party.party, judged, company.kind)
     const chips = map?.reach === 'SITE' ? mapChips('SITE', own) : own
-    return NextResponse.json({ data: { answer: await onThePlant(caller, map, answer, queue), model, party: party.party, client: party.client, chips, thread: await thread } })
+    // Three saved questions at the top of the column, the role's own (2026-11-08).
+    const pinned = map?.reach === 'SITE' ? chips.slice(0, 3) : pinnedFor({ party: party.party, role: await roleOf(caller), permissions: judged, companyKind: company.kind })
+    return NextResponse.json({ data: { answer: await onThePlant(caller, map, answer, queue), model, party: party.party, client: party.client, chips, pinned, thread: await thread } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+  }
+}
+
+/**
+ * The three pinned questions alone (founder, 2026-11-08, "One app, two
+ * tabs"): drawn in the left column on every Ask Etyme page, so read with
+ * no greeting built, no notice marked seen and no line kept. The same
+ * choice the greeting returns as `pinned`.
+ */
+async function pinnedOnly(caller: Caller, request: NextRequest) {
+  try {
+    if (await asYou(caller, request)) return NextResponse.json({ data: { pinned: WORKER_QUESTIONS.slice(0, 3) } })
+    if (!caller.company || (await inFirmHatWithNothing(caller, request))) return NextResponse.json({ data: { pinned: [] } })
+    const map = await mapOf(caller)
+    const judged = await judgedBy(caller)
+    const party = await partyFor(caller)
+    const own = questionsFor(party.party, judged, caller.company.kind)
+    if (map && readsTheRollup(map)) return NextResponse.json({ data: { pinned: mapChips(map.reach).slice(0, 3) } })
+    if (caller.region) return NextResponse.json({ data: { pinned: [] } })
+    if (map?.reach === 'SITE') return NextResponse.json({ data: { pinned: mapChips('SITE', own).slice(0, 3) } })
+    return NextResponse.json({ data: { pinned: pinnedFor({ party: party.party, role: await roleOf(caller), permissions: judged, companyKind: caller.company.kind }) } })
+  } catch (err) {
+    await reportError('Ask Etyme could not read the pinned questions', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+    return NextResponse.json({ data: { pinned: [] } })
   }
 }
 

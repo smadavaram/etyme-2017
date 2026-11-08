@@ -56,6 +56,12 @@ export type Intent =
   | { kind: 'WEEKS' }
   | { kind: 'NEVER'; act: NeverAct }
   | { kind: 'MARGIN' }
+  /** What the firm made by consultant, office, client or recruiter, this month or this quarter (2026-11-08). */
+  | { kind: 'MARGIN_CUT'; cut: 'consultant' | 'recruiter' | 'office' | 'client'; period: 'month' | 'quarter' }
+  /** "What is on hold, and why?": starts held for papers and invoice receipts held by the check. */
+  | { kind: 'HELD' }
+  /** "Who matches this job?": the matches live on each job's own page. */
+  | { kind: 'MATCHES' }
   /** A firm's own book (2026-10-19): who rolls off, who is on the bench, signed weeks not billed, bills unpaid. */
   | { kind: 'ROLLOFF' }
   | { kind: 'BENCH' }
@@ -457,6 +463,21 @@ export function whereAnswer(intent: Extract<Intent, { kind: 'WHERE' | 'GO' }>, m
 }
 
 /**
+ * "Which client made us the most this quarter?", "Margin by office this
+ * month", "What did each consultant make us?": Profitability's cut
+ * (founder, 2026-11-08). The period is this month unless the quarter is
+ * named. Null where the question names no cut.
+ */
+export function readMarginCut(lower: string): Extract<Intent, { kind: 'MARGIN_CUT' }> | null {
+  const by = lower.match(/\b(?:by|which|per|each|every|what each|top)\s+(client|customer|office|branch|consultant|person|recruiter)s?\b/)
+  if (!by) return null
+  if (!/\b(made|make|makes|earn(ed|s)?|margins?|profit(s|able|ability)?|mark-?ups?)\b/.test(lower)) return null
+  const w = by[1]
+  const cut = w === 'customer' || w === 'client' ? 'client' : w === 'branch' || w === 'office' ? 'office' : w === 'recruiter' ? 'recruiter' : 'consultant'
+  return { kind: 'MARGIN_CUT', cut, period: /\bquarter\b/.test(lower) ? 'quarter' : 'month' }
+}
+
+/**
  * Read what a person typed into one of the five rule questions, or ASK.
  * Case and trailing punctuation do not matter; word order mostly does,
  * because "approve" at the start is an instruction and in the middle of a
@@ -472,6 +493,8 @@ export function readAsk(raw: string): Intent {
   // Where a page is, and "take me there": the person's own menu, never the model.
   const where = readWhere(text)
   if (where) return where
+  const cut = readMarginCut(lower)
+  if (cut) return cut
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
   if (
     (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
@@ -526,7 +549,10 @@ export function readAsk(raw: string): Intent {
   if (/\b(papers?|paperwork|documents?|certificates?|insurance|licen[cs]es?|visas?|permits?)\b/.test(lower) && /\b(run(s|ning)? out|expir\w*|laps\w*|due to renew)\b/.test(lower)) return { kind: 'EXPIRING' }
   if (/\b(who|anyone|anybody|somebody|someone)\b.*\b(available|free now|between projects)\b|\bavailable (people|consultants|engineers|workers|now)\b/.test(lower)) return { kind: 'BENCH' }
 
-  if (/\broll(s|ing|ed)?[- ]?off\b|\bending soon\b/.test(lower)) return { kind: 'ROLLOFF' }
+  if (/\bon hold\b|\bheld (up|back)\b|^what('s| is) held\b/.test(lower)) return { kind: 'HELD' }
+  if (/^(who|which (people|candidates|consultants))\b.*\bmatch(es|ing)?\b/.test(lower)) return { kind: 'MATCHES' }
+  // "Who is coming free?": a supplier's word for who rolls off soon.
+  if (/\broll(s|ing|ed)?[- ]?off\b|\bending soon\b|\bcoming (free|off)\b/.test(lower)) return { kind: 'ROLLOFF' }
   if (/\bbench\b/.test(lower) && !/\bbench (pay|burn|profit|cost)/.test(lower)) return { kind: 'BENCH' }
   if (/\bunbilled\b|\bnot (yet )?(been )?billed\b|\bnot on a bill\b/.test(lower)) return { kind: 'UNBILLED' }
   if (
@@ -536,6 +562,8 @@ export function readAsk(raw: string): Intent {
 
   if (/\btime[- ]limits?\b|\btenure\b|\b18[- ]months?\b/.test(lower)) return { kind: 'TIME_LIMIT' }
   if (/\b(spend|spent|spending)\b|\bbilled (us|you)\b|\bhow much have suppliers billed\b/.test(lower)) return { kind: 'SPEND' }
+  // "What am I paying across suppliers?": the same spend by supplier.
+  if (/\b(paying|pay)\b.*\b(across|by|each|every)\b.*\bsuppliers?\b/.test(lower)) return { kind: 'SPEND' }
   if (
     /\bunsigned\b/.test(lower) ||
     (/\b(weeks?|timesheets?|hours)\b/.test(lower) && /\b(not signed|to sign|waiting|not approved|unapproved|approval)\b/.test(lower))
@@ -699,7 +727,7 @@ function billsOnly(desk: string, companyKind: string | null | undefined): boolea
 }
 
 /** Whether this seat pays out: the same rule as `payingDesks`, on the seat's own permissions. */
-function paysOut(permissions: readonly string[], companyKind: string | null | undefined): boolean {
+export function paysOut(permissions: readonly string[], companyKind: string | null | undefined): boolean {
   if (!hasPermission(permissions, 'payments.record')) return false
   if (!hasPermission(permissions, 'invoices.issue') || hasPermission(permissions, 'payroll.run')) return true
   // A money-in seat pays only where no desk at the company pays out apart from it.
@@ -2356,6 +2384,8 @@ export interface Readers {
   bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
   /** What this firm's own placements earn, as Profitability reads them; refused to a seat without `margin.read` in the route's own sentence. */
   margins?(): Promise<Refusable<{ rows: MarginRow[] }>>
+  /** Profitability's own cut, read through its route (`by=cut`); nothing is added up here. */
+  marginCut?(cut: 'consultant' | 'office' | 'client', period: 'month' | 'quarter'): Promise<Refusable<MarginCutRead>>
   /** Weeks signed at the top that are on none of this firm's bills, oldest first. */
   unbilledWeeks?(): Promise<Refusable<{ rows: UnbilledRow[] }>>
   /** Bills this firm sent that are not paid in full, the latest first. */
@@ -3226,6 +3256,41 @@ export async function respond(
     // seat holds `margin.read`, refused in the route's sentence where it
     // does not. A client, or a firm reading a client's program, has no
     // margin of its own here, and nobody reads another firm's.
+    case 'MARGIN_CUT': {
+      // A client buys and never sells: the same refusal as any margin.
+      if (opts.party === 'CLIENT' || opts.party === 'MSP') return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+      if (intent.cut === 'recruiter') return { kind: 'TEXT', says: NO_RECRUITER_CUT, links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }] }
+      if (!read.marginCut) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+      const got = await read.marginCut(intent.cut, intent.period)
+      if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
+      return {
+        kind: 'LIST', says: marginCutSays(intent.cut, got),
+        ...(got.lines.length ? { table: marginCutTable(intent.cut, got) } : {}),
+        links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
+      }
+    }
+
+    case 'HELD': {
+      const [q, t] = await Promise.all([queueOf(opts.needs), read.told().catch(() => null)])
+      if (!q && !t) return { kind: 'TEXT', says: 'What is on hold could not be read just now. Open the list to see it.', links: [{ label: 'Open the list', href: DECISIONS_HREF }] }
+      const starts = (q?.items ?? []).filter((d) => d.type === 'START_HELD')
+      const told = t ? toldSays(t.told) : null
+      return {
+        kind: 'LIST', says: heldSays(starts, told),
+        ...(starts.length ? {
+          table: {
+            caption: 'Starts on hold',
+            head: ['Person', 'Why'],
+            rows: starts.map((d) => ({ cells: [d.whose?.trim() || d.title.split(' — ')[0], factOf(d.subtitle) || '—'], href: d.actionUrl ?? DECISIONS_HREF })),
+          },
+        } : {}),
+        links: [...(told?.links ?? []).map((l) => ({ label: `Open ${l.text}`, href: l.href })), { label: 'Open the list', href: DECISIONS_HREF }],
+      }
+    }
+
+    case 'MATCHES':
+      return { kind: 'TEXT', says: MATCHES_SAY, links: [{ label: 'Open Jobs', href: opts.companyKind === 'CLIENT' ? '/dashboard/requisitions' : '/dashboard/requirements' }] }
+
     case 'MARGIN': {
       if (opts.party === 'CLIENT' || opts.party === 'MSP' || !read.margins) return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
       const got = await read.margins()
@@ -4172,6 +4237,87 @@ export function marginSays(rows: readonly MarginRow[], opts: { named?: boolean }
   const lead = opts.named ? 'From Profitability' : 'Your margin, from Profitability'
   return `${lead}: ${shown.join('; ')}.${more} Checked just now.`
 }
+
+/** One line of Profitability's cut, as its route returns it. */
+export interface MarginCutLine {
+  label: string
+  placements: number
+  currency: string | null
+  billedCents: number | null
+  marginCents: number | null
+  marginPct: number | null
+  blankedBecause: string | null
+}
+
+/** Profitability's cut for a period, read from its route. */
+export interface MarginCutRead {
+  periodSays: string
+  lines: MarginCutLine[]
+  total: MarginCutLine | null
+  /** The route's own sentence about the total. */
+  says: string
+}
+
+/** What a recruiter cut would need and the record does not hold, in one sentence. */
+export const NO_RECRUITER_CUT = 'No placement records who recruited it, so Etyme cannot say what each recruiter made; Profitability cuts by consultant, office or client.'
+
+const CUT_NOUN: Record<'consultant' | 'office' | 'client', string> = { consultant: 'consultant', office: 'office', client: 'client' }
+
+/**
+ * "Northbend Athletic made you the most in October to December 2026:
+ * $9,400 on $41,000 billed, 22.9%." Read from the route's own lines,
+ * which it sorts by margin, largest first; a blank margin is said as
+ * blank with the route's reason, never as small.
+ */
+export function marginCutSays(cut: 'consultant' | 'office' | 'client', r: MarginCutRead): string {
+  const top = r.lines[0]
+  if (!top) return `${r.says} Checked just now.`
+  const when = ` in ${r.periodSays}`
+  if (top.marginCents == null || top.currency == null) {
+    return `No ${CUT_NOUN[cut]} has a margin to stand behind${when}: ${top.blankedBecause ?? 'a cost is missing'} Checked just now.`
+  }
+  const pct = top.marginPct == null ? '' : `, ${top.marginPct.toFixed(1)}%`
+  const billed = top.billedCents == null ? '' : ` on ${money(top.billedCents, top.currency)} billed`
+  return `${top.label} made you the most${when}: ${money(top.marginCents, top.currency)}${billed}${pct}. ` +
+    `Your firm: ${r.says.replace(/[.\s]*$/, '.')} Before admin cost and commission. Checked just now.`
+}
+
+export function marginCutTable(cut: 'consultant' | 'office' | 'client', r: MarginCutRead): ListTable {
+  const head = cut === 'client' ? 'Client' : cut === 'office' ? 'Office' : 'Consultant'
+  return {
+    caption: `Margin by ${CUT_NOUN[cut]}, ${r.periodSays}`,
+    head: [head, 'Billed', 'Margin', 'Margin %'],
+    rows: r.lines.map((l) => ({
+      cells: [
+        l.label,
+        l.billedCents != null && l.currency ? money(l.billedCents, l.currency) : '—',
+        l.marginCents != null && l.currency ? money(l.marginCents, l.currency) : '—',
+        l.marginPct != null ? `${l.marginPct.toFixed(1)}%` : '—',
+      ],
+    })),
+  }
+}
+
+/**
+ * "What is on hold, and why?": the starts held for papers, each with the
+ * paper it waits on, and the invoice receipts the check holds, each with
+ * what to do. Read from the one decisions list and the twin's told
+ * receipts; nothing new is computed.
+ */
+export function heldSays(starts: readonly QueueItem[], told: RichLine | null): string {
+  if (starts.length === 0 && !told) return 'Nothing is on hold. Checked just now.'
+  const parts: string[] = []
+  if (starts.length > 0) {
+    const named = starts.slice(0, 3).map((d) => heldStartSays(d))
+    const more = starts.length > 3 ? `; and ${lowerNumber(starts.length - 3)} more` : ''
+    parts.push(`${counted(starts.length, 'start')} ${starts.length === 1 ? 'is' : 'are'} on hold: ${named.join('; ')}${more}.`)
+  }
+  if (told) parts.push(told.says)
+  return `${parts.join(' ')} Checked just now.`
+}
+
+/** Where who matches a job is: on that job's own page, with its reasons. */
+export const MATCHES_SAY = 'Who matches a job is on that job’s own page, each match with its reasons. Open Jobs and pick the job.'
 
 export function marginTable(rows: readonly MarginRow[]): ListTable {
   return {

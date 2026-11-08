@@ -41,7 +41,7 @@ import { placeOf } from '@/lib/job-site'
 import { todayReads } from '@/lib/today-page'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as profitabilityRoute } from '@/app/api/profitability/route'
-import { marginRefusal, type MarginRow } from './ask'
+import { marginRefusal, type MarginRow, type MarginCutLine } from './ask'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import { GET as submissionsRoute } from '@/app/api/submissions/route'
 import { GET as complianceRoute } from '@/app/api/compliance/route'
@@ -1081,6 +1081,47 @@ export function readersFor(
       return { ok: true as const, rows }
     },
 
+    /**
+     * Profitability's cut by consultant, office or client for this month or
+     * this quarter (founder, 2026-11-08), read through the page's own route
+     * in-process under this seat: one figure, read by both doors, nothing
+     * added up a second time here.
+     */
+    async marginCut(cut: 'consultant' | 'office' | 'client', period: 'month' | 'quarter') {
+      const company = caller.company
+      if (!ownCompany || !company || !request) return { ok: false as const, says: 'A firm’s margin is read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') return { ok: false as const, ...marginRefusal('CLIENT') }
+      if (!hasAnyPermission(caller.permissions, ['margin.read', 'pnl.read'])) {
+        return { ok: false as const, says: deskRefusal('reads what your placements earn', 'margin.read', company.kind) }
+      }
+      const url = new URL(request.url)
+      url.pathname = '/api/profitability'
+      url.search = `?by=cut&cut=${cut}&period=${period}`
+      const res = await profitabilityRoute(new NextRequest(url, { headers: request.headers }))
+      const body = await res.json().catch(() => null)
+      if (!res.ok || !body?.data) {
+        return {
+          ok: false as const,
+          says: typeof body?.error?.message === 'string' ? body.error.message : 'Profitability could not be read just now, so no margin is said. Try again in a minute.',
+          links: [{ label: 'Open Profitability', href: '/dashboard/profitability' }],
+        }
+      }
+      const d = body.data
+      if (typeof d.cannotBecause === 'string' && d.cannotBecause) return { ok: false as const, says: d.cannotBecause }
+      // A cut by consultant names people: every one read is logged, as the margins read is.
+      if (cut === 'consultant' && Array.isArray(d.lines)) {
+        const ids = d.lines.map((l: { key?: unknown }) => l?.key).filter((k: unknown): k is string => typeof k === 'string' && !!k)
+        if (ids.length) logPeople(ids, 'Read in Ask Etyme: what each consultant made')
+      }
+      return {
+        ok: true as const,
+        periodSays: typeof d.periodSays === 'string' ? d.periodSays : '',
+        lines: (Array.isArray(d.lines) ? d.lines : []).map(cutLineIn).filter((l: MarginCutLine | null): l is MarginCutLine => l != null),
+        total: cutLineIn(d.total),
+        says: typeof d.says === 'string' ? d.says : '',
+      }
+    },
+
     async unbilledWeeks() {
       const company = caller.company
       if (!ownCompany || !company) return { ok: false as const, says: 'Bills are read at your own company; switch to it first.' }
@@ -1279,5 +1320,21 @@ export function readersFor(
         realValues: entry.realValues,
       })
     },
+  }
+}
+
+/** One line of Profitability's cut as its route returns it; null where it is not one. */
+function cutLineIn(x: unknown): MarginCutLine | null {
+  const r = x as Record<string, unknown> | null
+  if (!r || typeof r !== 'object' || typeof r.label !== 'string') return null
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  return {
+    label: r.label,
+    placements: n(r.placements) ?? 0,
+    currency: typeof r.currency === 'string' && r.currency ? r.currency : null,
+    billedCents: n(r.billedCents),
+    marginCents: n(r.marginCents),
+    marginPct: n(r.marginPct),
+    blankedBecause: typeof r.blankedBecause === 'string' ? r.blankedBecause : null,
   }
 }

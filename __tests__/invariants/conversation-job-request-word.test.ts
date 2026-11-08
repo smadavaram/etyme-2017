@@ -24,9 +24,9 @@ function screenText(src: string): string {
 const PAGES = ['src/app/dashboard/conversations/page.tsx', 'src/app/dashboard/texts/page.tsx']
 
 describe('conversations and bench check-ins call a job request a job request', () => {
-  it('the conversations filter chip for threads about a job reads "Job requests"', () => {
+  it('a thread about a job is said as a job in the column, never as a requirement', () => {
     const src = read(PAGES[0])
-    expect(src).toContain("{ key: 'REQUIREMENT', label: 'Job requests' }")
+    expect(src).toContain("REQUIREMENT: 'a job'")
     expect(src).not.toContain("label: 'Requirements'")
   })
 

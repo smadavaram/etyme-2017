@@ -1200,11 +1200,11 @@ describe('sign-up walk, round seven: Conversations speaks to whoever opened it',
     expect(conversationsFraming('CLIENT', false).mayStart).toBe(true)
   })
 
-  it('the Conversations page draws its sentences, its + New and its tabs from that framing', () => {
+  it('the Conversations page draws its sentences and its New conversation from that framing', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/page.tsx'), 'utf8')
     expect(src).toContain('conversationsFraming(')
     expect(src).toContain('words.mayStart')
-    expect(src).toContain('words.topics')
+    expect(src).toContain('words.empty')
     expect(src).not.toContain('it appears here. Notes among your own people start with + New.')
   })
 })

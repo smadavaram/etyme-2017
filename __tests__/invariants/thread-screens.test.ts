@@ -123,7 +123,7 @@ describe('the Conversations page and the plus menu tell the truth', () => {
   })
 
   it('a thread across a deal is marked with the firm on the far end, and the topic is said in trade words', () => {
-    expect(CONVOS).toContain('with {c.otherCompany.name}')
+    expect(CONVOS).toContain("{c.otherCompany ? `with ${c.otherCompany.name}` : 'own people'}")
     expect(CONVOS).toContain("REQUIREMENT: 'a job'")
     expect(CONVOS).toContain("SUBMISSION:  'a candidate'")
     // The enum used to sit on the chip.

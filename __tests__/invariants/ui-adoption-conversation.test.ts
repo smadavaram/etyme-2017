@@ -40,12 +40,12 @@ describe('the conversation pages draw the shared layer', () => {
     expect(INTERVIEWS).not.toContain('<header>')
   })
 
-  it('Conversations heads itself with the shared page head, filters by topic with the shared chips, and says the reader’s own empty sentence from its framing', () => {
+  it('Conversations heads itself with the shared page head, searches its conversations in the left column, and says the reader’s own empty sentence from its framing', () => {
     expect(CONVOS).toContain('<PageHead')
-    expect(CONVOS).toContain('<FilterChips')
-    expect(CONVOS).toContain('{words.topics && !session.loading && (')
-    expect(CONVOS).toContain('actions={!session.loading && words.mayStart ? (')
-    expect(CONVOS).toContain('<EmptyState compact says="No conversations yet." detail={words.empty} />')
+    // Since 2026-11-08 the list is in the left column: searched there, not filtered by topic chips.
+    expect(CONVOS).toContain('placeholder="Search conversations"')
+    expect(CONVOS).toContain('{!session.loading && words.mayStart && (')
+    expect(CONVOS).toContain("{q ? 'No conversation matches that.' : words.empty}")
     expect(CONVOS).not.toContain('filter-tab')
     expect(CONVOS).not.toContain('bg-red-50')
   })

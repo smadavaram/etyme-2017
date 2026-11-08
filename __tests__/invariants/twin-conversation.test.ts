@@ -337,18 +337,18 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(readAsk('please approve the receipt for me')).toEqual({ kind: 'ASK', text: 'please approve the receipt for me' })
   })
 
-  it('Ask Etyme is the first conversation in the list and opens as a chat', () => {
+  it('Ask Etyme is the switch above the conversations and opens as a chat', () => {
     const root = join(process.cwd(), 'src')
     const list = readFileSync(join(root, 'app/dashboard/conversations/page.tsx'), 'utf8')
-    // Pinned above every thread, with the Etyme mark and "Always here", opening on its own address.
-    const pinned = list.indexOf('<Chip tone="action">Always here</Chip>')
-    expect(pinned).toBeGreaterThan(-1)
-    expect(pinned).toBeLessThan(list.indexOf('{filtered.map((c) => ('))
+    // Since 2026-11-08 the switch at the top of the left column is Ask Etyme,
+    // so the list no longer carries an Ask Etyme row; the pane is Ask Etyme
+    // whenever no thread is open, at its own address too.
+    expect(list).not.toContain('Always here')
+    expect(list).toContain('<RailSlot name="conversations">')
     expect(list).toContain("const ASK_ETYME_HREF = '/dashboard/conversations/etyme'")
-    expect(list).toContain('<EtymeMark size={22} />')
     expect(list).toContain('<AskEtyme />')
-    // On a phone one screen at a time: an open chat hides the list.
-    expect(list).toContain("${activeConvo || askOpen ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px]")
+    // On a phone one screen at a time: the list is in the menu sheet, the pane is the chat or the thread.
+    expect(list).toContain('const showAsk = askOpen || (!activeConvo && !openId && !openRefused)')
     expect(readFileSync(join(root, 'app/dashboard/conversations/etyme/page.tsx'), 'utf8')).toContain('return <ConversationsPage />')
 
     // A chat: the header says "Ask Etyme" and never "twin", four chips, the box, the footer line.

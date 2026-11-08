@@ -455,7 +455,7 @@ describe('a one-person firm’s Owner with setup open reads the setup line in th
     const route = read('src/app/api/conversations/twin/route.ts')
     // The kind is read off the caller, which getCallerContext reads from the seat's company on every request.
     expect(route).toMatch(/const kind = caller\.company\?\.kind \?\? null/)
-    expect(route).toMatch(/questionsFor\(party\.party, await judgedBy\(caller\), company\.kind\)/)
+    expect(route).toMatch(/const judged = await judgedBy\(caller\)\s*\n\s*const own = questionsFor\(party\.party, judged, company\.kind\)/)
     expect(read('src/lib/api-context.ts')).toMatch(/company: \{ select: \{ id: true, name: true, slug: true, kind: true/)
     expect(partyOf({ companyKind: 'CONSULTANT_CORP', seatedAt: null })).toBe('SOLO')
     expect(partyOf({ companyKind: 'VENDOR', seatedAt: null })).toBe('FIRM')

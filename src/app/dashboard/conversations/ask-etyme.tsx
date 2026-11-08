@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import type { Route } from 'next'
 import { useSession } from '@/components/session-provider'
 import { EtymeMark } from '@/components/logo'
@@ -18,6 +18,7 @@ import {
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
   type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
+import { askOf } from './ask-href'
 import { WORKER_QUESTIONS, WORKER_FOOTER, type WorkerAnswer, type WorkerCard as WorkerCardFact } from '@/app/api/conversations/twin/worker'
 
 /**
@@ -282,6 +283,24 @@ export function AskEtyme() {
       setPending(false)
     }
   }
+
+  // A question carried on the link (?ask=): a pinned question pressed in
+  // the column, or "Ask about this table" on Profitability. Sent once, after
+  // the greeting is drawn, then taken off the address so a reload does not
+  // ask it again (2026-11-08).
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const carried = askOf(searchParams.get('ask'))
+  const sentFromLink = useRef<string | null>(null)
+  useEffect(() => {
+    if (!carried) { sentFromLink.current = null; return }
+    if (pending || refused || sentFromLink.current === carried) return
+    sentFromLink.current = carried
+    router.replace((pathname ?? '/dashboard/conversations/etyme') as Route, { scroll: false })
+    void ask(carried)
+    // ask reads the latest state when called; it is not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carried, pending, refused])
 
   /** A yes or a no, through the one approval route; then the line that drew the card records it. */
   const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string, answer?: PayAnswer | RateAnswer | null) => {

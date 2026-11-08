@@ -199,8 +199,8 @@ describe('a colleague who came in by invitation', () => {
 
   it('an invited colleague’s first screen is Ask Etyme with her welcome, never a blank list', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/page.tsx'), 'utf8')
-    // On a desktop, nothing chosen draws Ask Etyme in the pane; "Select a conversation" is gone.
-    expect(page).toContain('askOpen || (wide && !activeConvo && !openId && !openRefused) ? (')
+    // Nothing chosen draws Ask Etyme in the pane, on a phone too since the list moved to the column; "Select a conversation" is gone.
+    expect(page).toContain('const showAsk = askOpen || (!activeConvo && !openId && !openRefused)')
     expect(page).not.toContain('says="Select a conversation"')
     // The welcome leads the greeting, before its headline.
     const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
