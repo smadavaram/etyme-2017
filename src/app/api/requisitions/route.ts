@@ -1,5 +1,5 @@
 import { wholeFromMinor } from '@/lib/money'
-import { jobCurrency } from './job-currency'
+import { jobCurrency, companyLimitConverter } from './job-currency'
 import { readQualification } from './qualification'
 import { NextRequest, NextResponse } from 'next/server'
 import { panelFrom } from './panel'
@@ -323,8 +323,17 @@ export async function POST(request: NextRequest) {
     currency,
   })
 
+  // The limits and the budget are in the client's own currency, and a
+  // value in another is put beside them only at the company's own rate
+  // (regulatory's rule); with no own rate a person decides. Today the job's
+  // currency is the client's, so nothing is converted.
+  const limitCurrency = currency
+  const convert = await companyLimitConverter(client.id)
+
   const facts: RequisitionFacts = {
     currency,
+    limitCurrency,
+    convert,
     annualValueCents: value.cents,
     valueBasis: value.basis,
     valueSays: value.says,

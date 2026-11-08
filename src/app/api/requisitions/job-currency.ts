@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { reportingRatesFor, spendInReporting, type RateTable } from '@/lib/money/reporting-currency'
 
 /**
  * The currency a job's rate, budget, estimate and limit are said in.
@@ -24,4 +25,23 @@ export function jobCurrencyOf(company: { currency?: string | null } | null | und
 export async function jobCurrency(companyId: string): Promise<string> {
   const co = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } }).catch(() => null)
   return jobCurrencyOf(co)
+}
+
+/**
+ * A job's value in the approval limit's currency, at the company's own
+ * rate, for regulatory's rule (`RequisitionFacts.convert`): money's one
+ * conversion (`spendInReporting`) over the company's own rates only. The
+ * shipped sample table is thrown away, because a limit is never checked at
+ * a rate nobody at the company set; with no own rate the answer is null,
+ * and the rule routes the job to a person. Pure.
+ */
+export function limitConverter(table: RateTable, on: Date): (minor: number, from: string, to: string) => number | null {
+  const ownRates = table.sample ? [] : table.rates
+  return (minor, from, to) => spendInReporting([{ currency: from, minor }], to, ownRates, on).total?.minor ?? null
+}
+
+/** The company's own conversion, read once for a raise or an edit. */
+export async function companyLimitConverter(companyId: string, on: Date = new Date()) {
+  const table = await reportingRatesFor(companyId, on).catch(() => null)
+  return table ? limitConverter(table, on) : () => null
 }

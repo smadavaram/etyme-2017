@@ -1,4 +1,4 @@
-import { jobCurrency } from '../job-currency'
+import { jobCurrency, companyLimitConverter } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
 import { placeOf, sendToSays, readTickEdit, ticksToEdit, goesOnceApprovedSays } from '@/lib/job-site'
@@ -1065,8 +1065,17 @@ async function checksFor(
     currency,
   })
 
+  // The limits and the budget are in the client's own currency, and a
+  // value in another is put beside them only at the company's own rate
+  // (regulatory's rule); with no own rate a person decides. Today the job's
+  // currency is the client's, so nothing is converted.
+  const limitCurrency = currency
+  const convert = await companyLimitConverter(companyId)
+
   const facts: RequisitionFacts = {
     currency,
+    limitCurrency,
+    convert,
     annualValueCents: value.cents,
     valueBasis: value.basis,
     valueSays: value.says,
