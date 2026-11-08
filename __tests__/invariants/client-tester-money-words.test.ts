@@ -50,7 +50,8 @@ describe('Accounts payable speaks the reader’s words', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP']) {
       const link = receiptsLink({ companyKind: kind, seatedAtClient: false })
       expect(link.href, kind).toBe('/dashboard/ap')
-      expect(link.says, kind).toBe(`Open ${sectionOfHref(kind as any, '/dashboard/ap')}`)
+      // The page is titled Invoice receipts; the column names its link Payables (2026-11-08).
+      expect(sectionOfHref(kind as any, '/dashboard/ap'), kind).toBe('Payables')
       expect(link.says, kind).toBe('Open Invoice receipts')
       expect(link.says, kind).not.toContain('We owe')
     }

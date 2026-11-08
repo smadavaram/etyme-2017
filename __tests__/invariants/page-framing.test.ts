@@ -27,7 +27,23 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { pageFraming, sectionFor, sectionOfHref, sectionForReader, conversationsFraming, headingEveryReaderSees, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
-import { getNavForKind } from '@/lib/nav-table'
+import { getNavForKind, menuFor, menuLinks } from '@/lib/nav-table'
+
+/**
+ * The Dashboard column's own word over a page, where it names one apart
+ * from its section (2026-11-08): a link under Accounting, or Expenses,
+ * Profitability and Reports, which are links of their own.
+ */
+function columnWord(kind: CompanyKind, href: string): string | null {
+  const p = href.split('?')[0]
+  for (const g of menuFor(kind, false)) {
+    for (const l of g.links) {
+      if (!l.covers.some((i) => i.href.split('?')[0] === p)) continue
+      return g.heading === 'Accounting' || ['Expenses', 'Profitability', 'Reports'].includes(l.label) ? l.label : null
+    }
+  }
+  return null
+}
 import type { CompanyKind } from '@/components/session-provider'
 
 /**
@@ -193,18 +209,18 @@ describe('an integrator and an MSP are headed by the same links a supplier reads
     expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Submissions')
   })
 
-  it('the page under a supplier’s Invoice receipts link is headed Invoice receipts, never Accounts payable', () => {
+  it('the page under a supplier’s Payables link is headed Payables, titled Invoice receipts, never Accounts payable', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
       const f = pageFraming(kind, 'ap', null, OWNER)
-      expect(f.eyebrow, kind).toBe('Invoice receipts')
+      expect(f.eyebrow, kind).toBe('Payables')
       expect(f.title, kind).toBe('Invoice receipts')
       expect(`${f.title} ${f.subtitle}`, kind).not.toMatch(/accounts payable/i)
     }
   })
 
-  it('a client’s AP tab is headed by its Invoice receipts link, and the title says the tab', () => {
+  it('a client’s AP tab is headed by its Payables link, and the title says the tab', () => {
     const f = pageFraming('CLIENT', 'ap', null, OWNER)
-    expect(f.eyebrow).toBe('Invoice receipts')
+    expect(f.eyebrow).toBe('Payables')
     expect(f.title).toBe('Accounts payable')
   })
 
@@ -224,9 +240,9 @@ describe('an integrator and an MSP are headed by the same links a supplier reads
     expect(pageFraming('MSP', 'consultants', null, OWNER).eyebrow).toBe('')
   })
 
-  it('contracts are Contracts, the hours and expenses Timesheets, and the money Bills, for all three suppliers', () => {
+  it('contracts are Contracts, the hours Timesheets, expenses Expenses and the bills Receivables, for all three suppliers', () => {
     const heads: Partial<Record<PageKey, string>> = {
-      'contracts.sell': 'Contracts', 'contracts.buy': 'Contracts', timesheets: 'Timesheets', invoices: 'Bills', expenses: 'Timesheets',
+      'contracts.sell': 'Contracts', 'contracts.buy': 'Contracts', timesheets: 'Timesheets', invoices: 'Receivables', expenses: 'Expenses',
     }
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
       for (const [page, head] of Object.entries(heads)) {
@@ -281,9 +297,9 @@ describe('a client sees demand-side framing', () => {
     expect(f.subtitle).not.toContain('bench')
   })
 
-  it('timesheets and invoice receipts are each a link of the client’s own, and head their pages', () => {
+  it('a client’s timesheets are headed Timesheets and its invoice receipts Payables, the links they sit under', () => {
     expect(pageFraming('CLIENT', 'timesheets', null, OWNER).eyebrow).toBe('Timesheets')
-    expect(pageFraming('CLIENT', 'invoices', null, OWNER).eyebrow).toBe('Invoice receipts')
+    expect(pageFraming('CLIENT', 'invoices', null, OWNER).eyebrow).toBe('Payables')
   })
 
   it('a client’s invoice receipts are what its suppliers sent it and what is still to pay, not what it bills', () => {
@@ -391,8 +407,8 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER).eyebrow).toBe('Timesheets')
     expect(pageFraming('MSP', 'contracts.sell', null, OWNER).eyebrow).toBe('Contracts')
     // Where the two menus name a page differently, the seat's wins.
-    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH, OWNER).eyebrow).toBe('Invoice receipts')
-    expect(pageFraming('MSP', 'invoices', null, OWNER).eyebrow).toBe('Bills')
+    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH, OWNER).eyebrow).toBe('Payables')
+    expect(pageFraming('MSP', 'invoices', null, OWNER).eyebrow).toBe('Receivables')
   })
 
   it('every shared page a seated office opens is worded exactly as the client\'s own desk words it', () => {
@@ -632,7 +648,8 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
 
   it('every eyebrow a supplier reads is a section printed in that supplier\'s own nav array', () => {
     for (const [kind, name] of MENUS) {
-      const labels = sectionLabelsInSource(name)
+      // The nav array's sections, and the Dashboard column's own words over them (2026-11-08).
+      const labels = [...sectionLabelsInSource(name), ...menuLinks(menuFor(kind, false)).map((l) => l.label)]
       for (const page of ALL_PAGES) {
         const { eyebrow } = pageFraming(kind, page, null, OWNER)
         if (!eyebrow) continue
@@ -642,7 +659,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
   })
 
   it('a seated reader\'s eyebrow is a link printed in the client\'s nav array', () => {
-    const labels = sectionLabelsInSource('CLIENT_NAV')
+    const labels = [...sectionLabelsInSource('CLIENT_NAV'), ...menuLinks(menuFor('CLIENT', false)).map((l) => l.label)]
     for (const page of ALL_PAGES) {
       const { eyebrow } = pageFraming('MSP', page, { inASeat: true, company: 'Cavanaugh Glassworks' }, OWNER)
       if (!eyebrow) continue
@@ -695,7 +712,7 @@ describe('sign-up walk, round three: a page is headed by the link the reader cli
           const first = getNavForKind(kind, false).find((s) =>
             s.items.some((i) => i.href.split('?')[0] === item.href.split('?')[0]))
           if (first !== section) continue
-          expect(sectionOfHref(kind, item.href), `${kind} ${item.href}`).toBe(section.label)
+          expect(sectionOfHref(kind, item.href), `${kind} ${item.href}`).toBe(columnWord(kind, item.href) ?? section.label)
         }
       }
     }
@@ -1219,5 +1236,39 @@ describe('sign-up walk, round seven: a refused Bench check-ins or Interviews is 
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
     const line = src.indexOf('somebody is free at $78')
     expect(src.lastIndexOf('{f && (', line)).toBeGreaterThan(src.indexOf('<PageHead'))
+  })
+})
+
+describe('Money is Accounting: a page is headed by the Accounting link the reader pressed (founder, 2026-11-08)', () => {
+  it('a supplier’s, an integrator’s and an MSP’s bills and AR are headed Receivables', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
+      expect(sectionOfHref(kind, '/dashboard/invoices'), kind).toBe('Receivables')
+      expect(sectionOfHref(kind, '/dashboard/ar'), kind).toBe('Receivables')
+    }
+  })
+
+  it('a supplier’s AP is headed Payables, and so are a client’s invoice receipts, AP, budget and POs', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) expect(sectionOfHref(kind, '/dashboard/ap'), kind).toBe('Payables')
+    for (const href of ['/dashboard/invoices', '/dashboard/ap', '/dashboard/program/budget', '/dashboard/purchase-orders']) {
+      expect(sectionOfHref('CLIENT', href), href).toBe('Payables')
+    }
+  })
+
+  it('payroll and commissions are headed Payroll, reports Reports, profitability Profitability and expenses Expenses', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/payroll')).toBe('Payroll')
+    expect(sectionOfHref('VENDOR', '/dashboard/payroll/commissions')).toBe('Payroll')
+    expect(sectionOfHref('VENDOR', '/dashboard/reports')).toBe('Reports')
+    expect(sectionOfHref('VENDOR', '/dashboard/profitability')).toBe('Profitability')
+    expect(sectionOfHref('VENDOR', '/dashboard/expenses')).toBe('Expenses')
+  })
+
+  it('a one-person firm’s bills stay headed Bills, because her column prints her own seven links', () => {
+    expect(sectionOfHref('CONSULTANT_CORP', '/dashboard/invoices')).toBe('Bills')
+  })
+
+  it('Network, HR’s Contracts and Timesheets, Today and Settings keep their headings', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/contracts')).toBe('Contracts')
+    expect(sectionOfHref('VENDOR', '/dashboard/timesheets')).toBe('Timesheets')
   })
 })

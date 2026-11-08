@@ -1,5 +1,5 @@
 import type { CompanyKind } from '@/components/session-provider'
-import { getNavForKind } from '@/lib/nav-table'
+import { getNavForKind, menuFor, menuOf, type NavSection } from '@/lib/nav-table'
 
 /**
  * Page framing per company type — and per seat.
@@ -462,14 +462,40 @@ export function sectionOfHref(
     // still a seat.
     ? { seatedAtClient: bookOwner(reading) ?? 'a client' }
     : {}
-  return headingIn(getNavForKind(kind, isConsultant, {
+  const facts = {
     ...seat,
     worker: reader?.worker,
     permissions: reader?.permissions,
     termsHref: reader?.termsHref ?? null,
     // The hat the sidebar is drawn in (2026-11-03), so the eyebrow reads the same menu.
     hat: reader?.hat ?? null,
-  }), href)
+  }
+  return columnWordOf(menuFor(kind, isConsultant, facts), href) ?? headingIn(getNavForKind(kind, isConsultant, facts), href)
+}
+
+/**
+ * The column's own word over a page, where the Dashboard column names it
+ * apart from its section (founder, 2026-11-08, "One app, two tabs" and
+ * "Money is Accounting"): under Accounting the links are Receivables,
+ * Payables, Payroll and Reports, and Expenses and Profitability are links
+ * of their own. A page under one of them is headed by that link, so a
+ * reader who pressed Payables reads Payables over the page. Everywhere
+ * else the section stays the heading (Network over its two lists, HR's
+ * Contracts and Timesheets, Today, Settings), so nothing else moves. A
+ * one-person firm's column prints its sections as they are, so her Bills
+ * stays Bills.
+ */
+export const COLUMN_HEADING = 'Accounting'
+const OWN_LINKS: ReadonlySet<string> = new Set(['Expenses', 'Profitability', 'Reports'])
+
+function columnWordOf(groups: ReadonlyArray<{ heading: string | null; links: ReadonlyArray<{ label: string; covers: ReadonlyArray<{ href: string }> }> }>, href: string): string | null {
+  for (const g of groups) {
+    for (const link of g.links) {
+      if (!link.covers.some((i) => path(i.href) === path(href))) continue
+      return g.heading === COLUMN_HEADING || OWN_LINKS.has(link.label) ? link.label : null
+    }
+  }
+  return null
 }
 
 /**
@@ -618,6 +644,10 @@ function readingOf(
  *  register sub-headings it prints. */
 export function headingsOf(menu: { label: string; items: { group?: string }[] }[]): string[] {
   const out = new Set<string>()
+  // The column's own words over a page (Receivables, Payables, Payroll,
+  // Reports, Expenses, Profitability), read through the same column the
+  // sidebar draws, where the sections are a firm's.
+  for (const h of columnWordsOf(menu)) out.add(h)
   for (const section of menu) {
     out.add(section.label)
     for (const item of section.items) {
@@ -625,6 +655,16 @@ export function headingsOf(menu: { label: string; items: { group?: string }[] }[
     }
   }
   return [...out]
+}
+
+function columnWordsOf(menu: ReadonlyArray<{ label: string; items: ReadonlyArray<{ href?: string; group?: string }> }>): string[] {
+  const sections = menu as unknown as NavSection[]
+  if (!sections.every((s) => Array.isArray(s.items) && s.items.every((i) => typeof i.href === 'string'))) return []
+  const out: string[] = []
+  for (const g of menuOf(sections, true)) {
+    for (const link of g.links) if (g.heading === COLUMN_HEADING || OWN_LINKS.has(link.label)) out.push(link.label)
+  }
+  return out
 }
 
 function headingIn(

@@ -41,7 +41,7 @@ import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
-import { getNavForKind, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind } from '@/lib/nav-table'
+import { getNavForKind, menuFor, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind, type MenuGroup } from '@/lib/nav-table'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -235,6 +235,9 @@ interface NavTopic { re: RegExp; subject: string; plural: boolean; pages: readon
 
 /** Most specific first: "add people to the bench" is the bench, not people. */
 const NAV_TOPICS: readonly NavTopic[] = [
+  // Ask Etyme is the switch at the top of the left column, never a menu
+  // link (founder, 2026-11-08, "One app, two tabs"): answered as that.
+  { re: /\bask etyme\b|\bthe chat\b/, subject: 'Ask Etyme', plural: false, pages: [] },
   // The master data sits under Network on every firm's menu (founder,
   // 2026-11-04): the people a firm keeps and the firms it trades with.
   { re: /\bmaster data\b/, subject: 'Your master data', plural: false, pages: ['Candidates', 'Companies', 'Suppliers'] },
@@ -319,10 +322,55 @@ export function readWhere(raw: string, opts: { loose?: boolean } = {}): Intent |
 }
 
 /** The seat's own menu, as the sidebar draws it: its kind, a seat in a client's program, its permissions. */
-export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null }): NavSection[] {
+export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null }): SeatMenu {
   const worker = seat.party === 'WORKER'
   const kind = (seat.companyKind ?? null) as CompanyKind | null
-  return getNavForKind(kind, worker, { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null })
+  const facts = { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null }
+  const sections: SeatMenu = getNavForKind(kind, worker, facts)
+  // A firm's Dashboard column reads the founder's headings (2026-11-08):
+  // Network, HR, Accounting, and Profitability as a link of its own. A
+  // worker's and a one-person firm's column prints their own links.
+  const firm = !worker && seat.party !== 'SOLO' && !!kind && (kind !== 'CONSULTANT_CORP' || !!seat.client)
+  sections.column = firm ? menuFor(kind, false, facts) : null
+  return sections
+}
+
+/** A seat's menu, with the Dashboard column it is printed as where that is a firm's. */
+export type SeatMenu = NavSection[] & { column?: readonly MenuGroup[] | null }
+
+/** Where an item sits in a firm's column: its heading and the link that covers it. */
+function columnPlace(column: readonly MenuGroup[], href: string): { heading: string | null; label: string; first: string } | null {
+  for (const g of column) {
+    for (const l of g.links) {
+      if (l.covers.some((i) => i.href === href)) return { heading: g.heading, label: l.label, first: l.covers[0]?.href ?? l.href }
+    }
+  }
+  return null
+}
+
+/** "under Accounting, Receivables, on the AR tab"; "under Submissions"; the column's words. */
+function whereInColumn(column: readonly MenuGroup[], items: readonly NavItem[]): string | null {
+  const at = items.map((i) => ({ item: i, place: columnPlace(column, i.href) }))
+  if (at.some((x) => !x.place)) return null
+  const links: { heading: string | null; label: string; first: string; items: NavItem[] }[] = []
+  for (const { item, place } of at) {
+    const l = links.find((x) => x.label === place!.label && x.heading === place!.heading)
+    if (l) l.items.push(item)
+    else links.push({ ...place!, items: [item] })
+  }
+  // Two whole links under one heading are said once: "under Network, Candidates and Companies".
+  const whole = links.filter((l) => l.heading && l.items.every((i) => i.href === l.first))
+  if (links.length > 1 && whole.length === links.length && new Set(links.map((l) => l.heading)).size === 1) {
+    return `under ${links[0].heading}, ${andNames(links.map((l) => l.label))}`
+  }
+  return links.map((l) => {
+    const name = l.heading ? `${l.heading}, ${l.label}` : l.label
+    // The link opens its first page, so that page is the link itself, never a tab of it.
+    const tabs = l.items.filter((i) => i.href !== l.first)
+    if (tabs.length === 0) return `under ${name}`
+    const said = `${andNames(tabs.map((i) => i.label))} tab${tabs.length === 1 ? '' : 's'}`
+    return tabs.length < l.items.length ? `under ${name}, and on its ${said}` : `under ${name}, on the ${said}`
+  }).join(', and ')
 }
 
 interface Placed { section: NavSection; item: NavItem }
@@ -369,12 +417,16 @@ export const WHERE_FIRST = 'Ask me where a page is first, for example “Where a
  * show this seat is never named. Rules only.
  */
 export function whereAnswer(intent: Extract<Intent, { kind: 'WHERE' | 'GO' }>, menu: readonly NavSection[], place?: string | null): Answer {
+  const column = (menu as SeatMenu).column ?? null
   if (intent.kind === 'GO') {
     const at = place ? onMenu(menu, place) : null
     if (!at) return { kind: 'TEXT', says: `${WHERE_FIRST}, and I will open it.` }
     return { kind: 'TEXT', says: `Opening ${at.item.label}.`, links: [{ label: `Open ${at.item.label}`, href: at.item.href }], place: at.item.href, go: true }
   }
   const topic = NAV_TOPICS[intent.topic]
+  if (topic.pages.length === 0) {
+    return { kind: 'TEXT', says: 'Ask Etyme is the switch at the top of the left column, beside Dashboard. Press it to come back here.' }
+  }
   const places = placesOn(menu)
   const picked: Placed[] = []
   for (const label of topic.pages) {
@@ -384,12 +436,18 @@ export function whereAnswer(intent: Extract<Intent, { kind: 'WHERE' | 'GO' }>, m
   }
   if (picked.length === 0) {
     const what = topic.subject.charAt(0).toLowerCase() + topic.subject.slice(1)
-    return { kind: 'TEXT', says: `None of your pages shows ${what}. You can open ${linksSaid(menu)}.` }
+    const open = column ? andNames(column.flatMap((g) => g.links.map((l) => l.label))) : linksSaid(menu)
+    return { kind: 'TEXT', says: `None of your pages shows ${what}. You can open ${open}.` }
   }
+  const inColumn = column ? whereInColumn(column, picked.map((p) => p.item)) : null
+  // A link of its own with nothing above it: "Profitability is its own link in the left column."
+  const own = inColumn && picked.length === 1 && inColumn === `under ${topic.subject}` && !column!.some((g) => g.heading === topic.subject)
   const sections: NavSection[] = []
   for (const p of picked) if (!sections.includes(p.section)) sections.push(p.section)
-  const parts = sections.map((s) => whereOn(s, picked.filter((p) => p.section === s).map((p) => p.item)))
-  const says = `${topic.subject} ${topic.plural ? 'are' : 'is'} ${parts.join(', and ')}.`
+  const parts = inColumn ? [inColumn] : sections.map((s) => whereOn(s, picked.filter((p) => p.section === s).map((p) => p.item)))
+  const says = own
+    ? `${topic.subject} is its own link in the left column.`
+    : `${topic.subject} ${topic.plural ? 'are' : 'is'} ${parts.join(', and ')}.`
   return {
     kind: 'TEXT', says,
     links: picked.map((p) => ({ label: `Open ${p.item.label}`, href: p.item.href })),

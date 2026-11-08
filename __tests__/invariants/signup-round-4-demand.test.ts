@@ -86,7 +86,7 @@ describe('15: an eyebrow names the section the page sits under on the reader’s
     const src = read('program/budget')
     expect(src).toMatch(/usePageSection\('\/dashboard\/program\/budget'\)/)
     expect(src).not.toMatch(/<p className="eyebrow">Governance<\/p>/)
-    expect(sectionOfHref('CLIENT', '/dashboard/program/budget')).toBe('Invoice receipts')
+    expect(sectionOfHref('CLIENT', '/dashboard/program/budget')).toBe('Payables')
   })
 
   it('Program team heads with a section from the menu, never the company’s name', () => {

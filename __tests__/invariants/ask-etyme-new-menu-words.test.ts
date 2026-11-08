@@ -25,27 +25,27 @@ function where(question: string, seat: typeof CLIENT | typeof SUPPLIER): Extract
 const hrefs = (a: Extract<Answer, { kind: 'TEXT' }>) => (a.links ?? []).map((l) => l.href)
 
 describe('where a page is, in the words of the new menu', () => {
-  it('a client asks “Where are my contractors?” and is sent to Contracts, with the link', () => {
+  it('a client asks “Where are my contractors?” and is sent to HR, Contracts, with the link', () => {
     const a = where('Where are my contractors?', CLIENT)
-    expect(a.says).toBe('Your contractors are under Contracts.')
+    expect(a.says).toBe('Your contractors are under HR, Contracts.')
     expect(hrefs(a)).toEqual(['/dashboard/contracts'])
   })
 
   it('a supplier asks “Where are my contractors?” and is sent to its sell and buy contracts', () => {
     const a = where('Where are my contractors?', SUPPLIER)
-    expect(a.says).toBe('Your contractors are under Contracts, on the Sell contracts and Buy contracts tabs.')
+    expect(a.says).toBe('Your contractors are under HR, Contracts, and on its Buy contracts tab.')
     expect(hrefs(a)).toEqual(['/dashboard/contracts?side=sell', '/dashboard/contracts?side=buy'])
   })
 
   it('a client asks “Where are my candidates?” and is sent to the people it met through its suppliers', () => {
     const a = where('Where are my candidates?', CLIENT)
-    expect(a.says).toBe('Your candidates are under Network.')
+    expect(a.says).toBe('Your candidates are under Network, Candidates.')
     expect(hrefs(a)).toEqual(['/dashboard/people'])
   })
 
   it('a supplier asks “Where are my candidates?” and is sent to its candidates and its bench', () => {
     const a = where('Where are my candidates?', SUPPLIER)
-    expect(a.says).toBe('Your candidates are under Network, on the Candidates and Bench tabs.')
+    expect(a.says).toBe('Your candidates are under Network, Candidates, and on its Bench tab.')
     expect(hrefs(a)).toEqual(['/dashboard/consultants', '/dashboard/bench'])
   })
 
@@ -94,5 +94,31 @@ describe('the greeting and the page headings say the new links', () => {
   it('an MSP seated at a client reads the client’s candidates, by name', () => {
     expect(pageFraming('MSP', 'consultants', { seated: true, clientName: 'Cavanaugh Glassworks' }).whose)
       .toMatch(/Cavanaugh Glassworks.? candidates/)
+  })
+})
+
+describe('where a page is, in the words of the Dashboard column (founder, 2026-11-08)', () => {
+  it('a supplier asks where its bills are and is told Accounting, Receivables', () => {
+    expect(where('Where are my bills?', SUPPLIER).says).toMatch(/^What you billed is under Accounting, Receivables\b/)
+  })
+
+  it('a supplier asks where its expenses are and is told HR, Expenses', () => {
+    expect(where('Where are my expenses?', SUPPLIER).says).toBe('Your expenses are under HR, Expenses.')
+  })
+
+  it('a supplier asks where its reports are and is told Accounting, Reports', () => {
+    expect(where('Where are my reports?', SUPPLIER).says).toBe('Reports are under Accounting, Reports.')
+  })
+
+  it('a supplier asks where profitability is and is told it is its own link', () => {
+    expect(where('Where is profitability?', SUPPLIER).says).toBe('Profitability is its own link in the left column.')
+  })
+
+  it('anybody asking where Ask Etyme is is told it is the switch at the top of the left column, not a menu link', () => {
+    for (const seat of [CLIENT, SUPPLIER]) {
+      const a = where('Where is Ask Etyme?', seat)
+      expect(a.says).toBe('Ask Etyme is the switch at the top of the left column, beside Dashboard. Press it to come back here.')
+      expect(a.links ?? []).toEqual([])
+    }
   })
 })

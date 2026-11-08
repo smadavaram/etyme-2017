@@ -50,16 +50,16 @@ describe('a client’s Interviews and AP pages read the client’s own links, ne
     expect(pageFraming('CLIENT', 'interviews', null, OWNER).eyebrow).toBe('Submissions')
   })
 
-  it('a client’s accounts payable page is headed Invoice receipts, the link its own menu files it under', () => {
-    expect(sectionOfHref('CLIENT', '/dashboard/ap')).toBe('Invoice receipts')
+  it('a client’s accounts payable page is headed Payables, the link its own column files it under', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/ap')).toBe('Payables')
   })
 
   it('every shared page a client reads is headed by one of the client’s own links, never Bills, People or Companies', () => {
     const keys = ['contracts.sell', 'contracts.buy', 'requirements', 'submissions', 'interviews', 'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants'] as const
     const heads: Record<string, string> = {
       'contracts.sell': 'Contracts', 'contracts.buy': 'Contracts', requirements: 'Jobs', submissions: 'Submissions',
-      interviews: 'Submissions', rolloff: 'Contracts', timesheets: 'Timesheets', invoices: 'Invoice receipts',
-      expenses: 'Timesheets', consultants: 'Network',
+      interviews: 'Submissions', rolloff: 'Contracts', timesheets: 'Timesheets', invoices: 'Payables',
+      expenses: 'Expenses', consultants: 'Network',
     }
     for (const k of keys) expect([k, pageFraming('CLIENT', k, null, OWNER).eyebrow]).toEqual([k, heads[k]])
   })
