@@ -36,15 +36,15 @@ import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import {
-  readCommission, commissionAnswer, commissionTable, CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK,
-  type CommissionAsked, type CommissionRead,
+  readCommission, commissionAnswer, commissionTable, periodAsked, CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK,
+  type CommissionAsked, type CommissionRead, type CommissionWhen,
 } from './commission-answer'
 import { isBankHeld, heldReason, checksTheBank, heldHref, bankHeldName, heldOnBankSays, CHECK_THE_BANK, OPEN_THE_RECEIPT } from './held-receipt'
 import { ITEM_WORDS, itemHref, CHECKLIST_HREF, type ItemKey } from '@/lib/setup-checklist'
 import { WEEK_WORDS, weekActOf } from '@/lib/notify/week-words'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
-import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
+import { offRecord, asksAboutFirmMoney, anotherFirmsMoneyOnRecord, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
 import { isTwinAct } from '@/lib/autonomy'
 import {
@@ -2417,8 +2417,10 @@ export interface Readers {
   bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
   /** What this firm's own placements earn, as Profitability reads them; refused to a seat without `margin.read` in the route's own sentence. */
   margins?(): Promise<Refusable<{ rows: MarginRow[] }>>
-  /** Money's commission rows for this month at the reader's own firm: every row where the seat reads the firm's, else its own only. */
-  commissions?(): Promise<Refusable<CommissionRead>>
+  /** Whether a name is a company on Etyme's record, by its exact name: a firm is recognized by the record, never by capitals. */
+  firmOnRecord?(name: string): Promise<boolean>
+  /** Money's commission rows over the months asked (this month by default) at the reader's own firm: every row where the seat reads the firm's, else its own only. */
+  commissions?(when?: Extract<CommissionWhen, { kind: 'MONTHS' }>): Promise<Refusable<CommissionRead>>
   /**
    * Over what this seat reads a permission, as one sentence where it reads
    * less than the firm's ("You read margin for the Dayton
@@ -3149,7 +3151,7 @@ export async function respond(
   // Found by the walk of 2026-10-22: "What does Brightmoor Staffing pay
   // Helena Marsh?" was answered "needs the model".
   if (!['HELP', 'WHY', 'DECIDE', 'NEEDS', 'SETUP', 'WHO_HOLDS', 'GIVE_ACCESS'].includes(intent.kind) && asksAboutFirmMoney(text, own)) {
-    if (anotherFirmsMoney(text, own, await read.vocabulary())) return { kind: 'TEXT', says: NOT_ANOTHER_BOOK }
+    if (await anotherFirmsMoneyOnRecord(text, own, await read.vocabulary(), read.firmOnRecord)) return { kind: 'TEXT', says: NOT_ANOTHER_BOOK }
   }
   // A firm's own book is answered only where this seat has the read; a
   // reader that is not there leaves the question to the rest of the rules.
@@ -3420,8 +3422,12 @@ export async function respond(
     case 'COMMISSION': {
       // A client never hears a supplier's commissions, seated or not.
       if (opts.party === 'CLIENT' || opts.companyKind === 'CLIENT') return { kind: 'TEXT', says: CLIENT_COMMISSION_REFUSAL }
+      // The period the person names, as money's months; one that has not
+      // started, or is shorter than a month, is said and nothing is read.
+      const when = periodAsked(text, opts.now ?? new Date())
+      if (when.kind === 'CANNOT') return { kind: 'TEXT', says: when.says, links: [COMMISSIONS_LINK] }
       if (!read.commissions) return { kind: 'TEXT', says: 'Commissions could not be read just now. Open Commissions to see yours.', links: [COMMISSIONS_LINK] }
-      const got = await read.commissions()
+      const got = await read.commissions(when)
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
       const a = commissionAnswer(got, intent.asked)
       if (a.rows.length === 0) return { kind: 'TEXT', says: a.says, ...(a.links.length ? { links: a.links } : {}) }

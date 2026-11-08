@@ -197,17 +197,25 @@ function isOurs(name: string, own: OwnBook): boolean {
   })
 }
 
-/** Whether the words name a firm that is not the reader: a firm on its record, a withheld one, or a name written as a firm is. */
+/**
+ * Whether the words name a firm that is not the reader, by the record
+ * alone: a firm it trades with, a withheld one, or a name carrying a firm's
+ * legal form. Never by capitals (2026-11-08: "What did Ruth Ellis earn in
+ * commission?" read Ruth Ellis as a firm, because she was not on the
+ * reader's people list). A firm on Etyme the reader does not trade with is
+ * read by `anotherFirmsMoneyOnRecord`.
+ */
+/** A name as a firm is named: no article, no trailing punctuation, no possessive ("Brightmoor Staffing’s" is Brightmoor Staffing). */
+const firmNameOf = (s: string) => plainOf(s).replace(/['’]s?$/u, '').trim()
+
 function aFirm(name: string, names: ReaderNames): boolean {
-  const n = plainOf(name)
+  const n = firmNameOf(name)
   if (!n) return false
   const lower = squash(n)
   // A person on the record is a person, not a firm: what she earns is a question for another rule.
   if (names.people.some((p) => squash(p) === lower)) return false
   if (knownFirm(n, names)) return true
-  if (firmsByForm(n).length > 0) return true
-  // Written with capitals, and not a person on the record: read as a firm the reader does not trade with.
-  return /^\p{Lu}/u.test(n) && n.split(/\s+/).every((w) => /^\p{Lu}/u.test(w) || ['of', 'and', '&'].includes(w))
+  return firmsByForm(n).length > 0
 }
 
 /** Words that name no firm in particular; "other companies" is the rule above's, not this one's. */
@@ -252,6 +260,27 @@ export function asksAboutFirmMoney(text: string, own?: OwnBook): boolean {
 export function anotherFirmsMoney(text: string, own: OwnBook, names: ReaderNames): boolean {
   const ask = firmMoneyAsk(text, own)
   return ask != null && aFirm(ask.payer, names)
+}
+
+/**
+ * The same rule, with the one read the names cannot answer: whether the
+ * payer is a company on Etyme's record at all (`firmOnRecord`, an exact
+ * name). A name that is neither a firm the reader trades with, nor a firm
+ * on the record, nor written with a legal form is not a firm: it is left to
+ * the rules that read people, and never refused as another company's book.
+ */
+export async function anotherFirmsMoneyOnRecord(
+  text: string,
+  own: OwnBook,
+  names: ReaderNames,
+  firmOnRecord?: (name: string) => Promise<boolean>,
+): Promise<boolean> {
+  const ask = firmMoneyAsk(text, own)
+  if (!ask) return false
+  if (aFirm(ask.payer, names)) return true
+  const n = firmNameOf(ask.payer)
+  if (!n || !firmOnRecord || names.people.some((p) => squash(p) === squash(n))) return false
+  return firmOnRecord(n).catch(() => false)
 }
 
 export type OffRecord = typeof ONLY_THE_RECORD | typeof NOT_ANOTHER_BOOK

@@ -160,3 +160,74 @@ describe('commission in Ask Etyme', () => {
     expect(readCommission('What is our margin?')).toBeNull()
   })
 })
+
+// ── The period a person names, and a name that is not a firm ─────────
+
+import { periodAsked, mergeMonths } from '@/app/api/conversations/twin/commission-answer'
+import { anotherFirmsMoney, anotherFirmsMoneyOnRecord } from '@/app/api/conversations/twin/transaction'
+
+const NOV_8 = new Date('2026-11-08T12:00:00Z')
+
+describe('commission for the period the person names', () => {
+  it('no period named is this month, said with its days', () => {
+    expect(periodAsked('What did I earn in commission?', NOV_8)).toEqual({ kind: 'MONTHS', months: [{ y: 2026, m: 10 }], words: 'this month', from: '2026-11-01', to: '2026-11-30' })
+  })
+
+  it('“last month”, “in October”, “this quarter” and “so far this year” are read as money’s months, each its own pay period', () => {
+    expect(periodAsked('my commission last month', NOV_8)).toMatchObject({ months: [{ y: 2026, m: 9 }], words: 'last month', from: '2026-10-01', to: '2026-10-31' })
+    expect(periodAsked('What did I earn in commission in October?', NOV_8)).toMatchObject({ months: [{ y: 2026, m: 9 }], words: 'October 2026' })
+    expect(periodAsked('my commission in December', NOV_8)).toMatchObject({ months: [{ y: 2025, m: 11 }], words: 'December 2025' })
+    expect(periodAsked('my commission this quarter', NOV_8)).toMatchObject({ months: [{ y: 2026, m: 9 }, { y: 2026, m: 10 }], words: 'this quarter so far', from: '2026-10-01', to: '2026-11-30' })
+    const year = periodAsked('commission so far this year', NOV_8)
+    expect(year).toMatchObject({ words: 'so far this year', from: '2026-01-01', to: '2026-11-30' })
+    expect(year.kind === 'MONTHS' && year.months.length).toBe(11)
+  })
+
+  it('a period that has not started, or one shorter than a month, is said as such and never given a figure', () => {
+    expect(periodAsked('my commission next month', NOV_8).kind).toBe('CANNOT')
+    expect(periodAsked('my commission in December 2026', NOV_8)).toEqual({ kind: 'CANNOT', says: 'December 2026 has not started, so no commission is earned in it yet.' })
+    expect(periodAsked('my commission this week', NOV_8)).toMatchObject({ kind: 'CANNOT', says: expect.stringMatching(/^Commission is worked out by the month/) })
+  })
+
+  it('“May I see my commission?” is not read as the month of May', () => {
+    expect(periodAsked('May I see my commission?', NOV_8)).toMatchObject({ words: 'this month' })
+  })
+
+  it('the answer says which period its figure is for', async () => {
+    const commissions = vi.fn(async (when?: { words: string; from: string; to: string }) => ({ ok: true as const, ...read({ from: when!.from, to: when!.to, periodWords: when!.words }) }))
+    const a = await respond('What did I earn in commission last month?', readers({ commissions }), { env: {}, party: 'FIRM', companyKind: 'VENDOR', ownCompany: 'Brightmoor Staffing', permissions: [], now: NOV_8 })
+    expect(commissions.mock.calls[0][0]).toMatchObject({ words: 'last month' })
+    expect(a.kind === 'LIST' && a.says).toMatch(/^For last month \(Oct 1 – Oct 31\) you have earned \$1,240\.00 in commission/)
+  })
+
+  it('a period that has not started is answered before anything is read', async () => {
+    const commissions = vi.fn()
+    const a = await respond('What will I earn in commission next month?', readers({ commissions }), { env: {}, party: 'FIRM', companyKind: 'VENDOR', ownCompany: 'Brightmoor Staffing', permissions: [], now: NOV_8 })
+    expect(a.kind === 'TEXT' && a.says).toMatch(/has not started/)
+    expect(commissions).not.toHaveBeenCalled()
+  })
+
+  it('a row read over several months adds its months up, and a month money could not work out leaves the period not worked out, never a partial sum', () => {
+    const oct = [line({ rowId: 'r1', amountMinor: 40000 }), line({ rowId: 'r2', kind: 'SALES', amountMinor: 10000 })]
+    const nov = [line({ rowId: 'r1', amountMinor: 24000 }), line({ rowId: 'r2', kind: 'SALES', amountMinor: null, blankedBecause: 'The employer has not accepted the week yet.' })]
+    const merged = mergeMonths([oct, nov])
+    expect(merged.find((l) => l.rowId === 'r1')!.amountMinor).toBe(64000)
+    expect(merged.find((l) => l.rowId === 'r2')).toMatchObject({ amountMinor: null, blankedBecause: 'The employer has not accepted the week yet.' })
+  })
+})
+
+describe('a firm is recognized by the record, never by capitals', () => {
+  it('a colleague missing from the reader’s people list is not read as a firm, so her commission gets the commission refusal', async () => {
+    const a = await asAt('What did Ruth Ellis earn in commission?', readers({ commissions: async () => ({ ok: true as const, ...read() }), firmOnRecord: async () => false }))
+    expect(a).toEqual({ kind: 'TEXT', says: 'What other people earn in commission is read by your Owner, Contract Manager or AP & Payroll; ask them. You can ask what you earned.' })
+  })
+
+  it('a firm on Etyme’s record that the reader does not trade with is still another company’s book', async () => {
+    expect(await anotherFirmsMoneyOnRecord('What does Pinnacle Resourcing pay its people?', 'Techpeple', { people: [], firms: [] }, async (n) => n === 'Pinnacle Resourcing')).toBe(true)
+  })
+
+  it('an unknown capitalized name is not a firm by the words alone, but a legal form still is', () => {
+    expect(anotherFirmsMoney('What does Ruth Ellis pay?', 'Techpeple', { people: [], firms: [] })).toBe(false)
+    expect(anotherFirmsMoney('What does Halden Systems Inc pay its people?', 'Techpeple', { people: [], firms: [] })).toBe(true)
+  })
+})

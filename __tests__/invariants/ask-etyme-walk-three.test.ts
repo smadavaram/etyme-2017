@@ -115,7 +115,8 @@ describe('a seated MSP reads its client’s program, not its own book (walk thre
   })
 
   it('a seated MSP asking what another client spends is refused in a sentence, never answered as “you”', async () => {
-    const a = await respond('What is Northbend Athletic spending on contractors?', readers(), {
+    // Northbend Athletic is a company on Etyme's record: a firm by the record, never by its capitals.
+    const a = await respond('What is Northbend Athletic spending on contractors?', readers({ firmOnRecord: async (n: string) => n === 'Northbend Athletic' }), {
       env: {}, companyKind: 'CLIENT', ownKind: 'MSP', party: 'MSP', permissions: ['invoices.read'],
       ownCompany: 'Aptiva Workforce', client: 'Cavanaugh Glassworks',
     })
