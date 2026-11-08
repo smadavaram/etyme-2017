@@ -1,3 +1,4 @@
+import { rate } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
@@ -334,7 +335,7 @@ export async function POST(
         data: {
           companyId: submission.fromCompanyId,
           action: 'PLACEMENT_CONVERTED',
-          summary: `${submission.person.name}'s placement for "${submission.requirement.title}" converted to sell contract at $${(billRate / 100).toFixed(2)}/hr.${buyContract ? ' Buy contract linked.' : ''} ${sellCyclesCreated} cycles generated.`,
+          summary: `${submission.person.name}'s placement for "${submission.requirement.title}" converted to sell contract at ${rate(billRate, currency)}.${buyContract ? ' Buy contract linked.' : ''} ${sellCyclesCreated} cycles generated.`,
           reason: `Submission ${id} placed and converted to contract by ${caller.person.name}`,
           payload: {
             submissionId: id,

@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { compact, totals } from '@/lib/money-display'
 import { refusedBy } from '../own-refusal'
 import { usePageSection } from '@/components/page-section'
 
@@ -73,7 +74,15 @@ interface Order {
 
 interface Payload {
   orders: Order[]
-  overall: Standing
+  /** Counts across every order; a figure is null where the orders are in more than one currency. */
+  overall: Omit<Standing, 'billableCents' | 'awaitingAcceptanceCents' | 'notDeliveredCents' | 'rejectedCents'> & {
+    billableCents: number | null
+    awaitingAcceptanceCents: number | null
+    notDeliveredCents: number | null
+    rejectedCents: number | null
+  }
+  /** The same split per currency, said side by side and never added. */
+  overallByCurrency?: { currency: string; standing: Standing }[]
   unknowns: string[]
 }
 
@@ -186,24 +195,24 @@ export default function MilestonesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <Stat
               label="Ready to bill"
-              value={money(data.overall.billableCents)}
+              value={acrossCurrencies(data, 'billableCents')}
               sub={`${data.overall.billableCount} accepted`}
               tone="verified"
             />
             <Stat
               label="With the client"
-              value={money(data.overall.awaitingAcceptanceCents)}
+              value={acrossCurrencies(data, 'awaitingAcceptanceCents')}
               sub={`${data.overall.awaitingCount} handed over`}
               tone={data.overall.awaitingCount > 0 ? 'attention' : undefined}
             />
             <Stat
               label="Not handed over"
-              value={money(data.overall.notDeliveredCents)}
+              value={acrossCurrencies(data, 'notDeliveredCents')}
               sub={`${data.overall.notDeliveredCount} on us`}
             />
             <Stat
               label="Rejected"
-              value={money(data.overall.rejectedCents)}
+              value={acrossCurrencies(data, 'rejectedCents')}
               sub={`${data.overall.rejectedCount} to redo`}
               tone={data.overall.rejectedCount > 0 ? 'attention' : undefined}
             />
@@ -248,7 +257,7 @@ export default function MilestonesPage() {
                 <p className="text-xs text-etyme-muted mt-0.5">
                   {o.yourRole === 'SELLER' ? `To ${o.client.name}` : `From ${o.seller.name}`} ·{' '}
                   {o.billingBasis.toLowerCase()} basis
-                  {o.ceilingCents != null && ` · ceiling ${money(o.ceilingCents)}`}
+                  {o.ceilingCents != null && ` · ceiling ${money(o.ceilingCents, o.currency)}`}
                 </p>
               </div>
               <span className="chip chip--passive">{o.status}</span>
@@ -272,7 +281,7 @@ export default function MilestonesPage() {
                     <div className="flex-1 min-w-[220px]">
                       <p className="text-sm font-medium text-etyme-ink">{m.name}</p>
                       <p className="text-xs text-etyme-muted mt-0.5">
-                        {money(m.amountCents)}
+                        {money(m.amountCents, o.currency)}
                         {m.dueOn && ` · due ${m.dueOn.slice(0, 10)}`}
                       </p>
                       <p className="text-xs text-etyme-muted mt-1">{m.billable.says}</p>
@@ -379,7 +388,18 @@ function StatusChip({ status }: { status: string }) {
   return <span className={`chip ${map[status] ?? 'chip--passive'}`}>{status.toLowerCase()}</span>
 }
 
-function money(cents: number): string {
-  return `$${Math.round(cents / 100).toLocaleString('en-US')}`
+/** In the order's own currency, with that currency's own decimals. */
+function money(cents: number, currency: string = 'USD'): string {
+  return compact(cents, currency)
+}
+
+type MoneyKey = 'billableCents' | 'awaitingAcceptanceCents' | 'notDeliveredCents' | 'rejectedCents'
+
+/** One figure per currency, side by side ("$12,400 and ₹840,000"), never summed across them. */
+function acrossCurrencies(data: { overallByCurrency?: { currency: string; standing: Standing }[]; overall: { [k in MoneyKey]: number | null } }, key: MoneyKey): string {
+  if (data.overallByCurrency && data.overallByCurrency.length > 0) {
+    return totals(data.overallByCurrency.map((b) => ({ minor: b.standing[key], currency: b.currency })))
+  }
+  return money(data.overall[key] ?? 0)
 }
 

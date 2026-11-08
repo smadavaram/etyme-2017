@@ -23,11 +23,15 @@
  * this decides who hears and what the row says.
  */
 
+import { amount as money } from '@/lib/money-display'
+
 export interface DisputedBill {
   id: string
   number: string
   vendorName: string
   totalCents: number
+  /** The currency the receipt is in; dollars where a caller does not say. */
+  currency?: string
   dueAt: Date | null
   receivedAt: Date
 }
@@ -41,7 +45,8 @@ export interface DisputedBillDecision {
   entityId: string
   dueDate: string | null
   actionUrl: string
-  amount: number
+  /** Whole dollars, as every other row; null in another currency, which the page's dollar total cannot add. */
+  amount: number | null
   createdAt: string
 }
 
@@ -61,7 +66,9 @@ export function disputedBillDecision(
   const blocked = Boolean(notAccepted && notAccepted.trim())
   if (blocked ? !desk.mayAcceptWeeks : !desk.mayRecordPayment) return null
 
-  const amount = `$${(bill.totalCents / 100).toFixed(2)}`
+  const currency = (bill.currency || 'USD').toUpperCase()
+  // In the receipt's own currency, with that currency's own decimals.
+  const amount = money(bill.totalCents, currency)
   return {
     title: blocked
       ? `Invoice receipt ${bill.number} from ${bill.vendorName} waits on a week you have not accepted`
@@ -74,7 +81,7 @@ export function disputedBillDecision(
     entityId: bill.id,
     dueDate: bill.dueAt?.toISOString() ?? null,
     actionUrl: blocked ? '/dashboard/timesheets' : '/dashboard/ap',
-    amount: bill.totalCents / 100,
+    amount: currency === 'USD' ? bill.totalCents / 100 : null,
     createdAt: bill.receivedAt.toISOString(),
   }
 }

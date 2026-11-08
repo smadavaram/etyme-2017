@@ -15,7 +15,7 @@ import { DecideOvertime, type PendingWeek } from './decide-overtime'
 import { weekButton, anywayTitle, withReasonButton } from './act-words'
 import type { WeekAct } from '@/lib/notify/week-words'
 import { statusWords } from './status-words'
-import { listTotals, totalsRowOf, rateColumnLabel } from './totals'
+import { listTotals, totalsRowOf, rateColumnLabel, approvedValueSays, exportMoney } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
@@ -1143,9 +1143,7 @@ export default function TimesheetsPage() {
         <Stat
           label="Approved value"
           tone="verified"
-          value={totals.approvedValueCents == null
-            ? null
-            : `$${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+          value={approvedValueSays(totals)}
           sub={totals.approvedSays}
         />
       </div>
@@ -1209,7 +1207,7 @@ export default function TimesheetsPage() {
               onClick={() => {
                 const rows = filtered.filter((t) => selected.has(t.id))
                 if (rows.length === 0) return
-                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours',rateLabel,'Value','Status']
+                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours',rateLabel,'Value','Currency','Status']
                 const csvRows = rows.map((t) => {
                   const value = centsOf(t)
                   return [
@@ -1219,8 +1217,10 @@ export default function TimesheetsPage() {
                     t.periodStart,
                     t.periodEnd,
                     t.totalHours.toFixed(1),
-                    t.rate.cents == null ? '' : (t.rate.cents / 100).toFixed(2),
-                    value == null ? '' : (value / 100).toFixed(2),
+                    // In the rate's own currency and its own decimals, said in the Currency column.
+                    exportMoney(t.rate.cents, t.rate.currency),
+                    exportMoney(value, t.rate.currency),
+                    t.rate.cents == null && value == null ? '' : (t.rate.currency || 'USD').toUpperCase(),
                     t.status,
                   ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')
                 })

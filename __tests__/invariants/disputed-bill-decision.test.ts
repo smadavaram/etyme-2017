@@ -34,7 +34,7 @@ describe('an invoice receipt blocked by a week the paying firm has not accepted'
   it("says which firm has not accepted whose week, and to accept it first, in money's own sentence", () => {
     const row = disputedBillDecision(bill, helenasWeek, weekDesk)!
     expect(row.subtitle).toBe(
-      '$3120.00 · Computer Systems has not accepted Helena Marsh’s week of September 14. Accept it first, then pay this invoice.'
+      '$3,120.00 · Computer Systems has not accepted Helena Marsh’s week of September 14. Accept it first, then pay this invoice.'
     )
   })
 
@@ -58,7 +58,7 @@ describe('an invoice receipt that did not match for a reason somebody may waive'
   it('still says it is held out of payment runs until somebody says why it should go in', () => {
     const row = disputedBillDecision(bill, null, apClerk)!
     expect(row.title).toBe('Invoice receipt CEPA-0914 from Techpeple does not match')
-    expect(row.subtitle).toBe('$3120.00 · held out of payment runs until somebody says why it should go in')
+    expect(row.subtitle).toBe('$3,120.00 · held out of payment runs until somebody says why it should go in')
     expect(row.actionUrl).toBe('/dashboard/ap')
   })
 

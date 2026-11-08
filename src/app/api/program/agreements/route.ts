@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
           id: true,
           state: true,
           billRate: true,
+          billCurrency: true,
           startDate: true,
           endDate: true,
           engagementId: true,
@@ -145,15 +146,19 @@ export async function GET(request: NextRequest) {
   // business computing a supplier's margin and this is where they would.
   const sellerAgreements = agreements.filter((a) => a.vendorId === companyId)
   const payByPerson = new Map<string, number>()
+  const payCurrencyOf = new Map<string, string>()
 
   if (sellerAgreements.length > 0) {
     const buys = await prisma.buyContract.findMany({
       where: { companyId },
-      select: { candidates: { select: { personId: true, payRate: true } } },
+      select: { candidates: { select: { personId: true, payRate: true, payCurrency: true } } },
       take: 1000,
     })
     for (const b of buys) {
-      for (const c of b.candidates) payByPerson.set(c.personId, c.payRate)
+      for (const c of b.candidates) {
+        payByPerson.set(c.personId, c.payRate)
+        payCurrencyOf.set(c.personId, c.payCurrency)
+      }
     }
   }
 
@@ -194,7 +199,9 @@ export async function GET(request: NextRequest) {
       id: c.id,
       personName: c.person.name,
       billRateCents: c.billRate,
+      billCurrency: c.billCurrency,
       payRateCents: seller && !marginHidden(a, c.person.id) ? paySeen(c.person.id) : null,
+      payCurrency: payCurrencyOf.get(c.person.id) ?? c.billCurrency,
       marginWithheld: seller && marginHidden(a, c.person.id),
       live: workHasStarted(c.state),
     }))
@@ -299,10 +306,14 @@ export async function GET(request: NextRequest) {
           id: c.id,
           person: c.person,
           billRateCents: mayBill(a) ? c.billRate : null,
+          // The currency the bill rate is in, so the screen says it in that currency.
+          billCurrency: c.billCurrency,
           billWithheld: !mayBill(a),
           // Null, never zero. A margin against an unknown cost reads as
           // healthy, and nobody audits good news.
-          marginPct: seller && !hidden ? marginPct(c.billRate, pay) : null,
+          marginPct: seller && !hidden
+            ? marginPct(c.billRate, pay, { bill: c.billCurrency, pay: payCurrencyOf.get(c.person.id) ?? c.billCurrency })
+            : null,
           // Said once per row rather than left as a null to be guessed at:
           // a missing margin and a withheld one are different facts.
           marginWithheld: hidden,

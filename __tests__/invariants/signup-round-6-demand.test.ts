@@ -134,7 +134,8 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
     const page = src('app/dashboard/timesheets/page.tsx')
     expect(page).toMatch(/row\.rate\.withheld \? RATE_WITHHELD_CELL : 'not recorded'/)
     // A null value is drawn by the shared Stat as a dash (shared-primitives).
-    expect(page).toMatch(/totals\.approvedValueCents == null\s*\?\s*null/)
+    // The tile reads one helper, which answers null (a dash) where every rate is withheld.
+    expect(page).toContain('value={approvedValueSays(totals)}')
     expect(RATE_WITHHELD_CELL).toBe('Rate is read by the billing team')
   })
 

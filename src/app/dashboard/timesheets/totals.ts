@@ -17,6 +17,9 @@
  * needs an owner in `lib/domains.ts`; no database, no clock.
  */
 
+import { compact } from '@/lib/money-display'
+import { decimalsFor } from '@/lib/money'
+
 export interface TotalsRow {
   periodStart: string
   totalHours: number
@@ -27,6 +30,8 @@ export interface TotalsRow {
   waitingOnYou: boolean
   /** What the row is worth at this reader's rate; null where it cannot be priced. */
   valueCents: number | null
+  /** The currency the rate, and so the value, is in; dollars where the row does not say. */
+  currency?: string
   /**
    * The rate is on file and withheld from this reader. A withheld figure
    * is not a missing one, and is never added in as zero (round six,
@@ -58,7 +63,7 @@ export function totalsRowOf(t: {
   status: string
   flag: string | null
   mayApprove?: boolean
-  rate: { cents: number | null; withheld?: boolean; buys?: boolean }
+  rate: { cents: number | null; currency?: string | null; withheld?: boolean; buys?: boolean }
   overtime?: { billableCents: number | null } | null
   signature?: { waitingOnYou: boolean; youSigned: boolean } | null
 }): TotalsRow {
@@ -69,6 +74,7 @@ export function totalsRowOf(t: {
     flag: t.flag,
     waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && !!t.mayApprove,
     valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : t.totalHours * t.rate.cents,
+    currency: (t.rate.currency || 'USD').toUpperCase(),
     withheld: t.rate.withheld === true,
     youSigned: t.signature?.youSigned ?? false,
     buys: t.rate.buys === true,
@@ -80,8 +86,15 @@ export interface Totals {
   hoursSays: string
   flagged: number
   flaggedSays: string
-  /** Null where every approved week's rate is withheld from this reader: there is no figure to show, and $0 would be a false one. */
+  /**
+   * Null where every approved week's rate is withheld from this reader:
+   * there is no figure to show, and $0 would be a false one. Null too where
+   * the weeks are in more than one currency, which no single figure can
+   * say; `approvedValue` then says each currency's own.
+   */
   approvedValueCents: number | null
+  /** The approved value per currency, in the order the rows arrived; null where every rate is withheld. Never summed across currencies. */
+  approvedValue: { minor: number; currency: string }[] | null
   approvedSays: string
 }
 
@@ -136,7 +149,13 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
     : signedOnly === valued.length ? 'signed by you'
     : 'approved or signed by you'
   const priced = valued.filter((r) => r.valueCents != null)
-  const approvedValueCents = priced.reduce((s, r) => s + (r.valueCents ?? 0), 0)
+  const byCurrency = new Map<string, number>()
+  for (const r of priced) {
+    const c = r.currency ?? 'USD'
+    byCurrency.set(c, (byCurrency.get(c) ?? 0) + (r.valueCents ?? 0))
+  }
+  const approvedValue = [...byCurrency.entries()].map(([currency, minor]) => ({ minor, currency }))
+  const approvedValueCents = approvedValue.length <= 1 ? (approvedValue[0]?.minor ?? 0) : null
   const withheld = valued.filter((r) => r.valueCents == null && r.withheld === true).length
   const unpriced = valued.length - priced.length - withheld
   const allWithheld = valued.length > 0 && priced.length === 0 && withheld === valued.length
@@ -158,6 +177,7 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
           ? `${flaggedWaiting} waiting on you`
           : 'none waiting on you',
     approvedValueCents: allWithheld ? null : approvedValueCents,
+    approvedValue: allWithheld ? null : approvedValue,
     approvedSays:
       approved.length === 0
         ? 'no approved or signed weeks on this list'
@@ -183,4 +203,34 @@ export function rateColumnLabel(labels: readonly string[]): { label: string; per
   if (words.length === 0) return { label: 'Bill rate', perRow: false }
   if (words.length === 1) return { label: words[0], perRow: false }
   return { label: 'Rate', perRow: true }
+}
+
+/**
+ * The approved value tile, in each currency's own money: "$4,000",
+ * "₹320,000" for rupees, "$4,000 and ₫17,000,000" for two, and
+ * null (the tile's dash) where every rate is withheld. Whole units, as
+ * the tile always rounded.
+ */
+export function approvedValueSays(t: Pick<Totals, 'approvedValue'>): string | null {
+  if (t.approvedValue == null) return null
+  if (t.approvedValue.length === 0) return compact(0, 'USD')
+  const parts = t.approvedValue.map((v) => compact(roundWhole(v.minor, v.currency), v.currency))
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+function roundWhole(minor: number, currency: string): number {
+  const per = 10 ** decimalsFor(currency)
+  return Math.round(minor / per) * per
+}
+
+/**
+ * A money cell in the export: whole units with the currency's own
+ * decimals ("130.00" for dollars, "170000" for dong), never minor units
+ * divided by a hundred. The export carries the currency in its own column.
+ */
+export function exportMoney(minor: number | null, currency: string | null | undefined): string {
+  if (minor == null) return ''
+  const c = (currency || 'USD').toUpperCase()
+  const d = decimalsFor(c)
+  return (minor / 10 ** d).toFixed(d)
 }

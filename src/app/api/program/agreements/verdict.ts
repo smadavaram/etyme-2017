@@ -32,6 +32,7 @@
  */
 
 import { EXPIRING_WINDOW_DAYS, daysUntilExpiry } from '@/lib/agreement-term'
+import { rate } from '@/lib/money-display'
 
 // ── The closed list ───────────────────────────────────────────────────
 
@@ -151,8 +152,12 @@ export interface ContractInput {
   id: string
   personName: string
   billRateCents: number
+  /** The currency the line bills in; dollars where a caller does not say. */
+  billCurrency?: string
   /** What we pay. Null where the buy side is not on file, or where it is withheld. */
   payRateCents: number | null
+  /** The currency the person is paid in; the bill's where a caller does not say. */
+  payCurrency?: string
   /**
    * The margin on this contract is not this reader's. A margin is the
    * price desk's (`margin.read`): reading pay (`consultants.cost`) or the
@@ -216,8 +221,14 @@ export interface AgreementInput {
  * field nobody filled in, and treating it as free labour reports a
  * hundred per cent margin on a placement that may be losing money.
  */
-export function marginPct(billRateCents: number, payRateCents: number | null): number | null {
+export function marginPct(
+  billRateCents: number,
+  payRateCents: number | null,
+  currencies?: { bill: string; pay: string }
+): number | null {
   if (payRateCents == null) return null
+  // Rupees out against dollars in is not a margin: no percentage at all.
+  if (currencies && currencies.bill.toUpperCase() !== currencies.pay.toUpperCase()) return null
   if (billRateCents <= 0) return null
   if (payRateCents <= 0) return null
   return Math.round(((billRateCents - payRateCents) / billRateCents) * 1000) / 10
@@ -247,6 +258,19 @@ export function marginFloorFinding(
     }
   }
 
+  const billCurrency = contract.billCurrency ?? 'USD'
+  const payCurrency = contract.payCurrency ?? billCurrency
+  if (contract.payRateCents != null && billCurrency.toUpperCase() !== payCurrency.toUpperCase()) {
+    return {
+      code: 'MARGIN_UNKNOWN',
+      severity: 'NOTE',
+      says:
+        `${contract.personName} is billed in ${billCurrency.toUpperCase()} and paid in ${payCurrency.toUpperCase()}, ` +
+        `so the ${minMarginPct}% floor cannot be checked without a rate between the two.`,
+      subjectType: 'CONTRACT',
+      subjectId: contract.id,
+    }
+  }
   const pct = marginPct(contract.billRateCents, contract.payRateCents)
 
   if (pct == null) {
@@ -254,7 +278,7 @@ export function marginFloorFinding(
       code: 'MARGIN_UNKNOWN',
       severity: 'NOTE',
       says:
-        `${contract.personName} is billed at ${money(contract.billRateCents)}/hr and nothing ` +
+        `${contract.personName} is billed at ${rate(contract.billRateCents, billCurrency)} and nothing ` +
         `says what we pay, so the ${minMarginPct}% floor cannot be checked.`,
       subjectType: 'CONTRACT',
       subjectId: contract.id,
@@ -268,7 +292,7 @@ export function marginFloorFinding(
     severity: 'WARN',
     says:
       `${contract.personName} runs at ${pct}% against a floor of ${minMarginPct}% — ` +
-      `${money(contract.billRateCents)}/hr in, ${money(contract.payRateCents!)}/hr out.`,
+      `${rate(contract.billRateCents, billCurrency)} in, ${rate(contract.payRateCents!, payCurrency)} out.`,
     subjectType: 'CONTRACT',
     subjectId: contract.id,
   }
@@ -570,6 +594,3 @@ export function marginFloorSays(minMarginPct: number | null): string | null {
   return `Nothing may be priced below ${minMarginPct}% margin without approval.`
 }
 
-function money(cents: number): string {
-  return `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-}

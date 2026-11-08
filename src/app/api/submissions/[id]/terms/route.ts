@@ -64,7 +64,7 @@ async function load(id: string) {
           buyContract: {
             select: {
               id: true, contractType: true, vendorCompanyId: true,
-              candidates: { select: { id: true, personId: true, payRate: true } },
+              candidates: { select: { id: true, personId: true, payRate: true, payCurrency: true } },
               docs: {
                 where: { template: { name: TERMS_PAPER } },
                 orderBy: { id: 'desc' },
@@ -176,7 +176,7 @@ async function answer(l: Loaded, you: 'PERSON' | 'FIRM', permissions: readonly s
           engagementType: type,
           engagementWords: type ? ENGAGEMENT_WORDS[type] : line.contractType,
           payRate: cand.payRate,
-          payRateWords: perHour(cand.payRate),
+          payRateWords: perHour(cand.payRate, cand.payCurrency),
           firmConfirmedAt: paper?.countersignedAt?.toISOString() ?? null,
           personAgreedAt: paper?.signedAt?.toISOString() ?? null,
         }
@@ -301,6 +301,8 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     personName: l.sub.person.name,
     firmName: l.sub.fromCompany.name,
     ownCompany: l.sub.person.consultant?.ownCompany ?? null,
+    // The pay line is written in the line's currency, so the terms say it.
+    currency: sell.billCurrency,
   })
   if (!stated.ok) return refuse(stated.code, stated.says, 422)
 

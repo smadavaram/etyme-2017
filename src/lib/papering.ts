@@ -1,3 +1,4 @@
+import { rate } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -96,11 +97,10 @@ export interface Handoff {
   says: string
 }
 
-/** `$135/hr`, or null where nobody has agreed a rate. */
+/** `$135/hr`, `₫170,000/hr`, or null where nobody has agreed a rate: money's one formatter, the currency's own decimals. */
 function rateWords(cents: number | null, currency: string): string | null {
   if (cents == null || !Number.isFinite(cents) || cents <= 0) return null
-  const symbol = currency === 'USD' ? '$' : `${currency} `
-  return `${symbol}${(cents / 100).toFixed(2).replace(/\.00$/, '')}/hr`
+  return rate(cents, currency || 'USD')
 }
 
 /** A day somebody can read. Deliberately not an ISO string. */

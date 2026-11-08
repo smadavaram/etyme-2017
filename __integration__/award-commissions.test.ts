@@ -29,7 +29,7 @@ const ARDENT_RECRUITER = 'nia@ardent.test'
 const VERTEX = 'owner@vertex.test'
 
 const co = { corning: '', ardent: '', vertex: '' }
-const who = { pm: '', owner: '', nia: '', omar: '', arun: '', maya: '', lena: '', vertexLead: '' }
+const who = { pm: '', owner: '', nia: '', omar: '', priya: '', arun: '', maya: '', lena: '', vertexLead: '' }
 const it_ = { requirement: '', arun: '', lena: '', lastLine: '', award: null as any }
 
 async function company(name: string, slug: string, kind: any, email: string) {
@@ -90,6 +90,10 @@ beforeAll(async () => {
   const omar = await prisma.person.create({ data: { name: 'Omar Haddad', primaryEmail: 'omar@ardent.test' } })
   who.omar = omar.id
   await prisma.context.create({ data: { personId: omar.id, companyId: co.ardent, roleId: am.id, type: 'EMPLOYEE', grantReason: 'account manager' } })
+  // A second account manager, whom Ardent names on the Cavanaugh relationship later in the walk.
+  const priya = await prisma.person.create({ data: { name: 'Priya Nair', primaryEmail: 'priya@ardent.test' } })
+  who.priya = priya.id
+  await prisma.context.create({ data: { personId: priya.id, companyId: co.ardent, roleId: am.id, type: 'EMPLOYEE', grantReason: 'account manager' } })
   const arun = await prisma.person.create({ data: { name: 'Arun Nadar', primaryEmail: 'arun@ardent.test' } })
   who.arun = arun.id
   await prisma.context.create({ data: { personId: arun.id, companyId: co.ardent, roleId: engineer.id, type: 'EMPLOYEE', grantReason: 'Delivery' } })
@@ -252,6 +256,9 @@ describe('the award writes the firm’s default commissions on the two lines', (
 
 describe('a firm that names nobody gets a sentence, never a refused award', () => {
   it('an older submission that names nobody is still awarded, with the sales row written and a sentence saying no recruiting commission was written', async () => {
+    // Ardent names Priya as the account manager on Cavanaugh, so she sells
+    // it, ahead of Omar, who only recorded the client.
+    await prisma.counterparty.updateMany({ where: { companyId: co.ardent, otherCompanyId: co.corning }, data: { accountManagerId: who.priya } })
     const older = await prisma.submission.create({
       data: { requirementId: it_.requirement, personId: who.maya, fromCompanyId: co.ardent, toCompanyId: co.corning, kind: 'INTERNAL', rate: 11_000, status: 'SUBMITTED', submittedAt: new Date('2026-09-20') },
     })
@@ -264,7 +271,14 @@ describe('a firm that names nobody gets a sentence, never a refused award', () =
     expect(r.body.data.commissions.written).toBe(1)
     expect(r.body.data.commissions.notWritten).toEqual(['No recruiting commission was written: nobody is named as having put this person forward.'])
     const sell = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.ardent, personId: who.maya } })
-    expect(await prisma.contractCommission.count({ where: { sellContractId: sell.id, kind: 'SALES', earnedById: who.omar } })).toBe(1)
+    expect(await prisma.contractCommission.count({ where: { sellContractId: sell.id, kind: 'SALES', earnedById: who.priya } })).toBe(1)
+  })
+
+  it('the account manager named on the client relationship earns the sales commission, ahead of whoever recorded the client', async () => {
+    const sell = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.ardent, personId: who.maya } })
+    const [row] = await prisma.contractCommission.findMany({ where: { sellContractId: sell.id, kind: 'SALES' } })
+    expect(row.earnedById).toBe(who.priya)
+    expect(row.earnedById).not.toBe(who.omar)
   })
 
   it('with no account manager on the relationship and the job owned at the client, no sales commission is written and the award says nobody sold it', async () => {

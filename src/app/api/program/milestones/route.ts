@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       /** Which side of this order the reader is on. */
       yourRole: companyId === o.issuedToId ? 'SELLER' : 'CLIENT',
       may: { deliver: canDeliver, decide: canDecide },
-      standing: standing(milestones, now),
+      standing: standing(milestones, now, o.currency),
       milestones: o.milestones.map((m, i) => {
         const pure = milestones[i]
         const rejected = decodeRejection(m.note)
@@ -164,6 +164,7 @@ export async function GET(request: NextRequest) {
 
   const everyMilestone = rows.flatMap((r) =>
     r.milestones.map((m) => ({
+      currency: r.currency,
       id: m.id,
       name: m.name,
       amountCents: m.amountCents,
@@ -179,7 +180,13 @@ export async function GET(request: NextRequest) {
       orders: rows,
       // The same split across everything, because a delivery manager
       // running six orders wants one answer to "what is stuck".
-      overall: standing(everyMilestone, now),
+      overall: overallStanding(everyMilestone, now),
+      // The same split per currency, never one figure over two currencies:
+      // rupees and dollars are said side by side, not added.
+      overallByCurrency: [...new Set(everyMilestone.map((m) => m.currency))].map((currency) => ({
+        currency,
+        standing: standing(everyMilestone.filter((m) => m.currency === currency), now, currency),
+      })),
       // Said out loud rather than left as a suspiciously empty column.
       unknowns:
         everyMilestone.length > 0
@@ -286,4 +293,25 @@ export async function POST(request: NextRequest) {
 
 function bad(message: string, field: string | null) {
   return NextResponse.json({ error: { code: 'VALIDATION', message, field } }, { status: 400 })
+}
+
+/**
+ * Across every order: the counts and the sentence. Where the orders are
+ * in one currency it is that currency's standing; where they are in
+ * several, each figure is null and the sentence is each currency's own,
+ * because a total over two currencies is a number nobody can stand behind.
+ */
+function overallStanding(ms: (Milestone & { currency: string })[], now: Date) {
+  const currencies = [...new Set(ms.map((m) => m.currency))]
+  if (currencies.length <= 1) return { ...standing(ms, now, currencies[0] ?? 'USD'), currency: currencies[0] ?? null }
+  const each = currencies.map((c) => standing(ms.filter((m) => m.currency === c), now, c))
+  const sum = (k: 'awaitingCount' | 'notDeliveredCount' | 'billableCount' | 'rejectedCount') => each.reduce((n, s) => n + s[k], 0)
+  return {
+    awaitingAcceptanceCents: null, notDeliveredCents: null, billableCents: null, rejectedCents: null,
+    awaitingCount: sum('awaitingCount'), notDeliveredCount: sum('notDeliveredCount'),
+    billableCount: sum('billableCount'), rejectedCount: sum('rejectedCount'),
+    averageWaitDays: standing(ms, now).averageWaitDays,
+    says: each.map((s) => s.says).filter((x) => x !== 'Nothing outstanding on this order.').join(' ') || 'Nothing outstanding on this order.',
+    currency: null,
+  }
 }

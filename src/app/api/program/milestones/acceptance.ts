@@ -33,6 +33,8 @@
  * The columns needed are named at the bottom of this file.
  */
 
+import { compact } from '@/lib/money-display'
+
 // ── Where a milestone can be ──────────────────────────────────────────
 
 /**
@@ -328,7 +330,7 @@ export interface Standing {
  * waiting on us. They look identical on a milestone report — both are
  * unbilled — and they are completely different problems.
  */
-export function standing(milestones: Milestone[], now: Date): Standing {
+export function standing(milestones: Milestone[], now: Date, currency: string = 'USD'): Standing {
   let awaiting = 0, awaitingCount = 0
   let notDelivered = 0, notDeliveredCount = 0
   let billable = 0, billableCount = 0
@@ -376,7 +378,7 @@ export function standing(milestones: Milestone[], now: Date): Standing {
     rejectedCents: rejected,
     rejectedCount,
     averageWaitDays,
-    says: standingSays(awaiting, awaitingCount, notDelivered, notDeliveredCount, billable, averageWaitDays),
+    says: standingSays(awaiting, awaitingCount, notDelivered, notDeliveredCount, billable, averageWaitDays, currency),
   }
 }
 
@@ -386,9 +388,11 @@ function standingSays(
   notDelivered: number,
   notDeliveredCount: number,
   billable: number,
-  averageWaitDays: number | null
+  averageWaitDays: number | null,
+  currency: string
 ): string {
-  const m = (c: number) => `$${Math.round(c / 100).toLocaleString('en-US')}`
+  // In the order's own currency, with that currency's own decimals.
+  const m = (c: number) => compact(c, currency)
   const parts: string[] = []
 
   if (billable > 0) parts.push(`${m(billable)} accepted and ready to bill.`)

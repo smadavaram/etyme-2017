@@ -540,7 +540,7 @@ export async function GET(request: NextRequest) {
       const row = disputedBillDecision(
         {
           id: b.id, number: b.number, vendorName: b.vendorCompany.name,
-          totalCents: b.totalCents, dueAt: b.dueAt, receivedAt: b.receivedAt,
+          totalCents: b.totalCents, currency: b.currency, dueAt: b.dueAt, receivedAt: b.receivedAt,
         },
         book && book.waiting.length > 0 ? book.notAccepted : null,
         billDesk

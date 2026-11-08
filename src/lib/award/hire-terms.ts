@@ -42,6 +42,8 @@
  * No database in this file. The route reads, this decides.
  */
 
+import { rate } from '@/lib/money-display'
+
 /** The name of the paper both sides sign. One per firm, found or made. */
 export const TERMS_PAPER = 'Terms of engagement'
 
@@ -62,11 +64,15 @@ export const ENGAGEMENT_WORDS: Record<EngagementType, string> = {
   OTHER_EMPLOYER: 'Employed by another firm',
 }
 
-/** Minor units to "$90/hr". Never prints a zero as a price. */
-export function perHour(cents: number | null | undefined): string | null {
+/**
+ * Minor units to "$90/hr", "₫170,000/hr", in the rate's own currency and
+ * through money's one formatter, so a dong rate reads whole dong and a
+ * dollar rate keeps its cents. Dollars where a caller names no currency.
+ * Never prints a zero as a price.
+ */
+export function perHour(cents: number | null | undefined, currency: string = 'USD'): string | null {
   if (cents == null || !Number.isFinite(cents) || cents <= 0) return null
-  const dollars = cents / 100
-  return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)}/hr`
+  return rate(cents, currency || 'USD')
 }
 
 // ── The firm states the terms ─────────────────────────────────────────
@@ -78,6 +84,8 @@ export interface StatedTerms {
   firmName: string
   /** The person's own company, where they have one on record. */
   ownCompany: { id: string; name: string } | null
+  /** The currency the rate is in; dollars where a caller does not say. */
+  currency?: string
 }
 
 export type StatedVerdict =
@@ -156,8 +164,8 @@ export function checkStatedTerms(t: StatedTerms): StatedVerdict {
       contractType: 'C2C',
       vendorCompanyId: t.ownCompany.id,
       payRateCents: rate,
-      says: `${t.firmName} offers ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate)}.`,
-      agreedSays: `${t.firmName} pays ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate)}.`,
+      says: `${t.firmName} offers ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate, t.currency)}.`,
+      agreedSays: `${t.firmName} pays ${t.ownCompany.name}, ${t.personName}'s own company, ${perHour(rate, t.currency)}.`,
     }
   }
   return {
@@ -168,12 +176,12 @@ export function checkStatedTerms(t: StatedTerms): StatedVerdict {
     payRateCents: rate,
     says:
       type === 'W2'
-        ? `${t.firmName} offers ${t.personName} ${perHour(rate)} as its employee.`
-        : `${t.firmName} offers ${t.personName} ${perHour(rate)} as an independent contractor.`,
+        ? `${t.firmName} offers ${t.personName} ${perHour(rate, t.currency)} as its employee.`
+        : `${t.firmName} offers ${t.personName} ${perHour(rate, t.currency)} as an independent contractor.`,
     agreedSays:
       type === 'W2'
-        ? `${t.firmName} employs ${t.personName} at ${perHour(rate)}.`
-        : `${t.firmName} pays ${t.personName} ${perHour(rate)} as an independent contractor.`,
+        ? `${t.firmName} employs ${t.personName} at ${perHour(rate, t.currency)}.`
+        : `${t.firmName} pays ${t.personName} ${perHour(rate, t.currency)} as an independent contractor.`,
   }
 }
 
@@ -213,6 +221,8 @@ export interface ListingTermsFacts {
   personName: string
   firmName: string
   ownCompany: { id: string; name: string } | null
+  /** The currency the listing's rate is in; dollars where a caller does not say. */
+  currency?: string
 }
 
 export type ListingTerms =
@@ -242,6 +252,7 @@ export function listingTerms(f: ListingTermsFacts): ListingTerms {
     personName: f.personName,
     firmName: f.firmName,
     ownCompany: f.ownCompany,
+    currency: f.currency,
   })
   if (!checked.ok) return { state: 'FIRM', says: `The terms on ${f.firmName}’s bench listing cannot be used. ${checked.says}` }
   if (!f.statedAt) {

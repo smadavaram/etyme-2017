@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import Link from 'next/link'
+import { rate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { PageHead, Stat, FilterChips, RefusedState } from '@/components/ui'
 import { readJson, statusMeans } from '@/lib/read-response'
@@ -85,6 +86,8 @@ interface ContractRow {
   id: string
   person: { id: string; name: string }
   billRateCents: number
+  /** The currency the line bills in. */
+  billCurrency?: string
   marginPct: number | null
   state: string
   live: boolean
@@ -598,7 +601,7 @@ function Detail({
                 <tr key={c.id} className="border-t border-etyme-rule">
                   <td className="py-2">{c.person.name}</td>
                   <td className="py-2 text-right tabular-nums">
-                    ${(c.billRateCents / 100).toFixed(2)}/hr
+                    {rate(c.billRateCents, c.billCurrency ?? 'USD')}
                   </td>
                   <td className="py-2 text-right tabular-nums">
                     {c.marginPct == null ? (
