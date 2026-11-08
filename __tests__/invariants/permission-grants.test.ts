@@ -42,8 +42,9 @@ const UNITS = [
 /** Pretend, for one test, that a reader narrows margin by team. */
 function withNarrowed<T>(p: string, run: () => T): T {
   const set = NARROWED_AT_THE_QUERY as Set<string>
+  const had = set.has(p)
   set.add(p)
-  try { return run() } finally { set.delete(p) }
+  try { return run() } finally { if (!had) set.delete(p) }
 }
 
 const ask = (over: Partial<GrantAsk> = {}): GrantAsk => ({
@@ -102,9 +103,20 @@ describe('what a seat holds: its role and the grants that reach it', () => {
   })
 
   it('a team grant does not open the door until that permission’s reader narrows its query, so it can never widen to the whole firm', () => {
+    // What each person costs is read by no reader that narrows by team yet.
+    const team = grant({ permission: 'consultants.cost', contextId: 'ctx-dana', scope: 'UNIT', orgUnitId: 'u-dayton' })
+    expect(effectivePermissions(RECRUITER, recruiterSeat, [team])).not.toContain('consultants.cost')
+    expect(scopeFrom({ rolePermissions: RECRUITER, seat: recruiterSeat, grants: [team], units: UNITS }, 'consultants.cost').has).toBe(false)
+  })
+
+  it('margin and profit and loss are read by team, because Profitability, its cuts and the postings narrow at the query', () => {
+    expect(NARROWED_AT_THE_QUERY.has('margin.read')).toBe(true)
+    expect(NARROWED_AT_THE_QUERY.has('pnl.read')).toBe(true)
+    // Cash flow's payroll reads the whole firm only.
+    expect(NARROWED_AT_THE_QUERY.has('payroll.read')).toBe(false)
     const team = grant({ contextId: 'ctx-dana', scope: 'UNIT', orgUnitId: 'u-dayton' })
-    expect(effectivePermissions(RECRUITER, recruiterSeat, [team])).not.toContain('margin.read')
-    expect(scopeFrom({ rolePermissions: RECRUITER, seat: recruiterSeat, grants: [team], units: UNITS }, 'margin.read').has).toBe(false)
+    expect(effectivePermissions(RECRUITER, recruiterSeat, [team])).toContain('margin.read')
+    expect(scopeFrom({ rolePermissions: RECRUITER, seat: recruiterSeat, grants: [team], units: UNITS }, 'margin.read').scope).toBe('UNIT')
   })
 })
 
@@ -242,12 +254,10 @@ describe('giving access', () => {
   })
 
   it('a team grant is refused until the page behind that permission reads by team, rather than opening the whole company’s', () => {
-    const v = checkGrant(ask({ scope: 'UNIT', orgUnitId: 'u-dayton', unitAtCompany: true }))
+    const v = checkGrant(ask({ permission: 'consultants.cost', scope: 'UNIT', orgUnitId: 'u-dayton', unitAtCompany: true }))
     expect(v).toMatchObject({ ok: false, field: 'scope' })
     if (!v.ok) expect(v.says).toContain('whole company')
-    withNarrowed('margin.read', () => {
-      expect(checkGrant(ask({ scope: 'UNIT', orgUnitId: 'u-dayton', unitAtCompany: true }))).toEqual({ ok: true })
-    })
+    expect(checkGrant(ask({ scope: 'UNIT', orgUnitId: 'u-dayton', unitAtCompany: true }))).toEqual({ ok: true })
   })
 
   it('somebody who holds a permission for one team only can give it for that team or less, never the whole company', () => {

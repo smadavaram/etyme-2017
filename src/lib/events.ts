@@ -89,6 +89,9 @@ export const EVENT_TYPES = [
   'invoice.paid',
   'purchase_order.raised',
   'purchase_order.closed',
+  // A commission set or changed on a line (2026-11-08): the new terms and
+  // the previous ones, so an edit keeps what it replaced on the trail.
+  'commission.set',
 
   // Governance. The rules themselves change, and a control that can be
   // changed without trace is not a control.

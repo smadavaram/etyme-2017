@@ -27,6 +27,7 @@ import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin
 import { chainBelow } from './chain'
 import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
+import { doorsForReader } from './paper-doors-for-reader'
 
 /**
  * GET /api/placements/:id
@@ -882,7 +883,31 @@ export async function GET(
     contractId: placement.id,
     caller: { companyId: mine, permissions: caller.permissions },
     items: checklist.items.map((it) => ({ key: it.key, label: it.label, state: it.state, owedBy: it.owedByRole ?? null })),
-  }).catch(() => ({}))
+  })
+    .then(async (doors) => {
+      if (isSupplier) return doors
+      // A reader above the supplier never reads a firm below it in a door
+      // (release pass 41: "Techpeple orders Drug screening" reached
+      // Northbend). Every firm on the person's lines other than the
+      // supplier it pays and itself is below, unless its agreement with
+      // the prime names the sub (`shown`, the payload's one rule).
+      // An end client opening a leg below the one it pays reads even this
+      // line's seller withheld, so there it is every masked firm.
+      const others = await prisma.sellContract.findMany({
+        where: {
+          personId: placement.personId,
+          companyId: { notIn: [...(readsFromBelow ? [] : [placement.companyId]), ...(mine ? [mine] : [])] },
+        },
+        select: { companyId: true, company: { select: { name: true } } },
+        distinct: ['companyId'],
+      })
+      const hidden = others
+        .filter((o) => readsFromBelow ? shown(o.companyId, o.company.name).masked : true)
+        .map((o) => ({ id: o.companyId, name: o.company.name }))
+      const seller = shown(placement.companyId, placement.company.name)
+      return doorsForReader(doors, hidden, seller.masked ? seller.phrase : `${seller.phrase}’s supplier`)
+    })
+    .catch(() => ({}))
 
   // The firm below us, read the same way we read the firm above. Null
   // where we employ the person ourselves, which is a fact rather than a

@@ -16,8 +16,8 @@ import { GRANT_LABELS, GRANT_RIGHT_LABEL } from './words'
  * the yes-or-no answer until the reader behind that permission narrows its
  * query to the team: otherwise "margin for the Dayton team" would open the
  * firm's whole Profitability page. `NARROWED_AT_THE_QUERY` names the
- * permissions whose readers do narrow; it is empty today, and a team or
- * own-work grant of anything else is refused in a sentence rather than
+ * permissions whose readers do narrow (margin and profit and loss, since
+ * 0313aad3a), and a team or own-work grant of anything else is refused in a sentence rather than
  * stored and silently widened. A domain whose reader starts calling
  * `permissionScope` asks the architect to add its permission here, in the
  * same commit.
@@ -33,7 +33,11 @@ export const GRANT_SCOPES: readonly GrantScope[] = ['COMPANY', 'UNIT', 'PERSON']
 export const PERSON_ONLY: readonly Permission[] = ['pnl.read', 'payroll.read', 'payroll.run', 'payroll.approve']
 
 /** Permissions whose readers narrow at the query by a grant's scope. */
-export const NARROWED_AT_THE_QUERY: ReadonlySet<string> = new Set<string>([])
+// margin.read and pnl.read: Profitability, its cuts and the postings narrow
+// at the query through money's lib/money/margin-reach (0313aad3a). Cash
+// flow's payroll reads the whole firm only and asks payroll.read, which is
+// not here.
+export const NARROWED_AT_THE_QUERY: ReadonlySet<string> = new Set<string>(['margin.read', 'pnl.read'])
 
 /** Held by construction, and never named in a held-apart refusal (lib/permissions). */
 const HOLDS_EVERYTHING = new Set(['Owner', 'Admin'])

@@ -160,7 +160,11 @@ describe('a skipped setup step refuses only the money act that needs it', () => 
       const page = await json(await readInvoice(req('GET', `/api/invoices/${s.receipt}`), withId(s.receipt)))
       expect(page.status, JSON.stringify(page.body)).toBe(200)
       expect(page.body.data.payPanel.kind).toBe('HELD')
-      expect(page.body.data.payPanel.says).toBe(says)
+      // The page speaks to the person reading it, in money's who-checks
+      // sentence (lib/money/bank-check, 6a3ec1898); the refusals below name
+      // the setup step and who checks there.
+      expect(page.body.data.payPanel.says).toMatch(/^Bank details not checked\./)
+      expect(says).toContain('Setup → Bank details')
 
       // The payment route refuses in the gate's sentence, and nothing is paid.
       const before = await prisma.payment.count({ where: { invoiceId: s.receipt } })
@@ -179,7 +183,12 @@ describe('a skipped setup step refuses only the money act that needs it', () => 
       expect(await prisma.payment.count({ where: { invoiceId: s.receipt } })).toBe(before)
 
       // And the twin is not asked to put it up for a yes.
-      expect(await mayPayInvoiceReceipt(s.receipt)).toMatchObject({ ok: false, code: 'BANK_NOT_CHECKED', says })
+      // In money's who-checks sentence for a receipt (lib/money/payee-bank),
+      // which names the same people the gate names.
+      const twin = await mayPayInvoiceReceipt(s.receipt)
+      expect(twin).toMatchObject({ ok: false, code: 'BANK_NOT_CHECKED' })
+      const who = await bankCheckerNamesAt(s.payer)
+      if (who && who.by !== 'NOBODY') expect((twin as { says: string }).says).toContain(who.names)
     })
     expect(await mayPayFirm(s.payer, s.payee)).toEqual({ ok: true })
     expect(await mayPayInvoiceReceipt(s.receipt)).toMatchObject({ ok: true })
