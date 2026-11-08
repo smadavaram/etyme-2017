@@ -308,6 +308,9 @@ export async function POST(
         contractType: submission.contractType,
         status: 'SUBMITTED',
         parentSubmissionId: submission.id,
+        // The seat that sent the person on: the hop is this firm's own
+        // put-forward, and its recruiter is who earns its commission.
+        submittedById: caller.person.id,
       },
       select: { id: true },
     })

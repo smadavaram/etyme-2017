@@ -307,6 +307,8 @@ export async function POST(
       status: 'SUBMITTED',
       submittedAt: now,
       checkState: 'DRAFT',
+      // The seat that answered the job with this CV put the person forward.
+      submittedById: caller.person.id,
     },
     select: { id: true },
   })

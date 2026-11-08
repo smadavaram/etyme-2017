@@ -1148,6 +1148,11 @@ export async function POST(request: NextRequest) {
             status: 'SUBMITTED',
             resumeId: cv?.id ?? null,
             parentSubmissionId,
+            // The seat that put the person forward (2026-11-08): the
+            // recruiter a recruiting commission is earned by at the award.
+            // The twin's put-forward performs through this route as the
+            // person who said yes, so it is named here too.
+            submittedById: (caller.isService ? null : caller.person.id) ?? submitter?.id ?? null,
           },
         })
       })
