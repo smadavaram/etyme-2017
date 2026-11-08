@@ -82,6 +82,24 @@ export interface RequisitionFacts {
    */
   currency?: string | null
   /**
+   * The currency the approval limits and the cost center's budget are
+   * written in: the company's own. Unstated reads as the job's currency,
+   * which is every job today, so nothing is converted.
+   */
+  limitCurrency?: string | null
+  /**
+   * A job's value in the limit's currency, at the company's own rate: the
+   * caller builds it from money's own conversion over the company's own
+   * rates, never the shipped sample, because a limit is not checked at a
+   * rate nobody at the company set:
+   *   (minor, from, to) => spendInReporting([{ currency: from, minor }], to, ownRates, on).total
+   * read back to minor units, null where the total is null (no rate set). Passed in rather than imported so this
+   * file stays free of the database and can be read by a screen. Where the
+   * two currencies differ and there is no converter, or it returns null,
+   * the job is not cleared by rule; a person decides.
+   */
+  convert?: ((minor: number, from: string, to: string) => number | null) | null
+  /**
    * Where that figure came from, and how it reads in a sentence.
    *
    * Carried so a routed requisition can say which number routed it.
@@ -189,6 +207,23 @@ function wholeAmount(minor: number, currency: string): string {
   return compact(Math.round(minor / per) * per, currency)
 }
 
+/**
+ * A job's value in the currency its limits are written in: itself where the
+ * two are one currency; the caller's conversion at the company's own rate
+ * where they are not; null where there is no rate between them. Pure.
+ */
+export function valueIn(
+  minor: number,
+  from: string,
+  to: string,
+  convert: ((minor: number, from: string, to: string) => number | null) | null,
+): number | null {
+  const f = from.toUpperCase(), t = to.toUpperCase()
+  if (f === t) return minor
+  const v = convert ? convert(minor, f, t) : null
+  return v == null || !Number.isFinite(v) ? null : Math.round(v)
+}
+
 /** "$130/hr", "₫170,000/hr": a rate in whole units of its own currency. */
 function wholeRate(minor: number, currency: string | null | undefined): string {
   const ccy = currency ?? 'USD'
@@ -209,6 +244,15 @@ export function evaluateRequisition(
   rules: ApprovalRuleFacts[]
 ): RequisitionDecision {
   const checks: RequisitionCheck[] = []
+
+  // ── The value, in the currency the limits are written in ──
+  // Never compared as raw numbers across two currencies: converted once at
+  // the company's own rate, or, with no rate set, left for a person.
+  const jobCcy = (facts.currency ?? 'USD').toUpperCase()
+  const limitCcy = (facts.limitCurrency ?? jobCcy).toUpperCase()
+  const valueInLimit = valueIn(facts.annualValueCents, jobCcy, limitCcy, facts.convert ?? null)
+  const noRateFor = (what: string) =>
+    `Its value is in ${jobCcy} and ${what} is in ${limitCcy}, and no rate between them is set, so a person decides`
 
   // ── A cost center must be named ──
   // Not legally grounded, but a requisition with no budget behind it cannot
@@ -265,15 +309,22 @@ export function evaluateRequisition(
         stage: 'FINAL',
         reason: `No budget on file for ${cc.code}`,
       })
+    } else if (valueInLimit === null) {
+      checks.push({
+        code: 'BUDGET',
+        outcome: 'ROUTE',
+        stage: 'FINAL',
+        reason: noRateFor(`${cc.code}’s budget`),
+      })
     } else {
-      const after = cc.committedSpendCents + facts.annualValueCents
+      const after = cc.committedSpendCents + valueInLimit
       if (after > cc.annualBudgetCents) {
         const over = after - cc.annualBudgetCents
         checks.push({
           code: 'BUDGET',
           outcome: 'ROUTE',
           stage: 'FINAL',
-          reason: `Exceeds ${cc.code} budget by ${dollars(over, facts.currency)}`,
+          reason: `Exceeds ${cc.code} budget by ${dollars(over, limitCcy)}`,
         })
       } else {
         const left = cc.annualBudgetCents - after
@@ -281,7 +332,7 @@ export function evaluateRequisition(
           code: 'BUDGET',
           outcome: 'PASS',
           stage: 'FINAL',
-          reason: `${dollars(left, facts.currency)} left in ${cc.code}`,
+          reason: `${dollars(left, limitCcy)} left in ${cc.code}`,
         })
       }
     }
@@ -326,9 +377,12 @@ export function evaluateRequisition(
   // routed — a large requisition is seen by a human even when every fact
   // is inside plan.
   const moneyRules = rules.filter((r) => (r.kind ?? 'VALUE') === 'VALUE')
-  const byThreshold = moneyRules.filter(
-    (r) => r.thresholdCents !== null && facts.annualValueCents > r.thresholdCents
-  )
+  // With no rate between the job's currency and the limit's, the value
+  // cannot be put beside any limit, so every limit's approver decides.
+  const byThreshold = valueInLimit === null
+    ? moneyRules.filter((r) => r.thresholdCents !== null)
+    : moneyRules.filter((r) => r.thresholdCents !== null && valueInLimit > r.thresholdCents)
+  const limitUnread = valueInLimit === null && byThreshold.length > 0
 
   // Say which number did it, which limit, and who signs — in two short
   // sentences. It read "Sent for a sign-off because about $180,000,
@@ -336,7 +390,9 @@ export function evaluateRequisition(
   // limit — state a budget and…" on one line (tester, 2026-10-03), and
   // never named the limit or the person. How the estimate was made stays
   // on the passing check and the requisition; the reason says the result.
-  if (byThreshold.length > 0 && facts.valueSays) {
+  if (limitUnread) {
+    checks.push({ code: 'VALUE', outcome: 'ROUTE', stage: 'FINAL', reason: noRateFor('the limit') })
+  } else if (byThreshold.length > 0 && facts.valueSays) {
     checks.push({
       code: 'VALUE',
       outcome: 'ROUTE',
@@ -346,6 +402,7 @@ export function evaluateRequisition(
         estimated: facts.valueBasis === 'ESTIMATE',
         rules: byThreshold,
         notAsked: [facts.raisedById, facts.ownerId],
+        currency: limitCcy,
       }),
     })
   } else if (facts.valueSays) {
