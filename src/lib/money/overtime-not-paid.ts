@@ -39,6 +39,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { totals as sayTotals } from '@/lib/money-display'
 import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
@@ -129,7 +130,7 @@ export function overtimeNotPaid(sheets: ReadonlyArray<UnpaidPremiumSheet>): Over
 // ── The read ──────────────────────────────────────────────────────────
 
 /** Bills that were sent and stand. A draft was sent to nobody. */
-const SENT = { notIn: ['DRAFT', 'CANCELLED', 'VOID'] }
+const SENT = { notIn: [...DRAWS_NOTHING] }
 
 /**
  * What this firm billed as overtime premium on the weeks of workers it

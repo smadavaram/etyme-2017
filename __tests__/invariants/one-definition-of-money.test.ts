@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ledgerOf, billCountsAsBilled } from '@/lib/money/order-ledger'
 import { lineBillingFrom, ageInWeeks, ageBand, rollUp, type LineIn, type WeekPrice } from '@/lib/money/signed-unbilled'
-import { offersSend, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
+import { offersSend, offersSubmit, notYoursToSendSays, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
 
 /**
  * One definition of money (the founder's scale audit, 2026-11-08).
@@ -266,7 +266,7 @@ describe('a bill sent once cannot be sent again, and the page says so without a 
 
   it('the bill’s page draws Send only where it may be sent, holds it while the route answers, and applies the reply', () => {
     const src = read('src/app/dashboard/invoices/[id]/page.tsx')
-    expect(src).toMatch(/offersSend\(inv\.status\)/)
+    expect(src).toMatch(/offersSubmit\(\{/)
     expect(src).toMatch(/disabled=\{sending\}/)
     expect(src).toMatch(/sentInPlace\(prev\.invoice/)
   })
@@ -283,5 +283,64 @@ describe('one due day on every money screen', () => {
       expect(src).not.toMatch(/\.toLocaleDateString\(/)
       expect(src).toMatch(/formatDay\(/)
     }
+  })
+})
+
+describe('a bill raised and not sent is owed by nobody, and only its sender is offered Send (walk 9)', () => {
+  const sendsBills = ['invoices.issue']
+
+  it('Submit for payment is drawn only for a seat at the firm that raised the bill, that sends bills, on a bill not yet sent', () => {
+    expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: sendsBills })).toBe(true)
+    expect(offersSubmit({ status: 'ISSUED', direction: 'PAYABLE', permissions: ['*'] })).toBe(false)
+    expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: ['invoices.read'] })).toBe(false)
+    expect(offersSubmit({ status: 'SUBMITTED', direction: 'RECEIVABLE', permissions: sendsBills })).toBe(false)
+    expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: sendsBills, readingInASeat: true })).toBe(false)
+    expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: null })).toBe(false)
+  })
+
+  it('a seat at the paying firm is told the supplier sends the bill, never a role at its own firm', () => {
+    const parties = { vendor: { id: 'bm', name: 'Brightmoor Staffing' }, client: { id: 'nb', name: 'Northbend Athletic' } }
+    expect(notYoursToSendSays(parties, 'bm')).toBeNull()
+    const says = notYoursToSendSays(parties, 'nb')!
+    expect(says).toContain('Brightmoor Staffing sends this bill')
+    expect(says).not.toMatch(/Owner|manages roles/)
+    expect(notYoursToSendSays({ vendor: null, client: null }, 'nb')).toBeNull()
+  })
+
+  it('the bill’s page draws both Send and Submit for payment through the one rule', () => {
+    const src = read('src/app/dashboard/invoices/[id]/page.tsx')
+    expect(src.match(/offersSubmit\(\{/g)?.length).toBe(2)
+    expect(src).not.toMatch(/m\.matched && inv\.status === 'ISSUED' && \(/)
+  })
+
+  it('every owed, due, paid and billed figure in money’s files hides a raised bill as well as a draft, through the one list', () => {
+    const files = [
+      // The figures. The guards against paying a week twice (a typed-in
+      // receipt for hours already on a bill, raised or sent) and the acts on
+      // a document (applying cash, a credit note) keep counting a raised
+      // bill, because it may be sent the next minute.
+      'src/app/api/invoices/route.ts', 'src/app/api/ap/route.ts', 'src/lib/money/margin.ts', 'src/lib/money/what-we-owe.ts',
+      'src/lib/money/overtime-not-paid.ts', 'src/lib/money/commission-accrual.ts', 'src/lib/money/supplier-invoices.ts',
+    ]
+    for (const f of files) {
+      const src = read(f)
+      expect(src, f).not.toMatch(/\[('(DRAFT|CANCELLED|VOID)',? ?){3}\]/)
+      expect(src, f).toMatch(/DRAWS_NOTHING/)
+    }
+    expect(read('src/app/api/invoices/route.ts')).toMatch(/BILL_NOT_SENT\.includes\(row\.status\) && row\.direction !== 'RECEIVABLE'/)
+    expect(read('src/app/api/invoices/[id]/route.ts')).toMatch(/BILL_NOT_SENT\.includes\(invoice\.status\) && readAs !== 'RECEIVABLE'/)
+  })
+
+  it('an accepted expense not billed yet ages with the weeks, so the bands add up to the whole', () => {
+    const today = new Date('2026-11-09T12:00:00Z')
+    const b = lineBillingFrom({
+      sellContractId: 'l', personId: 'p', personName: 'Rosa Delgado', currency: 'USD',
+      sheets: [{ timesheetId: 't1', periodStart: new Date('2026-10-04T00:00:00Z'), signedHours: 40 }],
+      billLines: [],
+      plannedExpenses: [{ expenseId: 'e1', amountMinor: 57_600, periodEnd: new Date('2026-06-30T00:00:00Z') }],
+    }, today, () => ({ amountMinor: 448_000, billedHours: 40, unpriced: null, says: null }))
+    expect(b.notBilled.amountMinor).toBe(448_000 + 57_600)
+    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
+    expect(b.notBilled.aging.find((a) => a.band === 'Over 13 weeks')!.expenseMinor).toBe(57_600)
   })
 })

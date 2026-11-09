@@ -115,7 +115,9 @@ export interface LineIn {
   /** Invoice lines on this sell line, hours and expenses. */
   billLines: BillLineIn[]
   /** Accepted billable expenses the next bill would carry, at their amount: the generator's plan. */
-  plannedExpenses?: { expenseId: string; amountMinor: number }[]
+  plannedExpenses?: { expenseId: string; amountMinor: number; periodEnd?: Date | null }[]
+  /** The day each of this line's expenses ends, so an unbilled one ages with the weeks. */
+  expenseEnds?: Map<string, Date>
 }
 
 // ── Output ───────────────────────────────────────────────────────────
@@ -165,7 +167,7 @@ export interface LineBilling {
     /** Of the not-billed hours, those a draft holds. */
     onDraftHours: number
     weeks: UnbilledWeek[]
-    aging: { band: AgeBand; weeks: number; hours: number; amountMinor: number }[]
+    aging: { band: AgeBand; weeks: number; hours: number; amountMinor: number; expenseMinor: number }[]
   }
   says: string | null
 }
@@ -238,20 +240,29 @@ export function lineBillingFrom(line: LineIn, today: Date, priceOf: (timesheetId
   const expOnSent = new Set(sent.filter((b) => b.expenseId).map((b) => b.expenseId!))
   const expOnDraft = new Map<string, number>()
   for (const d of drafts) if (d.expenseId) expOnDraft.set(d.expenseId, (expOnDraft.get(d.expenseId) ?? 0) + d.amountMinor)
-  let expenseMinor = 0
-  for (const [, m] of expOnDraft) expenseMinor += m
+  // Each unbilled expense with the day it ends, so it ages with the weeks
+  // and the bands add up to the whole (walk 9: Rosa's $576 was in the
+  // total and in no band).
+  const unbilledExpenses: { amountMinor: number; band: AgeBand }[] = []
+  const endOf = (id: string, fallback?: Date | null) => line.expenseEnds?.get(id) ?? fallback ?? null
+  const bandOf = (end: Date | null) => ageBand(end ? ageInWeeks(iso(end), today) : 0)
+  for (const [id, m] of expOnDraft) unbilledExpenses.push({ amountMinor: m, band: bandOf(endOf(id)) })
   for (const e of line.plannedExpenses ?? []) {
     if (expOnSent.has(e.expenseId) || expOnDraft.has(e.expenseId)) continue
-    expenseMinor += e.amountMinor
+    unbilledExpenses.push({ amountMinor: e.amountMinor, band: bandOf(endOf(e.expenseId, e.periodEnd)) })
   }
+  const expenseMinor = unbilledExpenses.reduce((n, e) => n + e.amountMinor, 0)
 
   const aging = AGE_BANDS.map((band) => {
     const inBand = weeks.filter((w) => w.band === band)
+    const exp = unbilledExpenses.filter((e) => e.band === band).reduce((n, e) => n + e.amountMinor, 0)
     return {
       band,
       weeks: inBand.length,
       hours: round2(inBand.reduce((n, w) => n + w.hours, 0)),
-      amountMinor: inBand.reduce((n, w) => n + (w.amountMinor ?? 0), 0),
+      /** The weeks' amount and the unbilled expenses that end in this band, together. */
+      amountMinor: inBand.reduce((n, w) => n + (w.amountMinor ?? 0), 0) + exp,
+      expenseMinor: exp,
     }
   })
 
@@ -459,6 +470,7 @@ export async function signedAndBilled(sellContractIds: readonly string[], today:
         timesheetId: b.timesheetId, expenseId: b.expenseId, hours: Number(b.hours), amountMinor: b.amountCents, invoice: b.invoice,
       })),
       plannedExpenses,
+      expenseEnds: new Map(expenses.filter((e) => e.sellContractId === line.id).map((e) => [e.id, e.periodEnd])),
     }, today, (timesheetId) => {
       if (off) return off
       const outcome = outcomes.get(weekPeriod.get(`${line.id}:${timesheetId}`) ?? '')

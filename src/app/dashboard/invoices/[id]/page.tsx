@@ -17,7 +17,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
 import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
 import { offersSendAgain } from '@/lib/money/bill-resend'
-import { offersSend, sentInPlace } from '@/lib/money/bill-sent-view'
+import { offersSend, offersSubmit, sentInPlace } from '@/lib/money/bill-sent-view'
 
 /** The status in words a clerk says, never the enum. */
 const STATUS_WORDS: Record<string, string> = {
@@ -483,7 +483,10 @@ export default function InvoiceDetail() {
               className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk disabled:opacity-50">
               Withdraw
             </button>
-            {(!m || m.matched) && offersSend(inv.status) && (
+            {(!m || m.matched) && offersSubmit({
+              status: inv.status, direction: inv.direction, readingInASeat,
+              permissions: session.loading ? null : session.permissions,
+            }) && (
               <button onClick={submit} disabled={sending}
                 className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
                 {sending ? 'Sending…' : 'Send'}
@@ -597,7 +600,10 @@ export default function InvoiceDetail() {
               {/* What is left on the order is said once, under Purchase
                   order in the money section, from the one reader. */}
             </div>
-            {m.matched && inv.status === 'ISSUED' && (
+            {m.matched && inv.status === 'ISSUED' && offersSubmit({
+              status: inv.status, direction: inv.direction, readingInASeat,
+              permissions: session.loading ? null : session.permissions,
+            }) && (
               <button onClick={submit}
                 className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
                 Submit for payment

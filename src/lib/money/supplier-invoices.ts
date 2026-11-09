@@ -34,6 +34,7 @@
  */
 
 import { amount } from '@/lib/money-display'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 
 /** A supplier's invoice, as this file needs to read it. Minor units. */
 export interface SupplierInvoiceRow {
@@ -69,8 +70,12 @@ export interface SupplierInvoiceLedger {
   says: string
 }
 
-/** Nothing is owed on these, whatever they total. */
-const NOT_OWED = ['CANCELLED', 'VOID', 'DRAFT']
+/**
+ * Nothing is owed on these, whatever they total: never counted, and never
+ * sent (lib/money/bill-state). A bill raised and not sent is owed by
+ * nobody (walk 9, 2026-11-09: Brightmoor's unsent $22,080 read as owed).
+ */
+const NOT_OWED: readonly string[] = DRAWS_NOTHING
 
 /** A cent of rounding is not a debt. */
 const SETTLED_TOLERANCE_MINOR = 1

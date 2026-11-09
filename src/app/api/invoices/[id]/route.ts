@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { BILL_NOT_SENT } from '@/lib/money/bill-state'
 import { mayPayFirm } from '@/lib/setup-gates'
 import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
@@ -169,7 +170,8 @@ export async function GET(
   // writes them (2026-10-18) and nobody has been asked for the money. The
   // firm it would be sent to does not read it until it is sent.
   const readAs = directionFrom(partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }), reading?.companyId ?? caller.company?.id ?? null)
-  if (invoice.status === 'DRAFT' && readAs !== 'RECEIVABLE') {
+  // Raised and never sent is the same (walk 9: a raised bill read as owed on Payables).
+  if (BILL_NOT_SENT.includes(invoice.status) && readAs !== 'RECEIVABLE') {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
       { status: 404 }

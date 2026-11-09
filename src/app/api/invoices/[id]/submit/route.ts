@@ -5,6 +5,8 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { announceRaised, mayBeSent, maySendBill, markSent, planSend, tellPayerAfterSending } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
+import { partiesOf } from '@/lib/money/invoice-parties'
+import { notYoursToSendSays } from '@/lib/money/bill-sent-view'
 
 /**
  * POST /api/invoices/:id/submit
@@ -28,14 +30,30 @@ export async function POST(
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
+  const { id } = await params
+
+  // Whose bill it is, before whose role: a seat at the firm that pays the
+  // bill is told who sends it, never that a role at its own firm does
+  // (walk 9, 2026-11-09: Northbend's AP clerk was told its Owner sends
+  // Brightmoor's bill, and the Owner was then refused too).
+  const whose = await prisma.invoice.findUnique({
+    where: { id },
+    select: {
+      engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
+      workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+    },
+  })
+  const notYours = whose ? notYoursToSendSays(partiesOf({ agreement: whose.engagement.msa, order: whose.workOrder }), caller.company?.id) : null
+  if (notYours) {
+    return NextResponse.json({ error: { code: 'NOT_YOURS_TO_SEND', message: notYours } }, { status: 403 })
+  }
+
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Sending a bill', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
-
-  const { id } = await params
 
   // ── Ours to submit, and through the check ──────────────────────────
   //

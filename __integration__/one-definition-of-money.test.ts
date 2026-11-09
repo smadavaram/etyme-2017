@@ -139,8 +139,8 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
     expect(b.signed.weeks).toBeGreaterThan(0)
     expect(b.notBilled.hours).toBe(Math.round((b.signed.hours - b.billed.hours) * 100) / 100)
     expect(b.notBilled.weeks.reduce((n, w) => n + w.hours, 0)).toBeCloseTo(b.notBilled.hours, 2)
-    // Weeks age; an accepted expense not billed yet is in the figure beside them.
-    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0) + b.notBilled.expenseMinor).toBe(b.notBilled.amountMinor)
+    // Weeks and the accepted expenses not billed yet age together, so the bands add up to the whole.
+    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
     // Nothing a draft holds is counted as billed.
     const sentHours = await prisma.invoiceLine.aggregate({
       where: { sellContractId: line.id, timesheetId: { not: null }, invoice: { status: { notIn: ['DRAFT', 'ISSUED', 'CANCELLED', 'VOID'] } } },

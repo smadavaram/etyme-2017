@@ -1,4 +1,5 @@
 import { reportError } from '@/lib/alerts'
+import { DRAWS_NOTHING, BILL_NOT_SENT } from '@/lib/money/bill-state'
 import { NextRequest, NextResponse } from 'next/server'
 import { duplicateDraftsAt } from '@/lib/money/duplicate-drafts'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
@@ -73,7 +74,7 @@ import { billDeliverySaysFor } from '@/lib/notify/bill-delivery'
  * is what `/api/ar` already does. Two screens disagreeing about whether
  * a draft is owed is the same class of problem as two unit conventions.
  */
-const NOT_COUNTABLE = ['DRAFT', 'CANCELLED', 'VOID']
+const NOT_COUNTABLE = [...DRAWS_NOTHING]
 
 const AGING_KEYS = ['current', '1-30', '31-60', '61-90', '90+'] as const
 type AgingKey = (typeof AGING_KEYS)[number]
@@ -320,9 +321,11 @@ export async function GET(request: NextRequest) {
       ? row.direction === directionParam
       : true))
     // A draft is the issuing firm's working paper (the supplier's twin
-    // writes them, 2026-10-18). The firm it would be sent to does not see
-    // it until it is sent.
-    .filter((row) => !(row.status === 'DRAFT' && row.direction !== 'RECEIVABLE'))
+    // writes them, 2026-10-18), and a bill raised on the Bills page and
+    // never sent is the same (walk 9, 2026-11-09: Brightmoor's unsent
+    // $22,080 read as owed on Northbend's Payables). The firm it would be
+    // sent to does not see it until it is sent.
+    .filter((row) => !(BILL_NOT_SENT.includes(row.status) && row.direction !== 'RECEIVABLE'))
 
   // ── What the payer needs to decide, on the row ──────────────────────
   //

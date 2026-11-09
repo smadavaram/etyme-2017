@@ -11,6 +11,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { fromPrismaDecimal } from '@/lib/money'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { owedInAll, type SupplierInvoiceRow } from '@/lib/money/supplier-invoices'
@@ -29,7 +30,7 @@ export async function payablesOf(companyId: string): Promise<{
   paymentsOut: PaymentOut[]
 }> {
   const invoices = await prisma.invoice.findMany({
-    where: { AND: [invoiceBetween(companyId), { status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } }] },
+    where: { AND: [invoiceBetween(companyId), { status: { notIn: [...DRAWS_NOTHING] } }] },
     select: {
       id: true, number: true, currency: true, total: true, paid: true, dueAt: true, status: true,
       payments: { select: { amount: true, currency: true, receivedAt: true } },

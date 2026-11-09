@@ -21,6 +21,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { fromPrismaDecimal } from '@/lib/money'
 import { pairsFor, placementBooks, type PlacementBooks } from '@/lib/money/margin'
 import { accrueCommission, type CommissionTerms, type PeriodAccrual, type WeekFact } from '@/lib/money/commission-rows'
@@ -166,7 +167,7 @@ export async function commissionAccruals(
   const paidWeeks = new Map<string, Set<string>>() // sell id → week starts (ISO) paid in the period
   if (cashSells.length) {
     const lines = await prisma.invoiceLine.findMany({
-      where: { sellContractId: { in: cashSells }, timesheetId: { not: null }, invoice: { status: { notIn: ['DRAFT', 'VOID', 'CANCELLED'] } } },
+      where: { sellContractId: { in: cashSells }, timesheetId: { not: null }, invoice: { status: { notIn: [...DRAWS_NOTHING] } } },
       select: {
         sellContractId: true,
         timesheet: { select: { periodStart: true } },

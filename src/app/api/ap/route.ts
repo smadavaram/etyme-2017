@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -428,7 +429,7 @@ export async function GET(request: NextRequest) {
       : await prisma.invoice.findMany({
           where: {
             invoiceLines: { some: { sellContractId: { in: sellContractIds } } },
-            status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] },
+            status: { notIn: [...DRAWS_NOTHING] },
           },
           select: {
             id: true, number: true, currency: true, total: true, paid: true,
@@ -631,7 +632,9 @@ export async function GET(request: NextRequest) {
  */
 async function payableInvoices(companyId: string, now: Date) {
   const rows = await prisma.invoice.findMany({
-    where: invoiceBetween(companyId),
+    // Sent only: a bill drafted or raised and never sent is owed by nobody
+    // (walk 9, 2026-11-09).
+    where: { AND: [invoiceBetween(companyId), { status: { notIn: [...DRAWS_NOTHING] } }] },
     select: {
       id: true, number: true, currency: true, total: true, paid: true,
       dueAt: true, status: true,

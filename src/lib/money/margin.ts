@@ -40,6 +40,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { minorFromWhole } from '@/lib/money'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, priceSheets, type PlacementEarned } from '@/lib/money/placement-earned'
@@ -415,7 +416,7 @@ export async function placementBooks(
       select: { buyContractId: true, personId: true, payRate: true, payCurrency: true },
     }),
     prisma.invoiceLine.findMany({
-      where: { sellContractId: { in: ids }, invoice: { status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } } },
+      where: { sellContractId: { in: ids }, invoice: { status: { notIn: [...DRAWS_NOTHING] } } },
       select: {
         sellContractId: true, amountCents: true, timesheetId: true,
         invoice: { select: { total: true, paid: true, currency: true } },
