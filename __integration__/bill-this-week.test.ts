@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { helenasDoublyBilledWeek } from './seeded-receipts'
 import { GET as section, POST as billIt } from '@/app/api/contracts/weeks/[timesheetId]/route'
 
 /**
@@ -26,8 +27,8 @@ describe('an approved week’s page and its bill', () => {
       where: { personId: rosa.id, sellContract: { companyId: brightmoor.id }, invoiceLines: { none: {} }, assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
       orderBy: { periodStart: 'asc' },
     })).id
-    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
-    helenaWeek = (await prisma.timesheet.findFirstOrThrow({ where: { personId: helena.id, periodStart: new Date('2026-10-04T00:00:00Z') } })).id
+    // By its facts, never a calendar day (seeded-receipts).
+    helenaWeek = await helenasDoublyBilledWeek()
     imelda = (await prisma.person.findFirstOrThrow({ where: { name: 'Imelda Santoro' } })).primaryEmail!
   }, 180_000)
 

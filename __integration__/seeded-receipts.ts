@@ -1,5 +1,6 @@
 import { prisma } from './harness'
 import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 
 /**
  * Pinnacle Resourcing's two invoice receipts at Northbend Athletic, found by
@@ -41,4 +42,37 @@ export async function pinnacleReceiptsAtNorthbend(): Promise<{ clean: string; he
     )
   }
   return { clean: clean.invoiceId, held: held.invoiceId, northbend: northbend.id, pinnacle: pinnacle.id }
+}
+
+/**
+ * Helena Marsh's week that Computer Systems has billed upward and that
+ * Techpeple's own invoice for is an invoice receipt at Computer Systems,
+ * found by those facts, never by a calendar day: the seeded weeks are
+ * counted from the template's own day, so "the week of October 4" is a
+ * different week on a template built on a Monday.
+ */
+export async function helenasDoublyBilledWeek(): Promise<string> {
+  const [helena, cs, techpeple] = await Promise.all([
+    prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } }),
+    prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true } }),
+    prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } }),
+  ])
+  // Techpeple's invoices as Computer Systems recorded them: a receipt covers
+  // the days inside its period, which is how the Bills page reads it.
+  const receipts = await prisma.vendorBill.findMany({
+    where: { companyId: cs.id, vendorCompanyId: techpeple.id, status: { not: 'CANCELLED' }, periodStart: { not: null }, periodEnd: { not: null } },
+    select: { periodStart: true, periodEnd: true },
+  })
+  const weeks = await prisma.timesheet.findMany({
+    where: {
+      personId: helena.id,
+      // On a bill Computer Systems sent upward and nobody has paid yet.
+      invoiceLines: { some: { sellContract: { companyId: cs.id }, invoice: { status: { notIn: [...DRAWS_NOTHING, 'PAID'] } } } },
+    },
+    orderBy: { periodStart: 'asc' },
+    select: { id: true, periodStart: true, periodEnd: true },
+  })
+  const week = weeks.find((w) => receipts.some((r) => r.periodStart! <= w.periodStart && w.periodEnd <= r.periodEnd!)) ?? null
+  if (!week) throw new Error('The seeded world holds no week of Helena Marsh billed by Computer Systems and received from Techpeple.')
+  return week.id
 }

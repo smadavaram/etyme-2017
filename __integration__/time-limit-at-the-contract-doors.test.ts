@@ -20,16 +20,31 @@ describe('a contract booked past the client’s time limit', () => {
   beforeAll(async () => {
     await freshWorld()
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    sell = await prisma.sellContract.findFirstOrThrow({
+    // Found by its facts, never by row order: a running line whose end
+    // client has no time limit of its own yet, so the one set below is the
+    // only one that can decide. An unordered pick took whichever line the
+    // table returned first, and a client with its own longer limit let the
+    // booking through.
+    const lines = await prisma.sellContract.findMany({
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } },
       select: { id: true, personId: true, clientCompanyId: true, endClientCompanyId: true, companyId: true, endDate: true },
+      orderBy: { id: 'asc' },
     })
+    const capped = new Set(
+      (await prisma.governanceRule.findMany({
+        where: { ruleType: 'TENURE_CAP', isActive: true },
+        select: { policy: { select: { companyId: true } } },
+      })).map((r) => r.policy.companyId),
+    )
+    const free = lines.find((l) => !capped.has(l.endClientCompanyId ?? l.clientCompanyId))
+    if (!free) throw new Error('The seeded world holds no running Techpeple line whose end client has no time limit of its own.')
+    sell = free
     const clientId = sell.endClientCompanyId ?? sell.clientCompanyId
-    const lines = await prisma.sellContract.findMany({
+    const theirs = await prisma.sellContract.findMany({
       where: { personId: sell.personId, OR: [{ endClientCompanyId: clientId }, { clientCompanyId: clientId, endClientCompanyId: null }] },
       select: { startDate: true },
     })
-    const first = lines.reduce((a, l) => (l.startDate < a ? l.startDate : a), sell.endDate!)
+    const first = theirs.reduce((a, l) => (l.startDate < a ? l.startDate : a), sell.endDate!)
     const monthsToEnd =
       (sell.endDate!.getUTCFullYear() - first.getUTCFullYear()) * 12 + (sell.endDate!.getUTCMonth() - first.getUTCMonth())
     const capMonths = monthsToEnd + 2
