@@ -101,7 +101,7 @@ describe('the placement page says the order ledger’s figures and the line’s,
     expect(o.draftedNotSentMinor).toBe(after.draftedNotSentMinor)
   })
 
-  it('the money card’s Billed, drafted and signed-not-billed are the line reader’s, over every invoice line, not the newest twelve', async () => {
+  it('the money card’s Billed, billed past signed hours, drafted and signed-not-billed are the line reader’s, over every invoice line, not the newest twelve, and Signed equals Billed less billed past signed plus signed not billed', async () => {
     const lb = (await signedAndBilled([lineId])).get(lineId)!
     const r = await open(await supplierReadingMoney(lineId), lineId)
     const m = r.body.data.money
@@ -110,7 +110,14 @@ describe('the placement page says the order ledger’s figures and the line’s,
     expect(m.drafted.amountMinor).toBe(lb.drafted.amountMinor)
     expect(m.signedNotBilled.amountMinor).toBe(lb.notBilled.amountMinor)
     expect(m.signedNotBilled.hours).toBe(lb.notBilled.hours)
-    // Accepted hours and billed hours are two labelled figures, and the
+    // Billed past signed hours is its own figure, and the page's figures
+    // reconcile: Signed = Billed − billed past signed + signed not billed.
+    expect(m.billedOverSigned.amountMinor).toBe(lb.billedOverSigned.amountMinor)
+    expect(m.signedMinor).toBe(lb.signed.amountMinor)
+    if (m.signedMinor != null) {
+      expect(m.signedMinor).toBe(m.billedMinor - m.billedOverSigned.amountMinor + m.signedNotBilled.amountMinor)
+    }
+    // Accepted hours and billed hours are two labeled figures, and the
     // supplier's revenue on accepted hours sits beside Billed, never in it.
     expect(typeof m.hoursAcceptedTotal).toBe('number')
     expect('revenueMinor' in m).toBe(true)

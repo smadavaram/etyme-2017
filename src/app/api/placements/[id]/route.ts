@@ -1339,13 +1339,21 @@ export async function GET(
         // The same figures in minor units of the line's currency, and the
         // rest of money's one definition beside them: drafted and not sent,
         // signed and not yet billed, and that aged by week. Each its own
-        // labelled figure; none is ever added into another.
+        // labeled figure; none is ever added into another.
         currency: lineBilling?.currency ?? placement.billCurrency,
         billedMinor: seeBill ? billedCents : null,
         collectedMinor: seeBill ? paidCents : null,
         revenueMinor: seeBill && earned ? earned.revenueCents : null,
         hoursAcceptedTotal: hoursAccepted,
         hoursBilledSent: lineBilling?.billed.hours ?? 0,
+        // Hours a sent bill carries past what was signed for the week, said
+        // apart, so Signed = Billed − billed past signed + signed not billed
+        // on this page as on the budget and the program (money, 170393453).
+        billedOverSigned: seeBill && lineBilling
+          ? { hours: lineBilling.billedOverSigned.hours, amountMinor: lineBilling.billedOverSigned.amountMinor }
+          : null,
+        signedMinor: seeBill && lineBilling ? lineBilling.signed.amountMinor : null,
+        signedHours: lineBilling?.signed.hours ?? 0,
         drafted: seeBill && lineBilling
           ? { hours: lineBilling.drafted.hours, amountMinor: lineBilling.drafted.amountMinor, bills: lineBilling.drafted.bills.map((b) => ({ number: b.number, hours: b.hours, amountMinor: b.amountMinor })) }
           : null,

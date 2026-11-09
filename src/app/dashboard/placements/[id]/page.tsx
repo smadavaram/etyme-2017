@@ -181,6 +181,9 @@ interface Placement {
     currency: string
     billedMinor: number | null; collectedMinor: number | null; revenueMinor: number | null
     hoursAcceptedTotal: number; hoursBilledSent: number
+    /** Hours and money a sent bill carries past what was signed; Signed = Billed − this + signed not billed. */
+    billedOverSigned: { hours: number; amountMinor: number } | null
+    signedMinor: number | null; signedHours: number
     drafted: { hours: number; amountMinor: number; bills: Array<{ number: string; hours: number; amountMinor: number }> } | null
     signedNotBilled: {
       hours: number; amountMinor: number; onDraftHours: number
@@ -1039,6 +1042,12 @@ export default function PlacementPage() {
             label={p.viewer.isSupplier ? 'Billed (bills sent)' : 'Invoiced to you'}
             value={moneyIn(p.money.billedMinor, p.money.currency)}
           />
+          {p.money.billedOverSigned && (
+            <Fact label="Billed past signed hours" value={moneyIn(p.money.billedOverSigned.amountMinor, p.money.currency)} />
+          )}
+          {p.money.signedMinor != null && (
+            <Fact label="Signed" value={moneyIn(p.money.signedMinor, p.money.currency)} />
+          )}
           {p.viewer.isSupplier && (
             <Fact label="Revenue on accepted hours" value={moneyIn(p.money.revenueMinor, p.money.currency)} />
           )}
