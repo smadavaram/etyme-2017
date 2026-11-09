@@ -10,6 +10,7 @@ import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysFor, daysOnSite, monthsOf, standingAgainstLimit, ledgerStatus, linesCounted, bookedLimitDay, contractsPastLimit, runsPastSentence } from '@/lib/tenure-days'
 import { plainDate } from '@/lib/plain-date'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 
 /**
@@ -96,9 +97,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // the block fires; a served break resets the count against the limit,
   // and the days on site above stay the record.
   const capDays = capMonths ? daysFor(capMonths) : null
+  // "Near the time limit" is the company's own widest warning (90 days by
+  // default), the one window the Tenure page and Ask Etyme read, so this
+  // page says near exactly where they do.
+  const warnWithinDays = Math.max(0, ...(await ruleSetFor(companyId)).tenureWarnAtDays) || null
   const standing = standingAgainstLimit(
     served.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
-    { capMonths, breakDays },
+    { capMonths, breakDays, warnWithinDays },
     now
   )
   const status = capMonths ? ledgerStatus(standing) : 'OK'
