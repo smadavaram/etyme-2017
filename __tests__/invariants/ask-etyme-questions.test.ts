@@ -22,6 +22,15 @@
  * allowed to answer them.
  *
  * The one new test file the founder approved with the plan.
+ *
+ * What this file grades is the wording: the voice, the refusals' own
+ * sentences, the doors they name, never "desk". The figures and names an
+ * answer states are graded against the record itself, on the seeded
+ * world, through the same routes the pages read
+ * (__integration__/ask-etyme-against-the-record.test.ts, 2026-11-09, the
+ * founder's rating: evals graded against the ledger, not typed answers),
+ * so an answer that disagrees with the record fails there even when the
+ * seed changes.
  */
 
 import { describe, it, expect, afterAll } from 'vitest'
