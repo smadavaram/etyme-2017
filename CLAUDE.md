@@ -2171,6 +2171,46 @@ a grant reaches a unit and everything under it).
   log of every directory read); the nightly difference as a line in the
   Owner's greeting (conversation).
 
+**Shipped to production 2026-11-09, evening (9c7107747 on the deploy
+branch, source 90ff7868a), on the founder's "deploy when green".**
+Architect (13a7916fd to 90ff7868a): `OrgUnit` gains a lead with who and
+when, an order among siblings and the site a SITE box stands for;
+`OrgChange` keeps every change with who, when, the sentence, the source
+(SCREEN or DIRECTORY) and what undoes it; Corvane is seeded with
+Operations (Astrid Berge) over its six regions, Finance (Margaret Osei,
+Lucas Fairbairn) and Compliance (Yvette Marchetti); one route for the
+tree and one for the directory, Owner and Admin only, every refusal
+logged before it is sent; the screen with drag, + Under and + Beside,
+the right-click and press-and-hold menus, the choosers for moving a
+person or a contractor, delete and undo; the import from a file
+exported from Active Directory with a ticked preview; Entra ID and
+Google Workspace readers behind "not connected". Coordinator's and
+architect's calls, each reversible in a sentence: a seat that sets the
+company up is never put on a region or a site; a box that rules,
+grants, budgets, seats or orders name cannot be deleted; a change that
+widens or narrows what somebody reads says so; the tree keeps the names
+on Sites in step; Change role and Give access open Users & permissions;
+undo is the caller's own last change only; a directory names a lead
+only where more than half of the box's people on the record report to
+them, and never moves an existing box or replaces a named lead without
+the Owner's tick. Release pass 50 on eedf74b81 fully green (14,731
+unit, 2,822 integration, type check, build), and on 90ff7868a the type
+check, 14,732 unit and the build. Walk 10 (does not ship: an import
+that moved Operations on one row, the company box off screen, three
+menu items that did nothing), 10b (does not ship: the centering and a
+held name on a phone) and 10c (ships: the company box in view 20 of 20,
+a held name's own menu, a contractor charged elsewhere changing only
+the charging unit), reports under `scratchpad/walk-saves/report10*.md`.
+Gates: no Ruby, brand kit present, no source difference; the schema
+only adds (the three "removed" lines are a comment). Smoke: health
+"Serving 9c710774" with the database ready and the schema there; every
+public page, the four doors, `/site/tapin` and the new screen 200; the
+inbound email door 404 to a POST. **Open:** where an Entra or Google
+consent is kept (no column yet, so neither connects); the privacy
+notice and DPA line for a directory read, for the founder's yes before
+any connection; the nightly difference line (conversation); access-log
+action names of their own (regulatory); press and hold on a real phone.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
