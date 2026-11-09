@@ -74,7 +74,7 @@
  * month anyway.
  */
 
-import { categoryOf, isMoneyKind } from '@/lib/cycle-kinds'
+import { shiftCategoryOf, isMoneyKind } from '@/lib/cycle-kinds'
 import {
   DEFAULT_CYCLE_SHIFT,
   directionFor,
@@ -536,7 +536,8 @@ function emitSeries(
   // skipped by the callers — but `directionFor` answers for it anyway,
   // because a row written by an older engine must not change behavior
   // because somebody edited a setting about pay.
-  const direction = directionFor(categoryOf(kind), policy)
+  // By the kind's own weekend direction (`shiftCategoryOf`): pay before, bills and a supplier's invoice after.
+  const direction = directionFor(shiftCategoryOf(kind), policy)
 
   // What this kind already sits on: the dates written by an earlier run,
   // and the ones this run has produced so far.

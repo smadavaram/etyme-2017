@@ -267,10 +267,11 @@ describe('the day a pack asks for is the day it gets', () => {
     const cycles = generateCycles(on(2026, 1, 1), on(2026, 3, 31), [
       { kind: 'VENDOR_BILL_GENERATE', frequency: 'MONTHLY', dayOfMonth: 15 },
     ])
-    // Jan 15 2026 is a Thursday. Feb 15 and Mar 15 are both Sundays, and a
-    // vendor bill is money going out, so each lands on the Friday before
-    // rather than the Monday after.
-    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-01-15', '2026-02-13', '2026-03-13'])
+    // Jan 15 2026 is a Thursday. Feb 15 and Mar 15 are both Sundays. The
+    // day a supplier's invoice is received is a bill date (2026-11-09: a
+    // pay date moves before, a bill date after), so each lands on the
+    // Monday after; the day we pay it is a pay date and moves before.
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-01-15', '2026-02-16', '2026-03-16'])
   })
 
   it('the 30th in February is the 28th, or the 29th in a leap year', () => {

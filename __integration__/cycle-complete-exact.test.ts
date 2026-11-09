@@ -93,15 +93,16 @@ describe('a placement awarded for work under way closes each week’s own date',
   })
 
   it('on the buy line, an invoice receipt for a week whose own date fell before the award closes nothing, and the next week’s closes its own', async () => {
-    // A supplier's receipt date is a pay date and moves back off a weekend:
-    // the 31st, a Saturday, is Friday 30 October, and Sunday 15 November
-    // is Friday the 13th.
+    // A supplier's receipt date is a bill date and moves forward off a
+    // weekend (2026-11-09: a pay date moves before, a bill date after): the
+    // 31st, a Saturday, is Monday 2 November, and Sunday 15 November is
+    // Monday the 16th.
     const series = (await ownSeries(prisma, { buyContractId: line.buy, kind: 'VENDOR_BILL_GENERATE' }))!.map(iso)
-    expect(series.slice(0, 3)).toEqual(['2026-10-15', '2026-10-30', '2026-11-13'])
+    expect(series.slice(0, 3)).toEqual(['2026-10-15', '2026-11-02', '2026-11-16'])
     expect(await completeCycle(prisma, { buyContractId: line.buy, kind: 'VENDOR_BILL_GENERATE', periodEnd: d('2026-10-10') })).toBeNull()
     const closed = await completeCycle(prisma, { buyContractId: line.buy, kind: 'VENDOR_BILL_GENERATE', periodEnd: d('2026-10-17') })
     const rows = await open({ buyContractId: line.buy }, 'VENDOR_BILL_GENERATE')
     expect(closed).toBe(rows[0].id)
-    expect(rows.filter((c) => c.completedAt).map((c) => iso(c.dueOn))).toEqual(['2026-10-30'])
+    expect(rows.filter((c) => c.completedAt).map((c) => iso(c.dueOn))).toEqual(['2026-11-02'])
   })
 })

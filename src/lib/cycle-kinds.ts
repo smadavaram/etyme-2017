@@ -207,6 +207,28 @@ export function categoryOf(kind: string): Category {
 }
 
 /**
+ * Which way a date of this kind moves off a day nobody works: the
+ * company's pay direction, its bill direction or its hours direction.
+ *
+ * The same as `categoryOf` but for one kind. The founder, 2026-11-09: a pay
+ * date moves to the working day before so the worker is never paid late,
+ * and a bill date moves to the working day after. The day a supplier's
+ * invoice is generated or received (`VENDOR_BILL_GENERATE`) is a bill
+ * date, so it moves after and is never dated back into the month before
+ * the work ends (coordinator's call, reversible by the founder in a
+ * sentence); the day we pay that supplier (`VENDOR_BILL_DUE`) stays a pay
+ * date and moves before. `categoryOf` is unchanged, so the placement still
+ * lists the supplier's invoice under pay, the money going out.
+ */
+const SHIFT_CATEGORY: Partial<Record<string, Category>> = {
+  VENDOR_BILL_GENERATE: 'BILL',
+}
+
+export function shiftCategoryOf(kind: string): Category {
+  return SHIFT_CATEGORY[kind] ?? categoryOf(kind)
+}
+
+/**
  * The sell line's billing dates as the firm that RECEIVES the bill reads
  * them. The party who issues a document names it: the supplier raises
  * its bill, and its client receives it as an invoice receipt. A client
