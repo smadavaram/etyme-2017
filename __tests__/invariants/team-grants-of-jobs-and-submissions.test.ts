@@ -3,6 +3,8 @@ import {
   NARROWED_AT_THE_QUERY, GRANTABLE_TO_A_TEAM, grantedPermissions, effectivePermissions, scopeFrom, checkGrant, type GrantRow,
 } from '@/lib/permission-grants/rules'
 import { hasPermission } from '@/lib/permissions'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const CO = 'brightmoor'
 const seat = { companyId: CO, roleId: 'role-recruiter', contextId: 'ctx-dana' }
@@ -74,5 +76,11 @@ describe('A team grant of jobs or submissions is kept at its reach and opens onl
       alreadyHeld: false, scope: 'UNIT', orgUnitId: 'dayton', unitAtCompany: true, reason: 'Dayton weeks.',
     })
     expect(verdict).toMatchObject({ ok: false, field: 'scope' })
+  })
+
+  it('Give access offers a team and somebody\u2019s own work for jobs and submissions now that their routes narrow, and the whole company only for what no reader narrows', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/settings/grants/route.ts'), 'utf8')
+    expect(route).toContain("scopes: key !== GRANT_RIGHT && GRANTABLE_TO_A_TEAM.has(key) ? GRANT_SCOPES : ['COMPANY']")
+    expect(route).not.toContain('NARROWED_AT_THE_QUERY.has(key)')
   })
 })

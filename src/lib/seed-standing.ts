@@ -36,6 +36,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
+import { amount } from '@/lib/money-display'
 import { RESERVED_SUFFIXES } from '@/lib/demo-session'
 import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
 import { CORVANE_EMAIL_PREFIX } from '@/lib/seed-corvane'
@@ -660,6 +661,7 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
       where: { toCompany: { slug: { in: ctx.roster } }, status: { in: ['PLACED', 'SHORTLISTED'] } },
       select: {
         id: true, rate: true, toCompanyId: true, personId: true,
+        toCompany: { select: { currency: true } },
         requirement: { select: { billMin: true, billMax: true, title: true } },
         person: { select: { name: true, consultant: { select: { workAuth: true, skills: true } } } },
       },
@@ -669,6 +671,8 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
     for (const [i, s] of subs.entries()) {
       if (await db.check.findFirst({ where: { recordType: 'Submission', recordId: s.id } })) continue
       const band = s.requirement
+      // In the client's own currency, through money's one formatter.
+      const cur = s.toCompany?.currency || 'USD'
       const inRange = band?.billMax == null || s.rate <= band.billMax
       const auth = s.person?.consultant?.workAuth ?? null
       const rows: { code: string; verdict: string; reason: string; evidence: string; checker: string }[] = [
@@ -676,8 +680,8 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
           code: 'RATE_IN_RANGE', checker: 'RULE',
           verdict: inRange ? 'PASS' : 'FAIL',
           reason: inRange
-            ? `Asked $${(s.rate / 100).toFixed(2)} an hour, inside the band on the job.`
-            : `Asked $${(s.rate / 100).toFixed(2)} an hour, above the $${((band?.billMax ?? 0) / 100).toFixed(2)} ceiling on the job.`,
+            ? `Asked ${amount(s.rate, cur)} an hour, inside the band on the job.`
+            : `Asked ${amount(s.rate, cur)} an hour, above the ${amount(band?.billMax ?? 0, cur)} ceiling on the job.`,
           evidence: `rate ${s.rate} against band ${band?.billMin ?? '—'}–${band?.billMax ?? '—'}`,
         },
         {

@@ -1,4 +1,5 @@
 import { mayChasePaper } from '@/lib/setup-gates'
+import { watchedOrder } from './orders'
 import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { randomBytes } from 'crypto'
@@ -246,29 +247,14 @@ async function lookAtPurchaseOrders(now: Date): Promise<Finding[]> {
   const rows = await prisma.workOrder.findMany({
     where: { status: 'OPEN' },
     select: {
-      id: true, issuedById: true, number: true, amount: true, endDate: true, status: true,
+      id: true, issuedById: true, number: true, amount: true, currency: true, endDate: true, status: true,
       issuedTo: { select: { name: true } },
-      invoices: { select: { total: true, status: true } },
+      invoices: { select: { total: true, status: true, currency: true } },
       sellContracts: { where: { state: { in: ['IN_PROGRESS', 'PAUSED'] } }, select: { id: true } },
     },
   })
-
-  return watchPurchaseOrders(
-    rows.map((po) => ({
-      id: po.id,
-      companyId: po.issuedById,
-      number: po.number,
-      supplierName: po.issuedTo.name,
-      amountCents: Math.round(Number(po.amount) * 100),
-      invoicedCents: po.invoices
-        .filter((i) => !['VOID', 'CANCELLED'].includes(i.status))
-        .reduce((s, i) => s + Math.round(Number(i.total) * 100), 0),
-      endDate: po.endDate,
-      status: po.status,
-      liveContracts: po.sellContracts.length,
-    })),
-    now
-  )
+  // In the order's own currency, and only its own currency's invoices summed (watchedOrder).
+  return watchPurchaseOrders(rows.map(watchedOrder), now)
 }
 
 async function lookAtAccess(now: Date): Promise<Finding[]> {

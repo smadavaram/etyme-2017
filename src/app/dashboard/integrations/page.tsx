@@ -1,6 +1,7 @@
 'use client'
 
 import { usePageSection } from '@/components/page-section'
+import { amount, DEFAULT_CURRENCY } from '@/lib/money-display'
 import { ErrorState, Field, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { useEffect, useState } from 'react'
 
@@ -190,8 +191,8 @@ export default function IntegrationsPage() {
                   style={{ color: r.differenceCents === 0 ? 'var(--color-verified)' : 'var(--color-attention)' }}
                 >
                   {r.differenceCents === 0
-                    ? 'to the cent'
-                    : `$${Math.abs(r.differenceCents / 100).toLocaleString()} apart · ${(r.breaks as any[]).length} breaks named`}
+                    ? 'exactly'
+                    : `${amount(Math.abs(r.differenceCents), r.currency ?? DEFAULT_CURRENCY)} apart · ${(r.breaks as any[]).length} breaks named`}
                 </span>
               </li>
             ))}

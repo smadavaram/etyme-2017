@@ -107,11 +107,11 @@ interface Placement {
   } | null
   invitation: { status: string; payMin: number | null; payMax: number | null; message: string | null } | null
   submission: {
-    id: string; status: string; rate: number | null
+    id: string; status: string; rate: number | null; rateCents?: number | null; currency?: string | null
     submittedAt: string | null; forwardedAt: string | null
     from: { id: string; name: string; phrase?: string }; to: { id: string; name: string } | null
     checkState: string
-    sentOnBy: { company: { id: string; name: string }; at: string | null; rate: number | null } | null
+    sentOnBy: { company: { id: string; name: string }; at: string | null; rate: number | null; rateCents?: number | null; currency?: string | null } | null
   } | null
   interviews: Array<{
     id: string; round: number; stage: string; mode: string; state: string
@@ -124,13 +124,13 @@ interface Placement {
     sell: {
       // The rate in force today, and — where an approved change put it
       // there — "$70/hr since July 29, 2026 — was $66" (lib/placement-rate).
-      id: string; billRate: number | null; billRateSays: string | null; state: string
+      id: string; billRate: number | null; billRateCents?: number | null; currency?: string | null; billRateSays: string | null; state: string
       workOrder: { number: string; amount: number | null; currency: string } | null
       document: LineDoc
     }
     buy: {
       id: string; contractType: string; state: string
-      vendor: { id: string; name: string } | null; payRate: number | null; payRateSays: string | null
+      vendor: { id: string; name: string } | null; payRate: number | null; payRateCents?: number | null; currency?: string | null; payRateSays: string | null
       document: LineDoc | null
       // Null where this reader may not read the pay rate.
       overtime: OvertimeOnLine | null
@@ -220,6 +220,13 @@ const rate = (n: number | null) => (n == null ? '—' : `$${n.toFixed(0)}/hr`)
  */
 const agreedRate = (a: { perHour: number | null; perHourCents?: number | null; currency?: string | null }) =>
   a.perHourCents != null && a.currency ? moneyRate(a.perHourCents, a.currency) : rate(a.perHour)
+/**
+ * A rate on this page in its own currency: the minor units and the
+ * currency the route sends beside the figure, through money's one
+ * formatter. An answer from before the route sent them reads as it did.
+ */
+const rateIn = (whole: number | null | undefined, cents: number | null | undefined, currency: string | null | undefined) =>
+  cents != null && currency ? moneyRate(cents, currency) : rate(whole ?? null)
 const cash = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
 /**
  * A calendar day — a start, a due date, a last day — is stored as
@@ -674,9 +681,9 @@ export default function PlacementPage() {
           {p.viewer.side === 'END_CLIENT' ? (
             <Fact label="Arranged by your supplier" value={<span className="text-etyme-faint">not your rate</span>} />
           ) : (
-            <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rate(p.contracts.sell.billRate)} />
+            <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rateIn(p.contracts.sell.billRate, p.contracts.sell.billRateCents, p.contracts.sell.currency)} />
           )}
-          {p.viewer.isSupplier && <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />}
+          {p.viewer.isSupplier && <Fact label="Paying" value={rateIn(p.contracts.buy?.payRate, p.contracts.buy?.payRateCents, p.contracts.buy?.currency)} />}
           <Fact label="Hours accepted" value={p.money.hoursAccepted || '—'} />
           {/* The header shows two rates, so the figure beside them is
               their difference per hour — the agreed spread. What the
@@ -738,8 +745,8 @@ export default function PlacementPage() {
         {p.submission && (
           <div className="card flex flex-wrap items-center gap-x-8 gap-y-3">
             <Fact label="Submitted" value={moment(p.submission.submittedAt)} />
-            <Fact label="At" value={rate(p.submission.rate)} />
-            {p.submission.sentOnBy && <Fact label="Their price" value={rate(p.submission.sentOnBy.rate)} />}
+            <Fact label="At" value={rateIn(p.submission.rate, p.submission.rateCents, p.submission.currency)} />
+            {p.submission.sentOnBy && <Fact label="Their price" value={rateIn(p.submission.sentOnBy.rate, p.submission.sentOnBy.rateCents, p.submission.sentOnBy.currency)} />}
             <div>
               <div className="lbl">Package</div>
               <span className={`chip ${tone(p.submission.checkState)} mt-1`}>{words(p.submission.checkState)}</span>
@@ -803,7 +810,7 @@ export default function PlacementPage() {
                   ? `Sold to ${p.client.name}, not to you`
                   : `${p.supplier.name} sells to you`}
             </div>
-            <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
+            <div className="stat-value">{rateIn(p.contracts.sell.billRate, p.contracts.sell.billRateCents, p.contracts.sell.currency)}</div>
             {p.contracts.sell.billRateSays && (
               <p className="mt-1 text-[13px] tabular-nums text-etyme-muted">{p.contracts.sell.billRateSays}</p>
             )}
@@ -821,7 +828,7 @@ export default function PlacementPage() {
             <div className="lbl mb-2">
               {p.contracts.buy?.vendor ? `You buy from ${p.contracts.buy.vendor.name}` : 'You employ them'}
             </div>
-            <div className="stat-value">{rate(p.contracts.buy?.payRate ?? null)}</div>
+            <div className="stat-value">{rateIn(p.contracts.buy?.payRate, p.contracts.buy?.payRateCents, p.contracts.buy?.currency)}</div>
             {p.contracts.buy?.payRateSays && (
               <p className="mt-1 text-[13px] tabular-nums text-etyme-muted">{p.contracts.buy.payRateSays}</p>
             )}

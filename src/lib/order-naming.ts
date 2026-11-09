@@ -28,6 +28,9 @@
  * No database in here, on purpose.
  */
 
+import { compact } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
+
 /** Which end of the order the reader is standing at. */
 export type OrderSide = 'BUYER' | 'SELLER' | 'BYSTANDER'
 
@@ -150,12 +153,9 @@ export function orderSentence(
   return `${Noun} ${ref} — ${money}.`
 }
 
-function formatMinor(cents: number, currency: string): string {
-  const symbol = currency.toUpperCase() === 'USD' ? '$' : `${currency.toUpperCase()} `
-  return `${symbol}${(cents / 100).toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`
+/** The ceiling in its own currency, whole units, through money's one formatter. */
+function formatMinor(minor: number, currency: string): string {
+  return compact(Math.round(minor / minorPerUnit(currency)) * minorPerUnit(currency), currency)
 }
 
 // ── A line on it ─────────────────────────────────────────────────────

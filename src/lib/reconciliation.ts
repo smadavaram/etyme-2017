@@ -6,7 +6,14 @@
  * anything. So the output here is a break list — each line says what it
  * is, how much, and why it does not match — and the difference is only
  * ever the sum of the named breaks plus one honest remainder.
+ *
+ * One currency at a time (2026-11-09): every amount is in minor units of
+ * `currency` and is said through money's one formatter, so a dong
+ * statement reads whole dong. Two currencies are never reconciled into
+ * one difference.
  */
+
+import { amount, DEFAULT_CURRENCY } from '@/lib/money-display'
 
 export interface OurLine {
   id: string
@@ -46,6 +53,8 @@ export interface Reconciliation {
   /** True where the named breaks fully explain the difference. */
   explained: boolean
   says: string
+  /** The currency every figure here is in. */
+  currency: string
 }
 
 /**
@@ -55,7 +64,8 @@ export interface Reconciliation {
  * different transactions hides both of them, which is worse than two
  * honest breaks.
  */
-export function reconcile(ours: OurLine[], theirs: TheirLine[]): Reconciliation {
+export function reconcile(ours: OurLine[], theirs: TheirLine[], currency: string = DEFAULT_CURRENCY): Reconciliation {
+  const money = (minor: number) => moneyIn(minor, currency)
   const oursTotal = ours.reduce((n, l) => n + l.amountCents, 0)
   const theirsTotal = theirs.reduce((n, l) => n + l.amountCents, 0)
 
@@ -132,6 +142,7 @@ export function reconcile(ours: OurLine[], theirs: TheirLine[]): Reconciliation 
     matchedCents: matched,
     breaks,
     explained,
+    currency,
     says:
       difference === 0 && breaks.length === 0
         ? `Reconciled to the cent: ${money(oursTotal)} both sides.`
@@ -142,7 +153,7 @@ export function reconcile(ours: OurLine[], theirs: TheirLine[]): Reconciliation 
   }
 }
 
-function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** An amount in minor units of its currency, a negative with a leading minus. */
+function moneyIn(minor: number, currency: string): string {
+  return `${minor < 0 ? '-' : ''}${amount(Math.abs(minor), currency)}`
 }

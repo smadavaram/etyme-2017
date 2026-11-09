@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { reconcile, type TheirLine } from '@/lib/reconciliation'
+import { minorFromWhole } from '@/lib/money'
 
 /**
  * POST /api/integrations/reconcile — our invoices against their statement.
@@ -49,10 +50,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // One currency: the company's own. A statement line typed as a whole
+  // amount is read in that currency's own exponent, never times a hundred.
+  const currency = await companyCurrency(companyId)
   const theirs: TheirLine[] = Array.isArray(body?.theirs)
     ? body.theirs
         .map((t: any) => ({
-          amountCents: Math.round(Number(t.amountCents ?? Number(t.amount) * 100)),
+          amountCents: Math.round(t.amountCents != null ? Number(t.amountCents) : minorFromWhole(Number(t.amount), currency)),
           on: String(t.on ?? ''),
           ref: t.ref ? String(t.ref) : null,
         }))
@@ -64,17 +68,22 @@ export async function POST(request: NextRequest) {
       engagement: { msa: { vendorId: companyId, ...(againstCompanyId ? { clientId: againstCompanyId } : {}) } },
       periodEnd: { gte: periodStart, lte: periodEnd },
     },
-    select: { id: true, number: true, total: true, issuedAt: true, periodEnd: true },
+    select: { id: true, number: true, total: true, issuedAt: true, periodEnd: true, currency: true },
   })
 
-  const ours = invoices.map((i) => ({
+  // Bills in another currency are never added to this one; they are counted and said.
+  const inOther = [...new Set(invoices.filter((i) => i.currency !== currency).map((i) => i.currency))].sort()
+  const ours = invoices.filter((i) => i.currency === currency).map((i) => ({
     id: i.id,
-    amountCents: Math.round(Number(i.total) * 100),
+    amountCents: minorFromWhole(i.total, currency),
     on: (i.issuedAt ?? i.periodEnd).toISOString().slice(0, 10),
     ref: i.number,
   }))
 
-  const result = reconcile(ours, theirs)
+  const reconciled = reconcile(ours, theirs, currency)
+  const result = inOther.length
+    ? { ...reconciled, says: `${reconciled.says} Bills in ${inOther.join(', ')} were left out: a reconciliation is in one currency, ${currency}.` }
+    : reconciled
 
   const run = await prisma.reconciliationRun.create({
     data: {
@@ -118,6 +127,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const currency = await companyCurrency(caller.company!.id)
   const runs = await prisma.reconciliationRun.findMany({
     where: { companyId: caller.company!.id },
     orderBy: { runAt: 'desc' },
@@ -136,7 +146,18 @@ export async function GET(request: NextRequest) {
         differenceCents: r.differenceCents,
         breaks: r.breaks,
         runAt: r.runAt,
+        currency,
       })),
     },
   })
+}
+
+/**
+ * The currency a reconciliation is in: the company's own. A run stores no
+ * currency of its own yet (schema request: ReconciliationRun.currency), so
+ * every run is run and read in this one.
+ */
+async function companyCurrency(companyId: string): Promise<string> {
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } })
+  return c?.currency || 'USD'
 }
