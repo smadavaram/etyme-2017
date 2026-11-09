@@ -19,7 +19,8 @@
  * amount is what is left under it. Pure: the run gathers the facts.
  */
 
-import { spendInReporting, type RateTable } from '@/lib/money/reporting-currency'
+import { spendInReporting, rateFor, type RateTable } from '@/lib/money/reporting-currency'
+import { minorPerUnit } from '@/lib/money'
 import { amount as formatAmount } from '@/lib/money-display'
 
 export type CommissionType = 'PER_HOUR' | 'FIXED_PER_PERIOD' | 'ON_PLACEMENT' | 'MARGIN_SHARE'
@@ -130,4 +131,85 @@ export function marginForCommission(
   const spend = spendInReporting(live.map(([currency, minor]) => ({ currency, minor })), table.reportingCurrency, table, on)
   if (!spend.total) return { ok: false, says: `The margin is ${each}. ${spend.says}` }
   return { ok: true, marginCents: spend.total.minor, currency: spend.reportingCurrency, converted: `Margin converted: ${each} is ${spend.says}` }
+}
+
+// ── One sell line's margin, where bill and pay are in two currencies ───
+
+export type LineMargin =
+  | { ok: true; currency: string; minor: number; converted: string | null }
+  | { ok: false; says: string }
+
+/**
+ * (bill − pay) × hours on one sell line, in the sell line's currency.
+ *
+ * The same rule (coordinator's call, 2026-11-08): a pay rate in another
+ * currency is never subtracted from the bill rate as a raw number. With
+ * the company's own rate the pay rate is converted once into the bill's
+ * currency and the sentence says at which rate; with none (or only the
+ * shipped sample) the line has no margin figure and both rates are named.
+ */
+export function lineMargin(
+  l: { hours: number; billRateCents: number; billCurrency: string; payRateCents: number; payCurrency: string | null },
+  table: RateTable | null,
+  on: Date,
+): LineMargin {
+  const bill = (l.billCurrency || 'USD').toUpperCase()
+  const pay = (l.payCurrency || bill).toUpperCase()
+  if (pay === bill || l.payRateCents === 0) {
+    return { ok: true, currency: bill, minor: Math.round(l.hours * Math.max(0, l.billRateCents - l.payRateCents)), converted: null }
+  }
+  const named = `billed at ${formatAmount(l.billRateCents, bill)} an hour and paid at ${formatAmount(l.payRateCents, pay)} an hour`
+  if (!table || table.sample) {
+    return { ok: false, says: `This line is ${named}, in two currencies, so it has no margin figure until your own rate between them is set.` }
+  }
+  const found = rateFor(table.rates, pay, bill, on)
+  if (!found) return { ok: false, says: `This line is ${named}, and you have set no rate from ${pay} to ${bill}.` }
+  const payInBill = Math.round((l.payRateCents / minorPerUnit(pay)) * found.rate * minorPerUnit(bill))
+  return {
+    ok: true, currency: bill,
+    minor: Math.round(l.hours * Math.max(0, l.billRateCents - payInBill)),
+    converted: `Pay of ${formatAmount(l.payRateCents, pay)} an hour converted to ${formatAmount(payInBill, bill)} at your rate ${pay} ${found.inverted ? `1/${(1 / found.rate).toPrecision(6)}` : found.rate} from ${found.row.effectiveOn.toISOString().slice(0, 10)}${found.row.setBy ? ` (set by ${found.row.setBy})` : ''}.`,
+  }
+}
+
+// ── What was already paid under the cap, in the commission's currency ──
+
+export type AlreadyPaid = { ok: true; cents: number; converted: string | null } | { ok: false; says: string }
+
+/**
+ * What has been posted under an agreement before this run, in the currency
+ * this run's commission is in. Postings carry the currency they were paid
+ * in (`txCurrency`); those in another are converted once at the company's
+ * own rate and said, never added as they stand. With no own rate the cap
+ * cannot be checked, and the run says so rather than guessing.
+ */
+export function alreadyPaidIn(
+  currency: string,
+  postings: readonly { txCurrency: string | null; txAmountCents: number | null; amountCents: number }[],
+  table: RateTable | null,
+  on: Date,
+): AlreadyPaid {
+  const into = (currency || 'USD').toUpperCase()
+  const byCurrency = new Map<string, number>()
+  for (const p of postings) {
+    const c = (p.txCurrency || into).toUpperCase()
+    byCurrency.set(c, (byCurrency.get(c) ?? 0) + Math.abs(p.txAmountCents ?? p.amountCents))
+  }
+  const others = [...byCurrency.entries()].filter(([c, v]) => c !== into && v !== 0)
+  const own = byCurrency.get(into) ?? 0
+  if (others.length === 0) return { ok: true, cents: own, converted: null }
+  const each = others.map(([c, v]) => formatAmount(v, c)).join(' and ')
+  if (!table || table.sample) {
+    return { ok: false, says: `${each} was paid under this agreement in another currency than ${into}, so the cap cannot be checked until your own rate is set.` }
+  }
+  let cents = own
+  const said: string[] = []
+  for (const [c, v] of others) {
+    const found = rateFor(table.rates, c, into, on)
+    if (!found) return { ok: false, says: `${formatAmount(v, c)} was paid under this agreement, and you have set no rate from ${c} to ${into}, so the cap cannot be checked.` }
+    const converted = Math.round((v / minorPerUnit(c)) * found.rate * minorPerUnit(into))
+    cents += converted
+    said.push(`${formatAmount(v, c)} as ${formatAmount(converted, into)} at your rate from ${found.row.effectiveOn.toISOString().slice(0, 10)}`)
+  }
+  return { ok: true, cents, converted: `Already paid counted ${said.join(', ')}.` }
 }

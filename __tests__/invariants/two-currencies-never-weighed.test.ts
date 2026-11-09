@@ -83,3 +83,55 @@ describe('loose ends are ranked by severity and age, never by an amount across c
     expect(rank([recent, old]).map((e) => e.subject.id)).toEqual(['inr', 'usd'])
   })
 })
+
+describe('one sell line billed in one currency and paid in another', () => {
+  it('a line billed and paid in dollars has its margin as before', async () => {
+    const { lineMargin } = await import('@/lib/commission')
+    expect(lineMargin({ hours: 10, billRateCents: 10_000, billCurrency: 'USD', payRateCents: 7_000, payCurrency: 'USD' }, null, ON))
+      .toEqual({ ok: true, currency: 'USD', minor: 30_000, converted: null })
+  })
+
+  it('a line billed in dollars and paid in rupees is converted once at the company’s own rate and says which', async () => {
+    const { lineMargin } = await import('@/lib/commission')
+    const m = lineMargin({ hours: 10, billRateCents: 10_000, billCurrency: 'USD', payRateCents: 500_000, payCurrency: 'INR' }, OWN, ON)
+    expect(m.ok).toBe(true)
+    if (!m.ok) return
+    // ₹5,000 an hour at 0.012 is $60 an hour; $100 less $60 over 10 hours.
+    expect(m.minor).toBe(40_000)
+    expect(m.converted).toMatch(/converted to \$60\.00 at your rate INR 0\.012 from 2026-10-01 \(set by Rosalind Tay\)/)
+  })
+
+  it('a line billed in dollars and paid in rupees with no rate of the company’s own has no margin figure, and names both rates', async () => {
+    const { lineMargin } = await import('@/lib/commission')
+    for (const table of [null, SAMPLE]) {
+      const m = lineMargin({ hours: 10, billRateCents: 10_000, billCurrency: 'USD', payRateCents: 500_000, payCurrency: 'INR' }, table, ON)
+      expect(m.ok).toBe(false)
+      if (!m.ok) expect(m.says).toMatch(/\$100\.00 an hour.*₹5,000\.00 an hour/)
+    }
+  })
+})
+
+describe('the cap counts what was already paid in one currency', () => {
+  it('past commission in the run’s own currency is counted as it stands', async () => {
+    const { alreadyPaidIn } = await import('@/lib/commission')
+    expect(alreadyPaidIn('USD', [{ txCurrency: 'USD', txAmountCents: -30_000, amountCents: -30_000 }], null, ON))
+      .toEqual({ ok: true, cents: 30_000, converted: null })
+  })
+
+  it('past commission paid in rupees is converted once at the company’s own rate before it is counted against a dollar cap, and says so', async () => {
+    const { alreadyPaidIn } = await import('@/lib/commission')
+    const a = alreadyPaidIn('USD', [
+      { txCurrency: 'USD', txAmountCents: -30_000, amountCents: -30_000 },
+      { txCurrency: 'INR', txAmountCents: -1_000_000, amountCents: -12_000 },
+    ], OWN, ON)
+    expect(a).toMatchObject({ ok: true, cents: 30_000 + 12_000 })
+    if (a.ok) expect(a.converted).toMatch(/₹10,000\.00 as \$120\.00/)
+  })
+
+  it('past commission in another currency with no rate of the company’s own leaves the cap unchecked, said, never summed', async () => {
+    const { alreadyPaidIn } = await import('@/lib/commission')
+    const a = alreadyPaidIn('USD', [{ txCurrency: 'INR', txAmountCents: -1_000_000, amountCents: -12_000 }], SAMPLE, ON)
+    expect(a.ok).toBe(false)
+    if (!a.ok) expect(a.says).toMatch(/cap cannot be checked/)
+  })
+})

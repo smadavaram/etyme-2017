@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { writeRateTrail } from '@/lib/money/pay-trail'
 import { staffOnly } from '@/lib/seat'
-import { commissionFor, marginForCommission } from '@/lib/commission'
+import { commissionFor, marginForCommission, lineMargin, alreadyPaidIn } from '@/lib/commission'
 import { reportingRatesFor } from '@/lib/money/reporting-currency'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
 import { commissionAccruals, monthPeriod, postingKey, type CommissionPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
               },
               // What the delivering side is paid, for the margin.
               buyLinks: {
-                include: { buyContract: { select: { commissionType: true, candidates: { where: { state: 'ACTIVE' }, select: { payRate: true }, take: 1 } } } },
+                include: { buyContract: { select: { commissionType: true, payCurrency: true, candidates: { where: { state: 'ACTIVE' }, select: { payRate: true }, take: 1 } } } },
               },
             },
           },
@@ -248,7 +248,14 @@ export async function POST(request: NextRequest) {
   let ownRates: Awaited<ReturnType<typeof reportingRatesFor>> | null = null
   for (const bc of agents) {
     const agent = bc.candidates[0] ?? null
-    const already = await prisma.orderPosting.aggregate({ where: { buyContractId: bc.id, kind: 'COMMISSION', reversalOfId: null }, _sum: { amountCents: true } })
+    // Past postings with the currency each was paid in, so the cap is
+    // checked in one currency and never across two as raw numbers.
+    const alreadyRows = await prisma.orderPosting.findMany({
+      where: { buyContractId: bc.id, kind: 'COMMISSION', reversalOfId: null },
+      select: { amountCents: true, txCurrency: true, txAmountCents: true },
+    })
+    const lineSays: string[] = []
+    let lineRefused: string | null = null
     let hours = 0
     // Per currency: a sell line in rupees and one in dollars are never added (marginForCommission).
     const margins: { currency: string; minor: number }[] = []
@@ -257,9 +264,22 @@ export async function POST(request: NextRequest) {
     for (const link of bc.sellLinks) {
       const sc = link.sellContract
       const h = sc.timesheets.reduce((s, t) => s + Number(t.acceptedHours ?? t.totalHours), 0)
-      const payRate = sc.buyLinks.find((l) => !l.buyContract.commissionType)?.buyContract.candidates[0]?.payRate ?? 0
+      const payLeg = sc.buyLinks.find((l) => !l.buyContract.commissionType)?.buyContract
+      const payRate = payLeg?.candidates[0]?.payRate ?? 0
       hours += h
-      margins.push({ currency: sc.billCurrency, minor: Math.round(h * Math.max(0, sc.billRate - payRate)) })
+      // Bill less pay on this line, with the pay converted once at the
+      // company's own rate where it is in another currency (lineMargin).
+      if (bc.commissionType === 'MARGIN_SHARE') {
+        const lm = lineMargin(
+          { hours: h, billRateCents: sc.billRate, billCurrency: sc.billCurrency, payRateCents: payRate, payCurrency: payLeg?.payCurrency ?? null },
+          ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd,
+        )
+        if (!lm.ok) lineRefused = lm.says
+        else {
+          margins.push({ currency: lm.currency, minor: lm.minor })
+          if (lm.converted) lineSays.push(lm.converted)
+        }
+      }
       if (sc.startDate >= periodStart && sc.startDate <= periodEnd) placementsStarted++
       const orderId = await orderFor(sc.id)
       if (orderId) orders.push({ sellContractId: sc.id, orderId, currency: sc.billCurrency })
@@ -270,16 +290,20 @@ export async function POST(request: NextRequest) {
     let marginCents = 0
     let currency = bc.payCurrency
     let converted: string | null = null
+    if (lineRefused) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${lineRefused}` }); continue }
     if (bc.commissionType === 'MARGIN_SHARE') {
       const m = marginForCommission(margins, ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd)
       if (!m.ok) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${m.says}` }); continue }
       marginCents = m.marginCents
       currency = m.currency
-      converted = m.converted
+      converted = [...lineSays, m.converted].filter(Boolean).join(' ') || null
     }
+    const already = alreadyPaidIn(currency, alreadyRows, ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd)
+    if (!already.ok) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${already.says}` }); continue }
+    if (already.converted) converted = [converted, already.converted].filter(Boolean).join(' ')
     const computed = commissionFor({
       type: bc.commissionType!, rate: bc.commissionRate ?? 0, capCents: bc.commissionCap,
-      alreadyCents: Math.abs(already._sum.amountCents ?? 0), hours, marginCents, placementsStarted,
+      alreadyCents: already.cents, hours, marginCents, placementsStarted,
       currency,
     })
     const result = converted ? { ...computed, says: `${computed.says} ${converted}` } : computed

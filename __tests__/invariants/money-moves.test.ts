@@ -57,7 +57,9 @@ describe('the commission run', () => {
   it('posts once per contract per period, under the cap, and writes the run down', () => {
     const r = read('src/app/api/payroll/commissions/route.ts')
     expect(r).toContain('sourceId: `commission:${bc.id}:${periodKey}:${o.sellContractId}`')
-    expect(r).toContain("alreadyCents: Math.abs(already._sum.amountCents ?? 0)")
+    // Under the cap, counted in one currency (alreadyPaidIn), never summed across two.
+    expect(r).toContain('alreadyCents: already.cents')
+    expect(r).toContain('alreadyPaidIn(currency, alreadyRows')
     expect(r).toContain("action: 'COMMISSION_RUN'")
   })
   it('a commission is a cost posting against the order the work billed to', () => {
