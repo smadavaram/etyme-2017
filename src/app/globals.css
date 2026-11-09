@@ -450,6 +450,38 @@
   }
 }
 
+/* Settings → Team structure (founder, 2026-11-09): the tree drawn top down,
+   with lines between the boxes, and the last level stacked downward. The
+   lines are borders on the list items, so the tree is plain lists and reads
+   as an outline to a screen reader and on a phone. */
+@layer components {
+  .org-tree, .org-tree ul { list-style: none; margin: 0; padding: 0; }
+  .org-tree { display: flex; justify-content: center; min-width: max-content; }
+  .org-tree ul { display: flex; justify-content: center; padding-top: 20px; position: relative; }
+  .org-tree li { position: relative; padding: 20px 6px 0; display: flex; flex-direction: column; align-items: center; }
+  .org-tree > li { padding-top: 0; }
+  .org-tree li::before, .org-tree li::after { content: ""; position: absolute; top: 0; height: 20px; border-top: 1.5px solid var(--color-rule); }
+  .org-tree li::before { right: 50%; width: 50%; }
+  .org-tree li::after { left: 50%; width: 50%; border-left: 1.5px solid var(--color-rule); }
+  .org-tree li:only-child::before, .org-tree li:only-child::after { border-top: 0; }
+  .org-tree li:first-child::before, .org-tree li:last-child::after { border-top: 0; }
+  .org-tree li:last-child::before { border-right: 1.5px solid var(--color-rule); border-radius: 0 6px 0 0; }
+  .org-tree li:first-child::after { border-radius: 6px 0 0 0; }
+  .org-tree > li::before, .org-tree > li::after { display: none; }
+  .org-tree ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 20px; border-left: 1.5px solid var(--color-rule); }
+  .org-tree ul.org-stack { flex-direction: column; align-items: flex-start; padding: 12px 0 0 22px; margin-left: 16px; border-left: 1.5px solid var(--color-rule); gap: 8px; }
+  .org-tree ul.org-stack::before { display: none; }
+  .org-tree ul.org-stack > li { padding: 0; align-items: flex-start; }
+  .org-tree ul.org-stack > li::before { display: block; content: ""; position: absolute; left: -22px; top: 20px; width: 20px; height: 0; border-top: 1.5px solid var(--color-rule); border-right: 0; border-radius: 0; }
+  .org-tree ul.org-stack > li::after { display: none; }
+  @media (max-width: 640px) {
+    .org-tree, .org-tree ul { display: block; min-width: 0; }
+    .org-tree ul, .org-tree ul.org-stack { padding: 6px 0 0 14px; border-left: 1.5px solid var(--color-rule); margin-left: 8px; }
+    .org-tree ul::before, .org-tree li::before, .org-tree li::after, .org-tree ul.org-stack > li::before { display: none; }
+    .org-tree li { display: block; padding: 6px 0 0; }
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

@@ -497,6 +497,16 @@ const SITES: NavItem = {
   label: 'Sites', href: '/dashboard/settings/sites', icon: '⌖',
   needs: ['settings.manage', 'vendors.manage'], api: 'settings/locations', pageCalls: ['settings/locations/**'],
 }
+/**
+ * Who leads what, and where (founder, 2026-11-09, "Team structure is one
+ * tree the Owner draws"): the company's departments, regions, sites and
+ * teams, each with its lead. The Owner and the Admin only; the route asks
+ * settings.manage for the read and for every change.
+ */
+const TEAM_STRUCTURE: NavItem = {
+  label: 'Team structure', href: '/dashboard/settings/team-structure', icon: '⌬',
+  needs: ['settings.manage'], api: 'settings/team-structure', pageCalls: ['settings/team-structure/**'],
+}
 // Who is seated here and what each may do; `/api/access` gates its read on governance.read.
 const USERS: NavItem = { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', needs: ['governance.read'] }
 // Five onboardings, derived live from what exists, read by the seats that bring each party on.
@@ -536,7 +546,7 @@ const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data'
  * stay, and Papers you require is the setup checklist's item.
  */
 const FIRM_SETTINGS: NavItem[] = [
-  SETTINGS, SITES, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
+  SETTINGS, SITES, TEAM_STRUCTURE, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
   DATA_REQUESTS, YOUR_DATA_HERE,
 ]
 
@@ -843,6 +853,7 @@ const CLIENT_NAV: NavSection[] = [
   tabbed('Settings', [
     SETTINGS,
     SITES,
+    TEAM_STRUCTURE,
     USERS,
     // Who runs the program: approvers, the lead, and who is answerable
     // for each budget. Read by whoever raises a job request, sets the
