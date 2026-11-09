@@ -4987,10 +4987,20 @@ because two of them are money.
 2. **No final partial period.** A contract ending on a Wednesday has no hours
    cycle and no invoice cycle for its last two days; generation stops at the
    last whole boundary. The Rails version emitted the short trailing group.
+   **Decided by the founder, 2026-11-09** ("yes to both pay-date
+   recommendations"): the last regular period runs through the contract's
+   end date, so the final short stretch has its hours-due, invoice and pay
+   dates; it is not a stranded short cycle, because an extension moves the
+   end and the last period with it. Needs `Cycle.periodStart`/`periodEnd`
+   (architect) before money builds it.
 3. **Business days only shift forward.** US payroll pays a Saturday pay day on
    the Friday before; this moves it to the Monday after, which pays after the
    work. The direction is a money decision, per kind rather than globally —
-   pay backward, bill forward. Nobody has made it.
+   pay backward, bill forward. **Decided by the founder, 2026-11-09:** a pay
+   date that falls on a day off moves to the working day before it (the
+   worker is never paid late), and a bill date moves to the working day
+   after it. Per kind, read from the kind's side (PAY backward, BILL
+   forward), money's to build, with tests first.
 4. **No salary lag.** A contract's payment term is not mapped into `offsetDays`,
    so pay day is the period end itself.
 5. **Nothing marks pay cleared.** Legacy ran calculate → process → clear. If AP
