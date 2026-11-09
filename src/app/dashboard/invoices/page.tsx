@@ -18,7 +18,7 @@ import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCou
 import { booksFrom, booksHref, otherBooks, switchLabel, invoiceHref, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
 import { billStateWord } from '@/lib/money/bill-state'
 import { formatDay } from '@/lib/format-date'
-import { sentRowsInPlace } from '@/lib/money/bill-sent-view'
+import { sentRowsInPlace, awaitsPayment, offersSend } from '@/lib/money/bill-sent-view'
 
 /**
  * Invoices working surface — the Operate section.
@@ -788,7 +788,9 @@ export default function InvoicesPage() {
   const outstandingMinor = inAll ? inAll.owedMinor : book?.outstandingMinor ?? 0
   const overdueMinor = inAll ? inAll.overdueMinor : book?.overdueMinor ?? 0
   const paidCount = shown.filter((i) => i.status === 'PAID').length
-  const issuedCount = shown.filter((i) => ['ISSUED', 'SUBMITTED'].includes(i.status)).length
+  // Bills sent and awaiting payment: never one raised and not sent
+  // (walk 9b, 2026-11-09), whose row reads "Raised, not sent".
+  const issuedCount = shown.filter((i) => awaitsPayment(i)).length
 
   // ── Aging bar segments (visual proportion) ────────
   // The same five bands the AR page draws, in the same colors — one
@@ -869,8 +871,8 @@ export default function InvoicesPage() {
       key: 'outstanding',
       label: 'Outstanding',
       render: (row) => (
-        <span className={`tabular-nums font-medium ${row.outstandingMinor > 0 ? agingColor(row.aging) : 'text-etyme-muted'}`}>
-          {row.outstandingMinor > 0 ? fmtMinor(row.outstandingMinor, row.currency) : '—'}
+        <span className={`tabular-nums font-medium ${row.outstandingMinor > 0 && !offersSend(row.status) ? agingColor(row.aging) : 'text-etyme-muted'}`}>
+          {offersSend(row.status) ? 'Raised, not sent' : row.outstandingMinor > 0 ? fmtMinor(row.outstandingMinor, row.currency) : '—'}
         </span>
       ),
       sortValue: (row) => row.outstandingMinor,

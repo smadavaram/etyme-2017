@@ -304,7 +304,12 @@ export async function GET(request: NextRequest) {
         currency: inv.currency,
         totalMinor,
         paidMinor,
-        outstandingMinor: totalMinor - paidMinor,
+        // Nothing is outstanding on a bill nobody was sent, or one cancelled
+        // or void (walk 9b, 2026-11-09: Brightmoor's raised, unsent $22,080
+        // read "Outstanding" on its own row). The row still shows its total.
+        outstandingMinor: NOT_COUNTABLE.includes(inv.status) ? 0 : totalMinor - paidMinor,
+        /** Nobody has been asked for this money: drafted or raised, not sent. */
+        notSent: BILL_NOT_SENT.includes(inv.status),
         dueAt: inv.dueAt.toISOString(),
         status: inv.status,
         aging: agingBucket,

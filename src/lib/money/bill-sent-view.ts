@@ -1,5 +1,5 @@
 import { formatDay } from '@/lib/format-date'
-import { BILL_NOT_SENT } from '@/lib/money/bill-state'
+import { BILL_NOT_SENT, DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { hasPermission } from '@/lib/permissions'
 
 /**
@@ -103,4 +103,14 @@ export function notYoursToSendSays(parties: {
     return `${seller} sends this bill, not your company. Once ${seller} sends it, it is yours to check and pay.`
   }
   return `A bill is sent by the firm that raised it, ${seller}.`
+}
+
+/**
+ * Whether a bill is sent and still awaiting payment: what "Open bills,
+ * awaiting payment" counts. Never a bill drafted or raised and not sent,
+ * never one cancelled or void, never one paid in full.
+ */
+export function awaitsPayment(row: { status: string; outstandingMinor: number }): boolean {
+  if (DRAWS_NOTHING.includes(row.status.toUpperCase())) return false
+  return row.outstandingMinor > 0
 }

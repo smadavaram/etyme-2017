@@ -8,6 +8,7 @@ import { GET as apRoute } from '@/app/api/ap/route'
 import { GET as ordersRoute } from '@/app/api/purchase-orders/route'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { orderLedgers } from '@/lib/money/order-ledger'
+import { awaitsPayment } from '@/lib/money/bill-sent-view'
 
 /**
  * Walk 9, 2026-11-09: Brightmoor raised a $22,080 bill and never sent it,
@@ -31,7 +32,7 @@ const summaryAs = async (email: string, direction: 'RECEIVABLE' | 'PAYABLE') => 
   as(email)
   const r = await json(await invoiceList(req('GET', `/api/invoices?direction=${direction}&limit=200`)))
   expect(r.status, JSON.stringify(r.body)).toBe(200)
-  return r.body.data as { invoices: { id: string; number: string }[]; summary: unknown }
+  return r.body.data as { invoices: { id: string; number: string; status: string; totalMinor: number; outstandingMinor: number; notSent: boolean }[]; summary: unknown }
 }
 const leftAs = async (email: string) => {
   as(email)
@@ -87,14 +88,28 @@ describe('a bill raised and not sent is never owed on Payables or Bills, and eve
     expect(mine.invoices.map((i) => i.number)).not.toContain(NUMBER)
     expect(mine.summary).toEqual(before.clientSummary)
     as(NORTHBEND_AP)
-    const opened = await invoiceRead(req('GET', `/api/invoices/${invoiceId}`), { params: Promise.resolve({ id: invoiceId }) } as any)
+    const opened = await json(await invoiceRead(req('GET', `/api/invoices/${invoiceId}`), { params: Promise.resolve({ id: invoiceId }) } as any))
     expect(opened.status).toBe(404)
+    // Said, never "not found": the supplier has not sent it yet.
+    expect(opened.body.error.code).toBe('NOT_SENT_YET')
+    expect(opened.body.error.message).toMatch(/^Brightmoor Staffing has not sent this bill yet\./)
   })
 
   it('the supplier lists its raised bill as its own work but counts nothing owed to it until it is sent', async () => {
     const theirs = await summaryAs(BRIGHTMOOR_AR, 'RECEIVABLE')
     expect(theirs.invoices.map((i) => i.number)).toContain(NUMBER)
     expect(theirs.summary).toEqual(before.supplierSummary)
+  })
+
+  it('the supplier’s Bills page shows nothing outstanding and counts nothing awaiting payment for a bill it raised and has not sent', async () => {
+    const theirs = await summaryAs(BRIGHTMOOR_AR, 'RECEIVABLE')
+    const row = theirs.invoices.find((i) => i.number === NUMBER)!
+    expect(row.totalMinor).toBe(2_208_000)
+    expect(row.outstandingMinor).toBe(0)
+    expect(row.notSent).toBe(true)
+    expect(awaitsPayment(row)).toBe(false)
+    const awaiting = theirs.invoices.filter((i) => awaitsPayment(i))
+    expect(awaiting.every((i) => !['DRAFT', 'ISSUED', 'CANCELLED', 'VOID'].includes(i.status))).toBe(true)
   })
 
   it('every seat reads the order’s Left the same, with the raised bill said apart as not sent', async () => {

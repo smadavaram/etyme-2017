@@ -269,6 +269,16 @@ export default function InvoiceDetail() {
         setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
         return
       }
+      // A bill its supplier has not sent yet: the route's own sentence, and
+      // no Try again, because trying again changes nothing until it is sent.
+      if (res.status === 404) {
+        const body = await res.json().catch(() => null)
+        if (body?.error?.code === 'NOT_SENT_YET' && typeof body.error.message === 'string') {
+          setRefusedSaid(body.error.message)
+          return
+        }
+        throw new Error(body?.error?.message ?? 'Invoice not found')
+      }
       const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }

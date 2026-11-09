@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ledgerOf, billCountsAsBilled } from '@/lib/money/order-ledger'
 import { lineBillingFrom, ageInWeeks, ageBand, rollUp, type LineIn, type WeekPrice } from '@/lib/money/signed-unbilled'
-import { offersSend, offersSubmit, notYoursToSendSays, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
+import { offersSend, offersSubmit, notYoursToSendSays, awaitsPayment, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
 
 /**
  * One definition of money (the founder's scale audit, 2026-11-08).
@@ -342,5 +342,28 @@ describe('a bill raised and not sent is owed by nobody, and only its sender is o
     expect(b.notBilled.amountMinor).toBe(448_000 + 57_600)
     expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
     expect(b.notBilled.aging.find((a) => a.band === 'Over 13 weeks')!.expenseMinor).toBe(57_600)
+  })
+})
+
+describe('the supplier’s own Bills page says a raised bill is not sent and owed by nobody (walk 9b)', () => {
+  it('a bill counts as awaiting payment only once it is sent and something is still owed on it', () => {
+    expect(awaitsPayment({ status: 'ISSUED', outstandingMinor: 2_208_000 })).toBe(false)
+    expect(awaitsPayment({ status: 'DRAFT', outstandingMinor: 1 })).toBe(false)
+    expect(awaitsPayment({ status: 'VOID', outstandingMinor: 1 })).toBe(false)
+    expect(awaitsPayment({ status: 'SUBMITTED', outstandingMinor: 2_208_000 })).toBe(true)
+    expect(awaitsPayment({ status: 'PARTIALLY_PAID', outstandingMinor: 100 })).toBe(true)
+    expect(awaitsPayment({ status: 'PAID', outstandingMinor: 0 })).toBe(false)
+  })
+
+  it('the list route gives an unsent bill nothing outstanding, and the page reads "Raised, not sent" and counts only bills awaiting payment', () => {
+    expect(read('src/app/api/invoices/route.ts')).toMatch(/outstandingMinor: NOT_COUNTABLE\.includes\(inv\.status\) \? 0 : totalMinor - paidMinor/)
+    const page = read('src/app/dashboard/invoices/page.tsx')
+    expect(page).toMatch(/const issuedCount = shown\.filter\(\(i\) => awaitsPayment\(i\)\)\.length/)
+    expect(page).toContain("'Raised, not sent'")
+  })
+
+  it('a client opening a bill nobody has sent reads that the supplier has not sent it yet, never "not found" with Try again', () => {
+    expect(read('src/app/api/invoices/[id]/route.ts')).toContain("code: 'NOT_SENT_YET'")
+    expect(read('src/app/dashboard/invoices/[id]/page.tsx')).toMatch(/body\?\.error\?\.code === 'NOT_SENT_YET'/)
   })
 })

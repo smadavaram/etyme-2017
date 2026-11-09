@@ -169,11 +169,15 @@ export async function GET(
   // A draft is the issuing firm's working paper — the supplier's twin
   // writes them (2026-10-18) and nobody has been asked for the money. The
   // firm it would be sent to does not read it until it is sent.
-  const readAs = directionFrom(partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }), reading?.companyId ?? caller.company?.id ?? null)
+  const readParties = partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder })
+  const readAs = directionFrom(readParties, reading?.companyId ?? caller.company?.id ?? null)
   // Raised and never sent is the same (walk 9: a raised bill read as owed on Payables).
+  // The firm it would be sent to is told so in a sentence, never "not found"
+  // with Try again (walk 9b): the same words the send route uses.
   if (BILL_NOT_SENT.includes(invoice.status) && readAs !== 'RECEIVABLE') {
+    const seller = readParties.vendor?.name?.trim() || 'The supplier'
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { error: { code: 'NOT_SENT_YET', message: `${seller} has not sent this bill yet. Once ${seller} sends it, it is yours to check and pay.` } },
       { status: 404 }
     )
   }
