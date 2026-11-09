@@ -27,7 +27,7 @@ import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { weekStart, weekEnd } from '@/lib/overtime'
 import { stayOver, reminderLeadDays, renewFields } from '@/lib/bench-stay'
-import { standingAgainstLimit, monthsOf } from '@/lib/tenure-days'
+import { standingAgainstLimit, monthsOf, bookedLimitDay, linesCounted } from '@/lib/tenure-days'
 import { GET as myWork } from '@/app/api/me/work/route'
 import { GET as myPapers } from '@/app/api/me/papers/route'
 import { GET as myPipeline } from '@/app/api/me/pipeline/route'
@@ -236,7 +236,18 @@ export async function workerFacts(
         { capMonths, breakDays: Number.isFinite(breakDays) ? breakDays : null },
         now,
       )
-      limits.push({ site: v.name, months: monthsOf(standing.countedDays), capMonths, past: standing.pastLimit })
+      // The day the limit falls on her contracts as booked, read the way the
+      // Tenure page reads it (`bookedLimitDay` over the lines the limit still
+      // counts, an ended line counted to its end or today), so the two say one date.
+      const booked = linesCounted(served, standing).map((l) => ({
+        startDate: l.startDate,
+        endDate: l.state === 'ENDED' ? new Date(Math.min((l.endDate ?? now).getTime(), now.getTime())) : l.endDate,
+      }))
+      const reachedOn = bookedLimitDay(booked, { capMonths, breakDays: Number.isFinite(breakDays) ? breakDays : null }, now)
+      limits.push({
+        site: v.name, months: monthsOf(standing.countedDays), capMonths, past: standing.pastLimit,
+        limitOn: reachedOn ? reachedOn.toISOString().slice(0, 10) : null,
+      })
     }
   }
   const expectedFor = (from: string, to: string): number | null => {

@@ -953,7 +953,7 @@ export async function POST(request: NextRequest) {
     // Setting up her firm is the firm's book too (2026-11-02).
     const asked = readAsk(text)
     const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP', 'WHERE', 'GO'].includes(asked.kind) &&
-      ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS'].includes(readWorkerAsk(text))
+      ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS', 'MONTHS'].includes(readWorkerAsk(text))
     const seat = await seatOf(caller)
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request), firmPaid: () => firmPaidOf(caller) })

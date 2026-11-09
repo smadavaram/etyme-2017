@@ -93,6 +93,12 @@ export function scopeLine(permission: string, scope: AccessScope, teams: readonl
  */
 const SCOPE_WORDS: Readonly<Record<string, string>> = {
   'margin.read': 'read margin',
+  // Jobs and submissions narrowed by a team or own-work grant (demand,
+  // 2026-11-09): "You read submissions for the Dayton team".
+  'submissions.read': 'read submissions',
+  'submissions.create': 'put people forward',
+  'requirements.read': 'read jobs',
+  'requirements.write': 'raise jobs',
 }
 
 /**

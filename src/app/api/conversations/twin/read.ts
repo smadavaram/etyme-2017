@@ -51,6 +51,7 @@ import { scopeLine, teamsGranted, noAccessSays, ACCESS_LINK, type GrantOffer, ty
 import { marginRefusal, type MarginRow, type MarginCutLine } from './ask'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import { GET as submissionsRoute } from '@/app/api/submissions/route'
+import { reachFor, jobInReach, outsideReachSays, type Reach } from '@/app/api/requisitions/grant-reach'
 import { GET as complianceRoute } from '@/app/api/compliance/route'
 import { labelFor } from '@/lib/document-type'
 import { maySendBills } from '@/lib/money/bill-send'
@@ -261,6 +262,22 @@ export function readersFor(
     return { ok: true, data: body.data }
   }
 
+  /**
+   * How far this seat reads jobs or submissions, exactly as the routes
+   * narrow them (demand, 37c14618b): a seat whose own role holds the desk
+   * reads the firm's, and so does a seat in another company's program; a
+   * seat that reads them only by an Owner's grant reads that team and the
+   * teams under it, or its own work. Null where the reach is the firm's.
+   */
+  const jobsReach = async (what: 'submissions' | 'jobs'): Promise<(Reach & { teamNames: string[] }) | null> => {
+    if (seat || !caller.company) return null
+    const ownRole = (caller as { rolePermissions?: readonly string[] }).rolePermissions ?? caller.permissions
+    const desk = what === 'submissions' ? ['*', 'submissions.read', 'submissions.create'] : ['*', 'requirements.read']
+    if (desk.some((p) => ownRole.includes(p))) return null
+    const r = await reachFor(caller, what === 'submissions' ? 'submissions.read' : 'requirements.read')
+    return r.has && (r.scope === 'UNIT' || r.scope === 'PERSON') ? r : null
+  }
+
   return {
     /**
      * Over what this seat reads a permission (lib/permission-grants), said
@@ -268,6 +285,11 @@ export function readersFor(
      */
     async scopeLine(permission: string): Promise<string | null> {
       if (!ownCompany || seat || !caller.company) return null
+      // Jobs and submissions are said as the routes narrow them, never wider or narrower.
+      if (permission === 'submissions.read' || permission === 'requirements.read') {
+        const r = await jobsReach(permission === 'submissions.read' ? 'submissions' : 'jobs')
+        return r ? scopeLine(permission, r.scope, r.teamNames, await giversHere()) : null
+      }
       // What placements make opens on margin.read or pnl.read, and its reach
       // is the wider of the two: the one money's Profitability reads at the
       // query (lib/money/margin-reach), so the line and the figures agree.
@@ -1416,12 +1438,21 @@ export function readersFor(
           },
           orderBy: { createdAt: 'desc' },
           take: 500,
-          select: { id: true, title: true, companyId: true, status: true },
+          select: { id: true, title: true, companyId: true, status: true, orgUnitId: true, raisedById: true, ownerId: true },
         })
         const flat = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
         const hits = jobs.filter((r) => { const t = flat(r.title); return t.length > 2 && (t === wanted || wanted.includes(t) || t.includes(wanted)) })
         // An open job before a closed one of the same name, then the newest.
-        found = hits.find((r) => r.status === 'OPEN') ?? hits[0] ?? null
+        const reach = await jobsReach('submissions')
+        // A seat that reads submissions for one team (or its own work) finds
+        // its own job first; another team's job of that name is refused
+        // naming the reach, as the submissions route refuses it.
+        const inReach = reach ? hits.filter((r) => jobInReach(reach, r, caller.person.id)) : hits
+        const pick = (xs: typeof hits) => xs.find((r) => r.status === 'OPEN') ?? xs[0] ?? null
+        found = pick(inReach)
+        if (!found && reach && hits.length) {
+          return { ok: false as const, says: outsideReachSays('submissions', reach, reach.teamNames, company.name), links: [{ label: 'Open Submissions', href: '/dashboard/submissions' }] }
+        }
         if (!found) {
           return { ok: false as const, says: `No job called “${job}” is on your jobs. Open Jobs to find it.`, links: [{ label: 'Open Jobs', href: '/dashboard/requisitions' }] }
         }

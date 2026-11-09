@@ -270,7 +270,9 @@ export interface WorkerFacts {
    * on today and whose client set one: whole months counted, never rounded
    * up, across every supplier. Absent where none was read.
    */
-  limits?: Array<{ site: string; months: number; capMonths: number; past: boolean }>
+  limits?: Array<{ site: string; months: number; capMonths: number; past: boolean
+    /** YYYY-MM-DD: the day the limit falls on her contracts as booked; null where they end before it. */
+    limitOn?: string | null }>
   /** Parts of her record that could not be read just now; never said as "nothing". */
   unread: Array<'weeks' | 'papers' | 'interviews' | 'consent'>
   /**
@@ -830,7 +832,7 @@ export function workerToday(
 
 export type WorkerIntent =
   | 'HELP' | 'NEEDS' | 'SIGNED' | 'OWED' | 'PAPERS' | 'CONSENT' | 'CHAIN' | 'MY_RATE' | 'THEIR_RATE'
-  | 'FILE' | 'SIGN_WEEK' | 'EXTEND' | 'LAST_PAID' | 'JOBS' | 'INTERVIEWS' | 'CONTRACT_END' | 'GENERAL' | 'ANOTHER' | 'NOT_YET'
+  | 'FILE' | 'SIGN_WEEK' | 'EXTEND' | 'LAST_PAID' | 'JOBS' | 'INTERVIEWS' | 'CONTRACT_END' | 'GENERAL' | 'ANOTHER' | 'MONTHS' | 'NOT_YET'
 
 const lowerOf = (t: string) => t.toLowerCase().normalize('NFC').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim()
 
@@ -857,6 +859,7 @@ export function readWorkerAsk(raw: string): WorkerIntent {
   if (/^(file|submit|enter|log|send|fill in|fill out|put in)\b.*\b(week|hours|timesheet|time)\b|\b(file|submit|log|enter) (it|them) for me\b/.test(t)) return 'FILE'
   if (/^(approve|sign|accept)\b.*\b(week|hours|timesheet)\b/.test(t)) return 'SIGN_WEEK'
   if (/^(please |can you |could you )?(extend|lengthen)\b/.test(t) || /\bextend (my|the) (contract|placement|assignment|project)\b/.test(t)) return 'EXTEND'
+  if (asksMonths(t)) return 'MONTHS'
   if (/^(what|who|anything)\b.*\b(needs?|waiting on|waits? (for|on))\s+me\b|^what do i (need|have) to do\b|^(needs me|my queue|what is waiting( on me)?)\??$/.test(t)) return 'NEEDS'
   if (/\b(contract|placement|assignment|project)s?\b.*\b(end|ends|ending|finish|finishes|over|last day)\b|\bmy last day\b|\bwhen do i (finish|roll ?off)\b/.test(t)) return 'CONTRACT_END'
   if (/\b(last|latest) (paid|pay ?check|payment|pay)\b|\bwhen was i (last )?paid\b|\bwhen did i (last )?get paid\b/.test(t)) return 'LAST_PAID'
@@ -869,6 +872,39 @@ export function readWorkerAsk(raw: string): WorkerIntent {
   if (/\b(consent|who has (me|my)|benches|bench|marketing me|put me forward|submit me|list(ed|s)? me)\b/.test(t)) return 'CONSENT'
   if (/\b(who (employs|pays) me|my employer|who do i work for|my chain|which firms?|my agency|my vendor)\b/.test(t)) return 'CHAIN'
   return 'NOT_YET'
+}
+
+/**
+ * "How long have I been at Northbend?", "months here", "how long until my
+ * time limit", "when do I reach the limit": her own months against the
+ * client's time limit. Pure.
+ */
+export function asksMonths(t: string): boolean {
+  return (
+    /\bhow long (have i been|am i|have i worked|have i stayed)\b/.test(t) ||
+    /\bhow many months\b/.test(t) ||
+    /\bmonths? (here|on site|at \w+|so far)\b/.test(t) ||
+    /\b(my )?(time limit|tenure)\b/.test(t) ||
+    /\bwhen do i (reach|hit) (the|my) limit\b/.test(t)
+  )
+}
+
+/**
+ * Her months against each client's limit, from the same reading her
+ * greeting says, and the day the limit falls on her contracts as booked:
+ * "You are six months into Northbend Athletic’s eighteen-month time limit.
+ * Your contracts as booked end before you reach it."
+ */
+export function monthsSays(limits: NonNullable<WorkerFacts['limits']>): string {
+  if (limits.length === 0) return 'No client you are on site with sets a time limit. Checked just now.'
+  const lines = limits.map((l) => {
+    const where = limitLine(l)
+    if (l.past || l.months >= l.capMonths) return where
+    return l.limitOn
+      ? `${where} You reach it on ${formatDay(l.limitOn)}, on your contracts as booked.`
+      : `${where} Your contracts as booked end before you reach it.`
+  })
+  return `${lines.join(' ')} Checked just now.`
 }
 
 /** The record read for one answer: one read, the worker's own. */
@@ -1108,6 +1144,12 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
         more: [{ says: 'You see every firm in your chain. What one firm charges another stays between them.' }],
         links: [{ label: 'Open Your work', href: YOUR_WORK }],
       }, 'weeks')
+    }
+
+    case 'MONTHS': {
+      // The same reading her greeting's line comes from (worker-read's `limits`).
+      if (!f.limits) return text('Your months against the time limit could not be read just now. Open Your work to see them.', [{ label: 'Open Your work', href: YOUR_WORK }])
+      return { kind: 'WORKER', says: monthsSays(f.limits), cards: [], more: [], links: [{ label: 'Open Your work', href: YOUR_WORK }] }
     }
 
     case 'CONTRACT_END': {

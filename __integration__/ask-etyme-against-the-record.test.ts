@@ -134,6 +134,26 @@ describe('Ask Etyme’s answers agree with the record on the seeded world', () =
     expect(said).toBe(monthsOf(her.countedDays ?? her.cumulativeDays))
   })
 
+  it('a worker asking “How long have I been at Northbend?” is told the whole months the Tenure page counts, and the limit day it gives, or that her contracts end before it', async () => {
+    const helena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'helena.marsh@seed.etyme.invalid' }, select: { id: true } })
+    const ledger = await page(seats.PM, tenureGet, '/api/tenure')
+    const her = ledger.people.find((p: { personId: string }) => p.personId === helena.id)
+    for (const q of ['How long have I been at Northbend?', 'Months here?', 'How long until my time limit?']) {
+      as('helena.marsh@seed.etyme.invalid')
+      const answer = (await json(await askPost(req('POST', '/api/conversations/twin', { text: q })))).body.data.answer
+      expect(answer.says, q).not.toContain('I cannot answer that yet')
+      const said = WORDS.indexOf(answer.says.match(/^You are (\w+) months?/)?.[1] ?? '')
+      expect(said, q).toBe(monthsOf(her.countedDays ?? her.cumulativeDays))
+      expect(answer.says, q).toContain(`${WORDS[ledger.tenureCapMonths]}-month time limit`)
+      if (her.limitReachedOn) {
+        const day = new Date(her.limitReachedOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        expect(answer.says, q).toContain(`You reach it on ${day}`)
+      } else {
+        expect(answer.says, q).toContain('Your contracts as booked end before you reach it.')
+      }
+    }
+  })
+
   // ── Papers: the person's own paperwork ─────────────────────────────
 
   it('“What papers are due?” asks a worker for exactly the papers her own paperwork page says are still to send', async () => {

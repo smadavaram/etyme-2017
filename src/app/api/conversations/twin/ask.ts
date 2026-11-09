@@ -3205,8 +3205,10 @@ export async function respond(
     case 'APPLIED': {
       const got = await read.applied!(intent.job)
       if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      // Read for one team or one's own work, the answer says so (37c14618b).
+      const reach = await reachOf(read, 'submissions.read')
       return {
-        kind: 'LIST', says: appliedSays(got.job, got.rows, got.total),
+        kind: 'LIST', says: withReach(appliedSays(got.job, got.rows, got.total), reach),
         ...(got.rows.length ? { table: appliedTable(got.rows) } : {}),
         links: [{ label: 'Open Submissions', href: '/dashboard/submissions' }],
       }
