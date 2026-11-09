@@ -154,7 +154,7 @@ describe('the twin’s ledger', () => {
       // keep the act's own "Ask Pinnacle…" beside "The record says no"),
       // and keeps the act's own reason in the payload.
       if (c.outcome === 'REFUSED') {
-        expect(e.rationale, c.action).toBe(r.says)
+        expect(e.rationale, c.action).toBe(r.outcome === 'REFUSED' ? r.says : undefined)
         expect(e.rationale, c.action).not.toBe(base.rationale)
         expect((e.payload as Record<string, unknown>).rationaleTheActGave, c.action).toBe(base.rationale)
       } else {

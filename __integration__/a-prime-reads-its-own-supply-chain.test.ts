@@ -49,11 +49,15 @@ beforeAll(async () => {
 
   // The shape the sentences below depend on, asserted rather than
   // assumed: the sub sells to the prime, and the work is at the client.
+  // Found by its facts: Techpeple's line to Computer Systems for work at
+  // Harlow Health. Techpeple sells to Computer Systems for Northbend too,
+  // so an unordered first row could be either (release pass 47).
   const leg = await prisma.sellContract.findFirst({
-    where: { companyId: co.sub, clientCompanyId: co.prime },
+    where: { companyId: co.sub, clientCompanyId: co.prime, endClientCompanyId: co.client },
+    orderBy: { startDate: 'asc' },
     select: { endClientCompanyId: true },
   })
-  expect(leg, 'the seeded world no longer has Techpeple selling to Computer Systems').not.toBeNull()
+  expect(leg, 'the seeded world no longer has Techpeple selling to Computer Systems for work at Harlow Health').not.toBeNull()
   expect(leg!.endClientCompanyId).toBe(co.client)
 }, 240_000)
 
