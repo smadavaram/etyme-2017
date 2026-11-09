@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
 import { PATCH as payBill } from '@/app/api/ap/bills/route'
+import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { GET as receipts } from '@/app/api/ap/receipts/route'
 
 /**
@@ -24,10 +25,21 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
   beforeAll(async () => {
     await freshWorld()
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
-    const bill = await prisma.vendorBill.findFirstOrThrow({
-      where: { companyId: brightmoor.id, number: 'INV-IHMDQC' },
+    // Found by its facts, never by a generated number (the template rebuilt on
+    // 2026-11-09 renumbered every seeded receipt): Brightmoor's typed-in
+    // receipt from Consultis, open, that passes the three-way check while
+    // Consultis' bank is still checked.
+    const consultis = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-consultis' }, select: { id: true } })
+    const open = await prisma.vendorBill.findMany({
+      where: { companyId: brightmoor.id, vendorCompanyId: consultis.id, status: { in: ['RECEIVED', 'APPROVED'] }, paidCents: 0 },
       select: { id: true, vendorCompanyId: true },
+      orderBy: { createdAt: 'asc' },
     })
+    let bill: (typeof open)[number] | null = null
+    for (const b of open) {
+      if ((await mayPayKeyedReceipt(b.id))?.ok) { bill = b; break }
+    }
+    if (!bill) throw new Error('The seeded world holds no open typed-in receipt from Consultis to Brightmoor that passes the check.')
     billId = bill.id
     consultisId = bill.vendorCompanyId
     // Staged as the walk staged it: Consultis' bank details not checked.
