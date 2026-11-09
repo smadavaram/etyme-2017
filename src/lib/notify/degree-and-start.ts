@@ -49,8 +49,22 @@ export function degreeSchoolDiffers(i: { certificateSchool: string; resumeSchool
   return `The certificate is from ${i.certificateSchool}; the résumé says ${i.resumeSchool} for the same degree. ${DEGREE_DOORS}`
 }
 
-/** The job requires a qualification the paper does not show. */
-export function degreeNotWhatTheJobAsks(i: { jobTitle: string; required: string; onPaper: string }): string {
+/**
+ * What the caller passes where no qualification was read off the paper:
+ * nothing, or the words regulatory's reader filled in before 2026-11-09
+ * ("no qualification printed"). Either reads as nothing recorded, never as
+ * "this certificate is no qualification printed" (walk 8, item 7). Said as
+ * "recorded", not "shows": an empty field may be a reading that missed it,
+ * and the sentence claims only what the record holds. Word for word the
+ * sentence regulatory's `noQualificationOnPaper` says, so the two agree.
+ */
+const NOTHING_PRINTED = /^\s*(?:no qualification(?: printed| shown| recorded)?|none|nothing printed)?\s*$/i
+
+/** The job requires a qualification the paper does not show, or none was recorded off the paper at all. */
+export function degreeNotWhatTheJobAsks(i: { jobTitle: string; required: string; onPaper?: string | null }): string {
+  if (NOTHING_PRINTED.test(i.onPaper ?? '')) {
+    return `No qualification is recorded for this certificate, and the ${i.jobTitle} job asks for ${i.required}. Ask for the right certificate, or send it back.`
+  }
   return `The ${i.jobTitle} job asks for ${i.required}; this certificate is ${i.onPaper}. Ask for the right certificate, or send it back.`
 }
 
