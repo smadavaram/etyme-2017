@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rateCell, valueCell, timesheetCsv, TIMESHEET_CSV_HEADER } from '@/app/dashboard/timesheets/cells'
-import { totalsRowOf } from '@/app/dashboard/timesheets/totals'
+import { totalsRowOf, listTotals, approvedValueSays, paidValueSays } from '@/app/dashboard/timesheets/totals'
 import { ACCEPT_FEWER_FIELDS, acceptFewerBody, checkAcceptedHours } from '@/app/api/timesheets/accept-fewer'
 import { acceptedWorth } from '@/app/api/timesheets/accepted-worth'
 import { editBody, type EditTyped } from '@/app/dashboard/requisitions/job-body'
@@ -310,5 +310,26 @@ describe('the job request’s Edit form and page', () => {
     const route = read('src/app/api/requisitions/[id]/route.ts')
     expect(route).toContain('requiredQualification: req.requiredQualification')
     expect(route).toContain('workMode: req.workMode')
+  })
+})
+
+describe('a firm that bills some weeks and pays for others reads both figures, each labelled', () => {
+  const week = (cents: number, buys: boolean) => totalsRowOf({
+    periodStart: '2026-11-01', totalHours: 40, status: 'APPROVED', flag: null,
+    rate: { cents, currency: 'USD', buys }, overtime: { billableCents: 40 * cents },
+  })
+
+  it('the weeks a firm pays for are valued in their own tile and never added into what it bills', () => {
+    const t = listTotals([week(14_500, false), week(14_500, false), week(11_800, true)], { onServer: 3, payBasis: false })
+    expect(approvedValueSays(t)).toBe('$11,600')
+    expect(paidValueSays(t)).toBe('$4,720')
+    expect(t.paidSays).toBe('what you pay for 1 week you buy; never added into the billable figure')
+    expect(read(PAGE)).toContain('<Stat label="What you pay" value={paidValueSays(totals)')
+  })
+
+  it('a list with nothing it pays for draws no second tile', () => {
+    const t = listTotals([week(14_500, false)], { onServer: 1, payBasis: false })
+    expect(t.paidValue).toBeNull()
+    expect(t.paidSays).toBeNull()
   })
 })

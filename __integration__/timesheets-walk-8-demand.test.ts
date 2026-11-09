@@ -5,6 +5,7 @@ import { GET as list } from '@/app/api/timesheets/route'
 import { GET as readJob, PATCH as editJob } from '@/app/api/requisitions/[id]/route'
 import { rateCell, valueCell } from '@/app/dashboard/timesheets/cells'
 import { acceptFewerBody } from '@/app/api/timesheets/accept-fewer'
+import { listTotals, totalsRowOf } from '@/app/dashboard/timesheets/totals'
 import { corvaneSeatEmail } from '@/lib/seed-corvane'
 
 /**
@@ -116,5 +117,21 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
     const r = await json(await readJob(req('GET', `/api/requisitions/${s.job}`), { params: Promise.resolve({ id: s.job }) }))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.requisition).toMatchObject({ requiredQualification: 'BSN', workMode: 'HYBRID' })
+  })
+
+  it('Computer Systems reads what it bills and what it pays as two figures, each the sum of its own weeks', async () => {
+    as(CS)
+    const r = await json(await list(req('GET', '/api/timesheets?limit=50')))
+    expect(r.status).toBe(200)
+    const rows = r.body.data.timesheets
+    const t = listTotals(rows.map((x: any) => totalsRowOf(x)), { onServer: r.body.data.pagination.total, payBasis: false })
+    const counted = (x: any) => x.status === 'APPROVED' || x.signature?.youSigned
+    const sum = (buys: boolean) => rows.filter((x: any) => counted(x) && !!x.rate.buys === buys && x.overtime?.billableCents != null)
+      .reduce((n: number, x: any) => n + x.overtime.billableCents, 0)
+    const paidWeeks = rows.filter((x: any) => counted(x) && x.rate.buys).length
+    expect(paidWeeks, 'the seed holds weeks Computer Systems pays for').toBeGreaterThan(0)
+    expect(t.approvedValue?.reduce((n, v) => n + v.minor, 0) ?? 0).toBe(sum(false))
+    expect(t.paidValue?.reduce((n, v) => n + v.minor, 0) ?? 0).toBe(sum(true))
+    expect(t.paidSays).toContain(`${paidWeeks} week`)
   })
 })

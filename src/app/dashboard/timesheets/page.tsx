@@ -16,7 +16,7 @@ import { rateCell, valueCell, timesheetCsv, shownHours, weekValue, type Accepted
 import { AcceptFewer } from './accept-fewer'
 import type { WeekAct } from '@/lib/notify/week-words'
 import { statusWords } from './status-words'
-import { listTotals, totalsRowOf, rateColumnLabel, approvedValueSays } from './totals'
+import { listTotals, totalsRowOf, rateColumnLabel, approvedValueSays, paidValueSays } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
@@ -1182,6 +1182,10 @@ export default function TimesheetsPage() {
           value={approvedValueSays(totals)}
           sub={totals.approvedSays}
         />
+        {/* The weeks this reader pays for, labelled apart, never added in (walk 8). */}
+        {totals.paidSays && (
+          <Stat label="What you pay" value={paidValueSays(totals) ?? '—'} sub={totals.paidSays} />
+        )}
       </div>
       )}
 

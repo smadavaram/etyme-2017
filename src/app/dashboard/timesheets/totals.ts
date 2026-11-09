@@ -103,6 +103,15 @@ export interface Totals {
   /** The approved value per currency, in the order the rows arrived; null where every rate is withheld. Never summed across currencies. */
   approvedValue: { minor: number; currency: string }[] | null
   approvedSays: string
+  /**
+   * What this reader pays for the weeks it buys (a prime's weeks from its
+   * sub-vendor), per currency, said beside the billable figure and never
+   * added into it. Null where the list holds no week this reader pays
+   * beside weeks it bills (walk 8 on Computer Systems: "Approved value
+   * $36,160" left eight weeks it pays out and said nothing of their value).
+   */
+  paidValue: { minor: number; currency: string }[] | null
+  paidSays: string | null
 }
 
 /** "Feb 23, 2026" — read in UTC, because a period start is a date and not a moment. */
@@ -173,7 +182,21 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
   const lead = opts.payBasis ? 'your pay for' : onlyPays ? 'what you pay for' : 'billable, from'
   const notInIt = leftOut > 0 ? `; ${weeks(leftOut)} you pay for ${leftOut === 1 ? 'is' : 'are'} not in this figure` : ''
 
+  // The weeks this reader pays for, valued apart, where they sit beside
+  // weeks it bills. A withheld rate stays out of the figure and is counted.
+  const paidPriced = leftOut > 0 ? paid.filter((r) => r.valueCents != null) : []
+  const paidBy = new Map<string, number>()
+  for (const r of paidPriced) {
+    const c = r.currency ?? 'USD'
+    paidBy.set(c, (paidBy.get(c) ?? 0) + (r.valueCents ?? 0))
+  }
+  const paidUnpriced = leftOut - paidPriced.length
   return {
+    paidValue: leftOut > 0 && paidPriced.length > 0 ? [...paidBy.entries()].map(([currency, minor]) => ({ minor, currency })) : null,
+    paidSays: leftOut > 0
+      ? `what you pay for ${weeks(leftOut)} you buy` + (paidUnpriced > 0 ? `; ${paidUnpriced} with no rate you may read` : '') +
+        '; never added into the billable figure'
+      : null,
     hours,
     hoursSays: span(rows.length, earliest),
     flagged: flaggedRows.length,
@@ -219,9 +242,18 @@ export function rateColumnLabel(labels: readonly string[]): { label: string; per
  * the tile always rounded.
  */
 export function approvedValueSays(t: Pick<Totals, 'approvedValue'>): string | null {
-  if (t.approvedValue == null) return null
-  if (t.approvedValue.length === 0) return compact(0, 'USD')
-  const parts = t.approvedValue.map((v) => compact(roundWhole(v.minor, v.currency), v.currency))
+  return moneySays(t.approvedValue)
+}
+
+/** The weeks this reader pays for, in each currency's own money; null where there are none. */
+export function paidValueSays(t: Pick<Totals, 'paidValue'>): string | null {
+  return t.paidValue == null ? null : moneySays(t.paidValue)
+}
+
+function moneySays(v: { minor: number; currency: string }[] | null): string | null {
+  if (v == null) return null
+  if (v.length === 0) return compact(0, 'USD')
+  const parts = v.map((v) => compact(roundWhole(v.minor, v.currency), v.currency))
   return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
