@@ -7,7 +7,8 @@ import { askGoesTo } from '@/lib/chain-top'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { daysOnSite } from '@/lib/tenure-days'
-import { askBack } from '../ask-back-standing'
+import { askBack, warnWindowFrom } from '../ask-back-standing'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { askDesk } from '../ask-desk'
 
 /**
@@ -125,6 +126,8 @@ export async function POST(request: NextRequest) {
   const limitRules = {
     capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
     breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
+    // The company's widest warning, the window the Tenure page and Ask Etyme read.
+    warnWithinDays: warnWindowFrom((await ruleSetFor(client.id)).tenureWarnAtDays),
   }
   const verdict = askBack(
     contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),

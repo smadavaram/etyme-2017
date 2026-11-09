@@ -7,7 +7,8 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
-import { askBack } from './ask-back-standing'
+import { askBack, warnWindowFrom } from './ask-back-standing'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { askDesk } from './ask-desk'
 import { emptyAlumniSays } from './ask-back-standing'
 import { addWeeks, hoursOnRecord, EMPTY_TALLY, type HoursTally } from './hours-on-record'
@@ -156,6 +157,8 @@ export async function GET(request: NextRequest) {
   const limitRules = {
     capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
     breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
+    // The company's widest warning, the window the Tenure page and Ask Etyme read.
+    warnWithinDays: warnWindowFrom((await ruleSetFor(clientCompany.id)).tenureWarnAtDays),
   }
 
   // Group by person

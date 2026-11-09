@@ -35,6 +35,17 @@ export interface AskBack {
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 
+/**
+ * How near the limit reads as near it: the company's widest warning
+ * (`tenureWarnAtDays` in its rule set, 90, 60 and 30 by default), the one
+ * window the Tenure page, Ask Etyme and the nightly warnings read (regulatory
+ * 392842f78). Null where the set names none, which reads as the default.
+ * Pure: the routes read the rule set with `ruleSetFor`.
+ */
+export function warnWindowFrom(warnAtDays: readonly number[]): number | null {
+  return Math.max(0, ...warnAtDays) || null
+}
+
 export function askBack(
   lines: SiteLine[],
   rules: LimitRules,
