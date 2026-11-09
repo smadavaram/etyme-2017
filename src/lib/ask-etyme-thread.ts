@@ -45,11 +45,25 @@
  * - the shared sample the home page frames (`readOnly`): anybody at all
  *   sits in it, so a saved thread would show one stranger another's
  *   questions;
- * - a seeded demo seat at a reserved address: the demo door seats every
- *   visitor who asks for that desk as the same seeded person, so the same
- *   is true. Their thread lives on the screen, as before, and the answer
- *   says so in a sentence the screen can show (`NOT_KEPT_IN_DEMO`).
- *   A visitor's own sandbox, seated at their own address, is kept.
+ * - a seeded seat many visitors share: the demo page opens the seeded
+ *   world's seats, and its workers, for anybody who asks, so every
+ *   visitor in that seat is the same seeded person and the same is true.
+ *   Their thread lives on the screen, as before, and the answer says so
+ *   in a sentence the screen can show (`NOT_KEPT_IN_DEMO`).
+ *
+ * A visitor's own sandbox is kept (walk 8, 2026-11-09). The demo door
+ * makes it for one visitor (`POST /api/demo` with a side) and seats
+ * nobody else there, so it is one person's own company. Its seat is at a
+ * reserved address too (`<handle>@demo.etyme.local`), which is why the
+ * address can never decide this: until this day every reserved address
+ * read as shared, and the advice "open your own demo" pointed a visitor
+ * back at the seat they were in. What decides is the record: the seat's
+ * company is a visitor's sandbox (`Company.isDemo`, which the caller
+ * check reads with the seat). A seat that does not say is read as shared.
+ *
+ * The advice names the one door that keeps a conversation and is on
+ * every page: Sign up (`KEEP_ONE_AT`). It never says "open your own
+ * demo", because every seat the demo page opens is a shared one.
  *
  * ── What it is not ───────────────────────────────────────────────────
  *
@@ -73,7 +87,12 @@ import { reservedAddress } from '@/lib/demo-session'
 /** The caller, as much of it as this door reads. Structural, so a test or a route hands over its CallerContext. */
 export interface ThreadSeat {
   person: { id: string; primaryEmail: string }
-  company: { id: string; name: string } | null
+  /**
+   * `isDemo`: the company is a visitor's own sandbox, as the record says
+   * (the caller check reads it with the seat). Left out, a seat at a
+   * reserved address is read as shared and keeps nothing.
+   */
+  company: { id: string; name: string; isDemo?: boolean } | null
   context?: { id: string } | null
   isService?: boolean
   readOnly?: boolean
@@ -160,10 +179,16 @@ export interface NotKept { ok: true; saved: false; says: string }
 // ── Words ─────────────────────────────────────────────────────────────
 
 export const NO_PERSON_SAYS = 'An API key has no Ask Etyme conversation. Only a person signed in at a company has one.'
+/**
+ * The door that keeps a conversation, named in the two sentences below:
+ * the sign-up every public page carries. The same words and address as
+ * the public site's (`CLIENT_SIGN_UP`); a test holds them together.
+ */
+export const KEEP_ONE_AT = { label: 'Sign up', href: '/signup' } as const
 export const NOT_KEPT_IN_DEMO =
-  'This conversation is not kept after you leave the page, because other visitors use this demo seat too. Open your own demo to keep one.'
+  `This conversation is not kept after you leave the page, because other visitors use this demo seat too. ${KEEP_ONE_AT.label} to keep yours.`
 export const NOT_KEPT_IN_SAMPLE =
-  'The sample keeps no conversation, because anybody can open it. Open your own demo to keep one.'
+  `The sample keeps no conversation, because anybody can open it. ${KEEP_ONE_AT.label} to keep yours.`
 export const notYourThread = (company: string) =>
   `An Ask Etyme conversation is read only by the person it belongs to. Nobody else at ${company} can open it, and nobody at another company.`
 export const NOT_IN_YOUR_THREAD = 'That line is not in your Ask Etyme conversation.'
@@ -205,8 +230,23 @@ export function keptFor(seat: ThreadSeat): { kept: true } | { kept: false; says:
   // A person with no company seat — a candidate on a firm's bench — keeps
   // a thread of their own (2026-10-19), keyed on the person alone.
   if (seat.readOnly) return { kept: false, says: NOT_KEPT_IN_SAMPLE }
-  if (reservedAddress(seat.person.primaryEmail)) return { kept: false, says: NOT_KEPT_IN_DEMO }
+  if (sharedDemoSeat(seat)) return { kept: false, says: NOT_KEPT_IN_DEMO }
   return { kept: true }
+}
+
+/**
+ * Whether many visitors sit in this seat. Only a seeded person sits at an
+ * address nobody can register, so a person at their own address is never
+ * shared. A seeded person is shared unless the record says the seat's
+ * company is a visitor's own sandbox, which the demo door made for one
+ * visitor and seats nobody else at: the seeded world's seats and workers,
+ * a company-less seeded worker, and a seat that does not say, all read as
+ * shared, so a caller that leaves the flag out keeps nothing rather than
+ * showing one visitor another's questions.
+ */
+export function sharedDemoSeat(seat: Pick<ThreadSeat, 'person' | 'company'>): boolean {
+  if (!reservedAddress(seat.person.primaryEmail)) return false
+  return seat.company?.isDemo !== true
 }
 
 /**

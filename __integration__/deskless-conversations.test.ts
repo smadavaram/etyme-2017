@@ -430,7 +430,7 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     const said = await appendTurn(demoSeat, { speaker: 'PERSON', text: 'Hello from a visitor.' })
     expect(said).toEqual({
       ok: true, saved: false,
-      says: 'This conversation is not kept after you leave the page, because other visitors use this demo seat too. Open your own demo to keep one.',
+      says: 'This conversation is not kept after you leave the page, because other visitors use this demo seat too. Sign up to keep yours.',
     })
     const read = await readThread(demoSeat)
     if (!read.ok) throw new Error(read.says)
