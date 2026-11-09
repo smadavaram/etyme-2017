@@ -777,7 +777,7 @@ export async function GET(
           where: { sellContractId: placement.id },
           orderBy: { createdAt: 'desc' },
           select: {
-            id: true, hours: true, rateCents: true, amountCents: true,
+            id: true, hours: true, rateCents: true, amountCents: true, timesheetId: true,
             invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
           },
         }),
@@ -1331,9 +1331,14 @@ export async function GET(
               dueAt: l.invoice.dueAt.toISOString().slice(0, 10),
               weeks: 0,
             }
-            at.hours += Number(l.hours)
+            // Hours and weeks come only from lines that carry a week; an
+            // expense or milestone line adds its money and nothing else
+            // (walk 9: "192 hrs · 6 weeks" for five weeks and an expense).
+            if (l.timesheetId) {
+              at.hours += Number(l.hours)
+              at.weeks += 1
+            }
             at.amountCents += l.amountCents
-            at.weeks += 1
             acc.set(l.invoice.id, at)
             return acc
           }, new Map<string, any>())

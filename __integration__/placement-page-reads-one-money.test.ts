@@ -121,7 +121,9 @@ describe('the placement page says the order ledger’s figures and the line’s,
     // supplier's revenue on accepted hours sits beside Billed, never in it.
     expect(typeof m.hoursAcceptedTotal).toBe('number')
     expect('revenueMinor' in m).toBe(true)
-    const lines = await prisma.invoiceLine.count({ where: { sellContractId: lineId } })
+    // Weeks on a bill are its lines that carry a week; an expense line
+    // adds money and no week (walk 9: "192 hrs · 6 weeks" for five weeks).
+    const lines = await prisma.invoiceLine.count({ where: { sellContractId: lineId, timesheetId: { not: null } } })
     const listed = (m.invoices as { weeks: number }[]).reduce((n, i) => n + i.weeks, 0)
     expect(listed).toBe(lines)
   })

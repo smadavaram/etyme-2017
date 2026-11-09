@@ -18,6 +18,8 @@ import { formatDay } from '@/lib/format-date'
 import { periodOfWeek } from '@/lib/money/supplier-bills'
 import { generateBill } from '@/lib/money/bill-generate'
 import { periodTermsFor, ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
+import { signedAndBilled } from '@/lib/money/signed-unbilled'
+import { withExpenses } from '@/app/api/today/drafts'
 import {
   firmTuesday, billingPeriodOf, seatMonth, totalsByCurrency, weekOf, BILLING_BASIS, type FirmTuesday,
 } from '@/lib/money/firm-today'
@@ -1033,7 +1035,15 @@ describe('a selling firm’s Today page names who is where, what is unbilled, wh
     expect(t.billing.totals).toEqual(money.billingThisMonth.totals)
     expect(t.billing.names).toEqual(money.billingThisMonth.people.map((p) => p.personName))
     expect(t.signed.count).toBe(money.signedNotBilled.count)
-    expect(t.signed.totals).toEqual(money.signedNotBilled.totals)
+    // Today adds each line's accepted billable expenses no sent bill
+    // carries (walk 9, e642dea87): the weeks' totals plus the line
+    // reader's notBilled.expenseMinor, by currency.
+    const own = await prisma.sellContract.findMany({ where: { companyId: brightmoor.id }, select: { id: true } })
+    const expenses = new Map<string, number>()
+    for (const l of (await signedAndBilled(own.map((x) => x.id))).values()) {
+      if (l.notBilled.expenseMinor) expenses.set(l.currency.toUpperCase(), (expenses.get(l.currency.toUpperCase()) ?? 0) + l.notBilled.expenseMinor)
+    }
+    expect(t.signed.totals).toEqual(withExpenses(money.signedNotBilled.totals, expenses))
     const people = t.whoIsWhere.flatMap((g: { people: { name: string }[] }) => g.people.map((p) => p.name)).sort()
     expect(people).toEqual(money.billingThisMonth.people.map((p) => p.personName).sort())
     expect(t.picture).toMatch(/^\d+ (person|people) billing at \d+ clients?\./)
