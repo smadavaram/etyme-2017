@@ -130,7 +130,7 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
   onDone: (says: string) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
-  const [f, setF] = useState({ number: '', issuer: '', validFrom: '', validUntil: '', edition: '', year: '' })
+  const [f, setF] = useState({ number: '', issuer: '', qualification: '', validFrom: '', validUntil: '', edition: '', year: '' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // The fields this paper asks for, from the one description the route's test reads.
@@ -173,6 +173,11 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
         {shows.has('issuer') && (
           <label className="block"><span className={lbl}>Issued by</span>
             <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder={needs.key === 'DEGREE' ? 'University of Wisconsin' : 'Wisconsin Board of Nursing'} className={box} /></label>
+        )}
+        {/* What the degree is, as printed: the job's rule reads it (walk 8). */}
+        {shows.has('qualification') && (
+          <label className="block"><span className={lbl}>Qualification printed on it</span>
+            <input value={f.qualification} onChange={(e) => setF({ ...f, qualification: e.target.value })} required placeholder="Bachelor of Science in Nursing" className={box} /></label>
         )}
         {shows.has('year') && (
           <label className="block"><span className={lbl}>Year awarded</span>

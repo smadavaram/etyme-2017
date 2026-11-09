@@ -1110,23 +1110,38 @@ export async function PUT(request: NextRequest) {
   // rules warn, HR at each firm reading her papers hears the sentence and
   // its doors, and she hears in her own words which firm is checking it
   // and why, in the same press (`degree-told`).
-  let degreeForYou: string[] = []
+  //
+  // Read once for each firm, with that firm's own record (walk 8,
+  // 2026-11-09): read once for everybody, Pinnacle's HR was told the
+  // names of two workers at other firms whose copy of the file matched,
+  // and the job titles of other clients' chains. Each firm now hears only
+  // the people it already holds and the jobs on its own chain, and the
+  // check is in its own access log.
+  //
+  // And a firm that is warned has the paper in front of it: the same walk
+  // found the notice pointing at a degree no list of Pinnacle's carried,
+  // because a degree on her own record is no paper of the firm's. So it
+  // lands on that firm's Paperwork as arrived and not examined, the way a
+  // paper a line asks for does, with the sentence and the three doors
+  // beside it there. A degree nothing warns about goes to nobody who did
+  // not ask for it.
+  const degreeForYou: string[] = []
   if (row.key === 'DEGREE' && about === 'ME') {
-    const degree = await degreeOnRecord({ personId: me, fileHashes: file ? [fileHash(file.bytes)] : [], on })
-    if (degree.findings.length && !degree.verified) {
-      const firms = await firmsReadingHerPapers(me)
-      for (const f of firms) {
-        const staff = await paperExaminersAt(f.id, me)
-        if (degree.says) {
-          void notifyBulk(staff.map((personId) => ({
-            personId, companyId: f.id, type: 'SYSTEM' as const,
-            title: `${caller.person.name} put a degree certificate on file`,
-            body: degree.says!,
-            ...(written.docId ? { entityId: written.docId } : {}),
-          })))
-        }
+    const hashes = file ? [fileHash(file.bytes)] : []
+    for (const f of await firmsReadingHerPapers(me)) {
+      const atFirm = await degreeOnRecord({ personId: me, fileHashes: hashes, firmId: f.id, on })
+      if (!atFirm.findings.length || atFirm.verified) continue
+      const paperId = sentTo?.firmId === f.id ? sentTo.paperId : file ? await degreeBeforeHr(caller, f.id, label, file, on) : null
+      const staff = await paperExaminersAt(f.id, me)
+      if (atFirm.says) {
+        void notifyBulk(staff.map((personId) => ({
+          personId, companyId: f.id, type: 'SYSTEM' as const,
+          title: `${caller.person.name} put a degree certificate on file`,
+          body: atFirm.says!,
+          ...(paperId ? { entityId: paperId } : {}),
+        })))
       }
-      degreeForYou = await tellTheWorkerAboutHerDegree({ personId: me, firms, reading: degree, entityId: written.verificationId })
+      degreeForYou.push(...await tellTheWorkerAboutHerDegree({ personId: me, firms: [f], reading: atFirm, entityId: written.verificationId }))
     }
   }
 
@@ -1154,7 +1169,7 @@ async function sendToTheFirmThatAsks(
   label: string,
   file: { name: string; type: string; bytes: Buffer },
   on: Date,
-): Promise<{ firm: string; paperId: string } | null> {
+): Promise<{ firm: string; firmId: string; paperId: string } | null> {
   const me = caller.person.id
   const [checks, papers] = await Promise.all([
     prisma.verification.findMany({ where: { personId: me }, select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, result: true } }),
@@ -1198,5 +1213,46 @@ async function sendToTheFirmThatAsks(
   const staff = await paperExaminersAt(found.companyId, me)
   const told = answeredNotice({ who: caller.person.name, paper: label, signed: false, before: 0, note: null })
   void notifyBulk(staff.map((personId) => ({ personId, companyId: found.companyId, type: 'SYSTEM' as const, title: told.title, body: told.body, entityId: paperId })))
-  return { firm: found.companyName, paperId }
+  return { firm: found.companyName, firmId: found.companyId, paperId }
+}
+
+/**
+ * Her degree, put in front of a firm whose HR is warned about it: a paper
+ * at that firm, arrived and not examined, carrying the copy she sent, so
+ * it is on the firm's Paperwork with its sentence and doors, counts on
+ * its examiners' "waiting on you", and answers that firm's open request
+ * for a degree where one is open. Never twice for one file: where she
+ * already sent this copy and nobody has looked, that paper is the one.
+ * Her own record keeps its copy as before; the firm's look is the firm's.
+ */
+async function degreeBeforeHr(
+  caller: Caller,
+  firmId: string,
+  label: string,
+  file: { name: string; type: string; bytes: Buffer },
+  on: Date,
+): Promise<string> {
+  const me = caller.person.id
+  const hash = fileHash(file.bytes)
+  const waiting = await prisma.docInstance.findFirst({
+    where: {
+      template: { companyId: firmId }, subjectType: 'PERSON', subjectId: me,
+      status: { in: ['UPLOADED', 'SIGNED'] }, examinedAt: null, file: { fileHash: hash },
+    },
+    select: { id: true },
+  })
+  if (waiting) return waiting.id
+  const template = await templateFor(firmId, label)
+  const paper = await prisma.docInstance.create({
+    data: {
+      templateId: template.id, subjectType: 'PERSON', subjectId: me,
+      status: 'UPLOADED', signedAt: on, signedById: me, fileName: file.name,
+      signedFileUrl: 'file://on-record',
+      note: `Sent by ${caller.person.name} from their own paperwork page. Not examined.`,
+      file: { create: { fileName: file.name, contentType: file.type || 'application/octet-stream', sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: hash, uploadedById: me } },
+    },
+    select: { id: true },
+  })
+  await itemsFollowArrival({ docId: paper.id, firmId, personId: me, key: 'DEGREE', paperName: label, fileName: file.name, now: on })
+  return paper.id
 }

@@ -112,7 +112,7 @@ describe('papers put on file by their holder', () => {
     // Her degree keeps its copy too, with the school and the year.
     as(it_.nina.primaryEmail)
     const bsn = await json(await putOwn(form(
-      { key: 'DEGREE', about: 'ME', issuer: 'Ohio State University', year: '2018' },
+      { key: 'DEGREE', about: 'ME', issuer: 'Ohio State University', qualification: 'Bachelor of Science in Nursing', year: '2018' },
       { name: 'bsn.pdf', type: 'application/pdf', text: '%PDF-1.4 bsn' },
     )))
     expect(bsn.status, JSON.stringify(bsn.body)).toBe(201)

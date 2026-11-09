@@ -44,9 +44,13 @@ describe('a degree read where it is accepted', () => {
     expect(r.doors.map((d) => d.kind)).toEqual(['TRANSCRIPT', 'PROVIDER', 'SEND_BACK'])
   })
 
-  it('a file already filed for somebody else names the other person to HR', async () => {
+  // Walk 8 (2026-11-09): this sentence used to name the other person to
+  // any reader, which named other firms' workers to Pinnacle's HR. Who a
+  // firm may be told by name is degree-same-file-stays-in-its-firm.test.ts.
+  it('a file already filed for somebody else is said to HR, and with no firm reading it names nobody', async () => {
     const r = await degreeOnRecord({ personId: 'priya', paper: RIGHT, fileHashes: ['abc'], on: ON }, world({ others: [{ name: 'Anita Desai' }] }) as never)
-    expect(r.says).toContain('This file was already filed by Anita Desai.')
+    expect(r.says).toContain('The same file is already on the record for another person')
+    expect(r.says).not.toContain('Anita Desai')
   })
 
   it('where nothing is posted, the degree on the person’s own record is read', async () => {

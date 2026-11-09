@@ -173,7 +173,7 @@ export async function POST(
   let degree: Awaited<ReturnType<typeof degreeOnRecord>> | null = null
   if (action === 'accept' && packet.subjectPersonId && isDegreePaper(item.key, item.label)) {
     const kept = await prisma.docInstance.findFirst({ where: { subjectType: 'PACKET_ITEM', subjectId: item.id }, select: { file: { select: { fileHash: true } } } })
-    degree = await degreeOnRecord({ personId: packet.subjectPersonId, paper: degreeFromBody(body), fileHashes: kept?.file?.fileHash ? [kept.file.fileHash] : [], firmId: caller.company.id, on: now })
+    degree = await degreeOnRecord({ personId: packet.subjectPersonId, paper: degreeFromBody(body), fileHashes: kept?.file?.fileHash ? [kept.file.fileHash] : [], firmId: caller.company.id, actor: accessActor(caller), on: now })
   }
 
   await prisma.packetItem.update({

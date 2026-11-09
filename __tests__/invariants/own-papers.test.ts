@@ -36,7 +36,8 @@ describe('what a person keeps about her own work', () => {
     expect(mayFileOwnPaper(degree, ON)).toMatchObject({ ok: false, code: 'NEEDS_ISSUER' })
     expect(mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin' }, ON)).toMatchObject({ ok: false, code: 'NEEDS_YEAR' })
     expect(mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', year: '2031' }, ON)).toMatchObject({ ok: false, code: 'BAD_YEAR' })
-    const ok = mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', year: '2019' }, ON)
+    expect(mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', year: '2019' }, ON)).toMatchObject({ ok: false, code: 'NEEDS_QUALIFICATION' })
+    const ok = mayFileOwnPaper({ ...degree, issuer: 'University of Wisconsin', qualification: 'Bachelor of Science in Nursing', year: '2019' }, ON)
     expect(ok.ok && [ok.row.issuedAt?.toISOString().slice(0, 10), ok.row.expiresAt]).toEqual(['2019-01-01', null])
   })
 
@@ -75,7 +76,7 @@ describe('what a person keeps about her own work', () => {
   })
 
   it('a paper a person files herself is on file and not examined, so it clears no start', () => {
-    const r = mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf', issuer: 'UW', year: '2019' }, ON)
+    const r = mayFileOwnPaper({ key: 'DEGREE', about: 'ME', isOnePersonFirm: false, canKeepCopy: true, fileName: 'bsn.pdf', issuer: 'UW', qualification: 'Bachelor of Science in Nursing', year: '2019' }, ON)
     expect(r.ok && r.row.status).toBe('PENDING')
     const paper = (status: string) => ({
       status, validFrom: new Date('2026-09-01'), expiresAt: new Date('2027-08-31'), signedAt: ON, countersignedAt: null,

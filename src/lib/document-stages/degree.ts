@@ -20,6 +20,31 @@ import {
   sameFileFiledBefore,
 } from '@/lib/notify/degree-and-start'
 
+/**
+ * The same file on the record for somebody the reading firm does not hold
+ * (walk 8, 2026-11-09). Said once, however many other people it was filed
+ * for, and never with a name, a firm or a count: nothing read from one
+ * company reaches another. The door is the provider's, because a provider
+ * can say whose degree it is and the record cannot.
+ *
+ * The words are conversation's to own; they sit here until they move into
+ * `lib/notify/degree-and-start`, beside `sameFileFiledBefore`, so the
+ * disclosure fix did not wait on a second file.
+ */
+export const SAME_FILE_ELSEWHERE =
+  'The same file is already on the record for another person; an education-verification provider can confirm whose it is.'
+
+/**
+ * A job asks for a qualification and nothing is recorded for the
+ * certificate (walk 8: "this certificate is no qualification printed").
+ * Its own sentence, because "this certificate is <nothing>" says something
+ * false about the paper: what is missing is the record of what it shows.
+ * Conversation's words, held here until they move, like the one above.
+ */
+export function noQualificationOnPaper(i: { jobTitle: string; required: string }): string {
+  return `No qualification is recorded for this certificate, and the ${i.jobTitle} job asks for ${i.required}. Ask for the right certificate, or send it back.`
+}
+
 /** SHA-256 of a file's bytes, hex: the one way both upload doors name a file. */
 export function fileHash(bytes: Buffer | Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
@@ -88,8 +113,14 @@ export function degreeReading(input: {
   resume: ResumeEducation[]
   /** The job's required qualification, where the job names one. */
   job?: { title: string; requires: string | null } | null
-  /** The people another copy of this same file was filed for. */
+  /**
+   * The people another copy of this same file was filed for, by name: only
+   * people the reading firm already holds on its own record
+   * (`sameFileOnRecord` in ./degree-check decides who).
+   */
   sameFileFor?: string[]
+  /** Whether a copy was filed for anybody else, who is never named. */
+  sameFileElsewhere?: boolean
   /** A provider's verification of this degree, recorded verbatim. */
   verifiedBy?: { provider: string; reference: string | null; on: Date } | null
   on: Date
@@ -115,12 +146,15 @@ export function degreeReading(input: {
     const onPaper = [paper.qualification, paper.fieldOfStudy].filter(Boolean).join(' in ')
     const need = words(asks)
     const have = new Set(words(onPaper))
-    if (!onPaper || !need.every((w) => have.has(w))) {
-      findings.push({ code: 'NOT_WHAT_THE_JOB_ASKS', says: degreeNotWhatTheJobAsks({ jobTitle: input.job!.title, required: asks, onPaper: onPaper || 'no qualification printed' }) })
+    if (!onPaper) {
+      findings.push({ code: 'NOT_WHAT_THE_JOB_ASKS', says: noQualificationOnPaper({ jobTitle: input.job!.title, required: asks }) })
+    } else if (!need.every((w) => have.has(w))) {
+      findings.push({ code: 'NOT_WHAT_THE_JOB_ASKS', says: degreeNotWhatTheJobAsks({ jobTitle: input.job!.title, required: asks, onPaper }) })
     }
   }
   for (const other of input.sameFileFor ?? []) {
     findings.push({ code: 'SAME_FILE', says: sameFileFiledBefore({ otherPersonName: other }) })
   }
+  if (input.sameFileElsewhere) findings.push({ code: 'SAME_FILE', says: SAME_FILE_ELSEWHERE })
   return { verified: null, findings }
 }

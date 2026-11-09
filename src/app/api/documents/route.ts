@@ -4,7 +4,7 @@ import { examineNeedsOf, type ExamineNeeds } from '@/lib/document-stages/examine
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { logBulkAccess } from '@/lib/access-log'
+import { accessActor, logBulkAccess } from '@/lib/access-log'
 import { BUILT_IN, labelFor } from '@/lib/document-type'
 import { orderedNotCollected } from '@/lib/attestation'
 import { isWorkAuthQuestion, sponsorshipReading, licenseFactsFrom, mayAskOnTies, typeKeyForTemplate, KEPT_BY_HOLDER, libraryOf, holdsPaperworkDesk } from '@/lib/document-request'
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
         const about = aboutOf(i)
         if (about.kind !== 'PERSON' || !['UPLOADED', 'SIGNED', KEPT_BY_HOLDER].includes(i.status)) continue
         if (!isDegreePaper(itemOf.get(i.subjectId)?.key ?? null, i.template.name)) continue
-        degreeOf.set(i.id, await degreeOnRecord({ personId: about.personId, fileHashes: i.file?.fileHash ? [i.file.fileHash] : [], firmId: companyId }))
+        degreeOf.set(i.id, await degreeOnRecord({ personId: about.personId, fileHashes: i.file?.fileHash ? [i.file.fileHash] : [], firmId: companyId, actor: accessActor(caller) }))
       }
     }
 

@@ -81,6 +81,13 @@ export interface OwnPaperNeeds {
   edition: boolean
   /** The year it was awarded: a degree says when, and never runs out. */
   year: boolean
+  /**
+   * The qualification printed on it: a degree says what it is, and the
+   * job's rule reads it against what the job asks for (walk 8,
+   * 2026-11-09: the form asked only for the school and the year, so the
+   * rule read nothing and HR was told the certificate showed nothing).
+   */
+  qualification: boolean
 }
 
 /**
@@ -121,6 +128,7 @@ function needsOf(t: DocumentTypeSpec, about: OwnPaperAbout): OwnPaperNeeds {
     validUntil: t.validityShape === 'END_ONLY' || t.validityShape === 'START_AND_END',
     edition: t.reissued === true,
     year: t.key === 'DEGREE',
+    qualification: t.key === 'DEGREE',
   }
 }
 
@@ -212,6 +220,8 @@ export interface OwnPaperInput {
   edition?: string | null
   /** The year a degree was awarded, as four digits. */
   year?: string | null
+  /** What a degree is, as printed on it: "Bachelor of Science in Nursing". */
+  qualification?: string | null
   jurisdiction?: Jurisdiction
   defined?: DefinedType[]
 }
@@ -304,6 +314,12 @@ export function mayFileOwnPaper(input: OwnPaperInput, on: Date): OwnPaperVerdict
       return { ok: false, code: 'BAD_YEAR', field: 'year', message: `Enter the year as four digits, no later than ${on.getUTCFullYear()}.` }
     }
     awarded = new Date(Date.UTC(n, 0, 1))
+  }
+  if (needs.qualification && !filled(input.qualification)) {
+    return {
+      ok: false, code: 'NEEDS_QUALIFICATION', field: 'qualification',
+      message: 'Enter the qualification printed on the certificate, such as Bachelor of Science in Nursing.',
+    }
   }
   if (needs.edition && !filled(input.edition)) {
     return {
@@ -415,11 +431,12 @@ export function keptPaperSays(p: {
 // the route asks has a field on its screen reads the form's real body
 // (`__tests__/invariants/every-question-has-a-field.test.ts`). Pure.
 
-export type OwnPaperField = 'file' | 'number' | 'issuer' | 'year' | 'edition' | 'validFrom' | 'validUntil'
+export type OwnPaperField = 'file' | 'number' | 'issuer' | 'qualification' | 'year' | 'edition' | 'validFrom' | 'validUntil'
 
 export interface OwnPaperTyped {
   number?: string
   issuer?: string
+  qualification?: string
   year?: string
   edition?: string
   validFrom?: string
@@ -432,6 +449,7 @@ export function ownPaperFields(needs: OwnPaperNeeds, canKeepCopy: boolean): OwnP
     ...(canKeepCopy ? ['file' as const] : []),
     ...(needs.number ? ['number' as const] : []),
     ...(needs.issuer ? ['issuer' as const] : []),
+    ...(needs.qualification ? ['qualification' as const] : []),
     ...(needs.year ? ['year' as const] : []),
     ...(needs.edition ? ['edition' as const] : []),
     ...(needs.validFrom ? ['validFrom' as const] : []),
@@ -447,7 +465,7 @@ export function ownPaperPost(needs: OwnPaperNeeds, typed: OwnPaperTyped): Record
 }
 
 /** The names the route reads from the form, and nothing else. */
-export const OWN_PAPER_POSTED = ['key', 'about', 'number', 'issuer', 'validFrom', 'validUntil', 'edition', 'year'] as const
+export const OWN_PAPER_POSTED = ['key', 'about', 'number', 'issuer', 'qualification', 'validFrom', 'validUntil', 'edition', 'year'] as const
 
 /** The route's reading of what was posted, as the rule takes it. */
 export function ownPaperInput(
@@ -467,5 +485,6 @@ export function ownPaperInput(
     validUntil: fields.validUntil ?? null,
     edition: fields.edition ?? null,
     year: fields.year ?? null,
+    qualification: fields.qualification ?? null,
   }
 }

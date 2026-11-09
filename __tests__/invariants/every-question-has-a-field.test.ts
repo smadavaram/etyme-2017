@@ -140,7 +140,7 @@ describe('every question a route asks, its screen has a field for', () => {
 
 describe('a worker, a one-person firm or a firm’s team putting its own papers on file', () => {
   const TYPED: Required<OwnPaperTyped> = {
-    number: 'RN-448812', issuer: 'Oregon State Board of Nursing', year: '2019', edition: 'Rev. March 2024',
+    number: 'RN-448812', issuer: 'Oregon State Board of Nursing', qualification: 'Bachelor of Science in Nursing', year: '2019', edition: 'Rev. March 2024',
     validFrom: '2026-01-01', validUntil: '2027-12-31',
   }
   const CONTEXTS = [
@@ -254,6 +254,9 @@ describe('every field a rule can ask for is answered by a field on a screen, or 
     file: 'the file (Put on file)',
     number: 'the number on it (Put on file)',
     year: 'the year awarded (Put on file)',
+    // Walk 8 (2026-11-09): the job's rule read a degree's qualification and
+    // the worker's form had no field for it.
+    qualification: 'the qualification printed on it (Put on file, a degree)',
     validUntil: 'the day it runs out (Put on file)',
     noticeDocumentId: 'the notice the form raises from the firm’s template, with the copy attached (after a flagged report)',
   }
