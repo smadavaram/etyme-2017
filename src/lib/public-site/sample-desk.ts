@@ -31,6 +31,7 @@
  */
 
 import { daysOnSite, monthsOf, type Period } from '@/lib/tenure-days'
+import { amount } from '@/lib/money-display'
 
 /** The day the sample is counted from. Any day gives the same spans. */
 const TODAY = new Date('2026-10-09T00:00:00Z')
@@ -56,8 +57,10 @@ export interface SampleContractor {
   /** The supplier the client pays today. */
   supplier: string
   supplierSlug: string
-  /** What the client pays that supplier an hour, in cents. */
+  /** What the client pays that supplier an hour, in the currency's minor units. */
   rateCents: number
+  /** The currency of that rate, as the seed writes it. */
+  currency: string
   /** Every stretch on this site, every supplier, the current one last. */
   stretches: SampleStretch[]
   /** Set where the record stops the start, in the product's sentence. */
@@ -70,22 +73,31 @@ export const SAMPLE_LIMIT_MONTHS = 18
 /** The demo company the sample is from. */
 export const SAMPLE_CLIENT = 'Northbend Athletic'
 
+/**
+ * The currency the seed writes on Northbend's agreements, bills and
+ * receipts (`currency: 'USD'` in lib/seed-programmes). Every amount below
+ * carries it and is drawn through money's one formatter, never a "$" and
+ * a division by a hundred, so a rate in a currency with no cents (dong,
+ * yen) never reads as "₫170.00".
+ */
+export const SAMPLE_CURRENCY = 'USD'
+
 export const SAMPLE_CONTRACTORS: SampleContractor[] = [
   {
     person: 'Helena Marsh', job: 'ERP finance lead',
-    supplier: 'Computer Systems Inc', supplierSlug: 'computer-systems', rateCents: 14500,
+    supplier: 'Computer Systems Inc', supplierSlug: 'computer-systems', rateCents: 14500, currency: SAMPLE_CURRENCY,
     stretches: [{ supplier: 'Computer Systems Inc', supplierSlug: 'computer-systems', startedDaysAgo: 200, endsInDays: 160 }],
   },
   {
     person: 'Omar Haddad', job: 'Commerce platform architect',
-    supplier: 'Brightmoor Staffing', supplierSlug: 'brightmoor', rateCents: 13200,
+    supplier: 'Brightmoor Staffing', supplierSlug: 'brightmoor', rateCents: 13200, currency: SAMPLE_CURRENCY,
     stretches: [{ supplier: 'Brightmoor Staffing', supplierSlug: 'brightmoor', startedDaysAgo: 45, endsInDays: 320 }],
   },
   {
     // The same person a year earlier, through a different supplier. Each
     // supplier sees its own months; only the client can add them up.
     person: 'Lucía Fernández', job: 'Supply chain planning analyst',
-    supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', rateCents: 9800,
+    supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', rateCents: 9800, currency: SAMPLE_CURRENCY,
     stretches: [
       { supplier: 'Brightmoor Staffing', supplierSlug: 'brightmoor', startedDaysAgo: 470, endsInDays: -75 },
       { supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', startedDaysAgo: 30, endsInDays: 335 },
@@ -93,7 +105,7 @@ export const SAMPLE_CONTRACTORS: SampleContractor[] = [
   },
   {
     person: 'Ingrid Sørensen', job: 'Cybersecurity analyst',
-    supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', rateCents: 11500,
+    supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', rateCents: 11500, currency: SAMPLE_CURRENCY,
     stretches: [{ supplier: 'Pinnacle Resourcing', supplierSlug: 'pinnacle', startedDaysAgo: -7, endsInDays: 372 }],
     blocked: 'Cannot start without an I-9.',
   },
@@ -113,9 +125,10 @@ export interface SampleRow {
   person: string
   job: string
   supplier: string
-  /** "$145.00 / hr" */
+  /** "$145.00 / hr", in the row's own currency. */
   rate: string
   rateCents: number
+  currency: string
   /** Days on this client's site, every supplier counted once. */
   days: number
   /** Whole months on site, never rounded up. */
@@ -129,8 +142,9 @@ export interface SampleRow {
   tone: 'verified' | 'attention'
 }
 
-export function dollars(cents: number): string {
-  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** An amount in its own currency, through money's one formatter (`lib/money-display`). */
+export function money(minor: number, currency: string): string {
+  return amount(minor, currency)
 }
 
 export function sampleRows(): SampleRow[] {
@@ -143,8 +157,9 @@ export function sampleRows(): SampleRow[] {
       person: c.person,
       job: c.job,
       supplier: c.supplier,
-      rate: `${dollars(c.rateCents)} / hr`,
+      rate: `${money(c.rateCents, c.currency)} / hr`,
       rateCents: c.rateCents,
+      currency: c.currency,
       days,
       months,
       suppliers,
@@ -207,6 +222,7 @@ export const SAMPLE_RECEIPT = {
   signedWeeks: 3,
   hoursPerWeek: 40,
   rateCents: 14500,
+  currency: SAMPLE_CURRENCY,
 } as const
 
 export function sampleCheck() {
@@ -222,8 +238,8 @@ export function sampleCheck() {
     hours,
     lines: [
       { label: 'Signed hours', value: `${hours.toFixed(1)}`, ok: true },
-      { label: 'Contract rate', value: `${dollars(SAMPLE_RECEIPT.rateCents)} / hr`, ok: true },
-      { label: 'Invoice receipt', value: dollars(invoicedCents), ok: agrees },
+      { label: 'Contract rate', value: `${money(SAMPLE_RECEIPT.rateCents, SAMPLE_RECEIPT.currency)} / hr`, ok: true },
+      { label: 'Invoice receipt', value: money(invoicedCents, SAMPLE_RECEIPT.currency), ok: agrees },
     ],
     agrees,
     says: agrees ? 'All three agree. Ready to pay.' : 'They do not agree. Held for the AP clerk.',

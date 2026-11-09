@@ -11,9 +11,12 @@ import { spreadHours } from '@/lib/seed-days'
 import { daysFor } from '@/lib/tenure-days'
 import {
   SAMPLE_CONTRACTORS, SAMPLE_LIMIT_MONTHS, SAMPLE_RECEIPT, SAMPLE_WEEK,
-  sampleRows, sampleStats, sampleWeek, sampleCheck, sampleFirms,
+  sampleRows, sampleStats, sampleWeek, sampleCheck, sampleFirms, money,
 } from '@/lib/public-site/sample-desk'
 import { namedCompanies } from '@/lib/positioning'
+import { amount } from '@/lib/money-display'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const NORTHBEND = PROGRAMMES.find((p) => p.client === 'nike')!
 const WORLD_NAMES: Record<string, string> = {
@@ -83,6 +86,25 @@ describe('The sample program on the home page is the seed’s own', () => {
     expect(check.lines.map((l) => l.value)).toEqual(['120.0', '$145.00 / hr', '$17,400.00'])
     expect(check.agrees).toBe(true)
     expect(check.says).toBe('All three agree. Ready to pay.')
+  })
+
+  it('every sample amount is in the currency the seed writes for Northbend, and every row says it', () => {
+    for (const r of sampleRows()) expect(r.currency, r.person).toBe('USD')
+    expect(SAMPLE_RECEIPT.currency).toBe('USD')
+    expect(sampleRows().find((r) => r.person === 'Helena Marsh')!.rate).toBe('$145.00 / hr')
+  })
+
+  it('a sample amount goes through money’s one formatter, so a currency with no cents shows none: 170 dong is never “₫170.00”', () => {
+    expect(money(17000, 'USD')).toBe(amount(17000, 'USD'))
+    expect(money(170, 'VND')).toBe(amount(170, 'VND'))
+    expect(money(170, 'VND')).not.toMatch(/\.00/)
+    expect(money(170, 'VND')).not.toMatch(/1\.70/)
+  })
+
+  it('the sample desk draws no “$” of its own and divides by no hundred', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/public-site/sample-desk.ts'), 'utf8')
+    expect(src).not.toMatch(/\/\s*100\b/)
+    expect(src).not.toMatch(/`\$\$\{/)
   })
 
   it('names only firms the seed builds, and no real company', () => {
