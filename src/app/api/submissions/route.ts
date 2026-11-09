@@ -1,3 +1,4 @@
+import { reachFor, submissionsWhere, jobInReach, outsideReachSays } from '@/app/api/requisitions/grant-reach'
 import { mayNameJob, jobNamed } from './job-heading'
 import { NextRequest, NextResponse } from 'next/server'
 import { placeOf } from '@/lib/job-site'
@@ -168,7 +169,15 @@ export async function POST(request: NextRequest) {
   // per person below, in a sentence naming the desk.
   const deliveryDeskOnly =
     !hasPermission(deskPermissions, 'submissions.create') && hasPermission(deskPermissions, 'assignments.write')
-  if (!hasPermission(deskPermissions, 'submissions.create') && !deliveryDeskOnly) {
+  // An Owner's grant of submissions for one team, or as the seat's own
+  // work, opens putting somebody forward to that team's jobs only, checked
+  // against the job below (`jobInReach`). Never under a seat in another
+  // company's program, which reads by that company's role.
+  const createReach = !desk?.seat && !hasPermission(deskPermissions, 'submissions.create')
+    ? await reachFor(caller, 'submissions.create')
+    : null
+  const grantedCreate = createReach != null && (createReach.scope === 'UNIT' || createReach.scope === 'PERSON')
+  if (!hasPermission(deskPermissions, 'submissions.create') && !deliveryDeskOnly && !grantedCreate) {
     return NextResponse.json(
       {
         error: {
@@ -195,6 +204,21 @@ export async function POST(request: NextRequest) {
       { error: { code: 'VALIDATION', message: 'personIds must be a non-empty array', field: 'personIds' } },
       { status: 422 }
     )
+  }
+
+  // A grant reaches one team's jobs (or the seat's own): a job outside it
+  // is refused in a sentence that names the reach, before anything is read.
+  if (grantedCreate && createReach) {
+    const job = await prisma.requirement.findUnique({
+      where: { id: requirementId },
+      select: { orgUnitId: true, raisedById: true, ownerId: true },
+    })
+    if (!job || !jobInReach(createReach, job, caller.person.id)) {
+      return NextResponse.json(
+        { error: { code: 'OUTSIDE_YOUR_REACH', message: outsideReachSays('submissions', createReach, createReach.teamNames, caller.company?.name ?? 'your firm') } },
+        { status: 403 }
+      )
+    }
   }
 
   if (typeof rate !== 'number' || rate <= 0) {
@@ -1667,6 +1691,21 @@ export async function GET(request: NextRequest) {
   }
 
   const where: any = { ...scope }
+
+  // ── A seat that reads submissions only by an Owner's grant ───────────
+  //
+  // Where the seat's own role holds no submissions desk and an Owner gave
+  // it submissions for one team (or its own work), it reads the
+  // submissions to that team's jobs and the teams under it (or the ones it
+  // put forward), narrowed here at the query, never another team's. The
+  // role's own permission still reads the firm's.
+  const ownRole = caller.rolePermissions ?? caller.permissions
+  if (!desk?.seat && !['*', 'submissions.read', 'submissions.create'].some((p) => ownRole.includes(p))) {
+    const granted = await reachFor(caller, 'submissions.read')
+    if (granted.scope === 'UNIT' || granted.scope === 'PERSON') {
+      where.AND = [...(where.AND ?? []), submissionsWhere(granted, caller.person.id)]
+    }
+  }
 
   // ── A seat with no desk reads only the submissions naming its holder ──
   //

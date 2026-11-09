@@ -1,3 +1,4 @@
+import { reachFor, jobInReach, outsideReachSays } from './grant-reach'
 import { wholeFromMinor } from '@/lib/money'
 import { jobCurrency, companyLimitConverter } from './job-currency'
 import { readQualification } from './qualification'
@@ -204,7 +205,15 @@ export async function POST(request: NextRequest) {
   // It is deliberately not `requirements.distribute`: raising the role
   // and choosing which suppliers see it are two desks on purpose, and
   // the procurement lead who holds the second does not get the first.
-  if (!hasPermission(acting.permissions, 'requirements.write')) {
+  // An Owner's grant of job requests for one team opens raising one in
+  // that team or a team under it (checked once the team is known, below);
+  // an own-work grant opens raising one's own. Never under a seat in
+  // another company's program.
+  const writeReach = !seat && !hasPermission(acting.permissions, 'requirements.write')
+    ? await reachFor(caller, 'requirements.write')
+    : null
+  const grantedWrite = writeReach != null && (writeReach.scope === 'UNIT' || writeReach.scope === 'PERSON')
+  if (!hasPermission(acting.permissions, 'requirements.write') && !grantedWrite) {
     return NextResponse.json(
       {
         error: {
@@ -361,6 +370,13 @@ export async function POST(request: NextRequest) {
   // the department it funds, so asking twice for something the budget
   // knows is a question with a wrong answer available.
   const team = orgUnitId ?? costCenter?.orgUnitId ?? null
+  // A team grant raises only in its own team and the teams under it.
+  if (grantedWrite && writeReach!.scope === 'UNIT' && !jobInReach(writeReach!, { orgUnitId: team }, caller.person.id)) {
+    return NextResponse.json(
+      { error: { code: 'OUTSIDE_YOUR_REACH', message: outsideReachSays('jobs', writeReach!, writeReach!.teamNames, client.name), field: 'orgUnitId' } },
+      { status: 403 }
+    )
+  }
 
   // ── And who that makes responsible ─────────────────────────────────
   //

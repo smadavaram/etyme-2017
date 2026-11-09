@@ -1,3 +1,4 @@
+import { reachFor, jobInReach, outsideReachSays } from '../grant-reach'
 import { jobCurrency, companyLimitConverter } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
@@ -459,7 +460,19 @@ export async function PATCH(
   const office = hasPermission(deskPermissions, 'governance.write')
   const editor =
     caller.person.id === requisition.ownerId || caller.person.id === requisition.raisedById || office
-  if (!hasPermission(deskPermissions, 'requirements.write') || !editor) {
+  // An Owner's grant of job requests for one team (or one's own) opens
+  // changing a job inside it, and never another team's.
+  const writeReach = !desk?.seat && !hasPermission(deskPermissions, 'requirements.write')
+    ? await reachFor(caller, 'requirements.write')
+    : null
+  const grantedWrite = writeReach != null && (writeReach.scope === 'UNIT' || writeReach.scope === 'PERSON')
+  if (grantedWrite && !jobInReach(writeReach!, requisition, caller.person.id)) {
+    return NextResponse.json(
+      { error: { code: 'OUTSIDE_YOUR_REACH', message: outsideReachSays('jobs', writeReach!, writeReach!.teamNames, desk?.companyName ?? caller.company?.name ?? 'your firm') } },
+      { status: 403 }
+    )
+  }
+  if ((!hasPermission(deskPermissions, 'requirements.write') && !grantedWrite) || !editor) {
     return NextResponse.json(
       {
         error: {

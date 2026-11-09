@@ -1,3 +1,4 @@
+import { reachFor, jobsWhere, teamsSay } from '@/app/api/requisitions/grant-reach'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
@@ -23,7 +24,15 @@ export async function GET(request: NextRequest) {
   const desk = await seatedDesk(caller)
   const acting = desk?.acting ?? caller
 
-  if (!hasPermission(acting.permissions, 'requirements.read')) {
+  // How far this seat reads jobs: the role's own permission or a company
+  // grant reads the firm's; an Owner's grant to one team reads that team
+  // and the teams under it; an own-work grant the reader's own
+  // (`reachFor`, permissionScope). A seat in a client's program reads by
+  // the client's role, as before.
+  const reach = desk?.seat
+    ? { has: hasPermission(acting.permissions, 'requirements.read'), scope: hasPermission(acting.permissions, 'requirements.read') ? 'COMPANY' as const : 'NONE' as const, unitIds: [] as string[], teamNames: [] as string[] }
+    : await reachFor(caller, 'requirements.read')
+  if (!reach.has) {
     return NextResponse.json(
       {
         error: {
@@ -132,6 +141,10 @@ export async function GET(request: NextRequest) {
     where.AND = [...(where.AND ?? []), { OR: [{ status: { in: ['FILLED', 'CLOSED'] } }, { archivedAt: { not: null } }] }]
   }
 
+  // Narrowed at the query to the reach: a team's jobs, or the reader's own.
+  const narrowed = jobsWhere(reach, caller.person.id)
+  if (narrowed && Object.keys(narrowed).length > 0) where.AND = [...(where.AND ?? []), narrowed]
+
   const orderBy: any =
     sort === 'priority'
       ? [{ status: 'asc' }, { createdAt: 'desc' }]
@@ -176,6 +189,13 @@ export async function GET(request: NextRequest) {
         says: desk?.seat
           ? `You are working in ${desk.companyName}'s program. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
+      },
+      // How far this seat reads, said where it is less than the firm's.
+      reach: {
+        scope: reach.scope,
+        says: reach.scope === 'UNIT'
+          ? `You read jobs for ${teamsSay(reach.teamNames)}.`
+          : reach.scope === 'PERSON' ? 'You read the jobs you raised or own.' : null,
       },
     },
   })
