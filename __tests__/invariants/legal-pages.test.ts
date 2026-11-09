@@ -277,6 +277,12 @@ describe('What the three documents say is what the code does', () => {
       [/api\.resend\.com|api\.sendgrid\.com/, 'Resend or SendGrid'],
       [/botframework\.com/, 'Microsoft Teams'],
       [/login\.microsoftonline\.com/, 'Microsoft'],
+      // The directory readers behind Settings → Team structure (2026-11-09):
+      // Microsoft and Google again, already named "where set up", reached
+      // only once a client's own admin approves a read-only connection,
+      // which no screen can make yet (lib/team-structure/directory).
+      [/graph\.microsoft\.com/, 'Microsoft'],
+      [/admin\.googleapis\.com/, 'Google'],
       [/etyme\.com/, 'Etyme'],
     ]
     const hosts = new Set(

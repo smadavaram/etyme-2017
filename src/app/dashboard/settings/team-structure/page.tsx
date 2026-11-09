@@ -6,6 +6,7 @@ import { ErrorState, LoadingState, PageHead, RefusedState, Field, Input, Select 
 import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
+import { ImportDialog } from './import-dialog'
 
 /**
  * Settings → Team structure: who leads what, and where (founder,
@@ -351,6 +352,7 @@ export default function TeamStructurePage() {
         subtitle="Drag a box to move a team. Drag a name to move a person. Every change is kept with who made it and when."
         actions={
           <>
+            <button className="btn-primary" onClick={() => setImporting(true)}>Import from your directory</button>
             <button
               className="btn-secondary"
               disabled={busy || !tree.lastChange?.yours}
@@ -406,6 +408,7 @@ export default function TeamStructurePage() {
           onSay={(says) => setSaid({ says, no: false })}
         />
       )}
+      {importing && <ImportDialog onClose={() => setImporting(false)} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
     </div>
   )
 }
