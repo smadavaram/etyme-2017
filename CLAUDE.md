@@ -4996,11 +4996,34 @@ because two of them are money.
 3. **Business days only shift forward.** US payroll pays a Saturday pay day on
    the Friday before; this moves it to the Monday after, which pays after the
    work. The direction is a money decision, per kind rather than globally —
-   pay backward, bill forward. **Decided by the founder, 2026-11-09:** a pay
-   date that falls on a day off moves to the working day before it (the
-   worker is never paid late), and a bill date moves to the working day
-   after it. Per kind, read from the kind's side (PAY backward, BILL
-   forward), money's to build, with tests first.
+   pay backward, bill forward. **Decided by the founder, 2026-11-09, in
+   three steps the same day.** First "yes" to pay before, bill after
+   (built in fabf99073, not deployed). Then *"Billing date is always a
+   working date earlier to weekend if it comes in weekend."* Then, the
+   rule that stands: *"If Saturday - move the pay date and bill date to
+   the day before vacation. If Sunday - move the pay date and bill date to
+   day after weekend/holiday. In any case make this as a config settings
+   for owner/admin."* So pay dates and bill dates move to the **nearest
+   working day**. A Saturday goes back to the Friday, or the Thursday when
+   the Friday is a holiday. A Sunday goes forward to the Monday, or the
+   Tuesday when the Monday is a holiday. Hours dates still move to the
+   working day after. It is a company setting the Owner or Admin changes,
+   recorded with who and when. Three coordinator's calls, each reversible
+   by the founder in a sentence:
+   - **A tie that is not a Saturday or a Sunday moves back.** A weekday
+     holiday is a tie (a Wednesday holiday moves to the Tuesday). A
+     Monday-holiday date is nearest to the Tuesday and moves there.
+   - **On a Friday and Saturday weekend, the first day goes back and the
+     last day goes forward.** A Dubai Friday moves to Thursday, a
+     Saturday to Sunday.
+   - **Every company already on Etyme moves onto the rule.** Each row
+     holds the old default, and nothing records that anybody chose it.
+   Before money builds it, a read-only check measures every pack under
+   the rule. It looks for pay landing before it is worked out, India's
+   7th-of-the-month wage deadline, bills landing before their last week
+   is approved, and hours that could go unbilled. Regulatory reads each
+   US state's rule on a payday that falls on a non-workday, and the
+   screen says a state's rule beside the choice where it differs.
 4. **No salary lag.** A contract's payment term is not mapped into `offsetDays`,
    so pay day is the period end itself.
 5. **Nothing marks pay cleared.** Legacy ran calculate → process → clear. If AP
