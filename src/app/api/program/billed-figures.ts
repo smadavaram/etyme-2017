@@ -65,3 +65,45 @@ export function programBilled(signed: ReadonlyMap<string, LineBilling>): { curre
     currency: r.currency, billedMinor: r.billedMinor, notBilledMinor: r.notBilledMinor, notBilledHours: r.notBilledHours,
   }))
 }
+
+/** One cost center's figures, as the budget's totals read them. */
+export interface CenterFigures {
+  currency: string
+  budgetCents: number | null
+  committedCents: number
+  actualCents: number
+  toPayCents: number
+  paidCents: number
+  billedCents: number
+  signedNotBilledCents: number
+}
+
+export interface CurrencyTotal extends Omit<CenterFigures, 'budgetCents'> {
+  /** Null where no cost center in this currency has a budget. */
+  budgetCents: number | null
+  /** Cost centers in this currency. */
+  centers: number
+}
+
+/**
+ * The budget's totals, one per currency, in the order the cost centers
+ * came: two currencies are never added. A cost center with no budget adds
+ * nothing to Budget and everything else to its currency's figures. Pure.
+ */
+export function budgetTotals(rows: readonly CenterFigures[]): CurrencyTotal[] {
+  const by = new Map<string, CurrencyTotal>()
+  for (const r of rows) {
+    const c = (r.currency || 'USD').toUpperCase()
+    const t = by.get(c) ?? { currency: c, budgetCents: null, committedCents: 0, actualCents: 0, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0, centers: 0 }
+    if (r.budgetCents != null) t.budgetCents = (t.budgetCents ?? 0) + r.budgetCents
+    t.committedCents += r.committedCents
+    t.actualCents += r.actualCents
+    t.toPayCents += r.toPayCents
+    t.paidCents += r.paidCents
+    t.billedCents += r.billedCents
+    t.signedNotBilledCents += r.signedNotBilledCents
+    t.centers += 1
+    by.set(c, t)
+  }
+  return [...by.values()]
+}

@@ -8,7 +8,7 @@ import { acceptedWorth } from '@/app/api/timesheets/accepted-worth'
 import { editBody, type EditTyped } from '@/app/dashboard/requisitions/job-body'
 import { writtenOn } from '@/app/api/requisitions/edit-write'
 import { jobFacts } from '@/app/dashboard/requisitions/facts'
-import { centerBilled, programBilled } from '@/app/api/program/billed-figures'
+import { centerBilled, programBilled, budgetTotals } from '@/app/api/program/billed-figures'
 
 /**
  * Walk 8, 9 November 2026: the release gate stopped on the Timesheets
@@ -368,5 +368,31 @@ describe('Billed sits beside Spent on the budget and the program, by money’s o
     expect(facts).toContainEqual({ label: 'Pay range', value: '₫60,000–₫75,000 an hour' })
     expect(facts).toContainEqual({ label: 'Budget stated', value: '₫3,000,000' })
     expect(jobFacts({ headcount: 1, billMax: 11_000 })).toContainEqual({ label: 'Pay range', value: 'up to $110 an hour' })
+  })
+})
+
+describe('the budget page never adds two currencies and prints each in its own', () => {
+  const center = (currency: string, budgetCents: number | null, actualCents: number) => ({
+    currency, budgetCents, committedCents: 0, actualCents, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0,
+  })
+
+  it('a program with budgets in dollars and dong reads one total per currency, never their sum', () => {
+    const t = budgetTotals([center('USD', 1_000_000, 400_000), center('VND', 500_000_000, 3_000_000), center('USD', null, 100_000)])
+    expect(t).toEqual([
+      expect.objectContaining({ currency: 'USD', budgetCents: 1_000_000, actualCents: 500_000, centers: 2 }),
+      expect.objectContaining({ currency: 'VND', budgetCents: 500_000_000, actualCents: 3_000_000, centers: 1 }),
+    ])
+  })
+
+  it('every amount on the budget page goes through money’s formatter with the cost center’s currency', () => {
+    const page = read('src/app/dashboard/program/budget/page.tsx')
+    expect(page).toContain('return compact(cents, currency)')
+    expect(page).not.toMatch(/cash\([^,()]+\)/)
+    expect(page).not.toContain('/ 100')
+    expect(page).toContain('summary?.byCurrency')
+    const route = read('src/app/api/program/budget/route.ts')
+    expect(route).toContain("minorFromWhole(Number(plan.annualBudget), plan.currency || 'USD')")
+    expect(route).not.toContain('* 100')
+    expect(route).toContain('currency: planCurrency')
   })
 })

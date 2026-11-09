@@ -170,4 +170,36 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
     const rolled = rollUp([...(await signedAndBilled(ids)).values()])
     expect(r.body.data.summary.billed).toEqual(rolled.map((x) => ({ currency: x.currency, billedMinor: x.billedMinor, notBilledMinor: x.notBilledMinor, notBilledHours: x.notBilledHours })))
   })
+
+  it('the budget reads one total per currency, and a single-currency program keeps its flat figures equal to that one total', async () => {
+    as(PROGRAM)
+    const nb = (await json(await readBudget(req('GET', '/api/program/budget')))).body.data
+    expect(nb.summary.byCurrency.map((t: any) => t.currency)).toEqual(['USD'])
+    expect(nb.summary.actualCents).toBe(nb.summary.byCurrency[0].actualCents)
+    expect(nb.summary.actualCents).toBe(nb.centers.reduce((n: number, c: any) => n + c.actualCents, 0))
+
+    as(corvaneSeatEmail('operations', 'demo.etyme.local'))
+    const cv = await json(await readBudget(req('GET', '/api/program/budget')))
+    expect(cv.status, JSON.stringify(cv.body)).toBe(200)
+    const totals = cv.body.data.summary.byCurrency
+    for (const t of totals) {
+      const mine = cv.body.data.centers.filter((c: any) => c.currency === t.currency)
+      expect(t.actualCents, t.currency).toBe(mine.reduce((n: number, c: any) => n + c.actualCents, 0))
+      expect(t.centers).toBe(mine.length)
+    }
+    if (totals.length > 1) expect(cv.body.data.summary.actualCents).toBeNull()
+  })
+
+  it('a cost center’s budget is read in its own currency’s minor units, never times a hundred', async () => {
+    const plans = await prisma.headcountPlan.findMany({ select: { costCenterId: true, annualBudget: true, currency: true, period: true } })
+    const vnd = plans.find((p) => p.currency === 'VND')
+    as(PROGRAM)
+    const nb = (await json(await readBudget(req('GET', '/api/program/budget')))).body.data
+    for (const c of nb.centers.filter((x: any) => x.budgetCents != null)) {
+      const plan = plans.find((p) => p.costCenterId === c.costCenterId && p.period === nb.period)!
+      expect(c.budgetCents).toBe(Math.round(Number(plan.annualBudget) * (plan.currency === 'VND' || plan.currency === 'JPY' ? 1 : 100)))
+    }
+    expect(vnd === undefined || Number.isFinite(Number(vnd.annualBudget))).toBe(true)
+  })
 })
+

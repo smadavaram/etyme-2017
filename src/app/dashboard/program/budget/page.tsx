@@ -1,5 +1,8 @@
 'use client'
 
+import { compact } from '@/lib/money-display'
+import { wholeFromMinor } from '@/lib/money'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 // Both from list-surface, which re-exports the type for exactly this
@@ -50,6 +53,8 @@ interface Center {
   ownerId: string | null
   period: string
   approvedHeads: number | null
+  /** The budget's currency: every figure on this cost center is in it. */
+  currency: string
   budgetCents: number | null
   committedCents: number
   actualCents: number
@@ -68,13 +73,14 @@ interface Center {
   unknowns: string[]
 }
 
-function cash(cents: number | null): string {
+/**
+ * An amount in its own currency through money's one formatter, never a
+ * dollar sign on minor units over a hundred (walk 8 follow-up: a dong
+ * budget read as dollars).
+ */
+function cash(cents: number | null | undefined, currency: string): string {
   if (cents == null) return '—'
-  const d = cents / 100
-  const sign = d < 0 ? '−' : ''
-  const n = Math.abs(d)
-  if (n >= 1000) return `${sign}$${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`
-  return `${sign}$${Math.round(n)}`
+  return compact(cents, currency)
 }
 
 export default function BudgetPage() {
@@ -144,16 +150,16 @@ export default function BudgetPage() {
         </div>
       ),
     },
-    { key: 'budgetCents', label: 'Budget', align: 'right', sortValue: (c) => c.budgetCents ?? -1, render: (c) => <span className="tabular-nums">{cash(c.budgetCents)}</span> },
-    { key: 'committedCents', label: 'Committed', align: 'right', sortValue: (c) => c.committedCents, render: (c) => <span className="tabular-nums">{cash(c.committedCents)}</span> },
-    { key: 'actualCents', label: 'Spent', align: 'right', sortValue: (c) => c.actualCents, render: (c) => <span className="tabular-nums">{cash(c.actualCents)}</span> },
+    { key: 'budgetCents', label: 'Budget', align: 'right', sortValue: (c) => c.budgetCents ?? -1, render: (c) => <span className="tabular-nums">{cash(c.budgetCents, c.currency)}</span> },
+    { key: 'committedCents', label: 'Committed', align: 'right', sortValue: (c) => c.committedCents, render: (c) => <span className="tabular-nums">{cash(c.committedCents, c.currency)}</span> },
+    { key: 'actualCents', label: 'Spent', align: 'right', sortValue: (c) => c.actualCents, render: (c) => <span className="tabular-nums">{cash(c.actualCents, c.currency)}</span> },
     // Billed beside Spent, never in place of it: bills sent on these lines.
     {
       key: 'billedCents', label: 'Billed', align: 'right', sortValue: (c) => c.billedCents,
       render: (c) => (
         <span className="tabular-nums" title={c.otherCurrencies.length ? `Lines in ${c.otherCurrencies.join(', ')} are not in this figure.` : undefined}>
-          {cash(c.billedCents)}
-          {c.signedNotBilledCents > 0 && <span className="block text-[10px] text-etyme-muted">{cash(c.signedNotBilledCents)} signed, not billed yet</span>}
+          {cash(c.billedCents, c.currency)}
+          {c.signedNotBilledCents > 0 && <span className="block text-[10px] text-etyme-muted">{cash(c.signedNotBilledCents, c.currency)} signed, not billed yet</span>}
         </span>
       ),
       hideOnMobile: true,
@@ -162,7 +168,7 @@ export default function BudgetPage() {
       key: 'availableCents', label: 'Left', align: 'right', sortValue: (c) => c.availableCents ?? 0,
       render: (c) => (
         <span className={`tabular-nums ${c.availableCents != null && c.availableCents < 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-          {cash(c.availableCents)}
+          {cash(c.availableCents, c.currency)}
         </span>
       ),
     },
@@ -174,7 +180,7 @@ export default function BudgetPage() {
       // was the table.
       key: 'set', label: '', align: 'right',
       render: (c) => mayBudget(c)
-        ? <button onClick={(e) => { e.stopPropagation(); setEditing(c.costCenterId); setAmount(c.budgetCents != null ? String(Math.round(c.budgetCents / 100)) : ''); setView('feed') }}
+        ? <button onClick={(e) => { e.stopPropagation(); setEditing(c.costCenterId); setAmount(c.budgetCents != null ? String(wholeFromMinor(c.budgetCents, c.currency)) : ''); setView('feed') }}
             className="text-[11px] text-etyme-action hover:underline">
             {c.budgetCents == null ? 'Set budget' : 'Change'}
           </button>
@@ -198,27 +204,34 @@ export default function BudgetPage() {
         </>}
       />
 
-      {summary && (
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {[
-            ['Budget', cash(summary.budgetCents), `${period}`],
-            ['Committed', cash(summary.committedCents), 'signed, not yet worked'],
-            ['Spent', cash(summary.actualCents), 'work you accepted'],
-            ['Billed', cash(summary.billedCents ?? 0), `bills sent to you; ${cash(summary.signedNotBilledCents ?? 0)} signed, not billed yet`],
-            ['Left', cash(summary.budgetCents == null ? null : summary.budgetCents - summary.committedCents - summary.actualCents), 'budget less both'],
-          ].map(([label, value, note]) => (
-            <Stat key={label} label={label} value={value} sub={note} />
-          ))}
-        </section>
-      )}
-
-      {summary && (summary.toPayCents > 0 || summary.paidCents > 0) && (
-        <p className="text-[12.5px] text-etyme-muted">
-          Of the {cash(summary.actualCents)} you have accepted, {cash(summary.paidCents)} is paid
-          and {cash(summary.toPayCents)} is invoiced and still to pay. The rest is work signed for
-          that nobody has billed you for yet — a cost you have already incurred.
-        </p>
-      )}
+      {/* One set of figures per currency, never two currencies added. */}
+      {(summary?.byCurrency ?? []).map((t: any) => (
+        <div key={t.currency} className="space-y-2">
+          {summary.byCurrency.length > 1 && (
+            <p className="text-[11px] uppercase tracking-wider text-etyme-muted">
+              In {t.currency}, {t.centers} cost {t.centers === 1 ? 'center' : 'centers'}
+            </p>
+          )}
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[
+              ['Budget', cash(t.budgetCents, t.currency), `${period}`],
+              ['Committed', cash(t.committedCents, t.currency), 'signed, not yet worked'],
+              ['Spent', cash(t.actualCents, t.currency), 'work you accepted'],
+              ['Billed', cash(t.billedCents, t.currency), `bills sent to you; ${cash(t.signedNotBilledCents, t.currency)} signed, not billed yet`],
+              ['Left', cash(t.budgetCents == null ? null : t.budgetCents - t.committedCents - t.actualCents, t.currency), 'budget less both'],
+            ].map(([label, value, note]) => (
+              <Stat key={label} label={label} value={value} sub={note} />
+            ))}
+          </section>
+          {(t.toPayCents > 0 || t.paidCents > 0) && (
+            <p className="text-[12.5px] text-etyme-muted">
+              Of the {cash(t.actualCents, t.currency)} you have accepted, {cash(t.paidCents, t.currency)} is paid
+              and {cash(t.toPayCents, t.currency)} is invoiced and still to pay. The rest is work signed for
+              that nobody has billed you for yet — a cost you have already incurred.
+            </p>
+          )}
+        </div>
+      ))}
 
       {summary?.withoutBudget > 0 && (
         <p className="text-[12.5px] text-etyme-attention">
@@ -258,7 +271,7 @@ export default function BudgetPage() {
                 </div>
                 {c.availableCents != null && (
                   <span className={`chip ${c.availableCents < 0 ? 'chip--attention' : c.usedShare != null && c.usedShare >= 0.9 ? 'chip--attention' : 'chip--verified'}`}>
-                    {cash(c.availableCents)} left
+                    {cash(c.availableCents, c.currency)} left
                   </span>
                 )}
               </div>
@@ -284,7 +297,7 @@ export default function BudgetPage() {
                     <button type="button" onClick={() => setEditing(null)} className="text-[11px] text-etyme-muted">Not now</button>
                   </form>
                 ) : (
-                  <button onClick={() => { setEditing(c.costCenterId); setAmount(c.budgetCents != null ? String(Math.round(c.budgetCents / 100)) : '') }}
+                  <button onClick={() => { setEditing(c.costCenterId); setAmount(c.budgetCents != null ? String(wholeFromMinor(c.budgetCents, c.currency)) : '') }}
                     className="text-etyme-action hover:underline">
                     {c.budgetCents == null ? `Set a budget for ${period}` : 'Change the budget'}
                   </button>
@@ -302,8 +315,8 @@ export default function BudgetPage() {
                     <div key={l.contractId} className="flex flex-wrap items-baseline justify-between gap-2 text-[12.5px]">
                       <span className="text-etyme-ink">{l.personName} <span className="text-etyme-faint">· {l.supplierName}</span></span>
                       <span className="tabular-nums text-etyme-muted">
-                        {cash(l.actualCents)} spent{l.committedCents > 0 && ` · ${cash(l.committedCents)} to run`}
-                        {l.toPayCents > 0 && ` · ${cash(l.toPayCents)} to pay`}
+                        {cash(l.actualCents, c.currency)} spent{l.committedCents > 0 && ` · ${cash(l.committedCents, c.currency)} to run`}
+                        {l.toPayCents > 0 && ` · ${cash(l.toPayCents, c.currency)} to pay`}
                       </span>
                     </div>
                   ))}
