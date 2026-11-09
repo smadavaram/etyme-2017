@@ -70,7 +70,7 @@ describe('a colleague seated as Member with no desk reads no contract of the fir
     await prisma.context.create({
       data: { personId: p.id, companyId: firm.id, type: 'EMPLOYEE', roleId: member.id, grantReason: 'Joined on the domain' },
     })
-    colleague = (await prisma.sellContract.findFirstOrThrow({ where: { companyId: firm.id }, select: { personId: true } })).personId
+    colleague = (await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: firm.id }, select: { personId: true } })).personId
   }, 240_000)
 
   it('a Member with no lines of their own opens the sell list and reads none of the firm’s lines', async () => {

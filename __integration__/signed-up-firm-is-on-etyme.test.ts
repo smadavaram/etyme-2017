@@ -51,7 +51,7 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     expect(list.body.data.companies.find((c: { id: string }) => c.id === written.id)).toMatchObject({ onEtyme: false, hasPage: false })
     // A firm it trades with that is on Etyme reads as on Etyme; the firm
     // itself is never among its own companies (2026-10-27).
-    const partner = await prisma.counterparty.findFirstOrThrow({
+    const partner = await prisma.counterparty.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: brightmoor.id, otherCompany: { claimedAt: { not: null } } },
       select: { otherCompanyId: true },
     })
@@ -63,7 +63,7 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
   })
 
   it('the one-off marks every firm somebody has a seat at as on Etyme, leaves a shell nobody joined alone, and finds nothing the second time', async () => {
-    const seated = await prisma.company.findFirstOrThrow({ where: { contexts: { some: { roleId: { not: null } } } }, select: { id: true, createdAt: true } })
+    const seated = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { contexts: { some: { roleId: { not: null } } } }, select: { id: true, createdAt: true } })
     await prisma.company.update({ where: { id: seated.id }, data: { claimedAt: null } })
     const shell = await prisma.company.findFirstOrThrow({ where: { name: 'Ostrander Mills' }, select: { id: true } })
 
@@ -83,7 +83,7 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     const call = (token: string | null, body?: unknown) =>
       backfill(req('POST', '/api/staff/backfill-claimed-at', body, token ? { authorization: `Bearer ${token}` } : {}))
     try {
-      const seated = await prisma.company.findFirstOrThrow({ where: { contexts: { some: { roleId: { not: null } } } }, select: { id: true, createdAt: true } })
+      const seated = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { contexts: { some: { roleId: { not: null } } } }, select: { id: true, createdAt: true } })
       await prisma.company.update({ where: { id: seated.id }, data: { claimedAt: null } })
       const shell = await prisma.company.findFirstOrThrow({ where: { name: 'Ostrander Mills' }, select: { id: true } })
       const logsBefore = await prisma.automationLog.count({ where: { action: 'SIGNED_UP_FIRMS_CLAIMED' } })

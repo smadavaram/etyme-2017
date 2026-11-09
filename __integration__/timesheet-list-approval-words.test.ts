@@ -105,7 +105,7 @@ describe('the timesheet list says who approved a week by email', () => {
 
   it('a week the client signed in Etyme carries no email sentence', async () => {
     as(NIKE)
-    const signed = await prisma.timesheet.findFirst({
+    const signed = await prisma.timesheet.findFirst({ orderBy: { id: 'asc' },
       where: { personId: it_.helena, clientApprovedAt: { not: null }, id: { not: it_.seeded }, weekApprovals: { none: {} } },
       select: { id: true },
     })

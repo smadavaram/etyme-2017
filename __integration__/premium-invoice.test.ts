@@ -834,7 +834,7 @@ describe('a bill sent from the Bills page reaches the person the supplier record
 
   it('Send again is a person’s own act, needs invoices.issue, and is refused within five minutes of the last sending', async () => {
     // A seat at Brightmoor that does not send bills is told who does.
-    const recruiter = await prisma.context.findFirstOrThrow({
+    const recruiter = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: h.brightmoor, revokedAt: null, type: { not: 'CONSULTANT' }, role: { NOT: { permissions: { hasSome: ['invoices.issue', '*'] } } } },
       select: { person: { select: { primaryEmail: true } } },
     })

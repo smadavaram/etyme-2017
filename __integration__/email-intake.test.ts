@@ -99,7 +99,7 @@ describe('forwarded business email', () => {
     ownerA = await seatedOwner(companyA)
     ownerB = await seatedOwner(companyB)
     // A seated colleague at A who holds no Owner or Admin role, and is the forwarder.
-    const member = await prisma.role.findFirst({ where: { companyId: companyA, name: { notIn: ['Owner', 'Admin'] } }, select: { id: true } })
+    const member = await prisma.role.findFirst({ orderBy: { id: 'asc' }, where: { companyId: companyA, name: { notIn: ['Owner', 'Admin'] } }, select: { id: true } })
     const person = await prisma.person.create({ data: { name: 'Dana Whitfield', primaryEmail: FORWARDER } })
     await prisma.context.create({ data: { personId: person.id, companyId: companyA, type: 'EMPLOYEE', roleId: member!.id } })
     memberA = FORWARDER

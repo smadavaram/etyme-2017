@@ -23,7 +23,7 @@ let secretBefore: string | undefined
 /** Give a company exactly one general liability policy, on these dates. */
 async function coverFrom(companyId: string, validFrom: Date, expiresAt: Date) {
   await prisma.verification.deleteMany({ where: { companyId, type: 'INSURANCE_GL' } })
-  const uploader = await prisma.person.findFirstOrThrow({ select: { id: true } })
+  const uploader = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
   await prisma.verification.create({
     data: {
       companyId,
@@ -77,7 +77,7 @@ describe('a supplier whose cover has not begun is chased for the weeks nobody is
     ctx.sellerId = link.sellContract.companyId
 
     // Somebody at the firm that owns the placement, to read it as.
-    const seat = await prisma.context.findFirstOrThrow({
+    const seat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: ctx.sellerId, revokedAt: null },
       select: { person: { select: { primaryEmail: true } } },
     })
@@ -150,7 +150,7 @@ describe('a supplier whose cover has not begun is chased for the weeks nobody is
     // order, and the letter that then went out asked only for what the
     // shipped `COMPLIANCE_ANNUAL` packet lists. Chased for one thing,
     // asked for another.
-    const buy = await prisma.buyContract.findFirstOrThrow({
+    const buy = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorCompanyId: ctx.subVendorId, companyId: ctx.sellerId },
       select: { id: true },
     })

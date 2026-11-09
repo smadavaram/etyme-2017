@@ -23,7 +23,7 @@ async function call(fn: any, method: string, body?: unknown, seat: Seat = owner)
 describe('the Owner turns the model on or off for their company', () => {
   beforeAll(async () => {
     await freshWorld()
-    const ctx = await prisma.context.findFirstOrThrow({
+    const ctx = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { type: 'EMPLOYEE', company: { kind: 'VENDOR' }, role: { permissions: { has: '*' } } },
       include: { person: true },
     })

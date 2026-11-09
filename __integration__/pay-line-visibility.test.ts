@@ -79,7 +79,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     })
     hr = { id: hrSeat.id, personId: hrSeat.personId, email: hrSeat.person.primaryEmail }
 
-    const colleagueLine = await prisma.buyContract.findFirstOrThrow({
+    const colleagueLine = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: teleworldId, candidates: { some: { personId: { not: karthik.personId }, payRate: { gt: 0 } } } },
       include: { candidates: true },
     })
@@ -177,7 +177,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
 
 describe('what a firm pays below it on a purchase order is the payroll desk’s to read', () => {
   it('an account manager reads a purchase order’s lines without what the firm pays below it, and the payroll desk reads it', async () => {
-    const order = await prisma.workOrder.findFirst({
+    const order = await prisma.workOrder.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { buyContracts: { some: { candidates: { some: { payRate: { gt: 0 } } } } } },
       select: { issuedById: true },
     })
@@ -354,7 +354,7 @@ describe('what a line bills at is read by the desks that price and bill it, and 
   })
 
   it('a desk at a client reads what its own contractors cost it without any money permission', async () => {
-    const seat = await prisma.context.findFirstOrThrow({
+    const seat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         type: 'EMPLOYEE', company: { kind: 'CLIENT', sellContractsIn: { some: {} } },
         role: { NOT: { permissions: { hasSome: ['*', 'margin.read', 'rates.read', 'invoices.issue'] } } },

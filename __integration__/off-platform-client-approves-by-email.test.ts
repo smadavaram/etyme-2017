@@ -117,7 +117,7 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
   })
 
   it('the addresses a supplier recorded for its client are read in one place, lowercased, never the supplier’s own people, another firm’s record, a revoked invitation or the worker', async () => {
-    const other = await prisma.company.findFirstOrThrow({ where: { id: { notIn: [it_.client, it_.brightmoor] } }, select: { id: true } })
+    const other = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { id: { notIn: [it_.client, it_.brightmoor] } }, select: { id: true } })
     const made = await Promise.all([
       prisma.companyContact.create({ data: { companyId: it_.brightmoor, atCompanyId: it_.client, name: 'Lee Ap', email: 'Lee.Ap@Larkspur-Freight.example', kind: 'AP' } }),
       prisma.companyContact.create({ data: { companyId: it_.brightmoor, atCompanyId: it_.client, name: 'Our owner', email: OWNER } }),

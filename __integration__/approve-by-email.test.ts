@@ -266,7 +266,7 @@ describe('a client approves a week by email, and the proof travels down the chai
   it('then each lower rung accepts in turn: Techpeple must wait for Computer Systems, and nobody is accepted for', async () => {
     const csId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
     const w = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week }, select: { periodStart: true, periodEnd: true } })
-    const told = await prisma.notification.findFirst({ where: { title: `Helena Marsh’s week of ${weekSays(w.periodStart, w.periodEnd)} is yours to accept`, companyId: csId } })
+    const told = await prisma.notification.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { title: `Helena Marsh’s week of ${weekSays(w.periodStart, w.periodEnd)} is yours to accept`, companyId: csId } })
     expect(told?.body).toMatch(/^Northbend Athletic signed .+ Approved by email: Dana Whitfield/)
 
     as(TECHPEPLE)

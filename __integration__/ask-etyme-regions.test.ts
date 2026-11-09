@@ -253,7 +253,7 @@ describe('the thread column beside Valeria Montes’s chat', () => {
     const marcus = await prisma.person.findFirstOrThrow({ where: { primaryEmail: MARCUS }, select: { id: true, name: true } })
     const corvane = await prisma.context.findFirstOrThrow({ where: { personId: valeria.id, revokedAt: null, companyId: { not: null } }, select: { companyId: true } })
     const companyId = corvane.companyId!
-    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({
+    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: companyId, orgUnitId: `cv_unit_site_${plant.key}` }, select: { id: true },
     })
     const latamJob = await jobAt(latam[0])
@@ -287,7 +287,7 @@ describe('the thread column beside Valeria Montes’s chat', () => {
     const valeria = await prisma.person.findFirstOrThrow({ where: { primaryEmail: VALERIA }, select: { id: true, name: true } })
     const marcus = await prisma.person.findFirstOrThrow({ where: { primaryEmail: MARCUS }, select: { id: true, name: true } })
     const companyId = (await prisma.context.findFirstOrThrow({ where: { personId: valeria.id, revokedAt: null, companyId: { not: null } }, select: { companyId: true } })).companyId!
-    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({ where: { companyId, orgUnitId: `cv_unit_site_${plant.key}` }, select: { id: true } })
+    const jobAt = (plant: { key: string }) => prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId, orgUnitId: `cv_unit_site_${plant.key}` }, select: { id: true } })
     const on = (...ps: { id: string; name: string }[]) => ps.map((p) => ({ personId: p.id, name: p.name, companyId, joinedAt: new Date().toISOString() }))
     const thread = async (title: string, topicId: string, participants: object, body: string) => {
       const t = await prisma.conversation.create({ data: { companyId, topic: 'REQUIREMENT', topicId, title, participants }, select: { id: true } })

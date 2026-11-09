@@ -27,7 +27,7 @@ const ctx: Record<string, any> = {}
 /** Replace a company's general liability cover with one policy on given dates. */
 async function coverFrom(companyId: string, validFrom: Date, expiresAt: Date) {
   await prisma.verification.deleteMany({ where: { companyId, type: 'INSURANCE_GL' } })
-  const uploader = await prisma.person.findFirstOrThrow({ select: { id: true } })
+  const uploader = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
   await prisma.verification.create({
     data: {
       companyId,
@@ -49,7 +49,7 @@ describe('a policy that begins in three weeks reads the same way at every desk',
 
     // A supplier with somebody on site at a client — the case the
     // compliance page exists for.
-    const placement = await prisma.sellContract.findFirstOrThrow({
+    const placement = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION', 'PAUSED'] } },
       select: {
         companyId: true,
@@ -64,14 +64,14 @@ describe('a policy that begins in three weeks reads the same way at every desk',
     ctx.clientName = placement.clientCompany.name
 
     // Somebody who sits at that client, to read the page as.
-    const clientSeat = await prisma.context.findFirstOrThrow({
+    const clientSeat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: ctx.clientId, revokedAt: null, person: { primaryEmail: { endsWith: D } } },
       select: { person: { select: { primaryEmail: true } } },
     })
     ctx.clientEmail = clientSeat.person.primaryEmail
 
     // A supplier invited to a role that is still open — the submission door.
-    const invitation = await prisma.requirementInvitation.findFirstOrThrow({
+    const invitation = await prisma.requirementInvitation.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { requirement: { status: 'OPEN', approvalState: { not: 'PENDING_APPROVAL' } } },
       select: {
         requirementId: true,
@@ -84,7 +84,7 @@ describe('a policy that begins in three weeks reads the same way at every desk',
     ctx.invitedSupplierName = invitation.toCompany.name
     ctx.requirementId = invitation.requirementId
 
-    const supplierSeat = await prisma.context.findFirstOrThrow({
+    const supplierSeat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         companyId: ctx.invitedSupplierId,
         revokedAt: null,

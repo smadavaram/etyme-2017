@@ -59,7 +59,7 @@ describe('a client’s AP clerk records a typed-in invoice receipt from a suppli
     // Techpeple employs Helena below Computer Systems; Northbend pays Computer Systems, never Techpeple.
     expect(suppliers.some((x) => x.id === s.techpeple)).toBe(false)
     // And nobody else's line is opened by naming its id.
-    const below = await prisma.sellContract.findFirstOrThrow({ where: { companyId: s.techpeple, clientCompanyId: s.cs } })
+    const below = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: s.techpeple, clientCompanyId: s.cs } })
     expect((await options(`?sellContractId=${below.id}`)).status).toBe(404)
   })
 

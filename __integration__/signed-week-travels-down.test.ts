@@ -33,7 +33,7 @@ async function yoursToAccept(weekId: string): Promise<string> {
 async function toldAt(slug: string, title: string) {
   const company = await prisma.company.findUniqueOrThrow({ where: { slug } })
   for (let i = 0; i < 30; i++) {
-    const n = await prisma.notification.findFirst({ where: { companyId: company.id, title } })
+    const n = await prisma.notification.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: company.id, title } })
     if (n) return n
     await new Promise((r) => setTimeout(r, 100))
   }

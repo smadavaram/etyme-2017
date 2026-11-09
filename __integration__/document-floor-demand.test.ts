@@ -77,13 +77,13 @@ describe('cover that has not begun refuses a start, and the preview of it says t
 
     const supplier = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
     ctx.supplierId = supplier.id
-    const template = await prisma.sellContract.findFirstOrThrow({
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: supplier.id, state: 'IN_PROGRESS' },
     })
     ctx.clientId = template.endClientCompanyId ?? template.clientCompanyId
 
     // Somebody at the client, to read the desk as.
-    const clientSeat = await prisma.context.findFirstOrThrow({
+    const clientSeat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         companyId: ctx.clientId,
         revokedAt: null,

@@ -18,7 +18,7 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
   beforeAll(async () => {
     await freshWorld()
     const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
-    const inv = await prisma.invoice.findFirstOrThrow({
+    const inv = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         status: 'SUBMITTED',
         OR: [{ engagement: { msa: { clientId: northbend.id } } }, { workOrder: { issuedById: northbend.id } }],

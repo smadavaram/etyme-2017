@@ -76,7 +76,7 @@ async function seat(opts: {
     where: { companyId: co[opts.client], name: opts.roleName },
     select: { id: true },
   })
-  const grantor = await prisma.context.findFirstOrThrow({
+  const grantor = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
     where: { companyId: co[opts.client] },
     select: { personId: true },
   })

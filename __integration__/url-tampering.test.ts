@@ -48,7 +48,7 @@ describe('reading another company by editing the URL', () => {
 
     // Somebody Techpeple placed. Their submissions carry a rate, and the
     // chain above them carries a different one.
-    const s = await prisma.submission.findFirstOrThrow({
+    const s = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { fromCompanyId: computerSystems.id },
       include: { person: true },
     })

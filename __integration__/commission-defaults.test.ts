@@ -113,13 +113,13 @@ describe('the firm’s default commission rates', () => {
   })
 
   it('a fixed-amount default in dollars is never written on a line paid in another currency, and the award says why', async () => {
-    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: s.brightmoor }, select: { id: true, payCurrency: true, startDate: true } })
+    const buy = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: s.brightmoor }, select: { id: true, payCurrency: true, startDate: true } })
     const recruiter = await prisma.person.findFirstOrThrow({ where: { primaryEmail: RECRUITER } })
     const owner = await prisma.person.findFirstOrThrow({ where: { primaryEmail: OWNER } })
     await prisma.buyContract.update({ where: { id: buy.id }, data: { payCurrency: 'INR' } })
     try {
       const out = await writeDefaultCommissions(s.brightmoor, {
-        sellContractId: (await prisma.sellContract.findFirstOrThrow({ where: { companyId: s.brightmoor }, select: { id: true } })).id,
+        sellContractId: (await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: s.brightmoor }, select: { id: true } })).id,
         buyContractId: buy.id, soldById: null, recruitedById: recruiter.id, startDate: buy.startDate, setById: owner.id,
       })
       expect(out.notWritten.some((x) => x.includes('this line is in INR'))).toBe(true)

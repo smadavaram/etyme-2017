@@ -53,7 +53,7 @@ describe('A requisition waiting on a desk is in the queue that desk reads', () =
 
   it('a requisition over the plan is raised and routed to somebody', async () => {
     const company = await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: company.id } })
+    const cc = await prisma.costCenter.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: company.id } })
 
     as(CAVANAUGH.hiring)
     const raised = await json(await raiseRequisition(req('POST', '/api/requisitions', {
@@ -115,7 +115,7 @@ describe('A requisition waiting on a desk is in the queue that desk reads', () =
   })
 
   it('a desk at a rank that has not been reached is not shown work it may not do yet', async () => {
-    const later = await prisma.requirementApproval.findFirst({
+    const later = await prisma.requirementApproval.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { requirementId: it_.requisition, outcome: 'PENDING', rank: { gt: Number(it_.firstRank) } },
     })
     if (!later?.approverId) return // a one-rank chain has nothing to hide

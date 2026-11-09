@@ -43,7 +43,7 @@ describe('a Member with no desk at Northbend Athletic and the firm’s paperwork
     })
 
     // Somebody on Northbend's books other than Mo, to be the subject of the firm's document.
-    const onSite = await prisma.sellContract.findFirstOrThrow({
+    const onSite = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { OR: [{ clientCompanyId: firm.id }, { endClientCompanyId: firm.id }], personId: { not: mo } },
       select: { personId: true },
     })

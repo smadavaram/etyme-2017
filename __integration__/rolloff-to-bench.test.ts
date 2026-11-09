@@ -264,7 +264,7 @@ describe('benching somebody from rolloff', () => {
 
   it('a firm cannot resolve a rolloff on another firm’s contract', async () => {
     const companyId = await companyOf(TELEWORLD)
-    const line = await prisma.sellContract.findFirstOrThrow({
+    const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId, rolloff: null },
       select: { id: true },
     })

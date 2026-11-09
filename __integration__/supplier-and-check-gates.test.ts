@@ -44,7 +44,7 @@ beforeAll(async () => {
   // A machine's judgment of one submitted person, waiting for a person —
   // written here rather than hoped for from the seed, so the sentence
   // below does not depend on which day the world was born.
-  const sub = await prisma.submission.findFirstOrThrow({ select: { id: true, personId: true, toCompanyId: true } })
+  const sub = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' }, select: { id: true, personId: true, toCompanyId: true } })
   it_.check = await prisma.check.create({
     data: {
       companyId: sub.toCompanyId, recordType: 'SUBMISSION', recordId: sub.id,

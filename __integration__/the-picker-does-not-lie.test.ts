@@ -108,7 +108,7 @@ describe('a picker does not offer what the button will refuse', () => {
   it('still refuses that office by name if it names a supplier\'s engagement anyway', async () => {
     // The picker is not the security boundary. It never was — it is the
     // honesty boundary, and the gate stays where it was.
-    const someoneElses = await prisma.engagement.findFirstOrThrow({
+    const someoneElses = await prisma.engagement.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { sellContracts: { some: { companyId: supplierId, state: 'IN_PROGRESS' } } },
       select: { id: true },
     })

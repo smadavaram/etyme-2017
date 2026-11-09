@@ -81,7 +81,7 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
     delivery = await seatAs('Delivery Manager', 'Teleworld Delivery', 'delivery@teleworld-supply-walk.invalid')
 
     // A colleague Teleworld pays, with a consultant profile to open.
-    const line = await prisma.buyContractCandidate.findFirstOrThrow({
+    const line = await prisma.buyContractCandidate.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         personId: { not: karthik.personId },
         payRate: { gt: 0 },
@@ -197,7 +197,7 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
   })
 
   it('My benches prints the day a firm started marketing somebody as a plain date', async () => {
-    const listing = await prisma.benchListing.findFirst({
+    const listing = await prisma.benchListing.findFirst({ orderBy: { id: 'asc' },
       where: { revokedAt: null, state: 'GRANTED' },
       include: { consultant: { include: { person: true } } },
     })

@@ -50,9 +50,9 @@ describe('Corvane Packaging, as the drawing has it', () => {
   })
 
   it('bills in the site’s own currency, never converted', async () => {
-    const vn = await prisma.sellContract.findFirstOrThrow({ where: atSite('binh-duong') })
+    const vn = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('binh-duong') })
     expect({ rate: vn.billRate, currency: vn.billCurrency }).toEqual({ rate: 75000, currency: 'VND' })
-    const be = await prisma.sellContract.findFirstOrThrow({ where: atSite('ghent') })
+    const be = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('ghent') })
     expect({ rate: be.billRate, currency: be.billCurrency }).toEqual({ rate: 3100, currency: 'EUR' })
   })
 

@@ -208,7 +208,7 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
 
   it('the client and the sub-vendor are each refused the bill on the rung they are not party to', async () => {
     const billOn = async (sellContractId: string) =>
-      (await prisma.invoiceLine.findFirst({ where: { sellContractId }, select: { invoiceId: true } }))?.invoiceId ?? null
+      (await prisma.invoiceLine.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { sellContractId }, select: { invoiceId: true } }))?.invoiceId ?? null
     const tpBill = await billOn(line.helenaTp) ?? await billOn(line.priyaTp)
     const csBill = await billOn(line.helenaCs) ?? await billOn(line.priyaCs)
     expect(tpBill && csBill, 'both rungs have a bill to ask for').toBeTruthy()
@@ -280,12 +280,12 @@ describe('the rebuild door', () => {
   it('a wrong posting left by the old rule is moved to the firm whose rung it is, at that rung’s rate', async () => {
     // Put the old rule back on one week: the client's signature booked to
     // Techpeple at $145, which is what every chained week held until today.
-    const sig = await prisma.workAssertion.findFirstOrThrow({
+    const sig = await prisma.workAssertion.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: co.northbend, role: 'CLIENT_APPROVAL', state: 'LIVE', timesheet: { sellContractId: line.helenaTp } },
       select: { id: true, hours: true },
     })
     const right = await prisma.orderPosting.findFirstOrThrow({ where: { source: 'TIMESHEET', sourceId: sig.id, kind: 'REVENUE' } })
-    const tpOrder = await prisma.orderPosting.findFirstOrThrow({ where: { companyId: co.techpeple, sellContractId: line.helenaTp }, select: { projectOrderId: true } })
+    const tpOrder = await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.techpeple, sellContractId: line.helenaTp }, select: { projectOrderId: true } })
     await prisma.orderPosting.update({
       where: { id: right.id },
       data: { companyId: co.techpeple, sellContractId: line.helenaTp, projectOrderId: tpOrder.projectOrderId },

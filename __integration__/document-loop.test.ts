@@ -36,8 +36,8 @@ describe('the loop of documents, between the parties', () => {
     await freshWorld()
 
     const wrenfield = await firm('world-wrenfield')
-    const order = await prisma.workOrder.findFirstOrThrow({
-      where: { issuedToId: wrenfield.id },
+    const order = await prisma.workOrder.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: { issuedToId: wrenfield.id, msaId: null, sellContracts: { some: {} } },
       select: { id: true },
     })
     cavanaughOrder = order.id
@@ -89,7 +89,7 @@ describe('the loop of documents, between the parties', () => {
     const wrenfield = await firm('world-wrenfield')
     // The state that registered the firm says it may not contract: a
     // certificate that ran out last month, on file.
-    const staff = await prisma.context.findFirstOrThrow({
+    const staff = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: wrenfield.id, revokedAt: null },
       select: { personId: true },
     })
@@ -237,7 +237,7 @@ describe('the loop of documents, between the parties', () => {
   it('only the client of the order, or a desk seated there, may change its set', async () => {
     // The supplier working under the order reads it — it has to, or it
     // cannot comply — and cannot change it.
-    const wrenfieldSeat = await prisma.context.findFirstOrThrow({
+    const wrenfieldSeat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { company: { slug: 'world-wrenfield' }, revokedAt: null },
       select: { person: { select: { primaryEmail: true } } },
     })
@@ -281,7 +281,7 @@ describe('the loop of documents, between the parties', () => {
       where: { name: 'Colleen Byrne' },
       select: { id: true, primaryEmail: true },
     })
-    const agency = await prisma.context.findFirstOrThrow({
+    const agency = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { personId: nurse.id, revokedAt: null },
       select: { personId: true },
     })
@@ -368,11 +368,11 @@ describe('the loop of documents, between the parties', () => {
   })
 
   it('a background check that ages out on somebody still on site is chased rather than quietly going green', async () => {
-    const live = await prisma.sellContract.findFirstOrThrow({
+    const live = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { state: 'IN_PROGRESS' },
       select: { personId: true, companyId: true },
     })
-    const staff = await prisma.context.findFirstOrThrow({
+    const staff = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: live.companyId, revokedAt: null },
       select: { personId: true },
     })
@@ -447,9 +447,15 @@ describe('who renders the verdict, walked on the seeded world', () => {
   // through the same door as a passport scan. She does not have the
   // report. The provider posts it to whoever ordered it.
 
+  // A worker on a running line who still owes her right to work: the one
+  // paper of hers a line asks for and she holds. Any running line's worker
+  // was picked here by row order before, and some have theirs on file.
   async function aWorkerOnALine() {
-    return prisma.sellContract.findFirstOrThrow({
-      where: { state: { notIn: ['ENDED', 'CANCELLED'] } },
+    return prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: {
+        state: { notIn: ['ENDED', 'CANCELLED'] },
+        person: { verifications: { none: { type: { in: ['RIGHT_TO_WORK', 'I9_EVERIFY'] } } } },
+      },
       select: { personId: true, person: { select: { primaryEmail: true, name: true } } },
     })
   }
@@ -519,8 +525,8 @@ describe('the packet, the pack and the verdict ask one question of one door', ()
   /** The one Cavanaugh line in this world, and the person on it. */
   async function theLine() {
     const wrenfield = await firm('world-wrenfield')
-    const order = await prisma.workOrder.findFirstOrThrow({
-      where: { issuedToId: wrenfield.id },
+    const order = await prisma.workOrder.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: { issuedToId: wrenfield.id, msaId: null, sellContracts: { some: {} } },
       select: { id: true },
     })
     return prisma.sellContract.findFirstOrThrow({

@@ -64,7 +64,7 @@ describe('a client opens a placement bought through two firms', () => {
     // A placement an enterprise pays for, where its supplier bought the
     // person from somebody else. That is the only shape where any of this
     // can leak, and the seeded world has several.
-    const link = await prisma.contractLink.findFirstOrThrow({
+    const link = await prisma.contractLink.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         buyContract: { vendorCompanyId: { not: null } },
         sellContract: { clientCompany: { kind: 'CLIENT' } },
@@ -115,7 +115,7 @@ describe('a client opens a placement bought through two firms', () => {
     // placement at all.
     ctx.strangerEmail = await owner(
       (
-        await prisma.company.findFirstOrThrow({
+        await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           where: {
             id: {
               notIn: [
@@ -282,7 +282,7 @@ describe('a placement is a line on a document, and says which', () => {
   const on: Record<string, any> = {}
 
   beforeAll(async () => {
-    const line = await prisma.sellContract.findFirstOrThrow({
+    const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { workOrderId: { not: null } },
       select: {
         id: true,
@@ -313,7 +313,7 @@ describe('a placement is a line on a document, and says which', () => {
 
     // A seat with no paper behind it — every row written before the
     // award began raising a header, which is most of them.
-    const bare = await prisma.sellContract.findFirstOrThrow({
+    const bare = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { workOrderId: null },
       select: { id: true, companyId: true },
     })

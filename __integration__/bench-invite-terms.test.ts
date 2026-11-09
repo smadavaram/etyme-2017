@@ -109,7 +109,7 @@ describe('the link Marisol Quintero is emailed, on the seeded world', () => {
 
 describe('a listing with no terms, and a no', () => {
   it('a yes through the link to a listing with no terms grants it and agrees no pay', async () => {
-    const profile = await prisma.consultantProfile.findFirstOrThrow({ where: { person: { primaryEmail: { endsWith: SEED } }, listings: { none: {} } } })
+    const profile = await prisma.consultantProfile.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { person: { primaryEmail: { endsWith: SEED } }, listings: { none: {} } } })
     const nimbus = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nimbus' } })
     const l = await prisma.benchListing.create({
       data: { consultantId: profile.id, companyId: nimbus.id, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() },
@@ -123,7 +123,7 @@ describe('a listing with no terms, and a no', () => {
   })
 
   it('saying no to a listing with terms needs no terms sent back and agrees nothing', async () => {
-    const profile = await prisma.consultantProfile.findFirstOrThrow({ where: { person: { primaryEmail: { endsWith: SEED } }, listings: { none: {} } } })
+    const profile = await prisma.consultantProfile.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { person: { primaryEmail: { endsWith: SEED } }, listings: { none: {} } } })
     const nimbus = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nimbus' } })
     const l = await prisma.benchListing.create({
       data: {

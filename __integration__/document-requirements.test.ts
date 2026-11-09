@@ -76,8 +76,8 @@ describe('what every order asks for on paper', () => {
 
   it('Cavanaugh’s no-agreement order requires an MSA that is not on file', async () => {
     const wrenfield = await prisma.company.findFirst({ where: { slug: 'world-wrenfield' }, select: { id: true } })
-    const order = await prisma.workOrder.findFirst({
-      where: { issuedToId: wrenfield!.id },
+    const order = await prisma.workOrder.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: { issuedToId: wrenfield!.id, msaId: null, sellContracts: { some: {} } },
       select: { id: true, msaId: true, documentRequirements: { select: { documentTypeKey: true, note: true } } },
     })
 
@@ -122,7 +122,7 @@ describe('what every order asks for on paper', () => {
   })
 
   it('a buy line reads the paperwork of whoever it pays, and a W2 line names no supplier', async () => {
-    const w2 = await prisma.buyContract.findFirst({
+    const w2 = await prisma.buyContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorCompanyId: null, contractType: 'W2', company: { slug: { startsWith: 'world-' } } },
       select: { id: true },
     })
@@ -131,7 +131,7 @@ describe('what every order asks for on paper', () => {
     expect(answer!.items.map((i) => i.key)).toContain('I9_EVERIFY')
     expect(answer!.items.find((i) => i.key === 'I9_EVERIFY')!.owedBy).toBe('WORKER')
 
-    const sub = await prisma.buyContract.findFirst({
+    const sub = await prisma.buyContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorCompanyId: { not: null }, company: { slug: { startsWith: 'world-' } } },
       select: { id: true },
     })
@@ -146,7 +146,7 @@ describe('what every order asks for on paper', () => {
   it('a worker at a California site is not asked for a non-compete, and the set says the law that voids it', async () => {
     // The seed asks nobody for a non-compete, so this line is given one
     // on its own buy line and a site in California, then put back.
-    const link = await prisma.contractLink.findFirst({
+    const link = await prisma.contractLink.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { buyContract: { contractType: 'W2', vendorCompanyId: null, company: { slug: { startsWith: 'world-' } } } },
       select: { buyContractId: true, sellContract: { select: { id: true, clientCompanyId: true, workLocationId: true } } },
     })

@@ -20,7 +20,7 @@ const body = { code: 'QUANTITY', reason: 'Hours under query with the manager' }
 
 /** Somebody seated at a desk that pays — an owner's counts — at a firm matching `where`. */
 async function payerAt(where: Record<string, unknown>): Promise<string> {
-  const ctx = await prisma.context.findFirstOrThrow({
+  const ctx = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
     where: {
       revokedAt: null,
       type: { not: 'CONSULTANT' },
@@ -36,7 +36,7 @@ describe('a failed check is waived only by the desk that pays the invoice, and o
   beforeAll(async () => {
     await freshWorld()
     const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
-    const inv = await prisma.invoice.findFirstOrThrow({
+    const inv = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { engagement: { msa: { clientId: northbend.id } } },
       include: { engagement: { include: { msa: true } } },
     })

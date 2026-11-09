@@ -87,7 +87,7 @@ describe('who sends a bill Ask Etyme drafted, on the seeded world', () => {
   })
 
   it('a bill a person drafted is sent by any seat holding invoices.issue, the Owner included', async () => {
-    const bill = await prisma.invoice.findFirstOrThrow({
+    const bill = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       // Any bill Brightmoor raised by hand: the rule asks who drafted it, not its state.
       where: { invoiceLines: { some: { sellContract: { company: { slug: 'world-brightmoor' } } } } },
       select: { id: true, invoiceLines: { take: 1, select: { sellContract: { select: { companyId: true } } } } },

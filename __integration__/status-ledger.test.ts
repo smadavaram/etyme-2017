@@ -449,7 +449,7 @@ describe('the ledger: one placement, every table, every station', () => {
   })
 
   it('a contract still inside its term is left alone', async () => {
-    const live = await prisma.sellContract.findFirst({ where: { state: 'IN_PROGRESS', endDate: { gt: new Date() } } })
+    const live = await prisma.sellContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { state: 'IN_PROGRESS', endDate: { gt: new Date() } } })
     expect(live, 'the seed should hold a running contract').not.toBeNull()
     process.env.CRON_SECRET = 'ledger-test'
     await endContracts(req('GET', '/api/cron/end-contracts', undefined, { authorization: 'Bearer ledger-test' }))

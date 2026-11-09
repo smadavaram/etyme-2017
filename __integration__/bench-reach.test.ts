@@ -232,7 +232,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     const atPrime = await prisma.benchListing.findMany({
       where: { companyId: co['world-computer-systems'] }, select: { consultantId: true },
     })
-    const seeded = await prisma.benchListing.findFirstOrThrow({
+    const seeded = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING',
         consultantId: { notIn: atPrime.map((l) => l.consultantId) },
@@ -250,7 +250,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
   })
 
   it('Techpeple cannot share its bench with Vertex Global, a firm it does not trade with, and nobody is listed there', async () => {
-    const seeded = await prisma.benchListing.findFirstOrThrow({
+    const seeded = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING' },
       select: { id: true, consultantId: true },
     })

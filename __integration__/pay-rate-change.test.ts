@@ -68,7 +68,7 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
 
     // A firm that sells and employs directly, and its client — read off
     // a direct W2 the world already has.
-    const direct = await prisma.buyContract.findFirstOrThrow({
+    const direct = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         contractType: 'W2',
         supplierSellContractId: null,
@@ -434,7 +434,7 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
         days, totalHours: 40, status: 'SUBMITTED', submittedAt: d('2026-08-28'),
       },
     })
-    const clientDesk = await prisma.context.findFirstOrThrow({
+    const clientDesk = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: clientId, type: 'EMPLOYEE', role: { permissions: { hasSome: ['*', 'timesheets.approve'] } } },
       include: { person: true },
     })

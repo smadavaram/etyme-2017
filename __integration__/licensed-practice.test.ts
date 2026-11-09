@@ -64,7 +64,7 @@ describe('the travel nurse whose license runs out inside her assignment', () => 
   })
 
   it('is licensed today, and the assignment outlives the license by twenty-five days', async () => {
-    const contract = await prisma.sellContract.findFirstOrThrow({
+    const contract = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
     })
     const gate = licenseGate({
@@ -108,7 +108,7 @@ describe('the travel nurse whose license runs out inside her assignment', () => 
     // The role a contract is for lives on the requisition it came from —
     // `SellContract` carries no title of its own — which is where a
     // caller reads it to pick the start packet.
-    const contract = await prisma.sellContract.findFirstOrThrow({
+    const contract = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
       include: { requirement: { select: { title: true } } },
     })

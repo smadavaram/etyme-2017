@@ -22,11 +22,11 @@ describe('pay before, bills after, around January 2026’s last weekend, on the 
     await freshWorld()
     // A seeded sell line with a buy line that pays a supplier below it, and
     // one whose buy line is the firm's own employee on payroll.
-    const vendorLine = await prisma.buyContract.findFirstOrThrow({
+    const vendorLine = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorCompanyId: { not: null }, sellLinks: { some: {} } },
       select: { id: true, contractType: true, vendorCompanyId: true, sellLinks: { select: { sellContractId: true }, take: 1 } },
     })
-    const payrollLine = await prisma.buyContract.findFirstOrThrow({
+    const payrollLine = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorCompanyId: null, supplierSellContractId: null, contractType: 'W2', sellLinks: { some: {} } },
       select: { id: true, contractType: true, vendorCompanyId: true, sellLinks: { select: { sellContractId: true }, take: 1 } },
     })

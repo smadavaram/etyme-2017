@@ -78,7 +78,7 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
   beforeAll(async () => {
     await freshWorld()
 
-    const direct = await prisma.buyContract.findFirstOrThrow({
+    const direct = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },
       include: { sellLinks: { include: { sellContract: true } } },
     })

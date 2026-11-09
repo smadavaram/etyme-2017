@@ -37,7 +37,7 @@ describe('a program office at a client\'s desk reads the client\'s expenses', ()
     // One billable expense on a placement at Cavanaugh's site, raised by
     // the supplier that holds the line. This is what the client's own
     // desk sees, and so what its seat must see.
-    const line = await prisma.sellContract.findFirstOrThrow({
+    const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { endClientCompanyId: id.cavanaugh, state: 'IN_PROGRESS' },
       select: { id: true, companyId: true, personId: true },
     })
@@ -115,7 +115,7 @@ describe('a program office at a client\'s desk reads the client\'s expenses', ()
     // bargain the seat is granted on.
     as(OFFICE)
     await json(await expenses(req('GET', '/api/expenses?limit=100')))
-    const logged = await prisma.accessLog.findFirst({
+    const logged = await prisma.accessLog.findFirst({ orderBy: { id: 'asc' },
       where: { actorCompanyId: id.aptiva, reason: { contains: 'Expense book read' } },
     })
     expect(logged, 'a read in somebody else\'s book left no trail').not.toBeNull()
@@ -161,7 +161,7 @@ describe('a worker files their own expense; nobody else files it for them', () =
   })
 
   it('another worker cannot file an expense on her placement', async () => {
-    const other = await prisma.context.findFirstOrThrow({
+    const other = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { type: 'CONSULTANT', revokedAt: null, personId: { not: the.rosa } },
       select: { personId: true },
     })

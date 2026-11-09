@@ -137,7 +137,7 @@ beforeAll(async () => {
   // prime's margin and is nobody else's business.
   const vertex = await prisma.company.findFirstOrThrow({ where: { slug: 'world-vertex-global' } })
   id.topContract = (
-    await prisma.sellContract.findFirstOrThrow({
+    await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: vertex.id, clientCompanyId: id.cavanaugh },
     })
   ).id

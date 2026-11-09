@@ -32,7 +32,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
     supplier = 'world-techpeple@demo.etyme.local'
 
-    const s = await prisma.sellContract.findFirstOrThrow({
+    const s = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } },
       include: { buyLinks: true },
     })

@@ -50,7 +50,7 @@ async function signedUp(name: string, slug: string, kind: 'VENDOR' | 'MSP', emai
 /** What a client's approval made before findFirm: a second record of the firm, on the client's register, and a claim link. */
 async function approvalShell(clientSlug: string, email = QUARRY_OWNER) {
   const clientId = co[clientSlug]
-  const byPersonId = (await prisma.context.findFirstOrThrow({ where: { companyId: clientId, revokedAt: null }, select: { personId: true } })).personId
+  const byPersonId = (await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { companyId: clientId, revokedAt: null }, select: { personId: true } })).personId
   const shell = await prisma.company.create({
     data: { name: 'Quarrybrook Staffing', slug: `quarrybrook-staffing-${clientSlug}-${email.split('@')[0].replace(/[^a-z0-9]+/g, '-')}`, kind: 'VENDOR', currency: 'USD', listedById: clientId },
   })

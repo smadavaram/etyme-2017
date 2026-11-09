@@ -136,7 +136,7 @@ describe('the dictionary is the company’s, and validity has a floor', () => {
         validFrom: start,
         expiresAt: day(395),
         verifiedAt: day(0),
-        uploadedById: (await prisma.person.findFirstOrThrow({ select: { id: true } })).id,
+        uploadedById: (await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })).id,
       },
       select: { id: true, validFrom: true },
     })
@@ -187,7 +187,7 @@ describe('the dictionary is the company’s, and validity has a floor', () => {
   })
 
   it('an I-9 records the document it was completed from, and reads back as backed by it', async () => {
-    const person = await prisma.person.findFirstOrThrow({ select: { id: true } })
+    const person = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
     const passport = await prisma.verification.create({
       data: {
         personId: person.id,

@@ -64,7 +64,7 @@ describe('on a line nobody changed, overtime is paid only on the accepted hours 
   beforeAll(async () => {
     await freshWorld()
 
-    const direct = await prisma.buyContract.findFirstOrThrow({
+    const direct = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },
       include: { sellLinks: { include: { sellContract: true } } },
     })

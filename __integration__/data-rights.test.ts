@@ -436,7 +436,7 @@ describe('the compliance desk’s own queue', () => {
 
   it('a compliance officer cannot log a request about somebody their company has never held, and is not told who does hold them', async () => {
     as(TALVERN_COMPLIANCE)
-    const stranger = await prisma.person.findFirstOrThrow({
+    const stranger = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { primaryEmail: { contains: '@seed.etyme.invalid' }, sellContracts: { none: { clientCompanyId: co.talvern } } },
     })
     const { status, body } = await json(

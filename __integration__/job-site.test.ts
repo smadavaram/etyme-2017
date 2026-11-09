@@ -213,7 +213,7 @@ describe('the placement', () => {
 
 describe('posting for somebody else’s site', () => {
   it('an MSP seated in a client’s program posts at the client’s sites, never its own', async () => {
-    const seat = await prisma.programSeat.findFirstOrThrow({
+    const seat = await prisma.programSeat.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { revokedAt: null },
       select: { officeCompanyId: true, clientCompanyId: true },
     })

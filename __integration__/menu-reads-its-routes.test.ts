@@ -82,7 +82,7 @@ describe("a delivery engineer's menu and the routes behind it agree", () => {
     expect(r.status).toBe(403)
     expect((await prisma.automationLog.findUniqueOrThrow({ where: { id: entry.id } })).reversedAt).toBeNull()
 
-    const line = await prisma.sellContract.findFirst({ where: { companyId: teleworldId, startConfirmedAt: null } })
+    const line = await prisma.sellContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: teleworldId, startConfirmedAt: null } })
     if (line) {
       const c = await call(karthik, confirmStart, 'POST', '/api/onboarding/confirm-start', { contractId: line.id })
       expect(c.status).toBe(403)

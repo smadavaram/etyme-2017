@@ -88,7 +88,7 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
 
   it('a Vietnam week on Timesheets reads in dong with no cents', async () => {
     const corvane = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corvane' } })
-    const vn = await prisma.timesheet.findFirst({
+    const vn = await prisma.timesheet.findFirst({ orderBy: { id: 'asc' },
       where: { sellContract: { billCurrency: 'VND', OR: [{ clientCompanyId: corvane.id }, { endClientCompanyId: corvane.id }] } },
       select: { id: true },
     })
@@ -102,7 +102,7 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
 
   it('saving the job’s Edit form writes only the fields changed', async () => {
     const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
-    const job = await prisma.requirement.findFirstOrThrow({ where: { companyId: northbend.id, archivedAt: null, status: { in: ['DRAFT', 'OPEN'] } } })
+    const job = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: northbend.id, archivedAt: null, status: { in: ['DRAFT', 'OPEN'] } } })
     await prisma.requirement.update({ where: { id: job.id }, data: { workMode: 'HYBRID', requiredQualification: 'BSN' } })
     const before = await prisma.requirement.findUniqueOrThrow({ where: { id: job.id } })
     as(PROGRAM)

@@ -133,7 +133,7 @@ describe('the walk from the picker to a real client seat', () => {
   })
 
   it('records it as our own employee rather than as somebody we bought', async () => {
-    const submission = await prisma.submission.findFirstOrThrow({
+    const submission = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { person: { name: 'Karthik Menon' } },
       select: { kind: true },
     })

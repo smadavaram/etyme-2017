@@ -188,7 +188,7 @@ describe('postings under a signature that no longer stands', () => {
       where: { companyId: halcyon, personId: weeks[0].personId, clientCompanyId: { not: byrne } },
       select: { id: true, clientCompanyId: true },
     }))
-    const projectOrderId = (await prisma.orderPosting.findFirstOrThrow({
+    const projectOrderId = (await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: halcyon, sellContractId: halcyonLine.id },
       select: { projectOrderId: true },
     })).projectOrderId
@@ -257,7 +257,7 @@ describe('postings under a signature that no longer stands', () => {
     const stray = await prisma.workAssertion.create({
       data: { timesheetId: sig.timesheetId, companyId: halcyon, role: 'EMPLOYER_ACCEPTANCE', hours: 36, rateCents: 9_200, state: 'WITHDRAWN' },
     })
-    const order = await prisma.orderPosting.findFirstOrThrow({ where: { companyId: halcyon, source: 'TIMESHEET' }, select: { projectOrderId: true, sellContractId: true } })
+    const order = await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: halcyon, source: 'TIMESHEET' }, select: { projectOrderId: true, sellContractId: true } })
     await prisma.orderPosting.create({
       data: {
         projectOrderId: order.projectOrderId, companyId: halcyon, kind: 'PAY', amountCents: -100, currency: 'USD',

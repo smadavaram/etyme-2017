@@ -82,7 +82,7 @@ describe('the placement page says the order ledger’s figures and the line’s,
 
   it('a bill drafted and not sent is never inside Billed on the placement page; it is its own figure', async () => {
     // Draft a bill on the order: a copy of one of its sent bills, left as a draft.
-    const sent = await prisma.invoice.findFirstOrThrow({ where: { workOrderId: orderId }, select: { engagementId: true, currency: true, periodStart: true, periodEnd: true } })
+    const sent = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { workOrderId: orderId }, select: { engagementId: true, currency: true, periodStart: true, periodEnd: true } })
     const before = (await orderLedgers([orderId])).get(orderId)!
     await prisma.invoice.create({
       data: {

@@ -141,7 +141,7 @@ describe('a consultant sees what they are paid and never what they are billed at
 
     // Her own pay, from the agreement that pays her — $90 an hour
     // against the $125-to-$145 her agency charges for her.
-    const line = await prisma.buyContractCandidate.findFirstOrThrow({
+    const line = await prisma.buyContractCandidate.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { personId: helenaId, state: 'ACTIVE' },
       select: { payRate: true },
     })
@@ -278,7 +278,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     as(NIKE_HIRING)
     const before = (await json(await budget(req('GET', '/api/program/budget')))).body.data.summary
 
-    const week = await prisma.timesheet.findFirstOrThrow({
+    const week = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { personId: helenaId, clientApprovedAt: { not: null }, invoiceLines: { some: {} } },
       select: {
         id: true, sellContractId: true, personId: true,

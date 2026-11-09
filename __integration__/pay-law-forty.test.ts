@@ -66,7 +66,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
   beforeAll(async () => {
     await freshWorld()
 
-    const direct = await prisma.buyContract.findFirstOrThrow({
+    const direct = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },
       include: { sellLinks: { include: { sellContract: true } } },
     })

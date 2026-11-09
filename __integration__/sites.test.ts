@@ -105,7 +105,7 @@ describe('who may change a site', () => {
   })
 
   it('an MSP seated in a client’s program cannot edit the client’s site', async () => {
-    const seat = await prisma.programSeat.findFirstOrThrow({ select: { officeCompanyId: true, clientCompanyId: true, clientCompany: { select: { name: true } } } })
+    const seat = await prisma.programSeat.findFirstOrThrow({ orderBy: { id: 'asc' }, select: { officeCompanyId: true, clientCompanyId: true, clientCompany: { select: { name: true } } } })
     const site = await prisma.companyLocation.findFirstOrThrow({ where: { companyId: seat.clientCompanyId } })
     as(await seatHolding(seat.officeCompanyId, 'settings.manage'))
     const r = await json(await editSite(req('PATCH', '/api/settings/locations', { id: site.id, name: 'Renamed by the MSP' })))

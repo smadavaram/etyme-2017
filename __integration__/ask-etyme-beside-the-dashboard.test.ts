@@ -156,7 +156,7 @@ describe('Ask Etyme says what the dashboard says', () => {
 
   it('Teleworld’s delivery manager asks who is available and reads Teleworld’s bench, never "not your company’s record"', async () => {
     const tele = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })
-    const dm = await prisma.context.findFirst({
+    const dm = await prisma.context.findFirst({ orderBy: { id: 'asc' },
       where: { companyId: tele.id, type: 'EMPLOYEE', revokedAt: null, role: { name: 'Delivery Manager' } },
       select: { person: { select: { primaryEmail: true } } },
     })

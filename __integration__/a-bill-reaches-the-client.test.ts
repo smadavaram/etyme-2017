@@ -145,7 +145,7 @@ describe('a bill reaches the firm that pays it', () => {
     expect(mail).toHaveLength(1)
 
     // A seat at Brightmoor that does not send bills is told who does.
-    const recruiter = await prisma.context.findFirstOrThrow({
+    const recruiter = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: it_.brightmoor, revokedAt: null, role: { NOT: { permissions: { hasSome: ['invoices.issue', '*'] } } } },
       select: { personId: true },
     })
@@ -195,7 +195,7 @@ describe('a bill reaches the firm that pays it', () => {
 
   it('a bill sent to a client on Etyme reaches the seats that record payments there, in the app and on their channel, and no stranger is emailed a link', async () => {
     const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    const seeded = await prisma.invoice.findFirstOrThrow({
+    const seeded = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { invoiceLines: { some: { sellContract: { companyId: it_.brightmoor, clientCompanyId: northbend.id } } } },
       select: { id: true, number: true },
     })

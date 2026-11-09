@@ -79,7 +79,7 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
 
     // A placement whose person this firm pays directly, so the person
     // has a pay line of their own to read.
-    const sell = await prisma.sellContract.findFirstOrThrow({
+    const sell = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         companyId: vendorId,
         person: { buyCandidacies: { some: { buyContract: { companyId: vendorId, supplierSellContractId: null } } } },
@@ -109,7 +109,7 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
 
     // A second placement with its own movement, so "their own and
     // nobody else's" has something to be false about.
-    const other = await prisma.sellContract.findFirstOrThrow({
+    const other = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: vendorId, id: { not: sellId } },
       select: { id: true, billRate: true },
     })

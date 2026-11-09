@@ -177,7 +177,7 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
 
   it('a bill sent once cannot be sent again: the route refuses a second sending in a sentence', async () => {
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
-    const sent = await prisma.invoice.findFirstOrThrow({
+    const sent = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { status: { notIn: ['DRAFT', 'ISSUED', 'CANCELLED', 'VOID'] }, invoiceLines: { some: { sellContract: { companyId: brightmoor.id } } } },
       select: { id: true, number: true },
     })

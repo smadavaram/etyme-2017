@@ -31,7 +31,7 @@ async function call(fn: any, method: string, url: string, body?: unknown) {
 describe('the Teams link on a company’s settings', () => {
   beforeAll(async () => {
     await freshWorld()
-    const ctx = await prisma.context.findFirstOrThrow({
+    const ctx = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { type: 'EMPLOYEE', company: { kind: 'VENDOR' }, role: { permissions: { has: '*' } } },
       include: { person: true },
     })
@@ -81,7 +81,7 @@ describe('the Teams link on a company’s settings', () => {
   })
 
   it('/ready counts a retired link apart, and a Teams post as proof only where a Workflows link accepted it', async () => {
-    const other = await prisma.company.findFirstOrThrow({ where: { id: { not: companyId } } })
+    const other = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { id: { not: companyId } } })
     await prisma.company.update({ where: { id: companyId }, data: { teamsWebhookUrl: WORKFLOWS } })
     await prisma.company.update({ where: { id: other.id }, data: { teamsWebhookUrl: RETIRED } })
     const base = { personId: owner.personId, companyId, type: 'SYSTEM', title: 'A week is waiting', body: 'Sign it.', channel: 'TEAMS', deliveryState: 'SENT' }

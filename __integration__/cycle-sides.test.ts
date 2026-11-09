@@ -29,7 +29,7 @@ describe('cycles land on the side of the trade they describe', () => {
 
     // Techpeple employs the ERP finance consultant on W-2 and sells them up
     // the chain. Its buy contract has no vendor below — it IS the employer.
-    const s = await prisma.sellContract.findFirstOrThrow({
+    const s = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id },
       include: { buyLinks: { include: { buyContract: true } } },
     })

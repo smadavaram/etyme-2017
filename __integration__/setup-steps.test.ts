@@ -120,7 +120,7 @@ describe('a new company walks five steps, then stops', () => {
 
     // A seeded company never began the steps, so it is never asked them; its
     // checklist line names only what the seed does not hold (lib/seed-setup).
-    const seeded = await prisma.context.findFirstOrThrow({
+    const seeded = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { type: 'EMPLOYEE', company: { kind: 'VENDOR', setupStartedAt: null }, role: { permissions: { has: '*' } } },
       include: { person: true },
     })

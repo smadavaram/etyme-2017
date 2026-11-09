@@ -600,7 +600,7 @@ describe('both firms that signed an agreement hear that it is running out', () =
     // two of them carry no contracts at all. An agreement with nothing
     // hanging off it may mean nobody is working under it or may mean
     // nothing was ever linked, and the two are opposite facts.
-    const bare = await prisma.masterAgreement.findFirstOrThrow({
+    const bare = await prisma.masterAgreement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { vendorId: vendor.id, clientId: client.id, sellContracts: { none: {} } },
       select: { id: true },
     })

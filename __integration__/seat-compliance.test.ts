@@ -102,7 +102,7 @@ async function grantSeat(
 ) {
   await ensureDefaultRoles(clientCompanyId, 'CLIENT')
   const role = await prisma.role.findFirstOrThrow({ where: { companyId: clientCompanyId, name: roleName } })
-  const grantor = await prisma.context.findFirstOrThrow({
+  const grantor = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' },
     where: { companyId: clientCompanyId }, select: { personId: true },
   })
   const row = await prisma.programSeat.create({
@@ -266,7 +266,7 @@ describe('a program office reads the client’s tenure ledger from the desk the 
     expect(status).toBe(200)
     expect(body.data.client.name).toBe('Talvern Medical')
     const mine = await eventually(
-      () => prisma.accessLog.findFirst({
+      () => prisma.accessLog.findFirst({ orderBy: { id: 'asc' },
         where: { actorCompanyId: co.talvern, action: 'TENURE_VIEW' },
         select: { reason: true },
       }),
@@ -413,7 +413,7 @@ describe('the person the record is about can see who read it and on whose author
     expect(subject, 'nobody Aptiva read can sign in as themselves').toBeTruthy()
 
     await eventually(
-      () => prisma.accessLog.findFirst({
+      () => prisma.accessLog.findFirst({ orderBy: { id: 'asc' },
         where: { subjectId: subject!.id, action: 'PROGRAM_READ' }, select: { id: true },
       }),
       (r) => r != null

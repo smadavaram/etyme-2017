@@ -35,7 +35,7 @@ describe('starting somebody in a role the law says needs a license', () => {
 
   /** A draft contract at the nurse's own agency, for a brand-new person. */
   async function draftFor(name: string, email: string, role: string) {
-    const template = await prisma.sellContract.findFirstOrThrow({
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
       include: { requirement: { select: { id: true } } },
     })
@@ -109,7 +109,7 @@ describe('starting somebody in a role the law says needs a license', () => {
   beforeAll(async () => {
     await freshWorld()
 
-    const agency = await prisma.sellContract.findFirstOrThrow({
+    const agency = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
       select: { companyId: true },
     })

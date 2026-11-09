@@ -593,7 +593,7 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
   })
 
   it('sending several bills at once runs the three-way check on each, and one that fails is skipped with its sentence and never sent', async () => {
-    const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: h.redraft.id, timesheetId: { not: null } } })
+    const line = await prisma.invoiceLine.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { invoiceId: h.redraft.id, timesheetId: { not: null } } })
     await prisma.invoiceLine.update({ where: { id: line.id }, data: { amountCents: line.amountCents + 10_000 } })
     try {
       as('ines.halloran@halcyon.example')

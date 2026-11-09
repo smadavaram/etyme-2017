@@ -23,7 +23,7 @@ describe('Ask Etyme links a commission answer to the page the asker’s own menu
       emails[name] = p.primaryEmail!
     }
     const marisa = await prisma.person.findFirstOrThrow({ where: { primaryEmail: emails['Marisa Delacroix'] }, select: { id: true } })
-    const line = await prisma.sellContract.findFirstOrThrow({ where: { companyId: firm.id }, select: { id: true } })
+    const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: firm.id }, select: { id: true } })
     const now = new Date()
     await prisma.contractCommission.create({
       data: {

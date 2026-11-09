@@ -182,7 +182,7 @@ describe('a client’s job request is matched with bench, suppliers first', () =
   it('a sub-vendor below the client’s prime is never suggested to the client, even when the person agreed', async () => {
     // A Techpeple consultant — Techpeple supplies Northbend only through
     // Computer Systems — who fits the job and said yes to being shown.
-    const l = await prisma.benchListing.findFirstOrThrow({
+    const l = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: s.techpeple, tier: 'MARKETING', state: 'GRANTED', revokedAt: null },
       select: { id: true, consultantId: true, consultant: { select: { person: { select: { name: true } } } } },
     })

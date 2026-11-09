@@ -210,7 +210,7 @@ describe('the admin’s setup checklist', () => {
     expect(JSON.stringify(row)).not.toContain('000123456789')
 
     // Nobody pays the firm until a paying firm's Finance checks them.
-    const client = await prisma.company.findFirstOrThrow({ where: { kind: 'CLIENT', claimedAt: { not: null } }, select: { id: true } })
+    const client = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { kind: 'CLIENT', claimedAt: { not: null } }, select: { id: true } })
     expect(await mayPayFirm(client.id, companyId)).toMatchObject({ ok: false, step: 'BANK' })
     await prisma.remitTo.update({ where: { id: row.id }, data: { verifiedAt: new Date(), verifiedByCompanyId: client.id } })
     expect(await mayPayFirm(client.id, companyId)).toEqual({ ok: true })
@@ -222,7 +222,7 @@ describe('the admin’s setup checklist', () => {
   it('changing the bank at setup clears the Finance check', async () => {
     as(OWNER)
     const row = await prisma.remitTo.findFirstOrThrow({ where: { companyId } })
-    const client = await prisma.company.findFirstOrThrow({ where: { kind: 'CLIENT', claimedAt: { not: null } }, select: { id: true } })
+    const client = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { kind: 'CLIENT', claimedAt: { not: null } }, select: { id: true } })
     await prisma.remitTo.update({ where: { id: row.id }, data: { verifiedAt: new Date(), verifiedByCompanyId: client.id } })
     // The same details saved again leave the check standing.
     const same = await json(await put('bank', { bankName: row.bankName, accountName: row.accountName, accountNumber: row.accountLast4 }))

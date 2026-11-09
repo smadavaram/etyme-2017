@@ -87,7 +87,7 @@ describe('the purchase-order supplier picker follows the seat', () => {
   })
 
   it('a seat whose desk may neither raise orders nor read suppliers is refused in a sentence naming the client', async () => {
-    const role = await prisma.role.findFirst({
+    const role = await prisma.role.findFirst({ orderBy: { id: 'asc' },
       where: { companyId: id.cavanaugh, NOT: { permissions: { hasSome: ['invoices.issue', 'vendors.read', '*'] } } },
       select: { name: true },
     })

@@ -685,7 +685,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
 
   it('where the agreed rate changed inside a week, a line at one rate is refused rather than priced on a guess', async () => {
     const sheet = await prisma.timesheet.findUniqueOrThrow({ where: { id: t.week } })
-    const someone = await prisma.person.findFirstOrThrow({ select: { id: true } })
+    const someone = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
     const raise = await prisma.rateHistory.create({
       data: {
         contractType: 'BUY', contractId: s.buy, rate: s.rate + 500, previousRate: s.rate,
@@ -727,7 +727,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     })
     const hoursLeg = await prisma.sellContract.findUniqueOrThrow({ where: { id: first.sellContractId } })
     const top = await prisma.sellContract.findFirstOrThrow({ where: { personId: t.helena, companyId: s.cs } })
-    const someone = await prisma.person.findFirstOrThrow({ select: { id: true } })
+    const someone = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
     for (const [companyId, role, hours, rateCents] of [
       [top.clientCompanyId, 'CLIENT_APPROVAL', 45, top.billRate],
       [s.cs, 'PASS_THROUGH', o.accepted ?? 45, hoursLeg.billRate],
@@ -820,7 +820,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const id = await idOf('CE-HM-M1')
     await prisma.vendorBill.update({ where: { id }, data: { status: 'APPROVED' } })
     const people = await prisma.context.findMany({ where: { companyId: s.cs, revokedAt: null }, select: { personId: true }, take: 1 })
-    const other = await prisma.person.findFirstOrThrow({ where: { id: { not: people[0].personId } }, select: { id: true } })
+    const other = await prisma.person.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { id: { not: people[0].personId } }, select: { id: true } })
     const run = await prisma.paymentRun.create({
       data: {
         companyId: s.cs, currency: 'USD', status: 'APPROVED', scheduledFor: new Date(), totalCents: 150_000,

@@ -634,7 +634,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
 
   it('a program office cannot grant itself a seat', async () => {
     as(SEAT.MSP)
-    const own = await prisma.role.findFirstOrThrow({
+    const own = await prisma.role.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: co['world-kestrel'] }, select: { id: true },
     })
     const { status, body } = await seatRoute('POST', {

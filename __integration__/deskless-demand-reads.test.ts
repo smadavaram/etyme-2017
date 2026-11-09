@@ -139,7 +139,7 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
     contextId = seat.id
     // The walk's seat: his own work and his own hours, no desk.
     expect([...(seat.role?.permissions ?? [])].sort()).toEqual(['assignments.read', 'timesheets.read'])
-    const other = await prisma.timesheet.findFirst({
+    const other = await prisma.timesheet.findFirst({ orderBy: { id: 'asc' },
       where: { sellContract: { OR: [{ companyId: firm.id }, { clientCompanyId: firm.id }] }, personId: { not: karthik } },
       select: { person: { select: { id: true, name: true } } },
     })
@@ -243,7 +243,7 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
   })
 
   it('Karthik asking for a colleague’s submissions by person is refused without naming them', async () => {
-    const other = await prisma.submission.findFirstOrThrow({
+    const other = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { fromCompanyId: teleworld, personId: { not: karthik } },
       select: { person: { select: { id: true, name: true } } },
     })
@@ -335,7 +335,7 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
     own = (await prisma.submission.findFirstOrThrow({
       where: { fromCompanyId: teleworld, personId: karthik, parentSubmissionId: null }, select: { id: true },
     })).id
-    const other = await prisma.submission.findFirstOrThrow({
+    const other = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { fromCompanyId: teleworld, personId: { not: karthik }, parentSubmissionId: null },
       select: { id: true, personId: true, person: { select: { name: true } } },
     })

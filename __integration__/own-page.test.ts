@@ -164,11 +164,11 @@ describe('a prime’s own employee has a page of their own', () => {
 
   it('the firm that employs him may hold his CV, because the employment is the consent', async () => {
     const [employer, stranger] = await Promise.all([
-      prisma.context.findFirst({
+      prisma.context.findFirst({ orderBy: { id: 'asc' },
         where: { revokedAt: null, company: { name: 'Teleworld Solutions' }, person: { primaryEmail: { not: KARTHIK } } },
         select: { id: true, person: { select: { primaryEmail: true } } },
       }),
-      prisma.context.findFirst({
+      prisma.context.findFirst({ orderBy: { id: 'asc' },
         where: { revokedAt: null, company: { kind: 'VENDOR', name: { not: 'Teleworld Solutions' } } },
         select: { id: true, person: { select: { primaryEmail: true } } },
       }),
@@ -247,7 +247,7 @@ describe('a prime’s own employee has a page of their own', () => {
   })
 
   it('a client’s own approver, who does no contract work, is told what the page is for', async () => {
-    const approver = await prisma.person.findFirst({
+    const approver = await prisma.person.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         contexts: { some: { revokedAt: null, company: { kind: 'CLIENT' } } },
         sellContracts: { none: {} },

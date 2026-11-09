@@ -70,9 +70,9 @@ describe('bench pay, set from the firm’s settings', () => {
     finance = await seatAt(vendorId, 'VENDOR', 'Finance', 'finance')
     recruiter = await seatAt(vendorId, 'VENDOR', 'Recruiter', 'recruiter')
 
-    const gsi = await prisma.company.findFirstOrThrow({ where: { kind: 'GSI' } })
+    const gsi = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { kind: 'GSI' } })
     gsiOwner = await seatAt(gsi.id, 'GSI', 'Owner', 'gsi-owner')
-    const client = await prisma.company.findFirstOrThrow({ where: { kind: 'CLIENT' } })
+    const client = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { kind: 'CLIENT' } })
     clientOwner = await seatAt(client.id, 'CLIENT', 'Owner', 'client-owner')
 
     // Start from the default: nobody has turned this vendor's holiday setting.

@@ -60,7 +60,7 @@ describe('a bench invitation nobody has answered', () => {
     expect(copy.body.data.url).toContain('/bench-invite/')
     expect(copy.body.data.sent).toBe(false)
 
-    const agreed = await prisma.benchListing.findFirstOrThrow({ where: { companyId: cloud.id, state: 'GRANTED', revokedAt: null } })
+    const agreed = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { companyId: cloud.id, state: 'GRANTED', revokedAt: null } })
     const no = await json(await nudge(req('POST', `/api/bench/listings/${agreed.id}/nudge`, {}), params(agreed.id)))
     expect(no.status).toBe(409)
     expect(no.body.error.message).toContain('There is nothing to send.')
@@ -83,7 +83,7 @@ describe('somebody whose chosen stay ended', () => {
 describe('matching', () => {
   it('never offers somebody placed and billing past the day the job starts', async () => {
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
-    const live = await prisma.sellContract.findFirst({ where: { personId: helena.id, state: 'IN_PROGRESS' } })
+    const live = await prisma.sellContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { personId: helena.id, state: 'IN_PROGRESS' } })
     expect(live).not.toBeNull()
     const job = await prisma.requirement.create({
       data: {

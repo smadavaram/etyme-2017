@@ -220,7 +220,7 @@ describe('the award writes the firm’s default commissions on the two lines', (
   })
 
   it('a recruiting commission sits on the buy line, earned by the recruiter who put Arun forward', async () => {
-    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.ardent, id: { not: it_.lastLine } } })
+    const buy = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.ardent, id: { not: it_.lastLine }, candidates: { some: { personId: who.arun } } } })
     const rows = await prisma.contractCommission.findMany({ where: { companyId: co.ardent, kind: 'RECRUITING' } })
     expect(rows).toHaveLength(1)
     expect(rows[0].buyContractId).toBe(buy.id)

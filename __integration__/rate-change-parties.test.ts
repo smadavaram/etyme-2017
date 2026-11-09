@@ -251,7 +251,7 @@ describe('a rate is changed and decided only by the firms it is between', () => 
   })
 
   it('refuses a worker a pay line that is not theirs', async () => {
-    const other = await prisma.buyContract.findFirstOrThrow({
+    const other = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { id: { not: buyId }, candidates: { none: { personId: worker.personId } } },
     })
     const r = await call(worker, rateHistory, 'GET', `/api/rate-history?contractId=${other.id}&contractType=BUY`)

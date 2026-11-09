@@ -54,8 +54,8 @@ describe('when a document a line depends on runs out, every party it costs is to
     await freshWorld()
 
     const wrenfield = await firm('world-wrenfield')
-    const order = await prisma.workOrder.findFirstOrThrow({
-      where: { issuedToId: wrenfield.id },
+    const order = await prisma.workOrder.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: { issuedToId: wrenfield.id, msaId: null, sellContracts: { some: {} } },
       select: { id: true },
     })
     cavanaughLine = (
@@ -399,7 +399,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     expect(missing, 'a running line asks for a background check and none is on file').toBeTruthy()
     const line = { id: missing!.line!.id, personId: missing!.personId! }
     const orderer = await prisma.company.findUniqueOrThrow({ where: { id: missing!.tellCompanyId! }, select: { id: true } })
-    const seat = await prisma.context.findFirstOrThrow({ where: { companyId: orderer.id, revokedAt: null }, select: { personId: true } })
+    const seat = await prisma.context.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { companyId: orderer.id, revokedAt: null }, select: { personId: true } })
     const owner = { id: seat.personId }
     const report = await prisma.verification.create({
       data: {

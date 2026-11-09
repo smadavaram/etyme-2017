@@ -65,7 +65,7 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
 
   it('a sub-vendor puts a bench person forward from the job it was sent', async () => {
     // Somebody on Consultis's bench by their own yes, never put forward anywhere.
-    const listing = await prisma.benchListing.findFirstOrThrow({
+    const listing = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         companyId: consultis, state: 'GRANTED', revokedAt: null, askFirst: false, staysUntil: null,
         consultant: { person: { submissions: { none: {} }, contexts: { none: { companyId: consultis, type: 'EMPLOYEE' } } } },

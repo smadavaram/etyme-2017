@@ -182,7 +182,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     karthik = (await prisma.person.findFirstOrThrow({ where: { name: 'Karthik Menon' } })).id
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
     own = (await prisma.sellContract.findFirstOrThrow({ where: { personId: karthik }, select: { id: true } })).id
-    colleagues = (await prisma.sellContract.findFirstOrThrow({
+    colleagues = (await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: seat.companyId!, personId: { not: karthik } }, select: { id: true },
     })).id
   }, 240_000)
@@ -236,7 +236,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
 
   it('a placement at a firm he has no seat at is still answered as one that is not there', async () => {
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
-    const elsewhere = (await prisma.sellContract.findFirstOrThrow({
+    const elsewhere = (await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: { not: seat.companyId! }, clientCompanyId: { not: seat.companyId! }, OR: [{ endClientCompanyId: null }, { endClientCompanyId: { not: seat.companyId! } }] },
       select: { id: true },
     })).id
@@ -248,7 +248,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
   })
 
   it('his own week opens to him from the "Open this week" link on his own page, with the chain of signatures on it', async () => {
-    const week = await prisma.timesheet.findFirstOrThrow({ where: { personId: karthik, status: 'APPROVED' }, select: { id: true } })
+    const week = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { personId: karthik, status: 'APPROVED' }, select: { id: true } })
     as(KARTHIK)
     const mod = await import('@/app/api/week-approvals/route')
     const res = await mod.GET(req('GET', `/api/week-approvals?timesheetId=${week.id}`))
@@ -263,7 +263,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
     // A week Teleworld is on, worked by somebody else: the firm is on its
     // chain, so only the seat having no desk stops him.
-    const theirs = await prisma.timesheet.findFirstOrThrow({
+    const theirs = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         personId: { not: karthik },
         sellContract: { OR: [{ companyId: seat.companyId! }, { clientCompanyId: seat.companyId! }, { endClientCompanyId: seat.companyId! }] },
@@ -346,12 +346,12 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
     const tw = seat.companyId!
     const nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
-    const job = await prisma.requirement.findFirstOrThrow({
+    const job = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: nike, invitations: { none: { toCompanyId: tw } }, submissions: { none: { OR: [{ fromCompanyId: tw }, { toCompanyId: tw }] } } },
       select: { id: true },
     })
-    const bill = await prisma.invoice.findFirstOrThrow({ where: { NOT: invoiceBetween(tw) }, select: { id: true } })
-    const week = await prisma.timesheet.findFirstOrThrow({
+    const bill = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { NOT: invoiceBetween(tw) }, select: { id: true } })
+    const week = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { person: { sellContracts: { none: { OR: [{ companyId: tw }, { clientCompanyId: tw }, { endClientCompanyId: tw }] } } } },
       select: { id: true, personId: true },
     })
@@ -379,7 +379,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
 
   it('a job request at his own firm is still refused in the door’s words, because a desk there could open it', async () => {
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
-    const ours = await prisma.requirement.findFirst({
+    const ours = await prisma.requirement.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { OR: [{ companyId: seat.companyId! }, { invitations: { some: { toCompanyId: seat.companyId! } } }] }, select: { id: true },
     })
     expect(ours, 'Teleworld has a job request on the seeded world').not.toBeNull()
@@ -391,7 +391,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
   })
 
   it('the chain of approvals on his own week stays a desk’s: his own page reads the chain from his own work, and the assert route refuses him at the door', async () => {
-    const week = await prisma.timesheet.findFirstOrThrow({ where: { personId: karthik }, select: { id: true } })
+    const week = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { personId: karthik }, select: { id: true } })
     as(KARTHIK)
     const mod = await import('@/app/api/timesheets/[id]/assert/route')
     const res = await mod.GET(req('GET', `/api/timesheets/${week.id}/assert`), { params: Promise.resolve({ id: week.id }) })

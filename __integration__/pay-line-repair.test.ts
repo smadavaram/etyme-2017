@@ -18,7 +18,7 @@ describe('a placement with no buy line, on the seeded world', () => {
   beforeAll(async () => {
     await freshWorld()
     const brightmoor = await prisma.company.findFirstOrThrow({ where: { slug: 'world-brightmoor' } })
-    const template = await prisma.sellContract.findFirstOrThrow({ where: { companyId: brightmoor.id, requirementId: { not: null } } })
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: brightmoor.id, requirementId: { not: null } } })
     const person = await prisma.person.create({ data: { name: 'Rajan Ayer', primaryEmail: 'rajan.ayer@seed.etyme.invalid' } })
     await prisma.context.create({ data: { personId: person.id, companyId: brightmoor.id, type: 'EMPLOYEE', grantReason: 'pay line walk' } })
     const sub = await prisma.submission.create({

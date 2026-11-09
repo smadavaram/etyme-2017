@@ -27,7 +27,7 @@ describe('the last regular period runs through the contract’s end date, on the
   beforeAll(async () => {
     await freshWorld()
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    const line = await prisma.sellContract.findFirstOrThrow({
+    const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null }, sellCycles: { some: { periodEnd: { not: null } } } },
       include: { buyLinks: true },
     })

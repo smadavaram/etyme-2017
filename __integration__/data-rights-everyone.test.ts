@@ -167,7 +167,7 @@ beforeAll(async () => {
   who.hiring = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_HIRING } })).id
   who.techpepleOwner = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: TECHPEPLE_OWNER } })).id
 
-  const line = await prisma.sellContract.findFirstOrThrow({
+  const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     where: { companyId: co.techpeple },
     select: { personId: true },
   })
@@ -396,7 +396,7 @@ describe('a program office is told what it is missing, rather than shown an empt
   })
 
   it('an MSP cannot place a hold as if it were the client it runs the program for', async () => {
-    const atNorthbend = await prisma.sellContract.findFirstOrThrow({
+    const atNorthbend = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { clientCompanyId: co.northbend },
       select: { personId: true },
     })

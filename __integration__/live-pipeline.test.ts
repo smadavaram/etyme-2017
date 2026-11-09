@@ -73,7 +73,7 @@ describe('the seeded world', () => {
   })
 
   it('says UTC out loud rather than silently assuming it when nobody set a zone', async () => {
-    const i = await prisma.interview.findFirst({
+    const i = await prisma.interview.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { scheduledAt: { gt: now } },
       include: { submission: { include: { person: true } }, company: true, vendor: true },
     })
@@ -87,7 +87,7 @@ describe('the seeded world', () => {
   })
 
   it('names the people who will be in the room', async () => {
-    const i = await prisma.interview.findFirst({ where: { scheduledAt: { gt: now } } })
+    const i = await prisma.interview.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { scheduledAt: { gt: now } } })
     expect(i!.interviewers.length).toBeGreaterThan(0)
   })
 
@@ -109,7 +109,7 @@ describe('the seeded world', () => {
   })
 
   it('reaches a live client requirement through a supplier that submitted onward', async () => {
-    const live = await prisma.interview.findFirst({
+    const live = await prisma.interview.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { scheduledAt: { gt: now } },
       include: { submission: { include: { requirement: true, parentSubmission: true } } },
     })

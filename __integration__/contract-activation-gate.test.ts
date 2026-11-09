@@ -57,7 +57,7 @@ describe('activating a contract on paperwork', () => {
     // shaped like Techpeple's seeded one — same MSA, engagement and
     // requirement, so nothing but the paperwork is missing.
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    const template = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id } })
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.id } })
     const person = await prisma.person.create({
       data: { name: 'Nobody Onfile', primaryEmail: 'nobody.onfile@seed.etyme.invalid' },
     })
@@ -224,7 +224,7 @@ describe('activating a contract on paperwork', () => {
     // A second draft, for a person who is fully on file, under a
     // supplier whose general liability certificate ran out last week.
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    const template = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id, state: 'IN_PROGRESS' } })
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.id, state: 'IN_PROGRESS' } })
     const person = await prisma.person.create({
       data: { name: 'Fully Onfile', primaryEmail: 'fully.onfile@seed.etyme.invalid' },
     })

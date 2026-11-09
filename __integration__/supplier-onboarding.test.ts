@@ -565,7 +565,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
     // The client may ask for anything; what it may not do is have its
     // own HR desk render the answer.
     const client = await prisma.company.findFirstOrThrow({ where: { name: 'Northbend Athletic' }, select: { id: true } })
-    const order = await prisma.workOrder.findFirstOrThrow({ where: { issuedById: client.id }, select: { id: true } })
+    const order = await prisma.workOrder.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { issuedById: client.id }, select: { id: true } })
     // The client's orders already ask for a screening report on the
     // worker; this one asks the firm itself to hold one before it may
     // trade, which is what puts the item on the supplier walk.

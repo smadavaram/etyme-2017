@@ -91,7 +91,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
       .map((c) => c.personId)
 
     // A vendor in the world that Northbend Athletic never asked to work this role.
-    const other = await prisma.company.findFirstOrThrow({
+    const other = await prisma.company.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { kind: 'VENDOR', id: { notIn: [...onRole, pinnacle.id] }, contexts: { some: { revokedAt: null, type: 'EMPLOYEE' } } },
       select: { id: true, name: true, contexts: staffSelect },
     })

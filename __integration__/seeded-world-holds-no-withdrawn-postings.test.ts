@@ -56,7 +56,7 @@ describe('a seeded world’s books stand only on signatures that stand', () => {
     // As a world posted by an earlier version and walked again after a
     // deploy: a client approval with postings under it is withdrawn the
     // way the seed withdraws one, in place.
-    const posted = await prisma.orderPosting.findFirstOrThrow({
+    const posted = await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { source: 'TIMESHEET', kind: 'REVENUE', reversalOfId: null, reverses: null, projectOrder: { status: { notIn: ['SETTLED', 'CLOSED'] } } },
       select: { sourceId: true },
     })

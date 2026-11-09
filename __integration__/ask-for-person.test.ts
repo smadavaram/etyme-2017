@@ -119,7 +119,7 @@ describe('asking for a person you were shown', () => {
       it_.prime = prime.id; it_.primeName = prime.name
       it_.sub = sub.id; it_.subName = sub.name
       it_.helena = helena.id
-      const raisedBy = await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike }, select: { raisedById: true, skills: true, location: true } })
+      const raisedBy = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: it_.nike }, select: { raisedById: true, skills: true, location: true } })
       const role = async (title: string) => (await prisma.requirement.create({
         data: {
           companyId: it_.nike, title, skills: raisedBy.skills, location: raisedBy.location, billMin: 10000, billMax: 15000,
