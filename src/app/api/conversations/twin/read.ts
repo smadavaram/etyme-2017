@@ -45,6 +45,7 @@ import { GET as grantsRoute } from '@/app/api/settings/grants/route'
 import { permissionScope, GRANT_RIGHT } from '@/lib/permission-grants'
 import { marginReachFor } from '@/lib/money/margin-reach'
 import { commissionReader } from '@/lib/money/commission-write'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { commissionAccruals, monthPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
 import { CLIENT_COMMISSION_REFUSAL, mergeMonths, type CommissionLine, type CommissionWhen } from './commission-answer'
 import { scopeLine, teamsGranted, noAccessSays, ACCESS_LINK, type GrantOffer, type RoleHolders, type GrantHeld } from './access'
@@ -85,8 +86,13 @@ import {
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict, type SetupRead,
 } from './ask'
 
-/** An invoice that was never sent, or was withdrawn, is nobody's spend. */
-const NOT_SPEND = ['DRAFT', 'CANCELLED', 'VOID']
+/**
+ * An invoice its supplier raised and has not sent, drafted, withdrawn or
+ * voided is nobody's spend: money's one list (DRAWS_NOTHING in
+ * lib/money/bill-state), the one every screen reads, so Ask Etyme's spend
+ * equals Payables and the Bills list.
+ */
+const NOT_SPEND = [...DRAWS_NOTHING]
 
 
 /** Receipts read for one variance answer, at most. Each is a three-way check. */
