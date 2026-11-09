@@ -42,6 +42,34 @@ export interface CycleRow {
   kind: string
   dueOn: Date
   completedAt: Date | null
+  /** The period it covers, where it was written with one (2026-11-09); null on an older row. */
+  periodStart?: Date | null
+  periodEnd?: Date | null
+}
+
+/**
+ * The cycle a period's event completes, read off the stored periods.
+ *
+ * Every cycle written since 2026-11-09 carries the first and last day it
+ * covers, so which one a week or a bill closes is a fact, not an estimate:
+ * the open cycle whose period holds the day the event's period ends. The
+ * last period runs through the contract's end, so an event whose period
+ * ends after it (a week's Saturday after a Wednesday end) is read as
+ * ending on the contract's last day. Null where no stored period holds it,
+ * a week before an award's first reminder included.
+ *
+ * Only where every row of the kind has its period: a line mixing older
+ * rows is placed from its series the old way (`pickCycle`), whole.
+ */
+export function pickByPeriod(cycles: CycleRow[], kind: string, periodEnd: Date): CycleRow | null | undefined {
+  const ofKind = cycles.filter((c) => c.kind === kind)
+  if (ofKind.length === 0 || ofKind.some((c) => !c.periodStart || !c.periodEnd)) return undefined
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+  const last = ofKind.reduce((m, c) => (day(c.periodEnd!) > m ? day(c.periodEnd!) : m), '')
+  const event = day(periodEnd) > last ? last : day(periodEnd)
+  return ofKind
+    .filter((c) => c.completedAt === null && day(c.periodStart!) <= event && event <= day(c.periodEnd!))
+    .sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0] ?? null
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -184,8 +212,11 @@ async function cycleToComplete(db: Db, args: CompleteArgs): Promise<string | nul
     // Every row of the kind, done or not: the guard in `pickCycle`
     // needs the earliest one ever written, not the earliest still open.
     where: { ...where, kind: args.kind },
-    select: { id: true, kind: true, dueOn: true, completedAt: true },
+    select: { id: true, kind: true, dueOn: true, completedAt: true, periodStart: true, periodEnd: true },
   })
+  // Stored periods, where every row of the kind has one: read, never estimated.
+  const byPeriod = pickByPeriod(rows, args.kind, args.periodEnd)
+  if (byPeriod !== undefined) return byPeriod?.id ?? null
   // The line's whole series is read only where it can change the answer:
   // the period would claim the earliest date ever written, which is the
   // one an award's floor may have stood in front of.

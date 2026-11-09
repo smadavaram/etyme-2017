@@ -38,11 +38,13 @@ describe('a monthly cycle writes one date per month in every time zone', () => {
     })
   }
 
-  it('a month-end date that falls on the contract’s last day is kept, and one the day after it is not', () => {
-    const kept = inZone('America/New_York', () => generateCycles(utc(2026, 1, 1), utc(2026, 3, 31), MONTHLY).length)
-    const cut = inZone('America/New_York', () => generateCycles(utc(2026, 1, 1), utc(2026, 3, 30), MONTHLY).length)
-    expect(kept).toBe(3)
-    expect(cut).toBe(2)
+  it('a month-end date that falls on the contract’s last day is kept, and a contract ending the day before still has its month’s date, covering through its end', () => {
+    const kept = inZone('America/New_York', () => generateCycles(utc(2026, 1, 1), utc(2026, 3, 31), MONTHLY))
+    const cut = inZone('America/New_York', () => generateCycles(utc(2026, 1, 1), utc(2026, 3, 30), MONTHLY))
+    expect(kept).toHaveLength(3)
+    // Since 2026-11-09 the last regular period runs through the end date.
+    expect(cut).toHaveLength(3)
+    expect(cut[2].periodEnd.toISOString().slice(0, 10)).toBe('2026-03-30')
   })
 
   it('under UTC the dates are exactly what they were before the fix', () => {

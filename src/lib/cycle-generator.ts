@@ -108,6 +108,14 @@ export interface CycleDefinition {
 export interface GeneratedCycle {
   kind: string
   dueOn: Date
+  /**
+   * The period the cycle covers, first and last day, as UTC midnights
+   * (`Cycle.periodStart`, `periodEnd`, 2026-11-09). The first period
+   * starts no earlier than the contract and the last runs through the
+   * contract's own end date (`periodsFor`).
+   */
+  periodStart: Date
+  periodEnd: Date
 }
 
 /**
@@ -283,6 +291,76 @@ function boundaryKey(d: Date): string {
 function boundaryMonth(d: Date): { year: number; month: number } {
   const [y, m] = boundaryKey(d).split('-').map(Number)
   return { year: y, month: m - 1 }
+}
+
+const DAY_IN_MS = 86_400_000
+/** A calendar day key as the UTC midnight the record stores. */
+const utcOf = (key: string) => new Date(`${key}T00:00:00Z`)
+const plusDays = (key: string, n: number) => new Date(utcOf(key).getTime() + n * DAY_IN_MS).toISOString().slice(0, 10)
+
+/** One period of a series: the boundary its date hangs off, and the days it covers. */
+interface Period {
+  /** The boundary the due date is counted from, as the series has always written it. */
+  boundary: Date
+  /** First and last calendar day covered, YYYY-MM-DD. */
+  startKey: string
+  endKey: string
+}
+
+/**
+ * The last day a boundary's own period covers. A weekly or biweekly
+ * boundary is the week's Friday in the shipped packs ("Friday + 3", see
+ * above) and the week runs Sunday to Saturday, so its period ends on the
+ * Saturday on or after it. A monthly or semimonthly boundary is the
+ * period's own last day.
+ */
+function regularEndKey(boundary: Date, def: CycleDefinition): string {
+  const key = boundaryKey(boundary)
+  if (def.frequency === 'WEEKLY' || def.frequency === 'BIWEEKLY') {
+    return plusDays(key, (6 - utcOf(key).getUTCDay() + 7) % 7)
+  }
+  return key
+}
+
+/**
+ * Every period of one definition over a contract, each with the days it
+ * covers. The founder, 2026-11-09: **the last regular period runs through
+ * the contract's end date.** Until then generation stopped at the last
+ * whole boundary, so a contract ending on a Wednesday had no hours-due,
+ * invoice or pay date for its last days ("The cycle engine, honestly",
+ * item 2). Now the regular period that holds the end date is kept, its
+ * last day the contract's end, and its date the regular one: a contract
+ * ending on a Wednesday files its hours, is billed and is paid for those
+ * days on the week's (or the month's) usual date. It is the series' own
+ * next period cut at the end, never a short cycle of its own, so an
+ * extension only moves that period's last day out to where the series
+ * always ended it.
+ */
+function periodsFor(start: Date, end: Date, def: CycleDefinition): Period[] {
+  const startKey = boundaryKey(start)
+  const endKey = boundaryKey(end)
+  if (def.frequency === 'ON_COMPLETION') {
+    return generatePeriodEnds(start, end, def).map((b) => ({ boundary: b, startKey, endKey }))
+  }
+  // Generated a little past the end, so the boundary after it is known.
+  const beyond = new Date(end.getTime() + 70 * DAY_IN_MS)
+  const all = generatePeriodEnds(start, beyond, def)
+  const out: Period[] = []
+  let nextStart = startKey
+  for (const b of all) {
+    const own = regularEndKey(b, def)
+    if (boundaryKey(b) <= endKey) {
+      // A whole period inside the contract, as the series always wrote it.
+      out.push({ boundary: b, startKey: nextStart, endKey: own < endKey ? own : endKey })
+      nextStart = plusDays(own, 1)
+      continue
+    }
+    // The first boundary past the end: its period holds the contract's
+    // last days where it starts on or before the end.
+    if (nextStart <= endKey) out.push({ boundary: b, startKey: nextStart, endKey })
+    break
+  }
+  return out
 }
 
 /** Period end dates for one definition between start and end, inclusive. */
@@ -498,16 +576,40 @@ export function generateCycles(
 
   for (const def of definitions) {
     if (!isMoneyKind(def.kind)) continue
-    const entries = generatePeriodEnds(start, end, def).map((periodEnd) => {
-      const due = new Date(periodEnd)
+    const entries = periodsFor(start, end, def).map((p) => {
+      const due = new Date(p.boundary)
       due.setDate(due.getDate() + offsetFor(def))
-      return { periodEnd, due }
+      return { periodEnd: p.boundary, due, startKey: p.startKey, endKey: p.endKey }
     })
     emitSeries(def.kind, entries, holidaySet, existingDates, policy, floor, dueFloor, cycles)
   }
 
   cycles.sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
-  return cycles
+  return calculationsFollowPay(cycles)
+}
+
+/**
+ * A pay calculation belongs to the pay day it is worked out for.
+ *
+ * A monthly pack works pay out on the 25th and pays at month end, two
+ * series on two rhythms. Read on its own the calculation's series would
+ * cover the 26th of one month to the 25th of the next, and the last
+ * regular period (2026-11-09) would ask for a calculation the month
+ * after a contract ended at month end, for a pay day that does not exist.
+ * So where a run writes both, each calculation covers the period of the
+ * first pay day on or after it, and one with no pay day after it is not
+ * written. Where only one of the two is written (an extension that adds
+ * a calculation, a caller that asked for one kind) nothing is moved.
+ */
+function calculationsFollowPay(cycles: GeneratedCycle[]): GeneratedCycle[] {
+  const pay = cycles.filter((c) => c.kind === 'SALARY_PAY')
+  if (pay.length === 0 || !cycles.some((c) => c.kind === 'SALARY_CALCULATE')) return cycles
+  return cycles.flatMap((c) => {
+    if (c.kind !== 'SALARY_CALCULATE') return [c]
+    const of = pay.find((p) => p.dueOn.getTime() >= c.dueOn.getTime())
+    if (!of) return []
+    return [{ ...c, periodStart: of.periodStart, periodEnd: of.periodEnd }]
+  })
 }
 
 /**
@@ -521,7 +623,7 @@ export function generateCycles(
  */
 function emitSeries(
   kind: string,
-  entries: readonly { periodEnd: Date; due: Date }[],
+  entries: readonly { periodEnd: Date; due: Date; startKey: string; endKey: string }[],
   holidaySet: Set<string>,
   existingDates: Map<string, Set<string>>,
   policy: CycleShiftPolicy,
@@ -549,8 +651,10 @@ function emitSeries(
   // re-writing an extension's existing dates was here; the guard against
   // a run colliding with itself was not.
   const taken = new Set(existing)
+  /** The cycle this run wrote on each day, so a period that lands on it widens it. */
+  const wrote = new Map<string, GeneratedCycle>()
 
-  for (const { periodEnd, due } of entries) {
+  for (const { periodEnd, due, startKey, endKey } of entries) {
     // A period settled by an earlier run is not emitted again, however
     // the company has since asked its dates to move.
     if (floor && periodEnd <= floor) continue
@@ -560,9 +664,17 @@ function emitSeries(
     // dates it already wrote whatever timezone the server is in.
     const day = localDayKey(shifted)
     if (dueFloor && day < dueFloor) continue
-    if (taken.has(day)) continue
+    if (taken.has(day)) {
+      // Two periods moved onto one day: the one cycle this run wrote there
+      // covers both, so no period is left without a date.
+      const same = wrote.get(day)
+      if (same && endKey > same.periodEnd.toISOString().slice(0, 10)) same.periodEnd = utcOf(endKey)
+      continue
+    }
     taken.add(day)
-    out.push({ kind, dueOn: shifted })
+    const cycle = { kind, dueOn: shifted, periodStart: utcOf(startKey), periodEnd: utcOf(endKey) }
+    wrote.set(day, cycle)
+    out.push(cycle)
   }
 }
 
@@ -616,10 +728,14 @@ export function generatePayCycles(
   existingDates: Map<string, Set<string>> = new Map(),
   options: GenerateOptions = {}
 ): GeneratedCycle[] {
-  const calc: { periodEnd: Date; due: Date }[] = []
-  const pay: { periodEnd: Date; due: Date }[] = []
+  type Entry = { periodEnd: Date; due: Date; startKey: string; endKey: string }
+  const calc: Entry[] = []
+  const pay: Entry[] = []
   const from = utcMidnight(start)
   const to = utcMidnight(end)
+  const key = (d: Date) => d.toISOString().slice(0, 10)
+  const fromKey = key(from)
+  const toKey = key(to)
 
   if (rhythm.payPeriod === 'WEEKLY' || rhythm.payPeriod === 'BIWEEKLY') {
     const step = rhythm.payPeriod === 'WEEKLY' ? 7 : 14
@@ -627,22 +743,46 @@ export function generatePayCycles(
     for (let k = 1; ; k++) {
       const saturday = new Date(anchor + (k * step - 1) * DAY_MS)
       const friday = new Date(saturday.getTime() - DAY_MS)
-      if (friday > to) break
+      const sunday = new Date(saturday.getTime() - (step - 1) * DAY_MS)
+      const startKey = key(sunday) < fromKey ? fromKey : key(sunday)
       const { calcOn, payOn } = payDatesFor(saturday, rhythm)
-      calc.push({ periodEnd: friday, due: calcOn })
-      pay.push({ periodEnd: friday, due: payOn })
+      if (friday > to) {
+        // The founder, 2026-11-09: the last regular period runs through the
+        // contract's end date, paid on its usual day.
+        if (key(sunday) <= toKey) {
+          calc.push({ periodEnd: friday, due: calcOn, startKey, endKey: toKey })
+          pay.push({ periodEnd: friday, due: payOn, startKey, endKey: toKey })
+        }
+        break
+      }
+      const endKey = key(saturday) < toKey ? key(saturday) : toKey
+      calc.push({ periodEnd: friday, due: calcOn, startKey, endKey })
+      pay.push({ periodEnd: friday, due: payOn, startKey, endKey })
     }
   } else {
     let year = from.getUTCFullYear()
     let month = from.getUTCMonth() + 1
-    while (Date.UTC(year, month - 1, 1) <= to.getTime()) {
+    let nextStart = fromKey
+    let done = false
+    while (!done) {
       for (const { calcOn, payOn } of payDatesInMonth(year, month, rhythm)) {
-        if (payOn < from || payOn > to) continue
-        if (calcOn >= from) calc.push({ periodEnd: payOn, due: calcOn })
-        pay.push({ periodEnd: payOn, due: payOn })
+        if (payOn < from) continue
+        if (payOn > to) {
+          // The pay day after the end: its period holds the contract's last days.
+          if (nextStart <= toKey) {
+            if (calcOn >= from) calc.push({ periodEnd: payOn, due: calcOn, startKey: nextStart, endKey: toKey })
+            pay.push({ periodEnd: payOn, due: payOn, startKey: nextStart, endKey: toKey })
+          }
+          done = true
+          break
+        }
+        if (calcOn >= from) calc.push({ periodEnd: payOn, due: calcOn, startKey: nextStart, endKey: key(payOn) })
+        pay.push({ periodEnd: payOn, due: payOn, startKey: nextStart, endKey: key(payOn) })
+        nextStart = key(new Date(payOn.getTime() + DAY_MS))
       }
       month++
       if (month > 12) { month = 1; year++ }
+      if (Date.UTC(year, month - 1, 1) > to.getTime() + 70 * DAY_MS) done = true
     }
   }
 

@@ -695,7 +695,7 @@ export async function POST(request: NextRequest) {
             const buyCycles = generateCycles(start, end, split.buy, holidays, new Map(), options)
             if (buyCycles.length > 0) {
               await tx.cycle.createMany({
-                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn })),
+                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn, periodStart: c.periodStart, periodEnd: c.periodEnd })),
               })
             }
           }
@@ -706,6 +706,8 @@ export async function POST(request: NextRequest) {
                 sellContractId: sellContract.id,
                 kind: c.kind,
                 dueOn: c.dueOn,
+                periodStart: c.periodStart,
+                periodEnd: c.periodEnd,
               })),
             })
             sellCyclesCreated = generatedCycles.length

@@ -235,11 +235,13 @@ describe('the day a pack asks for is the day it gets', () => {
 
   it('a weekly cycle whose pack names no day is due on the Monday after each Sunday-to-Saturday week', () => {
     // March 2026: Sunday 1 to Saturday 7 is the first week, due Monday 9;
-    // the last whole week, Sunday 22 to Saturday 28, is due Monday 30.
+    // the last whole week, Sunday 22 to Saturday 28, is due Monday 30; and
+    // since 2026-11-09 the last regular period runs through the end date, so
+    // Sunday 29 to Tuesday 31 is due on its week's usual Monday, April 6.
     const cycles = generateCycles(on(2026, 3, 1), on(2026, 3, 31), [
       { kind: 'TIMESHEET_SUBMIT', frequency: 'WEEKLY' },
     ])
-    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-09', '2026-03-16', '2026-03-23', '2026-03-30'])
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-09', '2026-03-16', '2026-03-23', '2026-03-30', '2026-04-06'])
   })
 
   it('a contract starting Sunday to Friday owes its first week’s hours on the Monday after that week’s Saturday, never inside the week', () => {
@@ -260,7 +262,8 @@ describe('the day a pack asks for is the day it gets', () => {
     const cycles = generateCycles(on(2026, 3, 1), on(2026, 3, 31), [
       { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', offsetDays: 4 },
     ])
-    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-10', '2026-03-17', '2026-03-24', '2026-03-31'])
+    // The last, April 7, is the week of March 29 to 31, cut at the end date.
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-10', '2026-03-17', '2026-03-24', '2026-03-31', '2026-04-07'])
   })
 
   it('a vendor bill raised on the 15th lands on the 15th, not at month-end', () => {
@@ -271,7 +274,8 @@ describe('the day a pack asks for is the day it gets', () => {
     // day a supplier's invoice is received is a bill date (2026-11-09: a
     // pay date moves before, a bill date after), so each lands on the
     // Monday after; the day we pay it is a pay date and moves before.
-    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-01-15', '2026-02-16', '2026-03-16'])
+    // And March 16 to 31, the last regular period cut at the end date, on April 15.
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-01-15', '2026-02-16', '2026-03-16', '2026-04-15'])
   })
 
   it('the 30th in February is the 28th, or the 29th in a leap year', () => {

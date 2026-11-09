@@ -382,10 +382,14 @@ describe('a month is invoiced once it has ended, and never before it has begun',
     for (const { id, def } of monthlyMoney) {
       for (const day of [1, 12, 28]) {
         const { start, end } = months24From(day)
+        // And, since 2026-11-09, the month the contract ends inside: the last
+        // regular period runs through the end date, so its last days are
+        // billed on that month's usual date rather than left unbilled.
+        const endsMidMonth = new Date(end.getTime() + 86_400_000).getUTCDate() !== 1
         expect(
           datesFor(def, start, end).length,
           `${id} ${def.kind}, starting ${iso(start)}`
-        ).toBe(monthsClosedBy(start, end).length)
+        ).toBe(monthsClosedBy(start, end).length + (endsMidMonth ? 1 : 0))
       }
     }
   })

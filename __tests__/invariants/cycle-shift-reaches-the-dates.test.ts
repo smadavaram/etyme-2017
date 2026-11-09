@@ -46,7 +46,10 @@ function julyDate(
     new Map(),
     { policy: policyFrom(company) }
   )
-  expect(cycles).toHaveLength(1)
+  // July's own date, and since 2026-11-09 the period after it, which runs
+  // through July 31 (the last regular period runs through the end date).
+  expect(cycles).toHaveLength(2)
+  expect(cycles[1].periodEnd.toISOString().slice(0, 10)).toBe('2026-07-31')
   return day(cycles[0].dueOn)
 }
 
@@ -91,7 +94,8 @@ describe('which way a generated date moves is the company’s answer, not the en
       new Map(),
       { policy: policyFrom({ cycleShiftPay: 'BEFORE', cycleShiftBill: 'AFTER' }) }
     )
-    const byKind = Object.fromEntries(cycles.map((c) => [c.kind, day(c.dueOn)]))
+    // The first date of each kind; the second is the period through July 31.
+    const byKind = Object.fromEntries([...cycles].reverse().map((c) => [c.kind, day(c.dueOn)]))
     expect(byKind.SALARY_PAY).toBe('2026-07-03')
     expect(byKind.INVOICE_GENERATE).toBe('2026-07-06')
   })

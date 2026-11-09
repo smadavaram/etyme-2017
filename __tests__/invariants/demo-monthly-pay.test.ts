@@ -224,15 +224,14 @@ describe('a three-month placement', () => {
     }
   })
 
-  it('a placement that stops in the middle of a month leaves its last days with no pay day, so a three-month demo placement has to end on a month-end', async () => {
-    // The generator writes no short final period ("The cycle engine,
-    // honestly", item 2). Written down so the seed ends Karthik's
-    // placement on a month-end rather than on a day counted from today.
+  it('a placement that stops in the middle of a month is paid its last days on the period’s usual pay day', async () => {
+    // Until 2026-11-09 the generator wrote no final period ("The cycle
+    // engine, honestly", item 2), so the last days had no pay day. The last
+    // regular period now runs through the contract's end date.
     const pay = of(await write(utc(2026, 5, 10), utc(2026, 8, 9), { pay: DEMO_MONTHLY_PAY }), 'SALARY_PAY')
-    expect(pay.length).toBe(3)
-    // June's stub, July and August are paid; 1 to 9 September has no pay day.
-    expect(pay.every((p) => p.getTime() < utc(2026, 9, 1).getTime())).toBe(true)
-    expect(pay.some((p) => p.getUTCMonth() === 9)).toBe(false)
+    expect(pay.length).toBe(4)
+    // June's stub, July, August and the days to 9 August, paid after the end.
+    expect(pay[pay.length - 1].getTime()).toBeGreaterThan(utc(2026, 8, 9).getTime())
   })
 
   it('seeding the same placement twice writes its pay days once', async () => {

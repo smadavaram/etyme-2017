@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { planCyclesFor, extensionPlan } from '@/lib/contract-cycles'
 import { localKey } from '@/lib/cycle-generator'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
@@ -230,7 +230,7 @@ export async function POST(
   // What is already on the books, keyed the way the generator keys it.
   const written = await prisma.cycle.findMany({
     where: { OR: [{ sellContractId: id }, ...(buyId ? [{ buyContractId: buyId }] : [])] },
-    select: { kind: true, dueOn: true },
+    select: { id: true, sellContractId: true, buyContractId: true, kind: true, dueOn: true, periodStart: true, periodEnd: true },
   })
   const already = new Map<string, Set<string>>()
   for (const c of written) {
@@ -250,13 +250,21 @@ export async function POST(
     await tx.sellContract.update({ where: { id }, data: { endDate: newEnd } })
     if (buyId) await tx.buyContract.update({ where: { id: buyId }, data: { endDate: newEnd } })
 
-    const cycles = await writeCyclesFor(tx, {
-      // The document travels with the line, so the dates the added
-      // months are generated over go through one door.
+    // The document travels with the line, so the dates the added
+    // months are generated over go through one door.
+    const planInput = {
       sell: { id, startDate: contract.startDate, endDate: newEnd, workOrder: contract.workOrder },
       buy,
       packId: contract.company.templatePack ?? 'US_IT',
       holidays,
+    }
+    // The whole series over the new dates, so the period that held the old
+    // end moves its last day out rather than leaving a short cycle behind
+    // (the founder, 2026-11-09: the last regular period runs through the
+    // contract's end date).
+    const full = await planCyclesFor(tx, planInput)
+    const planned = await planCyclesFor(tx, {
+      ...planInput,
       existing: already,
       // Only the months that were added.
       //
@@ -270,6 +278,13 @@ export async function POST(
       // days for one fortnight is money, not tidiness.
       onlyPeriodsAfter: oldEnd,
     })
+    const { widen, write } = extensionPlan(written, full.rows, planned.rows)
+    for (const w of widen) await tx.cycle.update({ where: { id: w.id }, data: { periodEnd: w.periodEnd } })
+    if (write.length > 0) await tx.cycle.createMany({ data: write })
+    const cycles = {
+      sell: write.filter((r) => 'sellContractId' in r).length,
+      buy: write.filter((r) => 'buyContractId' in r).length,
+    }
 
     await tx.automationLog.create({
       data: {

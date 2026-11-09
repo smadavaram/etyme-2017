@@ -142,9 +142,10 @@ export interface Written {
 }
 
 /** One due date, on the line it belongs to. */
+/** One cycle to write, with the period it covers (`Cycle.periodStart`, `periodEnd`). */
 export type PlannedCycle =
-  | { sellContractId: string; kind: string; dueOn: Date }
-  | { buyContractId: string; kind: string; dueOn: Date }
+  | { sellContractId: string; kind: string; dueOn: Date; periodStart: Date; periodEnd: Date }
+  | { buyContractId: string; kind: string; dueOn: Date; periodStart: Date; periodEnd: Date }
 
 export interface Planned extends Written {
   rows: PlannedCycle[]
@@ -235,6 +236,57 @@ export interface PlanInput {
   payroll?: PayRhythm | null
 }
 
+/** A cycle already on the books, as an extension reads it. */
+export interface StoredCycle {
+  id: string
+  sellContractId: string | null
+  buyContractId: string | null
+  kind: string
+  periodStart: Date | null
+  periodEnd: Date | null
+}
+
+export interface ExtensionPlan {
+  /** Stored cycles whose period now runs further, to the day it now ends. */
+  widen: { id: string; periodEnd: Date }[]
+  /** Cycles to write for the periods the extension added. */
+  write: PlannedCycle[]
+}
+
+/**
+ * What an extension does to the cycles already written (2026-11-09).
+ *
+ * The last regular period runs through the contract's end date, so the
+ * period that held the old end was written cut at it. Extended, that
+ * period is no longer the last: its row keeps its date and its start, and
+ * its last day moves out to where the series ends it now. Matched by the
+ * line, the kind and the day the period starts, never by the due day, so a
+ * company that changed its weekend rule since is not written that period
+ * twice. A period a stored row already covers is never written again; a
+ * row written before the columns existed (no period on it) is left as it
+ * was and matched by its due day the old way.
+ *
+ * `full` is the whole series over the new dates; `added` is what the
+ * generator would write for the added months (`onlyPeriodsAfter`).
+ */
+export function extensionPlan(stored: readonly StoredCycle[], full: readonly PlannedCycle[], added: readonly PlannedCycle[]): ExtensionPlan {
+  const lineOf = (c: { sellContractId?: string | null; buyContractId?: string | null }) => ('sellContractId' in c && c.sellContractId ? `s:${c.sellContractId}` : `b:${c.buyContractId}`)
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+  const keyOf = (line: string, kind: string, start: Date) => `${line}|${kind}|${day(start)}`
+  const fullBy = new Map(full.map((c) => [keyOf(lineOf(c as never), c.kind, c.periodStart), c]))
+  const covered = new Set<string>()
+  const widen: ExtensionPlan['widen'] = []
+  for (const r of stored) {
+    if (!r.periodStart || !r.periodEnd) continue
+    const k = keyOf(lineOf(r), r.kind, r.periodStart)
+    covered.add(k)
+    const now = fullBy.get(k)
+    if (now && now.periodEnd.getTime() > r.periodEnd.getTime()) widen.push({ id: r.id, periodEnd: now.periodEnd })
+  }
+  const write = added.filter((c) => !covered.has(keyOf(lineOf(c as never), c.kind, c.periodStart)))
+  return { widen, write }
+}
+
 export async function writeCyclesFor(db: CycleWriter, input: PlanInput): Promise<Written> {
   const planned = await planCyclesFor(db, input)
   if (planned.rows.length > 0) await db.cycle.createMany({ data: planned.rows })
@@ -323,8 +375,8 @@ export async function planCyclesFor(
       : generateCycles(dates.startDate, dates.endDate, split.buy, holidays, existing, options)
 
   const rows: PlannedCycle[] = [
-    ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),
-    ...buyCycles.map((c) => ({ buyContractId: buy!.id, kind: c.kind, dueOn: c.dueOn })),
+    ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn, periodStart: c.periodStart, periodEnd: c.periodEnd })),
+    ...buyCycles.map((c) => ({ buyContractId: buy!.id, kind: c.kind, dueOn: c.dueOn, periodStart: c.periodStart, periodEnd: c.periodEnd })),
   ]
   return { rows, sell: sellCycles.length, buy: buyCycles.length, refused: split.refused }
 }

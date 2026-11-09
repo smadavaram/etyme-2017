@@ -114,7 +114,9 @@ describe('the fortnightly pack, paid on Fridays', () => {
 
   it('every pay day of a year is marked by exactly one month’s run', () => {
     const all = fortnightly()
-    const months = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`)
+    // And January 2027: the last fortnight, cut at December 31 (the last
+    // regular period runs through the end date, 2026-11-09), is paid in it.
+    const months = [...Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`), '2027-01']
     const seen = months.flatMap((m) => marked(all, [m]))
     expect(seen.length).toBe(new Set(seen).size)
     expect(seen.sort()).toEqual(all.map((c) => iso(c.dueOn)).sort())
