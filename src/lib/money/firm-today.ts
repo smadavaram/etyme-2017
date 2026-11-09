@@ -56,14 +56,14 @@ import { prisma } from '@/lib/db'
 import { formatRange } from '@/lib/format-date'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { monthlyHours, HOURS_PER_MONTH, WEEKS_PER_MONTH, FULL_TIME_WEEK } from '@/lib/program-spend'
-import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
-import { generateBill, shareBillReads, BILLABLE_LINE_STATES, type BillCaller, type BillOutcome, type BillShared } from '@/lib/money/bill-generate'
-import { whereHoursLive } from '@/lib/work-chain'
-import { BILL_NOT_SENT, notSentSays } from '@/lib/money/bill-state'
-import { ladderFor } from '@/lib/work-chain-read'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, termsFor } from '@/lib/money/order-terms'
 import { weekStart, weekEnd } from '@/lib/overtime'
-import { billingStraddle, periodFor, workedSpan, iso, type Period } from '@/lib/periods'
+import { iso } from '@/lib/periods'
 import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
+import { billingPeriodOf, readWeek, type WeekUnpriced } from '@/lib/money/week-price'
+import { signedAndBilled } from '@/lib/money/signed-unbilled'
+// Moved to lib/money/week-price so the one signed-not-billed reader can call them without a loop.
+export { billingPeriodOf, readWeek, type WeekUnpriced }
 
 /** The kinds of firm that sell people, and so have a Tuesday of this shape. A client only buys. */
 export const SELLING_KINDS = ['VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const
@@ -125,31 +125,6 @@ export interface BillingThisMonth {
    */
   overtimeNotPaid: OvertimeNotPaid
 }
-
-/** Why a signed week has no amount, in a word. */
-export type WeekUnpriced =
-  /** No rate on the line this firm bills from. */
-  | 'no rate'
-  /** Hours over the line nobody has decided are on no bill. */
-  | 'overtime'
-  /** The firm this firm bills has not accepted the week. */
-  | 'not accepted'
-  /** Accepted, and the arithmetic is not decided, so the bill leaves it off. */
-  | 'held'
-  /** Some of its days are already on an invoice the payer recorded from this firm, and a receipt has no lines to say which. */
-  | 'partly billed'
-  /** The bill for its period would go over the order's ceiling. */
-  | 'ceiling'
-  /**
-   * The placement is paused, cancelled or not yet started, and a bill is
-   * raised only on a running or ended one (`BILLABLE_LINE_STATES`). An
-   * ended placement is billed for the weeks signed before its last day.
-   */
-  | 'not running'
-  /** The placement is on no engagement, so no bill can be made for it. */
-  | 'no engagement'
-  /** The Bills page would refuse the bill for another reason, said in `says`. */
-  | 'refused'
 
 /** One week the client signed that this firm has not billed. */
 export interface SignedWeek {
@@ -252,68 +227,6 @@ export function weekOf(periodStart: Date): { start: string; end: string; says: s
   return { start, end, says: formatRange(start, end) }
 }
 
-/**
- * The period a week bills in: its last worked day's, or its first under
- * START — one week bills once (`billingStraddle`). The same answer as
- * `periodOfWeek` in `lib/money/supplier-bills`, the twin's, and a test
- * holds the two together. Not imported from there, because that module
- * sits in a loop with the twin's performers that only loads in one order.
- */
-export function billingPeriodOf(
-  week: { periodStart: Date; periodEnd: Date; days: unknown },
-  terms: ReturnType<typeof periodTermsFor>
-): Period {
-  const { straddle } = billingStraddle(terms.straddle)
-  const span = workedSpan((week.days ?? {}) as Record<string, number>)
-  const on = straddle === 'START' ? (span?.first ?? week.periodStart) : (span?.last ?? week.periodEnd)
-  return periodFor(on, terms)
-}
-
-type LeftOffWeek = { timesheetId: string; kind: string; says: string; billedElsewhere?: 'WHOLE' | 'PART' }
-
-/**
- * A week the bill leaves off, read: one already wholly on an invoice the
- * payer recorded from this firm is billed, and not this figure's; the
- * rest are counted with no amount.
- */
-function leftOff(off: LeftOffWeek): { unpriced: WeekUnpriced; says: string } | { billed: true; says: string } {
-  if (off.billedElsewhere === 'WHOLE') return { billed: true, says: off.says }
-  if (off.billedElsewhere === 'PART') return { unpriced: 'partly billed', says: off.says }
-  return { unpriced: off.kind === 'WAITING' ? 'not accepted' : 'held', says: off.says }
-}
-
-/** What one dry run of the generator says about one week, read as the Today figure needs it. */
-export function readWeek(
-  outcome: BillOutcome,
-  timesheetId: string
-): { billedHours: number; amountMinor: number } | { unpriced: WeekUnpriced; says: string | null } | { billed: true; says: string } {
-  if (outcome.ok) {
-    const p = outcome.planned
-    const undecided = p.weeksUndecided.find((w) => w.timesheetId === timesheetId)
-    if (undecided) {
-      return {
-        unpriced: 'overtime',
-        says:
-          `${undecided.pendingHours} hour${undecided.pendingHours === 1 ? '' : 's'} over the weekly limit ` +
-          'are not on any bill, because nobody has decided how they are paid.',
-      }
-    }
-    const priced = p.weeks.find((w) => w.timesheetId === timesheetId)
-    if (priced) return { billedHours: priced.hours, amountMinor: priced.amountMinor }
-    const off = p.weeksLeftOff.find((w) => w.timesheetId === timesheetId)
-    if (off) return leftOff(off)
-    return { unpriced: 'refused', says: 'The bill for its period would not carry this week, so no figure is given.' }
-  }
-  const err = outcome.body.error as { code?: unknown; message?: unknown; heldBack?: unknown }
-  const message = typeof err.message === 'string' ? err.message : null
-  if (err.code === 'NOT_ACCEPTED_ABOVE' && Array.isArray(err.heldBack)) {
-    const off = (err.heldBack as LeftOffWeek[]).find((h) => h.timesheetId === timesheetId)
-    if (off) return leftOff(off)
-  }
-  if (err.code === 'PO_CEILING') return { unpriced: 'ceiling', says: message }
-  return { unpriced: 'refused', says: message }
-}
-
 // ── The read ──────────────────────────────────────────────────────────
 
 const A_DAY = 86_400_000
@@ -408,158 +321,38 @@ async function billingAt(companyId: string, day: Date): Promise<Omit<BillingThis
   }
 }
 
-/** "Signed and not yet billed": every week signed at the top that no bill of ours has sent. */
+/**
+ * "Signed and not yet billed": every week signed at the top that no bill
+ * of ours has sent, read through the one reader (lib/money/signed-unbilled),
+ * which the placement, the client's budget and its program read too. Each
+ * week is priced there by the Bills page's own generator, so this figure,
+ * the bill, and every other screen's "signed and not billed" are one
+ * number (the reconciliation, 2026-11-09).
+ */
 async function signedAt(company: { id: string; name: string; kind: string }): Promise<SignedNotBilled> {
-  const lines = await prisma.sellContract.findMany({
-    where: { companyId: company.id },
-    select: {
-      id: true, engagementId: true, billRate: true, billCurrency: true, startDate: true, state: true,
-      clientCompany: { select: { name: true } },
-      endClientCompany: { select: { name: true } },
-      billFrequency: true, billAnchor: true, billStraddle: true,
-      workOrder: { select: ORDER_HEADER_SELECT },
-      ...SELL_LINE_TERMS_SELECT,
-    },
-  })
-  if (lines.length === 0) return { weeks: [], count: 0, onDrafts: 0, totals: [] }
-
-  // Where each line's hours are filed: its own contract on a direct
-  // placement, the bottom rung's where the firm sells somebody it buys.
-  const ownIds = lines.map((l) => l.id)
-  const rungs = await ladderFor(ownIds)
-  const billedBy = new Map<string, (typeof lines)[number]>()
-  for (const l of lines) billedBy.set(whereHoursLive(l.id, rungs), l)
-
-  const sheets = await prisma.timesheet.findMany({
-    where: {
-      sellContractId: { in: [...billedBy.keys()] },
-      assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
-    },
-    select: {
-      id: true, sellContractId: true, periodStart: true, periodEnd: true, days: true,
-      person: { select: { id: true, name: true } },
-      assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { hours: true }, take: 1 },
-      invoiceLines: {
-        where: { sellContractId: { in: ownIds } },
-        select: { sellContractId: true, hours: true, amountCents: true, invoice: { select: { id: true, number: true, status: true, currency: true } } },
-      },
-    },
-    orderBy: [{ periodStart: 'asc' }, { id: 'asc' }],
-  })
-
-  const caller: BillCaller = { company: { id: company.id, name: company.name, kind: company.kind }, person: { id: null, name: 'Today' } }
-  // One dry run per engagement and billing period, started together and
-  // read once each. A failure is kept and thrown when it is read, never
-  // swallowed into a figure. The runs share one read of the chain, the
-  // signed weeks, the expenses, the receipts the payers hold and the
-  // sites (`shareBillReads`): six figures used to read each six times.
-  type Settled = { outcome: BillOutcome } | { failed: unknown }
-  const runs = new Map<string, Promise<Settled>>()
-  const dryRun = (shared: BillShared, engagementId: string, start: Date, end: Date): Promise<Settled> => {
-    const key = `${engagementId}:${iso(start)}:${iso(end)}`
-    let run = runs.get(key)
-    if (!run) {
-      run = generateBill(caller, { engagementId, periodStart: iso(start), periodEnd: iso(end) }, { dryRun: true, shared })
-        .then((outcome) => ({ outcome }), (failed) => ({ failed }))
-      runs.set(key, run)
-    }
-    return run
-  }
-  const toPrice: {
-    base: Omit<SignedWeek, 'billedHours' | 'amountMinor' | 'unpriced' | 'says' | 'draft'>
-    engagementId: string
-    period: Period
-  }[] = []
-
+  const own = await prisma.sellContract.findMany({ where: { companyId: company.id }, select: { id: true } })
+  if (own.length === 0) return { weeks: [], count: 0, onDrafts: 0, totals: [] }
+  const read = await signedAndBilled(own.map((l) => l.id))
   const weeks: SignedWeek[] = []
-  for (const ts of sheets) {
-    const line = billedBy.get(ts.sellContractId)
-    if (!line) continue
-    const ours = ts.invoiceLines.filter((x) => x.sellContractId === line.id)
-    // On a bill this firm sent: billed, and not this figure's (and, as
-    // before, a week on a cancelled bill is not counted here). A bill
-    // drafted or raised and not sent is not billed (`BILL_NOT_SENT` in
-    // lib/money/bill-state): the second Tapin walk read a raised bill the
-    // check would not let go as billed, and Today called it sent.
-    if (ours.some((x) => !BILL_NOT_SENT.includes(x.invoice.status))) continue
-
-    const base = {
-      timesheetId: ts.id,
-      sellContractId: line.id,
-      personId: ts.person.id,
-      personName: ts.person.name,
-      billedToName: line.clientCompany.name,
-      atName: line.endClientCompany?.name ?? line.clientCompany.name,
-      week: weekOf(ts.periodStart),
-      signedHours: Number(ts.assertions[0]?.hours ?? 0),
-      currency: (line.billCurrency || 'USD').toUpperCase(),
-    }
-
-    // On a bill nobody has sent, drafted or raised: that bill priced it,
-    // and holds it.
-    if (ours.length > 0) {
-      const inv = ours[0].invoice
+  for (const line of read.values()) {
+    for (const w of line.notBilled.weeks) {
       weeks.push({
-        ...base,
-        currency: inv.currency.toUpperCase(),
-        billedHours: Math.round(ours.reduce((n, x) => n + Number(x.hours), 0) * 100) / 100,
-        amountMinor: ours.reduce((n, x) => n + x.amountCents, 0),
-        unpriced: null, says: null,
-        draft: { invoiceId: inv.id, number: inv.number, status: inv.status, says: notSentSays(inv) },
+        timesheetId: w.timesheetId,
+        sellContractId: line.sellContractId,
+        personId: line.personId,
+        personName: line.personName,
+        billedToName: line.billedToName ?? '',
+        atName: line.atName ?? line.billedToName ?? '',
+        week: w.week,
+        signedHours: w.signedHours,
+        billedHours: w.billsHours,
+        currency: line.currency,
+        amountMinor: w.amountMinor,
+        unpriced: w.unpriced,
+        says: w.says,
+        draft: w.onDraft ? { invoiceId: w.onDraft.invoiceId, number: w.onDraft.number, status: w.onDraft.status, says: w.onDraft.says } : null,
       })
-      continue
     }
-
-    const off = (unpriced: WeekUnpriced, says: string | null): SignedWeek =>
-      ({ ...base, billedHours: null, amountMinor: null, unpriced, says, draft: null })
-
-    if (line.billRate <= 0) {
-      weeks.push(off('no rate', `${ts.person.name}’s placement has no bill rate, so the week cannot be priced.`))
-      continue
-    }
-    if (!line.engagementId) {
-      weeks.push(off('no engagement', `${ts.person.name}’s placement is on no engagement, so no bill can be made for it yet.`))
-      continue
-    }
-    // The same states the Bills page bills (lib/money/bill-generate): a
-    // running placement, and one that has ended, for the weeks signed
-    // before its last day. This read used to refuse an ended one after the
-    // generator had stopped refusing it (5ee828da0), so the figure said
-    // Karthik Menon's fourteen signed weeks could not be billed while the
-    // Bills page billed them.
-    if (!(BILLABLE_LINE_STATES as readonly string[]).includes(line.state)) {
-      weeks.push(off('not running',
-        `${ts.person.name}’s placement is not running, and a bill is made only for a running or ended placement, ` +
-        'so this week cannot be billed yet.'))
-      continue
-    }
-
-    // The period this week bills in, under the agreement first, and the
-    // generator's own pricing of that period.
-    const period = billingPeriodOf(ts, periodTermsFor('SELL', line))
-    toPrice.push({ base, engagementId: line.engagementId, period })
-  }
-
-  // Every period is known before any run starts, so the shared read
-  // covers the first day and the last any run asks for.
-  const shared = toPrice.length === 0
-    ? null
-    : shareBillReads({
-        lineIds: ownIds,
-        rungs,
-        from: new Date(toPrice.reduce((n, p) => Math.min(n, p.period.start.getTime()), Infinity)),
-        to: new Date(toPrice.reduce((n, p) => Math.max(n, p.period.end.getTime()), -Infinity)),
-      })
-  const priced = toPrice.map((p) => ({ base: p.base, run: dryRun(shared!, p.engagementId, p.period.start, p.period.end) }))
-
-  for (const { base, run } of priced) {
-    const settled = await run
-    if ('failed' in settled) throw settled.failed
-    const read = readWeek(settled.outcome, base.timesheetId)
-    // Already on an invoice the payer recorded from us: billed off the platform.
-    if ('billed' in read) continue
-    if ('unpriced' in read) weeks.push({ ...base, billedHours: null, amountMinor: null, unpriced: read.unpriced, says: read.says, draft: null })
-    else weeks.push({ ...base, billedHours: read.billedHours, amountMinor: read.amountMinor, unpriced: null, says: null, draft: null })
   }
 
   weeks.sort((a, b) => a.week.start.localeCompare(b.week.start) || a.personName.localeCompare(b.personName))

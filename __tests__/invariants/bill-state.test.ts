@@ -92,8 +92,10 @@ describe('an order is drawn by bills sent, and only those', () => {
 
 describe('Today counts a week on a bill nobody was sent as not yet billed', () => {
   it('a week on a raised bill stays under "Signed, not yet billed" and names the bill holding it (lib/money/firm-today)', () => {
-    const src = read('src/lib/money/firm-today.ts')
-    expect(src).toMatch(/if \(ours\.some\(\(x\) => !BILL_NOT_SENT\.includes\(x\.invoice\.status\)\)\) continue/)
+    // Through the one reader Today now reads (lib/money/signed-unbilled):
+    // a sent bill bills the week; a draft or raised bill holds it, named.
+    const src = read('src/lib/money/signed-unbilled.ts')
+    expect(src).toMatch(/const sent = inCcy\.filter\(\(b\) => billCountsAsBilled\(b\.invoice\.status\)\)/)
     expect(src).toMatch(/says: notSentSays\(inv\)/)
   })
 

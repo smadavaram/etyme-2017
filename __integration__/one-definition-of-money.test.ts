@@ -139,7 +139,8 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
     expect(b.signed.weeks).toBeGreaterThan(0)
     expect(b.notBilled.hours).toBe(Math.round((b.signed.hours - b.billed.hours) * 100) / 100)
     expect(b.notBilled.weeks.reduce((n, w) => n + w.hours, 0)).toBeCloseTo(b.notBilled.hours, 2)
-    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
+    // Weeks age; an accepted expense not billed yet is in the figure beside them.
+    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0) + b.notBilled.expenseMinor).toBe(b.notBilled.amountMinor)
     // Nothing a draft holds is counted as billed.
     const sentHours = await prisma.invoiceLine.aggregate({
       where: { sellContractId: line.id, timesheetId: { not: null }, invoice: { status: { notIn: ['DRAFT', 'ISSUED', 'CANCELLED', 'VOID'] } } },
@@ -152,7 +153,7 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
     const line = await lineOf('Rosa Delgado', 'world-brightmoor', 'world-nike')
     const b = (await signedAndBilled([line.id])).get(line.id)!
     for (const w of b.notBilled.weeks.filter((x) => x.onDraft)) {
-      expect(w.onDraft!.amountMinor).toBeLessThanOrEqual(w.amountMinor)
+      expect(w.onDraft!.amountMinor).toBeLessThanOrEqual(w.amountMinor ?? 0)
     }
     const draftTotal = b.drafted.bills.reduce((n, d) => n + d.amountMinor, 0)
     expect(draftTotal).toBeLessThanOrEqual(b.notBilled.amountMinor)

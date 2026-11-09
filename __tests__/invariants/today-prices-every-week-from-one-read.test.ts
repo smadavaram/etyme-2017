@@ -125,8 +125,11 @@ describe('only a dry run shares, and only inside what was read', () => {
   })
 
   it('the Today page knows every period before any run starts, so one read covers the first day and the last', () => {
-    const today = read('src/lib/money/firm-today.ts')
-    expect(today).toMatch(/shareBillReads\(\{\s+lineIds: ownIds,\s+rungs,/)
-    expect(today).toMatch(/\{ dryRun: true, shared \}/)
+    // Today reads the one signed-not-billed reader (the reconciliation,
+    // 2026-11-09), which plans every period before any run starts.
+    expect(read('src/lib/money/firm-today.ts')).toMatch(/signedAndBilled\(/)
+    const reader = read('src/lib/money/signed-unbilled.ts')
+    expect(reader).toMatch(/shareBillReads\(\{\s+lineIds: lines\.filter/)
+    expect(reader).toMatch(/\{ dryRun: true, shared \}/)
   })
 })

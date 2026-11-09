@@ -127,6 +127,12 @@ export interface PlannedBill {
   weeksLeftOff: { timesheetId: string; kind: 'WAITING' | 'HELD'; says: string; billedElsewhere?: 'WHOLE' | 'PART' }[]
   /** Each week with hours over the line nobody has decided, and how many. Those hours are on no bill. */
   weeksUndecided: { timesheetId: string; pendingHours: number }[]
+  /**
+   * Each expense this bill carries, at the amount the payer accepted: the
+   * same figure its `InvoiceLine` gets, so the signed-not-billed reader
+   * (lib/money/signed-unbilled) and the bill cannot disagree.
+   */
+  expenses: { expenseId: string; sellContractId: string; amountMinor: number }[]
 }
 
 export type BillOutcome =
@@ -1506,6 +1512,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     weeks: [...priced].map(([timesheetId, p]) => ({ timesheetId, hours: p.hours, amountMinor: p.cents })),
     weeksLeftOff: heldBack.map((h) => ({ ...h })),
     weeksUndecided: [...pendingByWeek].map(([timesheetId, pendingHours]) => ({ timesheetId, pendingHours })),
+    expenses: expLines.map((l) => ({ expenseId: l.expenseId, sellContractId: l.sellContractId, amountMinor: l.amountCents })),
   })
 
   const write = async (tx: Tx) => {

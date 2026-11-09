@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ledgerOf, billCountsAsBilled } from '@/lib/money/order-ledger'
-import { lineBillingFrom, ageInWeeks, ageBand, rollUp, type LineIn } from '@/lib/money/signed-unbilled'
+import { lineBillingFrom, ageInWeeks, ageBand, rollUp, type LineIn, type WeekPrice } from '@/lib/money/signed-unbilled'
 import { offersSend, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
 
 /**
@@ -118,15 +118,20 @@ describe('an order has one Authorized, one Billed and one Left', () => {
 
 describe('signed, billed, and signed and not billed, by week', () => {
   const sunday = (iso: string) => new Date(`${iso}T00:00:00Z`)
-  const rosa = (weeks: { start: string; hours: number }[], sentOn: string[], draftOn: string[]): LineIn => ({
+  type Bl = LineIn['billLines'][number]
+  const rosa = (weeks: { start: string; hours: number }[], sentOn: { start: string; hours?: number }[], draftOn: string[], extra: Partial<LineIn> = {}): LineIn => ({
     sellContractId: 'sc-rosa', personId: 'p-rosa', personName: 'Rosa Delgado', currency: 'USD',
-    rateMinor: 11_200, rates: [],
     sheets: weeks.map((w) => ({ timesheetId: `ts-${w.start}`, periodStart: sunday(w.start), signedHours: w.hours })),
     billLines: [
-      ...sentOn.map((s) => ({ timesheetId: `ts-${s}`, hours: 40, amountMinor: 448_000, invoice: { id: 'inv-sent', number: 'IN-SENT', status: 'SUBMITTED', currency: 'USD' } })),
-      ...draftOn.map((s) => ({ timesheetId: `ts-${s}`, hours: 40, amountMinor: 448_000, invoice: { id: 'inv-draft', number: 'IN-DRAFT', status: 'DRAFT', currency: 'USD' } })),
+      ...sentOn.map((s): Bl => ({ timesheetId: `ts-${s.start}`, expenseId: null, hours: s.hours ?? 40, amountMinor: Math.round((s.hours ?? 40) * 9_800), invoice: { id: 'inv-sent', number: 'IN-SENT', status: 'SUBMITTED', currency: 'USD' } })),
+      ...draftOn.map((s): Bl => ({ timesheetId: `ts-${s}`, expenseId: null, hours: 40, amountMinor: 448_000, invoice: { id: 'inv-draft', number: 'IN-DRAFT', status: 'DRAFT', currency: 'USD' } })),
     ],
+    ...extra,
   })
+  // The next bill's answer, as the generator's dry run would give it: here
+  // $112 an hour, and a 45-hour week with its five hours at time and a half.
+  const nextBill = (_ts: string, hours: number): WeekPrice =>
+    ({ amountMinor: Math.round(Math.min(hours, 40) * 11_200 + Math.max(0, hours - 40) * 16_800), billedHours: hours, unpriced: null, says: null })
   const thirty = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(Date.UTC(2026, 3, 5 + i * 7))
     return { start: d.toISOString().slice(0, 10), hours: 40 }
@@ -134,7 +139,7 @@ describe('signed, billed, and signed and not billed, by week', () => {
   const today = new Date('2026-11-09T12:00:00Z')
 
   it('signed and not billed is signed minus billed, week by week, and a draft is not billed', () => {
-    const b = lineBillingFrom(rosa(thirty, [thirty[0].start, thirty[1].start], [thirty[2].start]), today)
+    const b = lineBillingFrom(rosa(thirty, [{ start: thirty[0].start }, { start: thirty[1].start }], [thirty[2].start]), today, nextBill)
     expect(b.signed.hours).toBe(1200)
     expect(b.billed.hours).toBe(80)
     expect(b.notBilled.hours).toBe(1120)
@@ -143,13 +148,26 @@ describe('signed, billed, and signed and not billed, by week', () => {
 
   it('1,101 unbilled hours at Rosa Delgado’s $112 are $123,312, the audit’s own figure', () => {
     const weeks = thirty.map((w, i) => ({ ...w, hours: i === 29 ? 21 : 40 }))
-    const b = lineBillingFrom(rosa(weeks, [weeks[0].start, weeks[1].start], []), today)
+    const b = lineBillingFrom(rosa(weeks, [{ start: weeks[0].start }, { start: weeks[1].start }], []), today, nextBill)
     expect(b.notBilled.hours).toBe(1101)
     expect(b.notBilled.amountMinor).toBe(12_331_200)
   })
 
+  it('an unbilled week is priced by the next bill’s own answer, a decided overtime premium included, never by a rate of the reader’s own', () => {
+    const b = lineBillingFrom(rosa([{ start: '2026-09-20', hours: 45 }], [], []), today, nextBill)
+    expect(b.notBilled.amountMinor).toBe(40 * 11_200 + 5 * 16_800)
+  })
+
+  it('a week the next bill would leave off has no amount, says why, and blanks the line’s signed money rather than being guessed', () => {
+    const b = lineBillingFrom(rosa([{ start: '2026-10-04', hours: 40 }], [], []), today,
+      () => ({ amountMinor: null, billedHours: null, unpriced: 'overtime', says: 'Nobody has decided the overtime.' }))
+    expect(b.notBilled.weeks[0].amountMinor).toBeNull()
+    expect(b.notBilled.unpriced).toBe(1)
+    expect(b.signed.amountMinor).toBeNull()
+  })
+
   it('a week on a draft names that draft and is valued at what the draft holds for it, never the draft’s number as the total', () => {
-    const b = lineBillingFrom(rosa(thirty, [], [thirty[3].start]), today)
+    const b = lineBillingFrom(rosa(thirty, [], [thirty[3].start]), today, nextBill)
     const onDraft = b.notBilled.weeks.filter((w) => w.onDraft)
     expect(onDraft).toHaveLength(1)
     expect(onDraft[0].onDraft!.number).toBe('IN-DRAFT')
@@ -158,16 +176,26 @@ describe('signed, billed, and signed and not billed, by week', () => {
     expect(b.notBilled.onDraftHours).toBe(40)
   })
 
-  it('hours over the 40-hour week are counted at straight time and named, because the bill decides any premium', () => {
-    const b = lineBillingFrom(rosa([{ start: '2026-09-20', hours: 45 }], [], []), today)
-    expect(b.notBilled.overLineHours).toBe(5)
-    expect(b.notBilled.amountMinor).toBe(45 * 11_200)
+  it('an accepted expense the next bill would carry, and no sent bill does, is signed and not billed', () => {
+    const b = lineBillingFrom(rosa([], [], [], { plannedExpenses: [{ expenseId: 'e1', amountMinor: 57_600 }] }), today, nextBill)
+    expect(b.notBilled.expenseMinor).toBe(57_600)
+    expect(b.notBilled.amountMinor).toBe(57_600)
+  })
+
+  it('hours billed past what was signed for a week are said apart, so Signed = Billed − billed over signed + not billed, to the cent', () => {
+    // Lucía Fernández: 41.5 hours billed on a 40-hour signed week, $98 an hour.
+    const line = rosa([{ start: '2026-10-04', hours: 40 }], [{ start: '2026-10-04', hours: 41.5 }], [])
+    const b = lineBillingFrom(line, today, nextBill)
+    expect(b.billedOverSigned).toEqual({ hours: 1.5, amountMinor: 14_700 })
+    expect(b.notBilled.weeks).toHaveLength(0)
+    expect(b.signed.amountMinor).toBe(b.billed.amountMinor - 14_700)
+    expect(b.signed.amountMinor).toBe(40 * 9_800)
   })
 
   it('a week the client has not signed is not counted as signed', () => {
     const line = rosa([{ start: '2026-10-25', hours: 40 }], [], [])
     line.sheets[0].signedHours = null
-    const b = lineBillingFrom(line, today)
+    const b = lineBillingFrom(line, today, nextBill)
     expect(b.signed.hours).toBe(0)
     expect(b.notBilled.weeks).toHaveLength(0)
     expect(b.says).toBeNull()
@@ -179,24 +207,26 @@ describe('signed, billed, and signed and not billed, by week', () => {
     expect(ageBand(1)).toBe('1 week or less')
     expect(ageBand(4)).toBe('2 to 4 weeks')
     expect(ageBand(30)).toBe('Over 13 weeks')
-    const b = lineBillingFrom(rosa(thirty, [], []), today)
+    const b = lineBillingFrom(rosa(thirty, [], []), today, nextBill)
     expect(b.notBilled.aging.reduce((n, a) => n + a.weeks, 0)).toBe(30)
     expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
   })
 
-  it('a rate approved part way through prices each unbilled week at the rate in force that week', () => {
-    const line = rosa([{ start: '2026-04-05', hours: 40 }, { start: '2026-10-04', hours: 40 }], [], [])
-    line.rates = [{ id: 'r1', rate: 12_000, fromDate: new Date('2026-09-01T00:00:00Z'), toDate: null, approvalState: 'APPROVED' }]
-    const b = lineBillingFrom(line, today)
-    expect(b.notBilled.amountMinor).toBe(40 * 11_200 + 40 * 12_000)
-  })
-
   it('a client rollup adds lines one currency at a time and never across currencies', () => {
-    const usd = lineBillingFrom(rosa([{ start: '2026-10-04', hours: 40 }], [], []), today)
-    const inr = lineBillingFrom({ ...rosa([{ start: '2026-10-04', hours: 40 }], [], []), currency: 'INR', rateMinor: 150_000 }, today)
+    const usd = lineBillingFrom(rosa([{ start: '2026-10-04', hours: 40 }], [], []), today, nextBill)
+    const inr = lineBillingFrom({ ...rosa([{ start: '2026-10-04', hours: 40 }], [], []), currency: 'INR' }, today, nextBill)
     const r = rollUp([usd, inr])
     expect(r.map((x) => x.currency).sort()).toEqual(['INR', 'USD'])
     expect(r.find((x) => x.currency === 'USD')!.notBilledMinor).toBe(448_000)
+  })
+
+  it('the one reader prices through the Bills page’s own generator on a dry run, and the firm’s Today figure reads that reader', () => {
+    const reader = read('src/lib/money/signed-unbilled.ts')
+    expect(reader).toMatch(/generateBill\(caller, \{ engagementId: a\.line\.engagementId/)
+    expect(reader).toMatch(/dryRun: true/)
+    expect(reader).not.toMatch(/rateInForce/)
+    expect(read('src/lib/money/firm-today.ts')).toMatch(/await signedAndBilled\(own\.map/)
+    expect(read('src/lib/money/firm-today.ts')).not.toMatch(/generateBill\(/)
   })
 })
 
