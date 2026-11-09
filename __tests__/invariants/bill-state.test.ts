@@ -75,15 +75,18 @@ describe('an order is drawn by bills sent, and only those', () => {
   })
 
   it('the orders page shows what was drawn by bills sent, and says what is on bills not sent apart', () => {
+    // Through the one ledger every money view reads (lib/money/order-ledger,
+    // the founder's scale audit, 2026-11-08): sent bills draw, drafts are said apart.
     const src = read('src/app/api/purchase-orders/route.ts')
-    expect(src).toMatch(/\.filter\(\(i\) => drawsOnOrder\(i\.status\)\)/)
-    expect(src).toMatch(/notSent: notSentCents \/ per/)
+    expect(src).toMatch(/orderLedgers\(/)
+    expect(src).toMatch(/notSent: ledger\.draftedNotSentMinor \/ per/)
+    expect(read('src/lib/money/order-ledger.ts')).toMatch(/billCountsAsBilled\(b\.status\)/)
     // Whole currency by the order's own exponent, never a hard hundred: a dong order has none.
     expect(src).not.toMatch(/invoicedCents \/ 100|remainingCents \/ 100/)
   })
 
   it('a bill in another currency is never added to an order’s drawn figure', () => {
-    expect(read('src/app/api/purchase-orders/route.ts')).toMatch(/\(i\.currency \?\? po\.currency\)\.toUpperCase\(\) === ccy/)
+    expect(read('src/lib/money/order-ledger.ts')).toMatch(/\(b\.currency \?\? ccy\)\.toUpperCase\(\) !== ccy\) \{ foreign\.push/)
   })
 })
 

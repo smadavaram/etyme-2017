@@ -17,6 +17,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * Accounts payable.
@@ -321,7 +322,8 @@ function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link:
       align: 'right' as const,
       render: (r) => (
         <span className="tabular-nums text-[12px]">
-          {new Date(r.dueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {/* In UTC through the one formatter, so Payables and Bills say one due day. */}
+          {formatDay(r.dueAt, { year: false })}
         </span>
       ),
       sortValue: (r) => new Date(r.dueAt).getTime(),

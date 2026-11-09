@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { minorFromWhole, minorPerUnit } from '@/lib/money'
-import { DRAWS_NOTHING, drawsOnOrder, BILL_NOT_SENT } from '@/lib/money/bill-state'
+import { minorPerUnit } from '@/lib/money'
+import { orderLedgers, linesBilled } from '@/lib/money/order-ledger'
 import { fromUnits } from '@/lib/money-display'
 import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
@@ -103,7 +103,6 @@ export async function GET(request: NextRequest) {
       autoApproveTimesheets: true, approvalWindowDays: true,
       issuedBy: { select: { id: true, name: true, claimedAt: true } },
       issuedTo: { select: { id: true, name: true, claimedAt: true } },
-      invoices: { select: { total: true, status: true, currency: true } },
       // The lines on it. A document is a header and its lines, and an
       // order screen that shows only headers is half the paper: five
       // people on one order is one ceiling and five names, and which
@@ -175,48 +174,26 @@ export async function GET(request: NextRequest) {
   })
   if (billRead.length > 0) await writeBillTrail(caller, billTrail(billViewer, billRead))
 
+  // What each order and each of its lines has billed, by the one
+  // definition every money screen reads (lib/money/order-ledger): bills
+  // sent and typed-in invoice receipts count, a bill drafted or raised and
+  // not sent is said apart and never inside Billed, and a document in
+  // another currency is named and never added. The placement's page, the
+  // three-way check and Payables read the same figures.
   const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
-  const billedByLine = new Map<string, number>()
-  if (sellIds.length > 0) {
-    const sums = await prisma.invoiceLine.groupBy({
-      by: ['sellContractId'],
-      where: {
-        sellContractId: { in: sellIds },
-        // Only a bill that was sent has billed anything, on the line or
-        // on the header (`drawsOnOrder` in lib/money/bill-state): a draft
-        // or a raised bill nobody was sent is the seller's working paper.
-        invoice: { status: { notIn: [...DRAWS_NOTHING] } },
-      },
-      _sum: { amountCents: true },
-    })
-    for (const row of sums) {
-      if (row.sellContractId) billedByLine.set(row.sellContractId, row._sum.amountCents ?? 0)
-    }
-  }
+  const [ledgers, billedOnLines] = await Promise.all([
+    orderLedgers(pos.map((po) => po.id)),
+    linesBilled(sellIds),
+  ])
 
   const rows = pos.map((po) => {
-    // What has drawn on the order: bills sent, in the order's own currency
-    // (`drawsOnOrder`, the rule the three-way check counts the ceiling by,
-    // lib/money/order-drawn). Void and cancelled bills never consumed
-    // anything, and a bill drafted or raised and never sent has asked
-    // nobody for money: the second Tapin walk read $4,000 drawn on
-    // Brightmoor's order for a bill Tapin could not send. Those are said
-    // apart, as not sent. A bill in another currency is never added to
-    // this one's figure: rupees and dollars are not added.
-    const ccy = po.currency.toUpperCase()
-    const sameCurrency = po.invoices.filter((i) => (i.currency ?? po.currency).toUpperCase() === ccy)
-    const invoicedCents = sameCurrency
-      .filter((i) => drawsOnOrder(i.status))
-      .reduce((sum, i) => sum + minorFromWhole(i.total, po.currency), 0)
-    const notSentCents = sameCurrency
-      .filter((i) => BILL_NOT_SENT.includes(i.status))
-      .reduce((sum, i) => sum + minorFromWhole(i.total, po.currency), 0)
+    const ledger = ledgers.get(po.id)!
     // Minor units per whole unit of the order's currency: 100 for dollars, 1 for the dong.
     const per = minorPerUnit(po.currency)
 
     const balance = poBalance({
-      amountCents: minorFromWhole(po.amount, po.currency),
-      invoicedCents,
+      amountCents: ledger.authorizedMinor,
+      invoicedCents: ledger.billedMinor,
       status: po.status as any,
       endDate: po.endDate,
     })
@@ -254,10 +231,16 @@ export async function GET(request: NextRequest) {
       milestones: po._count.milestones,
       currency: po.currency,
       amount: Number(po.amount),
-      invoiced: invoicedCents / per,
+      /** Authorized, in whole currency: the ceiling. */
+      authorized: ledger.authorizedMinor / per,
+      /** Billed: bills sent and invoice receipts typed in, in the order's own currency. */
+      invoiced: ledger.billedMinor / per,
       /** Bills drafted or raised against it and not sent yet: drawing nothing, said apart. */
-      notSent: notSentCents / per,
-      remaining: balance.remainingCents / per,
+      notSent: ledger.draftedNotSentMinor / per,
+      /** Documents in another currency, by number, left out of every figure here. */
+      foreign: ledger.foreign,
+      /** Left = Authorized − Billed. */
+      remaining: ledger.leftMinor / per,
       consumedPercent: balance.consumedPercent,
       overdrawn: balance.overdrawn,
       expired: balance.expired,
@@ -286,7 +269,9 @@ export async function GET(request: NextRequest) {
           startDate: sc.startDate.toISOString().slice(0, 10),
           endDate: sc.endDate?.toISOString().slice(0, 10) ?? null,
           /** Whole currency, to match the ceiling beside it. */
-          billed: (billedByLine.get(sc.id) ?? 0) / 100,
+          billed: (billedOnLines.get(sc.id)?.billedMinor ?? 0) / minorPerUnit(sc.billCurrency || po.currency),
+          /** Drafted or raised on this line and not sent: never inside billed. */
+          draftedNotSent: (billedOnLines.get(sc.id)?.draftedMinor ?? 0) / minorPerUnit(sc.billCurrency || po.currency) as number | null,
           paidToName: null as string | null,
         })),
         ...po.buyContracts.flatMap((bc) =>
@@ -309,6 +294,7 @@ export async function GET(request: NextRequest) {
             // received, which is not an invoice line of ours, so there
             // is nothing honest to put here yet.
             billed: null as number | null,
+            draftedNotSent: null as number | null,
             paidToName: bc.vendorCompany?.name ?? null,
           }))
         ),

@@ -1,0 +1,257 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { ledgerOf, billCountsAsBilled } from '@/lib/money/order-ledger'
+import { lineBillingFrom, ageInWeeks, ageBand, rollUp, type LineIn } from '@/lib/money/signed-unbilled'
+import { offersSend, sentInPlace, sentRowsInPlace, sentSays } from '@/lib/money/bill-sent-view'
+
+/**
+ * One definition of money (the founder's scale audit, 2026-11-08).
+ *
+ * PO-2026-ADIVD read $466,700 left on one screen and $481,600 on
+ * another; the $14,900 between them was two draft bills one reader added
+ * and the other did not. These sentences hold the arithmetic every money
+ * view now reads, with no database: a draft is not billed, Left is
+ * Authorized minus Billed, and drafts are said apart.
+ */
+
+const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+describe('an order has one Authorized, one Billed and one Left', () => {
+  const order = {
+    amount: '500000.00',
+    currency: 'USD',
+    bills: [
+      { number: 'IN-1', status: 'SUBMITTED', currency: 'USD', total: '10000.00' },
+      { number: 'IN-2', status: 'PAID', currency: 'USD', total: '8400.00' },
+      { number: 'IN-3', status: 'DRAFT', currency: 'USD', total: '9100.00' },
+      { number: 'IN-4', status: 'ISSUED', currency: 'USD', total: '5800.00' },
+      { number: 'IN-5', status: 'CANCELLED', currency: 'USD', total: '99999.00' },
+      { number: 'IN-6', status: 'VOID', currency: 'USD', total: '1.00' },
+    ],
+    receipts: [
+      { number: 'VB-1', status: 'APPROVED', currency: 'USD', totalCents: 120_000 },
+      { number: 'VB-2', status: 'CANCELLED', currency: 'USD', totalCents: 5_000_000 },
+    ],
+  }
+
+  it('a bill drafted and never sent is not billed, and nor is one raised and never sent', () => {
+    expect(billCountsAsBilled('DRAFT')).toBe(false)
+    expect(billCountsAsBilled('ISSUED')).toBe(false)
+    expect(billCountsAsBilled('SUBMITTED')).toBe(true)
+    expect(billCountsAsBilled('PART_PAID'.replace('PART_', 'PARTIALLY_'))).toBe(true)
+  })
+
+  it('Billed is the bills sent plus the invoice receipts typed in, and a cancelled or void document counts for nothing', () => {
+    const l = ledgerOf(order)
+    expect(l.billedMinor).toBe(1_000_000 + 840_000 + 120_000)
+  })
+
+  it('for every order, Authorized minus Billed equals Left', () => {
+    const l = ledgerOf(order)
+    expect(l.authorizedMinor).toBe(50_000_000)
+    expect(l.leftMinor).toBe(l.authorizedMinor - l.billedMinor)
+  })
+
+  it('the drafts are said apart, as drafted and not sent, and never inside Billed', () => {
+    const l = ledgerOf(order)
+    expect(l.draftedNotSentMinor).toBe(910_000 + 580_000)
+    expect(l.draftedNotSent).toBe(2)
+  })
+
+  it('the audit’s two figures for one order cannot both be read: Left differs from Authorized minus all bills by exactly the drafts', () => {
+    const l = ledgerOf(order)
+    const countingDrafts = l.authorizedMinor - (l.billedMinor + l.draftedNotSentMinor)
+    expect(l.leftMinor - countingDrafts).toBe(l.draftedNotSentMinor)
+  })
+
+  it('PO-2026-ADIWB as the audit verified it: $302,000 authorized, $5,800 and $17,400 billed, $278,800 left', () => {
+    const l = ledgerOf({
+      amount: '302000.00', currency: 'USD', receipts: [],
+      bills: [
+        { number: 'A', status: 'SUBMITTED', currency: 'USD', total: '5800.00' },
+        { number: 'B', status: 'PAID', currency: 'USD', total: '17400.00' },
+      ],
+    })
+    expect(l.billedMinor).toBe(2_320_000)
+    expect(l.leftMinor).toBe(27_880_000)
+  })
+
+  it('a bill in another currency is named and never added: rupees and dollars are not added', () => {
+    const l = ledgerOf({
+      amount: '1000.00', currency: 'USD', receipts: [],
+      bills: [{ number: 'IN-INR', status: 'SUBMITTED', currency: 'INR', total: '50000.00' }],
+    })
+    expect(l.billedMinor).toBe(0)
+    expect(l.foreign).toEqual(['IN-INR'])
+  })
+
+  it('an order in dong is counted in dong, with no cents the dong does not have', () => {
+    const l = ledgerOf({
+      amount: '924000000', currency: 'VND', receipts: [],
+      bills: [{ number: 'V1', status: 'SUBMITTED', currency: 'VND', total: '24000000' }],
+    })
+    expect(l.leftMinor).toBe(900_000_000)
+  })
+
+  it('an order billed past its ceiling reads overdrawn, never a Left of nought', () => {
+    const l = ledgerOf({
+      amount: '100.00', currency: 'USD', receipts: [],
+      bills: [{ number: 'X', status: 'SUBMITTED', currency: 'USD', total: '150.00' }],
+    })
+    expect(l.leftMinor).toBe(-5_000)
+    expect(l.overdrawn).toBe(true)
+  })
+
+  it('the order’s page reads the one ledger, not a sum of its own', () => {
+    const src = read('src/app/api/purchase-orders/route.ts')
+    expect(src).toMatch(/orderLedgers\(/)
+    expect(src).toMatch(/linesBilled\(/)
+    expect(src).not.toMatch(/invoicedCents = sameCurrency/)
+  })
+
+  it('the three-way check adds only bills in the order’s own currency to what an order has drawn', () => {
+    const src = read('src/lib/invoice-match.ts')
+    expect(src).toMatch(/o\.currency\.toUpperCase\(\) === orderCcy/)
+  })
+})
+
+describe('signed, billed, and signed and not billed, by week', () => {
+  const sunday = (iso: string) => new Date(`${iso}T00:00:00Z`)
+  const rosa = (weeks: { start: string; hours: number }[], sentOn: string[], draftOn: string[]): LineIn => ({
+    sellContractId: 'sc-rosa', personId: 'p-rosa', personName: 'Rosa Delgado', currency: 'USD',
+    rateMinor: 11_200, rates: [],
+    sheets: weeks.map((w) => ({ timesheetId: `ts-${w.start}`, periodStart: sunday(w.start), signedHours: w.hours })),
+    billLines: [
+      ...sentOn.map((s) => ({ timesheetId: `ts-${s}`, hours: 40, amountMinor: 448_000, invoice: { id: 'inv-sent', number: 'IN-SENT', status: 'SUBMITTED', currency: 'USD' } })),
+      ...draftOn.map((s) => ({ timesheetId: `ts-${s}`, hours: 40, amountMinor: 448_000, invoice: { id: 'inv-draft', number: 'IN-DRAFT', status: 'DRAFT', currency: 'USD' } })),
+    ],
+  })
+  const thirty = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 3, 5 + i * 7))
+    return { start: d.toISOString().slice(0, 10), hours: 40 }
+  })
+  const today = new Date('2026-11-09T12:00:00Z')
+
+  it('signed and not billed is signed minus billed, week by week, and a draft is not billed', () => {
+    const b = lineBillingFrom(rosa(thirty, [thirty[0].start, thirty[1].start], [thirty[2].start]), today)
+    expect(b.signed.hours).toBe(1200)
+    expect(b.billed.hours).toBe(80)
+    expect(b.notBilled.hours).toBe(1120)
+    expect(b.notBilled.weeks).toHaveLength(28)
+  })
+
+  it('1,101 unbilled hours at Rosa Delgado’s $112 are $123,312, the audit’s own figure', () => {
+    const weeks = thirty.map((w, i) => ({ ...w, hours: i === 29 ? 21 : 40 }))
+    const b = lineBillingFrom(rosa(weeks, [weeks[0].start, weeks[1].start], []), today)
+    expect(b.notBilled.hours).toBe(1101)
+    expect(b.notBilled.amountMinor).toBe(12_331_200)
+  })
+
+  it('a week on a draft names that draft and is valued at what the draft holds for it, never the draft’s number as the total', () => {
+    const b = lineBillingFrom(rosa(thirty, [], [thirty[3].start]), today)
+    const onDraft = b.notBilled.weeks.filter((w) => w.onDraft)
+    expect(onDraft).toHaveLength(1)
+    expect(onDraft[0].onDraft!.number).toBe('IN-DRAFT')
+    expect(onDraft[0].amountMinor).toBe(448_000)
+    expect(b.drafted.bills[0].amountMinor).toBeLessThan(b.notBilled.amountMinor)
+    expect(b.notBilled.onDraftHours).toBe(40)
+  })
+
+  it('hours over the 40-hour week are counted at straight time and named, because the bill decides any premium', () => {
+    const b = lineBillingFrom(rosa([{ start: '2026-09-20', hours: 45 }], [], []), today)
+    expect(b.notBilled.overLineHours).toBe(5)
+    expect(b.notBilled.amountMinor).toBe(45 * 11_200)
+  })
+
+  it('a week the client has not signed is not counted as signed', () => {
+    const line = rosa([{ start: '2026-10-25', hours: 40 }], [], [])
+    line.sheets[0].signedHours = null
+    const b = lineBillingFrom(line, today)
+    expect(b.signed.hours).toBe(0)
+    expect(b.notBilled.weeks).toHaveLength(0)
+    expect(b.says).toBeNull()
+  })
+
+  it('unbilled weeks age by whole weeks since the Saturday that ended them, in five bands', () => {
+    expect(ageInWeeks('2026-11-07', today)).toBe(0)
+    expect(ageInWeeks('2026-10-31', today)).toBe(1)
+    expect(ageBand(1)).toBe('1 week or less')
+    expect(ageBand(4)).toBe('2 to 4 weeks')
+    expect(ageBand(30)).toBe('Over 13 weeks')
+    const b = lineBillingFrom(rosa(thirty, [], []), today)
+    expect(b.notBilled.aging.reduce((n, a) => n + a.weeks, 0)).toBe(30)
+    expect(b.notBilled.aging.reduce((n, a) => n + a.amountMinor, 0)).toBe(b.notBilled.amountMinor)
+  })
+
+  it('a rate approved part way through prices each unbilled week at the rate in force that week', () => {
+    const line = rosa([{ start: '2026-04-05', hours: 40 }, { start: '2026-10-04', hours: 40 }], [], [])
+    line.rates = [{ id: 'r1', rate: 12_000, fromDate: new Date('2026-09-01T00:00:00Z'), toDate: null, approvalState: 'APPROVED' }]
+    const b = lineBillingFrom(line, today)
+    expect(b.notBilled.amountMinor).toBe(40 * 11_200 + 40 * 12_000)
+  })
+
+  it('a client rollup adds lines one currency at a time and never across currencies', () => {
+    const usd = lineBillingFrom(rosa([{ start: '2026-10-04', hours: 40 }], [], []), today)
+    const inr = lineBillingFrom({ ...rosa([{ start: '2026-10-04', hours: 40 }], [], []), currency: 'INR', rateMinor: 150_000 }, today)
+    const r = rollUp([usd, inr])
+    expect(r.map((x) => x.currency).sort()).toEqual(['INR', 'USD'])
+    expect(r.find((x) => x.currency === 'USD')!.notBilledMinor).toBe(448_000)
+  })
+})
+
+describe('a bill sent once cannot be sent again, and the page says so without a reload', () => {
+  const draft = { id: 'b1', status: 'DRAFT', submittedAt: null, deliverySays: null }
+
+  it('Send is offered only on a bill drafted or raised, never on one already sent', () => {
+    expect(offersSend('DRAFT')).toBe(true)
+    expect(offersSend('ISSUED')).toBe(true)
+    for (const s of ['SUBMITTED', 'PARTIALLY_PAID', 'PAID', 'HELD', 'DISPUTED', 'CANCELLED']) expect(offersSend(s)).toBe(false)
+  })
+
+  it('the route’s reply is applied at once: the status, the day and to whom, so no row reads Draft after it was sent', () => {
+    const after = sentInPlace(draft, { invoice: { status: 'SUBMITTED', submittedAt: '2026-11-09T15:00:00Z' }, delivery: null }, 'Northbend Athletic')
+    expect(after.status).toBe('SUBMITTED')
+    expect(after.deliverySays).toBe('Sent to Northbend Athletic on Nov 9, 2026.')
+    expect(offersSend(after.status)).toBe(false)
+  })
+
+  it('where the delivery said whom it reached, that sentence is the one shown', () => {
+    expect(sentSays('Northbend Athletic', '2026-11-09', 'Sent to dana@northbend.example on Nov 9')).toBe('Sent to dana@northbend.example on Nov 9')
+  })
+
+  it('a reply that names no status changes nothing, so a page never claims a sending the route did not report', () => {
+    expect(sentInPlace(draft, {}, 'Northbend Athletic')).toBe(draft)
+  })
+
+  it('the bulk Send updates only the rows it sent, in place', () => {
+    const rows = [draft, { ...draft, id: 'b2' }]
+    const out = sentRowsInPlace(rows, [
+      { invoiceId: 'b1', status: 'submitted', invoice: { status: 'SUBMITTED', submittedAt: '2026-11-09T00:00:00Z' } },
+      { invoiceId: 'b2', status: 'skipped' },
+    ], () => 'Northbend Athletic')
+    expect(out[0].status).toBe('SUBMITTED')
+    expect(out[1]).toBe(rows[1])
+  })
+
+  it('the bill’s page draws Send only where it may be sent, holds it while the route answers, and applies the reply', () => {
+    const src = read('src/app/dashboard/invoices/[id]/page.tsx')
+    expect(src).toMatch(/offersSend\(inv\.status\)/)
+    expect(src).toMatch(/disabled=\{sending\}/)
+    expect(src).toMatch(/sentInPlace\(prev\.invoice/)
+  })
+
+  it('the Bills page applies the bulk Send’s results in place', () => {
+    expect(read('src/app/dashboard/invoices/page.tsx')).toMatch(/sentRowsInPlace\(rows/)
+  })
+})
+
+describe('one due day on every money screen', () => {
+  it('Bills and Payables print a due day through the one formatter, in UTC, never the browser’s own zone', () => {
+    for (const p of ['src/app/dashboard/invoices/page.tsx', 'src/app/dashboard/ap/page.tsx']) {
+      const src = read(p)
+      expect(src).not.toMatch(/\.toLocaleDateString\(/)
+      expect(src).toMatch(/formatDay\(/)
+    }
+  })
+})

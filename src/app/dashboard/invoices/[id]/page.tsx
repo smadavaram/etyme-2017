@@ -17,6 +17,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
 import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
 import { offersSendAgain } from '@/lib/money/bill-resend'
+import { offersSend, sentInPlace } from '@/lib/money/bill-sent-view'
 
 /** The status in words a clerk says, never the enum. */
 const STATUS_WORDS: Record<string, string> = {
@@ -249,15 +250,20 @@ export default function InvoiceDetail() {
   const [askingSupplier, setAskingSupplier] = useState(false)
   const [withdrawingDraft, setWithdrawingDraft] = useState(false)
   const [sendRefused, setSendRefused] = useState<{ says: string; checks: string[] } | null>(null)
+  /** True while Send is with the route: the button is not drawn twice. */
+  const [sending, setSending] = useState(false)
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 4000)
   }, [])
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null); setRefusedSaid(null)
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    setError(null); setRefusedSaid(null)
     try {
-      const res = await fetch(withBooks(`/api/invoices/${id}`, books))
+      // Never a cached read: after a Send the page must not be handed the
+      // bill as it stood before (the founder's tester, 2026-11-08, P6).
+      const res = await fetch(withBooks(`/api/invoices/${id}`, books), { cache: 'no-store' })
       // Refused is not "could not read": no Try again, no figure.
       if (res.status === 403) {
         setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
@@ -304,15 +310,27 @@ export default function InvoiceDetail() {
   }
 
   async function submit() {
-    const res = await fetch(`/api/invoices/${id}/submit`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-    })
+    // One press: the button goes while the route answers, so a second
+    // press cannot reach it. The route refuses a second sending anyway.
+    if (sending) return
+    setSending(true)
+    let res: Response
+    try {
+      res = await fetch(`/api/invoices/${id}/submit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      })
+    } catch {
+      setSending(false)
+      setSendRefused({ says: 'The bill was not sent: the network did not answer. Nothing was sent.', checks: [] })
+      return
+    }
     // A safe parse rather than readJson: this branch needs the
     // error object itself (lists the failed checks), and readJson throws an
     // Error, which would lose it. An empty body must still
     // not produce a parser error on screen.
     const j = await res.json().catch(() => ({}) as any)
     if (!res.ok) {
+      setSending(false)
       // Said on the page beside the button, with the checks that failed,
       // never in a browser alert (the screen walk, 2026-11-02).
       setSendRefused({
@@ -322,9 +340,13 @@ export default function InvoiceDetail() {
       return
     }
     setSendRefused(null)
-    // What was sent, and whom it reached: "Sent to dana@acme.com on Oct 19".
+    // The route's own reply, applied at once: the status it wrote, the
+    // day, and whom it reached ("Sent to Northbend Athletic on Nov 9,
+    // 2026."). No Draft, no "Nothing has been sent", no second Send.
+    setData((prev: any) => prev ? { ...prev, invoice: sentInPlace(prev.invoice, j.data ?? {}, prev.invoice?.client?.name) } : prev)
     if (j.data?.message) showToast(j.data.delivery ? `${j.data.message}. ${j.data.delivery}.` : j.data.message)
-    await load()
+    setSending(false)
+    await load(true)
   }
 
   /** Send a sent bill to the customer again: a person's own act, refused within five minutes of the last. */
@@ -461,10 +483,10 @@ export default function InvoiceDetail() {
               className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk disabled:opacity-50">
               Withdraw
             </button>
-            {(!m || m.matched) && (
-              <button onClick={submit}
-                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-                Send
+            {(!m || m.matched) && offersSend(inv.status) && (
+              <button onClick={submit} disabled={sending}
+                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {sending ? 'Sending…' : 'Send'}
               </button>
             )}
           </div>
@@ -634,7 +656,7 @@ export default function InvoiceDetail() {
             })}
             payPanel={data.payPanel}
             books={books}
-            onPaid={load}
+            onPaid={() => load()}
             onToast={showToast}
           />
         </div>

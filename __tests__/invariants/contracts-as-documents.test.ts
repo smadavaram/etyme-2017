@@ -125,13 +125,14 @@ describe('an order screen shows its lines, and what each has billed', () => {
   })
 
   it('what a line has billed is read from the invoice lines of bills sent, never apportioned from the ceiling', () => {
-    const src = read(PO_ROUTE)
-    expect(src).toContain('prisma.invoiceLine.groupBy')
-    expect(src).toContain("by: ['sellContractId']")
-    // Void and cancelled bills consumed nothing, on the line or on the
+    // Through the one reader of what a line billed (lib/money/order-ledger):
+    // void and cancelled bills consumed nothing, on the line or on the
     // header; nor did a bill drafted or raised and never sent (the second
-    // Tapin walk, lib/money/bill-state).
-    expect(src).toContain('invoice: { status: { notIn: [...DRAWS_NOTHING] } }')
+    // Tapin walk, lib/money/bill-state), which is said apart.
+    expect(read(PO_ROUTE)).toContain('linesBilled(sellIds)')
+    const ledger = read('src/lib/money/order-ledger.ts')
+    expect(ledger).toContain('prisma.invoiceLine.findMany')
+    expect(ledger).toMatch(/if \(billCountsAsBilled\(r\.invoice\.status\)\) \{ at\.billedHours/)
   })
 
   it('a buy line shows no billed figure, because a supplier’s invoice is not an invoice line of ours', () => {

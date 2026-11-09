@@ -430,7 +430,12 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts, opts: MatchFor = 
   // a denormalised balance drifts, and a drifted ceiling is worse than none.
   let consumedCents = 0
   if (invoice.workOrderId) {
-    const others = facts.onOrders.filter((o) => o.workOrderId === invoice.workOrderId && o.id !== invoice.id)
+    // Only bills in the order's own currency are added, as the order's
+    // ledger adds them (lib/money/order-ledger): rupees and dollars are
+    // never added, and a ceiling figure that did would be neither.
+    const orderCcy = (invoice.workOrder?.currency ?? invoice.currency).toUpperCase()
+    const others = facts.onOrders.filter((o) =>
+      o.workOrderId === invoice.workOrderId && o.id !== invoice.id && o.currency.toUpperCase() === orderCcy)
     consumedCents = others.reduce((s, i) => s + decimalToCents(i.total, i.currency), 0)
     // And the invoice receipts the payer typed in against the same order.
     if (invoice.workOrder) consumedCents += facts.receiptsDrawn.get(invoice.workOrder.id) ?? 0

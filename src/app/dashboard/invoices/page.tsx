@@ -17,6 +17,8 @@ import { pageFraming } from '@/lib/page-framing'
 import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCountSays } from '@/lib/money/invoice-parties'
 import { booksFrom, booksHref, otherBooks, switchLabel, invoiceHref, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
 import { billStateWord } from '@/lib/money/bill-state'
+import { formatDay } from '@/lib/format-date'
+import { sentRowsInPlace } from '@/lib/money/bill-sent-view'
 
 /**
  * Invoices working surface — the Operate section.
@@ -711,6 +713,10 @@ export default function InvoicesPage() {
         showToast(`No bills were sent. ${why}`, 'error')
       }
 
+      // Each sent row says so at once, from the route's own results
+      // (`sentRowsInPlace`): no row reads Draft after it was sent, and none
+      // offers Send again for a second press. The read after confirms.
+      setInvoices((rows) => sentRowsInPlace(rows, body.data?.results ?? [], (row) => counterpartyName(row)))
       clearSelection()
       fetchInvoices()
     } catch {
@@ -730,9 +736,10 @@ export default function InvoicesPage() {
     ]
 
     const csvRows = rows.map((inv) => {
-      const periodStart = new Date(inv.periodStart).toLocaleDateString('en-US')
-      const periodEnd = new Date(inv.periodEnd).toLocaleDateString('en-US')
-      const dueDate = new Date(inv.dueAt).toLocaleDateString('en-US')
+      // The day as stored, read in UTC, the way every other screen reads it.
+      const periodStart = formatDay(inv.periodStart)
+      const periodEnd = formatDay(inv.periodEnd)
+      const dueDate = formatDay(inv.dueAt)
       return [
         inv.number,
         counterpartyName(inv),
@@ -830,12 +837,9 @@ export default function InvoicesPage() {
       key: 'period',
       label: 'Period',
       render: (row) => {
-        const s = new Date(row.periodStart)
-        const e = new Date(row.periodEnd)
-        const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
         return (
           <span className="text-[12px] tabular-nums">
-            {s.toLocaleDateString('en-US', opts)} – {e.toLocaleDateString('en-US', opts)}
+            {formatDay(row.periodStart, { year: false })} – {formatDay(row.periodEnd, { year: false })}
           </span>
         )
       },
@@ -876,11 +880,13 @@ export default function InvoicesPage() {
       key: 'dueAt',
       label: 'Due',
       render: (row) => {
-        const due = new Date(row.dueAt)
+        // Read in UTC through the one formatter. Drawn in the browser's own
+        // zone, a bill due Nov 14 read Nov 13 west of Greenwich, beside the
+        // bill's own page that said Nov 14 (the scale audit, 2026-11-08).
         return (
           <div className="text-right">
             <span className="text-[12px] tabular-nums">
-              {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatDay(row.dueAt, { year: false })}
             </span>
             {row.daysOverdue > 0 && row.status !== 'PAID' && (
               <p className={`text-[10px] tabular-nums ${agingColor(row.aging)}`}>
@@ -949,9 +955,9 @@ export default function InvoicesPage() {
             {(row.receipt?.jobs.join(', ') || row.engagement.title)} · {row.receipt?.row ?? ''}
           </p>
           <p className="text-[11px] text-etyme-faint tabular-nums">
-            {new Date(row.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+            {formatDay(row.periodStart, { year: false })}
             {' – '}
-            {new Date(row.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+            {formatDay(row.periodEnd, { year: false })}
           </p>
         </div>
       ),
@@ -1009,7 +1015,7 @@ export default function InvoicesPage() {
       render: (row) => (
         <div className="text-right">
           <span className="text-[12px] tabular-nums">
-            {new Date(row.dueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+            {formatDay(row.dueAt, { year: false })}
           </span>
           <p className="text-[10px] text-etyme-faint">{payableStatusWords(row.status)}</p>
         </div>

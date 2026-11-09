@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
     checks?: { reason: string }[]
     /** Said beside a sent bill, never a reason it was held: work outside its order's window. */
     notes?: string[]
+    /** The bill as it now stands, so the page updates the row in place without a reload. */
+    invoice?: { status: string; submittedAt: string }
   }> = []
 
   // One bill at a time, each through the same door as the Submit button
@@ -123,6 +125,7 @@ export async function POST(request: NextRequest) {
       submitted++
       results.push({
         invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null,
+        invoice: { status: 'SUBMITTED', submittedAt: sent.submittedAt.toISOString() },
         ...(told.why ? { payerNotice: told.why } : {}),
         // Work outside its order's window, said beside the bill (`orderWindowSays`).
         ...(check.notes.length ? { notes: check.notes } : {}),
