@@ -1,0 +1,87 @@
+; etyme.com: the zone for Vercel DNS, written 2026-11-09 from the live
+; Bluehost zone the founder exported the same day.
+;
+; The site moves from Base44 to Vercel. Gmail (Google Workspace) and
+; Google Cloud stay. Marketing and notices email goes through Resend on
+; notify.etyme.com, which the app is already set up for.
+;
+; How to use it:
+;   vercel dns import etyme.com docs/dns/etyme.com.vercel.zone
+; or type each record into Vercel → Domains → etyme.com → DNS Records.
+; Do this BEFORE you change the nameservers at Bluehost, so mail never
+; stops. Steps in order: docs/dns/vercel-dns.md.
+;
+; What this file does not contain, on purpose:
+;  - NS records: Vercel sets ns1/ns2.vercel-dns.com itself.
+;  - The web records (etyme.com, www, *): Vercel makes them when etyme.com,
+;    www.etyme.com and *.etyme.com are added to the etyme2040 project. The
+;    wildcard is what gives every firm <slug>.etyme.com with nothing added.
+
+$ORIGIN etyme.com.
+$TTL 3600
+
+; ── Google Workspace mail for @etyme.com (unchanged) ───────────────────
+@                     IN  MX  1   aspmx.l.google.com.
+@                     IN  MX  5   alt1.aspmx.l.google.com.
+@                     IN  MX  5   alt2.aspmx.l.google.com.
+@                     IN  MX  10  alt3.aspmx.l.google.com.
+@                     IN  MX  10  alt4.aspmx.l.google.com.
+
+; Google Workspace short addresses (unchanged)
+calendar              IN  CNAME  ghs.google.com.
+docs                  IN  CNAME  ghs.google.com.
+sites                 IN  CNAME  ghs.google.com.
+start                 IN  CNAME  ghs.google.com.
+mail                  IN  CNAME  ghs.googlehosted.com.
+imap                  IN  CNAME  imap.googlemail.com.
+pop                   IN  CNAME  pop.googlemail.com.
+smtp                  IN  CNAME  smtp.googlemail.com.
+
+; ── Google site verification, for Google Cloud and Search (unchanged) ──
+@                     IN  TXT  "google-site-verification=BBDibdPX9tTYPhaDsrVgPeKBEqMiCXs8rZjrf4WbfYk"
+@                     IN  TXT  "google-site-verification=cxCyQld11ghvCXM09SlUlmD1aVXzandjIVzX9EPXQlc"
+@                     IN  TXT  "google-site-verification=hxgsHBmOvl9N-eZ2B67Y-NIuWG2-L0t0SZeDnTrb4z8"
+
+; ── SPF: one record (CHANGED) ──────────────────────────────────────────
+; The live zone has two SPF records. Having two makes SPF fail for every
+; message. This is the one record left: only Google sends as @etyme.com.
+; Resend sends from notify.etyme.com, which has its own SPF below.
+@                     IN  TXT  "v=spf1 include:_spf.google.com ~all"
+
+; ── Google DKIM (NEW: please add) ──────────────────────────────────────
+; The live zone has no Google DKIM key, so Gmail from @etyme.com is not
+; signed. Google Admin → Apps → Google Workspace → Gmail → Authenticate
+; email → Generate new record (2048-bit, prefix "google"). Paste the
+; value it shows here, then press "Start authentication" in Google Admin.
+google._domainkey     IN  TXT  "v=DKIM1; k=rsa; p=PASTE-THE-KEY-FROM-GOOGLE-ADMIN"
+
+; ── DMARC, report only (NEW) ───────────────────────────────────────────
+; Nothing is rejected. Reports go to support@etyme.com. Move to
+; p=quarantine after a few weeks of clean reports.
+_dmarc                IN  TXT  "v=DMARC1; p=none; rua=mailto:support@etyme.com"
+
+; ── Resend: notices and marketing from notify.etyme.com (NEW) ──────────
+; Copy the DKIM value, and the MX host if its region differs, exactly
+; from Resend → Domains → notify.etyme.com. Then press Verify in Resend.
+send.notify           IN  MX  10  feedback-smtp.us-east-1.amazonses.com.
+send.notify           IN  TXT  "v=spf1 include:amazonses.com ~all"
+resend._domainkey.notify  IN  TXT  "p=PASTE-THE-DKIM-KEY-FROM-RESEND"
+
+; ── Removed from the live zone, and why ────────────────────────────────
+; *  A 216.24.57.1 and @ A 216.24.57.1   the Base44 site; Vercel replaces it
+; www CNAME etyme.com                    Vercel makes www
+; ftp CNAME etyme.com                    Bluehost file transfer; no site there now
+; app TXT spf (Bluehost server)          SPF on a name that sends nothing
+; default._domainkey (Bluehost cPanel)   Bluehost mail; not used
+; psrp CNAME rp.smtp.adxemailhelp.com    Bluehost mail relay; not used
+; spf include:spf.smtp.adxemailhelp.com, ip4:162.144.178.127, a, mx
+;                                        Bluehost and the old site sending; not used
+; s1._domainkey (SendGrid)               the app sends through Resend
+; k1._domainkey (Mailchimp)              marketing moves to Resend
+; messages TXT, email.messages TXT (Mailgun)  marketing moves to Resend
+; _acme-challenge.blog, .cpanel          old certificate checks for Bluehost
+; _caldav*, _carddav* (8 records)        Bluehost's cPanel calendar; Gmail is the calendar
+;
+; If any of these is still in use (a mailing list in Mailchimp or Mailgun,
+; a form on another host that sends mail), add that one line back.
+; Nothing in the app needs any of them.

@@ -23,28 +23,21 @@ certificate for `*.etyme.com`.
 
 ## Records to add in Vercel's DNS (step 2)
 
-Vercel makes the web records (`etyme.com`, `www`, `*`) itself. These are
-the ones that keep mail and verification working. Name is relative to
-etyme.com; leave it blank for the domain itself.
+All of them are in `docs/dns/etyme.com.vercel.zone`, written from the
+live zone exported on 2026-11-09. Import it in one command:
 
-| Name | Type | Value | Priority |
-|---|---|---|---|
-| (blank) | MX | `aspmx.l.google.com` | 1 |
-| (blank) | MX | `alt1.aspmx.l.google.com` | 5 |
-| (blank) | MX | `alt2.aspmx.l.google.com` | 5 |
-| (blank) | MX | `alt3.aspmx.l.google.com` | 10 |
-| (blank) | MX | `alt4.aspmx.l.google.com` | 10 |
-| (blank) | TXT | `v=spf1 ip4:162.144.178.127 include:_spf.google.com include:spf.smtp.adxemailhelp.com ~all` | |
-| (blank) | TXT | `google-site-verification=BBDibdPX9tTYPhaDsrVgPeKBEqMiCXs8rZjrf4WbfYk` | |
-| (blank) | TXT | `google-site-verification=cxCyQld11ghvCXM09SlUlmD1aVXzandjIVzX9EPXQlc` | |
-| (blank) | TXT | `google-site-verification=hxgsHBmOvl9N-eZ2B67Y-NIuWG2-L0t0SZeDnTrb4z8` | |
-| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:support@etyme.com` | |
-| `send.notify` | MX | `feedback-smtp.us-east-1.amazonses.com` | 10 |
-| `send.notify` | TXT | `v=spf1 include:amazonses.com ~all` | |
-| `resend._domainkey.notify` | TXT | the DKIM value shown in Resend → Domains → notify.etyme.com | |
+```
+vercel dns import etyme.com docs/dns/etyme.com.vercel.zone
+```
 
-Copy the two Resend values (the MX host and the DKIM key) from Resend's
-own page if they differ from this table; Resend's page is the truth.
+or type each line into Vercel → Domains → etyme.com → DNS Records.
+Vercel makes the web records (`etyme.com`, `www`, `*`) itself.
+
+Two values have to be pasted in before you switch:
+- **Google DKIM** (`google._domainkey`): Google Admin → Gmail →
+  Authenticate email → Generate new record. The live zone had none.
+- **Resend DKIM** (`resend._domainkey.notify`): Resend → Domains →
+  notify.etyme.com. Resend's page is the truth for its MX host too.
 
 ## What changes and what does not
 
@@ -58,4 +51,7 @@ own page if they differ from this table; Resend's page is the truth.
   day it signs up, with nothing added to DNS.
 - **`in.etyme.com`** (forwarded business email) gets no records yet; that
   door stays closed until `EMAIL_INTAKE_LIVE=1`.
-- `docs/dns/etyme.com.zone` is the Bluehost version, kept for the record.
+- **Mailgun, Mailchimp, SendGrid and Bluehost mail records are dropped.**
+  Marketing and notices go through Resend on notify.etyme.com. The zone
+  file lists each dropped record and why; add one back if it is still used.
+- `docs/dns/etyme.com.zone` is the older Bluehost version, kept for the record.
