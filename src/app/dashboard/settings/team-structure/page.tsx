@@ -7,6 +7,7 @@ import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
 import { ImportDialog } from './import-dialog'
+import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
  * Settings → Team structure: who leads what, and where (founder,
@@ -42,13 +43,7 @@ const zoneOf = (e: DragEvent, el: HTMLElement, stacked: boolean): Zone => {
   const f = stacked ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width
   return f < 0.22 ? 'before' : f > 0.78 ? 'after' : 'in'
 }
-const localTime = (tz: string) => {
-  try {
-    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(new Date())
-  } catch {
-    return ''
-  }
-}
+const localTime = (tz: string) => clockFor(new Date(), tz) ?? ''
 
 export default function TeamStructurePage() {
   const eyebrow = usePageSection('/dashboard/settings/team-structure')
@@ -489,7 +484,7 @@ function Editor(props: {
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
             />
           </Field>
-          <Field label="Lead" help={box.lead?.setBy ? `Named by ${box.lead.setBy}${box.lead.setAt ? `, ${new Date(box.lead.setAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}.` : box.lead ? 'Named when the company was set up.' : 'Leading a box gives no access by itself.'}>
+          <Field label="Lead" help={box.lead?.setBy ? `Named by ${box.lead.setBy}${box.lead.setAt ? `, ${dayOfMomentFor(new Date(box.lead.setAt), readerZone())}` : ''}.` : box.lead ? 'Named when the company was set up.' : 'Leading a box gives no access by itself.'}>
             <Select id="ts-lead" value={box.lead?.contextId ?? ''} disabled={busy} onChange={(e) => props.onAct('LEAD', { unitId: box.id, contextId: e.target.value || null }, () => box.id)}>
               <option value="">No lead yet</option>
               {tree.seats.map((s) => <option key={s.contextId} value={s.contextId}>{s.name}{s.role ? ` · ${s.role}` : ''}</option>)}
@@ -500,7 +495,7 @@ function Editor(props: {
               {[...new Set([...KINDS_OFFERED, box.kind])].map((k) => <option key={k} value={k}>{kindWord(k)}</option>)}
             </Select>
           </Field>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1 text-[13px]">
+          <dl className="grid grid-cols-1 gap-x-3.5 gap-y-1 text-[13px] sm:grid-cols-[auto_1fr]">
             <dt className="text-etyme-muted">People</dt><dd className="tabular-nums">{box.roll.people}</dd>
             <dt className="text-etyme-muted">Contractors</dt><dd className="tabular-nums">{box.roll.contractors}</dd>
             <dt className="text-etyme-muted">Teams under it</dt><dd className="tabular-nums">{kids.length}</dd>
@@ -564,7 +559,7 @@ function Editor(props: {
       <p role={said?.no ? 'alert' : 'status'} className={`min-h-[1.3em] text-[12.5px] ${said?.no ? 'text-etyme-danger' : 'text-etyme-muted'}`}>{said?.says ?? ''}</p>
       {tree.lastChange && (
         <p className="text-[11.5px] text-etyme-faint">
-          Last change: {tree.lastChange.says} {tree.lastChange.by ? `${tree.lastChange.by}, ` : ''}{new Date(tree.lastChange.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
+          Last change: {tree.lastChange.says} {tree.lastChange.by ? `${tree.lastChange.by}, ` : ''}{momentFor(new Date(tree.lastChange.at), readerZone())}.
         </p>
       )}
     </aside>

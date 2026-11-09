@@ -90,6 +90,9 @@ export const DELETE_ORDER = [
   // A permission the Owner gave (2026-11-08) names a role, a seat, a unit
   // and the people who gave and took it, so it goes before all of them.
   'PermissionGrant',
+  // A change to the team structure (2026-11-09) names the person who made
+  // it, a seat, a box and a line; it goes before all of them.
+  'OrgChange',
   'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'ProgramSeatRequest', 'TradeLinkRequest', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',

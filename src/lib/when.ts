@@ -102,3 +102,17 @@ export function dayOfMomentFor(
     return new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(at)
   }
 }
+
+/**
+ * The clock time now, or at a moment, in a zone: "9:05 AM". For a screen
+ * that shows what time it is at a site ("Dayton 9:05 AM", Settings → Team
+ * structure). Null where the runtime does not know the zone, so the screen
+ * leaves the time off rather than printing UTC as if it were the site's.
+ */
+export function clockFor(at: Date, timezone: string): string | null {
+  try {
+    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone }).format(at)
+  } catch {
+    return null
+  }
+}

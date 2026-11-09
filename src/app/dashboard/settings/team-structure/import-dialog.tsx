@@ -129,7 +129,7 @@ export function ImportDialog({ onClose, onApplied }: { onClose: () => void; onAp
             </div>
             <div>
               <p className="eyebrow mb-1.5">What is read, and where it goes</p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-etyme-rule pt-2 text-[13px]">
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-etyme-rule pt-2 text-[13px] sm:grid-cols-[auto_1fr]">
                 {MAPPING.map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="font-mono text-[12px]">{k}</dt>

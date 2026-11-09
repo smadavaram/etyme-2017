@@ -61,6 +61,10 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // A change to the team structure (2026-11-09): kept when the Owner or an
+  // Admin draws the tree or imports a directory; the seed draws Corvane's
+  // tree as data and records no change on anybody's behalf.
+  orgChange: 'written when the Owner or an Admin changes the team structure on its screen or from a directory import; the seed changes nothing on anybody’s behalf',
   // A hiring manager named at a site by a person (2026-10-28). Every
   // seeded site reads its managers from the jobs they posted there, which
   // is the rule; a typed name is only for somebody who has posted nothing.

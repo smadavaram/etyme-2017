@@ -39,6 +39,11 @@ describe('rebuilding the demo world', () => {
         // A row its parent deletes with it never dangles, whichever goes
         // first — the one way two tables that point at each other (the
         // twin's question and the entry that asked it) can be ordered.
+        // A row whose pointer the database nulls when its target goes
+        // (onDelete: SetNull) never dangles either, whichever goes first:
+        // the team structure's box names its lead's seat, and the seat
+        // names its box (OrgUnit.lead ↔ Context.orgUnit, 2026-11-09).
+        if ((f as { relationOnDelete?: string }).relationOnDelete === 'SetNull') continue
         if ((f as { relationOnDelete?: string }).relationOnDelete === 'Cascade' && at.get(f.type)! < at.get(m.name)! && MODELS.find((x) => x.name === f.type)?.fields.some((g) => g.kind === 'object' && g.type === m.name && g.relationFromFields?.length)) continue
         if (at.get(m.name)! > at.get(f.type)!) wrong.push(`${m.name}.${f.name} → ${f.type}`)
       }
