@@ -36,7 +36,7 @@ import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import {
-  readCommission, commissionAnswer, commissionTable, periodAsked, CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK,
+  readCommission, commissionAnswer, commissionTable, periodAsked, CLIENT_COMMISSION_REFUSAL, commissionDoorsOn, commissionDoor,
   type CommissionAsked, type CommissionRead, type CommissionWhen,
 } from './commission-answer'
 import { isBankHeld, heldReason, checksTheBank, heldHref, bankHeldName, heldOnBankSays, CHECK_THE_BANK, OPEN_THE_RECEIPT } from './held-receipt'
@@ -275,7 +275,9 @@ const NAV_TOPICS: readonly NavTopic[] = [
   { re: /\bagreements?\b|\bmsas?\b/, subject: 'Your agreements', plural: true, pages: ['Agreements', 'Sell contracts', 'Buy contracts', 'Contracts'] },
   { re: /\bcontracts?\b|\bplacements?\b|\bassignments?\b/, subject: 'Your contracts', plural: true, pages: ['Sell contracts', 'Buy contracts', 'Contracts', 'Your work'] },
   { re: /\bexpenses?\b/, subject: 'Your expenses', plural: true, pages: ['Expenses'] },
-  { re: /\bcommissions?\b/, subject: 'Commissions', plural: true, pages: ['Commissions'] },
+  // Payroll's Commissions for the seats that run them; Your commissions,
+  // under Accounting, for a person who earns one and reads no payroll.
+  { re: /\bcommissions?\b/, subject: 'Commissions', plural: true, pages: ['Commissions', 'Your commissions'] },
   { re: /\bpayroll\b|\bpay runs?\b/, subject: 'Payroll', plural: false, pages: ['Payroll'] },
   { re: /\btime ?sheets?\b|\bhours\b|\bweeks?\b/, subject: 'Your timesheets', plural: true, pages: ['Timesheets', 'Your work'] },
   { re: /\bbill(s|ed|ing)?\b|\breceivables?\b|\bar\b/, subject: 'What you billed', plural: false, pages: ['Bills', 'AR'] },
@@ -343,11 +345,15 @@ export function readWhere(raw: string, opts: { loose?: boolean } = {}): Intent |
   return { kind: 'WHERE', topic, go: TAKE_ME.test(lower) }
 }
 
-/** The seat's own menu, as the sidebar draws it: its kind, a seat in a client's program, its permissions. */
-export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null }): SeatMenu {
+/**
+ * The seat's own menu, as the sidebar draws it: its kind, a seat in a
+ * client's program, its permissions, and whether the person earns
+ * commission here (the sidebar's "Your commissions", read the same way).
+ */
+export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null; earnsCommission?: boolean }): SeatMenu {
   const worker = seat.party === 'WORKER'
   const kind = (seat.companyKind ?? null) as CompanyKind | null
-  const facts = { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null }
+  const facts = { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null, earnsCommission: Boolean(seat.earnsCommission) }
   const sections: SeatMenu = getNavForKind(kind, worker, facts)
   // A firm's Dashboard column reads the founder's headings (2026-11-08):
   // Network, HR, Accounting, and Profitability as a link of its own. A
@@ -3110,6 +3116,8 @@ export async function respond(
     ownPay?: () => Promise<Answer | null>
     /** The seat's own menu, as its sidebar draws it; read from the kind and the permissions where not given. */
     menu?: readonly NavSection[]
+    /** The person earns commission at this firm: the sidebar's "Your commissions", where `menu` is not given. */
+    earnsCommission?: boolean
     /** The page the last answer named, for "take me there". */
     place?: string | null
     /** Where the company's model switch is drawn (lib/model-boundary's MODEL_SWITCH_HREF). */
@@ -3132,7 +3140,7 @@ export async function respond(
   let intent = readAsk(text)
   // Where a page is: the seat's own menu, before any read and never the model.
   if (intent.kind === 'WHERE' || intent.kind === 'GO') {
-    return whereAnswer(intent, opts.menu ?? menuOf({ companyKind: opts.companyKind, party: opts.party, permissions: opts.permissions ?? null, client: opts.client }), opts.place)
+    return whereAnswer(intent, opts.menu ?? menuOf({ companyKind: opts.companyKind, party: opts.party, permissions: opts.permissions ?? null, client: opts.client, earnsCommission: opts.earnsCommission }), opts.place)
   }
   const own = [opts.ownCompany, opts.client].filter((x): x is string => !!x && !!x.trim())
   const refuseAs = { self: opts.role ?? null, book: opts.client ?? null }
@@ -3424,16 +3432,26 @@ export async function respond(
     case 'COMMISSION': {
       // A client never hears a supplier's commissions, seated or not.
       if (opts.party === 'CLIENT' || opts.companyKind === 'CLIENT') return { kind: 'TEXT', says: CLIENT_COMMISSION_REFUSAL }
+      // Which commission pages this seat's own menu offers: Your commissions
+      // for a person who earns one and reads no payroll, Payroll's
+      // Commissions for the seats that run them, else none (walk 8, item 14).
+      const doors = commissionDoorsOn(opts.menu ?? menuOf({ companyKind: opts.companyKind, party: opts.party, permissions: opts.permissions ?? null, client: opts.client, earnsCommission: opts.earnsCommission }))
+      const door = commissionDoor(doors, intent.asked.whose === 'OWN' ? 'OWN' : 'FIRM')
+      const doorLinks = door ? [door] : []
       // The period the person names, as money's months; one that has not
       // started, or is shorter than a month, is said and nothing is read.
       const when = periodAsked(text, opts.now ?? new Date())
-      if (when.kind === 'CANNOT') return { kind: 'TEXT', says: when.says, links: [COMMISSIONS_LINK] }
-      if (!read.commissions) return { kind: 'TEXT', says: 'Commissions could not be read just now. Open Commissions to see yours.', links: [COMMISSIONS_LINK] }
+      if (when.kind === 'CANNOT') return { kind: 'TEXT', says: when.says, ...(door ? { links: doorLinks } : {}) }
+      if (!read.commissions) {
+        return door
+          ? { kind: 'TEXT', says: `Commissions could not be read just now. Open ${door.label.replace(/^Open /, '')} to see yours.`, links: doorLinks }
+          : { kind: 'TEXT', says: 'Commissions could not be read just now, so no figure is said. Try again in a minute.' }
+      }
       const got = await read.commissions(when)
       if (!got.ok) return { kind: 'TEXT', says: got.says, ...(got.links ? { links: got.links } : {}) }
-      const a = commissionAnswer(got, intent.asked)
+      const a = commissionAnswer(got, intent.asked, doors)
       if (a.rows.length === 0) return { kind: 'TEXT', says: a.says, ...(a.links.length ? { links: a.links } : {}) }
-      return { kind: 'LIST', says: a.says, table: commissionTable(a.rows), links: a.links }
+      return { kind: 'LIST', says: a.says, table: commissionTable(a.rows, a.links[0]?.href ?? null), links: a.links }
     }
 
     case 'TIME_LIMIT': {

@@ -14,17 +14,63 @@
  * Contract Manager and whoever reads payroll hear the firm's; anybody else
  * at the firm hears only their own; a client never hears a supplier's.
  *
+ * Which page the answer opens is read off the reader's own menu, the one
+ * the sidebar draws, never typed here (walk 8, 2026-11-09: Brightmoor's
+ * account manager asked what she earned and was handed Payroll's
+ * Commissions, which refuses her; her own page is Your commissions). A
+ * person asking about their own reads Your commissions where their menu
+ * offers it; a seat that runs the firm's commissions reads Payroll's
+ * Commissions; a seat whose menu offers neither is handed no link.
+ *
  * Pure: no database, no request. The read is in ./read.
  */
 
 import { format, fromMinor } from '@/lib/money'
 import { formatDay } from '@/lib/format-date'
+import { YOUR_COMMISSIONS, type NavSection } from '@/lib/nav-table'
 
 type Link = { label: string; href: string }
 
-/** Payroll → Commissions, where every row is listed with what it earned. */
+/** Payroll → Commissions, where every row at the firm is listed with what it earned. */
 export const COMMISSIONS_HREF = '/dashboard/payroll/commissions'
 export const COMMISSIONS_LINK: Link = { label: 'Open Commissions', href: COMMISSIONS_HREF }
+
+/** Your commissions, under Accounting: the person's own rows, and nobody else's. */
+export const YOUR_COMMISSIONS_HREF = YOUR_COMMISSIONS.href
+export const YOUR_COMMISSIONS_LINK: Link = { label: `Open ${YOUR_COMMISSIONS.label}`, href: YOUR_COMMISSIONS_HREF }
+
+/** Which of the two commission pages the reader's own menu offers. */
+export interface CommissionDoors {
+  /** Payroll → Commissions: every row at the firm. */
+  firm: boolean
+  /** Your commissions: the reader's own rows. */
+  own: boolean
+}
+
+/** A menu that offers neither page: no link is drawn. */
+export const NO_DOORS: CommissionDoors = { firm: false, own: false }
+
+const pathOf = (href: string) => href.split(/[?#]/)[0]
+
+/** The commission pages this menu offers, every page and tab on it read, as the sidebar draws it. Pure. */
+export function commissionDoorsOn(menu: readonly NavSection[]): CommissionDoors {
+  const paths = new Set(menu.flatMap((s) => s.items.map((i) => pathOf(i.href))))
+  return { firm: paths.has(COMMISSIONS_HREF), own: paths.has(YOUR_COMMISSIONS_HREF) }
+}
+
+/**
+ * The one link a commission answer carries, or null. About the reader's
+ * own: Your commissions, else Payroll's Commissions where only that is on
+ * the menu (whoever reads payroll finds their own row there). About the
+ * firm's: Payroll's Commissions only. Never a page the menu does not offer.
+ */
+export function commissionDoor(doors: CommissionDoors, about: 'OWN' | 'FIRM'): Link | null {
+  if (about === 'OWN') return doors.own ? YOUR_COMMISSIONS_LINK : doors.firm ? COMMISSIONS_LINK : null
+  return doors.firm ? COMMISSIONS_LINK : null
+}
+
+/** The page a link opens, in the menu's words: "Your commissions". */
+const pageOf = (link: Link | null): string | null => (link ? link.label.replace(/^Open /, '') : null)
 
 /** A client buys and never pays its supplier's people: their commissions are the supplier's own. */
 export const CLIENT_COMMISSION_REFUSAL =
@@ -138,24 +184,29 @@ function periodSays(from: string, to: string, words?: string | null): string {
   return words ? `${words} (${range})` : range
 }
 
-function listed(rows: readonly CommissionLine[]): string {
-  const shown = rows.slice(0, 3).map(clause)
-  const more = rows.length - shown.length
-  return `${shown.join('; ')}${more > 0 ? `; and ${more} more on Commissions` : ''}`
+/** "; and 2 more on Your commissions": the page named only where the answer links it. */
+function moreSays(more: number, page: string | null): string {
+  if (more <= 0) return ''
+  return page ? `; and ${more} more on ${page}` : `; and ${more} more`
 }
 
-/** The reader's own commissions for the period, in one or two sentences. Pure. */
-export function ownCommissionSays(read: Pick<CommissionRead, 'from' | 'to' | 'periodWords' | 'selfId' | 'rows'>): string {
+function listed(rows: readonly CommissionLine[], page: string | null): string {
+  const shown = rows.slice(0, 3).map(clause)
+  return `${shown.join('; ')}${moreSays(rows.length - shown.length, page)}`
+}
+
+/** The reader's own commissions for the period, in one or two sentences. `page` is the page the answer links, where it links one. Pure. */
+export function ownCommissionSays(read: Pick<CommissionRead, 'from' | 'to' | 'periodWords' | 'selfId' | 'rows'>, page: string | null = null): string {
   const mine = read.rows.filter((r) => r.earnedById === read.selfId)
   const when = periodSays(read.from, read.to, read.periodWords)
   if (mine.length === 0) return `You have no commission on the record for ${when}. Checked just now.`
   const total = totalsSay(mine)
   const lead = total ? `For ${when} you have earned ${total} in commission` : `For ${when} no commission of yours can be worked out yet`
-  return `${lead}: ${listed(mine)}. Checked just now.`
+  return `${lead}: ${listed(mine, page)}. Checked just now.`
 }
 
 /** Other people's commissions for the period, read at the firm's reach. Pure. */
-export function firmCommissionSays(rows: readonly CommissionLine[], opts: { from: string; to: string; periodWords?: string | null; name: string | null }): string {
+export function firmCommissionSays(rows: readonly CommissionLine[], opts: { from: string; to: string; periodWords?: string | null; name: string | null; page?: string | null }): string {
   const when = periodSays(opts.from, opts.to, opts.periodWords)
   if (opts.name && rows.length === 0) return `${opts.name} has no commission on the record for ${when}. Checked just now.`
   if (rows.length === 0) return `Nobody at your firm has a commission on the record for ${when}. Checked just now.`
@@ -165,32 +216,46 @@ export function firmCommissionSays(rows: readonly CommissionLine[], opts: { from
   const total = totalsSay(rows)
   const lead = total ? `For ${when} ${who} earned ${total} in commission` : `For ${when} no commission of ${who} can be worked out yet`
   const shown = rows.slice(0, 3).map((r) => (one ? clause(r) : `${r.earnedBy}, ${clause(r)}`))
-  const more = rows.length - shown.length
-  return `${lead}: ${shown.join('; ')}${more > 0 ? `; and ${more} more on Commissions` : ''}. Checked just now.`
+  return `${lead}: ${shown.join('; ')}${moreSays(rows.length - shown.length, opts.page ?? null)}. Checked just now.`
 }
 
 export type CommissionAnswer = { says: string; links: Link[]; rows: CommissionLine[] }
 
 /**
- * The answer, from the read and the question. A seat that reads only its
- * own is refused another person's, in the sentence naming who reads them,
- * and its own figure is never widened. Pure.
+ * The answer, from the read, the question and the commission pages the
+ * reader's menu offers. A seat that reads only its own is refused another
+ * person's, in the sentence naming who reads them, and its own figure is
+ * never widened. Its link is the page its menu offers for what was asked,
+ * or none (`commissionDoor`). Pure.
  */
-export function commissionAnswer(read: CommissionRead, asked: CommissionAsked): CommissionAnswer {
+export function commissionAnswer(read: CommissionRead, asked: CommissionAsked, doors: CommissionDoors = NO_DOORS): CommissionAnswer {
   const self = read.rows.filter((r) => r.earnedById === read.selfId)
-  if (asked.whose === 'OWN') return { says: ownCommissionSays(read), links: [COMMISSIONS_LINK], rows: self }
+  const own = (): CommissionAnswer => {
+    const door = commissionDoor(doors, 'OWN')
+    return { says: ownCommissionSays(read, pageOf(door)), links: door ? [door] : [], rows: self }
+  }
+  if (asked.whose === 'OWN') return own()
   // Asking about oneself by name is one's own.
   if (asked.name) {
     const theirs = rowsOfName(read.rows, asked.name)
-    if (theirs.length && theirs.every((r) => r.earnedById === read.selfId)) return { says: ownCommissionSays(read), links: [COMMISSIONS_LINK], rows: self }
+    if (theirs.length && theirs.every((r) => r.earnedById === read.selfId)) return own()
   }
   if (read.reach !== 'FIRM') return { says: othersRefusal(read.readers), links: [], rows: [] }
   const rows = asked.name ? rowsOfName(read.rows, asked.name) : read.rows
-  return { says: firmCommissionSays(rows, { from: read.from, to: read.to, periodWords: read.periodWords, name: asked.name }), links: [COMMISSIONS_LINK], rows }
+  const door = commissionDoor(doors, 'FIRM')
+  return {
+    says: firmCommissionSays(rows, { from: read.from, to: read.to, periodWords: read.periodWords, name: asked.name, page: pageOf(door) }),
+    links: door ? [door] : [],
+    rows,
+  }
 }
 
-/** The rows as a table inside the reply: who, what kind, on which placement, the figure. */
-export function commissionTable(rows: readonly CommissionLine[]): { caption: string; head: string[]; rows: { cells: string[]; href: string }[] } {
+/**
+ * The rows as a table inside the reply: who, what kind, on which
+ * placement, the figure. Each row opens `href`, the page the answer
+ * links; where the answer links none, a row opens nothing.
+ */
+export function commissionTable(rows: readonly CommissionLine[], href: string | null = null): { caption: string; head: string[]; rows: { cells: string[]; href?: string }[] } {
   return {
     caption: 'Commissions this period',
     head: ['Earned by', 'Commission', 'On', 'This period'],
@@ -201,7 +266,7 @@ export function commissionTable(rows: readonly CommissionLine[]): { caption: str
         r.person ? `${r.person}${r.client ? ` at ${r.client}` : ''}` : r.client ?? '—',
         r.amountMinor != null && r.currency ? money(r.amountMinor, r.currency) : 'Not worked out',
       ],
-      href: COMMISSIONS_HREF,
+      ...(href ? { href } : {}),
     })),
   }
 }

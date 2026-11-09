@@ -46,7 +46,7 @@ import { permissionScope, GRANT_RIGHT } from '@/lib/permission-grants'
 import { marginReachFor } from '@/lib/money/margin-reach'
 import { commissionReader } from '@/lib/money/commission-write'
 import { commissionAccruals, monthPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
-import { CLIENT_COMMISSION_REFUSAL, COMMISSIONS_LINK, mergeMonths, type CommissionLine, type CommissionWhen } from './commission-answer'
+import { CLIENT_COMMISSION_REFUSAL, mergeMonths, type CommissionLine, type CommissionWhen } from './commission-answer'
 import { scopeLine, teamsGranted, noAccessSays, ACCESS_LINK, type GrantOffer, type RoleHolders, type GrantHeld } from './access'
 import { marginRefusal, type MarginRow, type MarginCutLine } from './ask'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
@@ -1244,7 +1244,8 @@ export function readersFor(
       try {
         perMonth = await Promise.all(periods.map((p) => commissionAccruals(company.id, p, reach === 'OWN' ? { earnedById: caller.person.id } : {})))
       } catch {
-        return { ok: false as const, says: 'Commissions could not be read just now, so no figure is said. Try again in a minute.', links: [COMMISSIONS_LINK] }
+        // No link: which commission page this seat may open is its menu's to say (./ask).
+        return { ok: false as const, says: 'Commissions could not be read just now, so no figure is said. Try again in a minute.' }
       }
       const accruals = perMonth.flat()
       const others = [...new Set(accruals.map((a) => a.earnedBy.id).filter((id) => id !== caller.person.id))]

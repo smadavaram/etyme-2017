@@ -13,6 +13,7 @@ import { programView } from '@/app/api/program/view'
 import { programSummary } from '@/app/api/program/summary'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
+import { onTheReadersMenu } from './doors'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
 import { WORKER_QUESTIONS, isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, paperCards, type WorkerFacts, type PaperAsk } from './worker'
 import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat'
@@ -362,6 +363,25 @@ async function partyFor(caller: Caller): Promise<{ party: Party; client: string 
 /** The permissions a seat's chips and acts are judged by: the seat's role in a client's program, else its own (lib/program-seat). */
 async function judgedBy(caller: Caller): Promise<readonly string[]> {
   return permissionsToJudgeBy(caller, await seatOf(caller))
+}
+
+/**
+ * Whether this person earns commission at this firm: a commission row on
+ * one of its lines names them. The same row the dashboard layout reads to
+ * draw "Your commissions", so Ask Etyme's menu and the sidebar agree on it
+ * (walk 8, item 14). A failed read is "no", which only ever hides a link.
+ */
+async function earnsCommissionHere(caller: Caller): Promise<boolean> {
+  if (!caller.company) return false
+  try {
+    const row = await prisma.contractCommission.findFirst({
+      where: { companyId: caller.company.id, earnedById: caller.person.id },
+      select: { id: true },
+    })
+    return Boolean(row)
+  } catch {
+    return false
+  }
 }
 
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
@@ -907,9 +927,12 @@ export async function POST(request: NextRequest) {
     try {
       // Where a page is, and "take me there": her own menu, rules only.
       const where = readAsk(text)
+      const ownMenu = menuOf({ party: 'WORKER', permissions: caller.permissions })
       answer = where.kind === 'WHERE' || where.kind === 'GO'
-        ? whereAnswer(where, menuOf({ party: 'WORKER', permissions: caller.permissions }), where.kind === 'GO' ? await lastPlace(caller, body.place) : null)
+        ? whereAnswer(where, ownMenu, where.kind === 'GO' ? await lastPlace(caller, body.place) : null)
         : await respondWorker(text, { facts: () => workerFacts(caller, request) })
+      // Every link opens a page her own menu offers (./doors).
+      answer = onTheReadersMenu(answer, ownMenu, { party: 'WORKER', permissions: caller.permissions })
     } catch (err) {
       await reportError('Ask Etyme could not answer a worker', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
       return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -955,20 +978,26 @@ export async function POST(request: NextRequest) {
     const solo = who.party === 'SOLO' && !['UNPAID', 'SETUP', 'WHERE', 'GO'].includes(asked.kind) &&
       ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS', 'MONTHS'].includes(readWorkerAsk(text))
     const seat = await seatOf(caller)
+    // The seat's own menu, as its sidebar draws it, "Your commissions" included
+    // where the person earns one: what a WHERE answer names, which commission
+    // page an answer links, and the menu every answer is put through below.
+    const judged = await judgedBy(caller)
+    const menuFacts = { companyKind: caller.company.kind, party: who.party, client: seat?.clientCompany.name ?? null, earnsCommission: await earnsCommissionHere(caller) }
+    const menu = menuOf({ ...menuFacts, permissions: judged })
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request), firmPaid: () => firmPaidOf(caller) })
       : await respond(text, readersFor(caller, companyId, request, { seat }), {
         // Seated in a client's program, the book is the client's: its desks are the ones named.
-        env: process.env, companyKind: seat ? seat.clientCompany.kind : caller.company.kind, permissions: await judgedBy(caller), needs: queueFor(request, caller), party: who.party,
+        env: process.env, companyKind: seat ? seat.clientCompany.kind : caller.company.kind, permissions: judged, needs: queueFor(request, caller), party: who.party,
         ownCompany: caller.company.name, client: seat?.clientCompany.name ?? null, ownKind: caller.company.kind,
         role: await roleOf(caller), ownPay: () => ownPayOf(caller, request, text),
         modelSwitchHref: MODEL_SWITCH_HREF,
-        ...(asked.kind === 'WHERE' || asked.kind === 'GO' ? {
-          menu: menuOf({ companyKind: caller.company.kind, party: who.party, permissions: await judgedBy(caller), client: seat?.clientCompany.name ?? null }),
-          place: asked.kind === 'GO' ? await lastPlace(caller, body.place) : null,
-        } : {}),
+        menu,
+        ...(asked.kind === 'GO' ? { place: await lastPlace(caller, body.place) } : {}),
       })
     if (!solo) answer = await onThePlant(caller, map, answer, queueFor(request, caller))
+    // Every link opens a page the reader's own menu offers (./doors; walk 8, item 14).
+    answer = onTheReadersMenu(answer, menu, { ...menuFacts, permissions: judged })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
