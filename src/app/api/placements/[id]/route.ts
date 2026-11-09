@@ -567,6 +567,11 @@ export async function GET(
     ? await Promise.all([orderLedgers([header.id]), linesBilled(siblings.map((c) => c.id))])
     : [new Map<string, OrderLedger>(), new Map<string, LineBilled>()]
   const sellLedger = header ? orderLedgerMap.get(header.id) ?? null : null
+  // The order this firm pays the firm below it from, read through the same
+  // ledger: its PO page and this page say one Billed and one Left (walk 9:
+  // Computer Systems read "Billed —, Left —" here and $451,400 left there).
+  const buyOrderId = ourBuy?.workOrder?.id ?? null
+  const buyLedger = buyOrderId ? (await orderLedgers([buyOrderId])).get(buyOrderId) ?? null : null
 
   const site = (l: { city: string | null; state: string | null } | null) =>
     l ? [l.city, l.state].filter(Boolean).join(', ') || null : null
@@ -683,7 +688,7 @@ export async function GET(
           paidToName: ourBuy.vendorCompany?.name ?? null,
         },
         { position: null, of: null },
-        { ledger: null, mayRead: seePay }
+        { ledger: buyLedger, mayRead: seePay }
       )
     : null
 

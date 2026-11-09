@@ -4,7 +4,10 @@ import { staffOnly } from '@/lib/seat'
 import { logBulkAccess } from '@/lib/access-log'
 import { firmTuesday, totalsByCurrency, SELLING_KINDS, type CurrencyTotal } from '@/lib/money/firm-today'
 import { todayReads, pictureLine, byClient, NO_READS, draftSend } from '@/lib/today-page'
-import { draftsOf } from './drafts'
+import { draftsOf, withExpenses, type DraftBillFacts } from './drafts'
+import { signedAndBilled } from '@/lib/money/signed-unbilled'
+import { minorFromWhole } from '@/lib/money'
+import { prisma } from '@/lib/db'
 import { maySendBills } from '@/lib/money/bill-send'
 import { seatFor } from '@/lib/program-seat'
 import { rollingOffAt, benchAt, unpaidBills } from './reads'
@@ -118,23 +121,63 @@ export async function GET(request: NextRequest) {
     ? await maySendBills({ personId: caller.person.id, companyId: company.id, permissions: caller.permissions }, draftIds)
     : new Map()
 
+  // ── What the line reader counts beside the weeks ───────────────────
+  //
+  // Signed and not billed is the line reader's notBilled.amountMinor: the
+  // priced weeks and the accepted billable expenses no sent bill carries.
+  // The weeks above carry only the hours, so each line's expenses are
+  // added here, by the client it bills and by currency, never a figure of
+  // this route's own (walk 9: Rosa read $131,376 here against $131,952 on
+  // the placement and the budget, the $576 expense left out). And a draft
+  // says its own bill's total, expenses included.
+  const expenseByClient = new Map<string, Map<string, number>>()
+  const expenseAll = new Map<string, number>()
+  const draftBills = new Map<string, DraftBillFacts>()
+  if (reads.bills && tuesday) {
+    const own = await prisma.sellContract.findMany({ where: { companyId: company.id }, select: { id: true } })
+    const lines = own.length ? await signedAndBilled(own.map((l) => l.id), now) : new Map()
+    for (const l of lines.values()) {
+      const minor = l.notBilled.expenseMinor ?? 0
+      if (!minor) continue
+      const ccy = l.currency.toUpperCase()
+      const client = l.billedToName ?? ''
+      const at = expenseByClient.get(client) ?? new Map<string, number>()
+      at.set(ccy, (at.get(ccy) ?? 0) + minor)
+      expenseByClient.set(client, at)
+      expenseAll.set(ccy, (expenseAll.get(ccy) ?? 0) + minor)
+    }
+    if (draftIds.length > 0) {
+      const bills = await prisma.invoice.findMany({
+        where: { id: { in: draftIds } },
+        select: { id: true, total: true, currency: true, invoiceLines: { select: { timesheetId: true } } },
+      })
+      for (const b of bills) {
+        draftBills.set(b.id, {
+          totalMinor: minorFromWhole(b.total, b.currency),
+          currency: b.currency.toUpperCase(),
+          weeks: new Set(b.invoiceLines.map((x) => x.timesheetId).filter(Boolean)).size,
+        })
+      }
+    }
+  }
+
   // ── Signed, not yet billed, by the firm that pays the bill ─────────
   const signed = reads.bills && tuesday
     ? {
         count: tuesday.signedNotBilled.count,
         onDrafts: tuesday.signedNotBilled.onDrafts,
-        totals: tuesday.signedNotBilled.totals,
+        totals: withExpenses(tuesday.signedNotBilled.totals, expenseAll),
         unpriced: [...new Set(weeks.filter((w) => w.says).map((w) => w.says as string))],
         byClient: byClient(weeks, (w) => w.billedToName).map((g) => ({
           client: g.client,
           weeks: g.rows.length,
-          totals: totalsByCurrency(g.rows),
+          totals: withExpenses(totalsByCurrency(g.rows), expenseByClient.get(g.client) ?? new Map()),
           people: g.rows.map((w) => ({ personName: w.personName })),
           // One Send per draft bill, however many weeks it holds, each with
           // its own amount: the weeks that bill holds, priced as it prices
           // them, never the client's whole unbilled total printed beside
           // the bill's number (the tester's scale audit, 2026-11-09).
-          drafts: draftsOf(g.rows).map((d) => ({ ...d, ...draftSend(verdicts.get(d.invoiceId)) })),
+          drafts: draftsOf(g.rows, draftBills).map((d) => ({ ...d, ...draftSend(verdicts.get(d.invoiceId)) })),
         })),
       }
     : null

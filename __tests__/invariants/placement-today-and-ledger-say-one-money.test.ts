@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { draftsOf } from '@/app/api/today/drafts'
+import { draftsOf, withExpenses } from '@/app/api/today/drafts'
 import { refusedRationale } from '@/lib/twin/ledger'
 
 /**
@@ -19,23 +19,39 @@ const week = (invoiceId: string | null, amountMinor: number | null, currency = '
 })
 
 describe('Today never prints a draft’s number beside the whole unbilled total', () => {
-  it('each draft carries only the amount of the weeks it holds', () => {
-    const drafts = draftsOf([week('a', 400000), week('a', 400000), week('b', 112000), week(null, 999900)])
-    expect(drafts.map((d) => [d.invoiceId, d.weeks, d.amountMinor])).toEqual([['a', 2, 800000], ['b', 1, 112000]])
+  const bills = new Map([
+    ['a', { totalMinor: 2208000, currency: 'USD', weeks: 5 }],
+    ['b', { totalMinor: 112000, currency: 'USD', weeks: 1 }],
+  ])
+
+  it('a draft carries its own bill’s total, expenses included, never a sum of its weeks’ hours', () => {
+    // 192 h × $112 = $21,504 of hours, and a $576 expense line: the bill is $22,080 (walk 9).
+    const drafts = draftsOf([week('a', 400000), week('a', 400000), week('b', 112000), week(null, 999900)], bills)
+    expect(drafts.map((d) => [d.invoiceId, d.amountMinor])).toEqual([['a', 2208000], ['b', 112000]])
+  })
+
+  it('a draft says the weeks its own bill holds', () => {
+    expect(draftsOf([week('a', 1), week('a', 1)], bills)[0].weeks).toBe(5)
   })
 
   it('a week no draft holds is never counted under a draft', () => {
-    const drafts = draftsOf([week(null, 500000), week('c', 100)])
+    const drafts = draftsOf([week(null, 500000), week('b', 100)], bills)
     expect(drafts).toHaveLength(1)
-    expect(drafts[0].amountMinor).toBe(100)
+    expect(drafts[0].amountMinor).toBe(112000)
   })
 
-  it('a draft holding a week that cannot be priced says it is not priced, rather than a partial sum', () => {
-    expect(draftsOf([week('d', 1000), week('d', null)])[0].amountMinor).toBeNull()
+  it('a draft whose bill was not read says it is not priced, rather than a partial sum', () => {
+    expect(draftsOf([week('z', 1000)], bills)[0].amountMinor).toBeNull()
   })
 
-  it('a draft keeps its own currency', () => {
-    expect(draftsOf([week('e', 924000000, 'VND')])[0]).toMatchObject({ currency: 'VND', amountMinor: 924000000 })
+  it('a draft keeps its own bill’s currency', () => {
+    expect(draftsOf([week('v', 924000000, 'VND')], new Map([['v', { totalMinor: 924000000, currency: 'VND', weeks: 1 }]]))[0])
+      .toMatchObject({ currency: 'VND', amountMinor: 924000000 })
+  })
+
+  it('signed and not billed adds each line’s unbilled expenses to the weeks, by currency, and the week count is unchanged', () => {
+    const t = withExpenses([{ currency: 'USD', amountMinor: 13137600, pricedMinor: 13137600, count: 30, unpriced: 0 }], new Map([['USD', 57600]]))
+    expect(t).toEqual([{ currency: 'USD', amountMinor: 13195200, pricedMinor: 13195200, count: 30, unpriced: 0 }])
   })
 
   it('the Today page draws each draft’s own amount, not the client’s total', () => {

@@ -1028,7 +1028,11 @@ export default function PlacementPage() {
         subtitle={
           !p.viewer.isSupplier
             ? 'What this placement has been invoiced at, and what has been settled.'
-            : p.money.margin == null
+            : !p.viewer.seeMargin
+              // Hidden from this role, not missing: Accounts Receivable
+              // bills the line and does not read what it costs or earns.
+              ? 'What this placement has billed and collected. Its cost and earned margin are not shown to your role.'
+              : p.money.margin == null
               ? (p.money.marginSays ?? 'The earned margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.')
               : 'What this placement brought in, what it cost, and what is left.'
         }
