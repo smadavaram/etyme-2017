@@ -150,7 +150,16 @@ describe('the twin’s ledger', () => {
         action: c.action, entityType: c.entity.type, entityId: c.entity.id, surface: 'CRON', outcome: c.outcome,
       })
       expect(e.ruleCited.length, c.action).toBeGreaterThan(5)
-      expect(e.rationale, c.action).toBe(base.rationale)
+      // A refused row says the refusal as its reason (2026-11-09: it used to
+      // keep the act's own "Ask Pinnacle…" beside "The record says no"),
+      // and keeps the act's own reason in the payload.
+      if (c.outcome === 'REFUSED') {
+        expect(e.rationale, c.action).toBe(r.says)
+        expect(e.rationale, c.action).not.toBe(base.rationale)
+        expect((e.payload as Record<string, unknown>).rationaleTheActGave, c.action).toBe(base.rationale)
+      } else {
+        expect(e.rationale, c.action).toBe(base.rationale)
+      }
     }
     // A notice to the paying desk leaves only after the entry is written.
     expect(h.notifyBulk).toHaveBeenCalled()

@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
-import { rate as moneyRate } from '@/lib/money-display'
+import { rate as moneyRate, amount as moneyIn } from '@/lib/money-display'
 import { saveForm } from '@/lib/form-save'
 import { refusalSentence } from '@/lib/refusal-words'
 import { useSession } from '@/components/session-provider'
@@ -74,6 +74,9 @@ interface LineDoc {
     startDate: string; endDate: string | null
     ceiling: number | null; currency: string
     drawn: number | null; remaining: number | null
+    /** The order ledger's figures, minor units of `currency` (lib/money/order-ledger). */
+    authorizedMinor?: number | null; billedMinor?: number | null; leftMinor?: number | null
+    draftedNotSentMinor?: number | null; draftedNotSent?: number; leftOut?: string[]
     consumedPercent: number | null; overdrawn: boolean
     says: string | null
   } | null
@@ -140,7 +143,8 @@ interface Placement {
     lines: Array<{
       id: string; position: number; person: string; isThisOne: boolean
       site: string; state: string; startDate: string; endDate: string | null
-      billed: number | null
+      /** Bills sent on this line, and drafts apart, minor units of `currency`. */
+      billedMinor: number | null; draftedMinor: number | null; currency: string
     }>
     pair: string | null
     masterContract: { tag: { code: string; name: string } | null; says: string } | null
@@ -161,6 +165,8 @@ interface Placement {
     }>
     subVendorCover: { vendor: string; outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null } | null
   }
+  /** How many weeks are filed on this line, every one of them in `timesheets`. */
+  weeksFiled: number
   timesheets: Array<{
     id: string; periodStart: string; periodEnd: string; hours: number; status: string
     clientApproved: { hours: number; at: string } | null
@@ -169,8 +175,18 @@ interface Placement {
   }>
   money: {
     hoursAccepted: number
-    invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
+    invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; amountMinor: number | null; total: number; paid: number; dueAt: string }>
     billed: number | null; collected: number | null
+    /** Money's one definition, minor units of `currency` (lib/money/signed-unbilled). */
+    currency: string
+    billedMinor: number | null; collectedMinor: number | null; revenueMinor: number | null
+    hoursAcceptedTotal: number; hoursBilledSent: number
+    drafted: { hours: number; amountMinor: number; bills: Array<{ number: string; hours: number; amountMinor: number }> } | null
+    signedNotBilled: {
+      hours: number; amountMinor: number; onDraftHours: number
+      aging: Array<{ band: string; weeks: number; hours: number; amountMinor: number }>
+      says: string | null
+    } | null
     revenue: number | null; cost: number | null; margin: number | null
     // The employer's burden on the cost, and the two together — what the
     // earned margin subtracts. Read from money's margin service.
@@ -297,14 +313,19 @@ function Document({
       {o.ceiling != null ? (
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] tabular-nums text-etyme-muted">
           <span>
-            Authorized <span className="text-etyme-ink">{cash(o.ceiling)}</span>
+            Authorized <span className="text-etyme-ink">{moneyIn(o.authorizedMinor ?? null, o.currency)}</span>
           </span>
           <span>
-            Billed against it <span className="text-etyme-ink">{cash(o.drawn)}</span>
+            Billed against it <span className="text-etyme-ink">{moneyIn(o.billedMinor ?? null, o.currency)}</span>
           </span>
           <span className={o.overdrawn ? 'text-etyme-attention' : undefined}>
-            Left <span className={o.overdrawn ? '' : 'text-etyme-ink'}>{cash(o.remaining)}</span>
+            Left <span className={o.overdrawn ? '' : 'text-etyme-ink'}>{moneyIn(o.leftMinor ?? null, o.currency)}</span>
           </span>
+          {(o.draftedNotSent ?? 0) > 0 && (
+            <span>
+              Drafted, not sent <span className="text-etyme-ink">{moneyIn(o.draftedNotSentMinor ?? null, o.currency)}</span>
+            </span>
+          )}
         </div>
       ) : (
         <p className="mt-2 text-[13px] text-etyme-faint">
@@ -313,6 +334,16 @@ function Document({
       )}
       {o.says && o.ceiling != null && (
         <p className="mt-1 text-[12px] text-etyme-faint">{o.says}</p>
+      )}
+      {o.ceiling != null && (o.draftedNotSent ?? 0) > 0 && (
+        <p className="mt-1 text-[12px] text-etyme-faint">
+          {o.draftedNotSent === 1 ? 'One bill is' : `${o.draftedNotSent} bills are`} drafted and not sent. A draft draws nothing on the order until it is sent.
+        </p>
+      )}
+      {o.ceiling != null && (o.leftOut?.length ?? 0) > 0 && (
+        <p className="mt-1 text-[12px] text-etyme-faint">
+          Left out of these figures because they are in another currency: {o.leftOut!.join(', ')}.
+        </p>
       )}
       {lines.length > 0 && (
         <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
@@ -330,7 +361,8 @@ function Document({
               </span>
               <span className="tabular-nums">
                 {words(l.state)}
-                {l.billed != null && <span className="ml-3 text-etyme-ink">{cash(l.billed)}</span>}
+                {l.billedMinor != null && <span className="ml-3 text-etyme-ink">{moneyIn(l.billedMinor, l.currency)}</span>}
+                {(l.draftedMinor ?? 0) > 0 && <span className="ml-2 text-etyme-faint">+ {moneyIn(l.draftedMinor!, l.currency)} drafted</span>}
               </span>
             </li>
           ))}
@@ -950,6 +982,9 @@ export default function PlacementPage() {
           <p className="text-[13px] text-etyme-muted">No weeks filed yet.</p>
         ) : (
           <div className="overflow-scroll-x">
+            <p className="mb-2 text-[12px] text-etyme-faint">
+              {p.weeksFiled === 1 ? 'One week filed.' : `All ${p.weeksFiled} weeks filed, newest first.`}
+            </p>
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-etyme-rule text-left">
@@ -996,22 +1031,44 @@ export default function PlacementPage() {
         }
       >
         <div className="card mb-3 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Two different numbers, and the label has to match the one
-              shown. Revenue is what the hours are worth; billed is what
-              has actually gone out on an invoice. A buyer reading
-              "invoiced to you" beside the accrued figure is being told
-              they owe more than anybody has asked them for. */}
+          {/* Two different numbers, each with its own label: Billed is bills
+              sent (money's one definition), and the supplier's revenue is
+              what the accepted hours are worth at its rate. Neither is the
+              other, and a draft is never inside either. */}
           <Fact
-            label={p.viewer.isSupplier ? 'Revenue' : 'Invoiced to you'}
-            value={cash(p.viewer.isSupplier ? p.money.revenue : p.money.billed)}
+            label={p.viewer.isSupplier ? 'Billed (bills sent)' : 'Invoiced to you'}
+            value={moneyIn(p.money.billedMinor, p.money.currency)}
           />
+          {p.viewer.isSupplier && (
+            <Fact label="Revenue on accepted hours" value={moneyIn(p.money.revenueMinor, p.money.currency)} />
+          )}
           {/* Cost as the earned margin counts it — pay, overtime premium
               and the employer's burden — so revenue less cost is the
               figure beside it. */}
           {p.viewer.isSupplier && <Fact label="Cost" value={cash(p.money.fullCost)} />}
           {p.viewer.isSupplier && <Fact label={p.money.marginLabel ?? 'Earned margin'} value={cash(p.money.margin)} />}
-          <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
+          <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={moneyIn(p.money.collectedMinor, p.money.currency)} />
+          <Fact label="Hours accepted" value={p.money.hoursAcceptedTotal || '—'} />
+          <Fact label="Hours on bills sent" value={p.money.hoursBilledSent || '—'} />
         </div>
+        {p.money.drafted && p.money.drafted.bills.length > 0 && (
+          <p className="mb-3 text-[13px] text-etyme-muted">
+            Drafted, not sent: {p.money.drafted.bills.map((b) => `${b.number}, ${b.hours} hours, ${moneyIn(b.amountMinor, p.money.currency)}`).join('; ')}. A draft is not billed until it is sent.
+          </p>
+        )}
+        {p.money.signedNotBilled && p.money.signedNotBilled.hours > 0 && (
+          <div className="mb-3 text-[13px] text-etyme-muted">
+            <p>
+              Signed and not yet on a sent bill: {p.money.signedNotBilled.hours} hours, {moneyIn(p.money.signedNotBilled.amountMinor, p.money.currency)}.
+              {p.money.signedNotBilled.onDraftHours > 0 ? ` ${p.money.signedNotBilled.onDraftHours} of those hours are on a draft.` : ''}
+            </p>
+            {p.money.signedNotBilled.aging.length > 0 && (
+              <p className="mt-1 tabular-nums">
+                {p.money.signedNotBilled.aging.map((a) => `${a.band}: ${a.weeks} ${a.weeks === 1 ? 'week' : 'weeks'}, ${moneyIn(a.amountMinor, p.money.currency)}`).join(' · ')}
+              </p>
+            )}
+          </div>
+        )}
         {p.viewer.isSupplier && p.money.margin != null && p.money.marginSays && (
           <p className="mb-3 text-[13px] text-etyme-muted">{p.money.marginSays}</p>
         )}
@@ -1050,7 +1107,7 @@ export default function PlacementPage() {
                   <span className="text-[13px] tabular-nums text-etyme-muted">
                     {inv.hours} hrs{inv.weeks > 1 ? ` · ${inv.weeks} weeks` : ''}
                   </span>
-                  <span className="text-[14px] tabular-nums text-etyme-ink">{cash(inv.amount)}</span>
+                  <span className="text-[14px] tabular-nums text-etyme-ink">{moneyIn(inv.amountMinor, p.money.currency)}</span>
                   <span className="text-[13px] tabular-nums text-etyme-muted">due {day(inv.dueAt)}</span>
                   <span className={`chip ${tone(inv.status)}`}>{words(inv.status)}</span>
                 </div>

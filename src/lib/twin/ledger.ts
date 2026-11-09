@@ -370,9 +370,16 @@ function baseEntry(input: ActInput, contract: Contract, tier: Tier, parties: str
 async function refuse(base: Omit<LedgerEntry, 'outcome'>, says: string, rule: string): Promise<ActResult> {
   // No key on a refusal: a finding refused tonight (nobody seated to
   // tell, say) is tried again tomorrow rather than marked as done.
+  // The rationale on a refused row is the refusal itself. Until
+  // 2026-11-09 the rule read "The record says no" while the rationale kept
+  // the act's own reason ("Pay it…"), so the ledger page read a refusal as
+  // the act going ahead. The act's own words stay in the payload.
   const entry: LedgerEntry = {
-    ...base, outcome: 'REFUSED', ruleCited: rule, dedupKey: null,
-    payload: { ...base.payload, said: says, ruleTheActCited: base.ruleCited, ...(base.dedupKey ? { findingKey: base.dedupKey } : {}) },
+    ...base, outcome: 'REFUSED', ruleCited: rule, rationale: says, dedupKey: null,
+    payload: {
+      ...base.payload, said: says, ruleTheActCited: base.ruleCited, rationaleTheActGave: base.rationale,
+      ...(base.dedupKey ? { findingKey: base.dedupKey } : {}),
+    },
   }
   try {
     const id = await prisma.$transaction(async (tx) => {
@@ -1280,7 +1287,7 @@ export async function ledgerFeed(
       label,
       program: names.company.get(r.companyId) ?? null,
       line: feedLine({ actorType: r.actorType, actorName, action: r.action, outcome: r.outcome, entityType: r.entityType, label, onAuthorityOfRole: r.onAuthorityOfRole, surface: r.surface }),
-      ruleCited: r.ruleCited, rationale: r.rationale, surface: r.surface, approvalId: r.approvalId,
+      ruleCited: r.ruleCited, rationale: refusedRationale(r), surface: r.surface, approvalId: r.approvalId,
       ...(owner ? { payload: r.payload, roleContractVersion: r.roleContractVersion } : {}),
     }
   })
@@ -1438,4 +1445,17 @@ export async function waitingQuestions(
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/**
+ * What a ledger row's reason says. A refused row says the refusal: rows
+ * written from 2026-11-09 carry it as their rationale, and rows written
+ * before kept the act's own reason there with the refusal in
+ * `payload.said`, so those are read from the payload. Every other row
+ * says its own rationale.
+ */
+export function refusedRationale(r: { outcome: string; rationale: string; payload: unknown }): string {
+  if (r.outcome !== 'REFUSED') return r.rationale
+  const said = (r.payload as Record<string, unknown> | null)?.said
+  return typeof said === 'string' && said.trim() ? said : r.rationale
 }

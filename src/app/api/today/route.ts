@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { logBulkAccess } from '@/lib/access-log'
 import { firmTuesday, totalsByCurrency, SELLING_KINDS, type CurrencyTotal } from '@/lib/money/firm-today'
 import { todayReads, pictureLine, byClient, NO_READS, draftSend } from '@/lib/today-page'
+import { draftsOf } from './drafts'
 import { maySendBills } from '@/lib/money/bill-send'
 import { seatFor } from '@/lib/program-seat'
 import { rollingOffAt, benchAt, unpaidBills } from './reads'
@@ -129,9 +130,11 @@ export async function GET(request: NextRequest) {
           weeks: g.rows.length,
           totals: totalsByCurrency(g.rows),
           people: g.rows.map((w) => ({ personName: w.personName })),
-          // One Send per draft bill, however many weeks it holds.
-          drafts: [...new Map(g.rows.filter((w) => w.draft).map((w) => [w.draft!.invoiceId, w.draft!])).values()]
-            .map((d) => ({ ...d, ...draftSend(verdicts.get(d.invoiceId)) })),
+          // One Send per draft bill, however many weeks it holds, each with
+          // its own amount: the weeks that bill holds, priced as it prices
+          // them, never the client's whole unbilled total printed beside
+          // the bill's number (the tester's scale audit, 2026-11-09).
+          drafts: draftsOf(g.rows).map((d) => ({ ...d, ...draftSend(verdicts.get(d.invoiceId)) })),
         })),
       }
     : null
@@ -199,3 +202,4 @@ export async function GET(request: NextRequest) {
     },
   })
 }
+

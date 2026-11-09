@@ -73,7 +73,7 @@ interface TodayData {
       people: { personName: string }[]
       /** Send is drawn where the send route would send it for this seat; otherwise its sentence. */
       /** `says` is money's words for a bill not yet sent: drafted, or raised (lib/money/bill-state). */
-      drafts: { invoiceId: string; number: string; says?: string; send: boolean; refused: string | null }[]
+      drafts: { invoiceId: string; number: string; says?: string; weeks: number; amountMinor: number | null; currency: string; send: boolean; refused: string | null }[]
     }[]
   } | null
   rollingOff: { contractId: string; personId: string; name: string; client: string | null; days: number; lastDay: string; started: boolean }[] | null
@@ -423,7 +423,15 @@ function Bills({ t, busy, said, onAct }: {
                   return (
                     <div key={d.invoiceId} className="mt-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[12px] text-etyme-muted">{d.says ?? `Bill ${d.number} is drafted.`}</span>
+                        <span className="text-[12px] text-etyme-muted">
+                          {d.says ?? `Bill ${d.number} is drafted.`}{' '}
+                          {/* The draft's own amount, for the weeks it holds; the
+                              client's whole unbilled total stays on the row above. */}
+                          <span className="tabular-nums text-etyme-ink">
+                            {d.amountMinor == null ? 'amount not priced' : amount(d.amountMinor, d.currency)}
+                          </span>
+                          {` for ${d.weeks} ${d.weeks === 1 ? 'week' : 'weeks'}.`}
+                        </span>
                         {d.send ? (
                           <button className="btn-primary" disabled={busy === key} onClick={() => onAct(key, `/api/invoices/${d.invoiceId}/submit`)}>
                             {busy === key ? 'Sending…' : 'Send'}

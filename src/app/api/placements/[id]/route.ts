@@ -24,7 +24,10 @@ import { ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
 import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
-import { wholeFromMinor } from '@/lib/money'
+import { wholeFromMinor, minorFromWhole } from '@/lib/money'
+import { orderLedgers, linesBilled, billCountsAsBilled, type OrderLedger, type LineBilled } from '@/lib/money/order-ledger'
+import { signedAndBilled, type LineBilling } from '@/lib/money/signed-unbilled'
+import { amount as amountIn } from '@/lib/money-display'
 import { chainBelow } from './chain'
 import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
@@ -243,8 +246,10 @@ export async function GET(
   // 200 hours billed (the founder's tester, 2026-11-08).
   const weeks = await prisma.timesheet.findMany({
     where: await weeksWhere([placement.id]),
+    // Every week, never the newest dozen: the page said nothing about the
+    // rest (Rosa Delgado, 12 of 30). The screen pages them and says how
+    // many there are.
     orderBy: { periodStart: 'desc' },
-    take: 12,
     select: {
       id: true, periodStart: true, periodEnd: true, totalHours: true, status: true,
       assertions: {
@@ -543,30 +548,18 @@ export async function GET(
       })
     : []
 
-  // What has been billed against it. Two figures, from two places, and
-  // neither is guessed: the order's own invoices are what AP matches
-  // against the ceiling, and the per-line amounts are what each line put
-  // there. A line billed through an invoice nobody tagged to the order
-  // shows on the line and not in the drawn total, which is a gap worth
-  // seeing rather than a sum worth inventing.
-  const [orderInvoices, lineBillings] = header
-    ? await Promise.all([
-        prisma.invoice.findMany({
-          where: { workOrderId: header.id },
-          select: { id: true, total: true },
-        }),
-        prisma.invoiceLine.groupBy({
-          by: ['sellContractId'],
-          where: { sellContractId: { in: siblings.map((c) => c.id) } },
-          _sum: { amountCents: true },
-        }),
-      ])
-    : [[], [] as Array<{ sellContractId: string | null; _sum: { amountCents: number | null } }>]
-
-  const billedByLine = new Map<string, number>()
-  for (const g of lineBillings) {
-    if (g.sellContractId) billedByLine.set(g.sellContractId, g._sum.amountCents ?? 0)
-  }
+  // What has been billed against it, read through money's one definition
+  // (lib/money/order-ledger, a9594c4cd): Billed is bills sent plus
+  // typed-in invoice receipts, Left is Authorized minus Billed, and a bill
+  // drafted and not sent is said apart, never inside Billed. Until
+  // 2026-11-09 this page summed every invoice on the order whatever its
+  // status, so a draft read as billed and the page disagreed with the
+  // order's own page (the scale audit's $466,700 against $481,600). Each
+  // line's billed figure is the same sent-only reader (`linesBilled`).
+  const [orderLedgerMap, lineBillings] = header
+    ? await Promise.all([orderLedgers([header.id]), linesBilled(siblings.map((c) => c.id))])
+    : [new Map<string, OrderLedger>(), new Map<string, LineBilled>()]
+  const sellLedger = header ? orderLedgerMap.get(header.id) ?? null : null
 
   const site = (l: { city: string | null; state: string | null } | null) =>
     l ? [l.city, l.state].filter(Boolean).join(', ') || null : null
@@ -585,18 +578,22 @@ export async function GET(
     } | null,
     line: { side: 'SELL' | 'BUY'; personName: string; siteName: string | null; paidToName?: string | null },
     place: { position: number | null; of: number | null },
-    ceiling: { drawnCents: number | null; mayRead: boolean }
+    ceiling: { ledger: OrderLedger | null; mayRead: boolean }
   ) => {
     const described = describeLine({ order, companyId: mine, line, place })
     if (!order) return { ...described, order: null }
 
-    const amountCents = Math.round(Number(order.amount) * 100)
+    // Minor units of the order's own currency, never Number(amount) * 100,
+    // which reads a dong order a hundred times too large.
+    const ccy = order.currency.toUpperCase()
+    const amountMinor = ceiling.ledger?.authorizedMinor ?? minorFromWhole(order.amount as { toString(): string }, ccy)
+    const led = ceiling.ledger
     const balance =
-      ceiling.mayRead && ceiling.drawnCents != null
+      ceiling.mayRead && led
         ? poBalance(
             {
-              amountCents,
-              invoicedCents: ceiling.drawnCents,
+              amountCents: led.authorizedMinor,
+              invoicedCents: led.billedMinor,
               status: (order.status === 'CLOSED' || order.status === 'CANCELLED'
                 ? order.status
                 : 'OPEN') as 'OPEN' | 'CLOSED' | 'CANCELLED',
@@ -619,13 +616,24 @@ export async function GET(
         // what a placement earns cannot see what the client authorized
         // for it either; the reference stays, because quoting a number
         // on an email is not reading a rate.
-        ceiling: ceiling.mayRead ? Math.round(amountCents) / 100 : null,
+        ceiling: ceiling.mayRead ? wholeFromMinor(amountMinor, ccy) : null,
         currency: order.currency,
-        drawn: balance ? Math.round(balance.invoicedCents) / 100 : null,
-        remaining: balance ? Math.round(balance.remainingCents) / 100 : null,
+        // The order ledger's own figures, in minor units of the currency.
+        authorizedMinor: ceiling.mayRead ? amountMinor : null,
+        billedMinor: balance && led ? led.billedMinor : null,
+        leftMinor: balance && led ? led.leftMinor : null,
+        draftedNotSentMinor: balance && led ? led.draftedNotSentMinor : null,
+        draftedNotSent: balance && led ? led.draftedNotSent : 0,
+        leftOut: balance && led ? led.foreign : [],
+        drawn: balance && led ? wholeFromMinor(led.billedMinor, ccy) : null,
+        remaining: balance && led ? wholeFromMinor(led.leftMinor, ccy) : null,
         consumedPercent: balance?.consumedPercent ?? null,
         overdrawn: balance?.overdrawn ?? false,
-        says: balance?.reason ?? null,
+        says: balance && led
+          ? (led.overdrawn
+              ? `Overdrawn by ${amountIn(-led.leftMinor, ccy)}. Raise a change order.`
+              : balance.reason === 'Available' ? null : balance.reason)
+          : null,
       },
     }
   }
@@ -636,10 +644,7 @@ export async function GET(
         header,
         { side: 'SELL', personName: placement.person.name, siteName: thisSite },
         { position: position >= 0 ? position + 1 : null, of: header ? siblings.length : null },
-        {
-          drawnCents: orderInvoices.reduce((n, i) => n + Math.round(Number(i.total) * 100), 0),
-          mayRead: seeBill,
-        }
+        { ledger: sellLedger, mayRead: seeBill }
       )
     : // A client reading a rung below the one it pays. The paper behind
       // this leg may well exist — it is simply not theirs, and saying
@@ -671,7 +676,7 @@ export async function GET(
           paidToName: ourBuy.vendorCompany?.name ?? null,
         },
         { position: null, of: null },
-        { drawnCents: null, mayRead: seePay }
+        { ledger: null, mayRead: seePay }
       )
     : null
 
@@ -748,23 +753,33 @@ export async function GET(
   // firm that bought it. An end client is neither, so they are not
   // fetched rather than fetched and nulled: `invoice.total` was sent
   // whatever the permissions said.
-  const invoiceLines = readsOurMoney
-    ? await prisma.invoiceLine.findMany({
-        where: { sellContractId: placement.id },
-        orderBy: { createdAt: 'desc' },
-        take: 12,
-        select: {
-          id: true, hours: true, rateCents: true, amountCents: true,
-          invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
-        },
-      })
-    : []
+  // Every invoice line on this line, never the newest dozen. What counts as
+  // billed is money's one definition (lib/money/signed-unbilled,
+  // a9594c4cd): bills sent, a draft said apart, and what is signed and not
+  // yet on a sent bill aged by week. Until 2026-11-09 the card summed the
+  // last twelve invoice lines whatever their bill's status, so a draft read
+  // as billed and a long placement read short.
+  const [invoiceLines, lineBillingMap] = readsOurMoney
+    ? await Promise.all([
+        prisma.invoiceLine.findMany({
+          where: { sellContractId: placement.id },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, hours: true, rateCents: true, amountCents: true,
+            invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
+          },
+        }),
+        signedAndBilled([placement.id]),
+      ])
+    : [[], new Map<string, LineBilling>()]
+  const lineBilling = lineBillingMap.get(placement.id) ?? null
 
-  const billedCents = invoiceLines.reduce((n, l) => n + l.amountCents, 0)
-  const paidCents = invoiceLines.reduce(
-    (n, l) => n + Math.round(Number(l.invoice.paid) * 100 >= l.amountCents ? l.amountCents : 0),
-    0
-  )
+  const billedCents = lineBilling?.billed.amountMinor ?? 0
+  // Collected: what the bill's payer has paid on bills that were sent, line
+  // by line, a line counted once its bill is settled in full.
+  const paidCents = invoiceLines
+    .filter((l) => billCountsAsBilled(l.invoice.status))
+    .reduce((n, l) => n + (minorFromWhole(l.invoice.paid as { toString(): string }, placement.billCurrency) >= minorFromWhole(l.invoice.total as { toString(): string }, placement.billCurrency) ? l.amountCents : 0), 0)
   // What this placement earns, read through money's one margin service
   // (lib/money/margin) and nowhere else, so the figure here and the
   // Profitability row for the same line agree to the cent. The service
@@ -1135,7 +1150,11 @@ export async function GET(
               endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
               // What this line has put against the ceiling. Null rather
               // than zero where the reader may not read money at all.
-              billed: seeBill ? Math.round(billedByLine.get(c.id) ?? 0) / 100 : null,
+              // Bills sent only, through the order ledger's line reader;
+              // a draft is its own figure beside it.
+              billedMinor: seeBill ? lineBillings.get(c.id)?.billedMinor ?? 0 : null,
+              draftedMinor: seeBill ? lineBillings.get(c.id)?.draftedMinor ?? 0 : null,
+              currency: lineBillings.get(c.id)?.currencies[0] ?? header.currency,
             }))
           : [],
         // The pair — this line and the one on the other side of the
@@ -1236,6 +1255,7 @@ export async function GET(
       },
 
       // ── Station 7 · the hours ──
+      weeksFiled: weeks.length,
       timesheets: weeks.map((t) => {
         const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
         const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
@@ -1306,9 +1326,31 @@ export async function GET(
             return acc
           }, new Map<string, any>())
           .values()]
-          .map((i) => ({ ...i, amount: seeBill ? money(i.amountCents) : null })),
+          .map((i) => ({ ...i, amount: seeBill ? money(i.amountCents) : null, amountMinor: seeBill ? i.amountCents : null })),
         billed: seeBill ? money(billedCents) : null,
         collected: seeBill ? money(paidCents) : null,
+        // The same figures in minor units of the line's currency, and the
+        // rest of money's one definition beside them: drafted and not sent,
+        // signed and not yet billed, and that aged by week. Each its own
+        // labelled figure; none is ever added into another.
+        currency: lineBilling?.currency ?? placement.billCurrency,
+        billedMinor: seeBill ? billedCents : null,
+        collectedMinor: seeBill ? paidCents : null,
+        revenueMinor: seeBill && earned ? earned.revenueCents : null,
+        hoursAcceptedTotal: hoursAccepted,
+        hoursBilledSent: lineBilling?.billed.hours ?? 0,
+        drafted: seeBill && lineBilling
+          ? { hours: lineBilling.drafted.hours, amountMinor: lineBilling.drafted.amountMinor, bills: lineBilling.drafted.bills.map((b) => ({ number: b.number, hours: b.hours, amountMinor: b.amountMinor })) }
+          : null,
+        signedNotBilled: seeBill && lineBilling
+          ? {
+              hours: lineBilling.notBilled.hours,
+              amountMinor: lineBilling.notBilled.amountMinor,
+              onDraftHours: lineBilling.notBilled.onDraftHours,
+              aging: lineBilling.notBilled.aging.filter((a) => a.weeks > 0),
+              says: lineBilling.says,
+            }
+          : null,
         // Blank rather than a guess. A margin shown as the whole invoice
         // because nobody set a cost is the kind of wrong that looks like
         // good news.
