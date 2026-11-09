@@ -117,6 +117,8 @@ model Person {
   counterpartiesAdded   Counterparty[]         @relation("counterpartyCreator")
   /// The client relationships this person is the account manager on.
   counterpartiesManaged Counterparty[]         @relation("counterpartyAccountManager")
+  /// Account managers this person named on a client record.
+  accountManagersNamed  Counterparty[]         @relation("counterpartyAccountManagerSetter")
   /// Suppliers this person picked for a contractor invitation.
   invitationPicks       ContractorInvitation[] @relation("invitationPickedBy")
   sitesRecorded         CompanyLocation[]      @relation("siteRecordedBy")
@@ -1997,14 +1999,21 @@ model Counterparty {
   /// earns the sales commission on lines sold to this client. Null means
   /// nobody named one; the award then reads who recorded the client and
   /// holds the Account Manager role (commission-earners, etyme-demand).
-  accountManagerId String?
-  accountManager   Person? @relation("counterpartyAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  accountManagerId      String?
+  accountManager        Person?   @relation("counterpartyAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  /// Who named (or cleared) the account manager, and when: the Companies
+  /// drawer writes both with every change. Null before 2026-11-09 and on a
+  /// seeded name.
+  accountManagerSetById String?
+  accountManagerSetBy   Person?   @relation("counterpartyAccountManagerSetter", fields: [accountManagerSetById], references: [id], onDelete: SetNull)
+  accountManagerSetAt   DateTime?
 
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
   @@index([companyId, status])
   @@index([createdById])
   @@index([accountManagerId])
+  @@index([accountManagerSetById])
 }
 
 /// A person at a counterparty. The rolodex.
@@ -2307,6 +2316,10 @@ model BenchListing {
   /// What the firm pays the person (or their own company), per hour, in
   /// minor units of the listing firm's pay currency. Above nought or null.
   termsPayRateCents   Int?
+  /// The currency `termsPayRateCents` is in, where the firm pays the person
+  /// in a currency other than its own (supply writes it when terms are
+  /// stated). Null reads as the listing firm's own currency.
+  termsPayCurrency    String?
   /// When the firm stated them, and who at the firm did.
   termsStatedAt       DateTime?
   termsStatedById     String?
@@ -4560,6 +4573,13 @@ model Cycle {
   kind           String // see comments above
   dueOn          DateTime // already shifted off weekends and holidays
   completedAt    DateTime?
+  /// The period this cycle covers, first and last day (2026-11-09, the
+  /// founder: a contract's last regular period runs through its end date).
+  /// Written by the cycle writer for new cycles (etyme-money); null on a
+  /// cycle written before, which readers still place from its series
+  /// (lib/cycle-complete).
+  periodStart    DateTime?
+  periodEnd      DateTime?
 
   @@index([sellContractId, kind])
   @@index([buyContractId, kind])
@@ -8524,6 +8544,9 @@ model ReconciliationRun {
   theirsCents     Int
   /// ours minus theirs. Zero is the goal and rarely the first result.
   differenceCents Int
+  /// The one currency every figure on the run is in (2026-11-09). Null on a
+  /// run before then, read as the company's currency.
+  currency        String?
 
   /// [{ what, amountCents, reason, resolvedAt? }] — every break named.
   breaks Json
