@@ -21,6 +21,7 @@
 import type { Treatment } from './overtime'
 import { possessive } from '@/lib/requisition-approval'
 import { amount } from '@/lib/money-display'
+import { minorPerUnit as minorUnitsOf } from '@/lib/money'
 
 export type WorkerType = 'W2' | 'C2C' | 'IND_1099' | 'C2H_W2'
 
@@ -1868,4 +1869,116 @@ export function saysCannotClassify(
     `say what those hours are worth — time and a half if they are not, the contract rate if they ` +
     `are. The week is left off the payroll file rather than paid at the wrong one.`
   )
+}
+
+// ── The 1099-NEC floor, against a gross that may not be in dollars ─────
+//
+// The floor is written in dollars, as the IRS writes it. Money's payroll
+// export carries each line's own currency (2026-11-08), so a contractor
+// paid in rupees has a gross in rupees, and putting that number beside a
+// dollar floor as it stands is comparing two different things.
+//
+// The rule, until a source confirms it (NEC_FOREIGN_CURRENCY_RULE): a gross
+// in another currency is converted at the company's own rate, never the
+// shipped sample, and the sentence names the rate, its day and who set it;
+// with no own rate the floor is not checked, and the sentence says so and
+// that a person decides. Never silently passing or failing. Unconfirmed, so
+// it warns and never blocks.
+
+/** The conversion rule for a non-dollar gross, and that it is not yet confirmed with its source. */
+export const NEC_FOREIGN_CURRENCY_RULE = {
+  key: 'NEC_FOREIGN_CURRENCY',
+  rule:
+    'A payment made in another currency is put beside the dollar reporting floor at the company’s own rate, ' +
+    'named with its day and who set it; with no rate set, a person decides.',
+  source:
+    'To be confirmed against the IRS General Instructions for Certain Information Returns and the Instructions ' +
+    'for Forms 1099-MISC and 1099-NEC (amounts are reported in U.S. dollars; foreign-currency payments converted).',
+  confirmed: false,
+  enforcedAs: 'WARN' as const,
+}
+
+/** One rate as money's `rateFor` finds it over the company's own table. */
+export interface NecRate {
+  rate: number
+  effectiveOn: Date
+  setBy: string | null
+}
+
+export interface NecFloorCheck {
+  /** Whether the floor was put beside the gross at all. */
+  checked: boolean
+  /** Under the floor; null where it was not checked. */
+  below: boolean | null
+  /** The gross in dollar cents, where a conversion was made or none was needed. */
+  grossUsdCents: number | null
+  /** The rate used, where one was. */
+  rate: NecRate | null
+  /** False wherever a conversion was made or refused: the rule is not yet confirmed. */
+  confirmed: boolean
+  /** Said beside the person's row; empty for a dollar gross, which money says in its own words. */
+  says: string
+}
+
+const DAY_SAID = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+
+/**
+ * The 1099-NEC floor against one person's gross for a year. Pure.
+ *
+ * `floorCents` is money's floor in dollar cents (`NEC_THRESHOLD_CENTS`).
+ * `rateOf` is money's `rateFor` over the company's OWN rates (from
+ * `reportingRatesFor`, with the shipped sample treated as none); absent or
+ * returning null, there is no rate.
+ */
+export function necFloorCheck(input: {
+  personName: string
+  grossMinor: number
+  currency: string
+  floorCents: number
+  companyName?: string | null
+  rateOf?: ((from: string, to: string) => NecRate | null) | null
+}): NecFloorCheck {
+  const ccy = input.currency.toUpperCase()
+  if (ccy === 'USD') {
+    return { checked: true, below: input.grossMinor < input.floorCents, grossUsdCents: input.grossMinor, rate: null, confirmed: true, says: '' }
+  }
+  const gross = amount(input.grossMinor, ccy)
+  const floor = amount(input.floorCents, 'USD')
+  const found = input.rateOf ? input.rateOf(ccy, 'USD') : null
+  if (!found || !Number.isFinite(found.rate) || found.rate <= 0) {
+    return {
+      checked: false, below: null, grossUsdCents: null, rate: null, confirmed: false,
+      says:
+        `${possessive(input.personName, '’')} ${gross} was paid in ${ccy}. The 1099-NEC floor of ${floor} is in dollars, ` +
+        `and no rate from ${ccy} to USD is set${input.companyName ? ` at ${input.companyName}` : ''}, so the floor is not checked: ` +
+        `a person decides whether a 1099-NEC is due. Set a rate to have it checked.`,
+    }
+  }
+  const usd = Math.round((input.grossMinor / minorUnitsOf(ccy)) * found.rate * 100)
+  const below = usd < input.floorCents
+  return {
+    checked: true, below, grossUsdCents: usd, rate: found, confirmed: false,
+    says:
+      `${possessive(input.personName, '’')} ${gross} is ${amount(usd, 'USD')} at your rate of ${found.rate} USD to the ${ccy} ` +
+      `from ${DAY_SAID(found.effectiveOn)}${found.setBy ? `, set by ${found.setBy}` : ''}, so it is ` +
+      `${below ? 'under' : 'at or over'} the ${floor} reporting floor. How a payment in another currency is converted ` +
+      `for a 1099 is not yet confirmed here, so a person checks this before the bureau files.`,
+  }
+}
+
+/**
+ * The `rateOf` for `necFloorCheck`, from a company's rate table and money's
+ * `rateFor`: none at all where the table is the shipped sample, because a
+ * reporting floor is never checked at a rate nobody at the company set.
+ */
+export function ownNecRateOf(
+  table: { sample: boolean; rates: readonly { setBy: string | null; effectiveOn: Date }[] },
+  rateFor: (rates: never, from: string, to: string, on: Date) => { rate: number; row: { effectiveOn: Date; setBy: string | null } } | null,
+  on: Date,
+): ((from: string, to: string) => NecRate | null) | null {
+  if (table.sample) return null
+  return (from, to) => {
+    const f = rateFor(table.rates as never, from, to, on)
+    return f ? { rate: f.rate, effectiveOn: f.row.effectiveOn, setBy: f.row.setBy } : null
+  }
 }
