@@ -10,6 +10,7 @@ import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { isDeskless } from '@/lib/nav-table'
 import { askTheDesk } from '@/lib/permissions'
 import { ledgerRank } from '@/app/dashboard/tenure/words'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
@@ -202,6 +203,10 @@ export async function GET(request: NextRequest) {
 
   const capMonths = tenureRule ? (tenureRule.parameters as any).maxMonths : null
   const breakDays = breakRule ? (breakRule.parameters as any).breakDays : null
+  // Near the limit is the company's widest warning (its rule set, 90 days by
+  // default): the window Ask Etyme and the nightly warnings read, so the
+  // page names the same people (2026-11-09).
+  const warnWithinDays = Math.max(0, ...(await ruleSetFor(clientCompany.id)).tenureWarnAtDays) || null
 
   // Group contracts by person
   const personMap = new Map<string, {
@@ -253,7 +258,7 @@ export async function GET(request: NextRequest) {
     const cumulativeMonths = monthsOf(data.totalDays)
     const standing = standingAgainstLimit(
       data.contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
-      { capMonths, breakDays },
+      { capMonths, breakDays, warnWithinDays },
       now
     )
     const status = ledgerStatus(standing)

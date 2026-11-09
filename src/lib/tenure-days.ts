@@ -355,13 +355,35 @@ export interface LimitRules {
   capMonths: number | null
   /** Days away the client requires before somebody comes back; null where it set none. */
   breakDays: number | null
+  /**
+   * How near the limit reads as near it: the company's rule set's widest
+   * warning (`tenureWarnAtDays`, 90, 60 and 30 by default, so 90). The one
+   * window the Tenure page, Ask Etyme and the nightly warnings all read.
+   * Unstated, the default.
+   */
+  warnWithinDays?: number | null
 }
+
+/**
+ * The widest warning of the shipped rule set (`DEFAULT_RULE_SET` in
+ * lib/twin/rule-set: 90, 60 and 30 days). Kept here as a number so this
+ * pure file reads no database; a test holds the two equal.
+ */
+export const DEFAULT_WARN_WITHIN_DAYS = 90
+
+/** A day's UTC midnight, the way the nightly warnings count days to the limit. */
+const startOfDay = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
 
 /**
  * The one reading of a person against a client's time limit and break.
  *
  *  UNDER          nothing stands in the way
- *  APPROACHING    on the days the limit counts, three quarters of the way or more
+ *  APPROACHING    on site, and the limit on the paper booked falls within the
+ *                 company's widest warning (90 days by default), the window
+ *                 the nightly warnings and Ask Etyme read. It was three
+ *                 quarters of the way, which named Lucía Fernández at 121
+ *                 days on the page while the chat named only Tobias
+ *                 Lindqvist (2026-11-09).
  *  PAST_ON_SITE   past the limit and still on site
  *  IN_BREAK       away, and the break the client requires is still running
  *  BREAK_SERVED   away for at least the break: eligible, and counting starts again
@@ -500,7 +522,14 @@ export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: 
   const countedDays = daysOnSite(counted, now)
   const limitDays = capMonths != null ? daysFor(capMonths) : null
   const pastLimit = limitDays != null && countedDays >= limitDays
-  const approaching = limitDays != null && countedDays >= 0.75 * limitDays
+  // Near the limit: on site, with the limit on the paper booked inside the
+  // company's widest warning, read the way the nightly warnings read it
+  // (`tenureWarningsFor`): a person whose booked contracts end before the
+  // limit has no limit day and is not near it.
+  const windowDays = rules.warnWithinDays != null && rules.warnWithinDays > 0 ? rules.warnWithinDays : DEFAULT_WARN_WITHIN_DAYS
+  const limitOn = onSiteNow && limitDays != null && !pastLimit ? bookedLimitDay(counted, { capMonths, breakDays }, now) : null
+  const daysToLimit = limitOn ? Math.round((startOfDay(limitOn) - startOfDay(now)) / DAY) : null
+  const approaching = daysToLimit != null && daysToLimit <= windowDays
 
   let state: StandingState
   let eligibleOn: Date | null = null

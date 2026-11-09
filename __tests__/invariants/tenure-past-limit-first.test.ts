@@ -65,7 +65,7 @@ describe('a person past the time limit', () => {
   it('a person past the limit reads Past the time limit and sorts first, in break or not', () => {
     const rows = [
       { name: 'ok', ...row([{ startDate: ago(30), endDate: ahead(30), live: true }]) },
-      { name: 'approaching', ...row([{ startDate: ago(450), endDate: ahead(30), live: true }]) },
+      { name: 'approaching', ...row([{ startDate: ago(480), endDate: ahead(200), live: true }]) }, // the limit falls in 68 days
       { name: 'in break, under', ...row([{ startDate: ago(200), endDate: ago(10), live: false }]) },
       { name: 'kwame', ...kwame },
       { name: 'on site, past', ...row([{ startDate: ago(600), endDate: ahead(30), live: true }]) },

@@ -178,7 +178,8 @@ export function tenureWarningsFor(
 ): TenureWarning[] {
   if (rules.capMonths == null || !(rules.capMonths > 0)) return []
   const capMonths = rules.capMonths
-  const limitRules = { capMonths, breakDays: rules.breakDays }
+  // The widest warning is the window the ledger reads too, so the page and the warnings name the same people.
+  const limitRules = { capMonths, breakDays: rules.breakDays, warnWithinDays: Math.max(0, ...rules.warnAtDays) || null }
   const today = now.getTime()
 
   const byPerson = new Map<string, TenureLine[]>()

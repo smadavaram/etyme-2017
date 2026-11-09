@@ -410,7 +410,17 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(lucia, 'Lucía is on the ledger').toBeTruthy()
     expect(lucia.firms.parts.slice().sort()).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
     expect(lucia.cumulativeMonths).toBe(14)
-    expect(lucia.status).toBe('WARNING')
+    // About 121 days from the limit: outside Northbend's widest warning (90 days by default),
+    // the one window the page, Ask Etyme and the nightly warnings read (2026-11-09).
+    expect(lucia.status).toBe('OK')
+  })
+
+  it('the Tenure page names the same people near the time limit as the nightly warnings Ask Etyme reads', async () => {
+    as(NIKE.compliance)
+    const r = await json(await tenure(req('GET', '/api/tenure')))
+    const near = r.body.data.people.filter((p: any) => p.status === 'WARNING').map((p: any) => p.name).sort()
+    expect(near).toContain('Tobias Lindqvist')
+    expect(near).not.toContain('Lucía Fernández')
   })
 
   it('Kwame is over the cap and inside the break — the ledger shows the date he is eligible', async () => {

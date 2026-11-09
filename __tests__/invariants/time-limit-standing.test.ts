@@ -136,9 +136,10 @@ describe('where a person stands against the client’s time limit and break', ()
 
   it('tenure from two suppliers adds together and a chain’s two rungs on the same days count once', () => {
     const v = verdicts([
+      // Booked to run past the limit, which falls 48 days from now: inside the 90-day warning (2026-11-09).
       line(ago(500), ago(300), false),
-      line(ago(300), ahead(30), true),
-      line(ago(300), ahead(30), true),
+      line(ago(300), ahead(100), true),
+      line(ago(300), ahead(100), true),
     ])
     expect(v.standing.countedDays).toBe(500)
     expect(v.standing.state).toBe('APPROACHING')
