@@ -149,6 +149,24 @@ export function effectivePermissions(rolePermissions: readonly string[], seat: S
   return [...rolePermissions, ...grantedPermissions(rolePermissions, seat, grants)]
 }
 
+/**
+ * The permissions a menu offers links by: everything `hasPermission` is
+ * asked over, and a team or own-work grant of what may be given to a team
+ * (jobs, submissions), because the routes behind those links open to it
+ * narrowed at the query (permissionScope). Never what a route asks
+ * `hasPermission` for: a link drawn here leads to a route that reads the
+ * grant at its reach and refuses outside it in a sentence.
+ */
+export function menuPermissions(rolePermissions: readonly string[], seat: Seat, grants: readonly GrantRow[]): string[] {
+  const out = effectivePermissions(rolePermissions, seat, grants)
+  for (const g of grants) {
+    if (g.permission === GRANT_RIGHT || !KNOWN.has(g.permission)) continue
+    if (!reaches(g, seat) || !GRANTABLE_TO_A_TEAM.has(g.permission)) continue
+    if (!out.includes(g.permission)) out.push(g.permission)
+  }
+  return out
+}
+
 /** A unit and every unit under it, at the company whose units these are. Safe on a cycle. */
 export function unitAndBelow(unitId: string, units: readonly Unit[]): string[] {
   if (!units.some((u) => u.id === unitId)) return []

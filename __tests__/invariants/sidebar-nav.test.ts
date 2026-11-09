@@ -869,6 +869,19 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(wrong).toEqual([])
   })
 
+  /**
+   * A refusal on a grant's reach: `const r = … reachFor(…, 'p')` or
+   * `permissionScope(…, 'p')`, then `if (!r.has)`. The permission and where
+   * the refusal sits, or null where the handler has none.
+   */
+  function gateByReach(body: string): { permission: string; at: number } | null {
+    const made = /const (\w+) =(?:(?!\bconst \w+ =)[\s\S])*?\b(?:reachFor|permissionScope)\([^,()]+,\s*'([^']+)'\)/.exec(body)
+    if (!made) return null
+    const refused = new RegExp(`if \\(\\s*!${made[1]}\\.has\\b`).exec(body)
+    if (!refused || refused.index < made.index) return null
+    return { permission: made[2], at: refused.index }
+  }
+
   /** What the GET handler at this route asks for, or null where there is no route. */
   function gateOf(routeDir: string): string[] | null {
     if (DESK_GATES[routeDir]) return DESK_GATES[routeDir].stands
@@ -880,6 +893,14 @@ describe('a menu offers only what this seat can actually open', () => {
     const after = src.indexOf('export async function', start + 10)
     const body = src.slice(start, after < 0 ? src.length : after)
     const first = body.match(/if \(\s*!(hasPermission|hasAnyPermission|mayOpen|mayRead)\(/)
+    // The Owner's grant at its reach (2026-11-09, demand's 37c14618b): a
+    // route that refuses on `!<reach>.has`, where <reach> is
+    // `permissionScope(caller, '<p>')` or demand's `reachFor(caller, '<p>')`
+    // (app/api/requisitions/grant-reach), asks for <p>, because the reach is
+    // the permission held at some scope. Read only where that refusal comes
+    // before any other gate, so it never stands in for one.
+    const reach = gateByReach(body)
+    if (reach && (!first || reach.at < first.index!)) return [reach.permission]
     if (!first) return []
     if (first[1] === 'hasPermission') {
       const guard = body.slice(first.index).match(/if \(\s*!hasPermission\((?:[^{])*/)?.[0] ?? ''

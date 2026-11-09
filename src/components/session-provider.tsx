@@ -230,11 +230,14 @@ export function withGrants(
  * older answer), the role's permissions with the layout's grants. Pure.
  */
 export function seatPermissions(
-  active: { id?: string | null; permissions?: unknown; role?: { permissions?: readonly string[] | null } | null } | null,
+  active: { id?: string | null; permissions?: unknown; menuPermissions?: unknown; role?: { permissions?: readonly string[] | null } | null } | null,
   granted: SessionGrants | null,
 ): string[] {
-  if (active && Array.isArray(active.permissions) && active.permissions.every((p) => typeof p === 'string')) {
-    return [...new Set(active.permissions as string[])]
+  // A team grant of jobs or submissions opens their routes narrowed, so the
+  // menu offers their links where /api/me says so (`menuPermissions` in
+  // lib/permission-grants); else what hasPermission is asked over.
+  for (const list of [active?.menuPermissions, active?.permissions]) {
+    if (Array.isArray(list) && list.every((p) => typeof p === 'string')) return [...new Set(list as string[])]
   }
   return withGrants(active?.role?.permissions ?? [], active?.id ?? null, granted)
 }

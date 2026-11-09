@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import {
-  NARROWED_AT_THE_QUERY, GRANTABLE_TO_A_TEAM, grantedPermissions, effectivePermissions, scopeFrom, checkGrant, type GrantRow,
+  NARROWED_AT_THE_QUERY, GRANTABLE_TO_A_TEAM, grantedPermissions, effectivePermissions, scopeFrom, checkGrant, menuPermissions, type GrantRow,
 } from '@/lib/permission-grants/rules'
 import { hasPermission } from '@/lib/permissions'
 import { readFileSync } from 'node:fs'
+import { menuFor, menuLinks } from '@/lib/nav-table'
+import { seatPermissions } from '@/components/session-provider'
 import { join } from 'node:path'
 
 const CO = 'brightmoor'
@@ -82,5 +84,26 @@ describe('A team grant of jobs or submissions is kept at its reach and opens onl
     const route = readFileSync(join(process.cwd(), 'src/app/api/settings/grants/route.ts'), 'utf8')
     expect(route).toContain("scopes: key !== GRANT_RIGHT && GRANTABLE_TO_A_TEAM.has(key) ? GRANT_SCOPES : ['COMPANY']")
     expect(route).not.toContain('NARROWED_AT_THE_QUERY.has(key)')
+  })
+
+  it('a seat holding only a team grant of jobs is offered Jobs on its menu, because the route opens to it narrowed, while hasPermission still says no', () => {
+    const g = [grant({ permission: 'requirements.read' })]
+    const MEMBER = ['assignments.read']
+    expect(hasPermission(effectivePermissions(MEMBER, seat, g), 'requirements.read')).toBe(false)
+    const menu = menuPermissions(MEMBER, seat, g)
+    expect(menu).toContain('requirements.read')
+    const links = menuLinks(menuFor('VENDOR', false, { permissions: menu })).map((l) => l.href)
+    expect(links).toContain('/dashboard/requirements')
+  })
+
+  it('a team grant of payroll or of anything no route narrows never draws a link it cannot open', () => {
+    const menu = menuPermissions(['assignments.read'], seat, [grant({ permission: 'timesheets.approve' })])
+    expect(menu).not.toContain('timesheets.approve')
+  })
+
+  it('the menu reads /api/me\u2019s menu permissions where it sends them, and its yes-or-no list otherwise', () => {
+    const active = { id: 'ctx-dana', permissions: ['assignments.read'], menuPermissions: ['assignments.read', 'requirements.read'] }
+    expect(seatPermissions(active, null)).toEqual(['assignments.read', 'requirements.read'])
+    expect(seatPermissions({ id: 'ctx-dana', permissions: ['assignments.read'] }, null)).toEqual(['assignments.read'])
   })
 })
