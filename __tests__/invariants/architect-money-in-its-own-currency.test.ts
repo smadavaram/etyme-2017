@@ -31,6 +31,9 @@ describe('The architect’s amounts are said in their own currency (2026-11-09)'
     expect(route).not.toMatch(/Number\(t\.amount\) \* 100/)
     expect(route).toContain('minorFromWhole(i.total, currency)')
     expect(route).toContain('were left out: a reconciliation is in one currency')
+    // The run keeps its currency, and a run from before reads as the company's.
+    expect(route).toContain('      currency,\n      breaks: result.breaks as any,')
+    expect(route).toContain('currency: r.currency ?? currency,')
   })
 
   it('a past reconciliation on the Integrations page is said through money’s formatter in its currency', () => {

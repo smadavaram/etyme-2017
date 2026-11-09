@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       oursCents: result.oursCents,
       theirsCents: result.theirsCents,
       differenceCents: result.differenceCents,
+      currency,
       breaks: result.breaks as any,
       runById: caller.person.id,
     },
@@ -146,7 +147,8 @@ export async function GET(request: NextRequest) {
         differenceCents: r.differenceCents,
         breaks: r.breaks,
         runAt: r.runAt,
-        currency,
+        // A run before 2026-11-09 kept no currency: read in the company's.
+        currency: r.currency ?? currency,
       })),
     },
   })

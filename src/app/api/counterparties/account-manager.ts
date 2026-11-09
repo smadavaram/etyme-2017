@@ -39,7 +39,10 @@ async function clientOnRecord(companyId: string, clientId: string) {
   const [row, msa, company] = await Promise.all([
     prisma.counterparty.findFirst({
       where: { companyId, otherCompanyId: clientId, relationship: 'CLIENT' },
-      select: { id: true, accountManager: { select: { id: true, name: true } } },
+      select: {
+        id: true, accountManager: { select: { id: true, name: true } },
+        accountManagerSetBy: { select: { name: true } }, accountManagerSetAt: true,
+      },
     }),
     prisma.masterAgreement.findFirst({ where: { vendorId: companyId, clientId }, select: { id: true } }),
     prisma.company.findUnique({ where: { id: clientId }, select: { id: true, name: true } }),
@@ -71,6 +74,9 @@ export async function readAccountManager(caller: CallerContext, clientId: string
     data: {
       client: client.company,
       accountManager: named,
+      // Who named them and when, where it was named on a screen; null on a seeded name.
+      setBy: client.row?.accountManagerSetBy?.name ?? null,
+      setAt: client.row?.accountManagerSetAt?.toISOString() ?? null,
       says: accountManagerSays(named?.name ?? null, client.company.name),
       mayName,
       ...(mayName ? {} : { refusedSays: NAME_ACCOUNT_MANAGER_REFUSED }),
@@ -114,13 +120,17 @@ export async function nameAccountManager(caller: CallerContext, body: { accountM
   }
 
   // The register row is written where only an agreement made the client one.
+  // Who named the account manager, and when, are kept with every change.
+  const setBy = caller.isService ? null : caller.person.id
+  const setAt = new Date()
   await prisma.counterparty.upsert({
     where: { companyId_otherCompanyId_relationship: { companyId, otherCompanyId: client.company.id, relationship: 'CLIENT' } },
     create: {
       companyId, otherCompanyId: client.company.id, relationship: 'CLIENT', status: 'ACTIVE',
       createdById: caller.isService ? null : caller.person.id, accountManagerId: named?.id ?? null,
+      accountManagerSetById: setBy, accountManagerSetAt: setAt,
     },
-    update: { accountManagerId: named?.id ?? null },
+    update: { accountManagerId: named?.id ?? null, accountManagerSetById: setBy, accountManagerSetAt: setAt },
   })
   return NextResponse.json({ data: { accountManager: named, says: accountManagerSays(named?.name ?? null, client.company.name) } })
 }

@@ -418,6 +418,8 @@ function AccountManagerPanel({ clientId }: { clientId: string }) {
     mayName: boolean
     refusedSays?: string
     colleagues: { id: string; name: string }[]
+    setBy?: string | null
+    setAt?: string | null
   }
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [choice, setChoice] = useState('')
@@ -486,6 +488,11 @@ function AccountManagerPanel({ clientId }: { clientId: string }) {
         </form>
       )}
       {!message && <p className="text-[13px] text-etyme-muted mt-1">{answer.says}</p>}
+      {answer.setBy && answer.setAt && (
+        <p className="text-[13px] text-etyme-faint mt-1">
+          Named by {answer.setBy}, {dayOfMomentFor(new Date(answer.setAt), readerZone())}.
+        </p>
+      )}
     </div>
   )
 }

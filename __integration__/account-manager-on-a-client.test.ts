@@ -51,9 +51,15 @@ describe('the account manager on a client', () => {
     expect(r.body.data.says).toMatch(/is the account manager on Northbend Athletic/)
     const row = await prisma.counterparty.findFirstOrThrow({
       where: { companyId: brightmoor, otherCompanyId: northbend, relationship: 'CLIENT' },
-      select: { accountManagerId: true },
+      select: { accountManagerId: true, accountManagerSetById: true, accountManagerSetAt: true },
     })
     expect(row.accountManagerId).toBe(tobias)
+    // Who named them, and when, are kept with the change and said on the drawer.
+    expect(row.accountManagerSetById).toBe((await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNER }, select: { id: true } })).id)
+    expect(row.accountManagerSetAt).toBeInstanceOf(Date)
+    const shown = await read(OWNER)
+    expect(shown.body.data.setBy).toBeTruthy()
+    expect(shown.body.data.setAt).toBeTruthy()
   })
 
   it('an Account Manager may name one too, and may clear it', async () => {
