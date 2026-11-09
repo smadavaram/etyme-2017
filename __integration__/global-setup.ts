@@ -9,7 +9,8 @@
  * build both again.
  */
 import type { GlobalSetupContext } from 'vitest/node'
-import { ensurePostgres, dropDatabase, databaseExists } from './postgres'
+import { ensurePostgres, dropDatabase, databaseExists, databasesLike } from './postgres'
+import { RUN_DB_PREFIX, RUN_DATABASES, staleRunDatabases, processAlive } from './database'
 import { buildEmptyTemplate, buildWorldTemplate, planTemplates, sweepTemplates } from './templates'
 
 declare module 'vitest' {
@@ -31,6 +32,15 @@ export default async function setup({ provide }: GlobalSetupContext) {
 
   const dropped = sweepTemplates(plan)
   if (dropped.length) log(`dropped ${dropped.length} stale template(s): ${dropped.join(', ')}`)
+
+  // Databases left by a run whose process is gone (killed before its own
+  // teardown). A run still going is never touched: its pid is alive.
+  const leftOver = staleRunDatabases(databasesLike(RUN_DB_PREFIX), processAlive, RUN_DATABASES)
+  for (const db of leftOver) {
+    try { dropDatabase(db) } catch { /* another run's sweep got there first */ }
+  }
+  if (leftOver.length) log(`dropped ${leftOver.length} database(s) left by runs that ended: ${leftOver.join(', ')}`)
+  if (RUN_DATABASES) log(`this run's databases: ${RUN_DATABASES}w<n>`)
 
   const t0 = Date.now()
   if (databaseExists(plan.empty)) {
@@ -73,4 +83,12 @@ export default async function setup({ provide }: GlobalSetupContext) {
 
   provide('emptyTemplate', plan.empty)
   provide('worldTemplate', plan.world)
+
+  // The run's own databases go with it.
+  return () => {
+    if (!RUN_DATABASES) return
+    for (const db of databasesLike(RUN_DATABASES)) {
+      try { dropDatabase(db) } catch { /* left for the next run's sweep */ }
+    }
+  }
 }

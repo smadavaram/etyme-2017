@@ -16,6 +16,13 @@ import path from 'path'
  *
  * ETYME_INTEGRATION_FORKS sets how many files run at once.
  */
+// Every run names its own worker databases (__integration__/database.ts):
+// the main process's pid and four letters, read by every worker it forks.
+// A database named by hand (ETYME_TEST_DB) wins and keeps its old names.
+if (!process.env.ETYME_TEST_DB && !process.env.ETYME_TEST_RUN) {
+  process.env.ETYME_TEST_RUN = `p${process.pid}_${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`
+}
+
 export default defineConfig({
   test: {
     globals: true,
