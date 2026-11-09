@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { readsFirmMargin } from '@/lib/consultant-portfolio/margin-reach'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 import {
   supplierRisk, watchlist,
@@ -68,7 +69,9 @@ const COVER_LABELS: Record<string, string> = {
 }
 
 /** Nothing owed on these, so they say nothing about payment behavior. */
-const NOT_RECEIVABLE = ['DRAFT', 'CANCELLED', 'VOID']
+// A bill raised and never sent (DRAFT, ISSUED) is owed by nobody and earned
+// by nobody, so it is read through money's one sent-only list.
+const NOT_RECEIVABLE = [...DRAWS_NOTHING]
 const NOT_PAYABLE = ['CANCELLED', 'DISPUTED']
 
 export async function GET(request: NextRequest) {

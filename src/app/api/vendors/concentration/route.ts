@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { readsFirmMargin, firmWideRefusal } from '@/lib/consultant-portfolio/margin-reach'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import {
   concentration, concentrationReport, clientExposures, dimensionsFor, concentrationRefusal,
@@ -54,7 +55,9 @@ import {
 /** How far back this looks. A year, the way a book is normally read. */
 const WINDOW_DAYS = 365
 
-const NOT_REVENUE = ['DRAFT', 'CANCELLED', 'VOID']
+// A bill raised and never sent (DRAFT, ISSUED) is owed by nobody and earned
+// by nobody, so it is read through money's one sent-only list.
+const NOT_REVENUE = [...DRAWS_NOTHING]
 const NOT_SPEND = ['CANCELLED', 'DISPUTED']
 
 /**
