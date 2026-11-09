@@ -168,7 +168,10 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const ids = r.body.data.contractors.map((c: any) => c.contractId)
     const rolled = rollUp([...(await signedAndBilled(ids)).values()])
-    expect(r.body.data.summary.billed).toEqual(rolled.map((x) => ({ currency: x.currency, billedMinor: x.billedMinor, notBilledMinor: x.notBilledMinor, notBilledHours: x.notBilledHours })))
+    expect(r.body.data.summary.billed).toEqual(rolled.map((x) => ({
+      currency: x.currency, billedMinor: x.billedMinor, billedOverSignedMinor: x.billedOverSignedMinor,
+      notBilledMinor: x.unpricedWeeks > 0 ? null : x.notBilledMinor, notBilledHours: x.notBilledHours, unpricedWeeks: x.unpricedWeeks,
+    })))
   })
 
   it('the budget reads one total per currency, and a single-currency program keeps its flat figures equal to that one total', async () => {
@@ -200,6 +203,19 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
       expect(c.budgetCents).toBe(Math.round(Number(plan.annualBudget) * (plan.currency === 'VND' || plan.currency === 'JPY' ? 1 : 100)))
     }
     expect(vnd === undefined || Number.isFinite(Number(vnd.annualBudget))).toBe(true)
+  })
+
+  it('on every cost center Spent less Billed is the signed time not billed yet, less what was billed past the signed hours, to the cent', async () => {
+    as(PROGRAM)
+    const r = await json(await readBudget(req('GET', '/api/program/budget')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    let checked = 0
+    for (const c of r.body.data.centers) {
+      if (c.signedNotBilledCents == null) continue
+      expect(c.actualCents - c.billedCents, c.code).toBe(c.signedNotBilledCents - c.billedOverSignedCents)
+      if (c.actualCents > 0) checked++
+    }
+    expect(checked, 'a Northbend cost center with spend').toBeGreaterThan(0)
   })
 })
 

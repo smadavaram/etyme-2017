@@ -26,8 +26,17 @@ import type { LineBilled } from '@/lib/money/order-ledger'
 export interface CenterBilled {
   /** Billed on bills sent, in the cost center's currency, minor units. */
   billedCents: number
-  /** Signed and not billed yet, money's figure, in the cost center's currency. */
-  signedNotBilledCents: number
+  /**
+   * Signed and not billed yet, money's figure, in the cost center's
+   * currency. Null where any of its lines holds a week the next bill would
+   * leave off (money's `notBilled.unpriced`): the priced part is never
+   * printed as the whole, and `signedNotBilledSays` says why.
+   */
+  signedNotBilledCents: number | null
+  /** Why there is no signed-not-billed figure; null where there is one. */
+  signedNotBilledSays: string | null
+  /** Billed for hours past what the client signed, money's figure; inside Billed, said beside it. */
+  billedOverSignedCents: number
   /** Hours signed and not billed yet. */
   signedNotBilledHours: number
   /** Currencies of lines left out of both figures because they are not the cost center's. */
@@ -41,7 +50,8 @@ export function centerBilled(
   signed: ReadonlyMap<string, LineBilling>
 ): CenterBilled {
   const ccy = currency.toUpperCase()
-  const out: CenterBilled = { billedCents: 0, signedNotBilledCents: 0, signedNotBilledHours: 0, otherCurrencies: [] }
+  const out: CenterBilled = { billedCents: 0, signedNotBilledCents: 0, signedNotBilledSays: null, billedOverSignedCents: 0, signedNotBilledHours: 0, otherCurrencies: [] }
+  let unpriced = 0
   for (const l of lines) {
     const s = signed.get(l.id)
     const b = billed.get(l.id)
@@ -53,16 +63,29 @@ export function centerBilled(
     }
     const share = l.shareBps / 10_000
     out.billedCents += Math.round((b?.billedMinor ?? 0) * share)
-    out.signedNotBilledCents += Math.round((s?.notBilled.amountMinor ?? 0) * share)
+    out.signedNotBilledCents = (out.signedNotBilledCents ?? 0) + Math.round((s?.notBilled.amountMinor ?? 0) * share)
+    out.billedOverSignedCents += Math.round((s?.billedOverSigned?.amountMinor ?? 0) * share)
+    unpriced += s?.notBilled.unpriced ?? 0
     out.signedNotBilledHours = Math.round((out.signedNotBilledHours + (s?.notBilled.hours ?? 0) * share) * 100) / 100
+  }
+  if (unpriced > 0) {
+    out.signedNotBilledCents = null
+    out.signedNotBilledSays =
+      `${unpriced} signed ${unpriced === 1 ? 'week has' : 'weeks have'} no amount yet, because the next bill would leave ` +
+      `${unpriced === 1 ? 'it' : 'them'} off, so no total is given for what is signed and not billed.`
   }
   return out
 }
 
 /** The program's lines rolled up per currency: billed by bills sent, and signed not billed yet. */
-export function programBilled(signed: ReadonlyMap<string, LineBilling>): { currency: string; billedMinor: number; notBilledMinor: number; notBilledHours: number }[] {
+export function programBilled(signed: ReadonlyMap<string, LineBilling>): {
+  currency: string; billedMinor: number; billedOverSignedMinor: number; notBilledMinor: number | null; notBilledHours: number; unpricedWeeks: number
+}[] {
+  // A currency holding a week the next bill would leave off has no
+  // signed-not-billed total: the priced part is never said as the whole.
   return rollUp([...signed.values()]).map((r) => ({
-    currency: r.currency, billedMinor: r.billedMinor, notBilledMinor: r.notBilledMinor, notBilledHours: r.notBilledHours,
+    currency: r.currency, billedMinor: r.billedMinor, billedOverSignedMinor: r.billedOverSignedMinor,
+    notBilledMinor: r.unpricedWeeks > 0 ? null : r.notBilledMinor, notBilledHours: r.notBilledHours, unpricedWeeks: r.unpricedWeeks,
   }))
 }
 
@@ -75,7 +98,8 @@ export interface CenterFigures {
   toPayCents: number
   paidCents: number
   billedCents: number
-  signedNotBilledCents: number
+  signedNotBilledCents: number | null
+  billedOverSignedCents: number
 }
 
 export interface CurrencyTotal extends Omit<CenterFigures, 'budgetCents'> {
@@ -94,14 +118,16 @@ export function budgetTotals(rows: readonly CenterFigures[]): CurrencyTotal[] {
   const by = new Map<string, CurrencyTotal>()
   for (const r of rows) {
     const c = (r.currency || 'USD').toUpperCase()
-    const t = by.get(c) ?? { currency: c, budgetCents: null, committedCents: 0, actualCents: 0, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0, centers: 0 }
+    const t = by.get(c) ?? { currency: c, budgetCents: null, committedCents: 0, actualCents: 0, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0, billedOverSignedCents: 0, centers: 0 }
     if (r.budgetCents != null) t.budgetCents = (t.budgetCents ?? 0) + r.budgetCents
     t.committedCents += r.committedCents
     t.actualCents += r.actualCents
     t.toPayCents += r.toPayCents
     t.paidCents += r.paidCents
     t.billedCents += r.billedCents
-    t.signedNotBilledCents += r.signedNotBilledCents
+    // One center with no figure leaves its currency with no total.
+    t.signedNotBilledCents = t.signedNotBilledCents == null || r.signedNotBilledCents == null ? null : t.signedNotBilledCents + r.signedNotBilledCents
+    t.billedOverSignedCents += r.billedOverSignedCents
     t.centers += 1
     by.set(c, t)
   }

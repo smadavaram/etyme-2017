@@ -373,7 +373,7 @@ describe('Billed sits beside Spent on the budget and the program, by money’s o
 
 describe('the budget page never adds two currencies and prints each in its own', () => {
   const center = (currency: string, budgetCents: number | null, actualCents: number) => ({
-    currency, budgetCents, committedCents: 0, actualCents, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0,
+    currency, budgetCents, committedCents: 0, actualCents, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 0, billedOverSignedCents: 0,
   })
 
   it('a program with budgets in dollars and dong reads one total per currency, never their sum', () => {
@@ -396,3 +396,36 @@ describe('the budget page never adds two currencies and prints each in its own',
     expect(route).toContain('currency: planCurrency')
   })
 })
+
+describe('a total that cannot be stood behind is a blank, and billing past the signed hours is said', () => {
+  const lb = (unpriced: number, over: number) => ({
+    sellContractId: 'a', personId: 'p', personName: 'P', currency: 'USD',
+    signed: { hours: 80, weeks: 2 }, billed: { hours: 40, amountMinor: 0 }, drafted: { hours: 0, amountMinor: 0, bills: [] },
+    billedOverSigned: { hours: over / 14_700, amountMinor: over },
+    notBilled: { hours: 40, amountMinor: 400_000, overLineHours: 0, onDraftHours: 0, unpriced, weeks: [], aging: [] }, says: null,
+  })
+  const billedA = new Map([['a', { billedHours: 40, billedMinor: 400_000, draftedHours: 0, draftedMinor: 0, currencies: ['USD'] }]])
+
+  it('a cost center holding a week the next bill would leave off reads no signed-not-billed total, and says why', () => {
+    const c = centerBilled([{ id: 'a', shareBps: 10_000 }], 'USD', billedA, new Map([['a', lb(1, 0)]]) as any)
+    expect(c.signedNotBilledCents).toBeNull()
+    expect(c.signedNotBilledSays).toBe('1 signed week has no amount yet, because the next bill would leave it off, so no total is given for what is signed and not billed.')
+  })
+
+  it('hours billed past what was signed are said beside Billed, at money’s figure', () => {
+    const c = centerBilled([{ id: 'a', shareBps: 10_000 }], 'USD', billedA, new Map([['a', lb(0, 14_700)]]) as any)
+    expect(c.billedOverSignedCents).toBe(14_700)
+    expect(c.signedNotBilledCents).toBe(400_000)
+    const page = read('src/app/dashboard/program/budget/page.tsx')
+    expect(page).toContain('billed past signed hours')
+  })
+
+  it('a currency with one cost center that has no figure reads no total for that currency', () => {
+    const t = budgetTotals([
+      { currency: 'USD', budgetCents: null, committedCents: 0, actualCents: 0, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: 100, billedOverSignedCents: 0 },
+      { currency: 'USD', budgetCents: null, committedCents: 0, actualCents: 0, toPayCents: 0, paidCents: 0, billedCents: 0, signedNotBilledCents: null, billedOverSignedCents: 0 },
+    ])
+    expect(t[0].signedNotBilledCents).toBeNull()
+  })
+})
+

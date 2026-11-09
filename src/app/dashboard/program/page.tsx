@@ -65,7 +65,7 @@ interface ProgramData {
     /** The one line under that figure, saying what it rests on. From `lib/program-spend`. */
     monthlySpendSays?: string
     /** Per currency: billed by bills sent, and signed not billed yet. */
-    billed?: { currency: string; billedMinor: number; notBilledMinor: number; notBilledHours: number }[]
+    billed?: { currency: string; billedMinor: number; billedOverSignedMinor: number; notBilledMinor: number | null; notBilledHours: number; unpricedWeeks: number }[]
     pendingApprovals: number
     openRoles: number
     endingSoon: number
@@ -850,7 +850,9 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
           <Stat
             label="Billed"
             value={s.billed!.map((b) => compact(b.billedMinor, b.currency)).join(' · ')}
-            sub={`${s.billed!.map((b) => compact(b.notBilledMinor, b.currency)).join(' · ')} signed, not billed yet`}
+            sub={s.billed!.map((b) =>
+              (b.notBilledMinor == null ? `${b.currency}: signed, not billed yet has no total while ${b.unpricedWeeks} ${b.unpricedWeeks === 1 ? 'week has' : 'weeks have'} no amount` : `${compact(b.notBilledMinor, b.currency)} signed, not billed yet`) +
+              (b.billedOverSignedMinor > 0 ? `, ${compact(b.billedOverSignedMinor, b.currency)} billed past signed hours` : '')).join(' · ')}
             href="/dashboard/program/budget"
           />
         )}

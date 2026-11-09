@@ -64,8 +64,11 @@ interface Center {
   usedShare: number | null
   /** Billed on bills sent, beside Spent; a draft is never in it. */
   billedCents: number
-  /** Signed and not billed yet, money's figure for these lines. */
-  signedNotBilledCents: number
+  /** Signed and not billed yet, money's figure for these lines; null where a week has no amount yet. */
+  signedNotBilledCents: number | null
+  signedNotBilledSays: string | null
+  /** Billed for hours past what was signed, inside Billed. */
+  billedOverSignedCents: number
   /** Lines in another currency than this budget, left out of Billed. */
   otherCurrencies: string[]
   lines: Line[]
@@ -159,7 +162,10 @@ export default function BudgetPage() {
       render: (c) => (
         <span className="tabular-nums" title={c.otherCurrencies.length ? `Lines in ${c.otherCurrencies.join(', ')} are not in this figure.` : undefined}>
           {cash(c.billedCents, c.currency)}
-          {c.signedNotBilledCents > 0 && <span className="block text-[10px] text-etyme-muted">{cash(c.signedNotBilledCents, c.currency)} signed, not billed yet</span>}
+          {c.signedNotBilledCents == null
+            ? <span className="block text-[10px] text-etyme-attention" title={c.signedNotBilledSays ?? undefined}>signed, not billed yet: no total</span>
+            : c.signedNotBilledCents > 0 && <span className="block text-[10px] text-etyme-muted">{cash(c.signedNotBilledCents, c.currency)} signed, not billed yet</span>}
+          {c.billedOverSignedCents > 0 && <span className="block text-[10px] text-etyme-attention">{cash(c.billedOverSignedCents, c.currency)} billed past signed hours</span>}
         </span>
       ),
       hideOnMobile: true,
@@ -217,7 +223,9 @@ export default function BudgetPage() {
               ['Budget', cash(t.budgetCents, t.currency), `${period}`],
               ['Committed', cash(t.committedCents, t.currency), 'signed, not yet worked'],
               ['Spent', cash(t.actualCents, t.currency), 'work you accepted'],
-              ['Billed', cash(t.billedCents, t.currency), `bills sent to you; ${cash(t.signedNotBilledCents, t.currency)} signed, not billed yet`],
+              ['Billed', cash(t.billedCents, t.currency),
+                `bills sent to you; ${t.signedNotBilledCents == null ? 'signed, not billed yet has no total while a week has no amount' : `${cash(t.signedNotBilledCents, t.currency)} signed, not billed yet`}` +
+                (t.billedOverSignedCents > 0 ? `; ${cash(t.billedOverSignedCents, t.currency)} billed past signed hours` : '')],
               ['Left', cash(t.budgetCents == null ? null : t.budgetCents - t.committedCents - t.actualCents, t.currency), 'budget less both'],
             ].map(([label, value, note]) => (
               <Stat key={label} label={label} value={value} sub={note} />

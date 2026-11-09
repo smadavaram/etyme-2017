@@ -1182,7 +1182,7 @@ export default function TimesheetsPage() {
           value={approvedValueSays(totals)}
           sub={totals.approvedSays}
         />
-        {/* The weeks this reader pays for, labelled apart, never added in (walk 8). */}
+        {/* The weeks this reader pays for, labeled apart, never added in (walk 8). */}
         {totals.paidSays && (
           <Stat label="What you pay" value={paidValueSays(totals) ?? '—'} sub={totals.paidSays} />
         )}

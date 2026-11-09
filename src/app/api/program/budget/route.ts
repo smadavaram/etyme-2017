@@ -11,7 +11,7 @@ import { lineFor, splitWeeks } from '@/lib/overtime'
 import { actingDesk } from '@/lib/program-seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/app/api/program/no-desk'
-import { logBulkAccess, recordRefusal } from '@/lib/access-log'
+import { recordRefusal } from '@/lib/access-log'
 import { linesBilled } from '@/lib/money/order-ledger'
 import { signedAndBilled } from '@/lib/money/signed-unbilled'
 import { centerBilled, budgetTotals } from '../billed-figures'
@@ -331,6 +331,7 @@ export async function GET(request: NextRequest) {
         paidCents: one ? one.paidCents : null,
         billedCents: one ? one.billedCents : null,
         signedNotBilledCents: one ? one.signedNotBilledCents : null,
+        billedOverSignedCents: one ? one.billedOverSignedCents : null,
         currency: one?.currency ?? null,
         byCurrency,
         withoutBudget: rows.filter((r) => r.budgetCents == null).length,
