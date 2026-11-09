@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
                 grantedAt: true,
                 termsEngagementType: true,
                 termsPayRateCents: true,
+                termsPayCurrency: true,
                 termsAgreedAt: true,
                 // The firm's own view of the person, read before her own words.
                 firmHeadline: true,
@@ -294,6 +295,7 @@ export async function GET(request: NextRequest) {
             // The terms stated at listing: the kind is not money, the pay is.
             termsEngagementType: l.termsEngagementType,
             termsPayRateCents: showRate ? l.termsPayRateCents : undefined,
+            termsPayCurrency: showRate ? l.termsPayCurrency : undefined,
             termsAgreed: l.termsAgreedAt != null,
           }))
         : [],
@@ -402,7 +404,7 @@ export async function POST(request: NextRequest) {
       tier: tier as 'RETAINED' | 'MARKETING',
       rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
       rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
-      statedTerms: { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
+      statedTerms: { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents, payCurrency: body.termsPayCurrency },
       newProfile: {
         headline,
         skills,
@@ -441,6 +443,7 @@ export async function POST(request: NextRequest) {
       status: out.listing.state,
       termsEngagementType: out.listing.termsEngagementType,
       termsPayRateCents: out.listing.termsPayRateCents,
+      termsPayCurrency: out.listing.termsPayCurrency,
       termsStatedAt: out.listing.termsStatedAt?.toISOString() ?? null,
       termsAgreedAt: null,
     }

@@ -117,6 +117,7 @@ describe('what the invitation says', () => {
       terms: {
         engagementType: 'W2' as never,
         payRateCents: 9000,
+        payCurrency: 'USD',
         rate: '$90/hr',
         words: 'as its employee (W2)',
         agreed: false,

@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       grantFacts.set(c.id, await seatGrantFacts({ companyId: c.companyId, roleId: c.roleId, contextId: c.id }, (c.role?.permissions as string[]) ?? []))
     })
   )
-  const seatFacts = (id: string) => grantFacts.get(id) ?? { permissions: [], granted: [], grants: [], mayGiveAccess: false }
+  const seatFacts = (id: string) => grantFacts.get(id) ?? { permissions: [], menuPermissions: [], granted: [], grants: [], mayGiveAccess: false }
 
   return NextResponse.json({
     data: {

@@ -49,15 +49,17 @@ export interface AddConsultantTyped {
   workAuth: string
   tier: string
   termsEngagementType: string
-  /** Dollars an hour, as typed. */
+  /** Whole units an hour, as typed, in `termsPayCurrency`. */
   termsPay: string
+  /** The currency the pay is in: the firm's own unless the person stating it picked another. Blank, the firm's. */
+  termsPayCurrency?: string
   notes: string
 }
 
 /** Every field the Add consultant form draws, by the name its body carries. */
 export const ADD_CONSULTANT_FIELDS = [
   'name', 'email', 'headline', 'skills', 'location', 'workAuth', 'tier',
-  'rateMin', 'rateMax', 'termsEngagementType', 'termsPayRateCents', 'notes',
+  'rateMin', 'rateMax', 'termsEngagementType', 'termsPayRateCents', 'termsPayCurrency', 'notes',
 ] as const
 
 /** The body Add consultant posts. The rates come in cents from `listingRates`, which the form checks first. */
@@ -67,6 +69,7 @@ export function addConsultantBody(
   /** The firm's currency; the pay typed is turned into minor units by its own exponent. */
   currency: string = 'USD'
 ) {
+  const payCurrency = (form.termsPayCurrency || currency || 'USD').toUpperCase()
   return {
     name: form.name,
     email: form.email,
@@ -81,9 +84,13 @@ export function addConsultantBody(
     // exponent (whole dong stays whole dong). The route checks it with
     // the terms page's own rule and says what is wrong.
     termsEngagementType: form.termsEngagementType || null,
+    // The currency chosen beside the pay, the firm's own unless the person
+    // stating it picked another; the figure is read by that currency's own
+    // exponent (whole rupees stay rupees in minor units, dong stay whole).
     termsPayRateCents: form.termsPay.trim()
-      ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * minorPerUnit(currency)) : form.termsPay
+      ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * minorPerUnit(payCurrency)) : form.termsPay
       : null,
+    termsPayCurrency: form.termsPay.trim() ? payCurrency : null,
     notes: form.notes.trim() || null,
   }
 }

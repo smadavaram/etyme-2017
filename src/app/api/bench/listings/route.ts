@@ -99,14 +99,19 @@ export async function POST(request: NextRequest) {
 
   // What the firm says it would pay them, where it says anything. The
   // same rule and the same sentences as the terms page.
+  // The pay is in the currency the firm chose for this person, its own by
+  // default (`termsPayCurrency`; a US firm may pay somebody in India in rupees).
+  const firmCurrency =
+    (await prisma.company.findUnique({ where: { id: caller.company!.id }, select: { homeCurrency: true } }))?.homeCurrency ?? 'USD'
   const terms = listingTermsFrom(
-    { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
+    { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents, payCurrency: body.termsPayCurrency },
     {
       personName: consultant.person.name,
       firmName: caller.company!.name,
       ownCompany: consultant.ownCompany ?? null,
       statedById: caller.person.id,
       now: new Date(),
+      firmCurrency,
     }
   )
   if (!terms.ok) {
@@ -188,6 +193,7 @@ export async function POST(request: NextRequest) {
             tier,
             termsEngagementType: terms.fields.termsEngagementType,
             termsPayRateCents: terms.fields.termsPayRateCents,
+            termsPayCurrency: terms.fields.termsPayCurrency,
           },
           reversible: true,
         },
@@ -214,7 +220,7 @@ export async function POST(request: NextRequest) {
       // In the firm's own currency: a dong rate reads whole dong.
       terms: termsShown(result, {
         name: caller.company!.name,
-        homeCurrency: (await prisma.company.findUnique({ where: { id: caller.company!.id }, select: { homeCurrency: true } }))?.homeCurrency,
+        homeCurrency: firmCurrency,
       }),
     })
     // The same sender as Add consultant: where no email can leave, the link

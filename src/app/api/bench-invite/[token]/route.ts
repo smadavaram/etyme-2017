@@ -179,7 +179,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         payload: {
           listingId: listing.id, said, via: 'LINK', stayDays: chosen?.stayDays ?? null,
           ...(agreedNow
-            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents } }
+            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents, payCurrency: listing.termsPayCurrency ?? listing.company.homeCurrency } }
             : {}),
         },
         // Their own answer about their own representation.

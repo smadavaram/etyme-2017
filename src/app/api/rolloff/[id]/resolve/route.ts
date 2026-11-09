@@ -190,10 +190,10 @@ export async function POST(
               declinedNote: null,
               // Stated afresh or not at all, as on the Bench page: terms
               // stated or agreed on the listing they took back went with it.
-              termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null,
+              termsEngagementType: null, termsPayRateCents: null, termsPayCurrency: null, termsStatedAt: null,
               termsStatedById: null, termsAgreedAt: null,
             },
-            select: { termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true },
+            select: { termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true },
           })
           invite = { listingId: existing.id, terms: termsShown(again, caller.company!.name) }
           benchNote = `Asked ${personName} to agree to be on your bench. Nobody can put them forward until they say yes.`
@@ -210,7 +210,7 @@ export async function POST(
               // new one must be born asking.
               ...invitation(new Date()),
             },
-            select: { id: true, termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true },
+            select: { id: true, termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true },
           })
           invite = { listingId: created.id, terms: termsShown(created, caller.company!.name) }
           benchNote = `Asked ${personName} to agree to be on your bench. Nobody can put them forward until they say yes.`

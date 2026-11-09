@@ -110,7 +110,7 @@ export async function POST(
         payload: {
           listingId: id, said,
           ...(agreed?.agreed && 'termsAgreedAt' in agreed.data
-            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents } }
+            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents, payCurrency: listing.termsPayCurrency ?? listing.company.homeCurrency } }
             : {}),
         },
         // Their own answer about their own representation. A vendor

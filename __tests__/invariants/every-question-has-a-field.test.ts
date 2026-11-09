@@ -326,8 +326,8 @@ describe('every question a bench or consultant route asks, its form has a field 
     for (const src of [addReader, read('src/lib/consultant-portfolio/bench-ask.ts'), read('src/app/api/consultants/route.ts')]) {
       for (const m of src.matchAll(/field: '(\w+)'/g)) named.add(m[1])
     }
-    // listingTermsFrom names one of its two terms fields.
-    named.add('termsEngagementType').add('termsPayRateCents')
+    // listingTermsFrom names one of its three terms fields.
+    named.add('termsEngagementType').add('termsPayRateCents').add('termsPayCurrency')
     const offered = new Set<string>(ADD_CONSULTANT_FIELDS)
     expect([...named].filter((f) => !offered.has(f))).toEqual([])
   })

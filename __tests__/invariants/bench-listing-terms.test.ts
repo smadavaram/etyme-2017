@@ -25,7 +25,7 @@ describe('a firm states terms when it lists somebody', () => {
       const r = listingTermsFrom(typed, who)
       expect(r.ok).toBe(true)
       if (!r.ok) continue
-      expect(r.fields).toEqual({ termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null, termsStatedById: null, termsAgreedAt: null })
+      expect(r.fields).toEqual({ termsEngagementType: null, termsPayRateCents: null, termsPayCurrency: null, termsStatedAt: null, termsStatedById: null, termsAgreedAt: null })
       expect(r.says).toBeNull()
     }
   })
@@ -35,7 +35,7 @@ describe('a firm states terms when it lists somebody', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.fields).toEqual({
-      termsEngagementType: 'W2', termsPayRateCents: 9000, termsStatedAt: NOW, termsStatedById: 'p-recruiter', termsAgreedAt: null,
+      termsEngagementType: 'W2', termsPayRateCents: 9000, termsPayCurrency: 'USD', termsStatedAt: NOW, termsStatedById: 'p-recruiter', termsAgreedAt: null,
     })
     expect(r.says).toBe(
       'Brightmoor Staffing offers Marisol Quintero $90/hr as its employee. Marisol Quintero sees these terms when they are asked, and agrees them only by saying yes.'

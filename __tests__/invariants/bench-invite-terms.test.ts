@@ -25,7 +25,7 @@ describe('the terms on the invitation link', () => {
   it('a listing stating W2 at $90 reads, on the link, that the firm would pay $90/hr as its employee and that a yes agrees it', () => {
     const t = inviteTerms(listing({ termsEngagementType: 'W2', termsPayRateCents: 9_000 }), 'Techpeple')
     expect(t.says).toBe('Techpeple says it would pay you $90/hr, as its employee (W2), when it places you. Saying yes agrees these terms.')
-    expect(t.seen).toEqual({ engagementType: 'W2', payRateCents: 9_000 })
+    expect(t.seen).toEqual({ engagementType: 'W2', payRateCents: 9_000, payCurrency: 'USD' })
   })
 
   it('a listing with no terms says so, and that a yes agrees only that they may put the person forward', () => {

@@ -64,7 +64,7 @@ export async function GET(_request: NextRequest) {
         select: {
           id: true, state: true, invitedAt: true,
           stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, showInMatches: true,
-          termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
+          termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true,
           company: { select: { name: true, homeCurrency: true } },
         },
       })
@@ -230,7 +230,7 @@ export async function PATCH(request: NextRequest) {
     const listing = await prisma.benchListing.findFirst({
       where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null, state: 'GRANTED' },
       select: {
-        id: true, companyId: true, termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
+        id: true, companyId: true, termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true,
         company: { select: { name: true, homeCurrency: true } },
       },
     })
@@ -265,7 +265,7 @@ export async function PATCH(request: NextRequest) {
             payload: {
               listingId: listing.id,
               said: 'AGREE_TERMS',
-              termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents },
+              termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents, payCurrency: listing.termsPayCurrency ?? listing.company.homeCurrency },
             },
             // Their own agreement. A firm undoing it would be deciding for them.
             reversible: false,

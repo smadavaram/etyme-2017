@@ -3,6 +3,7 @@ import {
   grantsForSeat,
   grantedPermissions,
   effectivePermissions,
+  menuPermissions,
   holdsGrantRight,
   reaches,
   labelOf,
@@ -34,6 +35,8 @@ export interface SeatGrant {
 
 export interface SeatGrantFacts {
   permissions: string[]
+  /** What the menu may draw: `permissions` and every team or own-work grant of a page that reads by team. */
+  menuPermissions: string[]
   granted: string[]
   grants: SeatGrant[]
   mayGiveAccess: boolean
@@ -73,6 +76,10 @@ export function grantFactsFrom(
     })
   return {
     permissions: effectivePermissions(rolePermissions, seat, live),
+    // What the menu may draw: the permissions above and every team or own-work
+    // grant of a page that reads by team (architect, f2e76ac45), so a seat whose
+    // only reach is a team grant of jobs is offered Jobs.
+    menuPermissions: menuPermissions(rolePermissions, seat, live),
     granted: grantedPermissions(rolePermissions, seat, live),
     grants,
     mayGiveAccess: holdsGrantRight(seat, live),

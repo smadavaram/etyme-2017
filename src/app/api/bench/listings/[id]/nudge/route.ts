@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     where: { id },
     select: {
       id: true, companyId: true, state: true, revokedAt: true, lapsedAt: true, staysUntil: true, stayDays: true,
-      termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
+      termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true,
       company: { select: { name: true, homeCurrency: true } },
       consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } },
     },

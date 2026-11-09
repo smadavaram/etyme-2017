@@ -71,7 +71,7 @@ export interface BenchAskInput {
   rateMin?: number | null
   rateMax?: number | null
   /** What the firm says it would pay. Only a recruiter states terms; the page never does. */
-  statedTerms?: { engagementType: unknown; payRateCents: unknown } | null
+  statedTerms?: { engagementType: unknown; payRateCents: unknown; payCurrency?: unknown } | null
   /**
    * What a recruiter typed about the person. Where nobody by that address
    * has a profile it becomes theirs; either way the headline, skills and
@@ -120,6 +120,7 @@ export type BenchAskOutcome =
         state: string
         termsEngagementType: string | null
         termsPayRateCents: number | null
+        termsPayCurrency?: string | null
         termsStatedAt: Date | null
       } & FirmView
       /** Whether the firm typed anything about the person, kept on its listing. */
@@ -171,6 +172,20 @@ export function askSummary(o: { door: BenchAskDoor; personName: string; firm: st
 
 function isUniqueClash(err: unknown): boolean {
   return (err as { code?: string } | null)?.code === 'P2002'
+}
+
+/**
+ * The firm's own currency, as passed or read once. A read that fails reads
+ * as dollars, the old behavior, rather than failing an ask that was rightly
+ * recorded.
+ */
+async function firmCurrencyOf(firm: { id: string; homeCurrency?: string | null }): Promise<string> {
+  if (firm.homeCurrency) return firm.homeCurrency
+  try {
+    return (await prisma.company.findUnique({ where: { id: firm.id }, select: { homeCurrency: true } }))?.homeCurrency ?? 'USD'
+  } catch {
+    return 'USD'
+  }
 }
 
 export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
@@ -245,6 +260,8 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
       ownCompany: profile?.ownCompany ?? null,
       statedById: o.by?.personId ?? '',
       now: new Date(),
+      // The firm's own currency is the one offered where the stater named none.
+      firmCurrency: o.by && o.statedTerms ? await firmCurrencyOf(firm) : null,
     }
   )
   if (!terms.ok) return { kind: 'REFUSED', code: terms.code, says: terms.says, field: terms.field }
@@ -310,6 +327,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
             fromPublicPage: door === 'PUBLIC_PAGE',
             termsEngagementType: terms.fields.termsEngagementType,
             termsPayRateCents: terms.fields.termsPayRateCents,
+            termsPayCurrency: terms.fields.termsPayCurrency,
           },
           reversible: true,
         },
@@ -350,17 +368,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
   // that was rightly recorded, and it can be sent again from Bench.
   // The terms are said in the firm's own currency, read once where the
   // caller did not hand it over (the public page's door does not).
-  // A read that fails reads as dollars, the old behavior, rather than
-  // failing an ask that was rightly recorded.
-  let homeCurrency = firm.homeCurrency ?? null
-  if (!homeCurrency) {
-    try {
-      homeCurrency = (await prisma.company.findUnique({ where: { id: firm.id }, select: { homeCurrency: true } }))?.homeCurrency ?? null
-    } catch {
-      homeCurrency = null
-    }
-  }
-  homeCurrency = homeCurrency ?? 'USD'
+  const homeCurrency = await firmCurrencyOf(firm)
   const shown = termsShown(asked.row, { name: firm.name, homeCurrency })
   const url = inviteUrl(asked.row.id)
   const msg = inviteText({ personName: asked.person.name, vendorName: firm.name, url, terms: shown })
@@ -395,6 +403,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
       state: asked.row.state,
       termsEngagementType: asked.row.termsEngagementType,
       termsPayRateCents: asked.row.termsPayRateCents,
+      termsPayCurrency: asked.row.termsPayCurrency,
       termsStatedAt: asked.row.termsStatedAt,
       firmHeadline: asked.row.firmHeadline,
       firmSkills: asked.row.firmSkills,

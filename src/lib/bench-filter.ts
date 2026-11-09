@@ -1146,10 +1146,16 @@ export function listingRates(
 // with no terms agrees only the marketing.
 
 
-/** The five columns a listing carries for its terms. Null is "nobody said". */
+/** The six columns a listing carries for its terms. Null is "nobody said". */
 export interface ListingTermsFields {
   termsEngagementType: string | null
   termsPayRateCents: number | null
+  /**
+   * The currency the firm chose to pay this person in: its own by default,
+   * another where it says so (a US firm paying somebody in India in rupees).
+   * Written whenever terms are stated, never left to be guessed later.
+   */
+  termsPayCurrency: string | null
   termsStatedAt: Date | null
   termsStatedById: string | null
   termsAgreedAt: Date | null
@@ -1164,21 +1170,33 @@ const blank = (v: unknown) => v === undefined || v === null || (typeof v === 'st
  * survive the person's withdrawal.
  */
 export function listingTermsFrom(
-  typed: { engagementType: unknown; payRateCents: unknown },
+  typed: { engagementType: unknown; payRateCents: unknown; payCurrency?: unknown },
   who: {
     personName: string
     firmName: string
     ownCompany: { id: string; name: string } | null
     statedById: string
     now: Date
+    /** The firm's own currency, the one offered by default (`Company.homeCurrency`). */
+    firmCurrency?: string | null
   }
 ):
   | { ok: true; fields: ListingTermsFields; says: string | null }
-  | { ok: false; code: string; says: string; field: 'termsEngagementType' | 'termsPayRateCents' } {
+  | { ok: false; code: string; says: string; field: 'termsEngagementType' | 'termsPayRateCents' | 'termsPayCurrency' } {
   const none: ListingTermsFields = {
-    termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null, termsStatedById: null, termsAgreedAt: null,
+    termsEngagementType: null, termsPayRateCents: null, termsPayCurrency: null, termsStatedAt: null, termsStatedById: null, termsAgreedAt: null,
   }
   if (blank(typed.engagementType) && blank(typed.payRateCents)) return { ok: true, fields: none, says: null }
+
+  const payCurrency = blank(typed.payCurrency)
+    ? (who.firmCurrency || 'USD').toUpperCase()
+    : String(typed.payCurrency).trim().toUpperCase()
+  if (!/^[A-Z]{3}$/.test(payCurrency)) {
+    return {
+      ok: false, code: 'BAD_CURRENCY', field: 'termsPayCurrency',
+      says: 'Say the currency you would pay them in as its three-letter code, like USD or INR.',
+    }
+  }
 
   const rate = typeof typed.payRateCents === 'number' ? typed.payRateCents : Number(typed.payRateCents)
   const verdict = checkStatedTerms({
@@ -1187,6 +1205,7 @@ export function listingTermsFrom(
     personName: who.personName,
     firmName: who.firmName,
     ownCompany: who.ownCompany,
+    currency: payCurrency,
   })
   if (!verdict.ok) {
     return {
@@ -1201,6 +1220,7 @@ export function listingTermsFrom(
     fields: {
       termsEngagementType: verdict.engagementType,
       termsPayRateCents: verdict.payRateCents,
+      termsPayCurrency: payCurrency,
       termsStatedAt: who.now,
       termsStatedById: who.statedById,
       // Never agreed by the firm saying so. Only the person's own yes.
@@ -1225,9 +1245,25 @@ export function firmFacts(firm: TermsFirm): { name: string; currency: string } {
   return typeof firm === 'string' ? { name: firm, currency: 'USD' } : { name: firm.name, currency: firm.homeCurrency || 'USD' }
 }
 
+/** A listing's stated terms, as every door reads them. */
+export interface TermsRow {
+  termsEngagementType: string | null
+  termsPayRateCents: number | null
+  /** The currency the firm chose for this person; null on a listing stated before it was kept. */
+  termsPayCurrency?: string | null
+  termsAgreedAt: Date | null
+}
+
+/** The currency stated pay is in: the listing's own, else the firm's, else dollars. Pure. */
+export function termsCurrency(l: Pick<TermsRow, 'termsPayCurrency'>, firm: TermsFirm): string {
+  return (l.termsPayCurrency || firmFacts(firm).currency || 'USD').toUpperCase()
+}
+
 export interface TermsShown {
   engagementType: EngagementType
   payRateCents: number
+  /** The currency `payRateCents` is in, so a yes agrees the figure and the currency it was shown in. */
+  payCurrency: string
   /** "$90/hr" */
   rate: string
   /** "as its employee (W2)" */
@@ -1241,16 +1277,19 @@ export interface TermsShown {
  * stated — or where what is on the row is not something the listing door
  * would have written, which is shown as nothing rather than guessed at.
  *
- * The pay is said in the listing firm's own currency (`Company.homeCurrency`):
- * a listing carries no currency of its own, and the firm that states the
- * terms is the one that pays them. A firm passed by name alone reads as
- * dollars, as before; every door passes the firm with its currency.
+ * The pay is said in the currency the firm chose for this person
+ * (`BenchListing.termsPayCurrency`, written when the terms were stated),
+ * and where a listing stated before that column existed carries none, in
+ * the listing firm's own (`Company.homeCurrency`). A firm passed by name
+ * alone reads as dollars, as before; every door passes the firm with its
+ * currency.
  */
 export function termsShown(
-  l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
+  l: TermsRow,
   firm: TermsFirm
 ): TermsShown | null {
-  const { name: firmName, currency } = firmFacts(firm)
+  const { name: firmName } = firmFacts(firm)
+  const currency = termsCurrency(l, firm)
   const type = l.termsEngagementType as EngagementType | null
   if (!type || !ENGAGEMENT_TYPES.includes(type) || type === 'OTHER_EMPLOYER') return null
   const rate = perHour(l.termsPayRateCents, currency)
@@ -1260,6 +1299,7 @@ export function termsShown(
   return {
     engagementType: type,
     payRateCents: l.termsPayRateCents!,
+    payCurrency: currency,
     rate,
     words,
     agreed,
@@ -1278,7 +1318,7 @@ export function termsShown(
  * read. Where nothing was stated, the yes agrees only the marketing.
  */
 export function agreeingTerms(
-  l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
+  l: TermsRow,
   seen: unknown,
   firm: TermsFirm,
   now: Date
@@ -1296,11 +1336,16 @@ export function agreeingTerms(
     }
   }
   if (stated.agreed) return { ok: true, data: {}, agreed: true, says: stated.says }
-  const s = (seen ?? null) as { engagementType?: unknown; payRateCents?: unknown } | null
+  const s = (seen ?? null) as { engagementType?: unknown; payRateCents?: unknown; payCurrency?: unknown } | null
+  // The currency is part of the figure: 170,000 shown as rupees is not
+  // 170,000 in dollars. A page from before the currency was sent back says
+  // none, and is read against the figure alone, as it always was.
+  const sameCurrency = s?.payCurrency == null || String(s.payCurrency).toUpperCase() === stated.payCurrency
   const same =
     s != null &&
     String(s.engagementType ?? '').toUpperCase() === stated.engagementType &&
-    Math.round(Number(s.payRateCents)) === stated.payRateCents
+    Math.round(Number(s.payRateCents)) === stated.payRateCents &&
+    sameCurrency
   if (!same) {
     return {
       ok: false,

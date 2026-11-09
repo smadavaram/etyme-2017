@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
               // A share states no pay terms: what this firm would pay is its
               // own to state, never the sharing firm's. Terms stated or
               // agreed on the listing they took back went with it.
-              termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null,
+              termsEngagementType: null, termsPayRateCents: null, termsPayCurrency: null, termsStatedAt: null,
               termsStatedById: null, termsAgreedAt: null,
             },
           })

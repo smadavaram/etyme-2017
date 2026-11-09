@@ -1,4 +1,4 @@
-import { termsShown, firmFacts, type TermsShown, type TermsFirm } from '@/lib/bench-filter'
+import { termsShown, firmFacts, type TermsShown, type TermsFirm, type TermsRow } from '@/lib/bench-filter'
 
 /**
  * The pay terms on a bench invitation, as the person reads them on the
@@ -22,11 +22,11 @@ export interface InviteTerms {
   /** One plain sentence for the page, whichever way it is. */
   says: string
   /** What a yes from this page sends back, or null where nothing was stated. */
-  seen: { engagementType: string; payRateCents: number } | null
+  seen: { engagementType: string; payRateCents: number; payCurrency: string } | null
 }
 
 export function inviteTerms(
-  l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
+  l: TermsRow,
   firm: TermsFirm
 ): InviteTerms {
   const vendor = firmFacts(firm).name
@@ -41,6 +41,6 @@ export function inviteTerms(
   return {
     shown,
     says: shown.agreed ? shown.says : `${shown.says} Saying yes agrees these terms.`,
-    seen: { engagementType: shown.engagementType, payRateCents: shown.payRateCents },
+    seen: { engagementType: shown.engagementType, payRateCents: shown.payRateCents, payCurrency: shown.payCurrency },
   }
 }

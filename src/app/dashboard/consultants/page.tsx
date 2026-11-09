@@ -78,6 +78,9 @@ interface BenchCount {
 
 // ── Add Consultant Modal ───────────────────────────────────
 
+/** The currencies a firm most often pays people in, offered beside the pay; the firm's own is always offered. */
+const PAY_CURRENCIES = ['USD', 'INR', 'GBP', 'EUR', 'CAD', 'AUD', 'MXN', 'BRL', 'VND', 'PHP']
+
 function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
   // Rates typed here are in the firm’s own currency, by its own exponent.
   const currency = useFirmCurrency()
@@ -101,6 +104,9 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
     // already (2026-10-06). Optional; they read it beside their yes.
     termsEngagementType: '' as '' | 'W2' | 'IND_1099',
     termsPay: '',
+    // The currency of that pay. Blank reads as the firm's own; a US firm
+    // paying somebody in India picks INR here.
+    termsPayCurrency: '',
     // The firm's own note, kept on its listing and read by nobody else.
     notes: '',
   })
@@ -416,11 +422,25 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               </select>
             </div>
             <div>
-              <label htmlFor="add-terms-pay" className="block text-xs font-semibold text-etyme-muted mb-1">Their pay ($/hr)</label>
-              <input id="add-terms-pay" type="number" min="0" step="0.01" value={form.termsPay}
-                onChange={(e) => setForm({ ...form, termsPay: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
+              <label htmlFor="add-terms-pay" className="block text-xs font-semibold text-etyme-muted mb-1">Their pay an hour</label>
+              <div className="flex gap-2">
+                <input id="add-terms-pay" type="number" min="0" step="0.01" value={form.termsPay}
+                  onChange={(e) => setForm({ ...form, termsPay: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
+                {/* The currency they are paid in: your firm's own unless you pick another. */}
+                <select
+                  id="add-terms-currency"
+                  aria-label="Currency of their pay"
+                  value={form.termsPayCurrency || currency}
+                  onChange={(e) => setForm({ ...form, termsPayCurrency: e.target.value })}
+                  className="px-2 py-2 text-sm border border-etyme-rule rounded-lg bg-white"
+                >
+                  {PAY_CURRENCIES.includes(currency) ? null : <option value={currency}>{currency}</option>}
+                  {PAY_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
               {fieldErrors.termsPayRateCents && <p className="text-xs text-etyme-attention mt-1">{fieldErrors.termsPayRateCents}</p>}
+              {fieldErrors.termsPayCurrency && <p className="text-xs text-etyme-attention mt-1">{fieldErrors.termsPayCurrency}</p>}
             </div>
           </div>
           <p className="text-xs text-etyme-muted">
