@@ -38,6 +38,6 @@ describe('the reply reports a week’s value in its own currency', () => {
 
   it('the route never divides the week’s value by a hundred', () => {
     expect(route).not.toContain('value.totalCents / 100')
-    expect(route).toContain('billAmountOf(value.totalCents, worthCurrency)')
+    expect(route).toContain('billAmountOf(priced.cents, worthCurrency)')
   })
 })

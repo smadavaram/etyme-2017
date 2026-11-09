@@ -48,6 +48,10 @@ export function jobFacts(r: any): { label: string; value: string }[] {
     { label: 'Team', value: r.orgUnit?.name ?? null },
     { label: 'Cost center', value: r.costCenter ? `${r.costCenter.name} (${r.costCenter.code})` : null },
     { label: 'Budget stated', value: r.budgetCents ? money(r.budgetCents) : null },
+    // The qualification the job asks for, in the manager's words. Saved on
+    // the Edit form and read by the degree rules, and not shown until walk
+    // 8 found it missing after a reload. A job that asks none says so.
+    { label: 'Qualification it asks for', value: r.requiredQualification?.trim() || 'None asked' },
   ]
   return rows.map((x) => ({ label: x.label, value: x.value ?? 'Not stated' }))
 }

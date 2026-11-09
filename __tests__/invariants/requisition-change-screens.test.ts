@@ -311,7 +311,8 @@ describe('Who is interviewing', () => {
     // The raise form's body is its pure builder (`jobBody`), which carries the panel the form drew.
     expect(code(LIST_PAGE)).toMatch(/jobBody\(\{[\s\S]*?\bpanel,/)
     expect(read('src/app/dashboard/requisitions/job-body.ts')).toContain('interviewers: t.panel,')
-    expect(code(CHAIN).match(/interviewers: panel/g)?.length ?? 0).toBe(1)
+    // The edit form hands the panel it drew to the one edit builder (`editBody`, walk 8).
+    expect(code(CHAIN)).toMatch(/const typed: EditTyped = \{[\s\S]*?\bpanel,/)
     // Once on the raise form (the list page), once on the edit form (the shared module).
     expect((code(LIST_PAGE).match(/<PanelField names=\{panel\}/g)?.length ?? 0) + (code(CHAIN).match(/<PanelField names=\{panel\}/g)?.length ?? 0)).toBe(2)
 

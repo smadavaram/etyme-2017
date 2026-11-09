@@ -90,6 +90,8 @@ describe('the edit form asks for what the raise form asks for', () => {
   it('editing a job request checks the same required facts before saving', () => {
     const chain = read('src/app/dashboard/requisitions/chain.tsx')
     expect(chain).toMatch(/import \{ missingForApproval, missingSays[^}]*\} from '\.\/facts'/)
-    expect(chain).toContain('hoursPerWeek: whole(hoursPerWeek),')
+    // The hours a week are sent from the one edit builder, only where changed (walk 8).
+    expect(chain).toContain('editBody(opened, typed')
+    expect(read('src/app/dashboard/requisitions/job-body.ts')).toContain('hoursPerWeek: whole(t.hoursPerWeek),')
   })
 })

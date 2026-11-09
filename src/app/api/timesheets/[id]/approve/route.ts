@@ -9,16 +9,19 @@ import { completeCycle } from '@/lib/cycle-complete'
 import { postAssertions } from '@/lib/order-postings'
 import { reportError } from '@/lib/alerts'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
-import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
+import { gates, maySign, type Sheet } from '@/lib/timesheet-signatures'
+import { checkAcceptedHours } from '../../accept-fewer'
+import { acceptedWorth } from '../../accepted-worth'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
-  lineFor, splitWeeks, valueOf, weekStart, weeksAwaitingDecision, saysAwaiting,
+  lineFor, splitWeeks, weekStart, weeksAwaitingDecision, saysAwaiting,
   mayDecide, mayChange, priceChoice, isTreatment, treatmentSays, decidingLeg,
   clientDecidesOvertimeSays,
   type Decision, type Treatment, type ChainRung, type OvertimePolicy,
 } from '@/lib/overtime'
 import type { Carried } from '@/lib/money/client-overtime'
+import { payersRole } from '@/lib/money/payers-acceptance'
 import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'
 import { weekFlag, flaggedWeekSays, flagAsksReason } from '@/lib/timesheet-flag'
 import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
@@ -342,15 +345,14 @@ export async function POST(
   }
 
   // Accepting a different number needs a reason. Somebody finding out
-  // from their payslip is the fastest way to lose a good contractor.
-  const accepted = acceptWith(
-    hours,
-    body?.acceptedHours != null ? Number(body.acceptedHours) : null,
-    typeof body?.note === 'string' ? body.note : null
-  )
+  // from their payslip is the fastest way to lose a good contractor. And
+  // nobody accepts more than was filed: only the worker files the week.
+  // One check, read by the "Accept fewer hours" form too, so every
+  // refusal here names a field that form draws (walk 8).
+  const accepted = checkAcceptedHours(hours, body, timesheet.person.name)
   if (!accepted.ok) {
     return NextResponse.json(
-      { error: { code: 'NEEDS_REASON', message: accepted.reason, field: 'note' } },
+      { error: { code: accepted.code, message: accepted.message, field: accepted.field } },
       { status: 422 }
     )
   }
@@ -639,16 +641,53 @@ export async function POST(
       accrualBps: w.accrualBps,
     })),
   ]
-  const finalSplit = splitWeeks((timesheet.days as Record<string, number>) ?? {}, splitPolicy, {
-    leaveDays,
+  // ── On the hours the payer of that leg accepted ────────────────────
+  //
+  // Walk 8, 9 November 2026: Computer Systems accepted 38 of Helena
+  // Marsh's 40 hours and this reply said `billAmount` 4,720, the 40 filed.
+  // A firm bills only the hours the firm above it accepted, and the cut
+  // comes off overtime first (the founder, 2026-09-28 and 29). So the
+  // week is valued on the acceptance of whoever pays on the leg being
+  // answered — this press, where that is the presser, else the signature
+  // already standing above it — through money's own reading and pricing
+  // (`acceptedWorth`), never a second computation here.
+  const hoursLine = {
+    companyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+  }
+  const legPayer = deciding.clientCompanyId
+  const payersSigned = legPayer === onBehalfOf
+    ? [{ companyId: onBehalfOf, role: payersRole(onBehalfOf, { sellContract: hoursLine }), hours: accepted.hours ?? hours }]
+    : await prisma.workAssertion.findMany({
+        where: { timesheetId: id, state: 'LIVE', companyId: legPayer },
+        select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+      })
+  const priced = acceptedWorth({
+    week: {
+      periodStart: timesheet.periodStart,
+      periodEnd: timesheet.periodEnd,
+      totalHours: hours,
+      days: (timesheet.days as Record<string, number>) ?? {},
+      leaveDays,
+      personName: timesheet.person.name,
+      hoursContract: hoursLine,
+      assertions: payersSigned,
+    },
+    payer: { id: legPayer, name: nameOf(legPayer) },
+    rateCents: deciding.billRate,
+    policy: splitPolicy,
     decisions: settled,
   })
-  const value = valueOf(finalSplit, deciding.billRate)
+  /** The bands the figure came from: the days as filed, or with what the payer did not accept cut off them. */
+  const finalSplit = priced.split
+  const value = { totalCents: priced.cents ?? 0 }
   /** The currency the deciding leg's rate, and so `value.totalCents`, is in. */
   const worthCurrency = deciding.billCurrency ?? timesheet.sellContract.billCurrency
   // In whole units of that currency: a week billed in dong has no cents to
-  // divide by a hundred (`billAmountOf`, money's `wholeFromMinor`).
-  const billAmount = billAmountOf(value.totalCents, worthCurrency)
+  // divide by a hundred (`billAmountOf`, money's `wholeFromMinor`). Null
+  // where money left the week unpriced rather than guess.
+  const billAmount = priced.cents == null ? null : billAmountOf(priced.cents, worthCurrency)
   /**
    * The figure this press may stand behind. Null below the top where the
    * client's overtime answer could not be read: the acceptance stands —
@@ -843,10 +882,14 @@ export async function POST(
   const clientSays = asParty === 'CLIENT' && !direct
     ? clientSignedSays({
         personName: timesheet.person.name,
-        hours,
+        // The hours this signature stands for: 38 of 40 approved reads 38.
+        hours: hoursAccepted(accepted, hours),
         week: weekSays(timesheet.periodStart, timesheet.periodEnd),
         billedBy: deciding.companyName ?? null,
-        worthCents: worth == null ? null : Math.round(worth * 100),
+        // Minor units in the leg's own currency, never whole units times a
+        // hundred said as dollars (a week in dong read "$3,000,000.00").
+        worthCents: worth == null ? null : value.totalCents,
+        currency: worthCurrency,
       })
     : null
 
@@ -1345,9 +1388,9 @@ export async function POST(
           : clientSays
             ? clientSays + overSays
           : writing.length > 0
-            ? `Approved ${hours}h${worthSays}. ` +
+            ? `Approved ${hoursAccepted(accepted, hours)}h${worthSays}. ` +
               writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
-            : `Approved ${hours}h${worthSays}`,
+            : `Approved ${hoursAccepted(accepted, hours)}h${worthSays}`,
       // Null where the books took it; one sentence where they did not.
       postingSays: notPosted,
     },

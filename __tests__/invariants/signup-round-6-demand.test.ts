@@ -317,8 +317,10 @@ describe('5, as the door says it: a client’s desk-less Member is refused Candi
 
 describe('4, on the value column: a withheld rate values no week', () => {
   it('a week whose rate is withheld from the reader is worth nothing on their screen, even where overtime was decided', () => {
-    const page = src('app/dashboard/timesheets/page.tsx')
-    const fn = page.slice(page.indexOf('function centsOf'), page.indexOf('// ── Status chip class'))
+    // The page's centsOf reads the one valuation beside it (./cells, walk 8).
+    expect(src('app/dashboard/timesheets/page.tsx')).toContain('return weekValue(t)')
+    const cells = src('app/dashboard/timesheets/cells.ts')
+    const fn = cells.slice(cells.indexOf('export function weekValue'), cells.indexOf("/** The export's columns"))
     expect(fn.indexOf('if (t.rate.withheld) return null')).toBeGreaterThan(-1)
     expect(fn.indexOf('if (t.rate.withheld) return null')).toBeLessThan(fn.indexOf('t.overtime.billableCents'))
   })

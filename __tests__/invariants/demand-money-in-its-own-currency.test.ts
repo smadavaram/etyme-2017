@@ -106,8 +106,10 @@ describe('the timesheets list says its money in each currency', () => {
 
   it('a timesheet export in rupees says rupees', () => {
     expect(exportMoney(300_000, 'INR')).toBe('3000.00')
-    expect(read('src/app/dashboard/timesheets/page.tsx')).toContain("'Value','Currency','Status'")
-    expect(read('src/app/dashboard/timesheets/page.tsx')).toContain("(t.rate.currency || 'USD').toUpperCase()")
+    // The export moved beside the page in walk 8 (./cells, `timesheetCsv`), so
+    // both of the page's exports write it; the currency is still its own column.
+    expect(read('src/app/dashboard/timesheets/cells.ts')).toContain("'Rate', 'Value', 'Currency', 'Status'")
+    expect(read('src/app/dashboard/timesheets/cells.ts')).toContain('currencyOf(t.rate.currency)')
   })
 
   it('an export in dong carries whole dong, never cents', () => {

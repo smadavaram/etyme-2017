@@ -119,6 +119,14 @@ export async function GET(request: NextRequest) {
         months: r.months,
         // The edit form asks for it, so the list carries it.
         hoursPerWeek: r.hoursPerWeek,
+        // Where the work is done, the restriction and the qualification,
+        // so the Edit form opened from the list opens on the job's own
+        // record and never on defaults (walk 8).
+        workMode: r.workMode,
+        workAuthRequired: r.workAuthRequired,
+        workAuthBasis: r.workAuthBasis,
+        workAuthCite: r.workAuthCite,
+        requiredQualification: r.requiredQualification,
         neededBy: r.neededBy?.toISOString() ?? null,
         description: r.description,
         justification: r.justification,

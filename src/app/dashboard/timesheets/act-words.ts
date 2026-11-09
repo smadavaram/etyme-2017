@@ -28,3 +28,8 @@ export function anywayTitle(act: WeekAct | null | undefined, personName: string)
 export function withReasonButton(act: WeekAct | null | undefined): string {
   return `${actOf(act) === 'ACCEPT' ? 'Accept' : 'Approve'} with this reason`
 }
+
+/** Beside the tick: "Accept fewer hours…" for a firm below the client, "Approve fewer hours…" for the client (walk 8). */
+export function fewerButton(act: WeekAct | null | undefined): string {
+  return `${actOf(act) === 'ACCEPT' ? 'Accept' : 'Approve'} fewer hours…`
+}

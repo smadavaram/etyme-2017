@@ -78,8 +78,11 @@ describe('what the invoice is told', () => {
     // At the rate of the leg that was answered — which on a direct
     // placement is the contract the hours are filed against, and in a
     // chain is the answering firm's own.
-    expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
-    expect(APPROVE).toContain('const billAmount = billAmountOf(value.totalCents, worthCurrency)')
+    // Since walk 8 (2026-11-09) on the hours the leg's payer accepted,
+    // through money's own reading and pricing (`acceptedWorth`).
+    expect(APPROVE).toContain('acceptedWorth({')
+    expect(APPROVE).toMatch(/rateCents: deciding\.billRate,\s*policy: splitPolicy,\s*decisions: settled,/)
+    expect(APPROVE).toContain('const billAmount = priced.cents == null ? null : billAmountOf(priced.cents, worthCurrency)')
     // The old line, which multiplied every hour by the rate whatever
     // anybody had decided about the week.
     expect(APPROVE).not.toContain('hours * timesheet.sellContract.billRate / 100')
@@ -101,7 +104,7 @@ describe('in a chain, nobody decides their own leg', () => {
 
   it('the threshold and the rate come from the leg being answered, so nobody is quoted a rate they are not a party to', () => {
     expect(APPROVE).toContain('const policy = lineFor(deciding, ')
-    expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
+    expect(APPROVE).toMatch(/rateCents: deciding\.billRate,\s*policy: splitPolicy,/)
     expect(APPROVE).toContain('rateCents: deciding.billRate,')
     expect(APPROVE).not.toContain('policyOf(timesheet.sellContract)')
   })

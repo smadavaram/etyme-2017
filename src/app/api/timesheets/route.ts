@@ -29,12 +29,13 @@ import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import { weekActOf } from '@/lib/notify/week-words'
 import {
-  lineFor, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
-  type Decision, type Treatment,
+  lineFor, splitWeeks, weeksAwaitingDecision, saysAwaiting, treatmentSays,
+  type Decision, type Treatment, type OvertimePolicy,
 } from '@/lib/overtime'
 import type { Carried } from '@/lib/money/client-overtime'
 import { clientDecidedFor, clientDecidedSentence } from './client-decided'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
+import { acceptedWorth, acceptedRowSays, type WeekWorth } from './accepted-worth'
 
 /**
  * GET /api/timesheets
@@ -276,6 +277,22 @@ export async function GET(request: NextRequest) {
 
   const priced = await priceFor(caller, timesheets, { asClient, onBench, buyerCompanyId })
 
+  // Every live signature on the page's weeks, in one read: the payer on
+  // each row's line decides the hours the row reads and is valued on
+  // (`acceptedWorth`, money's reading of a signature). Only the payer's
+  // own signature is read for a row; the others never reach the screen.
+  const signedOn = new Map<string, { companyId: string; role: string; hours: unknown; coversFrom: Date | null; coversTo: Date | null; note: string | null }[]>()
+  if (timesheets.length > 0) {
+    for (const a of await prisma.workAssertion.findMany({
+      where: { timesheetId: { in: timesheets.map((t) => t.id) }, state: 'LIVE' },
+      select: { timesheetId: true, companyId: true, role: true, hours: true, coversFrom: true, coversTo: true, note: true },
+    })) {
+      const list = signedOn.get(a.timesheetId) ?? []
+      list.push(a)
+      signedOn.set(a.timesheetId, list)
+    }
+  }
+
   // Who this reader is, for the purpose of "may you approve this week".
   // Under a seat that is the client's company holding the client's
   // permissions — which is precisely what the seat is — and the person
@@ -498,6 +515,17 @@ export async function GET(request: NextRequest) {
                     : 'Accepted, and the client has approved it.',
         }
 
+        // What the week is worth on the line this row is priced on, read
+        // on the hours that line's payer accepted (walk 8): 38 of 40
+        // accepted reads 38 and is valued on 38, cut overtime first.
+        const { overtime, worth } = overtimeOf(t, seen, {
+          role: t.sellContract.requirement,
+          stillToSign: signature.waitingOnYou,
+        }, belowTop.get(t.id) ?? null, signedOn.get(t.id) ?? [])
+        const payersNote = worth.differs && seen.payer
+          ? (signedOn.get(t.id) ?? []).find((a) => a.companyId === seen.payer!.id)?.note ?? null
+          : null
+
         return {
           id: t.id,
           person: t.person,
@@ -545,10 +573,24 @@ export async function GET(request: NextRequest) {
           days: (t.days as Record<string, number>) ?? {},
           leaveDays: (t.leaveDays as Record<string, number>) ?? {},
           hoursPerWeek: t.sellContract.requirement?.hoursPerWeek ?? null,
-          overtime: overtimeOf(t, seen, {
-            role: t.sellContract.requirement,
-            stillToSign: signature.waitingOnYou,
-          }, belowTop.get(t.id) ?? null),
+          overtime,
+          // Where the payer on this row's line accepted a number other than
+          // every hour filed: the hours the row reads, beside the hours
+          // filed, and who accepted them and why. Null where it took them all.
+          accepted: worth.differs && seen.payer
+            ? {
+                hours: worth.hours,
+                filed: worth.filed,
+                says: acceptedRowSays({
+                  byReader: seen.payer.id === turnFirm,
+                  payerName: seen.payer.name,
+                  hours: worth.hours,
+                  filed: worth.filed,
+                  note: payersNote,
+                  held: worth.cents == null && seen.rate.cents != null ? worth.says : null,
+                }),
+              }
+            : null,
         }
       }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -713,6 +755,14 @@ interface Seen {
    * where two contracts cover the week and there is no one firm to name.
    */
   payee?: { id: string; name: string } | null
+  /**
+   * The firm that pays on the line this row is priced on: the buyer on
+   * that line. Its acceptance decides the hours the row reads and is
+   * valued on (walk 8: a firm bills only the hours the firm above it
+   * accepted). Null where the row is valued on no line's acceptance: the
+   * worker's own pay, or a week two contracts cover.
+   */
+  payer?: { id: string; name: string } | null
 }
 
 type Row = {
@@ -764,6 +814,7 @@ async function priceFor(
     multiplierBps: r.sellContract.overtimeMultiplierBps,
     clientCompany: r.sellContract.clientCompany,
     engagement: r.sellContract.engagement,
+    payer: { id: r.sellContract.clientCompanyId, name: r.sellContract.clientCompany.name },
   })
 
   // ── The person whose week it is ────────────────────────────────────
@@ -894,6 +945,8 @@ async function priceFor(
       clientCompany: top.clientCompany,
       engagement: top.engagement,
       payee,
+      // The client's own line: it is the payer, and its signature decides.
+      payer: { id: top.clientCompanyId, name: top.clientCompany.name },
     })
   }
   return out
@@ -912,19 +965,51 @@ async function priceFor(
  * owed no rate — a consultant whose pay is not recorded, a week two
  * contracts both cover — the hours still split and the value is null.
  */
+/** One week as the list reads it, for valuing it on its payer's acceptance. */
+type ListedWeek = {
+  person: { name: string }
+  periodStart: Date
+  periodEnd: Date
+  totalHours: unknown
+  days: unknown
+  leaveDays: unknown
+  sellContract: { companyId: string; clientCompanyId: string; endClientCompanyId: string | null }
+  overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
+}
+
+/** A live signature on a week, as money's reading of the payer's acceptance needs it. */
+type LiveSignature = { companyId: string; role: string; hours: unknown; coversFrom: Date | null; coversTo: Date | null }
+
+/** The week valued on the hours its payer accepted, at this reader's rate (`acceptedWorth`). */
+function worthOf(t: ListedWeek, seen: Seen, signed: LiveSignature[], policy: OvertimePolicy, decisions: Decision[]): WeekWorth {
+  return acceptedWorth({
+    week: {
+      periodStart: t.periodStart,
+      periodEnd: t.periodEnd,
+      totalHours: Number(t.totalHours),
+      days: (t.days as Record<string, number>) ?? {},
+      leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+      personName: t.person.name,
+      hoursContract: t.sellContract,
+      assertions: signed,
+    },
+    payer: seen.payer ?? null,
+    rateCents: seen.rate.cents,
+    policy,
+    decisions,
+  })
+}
+
 function overtimeOf(
-  t: {
-    person: { name: string }
-    days: unknown
-    leaveDays: unknown
-    overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
-  },
+  t: ListedWeek,
   seen: Seen,
   ask: { role: { hoursPerWeek: number | null } | null; stillToSign: boolean },
   /** Below the top of a chain: the client's decision, carried down. Null everywhere else. */
-  below: { carried: Carried; clientName: string } | null = null
+  below: { carried: Carried; clientName: string } | null = null,
+  /** Every live signature on the week; only the payer's on this row's line is read. */
+  signed: LiveSignature[] = []
 ) {
-  if (below) return overtimeCarried(t, seen, below)
+  if (below) return overtimeCarried(t, seen, below, signed)
   // The approval route's own line (`lineFor`): the contract's where it
   // names one, the role's hours where it is silent and the week is still
   // to be signed or was decided against that line. So the row says it
@@ -945,18 +1030,21 @@ function overtimeOf(
     decisions,
   })
   const waiting = weeksAwaitingDecision(split)
+  const worth = worthOf(t, seen, signed, policy, decisions)
 
-  return {
+  return { worth, overtime: {
     afterHours: policy.afterHours,
     multiplierBps: policy.multiplierBps,
     rateCents: seen.rate.cents,
     /**
      * What the sheet is worth at this reader's own rate, priced from
-     * each week's own decision. Hours nobody has decided are not in it
-     * — a screen that prints 45 billed hours with 40 hours of money
-     * against them is the bug this whole feature exists to remove.
+     * each week's own decision and on the hours the payer on this line
+     * accepted, the cut off overtime first (`acceptedWorth`). Hours
+     * nobody has decided are not in it — a screen that prints 45 billed
+     * hours with 40 hours of money against them is the bug this whole
+     * feature exists to remove.
      */
-    billableCents: seen.rate.cents == null ? null : valueOf(split, seen.rate.cents).totalCents,
+    billableCents: worth.cents,
     pendingHours: split.pendingHours,
     bankedHours: split.bankedHours,
     leaveHours: split.leaveHours,
@@ -974,7 +1062,7 @@ function overtimeOf(
       })),
     says: waiting.length > 0 ? saysAwaiting(waiting, t.person.name, policy) : null,
     clientDecided: null as string | null,
-  }
+  } }
 }
 
 /**
@@ -988,9 +1076,10 @@ function overtimeOf(
  * made from a guess is worse than a blank.
  */
 function overtimeCarried(
-  t: { days: unknown; leaveDays: unknown },
+  t: ListedWeek,
   seen: Seen,
-  below: { carried: Carried; clientName: string }
+  below: { carried: Carried; clientName: string },
+  signed: LiveSignature[] = []
 ) {
   const c = below.carried
   const policy = c.ok ? c.policy : { afterHours: null, multiplierBps: seen.multiplierBps ?? 15_000 }
@@ -998,11 +1087,12 @@ function overtimeCarried(
     leaveDays: (t.leaveDays as Record<string, number>) ?? {},
     decisions: c.ok ? c.decisions : [],
   })
-  return {
+  const worth = worthOf(t, seen, signed, policy, c.ok ? c.decisions : [])
+  return { worth, overtime: {
     afterHours: policy.afterHours,
     multiplierBps: policy.multiplierBps,
     rateCents: seen.rate.cents,
-    billableCents: !c.ok || seen.rate.cents == null ? null : valueOf(split, seen.rate.cents).totalCents,
+    billableCents: !c.ok ? null : worth.cents,
     // A week the client left unanswered holds no overtime down here.
     pendingHours: 0,
     bankedHours: split.bankedHours,
@@ -1017,7 +1107,7 @@ function overtimeCarried(
       })),
     says: null as string | null,
     clientDecided: clientDecidedSentence(below.clientName, c),
-  }
+  } }
 }
 
 /**

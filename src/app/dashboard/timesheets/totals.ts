@@ -66,14 +66,21 @@ export function totalsRowOf(t: {
   rate: { cents: number | null; currency?: string | null; withheld?: boolean; buys?: boolean }
   overtime?: { billableCents: number | null } | null
   signature?: { waitingOnYou: boolean; youSigned: boolean } | null
+  /**
+   * What the payer on the reader's line accepted, where it is not every
+   * hour filed (walk 8): the row reads those hours and is valued on them,
+   * so the tiles add up what the rows say, never the hours filed.
+   */
+  accepted?: { hours: number } | null
 }): TotalsRow {
+  const hours = t.accepted?.hours ?? t.totalHours
   return {
     periodStart: t.periodStart,
-    totalHours: t.totalHours,
+    totalHours: hours,
     status: t.status,
     flag: t.flag,
     waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && !!t.mayApprove,
-    valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : t.totalHours * t.rate.cents,
+    valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : hours * t.rate.cents,
     currency: (t.rate.currency || 'USD').toUpperCase(),
     withheld: t.rate.withheld === true,
     youSigned: t.signature?.youSigned ?? false,

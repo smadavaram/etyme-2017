@@ -92,6 +92,7 @@ export function DecideOvertime({
   lead,
   terms,
   note,
+  acceptedHours = null,
   side = 'PAYS',
   timeOffAllowed = false,
   onClose,
@@ -111,6 +112,12 @@ export function DecideOvertime({
    * question opened on top of it, and the signature carried nothing.
    */
   note?: string | null
+  /**
+   * The hours accepted, where the signer accepted fewer than were filed
+   * and the week then went over the line (walk 8): sent again with the
+   * overtime answers, so the cut is not lost on the way.
+   */
+  acceptedHours?: string | null
   /** Whether this desk is billed for the week or pays for it — the words follow (`./overtime-words`). */
   side?: OvertimeSide
   /** Time off in place of overtime pay, offered only where allowed. Never by default. */
@@ -160,6 +167,7 @@ export function DecideOvertime({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...(note ? { note } : {}),
+          ...(acceptedHours ? { acceptedHours } : {}),
           overtime: weeks.map((w) => ({
             weekOf: w.weekOf,
             treatment: answers[w.weekOf].treatment,

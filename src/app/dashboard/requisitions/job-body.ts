@@ -114,3 +114,80 @@ export function editWorkBody(t: {
     }),
   }
 }
+
+/** What the Edit form's fields hold: as it opened, and as it is sent. */
+export interface EditTyped {
+  title: string
+  /** "Java, Spring", as typed. */
+  skills: string
+  location: string
+  headcount: string
+  billMin: string
+  billMax: string
+  months: string
+  hoursPerWeek: string
+  neededBy: string
+  description: string
+  justification: string
+  panel: string[]
+  workMode: string
+  sponsorship: string
+  sponsorshipPolicy: string
+  requiredQualification: string
+}
+
+/** Each field as the route reads it, keyed by the name it is sent under. */
+function editFields(t: EditTyped, otherBasis: string | null): Record<string, unknown> {
+  const whole = (v: string) => (v.trim() === '' ? null : Number(v))
+  return {
+    title: t.title.trim(),
+    skills: t.skills.split(',').map((x) => x.trim()).filter(Boolean),
+    location: t.location.trim() || null,
+    headcount: Number(t.headcount) || 1,
+    // Rates are typed in whole units and stored in cents, through the one reader.
+    billMin: centsTyped(t.billMin),
+    billMax: centsTyped(t.billMax),
+    months: whole(t.months),
+    hoursPerWeek: whole(t.hoursPerWeek),
+    neededBy: t.neededBy || null,
+    description: t.description.trim() || null,
+    justification: t.justification.trim() || null,
+    // The panel travels with the job, so every interview round starts with it.
+    interviewers: t.panel,
+    ...editWorkBody({
+      workMode: t.workMode, sponsorship: t.sponsorship, sponsorshipPolicy: t.sponsorshipPolicy,
+      otherBasis, requiredQualification: t.requiredQualification,
+    }),
+  }
+}
+
+/**
+ * What the Edit form posts: only the fields the person changed.
+ *
+ * Walk 8, 9 November 2026: saving Edit rewrote where the work is and how
+ * it is done when nobody touched them. The form posted every field it
+ * drew, and two of them did not open on the job's own record: "Where"
+ * opened on the site's name, which the route then wrote over the job's
+ * own words and told the suppliers about, and "Where is the work done?"
+ * opened on on-site wherever the read did not carry it. So the body holds
+ * a field only where what the person typed differs from what the form
+ * opened on, compared in the shape the route reads (so "40" and "40.00"
+ * are one rate), the way the 2026-11-03 edit rule reads a change. The
+ * sponsorship and its policy go together, because the policy is the
+ * reason on record when sponsorship is not offered.
+ */
+export function editBody(opened: EditTyped, now: EditTyped, ctx: { otherBasis: string | null }): Record<string, unknown> {
+  const before = editFields(opened, ctx.otherBasis)
+  const after = editFields(now, ctx.otherBasis)
+  const out: Record<string, unknown> = { action: 'edit' }
+  const same = (k: string) => JSON.stringify(before[k] ?? null) === JSON.stringify(after[k] ?? null)
+  for (const k of Object.keys(after)) {
+    if (k === 'sponsorship' || k === 'sponsorshipPolicy') continue
+    if (!same(k)) out[k] = after[k]
+  }
+  if ('sponsorship' in after && !(same('sponsorship') && same('sponsorshipPolicy'))) {
+    out.sponsorship = after.sponsorship
+    if ('sponsorshipPolicy' in after) out.sponsorshipPolicy = after.sponsorshipPolicy
+  }
+  return out
+}

@@ -7,7 +7,7 @@ import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
 import { stageOf } from '@/lib/requisition-stage'
 import { workFactsOf } from '@/app/api/requisitions/work-facts'
-import { editWorkBody } from './job-body'
+import { editBody, type EditTyped } from './job-body'
 import { Lbl, Chip } from '@/components/ui'
 
 /**
@@ -662,6 +662,15 @@ export function EditRequisition({
   const [sponsorship, setSponsorship] = useState<string>(work.sponsorship)
   const [sponsorshipPolicy, setSponsorshipPolicy] = useState(work.sponsorshipPolicy)
   const [requiredQualification, setRequiredQualification] = useState(req.requiredQualification ?? '')
+  // What the form opened on, so only what the person changes is sent.
+  const [opened] = useState<EditTyped>(() => ({
+    title: req.title, skills: req.skills.join(', '), location: req.location ?? '', headcount: String(req.headcount),
+    billMin: typedFromCents(req.billMin), billMax: typedFromCents(req.billMax),
+    months: req.months != null ? String(req.months) : '', hoursPerWeek: req.hoursPerWeek != null ? String(req.hoursPerWeek) : '',
+    neededBy: req.neededBy ? req.neededBy.slice(0, 10) : '', description: req.description ?? '', justification: req.justification ?? '',
+    panel: req.interviewers ?? [], workMode: work.workMode, sponsorship: work.sponsorship, sponsorshipPolicy: work.sponsorshipPolicy,
+    requiredQualification: req.requiredQualification ?? '',
+  }))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   /** The route's own sentence, once it has saved. */
@@ -694,7 +703,6 @@ export function EditRequisition({
 
   /** Empty means "no figure", which is not the same as zero. */
   const cents = (v: string) => centsTyped(v)
-  const whole = (v: string) => (v.trim() === '' ? null : Number(v))
 
   async function save() {
     if (title.trim().length < 3) {
@@ -726,33 +734,28 @@ export function EditRequisition({
       setErr('Say your sponsorship policy in a few words, for example "We do not sponsor work visas for this role".')
       return
     }
+    // Only the fields the person changed (walk 8: an untouched place and
+    // way of working were written back on every save). The ticks go as
+    // before, narrowed only, and only where the section was drawn.
+    const typed: EditTyped = {
+      title, skills, location, headcount, billMin, billMax, months, hoursPerWeek, neededBy,
+      description, justification, panel, workMode, sponsorship, sponsorshipPolicy, requiredQualification,
+    }
+    const sent = {
+      ...editBody(opened, typed, { otherBasis: work.otherBasis }),
+      ...(sendTo && sendTo.offered.length > 0 ? { sendTo: sendTo.offered.map((f) => f.id).filter((i) => ticked.has(i)) } : {}),
+    }
+    if (Object.keys(sent).length === 1) {
+      setErr('Nothing changed. Change a field, or close.')
+      return
+    }
     setSaving(true)
     setErr(null)
     try {
       const res = await fetch(`/api/requisitions/${req.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          action: 'edit',
-          title: title.trim(),
-          skills: skills.split(',').map(x => x.trim()).filter(Boolean),
-          location: location.trim() || null,
-          headcount: Number(headcount) || 1,
-          billMin: min,
-          billMax: max,
-          months: whole(months),
-          hoursPerWeek: whole(hoursPerWeek),
-          neededBy: neededBy || null,
-          description: description.trim() || null,
-          justification: justification.trim() || null,
-          // The panel travels with the requirement, so every interview
-          // round starts with it. Never a form whose answer is thrown away.
-          interviewers: panel,
-          // Where the work is done, and whether sponsorship is offered.
-          ...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis, requiredQualification }),
-          // The ticks, narrowed only; sent only where the section was drawn.
-          ...(sendTo && sendTo.offered.length > 0 ? { sendTo: sendTo.offered.map((f) => f.id).filter((i) => ticked.has(i)) } : {}),
-        }),
+        body: JSON.stringify(sent),
       })
       const body = await readJson(res)
       if (!res.ok) throw new Error(body?.error?.message ?? 'That did not save.')

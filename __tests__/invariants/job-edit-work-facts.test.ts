@@ -37,7 +37,10 @@ describe('the job edit form asks where the work is done and whether sponsorship 
     expect(CHAIN).toContain("[['ONSITE', 'On site'], ['HYBRID', 'Hybrid'], ['REMOTE', 'Remote']]")
     expect(CHAIN).toContain("[['YES', 'Offered'], ['NO', 'Not offered']]")
     expect(CHAIN).toContain('Your policy, in a few words')
-    expect(CHAIN).toContain('...editWorkBody({ workMode, sponsorship, sponsorshipPolicy, otherBasis: work.otherBasis, requiredQualification })')
+    // Since walk 8 the form posts only what changed (`editBody`), each field
+    // in the shape the raise's own builder writes it (`editWorkBody`).
+    expect(CHAIN).toContain('editBody(opened, typed, { otherBasis: work.otherBasis })')
+    expect(readFileSync(join(process.cwd(), 'src/app/dashboard/requisitions/job-body.ts'), 'utf8')).toContain('...editWorkBody({')
   })
 
   it('a job that never said where the work is done opens as on site with sponsorship offered, and saving it unchanged changes nothing', () => {
@@ -101,6 +104,7 @@ describe('the job edit form asks where the work is done and whether sponsorship 
     expect(ROUTE).toContain('const workEdit = readWorkEdit(requisition, body)')
     expect(ROUTE).toContain("{ error: { code: 'VALIDATION', message: workEdit.says, field: workEdit.field } }")
     expect(ROUTE).toContain('workMode: true, workAuthRequired: true, workAuthBasis: true, workAuthCite: true,')
-    expect(ROUTE).toContain('Object.assign(data, workEdit.columns)')
+    // Written only where the way of working or the sponsorship changed (walk 8).
+    expect(ROUTE).toContain('writtenOn(after, changes, workEdit.columns)')
   })
 })

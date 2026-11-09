@@ -2,6 +2,7 @@ import { reachFor, jobInReach, outsideReachSays } from '../grant-reach'
 import { jobCurrency, companyLimitConverter } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
+import { writtenOn } from '../edit-write'
 import { placeOf, sendToSays, readTickEdit, ticksToEdit, goesOnceApprovedSays } from '@/lib/job-site'
 import { offeredFor } from '../offered'
 import { getCallerContext } from '@/lib/api-context'
@@ -244,6 +245,15 @@ export async function GET(
         budgetCents: req.budgetCents,
         description: req.description,
         justification: req.justification,
+        // Where the work is done, the restriction's three columns, and the
+        // qualification it asks for, as the job holds them: the page shows
+        // the qualification, and its Edit form opens on all of them rather
+        // than on defaults it would then write back (walk 8).
+        workMode: req.workMode,
+        workAuthRequired: req.workAuthRequired,
+        workAuthBasis: req.workAuthBasis,
+        workAuthCite: req.workAuthCite,
+        requiredQualification: req.requiredQualification,
         status: req.status,
         archivedAt: req.archivedAt?.toISOString() ?? null,
         approvalState: req.approvalState,
@@ -721,11 +731,11 @@ export async function PATCH(
 
   // What actually gets written. `neededBy` is compared as a day and
   // stored as a date; everything else is written as the rule read it.
-  const data: Record<string, unknown> = { ...after }
-  // Sponsorship is compared as one value and written as the three
-  // columns the vendor's check reads (lib/work-authorisation).
-  delete data.sponsorship
-  Object.assign(data, workEdit.columns)
+  // Only what changed (walk 8: an untouched place and way of working were
+  // rewritten on every save). Sponsorship is compared as one value and
+  // written as the three columns the vendor's check reads
+  // (lib/work-authorisation), and only where it changed.
+  const data: Record<string, unknown> = writtenOn(after, changes, workEdit.columns)
   if ('neededBy' in data) data.neededBy = after.neededBy ? new Date(`${String(after.neededBy)}T00:00:00.000Z`) : null
   if (!out && 'costCenterId' in body) data.costCenterId = body.costCenterId || null
   if (ownerMoves) data.ownerId = newOwner!.id

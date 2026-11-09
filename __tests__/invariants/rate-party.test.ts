@@ -480,7 +480,9 @@ describe('a refusal quotes the rate of the leg the reader is on, never the leg b
   })
 
   it('values the answer at that same leg, so the figure and the sentence cannot disagree', () => {
-    const valued = [...approve().matchAll(/valueOf\(\s*[A-Za-z0-9_]+\s*,\s*([A-Za-z0-9_.]+)\s*\)/g)].map((m) => m[1])
+    // A week is valued by `valueOf(split, rate)` or, since walk 8, by
+    // `acceptedWorth({ … rateCents, policy … })` on the payer's accepted hours.
+    const valued = [...approve().matchAll(/valueOf\(\s*[A-Za-z0-9_]+\s*,\s*([A-Za-z0-9_.]+)\s*\)|rateCents: ([A-Za-z0-9_.]+),\s*policy:/g)].map((m) => m[1] ?? m[2])
     expect(valued.length).toBeGreaterThan(0)
     for (const rate of valued) expect(rate).toBe('deciding.billRate')
   })

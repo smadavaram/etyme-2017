@@ -2,7 +2,6 @@
 
 import { listHead } from '../submissions/list-head'
 import { useEffect, useState, useCallback } from 'react'
-import { amount, compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Route } from 'next'
@@ -12,10 +11,12 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
-import { weekButton, anywayTitle, withReasonButton } from './act-words'
+import { weekButton, anywayTitle, withReasonButton, fewerButton } from './act-words'
+import { rateCell, valueCell, timesheetCsv, shownHours, weekValue, type AcceptedOnRow } from './cells'
+import { AcceptFewer } from './accept-fewer'
 import type { WeekAct } from '@/lib/notify/week-words'
 import { statusWords } from './status-words'
-import { listTotals, totalsRowOf, rateColumnLabel, approvedValueSays, exportMoney } from './totals'
+import { listTotals, totalsRowOf, rateColumnLabel, approvedValueSays } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
@@ -76,6 +77,12 @@ interface Timesheet {
   periodStart: string
   periodEnd: string
   totalHours: number
+  /**
+   * Where the payer on this row's line accepted a number other than every
+   * hour filed: the hours the row reads, the hours filed, and who accepted
+   * them and why. The value is the server's, on those hours (walk 8).
+   */
+  accepted?: AcceptedOnRow | null
   status: string
   anomalyScore: number | null
   /** What is wrong with the week against its contract, or its filing anomaly; null when plain. Listed first. */
@@ -172,11 +179,9 @@ const STATUS_FILTERS: StatusFilter[] = ['ALL', 'OPEN', 'SUBMITTED', 'APPROVED', 
 function centsOf(t: Timesheet): number | null {
   // A rate withheld from this reader values nothing, whatever else the
   // row carries: the value is the rate times the hours, so it is the
-  // rate's to withhold too.
-  if (t.rate.withheld) return null
-  if (t.overtime) return t.overtime.billableCents
-  if (t.rate.cents == null) return null
-  return t.totalHours * t.rate.cents
+  // rate's to withhold too. Priced by the server on the hours the payer
+  // accepted, the cut off overtime first (`weekValue`, ./cells).
+  return weekValue(t)
 }
 
 // ── Status chip class ───────────────────────────────
@@ -204,6 +209,21 @@ function formatPeriod(start: string, end: string): string {
   }
   // Different months → "Jul 28 – Aug 10"
   return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`
+}
+
+// ── The export, as a file ───────────────────────────
+
+/** Hands the CSV to the browser as a download. */
+function downloadCsv(csv: string, name: string): void {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${name}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ── Create Timesheet Modal ──────────────────────────
@@ -567,7 +587,9 @@ export default function TimesheetsPage() {
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   // The week that went over the line, and the sentence that asks about it.
-  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string; note?: string | null } | null>(null)
+  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string; note?: string | null; acceptedHours?: string | null } | null>(null)
+  // The week a firm accepts fewer hours of, from its row or its opened panel.
+  const [fewerFor, setFewerFor] = useState<Timesheet | null>(null)
   // A flagged week is signed with a reason or not at all — the rule the
   // approval route holds for every door. The tick on a flagged row opens
   // this rather than signing (`FLAG_NEEDS_REASON`).
@@ -931,16 +953,22 @@ export default function TimesheetsPage() {
       key: 'totalHours',
       label: 'Hours',
       render: (row) => (
-        <span className="tabular-nums font-medium">
-          {row.totalHours.toFixed(1)}
+        <span className="tabular-nums font-medium" title={row.accepted?.says ?? undefined}>
+          {shownHours(row).toFixed(1)}
           {row.flag && (
             <span className="ml-1.5 text-etyme-attention" title={row.flag}>
               ⚠
             </span>
           )}
+          {/* Accepted fewer than were filed: the hours the money is on, and the hours filed under them. */}
+          {row.accepted && (
+            <span className="block text-[10px] text-etyme-muted font-normal">
+              of {row.accepted.filed.toFixed(1)} filed
+            </span>
+          )}
         </span>
       ),
-      sortValue: (row) => row.totalHours,
+      sortValue: (row) => shownHours(row),
       align: 'right' as const,
     },
     {
@@ -953,7 +981,7 @@ export default function TimesheetsPage() {
           </span>
         ) : (
           <span className="tabular-nums text-etyme-muted">
-            {compact(row.rate.cents)}<span className="text-etyme-faint">/hr</span>
+            {rateCell(row.rate)}<span className="text-etyme-faint">/hr</span>
             {ratePerRow && <span className="block text-[10px] text-etyme-faint">{row.rate.label}</span>}
           </span>
         ),
@@ -979,7 +1007,7 @@ export default function TimesheetsPage() {
         }
         return (
           <span className="tabular-nums font-medium">
-            {compact(cents)}
+            {valueCell(cents, row.rate.currency)}
             {waiting > 0 && (
               <span className="block text-[10px] text-etyme-attention font-normal">
                 + {waiting}h to decide
@@ -1055,6 +1083,14 @@ export default function TimesheetsPage() {
                 className="text-[11px] text-etyme-verified hover:underline disabled:opacity-50"
               >
                 {acting === row.id ? '…' : '✓'}
+              </button>
+              {/* Fewer hours than were filed, with the reason, through the same route (walk 8). */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setFewerFor(row) }}
+                disabled={acting === row.id}
+                className="text-[11px] text-etyme-action hover:underline disabled:opacity-50 whitespace-nowrap"
+              >
+                {fewerButton(row.act)}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setRejectTarget(row.id) }}
@@ -1173,12 +1209,28 @@ export default function TimesheetsPage() {
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, client, or engagement…"
         filters={
-          <FilterChips<StatusFilter>
-            label="Status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={statusOptions}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <FilterChips<StatusFilter>
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusOptions}
+            />
+            {/* The list's own export: every column Export selected writes,
+                with the currency (walk 8). The shared table's export reads
+                each drawn column's raw field and left them empty here. */}
+            {filtered.length > 0 && (
+              <button
+                type="button"
+                onClick={() => downloadCsv(timesheetCsv(filtered, rateLabel), 'timesheets')}
+                title={`Download these ${filtered.length} weeks as a CSV file`}
+                className="px-3 py-1.5 text-[11px] font-medium rounded-md border border-etyme-rule text-etyme-muted
+                           hover:bg-etyme-canvas transition-colors"
+              >
+                Export CSV
+              </button>
+            )}
+          </div>
         }
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} timesheets.` : 'No timesheets yet.'}
         emptyDetail={
@@ -1188,7 +1240,7 @@ export default function TimesheetsPage() {
             ? 'Hours worked at your sites, waiting for your approval, will appear here.'
             : 'Timesheets will appear here once your consultants file their hours.'
         }
-        exportName="timesheets"
+        name="timesheets"
         selectable
         bulkActions={(selected) => (
           <>
@@ -1207,33 +1259,8 @@ export default function TimesheetsPage() {
               onClick={() => {
                 const rows = filtered.filter((t) => selected.has(t.id))
                 if (rows.length === 0) return
-                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours',rateLabel,'Value','Currency','Status']
-                const csvRows = rows.map((t) => {
-                  const value = centsOf(t)
-                  return [
-                    t.person.name,
-                    t.sellContract.clientCompany.name,
-                    t.sellContract.engagement?.title ?? '',
-                    t.periodStart,
-                    t.periodEnd,
-                    t.totalHours.toFixed(1),
-                    // In the rate's own currency and its own decimals, said in the Currency column.
-                    exportMoney(t.rate.cents, t.rate.currency),
-                    exportMoney(value, t.rate.currency),
-                    t.rate.cents == null && value == null ? '' : (t.rate.currency || 'USD').toUpperCase(),
-                    t.status,
-                  ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')
-                })
-                const csv = [header.join(','), ...csvRows].join('\n')
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `timesheets-export-${new Date().toISOString().slice(0, 10)}.csv`
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                URL.revokeObjectURL(url)
+                // The one export, so both buttons write the same columns (./cells).
+                downloadCsv(timesheetCsv(rows, rateLabel), `timesheets-export-${new Date().toISOString().slice(0, 10)}`)
               }}
               className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                border border-etyme-rule text-etyme-muted
@@ -1283,6 +1310,7 @@ export default function TimesheetsPage() {
           weeks={deciding.weeks}
           lead={deciding.lead}
           note={deciding.note ?? null}
+          acceptedHours={deciding.acceptedHours ?? null}
           terms={{
             afterHours: deciding.row.overtime?.afterHours,
             multiplierBps: deciding.row.overtime?.multiplierBps,
@@ -1304,6 +1332,29 @@ export default function TimesheetsPage() {
           row={opened}
           onClose={() => setOpened(null)}
           onSign={() => { const r = opened; setOpened(null); handleApproveTimesheet(r.id) }}
+          onFewer={() => { const r = opened; setOpened(null); setFewerFor(r) }}
+        />
+      )}
+
+      {/* Fewer hours than were filed, with the reason (walk 8) */}
+      {fewerFor && (
+        <AcceptFewer
+          timesheetId={fewerFor.id}
+          personName={fewerFor.person.name}
+          filedHours={fewerFor.totalHours}
+          act={fewerFor.act}
+          onClose={() => setFewerFor(null)}
+          onDone={(message) => {
+            setFewerFor(null)
+            setToast({ message, type: 'success' })
+            setTimeout(() => setToast(null), 5000)
+            fetchTimesheets()
+          }}
+          onOvertime={({ weeks, lead, note, acceptedHours }) => {
+            const row = fewerFor
+            setFewerFor(null)
+            setDeciding({ row, weeks, lead, note, acceptedHours })
+          }}
         />
       )}
 
@@ -1421,7 +1472,7 @@ export default function TimesheetsPage() {
  * him; the row did not open and "Look" on the dashboard led back to the
  * list. The days are the fact under the total, so they are what opens.
  */
-function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => void; onSign: () => void }) {
+function WeekPanel({ row, onClose, onSign, onFewer }: { row: Timesheet; onClose: () => void; onSign: () => void; onFewer: () => void }) {
   const days = Object.entries(row.days ?? {})
     .filter(([, h]) => Number(h) > 0)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -1447,6 +1498,7 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
         </div>
 
         {row.flag && <p className="text-sm text-etyme-attention mb-3">{row.flag}</p>}
+        {row.accepted && <p className="text-sm text-etyme-muted mb-3">{row.accepted.says}</p>}
 
         {days.length === 0 ? (
           <p className="text-sm text-etyme-muted">No days are recorded on this week, only its total of {row.totalHours} hours.</p>
@@ -1503,6 +1555,11 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
             </Link>
           )}
           <button type="button" onClick={onClose} className="btn-secondary">Close</button>
+          {mayStillSign && (
+            <button type="button" onClick={onFewer} className="btn-secondary">
+              {fewerButton(row.act)}
+            </button>
+          )}
           {mayStillSign && (
             <button
               type="button"

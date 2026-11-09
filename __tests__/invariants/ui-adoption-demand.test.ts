@@ -99,7 +99,8 @@ describe('one search box per list', () => {
 
   it('the stage, status and kind filters on the buying side’s lists sit in the list’s own filter row', () => {
     for (const f of ['requisitions/page.tsx', 'requirements/page.tsx', 'submissions/page.tsx', 'timesheets/page.tsx']) {
-      expect(read(f), f).toMatch(/filters=\{\s*<FilterChips/)
+      // Timesheets wraps its chips with its own Export CSV in the same row (walk 8).
+      expect(read(f), f).toMatch(/filters=\{\s*(<div[^>]*>\s*)?<FilterChips/)
     }
   })
 })
