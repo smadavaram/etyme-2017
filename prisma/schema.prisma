@@ -27,6 +27,10 @@ model Person {
   createdAt    DateTime @default(now())
 
   credentials              Credential[]
+  /// Team structure (2026-11-09): leads named, changes made and undone.
+  unitLeadsSet             OrgUnit[]                 @relation("unitLeadSetBy")
+  orgChangesMade           OrgChange[]               @relation("orgChangeActor")
+  orgChangesUndone         OrgChange[]               @relation("orgChangeUndoneBy")
   contexts                 Context[]
   consultant               ConsultantProfile?
   accessedBy               AccessLog[]               @relation("subject")
@@ -340,16 +344,19 @@ enum Provider {
 }
 
 model Context {
-  id        String      @id @default(cuid())
-  personId  String
-  person    Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type      ContextType
-  companyId String?
-  company   Company?    @relation(fields: [companyId], references: [id])
-  roleId    String?
-  role      Role?       @relation(fields: [roleId], references: [id])
-  orgUnitId String? // a delivery manager owns a practice, not the firm
-  orgUnit   OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  id         String      @id @default(cuid())
+  personId   String
+  person     Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type       ContextType
+  companyId  String?
+  company    Company?    @relation(fields: [companyId], references: [id])
+  roleId     String?
+  role       Role?       @relation(fields: [roleId], references: [id])
+  orgUnitId  String? // a delivery manager owns a practice, not the firm
+  orgUnit    OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  /// The boxes this seat leads on the team structure (2026-11-09).
+  leads      OrgUnit[]   @relation("unitLead")
+  orgChanges OrgChange[] @relation("orgChangeSeat")
 
   // ── Side, and persona ───────────────────────────────────────────────
   //
@@ -878,6 +885,8 @@ model Company {
   contexts              Context[]
   roles                 Role[]
   orgUnits              OrgUnit[]
+  /// Every change to its team structure (2026-11-09).
+  orgChanges            OrgChange[]
   entities              LegalEntity[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
@@ -1761,6 +1770,8 @@ model CompanyLocation {
   recordedAt   DateTime?
 
   sellContracts SellContract[] // contracts at this work site
+  /// The SITE box on the team structure that stands for this site.
+  units         OrgUnit[]      @relation("unitSite")
 
   invoicesShipTo Invoice[]   @relation("invoiceShipTo")
   ordersShipTo   WorkOrder[] @relation("orderShipTo")
@@ -1847,20 +1858,38 @@ model LegalEntity {
 
 // Business unit → practice → account → project. Scopes utilization and authority.
 model OrgUnit {
-  id            String         @id @default(cuid())
+  id            String           @id @default(cuid())
   companyId     String
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   parentId      String?
-  parent        OrgUnit?       @relation("tree", fields: [parentId], references: [id])
-  children      OrgUnit[]      @relation("tree")
+  parent        OrgUnit?         @relation("tree", fields: [parentId], references: [id])
+  children      OrgUnit[]        @relation("tree")
   name          String
-  kind          String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT · REGION · SITE (a REGION unit scopes a seat to its sites: lib/region-scope)
-  /// A region's place in the company's own order (1 first). Read on REGION
-  /// units only; null reads after every numbered region, by contractors.
+  kind          String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT · REGION · SITE · TEAM (a REGION unit scopes a seat to its sites: lib/region-scope)
+  /// A box's place among the boxes beside it (1 first), as the Owner drew
+  /// it on Settings → Team structure (2026-11-09). First read on REGION
+  /// units only, for By region's order; null reads after every numbered
+  /// sibling, then by name.
   position      Int?
+  /// Who leads this box: one seat at the company, recorded with who named
+  /// them and when (founder, 2026-11-09, "Team structure is one tree the
+  /// Owner draws"). Being the lead grants no permission by itself; a grant
+  /// is still made under Users & permissions (lib/team-structure).
+  leadContextId String?
+  lead          Context?         @relation("unitLead", fields: [leadContextId], references: [id], onDelete: SetNull)
+  leadSetById   String?
+  leadSetBy     Person?          @relation("unitLeadSetBy", fields: [leadSetById], references: [id], onDelete: SetNull)
+  leadSetAt     DateTime?
+  /// The site a SITE box stands for (Settings → Sites). Until 2026-11-09
+  /// the record linked the two by name only (lib/region-scope's plant
+  /// scope still does); the tree links them by id where the names agree.
+  locationId    String?
+  location      CompanyLocation? @relation("unitSite", fields: [locationId], references: [id], onDelete: SetNull)
+  /// Every change made to the tree about this box, newest last.
+  changes       OrgChange[]
   contexts      Context[]
   sellContracts SellContract[] // contingent workers charged to this unit
-  deliveredHere SellContract[] @relation("deliveryUnit") // accounts this unit delivers
+  deliveredHere SellContract[]   @relation("deliveryUnit") // accounts this unit delivers
   costCenters   CostCenter[] // budgets that fund this unit
   requisitions  Requirement[]
   approvalRules ApprovalRule[]
@@ -1873,6 +1902,48 @@ model OrgUnit {
 
   @@index([companyId])
   @@index([parentId])
+  @@index([leadContextId])
+  @@index([leadSetById])
+  @@index([locationId])
+}
+
+/// One change to a company's team structure (founder, 2026-11-09): a box
+/// added, renamed, given a kind or a lead, moved or deleted; a person or a
+/// contractor moved between boxes. Who made it and when, the sentence the
+/// screen said, where it came from (the screen or the directory import),
+/// and what puts it back, so the last change can be undone and a later
+/// directory import knows a screen edit wins (lib/team-structure).
+model OrgChange {
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorPersonId  String?
+  actor          Person?       @relation("orgChangeActor", fields: [actorPersonId], references: [id], onDelete: SetNull)
+  at             DateTime      @default(now())
+  /// ADD · RENAME · KIND · LEAD · MOVE · DELETE · MOVE_PERSON · MOVE_CONTRACTOR · UNDO
+  act            String
+  /// SCREEN · DIRECTORY
+  source         String        @default("SCREEN")
+  says           String
+  /// The box it is about; null once that box is deleted (its id is in `undo`).
+  orgUnitId      String?
+  orgUnit        OrgUnit?      @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  contextId      String?
+  context        Context?      @relation("orgChangeSeat", fields: [contextId], references: [id], onDelete: SetNull)
+  sellContractId String?
+  sellContract   SellContract? @relation("orgChangeLine", fields: [sellContractId], references: [id], onDelete: SetNull)
+  /// What puts the change back, read by undo and nothing else.
+  undo           Json?
+  undoneAt       DateTime?
+  undoneById     String?
+  undoneBy       Person?       @relation("orgChangeUndoneBy", fields: [undoneById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, at])
+  @@index([actorPersonId])
+  @@index([orgUnitId])
+  @@index([contextId])
+  @@index([sellContractId])
+  @@index([undoneById])
 }
 
 model Role {
@@ -3836,9 +3907,11 @@ model SellContract {
   // skill, approval routing, and headcount plans all aggregate on it.
   // Null on vendor-side contracts where the client has not named an owner.
   hiringManagerId String?
-  hiringManager   Person?  @relation("hiringManager", fields: [hiringManagerId], references: [id])
+  hiringManager   Person?     @relation("hiringManager", fields: [hiringManagerId], references: [id])
   orgUnitId       String? // the end client's department / cost centre
-  orgUnit         OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  orgUnit         OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  /// Each time the team structure moved this line's charging unit (2026-11-09).
+  orgChanges      OrgChange[] @relation("orgChangeLine")
 
   /// Which account or practice inside the SELLING firm this belongs to.
   ///

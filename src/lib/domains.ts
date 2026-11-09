@@ -555,6 +555,12 @@ export const DOMAINS: Domain[] = [
       // lib/resolve-client-company reads it; regulatory's access log
       // records it; nobody but the architect changes its shape.
       'lib/program-seat',
+      // Team structure is one tree the Owner draws, and it can come from the
+      // directory (founder, 2026-11-09): the tree's rules, its read and its
+      // writes, and the directory import (a CSV from Active Directory,
+      // Microsoft Entra ID, Google Workspace), read only. The nightly
+      // difference in the Owner's greeting is conversation's.
+      'lib/team-structure',
       // A seat that reads one region of a client's program (founder,
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.
