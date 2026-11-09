@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   watchVerifications,
   watchPurchaseOrders,
+  orderAmount,
   watchAccess,
   watchPackets,
   ordered,
@@ -138,6 +139,30 @@ describe('purchase orders running out', () => {
 
   it('ignores a closed order', () => {
     expect(watchPurchaseOrders([{ ...base, invoicedCents: 99_000_00, status: 'CLOSED' }], NOW)).toHaveLength(0)
+  })
+
+  it('an amount in dong reads whole dong, never cents and never a dollar sign', () => {
+    // 3,000,000 VND as the watch reads it: the Decimal times a hundred.
+    expect(orderAmount(3_000_000_00, 'VND')).toBe('₫3,000,000')
+    const f = watchPurchaseOrders([{ ...base, currency: 'VND', amountCents: 3_000_000_00, invoicedCents: 3_000_000_00 }], NOW)
+    expect(f[0].detail).toContain('the whole ₫3,000,000.')
+    expect(f[0].detail).not.toMatch(/\$|₫[0-9,]+\.[0-9]/)
+  })
+
+  it('dollars keep their cents', () => {
+    expect(orderAmount(1_040_50, 'USD')).toBe('$1,040.50')
+    const f = watchPurchaseOrders([{ ...base, amountCents: 100_000_00, invoicedCents: 88_999_50 }], NOW)
+    expect(f[0].detail).toContain('$11,000.50 left')
+  })
+
+  it('an order with no currency passed reads as dollars, as the watch reads every order today', () => {
+    expect(orderAmount(1_000_00)).toBe('$1,000.00')
+  })
+
+  it('invoices in another currency are never added to the order, and the finding says they were left out', () => {
+    const f = watchPurchaseOrders([{ ...base, currency: 'USD', invoicedCents: 100_000_00, otherCurrencies: ['eur', 'EUR'] }], NOW)
+    expect(f[0].detail).toContain('Invoices in EUR are not counted against it, because they are in another currency.')
+    expect(f[0].detail.match(/EUR/g)).toHaveLength(1)
   })
 })
 

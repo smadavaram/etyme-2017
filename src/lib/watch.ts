@@ -26,6 +26,9 @@
  * anybody through Techpeple" is the same fact in the form somebody acts on.
  */
 
+import { format, fromDecimal } from '@/lib/money'
+import { DEFAULT_CURRENCY } from '@/lib/money-display'
+
 export type Urgency = 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
 
 /**
@@ -166,11 +169,43 @@ export interface WatchedPo {
   companyId: string
   number: string
   supplierName: string
+  /**
+   * The ceiling and what was billed against it, in hundredths of one whole
+   * unit of the order's currency, as the nightly watch reads them today
+   * (the Decimal times a hundred, whatever the currency). They are only
+   * ever compared with each other and said through `orderAmount`, which
+   * reads them back in the order's own currency, so a dong order reads
+   * whole dong and a dollar order keeps its cents.
+   */
   amountCents: number
   invoicedCents: number
+  /** The order's own currency; USD where the reader does not pass it yet. */
+  currency?: string
+  /**
+   * Currencies of invoices on the order that are not the order's own. They
+   * are never added into `invoicedCents`: two currencies are never summed,
+   * and the finding says they were left out.
+   */
+  otherCurrencies?: readonly string[]
   endDate: Date | null
   status: string
   liveContracts: number
+}
+
+/**
+ * An order's figure in its own currency, from hundredths of a whole unit:
+ * "₫3,000,000" for a dong order (the dong has no minor unit), "$1,040.50"
+ * for a dollar one. Through money's one formatter, never a "$" typed here.
+ */
+export function orderAmount(hundredths: number, currency: string = DEFAULT_CURRENCY): string {
+  return format(fromDecimal(hundredths / 100, currency))
+}
+
+/** The sentence that says which invoices were not counted, where there were any. */
+function leftOut(currencies: readonly string[] | undefined): string {
+  const other = [...new Set((currencies ?? []).map((c) => c.toUpperCase()))]
+  if (other.length === 0) return ''
+  return ` Invoices in ${other.join(' and ')} are not counted against it, because they are in another currency.`
 }
 
 /**
@@ -187,7 +222,8 @@ export function watchPurchaseOrders(rows: WatchedPo[], now: Date): Finding[] {
 
     const remaining = po.amountCents - po.invoicedCents
     const consumed = po.amountCents > 0 ? po.invoicedCents / po.amountCents : 1
-    const money = (c: number) => `$${Math.round(c / 100).toLocaleString()}`
+    const money = (c: number) => orderAmount(c, po.currency ?? DEFAULT_CURRENCY)
+    const other = leftOut(po.otherCurrencies)
 
     if (remaining <= 0) {
       out.push({
@@ -197,7 +233,7 @@ export function watchPurchaseOrders(rows: WatchedPo[], now: Date): Finding[] {
         subjectType: 'WorkOrder',
         subjectId: po.id,
         headline: `${po.number} is spent`,
-        detail: `${po.supplierName} has billed the whole ${money(po.amountCents)}. Their next invoice will not match, and ${po.liveContracts} contract(s) are still running against it. Raise the ceiling or issue a new order.`,
+        detail: `${po.supplierName} has billed the whole ${money(po.amountCents)}. Their next invoice will not match, and ${po.liveContracts} contract(s) are still running against it. Raise the ceiling or issue a new order.${other}`,
         action: 'NOTIFY_ONLY',
         daysUntil: null,
       })
@@ -212,7 +248,7 @@ export function watchPurchaseOrders(rows: WatchedPo[], now: Date): Finding[] {
         subjectType: 'WorkOrder',
         subjectId: po.id,
         headline: `${po.number} is ${Math.round(consumed * 100)}% spent`,
-        detail: `${money(remaining)} left, with ${po.liveContracts} contract(s) still billing against it. When it runs out their invoices stop matching.`,
+        detail: `${money(remaining)} left, with ${po.liveContracts} contract(s) still billing against it. When it runs out their invoices stop matching.${other}`,
         action: 'NOTIFY_ONLY',
         daysUntil: null,
       })
