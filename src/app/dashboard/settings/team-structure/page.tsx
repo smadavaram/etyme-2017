@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type TouchEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type TouchEvent } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { ErrorState, LoadingState, PageHead, RefusedState, Field, Input, Select } from '@/components/ui'
 import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
 import { ImportDialog } from './import-dialog'
-import { centeredScroll, foldedAtOpen, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
+import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -64,6 +64,9 @@ export default function TeamStructurePage() {
   const [choose, setChoose] = useState<Choose | null>(null)
   const pane = useRef<HTMLDivElement>(null)
   const opened = useRef(false)
+  // Center the company box once per open, after the folded tree is drawn
+  // and laid out (re-walk 10b: a timer before layout missed 6 times in 8).
+  const center = useRef(false)
   const editor = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const press = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -81,11 +84,7 @@ export default function TeamStructurePage() {
         // Opens the way the drawing did: every region folded but the first,
         // so the tree fits, and the company box in the middle of the pane.
         setFolded(foldedAtOpen((j.data as TreeRead).boxes))
-        setTimeout(() => {
-          const p = pane.current
-          const root = p?.querySelector<HTMLElement>(`[data-box="${ROOT}"]`)
-          if (p && root) p.scrollLeft = centeredScroll(root.offsetLeft, root.offsetWidth, p.clientWidth)
-        }, 0)
+        center.current = true
       }
     } catch (e: any) {
       setError(e.message)
@@ -138,6 +137,20 @@ export default function TeamStructurePage() {
     setPendingDelete(true)
     setSaid(null)
   }
+
+  useLayoutEffect(() => {
+    if (!center.current || !tree) return
+    center.current = false
+    const place = () => {
+      const p = pane.current
+      const root = p?.querySelector<HTMLElement>(`[data-box="${ROOT}"]`)
+      if (p && root) p.scrollLeft = centeredScroll(root.offsetLeft, root.offsetWidth, p.clientWidth)
+    }
+    place()
+    // Once more after the browser has painted, in case fonts or the pane's width settled late.
+    const frame = requestAnimationFrame(place)
+    return () => cancelAnimationFrame(frame)
+  }, [tree, folded])
 
   // ── Keyboard: U, B, Delete on a box ──
   useEffect(() => {
@@ -208,6 +221,8 @@ export default function TeamStructurePage() {
     openMenu(m, e.clientX, e.clientY)
   }
   const onTouchStart = (m: MenuFor) => (e: TouchEvent) => {
+    // A name held inside a box opens the name's menu, never the box's.
+    if (holdStopsHere(m.for)) e.stopPropagation()
     const t = e.touches[0]
     if (press.current) clearTimeout(press.current)
     press.current = setTimeout(() => { if (m.for === 'box') setSel(m.id ?? ROOT); openMenu(m, t.clientX, t.clientY, true) }, 550)

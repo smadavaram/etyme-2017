@@ -28,3 +28,12 @@ export function menuStaysOpen(menu: { at: number; touch: boolean }, now: number,
   if (event === 'scroll') return menu.touch || now - menu.at < 700
   return menu.touch && now - menu.at < 800
 }
+
+/**
+ * Whether a held press (or a right-click) on this thing stops there. A name
+ * sits inside its box, so a press on a name must not reach the box, or the
+ * box's menu opens instead of the name's (re-walk 10b).
+ */
+export function holdStopsHere(on: 'box' | 'person' | 'contractor'): boolean {
+  return on !== 'box'
+}

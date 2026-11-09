@@ -17,7 +17,7 @@ import {
   type UnitRow,
 } from '@/lib/team-structure/tree'
 import { ACTS, ACT_FIELDS, actBody, readAct } from '@/lib/team-structure/acts'
-import { centeredScroll, foldedAtOpen, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
+import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
 import { reachWithTeam } from '@/components/settings/give-access'
 
 /**
@@ -185,6 +185,12 @@ describe('the screen, as walk 10 found it', () => {
     // Walk 10: a 1,790 px tree in a 704 px pane, the company box at x=791.
     expect(centeredScroll(791, 210, 704)).toBe(544)
     expect(centeredScroll(40, 210, 704)).toBe(0)
+  })
+
+  it('holding a name on a phone opens the name’s menu, not its box’s, because the press stops at the name', () => {
+    expect(holdStopsHere('person')).toBe(true)
+    expect(holdStopsHere('contractor')).toBe(true)
+    expect(holdStopsHere('box')).toBe(false)
   })
 
   it('"Make team lead" is not offered to the person who already leads the box', () => {
