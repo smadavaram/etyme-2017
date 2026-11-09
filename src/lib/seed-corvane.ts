@@ -278,6 +278,20 @@ export const CORVANE_PEOPLE = [
   { desk: 'compliance', name: 'Yvette Marchetti', role: 'Compliance Officer' },
 ] as const
 
+/**
+ * The three departments on Corvane's team structure (founder, 2026-11-09):
+ * each with the desk that leads it and the desks that sit on it. Operations
+ * holds the six regions. A department is a DEPARTMENT box, which narrows
+ * nobody's reads, so the CFO and the head of operations keep reading the
+ * whole program from it.
+ */
+export const CORVANE_OPERATIONS_UNIT = 'cv_unit_dept_operations'
+export const CORVANE_DEPARTMENTS: readonly { unit: string; name: string; lead: string; members: readonly string[] }[] = [
+  { unit: CORVANE_OPERATIONS_UNIT, name: 'Operations', lead: 'operations', members: [] },
+  { unit: 'cv_unit_dept_finance', name: 'Finance', lead: 'cfo', members: ['ap'] },
+  { unit: 'cv_unit_dept_compliance', name: 'Compliance', lead: 'compliance', members: [] },
+]
+
 // ── The plan: every contractor, worked out without a database ────────
 
 export interface PlannedContractor {
@@ -458,18 +472,8 @@ async function frame(ctx: Ctx): Promise<void> {
   })
   const roleId = new Map((await db.role.findMany({ where: { companyId: co.id }, select: { id: true, name: true } })).map((r) => [r.name, r.id]))
 
-  // A unit per region, and one per plant under it.
-  await db.orgUnit.createMany({
-    // A region's place in Corvane's own order (OrgUnit.position, 2026-11-08), the order CORVANE_REGIONS lists them.
-    data: CORVANE_REGIONS.map((r, i) => ({ id: `cv_unit_region_${r.key}`, companyId: co.id, name: r.label, kind: REGION_UNIT_KIND, position: i + 1 })),
-    skipDuplicates: true,
-  })
-  await db.orgUnit.createMany({
-    data: CORVANE_PLANTS.map((p) => ({ id: `cv_unit_site_${p.key}`, companyId: co.id, name: p.plant, kind: SITE_UNIT_KIND, parentId: `cv_unit_region_${p.region}` })),
-    skipDuplicates: true,
-  })
-
-  // A site per plant: its country, time zone and region.
+  // A site per plant: its country, time zone and region. Written before
+  // the units, so each plant's unit names the site it stands for.
   await db.companyLocation.createMany({
     data: CORVANE_PLANTS.map((p, i) => ({
       id: `cv_site_${p.key}`, companyId: co.id, name: p.plant, city: p.city, state: p.state,
@@ -479,6 +483,36 @@ async function frame(ctx: Ctx): Promise<void> {
     })),
     skipDuplicates: true,
   })
+
+  // The team structure (founder, 2026-11-09, the drawing of Corvane): three
+  // departments under the company, the six regions under Operations, a
+  // unit per plant under its region standing for its site.
+  await db.orgUnit.createMany({
+    data: CORVANE_DEPARTMENTS.map((d, i) => ({ id: d.unit, companyId: co.id, name: d.name, kind: 'DEPARTMENT', position: i + 1 })),
+    skipDuplicates: true,
+  })
+  await db.orgUnit.createMany({
+    // A region's place in Corvane's own order (OrgUnit.position, 2026-11-08), the order CORVANE_REGIONS lists them.
+    data: CORVANE_REGIONS.map((r, i) => ({ id: `cv_unit_region_${r.key}`, companyId: co.id, name: r.label, kind: REGION_UNIT_KIND, position: i + 1, parentId: CORVANE_OPERATIONS_UNIT })),
+    skipDuplicates: true,
+  })
+  await db.orgUnit.createMany({
+    data: CORVANE_PLANTS.map((p) => ({
+      id: `cv_unit_site_${p.key}`, companyId: co.id, name: p.plant, kind: SITE_UNIT_KIND, parentId: `cv_unit_region_${p.region}`, locationId: `cv_site_${p.key}`,
+    })),
+    skipDuplicates: true,
+  })
+  // A world seeded before the team structure: its regions sat under the
+  // company and its plant units named their sites by name only. Written
+  // once; a box the Owner has changed since is never put back.
+  await db.orgUnit.updateMany({
+    where: { companyId: co.id, id: { in: CORVANE_REGIONS.map((r) => `cv_unit_region_${r.key}`) }, parentId: null, changes: { none: {} } },
+    data: { parentId: CORVANE_OPERATIONS_UNIT },
+  })
+  await db.$executeRaw`UPDATE "OrgUnit" SET "locationId" = 'cv_site_' || substring(id from 14)
+    WHERE "companyId" = ${co.id} AND id LIKE 'cv\_unit\_site\_%' AND "locationId" IS NULL
+      AND EXISTS (SELECT 1 FROM "CompanyLocation" l WHERE l.id = 'cv_site_' || substring("OrgUnit".id from 14))`
+
   // A world seeded before sites said where they came from.
   await db.companyLocation.updateMany({
     where: { companyId: co.id, id: { in: CORVANE_PLANTS.map((p) => `cv_site_${p.key}`) }, source: 'PERSON', recordedById: null },
@@ -487,7 +521,7 @@ async function frame(ctx: Ctx): Promise<void> {
 
   // The seats: five over the whole program, six over a region, one per plant.
   const seats: { email: string; name: string; role: string; unit: string | null; key: string }[] = [
-    ...CORVANE_PEOPLE.map((s) => ({ email: corvaneSeatEmail(s.desk, ctx.domain), name: s.name, role: s.role, unit: null, key: s.desk })),
+    ...CORVANE_PEOPLE.map((s) => ({ email: corvaneSeatEmail(s.desk, ctx.domain), name: s.name, role: s.role, unit: CORVANE_DEPARTMENTS.find((d) => d.members.includes(s.desk))?.unit ?? null, key: s.desk })),
     ...CORVANE_REGIONS.map((r) => ({ email: corvaneSeatEmail(`region-${r.key}`, ctx.domain), name: r.lead, role: 'Regional Manager', unit: `cv_unit_region_${r.key}`, key: `region_${r.key}` })),
     ...CORVANE_PLANTS.map((p) => ({ email: corvaneSeatEmail(`hiring-${p.key}`, ctx.domain), name: p.manager, role: 'Hiring Manager', unit: `cv_unit_site_${p.key}`, key: `hiring_${p.key}` })),
   ]
@@ -501,6 +535,24 @@ async function frame(ctx: Ctx): Promise<void> {
     })),
     skipDuplicates: true,
   })
+  // A world seeded before the team structure: its AP clerk sat on no box.
+  for (const d of CORVANE_DEPARTMENTS) {
+    if (d.members.length) {
+      await db.context.updateMany({ where: { id: { in: d.members.map((m) => `cv_ctx_${m}`) }, orgUnitId: null, orgChanges: { none: {} } }, data: { orgUnitId: d.unit } })
+    }
+  }
+  // Each box led by the seat that already leads it: a department by its
+  // head, a region by its regional manager, a plant by its hiring manager.
+  // Named by the seed, so nobody is recorded as naming them; a lead the
+  // Owner has named since is never overwritten.
+  await db.$executeRaw`UPDATE "OrgUnit" SET "leadSetAt" = ${day(-1)}, "leadContextId" = CASE
+      WHEN id LIKE 'cv\_unit\_region\_%' THEN 'cv_ctx_region_' || substring(id from 16)
+      WHEN id LIKE 'cv\_unit\_site\_%' THEN 'cv_ctx_hiring_' || substring(id from 14)
+      WHEN id = ${CORVANE_OPERATIONS_UNIT} THEN 'cv_ctx_operations'
+      WHEN id = 'cv_unit_dept_finance' THEN 'cv_ctx_cfo'
+      WHEN id = 'cv_unit_dept_compliance' THEN 'cv_ctx_compliance' END
+    WHERE "companyId" = ${co.id} AND "leadContextId" IS NULL AND "leadSetById" IS NULL AND id LIKE 'cv\_unit\_%'
+      AND NOT EXISTS (SELECT 1 FROM "OrgChange" c WHERE c."orgUnitId" = "OrgUnit".id)`
 
   // The time limit, across every supplier, and the break before coming back.
   const policy =
