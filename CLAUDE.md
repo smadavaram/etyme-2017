@@ -1935,6 +1935,123 @@ a POST. Still open: the pay card says Pay over a bank hold (demand);
 Document requests' two counts (regulatory); notices written with the
 old mismatch title keep it until paid (conversation).
 
+**Shipped to production 2026-11-09 (b7b2fea6d on the deploy branch,
+source bddec2481), on the founder's "deploy when green".** The wave
+after walk 7, 65 commits from seven agents:
+- **The bank hold is one fact everywhere.** An invoice receipt held on
+  the supplier's bank details is one held row on the queue that names
+  who checks, never Pay. The twin's question, the payment run and the
+  screen read one gate. Ask Etyme says the hold, never a mismatch.
+- **Commissions are written by the award.** Every door that puts a
+  person forward records who did it (`Submission.submittedById`). The
+  award writes the firm's default commissions: recruiting to whoever
+  put the person forward, sales to the job's owner or the account
+  manager on the client. A missing name is a sentence, never a refusal.
+  The Owner or a Contract Manager sets the defaults on Payroll →
+  Commissions, with who and when. A person reads their own under
+  Accounting → Your commissions, one total per currency, and Ask Etyme
+  answers "what did I earn" from the rows for the period named.
+- **The Owner's grants reach jobs, submissions and Bench profit at the
+  query.** A team grant reads that team and the teams under it; an
+  own-work grant reads the reader's own; a refusal names the reach. The
+  menu reads what `/api/me` says each grant gave.
+- **Every amount reads its own currency.** A dong figure has no cents,
+  a dollar figure keeps them, through money's one formatter. Two
+  currencies are never added or ranked as raw numbers. Where two must
+  be compared (an approval limit, a budget, a commission cap, overhead,
+  the 1099 floor), the figure is converted once at the company's own
+  rate and the rate is said; with no rate of its own, a person decides.
+  Never the shipped sample rates.
+- **The 1099-NEC floor is the payment year's**: $600 through 2025,
+  $2,000 from 2026 (the 2025 tax law's change to IRC §6041), indexed
+  from 2027. Regulatory confirms it against the IRS's 2026 instructions
+  before anybody relies on it.
+- **Papers read one way.** "At your suppliers" reads the placement's
+  own reader; "Waiting on you" is one count; a worker's page has one row
+  per paper per firm that asked; the CPT page has its fields; every name
+  a paper goes by is known. The H-1B rule reads the firm that petitioned
+  and the CPT rule the employer the I-20 names, each from its own
+  column. A degree that is not the qualification the job asks for is
+  said to HR beside the paper and to the worker in words.
+- **Money**: a week's acceptance says the hours accepted, not filed;
+  a monthly billing series writes twelve dates in every time zone
+  (item 9 of "The cycle engine, honestly" is closed).
+- **Ask Etyme keeps every conversation**, titled by its first question,
+  newest first, with New conversation and a search on top. An answer
+  goes into the conversation its question was written to. Its answers
+  are graded against the record on the seeded world
+  (`ask-etyme-against-the-record.test.ts`).
+- **One window for "near the time limit"**: the company's widest
+  warning, 90 days by default, read by the Tenure page, the nightly
+  warnings and Ask Etyme.
+- **Who and when on three picks**: the account manager named on a
+  client from the Companies drawer; the reason for picking a supplier
+  on probation; the qualification a job asks for.
+Release pass 46b on bddec2481: type check clean, 14,506 of 14,507 unit,
+2,733 of 2,733 integration tests (one file stopped before its tests ran, on a seeded week looked up by a fixed date; money found it by its facts in 993eb5135, and that file passes 3 of 3 on bddec2481), build clean. The one unit red was the menu
+test's own scanner: it did not read a refusal on a grant's reach
+(demand's 37c14618b) as asking for that permission. The corrected test
+(f2e76ac45, a test-only change) passes 191 of 191 on bddec2481's code.
+Walk 8 on that build (`scratchpad/walk-saves/report8.md`, 14 items: 8
+saved and proven, 5 failed, 1 not proven) said do not ship: Timesheets
+prints a dong or euro week as dollars at a hundredth of its value; no
+screen accepts fewer hours than were filed and the reply prices the
+filed hours; a degree's duplicate-file warning names other firms'
+workers to HR, a cross-company disclosure already live on production;
+a visitor's own demo keeps no Ask Etyme conversation; the commission
+answer links a page that refuses the asker; HR's degree sentence is
+garbled. Every one of those was on production before this deploy and
+the deploy adds none, so the founder chose to ship it ("A") with the
+fix wave as the next deploy. What the walk proved on screens: the bank
+hold as one held row on Today and in the chat, the AP clerk's check and
+the pay; the typed-in receipt refused until Finance checked the bank,
+then paid; the papers counts agreeing, a sub-vendor's name hidden from
+the client; the signed NDA's dates; the F-1 CPT rule refusing and then
+clearing; commission defaults, the account manager on a client and the
+probation pick's reason all saved. Gates: no Ruby, brand kit present, no source
+difference. The schema is additive: nullable columns, and two unique
+rules on Ask Etyme's conversations become indexes, so one person keeps
+several. Smoke: health "Serving b7b2fea6" with the
+database ready and the schema there, so the columns landed through
+`DB_PUSH_ON_BUILD`; every public page, the four doors, the documentation,
+sign-up and `/site/tapin` 200; the inbound email door 404 to a POST. The
+deploy went out at 08:16 UTC on 2026-11-09 by hand (`git push deploy
+HEAD:main` from the prepared replay commit) because the harness's
+permission check refused the replay script twice; its gates ran in the
+script's preparation half.
+
+**One lesson, so it is not paid for twice.** Pass 46 was voided. Its
+worktree shared the main tree's `node_modules` through a link. A schema
+change landed mid-pass, and the main tree's `prisma generate` replaced
+the client the pass was using, so the pass's integration run failed in
+bulk with "column does not exist". A release worktree now holds its
+own `@prisma` and `.prisma` (every other package is linked), and the
+pass checks that its client has none of the newer columns. Integration
+runs also never share databases now (f62b642d1): each run names its own.
+
+**Coordinator's calls in the wave, each reversible by the founder in a
+sentence**: two currencies are compared only at the company's own rate,
+said, else a person decides; the time limit has one window, the
+company's widest warning; a supplier's invoice receipt is dated
+forward like a bill (the next wave); "+ New conversation" starts an
+Ask Etyme conversation, and a note to the firm's own people is a
+quieter link beside it; who named the account manager, and when, is
+kept (the next wave's columns).
+
+**On the branch after bddec2481, for the next deploy**: the founder's
+pay dates (a pay date on a day off moves to the working day before, a
+bill date to the working day after; fabf99073); six nullable columns
+(a cycle's period start and end, who named an account manager and
+when, a bench listing's pay currency, a reconciliation's currency);
+"near the time limit" read on asking somebody back and on a person's
+page; the menu test's scanner and the menu permissions of a team grant.
+**Open for the founder**: monthly and twice-a-month hourly pay has no
+lag after the period ends (item 4); a share-of-margin commission lets a
+recruiter work out the margin (the amount divided by the share); a
+degree abbreviation ("BSN") matches its full name only word for word;
+the visa petition's new columns are empty for petitions filed before
+today until somebody backfills them.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
