@@ -1,3 +1,5 @@
+import { reportingRatesFor, rateFor } from '@/lib/money/reporting-currency'
+import { ownNecRateOf } from '@/lib/worker-classification'
 import { amount } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { blankShortWages, type RunPaidTotal } from '@/lib/payroll-export'
@@ -245,7 +247,15 @@ export async function GET(request: NextRequest) {
     t.paidCents += r.paidCents
     byPerson.set(k, t)
   }
-  const { pack, short: wagesShort } = blankShortWages(yearEndPack(postings, year), [...byPerson.values()])
+  // The company's own rates, read here and passed in, so a gross in another
+  // currency is put beside the dollar floor at a rate somebody at the
+  // company set, or not checked (regulatory's necFloorCheck).
+  const yearEnd = new Date(Date.UTC(year, 11, 31))
+  const rates = await reportingRatesFor(companyId, yearEnd)
+  const { pack, short: wagesShort } = blankShortWages(
+    yearEndPack(postings, year, { rateOf: ownNecRateOf(rates, rateFor as never, yearEnd), companyName: caller.company.name }),
+    [...byPerson.values()],
+  )
 
   // Wages accepted and not yet paid, and wages whose paid day cannot be
   // known, are in no year. Said, never dropped silently.
