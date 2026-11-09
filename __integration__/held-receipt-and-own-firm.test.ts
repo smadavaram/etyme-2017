@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { pinnacleReceiptsAtNorthbend } from './seeded-receipts'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
 import { firmsAcceptingOnlyFor } from '@/lib/money/own-firm-acceptance'
@@ -19,12 +20,10 @@ const s: Record<string, string> = {}
 
 beforeAll(async () => {
   await freshWorld()
-  const [held, clean] = await Promise.all([
-    prisma.invoice.findFirstOrThrow({ where: { number: 'PR-2026-0442' }, select: { id: true } }),
-    prisma.invoice.findFirstOrThrow({ where: { number: 'PR-2026-0441' }, select: { id: true } }),
-  ])
-  s.held = held.id
-  s.clean = clean.id
+  // By their facts, never their numbers (seeded-receipts).
+  const found = await pinnacleReceiptsAtNorthbend()
+  s.held = found.held
+  s.clean = found.clean
 }, 240_000)
 
 describe('the held receipt’s own page offers no Pay', () => {
@@ -46,7 +45,7 @@ describe('the held receipt’s own page offers no Pay', () => {
     expect(r.status).toBe(409)
   })
 
-  it('the clean receipt beside it, PR-2026-0441, is offered Pay', async () => {
+  it('the clean receipt beside it is offered Pay', async () => {
     as(AP)
     const r = await json(await readInvoice(req('GET', `/api/invoices/${s.clean}`), withId(s.clean)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)

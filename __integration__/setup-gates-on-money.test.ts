@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { pinnacleReceiptsAtNorthbend } from './seeded-receipts'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { POST as sendBills } from '@/app/api/invoices/submit/route'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
@@ -52,8 +53,10 @@ beforeAll(async () => {
   }
   expect(s.bill, 'the seeded world holds a bill raised and not yet sent').not.toBe('')
   // The clean receipt at Northbend Athletic, and who it is between.
-  const receipt = await prisma.invoice.findFirstOrThrow({
-    where: { number: 'PR-2026-0441' },
+  // By its facts, never its number (seeded-receipts).
+  const { clean } = await pinnacleReceiptsAtNorthbend()
+  const receipt = await prisma.invoice.findUniqueOrThrow({
+    where: { id: clean },
     select: {
       id: true,
       engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },

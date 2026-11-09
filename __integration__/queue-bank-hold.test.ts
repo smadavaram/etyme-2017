@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { pinnacleReceiptsAtNorthbend } from './seeded-receipts'
 import { GET as readDecisions } from '@/app/api/decisions/route'
 
 /**
@@ -22,8 +23,8 @@ const read = async () => {
 
 beforeAll(async () => {
   await freshWorld()
-  const inv = await prisma.invoice.findFirstOrThrow({ where: { number: 'PR-2026-0441' }, select: { id: true } })
-  s.receipt = inv.id
+  // By its facts, never its number (seeded-receipts).
+  s.receipt = (await pinnacleReceiptsAtNorthbend()).clean
   const pinnacle = await prisma.company.findFirstOrThrow({ where: { name: 'Pinnacle Resourcing' }, select: { id: true } })
   s.pinnacle = pinnacle.id
 }, 240_000)
