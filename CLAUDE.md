@@ -2052,6 +2052,63 @@ degree abbreviation ("BSN") matches its full name only word for word;
 the visa petition's new columns are empty for petitions filed before
 today until somebody backfills them.
 
+**Shipped to production 2026-11-09, afternoon (5bc03bb52 on the deploy
+branch, source e6c69ef94), on the founder's "deploy when green"**, after
+his tester's scale audit and his word the same day: *"It's not about
+fixing language on demo but fixing the reconciliation and calculation,
+and workflows on the app."* What is in it:
+- **One definition of money** (money, `lib/money/order-ledger`). An
+  order's Billed is bills sent plus invoice receipts the payer typed
+  in; Left is Authorized minus Billed; a draft, or a bill raised and
+  never sent, is "drafted, not sent", said apart and owed by nobody.
+  The placement page, the PO page, Payables, the supplier's Bills, the
+  program page, the budget, Today and Ask Etyme's spend all read it, so
+  every seat reads one order's figures the same. A payer cannot open a
+  bill nobody has sent it, and is told who sends it.
+- **Signed and not billed is one figure** (`lib/money/signed-unbilled`),
+  priced by the Bills page's own generator on a dry run: the decided
+  overtime premium, accepted billable expenses, the rate in force that
+  week. A week the next bill would leave off reads unpriced, never
+  guessed. Hours a sent bill carries past the signed week are said
+  apart ("billed past signed hours", Lucía Fernández's $147), so on the
+  seeded world Spent − Billed = Signed-not-billed − billed past signed,
+  to the cent, on every cost center. The client's budget keeps "Spent"
+  as weeks signed and gains "Billed" beside it (coordinator's call,
+  reversible). The placement page lists every week, counted.
+- **Timesheets** say each week in its line's own currency, export every
+  column with a Currency column, and let a firm accept fewer hours than
+  were filed with a reason, priced on the accepted hours with the cut
+  off overtime first. Accepting more hours than were filed is refused,
+  because only the worker files hours (coordinator's call).
+- **Send** updates the page in place and a second send is refused;
+  Send and Submit for payment are drawn only for the firm that raised
+  the bill. Due dates print through one formatter.
+- **Walk 8's faults**: the degree's same-file warning names only people
+  the reading firm holds (a cross-company disclosure live on production
+  until this deploy); a worker's degree lands on her employer's
+  Paperwork with the three doors; a visitor's own demo keeps its
+  conversations; the commission answer links the asker's own page;
+  Accounts Receivable reads what it billed on its own placement.
+- **Tests**: 167 integration picks of seeded rows now carry an order or
+  a fact, after three files failed when a template rebuild reordered
+  rows; a test that picks "the first row" is wrong by construction.
+Release pass 48 on 931e712d9, fully green: type check, 14,676 unit,
+2,800 integration, build; on e6c69ef94 the type check, the 191 unit and
+134 integration tests that read the changed files, and the build, all
+green. Walk 9 (does not ship: an unsent bill counted as owed, Today's
+draft missing its expense, a buy-side order blank), 9b (does not ship:
+the supplier's own Bills row) and 9c (ships), reports under
+`scratchpad/walk-saves/report9*.md`. Gates: no Ruby, brand kit present,
+no source difference; the schema only adds six nullable columns,
+landed through `DB_PUSH_ON_BUILD`. Smoke: health "Serving 5bc03bb5"
+with the database ready; every public page, the four doors and
+`/site/tapin` 200; the inbound email door 404 to a POST. **Open for
+the founder:** T3/T4 (a bill past its signed week is said apart, not
+yet stopped; a hold released by one person); About's MSP price line;
+regional payroll scoping; moving etyme.com's DNS to Vercel
+(`docs/dns/vercel-dns.md`); notices already sent on production that name
+another firm's worker in a degree warning need a one-off clean-up.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
