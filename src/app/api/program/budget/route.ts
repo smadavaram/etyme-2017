@@ -12,6 +12,9 @@ import { actingDesk } from '@/lib/program-seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/app/api/program/no-desk'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
+import { linesBilled } from '@/lib/money/order-ledger'
+import { signedAndBilled } from '@/lib/money/signed-unbilled'
+import { centerBilled } from '../billed-figures'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -260,6 +263,11 @@ export async function GET(request: NextRequest) {
     ...cash(e.invoiceLines, charges.get(e.sellContractId)!),
   }))
 
+  // Billed, beside Spent, by money's one definition (`./../billed-figures`):
+  // bills sent on the lines the client pays, and the signed time not billed
+  // yet on them. A draft is in neither.
+  const [billedOn, signedOn] = await Promise.all([linesBilled(contractIds), signedAndBilled(contractIds, now)])
+
   const LIVE = ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION']
   const rows = centers.map((c) => {
     const plan = c.headcountPlans[0]
@@ -291,6 +299,7 @@ export async function GET(request: NextRequest) {
       approvedHeads: plan?.approvedHeads ?? null,
       currency: plan?.currency ?? 'USD',
       ...ledger,
+      ...centerBilled(contracts.map((x) => ({ id: x.id, shareBps: x.shareBps })), plan?.currency ?? 'USD', billedOn, signedOn),
     }
   })
 
@@ -312,6 +321,8 @@ export async function GET(request: NextRequest) {
         actualCents: total((r) => r.actualCents),
         toPayCents: total((r) => r.toPayCents),
         paidCents: total((r) => r.paidCents),
+        billedCents: total((r) => r.billedCents),
+        signedNotBilledCents: total((r) => r.signedNotBilledCents),
         withoutBudget: rows.length - budgeted.length,
       },
     },

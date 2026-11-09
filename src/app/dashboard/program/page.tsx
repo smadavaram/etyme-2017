@@ -64,6 +64,8 @@ interface ProgramData {
     monthlySpendByCurrency?: { currency: string; minor: number }[]
     /** The one line under that figure, saying what it rests on. From `lib/program-spend`. */
     monthlySpendSays?: string
+    /** Per currency: billed by bills sent, and signed not billed yet. */
+    billed?: { currency: string; billedMinor: number; notBilledMinor: number; notBilledHours: number }[]
     pendingApprovals: number
     openRoles: number
     endingSoon: number
@@ -842,6 +844,16 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
             : (s.monthlySpendByCurrency ?? []).map((x) => compact(x.minor, x.currency)).join(' · ')}
           href="/dashboard/program/budget"
         />
+        {/* Billed beside the month's estimate, never in place of it: bills
+            sent on the lines this client pays, and the signed time not billed. */}
+        {(s.billed?.length ?? 0) > 0 && (
+          <Stat
+            label="Billed"
+            value={s.billed!.map((b) => compact(b.billedMinor, b.currency)).join(' · ')}
+            sub={`${s.billed!.map((b) => compact(b.notBilledMinor, b.currency)).join(' · ')} signed, not billed yet`}
+            href="/dashboard/program/budget"
+          />
+        )}
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
         {/* A refused tenure read draws no tile: a dash over "reading"
             is a spinner that never ends. */}

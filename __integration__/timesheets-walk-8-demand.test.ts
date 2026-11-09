@@ -7,6 +7,10 @@ import { rateCell, valueCell } from '@/app/dashboard/timesheets/cells'
 import { acceptFewerBody } from '@/app/api/timesheets/accept-fewer'
 import { listTotals, totalsRowOf } from '@/app/dashboard/timesheets/totals'
 import { corvaneSeatEmail } from '@/lib/seed-corvane'
+import { GET as readBudget } from '@/app/api/program/budget/route'
+import { GET as readProgram } from '@/app/api/program/route'
+import { linesBilled } from '@/lib/money/order-ledger'
+import { signedAndBilled, rollUp } from '@/lib/money/signed-unbilled'
 
 /**
  * Walk 8 on the seeded world: Helena Marsh's week, filed on Techpeple's
@@ -133,5 +137,37 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
     expect(t.approvedValue?.reduce((n, v) => n + v.minor, 0) ?? 0).toBe(sum(false))
     expect(t.paidValue?.reduce((n, v) => n + v.minor, 0) ?? 0).toBe(sum(true))
     expect(t.paidSays).toContain(`${paidWeeks} week`)
+  })
+
+  it('the budget’s Billed and signed-not-billed for each cost center are money’s own figures for its lines, and Spent is unchanged beside them', async () => {
+    as(PROGRAM)
+    const r = await json(await readBudget(req('GET', '/api/program/budget')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const centers = r.body.data.centers
+    const ids: string[] = centers.flatMap((c: any) => c.lines.map((l: any) => l.contractId))
+    const [billed, signed] = await Promise.all([linesBilled(ids), signedAndBilled(ids)])
+    let withMoney = 0
+    for (const c of centers) {
+      const alloc = await prisma.contractCostAllocation.findMany({ where: { costCenterId: c.costCenterId }, select: { sellContractId: true, shareBps: true } })
+      const mine = alloc.filter((a) => (signed.get(a.sellContractId)?.currency ?? c.currency) === c.currency)
+      const b = mine.reduce((n, a) => n + Math.round((billed.get(a.sellContractId)?.billedMinor ?? 0) * a.shareBps / 10_000), 0)
+      const nb = mine.reduce((n, a) => n + Math.round((signed.get(a.sellContractId)?.notBilled.amountMinor ?? 0) * a.shareBps / 10_000), 0)
+      expect(c.billedCents, c.code).toBe(b)
+      expect(c.signedNotBilledCents, c.code).toBe(nb)
+      // Billed never counts a draft.
+      const drafts = mine.reduce((n, a) => n + (billed.get(a.sellContractId)?.draftedMinor ?? 0), 0)
+      if (drafts > 0) expect(c.billedCents).toBeLessThanOrEqual(b)
+      if (b > 0 || nb > 0) withMoney++
+    }
+    expect(withMoney, 'the seed bills on a cost center').toBeGreaterThan(0)
+  })
+
+  it('the program’s Billed is money’s roll-up of the lines the client pays, per currency', async () => {
+    as(PROGRAM)
+    const r = await json(await readProgram(req('GET', '/api/program')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const ids = r.body.data.contractors.map((c: any) => c.contractId)
+    const rolled = rollUp([...(await signedAndBilled(ids)).values()])
+    expect(r.body.data.summary.billed).toEqual(rolled.map((x) => ({ currency: x.currency, billedMinor: x.billedMinor, notBilledMinor: x.notBilledMinor, notBilledHours: x.notBilledHours })))
   })
 })

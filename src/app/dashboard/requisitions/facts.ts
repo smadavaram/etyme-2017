@@ -25,10 +25,14 @@ export function day(iso: string | null | undefined): string | null {
  * so, rather than leaving a gap that reads as nothing to know.
  */
 export function jobFacts(r: any): { label: string; value: string }[] {
+  // In the job's own currency, which its read carries (walk 8: a dong job's
+  // band printed as dollars on cents). Dollars where the read says none.
+  const ccy: string = (r.currency || 'USD').toUpperCase()
+  const m = (minor: number) => money(minor, ccy)
   const range =
-    r.billMin != null && r.billMax != null ? `${money(r.billMin)}–${money(r.billMax)} an hour`
-    : r.billMax != null ? `up to ${money(r.billMax)} an hour`
-    : r.billMin != null ? `from ${money(r.billMin)} an hour`
+    r.billMin != null && r.billMax != null ? `${m(r.billMin)}–${m(r.billMax)} an hour`
+    : r.billMax != null ? `up to ${m(r.billMax)} an hour`
+    : r.billMin != null ? `from ${m(r.billMin)} an hour`
     : null
   const starts = r.startDate ? `Starts ${day(r.startDate)}` : r.neededBy ? `Needed by ${day(r.neededBy)}` : null
   const who = r.owner?.name ?? r.raisedBy?.name ?? null
@@ -47,7 +51,7 @@ export function jobFacts(r: any): { label: string; value: string }[] {
     { label: 'Raised by', value: r.raisedBy?.name ?? null },
     { label: 'Team', value: r.orgUnit?.name ?? null },
     { label: 'Cost center', value: r.costCenter ? `${r.costCenter.name} (${r.costCenter.code})` : null },
-    { label: 'Budget stated', value: r.budgetCents ? money(r.budgetCents) : null },
+    { label: 'Budget stated', value: r.budgetCents ? m(r.budgetCents) : null },
     // The qualification the job asks for, in the manager's words. Saved on
     // the Edit form and read by the degree rules, and not shown until walk
     // 8 found it missing after a reload. A job that asks none says so.

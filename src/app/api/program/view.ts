@@ -23,6 +23,8 @@ import { regionContracts, regionRequirements } from '@/lib/region-scope'
 import { readerScope } from './reader-scope'
 import { reportingRatesFor } from '@/lib/money/reporting-currency'
 import { onSiteOf, headcount, needsReportingRates, spendFigures } from './figures'
+import { signedAndBilled } from '@/lib/money/signed-unbilled'
+import { programBilled } from './billed-figures'
 import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 
 /**
@@ -545,6 +547,9 @@ export async function programView(
   // rows: one person is one contractor however many lines they hold.
   const rates = needsReportingRates(onSite) ? await reportingRatesFor(clientCompany.id, now) : null
   const money = spendFigures(onSite, rates, now)
+  // What the client has been billed on the lines it pays, by bills sent, and
+  // the signed time not billed yet: money's one reader (`programBilled`).
+  const billed = programBilled(await signedAndBilled(contracts.map((c) => c.id), now))
   const heads = headcount(contracts, onSite)
 
   // Build approval queue items
@@ -649,6 +654,8 @@ export async function programView(
         // the total of some seats is never presented as the total of all
         // of them (`spendLine`).
         monthlySpendSays: money.monthlySpendSays,
+        /** Per currency: billed by bills sent, and signed not billed yet. A draft is in neither. */
+        billed,
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,

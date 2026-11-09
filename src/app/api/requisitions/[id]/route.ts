@@ -1,5 +1,5 @@
 import { reachFor, jobInReach, outsideReachSays } from '../grant-reach'
-import { jobCurrency, companyLimitConverter } from '../job-currency'
+import { jobCurrency, jobCurrencyOf, companyLimitConverter } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSuppliers } from '@/lib/sites'
 import { writtenOn } from '../edit-write'
@@ -57,7 +57,7 @@ export async function GET(
       owner: { select: { id: true, name: true } },
       orgUnit: { select: { id: true, name: true } },
       costCenter: { select: { id: true, code: true, name: true } },
-      company: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true, currency: true } },
       site: { select: { id: true, name: true, city: true } },
       sendToSetBy: { select: { name: true } },
       approvals: {
@@ -254,6 +254,8 @@ export async function GET(
         workAuthBasis: req.workAuthBasis,
         workAuthCite: req.workAuthCite,
         requiredQualification: req.requiredQualification,
+        // The job's own money, so the page prints its band and budget in it.
+        currency: jobCurrencyOf(req.company),
         status: req.status,
         archivedAt: req.archivedAt?.toISOString() ?? null,
         approvalState: req.approvalState,

@@ -8,6 +8,7 @@ import { acceptedWorth } from '@/app/api/timesheets/accepted-worth'
 import { editBody, type EditTyped } from '@/app/dashboard/requisitions/job-body'
 import { writtenOn } from '@/app/api/requisitions/edit-write'
 import { jobFacts } from '@/app/dashboard/requisitions/facts'
+import { centerBilled, programBilled } from '@/app/api/program/billed-figures'
 
 /**
  * Walk 8, 9 November 2026: the release gate stopped on the Timesheets
@@ -331,5 +332,41 @@ describe('a firm that bills some weeks and pays for others reads both figures, e
     const t = listTotals([week(14_500, false)], { onServer: 1, payBasis: false })
     expect(t.paidValue).toBeNull()
     expect(t.paidSays).toBeNull()
+  })
+})
+
+describe('Billed sits beside Spent on the budget and the program, by money’s one definition', () => {
+  const billed = new Map([
+    ['a', { billedHours: 40, billedMinor: 400_000, draftedHours: 8, draftedMinor: 80_000, currencies: ['USD'] }],
+    ['v', { billedHours: 40, billedMinor: 3_000_000, draftedHours: 0, draftedMinor: 0, currencies: ['VND'] }],
+  ])
+  const line = (id: string, currency: string, notBilled: number, hours: number) => ({
+    sellContractId: id, personId: 'p', personName: 'P', currency,
+    signed: { hours: 80, weeks: 2 }, billed: { hours: 40, amountMinor: 0 }, drafted: { hours: 0, amountMinor: 0, bills: [] },
+    notBilled: { hours, amountMinor: notBilled, overLineHours: 0, onDraftHours: 0, weeks: [], aging: [] }, says: null,
+  })
+  const signed = new Map([['a', line('a', 'USD', 400_000, 40)], ['v', line('v', 'VND', 3_000_000, 40)]])
+
+  it('a cost center’s Billed counts bills sent only, never a draft, shared out by the line’s share', () => {
+    const c = centerBilled([{ id: 'a', shareBps: 5_000 }], 'USD', billed, signed as any)
+    expect(c.billedCents).toBe(200_000)
+    expect(c.signedNotBilledCents).toBe(200_000)
+  })
+
+  it('a line in another currency than the budget is left out of both figures and named, never converted', () => {
+    const c = centerBilled([{ id: 'a', shareBps: 10_000 }, { id: 'v', shareBps: 10_000 }], 'USD', billed, signed as any)
+    expect(c.billedCents).toBe(400_000)
+    expect(c.otherCurrencies).toEqual(['VND'])
+  })
+
+  it('the program’s Billed is said per currency, never added across them', () => {
+    expect(programBilled(signed as any).map((b) => b.currency).sort()).toEqual(['USD', 'VND'])
+  })
+
+  it('a job’s pay range and stated budget print in the job’s own currency', () => {
+    const facts = jobFacts({ headcount: 1, currency: 'VND', billMin: 60_000, billMax: 75_000, budgetCents: 3_000_000 })
+    expect(facts).toContainEqual({ label: 'Pay range', value: '₫60,000–₫75,000 an hour' })
+    expect(facts).toContainEqual({ label: 'Budget stated', value: '₫3,000,000' })
+    expect(jobFacts({ headcount: 1, billMax: 11_000 })).toContainEqual({ label: 'Pay range', value: 'up to $110 an hour' })
   })
 })
