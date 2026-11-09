@@ -119,6 +119,18 @@ describe('the placement page says the order ledger’s figures and the line’s,
     expect(listed).toBe(lines)
   })
 
+  it('the Accounts Receivable seat that bills the line reads what it billed on the placement page, and still no pay rate, cost or margin', async () => {
+    const lb = (await signedAndBilled([lineId])).get(lineId)!
+    const ledger = (await orderLedgers([orderId])).get(orderId)!
+    const r = await open(SEATS_AT_THE_SUPPLIER[0], lineId)
+    expect(r.status).toBe(200)
+    expect(r.body.data.money.billedMinor).toBe(lb.billed.amountMinor)
+    expect(r.body.data.contracts.sell.document.order.billedMinor).toBe(ledger.billedMinor)
+    expect(r.body.data.money.cost).toBeNull()
+    expect(r.body.data.money.margin).toBeNull()
+    expect(r.body.data.contracts.buy?.payRate ?? null).toBeNull()
+  })
+
   it('every week filed is on the page, and the page says how many: Rosa Delgado’s are not cut at twelve', async () => {
     const rosa = await prisma.person.findFirstOrThrow({ where: { name: 'Rosa Delgado' }, select: { id: true } })
     const lines = await prisma.sellContract.findMany({ where: { personId: rosa.id }, select: { id: true, companyId: true } })

@@ -25,8 +25,14 @@ describe('what is due, on the thread', () => {
     techpeple = 'world-techpeple@demo.etyme.local'
     harlow = 'world-harlow-health@demo.etyme.local'
 
+    // Found by its facts: Techpeple's line whose work is at Harlow Health,
+    // the client this file reads as. An unordered first row stopped being
+    // that line when the seed gave Techpeple a second line, at Northbend,
+    // and Harlow then opened a line it is a stranger to (404).
+    const harlowCo = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' }, select: { id: true } })
     const s = await prisma.sellContract.findFirstOrThrow({
-      where: { companyId: co.id },
+      where: { companyId: co.id, OR: [{ clientCompanyId: harlowCo.id }, { endClientCompanyId: harlowCo.id }] },
+      orderBy: { startDate: 'asc' },
       include: { buyLinks: { include: { buyContract: true } } },
     })
     sellId = s.id

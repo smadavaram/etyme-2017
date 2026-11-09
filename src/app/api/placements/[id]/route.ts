@@ -284,7 +284,14 @@ export async function GET(
   // Not blanked: not read. A permission is not a position, and a client
   // owner holds `*`.
   const readsOurMoney = side !== 'END_CLIENT'
-  const seeBill = canReadBillRate(perms) && readsOurMoney
+  // The seat that bills this line reads what it bills. Accounts
+  // Receivable issues the bills from a sell line and holds no
+  // `margin.read` by design, so the bill-rate gate alone refused the page's
+  // money to the very role the Bills page is for ("a menu entry the route
+  // will refuse is a menu entry that lies", CLAUDE.md). Only on the rung
+  // this firm sells; pay and margin stay behind their own gates.
+  const billsThisLine = side === 'SUPPLIER' && hasPermission(caller.permissions, 'invoices.issue')
+  const seeBill = (canReadBillRate(perms) || billsThisLine) && readsOurMoney
   const seePay = canReadPayRate(perms) && readsOurMoney
   const seeMargin = canReadMargin(perms) && readsOurMoney
 
