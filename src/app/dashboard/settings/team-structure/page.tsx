@@ -7,6 +7,7 @@ import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
 import { ImportDialog } from './import-dialog'
+import { centeredScroll, foldedAtOpen, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -34,7 +35,8 @@ type Said = { says: string; no: boolean } | null
 type Drag = { kind: 'box'; id: string } | { kind: 'person'; contextId: string; from: string | null } | { kind: 'contractor'; sellContractId: string; from: string }
 type Zone = 'in' | 'before' | 'after'
 type MenuFor = { for: 'box'; id: string | null } | { for: 'person'; contextId: string; box: string | null; name: string } | { for: 'contractor'; sellContractId: string; box: string; name: string }
-type Menu = MenuFor & { x: number; y: number }
+type Menu = MenuFor & { x: number; y: number; at: number; touch: boolean }
+type Choose = { kind: 'person'; contextId: string; name: string; from: string | null } | { kind: 'contractor'; sellContractId: string; name: string; from: string }
 
 const ROOT = '__company__'
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
@@ -59,6 +61,10 @@ export default function TeamStructurePage() {
   const [menu, setMenu] = useState<Menu | null>(null)
   const [importing, setImporting] = useState(false)
   const [drop, setDrop] = useState<{ id: string; zone: Zone } | null>(null)
+  const [choose, setChoose] = useState<Choose | null>(null)
+  const pane = useRef<HTMLDivElement>(null)
+  const opened = useRef(false)
+  const editor = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const press = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -70,6 +76,17 @@ export default function TeamStructurePage() {
       if (!res.ok) throw new Error(j?.error?.message ?? 'The team structure could not be read. Try again.')
       setTree(j.data)
       setError(null)
+      if (!opened.current) {
+        opened.current = true
+        // Opens the way the drawing did: every region folded but the first,
+        // so the tree fits, and the company box in the middle of the pane.
+        setFolded(foldedAtOpen((j.data as TreeRead).boxes))
+        setTimeout(() => {
+          const p = pane.current
+          const root = p?.querySelector<HTMLElement>(`[data-box="${ROOT}"]`)
+          if (p && root) p.scrollLeft = centeredScroll(root.offsetLeft, root.offsetWidth, p.clientWidth)
+        }, 0)
+      }
     } catch (e: any) {
       setError(e.message)
     }
@@ -109,12 +126,12 @@ export default function TeamStructurePage() {
     }
   }, [load])
 
-  const addUnder = useCallback((parent: string | null) => act('ADD', { parentId: parent, at: null, name: 'New team', kind: null }, (id) => id), [act])
+  const addUnder = useCallback((parent: string | null) => act('ADD', { parentId: parent, at: null, name: null, kind: null }, (id) => id), [act])
   const addBeside = useCallback((id: string) => {
     const b = boxes.get(id)
     if (!b) return
     const row = kidsOf(b.parentId).map((x) => x.id)
-    act('ADD', { parentId: b.parentId, at: row.indexOf(id) + 1, name: 'New team', kind: null }, (nid) => nid)
+    act('ADD', { parentId: b.parentId, at: row.indexOf(id) + 1, name: null, kind: null }, (nid) => nid)
   }, [act, boxes, kidsOf])
   const askDelete = (id: string) => {
     setSel(id)
@@ -138,7 +155,9 @@ export default function TeamStructurePage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [addUnder, addBeside, busy])
   useEffect(() => {
-    const close = () => setMenu(null)
+    // A held press on a phone scrolls a little as it lifts; that is not
+    // somebody leaving the menu.
+    const close = () => setMenu((m) => (m && menuStaysOpen(m, Date.now(), 'scroll') ? m : null))
     window.addEventListener('scroll', close, true)
     return () => window.removeEventListener('scroll', close, true)
   }, [])
@@ -153,9 +172,11 @@ export default function TeamStructurePage() {
   const onDragOver = (id: string, stacked: boolean) => (e: DragEvent<HTMLElement>) => {
     const d = drag.current
     if (!d) return
-    if (d.kind === 'box' && (id === d.id || (id !== ROOT && isUnder(id, d.id)))) return
     if (d.kind === 'contractor' && id === ROOT) return
     e.preventDefault()
+    // A box onto itself or a box below it is let through, so the route's
+    // own sentence says why it cannot go there; it is never drawn as a target.
+    if (d.kind === 'box' && (id === d.id || (id !== ROOT && isUnder(id, d.id)))) { if (drop) setDrop(null); return }
     const zone: Zone = d.kind !== 'box' || id === ROOT ? 'in' : zoneOf(e, e.currentTarget, stacked)
     if (drop?.id !== id || drop.zone !== zone) setDrop({ id, zone })
   }
@@ -168,7 +189,7 @@ export default function TeamStructurePage() {
     const target = id === ROOT ? null : id
     if (d.kind === 'person') return act('MOVE_PERSON', { contextId: d.contextId, unitId: target }, () => id)
     if (d.kind === 'contractor') return target && act('MOVE_CONTRACTOR', { sellContractId: d.sellContractId, unitId: target }, () => id)
-    const zone: Zone = id === ROOT ? 'in' : zoneOf(e, e.currentTarget, stacked)
+    const zone: Zone = id === ROOT || id === d.id || isUnder(id, d.id) ? 'in' : zoneOf(e, e.currentTarget, stacked)
     if (zone === 'in') return act('MOVE', { unitId: d.id, parentId: target, at: null }, () => d.id)
     const b = boxes.get(id)!
     const row = kidsOf(b.parentId).map((x) => x.id).filter((x) => x !== d.id)
@@ -177,8 +198,8 @@ export default function TeamStructurePage() {
   const onDragEnd = () => { drag.current = null; setDrop(null) }
 
   // ── The menu, by right-click or a press held on a phone ──
-  const openMenu = (m: MenuFor, x: number, y: number) => {
-    setMenu({ ...m, x: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 240), y: Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 320) })
+  const openMenu = (m: MenuFor, x: number, y: number, touch = false) => {
+    setMenu({ ...m, at: Date.now(), touch, x: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 240), y: Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 320) })
   }
   const onContext = (m: MenuFor) => (e: ReactMouseEvent) => {
     e.preventDefault()
@@ -189,7 +210,7 @@ export default function TeamStructurePage() {
   const onTouchStart = (m: MenuFor) => (e: TouchEvent) => {
     const t = e.touches[0]
     if (press.current) clearTimeout(press.current)
-    press.current = setTimeout(() => { if (m.for === 'box') setSel(m.id ?? ROOT); openMenu(m, t.clientX, t.clientY) }, 550)
+    press.current = setTimeout(() => { if (m.for === 'box') setSel(m.id ?? ROOT); openMenu(m, t.clientX, t.clientY, true) }, 550)
   }
   const onTouchEnd = () => { if (press.current) clearTimeout(press.current) }
   const focusField = (id: string) => setTimeout(() => {
@@ -272,7 +293,10 @@ export default function TeamStructurePage() {
         onDragOver={onDragOver(id, stacked)}
         onDragLeave={() => setDrop(null)}
         onDrop={onDrop(id, stacked)}
-        onClick={() => { if (sel !== id) { setSel(id); setPendingDelete(false); setSaid(null) } }}
+        onClick={() => {
+          if (sel !== id) { setSel(id); setPendingDelete(false); setSaid(null) }
+          if (typeof window !== 'undefined' && window.innerWidth < 1024) setTimeout(() => editor.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0)
+        }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(id) } }}
         onContextMenu={onContext({ for: 'box', id: b?.id ?? null })}
         onTouchStart={onTouchStart({ for: 'box', id: b?.id ?? null })}
@@ -366,9 +390,10 @@ export default function TeamStructurePage() {
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="max-h-[78vh] overflow-auto rounded-r-lg border border-etyme-rule bg-etyme-surface px-3.5 pb-8 pt-5" role="tree" aria-label={`${company.name}'s team structure`}>
+        <div ref={pane} className="max-h-[78vh] overflow-auto rounded-r-lg border border-etyme-rule bg-etyme-surface px-3.5 pb-8 pt-5" role="tree" aria-label={`${company.name}'s team structure`}>
           <ul className="org-tree">{branch(null, false)}</ul>
         </div>
+        <div ref={editor} className="scroll-mt-4">
         <Editor
           tree={tree}
           box={chosen}
@@ -384,6 +409,7 @@ export default function TeamStructurePage() {
           onKeep={() => setPendingDelete(false)}
           onSelect={setSel}
         />
+        </div>
       </div>
 
       {menu && (
@@ -401,8 +427,10 @@ export default function TeamStructurePage() {
           onFold={(id) => { const s = new Set(folded); s.has(id) ? s.delete(id) : s.add(id); setFolded(s) }}
           onFocus={focusField}
           onSay={(says) => setSaid({ says, no: false })}
+          onChoose={setChoose}
         />
       )}
+      {choose && <Chooser choose={choose} tree={tree} busy={busy} onClose={() => setChoose(null)} onAct={act} />}
       {importing && <ImportDialog onClose={() => setImporting(false)} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
     </div>
   )
@@ -451,7 +479,7 @@ function Editor(props: {
     ? deletePlan({
         unit: box, parent: tree.boxes.find((b) => b.id === box.parentId) ?? null, companyName: company.name,
         childNames: kids.map((k) => k.name), people: box.people.map((p) => p.name),
-        contractors: box.contractors.length, holds: [], accountWalls: company.accountWalls,
+        contractors: box.contractors.filter((c) => c.onSite).length, starting: box.contractors.filter((c) => !c.onSite).length, holds: [], accountWalls: company.accountWalls,
       })
     : null
 
@@ -582,12 +610,17 @@ function ContextMenu(props: {
   onFold: (id: string) => void
   onFocus: (fieldId: string) => void
   onSay: (says: string) => void
+  onChoose: (c: Choose) => void
 }) {
   const { menu } = props
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.querySelector('button')?.focus()
-    const away = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) props.onClose() }
+    // The mouse-down a phone sends after a held press is not a press outside.
+    const away = (e: MouseEvent) => {
+      if (menuStaysOpen(menu, Date.now(), 'mousedown')) return
+      if (ref.current && !ref.current.contains(e.target as Node)) props.onClose()
+    }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
   }, [props])
@@ -628,22 +661,63 @@ function ContextMenu(props: {
   } else if (menu.for === 'person') {
     head = menu.name
     items = [
-      menu.box && item('Make team lead', () => props.onAct('LEAD', { unitId: menu.box, contextId: menu.contextId }, () => menu.box)),
+      menu.box && offersMakeLead(props.boxes.get(menu.box)?.lead, menu.contextId) && item('Make team lead', () => props.onAct('LEAD', { unitId: menu.box, contextId: menu.contextId }, () => menu.box)),
       item('Change role…', () => { window.location.href = '/dashboard/access' }),
-      item('Move to another team…', () => props.onSay(`Drag ${menu.name} onto any box, or choose a box and use Add a person.`)),
+      item('Move to another team…', () => props.onChoose({ kind: 'person', contextId: menu.contextId, name: menu.name, from: menu.box })),
       menu.box && hr('h1'),
       menu.box && item('Take off this team', () => props.onAct('MOVE_PERSON', { contextId: menu.contextId, unitId: null }, () => menu.box), { bad: true }),
     ].filter(Boolean) as ReactNode[]
   } else {
     head = menu.name
     items = [
-      item('Charge to another box…', () => props.onSay(`Drag ${menu.name} onto the box they should be charged to. Their supplier, rate and dates stay as they are.`)),
+      item('Charge to another box…', () => props.onChoose({ kind: 'contractor', sellContractId: menu.sellContractId, name: menu.name, from: menu.box })),
     ]
   }
   return (
     <div ref={ref} role="menu" onKeyDown={keys} style={{ left: menu.x, top: menu.y }} className="fixed z-50 flex min-w-[220px] flex-col rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
       <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-etyme-muted">{head}</p>
       {items}
+    </div>
+  )
+}
+
+// ── Move a person, or charge a contractor elsewhere, without a mouse ──
+
+function Chooser(props: {
+  choose: Choose
+  tree: TreeRead
+  busy: boolean
+  onClose: () => void
+  onAct: (a: Act, v: ActValues, select?: (unitId: string | null) => string | null) => Promise<void>
+}) {
+  const { choose, tree } = props
+  const [to, setTo] = useState('')
+  useEffect(() => { document.getElementById('ts-choose')?.focus() }, [])
+  const person = choose.kind === 'person'
+  const options = tree.boxes.filter((b) => b.id !== choose.from)
+  const go = async () => {
+    if (!to) return
+    if (choose.kind === 'person') await props.onAct('MOVE_PERSON', { contextId: choose.contextId, unitId: to === ROOT ? null : to }, () => to)
+    else await props.onAct('MOVE_CONTRACTOR', { sellContractId: choose.sellContractId, unitId: to }, () => to)
+    props.onClose()
+  }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) props.onClose() }}>
+      <div role="dialog" aria-modal="true" aria-label={person ? `Move ${choose.name}` : `Charge ${choose.name} to another box`} className="flex w-full max-w-[420px] flex-col gap-3 rounded-r-lg border border-etyme-rule bg-etyme-surface p-5 shadow-float">
+        <h2 className="headline-serif text-[19px] text-etyme-ink">{person ? `Move ${choose.name} to another team` : `Charge ${choose.name} to another box`}</h2>
+        {!person && <p className="text-[13px] text-etyme-muted">Only the box their line is charged to changes. Their supplier, rate and dates stay as they are.</p>}
+        <Field label={person ? 'Team' : 'Box'}>
+          <Select id="ts-choose" value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void go() }}>
+            <option value="">Choose a box…</option>
+            {person && choose.from !== null && <option value={ROOT}>On no team ({tree.company.name})</option>}
+            {options.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.kindWord}</option>)}
+          </Select>
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-primary" disabled={!to || props.busy} onClick={() => void go()}>{person ? 'Move' : 'Charge there'}</button>
+          <button className="btn-secondary" onClick={props.onClose}>Cancel</button>
+        </div>
+      </div>
     </div>
   )
 }

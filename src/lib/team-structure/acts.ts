@@ -50,6 +50,7 @@ export function actBody(act: Act, v: ActValues): Record<string, unknown> {
 }
 
 export type ActRequest =
+  /** An empty name is named after its kind by the write: "New region". */
   | { act: 'ADD'; parentId: string | null; at: number | null; name: string; kind: string | null }
   | { act: 'RENAME'; unitId: string; name: string }
   | { act: 'KIND'; unitId: string; kind: string }
@@ -80,7 +81,7 @@ export function readAct(body: unknown): Read {
   switch (act) {
     case 'ADD':
       if (kind && !isKnownKind(kind)) return need('kind', `A box is a ${KINDS_OFFERED.map((k) => k.toLowerCase()).join(', a ')}.`)
-      return { ok: true, request: { act, parentId: id(b.parentId), at: place(b.at), name: name || 'New team', kind } }
+      return { ok: true, request: { act, parentId: id(b.parentId), at: place(b.at), name, kind } }
     case 'RENAME':
       if (!id(b.unitId)) return need('unitId', 'Pick the box to rename.')
       if (!name) return need('name', 'Give the box a name.')

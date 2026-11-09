@@ -67,7 +67,7 @@ describe('reading a file exported from Active Directory', () => {
 describe('the preview of every change', () => {
   it('a department nobody has drawn yet becomes a new box, led by the manager most of its people report to, under that manager’s own department', () => {
     const add = plan().changes.find((c) => c.key === 'add:quality')!
-    expect(add.says).toBe('New department "Quality" under Operations, led by Dana Whitcombe. 4 people have department = Quality.')
+    expect(add.says).toBe('New department "Quality" under Operations, led by Dana Whitcombe. 4 people are in the Quality department in the directory.')
     expect(add.op).toEqual({ act: 'ADD', name: 'Quality', parent: { id: 'ops' } })
     expect(plan().changes.find((c) => c.key === 'lead:new:quality')?.op).toEqual({ act: 'LEAD', unit: { newDepartment: 'Quality' }, contextId: 'c_dana' })
   })
@@ -89,6 +89,34 @@ describe('the preview of every change', () => {
     const units = UNITS.map((u) => (u.id === 'fin' ? { ...u, leadContextId: 'c_lucas', leadOnScreen: true } : u))
     const p = planFromDirectory({ people: people(), units, seats: SEATS, sites: [], companyName: 'Corvane Packaging' })
     expect(p.changes.find((c) => c.key === 'lead:fin')).toMatchObject({ tag: 'ASKS', ticked: false })
+  })
+
+  it('a five-row file never moves a department the record already holds, nor replaces its lead: most of its people are counted on the record, not only in the file', () => {
+    // Walk 10: Dana Whitcombe was the one Operations person in the file, of 37 on the record.
+    const units = [unit('ops', 'Operations', 'DEPARTMENT', { leadContextId: 'c_astrid' }), unit('fin', 'Finance'), unit('us', 'United States', 'REGION', { parentId: 'ops' })]
+    const seats = [
+      seat('c_astrid', 'astrid@corvane.example', 'Astrid Berge'),
+      seat('c_yvette', 'yvette@corvane.example', 'Yvette Marchetti'),
+      ...Array.from({ length: 36 }, (_, i) => seat(`c_${i}`, `p${i}@corvane.example`, `Person ${i}`, { orgUnitId: 'us' })),
+    ]
+    const r = readDirectoryCsv('name,email,department,manager\nDana,p0@corvane.example,Operations,yvette@corvane.example\nYvette Marchetti,yvette@corvane.example,Accounts Payable,margaret@corvane.example')
+    if (!r.ok) throw new Error(r.says)
+    const p = planFromDirectory({ people: r.people, units, seats, sites: [], companyName: 'Corvane Packaging' })
+    expect(p.changes.find((c) => c.key === 'move:ops')).toBeUndefined()
+    expect(p.changes.find((c) => c.key === 'lead:ops')).toBeUndefined()
+    expect(p.changes.some((c) => /most of/.test(c.says))).toBe(false)
+  })
+
+  it('where most of a department’s people do report elsewhere, moving it and replacing the lead it already has both ask, unticked', () => {
+    const units = [unit('ops', 'Operations', 'DEPARTMENT', { leadContextId: 'c_astrid' }), unit('fin', 'Finance')]
+    const seats = [seat('c_astrid', 'astrid@corvane.example', 'Astrid Berge'), seat('c_margaret', 'margaret@corvane.example', 'Margaret Osei'), seat('c_a', 'a@corvane.example', 'Ana'), seat('c_b', 'b@corvane.example', 'Ben')]
+    const r = readDirectoryCsv('name,email,department,manager\nAna,a@corvane.example,Operations,margaret@corvane.example\nBen,b@corvane.example,Operations,margaret@corvane.example\nMargaret Osei,margaret@corvane.example,Finance,graham@corvane.example')
+    if (!r.ok) throw new Error(r.says)
+    const p = planFromDirectory({ people: r.people, units, seats, sites: [], companyName: 'Corvane Packaging' })
+    expect(p.changes.find((c) => c.key === 'move:ops')).toMatchObject({ tag: 'ASKS', ticked: false, tickable: true })
+    const lead = p.changes.find((c) => c.key === 'lead:ops')!
+    expect(lead).toMatchObject({ tag: 'ASKS', ticked: false })
+    expect(lead.says).toBe("Operations' lead is Astrid Berge. The directory says Margaret Osei: 2 of its 2 people report to Margaret Osei in the directory. Astrid Berge stays unless you tick this.")
   })
 
   it('a box the directory does not name is shown and never removed', () => {

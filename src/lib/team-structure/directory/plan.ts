@@ -14,15 +14,23 @@ import type { DirectoryPerson } from './csv'
  *   - An edit made on the screen wins: where the tree was last changed by
  *     a person on the screen and the directory disagrees, the change is
  *     listed as "asks you", unticked.
+ *   - A department already on the tree is matched, never re-parented by
+ *     the file: a move of an existing box, and replacing a lead the
+ *     company already named, always ask, unticked. And a lead is read off
+ *     the directory only where most of the box's people report to them,
+ *     counting the seats on the record under the box as well as the
+ *     file's rows (walk 10: one row of thirty-seven moved Operations).
+ *   - A seat moved off a region or a site reads more than it did, so that
+ *     move asks too.
  *   - People are matched to their seats by email and nothing else. A
  *     person with no seat is never made one; they are listed as an
  *     invitation to send.
  *   - Contractors are not in a directory and are never moved.
  *
  * Two readings the decision left open, each a coordinator's call:
- *   - A department's lead is the manager most of its people report to
- *     (ties by name). The box above it is that lead's own department where
- *     it differs, else the department of the lead's manager.
+ *   - A department's lead is the manager more than half its people report
+ *     to (ties by name). The box above it is that lead's own department
+ *     where it differs, else the department of the lead's manager.
  *   - A directory that names no box above a department never moves the
  *     box: silence is not an instruction to put it at the top.
  *
@@ -89,6 +97,11 @@ const key = (s: string) => s.trim().toLowerCase()
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const NARROWING = new Set(['REGION', 'SITE'])
 
+type Lead = { person: DirectoryPerson | { email: string; name: string }; reporting: number; of: number; most: boolean } | null
+
+/** "Operations'" and "Finance's": the possessive a person writes. */
+export const possessive = (name: string) => (/s$/i.test(name.trim()) ? `${name.trim()}'` : `${name.trim()}'s`)
+
 export function planFromDirectory(input: {
   people: readonly DirectoryPerson[]
   units: readonly PlanUnit[]
@@ -112,17 +125,38 @@ export function planFromDirectory(input: {
     if (!departments.has(k)) departments.set(k, { name: p.department.trim(), members: [] })
     departments.get(k)!.members.push(p)
   }
-  const leadOf = new Map<string, DirectoryPerson | { email: string; name: string } | null>()
+  // A box's people are the seats on the record under it and the file's
+  // people in its department, counted once: a five-row file speaks for the
+  // five, never for the thirty-seven the record already holds (walk 10).
+  const under = (rootId: string) => {
+    const ids = new Set<string>([rootId])
+    for (let grew = true; grew;) {
+      grew = false
+      for (const u of units) if (u.parentId && ids.has(u.parentId) && !ids.has(u.id)) { ids.add(u.id); grew = true }
+    }
+    return ids
+  }
+  const leadOf = new Map<string, Lead>()
   for (const [k, d] of departments) {
     const counts = new Map<string, number>()
     for (const m of d.members) if (m.manager && m.manager !== m.email) counts.set(m.manager, (counts.get(m.manager) ?? 0) + 1)
-    const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null
-    leadOf.set(k, top ? byEmail.get(top) ?? { email: top, name: top } : null)
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? null
+    const existing = unitByName.get(k) ?? null
+    const people = new Set<string>(d.members.map((m) => m.email))
+    if (existing) {
+      const ids = under(existing.id)
+      for (const s of seats) if (s.orgUnitId && ids.has(s.orgUnitId)) people.add(key(s.email))
+    }
+    if (!top) { leadOf.set(k, null); continue }
+    const [email, reporting] = top
+    leadOf.set(k, { person: byEmail.get(email) ?? { email, name: seatByEmail.get(email)?.name ?? email }, reporting, of: people.size, most: reporting * 2 > people.size })
   }
   const above = new Map<string, string | null>()
   for (const k of departments.keys()) {
     const lead = leadOf.get(k)
-    const full = lead && 'department' in lead ? lead : null
+    // The box above is read off the lead, so only a lead most of the box's
+    // people report to may say where the box sits.
+    const full = lead?.most && 'department' in lead.person ? lead.person : null
     let parent: string | null = null
     if (full?.department && key(full.department) !== k) parent = key(full.department)
     else if (full?.manager) {
@@ -155,32 +189,37 @@ export function planFromDirectory(input: {
     const parentKey = above.get(k) ?? null
     const parent = parentKey ? refOf(parentKey) : null
     const lead = leadOf.get(k) ?? null
-    const leadSeat = lead ? seatByEmail.get(key(lead.email)) ?? null : null
+    const leadSeat = lead?.most ? seatByEmail.get(key(lead.person.email)) ?? null : null
+    const count = lead ? `${lead.reporting} of its ${plural(lead.of, 'person', 'people')} report to ${lead.person.name} in the directory` : ''
 
     if (!existing) {
       changes.push({
         key: `add:${k}`, tag: 'ADD', ticked: true, tickable: true,
         op: { act: 'ADD', name: d.name, parent },
-        says: `New department "${d.name}" under ${nameOfRef(parent)}${lead ? `, led by ${lead.name}` : ''}. ${plural(d.members.length, 'person has', 'people have')} department = ${d.name}.`,
+        says: `New department "${d.name}" under ${nameOfRef(parent)}${leadSeat ? `, led by ${leadSeat.name}` : ''}. ${plural(d.members.length, 'person is', 'people are')} in the ${d.name} department in the directory.`,
       })
     } else if (parent && !sameRef(parent, existing.parentId)) {
-      const says = `${existing.name} moves from under ${nameOfRef(existing.parentId ? { id: existing.parentId } : null)} to under ${nameOfRef(parent)}${lead ? `, because ${lead.name} reports there in the directory` : ''}.`
-      changes.push(existing.movedOnScreen
-        ? { key: `move:${existing.id}`, tag: 'ASKS', ticked: false, tickable: true, op: { act: 'MOVE', unit: { id: existing.id }, parent }, says: `${says} It was placed on this screen, so it stays unless you tick this.` }
-        : { key: `move:${existing.id}`, tag: 'MOVE', ticked: true, tickable: true, op: { act: 'MOVE', unit: { id: existing.id }, parent }, says })
+      // A department already drawn is matched, and moving it is always the
+      // Owner's to say: asked, unticked.
+      changes.push({
+        key: `move:${existing.id}`, tag: 'ASKS', ticked: false, tickable: true, op: { act: 'MOVE', unit: { id: existing.id }, parent },
+        says: `The directory puts ${existing.name} under ${nameOfRef(parent)}, where it sits under ${nameOfRef(existing.parentId ? { id: existing.parentId } : null)}: ${count}. It stays unless you tick this.`,
+      })
     }
 
-    if (lead && leadSeat && (!existing || existing.leadContextId !== leadSeat.contextId)) {
+    if (leadSeat && (!existing || existing.leadContextId !== leadSeat.contextId)) {
       const was = existing?.leadContextId ? seats.find((s) => s.contextId === existing.leadContextId)?.name ?? 'somebody no longer seated' : null
-      const says = existing
-        ? `${existing.name}'s lead changes from ${was ?? 'nobody'} to ${leadSeat.name}: most of its people report to ${leadSeat.name} in the directory.`
-        : `${leadSeat.name} leads ${d.name}.`
-      const onScreen = Boolean(existing?.leadOnScreen && existing.leadContextId)
-      changes.push({
-        key: `lead:${existing?.id ?? `new:${k}`}`, tag: onScreen ? 'ASKS' : 'LEAD', ticked: !onScreen, tickable: true,
-        op: { act: 'LEAD', unit: existing ? { id: existing.id } : { newDepartment: d.name }, contextId: leadSeat.contextId },
-        says: onScreen ? `${says} The lead was named on this screen, so it stays unless you tick this.` : says,
-      })
+      if (!existing) {
+        changes.push({ key: `lead:new:${k}`, tag: 'LEAD', ticked: true, tickable: true, op: { act: 'LEAD', unit: { newDepartment: d.name }, contextId: leadSeat.contextId }, says: `${leadSeat.name} leads ${d.name}: ${count}.` })
+      } else if (was) {
+        // A lead the company already named is replaced only on the Owner's tick.
+        changes.push({
+          key: `lead:${existing.id}`, tag: 'ASKS', ticked: false, tickable: true, op: { act: 'LEAD', unit: { id: existing.id }, contextId: leadSeat.contextId },
+          says: `${possessive(existing.name)} lead is ${was}. The directory says ${leadSeat.name}: ${count}. ${was} stays unless you tick this.`,
+        })
+      } else {
+        changes.push({ key: `lead:${existing.id}`, tag: 'LEAD', ticked: true, tickable: true, op: { act: 'LEAD', unit: { id: existing.id }, contextId: leadSeat.contextId }, says: `${leadSeat.name} leads ${existing.name}: ${count}.` })
+      }
     }
   }
 
@@ -207,6 +246,12 @@ export function planFromDirectory(input: {
     const says = `${p.name} moves from ${from} to ${nameOfRef(target)}${p.department ? `: the directory's department is ${p.department}` : `: the directory's office is ${site!.name}`}${p.jobTitle ? ` (${p.jobTitle})` : ''}.`
     if (seat.setsUp && targetKind && NARROWING.has(targetKind)) {
       changes.push({ key: `person:${seat.contextId}`, tag: 'ASKS', ticked: false, tickable: false, op: null, says: `${says} ${seat.name} sets up ${companyName}, and a seat on a region or a site loses Settings, so this is not made.` })
+      continue
+    }
+    const fromKind = seat.orgUnitId ? unitById.get(seat.orgUnitId)?.kind ?? null : null
+    if (!seat.movedOnScreen && fromKind && NARROWING.has(fromKind) && targetKind !== fromKind) {
+      // Off a region or a site, a seat reads more than it did: the Owner says so.
+      changes.push({ key: `person:${seat.contextId}`, tag: 'ASKS', ticked: false, tickable: true, op: { act: 'MOVE_PERSON', contextId: seat.contextId, unit: target }, says: `${says} ${seat.name} reads only ${from} today, so this stays unless you tick it.` })
       continue
     }
     changes.push(seat.movedOnScreen

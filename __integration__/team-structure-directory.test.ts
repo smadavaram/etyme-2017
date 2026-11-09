@@ -51,7 +51,7 @@ describe('importing Corvane’s team structure from a file', () => {
     const r = await post({ source: 'CSV', csv: CSV() })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const says = r.body.data.changes.map((c: any) => c.says)
-    expect(says).toContain('New department "Quality" under Operations, led by Yvette Marchetti. 3 people have department = Quality.')
+    expect(says).toContain('New department "Quality" under Operations, led by Yvette Marchetti. 3 people are in the Quality department in the directory.')
     expect(r.body.data.invitations.map((i: any) => i.email)).toEqual(['somebody.new@corvane.example'])
     expect(await prisma.orgUnit.count({ where: { companyId: corvaneId } })).toBe(units)
     expect(await prisma.accessLog.count({ where: { subjectCompanyId: corvaneId, allowed: true } })).toBe(logged + 1)
@@ -90,6 +90,26 @@ describe('importing Corvane’s team structure from a file', () => {
     await post({ source: 'CSV', csv: CSV(), apply: preview.body.data.changes.map((c: any) => c.key) })
     expect(await prisma.sellContract.groupBy({ by: ['orgUnitId'], where: { orgUnit: { companyId: corvaneId } }, _count: { _all: true } })).toEqual(before)
     expect(await prisma.orgUnit.count({ where: { companyId: corvaneId } })).toBeGreaterThanOrEqual(units)
+  })
+
+  it('walk 10’s five-row file neither moves Operations nor replaces Astrid Berge by default, and claims no "most of" from one person', async () => {
+    const file = [
+      'name,email,department,manager,officeLocation,country,jobTitle',
+      `Margaret Osei,${e('cfo')},Finance,${e('owner')},,US,Chief Financial Officer`,
+      `Lucas Fairbairn,${e('ap')},Accounts Payable,${e('cfo')},,US,AP Clerk`,
+      `Yvette Marchetti,${e('compliance')},Accounts Payable,${e('cfo')},,US,Compliance Officer`,
+      `Dana Whitcombe,${e('region-us')},Operations,${e('compliance')},,US,Regional Manager`,
+      `Priya Okonkwo,priya.okonkwo@corvane.example,Accounts Payable,${e('cfo')},,US,AP Specialist`,
+    ].join('\n')
+    const r = await post({ source: 'CSV', csv: file })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const changes = r.body.data.changes as any[]
+    expect(changes.find((c) => c.key === 'move:cv_unit_dept_operations')).toBeUndefined()
+    expect(changes.find((c) => c.key === 'lead:cv_unit_dept_operations')).toBeUndefined()
+    // Dana sits on United States, a region: moving her off it widens what she reads, so it asks.
+    expect(changes.find((c) => /Dana Whitcombe/.test(c.says))).toMatchObject({ tag: 'ASKS', ticked: false })
+    for (const c of changes.filter((x) => x.ticked)) expect(c.says).not.toMatch(/most of/)
+    expect(changes.map((c) => c.says).join(' ')).not.toMatch(/Operations's|department =/)
   })
 
   it('a hiring manager cannot import a directory, and the refusal is logged before it is sent', async () => {

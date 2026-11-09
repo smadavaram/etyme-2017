@@ -17,6 +17,8 @@ import {
   type UnitRow,
 } from '@/lib/team-structure/tree'
 import { ACTS, ACT_FIELDS, actBody, readAct } from '@/lib/team-structure/acts'
+import { centeredScroll, foldedAtOpen, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
+import { reachWithTeam } from '@/components/settings/give-access'
 
 /**
  * Team structure is one tree the Owner draws (founder, 2026-11-09): the
@@ -82,7 +84,12 @@ describe('deleting a box', () => {
 
   it('a site with contractors charged to it cannot be deleted, in a sentence that says to move them first', () => {
     const plan = deletePlan({ ...base, unit: TREE[4], parent: TREE[2], childNames: [], people: ['Marcus Hollins'], contractors: 14 })
-    expect(plan).toEqual({ ok: false, says: 'Dayton, Ohio has 14 contractors charged to it. Move them to another box first. A site with contractors at it cannot be deleted.' })
+    expect(plan).toEqual({ ok: false, says: 'Dayton, Ohio has 14 contractors on site charged to it. Move them to another box first. A site with contractors at it cannot be deleted.' })
+  })
+
+  it('a site’s delete refusal counts the contractors on site the way the box and Sites do, and names a waiting start apart', () => {
+    const plan = deletePlan({ ...base, unit: TREE[4], parent: TREE[2], childNames: [], people: [], contractors: 14, starting: 1 })
+    expect(plan.says).toBe('Dayton, Ohio has 14 contractors on site and 1 starting charged to it. Move them to another box first. A site with contractors at it cannot be deleted.')
   })
 
   it('a box that approval rules or access grants name is refused, because moving them up a level would widen them', () => {
@@ -166,5 +173,36 @@ describe('every question the route asks, the screen has a field for', () => {
 
   it('a kind outside department, region, site and team is refused on a change of kind', () => {
     expect(readAct({ act: 'KIND', unitId: 'us', kind: 'GALAXY' })).toMatchObject({ ok: false, field: 'kind' })
+  })
+})
+
+describe('the screen, as walk 10 found it', () => {
+  it('the tree opens with every region folded but the first, as the drawing did', () => {
+    expect([...foldedAtOpen(TREE)]).toEqual(['latam'])
+  })
+
+  it('the tree opens with the company box in the middle of the pane, not off the side of it', () => {
+    // Walk 10: a 1,790 px tree in a 704 px pane, the company box at x=791.
+    expect(centeredScroll(791, 210, 704)).toBe(544)
+    expect(centeredScroll(40, 210, 704)).toBe(0)
+  })
+
+  it('"Make team lead" is not offered to the person who already leads the box', () => {
+    expect(offersMakeLead({ contextId: 'c_marcus' }, 'c_marcus')).toBe(false)
+    expect(offersMakeLead({ contextId: 'c_marcus' }, 'c_keisha')).toBe(true)
+    expect(offersMakeLead(null, 'c_keisha')).toBe(true)
+  })
+
+  it('a menu opened by a held press on a phone stays open through the scroll and the mouse-down the phone sends after it', () => {
+    expect(menuStaysOpen({ at: 1000, touch: true }, 1300, 'scroll')).toBe(true)
+    expect(menuStaysOpen({ at: 1000, touch: true }, 1300, 'mousedown')).toBe(true)
+    expect(menuStaysOpen({ at: 1000, touch: false }, 3000, 'mousedown')).toBe(false)
+    expect(menuStaysOpen({ at: 1000, touch: false }, 3000, 'scroll')).toBe(false)
+  })
+
+  it('"Give access to this team…" opens Give access with that team as the reach, wherever the permission can reach a team', () => {
+    expect(reachWithTeam(['COMPANY', 'UNIT', 'PERSON'], 'cv_unit_region_us')).toEqual({ scope: 'UNIT', orgUnitId: 'cv_unit_region_us' })
+    expect(reachWithTeam(['COMPANY'], 'cv_unit_region_us')).toEqual({ scope: 'COMPANY', orgUnitId: '' })
+    expect(reachWithTeam(['COMPANY', 'UNIT'], null)).toEqual({ scope: 'COMPANY', orgUnitId: '' })
   })
 })

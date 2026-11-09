@@ -160,11 +160,13 @@ async function act(tx: Tx, w: Writer, req: ActRequest, source: Source): Promise<
     case 'ADD': {
       const parent = req.parentId ? mustUnit(req.parentId, 'parentId') : null
       const kind = req.kind ?? kindUnder(parent?.kind ?? null)
-      const locationId = kind === 'SITE' ? await siteNamed(tx, w.companyId, req.name, units) : null
-      const created = await tx.orgUnit.create({ data: { companyId: w.companyId, parentId: parent?.id ?? null, name: req.name, kind, locationId }, select: { id: true } })
-      const withNew = [...units, { id: created.id, parentId: parent?.id ?? null, name: req.name, kind, position: null, locationId, leadContextId: null, leadSetById: null, leadSetAt: null }]
+      // Named after its kind until somebody names it: "New region", "New site".
+      const name = req.name || `New ${kindWord(kind).toLowerCase()}`
+      const locationId = kind === 'SITE' ? await siteNamed(tx, w.companyId, name, units) : null
+      const created = await tx.orgUnit.create({ data: { companyId: w.companyId, parentId: parent?.id ?? null, name, kind, locationId }, select: { id: true } })
+      const withNew = [...units, { id: created.id, parentId: parent?.id ?? null, name, kind, position: null, locationId, leadContextId: null, leadSetById: null, leadSetAt: null }]
       await placeRow(tx, orderAfterMove(withNew, created.id, parent?.id ?? null, req.at))
-      const says = `Added ${req.name} under ${parent?.name ?? w.companyName}. Give it a name and a lead.`
+      const says = `Added ${name} under ${parent?.name ?? w.companyName}. Give it a name and a lead.`
       const changeId = await record(tx, w, source, 'ADD', says, { orgUnitId: created.id }, { unitId: created.id })
       return { ok: true, says, changeId, unitId: created.id }
     }
@@ -269,10 +271,11 @@ async function act(tx: Tx, w: Writer, req: ActRequest, source: Source): Promise<
         grants ? { what: 'access grants', where: 'Users & permissions' } : null,
         internal || project ? { what: 'orders', where: 'Contracts' } : null,
       ].filter(Boolean) as { what: string; where: string }[]
-      const live = lines.filter((l) => !['ENDED', 'CANCELLED'].includes(l.state)).length
+      const onSite = lines.filter((l) => l.state === 'IN_PROGRESS').length
+      const starting = lines.filter((l) => !['IN_PROGRESS', 'ENDED', 'CANCELLED'].includes(l.state)).length
       const plan = deletePlan({
         unit: u, parent, companyName: w.companyName, childNames: childrenOf(units, u.id).map((c) => c.name),
-        people: seated.map((s) => s.name), contractors: live, holds, accountWalls: w.accountWalls,
+        people: seated.map((s) => s.name), contractors: onSite, starting, holds, accountWalls: w.accountWalls,
       })
       if (!plan.ok) return no(plan.says, 409)
       if (parent && NARROWING.has(parent.kind)) {

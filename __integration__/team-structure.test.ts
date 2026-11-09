@@ -62,13 +62,28 @@ describe('Corvane’s team structure, as the drawing has it', () => {
   })
 })
 
+describe('the company’s own order and names', () => {
+  it('a region’s sites read in the company’s own order, Dayton first, as on Sites and in the drawing', async () => {
+    const t = await read()
+    const us = box(t, 'United States')
+    expect(t.boxes.filter((b: any) => b.parentId === us.id).map((b: any) => b.name)[0]).toBe('Dayton, Ohio')
+  })
+
+  it('a box added under a department with no name is named after its kind, "New region"', async () => {
+    const r = await post('ADD', { parentId: 'cv_unit_dept_compliance', name: null, kind: null })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.says).toBe('Added New region under Compliance. Give it a name and a lead.')
+    await post('UNDO', {})
+  })
+})
+
 describe('only the Owner and the Admin change the tree', () => {
   it('a hiring manager is refused the team structure in a sentence, and the refusal is in the access log before the answer', async () => {
     const before = await prisma.accessLog.count({ where: { subjectCompanyId: corvaneId, allowed: false } })
     as(HIRING_DAYTON)
     const r = await json(await tree(req('GET', '/api/settings/team-structure')))
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toMatch(/team structure|Owner|Admin|role/i)
+    expect(r.body.error.message).toBe('Reading the team structure at Corvane Packaging is done by Graham Ellery, Owner. Ask them to do it, or to give you that role.')
     expect(await prisma.accessLog.count({ where: { subjectCompanyId: corvaneId, allowed: false } })).toBe(before + 1)
   })
 
@@ -90,7 +105,7 @@ describe('moving and deleting', () => {
   it('Dayton cannot be deleted while contractors are charged to it', async () => {
     const r = await post('DELETE', { unitId: 'cv_unit_site_dayton' })
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toMatch(/^Dayton, Ohio has \d+ contractors charged to it\. Move them to another box first\./)
+    expect(r.body.error.message).toBe('Dayton, Ohio has 14 contractors on site and 1 starting charged to it. Move them to another box first. A site with contractors at it cannot be deleted.')
     expect(await prisma.orgUnit.findUnique({ where: { id: 'cv_unit_site_dayton' } })).not.toBeNull()
   })
 

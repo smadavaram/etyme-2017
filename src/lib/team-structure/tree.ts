@@ -167,8 +167,10 @@ export interface DeleteFacts {
   companyName: string
   childNames: string[]
   people: string[]
-  /** Contractors on a live line charged to this box. */
+  /** Contractors on site on a line charged to this box. */
   contractors: number
+  /** Contractors whose start is still waiting, on a line charged to this box; counted apart, as the box and Sites count them. */
+  starting?: number
   /** Things that hold the box and must be moved by their own screen first. */
   holds: { what: string; where: string }[]
   accountWalls: boolean
@@ -186,10 +188,14 @@ export interface DeleteFacts {
  */
 export function deletePlan(f: DeleteFacts): { ok: false; says: string } | { ok: true; says: string; movesUpTo: string | null } {
   const up = f.parent?.name ?? f.companyName
-  if (f.unit.kind === 'SITE' && f.contractors > 0) {
+  const starting = f.starting ?? 0
+  if (f.unit.kind === 'SITE' && f.contractors + starting > 0) {
+    const who = f.contractors && starting
+      ? `${plural(f.contractors, 'contractor')} on site and ${starting} starting`
+      : f.contractors ? `${plural(f.contractors, 'contractor')} on site` : `${plural(starting, 'contractor')} starting`
     return {
       ok: false,
-      says: `${f.unit.name} has ${plural(f.contractors, 'contractor')} charged to it. Move them to another box first. A site with contractors at it cannot be deleted.`,
+      says: `${f.unit.name} has ${who} charged to it. Move them to another box first. A site with contractors at it cannot be deleted.`,
     }
   }
   if (f.holds.length) {
@@ -201,6 +207,7 @@ export function deletePlan(f: DeleteFacts): { ok: false; says: string } | { ok: 
     f.childNames.length ? `its ${plural(f.childNames.length, 'team')}` : '',
     f.people.length ? plural(f.people.length, 'person', 'people') : '',
     f.contractors ? plural(f.contractors, 'contractor') : '',
+    starting ? `${starting} starting` : '',
   ].filter(Boolean)
   const reach = reachChangeSays(f.people, reachOf(f.unit, f.accountWalls), reachOf(f.parent, f.accountWalls), f.companyName)
   const says = moving.length

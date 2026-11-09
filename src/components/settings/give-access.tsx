@@ -35,6 +35,15 @@ interface Data {
 const EMPTY: GiveAccessValues = { permission: '', who: '', scope: 'COMPANY', orgUnitId: '', reason: '' }
 const input = 'w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-etyme-raised'
 
+/**
+ * The reach a permission opens with when the page was opened for one team
+ * (?unit=, from "Give access to this team…" on Team structure): that team,
+ * where the permission can reach a team; else the whole company.
+ */
+export function reachWithTeam(scopes: readonly string[], unitId: string | null): { scope: string; orgUnitId: string } {
+  return unitId && scopes.includes('UNIT') ? { scope: 'UNIT', orgUnitId: unitId } : { scope: 'COMPANY', orgUnitId: '' }
+}
+
 export function GiveAccess() {
   const [data, setData] = useState<Data | null>(null)
   const [v, setV] = useState<GiveAccessValues>(EMPTY)
@@ -42,6 +51,11 @@ export function GiveAccess() {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [refused, setRefused] = useState(false)
+  // "Give access to this team…" on Settings → Team structure opens this page
+  // with ?unit=<box> (2026-11-09): the team is chosen as the reach, and kept
+  // as the reach whichever permission is picked, where that permission can
+  // reach a team at all.
+  const [presetUnit, setPresetUnit] = useState<string | null>(null)
 
   async function load() {
     // A seat that may not read who holds what is shown nothing: the page
@@ -56,6 +70,16 @@ export function GiveAccess() {
     }
   }
   useEffect(() => { void load() }, [])
+  useEffect(() => {
+    const unit = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('unit') : null
+    if (unit) setPresetUnit(unit)
+  }, [])
+  useEffect(() => {
+    if (!presetUnit || !data) return
+    if (!data.units.some((u) => u.id === presetUnit)) { setPresetUnit(null); return }
+    setV((x) => ({ ...x, scope: 'UNIT', orgUnitId: presetUnit }))
+    document.getElementById('give-access')?.scrollIntoView({ block: 'start' })
+  }, [presetUnit, data])
 
   const chosen = data?.permissions.find((p) => p.key === v.permission) ?? null
   const scopes = (data?.scopes ?? []).filter((s) => !chosen || chosen.scopes.includes(s.key))
@@ -97,12 +121,16 @@ export function GiveAccess() {
   const drawn = fieldsDrawn(v.scope)
 
   return (
+    <div id="give-access">
     <Panel title="Give access" subtitle="Let a role, or one person, do one more thing than their role allows. Every grant keeps who gave it, when and why.">
       {data.canGive && (
         <form onSubmit={give} className="space-y-3 max-w-xl mb-6">
           <div>
             <Lbl>What they may do</Lbl>
-            <select value={v.permission} onChange={(e) => set({ permission: e.target.value, scope: 'COMPANY', orgUnitId: '' })} className={input}>
+            <select value={v.permission} onChange={(e) => {
+              const p = data.permissions.find((x) => x.key === e.target.value)
+              set({ permission: e.target.value, ...reachWithTeam(p?.scopes ?? [], presetUnit) })
+            }} className={input}>
               <option value="">Choose one</option>
               {data.permissions.map((p) => <option key={p.key} value={p.key}>{p.label[0].toUpperCase() + p.label.slice(1)}</option>)}
             </select>
@@ -173,5 +201,6 @@ export function GiveAccess() {
         </details>
       )}
     </Panel>
+    </div>
   )
 }

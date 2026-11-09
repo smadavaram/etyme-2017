@@ -56,6 +56,7 @@
  * re-seed of those steps never sweeps these rows into their stories.
  */
 
+import { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day, seedWeek, signingDays } from '@/lib/seed-days'
 import { daysFor } from '@/lib/tenure-days'
@@ -286,6 +287,11 @@ export const CORVANE_PEOPLE = [
  * whole program from it.
  */
 export const CORVANE_OPERATIONS_UNIT = 'cv_unit_dept_operations'
+
+/** A plant's place in its region, 1 first, in the order CORVANE_PLANTS lists them. */
+export function plantPlace(p: Pick<CorvanePlant, 'key' | 'region'>): number {
+  return CORVANE_PLANTS.filter((x) => x.region === p.region).findIndex((x) => x.key === p.key) + 1
+}
 export const CORVANE_DEPARTMENTS: readonly { unit: string; name: string; lead: string; members: readonly string[] }[] = [
   { unit: CORVANE_OPERATIONS_UNIT, name: 'Operations', lead: 'operations', members: [] },
   { unit: 'cv_unit_dept_finance', name: 'Finance', lead: 'cfo', members: ['ap'] },
@@ -497,8 +503,10 @@ async function frame(ctx: Ctx): Promise<void> {
     skipDuplicates: true,
   })
   await db.orgUnit.createMany({
+    // Each plant in its region's own order, the order CORVANE_PLANTS lists them (Dayton first).
     data: CORVANE_PLANTS.map((p) => ({
       id: `cv_unit_site_${p.key}`, companyId: co.id, name: p.plant, kind: SITE_UNIT_KIND, parentId: `cv_unit_region_${p.region}`, locationId: `cv_site_${p.key}`,
+      position: plantPlace(p),
     })),
     skipDuplicates: true,
   })
@@ -509,6 +517,9 @@ async function frame(ctx: Ctx): Promise<void> {
     where: { companyId: co.id, id: { in: CORVANE_REGIONS.map((r) => `cv_unit_region_${r.key}`) }, parentId: null, changes: { none: {} } },
     data: { parentId: CORVANE_OPERATIONS_UNIT },
   })
+  // A world seeded before the plants carried their place: written once, where none is set.
+  await db.$executeRaw`UPDATE "OrgUnit" AS u SET "position" = v.p FROM (VALUES ${Prisma.join(CORVANE_PLANTS.map((p) => Prisma.sql`(${`cv_unit_site_${p.key}`}, ${plantPlace(p)}::int)`))}) AS v(id, p)
+    WHERE u.id = v.id AND u."companyId" = ${co.id} AND u."position" IS NULL`
   await db.$executeRaw`UPDATE "OrgUnit" SET "locationId" = 'cv_site_' || substring(id from 14)
     WHERE "companyId" = ${co.id} AND id LIKE 'cv\_unit\_site\_%' AND "locationId" IS NULL
       AND EXISTS (SELECT 1 FROM "CompanyLocation" l WHERE l.id = 'cv_site_' || substring("OrgUnit".id from 14))`
