@@ -53,7 +53,6 @@ smtp                  IN  CNAME  smtp.googlemail.com.
 ; signed. Google Admin → Apps → Google Workspace → Gmail → Authenticate
 ; email → Generate new record (2048-bit, prefix "google"). Paste the
 ; value it shows here, then press "Start authentication" in Google Admin.
-google._domainkey     IN  TXT  "v=DKIM1; k=rsa; p=PASTE-THE-KEY-FROM-GOOGLE-ADMIN"
 
 ; ── DMARC, report only (NEW) ───────────────────────────────────────────
 ; Nothing is rejected. Reports go to support@etyme.com. Move to
@@ -65,7 +64,6 @@ _dmarc                IN  TXT  "v=DMARC1; p=none; rua=mailto:support@etyme.com"
 ; from Resend → Domains → notify.etyme.com. Then press Verify in Resend.
 send.notify           IN  MX  10  feedback-smtp.us-east-1.amazonses.com.
 send.notify           IN  TXT  "v=spf1 include:amazonses.com ~all"
-resend._domainkey.notify  IN  TXT  "p=PASTE-THE-DKIM-KEY-FROM-RESEND"
 
 ; ── Removed from the live zone, and why ────────────────────────────────
 ; *  A 216.24.57.1 and @ A 216.24.57.1   the Base44 site; Vercel replaces it
