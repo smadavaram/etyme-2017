@@ -1,0 +1,27 @@
+$ORIGIN ETYME.COM.
+$TTL 3600
+ETYME.COM.            IN  NS  NS1.BLUEHOST.COM.
+ETYME.COM.            IN  NS  NS2.BLUEHOST.COM.
+ETYME.COM.            300  IN  A  76.76.21.21
+WWW                   300  IN  CNAME  CNAME.VERCEL-DNS.COM.
+TAPIN                 300  IN  CNAME  CNAME.VERCEL-DNS.COM.
+ETYME.COM.            IN  MX  1  ASPMX.L.GOOGLE.COM.
+ETYME.COM.            IN  MX  5  ALT1.ASPMX.L.GOOGLE.COM.
+ETYME.COM.            IN  MX  5  ALT2.ASPMX.L.GOOGLE.COM.
+ETYME.COM.            IN  MX  10  ALT3.ASPMX.L.GOOGLE.COM.
+ETYME.COM.            IN  MX  10  ALT4.ASPMX.L.GOOGLE.COM.
+CALENDAR              IN  CNAME  GHS.GOOGLE.COM.
+DOCS                  IN  CNAME  GHS.GOOGLE.COM.
+SITES                 IN  CNAME  GHS.GOOGLE.COM.
+START                 IN  CNAME  GHS.GOOGLE.COM.
+MAIL                  IN  CNAME  GHS.GOOGLEHOSTED.COM.
+IMAP                  IN  CNAME  IMAP.GOOGLEMAIL.COM.
+POP                   IN  CNAME  POP.GOOGLEMAIL.COM.
+SMTP                  IN  CNAME  SMTP.GOOGLEMAIL.COM.
+ETYME.COM.            IN  TXT  "v=spf1 include:_spf.google.com ~all"
+ETYME.COM.            IN  TXT  "google-site-verification=BBDibdPX9tTYPhaDsrVgPeKBEqMiCXs8rZjrf4WbfYk"
+ETYME.COM.            IN  TXT  "google-site-verification=cxCyQld11ghvCXM09SlUlmD1aVXzandjIVzX9EPXQlc"
+ETYME.COM.            IN  TXT  "google-site-verification=hxgsHBmOvl9N-eZ2B67Y-NIuWG2-L0t0SZeDnTrb4z8"
+_DMARC                IN  TXT  "v=DMARC1; p=none; rua=mailto:support@etyme.com"
+SEND.NOTIFY           IN  MX  10  FEEDBACK-SMTP.US-EAST-1.AMAZONSES.COM.
+SEND.NOTIFY           IN  TXT  "v=spf1 include:amazonses.com ~all"
