@@ -42,7 +42,7 @@ describe('importing Corvane’s team structure from a file', () => {
     expect(s.body.data.sources.map((x: any) => [x.key, x.connected])).toEqual([['ENTRA', false], ['GOOGLE', false], ['CSV', true]])
     const r = await post({ source: 'ENTRA' })
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toMatch(/^Microsoft Entra ID is not connected for Corvane Packaging\..*User\.Read\.All.*Meanwhile, a file exported from Active Directory works today\.$/)
+    expect(r.body.error.message).toMatch(/^Microsoft Entra ID is not connected for Corvane Packaging\..*read-only access to your users.*Meanwhile, a file exported from Active Directory works today\.$/)
   })
 
   it('the preview lists every change and makes none, and the read is in the access log as the company’s', async () => {

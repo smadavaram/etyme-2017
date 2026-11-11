@@ -148,7 +148,8 @@ describe('Microsoft Entra ID and Google Workspace', () => {
     const s = directorySources({ ETYME_DIRECTORY_ENTRA_CLIENT_ID: 'x', ETYME_DIRECTORY_ENTRA_CLIENT_SECRET: 'y' })
     expect(s.map((x) => [x.key, x.connected])).toEqual([['ENTRA', false], ['GOOGLE', false], ['CSV', true]])
     expect(s[0].adminApproves).toMatch(/User\.Read\.All .*admin consent/)
-    expect(s[1].adminApproves).toMatch(/admin\.directory\.user\.readonly/)
+    expect(s[1].adminApproves).toMatch(/Google Workspace administrator .*read only/)
+    expect(s[1].adminApproves).not.toMatch(/admin\.directory/)
   })
 
   it('Entra ID is read through Microsoft Graph with the manager expanded, page by page', async () => {
