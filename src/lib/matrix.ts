@@ -1436,10 +1436,9 @@ export const MATRIX: L1[] = [
           ] },
         // Enterprise identity (founder, 2026-11-11, "go identity"): the
         // client's own directory is the only door, small teams stay
-        // invite-only, hybrid is the Owner's choice. Pass 1, stage A here;
-        // stage B (the company's own OIDC and SAML door, the mock provider,
-        // SCIM, the settings screen, LinkedIn) is not built.
-        { code: 'L3.2.2.17', name: 'How a company\u2019s people sign in: directory only, invitation only, or hybrid', owner: 'Owner', status: P,
+        // invite-only, hybrid is the Owner's choice. Pass 1, stages A and B;
+        // SAML is stored and not built.
+        { code: 'L3.2.2.17', name: 'How a company\u2019s people sign in: directory only, invitation only, or hybrid', owner: 'Owner', status: B,
           tasks: [
             'A company\u2019s sign-in policy is one row: directory only, invitation only or hybrid, with who set it, when and why; no row is today\u2019s behavior, and a company with a directory turned on and no row reads directory only',
             'Directory only refuses the password door, the email link, Google and Microsoft sign-in, the link in a sign-up email, a claim link, the staff key and a join by domain, for every address on the company\u2019s verified domains, in one sentence, with no exception for support, an Admin or the Superadmin',
@@ -1450,7 +1449,11 @@ export const MATRIX: L1[] = [
             'Every identity event is in the access log under its own name, with the time, the company, the actor, the subject, the policy and the surface, and a refusal is written before the refusal is sent',
             'Only an Owner changes the mode, and directory only is refused until a directory is turned on; an Admin reads it; an Admin never ends an Owner\u2019s sessions',
             'BUILT 2026-11-11 by etyme-architect, stage A: the schema (CompanySignInPolicy, IdentityProvider with a secret reference, ExternalIdentity by issuer and subject, ScimToken hashed, DirectoryGroupRole, Person.sessionVersion, Context.source), the one policy function, the doors above, the session kill, the ledger, GET and PATCH /api/settings/sign-in and POST /api/settings/sign-in/sessions',
-            'OWED BY etyme-architect, stage B: the company\u2019s own OIDC and SAML door (DIRECTORY), the mock directory for the demo, SCIM 2.0 provisioning and deprovisioning, the group-to-role map in use, the settings screen, LinkedIn sign-in for workers and solopreneurs',
+            'A company\u2019s own directory is a sign-in door by OpenID Connect: a work email finds the company by its verified domain; the id token is verified (signature by a published key, issuer, audience, dates, nonce) with PKCE and a sealed single-use state; the person is the issuer and the subject, never the email; an address off the company\u2019s verified domains is refused; Etyme asks for no password there',
+            'A directory seats people by SCIM 2.0, or just-in-time on a first sign-in where the company turned it on, as Member or by the group-to-role map, never as Owner; removing or disabling somebody in the directory pauses their seat and ends every live session at once, and the last Owner is never removed by a directory',
+            'Settings \u2192 Sign-in: the Owner sets and an Admin reads the mode, the directory, SCIM and its token shown once, the group-to-role rows, the assurance level and data region said as not yet enforced, sign out everywhere per person, and the recent identity events',
+            'LinkedIn is a sign-in door for workers and one-person firms only, refused at any other company\u2019s seat',
+            'BUILT 2026-11-11 by etyme-architect, stage B: the directory door (lib/identity/oidc, lib/identity/directory, /api/sso/start and /callback, the directory-oidc door in lib/auth, /sso), the mock directory for demo companies on reserved domains (lib/identity/mock-directory, /api/mock-directory, seeded at Northbend Athletic), SCIM (lib/identity/scim, lib/identity/provision, /scim/v2), Settings \u2192 Sign-in and its routes, LinkedIn, the directory-only supplier rule worded (lib/identity/supplier-directory). SAML is stored and not built; the supplier approval reading the rule is etyme-demand\u2019s; see KNOWN-LIMITS, \u201cIdentity, pass 1, stage B\u201d',
             'BUILT 2026-11-11 by etyme-regulatory (9e93a8bf2): POST /api/access/invite asks the policy before it seats anybody and writes INVITE_SENT; revoking or suspending a person\u2019s last seat ends their sessions and writes MEMBERSHIP_REVOKED; every identity name is in AccessAction',
           ],
           implementedBy: [
@@ -1459,10 +1462,17 @@ export const MATRIX: L1[] = [
             'src/lib/login-doors.ts', 'src/app/api/onboarding/route.ts', 'src/app/api/settings/setup/[item]/route.ts',
             'src/app/api/settings/sign-in/route.ts', 'src/app/api/settings/sign-in/sessions/route.ts',
             'src/app/api/access/invite/route.ts', 'src/app/api/access/[contextId]/route.ts',
+            'src/lib/identity/oidc.ts', 'src/lib/identity/directory.ts', 'src/lib/identity/mock-directory.ts', 'src/lib/identity/mock-read.ts',
+            'src/lib/identity/provision.ts', 'src/lib/identity/scim.ts', 'src/lib/identity/seed-mock.ts', 'src/lib/identity/screen-words.ts', 'src/lib/identity/supplier-directory.ts',
+            'src/app/api/sso/start/route.ts', 'src/app/api/sso/callback/route.ts', 'src/app/(auth)/sso/page.tsx',
+            'src/app/api/mock-directory/[slug]/authorize/route.ts', 'src/app/api/mock-directory/[slug]/token/route.ts', 'src/app/api/mock-directory/[slug]/people/route.ts',
+            'src/app/api/scim/v2/Users/route.ts', 'src/app/api/scim/v2/Users/[id]/route.ts', 'src/app/api/scim/v2/Groups/route.ts', 'src/app/api/scim/v2/Groups/[id]/route.ts',
+            'src/app/api/settings/sign-in/overview/route.ts', 'src/app/api/settings/sign-in/directory/route.ts', 'src/app/api/settings/sign-in/scim/route.ts', 'src/app/api/settings/sign-in/groups/route.ts',
+            'src/app/dashboard/settings/sign-in/page.tsx',
           ],
           testedBy: [
             '__tests__/invariants/identity-doors.test.ts', '__tests__/invariants/identity-sessions.test.ts', '__tests__/invariants/identity-ledger.test.ts',
-            '__tests__/invariants/identity-seats.test.ts',
+            '__tests__/invariants/identity-seats.test.ts', '__tests__/invariants/identity-directory.test.ts',
           ] },
         { code: 'L3.2.2.5', name: 'Tenant onboarding', owner: 'Etyme', status: B,
           tasks: ['BUILT 2026-11-02 by the architect, the change of type, from the founder\u2019s Tapin on production (signed up as Own company, so its Owner read the seven-link solopreneur menu and could not run a bench): on Settings \u2192 Company the Owner, and only the Owner, changes what kind of company it is among sign-up\u2019s own choices (client, MSP, integrator, prime vendor, sub-vendor or bench supplier as one choice because the record stores them the same way, solopreneur), through PATCH /api/settings with { type } on its own, recorded on the company with who and when (kindSetById, kindSetAt) and on the log with from and to; the roles the new type needs are added (ensureDefaultRoles), nothing taken away; the menu, Ask Etyme\u2019s greeting and chips and the setup checklist read the kind on every request, so they follow from the next screen, every setup answer kept; the Owner\u2019s own pages stay reachable as \u201cYou\u201d. Refused in a sentence only where work on the record depends on the old type: a one-person firm whose own person works on a running line through it (that line would be asked a supplier\u2019s papers in the middle of the work); becoming a one-person firm with anybody else seated, listed or working there; leaving a client with open job requests, contractors on site or an MSP seated; becoming a client while selling; leaving an MSP holding a seat; becoming an MSP while placing or paying anybody. Read on the kept scale world in 17 to 99 ms a firm, read only. The cycle pack and who may see outside stay as set; the public page\u2019s words the rules wrote are re-read for the new type, a person\u2019s stay',
