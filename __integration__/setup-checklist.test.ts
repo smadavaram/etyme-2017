@@ -11,6 +11,7 @@ import { txt } from '@/app/api/settings/setup/[item]/dns'
 import { mayIssueBill, mayPayFirm, mayChasePaper } from '@/lib/setup-gates'
 import { verificationRecord } from '@/lib/domains-owned'
 import { ITEM_ORDER } from '@/lib/setup-checklist'
+import { GET as readIntake } from '@/app/api/settings/email-intake/route'
 
 /**
  * The admin's setup checklist (founder, 2026-10-22; "Build it",
@@ -84,6 +85,45 @@ describe('the admin’s setup checklist', () => {
     expect(await mayIssueBill(companyId)).toMatchObject({ ok: false, step: 'ADDRESSES' })
     const rows = await prisma.setupItem.findMany({ where: { companyId } })
     expect(rows.every((r) => r.answeredById === ownerId)).toBe(true)
+  })
+
+  it('automatic forwarding is refused to a seat that is not the Owner or an Admin', async () => {
+    as(MEMBER)
+    const skip = await json(await answerItem(req('POST', '/api/settings/setup', { item: 'FORWARDING', outcome: 'SKIPPED' })))
+    expect(skip.status).toBe(403)
+    const intake = await json(await readIntake(req('GET', '/api/settings/email-intake')))
+    expect(intake.status).toBe(403)
+    // Refused at the shared door in its sentence, before the intake's own Owner-or-Admin check is reached.
+    expect(intake.body.error.message).toBe('Settings is not part of your seat at Tapinwalk. Ask your company’s owner if you need it.')
+  })
+
+  it('where forwarded email is not open on this deployment, automatic forwarding shows no address, says so, and cannot be marked done', async () => {
+    as(OWNER)
+    expect(process.env.EMAIL_INTAKE_LIVE).not.toBe('1')
+    const read = (await json(await readChecklist(req('GET', '/api/settings/setup')))).body.data
+    expect(read.detail.FORWARDING).toMatchObject({
+      status: 'NOT_OPEN',
+      addressHint: null,
+      says: 'Forwarded email is not open on this deployment yet. No address is shown until it is.',
+      mayTurnOn: false,
+      mayMarkDone: false,
+    })
+    expect(JSON.stringify(read.detail.FORWARDING)).not.toMatch(/@in\.etyme\.com/)
+    const done = await json(await answerItem(req('POST', '/api/settings/setup', { item: 'FORWARDING', outcome: 'DONE' })))
+    expect(done.status).toBe(422)
+    expect(done.body.error.message).toMatch(/^Automatic forwarding is done once forwarded email is on/)
+  })
+
+  it('skipping automatic forwarding records who and when, and nothing stops', async () => {
+    as(OWNER)
+    const row = await prisma.setupItem.findUniqueOrThrow({ where: { companyId_item: { companyId, item: 'FORWARDING' } } })
+    expect(row).toMatchObject({ outcome: 'SKIPPED', answeredById: ownerId })
+    expect(row.answeredAt).toBeInstanceOf(Date)
+    const read = (await json(await readChecklist(req('GET', '/api/settings/setup')))).body.data
+    expect(read.checklist.rows.find((r: any) => r.key === 'FORWARDING')).toMatchObject({
+      state: 'SKIPPED', line: 'Skipped. Nothing stops. People can still forward an email by hand.',
+    })
+    expect(read.stamps.FORWARDING).toMatch(/^Skipped by .+, [A-Z][a-z]{2} \d{1,2}, \d{4}\./)
   })
 
   it('a guessed answer says it came from the work email’s domain, a paper’s from the paper and its line, a typed one from the person', async () => {

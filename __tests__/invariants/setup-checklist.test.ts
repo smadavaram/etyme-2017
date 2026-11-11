@@ -16,7 +16,7 @@ import { effectiveRequirements, defaultItemsFor } from '@/lib/document-requireme
 
 /**
  * The admin's setup checklist (founder, 2026-10-22; "Build it",
- * 2026-10-28): eleven items, every one skippable, the one line that comes
+ * 2026-10-28): twelve items since 2026-11-11, every one skippable, the one line that comes
  * back until the list is empty, where each answer came from, and what a
  * skipped item refuses.
  */
@@ -46,11 +46,11 @@ ACORD 25
 INSURER A : Granite Mutual Insurance Company 12345
 COMMERCIAL GENERAL LIABILITY  GL-778812  06/01/2026  06/01/2027  EACH OCCURRENCE $1,000,000`
 
-describe('the eleven items, in order', () => {
-  it('reads Your company, Addresses, Sites, the people in charge, how you work, papers, bank details, your companies, your team, your domain and integrations, in that order', () => {
+describe('the twelve items, in order', () => {
+  it('reads Your company, Addresses, Sites, the people in charge, how you work, papers, bank details, your companies, your team, your domain, integrations and automatic forwarding, in that order', () => {
     expect(ITEM_ORDER.map((k) => ITEM_WORDS[k].label)).toEqual([
       'Your company', 'Addresses', 'Sites', 'The people in charge', 'How you work', 'Papers you require',
-      'Bank details', 'Your companies', 'Your team', 'Your domain', 'Integrations',
+      'Bank details', 'Your companies', 'Your team', 'Your domain', 'Integrations', 'Automatic forwarding',
     ])
   })
 
@@ -81,13 +81,13 @@ describe('the eleven items, in order', () => {
     expect(ITEM_WORDS.BANK.skipStops).toBe('If you skip: nobody pays this company until its bank details are checked.')
     expect(ITEM_WORDS.DOMAIN.skipStops).toBe('If you skip: colleagues join by invitation until the domain is verified.')
     expect(ITEM_WORDS.PAPERS.skipStops).toMatch(/does not chase a paper for a party whose set you have not confirmed/)
-    for (const k of ['PEOPLE_IN_CHARGE', 'COMPANIES', 'TEAM', 'INTEGRATIONS'] as const) expect(ITEM_WORDS[k].skipStops).toMatch(/nothing stops/)
+    for (const k of ['PEOPLE_IN_CHARGE', 'COMPANIES', 'TEAM', 'INTEGRATIONS', 'FORWARDING'] as const) expect(ITEM_WORDS[k].skipStops).toMatch(/nothing stops/)
   })
 
   it('says done, skipped and to do in words, never a percentage', () => {
     const c = checklistFor({ kind: 'CLIENT', record: { TEAM: { outcome: 'SKIPPED', byId: 'p', at: '2026-10-28T00:00:00Z' } }, facts: facts({ legalNameSet: true }) })
-    expect(c.countLine).toBe('1 done · 1 skipped · 8 to do')
-    expect(c.intro).toBe('Ten things. Skip any of them for now. This list stays on Today until it is done.')
+    expect(c.countLine).toBe('1 done · 1 skipped · 9 to do')
+    expect(c.intro).toBe('Eleven things. Skip any of them for now. This list stays on Today until it is done.')
     expect(c.rows.find((r) => r.key === 'TEAM')!.line).toBe('Skipped. Nothing stops. Invite people any time from Users & permissions.')
     const page = src('src/app/dashboard/settings/setup/page.tsx') + src('src/app/dashboard/settings/setup/items.tsx')
     expect(page).not.toMatch(/%|progress/i)
@@ -99,7 +99,7 @@ describe('a skipped item comes back', () => {
     const skipped = { ADDRESSES: { outcome: 'SKIPPED' as const, byId: 'p', at: '2026-10-28T00:00:00Z' } }
     expect(stateOf('ADDRESSES', skipped, facts())).toBe('SKIPPED')
     const c = checklistFor({ kind: 'VENDOR', record: skipped, facts: facts() })
-    expect(reminderSentence(c.owed)).toBe('Finish setting up: your company, addresses, your sites and 8 more.')
+    expect(reminderSentence(c.owed)).toBe('Finish setting up: your company, addresses, your sites and 9 more.')
     // At most three named, so it stays one short sentence; the page lists them all.
     expect(reminderSentence(['ADDRESSES', 'BANK'])).toBe('Finish setting up: addresses, bank details.')
     expect(reminderSentence(c.owed)!.split(' ').length).toBeLessThanOrEqual(20)

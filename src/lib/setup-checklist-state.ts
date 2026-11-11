@@ -20,6 +20,8 @@ import {
 } from '@/lib/setup-checklist'
 import { readRecord } from '@/lib/setup-steps'
 import { PARTIES_OF } from '@/lib/document-stages/required-sets'
+import { intakeLive } from '@/lib/email-intake/live'
+import { NOT_DONE_UNTIL_ON } from '@/lib/setup-forwarding'
 
 type Db = typeof prisma
 
@@ -34,7 +36,7 @@ export async function checklistFactsFor(companyId: string, db: Db = prisma): Pro
       domain: true, domainVerified: true, setupSteps: true, weekSettingsSetAt: true, paySettingsSetAt: true,
     },
   })
-  const [addresses, inCharge, papers, bank, counterparties, contracts, seats, domains] = await Promise.all([
+  const [addresses, inCharge, papers, bank, counterparties, contracts, seats, domains, forwarded] = await Promise.all([
     db.companyAddress.findMany({ where: { companyId }, select: { kind: true, street: true, city: true } }),
     db.companyInCharge.count({ where: { companyId, duty: { in: ['HR', 'BILLING_CONTACT'] } } }),
     db.documentRequirement.findMany({ where: { companyId, party: { not: null } }, select: { party: true }, distinct: ['party'] }),
@@ -43,6 +45,8 @@ export async function checklistFactsFor(companyId: string, db: Db = prisma): Pro
     db.sellContract.count({ where: { OR: [{ companyId }, { clientCompanyId: companyId }] } }),
     db.context.count({ where: { companyId, type: 'EMPLOYEE', revokedAt: null } }),
     db.companyDomain.count({ where: { companyId, verifiedAt: { not: null } } }),
+    // One accepted forwarded email is proof the mail rule works.
+    db.inboundEmail.count({ where: { companyId, verdict: 'ACCEPTED' }, take: 1 }),
   ])
   const steps = readRecord(c.setupSteps)
   const filled = (kind: 'LEGAL' | 'BILLING') => addresses.some((a) => a.kind === kind && !!a.street && !!a.city)
@@ -61,6 +65,7 @@ export async function checklistFactsFor(companyId: string, db: Db = prisma): Pro
     teammates: Math.max(0, seats - 1),
     domainVerified: domains > 0 || (!!c.domain && c.domainVerified),
     teamsSet: !!c.teamsWebhookUrl,
+    forwardingSeen: forwarded > 0,
   }
 }
 
@@ -140,6 +145,13 @@ export async function recordItem(
   if (!c) return { ok: false, says: 'There is no company here to set up.' }
   const v = checkItemAnswer(c.kind, item, outcome)
   if (!v.ok) return v
+  // Automatic forwarding is done only where mail can arrive: the intake is
+  // open on this deployment and the company turned it on. Skipping is
+  // always allowed and stops nothing.
+  if (v.item === 'FORWARDING' && v.outcome === 'DONE') {
+    const intake = intakeLive() ? await db.emailIntake.findUnique({ where: { companyId }, select: { enabled: true } }) : null
+    if (!intake?.enabled) return { ok: false, says: NOT_DONE_UNTIL_ON }
+  }
   const at = new Date()
   await db.setupItem.upsert({
     where: { companyId_item: { companyId, item: v.item } },

@@ -17,6 +17,9 @@ import { asksPayroll, noPayrollLine, countryName } from '@/lib/setup-steps'
 import { skipStops as siteSkipStops, confirmAllWords } from '@/lib/site-rules'
 import { verificationRecord } from '@/lib/domains-owned'
 import { teamsLinkStanding } from '@/lib/notify/teams-link'
+import { intakeLive } from '@/lib/email-intake/live'
+import { intakeStateFor } from '@/lib/email-intake/settings'
+import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
 
 export async function readSetup(companyId: string, reader: { personId: string; email: string }) {
   const c = await prisma.company.findUniqueOrThrow({
@@ -24,9 +27,13 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     select: {
       id: true, name: true, slug: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true,
       legalName: true, dba: true, establishedYear: true, website: true, logoUrl: true, phone: true,
-      billingSameAsLegal: true, accountsEmail: true, teamsWebhookUrl: true,
+      billingSameAsLegal: true, accountsEmail: true, teamsWebhookUrl: true, isDemo: true,
     },
   })
+  // The intake's own state: the switch and the address's last four
+  // characters, never the address. Read only where the deployment is open.
+  const open = intakeLive()
+  const intake = open ? await intakeStateFor(companyId) : null
   const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains] = await Promise.all([
     checklistOf(companyId),
     setupReminderFor(companyId, { mayRun: true }),
@@ -187,6 +194,16 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         ],
       },
       INTEGRATIONS: { teams: teamsLinkStanding(c.teamsWebhookUrl) },
+      FORWARDING: {
+        ...forwardingView({ open, demo: c.isDemo, enabled: intake?.enabled === true, addressHint: intake?.addressHint ?? null }),
+        why: WHY,
+        kept: keptLine(c.name),
+        recipes: RECIPES,
+        consoleNote: CONSOLE_NOTE,
+        narrow: NARROW,
+        replaceLine: REPLACE_LINE,
+        check: checkLine(open),
+      },
     },
   }
 }

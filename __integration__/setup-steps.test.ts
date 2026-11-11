@@ -103,7 +103,7 @@ describe('a new company walks five steps, then stops', () => {
     // Since the setup checklist (2026-10-28) the one line is the checklist's:
     // every item still owed, in its order, linking to it.
     expect(s.body.data.reminder).toEqual({
-      says: 'Finish setting up: your company, addresses, the people in charge and 4 more.',
+      says: 'Finish setting up: your company, addresses, the people in charge and 5 more.',
       href: '/dashboard/settings/setup',
       link: 'Complete setup',
     })
@@ -155,7 +155,7 @@ describe('a new company walks five steps, then stops', () => {
     // The teammate finishes the team item; it leaves the line.
     as(FOUNDER)
     const s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge and 3 more.')
+    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge and 4 more.')
   })
 
   it('a colleague with a role lands on their own desk', async () => {

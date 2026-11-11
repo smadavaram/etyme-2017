@@ -46,11 +46,13 @@ interface Props {
 }
 
 /** The frame every item shares, and the two buttons. */
-function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save and continue' }: Props & {
+function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save and continue', noSave = false }: Props & {
   /** The body to PUT, or null where Save only records the item done. */
   save: (() => unknown) | null
   children: ReactNode
   saveLabel?: string
+  /** Draw only "Skip for now": the item cannot be done yet, and saying so is the honest screen. */
+  noSave?: boolean
 }) {
   const w = read.words[item]
   const [busy, setBusy] = useState<'SAVE' | 'SKIP' | null>(null)
@@ -82,7 +84,7 @@ function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save an
       </div>
       {children}
       <div className="flex flex-wrap items-center gap-2.5 pt-2">
-        <SubmitButton type="button" pending={busy === 'SAVE'} pendingLabel="Saving…" disabled={busy !== null} onClick={() => send('SAVE')}>{saveLabel}</SubmitButton>
+        {!noSave && <SubmitButton type="button" pending={busy === 'SAVE'} pendingLabel="Saving…" disabled={busy !== null} onClick={() => send('SAVE')}>{saveLabel}</SubmitButton>}
         <SubmitButton type="button" tone="secondary" pending={busy === 'SKIP'} pendingLabel="Skipping…" disabled={busy !== null} onClick={() => send('SKIP')}>Skip for now</SubmitButton>
       </div>
       {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
@@ -113,6 +115,7 @@ export function ItemBody(p: Props) {
     case 'TEAM': return <TeamItem {...p} />
     case 'DOMAIN': return <DomainItem {...p} />
     case 'INTEGRATIONS': return <IntegrationsItem {...p} />
+    case 'FORWARDING': return <ForwardingItem {...p} />
   }
 }
 
@@ -548,6 +551,75 @@ function IntegrationsItem(p: Props) {
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
       </Field>
       <Link href="/dashboard/integrations" className="text-[13px] text-etyme-action-press">The export for your accounting system</Link>
+    </Frame>
+  )
+}
+
+// ── Automatic forwarding ─────────────────────────────────────────────
+
+/**
+ * One mail rule the company's mail administrator sets, so business email
+ * reaches Etyme with no setting in anybody's mailbox (founder,
+ * 2026-11-11). The address is the intake's own, made and replaced
+ * through /api/settings/email-intake and shown in full only in the reply
+ * that made it. Where forwarded email is not open on this deployment the
+ * item says so and shows no address.
+ */
+function ForwardingItem(p: Props) {
+  const d = p.read.detail.FORWARDING
+  const [made, setMade] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  async function change(body: { on?: boolean; replace?: boolean }) {
+    setBusy(true); setSaid(null)
+    try {
+      const j = await readJson(await fetch('/api/settings/email-intake', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+      setMade(j.data.address ?? null)
+      setSaid({ tone: 'ok', text: j.data.message })
+      p.onReload()
+    } catch (e: any) { setSaid({ tone: 'error', text: e.message }) } finally { setBusy(false) }
+  }
+  return (
+    <Frame {...p} save={null} saveLabel="The rule is set" noSave={!d.mayMarkDone}>
+      <ul className="space-y-0.5 text-[13.5px] text-etyme-ink">{d.why.map((l: string) => <li key={l}>{l}</li>)}</ul>
+
+      <div className="space-y-1.5">
+        <Lbl>Your forwarding address</Lbl>
+        <p className="text-[13px] text-etyme-ink">{d.says}</p>
+        {made && (
+          <>
+            <p className="break-all font-mono text-[13px] text-etyme-ink">{made}</p>
+            <p className="text-[12.5px] text-etyme-attention">Copy it into the rule now. It is not shown again.</p>
+          </>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {d.mayTurnOn && <SubmitButton type="button" tone="secondary" pending={busy} pendingLabel="Making…" onClick={() => change({ on: true })}>Turn on and make the address</SubmitButton>}
+          {d.mayReplace && <SubmitButton type="button" tone="secondary" pending={busy} pendingLabel="Replacing…" onClick={() => change({ replace: true })}>Replace the address</SubmitButton>}
+        </div>
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+        <p className="text-[12.5px] text-etyme-muted">{d.replaceLine}</p>
+        <p className="text-[12.5px] text-etyme-muted">{d.kept}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Lbl>For your mail administrator</Lbl>
+        <div className="grid gap-4 md:grid-cols-2">
+          {d.recipes.map((r: { system: string; steps: string[] }) => (
+            <div key={r.system} className="rounded-[8px] border border-etyme-rule bg-etyme-raised p-3">
+              <p className="text-[13.5px] font-medium text-etyme-ink">{r.system}</p>
+              <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-[13px] text-etyme-ink">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+            </div>
+          ))}
+        </div>
+        <p className="text-[12px] text-etyme-faint">{d.consoleNote}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Lbl>Keep it narrow</Lbl>
+        <ul className="list-disc space-y-0.5 pl-4 text-[13px] text-etyme-ink">{d.narrow.map((l: string) => <li key={l}>{l}</li>)}</ul>
+      </div>
+
+      <p className="text-[13px] text-etyme-muted">{d.check}</p>
     </Frame>
   )
 }

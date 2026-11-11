@@ -1,5 +1,5 @@
 /**
- * The admin's setup checklist: eleven items, every one skippable, and it
+ * The admin's setup checklist: twelve items, every one skippable, and it
  * comes back until it is done.
  *
  * Decided by the founder, 2026-10-22 ("shouldn't the admin account be more
@@ -33,15 +33,20 @@ export type ItemKey =
   | 'TEAM'
   | 'DOMAIN'
   | 'INTEGRATIONS'
+  | 'FORWARDING'
 
 export type ItemOutcome = 'DONE' | 'SKIPPED'
 export type ItemState = 'DONE' | 'SKIPPED' | 'TODO'
 export type AnswerSource = 'DOMAIN' | 'PAPER' | 'IMPORT' | 'WEBSITE' | 'PERSON'
 
-/** The eleven, in the order they are read. Sites is read third, after Addresses. */
+/**
+ * The twelve, in the order they are read. Sites is read third, after
+ * Addresses; automatic forwarding last, after Integrations (founder,
+ * 2026-11-11).
+ */
 export const ITEM_ORDER: readonly ItemKey[] = [
   'COMPANY', 'ADDRESSES', 'SITES', 'PEOPLE_IN_CHARGE', 'HOW_YOU_WORK', 'PAPERS',
-  'BANK', 'COMPANIES', 'TEAM', 'DOMAIN', 'INTEGRATIONS',
+  'BANK', 'COMPANIES', 'TEAM', 'DOMAIN', 'INTEGRATIONS', 'FORWARDING',
 ]
 
 export interface ItemWords {
@@ -136,6 +141,13 @@ export const ITEM_WORDS: Record<ItemKey, ItemWords> = {
     reminder: 'integrations',
     skipStops: 'If you skip: nothing stops. Notices go by email until a Teams channel is set.',
   },
+  FORWARDING: {
+    label: 'Automatic forwarding',
+    line: 'One mail rule, so nobody forwards by hand',
+    sub: 'Your mail administrator sets one rule. Business email then reaches Etyme with no setting in anybody’s mailbox.',
+    reminder: 'automatic forwarding',
+    skipStops: 'If you skip: nothing stops. People can still forward an email by hand.',
+  },
 }
 
 /**
@@ -143,13 +155,15 @@ export const ITEM_WORDS: Record<ItemKey, ItemWords> = {
  *
  *  - A one-person firm is the person and the firm at once: no team to
  *    invite, no sites (she works where her client puts her), nobody else
- *    in charge, no colleague to join by domain. Seven items.
+ *    in charge, no colleague to join by domain, and no mail administrator
+ *    setting a rule for a group: she forwards her own mail. Seven items.
+ *    (Coordinator's call, 2026-11-11, reversible in a sentence.)
  *  - A client pays and is never paid, so it has no bank details to give.
- *  - Everybody else reads all eleven.
+ *  - Everybody else reads all twelve.
  */
 export function itemsFor(kind: string | null | undefined): readonly ItemKey[] {
   if (kind === 'CONSULTANT_CORP') {
-    return ITEM_ORDER.filter((k) => k !== 'SITES' && k !== 'TEAM' && k !== 'PEOPLE_IN_CHARGE' && k !== 'DOMAIN')
+    return ITEM_ORDER.filter((k) => k !== 'SITES' && k !== 'TEAM' && k !== 'PEOPLE_IN_CHARGE' && k !== 'DOMAIN' && k !== 'FORWARDING')
   }
   if (kind === 'CLIENT') return ITEM_ORDER.filter((k) => k !== 'BANK')
   return ITEM_ORDER
@@ -183,12 +197,15 @@ export interface ChecklistFacts {
   teammates: number
   domainVerified: boolean
   teamsSet: boolean
+  /** A forwarded email from this company's own people was accepted: the rule works. */
+  forwardingSeen: boolean
 }
 
 export const NO_FACTS: ChecklistFacts = {
   legalNameSet: false, legalAddress: false, billingAddress: false, sitesConfirmed: false,
   inChargeNamed: false, workAnswered: false, papersConfirmed: [], papersOwed: [],
   bankEntered: false, counterparties: 0, teammates: 0, domainVerified: false, teamsSet: false,
+  forwardingSeen: false,
 }
 
 export type ChecklistRecord = Partial<Record<ItemKey, { outcome: ItemOutcome; byId: string | null; at: string }>>
@@ -207,6 +224,7 @@ export function doneByFacts(item: ItemKey, f: ChecklistFacts): boolean {
     case 'TEAM': return f.teammates > 0
     case 'DOMAIN': return f.domainVerified
     case 'INTEGRATIONS': return f.teamsSet
+    case 'FORWARDING': return f.forwardingSeen
   }
 }
 
@@ -238,13 +256,13 @@ export interface Checklist {
   todo: number
   /** "3 done · 2 skipped · 6 to do". */
   countLine: string
-  /** "Eleven things. Skip any of them for now." */
+  /** "Twelve things. Skip any of them for now." */
   intro: string
   /** The items still owed, in order: to do and skipped. */
   owed: ItemKey[]
 }
 
-const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven']
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve']
 
 export function checklistFor(input: { kind: string | null | undefined; record: ChecklistRecord; facts: ChecklistFacts }): Checklist {
   const keys = itemsFor(input.kind)
@@ -331,6 +349,7 @@ function notForKind(kind: string | null | undefined, item: ItemKey): string {
     if (item === 'SITES') return 'A one-person firm works where its client puts it, so it has no sites to confirm.'
     if (item === 'TEAM') return 'A one-person firm has no team to invite.'
     if (item === 'DOMAIN') return 'A one-person firm has no colleagues to join by domain.'
+    if (item === 'FORWARDING') return 'A one-person firm has no mail rule to set for a group. Forward an email by hand.'
     return 'A one-person firm is in charge of itself, so there is nobody else to name.'
   }
   return 'That item is not part of setup for this company.'
@@ -434,6 +453,7 @@ export const ITEM_SLUG: Readonly<Record<ItemKey, string>> = {
   TEAM: 'team',
   DOMAIN: 'domain',
   INTEGRATIONS: 'integrations',
+  FORWARDING: 'forwarding',
 }
 
 /**

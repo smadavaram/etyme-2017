@@ -7980,7 +7980,10 @@ model WebhookDelivery {
 /// it stays separate. The company decides, not DNS.
 /// The eleven items of the admin's setup checklist, in the order they are
 /// read (founder, 2026-10-22; "Build it", 2026-10-28). Sites is the
-/// eleventh decided, read third, after Addresses.
+/// eleventh decided, read third, after Addresses. FORWARDING is the
+/// twelfth (founder, 2026-11-11): the mail rule a company's mail
+/// administrator sets so business email reaches its forwarding address
+/// with no per-user setting. Etyme never reads a mailbox.
 enum SetupItemKey {
   COMPANY
   ADDRESSES
@@ -7993,6 +7996,7 @@ enum SetupItemKey {
   TEAM
   DOMAIN
   INTEGRATIONS
+  FORWARDING
 }
 
 enum SetupOutcome {

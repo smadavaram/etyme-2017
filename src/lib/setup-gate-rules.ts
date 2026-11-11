@@ -23,6 +23,7 @@ export const STEP_PLACE: Record<ItemKey, string> = {
   TEAM: 'Setup → Your team',
   DOMAIN: 'Setup → Your domain',
   INTEGRATIONS: 'Setup → Integrations',
+  FORWARDING: 'Setup → Automatic forwarding',
 }
 
 /** The sentence a bill is refused with. */

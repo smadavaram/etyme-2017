@@ -495,6 +495,10 @@ export const DOMAINS: Domain[] = [
       // regulatory's routes; the rules are here so there is one copy.
       'lib/setup-checklist', 'lib/setup-checklist-state', 'lib/setup-fill', 'lib/setup-fill-model',
       'lib/setup-gates', 'lib/setup-gate-rules',
+      // The checklist's twelfth item, automatic forwarding (founder,
+      // 2026-11-11): the words, the two mail-rule recipes and what the item
+      // shows about the intake's address. The intake itself is lib/email-intake.
+      'lib/setup-forwarding',
       // A password door, until the single sign-on keys exist (founder,
       // 2026-10-08): the rules with no database in them, the sign-up,
       // confirm, sign-in and reset against the database, and the one way
