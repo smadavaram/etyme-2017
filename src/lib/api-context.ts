@@ -20,12 +20,12 @@ import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 import { ownSeatFor, ownWorkOf, ownSeatWasRemoved, openOwnSeat } from '@/lib/own-seat'
 import {
-  seatRefusal, linkedInSeatRefusal, effectiveMode, isLimitedPublicSeat, narrowForPublicSeat,
+  seatRefusal, linkedInSeatRefusal, effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, publicSeatRefusal, needsWithheld, directoryTurnedOffSays, DIRECTORY_SUSPEND_REASON,
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
-import { PERMISSIONS } from '@/lib/permissions'
+import { PERMISSIONS, askTheDesk, type Permission } from '@/lib/permissions'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -131,6 +131,12 @@ export interface CallerContext {
    * the check refuses it first, so no route has to remember to.
    */
   readOnly?: boolean
+  /**
+   * True when the seat is an invited public address at a hybrid company
+   * (founder, 2026-11-11): its money and signing acts were taken off
+   * `permissions` above. `refusalFor` reads it so the refusal says why.
+   */
+  publicSeat?: boolean
 }
 
 /**
@@ -140,6 +146,50 @@ export interface CallerContext {
  * references one is a foreign-key error at best and, where the column is
  * nullable and unchecked, a dangling reference nobody notices for months.
  */
+/**
+ * The refusal for an act the caller's seat does not hold, said for this
+ * caller. A limited public-address seat refused an act the limit took
+ * away is told that, in one sentence (publicSeatRefusal); everybody else
+ * reads askTheDesk's sentence naming who does it. A route that refuses on
+ * a permission passes its caller here rather than calling askTheDesk.
+ */
+export function refusalFor(
+  caller: Pick<CallerContext, 'publicSeat' | 'company'>,
+  args: { doing: string; needs: Permission | readonly Permission[] }
+): string {
+  if (caller.publicSeat && needsWithheld(args.needs)) return publicSeatRefusal(caller.company?.name)
+  return askTheDesk({ ...args, kind: caller.company?.kind ?? null, companyName: caller.company?.name ?? null })
+}
+
+/**
+ * Whether the request still carries a session cookie that a company's
+ * directory ended: the cookie decodes to an address whose directory
+ * identity is off. The session callback refused it, so `getServerSession`
+ * answered nobody; the cookie itself is still on this request. Returns the
+ * sentence, or null for every other kind of signed-out. Never throws.
+ */
+async function endedByDirectory(): Promise<string | null> {
+  try {
+    const secret = process.env.NEXTAUTH_SECRET
+    if (!secret) return null
+    const jar = cookies()
+    const raw = jar.get('__Secure-next-auth.session-token')?.value ?? jar.get('next-auth.session-token')?.value
+    if (!raw) return null
+    const { decode } = await import('next-auth/jwt')
+    const token = await decode({ token: raw, secret })
+    const email = typeof token?.email === 'string' ? token.email.trim().toLowerCase() : null
+    if (!email) return null
+    const off = await prisma.externalIdentity.findFirst({
+      where: { person: { primaryEmail: email }, disabledAt: { not: null } },
+      orderBy: { disabledAt: 'desc' },
+      select: { company: { select: { name: true } } },
+    })
+    return off ? directoryTurnedOffSays(off.company?.name ?? null) : null
+  } catch {
+    return null
+  }
+}
+
 export function realPersonId(caller: CallerContext): string | null {
   return caller.isService ? null : caller.person.id
 }
@@ -245,6 +295,10 @@ export function whenThereIsNoSeat(args: {
   ended: { companyName: string | null } | null
 }): NoSeat {
   if (args.isStaff) return { staff: true }
+
+  if (args.paused && args.paused.reason === DIRECTORY_SUSPEND_REASON) {
+    return { staff: false, status: 403, code: 'DIRECTORY_OFF', says: directoryTurnedOffSays(args.paused.companyName) }
+  }
 
   if (args.paused) {
     return {
@@ -547,6 +601,12 @@ export async function getCallerContext(
     // home page's frame is the sample seat, read-only. Last, never first —
     // see lib/sample-seat.
     if (await sampleCookieOn(request)) return sampleCaller(request)
+    // A session the person's own company directory ended is told so, not
+    // treated as somebody who never signed in (walk on 62a498151).
+    const off = await endedByDirectory()
+    if (off) {
+      return { caller: null, error: NextResponse.json({ error: { code: 'DIRECTORY_OFF', message: off } }, { status: 401 }) }
+    }
     return {
       caller: null,
       error: NextResponse.json(
@@ -776,7 +836,8 @@ export async function getCallerContext(
   // here, the one place every route reads them from, so no route has to
   // remember it.
   const ownDomain = domainOfEmail(person.primaryEmail)
-  if (isLimitedPublicSeat(seatPolicy, !ownDomain || isConsumerDomain(ownDomain))) {
+  const publicSeat = isLimitedPublicSeat(seatPolicy, !ownDomain || isConsumerDomain(ownDomain))
+  if (publicSeat) {
     permissions = narrowForPublicSeat(permissions, PERMISSIONS)
     rolePermissions = narrowForPublicSeat(rolePermissions, PERMISSIONS)
     grantedPermissions = narrowForPublicSeat(grantedPermissions, PERMISSIONS)
@@ -808,6 +869,7 @@ export async function getCallerContext(
     // way whether or not they have one, so a route asking `caller.staff`
     // gets one answer rather than two.
     staff: isStaffAddress(person.primaryEmail),
+    ...(publicSeat ? { publicSeat: true } : {}),
   }
 
   const refused = await desklessRefusal(caller, request)

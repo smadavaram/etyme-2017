@@ -199,9 +199,7 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
               {source === 'CSV' && <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? 'Reading…' : 'Choose the file'}</button>}
               {source === 'GOOGLE' && chosen?.connected && <button className="btn-primary" disabled={busy} onClick={previewGoogle}>{busy ? 'Reading…' : 'Preview from Google'}</button>}
               {source === 'GOOGLE' && chosen?.connectable && <button className="btn-primary" disabled={busy} onClick={connectGoogle}>{busy ? 'Opening Google…' : 'Connect Google Workspace'}</button>}
-              {source === 'GOOGLE' && !chosen?.connected && !chosen?.connectable && <button className="btn-primary" disabled>Connect and preview</button>}
               {source === 'GOOGLE' && chosen?.connection && <button className="btn-secondary" disabled={busy} onClick={disconnectGoogle}>Disconnect</button>}
-              {source === 'ENTRA' && <button className="btn-primary" disabled>Connect and preview</button>}
               <button className="btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>

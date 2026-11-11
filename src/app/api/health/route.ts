@@ -3,7 +3,7 @@ import { currentAllowanceLimits } from '@/lib/model-allowance'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { senderStatus, emailSender } from '@/lib/senders'
-import { signInDoors, signInLine } from '@/lib/readiness'
+import { signInDoors, signInLine, emailLinkDoorOn } from '@/lib/readiness'
 import { teamsFacts } from '@/lib/readiness-facts'
 
 /**
@@ -85,7 +85,7 @@ export async function GET() {
   const providers = signInDoors({
     microsoft: Boolean(process.env.AZURE_AD_CLIENT_ID),
     google: Boolean(process.env.GOOGLE_CLIENT_ID),
-    emailLink: Boolean(process.env.EMAIL_SERVER),
+    emailLink: emailLinkDoorOn(),
     password: emailSender() !== null,
   })
 

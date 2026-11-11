@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { deniedFor } from '@/lib/denied'
+import { whenThereIsNoSeat } from '@/lib/api-context'
+import { DIRECTORY_SUSPEND_REASON } from '@/lib/identity/policy'
 
 /**
  * The fifth state.
@@ -65,6 +67,16 @@ describe('the denied state', () => {
 
     const ended = 'Your seat at Veritan Talent was removed, so there is nothing here for you to open now.'
     expect(deniedFor({ code: 'ACCESS_ENDED', message: ended }).says).toBe(ended)
+  })
+
+  it('a person their company’s directory turned off is told so in one sentence and to ask their IT admin, never shown the demo-link page', () => {
+    const d = deniedFor({ code: 'DIRECTORY_OFF', message: "Corvane Packaging's directory turned your seat off, so you are signed out here. Ask your IT admin to turn it back on." })
+    expect(d.says).toBe("Corvane Packaging's directory turned your seat off, so you are signed out here. Ask your IT admin to turn it back on.")
+    expect(d.says).not.toMatch(/demo link/)
+    const paused = whenThereIsNoSeat({ email: 'a@corvane.example', isStaff: false, paused: { companyName: 'Corvane Packaging', reason: DIRECTORY_SUSPEND_REASON }, ended: null })
+    expect(paused).toMatchObject({ code: 'DIRECTORY_OFF', says: "Corvane Packaging's directory turned your seat off, so you are signed out here. Ask your IT admin to turn it back on." })
+    const src = readFileSync(join(process.cwd(), 'src/lib/api-context.ts'), 'utf8')
+    expect(src).toMatch(/const off = await endedByDirectory\(\)/)
   })
 
   it('still says something when the identity door starts refusing for a reason nobody wrote here', () => {

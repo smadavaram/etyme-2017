@@ -60,7 +60,7 @@ import {
   askEtymeAllowanceFor, currentAllowanceLimits, AT_THE_LINE, NOT_OPEN_YET, COUNTED_PURPOSES,
   PERSON_DAILY_ENV, COMPANY_MONTHLY_ENV, TRIAL_DAYS_KEY, DEFAULT_TRIAL_DAYS,
 } from '@/lib/model-allowance'
-import { checkLimit, LIMIT_SETTINGS, PERSON_DAILY_CEILING } from '@/lib/ask-etyme-limits'
+import { checkLimit, LIMIT_SETTINGS, PERSON_DAILY_CEILING, limitsScreen } from '@/lib/ask-etyme-limits'
 
 const person = (id: string, email: string) => ({ id, name: id, primaryEmail: email, timezone: null })
 const SUPERADMIN = { person: person('sa', 'ops@etyme.com'), company: null, context: { id: 'staff:sa' }, permissions: [], staff: true }
@@ -146,6 +146,13 @@ describe('the screen first, the deployment second', () => {
   it('with neither the screen nor the deployment setting the numbers, free text stays off for every company but Tapin', async () => {
     expect(await askEtymeAllowanceFor('nb', 'p1', new Date(), {})).toMatchObject({ may: false, why: 'NOT_OPEN', says: NOT_OPEN_YET })
     expect(await askEtymeAllowanceFor('tp', 'p1', new Date(), {})).toEqual({ may: true, limited: false })
+  })
+
+  it('the Superadmin screen names the company free text stays open for as Tapin, never its address tapin', () => {
+    const { note } = limitsScreen([], [], {})
+    expect(note).toContain('every company but Tapin.')
+    expect(note).toContain('Tapin has no trial end.')
+    expect(note).not.toMatch(/\btapin\b/)
   })
 })
 

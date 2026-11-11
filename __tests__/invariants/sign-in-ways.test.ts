@@ -75,11 +75,20 @@ describe('which ways in are offered', () => {
     expect(await providerIds()).toContain('google')
   })
 
-  it('offers the magic link only when there is a mail server to send it', async () => {
+  it('setting EMAIL_SERVER registers no emailed-link door, because without a database adapter that door refuses every sign-in through every door', async () => {
     expect(await providerIds()).not.toContain('email')
 
     process.env.EMAIL_SERVER = 'smtp://mail.example.com'
-    expect(await providerIds()).toContain('email')
+    expect(await providerIds()).not.toContain('email')
+    const mod = await import('@/lib/readiness')
+    expect(mod.emailLinkDoorOn({ EMAIL_SERVER: 'smtp://mail.example.com' })).toBe(false)
+  })
+
+  it('/ready tells the founder to set RESEND_API_KEY and NOTIFY_FROM_EMAIL for sign-in emails, never EMAIL_SERVER', async () => {
+    const src = (await import('node:fs')).readFileSync('src/lib/readiness.ts', 'utf8')
+    const advice = src.slice(src.indexOf("key: 'signin'"), src.indexOf('// ── A company that is not us'))
+    expect(advice).not.toContain('EMAIL_SERVER')
+    expect(advice).toContain('RESEND_API_KEY and NOTIFY_FROM_EMAIL')
   })
 
   it('lets an enterprise sign in from any Microsoft tenant, not one', async () => {
@@ -91,13 +100,13 @@ describe('which ways in are offered', () => {
     expect(azure.options?.tenantId ?? 'common').toBe('common')
   })
 
-  it('offers all three when all three are set up', async () => {
+  it('offers Microsoft and Google when both are set up, and still no emailed-link door beside them', async () => {
     process.env.AZURE_AD_CLIENT_ID = 'id'
     process.env.AZURE_AD_CLIENT_SECRET = 'secret'
     process.env.GOOGLE_CLIENT_ID = 'id'
     process.env.GOOGLE_CLIENT_SECRET = 'secret'
     process.env.EMAIL_SERVER = 'smtp://mail.example.com'
-    expect((await providerIds()).sort()).toEqual(['azure-ad', 'email', 'google'])
+    expect((await providerIds()).sort()).toEqual(['azure-ad', 'google'])
   })
 })
 

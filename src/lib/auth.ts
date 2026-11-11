@@ -5,6 +5,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import EmailProvider from 'next-auth/providers/email'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import type { Door } from '@/lib/identity/policy'
+import { emailLinkDoorOn } from '@/lib/readiness'
 
 /**
  * NextAuth configuration.
@@ -91,7 +92,7 @@ export function configuredProviders(): Provider[] {
     )
   }
 
-  if (process.env.EMAIL_SERVER) {
+  if (emailLinkDoorOn()) {
     providers.push(
       EmailProvider({
         server: process.env.EMAIL_SERVER,

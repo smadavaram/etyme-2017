@@ -250,6 +250,39 @@ export const PUBLIC_SEAT_WITHHELD = [
   'vendors.manage',
 ] as const
 
+/**
+ * The refusal a limited public-address seat reads when it asks for an act
+ * the limit takes away. Said instead of "is done by <role>… Ask them",
+ * which told an AP Clerk invited on a Gmail address to ask the AP Clerk:
+ * her role does the act, and her address is why she may not.
+ */
+export function publicSeatRefusal(companyName: string | null | undefined): string {
+  const at = companyName?.trim() ? companyName.trim().replace(/\.$/, '') : 'your company'
+  return (
+    `You were invited to ${at} on a public address, so this seat does not bill, pay, run payroll, raise orders or award. ` +
+    `An Owner of ${at} can move you to a company-directory address.`
+  )
+}
+
+/** Whether an act needs a permission the public-address limit takes away. */
+export function needsWithheld(needs: string | readonly string[]): boolean {
+  const list = typeof needs === 'string' ? [needs] : needs
+  return list.length > 0 && list.every((p) => (PUBLIC_SEAT_WITHHELD as readonly string[]).includes(p))
+}
+
+/** What a seat's suspension says when the directory made it (lib/identity/provision writes it). */
+export const DIRECTORY_SUSPEND_REASON = 'Turned off in the company’s directory.'
+
+/**
+ * What a person reads once their company's directory turned them off:
+ * their sessions ended and their seat is paused. One sentence, and the
+ * person who can undo it is their own IT admin, never Etyme.
+ */
+export function directoryTurnedOffSays(companyName: string | null | undefined): string {
+  const whose = companyName?.trim() ? `${companyName.trim()}'s directory` : 'Your company’s directory'
+  return `${whose} turned your seat off, so you are signed out here. Ask your IT admin to turn it back on.`
+}
+
 /** Whether a seat is the limited kind: a public address at a hybrid company. */
 export function isLimitedPublicSeat(seatCompany: CompanyPolicy | null, publicAddress: boolean): boolean {
   return publicAddress && effectiveMode(seatCompany) === 'HYBRID'

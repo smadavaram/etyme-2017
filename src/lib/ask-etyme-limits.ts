@@ -12,7 +12,7 @@
  * money appears on the Superadmin screen.
  */
 import {
-  COMPANY_MONTHLY_ENV, PERSON_DAILY_ENV, TRIAL_DAYS_KEY, DEFAULT_TRIAL_DAYS, OPEN_BEFORE_LIMITS_SLUG,
+  COMPANY_MONTHLY_ENV, PERSON_DAILY_ENV, TRIAL_DAYS_KEY, DEFAULT_TRIAL_DAYS, OPEN_BEFORE_LIMITS_NAME,
   limitsFrom, type LimitSource,
 } from '@/lib/model-allowance'
 import { platformSettingHistory, platformSettingRows, type PlatformSettingChangeRow } from '@/lib/platform-settings'
@@ -160,8 +160,8 @@ export function limitsScreen(
   const note = [
     tokensSet
       ? 'Only free-text answers are counted. Questions the rules answer are never counted or limited.'
-      : `While either token number is not set, free-text answers stay off for every company but ${OPEN_BEFORE_LIMITS_SLUG}. Questions the rules answer are never counted or limited.`,
-    `Each person's free trial starts at their first free-text question and lasts the days above (${n(DEFAULT_TRIAL_DAYS)} unless set). The token numbers still hold inside it. ${OPEN_BEFORE_LIMITS_SLUG} has no trial end.`,
+      : `While either token number is not set, free-text answers stay off for every company but ${OPEN_BEFORE_LIMITS_NAME}. Questions the rules answer are never counted or limited.`,
+    `Each person's free trial starts at their first free-text question and lasts the days above (${n(DEFAULT_TRIAL_DAYS)} unless set). The token numbers still hold inside it. ${OPEN_BEFORE_LIMITS_NAME} has no trial end.`,
   ].join(' ')
   return {
     limits: views,

@@ -17,6 +17,9 @@ import { workerRows, doorsFrom } from '@/app/demo/worker-doors'
 import { consoleHome } from '@/lib/console-home'
 import { landingFor, ASK_ETYME_HREF, BY_REGION_HREF } from '@/lib/nav-table'
 import { seatsHeldBy } from '@/lib/program-seat'
+import { companyPolicy } from '@/lib/identity/read'
+import { directoryOnlySays } from '@/lib/identity/policy'
+import { recordIdentityEvent } from '@/lib/identity/ledger'
 
 /**
  * POST /api/demo — give this visitor their own seeded workspace
@@ -170,6 +173,33 @@ async function countTheSeat(body: unknown): Promise<void> {
   if (at) await countDemoStarted(at)
 }
 
+/**
+ * A directory-only company is never entered through the demo door
+ * (founder, 2026-11-11: no break-glass, every other door refuses). Until
+ * the walk on 62a498151 the door answered 200, set the cookie, and every
+ * request after it was refused, ledgered as "a door from before
+ * 2026-11-11". Refused here instead, in the directory-only sentence, the
+ * refusal ledgered before it is sent. Null where the company is not
+ * directory-only, or where its policy cannot be read (the seat check on
+ * every request still holds).
+ */
+async function directoryOnlyDoor(company: { id: string; name: string } | null | undefined): Promise<NextResponse | null> {
+  if (!company) return null
+  let effective: string
+  try {
+    effective = (await companyPolicy(company.id)).effective
+  } catch {
+    return null
+  }
+  if (effective !== 'SSO_ONLY') return null
+  const says = directoryOnlySays(company.name)
+  await recordIdentityEvent({
+    event: 'LOGIN_REFUSED_SSO_ONLY', companyId: company.id, actorPersonId: null, subject: { companyId: company.id },
+    policy: 'SSO_ONLY', surface: 'WEB', says: `Refused the demo door at ${company.name}: ${says}`,
+  }).catch(() => 0)
+  return NextResponse.json({ error: { code: 'DIRECTORY_ONLY', message: says } }, { status: 403 })
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
 
@@ -210,6 +240,8 @@ export async function POST(request: NextRequest) {
     const company = ctx?.company
     if (ctx && company?.isDemo) {
       const held = seatHeld(ctx.type, company.slug)
+      const resumedSso = held === wanted ? await directoryOnlyDoor(company) : null
+      if (resumedSso) return resumedSso
       if (held === wanted) {
         await countTheSeat(body)
         return NextResponse.json({
@@ -287,6 +319,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+    const personSso = await directoryOnlyDoor(seated.contexts[0].company)
+    if (personSso) return personSso
     await countTheSeat(body)
     const res = NextResponse.json({
       data: {
@@ -348,7 +382,7 @@ export async function POST(request: NextRequest) {
         primaryEmail: true,
         contexts: {
           where: { revokedAt: null, suspendedAt: null },
-          select: { type: true, company: { select: { kind: true } }, role: { select: { permissions: true } } },
+          select: { type: true, company: { select: { id: true, name: true, kind: true } }, role: { select: { permissions: true } } },
           orderBy: { grantedAt: 'desc' },
           take: 1,
         },
@@ -361,6 +395,8 @@ export async function POST(request: NextRequest) {
       )
     }
     const seat = seated.contexts[0]
+    const workerSso = await directoryOnlyDoor(seat?.company)
+    if (workerSso) return workerSso
     await countTheSeat(body)
     const res = NextResponse.json({
       data: {
@@ -547,6 +583,8 @@ export async function POST(request: NextRequest) {
         { status: unknownAtSeeded ? 400 : 404 }
       )
     }
+    const worldSso = await directoryOnlyDoor(company)
+    if (worldSso) return worldSso
     await countTheSeat(body)
     const res = NextResponse.json({
       data: {

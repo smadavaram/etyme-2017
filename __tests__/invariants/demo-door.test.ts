@@ -432,3 +432,16 @@ describe('each door says what the seed behind it holds', () => {
   })
 
 })
+
+describe('the demo door and a directory-only company', () => {
+  it('a directory-only company’s seat is refused at the demo door in the directory-only sentence, ledgered first, never answered 200 and then refused on every request', () => {
+    const fn = route.slice(route.indexOf('async function directoryOnlyDoor('), route.indexOf('export async function POST('))
+    expect(fn).toMatch(/effective !== 'SSO_ONLY'\) return null/)
+    expect(fn).toMatch(/directoryOnlySays\(company\.name\)/)
+    expect(fn.indexOf('await recordIdentityEvent')).toBeLessThan(fn.indexOf('status: 403'))
+    // Every door that seats somebody at an existing company asks it before the cookie is set.
+    for (const asked of ['resumedSso', 'personSso', 'workerSso', 'worldSso']) {
+      expect(route, asked).toMatch(new RegExp(`if \\(${asked}\\) return ${asked}`))
+    }
+  })
+})

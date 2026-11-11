@@ -102,6 +102,20 @@ describe('the card', () => {
     }
   })
 
+  it('a client never reads a scope name or how the stored access is locked, only that Etyme has not turned it on here', () => {
+    for (const env of [{}, { ...ALL, ETYME_DIRECTORY_TOKEN_KEY: undefined }, ALL]) {
+      for (const s of directorySources(env)) {
+        expect(s.adminApproves ?? '').not.toMatch(/admin\.directory|readonly|key that locks/)
+      }
+    }
+    expect(directorySources({ ...ALL, ETYME_DIRECTORY_TOKEN_KEY: undefined })[1].adminApproves).toMatch(/^Not set up on this deployment yet: Etyme has not turned on Google Workspace here\./)
+  })
+
+  it('a source that is not connected and cannot be connected here draws no Connect and preview button', () => {
+    const dialog = readFileSync('src/app/dashboard/settings/team-structure/import-dialog.tsx', 'utf8')
+    expect(dialog).not.toContain('Connect and preview')
+  })
+
   it('with everything set, Google can be connected, and once connected the card reads it as connected with no token in it', () => {
     expect(directorySources(ALL)[1]).toMatchObject({ connected: false, connectable: true })
     const g = directorySources(ALL, { domain: 'corvane.example', connectedBy: 'Graham Ellery', connectedAt: '2026-11-11T00:00:00Z', lastReadAt: null, lastReadCount: null })[1]

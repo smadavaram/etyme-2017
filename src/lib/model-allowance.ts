@@ -48,6 +48,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /** The one company that may use free text before the numbers are set. */
 export const OPEN_BEFORE_LIMITS_SLUG = 'tapin'
+/** The same company as a person reads it: its name, never its slug. */
+export const OPEN_BEFORE_LIMITS_NAME = 'Tapin'
 
 /** Prompt-log purposes that are Ask Etyme answers; nothing else is counted. */
 export const COUNTED_PURPOSES = ['ASK_ETYME', 'ASK_ETYME_REPLACED'] as const

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { SIGN_IN_MODES, mayChangeMode, modeSays, effectiveMode, directoryOnlyLockout, type SignInMode } from '@/lib/identity/policy'
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { modeWord } from '@/lib/identity/screen-words'
 
 /**
  * GET   /api/settings/sign-in — how this company's people sign in
@@ -111,7 +112,7 @@ export async function PATCH(request: NextRequest) {
     await recordIdentityEvent({
       event: 'AUTH_POLICY_CHANGED', companyId: company.id, actorPersonId: by, subject: { companyId: company.id },
       policy: after, surface: 'WEB',
-      says: `${caller.person.name} changed how ${company.name}'s people sign in from ${before.effective} to ${after}: ${reason}`,
+      says: `${caller.person.name} changed how ${company.name}'s people sign in from ${modeWord(before.effective)} to ${modeWord(after)}: ${reason}`,
     }, tx)
   })
 

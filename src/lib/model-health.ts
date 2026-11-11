@@ -5,7 +5,7 @@
  * Ask Etyme allowance is set or not (lib/model-allowance).
  */
 import { checkModelIds, type ModelIdCheck } from '@/lib/model-ids'
-import { allowanceLimits, limitsSet, OPEN_BEFORE_LIMITS_SLUG, type AllowanceLimits } from '@/lib/model-allowance'
+import { allowanceLimits, limitsSet, OPEN_BEFORE_LIMITS_NAME, type AllowanceLimits } from '@/lib/model-allowance'
 
 type Env = Record<string, string | undefined>
 
@@ -31,7 +31,7 @@ export function modelHealth(env: Env = process.env, limits: AllowanceLimits = al
   const allowanceSet = limitsSet(limits)
   const allowance = allowanceSet
     ? 'The Ask Etyme allowance is set.'
-    : `No Ask Etyme allowance is set (both numbers, on the Superadmin screen or in the deployment's settings), so free text is open only for ${OPEN_BEFORE_LIMITS_SLUG}.`
+    : `No Ask Etyme allowance is set (both numbers, on the Superadmin screen or in the deployment's settings), so free text is open only for ${OPEN_BEFORE_LIMITS_NAME}.`
   const says = !keyPresent
     ? 'No ANTHROPIC_API_KEY, so nothing is sent to a model; the rules answer and the CV evidence check reports itself as unverified.'
     : !ids.ok

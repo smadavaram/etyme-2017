@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import type { ReadinessFacts } from '@/lib/readiness'
+import { emailLinkDoorOn, type ReadinessFacts } from '@/lib/readiness'
 import { staffAddresses } from '@/lib/alerts'
 import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
@@ -25,7 +25,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     cronSecret: Boolean(process.env.CRON_SECRET),
     microsoft: Boolean(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET),
     google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    emailLink: Boolean(process.env.EMAIL_SERVER),
+    emailLink: emailLinkDoorOn(),
     emailSender: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_FROM_EMAIL),
     anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
   }

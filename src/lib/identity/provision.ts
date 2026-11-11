@@ -4,7 +4,7 @@ import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { domainOfEmail } from '@/lib/company-domains'
 import { recordIdentityEvent, type Surface } from '@/lib/identity/ledger'
 import { companyPolicy } from '@/lib/identity/read'
-import type { EffectiveMode } from '@/lib/identity/policy'
+import { DIRECTORY_SUSPEND_REASON, type EffectiveMode } from '@/lib/identity/policy'
 
 /**
  * Seats a company's directory makes and takes away (founder, 2026-11-11):
@@ -33,7 +33,7 @@ import type { EffectiveMode } from '@/lib/identity/policy'
  */
 
 /** What a seat's suspension says when the directory made it, so restoring the person restores only those. */
-export const DIRECTORY_SUSPEND_REASON = 'Turned off in the company’s directory.'
+export { DIRECTORY_SUSPEND_REASON }
 
 type Db = Prisma.TransactionClient | typeof prisma
 

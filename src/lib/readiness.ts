@@ -175,7 +175,7 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
       says: 'Nobody outside can sign in. The only way in is the demo button.' + passwordOff,
       fix:
         'Register Etyme as an app in Microsoft Entra (any tenant) and set AZURE_AD_CLIENT_ID and AZURE_AD_CLIENT_SECRET; ' +
-        'do the same in Google Cloud for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Candidates need EMAIL_SERVER for the magic link.' +
+        'do the same in Google Cloud for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Candidates sign up with a password, which needs RESEND_API_KEY and NOTIFY_FROM_EMAIL to send the confirmation link.' +
         passwordFix,
     })
   } else if (f.realSignIns === 0) {
@@ -456,6 +456,22 @@ function daysAgo(then: Date, now: Date): string {
  * kept its own list without the password door, and said "the only way in
  * is the demo button" on a deployment where anybody could sign up.
  */
+/**
+ * NextAuth's own emailed-link door needs a database adapter to keep its
+ * verification tokens, and this app runs JWT sessions with none. With
+ * the door registered and no adapter, NextAuth refuses every sign-in
+ * through every door (EMAIL_REQUIRES_ADAPTER_ERROR, then
+ * /login?error=Configuration), so setting EMAIL_SERVER used to lock
+ * everybody out. It stays off until an adapter exists; the password
+ * door's own emailed links go through lib/senders (RESEND_API_KEY and
+ * NOTIFY_FROM_EMAIL) and never through this door.
+ */
+export const EMAIL_LINK_HAS_ADAPTER = false
+
+export function emailLinkDoorOn(env: Record<string, string | undefined> = process.env): boolean {
+  return EMAIL_LINK_HAS_ADAPTER && Boolean(env.EMAIL_SERVER)
+}
+
 export function signInDoors(env: { microsoft: boolean; google: boolean; emailLink: boolean; password: boolean }): string[] {
   return [
     env.microsoft && 'Microsoft', env.google && 'Google', env.emailLink && 'an email link', env.password && 'password',

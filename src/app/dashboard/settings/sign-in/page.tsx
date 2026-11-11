@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Check, ErrorState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea, Chip } from '@/components/ui'
 import { momentFor, readerZone } from '@/lib/when'
-import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords } from '@/lib/identity/screen-words'
+import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
 
 /**
  * Settings → Sign-in (founder, 2026-11-11, "Enterprise identity"): how the
@@ -145,7 +145,7 @@ export default function SignInSettings() {
       {said && <p role="status" className="text-sm text-etyme-ink">{said}</p>}
       {!can && <p className="text-[13px] text-etyme-muted">You can read this page. Only an Owner changes how people sign in.</p>}
 
-      <Panel title="How your people sign in" subtitle={o.setAt ? `Set by ${o.setBy ?? 'somebody'} on ${when(o.setAt)}${o.reason ? `: ${o.reason}` : ''}.` : 'Nothing is set yet.'}>
+      <Panel title="How your people sign in" subtitle={o.setAt ? setLine({ setBy: o.setBy, on: when(o.setAt), reason: o.reason }) : 'Nothing is set yet.'}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void send('mode', '/api/settings/sign-in', 'PATCH', { mode, reason, jit, scim, requiredAssurance: assurance, dataRegion: region, requireDirectorySuppliers: dirSuppliers }) }}>
           <fieldset className="space-y-2" disabled={!can}>
             {SIGN_IN_SCREEN_MODES.map((m) => (
@@ -305,7 +305,7 @@ export default function SignInSettings() {
             <li key={e.id} className="py-2 text-[13px]">
               <span className="text-etyme-muted tabular-nums">{when(e.at)}</span>{' '}
               <Chip tone={e.allowed ? 'passive' : 'attention'}>{eventWords(e.action)}</Chip>{' '}
-              <span className="text-etyme-ink">{e.says}</span>
+              <span className="text-etyme-ink">{eventSays(e.says)}</span>
             </li>
           ))}
           {o.events.length === 0 && <li className="py-2 text-[13px] text-etyme-muted">Nothing yet.</li>}

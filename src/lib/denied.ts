@@ -110,6 +110,16 @@ export function deniedFor(args: { code: string; message: string }): Denied {
   // sentence and each already says what to do and who can do it, so the
   // message is shown verbatim — rewriting it here is the second answer
   // to one question that this file exists to avoid.
+  // The company's own directory turned the seat off (SCIM, or the demo's
+  // mock directory): the sentence names the directory and the IT admin.
+  if (code === 'DIRECTORY_OFF') {
+    return {
+      code,
+      heading: 'Your seat was turned off',
+      says: message,
+      doors: [{ label: 'Sign in', href: '/login', primary: true }],
+    }
+  }
   if (code === 'SUSPENDED') {
     return { code, heading: 'Your access is paused', says: message, doors: signOutOnly() }
   }

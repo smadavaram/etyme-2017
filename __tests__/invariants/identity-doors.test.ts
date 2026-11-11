@@ -232,6 +232,17 @@ describe('isolation: an invited public-address seat never moves money or signs, 
     const r = await getCallerContext()
     expect(r.caller!.permissions).toEqual(['team.manage'])
     expect(r.caller!.rolePermissions).toEqual(['team.manage'])
+    expect(r.caller!.publicSeat).toBe(true)
+  })
+
+  it('an AP Clerk invited on a public address and refused a payment is told her address is why, never to ask the AP Clerk', async () => {
+    const { refusalFor } = await import('@/lib/api-context')
+    const says = refusalFor({ publicSeat: true, company: { name: 'Tapin', kind: 'VENDOR' } as any }, { doing: 'Recording a payment', needs: 'payments.record' })
+    expect(says).toBe('You were invited to Tapin on a public address, so this seat does not bill, pay, run payroll, raise orders or award. An Owner of Tapin can move you to a company-directory address.')
+    expect(says).not.toMatch(/Ask them|is done by/)
+    // Any other seat, or an act the limit does not take away, still names who does it.
+    expect(refusalFor({ company: { name: 'Tapin', kind: 'VENDOR' } as any }, { doing: 'Recording a payment', needs: 'payments.record' })).toMatch(/is done by/)
+    expect(refusalFor({ publicSeat: true, company: { name: 'Tapin', kind: 'VENDOR' } as any }, { doing: 'Managing roles', needs: 'team.manage' })).toMatch(/is done by|no role/)
   })
 
   it('the same person’s seat at a company with no policy keeps its role, because one company’s choice never reaches another', async () => {

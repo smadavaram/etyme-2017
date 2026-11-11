@@ -142,6 +142,19 @@ describe('the policy is changed by an Owner only, and the change commits with it
     const row = db.accessLog.createMany.mock.calls[0][0].data[0]
     expect(row).toMatchObject({ action: 'AUTH_POLICY_CHANGED', subjectCompanyId: 'co-tapin', actorPersonId: 'p-sharath', actorCompanyId: 'co-tapin' })
     expect(readIdentityReason(row.reason)).toMatchObject({ policy: 'HYBRID', surface: 'WEB' })
+    expect(readIdentityReason(row.reason)!.says).toMatch(/from Nothing set to Hybrid: /)
+  })
+
+  it('the sign-in page prints a change in the screen’s words, Invitation only, Hybrid and Directory only, even for a row written with the machine names', async () => {
+    const { eventSays } = await import('@/lib/identity/screen-words')
+    expect(eventSays('Sharath changed how Tapin’s people sign in from INVITE_ONLY to HYBRID: partners.')).toBe('Sharath changed how Tapin’s people sign in from Invitation only to Hybrid: partners.')
+    expect(eventSays('from HYBRID to SSO_ONLY')).toBe('from Hybrid to Directory only')
+  })
+
+  it('a policy set by nobody named reads "Set on <day>", never "Set by somebody", and a reason ending in a full stop is not given a second one', async () => {
+    const { setLine } = await import('@/lib/identity/screen-words')
+    expect(setLine({ setBy: null, on: 'Nov 11', reason: 'Seeded for the demo: the mock directory beside the seeded people.' })).toBe('Set on Nov 11: Seeded for the demo: the mock directory beside the seeded people.')
+    expect(setLine({ setBy: 'Sharath Madavaram', on: 'Nov 11', reason: null })).toBe('Set by Sharath Madavaram on Nov 11.')
   })
 
   it('an Admin cannot change it, and nothing is written', async () => {

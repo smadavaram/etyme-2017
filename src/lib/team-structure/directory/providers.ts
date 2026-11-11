@@ -53,7 +53,7 @@ export function directorySources(env: Record<string, string | undefined> = proce
       connected: false,
       adminApproves: entraApp
         ? 'Your Microsoft 365 admin grants Etyme the application permission User.Read.All (read every user’s profile, read only) with admin consent for your tenant. Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
-        : 'Not set up on this deployment yet. Once it is, your Microsoft 365 admin grants Etyme the application permission User.Read.All (read only) with admin consent for your tenant.',
+        : 'Not set up on this deployment yet: Etyme has not turned on Microsoft Entra ID here. Once it does, your Microsoft 365 admin approves read-only access to your users once.',
     },
     {
       key: 'GOOGLE',
@@ -65,8 +65,11 @@ export function directorySources(env: Record<string, string | undefined> = proce
       adminApproves: googleConnected
         ? null
         : g.ready
-          ? 'A Google Workspace administrator who can see users (a super admin can) presses Connect, signs in to Google, and allows Etyme to see users on your domain (admin.directory.user.readonly, read only). Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
-          : `Not set up on this deployment yet: ${g.missing.join('; ')}. Once it is, your Google Workspace administrator connects it here and allows read-only access to users (admin.directory.user.readonly).`,
+          ? 'A Google Workspace administrator who can see users (a super admin can) presses Connect, signs in to Google, and allows Etyme to see the users on your domain, read only. Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
+          // The switch is said as it is (a privacy notice waiting is a
+          // reason a client can read); the app registration and the
+          // sealing key are Etyme's own plumbing and are never named.
+          : `Not set up on this deployment yet: ${g.missing.find((m) => m.startsWith('directory connections')) ?? 'Etyme has not turned on Google Workspace here'}. Once it is, your Google Workspace administrator connects it here and allows Etyme to see your users, read only.`,
     },
     {
       key: 'CSV',
@@ -141,7 +144,7 @@ export async function readGoogle(token: string, f: Fetch = fetch, maxPages = 50,
   for (let page = 0; page < maxPages; page++) {
     const res: Response = await f(pageToken ? `${base}&pageToken=${encodeURIComponent(pageToken)}` : base, { headers: { authorization: `Bearer ${token}` } })
     const j: any = await res.json().catch(() => null)
-    if (!res.ok) throw new Error('Google refused to read your directory. Ask your super admin whether admin.directory.user.readonly was allowed for Etyme.')
+    if (!res.ok) throw new Error('Google refused to read your directory. Ask your Google super admin whether Etyme was allowed to see your users.')
     for (const u of j?.users ?? []) {
       const email = String(u.primaryEmail ?? '').toLowerCase()
       if (!email.includes('@')) continue

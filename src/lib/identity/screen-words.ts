@@ -23,6 +23,33 @@ export function modeOptionSays(mode: string): string {
   }
 }
 
+/** A mode in the words a person reads, for a sentence: never the machine name. */
+const MODE_WORDS: Record<string, string> = {
+  SSO_ONLY: 'Directory only',
+  INVITE_ONLY: 'Invitation only',
+  HYBRID: 'Hybrid',
+  OPEN: 'Nothing set',
+}
+
+export function modeWord(mode: string): string {
+  return MODE_WORDS[mode] ?? mode
+}
+
+/**
+ * An activity line as a person reads it. Rows written before 2026-11-11's
+ * walk carry the machine names ("from INVITE_ONLY to HYBRID"); they are
+ * read in the screen's words, whatever the row holds.
+ */
+export function eventSays(says: string): string {
+  return says.replace(/\b(SSO_ONLY|INVITE_ONLY|HYBRID|OPEN)\b/g, (m) => modeWord(m))
+}
+
+/** "Set by Jenna Okafor on Nov 11: reason." with no "somebody" and no doubled stop. */
+export function setLine(p: { setBy: string | null; on: string; reason: string | null }): string {
+  const reason = p.reason?.trim().replace(/[.\s]+$/, '')
+  return `Set ${p.setBy ? `by ${p.setBy} ` : ''}on ${p.on}${reason ? `: ${reason}` : ''}.`
+}
+
 const EVENT_WORDS: Record<string, string> = {
   SSO_CONFIGURED: 'Directory set',
   DOMAIN_VERIFIED: 'Domain verified',
