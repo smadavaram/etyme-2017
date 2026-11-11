@@ -67,6 +67,8 @@ export type SeatPlan =
   | { email: string; role: string; name: string; does: 'CREATE_PERSON_AND_SEAT' }
   | { email: string; role: string; name: string; does: 'ADD_SEAT'; personId: string }
   | { email: string; role: string; name: string; does: 'REISSUE_LINK'; personId: string }
+  /** An account that already signs in (Google, a password) and has no seat here: staff seat it, and its sign-in is not touched. */
+  | { email: string; role: string; name: string; does: 'SEAT_EXISTING_ACCOUNT'; personId: string }
   | { email: string; role: string; name: string; does: 'LEAVE'; says: string }
 
 export type Plan =
@@ -142,11 +144,14 @@ export function planBootstrap(input: BootstrapInput, existing: Existing): Plan {
     const nm = clean(s.name) || nameFromEmail(email)
     if (!person) return { email, role, name: nm, does: 'CREATE_PERSON_AND_SEAT' as const }
     if (person.signedIn) {
+      // Somebody who already signs in is never given a link or a password.
+      // With no seat here, staff may seat the account they already have
+      // (founder, 2026-11-11: sharath@etyme.com, signed in with Google
+      // before any seat existed); with a seat, nothing changes.
+      if (!person.seatRole) return { email, role, name: nm, does: 'SEAT_EXISTING_ACCOUNT' as const, personId: person.personId }
       return {
         email, role, name: nm, does: 'LEAVE' as const,
-        says: person.seatRole
-          ? `${email} already signs in here as ${person.seatRole}. Nothing was changed.`
-          : `${email} already has an Etyme account. Invite them from Users & permissions instead.`,
+        says: `${email} already signs in here as ${person.seatRole}. Nothing was changed.`,
       }
     }
     if (person.seatRole) return { email, role, name: nm, does: 'REISSUE_LINK' as const, personId: person.personId }
@@ -261,6 +266,24 @@ export async function bootstrapCompany(input: BootstrapInput): Promise<Bootstrap
       continue
     }
     const personId = s.does === 'CREATE_PERSON_AND_SEAT' ? created.get(s.email)! : s.personId
+    if (s.does === 'SEAT_EXISTING_ACCOUNT') {
+      const seated = await prisma.context.findFirst({ where: { personId, companyId, revokedAt: null }, select: { id: true } })
+      if (!seated) await prisma.context.create({ data: { personId, type: 'EMPLOYEE', companyId, roleId: roleId(s.role) } })
+      await prisma.automationLog.create({
+        data: {
+          companyId, action: 'STAFF_BOOTSTRAP',
+          summary: `Staff seated ${s.email}, who already signs in, as ${s.role}. Their sign-in was not touched and no link was issued.`,
+          reason: REASON,
+          payload: { made: 'SEAT_ADDED_TO_EXISTING_ACCOUNT', email: s.email, role: s.role, personId },
+          reversible: false,
+        },
+      })
+      results.push({
+        email: s.email, role: s.role, outcome: 'SEAT_ADDED', link: null,
+        says: `${s.email} already signs in, so it is now seated as ${s.role} and signs in the way it always did. Sign out and in again.`,
+      })
+      continue
+    }
     let outcome: SeatResult['outcome'] = 'LINK_REISSUED'
     if (s.does !== 'REISSUE_LINK') {
       // The Owner of a company made just now was seated by createCompany.

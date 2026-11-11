@@ -289,6 +289,12 @@ describe('staff bootstrap, on a deployment with no email', () => {
     if (!third.ok) throw new Error(third.says)
     expect(third.seats[0]).toMatchObject({ does: 'LEAVE' })
 
+    // An account that signs in but has no seat here is seated, with no link and no password.
+    after.people['sharath@etyme.com'] = { personId: 'p0', signedIn: true, seatRole: null }
+    const fourth = planBootstrap(ETYME, after)
+    if (!fourth.ok) throw new Error(fourth.says)
+    expect(fourth.seats[0]).toMatchObject({ does: 'SEAT_EXISTING_ACCOUNT', personId: 'p0' })
+
     // A personal provider and a demo-world domain are refused in a sentence.
     expect(planBootstrap({ ...ETYME, domain: 'gmail.com', seats: [{ email: 'a@gmail.com', role: 'Owner' }] }, empty))
       .toMatchObject({ ok: false, says: expect.stringContaining('personal mail provider') })
