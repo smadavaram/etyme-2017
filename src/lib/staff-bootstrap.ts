@@ -221,6 +221,16 @@ export async function bootstrapCompany(input: BootstrapInput): Promise<Bootstrap
   if (!plan.ok) return plan
   const existing = await readExisting(input)
 
+  // No break-glass (founder, 2026-11-11): the staff key seats nobody at a
+  // directory-only company, nor anybody on such a company's domain, the
+  // Superadmin included. Each refused seat is in the ledger before this
+  // answers.
+  const { checkDoor } = await import('@/lib/identity/read')
+  for (const s of plan.seats) {
+    const v = await checkDoor({ door: 'STAFF_BOOTSTRAP', email: s.email, targetCompanyId: existing.company?.id ?? null, surface: 'STAFF' })
+    if (!v.allowed) return { ok: false, says: `${s.email}: ${v.says} The staff key does not open it either.` }
+  }
+
   // People first, so the Owner can found the company.
   const created = new Map<string, string>()
   for (const s of plan.seats) {

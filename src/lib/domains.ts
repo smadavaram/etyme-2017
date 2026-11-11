@@ -573,6 +573,10 @@ export const DOMAINS: Domain[] = [
       // Microsoft Entra ID, Google Workspace), read only. The nightly
       // difference in the Owner's greeting is conversation's.
       'lib/team-structure',
+      // Enterprise identity, pass 1 (founder, 2026-11-11): the sign-in
+      // policy per company, every door it answers, the session kill and the
+      // identity ledger; the settings route that reads and sets the mode.
+      'lib/identity', 'app/api/settings/sign-in',
       // A seat that reads one region of a client's program (founder,
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.

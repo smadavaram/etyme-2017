@@ -533,6 +533,14 @@ export async function claimOrJoin(token: string, seat: SignedInSeat, db: PrismaC
   })
   if (!invite || invite.state === 'REVOKED' || invite.company.claimedAt) return { kind: 'CLAIM' }
 
+  // The sign-in policy (founder, 2026-11-11): a claim link is a door like
+  // any other, and a directory-only company's address, or a directory-only
+  // company, is never seated through one. The refusal's row is written
+  // before this answers; the claim route sends the sentence.
+  const { checkDoor } = await import('@/lib/identity/read')
+  const policy = await checkDoor({ door: 'CLAIM_LINK', email: seat.email, targetCompanyId: invite.company.id, actorPersonId: seat.personId, subjectPersonId: seat.personId, surface: 'WEB' })
+  if (!policy.allowed) return { kind: 'REFUSED', says: policy.says }
+
   const domain = firmDomain(domainOfEmail(seat.email))
   if (!domain || domain !== firmDomain(domainOfEmail(invite.email))) return { kind: 'CLAIM' }
 

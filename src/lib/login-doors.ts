@@ -47,6 +47,10 @@ export function signInRefusal(code: string | null | undefined): string | null {
       return 'Your Microsoft or Google account has not confirmed that email address, so it cannot sign you in here. Sign in with your email and password instead.'
     case 'NoEmail':
       return 'Your Microsoft or Google account did not share an email address, so it cannot sign you in here. Sign in with your email and password instead.'
+    case 'DirectoryOnly':
+      // A company's sign-in policy refused the door (lib/identity). The
+      // company is not named, because the page does not know which.
+      return 'Your company signs its people in through your company\'s directory only. Use the directory sign-in your company gave you.'
     case 'CredentialsSignin':
       return null
     default:

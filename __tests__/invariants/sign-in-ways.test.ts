@@ -211,7 +211,7 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
     expect(sessionEmail(' Sharath@Etyme.com ')).toBe('sharath@etyme.com')
     const token = await authOptions.callbacks!.jwt!({ token: {}, user: { id: 'g-1', email: 'Sharath@Etyme.com' } } as any)
     expect(token.email).toBe('sharath@etyme.com')
-    expect(read('src/lib/api-context.ts')).toContain('return session.user.email.trim().toLowerCase()')
+    expect(read('src/lib/api-context.ts')).toContain('const email = session.user.email.trim().toLowerCase()')
   })
 })
 

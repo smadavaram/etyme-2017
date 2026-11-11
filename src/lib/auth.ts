@@ -4,6 +4,7 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import GoogleProvider from 'next-auth/providers/google'
 import EmailProvider from 'next-auth/providers/email'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import type { Door } from '@/lib/identity/policy'
 
 /**
  * NextAuth configuration.
@@ -126,17 +127,19 @@ export function passwordDoor(): Provider {
     async authorize(credentials, req) {
       const door = await import('@/lib/password-door')
       if (credentials?.verifyToken) {
+        // The company's sign-in policy is read inside verifyEmail, before
+        // the link seats anybody (lib/identity).
         const v = await door.verifyEmail(credentials.verifyToken)
         // An already-confirmed address carries its code, so the link page offers Sign in.
         if (!v.ok) throw new Error(v.code ? `${v.code}:${v.says}` : v.says)
         await door.recordSignIn(v.personId, v.email)
-        return { id: v.personId, email: v.email, verified: true } as any
+        return { id: v.personId, email: v.email, verified: true, door: 'VERIFY_TOKEN' } as any
       }
       const fwd = (req?.headers as Record<string, string | undefined> | undefined)?.['x-forwarded-for']
       const ip = fwd ? String(fwd).split(',')[0].trim() : null
       const r = await door.checkPassword(credentials?.email, credentials?.password, ip)
       if (!r.ok) throw new Error(r.code === 'UNVERIFIED' ? door.unverifiedError(String(credentials?.email ?? '').trim().toLowerCase()) : r.says)
-      return { id: r.personId, email: r.email, name: r.name, verified: true } as any
+      return { id: r.personId, email: r.email, name: r.name, verified: true, door: 'PASSWORD' } as any
     },
   })
 }
@@ -177,6 +180,22 @@ export function sessionEmail(email: string | null | undefined): string | null {
   return e || null
 }
 
+/**
+ * Which door a sign-in came through, by NextAuth's provider id (lib/identity
+ * names the doors). The password door says which of its two ways on the
+ * user it returns. A company's own directory is the second stage of pass
+ * 1: its provider id begins `directory-`, and its issuer is the token's.
+ */
+export function doorOfSignIn(provider: string | undefined, user?: { door?: unknown } | null): Door | null {
+  if (!provider) return null
+  if (provider === 'azure-ad') return 'MICROSOFT_SOCIAL'
+  if (provider === 'google') return 'GOOGLE_SOCIAL'
+  if (provider === 'email') return 'EMAIL_LINK'
+  if (provider === 'credentials') return user?.door === 'VERIFY_TOKEN' ? 'VERIFY_TOKEN' : 'PASSWORD'
+  if (provider.startsWith('directory-')) return 'DIRECTORY'
+  return null
+}
+
 /** NextAuth's provider id, as the Credential row names it. */
 const PROVIDER_ROW: Record<string, 'MICROSOFT' | 'GOOGLE' | 'EMAIL'> = {
   'azure-ad': 'MICROSOFT',
@@ -208,19 +227,60 @@ export const authOptions: NextAuthOptions = {
       // again. This is the second lock on the same door: nothing reaches a
       // session through it without a confirmed email.
       if (account?.provider === 'credentials' && !(user as any).verified) return false
-      // Block personal email domains from company registration
-      if (user.email && isExcludedDomain(user.email)) {
-        // Allow sign-in but flag — they can be invited as candidates,
-        // they just cannot register a company.
-        // The company creation endpoint checks this separately.
+      // The company's sign-in policy, at every door (founder, 2026-11-11):
+      // an address on a directory-only company's verified domain comes in
+      // through that company's directory and nothing else. The refusal's
+      // ledger row is written before the answer goes back (lib/identity).
+      const door = doorOfSignIn(account?.provider, user as any)
+      if (door && user.email) {
+        const { checkDoor } = await import('@/lib/identity/read')
+        const v = await checkDoor({
+          door, email: sessionEmail(user.email)!, surface: 'WEB',
+          issuer: door === 'DIRECTORY' ? String((profile as any)?.iss ?? '') || null : null,
+        })
+        if (!v.allowed) return '/login?error=DirectoryOnly'
       }
+      // Personal email domains may sign in; they cannot register a company
+      // (the company creation endpoint checks that separately).
       return true
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id
         token.email = sessionEmail(user.email)
+        // The door and the session version this session was signed in
+        // under, read on every request below (lib/identity).
+        const door = doorOfSignIn(account?.provider, user as any)
+        token.door = door
+        token.iss = door === 'DIRECTORY' ? String((profile as any)?.iss ?? '') || null : null
+        try {
+          const { sessionVersionOf } = await import('@/lib/identity/read')
+          token.sv = token.email ? await sessionVersionOf(String(token.email)) : 0
+        } catch {
+          token.sv = 0
+        }
+        return token
+      }
+      // Every request: a session that was ended ("sign out everywhere", a
+      // directory that disabled the person), or signed in by a door the
+      // address's own company no longer allows, ends here. Throwing makes
+      // NextAuth answer with no session and clear the cookie.
+      if (token.email) {
+        let verdict: { stands: boolean } = { stands: true }
+        try {
+          const { liveSessionStands } = await import('@/lib/identity/read')
+          verdict = await liveSessionStands({
+            email: String(token.email),
+            door: (token.door as Door | undefined) ?? null,
+            issuer: (token.iss as string | undefined) ?? null,
+            tokenVersion: token.sv as number | undefined,
+          })
+        } catch {
+          // A read that failed is not a verdict. The seat read on the same
+          // request fails with it, so nothing is served (KNOWN-LIMITS).
+        }
+        if (!verdict.stands) throw new Error('SESSION_ENDED')
       }
       return token
     },
@@ -228,6 +288,10 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         ;(session.user as any).id = token.id
+        // Read by getCallerContext to decide whether a directory-only
+        // company's seat may be used from this session.
+        ;(session.user as any).door = token.door ?? null
+        ;(session.user as any).issuer = token.iss ?? null
       }
       return session
     },
@@ -243,6 +307,14 @@ export const authOptions: NextAuthOptions = {
      * counted from their second. The password door records its own.
      */
     async signIn({ user, account }) {
+      // The ledger first: who came in, through which door, under which
+      // policy, and any invitation this first sign-in accepts.
+      try {
+        const { recordSignInLedger } = await import('@/lib/identity/sign-in')
+        await recordSignInLedger({ email: user.email ?? null, door: doorOfSignIn(account?.provider, user as any) })
+      } catch {
+        // Writing the row is never a reason to refuse a sign-in that passed.
+      }
       const provider = account ? PROVIDER_ROW[account.provider] : undefined
       if (!provider || !user.email) return
       try {

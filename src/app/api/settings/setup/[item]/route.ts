@@ -1,3 +1,5 @@
+import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { companyPolicy } from '@/lib/identity/read'
 import { NextRequest, NextResponse } from 'next/server'
 import { bankChange } from '@/lib/money/remit-change'
 import { randomBytes } from 'crypto'
@@ -277,6 +279,13 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       }
       if (!found) return { ok: true, done: false, says: `Not yet. Nothing matching is published at ${record.name}. DNS usually takes a few minutes, sometimes an hour.` }
       await prisma.companyDomain.update({ where: { id: claim.id }, data: { verifiedAt: new Date(), verifiedVia: 'DNS_TXT' } })
+      // In the identity ledger: a verified domain is what a sign-in policy
+      // applies on (founder, 2026-11-11).
+      await recordIdentityEvent({
+        event: 'DOMAIN_VERIFIED', companyId: c.id, actorPersonId: by, subject: { companyId: c.id },
+        policy: (await companyPolicy(c.id)).effective, surface: 'WEB',
+        says: `${claim.domain} was verified for ${c.name} by its DNS record.`,
+      })
       const co = await prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { domain: true } })
       if (!co.domain) await prisma.company.update({ where: { id: c.id }, data: { domain: claim.domain, domainVerified: true } })
       return { ok: true, says: `${claim.domain} is verified. Colleagues on ${claim.domain} now join by signing in.` }

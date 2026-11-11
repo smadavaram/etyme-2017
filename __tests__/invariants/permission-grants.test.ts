@@ -342,7 +342,9 @@ describe('the one caller check and the menu read grants', () => {
   it('the caller check asks for the seat’s grants and puts them in the permissions every route is asked over', () => {
     const src = readFileSync('src/lib/api-context.ts', 'utf8')
     expect(src).toContain('seatPermissions(')
-    expect(src).toContain('permissions: held.permissions')
+    // Narrowed after, for an invited public-address seat at a hybrid company (lib/identity, 2026-11-11).
+    expect(src).toContain('let permissions: readonly string[] = held.permissions')
+    expect(src).toContain('    permissions,\n')
   })
 
   it('the menu draws a granted link only for the seat the grant belongs to', () => {

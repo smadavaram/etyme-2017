@@ -53,5 +53,15 @@ vi.mock('@/lib/db', () => ({
     automationLog: {
       create: vi.fn(),
     },
+    // A company's sign-in policy and its directories (lib/identity,
+    // 2026-11-11), read at every sign-in door. No row is today's behavior,
+    // so a unit test that is not about identity meets none.
+    companySignInPolicy: {
+      findMany: vi.fn(async () => []),
+      findUnique: vi.fn(async () => null),
+    },
+    identityProvider: {
+      findMany: vi.fn(async () => []),
+    },
   },
 }))

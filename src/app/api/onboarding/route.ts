@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { REGION_UNIT_KIND } from '@/lib/region-scope'
 import { emit } from '@/lib/events'
 import { getSessionEmail } from '@/lib/api-context'
+import { checkDoor } from '@/lib/identity/read'
 import {
   typeByKey, slugFromDomain, guessCompanyName, COMPANY_TYPES,
 } from '@/lib/onboarding'
@@ -178,6 +179,18 @@ export async function POST(request: NextRequest) {
       { error: { code: 'VALIDATION', message: decision.message } },
       { status: 422 }
     )
+  }
+
+  // Joining by domain asks the company's sign-in policy first (founder,
+  // 2026-11-11): an invite-only company admits nobody this way, and a
+  // directory-only company admits only through its directory. The row is
+  // written before the refusal goes out (lib/identity).
+  const joining = decision.action === 'JOIN' || decision.action === 'REQUEST' || (decision.action === 'SUGGEST' && body.joinExisting === true)
+  if (joining) {
+    const v = await checkDoor({ door: 'DOMAIN_JOIN', email, targetCompanyId: decision.companyId, surface: 'WEB' })
+    if (!v.allowed) {
+      return NextResponse.json({ error: { code: 'BY_INVITATION', message: v.says } }, { status: 403 })
+    }
   }
 
   // The person exists either way — they signed in.

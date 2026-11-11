@@ -995,3 +995,90 @@ every unconfirmed line. What the founder should know:
   `issuedAt` for a bill sent before that column was written).
 - **A client's cash flow is built and not shown**: the page says Reports is
   not open for a client yet while its link is held back.
+
+## Identity, pass 1 — etyme-architect (2026-11-11)
+
+Stage A of the enterprise identity build: the sign-in policy, the doors
+it answers, the session kill and the ledger. Every shortcut, stub and
+untested path, plainly.
+
+**Not built (stage B, and nothing pretends it is):**
+- **The DIRECTORY door does not exist.** No company can sign in through
+  its own directory yet: there is no OIDC or SAML route, no mock directory,
+  and no way to make an `IdentityProvider` row except the database. So
+  directory-only (SSO_ONLY) cannot be chosen through the API today: it is
+  refused until a directory is turned on, because nobody could sign in.
+  The policy reads a provider id beginning `directory-` as the DIRECTORY
+  door, with the issuer from the profile; stage B must make that true.
+- **SCIM is not built.** `ScimToken` and `DirectoryGroupRole` are tables
+  with no reader and no writer. `USER_PROVISIONED`, `USER_DEPROVISIONED`,
+  `GROUP_ROLE_MAPPED` and `SSO_CONFIGURED` are named events nothing writes.
+  `CompanySignInPolicy.jit` and `.scim` are stored and read by nothing.
+- **No settings screen.** `GET`/`PATCH /api/settings/sign-in` and
+  `POST /api/settings/sign-in/sessions` are API only.
+- **LinkedIn sign-in is not built.**
+- **`requiredAssurance` and `dataRegion` are recorded, never enforced.**
+  `requireDirectorySuppliers` is stored and the supplier approval does not
+  read it yet.
+- `IdentityProvider.secretSealed` exists for stage B; nothing seals into it
+  yet. The sealing helper stays in `lib/team-structure/directory/sealed`.
+
+**Wired in another domain's files, asked for and not done here:**
+- **`INVITE_SENT` is not written, and `POST /api/access/invite` does not
+  ask the policy** (etyme-regulatory's route). `inviteRefusal` in
+  `lib/identity/read` is written for it. Until it is wired, an Owner or
+  Admin can still invite a public address into a directory-only company;
+  that seat can never be used, because a directory-only company's seat
+  opens only from a session its own directory signed in.
+- **`MEMBERSHIP_REVOKED` is not written, and revoking or suspending a
+  person's last seat does not end their sessions**
+  (`src/app/api/access/[contextId]/route.ts`, etyme-regulatory's). The
+  seat itself already stops working on the next request, because every
+  request rereads it; `endSessions` is there for the route to call.
+- **The identity action names are not in `AccessAction`**
+  (`lib/access-log`, etyme-regulatory's). They are passed through as named
+  in `lib/identity/ledger`.
+- **The security posture's counts move** (`docs/security-posture.md`,
+  etyme-regulatory's): two new API route files, so the legal-pages test
+  reads 61 of 355 route files where the document says 61 of 353, and fails
+  until regulatory changes the second number (the logging count does not
+  move: both routes write their rows through `lib/identity`, which writes
+  through `lib/access-log`).
+- The claim route (etyme-conversation's) is enforced through
+  `claimOrJoin`, which it already calls; a refusal answers 409 with the
+  sentence, the route's existing code for a claim that is not taken.
+
+**Shortcuts in what is built:**
+- **A public address is a consumer provider's address** (the list in
+  `lib/company-domains`). A seat on another company's work address at a
+  hybrid company is not limited.
+- **The limit on a hybrid public-address seat withholds eleven
+  permissions**, including `requirements.write`, because the award route
+  asks for it; so such a seat cannot post or change a job either.
+  `timesheets.approve` and `vendors.manage` are withheld as signing and
+  bank-check acts. The founder may narrow the list in a sentence.
+- **The INVITE_ONLY refusal is written as `JOIN_REFUSED_BY_POLICY`**, and
+  "sign out everywhere" as `SESSIONS_ENDED`: two names beyond the eleven,
+  because neither is a refused SSO sign-in.
+- **A session check that cannot read the database lets the token stand**
+  for that request rather than signing the person out on a blip; the seat
+  read on the same request fails with it, so nothing is served.
+- **A session minted before this build carries no door.** At a
+  directory-only company it is refused, which is right; nowhere else does
+  the missing door matter.
+- **Directory-only refuses a join by domain even after a directory
+  sign-in**: seats there come by SCIM or just-in-time, both stage B.
+- **`LOGIN_SUCCEEDED` is not written for somebody's very first sign-in on
+  a new address**, because the person is made after it by `/start`.
+- **The demo cookie and the dev bypass carry no door and no version**, so
+  "sign out everywhere" does not end a demo visitor's cookie.
+- The policy is read per request on two identity tables (and once on the
+  person) in the session callback; there is no cache, on purpose, so a
+  change is felt on the next request.
+
+**Untested paths** (the testing budget allows three files): the email
+link (magic link) refusal is tested only through the pure function; the
+reset-confirm route, the link in a sign-up email (`verifyEmail`) and the
+onboarding route's join refusal are covered by the policy function, not by
+calling them; the `DOMAIN_VERIFIED` row is not tested; nothing is tested
+against a real database.

@@ -38,6 +38,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import type { Door } from '@/lib/identity/policy'
 import { landingFor } from '@/lib/nav-table'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import { linkWithStaff } from '@/lib/password-words'
@@ -92,6 +93,21 @@ export type Answer =
   | { ok: false; status: number; field?: string; says: string }
 
 const refuse = (says: string, field?: string, status = 422): Answer => ({ ok: false, status, field, says })
+
+/**
+ * The company's sign-in policy, at the password door (founder, 2026-11-11).
+ * An address on a directory-only company's verified domain is refused here
+ * at sign-up, at "send the link again", at reset and at sign-in alike, in
+ * the same sentence, the ledger row written first (lib/identity). A join by
+ * domain asks the company being joined too: an invite-only company admits
+ * nobody that way. It says nothing about whether the address has an
+ * account, so it tells a stranger nothing.
+ */
+async function policyRefusal(email: string, door: Door, targetCompanyId?: string | null): Promise<Answer | null> {
+  const { checkDoor } = await import('@/lib/identity/read')
+  const v = await checkDoor({ door, email, targetCompanyId: targetCompanyId ?? null, surface: 'WEB' })
+  return v.allowed ? null : refuse(v.says, 'email', 403)
+}
 
 /**
  * Whether sign-up is open here. Always, since 2026-10-27: where no email
@@ -429,7 +445,7 @@ export async function signUpProbe(rawEmail: unknown): Promise<{ joins: null | { 
 async function openInvite(token: string) {
   const invite = await prisma.supplierInvite.findUnique({
     where: { token },
-    select: { token: true, email: true, state: true, company: { select: { name: true, claimedAt: true } } },
+    select: { token: true, email: true, state: true, company: { select: { id: true, name: true, claimedAt: true } } },
   })
   if (!invite || invite.state !== 'PENDING' || invite.company.claimedAt) return null
   return invite
@@ -465,6 +481,8 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
   if (demo) return demo
   const personName = String(input.personName ?? '').trim()
   if (!personName) return refuse('Type your name.', 'personName')
+  const policy = await policyRefusal(email, 'PASSWORD')
+  if (policy) return policy
   const domain = domainOfEmail(email)
   const personal = !domain || isConsumerDomain(domain)
 
@@ -478,6 +496,8 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
   const colleague = personal ? null : await colleagueCompany(email)
   const typed = String(input.address ?? '').trim().toLowerCase()
   if (colleague && (!typed || typed === colleague.slug)) {
+    const shut = await policyRefusal(email, 'DOMAIN_JOIN', colleague.id)
+    if (shut) return shut
     const password = String(input.password ?? '')
     const weak = weakPasswordReason(password, { email, companyName: colleague.name })
     if (weak) return refuse(weak, 'password')
@@ -539,6 +559,8 @@ export async function signUpCandidate(input: { email: unknown; password: unknown
   if (demo) return demo
   const name = String(input.name ?? '').trim()
   if (!name) return refuse('Type your name.', 'name')
+  const policy = await policyRefusal(email, 'PASSWORD')
+  if (policy) return policy
   const password = String(input.password ?? '')
   const weak = weakPasswordReason(password, { email })
   if (weak) return refuse(weak, 'password')
@@ -564,6 +586,8 @@ export async function signUpClaim(input: { token: unknown; email: unknown; passw
   if (!mayClaim(email, invite.email)) {
     return refuse(`This invitation was sent to ${invite.email}. Use that address, or another address at the same company.`, 'email')
   }
+  const policy = (await policyRefusal(email, 'PASSWORD')) ?? (await policyRefusal(email, 'CLAIM_LINK', invite.company.id))
+  if (policy) return policy
   const password = String(input.password ?? '')
   const weak = weakPasswordReason(password, { email, companyName: invite.company.name })
   if (weak) return refuse(weak, 'password')
@@ -579,6 +603,8 @@ export async function resendVerification(rawEmail: unknown): Promise<Answer> {
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
   const demo = demoRefusal(email)
   if (demo) return demo
+  const policy = await policyRefusal(email, 'PASSWORD')
+  if (policy) return policy
   const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true, primaryEmail: true, emailVerifiedAt: true } })
   if (person && !person.emailVerifiedAt) {
     // The newest sign-up's answers travel with the new link.
@@ -626,6 +652,10 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
   }
   if (!usable.ok) return { ok: false, says: usable.says }
   if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: DEMO_REFUSAL }
+  // Before the link is spent or anybody seated: a directory-only company's
+  // address is not let in by a link either.
+  const shut = await policyRefusal(row!.person.primaryEmail, 'VERIFY_TOKEN')
+  if (shut && !shut.ok) return { ok: false, says: shut.says }
 
   // Spent first, and only if nobody else spent it in the same instant.
   const spent = await prisma.emailToken.updateMany({ where: { id: row!.id, usedAt: null }, data: { usedAt: now } })
@@ -714,6 +744,11 @@ async function joinAsMember(
   company: { id: string; name: string },
   reason: string,
 ): Promise<Verified> {
+  // An invite-only company admits nobody by domain (lib/identity).
+  const shut = await policyRefusal(person.primaryEmail, 'DOMAIN_JOIN', company.id)
+  if (shut && !shut.ok) {
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: `Your email is confirmed. ${shut.says}` }
+  }
   await seatAsMember(person.id, company.id)
   await prisma.automationLog.create({
     data: {
@@ -785,7 +820,7 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
 
 export type SignIn =
   | { ok: true; personId: string; email: string; name: string }
-  | { ok: false; code: 'NO_MATCH' | 'WAIT' | 'UNVERIFIED' | 'DEMO'; says: string }
+  | { ok: false; code: 'NO_MATCH' | 'WAIT' | 'UNVERIFIED' | 'DEMO' | 'DIRECTORY_ONLY'; says: string }
 
 async function failuresFor(email: string, ip: string | null, now: Date) {
   const since = new Date(now.getTime() - 15 * 60 * 1000)
@@ -814,6 +849,10 @@ export async function checkPassword(rawEmail: unknown, password: unknown, ip: st
 
   const wait = secondsToWait(await failuresFor(email, ip, now), now)
   if (wait > 0) return { ok: false, code: 'WAIT', says: waitSentence(wait) }
+
+  // A directory-only company's address never signs in with a password.
+  const shut = looksLikeEmail(email) ? await policyRefusal(email, 'PASSWORD') : null
+  if (shut && !shut.ok) return { ok: false, code: 'DIRECTORY_ONLY', says: shut.says }
 
   const person = looksLikeEmail(email)
     ? await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true, name: true, primaryEmail: true, passwordHash: true, emailVerifiedAt: true } })
@@ -868,6 +907,8 @@ export async function requestReset(rawEmail: unknown): Promise<Answer> {
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
   const demo = demoRefusal(email)
   if (demo) return demo
+  const policy = await policyRefusal(email, 'PASSWORD')
+  if (policy) return policy
   const person = await standing(email)
   if (person && isAccount(person)) {
     await sendReset(person, 'You asked to set a new Etyme password.')
@@ -886,6 +927,8 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
   const usable = tokenUsable(row && row.purpose === 'RESET' ? asLink(row) : null, 'RESET', now)
   if (!usable.ok) return refuse(usable.says, 'token', 410)
   if (demoEmail(row!.person.primaryEmail)) return refuse(DEMO_REFUSAL, 'token', 403)
+  const policy = await policyRefusal(row!.person.primaryEmail, 'PASSWORD')
+  if (policy) return policy
 
   const pw = String(password ?? '')
   const weak = weakPasswordReason(pw, { email: row!.person.primaryEmail })
