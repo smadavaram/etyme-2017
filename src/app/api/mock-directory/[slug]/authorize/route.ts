@@ -11,7 +11,7 @@ import { onVerifiedDomain } from '@/lib/identity/provision'
  * POST /api/mock-directory/[slug]/authorize — the person picked; back to Etyme with a code
  *
  * THE MOCK DIRECTORY'S SIGN-IN PAGE. It stands in for a company's own
- * directory in the demo and is plainly labelled a mock. It asks for no
+ * directory in the demo and is plainly labeled a mock. It asks for no
  * password: picking a person is its whole idea of proof, which is why it
  * serves only companies whose every verified domain is a reserved name
  * (lib/identity/mock-directory). It sends a code back only to Etyme's own

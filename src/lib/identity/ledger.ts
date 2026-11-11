@@ -47,11 +47,11 @@ export type IdentityEvent = (typeof IDENTITY_EVENTS)[number]
  * as wired.
  */
 export const WRITTEN_BY: Record<IdentityEvent, string | null> = {
-  SSO_CONFIGURED: null, // the directory settings screen, stage B
+  SSO_CONFIGURED: 'src/app/api/settings/sign-in/directory/route.ts', // and the SCIM token's issue and revoke
   DOMAIN_VERIFIED: 'src/app/api/settings/setup/[item]/route.ts',
   USER_PROVISIONED: 'src/lib/identity/provision.ts', // SCIM, a directory sign-in with just-in-time on, a directory group
   USER_DEPROVISIONED: 'src/lib/identity/provision.ts', // SCIM, and the mock directory's own off switch
-  GROUP_ROLE_MAPPED: null, // the directory settings screen, stage B
+  GROUP_ROLE_MAPPED: 'src/app/api/settings/sign-in/groups/route.ts',
   LOGIN_SUCCEEDED: 'src/lib/identity/sign-in.ts', // called from the sign-in event in src/lib/auth.ts
   LOGIN_REFUSED_SSO_ONLY: 'src/lib/identity/read.ts',
   JOIN_REFUSED_BY_POLICY: 'src/lib/identity/read.ts',

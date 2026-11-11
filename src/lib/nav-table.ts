@@ -507,6 +507,17 @@ const TEAM_STRUCTURE: NavItem = {
   label: 'Team structure', href: '/dashboard/settings/team-structure', icon: '⌬',
   needs: ['settings.manage'], api: 'settings/team-structure', pageCalls: ['settings/team-structure/**'],
 }
+/**
+ * How the company's people sign in (founder, 2026-11-11, "Enterprise
+ * identity"): directory only, invited people only, or both, the company's
+ * directory, SCIM, groups and roles, and the identity activity. The Owner
+ * sets it and the Admin reads it; the routes ask the role by name, and both
+ * hold settings.manage.
+ */
+const SIGN_IN: NavItem = {
+  label: 'Sign-in', href: '/dashboard/settings/sign-in', icon: '⚷',
+  needs: ['settings.manage'], api: 'settings/sign-in/overview', pageCalls: ['settings/sign-in/**', 'mock-directory/**'],
+}
 // Who is seated here and what each may do; `/api/access` gates its read on governance.read.
 const USERS: NavItem = { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', needs: ['governance.read'] }
 // Five onboardings, derived live from what exists, read by the seats that bring each party on.
@@ -546,7 +557,7 @@ const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data'
  * stay, and Papers you require is the setup checklist's item.
  */
 const FIRM_SETTINGS: NavItem[] = [
-  SETTINGS, SITES, TEAM_STRUCTURE, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
+  SETTINGS, SITES, TEAM_STRUCTURE, SIGN_IN, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
   DATA_REQUESTS, YOUR_DATA_HERE,
 ]
 
@@ -854,6 +865,7 @@ const CLIENT_NAV: NavSection[] = [
     SETTINGS,
     SITES,
     TEAM_STRUCTURE,
+    SIGN_IN,
     USERS,
     // Who runs the program: approvers, the lead, and who is answerable
     // for each budget. Read by whoever raises a job request, sets the
