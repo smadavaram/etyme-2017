@@ -1033,12 +1033,9 @@ untested path, plainly.
   `MEMBERSHIP_REVOKED` with every revoke, in the seat's transaction, and
   calls `endSessions` when a revoke or suspend leaves the person no live
   seat anywhere (not revoked, not paused, not expired). The identity names
-  and `DIRECTORY_READ` are in `AccessAction`. Still owed by etyme-architect:
-  `WRITTEN_BY` in `lib/identity/ledger` reads null for `INVITE_SENT` and
-  `MEMBERSHIP_REVOKED`; the two `as unknown as AccessAction` casts (in
-  `lib/identity/ledger` and `lib/identity/sign-in`) can go; and the Google
-  directory reads in `app/api/settings/team-structure/directory` still file
-  under `CONTRACT_VIEW` rather than `DIRECTORY_READ`. The surface on both
+  and `DIRECTORY_READ` are in `AccessAction`. The architect's three
+  follow-ups are done (stage B): `WRITTEN_BY` names both routes, the casts
+  are gone, and the Google directory reads file under `DIRECTORY_READ`. The surface on both
   routes is written as WEB. The invite route refuses a caller with no
   person, so that is true there; the revoke route does not, so a revoke
   made with an API key is recorded as WEB with no actor.

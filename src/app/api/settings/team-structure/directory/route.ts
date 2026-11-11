@@ -43,9 +43,8 @@ import { treeCaller, refusedTree, writerFor, refuse } from '../door'
  * Microsoft Entra ID answers "not connected" with what the client's IT
  * admin has to approve; its consent has nowhere to be kept yet.
  *
- * The access log has no action of its own for the directory yet, so each
- * read is filed as CONTRACT_VIEW, a company reading its own book, with the
- * reason saying which directory and how many people (regulatory's to name).
+ * Each read is filed as DIRECTORY_READ, with the reason saying which
+ * directory and how many people.
  */
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
     await recordAccess([{ companyId: writer.companyId }], {
       actorPersonId: writer.personId,
       actorCompanyId: writer.companyId,
-      action: 'CONTRACT_VIEW',
+      action: 'DIRECTORY_READ',
       reason: `Read ${writer.companyName}'s directory from ${state.label.toLowerCase()}: ${people.length} people, for the team structure${Array.isArray(body?.apply) ? ', and made the ticked changes' : ', as a preview'}.`,
     })
     if (source === 'GOOGLE') {
@@ -147,7 +146,7 @@ async function refusedGoogle(writer: Writer, why: string, says: string, status: 
   await recordRefusal([{ companyId: writer.companyId }], {
     actorPersonId: writer.personId,
     actorCompanyId: writer.companyId,
-    action: 'CONTRACT_VIEW',
+    action: 'DIRECTORY_READ',
     reason: `Refused: reading ${writer.companyName}'s directory from Google Workspace. ${why}`,
   })
   return refuse(says, status, field)
@@ -238,7 +237,7 @@ async function googleCallback(request: NextRequest): Promise<NextResponse> {
     await recordAccess([{ companyId: writer.companyId }], {
       actorPersonId: writer.personId,
       actorCompanyId: writer.companyId,
-      action: 'CONTRACT_VIEW',
+      action: 'DIRECTORY_READ',
       reason: `Connected ${writer.companyName}'s Google Workspace directory for ${state.domain}, read only: read one user's customer id to prove the Workspace holds the domain.`,
     })
     const sealed = seal(got.refreshToken)

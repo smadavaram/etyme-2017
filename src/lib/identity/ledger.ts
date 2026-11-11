@@ -17,9 +17,8 @@ import type { EffectiveMode } from '@/lib/identity/policy'
  * `policy <MODE> · surface <SURFACE> · <sentence>`, so a query reads them
  * back and a person reads the sentence.
  *
- * The names are not in lib/access-log's `AccessAction` list, which is
- * etyme-regulatory's file; they are passed through as named here, and
- * regulatory is asked to add them there (KNOWN-LIMITS, "Identity, pass 1").
+ * Every name is in lib/access-log's `AccessAction` list (etyme-regulatory,
+ * 9e93a8bf2), so a row is typed like any other read.
  */
 
 export const IDENTITY_EVENTS = [
@@ -56,9 +55,9 @@ export const WRITTEN_BY: Record<IdentityEvent, string | null> = {
   LOGIN_SUCCEEDED: 'src/lib/identity/sign-in.ts', // called from the sign-in event in src/lib/auth.ts
   LOGIN_REFUSED_SSO_ONLY: 'src/lib/identity/read.ts',
   JOIN_REFUSED_BY_POLICY: 'src/lib/identity/read.ts',
-  INVITE_SENT: null, // src/app/api/access/invite/route.ts is etyme-regulatory's; asked to call inviteRefusal and write it
+  INVITE_SENT: 'src/app/api/access/invite/route.ts',
   INVITE_ACCEPTED: 'src/lib/identity/sign-in.ts',
-  MEMBERSHIP_REVOKED: null, // src/app/api/access/[contextId]/route.ts is etyme-regulatory's; asked to call endSessions and write it
+  MEMBERSHIP_REVOKED: 'src/app/api/access/[contextId]/route.ts',
   AUTH_POLICY_CHANGED: 'src/app/api/settings/sign-in/route.ts',
   SESSIONS_ENDED: 'src/lib/identity/read.ts',
 }
@@ -115,8 +114,7 @@ export function identityRow(e: IdentityEntry):
   return {
     ok: true,
     subject,
-    // Passed through as named: AccessAction is etyme-regulatory's list.
-    action: e.event as unknown as AccessAction,
+    action: e.event,
     allowed: !isRefusal(e.event),
     actorPersonId: e.actorPersonId,
     actorCompanyId: e.companyId,

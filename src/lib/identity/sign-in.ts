@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/db'
-import type { AccessAction } from '@/lib/access-log'
 import { effectiveMode, type Door } from '@/lib/identity/policy'
 import { policyFacts } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
@@ -39,7 +38,7 @@ export async function recordSignInLedger(args: { email: string | null; door: Doo
   })
   for (const seat of invited) {
     const already = await prisma.accessLog.findFirst({
-      where: { subjectId: person.id, actorCompanyId: seat.companyId, action: 'INVITE_ACCEPTED' as unknown as AccessAction },
+      where: { subjectId: person.id, actorCompanyId: seat.companyId, action: 'INVITE_ACCEPTED' },
       select: { id: true },
     })
     if (already) continue
