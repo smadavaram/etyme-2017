@@ -2452,6 +2452,28 @@ would be Microsoft, Google enterprise or Okta login. We need to create
   exception for Tapin alone, ending the day its domain is verified, or
   the founder removes it in a sentence.
 
+### Hybrid is the Owner's choice — the founder, 2026-11-11, "B allow hybrid"
+
+This replaces the strict line above ("a Gmail address never holds a seat
+at a company that has colleagues") and the Tapin-only exception with it.
+- **A company's Owner may choose hybrid**: its own people sign in through
+  its directory where it has one, and the Owner may also invite people on
+  public addresses (Gmail, LinkedIn). The choice is recorded with who and
+  when. A company with a directory defaults to directory-only until its
+  Owner chooses otherwise.
+- **An invited public-address seat is limited**: invitation only, never
+  join by domain; no money or signing acts (paying, sending bills, bank
+  checks, agreements, awards, payroll); a client reads a plain note that
+  the supplier has seats outside its directory; and a client may require
+  directory-only suppliers, which is then checked when it approves one.
+- **Directory-only is never hybrid by the back door.** A client, a larger
+  company or a government body set to directory-only refuses every other
+  door, as decided above; only its own Owner changes the mode, ledgered.
+- **Tapin's three partners sit under this rule**: Tapin's Owner chooses
+  hybrid and invites them; no special exception is kept.
+- Still open for the founder: whether the password door stays for
+  one-person firms or goes entirely, with the emailed link as fallback.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
