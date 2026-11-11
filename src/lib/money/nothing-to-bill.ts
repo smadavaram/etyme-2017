@@ -146,3 +146,23 @@ export function nothingToBillSays(
     : 'Nothing is left to bill.'
   return `${head} ${parts.join(' ')}`
 }
+
+/**
+ * The weeks of a period that are already on one of our sent bills, in
+ * one sentence, or null where none are. Read where a period asked for has
+ * nothing left to bill, so a person who asks a second time is told which
+ * bill already carries the weeks rather than only that nothing is left
+ * (the-picker-does-not-lie, 2026-11-11: two people asking for one month
+ * at once, the second told nothing about the first one's bill).
+ */
+export function alreadyBilledSays(weeks: WeekNotBillable[]): string | null {
+  const billed = [...weeks]
+    .filter((w) => w.onOurBill && !w.onOurDraft)
+    .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())
+  if (billed.length === 0) return null
+  const numbers = [...new Set(billed.map((w) => w.onOurBill!))]
+  return (
+    `${list(billed.map(whose))} ${billed.length === 1 ? 'is' : 'are'} already on ` +
+    `${numbers.length === 1 ? `bill ${numbers[0]}` : `bills ${list(numbers)}`}.`
+  )
+}

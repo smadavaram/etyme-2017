@@ -91,11 +91,26 @@ describe('a company’s payroll choice reaches the dates', () => {
     const pays = added.filter((a) => a.kind === 'SALARY_PAY').map((a) => a.dueOn.getTime()).sort((x, y) => x - y)
     const calcs = added.filter((a) => a.kind === 'SALARY_CALCULATE')
     expect(pays.length, 'two months added are at least seven weeks of pay').toBeGreaterThanOrEqual(7)
-    expect(calcs.length).toBe(pays.length)
-    for (let i = 1; i < pays.length; i++) {
+    // Every week worked out is paid within the week. Where a pay day the
+    // line already had falls on the same date (the old monthly series pays
+    // its last period after the old end), that row is the week's pay day:
+    // one pay row per date, never two.
+    const allPays = after.filter((a) => a.kind === 'SALARY_PAY').map((a) => a.dueOn.getTime())
+    for (const c of calcs) {
+      const t = c.dueOn.getTime()
+      expect(
+        allPays.some((p) => p >= t && p - t <= 4 * DAY),
+        `the week worked out on ${iso(c.dueOn)} has a pay day within four days`
+      ).toBe(true)
+    }
+    expect(calcs.length - pays.length, 'at most one week is paid by a row already written').toBeLessThanOrEqual(1)
+    // The pay days across the added months, counting a row already written
+    // on one of those weeks' dates.
+    const weekly = [...new Set(allPays.filter((p) => p >= pays[0] && p <= pays[pays.length - 1]))].sort((x, y) => x - y)
+    for (let i = 1; i < weekly.length; i++) {
       // Seven days apart, or six or eight where a holiday moved one of them back.
-      const gap = Math.round((pays[i] - pays[i - 1]) / DAY)
-      expect(gap, `pay days ${iso(new Date(pays[i - 1]))} and ${iso(new Date(pays[i]))}`).toBeGreaterThanOrEqual(5)
+      const gap = Math.round((weekly[i] - weekly[i - 1]) / DAY)
+      expect(gap, `pay days ${iso(new Date(weekly[i - 1]))} and ${iso(new Date(weekly[i]))}`).toBeGreaterThanOrEqual(5)
       expect(gap).toBeLessThanOrEqual(9)
     }
     // And none of them is for a period the line had already been written for.

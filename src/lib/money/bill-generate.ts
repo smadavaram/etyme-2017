@@ -59,7 +59,7 @@ import { whatTheRungBills } from '@/lib/money/rung-billing'
 import { billedElsewhere, type ReceiptOnRecord } from '@/lib/money/billed-elsewhere'
 import { weekOvertimeTerms } from '@/lib/money/week-overtime-terms'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
-import { nothingToBillSays } from '@/lib/money/nothing-to-bill'
+import { nothingToBillSays, alreadyBilledSays } from '@/lib/money/nothing-to-bill'
 
 type Tx = Prisma.TransactionClient
 
@@ -1259,11 +1259,46 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         },
       })
     }
+    // Weeks of this period already on one of our sent bills: said by
+    // number, so a second person asking for the same period is told what
+    // the first one's bill carries, not only that nothing is left.
+    const billedHere = bounded
+      ? await prisma.timesheet.findMany({
+          where: {
+            sellContractId: { in: contractIds },
+            periodStart: { lte: period.end },
+            periodEnd: { gte: period.start },
+            invoiceLines: { some: { sellContractId: { in: ownIds }, invoice: { status: { not: 'DRAFT' } } } },
+          },
+          select: {
+            periodStart: true, status: true,
+            person: { select: { name: true } },
+            invoiceLines: {
+              where: { sellContractId: { in: ownIds } },
+              select: { invoice: { select: { number: true, status: true } } },
+              take: 1,
+            },
+          },
+          orderBy: { periodStart: 'asc' },
+          take: 50,
+        })
+      : []
+    const billedSays = alreadyBilledSays(
+      billedHere.map((w) => ({
+        personName: w.person?.name ?? 'Somebody',
+        periodStart: w.periodStart,
+        status: w.status,
+        clientSigned: true,
+        clientName: null,
+        onOurBill: w.invoiceLines[0]?.invoice.number ?? null,
+        onOurDraft: w.invoiceLines[0]?.invoice.status === 'DRAFT',
+      }))
+    )
     return reply(422, {
         error: {
           code: 'ZERO_VALUE',
           message: bounded
-            ? `Nothing signed and unbilled belongs to ${period.label}. A week crossing the ` +
+            ? `Nothing signed and unbilled belongs to ${period.label}. ${billedSays ? `${billedSays} ` : ''}A week crossing the ` +
               `edge of those dates bills whole in the period it ${terms.straddle === 'START' ? 'starts' : 'ends'} ` +
               'in, so it may be on the bill either side of them.'
             : 'All timesheets have zero hours or zero rate',
