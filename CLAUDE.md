@@ -2399,10 +2399,16 @@ What is decided, and what the scout found (read-only, 2026-11-11):
   company's directory. No separate Etyme password."* for a client;
   *"Invited by email, sign in with Google or Microsoft."* for a small
   team. No company-size range anywhere.
-- **Open for the founder:** which company the three partners (Sidhu,
-  Vineel, Vikash) are Owners of; the brief says the internal Etyme
-  tenant, but Etyme is the platform and the founder's bench business is
-  Tapin, so the assumption is Tapin Owners on their Gmail invitations.
+- **Decided by the founder, 2026-11-11: the three partners join Tapin as
+  Admins.** Sidhu (sidhu871@gmail.com), Vineel Kumar Sriramaneni
+  (vsrirama147@gmail.com) and Vikash Kumar Ippili
+  (vikashippili@gmail.com) are invited to Tapin, the founder's business
+  that runs on Etyme, in the Admin role: below the Owners (sharath and,
+  when invited, smadavaram), never able to act on an Owner. They sign in
+  with the Gmail address they were invited on; no @etyme.com mailbox is
+  made for them (the brief's `sidhu@etyme.com` does not exist and
+  bounces). The brief's "Owner" for the three is superseded by this.
+
 - **Built in this order:** the schema (a company's policy, an IdP
   configuration with a secret reference, SCIM tokens, a group-to-role
   map, an issuer on the credential, a session version), queued through
