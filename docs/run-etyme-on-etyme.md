@@ -38,7 +38,6 @@ curl -sS -X POST "$ETYME_URL/api/staff/bootstrap-company" \
     "address": "tapin",
     "seats": [
       { "email": "sharath@etyme.com",    "role": "Owner" },
-      { "email": "support@etyme.com",    "role": "Admin" },
       { "email": "hradmin@etyme.com",    "role": "HR" },
       { "email": "oliver@etyme.com",     "role": "Account Manager" },
       { "email": "timesheets@etyme.com", "role": "AP & Payroll" }

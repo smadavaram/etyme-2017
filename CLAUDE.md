@@ -2275,6 +2275,14 @@ subdomain"*. Drawn, not built
   staff tools and never a company's data. A commission-basis person holds
   one seat per company and reads only their own commissions at each.
   Nothing crosses companies and switching copies nothing.
+- **support@etyme.com is Etyme's own mailbox, never a Tapin seat. The
+  founder, 2026-11-11:** *"support@etyme.com is required for etyme.com to
+  communicate with larger user base … wont use it in tapin."* It is the
+  address on the Terms, the privacy notice, the DPA, "Talk to a person"
+  and the DMARC reports. Tapin's seats are four: sharath (Owner), hradmin
+  (HR), oliver (Account Manager), timesheets (AP and Payroll). Tapin's
+  Admin is named later by its Owner. The "support (Admin)" seat in "Etyme
+  runs on Etyme" (2026-10-13) is withdrawn.
 - **The ladder and its words, said by the founder the same day: "An
   admin is always below owner or superadmin — use right terminology."**
   Three levels, always in this order, on every screen, card, email and

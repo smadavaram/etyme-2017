@@ -256,7 +256,6 @@ describe('staff bootstrap, on a deployment with no email', () => {
     name: 'Tapin', domain: 'etyme.com', kind: 'VENDOR' as const, address: 'tapin',
     seats: [
       { email: 'sharath@etyme.com', role: 'Owner' },
-      { email: 'support@etyme.com', role: 'Admin' },
       { email: 'hradmin@etyme.com', role: 'HR' },
       { email: 'oliver@etyme.com', role: 'Account Manager' },
       { email: 'timesheets@etyme.com', role: 'AP & Payroll' },
@@ -269,7 +268,7 @@ describe('staff bootstrap, on a deployment with no email', () => {
     if (!first.ok) throw new Error(first.says)
     expect(first.createCompany).toBe(true)
     expect(first.address).toBe('tapin')
-    expect(first.seats.map((s) => s.does)).toEqual(Array(5).fill('CREATE_PERSON_AND_SEAT'))
+    expect(first.seats.map((s) => s.does)).toEqual(Array(4).fill('CREATE_PERSON_AND_SEAT'))
     expect(LINK_HOURS).toBe(7 * 24)
 
     // The second run finds the company and the five seats, nobody having signed in yet.
@@ -281,7 +280,7 @@ describe('staff bootstrap, on a deployment with no email', () => {
     const again = planBootstrap(ETYME, after)
     if (!again.ok) throw new Error(again.says)
     expect(again.createCompany).toBe(false)
-    expect(again.seats.map((s) => s.does)).toEqual(Array(5).fill('REISSUE_LINK'))
+    expect(again.seats.map((s) => s.does)).toEqual(Array(4).fill('REISSUE_LINK'))
 
     // Somebody who has signed in is never touched.
     after.people['sharath@etyme.com'] = { personId: 'p0', signedIn: true, seatRole: 'Owner' }
