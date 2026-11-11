@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
@@ -88,11 +88,9 @@ export async function GET(request: NextRequest) {
           // Names the desks that do read it, at this firm, rather than
           // guessing the reader's job: a delivery engineer was told he was
           // a recruiter.
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Reading what placements earn',
             needs: ['margin.read', 'pnl.read'],
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { generateBill, BILLABLE_LINE_STATES } from '@/lib/money/bill-generate'
@@ -44,11 +44,9 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Raising a bill',
             needs: 'invoices.issue',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },
@@ -206,11 +204,9 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Raising a bill',
             needs: 'invoices.issue',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },

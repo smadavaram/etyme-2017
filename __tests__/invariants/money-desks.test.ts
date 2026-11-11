@@ -245,6 +245,28 @@ describe('The refusal describes the reader it is actually in front of', () => {
     }
   })
 
+  it('a seat invited on a public address and refused a payment, a bill, payroll or an order is told its address is why, never to ask the role it holds', () => {
+    const REFUSES_A_MONEY_ACT = [
+      'src/app/api/ap/bills/route.ts',
+      'src/app/api/ap/payment-runs/route.ts',
+      'src/app/api/ar/payments/route.ts',
+      'src/app/api/ar/credit-notes/route.ts',
+      'src/app/api/invoices/[id]/payments/route.ts',
+      'src/app/api/invoices/[id]/submit/route.ts',
+      'src/app/api/invoices/submit/route.ts',
+      'src/app/api/invoices/generate/route.ts',
+      'src/app/api/payroll/run/route.ts',
+      'src/app/api/payroll/off-cycle/route.ts',
+      'src/app/api/purchase-orders/route.ts',
+      'src/app/api/rate-history/[id]/back-pay/route.ts',
+    ]
+    for (const r of REFUSES_A_MONEY_ACT) {
+      const src = readFileSync(join(process.cwd(), r), 'utf8')
+      expect(src, `${r} refuses without saying a public-address seat is why`).toContain('refusalFor(caller, {')
+      expect(src, `${r} still asks the desk directly`).not.toContain('askTheDesk(')
+    }
+  })
+
   it('every money route that reads a book asks the shared table rather than a margin permission of its own', () => {
     const READS = [
       'src/app/api/ar/route.ts',

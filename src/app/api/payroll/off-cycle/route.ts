@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
-import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { getCallerContext, realPersonId, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { theLinkFor } from '@/lib/contract-links'
 
@@ -29,7 +29,7 @@ function pickBuy<T extends { buyContractId?: string; sellContractId?: string; ef
   return links.find((l) => (l.buyContract?.id ?? l.buyContractId) === chosen.buyContractId)?.buyContract ?? null
 }
 import { staffOnly } from '@/lib/seat'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { checkOffCycle, carryLedger, OFF_CYCLE_LABEL, type CarryPeriod } from '@/lib/pay-model'
 import { orderFor } from '@/lib/order-postings'
 import { proposeBackPay, type BackPayLine } from '@/lib/money/back-pay'
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payroll.run')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Seeing the carry', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Seeing the carry', needs: 'payroll.run' }) } },
       { status: 403 }
     )
   }
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payroll.run')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Paying somebody outside the run', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Paying somebody outside the run', needs: 'payroll.run' }) } },
       { status: 403 }
     )
   }

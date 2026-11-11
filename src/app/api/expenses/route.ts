@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { isConsultantSeat } from '@/lib/seat'
 import { acceptanceChain, rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
@@ -63,11 +63,9 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message: reading?.seat
             ? seatedRefusal(reading.seat, 'The expense book')
-            : askTheDesk({
+            : refusalFor(caller, {
                 doing: 'Reading expenses',
                 needs: 'invoices.read',
-                kind: caller.company?.kind,
-                companyName: caller.company?.name,
               }),
         },
       },
@@ -492,11 +490,9 @@ export async function POST(request: NextRequest) {
           code: 'FORBIDDEN',
           message: desk.seat
             ? seatedRefusal(desk.seat, 'Raising an expense')
-            : askTheDesk({
+            : refusalFor(caller, {
                 doing: 'Raising an expense',
                 needs: 'invoices.read',
-                kind: caller.company.kind,
-                companyName: caller.company.name,
               }),
         },
       },

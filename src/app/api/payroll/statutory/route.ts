@@ -4,10 +4,10 @@ import { amount } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { blankShortWages, type RunPaidTotal } from '@/lib/payroll-export'
 import { paidOnDay } from '@/lib/money/pay-day-period'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { paidRunHours } from '@/lib/payroll-paid'
 import {
   yearEndPack, yearEndCsv, depositSchedule, depositDeadline, depositPayDays,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({ doing: 'Seeing what everybody earned in a year', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }),
+          message: refusalFor(caller, { doing: 'Seeing what everybody earned in a year', needs: 'payroll.run' }),
         },
       },
       { status: 403 }

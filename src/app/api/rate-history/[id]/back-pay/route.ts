@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { isConsultantSeat } from '@/lib/seat'
 import { lineFor } from '@/lib/rate-line'
 import { proposeBackPay } from '@/lib/money/back-pay'
@@ -37,11 +37,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Reading what somebody is owed',
             needs: 'consultants.cost',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },

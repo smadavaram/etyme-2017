@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { mayTag, type MasterContractRef } from '@/lib/money/master-contract'
@@ -55,7 +55,7 @@ export async function POST(
         error: {
           code: 'FORBIDDEN',
           message:
-            askTheDesk({ doing: `Moving a line onto a ${MASTER_CONTRACT_WORD.noun}`, needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
+            refusalFor(caller, { doing: `Moving a line onto a ${MASTER_CONTRACT_WORD.noun}`, needs: 'assignments.write' }),
         },
       },
       { status: 403 }

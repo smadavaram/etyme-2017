@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { writingDesk, seatedRefusal, moneyTrailFor } from '@/lib/money/seated-books'
-import { askTheDesk } from '@/lib/permissions'
 import { rejectRefusal } from '@/lib/money/expense-acceptance'
 
 /**
@@ -113,11 +112,9 @@ export async function POST(request: NextRequest) {
           code: 'FORBIDDEN',
           message: desk.seat
             ? seatedRefusal(desk.seat, 'Deciding an expense')
-            : askTheDesk({
+            : refusalFor(caller, {
                 doing: 'Deciding an expense',
                 needs: 'invoices.read',
-                kind: caller.company.kind,
-                companyName: caller.company.name,
               }),
         },
       },

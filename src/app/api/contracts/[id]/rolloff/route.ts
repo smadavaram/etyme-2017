@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 
 /**
@@ -70,7 +70,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({ doing: 'Rolling somebody off', needs: 'assignments.terminate', kind: caller.company?.kind, companyName: caller.company?.name }),
+          message: refusalFor(caller, { doing: 'Rolling somebody off', needs: 'assignments.terminate' }),
         },
       },
       { status: 403 }

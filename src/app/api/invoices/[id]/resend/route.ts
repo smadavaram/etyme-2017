@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { resendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Sending a bill again', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Sending a bill again', needs: 'invoices.issue' }) } },
       { status: 403 }
     )
   }

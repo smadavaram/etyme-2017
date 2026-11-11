@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { ladderFor, rateWords } from '@/lib/billing-cascade'
 
 /**
@@ -59,7 +59,7 @@ export async function GET(
   }
   if (!hasPermission(caller.permissions, 'invoices.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Seeing purchase orders', needs: 'invoices.read', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Seeing purchase orders', needs: 'invoices.read' }) } },
       { status: 403 }
     )
   }
@@ -107,7 +107,7 @@ export async function POST(
   }
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Agreeing payment terms', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Agreeing payment terms', needs: 'invoices.issue' }) } },
       { status: 403 }
     )
   }

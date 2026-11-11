@@ -3,10 +3,10 @@ import { minorPerUnit } from '@/lib/money'
 import { orderLedgers, linesBilled } from '@/lib/money/order-ledger'
 import { fromUnits } from '@/lib/money-display'
 import type { Prisma } from '@prisma/client'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk, moneyTrailFor } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { mayReadPayOf, payTrail, mayReadBillRate, billTrail } from '@/lib/money/pay-visibility'
 import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
 import { linesForReader } from '@/lib/money/order-lines-read'
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message: reading.seat
             ? seatedRefusal(reading.seat, 'Purchase orders')
-            : askTheDesk({ doing: 'Seeing purchase orders', needs: 'invoices.read', kind: caller.company?.kind, companyName: caller.company?.name }),
+            : refusalFor(caller, { doing: 'Seeing purchase orders', needs: 'invoices.read' }),
         },
       },
       { status: 403 }
@@ -351,11 +351,9 @@ export async function POST(request: NextRequest) {
           code: 'FORBIDDEN',
           message: desk.seat
             ? seatedRefusal(desk.seat, 'Raising a purchase order')
-            : askTheDesk({
+            : refusalFor(caller, {
                 doing: 'Raising a purchase order',
                 needs: RAISES_AN_ORDER,
-                kind: caller.company.kind,
-                companyName: caller.company.name,
               }),
         },
       },
@@ -836,11 +834,9 @@ export async function PATCH(request: NextRequest) {
           code: 'FORBIDDEN',
           message: desk.seat
             ? seatedRefusal(desk.seat, 'Changing a purchase order')
-            : askTheDesk({
+            : refusalFor(caller, {
                 doing: 'Changing a purchase order',
                 needs: RAISES_AN_ORDER,
-                kind: caller.company.kind,
-                companyName: caller.company.name,
               }),
         },
       },

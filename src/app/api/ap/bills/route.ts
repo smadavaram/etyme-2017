@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkPayeeBank } from '@/lib/money/bank-check-read'
 import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
@@ -750,7 +750,7 @@ export async function PATCH(request: NextRequest) {
           message:
             seated && !seated.ok
               ? seated.says
-              : askTheDesk({ doing: 'Recording a payment', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }),
+              : refusalFor(caller, { doing: 'Recording a payment', needs: 'payments.record' }),
         },
       },
       { status: 403 }

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { planCyclesFor, extensionPlan } from '@/lib/contract-cycles'
 import { localKey } from '@/lib/cycle-generator'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { endsPastLimit, evaluateGovernance } from '@/lib/governance'
 import { loadContractHolidays } from '@/lib/holidays'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
@@ -94,7 +94,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({ doing: 'Extending a placement', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
+          message: refusalFor(caller, { doing: 'Extending a placement', needs: 'assignments.write' }),
         },
       },
       { status: 403 }

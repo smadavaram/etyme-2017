@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DEFAULT_CURRENCY, rate } from '@/lib/money-display'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { isConsultantSeat } from '@/lib/seat'
 import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
 import { assessRateChange } from '@/lib/contract-rate'
@@ -43,11 +43,9 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Deciding a rate change',
             needs: ['rates.write', 'assignments.write'],
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },
@@ -122,11 +120,9 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Deciding what somebody is paid',
             needs: 'consultants.cost',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },

@@ -4,8 +4,8 @@ import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import type { Prisma } from '@prisma/client'
 import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
 import { listScope } from '@/lib/money/own-scope'
 import { refusalSentence } from '@/lib/refusal-words'
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({ doing: 'Writing a contract', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
+          message: refusalFor(caller, { doing: 'Writing a contract', needs: 'assignments.write' }),
         },
       },
       { status: 403 }

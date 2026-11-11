@@ -5,8 +5,8 @@ import { duplicateDraftsAt } from '@/lib/money/duplicate-drafts'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { matchInvoice } from '@/lib/invoice-match'
 import { readReceipt } from '@/lib/money/receipt-read'
-import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { fromPrismaDecimal } from '@/lib/money'
 import {
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message: reading?.seat
             ? seatedRefusal(reading.seat, 'The invoice book')
-            : askTheDesk({ doing: 'Reading the invoice book', needs: 'invoices.read', kind: caller.company?.kind, companyName: caller.company?.name }),
+            : refusalFor(caller, { doing: 'Reading the invoice book', needs: 'invoices.read' }),
         },
       },
       { status: 403 }

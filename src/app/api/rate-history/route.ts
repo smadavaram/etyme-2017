@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_CURRENCY } from '@/lib/money-display'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { assessRateChange, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { proposeBackPay } from '@/lib/money/back-pay'
 import { tellWorkerOfPayChange } from '@/lib/money/pay-change-notice'
@@ -70,11 +70,9 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Reading what a placement has been priced at',
             needs: TO_READ,
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },
@@ -280,11 +278,9 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Reading what somebody is paid',
             needs: 'consultants.cost',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },
@@ -368,11 +364,9 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Recording a rate change',
             needs: 'assignments.write',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },
@@ -453,11 +447,9 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
+          message: refusalFor(caller, {
             doing: 'Changing what somebody is paid',
             needs: 'consultants.cost',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
           }),
         },
       },

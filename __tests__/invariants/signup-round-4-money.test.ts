@@ -183,7 +183,7 @@ describe('no money route or page hands somebody a permission key', () => {
   it('the invoice book and the orders list refuse by naming the desk', () => {
     for (const f of ['src/app/api/invoices/route.ts', 'src/app/api/purchase-orders/route.ts']) {
       const src = whatShips(read(f))
-      expect(src, f).toMatch(/askTheDesk\(\{ doing: '(Reading the invoice book|Seeing purchase orders)', needs: 'invoices\.read'/)
+      expect(src, f).toMatch(/refusalFor\(caller, \{ doing: '(Reading the invoice book|Seeing purchase orders)', needs: 'invoices\.read'/)
     }
   })
 })

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { getCallerContext, realPersonId, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 import { decimalsFor } from '@/lib/money'
 
 /**
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            askTheDesk({ doing: 'Setting a credit limit', needs: 'pnl.read', kind: caller.company?.kind, companyName: caller.company?.name }) + ' It is a decision about how much of this ' +
+            refusalFor(caller, { doing: 'Setting a credit limit', needs: 'pnl.read' }) + ' It is a decision about how much of this ' +
             'client the firm is willing to carry.',
         },
       },
