@@ -11,6 +11,9 @@ import {
   type GrantRow,
   type Seat,
 } from '@/lib/permission-grants'
+import { isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy } from '@/lib/identity/policy'
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
+import { PERMISSIONS } from '@/lib/permissions'
 
 /**
  * What the Owner gave one of the person's own seats beyond its role, for
@@ -96,4 +99,39 @@ export async function seatGrantFacts(seat: Seat, rolePermissions: readonly strin
         .catch(() => [] as { id: string; name: string }[])
     : []
   return grantFactsFrom(seat, rolePermissions, rows, new Map(units.map((u) => [u.id, u.name])))
+}
+
+/** What the shell says on an invited public-address seat. */
+export const LIMITED_SEAT_SAYS =
+  'Invited on a public address: this seat does not bill, pay, run payroll, raise orders or award.'
+
+/**
+ * An invited seat on a public address (Gmail and the rest) at a hybrid
+ * company never holds the money and signing acts (founder, 2026-11-11).
+ * The one caller check takes them off every request; this takes them off
+ * what `/api/me` tells the menu, the + button and search, by the same two
+ * functions and the same reading of the address, so no link is drawn that
+ * its route will refuse. Any other seat is returned unchanged. Pure.
+ */
+export function limitForPublicSeat(
+  facts: SeatGrantFacts,
+  rolePermissions: readonly string[],
+  policy: CompanyPolicy | null,
+  email: string
+): { facts: SeatGrantFacts; rolePermissions: readonly string[]; limited: string | null } {
+  const own = domainOfEmail(email)
+  if (!isLimitedPublicSeat(policy, !own || isConsumerDomain(own))) {
+    return { facts, rolePermissions, limited: null }
+  }
+  const narrow = (held: readonly string[]) => narrowForPublicSeat(held, PERMISSIONS)
+  return {
+    facts: {
+      ...facts,
+      permissions: narrow(facts.permissions),
+      menuPermissions: narrow(facts.menuPermissions),
+      granted: narrow(facts.granted),
+    },
+    rolePermissions: narrow(rolePermissions),
+    limited: LIMITED_SEAT_SAYS,
+  }
 }

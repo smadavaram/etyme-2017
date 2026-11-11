@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { mayReadBenchProfit, peopleInReach, benchReachSays, FIRM_WIDE_ONLY_SAYS } from '@/lib/bench-profit'
 import { opensLine, firmWideRefusal } from '@/lib/consultant-portfolio/margin-reach'
 import { rateOnEndingSoon } from '@/lib/releasing-soon'
-import { grantFactsFrom, reachWords } from '@/app/api/me/grants'
+import { grantFactsFrom, reachWords, limitForPublicSeat, LIMITED_SEAT_SAYS } from '@/app/api/me/grants'
+import { PUBLIC_SEAT_WITHHELD } from '@/lib/identity/policy'
 import { ownCommissionRow, ownCommissionsAsk, monthOf, MARGIN_WITHHELD_SAYS, type OwnRowFacts } from '@/lib/consultant-portfolio/own-commissions'
 import type { GrantRow } from '@/lib/permission-grants'
 
@@ -164,6 +165,46 @@ describe('/api/me says what a grant gave the seat', () => {
   it('/api/me hands every seat its grant facts, the active one included', () => {
     const route = src('src/app/api/me/route.ts')
     expect(route.match(/\.\.\.seatFacts\(/g)?.length).toBe(2)
+  })
+})
+
+describe('/api/me tells an invited public-address seat only what its routes honor', () => {
+  const role = ['submissions.read', 'invoices.issue', 'payroll.run', 'orders.raise', 'timesheets.read']
+  const facts = {
+    permissions: [...role, 'payments.record'], menuPermissions: [...role, 'payments.record'],
+    granted: ['payments.record'], grants: [], mayGiveAccess: false,
+  }
+  const hybrid = { companyId: 'tapin', companyName: 'Tapin', mode: 'HYBRID' as const, issuers: [] }
+
+  it('an invited public-address seat at a hybrid company is told only the permissions its routes will honor, so its menu offers no link that refuses it', () => {
+    const r = limitForPublicSeat(facts, role, hybrid, 'partner@gmail.com')
+    for (const p of PUBLIC_SEAT_WITHHELD) {
+      expect(r.facts.permissions).not.toContain(p)
+      expect(r.facts.menuPermissions).not.toContain(p)
+      expect(r.facts.granted).not.toContain(p)
+      expect(r.rolePermissions).not.toContain(p)
+    }
+    expect(r.facts.permissions).toEqual(['submissions.read', 'timesheets.read'])
+    expect(r.limited).toBe(LIMITED_SEAT_SAYS)
+    // A role holding everything is spelled out, then narrowed, never left as `*`.
+    expect(limitForPublicSeat({ ...facts, permissions: ['*'], menuPermissions: ['*'] }, ['*'], hybrid, 'partner@gmail.com').facts.permissions).not.toContain('*')
+    // The route reads it through the caller check's own functions and policy reader.
+    const route = src('src/app/api/me/route.ts')
+    expect(route).toContain('limitForPublicSeat(')
+    expect(route).toContain('seatCompanyPolicy(')
+    expect(src('src/app/api/me/grants.ts')).toContain('isLimitedPublicSeat(')
+  })
+
+  it('a seat on the company\u2019s own domain, or at a company that is not hybrid, is told its role\u2019s permissions unchanged', () => {
+    const own = limitForPublicSeat(facts, role, hybrid, 'sharath@tapin.example')
+    expect(own.facts).toBe(facts)
+    expect(own.rolePermissions).toBe(role)
+    expect(own.limited).toBeNull()
+    for (const policy of [null, { ...hybrid, mode: 'INVITE_ONLY' as const }]) {
+      const r = limitForPublicSeat(facts, role, policy, 'partner@gmail.com')
+      expect(r.facts).toBe(facts)
+      expect(r.limited).toBeNull()
+    }
   })
 })
 

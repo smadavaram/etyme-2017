@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext, seatCompanyPolicy } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { seatGrantFacts, type SeatGrantFacts } from './grants'
+import { seatGrantFacts, limitForPublicSeat, type SeatGrantFacts } from './grants'
 
 /**
  * GET /api/me
@@ -50,7 +50,14 @@ export async function GET(request: NextRequest) {
         where: { revokedAt: null },
         include: {
           company: {
-            select: { id: true, name: true, slug: true, kind: true, homeCurrency: true },
+            select: {
+              id: true, name: true, slug: true, kind: true, homeCurrency: true,
+              // How the company's people sign in, read the way the one
+              // caller check reads it (seatCompanyPolicy), so an invited
+              // public-address seat is narrowed here as it is on every route.
+              signInPolicy: { select: { mode: true } },
+              identityProviders: { where: { enabled: true }, select: { issuer: true } },
+            },
           },
           role: {
             select: { id: true, name: true, permissions: true },
@@ -90,13 +97,33 @@ export async function GET(request: NextRequest) {
   // that draws a link or a button from here sees a granted permission the
   // way the one caller check does. A view of reach, never more: only the
   // person's own seats, only grants at that seat's own company.
-  const grantFacts = new Map<string, SeatGrantFacts>()
+  const grantFacts = new Map<string, { facts: SeatGrantFacts; rolePermissions: readonly string[]; limited: string | null }>()
   await Promise.all(
     person.contexts.map(async (c) => {
-      grantFacts.set(c.id, await seatGrantFacts({ companyId: c.companyId, roleId: c.roleId, contextId: c.id }, (c.role?.permissions as string[]) ?? []))
+      const rolePermissions = (c.role?.permissions as string[]) ?? []
+      const facts = await seatGrantFacts({ companyId: c.companyId, roleId: c.roleId, contextId: c.id }, rolePermissions)
+      // An invited seat on a public address at a hybrid company is told only
+      // what its routes will honor (founder, 2026-11-11), by the caller
+      // check's own two functions.
+      grantFacts.set(c.id, limitForPublicSeat(facts, rolePermissions, seatCompanyPolicy(c.company as any), person.primaryEmail))
     })
   )
-  const seatFacts = (id: string) => grantFacts.get(id) ?? { permissions: [], menuPermissions: [], granted: [], grants: [], mayGiveAccess: false }
+  const empty: SeatGrantFacts = { permissions: [], menuPermissions: [], granted: [], grants: [], mayGiveAccess: false }
+  const seatFacts = (id: string) => {
+    const f = grantFacts.get(id)
+    return f ? (f.limited ? { ...f.facts, limited: f.limited } : f.facts) : empty
+  }
+  const roleOf = (ctx: (typeof person.contexts)[number]) =>
+    ctx.role
+      ? { id: ctx.role.id, name: ctx.role.name, permissions: grantFacts.get(ctx.id)?.rolePermissions ?? ctx.role.permissions }
+      : null
+  // The seat's company, without the policy fields read beside it.
+  const companyOf = (ctx: (typeof person.contexts)[number]) => {
+    if (!ctx.company) return ctx.company
+    const { signInPolicy: _p, identityProviders: _d, ...company } = ctx.company
+    void _p; void _d
+    return company
+  }
 
   return NextResponse.json({
     data: {
@@ -115,10 +142,8 @@ export async function GET(request: NextRequest) {
       contexts: person.contexts.map((ctx) => ({
         id: ctx.id,
         type: ctx.type,
-        company: ctx.company,
-        role: ctx.role
-          ? { id: ctx.role.id, name: ctx.role.name, permissions: ctx.role.permissions }
-          : null,
+        company: companyOf(ctx),
+        role: roleOf(ctx),
         ...seatFacts(ctx.id),
         grantedAt: ctx.grantedAt.toISOString(),
       })),
@@ -126,10 +151,8 @@ export async function GET(request: NextRequest) {
         ? {
             id: activeContext.id,
             type: activeContext.type,
-            company: activeContext.company,
-            role: activeContext.role
-              ? { id: activeContext.role.id, name: activeContext.role.name, permissions: activeContext.role.permissions }
-              : null,
+            company: companyOf(activeContext),
+            role: roleOf(activeContext),
             ...seatFacts(activeContext.id),
           }
         : null,
