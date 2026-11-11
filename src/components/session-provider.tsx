@@ -108,6 +108,13 @@ export interface SessionState {
    */
   earnsCommission: boolean
   /**
+   * This person is Etyme's Superadmin: their address is on
+   * ETYME_STAFF_EMAILS (founder, 2026-11-11). Read on the server by the
+   * layout and used only to draw the account menu's "Superadmin" line; the
+   * screen behind it asks the route, which refuses everybody else.
+   */
+  superadmin?: boolean
+  /**
    * The region this seat reads, where it sits on a REGION unit
    * (lib/region-scope), or null. Read on the server for the reason `seat`
    * is: the menu is drawn before any fetch, and a region seat's menu is
@@ -250,6 +257,7 @@ export function SessionProvider({
   termsHref = null,
   filesAWeek = false,
   earnsCommission = false,
+  superadmin = false,
   region = null,
   hat = null,
   granted = null,
@@ -279,6 +287,8 @@ export function SessionProvider({
   filesAWeek?: boolean
   /** This person earns commission at the seat's firm, read on the server. */
   earnsCommission?: boolean
+  /** This person's address is on Etyme's staff list. Read on the server. */
+  superadmin?: boolean
   /** The region this seat reads, if it sits on a REGION unit. Read on the server. */
   region?: string | null
 }) {
@@ -407,7 +417,7 @@ export function SessionProvider({
   }, [state.seats, state.activeContextId])
 
   return (
-    <SessionContext.Provider value={{ ...state, hat: effective }}>
+    <SessionContext.Provider value={{ ...state, hat: effective, superadmin }}>
       <SwitchHatContext.Provider value={switchHat}>{children}</SwitchHatContext.Provider>
     </SessionContext.Provider>
   )

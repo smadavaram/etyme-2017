@@ -19,6 +19,8 @@ vi.mock('@/lib/db', () => ({
     company: { findUnique: async ({ where }: any) => h.company.find((c) => c.id === where.id) ?? null },
     person: { findUnique: async () => null },
     modelPrompt: {
+      // The trial's start (lib/model-allowance, 2026-11-11): nobody here has asked before.
+      findFirst: async () => null,
       aggregate: async ({ where }: any) => {
         const total = where.personId ? h.sums.person : h.sums.company
         return { _sum: { tokensIn: total, tokensOut: 0 } }
@@ -43,7 +45,7 @@ const NOW = new Date('2026-11-11T15:00:00Z')
 const FREE_TEXT = 'Which supplier is slowest to send its invoice?'
 
 /** The real reader's own composition (read.ts): the allowance's verdict, held or not. */
-async function allowanceOf(companyId: string, personId: string, env = LIMITS): Promise<AllowanceHeld | null> {
+async function allowanceOf(companyId: string, personId: string, env: Record<string, string | undefined> = LIMITS): Promise<AllowanceHeld | null> {
   const v = await askEtymeAllowanceFor(companyId, personId, NOW, env)
   return v.may ? null : { says: v.says, links: v.links }
 }

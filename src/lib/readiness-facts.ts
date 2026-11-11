@@ -14,6 +14,7 @@ import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/l
 import { INBOUND_SECRET_ENV } from '@/lib/texts'
 import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
 import { modelHealth } from '@/lib/model-health'
+import { currentAllowanceLimits } from '@/lib/model-allowance'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -34,7 +35,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   // than a count of button clicks.
   const inbound = { secretSet: Boolean(process.env[INBOUND_SECRET_ENV]), signedDeliveries: null }
 
-  const m = modelHealth()
+  // The allowance in force: the Superadmin screen first, the environment second.
+  const m = modelHealth(process.env, await currentAllowanceLimits())
   const modelIds = { supported: m.idsSupported, says: m.says }
 
   const empty: ReadinessFacts = {

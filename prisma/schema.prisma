@@ -54,6 +54,10 @@ model Person {
   modelPrompts             ModelPrompt[]
   /// Their Ask Etyme conversation, one per company seat (2026-10-18).
   askEtymeThreads          AskEtymeThread[]
+  /// Platform settings this person last set as Etyme's Superadmin (2026-11-11).
+  platformSettingsSet      PlatformSetting[]         @relation("platformSettingSetter")
+  /// Every platform setting change this person made as Superadmin.
+  platformSettingChanges   PlatformSettingChange[]   @relation("platformSettingChanger")
   benchWantsWritten        BenchWant[]               @relation("benchWantAuthor")
   benchWantsReceived       BenchWant[]               @relation("benchWantReceiver")
   benchHolidaySwitches     BenchHolidaySwitch[]      @relation("benchHolidaySubject")
@@ -9669,6 +9673,50 @@ model TwinApproval {
 
   @@index([companyId, decision])
   @@index([approverPersonId])
+}
+
+/// A number the whole deployment runs on, set by Etyme's Superadmin (the
+/// addresses on ETYME_STAFF_EMAILS) from the Superadmin screen, never by a
+/// company (founder, 2026-11-11: "I should be able to configure that in the
+/// Superadmin screen"). Platform settings only: no column here names a
+/// company, a person's data or a figure about anybody's money. The first two
+/// keys are Ask Etyme's limits, ASK_ETYME_PERSON_DAILY_TOKENS and
+/// ASK_ETYME_COMPANY_MONTHLY_TOKENS; a key set here beats the environment
+/// variable of the same name, and a key absent here falls back to it.
+/// One door: lib/platform-settings.
+model PlatformSetting {
+  /// The setting's name, the same as its environment variable.
+  key        String   @id
+  /// The value as typed and checked by the one door; a number is its digits.
+  value      String
+  /// Who set it last, and when. The address is kept beside the person so the
+  /// line still says who after the person row is gone.
+  setById    String?
+  setBy      Person?  @relation("platformSettingSetter", fields: [setById], references: [id], onDelete: SetNull)
+  setByEmail String
+  setAt      DateTime @default(now())
+
+  @@index([setById])
+}
+
+/// One change to a platform setting: who, when, the value before and the
+/// value after. Written in the same transaction as the setting, never
+/// edited, never deleted. A null value means "not set here", so the
+/// deployment's environment variable decides.
+model PlatformSettingChange {
+  id String @id @default(cuid())
+
+  key            String
+  oldValue       String?
+  newValue       String?
+  changedById    String?
+  changedBy      Person?  @relation("platformSettingChanger", fields: [changedById], references: [id], onDelete: SetNull)
+  changedByEmail String
+  changedAt      DateTime @default(now())
+
+  @@index([key, changedAt])
+  @@index([changedAt])
+  @@index([changedById])
 }
 
 /// One free-text question that left for a model, and its answer, both

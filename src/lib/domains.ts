@@ -397,6 +397,10 @@ export const DOMAINS: Domain[] = [
       // Ask Etyme's allowance per person and company; and whether the key
       // and the ids are ready, for health and /ready (2026-11-11).
       'lib/model-ids', 'lib/model-allowance', 'lib/model-health',
+      // The Superadmin screen (founder, 2026-11-11): platform settings set
+      // by Etyme's own staff, never a company's data; first, Ask Etyme's two
+      // limits, which lib/model-allowance reads before its environment.
+      'lib/platform-settings', 'lib/ask-etyme-limits', 'app/api/superadmin', 'app/dashboard/superadmin',
       // Forwarded business email, received securely (founder, 2026-10-22,
       // "security beats everything"): the address, the checks, the hold,
       // the log, the switch and the nightly deletion. The cards each kind

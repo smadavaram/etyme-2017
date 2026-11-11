@@ -5,7 +5,7 @@ import { SessionProvider, type SessionSeat, type SessionGrants } from '@/compone
 import { DemoBanner } from '@/components/demo-banner'
 import { SectionPills } from '@/components/shell/section-pills'
 import { SetupReminder } from '@/components/setup-reminder'
-import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext, isStaffAddress } from '@/lib/api-context'
 import { deniedFor, type Denied } from '@/lib/denied'
 import { DeniedScreen } from '@/components/denied'
 import { ownPageFor } from '@/lib/portfolio-data'
@@ -256,6 +256,19 @@ async function readerEarnsCommission(): Promise<boolean> {
   }
 }
 
+/**
+ * Is the reader Etyme's Superadmin, an address on ETYME_STAFF_EMAILS
+ * (founder, 2026-11-11)? Only draws the account menu's "Superadmin" line;
+ * the screen behind it is guarded by its own route. Fails closed.
+ */
+async function readerIsSuperadmin(): Promise<boolean> {
+  try {
+    return isStaffAddress(await getSessionEmail())
+  } catch {
+    return false
+  }
+}
+
 async function readersRegion(): Promise<string | null> {
   try {
     const { caller } = await getCallerContext()
@@ -291,13 +304,13 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted, earnsCommission] = await Promise.all([
+  const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted, earnsCommission, superadmin] = await Promise.all([
     readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(), readersRegion(), readersHat(),
-    readersGrants(), readerEarnsCommission(),
+    readersGrants(), readerEarnsCommission(), readerIsSuperadmin(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted} earnsCommission={earnsCommission}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted} earnsCommission={earnsCommission} superadmin={superadmin}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to

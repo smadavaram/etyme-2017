@@ -1,4 +1,5 @@
 import { modelHealth } from '@/lib/model-health'
+import { currentAllowanceLimits } from '@/lib/model-allowance'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { senderStatus, emailSender } from '@/lib/senders'
@@ -140,7 +141,9 @@ export async function GET() {
         // says so rather than failing quietly.
         // Whether the key is present and every model id this build sends is
         // one it supports (lib/model-ids). Read without calling the provider.
-        model: modelHealth(),
+        // The allowance in force: the Superadmin screen first, the environment
+        // second; with no database, the environment alone.
+        model: modelHealth(process.env, database.ok ? await currentAllowanceLimits() : undefined),
         // "Working" was the whole answer on a site nobody outside could
         // sign in to. The machine being up is one fact; whether a real
         // company could use it is /ready's, and this points there.

@@ -23,6 +23,8 @@ vi.mock('@/lib/db', () => ({
     },
     person: { findUnique: async () => null },
     modelPrompt: {
+      // The trial's start (lib/model-allowance, 2026-11-11): nobody here has asked before.
+      findFirst: async () => null,
       aggregate: async ({ where }: any) => {
         h.wheres.push(where)
         const total = where.personId ? h.sums.person : h.sums.company
