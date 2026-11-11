@@ -9,7 +9,7 @@ import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { mayOpen } from '@/lib/nav-table'
 import { HatList } from '@/components/shell/hat-list'
-import { SuperadminLine } from '@/components/shell/superadmin-line'
+import { LimitedSeatLine, SuperadminLine } from '@/components/shell/superadmin-line'
 
 /**
  * The navigation, on a phone.
@@ -192,6 +192,7 @@ function Account({
       <HatList roomy />
       {/* Etyme's own platform tools, staff list only (founder, 2026-11-11). */}
       <SuperadminLine roomy />
+      <LimitedSeatLine roomy />
     <div className="px-4 py-3">
       <p className="text-[13px] font-medium text-etyme-ink truncate">{name || 'Signed in'}</p>
       {email && <p className="text-[12px] text-etyme-muted truncate">{email}</p>}

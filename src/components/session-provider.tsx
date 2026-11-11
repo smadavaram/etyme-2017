@@ -115,6 +115,12 @@ export interface SessionState {
    */
   superadmin?: boolean
   /**
+   * The one sentence /api/me says where this seat is an invited public
+   * address at a hybrid company (founder, 2026-11-11): what the seat does
+   * not do. Null for every other seat. Drawn once, in the account menu.
+   */
+  limited?: string | null
+  /**
    * The region this seat reads, where it sits on a REGION unit
    * (lib/region-scope), or null. Read on the server for the reason `seat`
    * is: the menu is drawn before any fetch, and a region seat's menu is
@@ -345,6 +351,7 @@ export function SessionProvider({
           region,
           seats: seatLinesFrom(body.data?.contexts),
           activeContextId: active?.id ?? null,
+          limited: typeof active?.limited === 'string' ? active.limited : null,
           loading: false,
           error: null,
         })

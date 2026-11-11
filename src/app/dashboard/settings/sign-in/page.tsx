@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Check, ErrorState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea, Chip } from '@/components/ui'
+import { momentFor, readerZone } from '@/lib/when'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords } from '@/lib/identity/screen-words'
 
 /**
@@ -62,7 +63,7 @@ async function readJson<T>(res: Response): Promise<T> {
   return body as T
 }
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '')
+const when = (iso: string | null) => (iso ? momentFor(new Date(iso), readerZone()) : '')
 
 export default function SignInSettings() {
   const eyebrow = usePageSection('/dashboard/settings/sign-in')

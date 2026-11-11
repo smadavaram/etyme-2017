@@ -93,6 +93,9 @@ export const DELETE_ORDER = [
   // A change to the team structure (2026-11-09) names the person who made
   // it, a seat, a box and a line; it goes before all of them.
   'OrgChange',
+  // A directory group mapped to a role (identity, 2026-11-11) names the
+  // role and the identity provider, so it goes before both.
+  'DirectoryGroupRole',
   'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'ProgramSeatRequest', 'TradeLinkRequest', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
@@ -139,6 +142,13 @@ export const DELETE_ORDER = [
   // answer came from, the addresses and the people in charge, all before
   // the company they belong to.
   'SetupItem', 'SetupAnswer', 'CompanyAddress', 'CompanyInCharge',
+  // Identity (2026-11-11): a seat names the directory identity it came
+  // from, so the identities go after the seats and before their provider;
+  // the provider, the SCIM tokens, the directory read and the sign-in
+  // policy before the company and the people who set them. The platform's
+  // own settings name only who set them, so they go before the person.
+  'ExternalIdentity', 'IdentityProvider', 'ScimToken', 'DirectoryConnection', 'CompanySignInPolicy',
+  'PlatformSettingChange', 'PlatformSetting',
   'OvertimeDecision', 'Invoice', 'Expense', 'VendorBill', 'LedgerAccount', 'JournalEntry', 'Conversation',
   'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',
@@ -361,7 +371,17 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Check.recordId': { as: 'RECORD' },
   'TextMessage.aboutId': { as: 'RECORD' },
   'CensusRead.fileId': { as: 'RECORD' },
+  // Identity (2026-11-11): who ended a person's sessions and who revoked a
+  // SCIM token, kept as history.
+  'Person.sessionsEndedById': { as: 'RECORD' },
+  'ScimToken.revokedById': { as: 'RECORD' },
   // Not ids of ours at all: a provider's, a tax authority's, or a word.
+  // A directory's own ids: Google's customer id, the client id and entity
+  // id Etyme is registered under, a directory group's id.
+  'DirectoryConnection.customerId': { as: 'RECORD' },
+  'IdentityProvider.clientId': { as: 'RECORD' },
+  'IdentityProvider.entityId': { as: 'RECORD' },
+  'DirectoryGroupRole.groupId': { as: 'RECORD' },
   'Credential.providerId': { as: 'RECORD' },
   'Company.taxId': { as: 'RECORD' },
   'RemitTo.taxId': { as: 'RECORD' },

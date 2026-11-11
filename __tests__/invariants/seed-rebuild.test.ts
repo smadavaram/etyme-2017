@@ -30,6 +30,10 @@ describe('rebuilding the demo world', () => {
     expect(new Set(DELETE_ORDER).size).toBe(DELETE_ORDER.length)
   })
 
+  it('every model has an id column, because the rebuild reads and deletes every table by it', () => {
+    expect(MODELS.filter((m) => !m.fields.some((f) => f.name === 'id' && f.isId)).map((m) => m.name)).toEqual([])
+  })
+
   it('deletes every row before the row it points at, so no foreign key is ever left dangling mid-transaction', () => {
     const at = new Map(DELETE_ORDER.map((m, i) => [m as string, i]))
     const wrong: string[] = []

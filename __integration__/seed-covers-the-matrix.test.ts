@@ -182,6 +182,11 @@ const RUNTIME: Record<string, string> = {
   // failure claims somebody tried a password that nobody tried.
   emailToken: 'a one-time link mailed to confirm an email or reset a password; a seeded one would be a live way into an account',
   signInFailure: 'written when somebody enters a wrong password, so the door can slow down; a seeded one claims an attempt nobody made',
+  // Identity and the Superadmin screen (2026-11-11).
+  directoryConnection: 'written when a company\u2019s admin connects Google Workspace by consent; a seeded one would hold a sealed token Google never issued',
+  scimToken: 'issued when an Owner or Admin makes one for their directory; a seeded token is a live way to provision seats',
+  platformSetting: 'written when Etyme\u2019s Superadmin sets a number on the Superadmin screen; with none set the environment variable is the value, and a seeded one would override every deployment\u2019s own',
+  platformSettingChange: 'written by each change on the Superadmin screen, with who and when; a seeded one claims a change nobody made',
 }
 
 /**

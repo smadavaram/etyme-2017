@@ -253,3 +253,15 @@ describe('isolation: an invited public-address seat never moves money or signs, 
     expect(seatRefusal(ACME, { door: 'DIRECTORY', issuer: 'https://idp.stranger.example' })).not.toBeNull()
   })
 })
+
+describe('the invited public-address seat reads why on its own menu', () => {
+  it('the account menu, on a desktop and on a phone, shows the one sentence /api/me says for a limited seat, and nothing for any other seat', async () => {
+    const { readFileSync } = await import('node:fs')
+    const line = readFileSync('src/components/shell/superadmin-line.tsx', 'utf8')
+    expect(line).toMatch(/export function LimitedSeatLine[\s\S]*if \(!limited\) return null/)
+    expect(readFileSync('src/components/session-provider.tsx', 'utf8')).toMatch(/limited: typeof active\?\.limited === 'string' \? active\.limited : null/)
+    for (const f of ['src/components/shell/header.tsx', 'src/components/shell/mobile-nav.tsx']) {
+      expect(readFileSync(f, 'utf8').match(/<LimitedSeatLine\b/g)?.length, f).toBe(1)
+    }
+  })
+})

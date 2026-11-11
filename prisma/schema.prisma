@@ -9953,8 +9953,10 @@ model TwinApproval {
 /// variable of the same name, and a key absent here falls back to it.
 /// One door: lib/platform-settings.
 model PlatformSetting {
-  /// The setting's name, the same as its environment variable.
-  key        String   @id
+  /// Every model has an id (the demo rebuild reads every table by it).
+  id         String   @id @default(cuid())
+  /// The setting's name, the same as its environment variable; one row each.
+  key        String   @unique
   /// The value as typed and checked by the one door; a number is its digits.
   value      String
   /// Who set it last, and when. The address is kept beside the person so the

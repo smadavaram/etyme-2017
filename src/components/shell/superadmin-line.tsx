@@ -32,3 +32,19 @@ export function SuperadminLine({ onPicked, roomy = false }: {
     </Link>
   )
 }
+
+/**
+ * The account menu's one line for an invited seat on a public address at a
+ * hybrid company (founder, 2026-11-11): what this seat does not do, in the
+ * sentence /api/me gives, so the person reads why a money or signing act
+ * is not on their menu. Nothing for any other seat.
+ */
+export function LimitedSeatLine({ roomy = false }: { roomy?: boolean }) {
+  const { limited } = useSession()
+  if (!limited) return null
+  return (
+    <p className={`px-4 ${roomy ? 'py-3' : 'py-2.5'} text-[12px] leading-snug text-etyme-muted border-b border-etyme-rule`}>
+      {limited}
+    </p>
+  )
+}

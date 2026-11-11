@@ -287,6 +287,8 @@ export function worldStepNames(): string[] {
     'program-sites',
     // Every firm's setup checklist reads what the seed holds (2026-10-28).
     'setup-checklists',
+    // Northbend's mock company directory (2026-11-11, lib/identity/seed-mock).
+    'mock-directory',
     'own-seats',
     'claim',
   ]

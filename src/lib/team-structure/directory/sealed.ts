@@ -47,10 +47,16 @@ export function unseal(sealed: string, env: Env = process.env): string | null {
   const key = sealingKey(env)
   const parts = String(sealed ?? '').split('.')
   if (!key || parts.length !== 4 || parts[0] !== 'v1') return null
+  // Only the exact text `seal` wrote opens: base64url's last character
+  // carries spare bits a lenient decoder ignores, so a value with one of
+  // them changed would otherwise open as if untouched.
+  const [iv, tag, body] = parts.slice(1).map((p) => Buffer.from(p, 'base64url'))
+  if (b64u(iv) !== parts[1] || b64u(tag) !== parts[2] || b64u(body) !== parts[3]) return null
+  if (iv.length !== 12 || tag.length !== 16) return null
   try {
-    const d = createDecipheriv('aes-256-gcm', key, Buffer.from(parts[1], 'base64url'))
-    d.setAuthTag(Buffer.from(parts[2], 'base64url'))
-    return Buffer.concat([d.update(Buffer.from(parts[3], 'base64url')), d.final()]).toString('utf8')
+    const d = createDecipheriv('aes-256-gcm', key, iv)
+    d.setAuthTag(tag)
+    return Buffer.concat([d.update(body), d.final()]).toString('utf8')
   } catch {
     return null
   }
@@ -92,7 +98,7 @@ export function readState(state: string, now = Date.now(), env: Env = process.en
   if (!key || !body || !mac || extra !== undefined) return null
   const want = createHmac('sha256', key).update(body).digest()
   const got = Buffer.from(mac, 'base64url')
-  if (got.length !== want.length || !timingSafeEqual(got, want)) return null
+  if (b64u(got) !== mac || got.length !== want.length || !timingSafeEqual(got, want)) return null
   try {
     const s = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as ConsentState
     if (typeof s.companyId !== 'string' || typeof s.personId !== 'string' || typeof s.domain !== 'string' || typeof s.exp !== 'number') return null

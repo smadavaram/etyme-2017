@@ -51,7 +51,7 @@ import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { getNavForKind, mayOpen, pinnedOn, offersYouHat, menuFor, menuLinks, type Hat } from '@/lib/nav-table'
 import { HatList } from '@/components/shell/hat-list'
-import { SuperadminLine } from '@/components/shell/superadmin-line'
+import { LimitedSeatLine, SuperadminLine } from '@/components/shell/superadmin-line'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -769,6 +769,7 @@ export function Header({ title }: HeaderProps) {
               {/* Etyme's own platform tools, for an address on the staff
                   list only (founder, 2026-11-11). Draws nothing for anybody else. */}
               <SuperadminLine onPicked={() => setAccountOpen(false)} />
+              <LimitedSeatLine />
 
               {/* The third door onto the same two pages, and it was the
                   one that refused nobody: the menu and ⌘K both filter on

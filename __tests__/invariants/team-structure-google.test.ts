@@ -23,6 +23,25 @@ describe('the stored access', () => {
     expect(unseal(sealed.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A')), KEY)).toBeNull()
   })
 
+  it('a sealed value with any one byte of its secret changed does not open, whatever the nonce', () => {
+    for (let n = 0; n < 50; n++) {
+      const [v, iv, tag, body] = seal('1//refresh-token-value', KEY).split('.')
+      const b = Buffer.from(body, 'base64url')
+      b[n % b.length] ^= 0x01
+      expect(unseal([v, iv, tag, b.toString('base64url')].join('.'), KEY)).toBeNull()
+      const t = Buffer.from(tag, 'base64url')
+      t[n % t.length] ^= 0x80
+      expect(unseal([v, iv, t.toString('base64url'), body].join('.'), KEY)).toBeNull()
+    }
+  })
+
+  it('a sealed value whose last character differs only in its spare bits does not open', () => {
+    for (let n = 0; n < 50; n++) {
+      const sealed = seal('1//refresh-token-value', KEY)
+      expect(unseal(sealed.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A')), KEY)).toBeNull()
+    }
+  })
+
   it('two seals of one token differ, so a stored value says nothing about another', () => {
     expect(seal('same', KEY)).not.toBe(seal('same', KEY))
   })
