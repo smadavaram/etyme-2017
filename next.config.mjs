@@ -21,6 +21,11 @@ const nextConfig = {
       '/**/*': ['./node_modules/argon2/prebuilds/linux-x64/**'],
     },
   },
+  // SCIM 2.0 at the address a company's directory expects (2026-11-11):
+  // /scim/v2 is served by the routes under /api/scim/v2.
+  async rewrites() {
+    return [{ source: '/scim/v2/:path*', destination: '/api/scim/v2/:path*' }]
+  },
   // Old Rails directories — exclude from Next.js compilation
   webpack: (config) => {
     config.watchOptions = {

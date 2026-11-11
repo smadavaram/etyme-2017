@@ -70,6 +70,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'mock-directory/[slug]/jwks': 'The mock directory’s public signing key; demo companies on reserved domains only.',
   'mock-directory/[slug]/token': 'The mock directory’s token endpoint: a sealed one-minute code, the mock client secret and the PKCE verifier; demo companies on reserved domains only.',
   'mock-directory/[slug]/authorize': 'The mock directory’s sign-in page, labelled a mock; sends a code only to Etyme’s own directory callback; demo companies on reserved domains only.',
+  'scim/v2/**': 'A company’s directory provisioning by SCIM: the bearer token is the credential, stored hashed, compared in constant time, scoped to one company (lib/identity/scim).',
   'teams/messages': 'Microsoft Teams posting to the Etyme bot; the Bot Framework’s signed token is checked against our app id before anything is read (lib/teams/auth), and the account is then bound to a live seat whose permissions are the only ones used (lib/teams/binding).',
 }
 

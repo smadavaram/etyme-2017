@@ -1,4 +1,18 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const db = vi.hoisted(() => ({
+  externalIdentity: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  context: { findMany: vi.fn(), updateMany: vi.fn() },
+  person: { update: vi.fn(), findUnique: vi.fn() },
+  company: { findUniqueOrThrow: vi.fn(async () => ({ name: 'Northbend Athletic' })), findUnique: vi.fn() },
+  companySignInPolicy: { findUnique: vi.fn(async () => ({ mode: 'SSO_ONLY', scim: true })), findMany: vi.fn(async () => []) },
+  identityProvider: { findMany: vi.fn(async () => [{ issuer: 'https://mock-directory.etyme.invalid/world-nike' }]), findFirst: vi.fn() },
+  scimToken: { findUnique: vi.fn(), update: vi.fn(async () => ({})) },
+  accessLog: { createMany: vi.fn(async (_a: any) => ({ count: 1 })) },
+  incident: { create: vi.fn() },
+  $transaction: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({ prisma: db }))
 import { generateKeyPairSync, sign as cryptoSign } from 'node:crypto'
 import { verifyIdToken, safeOutboundUrl, openBlob, sealBlob, discoveryProblem, type Jwks } from '@/lib/identity/oidc'
 import {
@@ -177,5 +191,80 @@ describe('who may come in through which door, beyond the directory', () => {
     expect(directoryOnlyLockout({ ...base, door: 'DIRECTORY', issuer: 'https://other.example' })).not.toBeNull()
     expect(directoryOnlyLockout({ ...base, door: 'DIRECTORY', issuer: ISS })).toBeNull()
     expect(directoryOnlyLockout({ ...base, to: 'HYBRID', door: 'PASSWORD', issuer: null })).toBeNull()
+  })
+})
+
+describe('removing somebody in the directory removes them here, at once', () => {
+  const EI = { id: 'ei-mateo', personId: 'p-mateo', companyId: 'nb', email: 'mateo.silva@northbend.example', disabledAt: null, company: { name: 'Northbend Athletic' } }
+  const rows = () => db.accessLog.createMany.mock.calls.flatMap((c: any[]) => c[0].data)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    db.externalIdentity.findUnique.mockResolvedValue(EI)
+    db.$transaction.mockImplementation(async (fn: any) => fn(db))
+    db.accessLog.createMany.mockResolvedValue({ count: 1 })
+    db.companySignInPolicy.findUnique.mockResolvedValue({ mode: 'SSO_ONLY', scim: true })
+    db.identityProvider.findMany.mockResolvedValue([{ issuer: 'https://mock-directory.etyme.invalid/world-nike' }])
+    db.company.findUniqueOrThrow.mockResolvedValue({ name: 'Northbend Athletic' })
+  })
+
+  it('a person the directory turns off has their seat paused, every live session ended, and USER_DEPROVISIONED written, in one transaction', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-mateo', suspendedAt: null, role: { name: 'Hiring Manager' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-ines' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r.ok).toBe(true)
+    expect(db.$transaction).toHaveBeenCalledTimes(1)
+    expect(db.externalIdentity.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'ei-mateo' }, data: { disabledAt: expect.any(Date) } }))
+    expect(db.context.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['ctx-mateo'] } }, data: expect.objectContaining({ suspendedAt: expect.any(Date) }) }))
+    expect(db.person.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'p-mateo' }, data: expect.objectContaining({ sessionVersion: { increment: 1 } }) }))
+    const row = rows().find((x: any) => x.action === 'USER_DEPROVISIONED')
+    expect(row).toMatchObject({ subjectId: 'p-mateo', allowed: true })
+    expect(row.reason).toMatch(/^policy SSO_ONLY · surface SCIM · .*paused and every live session ended/)
+  })
+
+  it('the directory can never remove the last Owner: nothing changes, and the refusal is in the ledger', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-ines', suspendedAt: null, role: { name: 'Owner' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-mateo' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r).toMatchObject({ ok: false, status: 409 })
+    if (!r.ok) expect(r.says).toMatch(/last Owner/)
+    expect(db.$transaction).not.toHaveBeenCalled()
+    expect(db.person.update).not.toHaveBeenCalled()
+    expect(rows().find((x: any) => x.action === 'USER_DEPROVISIONED')).toMatchObject({ allowed: false })
+  })
+
+  it('another Owner turned off in the directory loses their directory sign-in and every session, and keeps the seat for another Owner to remove', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-ines', suspendedAt: null, role: { name: 'Owner' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-mateo' }, { id: 'ctx-other', personId: 'p-other' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r).toMatchObject({ ok: false, status: 409 })
+    expect(db.person.update).toHaveBeenCalled()
+    expect(db.context.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('a SCIM call with a token nobody issued, or one revoked, is refused and reaches no company', async () => {
+    const { scimCaller, hashToken } = await import('@/lib/identity/scim')
+    db.scimToken.findUnique.mockResolvedValueOnce(null)
+    expect((await scimCaller('Bearer etyme_scim_guess')).ok).toBe(false)
+    db.scimToken.findUnique.mockResolvedValueOnce({ id: 't', tokenHash: hashToken('etyme_scim_old'), revokedAt: new Date(), companyId: 'nb', company: { name: 'Northbend Athletic' } })
+    expect((await scimCaller('Bearer etyme_scim_old')).ok).toBe(false)
+    expect((await scimCaller(null)).ok).toBe(false)
+    expect(db.identityProvider.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('a SCIM call for a company that turned SCIM off is refused, written to the ledger first', async () => {
+    const { scimCaller, hashToken } = await import('@/lib/identity/scim')
+    db.scimToken.findUnique.mockResolvedValueOnce({ id: 't', tokenHash: hashToken('etyme_scim_live'), revokedAt: null, companyId: 'nb', company: { name: 'Northbend Athletic' } })
+    db.companySignInPolicy.findUnique.mockResolvedValue({ mode: 'HYBRID', scim: false })
+    db.identityProvider.findFirst.mockResolvedValueOnce({ id: 'idp', issuer: 'x' })
+    const r = await scimCaller('Bearer etyme_scim_live')
+    expect(r.ok).toBe(false)
+    expect(rows().find((x: any) => x.action === 'USER_PROVISIONED')).toMatchObject({ allowed: false })
   })
 })
