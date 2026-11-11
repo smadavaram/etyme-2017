@@ -63,6 +63,10 @@ interface ModelSetting {
   setAt: string | null
   canEdit: boolean
   prompts: PromptRow[]
+  /** Where the switch is on and the allowance holds it anyway, the sentence why. */
+  heldSays?: string | null
+  /** The allowance used, in plain words (lib/model-allowance); null where it could not be read. */
+  allowance?: { lines: string[] } | null
 }
 
 export function AskEtymePanel() {
@@ -137,6 +141,7 @@ export function AskEtymePanel() {
           ? 'On. A question the rules do not answer may be sent, masked.'
           : 'Off. Ask Etyme answers from the rules only and sends nothing.'}
       </p>
+      {data.on && data.heldSays && <p className="mb-2 text-[13px] text-etyme-attention">{data.heldSays}</p>}
       <ul className="mb-4 space-y-1 text-[13px] text-etyme-muted list-disc pl-5">
         {BOUNDARY_LINES.map((l) => <li key={l}>{l}</li>)}
       </ul>
@@ -165,6 +170,11 @@ export function AskEtymePanel() {
         </div>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mb-4">{setLine(data.setAt, data.setByName)}</p>
+      {data.allowance && data.allowance.lines.length > 0 && (
+        <div className="mb-4 space-y-1 text-[13px] text-etyme-ink tabular-nums">
+          {data.allowance.lines.map((l) => <p key={l}>{l}</p>)}
+        </div>
+      )}
       <ListSurface<PromptRow>
         name="model-prompts"
         columns={columns}

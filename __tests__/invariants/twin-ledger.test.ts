@@ -296,7 +296,9 @@ describe('the twin’s ledger', () => {
     expect(days.reduce((n, d) => n + d.count, 0)).toBe(2)
   })
   it('the model is off for a company until its settings desk turns it on, and who did is recorded', async () => {
-    T().company.push({ id: CLIENT, askEtymeModelOn: false, askEtymeModelSetById: null, askEtymeModelSetAt: null })
+    // Tapin's address, because with no allowance set only Tapin may send
+    // anything (lib/model-allowance); this sentence is about the switch alone.
+    T().company.push({ id: CLIENT, slug: 'tapin', askEtymeModelOn: false, askEtymeModelSetById: null, askEtymeModelSetAt: null })
     expect(await modelOnFor(CLIENT)).toBe(false)
     // A change with no reason is refused, and nothing moves.
     expect(await setModelOn(CLIENT, 'dana', true, '  ')).toMatchObject({ ok: false })

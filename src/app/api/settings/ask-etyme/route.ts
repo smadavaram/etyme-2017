@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasAnyPermission, hasPermission } from '@/lib/permissions'
 import { modelPromptsFor, modelSetUpHere, modelSwitchFor, setModelOn } from '@/lib/model-boundary'
+import { allowanceUsageFor } from '@/lib/model-allowance'
 
 /**
  * GET   /api/settings/ask-etyme — whether Ask Etyme may send free-text
@@ -29,7 +30,13 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  const [model, prompts] = await Promise.all([modelSwitchFor(caller.company.id), modelPromptsFor(caller.company.id, 20)])
+  const [model, prompts, allowance] = await Promise.all([
+    modelSwitchFor(caller.company.id),
+    modelPromptsFor(caller.company.id, 20),
+    // Usage in plain words beside the log (lib/model-allowance): the
+    // company's month and the reader's own day, never another person's.
+    allowanceUsageFor(caller.company.id, caller.person.id).then((u) => ({ lines: u.lines })).catch(() => null),
+  ])
   return NextResponse.json({
     data: {
       ...model,
@@ -39,6 +46,7 @@ export async function GET(request: NextRequest) {
       modelSetUp: modelSetUpHere(),
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
       prompts,
+      allowance,
     },
   })
 }

@@ -13,6 +13,7 @@ import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
 import { INBOUND_SECRET_ENV } from '@/lib/texts'
 import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
+import { modelHealth } from '@/lib/model-health'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -33,8 +34,12 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   // than a count of button clicks.
   const inbound = { secretSet: Boolean(process.env[INBOUND_SECRET_ENV]), signedDeliveries: null }
 
+  const m = modelHealth()
+  const modelIds = { supported: m.idsSupported, says: m.says }
+
   const empty: ReadinessFacts = {
     env,
+    modelIds,
     db: { reachable: false, schemaCurrent: false, ms: null },
     realCompanies: 0,
     realSignIns: 0,
@@ -100,6 +105,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
 
   return {
     env,
+    modelIds,
     db: { reachable: true, schemaCurrent, ms },
     realCompanies,
     realSignIns,

@@ -393,6 +393,10 @@ export const DOMAINS: Domain[] = [
       // The model boundary (2026-10-13): the per-company switch and the
       // log of what left. The masking at the edge is conversation's.
       'lib/model-boundary',
+      // Which model each kind of call uses, the one place an id is written;
+      // Ask Etyme's allowance per person and company; and whether the key
+      // and the ids are ready, for health and /ready (2026-11-11).
+      'lib/model-ids', 'lib/model-allowance', 'lib/model-health',
       // Forwarded business email, received securely (founder, 2026-10-22,
       // "security beats everything"): the address, the checks, the hold,
       // the log, the switch and the nightly deletion. The cards each kind

@@ -22,12 +22,19 @@
  */
 import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
+import { companyAllowanceFor } from '@/lib/model-allowance'
 
 export interface ModelSwitch {
   on: boolean
   setById: string | null
   setByName: string | null
   setAt: Date | null
+  /**
+   * Where the switch is on and nothing may leave anyway: the deployment has
+   * not opened free text for this company, or the company's month is used
+   * (lib/model-allowance). The sentence a person reads; null when nothing holds it.
+   */
+  heldSays: string | null
 }
 
 /**
@@ -48,8 +55,23 @@ export function modelSetUpHere(env: Record<string, string | undefined> = process
   return Boolean(env.ANTHROPIC_API_KEY?.trim())
 }
 
-/** Whether Ask Etyme may send a free-text question to a model for this company. Off unless set. */
+/**
+ * Whether a model may be sent anything for this company: the company's
+ * switch, and the deployment's allowance behind it (lib/model-allowance,
+ * 2026-11-11). With the allowance not set, only Tapin is open; past the
+ * company's month, nothing leaves until the 1st. Every caller of the switch
+ * reads this, so nothing reaches the provider past the line, whichever
+ * screen asked. The person's own day is read by Ask Etyme's path
+ * (`askEtymeAllowanceFor`), which knows who is asking.
+ */
 export async function modelOnFor(companyId: string): Promise<boolean> {
+  if (!(await switchOnFor(companyId))) return false
+  const allowance = await companyAllowanceFor(companyId)
+  return allowance.may
+}
+
+/** The company's own switch, alone. Off unless set. */
+async function switchOnFor(companyId: string): Promise<boolean> {
   const row = await prisma.company.findUnique({ where: { id: companyId }, select: { askEtymeModelOn: true } })
   return row?.askEtymeModelOn === true
 }
@@ -63,7 +85,9 @@ export async function modelSwitchFor(companyId: string): Promise<ModelSwitch> {
   const by = row?.askEtymeModelSetById
     ? await prisma.person.findUnique({ where: { id: row.askEtymeModelSetById }, select: { name: true } }).catch(() => null)
     : null
+  const allowance = row?.askEtymeModelOn === true ? await companyAllowanceFor(companyId) : null
   return {
+    heldSays: allowance && !allowance.may ? allowance.says : null,
     on: row?.askEtymeModelOn === true,
     setById: row?.askEtymeModelSetById ?? null,
     setByName: by?.name ?? null,

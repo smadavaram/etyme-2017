@@ -53,6 +53,12 @@ export interface ReadinessFacts {
     emailSender: boolean
     anthropic: boolean
   }
+  /**
+   * Whether every model id this build sends is one it supports, and the
+   * sentence (lib/model-health, read without calling the provider). Absent
+   * where nothing measured it.
+   */
+  modelIds?: { supported: boolean; says: string }
   db: {
     reachable: boolean
     /** The newest column the code reads is there. */
@@ -375,8 +381,14 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
 
   // ── Optional: the one model call ─────────────────────────────────────
   edges.push(
-    f.env.anthropic
-      ? { key: 'model', name: 'CV evidence check', state: 'SET', required: false, says: 'On.' }
+    f.env.anthropic && f.modelIds && !f.modelIds.supported
+      ? {
+          key: 'model', name: 'CV evidence check', state: 'MISSING', required: false,
+          says: `The key is set, but a model id is not one this build supports, so the first call would fail. ${f.modelIds.says}`,
+          fix: 'Remove the model override, or set it to a supported id.',
+        }
+      : f.env.anthropic
+      ? { key: 'model', name: 'CV evidence check', state: 'SET', required: false, says: f.modelIds ? `On. ${f.modelIds.says}` : 'On.' }
       : {
           key: 'model', name: 'CV evidence check', state: 'OFF', required: false,
           says: 'Off. The CV evidence check reports itself as unverified; every other check is arithmetic and runs anyway.',

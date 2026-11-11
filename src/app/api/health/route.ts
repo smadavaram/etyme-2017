@@ -1,3 +1,4 @@
+import { modelHealth } from '@/lib/model-health'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { senderStatus, emailSender } from '@/lib/senders'
@@ -137,9 +138,9 @@ export async function GET() {
         email: senders.find((s) => s.channel === 'EMAIL')!.note,
         // The one model call in the product. Off is a valid state and
         // says so rather than failing quietly.
-        model: process.env.ANTHROPIC_API_KEY
-          ? 'The CV evidence check is on.'
-          : 'No API key, so the CV evidence check is skipped and reports itself as unverified. Every other check is arithmetic and runs anyway.',
+        // Whether the key is present and every model id this build sends is
+        // one it supports (lib/model-ids). Read without calling the provider.
+        model: modelHealth(),
         // "Working" was the whole answer on a site nobody outside could
         // sign in to. The machine being up is one fact; whether a real
         // company could use it is /ready's, and this points there.

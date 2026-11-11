@@ -26,6 +26,7 @@
  * down on every run, so both are written down on every run.
  */
 
+import { MODEL_PRICES } from '@/lib/model-ids'
 import { prisma } from '@/lib/db'
 
 export type Verdict = 'PASS' | 'FAIL' | 'ERROR'
@@ -56,13 +57,7 @@ export type RecordType =
  * Cache reads are a tenth of the input price and cache writes are a
  * quarter more — the reason the scoring prompt is built stable-first.
  */
-const PRICES: Record<string, { in: number; out: number }> = {
-  'claude-opus-5': { in: 5, out: 25 },
-  'claude-opus-4-8': { in: 5, out: 25 },
-  'claude-sonnet-5': { in: 3, out: 15 },
-  'claude-sonnet-4-6': { in: 3, out: 15 },
-  'claude-haiku-4-5': { in: 1, out: 5 },
-}
+const PRICES = MODEL_PRICES
 
 /** What a model that is not in the table costs, per million tokens. */
 const UNKNOWN = { in: 5, out: 25 }
