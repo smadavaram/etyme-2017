@@ -257,21 +257,38 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash         String?
+  passwordHash           String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt      DateTime?
-  emailTokens          EmailToken[]
-  signInFailures       SignInFailure[]
-  adverseActionsGiven  AdverseAction[]
+  emailVerifiedAt        DateTime?
+  emailTokens            EmailToken[]
+  // ── Enterprise identity, pass 1 (founder, 2026-11-11) ──────────────
+  //
+  /// Raised by one to end every live session this person holds: a session
+  /// carries the number it was signed in under, and a session whose number
+  /// is behind this one is refused on its next request (lib/identity).
+  /// Raised by "sign out everywhere" today, and by a directory that
+  /// disables the person in pass 1's second stage.
+  sessionVersion         Int                   @default(0)
+  /// When it was last raised, and by whom, for the screen's one line.
+  sessionsEndedAt        DateTime?
+  sessionsEndedById      String?
+  /// The identities a company's directory vouches for: issuer and subject.
+  externalIdentities     ExternalIdentity[]
+  signInPoliciesSet      CompanySignInPolicy[] @relation("signInPolicySetBy")
+  identityProvidersSet   IdentityProvider[]    @relation("identityProviderSetBy")
+  scimTokensMade         ScimToken[]           @relation("scimTokenMadeBy")
+  directoryGroupRolesSet DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
+  signInFailures         SignInFailure[]
+  adverseActionsGiven    AdverseAction[]
   // Who set an exchange rate (2026-10-27).
-  fxRatesSet           FxRate[]             @relation("fxRateSetBy")
-  permissionsGranted   PermissionGrant[]    @relation("permissionGrantedBy")
-  permissionsRevoked   PermissionGrant[]    @relation("permissionRevokedBy")
-  submissionsSubmitted Submission[]         @relation("submissionSubmittedBy")
-  commissionsEarned    ContractCommission[] @relation("commissionEarnedBy")
-  commissionsSet       ContractCommission[] @relation("commissionSetBy")
+  fxRatesSet             FxRate[]              @relation("fxRateSetBy")
+  permissionsGranted     PermissionGrant[]     @relation("permissionGrantedBy")
+  permissionsRevoked     PermissionGrant[]     @relation("permissionRevokedBy")
+  submissionsSubmitted   Submission[]          @relation("submissionSubmittedBy")
+  commissionsEarned      ContractCommission[]  @relation("commissionEarnedBy")
+  commissionsSet         ContractCommission[]  @relation("commissionSetBy")
 
   @@index([name])
   @@index([createdAt])
@@ -424,9 +441,17 @@ model Context {
   /// Set when somebody was given a seat before ever signing in. Cleared on
   /// their first sign-in, so "invited" and "working" are never the same
   /// number reported upward.
-  invitedAt        DateTime?
-  invitedById      String?
-  permissionGrants PermissionGrant[]
+  invitedAt          DateTime?
+  invitedById        String?
+  /// How the seat was made (2026-11-11): SCIM, JIT (first sign-in through
+  /// the company's directory), INVITE or MANUAL. Null on every seat made
+  /// before the column existed, which reads as not known.
+  source             SeatSource?
+  /// The directory identity this seat was provisioned for, where a
+  /// directory made it. A directory deprovision ends this seat.
+  externalIdentityId String?
+  externalIdentity   ExternalIdentity? @relation(fields: [externalIdentityId], references: [id], onDelete: SetNull)
+  permissionGrants   PermissionGrant[]
 
   @@index([companyId, suspendedAt])
   @@index([personId, revokedAt])
@@ -435,6 +460,7 @@ model Context {
   /// editing a role reads everybody holding it
   @@index([roleId])
   @@index([orgUnitId])
+  @@index([externalIdentityId])
 }
 
 enum ContextType {
@@ -893,6 +919,12 @@ model Company {
   /// Every change to its team structure (2026-11-09).
   orgChanges            OrgChange[]
   directoryConnections  DirectoryConnection[]
+  /// How this company's people sign in (2026-11-11). No row is today's behavior.
+  signInPolicy          CompanySignInPolicy?
+  identityProviders     IdentityProvider[]
+  scimTokens            ScimToken[]
+  directoryGroupRoles   DirectoryGroupRole[]
+  externalIdentities    ExternalIdentity[]
   entities              LegalEntity[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
@@ -1988,6 +2020,198 @@ model DirectoryConnection {
   @@index([connectedById])
 }
 
+// ─────────────────────────────────────────────
+// ENTERPRISE IDENTITY (founder, 2026-11-11)
+// ─────────────────────────────────────────────
+//
+// The client's own directory is the only door for a client and a larger
+// company; small teams stay invite-only; an Owner may choose hybrid. One
+// policy row per company, applying on every verified domain it owns. No
+// row is today's behavior, and nothing changes until an Owner sets a mode.
+// Identity is the directory's issuer and subject, never the email. No
+// secret is ever stored in plain text: a directory's client secret is a
+// reference to the platform's secret store, or sealed with the key the
+// team-structure directory already uses. Every change is in the access
+// log under a named action (lib/identity/ledger).
+
+/// How a company's people sign in.
+enum SignInMode {
+  /// Directory only: every door but the company's own directory refuses,
+  /// on every verified domain the company owns. No break-glass.
+  SSO_ONLY
+  /// By invitation only: nobody joins by domain; an invited exact address
+  /// is seated, and an invitation beats the consumer-address rule.
+  INVITE_ONLY
+  /// The company's own people through its directory where it has one,
+  /// and invited people on public addresses, whose seats are limited.
+  HYBRID
+}
+
+/// Where a seat came from.
+enum SeatSource {
+  SCIM
+  JIT
+  INVITE
+  MANUAL
+}
+
+/// Which kind of identity provider a company connected.
+enum IdentityProviderType {
+  ENTRA
+  SAML
+  OIDC
+  GOOGLE_WORKSPACE
+}
+
+model CompanySignInPolicy {
+  id                        String     @id @default(cuid())
+  companyId                 String     @unique
+  company                   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  mode                      SignInMode
+  /// Seat a person on their first sign-in through the directory, where no
+  /// SCIM seat exists yet. Off by default.
+  jit                       Boolean    @default(false)
+  /// The company's directory provisions and removes seats by SCIM.
+  scim                      Boolean    @default(false)
+  /// What a government's identity provider must assert (an assurance
+  /// level such as an acr value), as the government names it. Null where
+  /// none is required.
+  requiredAssurance         String?
+  /// Where the company's data must stay, as the company names it. Recorded,
+  /// not yet enforced: there is one region today.
+  dataRegion                String?
+  /// A client that approves only suppliers whose people all sign in through
+  /// their own directory (the Hybrid rule). Checked at supplier approval.
+  requireDirectorySuppliers Boolean    @default(false)
+  /// Who set it, when, and why.
+  setById                   String?
+  setBy                     Person?    @relation("signInPolicySetBy", fields: [setById], references: [id], onDelete: SetNull)
+  setAt                     DateTime   @default(now())
+  reason                    String?
+
+  @@index([setById])
+}
+
+/// A company's directory: who vouches for its people.
+model IdentityProvider {
+  id           String               @id @default(cuid())
+  companyId    String
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type         IdentityProviderType
+  /// What the company calls it, for the settings screen.
+  label        String?
+  /// The issuer the directory signs as: an OIDC issuer URL or a SAML
+  /// identity provider entity id. With the subject, it is who a person is.
+  issuer       String
+  /// The directory's own id for the company (an Entra tenant id, a Google
+  /// Workspace domain), where its issuer is shared across customers.
+  tenantHint   String?
+  /// OIDC: the client id Etyme was registered with in the directory.
+  clientId     String?
+  /// OIDC discovery or SAML metadata address.
+  metadataUrl  String?
+  /// SAML: the entity id Etyme answers as for this company.
+  entityId     String?
+  /// SAML: the directory's public signing certificate (PEM). Not a secret.
+  certificate  String?
+  /// The name of the client secret in the platform's secret store. Never
+  /// the secret itself.
+  secretRef    String?
+  /// Where no secret-store entry exists, the client secret sealed with
+  /// lib/team-structure/directory/sealed ("v1.<iv>.<tag>.<ciphertext>").
+  /// Never in plain text, never logged, never returned by a route.
+  secretSealed String?
+  /// Which claims name the person, their email and their groups, where the
+  /// directory does not use the standard names.
+  subjectClaim String?
+  emailClaim   String?
+  groupsClaim  String?
+  /// Off until the Owner or Admin turns it on and a test sign-in passed.
+  enabled      Boolean              @default(false)
+  setById      String?
+  setBy        Person?              @relation("identityProviderSetBy", fields: [setById], references: [id], onDelete: SetNull)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  externalIdentities ExternalIdentity[]
+  groupRoles         DirectoryGroupRole[]
+
+  @@unique([companyId, issuer])
+  @@index([setById])
+  @@index([issuer])
+}
+
+/// A person as a company's directory knows them: the issuer and the
+/// subject. The email is shown, never trusted as the key.
+model ExternalIdentity {
+  id                 String            @id @default(cuid())
+  personId           String
+  person             Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  identityProviderId String?
+  identityProvider   IdentityProvider? @relation(fields: [identityProviderId], references: [id], onDelete: SetNull)
+  issuer             String
+  subject            String
+  /// The email the directory sent last, for display.
+  email              String
+  /// The directory's own status: set when the directory disabled or
+  /// removed the person, and their seats and sessions were ended.
+  disabledAt         DateTime?
+  lastSignInAt       DateTime?
+  createdAt          DateTime          @default(now())
+  contexts           Context[]
+
+  @@unique([issuer, subject])
+  @@index([personId])
+  @@index([companyId])
+  @@index([identityProviderId])
+}
+
+/// A bearer token a company's directory uses to provision by SCIM. Only
+/// the hash is kept; the token is shown once.
+model ScimToken {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// sha256 of the token, hex.
+  tokenHash   String    @unique
+  /// The last four characters, so the screen can tell two tokens apart.
+  last4       String
+  label       String?
+  createdById String?
+  createdBy   Person?   @relation("scimTokenMadeBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  revokedById String?
+
+  @@index([companyId])
+  @@index([createdById])
+}
+
+/// A directory group mapped to an Etyme role, set by the company.
+model DirectoryGroupRole {
+  id                 String            @id @default(cuid())
+  companyId          String
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  identityProviderId String?
+  identityProvider   IdentityProvider? @relation(fields: [identityProviderId], references: [id], onDelete: Cascade)
+  /// The directory's id for the group, and its name as last read.
+  groupId            String
+  groupName          String?
+  roleId             String
+  role               Role              @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  setById            String?
+  setBy              Person?           @relation("directoryGroupRoleSetBy", fields: [setById], references: [id], onDelete: SetNull)
+  setAt              DateTime          @default(now())
+
+  @@unique([companyId, groupId])
+  @@index([identityProviderId])
+  @@index([roleId])
+  @@index([setById])
+}
+
 model Role {
   id                 String        @id @default(cuid())
   companyId          String
@@ -2001,6 +2225,8 @@ model Role {
   benchWantsReceived BenchWant[]
 
   permissionGrants PermissionGrant[]
+  /// Directory groups that seat people in this role (2026-11-11).
+  directoryGroups  DirectoryGroupRole[]
 
   @@index([companyId])
 }
