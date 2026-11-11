@@ -2474,6 +2474,43 @@ at a company that has colleagues") and the Tapin-only exception with it.
 - Still open for the founder: whether the password door stays for
   one-person firms or goes entirely, with the emailed link as fallback.
 
+### The first person is an Admin; Owner is earned by proof — the founder, 2026-11-11
+
+*"The first user is an admin and not owner. They need to prove domain
+ownership and personal verification"*, the way business software that
+moves money checks a company before it trusts it. Decided, not built:
+- **Whoever signs a company up is seated as Admin**, never Owner. This
+  reverses the sign-up rule (the first person was the Owner since
+  2026-10-07). The company works at once for setup, invitations, jobs
+  and people.
+- **Owner is earned by two proofs, both recorded with who and when:**
+  the company's **domain** (the DNS proof that exists, or sign-in
+  through the company's own directory as its administrator), and the
+  **person** (their identity checked by an identity-verification
+  provider; Etyme renders no verdict, by the rule in "Who renders the
+  verdict": the provider's result is recorded verbatim with its name,
+  reference and date, and Etyme keeps no copy of an identity document).
+- **Until a company has a verified Owner, the Owner-only acts wait**, each
+  refused in a sentence that names the step: paying and bank details,
+  signing an agreement, the company type, the sign-in mode, giving
+  access by team or company, and passing ownership. Everything else
+  works on the defaults (coordinator's call, reversible: the list of
+  acts that wait is the founder's to shorten).
+- **A one-person firm has no domain to prove**, so its person is verified
+  alone and is its Owner on that proof.
+- **Existing Owners stay Owners** and are asked to complete the two
+  proofs; nothing is taken from a company already trading. Tapin's Owner
+  was seated by the staff tool and Tapin has no domain of its own yet,
+  so it is the first company to walk this.
+- **Open for the founder:** which provider checks a person, and who pays
+  for each check (a cost per person, so it touches pricing); whether a
+  company's legal identity (its tax number against its legal name) is a
+  third proof; and how long an unverified company may run before the
+  reminder becomes a hold.
+- Built after identity stage A and B, as its own piece: the sign-up
+  seat, the two proofs and their screen in the setup checklist, the
+  refusals that name the step, and the claim for a second Owner.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
