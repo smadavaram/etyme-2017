@@ -14,6 +14,8 @@ import {
 } from '@/lib/account-lifecycle'
 import { possessive } from '@/lib/requisition-approval'
 import { hasSignedIn } from '@/lib/access-grant'
+import { companyPolicy, endSessions } from '@/lib/identity/read'
+import { recordIdentityEvent } from '@/lib/identity/ledger'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -126,23 +128,73 @@ export async function POST(
 
   const now = new Date()
   const actorId = realPersonId(caller)
+  const companyId = caller.company.id
+  const companyName = caller.company.name
 
-  await prisma.context.update({
-    where: { id: contextId },
-    data:
-      action === 'suspend'
-        ? { suspendedAt: now, suspendedById: actorId, suspendReason: reason }
-        : action === 'reinstate'
-          ? { suspendedAt: null, suspendedById: null, suspendReason: null }
-          : {
-              revokedAt: now,
-              revokedById: actorId,
-              revokeReason: reason,
-              // A revoked seat that is also suspended reads as two states
-              // at once. Ending it clears the pause.
-              suspendedAt: null,
-            },
+  // The company's sign-in policy, read before anything changes, so the
+  // identity rows below name it and a failed read changes nothing.
+  const policy = action === 'reinstate' ? null : (await companyPolicy(companyId)).effective
+
+  await prisma.$transaction(async (tx) => {
+    await tx.context.update({
+      where: { id: contextId },
+      data:
+        action === 'suspend'
+          ? { suspendedAt: now, suspendedById: actorId, suspendReason: reason }
+          : action === 'reinstate'
+            ? { suspendedAt: null, suspendedById: null, suspendReason: null }
+            : {
+                revokedAt: now,
+                revokedById: actorId,
+                revokeReason: reason,
+                // A revoked seat that is also suspended reads as two states
+                // at once. Ending it clears the pause.
+                suspendedAt: null,
+              },
+    })
+    // Every revoke is an identity event, committed with the seat's ending
+    // (founder, 2026-11-11: "membership revoked").
+    if (action === 'revoke') {
+      await recordIdentityEvent({
+        event: 'MEMBERSHIP_REVOKED',
+        companyId,
+        actorPersonId: actorId,
+        subject: { personId: person.person.id },
+        policy: policy!,
+        surface: 'WEB',
+        says: `${caller.person.name} ended ${possessive(person.person.name)} seat at ${companyName}${person.role ? ` (${person.role.name})` : ''}: ${reason}`,
+      }, tx)
+    }
   })
+
+  // ── The last live seat anywhere ends every live session ────────────
+  //
+  // A seat already stops working on the next request, because every
+  // request rereads it. But a person whose last live seat on Etyme was
+  // just paused or ended has nothing left a session could open, so their
+  // sessions end too: the next request from any of them signs in again.
+  // A seat elsewhere, including the person's own seat as a worker, keeps
+  // the sessions standing, because that seat is still theirs.
+  let sessionsEnded = false
+  if (action !== 'reinstate') {
+    const live = await prisma.context.count({
+      where: {
+        personId: person.person.id, revokedAt: null, suspendedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    })
+    if (live === 0) {
+      await endSessions({
+        personId: person.person.id,
+        actorPersonId: actorId,
+        companyId,
+        policy: policy!,
+        surface: 'WEB',
+        says: `${possessive(person.person.name)} last seat was ${action === 'suspend' ? 'paused' : 'ended'} at ${caller.company.name}, so every session they held is ended.`,
+      })
+      sessionsEnded = true
+    }
+  }
 
   const said =
     action === 'suspend' ? `paused ${possessive(person.person.name)} access`
@@ -212,6 +264,7 @@ export async function POST(
       state: action === 'suspend' ? 'SUSPENDED' : action === 'revoke' ? 'REVOKED' : 'ACTIVE',
       person: person.person.name,
       consequences: verdict.consequences,
+      sessionsEnded,
       message:
         action === 'suspend'
           ? `${person.person.name} is paused. They have been told why, and lifting it puts them back with the same role.`

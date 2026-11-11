@@ -1024,20 +1024,24 @@ untested path, plainly.
   yet. The sealing helper stays in `lib/team-structure/directory/sealed`.
 
 **Wired in another domain's files, asked for and not done here:**
-- **`INVITE_SENT` is not written, and `POST /api/access/invite` does not
-  ask the policy** (etyme-regulatory's route). `inviteRefusal` in
-  `lib/identity/read` is written for it. Until it is wired, an Owner or
-  Admin can still invite a public address into a directory-only company;
-  that seat can never be used, because a directory-only company's seat
-  opens only from a session its own directory signed in.
-- **`MEMBERSHIP_REVOKED` is not written, and revoking or suspending a
-  person's last seat does not end their sessions**
-  (`src/app/api/access/[contextId]/route.ts`, etyme-regulatory's). The
-  seat itself already stops working on the next request, because every
-  request rereads it; `endSessions` is there for the route to call.
-- **The identity action names are not in `AccessAction`**
-  (`lib/access-log`, etyme-regulatory's). They are passed through as named
-  in `lib/identity/ledger`.
+- **Wired by etyme-regulatory, 2026-11-11.** `POST /api/access/invite`
+  asks `checkDoor` (the door `inviteRefusal` wraps) before it seats
+  anybody, so an address off a directory-only company's own domain is
+  refused in its sentence, the row written first; an allowed invitation
+  writes `INVITE_SENT` in the same transaction as the seat and marks the
+  seat `source: INVITE`. `POST /api/access/[contextId]` writes
+  `MEMBERSHIP_REVOKED` with every revoke, in the seat's transaction, and
+  calls `endSessions` when a revoke or suspend leaves the person no live
+  seat anywhere (not revoked, not paused, not expired). The identity names
+  and `DIRECTORY_READ` are in `AccessAction`. Still owed by etyme-architect:
+  `WRITTEN_BY` in `lib/identity/ledger` reads null for `INVITE_SENT` and
+  `MEMBERSHIP_REVOKED`; the two `as unknown as AccessAction` casts (in
+  `lib/identity/ledger` and `lib/identity/sign-in`) can go; and the Google
+  directory reads in `app/api/settings/team-structure/directory` still file
+  under `CONTRACT_VIEW` rather than `DIRECTORY_READ`. The surface on both
+  routes is written as WEB. The invite route refuses a caller with no
+  person, so that is true there; the revoke route does not, so a revoke
+  made with an API key is recorded as WEB with no actor.
 - **The security posture's counts move** (`docs/security-posture.md`,
   etyme-regulatory's): two new API route files, so the legal-pages test
   reads 61 of 355 route files where the document says 61 of 353, and fails

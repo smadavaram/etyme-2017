@@ -10,6 +10,8 @@ import { doorOpen, issueSetPassword } from '@/lib/password-door'
 import { emailSender } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { inviteLetter, inviteSays, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
+import { checkDoor } from '@/lib/identity/read'
+import { recordIdentityEvent } from '@/lib/identity/ledger'
 
 /** Whether Microsoft or Google sign-in is set up here, read the way lib/auth reads it. */
 function workAccountOn(): boolean {
@@ -136,6 +138,31 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ── The company's sign-in policy, asked before anybody is seated ──
+  //
+  // A directory-only company seats its people through its own directory,
+  // so an address off its own domain (a Gmail, a partner's work address)
+  // is never invited into it (founder, 2026-11-11). This is the door
+  // `inviteRefusal` in lib/identity/read wraps; it is called directly so
+  // the governing policy it read is the one the INVITE_SENT row names,
+  // without reading it twice. A refusal's row is written, and waited for,
+  // inside it, so the refusal below goes out after its row.
+  const policyDoor = await checkDoor({
+    door: 'INVITE', email, targetCompanyId: caller.company.id,
+    actorPersonId: inviter, subjectPersonId: existing?.id ?? null, surface: 'WEB',
+  })
+  if (!policyDoor.allowed) {
+    return NextResponse.json(
+      { error: { code: 'DIRECTORY_ONLY', message: policyDoor.says, field: 'email' } },
+      { status: 403 }
+    )
+  }
+
+  // A seat on a public address at a hybrid company needs no mark here: the
+  // caller check reads the person's own address and the seat's policy on
+  // every request and withholds the money and signing acts there
+  // (`isLimitedPublicSeat` and `narrowForPublicSeat` in lib/api-context).
+
   const now = new Date()
 
   // The person may already exist — a consultant, or somebody at another
@@ -150,18 +177,36 @@ export async function POST(request: NextRequest) {
         select: { id: true, name: true },
       })
 
-  const context = await prisma.context.create({
-    data: {
-      personId: person.id,
-      companyId: caller.company.id,
-      type: 'EMPLOYEE',
-      roleId: role?.id ?? null,
-      grantedById: inviter,
-      invitedAt: now,
-      invitedById: inviter,
-      grantReason: body.reason ? String(body.reason).trim() : `Invited by ${caller.person.name}`,
-    },
-    select: { id: true },
+  // The seat and its INVITE_SENT row commit together, so a seat never
+  // exists without the identity event that made it.
+  const companyId = caller.company.id
+  const context = await prisma.$transaction(async (tx) => {
+    const seat = await tx.context.create({
+      data: {
+        personId: person.id,
+        companyId,
+        type: 'EMPLOYEE',
+        roleId: role?.id ?? null,
+        grantedById: inviter,
+        invitedAt: now,
+        invitedById: inviter,
+        // How the seat was made. The limit on a public address at a hybrid
+        // company is read from the address and the policy, not from this.
+        source: 'INVITE',
+        grantReason: body.reason ? String(body.reason).trim() : `Invited by ${caller.person.name}`,
+      },
+      select: { id: true },
+    })
+    await recordIdentityEvent({
+      event: 'INVITE_SENT',
+      companyId,
+      actorPersonId: inviter,
+      subject: { personId: person.id },
+      policy: policyDoor.policy,
+      surface: 'WEB',
+      says: `${caller.person.name} invited ${email}${role ? ` as ${role.name}` : ' with no role yet'}.`,
+    }, tx)
+    return seat
   })
 
   await prisma.automationLog.create({

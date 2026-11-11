@@ -168,6 +168,31 @@ export type AccessAction =
   // MARKETING_REQUEST.
   | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
   | 'SUPERADMIN_SETTINGS_OPEN' // a Superadmin opened or changed the platform's Ask Etyme limits; no company data is read
+  // ── Who signs in, and how: the identity events ────────────────────
+  //
+  // `lib/identity/ledger` (etyme-architect, 2026-11-11): the founder's
+  // list, "SSO configured, domain verified, user provisioned, user
+  // deprovisioned, group mapped to a role, login succeeded, login refused
+  // because SSO only, invite sent, invite accepted, membership revoked,
+  // auth policy changed", each a name of its own on this log rather than
+  // a third ledger, plus three the build needed. The reason column of each
+  // carries `policy <MODE> · surface <SURFACE> · <sentence>`, so a query
+  // reads the policy and the surface back. Refusals are written with
+  // `recordRefusal` before the refusal is sent.
+  | 'SSO_CONFIGURED'            // a company's directory sign-in was set up or changed
+  | 'DOMAIN_VERIFIED'           // a company proved it controls a domain
+  | 'USER_PROVISIONED'          // the company's directory made or restored a person's seat
+  | 'USER_DEPROVISIONED'        // the company's directory removed or disabled a person's seat
+  | 'GROUP_ROLE_MAPPED'         // a directory group was mapped to an Etyme role
+  | 'LOGIN_SUCCEEDED'           // a person signed in, and through which door
+  | 'LOGIN_REFUSED_SSO_ONLY'    // a door was refused because the company signs in through its directory only
+  | 'JOIN_REFUSED_BY_POLICY'    // a join was refused because the company admits people by invitation only
+  | 'INVITE_SENT'               // an Owner or Admin invited a person to a seat
+  | 'INVITE_ACCEPTED'           // an invited person signed in to the seat for the first time
+  | 'MEMBERSHIP_REVOKED'        // a person's seat at a company was ended
+  | 'AUTH_POLICY_CHANGED'       // a company's Owner changed how its people sign in
+  | 'SESSIONS_ENDED'            // every live session a person held was ended
+  | 'DIRECTORY_READ'            // the company's Google Workspace directory was read, read only, to propose team structure
 
 /**
  * Whose data was read (2026-11-01). A person, by id — every caller before
