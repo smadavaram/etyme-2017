@@ -2275,6 +2275,18 @@ subdomain"*. Drawn, not built
   staff tools and never a company's data. A commission-basis person holds
   one seat per company and reads only their own commissions at each.
   Nothing crosses companies and switching copies nothing.
+- **The ladder and its words, said by the founder the same day: "An
+  admin is always below owner or superadmin — use right terminology."**
+  Three levels, always in this order, on every screen, card, email and
+  reply: **Superadmin** (Etyme's own staff, the addresses on
+  `ETYME_STAFF_EMAILS`; platform tools only, never a company's data
+  except the logged emergency seat) above **Owner** (the company's
+  business owner; one or more) above **Admin** (the company's IT and
+  people manager). Admin never suspends, demotes, removes or recovers an
+  Owner, and never acts for one. The account menu's "Etyme staff" line
+  reads **Superadmin**. The role named Admin is never called "manager" or
+  "IT owner" on a screen; "Owner" is never said of an Admin. Machine
+  names (`ETYME_STAFF_EMAILS`, role keys) do not move.
 - **Built in this order:** the Owner rules and Pass ownership (architect,
   conversation for the cards); Admin narrowed in the role table, the menu
   and the routes (architect, with money and regulatory for the acts that
