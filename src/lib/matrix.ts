@@ -1434,6 +1434,34 @@ export const MATRIX: L1[] = [
             '__integration__/sign-in-link.test.ts', '__tests__/invariants/sign-in-link.test.ts',
             '__tests__/components/consultants.test.ts',
           ] },
+        // Enterprise identity (founder, 2026-11-11, "go identity"): the
+        // client's own directory is the only door, small teams stay
+        // invite-only, hybrid is the Owner's choice. Pass 1, stage A here;
+        // stage B (the company's own OIDC and SAML door, the mock provider,
+        // SCIM, the settings screen, LinkedIn) is not built.
+        { code: 'L3.2.2.17', name: 'How a company\u2019s people sign in: directory only, invitation only, or hybrid', owner: 'Owner', status: P,
+          tasks: [
+            'A company\u2019s sign-in policy is one row: directory only, invitation only or hybrid, with who set it, when and why; no row is today\u2019s behavior, and a company with a directory turned on and no row reads directory only',
+            'Directory only refuses the password door, the email link, Google and Microsoft sign-in, the link in a sign-up email, a claim link, the staff key and a join by domain, for every address on the company\u2019s verified domains, in one sentence, with no exception for support, an Admin or the Superadmin',
+            'A directory-only company\u2019s seat is used only from a session its own directory signed in; a session signed in by another door, including one from before the policy changed, is refused on its next request',
+            'Invitation only admits nobody by domain; an invited address is seated, and an invitation beats the consumer-address rule',
+            'Hybrid: an invited seat on a public address never pays, bills, signs hours, raises an order, sets a rate, awards, writes or ends a contract, runs payroll or approves a supplier, whatever its role or a grant says, taken off in the one place every route reads permissions',
+            'Ending a person\u2019s sessions ends every one on its next request, on every device (a session version on the person, read on every request)',
+            'Every identity event is in the access log under its own name, with the time, the company, the actor, the subject, the policy and the surface, and a refusal is written before the refusal is sent',
+            'Only an Owner changes the mode, and directory only is refused until a directory is turned on; an Admin reads it; an Admin never ends an Owner\u2019s sessions',
+            'BUILT 2026-11-11 by etyme-architect, stage A: the schema (CompanySignInPolicy, IdentityProvider with a secret reference, ExternalIdentity by issuer and subject, ScimToken hashed, DirectoryGroupRole, Person.sessionVersion, Context.source), the one policy function, the doors above, the session kill, the ledger, GET and PATCH /api/settings/sign-in and POST /api/settings/sign-in/sessions',
+            'OWED BY etyme-architect, stage B: the company\u2019s own OIDC and SAML door (DIRECTORY), the mock directory for the demo, SCIM 2.0 provisioning and deprovisioning, the group-to-role map in use, the settings screen, LinkedIn sign-in for workers and solopreneurs',
+            'OWED BY etyme-regulatory: POST /api/access/invite calls inviteRefusal before it seats anybody and writes INVITE_SENT; the revoke and suspend route calls endSessions on a person\u2019s last seat and writes MEMBERSHIP_REVOKED; the identity action names join AccessAction in lib/access-log; the security posture\u2019s route counts',
+          ],
+          implementedBy: [
+            'prisma/schema.prisma', 'src/lib/identity/policy.ts', 'src/lib/identity/read.ts', 'src/lib/identity/ledger.ts', 'src/lib/identity/sign-in.ts',
+            'src/lib/auth.ts', 'src/lib/api-context.ts', 'src/lib/password-door.ts', 'src/lib/staff-bootstrap.ts', 'src/lib/company-create.ts',
+            'src/lib/login-doors.ts', 'src/app/api/onboarding/route.ts', 'src/app/api/settings/setup/[item]/route.ts',
+            'src/app/api/settings/sign-in/route.ts', 'src/app/api/settings/sign-in/sessions/route.ts',
+          ],
+          testedBy: [
+            '__tests__/invariants/identity-doors.test.ts', '__tests__/invariants/identity-sessions.test.ts', '__tests__/invariants/identity-ledger.test.ts',
+          ] },
         { code: 'L3.2.2.5', name: 'Tenant onboarding', owner: 'Etyme', status: B,
           tasks: ['BUILT 2026-11-02 by the architect, the change of type, from the founder\u2019s Tapin on production (signed up as Own company, so its Owner read the seven-link solopreneur menu and could not run a bench): on Settings \u2192 Company the Owner, and only the Owner, changes what kind of company it is among sign-up\u2019s own choices (client, MSP, integrator, prime vendor, sub-vendor or bench supplier as one choice because the record stores them the same way, solopreneur), through PATCH /api/settings with { type } on its own, recorded on the company with who and when (kindSetById, kindSetAt) and on the log with from and to; the roles the new type needs are added (ensureDefaultRoles), nothing taken away; the menu, Ask Etyme\u2019s greeting and chips and the setup checklist read the kind on every request, so they follow from the next screen, every setup answer kept; the Owner\u2019s own pages stay reachable as \u201cYou\u201d. Refused in a sentence only where work on the record depends on the old type: a one-person firm whose own person works on a running line through it (that line would be asked a supplier\u2019s papers in the middle of the work); becoming a one-person firm with anybody else seated, listed or working there; leaving a client with open job requests, contractors on site or an MSP seated; becoming a client while selling; leaving an MSP holding a seat; becoming an MSP while placing or paying anybody. Read on the kept scale world in 17 to 99 ms a firm, read only. The cycle pack and who may see outside stay as set; the public page\u2019s words the rules wrote are re-read for the new type, a person\u2019s stay',
             'Company formation and domain', 'Roles, seats, notification channel', 'Generated public site',
