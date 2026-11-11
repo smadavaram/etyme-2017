@@ -1,18 +1,25 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { dayOfMomentFor, readerZone } from '@/lib/when'
 
 /**
  * "Import from your directory" (founder, 2026-11-09: "Can it be integrated
  * or imported from Active Directory"). Three sources, as drawn: Microsoft
  * Entra ID, Google Workspace, and a file exported from Active Directory.
- * The file works today; the other two say what the client's IT admin has
- * to approve. A preview of every change comes first, each ticked or not,
+ * The file works today. Google Workspace connects here (2026-11-11): the
+ * company's Workspace administrator presses Connect, allows read-only
+ * access on Google's own consent screen, and comes back to this dialog;
+ * Disconnect deletes the stored access. Entra ID says what the client's IT
+ * admin has to approve. A preview of every change comes first, each ticked or not,
  * and only the ticked ones are made, through the same acts the tree uses
  * (/api/settings/team-structure/directory).
  */
 
-type Source = { key: 'ENTRA' | 'GOOGLE' | 'CSV'; label: string; says: string; connected: boolean; adminApproves: string | null }
+type Connection = { domain: string; connectedBy: string | null; connectedAt: string; lastReadAt: string | null; lastReadCount: number | null }
+type Source = { key: 'ENTRA' | 'GOOGLE' | 'CSV'; label: string; says: string; connected: boolean; adminApproves: string | null; connectable?: boolean; connection?: Connection | null }
+
+const day = (iso: string) => dayOfMomentFor(new Date(iso), readerZone())
 type Change = { key: string; tag: 'ADD' | 'MOVE' | 'LEAD' | 'PERSON' | 'ASKS'; says: string; ticked: boolean; tickable: boolean }
 type Preview = {
   people: number
@@ -38,25 +45,28 @@ const MAPPING: [string, string][] = [
   ['jobTitle', 'The role shown beside the name. A role’s permissions are changed under Users & permissions, never by an import.'],
 ]
 
-export function ImportDialog({ onClose, onApplied }: { onClose: () => void; onApplied: (says: string) => void }) {
+export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => void; onApplied: (says: string) => void; opening?: { source: Source['key']; said: { says: string; no: boolean } | null } }) {
   const [sources, setSources] = useState<Source[]>([])
-  const [source, setSource] = useState<Source['key']>('CSV')
+  const [source, setSource] = useState<Source['key']>(opening?.source ?? 'CSV')
   const [csv, setCsv] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [ticked, setTicked] = useState<Set<string>>(new Set())
-  const [said, setSaid] = useState<{ says: string; no: boolean } | null>(null)
+  const [said, setSaid] = useState<{ says: string; no: boolean } | null>(opening?.said ?? null)
   const [result, setResult] = useState<{ refused: string[]; skipped: string[] } | null>(null)
   const [busy, setBusy] = useState(false)
   const file = useRef<HTMLInputElement>(null)
   const first = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
-    first.current?.focus()
+  const loadSources = () =>
     fetch('/api/settings/team-structure/directory')
       .then((r) => r.json())
       .then((j) => setSources(j?.data?.sources ?? []))
       .catch(() => setSaid({ says: 'The sources could not be read. Close and try again.', no: true }))
+
+  useEffect(() => {
+    first.current?.focus()
+    void loadSources()
   }, [])
 
   const chosen = sources.find((s) => s.key === source) ?? null
@@ -88,9 +98,34 @@ export function ImportDialog({ onClose, onApplied }: { onClose: () => void; onAp
     }
   }
 
+  const previewGoogle = async () => {
+    const data = await send({ source: 'GOOGLE' })
+    if (data) {
+      setFileName(null)
+      setPreview(data)
+      setTicked(new Set((data.changes as Change[]).filter((c) => c.ticked).map((c) => c.key)))
+    }
+  }
+
+  const connectGoogle = async () => {
+    const data = await send({ source: 'GOOGLE', connect: true })
+    // Only ever Google's own consent screen; anything else is not followed.
+    if (data?.url && String(data.url).startsWith('https://accounts.google.com/')) window.location.assign(data.url)
+  }
+
+  const disconnectGoogle = async () => {
+    const data = await send({ source: 'GOOGLE', disconnect: true })
+    if (data) {
+      setSaid({ says: data.says, no: false })
+      await loadSources()
+    }
+  }
+
+  const fromGoogle = preview !== null && csv === null
+
   const apply = async () => {
-    if (!csv) return
-    const data = await send({ source: 'CSV', csv, apply: [...ticked] })
+    if (!csv && !fromGoogle) return
+    const data = await send(fromGoogle ? { source: 'GOOGLE', apply: [...ticked] } : { source: 'CSV', csv, apply: [...ticked] })
     if (!data) return
     if (data.refused.length || data.skipped.length) {
       setResult({ refused: data.refused, skipped: data.skipped })
@@ -152,18 +187,28 @@ export function ImportDialog({ onClose, onApplied }: { onClose: () => void; onAp
             {chosen && !chosen.connected && chosen.adminApproves && (
               <p className="rounded-lg bg-etyme-attention-wash p-3 text-[13px]">{chosen.label} is not connected. {chosen.adminApproves} A file exported from Active Directory works today.</p>
             )}
+            {chosen?.key === 'GOOGLE' && chosen.connection && (
+              <p className="rounded-lg border border-etyme-rule bg-etyme-raised p-3 text-[13px]">
+                Connected for {chosen.connection.domain}{chosen.connection.connectedBy ? ` by ${chosen.connection.connectedBy}` : ''} on {day(chosen.connection.connectedAt)}. Read only.
+                {chosen.connection.lastReadAt ? ` Last read ${day(chosen.connection.lastReadAt)}: ${chosen.connection.lastReadCount ?? 0} people.` : ' Not read yet.'}
+                {' '}Disconnect deletes the stored access; your team structure stays.
+              </p>
+            )}
             <input ref={file} type="file" accept=".csv,text/csv" className="sr-only" aria-label="Choose the file from Active Directory" onChange={(e) => { const f = e.target.files?.[0]; if (f) void readFile(f) }} />
             <div className="flex flex-wrap gap-2">
-              {source === 'CSV'
-                ? <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? 'Reading…' : 'Choose the file'}</button>
-                : <button className="btn-primary" disabled>Connect and preview</button>}
+              {source === 'CSV' && <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? 'Reading…' : 'Choose the file'}</button>}
+              {source === 'GOOGLE' && chosen?.connected && <button className="btn-primary" disabled={busy} onClick={previewGoogle}>{busy ? 'Reading…' : 'Preview from Google'}</button>}
+              {source === 'GOOGLE' && chosen?.connectable && <button className="btn-primary" disabled={busy} onClick={connectGoogle}>{busy ? 'Opening Google…' : 'Connect Google Workspace'}</button>}
+              {source === 'GOOGLE' && !chosen?.connected && !chosen?.connectable && <button className="btn-primary" disabled>Connect and preview</button>}
+              {source === 'GOOGLE' && chosen?.connection && <button className="btn-secondary" disabled={busy} onClick={disconnectGoogle}>Disconnect</button>}
+              {source === 'ENTRA' && <button className="btn-primary" disabled>Connect and preview</button>}
               <button className="btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>
         ) : (
           <>
             <div>
-              <p className="eyebrow">{fileName ?? 'A file from Active Directory'} · Preview</p>
+              <p className="eyebrow">{fromGoogle ? 'Google Workspace' : fileName ?? 'A file from Active Directory'} · Preview</p>
               <h2 className="headline-serif text-[21px] text-etyme-ink">
                 {preview.changes.length ? `${preview.changes.length} ${preview.changes.length === 1 ? 'change' : 'changes'}. Nothing changes until you say yes.` : 'Your tree already matches your directory.'}
               </h2>

@@ -1,4 +1,5 @@
 import type { DirectoryPerson } from './csv'
+import { googleReadiness, GOOGLE_DIRECTORY } from './google'
 
 /**
  * Microsoft Entra ID and Google Workspace, read as the directory, read
@@ -7,12 +8,12 @@ import type { DirectoryPerson } from './csv'
  * exists on this deployment the source says "not connected" and what the
  * admin has to approve, and nothing is read.
  *
- * What is not built, said once: where a company's approval is kept. The
- * Entra app's admin consent belongs to the client's tenant, and the
- * Google service account's domain-wide delegation to the client's domain;
- * neither has a column on the record yet, so no company can be connected
- * from the screen today. The readers are here so the connection is a
- * column and a consent screen away, not a rewrite.
+ * Google Workspace connects from the screen (2026-11-11): the company's
+ * Workspace administrator allows one read-only scope on Google's consent
+ * screen, and the consent is kept per company as a DirectoryConnection
+ * with the refresh token sealed (./google, ./sealed). Entra ID is not
+ * built: its admin consent has nowhere to be kept yet, so it stays
+ * "not connected".
  */
 
 export type SourceKey = 'ENTRA' | 'GOOGLE' | 'CSV'
@@ -24,12 +25,26 @@ export interface SourceState {
   connected: boolean
   /** What the client's IT admin approves before the source can be read. */
   adminApproves: string | null
+  /** Google only: this deployment can connect it from the screen now. */
+  connectable?: boolean
+  /** Google only: the company's connection, where one is kept. Never the token. */
+  connection?: GoogleConnectionView | null
+}
+
+/** What the card says about a kept connection. The token is never part of it. */
+export interface GoogleConnectionView {
+  domain: string
+  connectedBy: string | null
+  connectedAt: string
+  lastReadAt: string | null
+  lastReadCount: number | null
 }
 
 /** The three sources and their state on this deployment, for one company. */
-export function directorySources(env: Record<string, string | undefined> = process.env): SourceState[] {
+export function directorySources(env: Record<string, string | undefined> = process.env, google: GoogleConnectionView | null = null): SourceState[] {
   const entraApp = Boolean(env.ETYME_DIRECTORY_ENTRA_CLIENT_ID && env.ETYME_DIRECTORY_ENTRA_CLIENT_SECRET)
-  const googleApp = Boolean(env.ETYME_DIRECTORY_GOOGLE_SERVICE_ACCOUNT)
+  const g = googleReadiness(env)
+  const googleConnected = g.ready && Boolean(google)
   return [
     {
       key: 'ENTRA',
@@ -43,11 +58,15 @@ export function directorySources(env: Record<string, string | undefined> = proce
     {
       key: 'GOOGLE',
       label: 'Google Workspace',
-      says: 'The Google directory. Your admin approves read-only access once.',
-      connected: false,
-      adminApproves: googleApp
-        ? 'Your Google Workspace super admin allows Etyme’s service account the scope admin.directory.user.readonly (read only) under domain-wide delegation. Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
-        : 'Not set up on this deployment yet. Once it is, your Google Workspace super admin allows the scope admin.directory.user.readonly (read only) for Etyme.',
+      says: googleConnected ? `Connected for ${google!.domain}. Read only.` : 'The Google directory. Your admin approves read-only access once.',
+      connected: googleConnected,
+      connectable: g.ready && !google,
+      connection: google,
+      adminApproves: googleConnected
+        ? null
+        : g.ready
+          ? 'A Google Workspace administrator who can see users (a super admin can) presses Connect, signs in to Google, and allows Etyme to see users on your domain (admin.directory.user.readonly, read only). Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
+          : `Not set up on this deployment yet: ${g.missing.join('; ')}. Once it is, your Google Workspace administrator connects it here and allows read-only access to users (admin.directory.user.readonly).`,
     },
     {
       key: 'CSV',
@@ -105,12 +124,22 @@ export async function readEntra(token: string, f: Fetch = fetch, maxPages = 50):
 
 export const GOOGLE_USERS = 'https://admin.googleapis.com/admin/directory/v1/users?customer=my_customer&projection=full&maxResults=500'
 
-/** Every user in the Workspace, page by page, given a token with admin.directory.user.readonly. */
-export async function readGoogle(token: string, f: Fetch = fetch, maxPages = 50): Promise<DirectoryPerson[]> {
+/** The users list for one domain only, where a connection names it. */
+export function googleUsersUrl(domain: string | null): string {
+  return domain ? `${GOOGLE_DIRECTORY}?domain=${encodeURIComponent(domain)}&projection=full&maxResults=500` : GOOGLE_USERS
+}
+
+/**
+ * Every user in the Workspace, page by page, given a token with
+ * admin.directory.user.readonly. With a domain, only that domain's users:
+ * a connection reads the company's verified domain and nothing beside it.
+ */
+export async function readGoogle(token: string, f: Fetch = fetch, maxPages = 50, domain: string | null = null): Promise<DirectoryPerson[]> {
   const out: DirectoryPerson[] = []
+  const base = googleUsersUrl(domain)
   let pageToken: string | null = null
   for (let page = 0; page < maxPages; page++) {
-    const res: Response = await f(pageToken ? `${GOOGLE_USERS}&pageToken=${encodeURIComponent(pageToken)}` : GOOGLE_USERS, { headers: { authorization: `Bearer ${token}` } })
+    const res: Response = await f(pageToken ? `${base}&pageToken=${encodeURIComponent(pageToken)}` : base, { headers: { authorization: `Bearer ${token}` } })
     const j: any = await res.json().catch(() => null)
     if (!res.ok) throw new Error('Google refused to read your directory. Ask your super admin whether admin.directory.user.readonly was allowed for Etyme.')
     for (const u of j?.users ?? []) {

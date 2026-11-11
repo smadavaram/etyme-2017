@@ -30,6 +30,7 @@ model Person {
   /// Team structure (2026-11-09): leads named, changes made and undone.
   unitLeadsSet             OrgUnit[]                 @relation("unitLeadSetBy")
   orgChangesMade           OrgChange[]               @relation("orgChangeActor")
+  directoriesConnected     DirectoryConnection[]     @relation("directoryConnectedBy")
   orgChangesUndone         OrgChange[]               @relation("orgChangeUndoneBy")
   contexts                 Context[]
   consultant               ConsultantProfile?
@@ -891,6 +892,7 @@ model Company {
   orgUnits              OrgUnit[]
   /// Every change to its team structure (2026-11-09).
   orgChanges            OrgChange[]
+  directoryConnections  DirectoryConnection[]
   entities              LegalEntity[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
@@ -1948,6 +1950,42 @@ model OrgChange {
   @@index([contextId])
   @@index([sellContractId])
   @@index([undoneById])
+}
+
+/// One company's consent to read its own directory, read only (founder,
+/// 2026-11-09 and 2026-11-11: "Can it be integrated or imported from Active
+/// Directory"; "Yes" to Google Workspace). Given once by the company's own
+/// Workspace administrator through Google's consent screen, kept per
+/// company and per provider, and read by Settings → Team structure and
+/// nothing else. The refresh token is kept sealed with a key from the
+/// environment (lib/team-structure/directory/sealed), never in plain text,
+/// never logged and never returned by any route. Disconnect deletes the
+/// row, and with it the token; the tree stays as it is.
+model DirectoryConnection {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// GOOGLE today. ENTRA is not built.
+  provider      String
+  /// The verified domain of the company this connection reads, and only
+  /// that domain's people are read (CompanyDomain, verified).
+  domain        String
+  /// Google's customer id for the Workspace, as the directory returned it.
+  customerId    String?
+  /// The one scope Google granted, as Google said it.
+  scope         String
+  /// The refresh token, sealed (AES-256-GCM): "v1.<iv>.<tag>.<ciphertext>".
+  tokenSealed   String
+  /// Who at the company connected it, and when.
+  connectedById String?
+  connectedBy   Person?   @relation("directoryConnectedBy", fields: [connectedById], references: [id], onDelete: SetNull)
+  connectedAt   DateTime  @default(now())
+  /// The last read and how many people it returned, for the card.
+  lastReadAt    DateTime?
+  lastReadCount Int?
+
+  @@unique([companyId, provider])
+  @@index([connectedById])
 }
 
 model Role {

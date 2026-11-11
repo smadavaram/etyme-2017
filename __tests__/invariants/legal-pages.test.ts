@@ -283,6 +283,11 @@ describe('What the three documents say is what the code does', () => {
       // which no screen can make yet (lib/team-structure/directory).
       [/graph\.microsoft\.com/, 'Microsoft'],
       [/admin\.googleapis\.com/, 'Google'],
+      // Google Workspace connected from the screen (2026-11-11): Google's
+      // consent screen, its token and revoke endpoints, and the scope's own
+      // address. Off until ETYME_DIRECTORY_LIVE=1, which waits for the
+      // founder's yes on the privacy and DPA line for a directory read.
+      [/^accounts\.google\.com$|^oauth2\.googleapis\.com$|^www\.googleapis\.com$/, 'Google'],
       [/etyme\.com/, 'Etyme'],
     ]
     const hosts = new Set(
