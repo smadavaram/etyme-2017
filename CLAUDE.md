@@ -2417,6 +2417,41 @@ What is decided, and what the scout found (read-only, 2026-11-11):
   mock provider; SCIM; the Auth settings screen with its plain
   sentence; then the demo walk.
 
+### Who may sign in with what, and governments — the founder, 2026-11-11, later the same day
+
+*"Only the workers and solopreneurs can have Gmail or LinkedIn login. Rest
+would be Microsoft, Google enterprise or Okta login. We need to create
+[a] mechanism for governments globally."* Decided:
+- **Consumer sign-in is for people, never for a company's seat.** Gmail
+  and LinkedIn are doors for a **worker** and a **solopreneur** (a
+  one-person firm). A company with more than one person, a client, an
+  integrator, an MSP and a government body sign in only through a
+  **company directory**: Microsoft (Entra ID), Google Workspace, Okta or
+  any other identity provider by standard configuration. A Gmail address
+  never holds a seat at a company that has colleagues.
+- **LinkedIn becomes a sign-in door, for workers and solopreneurs only.**
+  This reverses "LinkedIn is a profile field, not an auth provider"
+  (User populations table). It is LinkedIn's standard OpenID Connect
+  sign-in; the profile URL stays a field. No other use of LinkedIn data.
+- **Governments are a configuration, not a build per country.** The one
+  mechanism is the standards every national and agency identity system
+  already speaks: OpenID Connect and SAML 2.0, configured per company with
+  its issuer, keys, the claims that name the person and the role, the
+  assurance level the government requires, and the region the data stays
+  in. Smart-card and national-ID sign-in reach Etyme through the
+  government's own identity provider, never by Etyme reading a card. A
+  new country is a configuration row and a verified domain, never code.
+  What Etyme does not claim: any government certification or
+  authorization it does not hold. The honest security page says what is
+  done and what is not.
+- **Conflicts with earlier decisions, said once:** the password door
+  (2026-10-08) and the invited-Gmail seats (the three partners at Tapin,
+  2026-11-11) are now for a one-person firm only. Tapin has more than one
+  person, so it needs its own domain on a company directory (Google
+  Workspace); until then its Gmail partners are a recorded, ledgered
+  exception for Tapin alone, ending the day its domain is verified, or
+  the founder removes it in a sentence.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
