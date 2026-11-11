@@ -2304,6 +2304,113 @@ subdomain"*. Drawn, not built
   staff line (architect). A release pass and a walk as two Owners, an
   Admin and a commission-basis recruiter before any deploy.
 
+## Enterprise identity: the client's own directory is the only door, and small teams stay invite-only — the founder, 2026-11-11
+
+The founder's build brief, given whole. Two kinds of people, never mixed,
+and the order matters: **Track 1 first, the client and larger
+companies**, whose people may never work outside their own directory (no
+enterprise IT approves a personal Gmail, a magic link or a password
+Etyme invented); **Track 2 second, Etyme's own people and small
+suppliers**, invite-only with their existing Google or Microsoft
+account. Built as one identity model. Tested against the five
+questions: core problem strong ("remove them in your directory and they
+are out here" is the test an enterprise IT department runs); trust
+strong (it is the access-control evidence the assurance gate asks for);
+simple strong. **Verdict: build now**, ahead of Google Chat.
+
+What is decided, and what the scout found (read-only, 2026-11-11):
+- **A tenant is a company, and its sign-in policy is one row per
+  company** (`SSO_ONLY`, `INVITE_ONLY`, `HYBRID`), applying on every
+  verified domain it owns. `SSO_ONLY` is for clients and larger
+  companies, no exceptions: the password door, the email link, Google
+  and Microsoft social sign-in, a claim link and the staff bootstrap
+  all refuse for it, at the API and not only on the screen, and each
+  refusal is ledgered.
+- **The client's directory authenticates; Etyme inherits its MFA and
+  password rules and re-implements none.** Microsoft Entra ID by OIDC
+  first (the same binding serves the web and Teams); generic SAML 2.0
+  and generic OIDC by configuration, never a build per vendor brand.
+  Secrets live in the platform secret store, never in the database in
+  plain text, never in a log.
+- **Identity is the IdP's issuer and subject, never the email.** Today
+  a person is their lowercased email and `Credential.providerId` is
+  stored and never trusted; there is no issuer column. The subject is
+  the key, the email a display name.
+- **Provisioning is SCIM 2.0 first** (`/scim/v2/Users`, `/Groups`),
+  just-in-time on a first sign-in only where the Owner or Admin enabled
+  it; a directory group maps to an Etyme role by tenant setting.
+  **Deprovisioning is the sale:** a person removed or disabled in the
+  directory loses the seat at once, live sessions die and a ledger entry
+  is written. Today a session is a 30-day JWT with no revocation list;
+  a revoked seat stops working per request (`getCallerContext` rereads
+  the Context) but the token stays valid. The kill is a per-request
+  check of a session-version on the person against the directory's
+  status, so enforcement sits in two places: the sign-in callback for
+  new sign-ins and `getCallerContext` for live ones.
+- **Words and the ladder do not change.** Owner and Admin, never "Tenant
+  Admin" or "super-owner"; Superadmin stays platform-only and never
+  reads a company's data. An Admin never acts on an Owner, so a
+  directory deprovision of an Owner follows the Owner rules (another
+  Owner's yes, never the last Owner).
+- **No break-glass.** Not for support, not for admins, not for
+  Superadmin: the staff bootstrap and claim links refuse an `SSO_ONLY`
+  company like every other door. A break-glass, if ever proposed, is a
+  separate, ledgered, time-boxed decision for the founder.
+- **A supplier's people belong to the supplier's own company**, scoped
+  into the client's program by a grant the client revokes; they are
+  never put in the client's directory, and a small supplier's Track 2
+  sign-in never reaches the client's interior.
+- **Track 2 keeps the password door and an invitation beats the
+  consumer-domain rule.** The 2026-10-08 password door stays for
+  `INVITE_ONLY` and `HYBRID` companies, because a small firm with no
+  Google or Microsoft needs some way in; the brief's "no Etyme password
+  for anyone" is applied to `SSO_ONLY` companies only (the founder may
+  tighten it in a sentence). An invited Gmail address is seated through
+  its invitation: an existing invited seat beats the consumer-domain
+  candidate rule. Required 2-step verification on an invited account is
+  shown as a warning where it cannot be confirmed, never claimed.
+- **Ledger events**, all mandatory, each with time, company, actor,
+  subject, the policy cited and the surface: SSO configured, domain
+  verified, user provisioned, user deprovisioned, group mapped to a role,
+  login succeeded, login refused because SSO only, invite sent, invite
+  accepted, membership revoked, auth policy changed. They go to the
+  existing logs (`AccessLog`, `AutomationLog`) with named actions, not a
+  third ledger.
+- **A mock identity provider** (OIDC routes inside this app, signed with
+  `node:crypto`, gated to reserved demo addresses) stands in for a
+  client's directory in the demo. It is a mock and `KNOWN-LIMITS.md`
+  says so; the configuration screen is real. No second runtime.
+- **Two passes, never blended.** Pass 1 is the demo path end to end:
+  SSO-only sign-in through the mock, disabled at the directory and the
+  next request refused, every other door refused for that company, an
+  invited Gmail Owner in and then removed, a supplier scoped to its own
+  records, the ledger readable. Pass 2 (real SAML certification,
+  directory conformance suites, penetration-test preparation) only when
+  the founder asks. **Testing budget:** unit tests only for the
+  SSO-only refusal at every door, deprovisioning ending the session,
+  isolation and supplier scoping, and ledger integrity of the identity
+  events; no other new test file without asking.
+- **Not built:** any language model in identity or access, an Etyme
+  password system for an `SSO_ONLY` company, an `@etyme.com` mailbox
+  forced on a partner. The brief's "wedge" sentence is not adopted: the
+  wedge is still undecided (see "Tenure is the moat, not the wedge").
+  No enterprise vendor is named on any page or file.
+- **Public words, when built:** *"Your team signs in through your
+  company's directory. No separate Etyme password."* for a client;
+  *"Invited by email, sign in with Google or Microsoft."* for a small
+  team. No company-size range anywhere.
+- **Open for the founder:** which company the three partners (Sidhu,
+  Vineel, Vikash) are Owners of; the brief says the internal Etyme
+  tenant, but Etyme is the platform and the founder's bench business is
+  Tapin, so the assumption is Tapin Owners on their Gmail invitations.
+- **Built in this order:** the schema (a company's policy, an IdP
+  configuration with a secret reference, SCIM tokens, a group-to-role
+  map, an issuer on the credential, a session version), queued through
+  the architect after the Superadmin limits table; then the policy at
+  the sign-in callback and `getCallerContext`; the OIDC door and the
+  mock provider; SCIM; the Auth settings screen with its plain
+  sentence; then the demo walk.
+
 ## Ask Etyme is full screen, keeps its conversations, and shows an answer as data — the founder, 2026-11-03
 
 *"Ask Etyme should work like Claude harness model with conversations
