@@ -15,12 +15,13 @@
  */
 
 import type { EntitySpec, FieldSpec } from '@/lib/importable'
+import { modelFor } from '@/lib/model-ids'
 import { extractWithModel, modelAvailable, type ExtractionResult } from '@/lib/extract'
 import { maskForModel, modelOnFor, recordModelPrompt, type MaskVocab, type PromptToRecord } from '@/lib/model-boundary'
 import { prisma } from '@/lib/db'
 import { FILL_FIELD_WORDS, type FillField, type PaperKind, type ReadValue } from '@/lib/setup-fill'
 
-export const SETUP_MODEL = 'claude-sonnet-5'
+export const SETUP_MODEL = modelFor('READ')
 export const SETUP_PURPOSE = 'SETUP_PAPER'
 
 export const MODEL_SAYS = {

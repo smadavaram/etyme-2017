@@ -32,6 +32,7 @@
 
 import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
 import { receiptsLink } from '@/lib/money/ap-words'
+import { modelFor } from '@/lib/model-ids'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
@@ -1087,7 +1088,7 @@ export function noSwitch(permissions: readonly string[] | null | undefined, href
  * want a large model"), the smallest of the family this deployment
  * prices in lib/agent-run. One constant; the prompt log names it.
  */
-export const SMALL_MODEL = 'claude-haiku-4-5'
+export const SMALL_MODEL = modelFor('SMALL')
 
 /** Who answered a free-text question, and what it cost, for the prompt log. */
 export interface ModelReply { text: string; model: string; tokensIn: number | null; tokensOut: number | null }

@@ -142,25 +142,11 @@ describe('the model ids are ready before the first real call', () => {
 })
 
 /**
- * Files outside lib/model-ids that still write an id, each owned by a
- * domain this change could not write. The list may only shrink: a file
- * that moves to `modelFor` comes off it in the same commit.
+ * Files outside lib/model-ids that still write an id. Empty since
+ * 2026-11-11: every call site asks `modelFor`. A file that writes an id
+ * again must be named here with a reason, and the list may only shrink.
  */
-const STILL_LITERAL: Record<string, string> = {
-  'src/lib/consultant-portfolio.ts': 'etyme-supply',
-  'src/lib/extract.ts': 'etyme-supply',
-  'src/lib/match-engine.ts': 'etyme-supply',
-  'src/lib/site-voice.ts': 'etyme-market',
-  'src/app/api/submissions/[id]/check/route.ts': 'etyme-demand',
-  'src/app/api/requirements/[id]/screen/route.ts': 'etyme-demand',
-  'src/app/api/conversations/twin/ask.ts': 'etyme-conversation',
-  // The prompt log's label for what extract.ts and site-voice.ts send. It
-  // moves to modelFor('READ') in the same commit as they do, or the log
-  // would name an id that was not sent.
-  'src/lib/setup-fill-model.ts': 'etyme-architect',
-  'src/app/api/imports/sheets/read.ts': 'etyme-architect',
-  'src/app/api/settings/site/write.ts': 'etyme-architect',
-}
+const STILL_LITERAL: Record<string, string> = {}
 
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {

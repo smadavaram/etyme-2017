@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { modelFor } from '@/lib/model-ids'
 import { britishSpellings, wordsNobodyUses } from '@/lib/positioning'
 
 /**
@@ -196,7 +197,7 @@ Current names: ${JSON.stringify(DEFAULT_HEADINGS)}`
 
   try {
     const res = await client.messages.create({
-      model: 'claude-sonnet-5',
+      model: modelFor('READ'),
       max_tokens: 1200,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],

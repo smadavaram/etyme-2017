@@ -23,10 +23,11 @@
  * writer and the log handed in.
  */
 import { modelOnFor, recordModelPrompt, type PromptToRecord } from '@/lib/model-boundary'
+import { modelFor } from '@/lib/model-ids'
 import { modelAvailable, writeFromRules, writeWithModel, DEFAULT_HEADINGS, type SiteFacts, type SiteVoice } from '@/lib/site-voice'
 
 /** What lib/site-voice sends to. Logged beside each prompt; kept in step with lib/site-voice by hand. */
-export const SITE_MODEL = 'claude-sonnet-5'
+export const SITE_MODEL = modelFor('READ')
 /** The prompt log's purpose for a firm's public page. */
 export const SITE_PURPOSE = 'SITE_PAGE'
 

@@ -18,6 +18,7 @@
  * the reader and the log handed in.
  */
 import { prisma } from '@/lib/db'
+import { modelFor } from '@/lib/model-ids'
 import type { EntitySpec } from '@/lib/importable'
 import {
   extractWithModel,
@@ -38,7 +39,7 @@ import {
 } from '@/lib/model-boundary'
 
 /** What lib/extract sends to. Logged beside each prompt; kept in step with lib/extract by hand. */
-export const IMPORT_MODEL = 'claude-sonnet-5'
+export const IMPORT_MODEL = modelFor('READ')
 /** The prompt log's purpose for an import. */
 export const IMPORT_PURPOSE = 'IMPORT'
 

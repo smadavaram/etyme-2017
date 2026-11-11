@@ -1,6 +1,7 @@
 import { jobBandReadable } from '../band-readable'
 import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
+import { modelFor } from '@/lib/model-ids'
 import Anthropic from '@anthropic-ai/sdk'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -34,7 +35,7 @@ import {
  */
 
 const anthropic = new Anthropic()
-const MODEL = process.env.CHECK_MODEL ?? 'claude-opus-5'
+const MODEL = modelFor('CHECK')
 
 
 export async function POST(

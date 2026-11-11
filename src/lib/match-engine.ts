@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { modelFor } from '@/lib/model-ids'
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
@@ -36,7 +37,7 @@ const anthropic = new Anthropic()
  * records the model on every run, so switching it is a decision somebody
  * can make from real numbers rather than a hunch.
  */
-const MODEL = process.env.MATCH_MODEL ?? 'claude-opus-5'
+const MODEL = modelFor('MATCH')
 
 interface MatchFactor {
   label: string

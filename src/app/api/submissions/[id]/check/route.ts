@@ -1,6 +1,7 @@
 import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { modelFor } from '@/lib/model-ids'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -35,7 +36,7 @@ import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
  */
 
 const anthropic = new Anthropic()
-const MODEL = process.env.CHECK_MODEL ?? 'claude-opus-5'
+const MODEL = modelFor('CHECK')
 
 export async function POST(
   request: NextRequest,

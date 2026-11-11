@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { modelFor } from '@/lib/model-ids'
 import type { EntitySpec, FieldSpec } from '@/lib/importable'
 
 /**
@@ -134,7 +135,7 @@ Return at most ${maxRecords} records.`
 
   try {
     const response = await client.messages.create({
-      model: 'claude-sonnet-5',
+      model: modelFor('READ'),
       max_tokens: 8000,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],

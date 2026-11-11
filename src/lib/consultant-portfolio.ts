@@ -22,6 +22,7 @@
  */
 
 import { paidOnDay } from '@/lib/money/pay-day-period'
+import { modelFor } from '@/lib/model-ids'
 import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
 import { nextOpen } from '@/lib/money/next-cycle'
@@ -598,7 +599,7 @@ Availability: ${built.availability}`
 
   try {
     const res = await client.messages.create({
-      model: 'claude-sonnet-5',
+      model: modelFor('READ'),
       max_tokens: 800,
       system: BIO_SYSTEM,
       messages: [{ role: 'user', content: prompt }],
