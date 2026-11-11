@@ -64,6 +64,12 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'requirements/parse': 'Turns the text it is sent into fields; reads and writes nothing on the record.',
   'texts/inbound': 'The email provider posting a reply; nothing is read until its signature over the raw body checks (verifyInbound in lib/texts).',
   'email/inbound': 'The mail provider posting a message forwarded to a company’s address; nothing is read until its signature over the raw body checks (verifyDelivery in lib/email-intake), and the message is then kept only for the one company the address belongs to, from a person seated there.',
+  'sso/start': 'The company directory door, before there is a session: finds the company by a verified domain and sends the browser to its directory with a sealed state, nonce and PKCE challenge; reads no company data.',
+  'sso/callback': 'Where a company directory sends the browser back: the sealed state must match, the id token is verified (signature, issuer, audience, dates, nonce) and the person found by issuer and subject before a one-time ticket is set (lib/identity/directory).',
+  'mock-directory/[slug]/.well-known/openid-configuration': 'The mock directory’s discovery document; serves demo companies on reserved domains only.',
+  'mock-directory/[slug]/jwks': 'The mock directory’s public signing key; demo companies on reserved domains only.',
+  'mock-directory/[slug]/token': 'The mock directory’s token endpoint: a sealed one-minute code, the mock client secret and the PKCE verifier; demo companies on reserved domains only.',
+  'mock-directory/[slug]/authorize': 'The mock directory’s sign-in page, labelled a mock; sends a code only to Etyme’s own directory callback; demo companies on reserved domains only.',
   'teams/messages': 'Microsoft Teams posting to the Etyme bot; the Bot Framework’s signed token is checked against our app id before anything is read (lib/teams/auth), and the account is then bound to a live seat whose permissions are the only ones used (lib/teams/binding).',
 }
 

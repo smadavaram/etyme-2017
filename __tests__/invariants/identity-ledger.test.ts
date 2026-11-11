@@ -26,6 +26,7 @@ const asCaller = vi.hoisted(() => ({ value: null as any }))
 vi.mock('@/lib/api-context', () => ({
   getCallerContext: vi.fn(async () => ({ caller: asCaller.value, error: null })),
   realPersonId: (c: any) => c.person.id,
+  getSessionIdentity: vi.fn(async () => ({ email: 'owner@example.test', door: 'PASSWORD', issuer: null })),
 }))
 
 import { IDENTITY_EVENTS, WRITTEN_BY, identityRow, identityReason, readIdentityReason, isRefusal } from '@/lib/identity/ledger'

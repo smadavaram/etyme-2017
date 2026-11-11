@@ -20,7 +20,7 @@ import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 import { ownSeatFor, ownWorkOf, ownSeatWasRemoved, openOwnSeat } from '@/lib/own-seat'
 import {
-  seatRefusal, isLimitedPublicSeat, narrowForPublicSeat,
+  seatRefusal, linkedInSeatRefusal, effectiveMode, isLimitedPublicSeat, narrowForPublicSeat,
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
@@ -708,6 +708,24 @@ export async function getCallerContext(
     return {
       caller: null,
       error: NextResponse.json({ error: { code: 'DIRECTORY_ONLY', message: seatSays } }, { status: 403 }),
+    }
+  }
+  // LinkedIn is a worker's and a one-person firm's door, never a door to a
+  // company with colleagues (founder, 2026-11-11).
+  const linkedInSays = linkedInSeatRefusal(identity?.door ?? null, context.company as any)
+  if (linkedInSays && context.companyId) {
+    await recordIdentityEvent({
+      event: 'JOIN_REFUSED_BY_POLICY',
+      companyId: context.companyId,
+      actorPersonId: person.id,
+      subject: { personId: person.id },
+      policy: effectiveMode(seatPolicy),
+      surface: request?.nextUrl?.pathname?.startsWith('/api/') ? 'API' : 'WEB',
+      says: `Refused a LinkedIn session the seat at ${(context.company as any)?.name ?? 'the company'}: ${linkedInSays}`,
+    })
+    return {
+      caller: null,
+      error: NextResponse.json({ error: { code: 'LINKEDIN_NOT_FOR_COMPANIES', message: linkedInSays } }, { status: 403 }),
     }
   }
 

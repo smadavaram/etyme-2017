@@ -51,6 +51,14 @@ export function signInRefusal(code: string | null | undefined): string | null {
       // A company's sign-in policy refused the door (lib/identity). The
       // company is not named, because the page does not know which.
       return 'Your company signs its people in through your company\'s directory only. Use the directory sign-in your company gave you.'
+    case 'NoDirectory':
+      return 'We could not find a company directory for that address. Sign in another way, or ask your company\'s IT.'
+    case 'SamlNotBuilt':
+      return 'Your company signs in through a SAML directory, and Etyme does not read SAML yet. Ask your company\'s IT for an OpenID Connect sign-in.'
+    case 'DirectoryDown':
+      return 'Your company\'s directory did not answer. Try again in a minute, or ask your company\'s IT.'
+    case 'DirectoryRefused':
+      return 'Your company\'s directory did not sign you in. Start again, or ask your company\'s IT.'
     case 'CredentialsSignin':
       return null
     default:
@@ -82,3 +90,16 @@ export function signedInAsSays(email: string | null | undefined): string | null 
 /** The line on the sign-in page after signing out for another account. */
 export const PICK_ANOTHER_ACCOUNT =
   'You are signed out. Sign in with the account you want. Microsoft and Google will ask which account to use.'
+
+// ── Your company's directory, and LinkedIn ────────────────────────────
+
+/** The directory door's line, the same for a client and a larger company (founder, 2026-11-11). */
+export const DIRECTORY_DOOR_SAYS = 'Your team signs in through your company\u2019s directory. No separate Etyme password.'
+
+/** Where the directory door starts, from the work email typed. */
+export function directoryStart(email: string, next = '/start'): string {
+  return `/api/sso/start?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(next)}`
+}
+
+/** LinkedIn's button says who it is for, because it is not a door to a company with colleagues. */
+export const LINKEDIN_DOOR_SAYS = 'For workers and one-person firms.'

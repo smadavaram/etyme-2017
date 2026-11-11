@@ -55,7 +55,8 @@ describe('which ways in are offered', () => {
   it('offers no identity provider when no credentials are set, and the password door all the same', async () => {
     expect(await providerIds()).toEqual([])
     const mod = await import('@/lib/auth')
-    expect(mod.configuredProviders().map((p: any) => p.id)).toEqual(['credentials'])
+    // The password door, and the company directory's door (2026-11-11), which needs no key: it spends a ticket /api/sso/callback set.
+    expect(mod.configuredProviders().map((p: any) => p.options?.id ?? p.id)).toEqual(['credentials', 'directory-oidc'])
   })
 
   it('offers Microsoft only when both the client id and the secret are set', async () => {

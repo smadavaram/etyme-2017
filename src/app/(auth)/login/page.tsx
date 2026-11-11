@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { DoorFrame, DoorLabel, doorField, doorButton } from '../door-frame'
 import { readJson } from '@/lib/read-response'
-import { offers, loginSubtitle, signInRefusal, PICK_ANOTHER_ACCOUNT } from '@/lib/login-doors'
+import { offers, loginSubtitle, signInRefusal, PICK_ANOTHER_ACCOUNT, DIRECTORY_DOOR_SAYS, directoryStart, LINKEDIN_DOOR_SAYS, CHOOSE_ACCOUNT } from '@/lib/login-doors'
 import { AccountDoors, useKnownDoors } from '../account-doors'
 import { AnotherAccount } from '../another-account'
 
@@ -58,6 +58,8 @@ export default function LoginPage() {
   const [refusal, setRefusal] = useState<string | null>(null)
   const [unconfirmed, setUnconfirmed] = useState(false)
   const [resent, setResent] = useState<string | null>(null)
+  // The work email for the company's own directory (2026-11-11).
+  const [dirEmail, setDirEmail] = useState('')
   // Back from "Not you? Use another account": signed out, and told so.
   const [another, setAnother] = useState(false)
 
@@ -113,7 +115,7 @@ export default function LoginPage() {
   const has = (id: string) => offers(available, id)
   // The password door is always there, so "nothing works" means no
   // identity provider and no way to confirm an email either.
-  const nothingWorks = available !== null && [...available].every((id) => id === 'credentials')
+  const nothingWorks = available !== null && [...available].every((id) => id === 'credentials' || id === 'directory-oidc')
 
   return (
     <DoorFrame>
@@ -190,6 +192,41 @@ export default function LoginPage() {
               <a href="/signup" className="text-etyme-action-press hover:underline">New here? Sign up</a>
             </div>
           </form>
+
+          {/* Your company's directory: the only door for a directory-only company (2026-11-11) */}
+          <form
+            className="space-y-3 mb-6 border-t border-etyme-rule pt-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (dirEmail.trim()) window.location.assign(directoryStart(dirEmail))
+            }}
+          >
+            <DoorLabel htmlFor="dir-email">Work email, for your company&rsquo;s directory</DoorLabel>
+            <p className="text-xs text-etyme-muted">{DIRECTORY_DOOR_SAYS}</p>
+            <input
+              id="dir-email"
+              type="email"
+              autoComplete="email"
+              value={dirEmail}
+              onChange={(e) => setDirEmail(e.target.value)}
+              placeholder="you@company.com"
+              className={doorField}
+            />
+            <button type="submit" disabled={!dirEmail.trim()}
+              className="w-full px-4 py-2.5 rounded-lg border border-etyme-rule text-sm font-medium text-etyme-ink hover:bg-etyme-canvas disabled:opacity-50">
+              Sign in through your company&rsquo;s directory
+            </button>
+          </form>
+
+          {has('linkedin') && (
+            <div className="mb-6">
+              <button type="button" onClick={() => signIn('linkedin', { callbackUrl: '/start' }, CHOOSE_ACCOUNT)}
+                className="w-full px-4 py-2.5 rounded-lg border border-etyme-rule text-sm font-medium text-etyme-ink hover:bg-etyme-canvas">
+                Continue with LinkedIn
+              </button>
+              <p className="text-xs text-etyme-muted mt-1 text-center">{LINKEDIN_DOOR_SAYS}</p>
+            </div>
+          )}
 
           {nothingWorks && !devEmail && (
             <p className="mb-6 text-xs text-etyme-muted">

@@ -35,6 +35,8 @@ export const DOORS = [
   'EMAIL_LINK',
   'GOOGLE_SOCIAL',
   'MICROSOFT_SOCIAL',
+  /** LinkedIn's sign-in: for workers and one-person firms only (2026-11-11). */
+  'LINKEDIN',
   'VERIFY_TOKEN',
   'CLAIM_LINK',
   'STAFF_BOOTSTRAP',
@@ -46,7 +48,7 @@ export const DOORS = [
 export type Door = (typeof DOORS)[number]
 
 /** A door a person signs in through, as opposed to one that seats them. */
-export const SIGN_IN_DOORS: readonly Door[] = ['PASSWORD', 'EMAIL_LINK', 'GOOGLE_SOCIAL', 'MICROSOFT_SOCIAL', 'VERIFY_TOKEN', 'DIRECTORY']
+export const SIGN_IN_DOORS: readonly Door[] = ['PASSWORD', 'EMAIL_LINK', 'GOOGLE_SOCIAL', 'MICROSOFT_SOCIAL', 'LINKEDIN', 'VERIFY_TOKEN', 'DIRECTORY']
 
 /** What the reader knows about one company's sign-in. */
 export interface CompanyPolicy {
@@ -187,6 +189,32 @@ export function seatRefusal(seatCompany: CompanyPolicy | null, s: Pick<SessionFa
   if (!seatCompany || effectiveMode(seatCompany) !== 'SSO_ONLY') return null
   if (s.door === 'DIRECTORY' && s.issuer && seatCompany.issuers.includes(s.issuer)) return null
   return directoryOnlySays(seatCompany.companyName)
+}
+
+/**
+ * LinkedIn is a door for a worker and a one-person firm, never for a seat
+ * at a company with colleagues (founder, 2026-11-11: "Only the workers and
+ * solopreneurs can have Gmail or LinkedIn login. Rest would be Microsoft,
+ * Google enterprise or Okta login"). A worker's own seat holds no company;
+ * a one-person firm is a CONSULTANT_CORP. Every other company's seat is
+ * refused to a LinkedIn session, in a sentence that says the way in.
+ */
+export function linkedInSeatRefusal(door: Door | null, seatCompany: { name: string; kind: string } | null | undefined): string | null {
+  if (door !== 'LINKEDIN' || !seatCompany) return null
+  if (seatCompany.kind === 'CONSULTANT_CORP') return null
+  return `LinkedIn sign-in is for workers and one-person firms. Sign in to ${seatCompany.name} through your company's directory, or with Microsoft, Google or your email and password where ${seatCompany.name} allows it.`
+}
+
+/**
+ * Directory only locks out everybody who is not signed in through the
+ * directory, the Owner choosing it included. So it is chosen only from a
+ * session that company's own directory signed in: the Owner proves the
+ * door works for them before every other door closes.
+ */
+export function directoryOnlyLockout(args: { to: SignInMode; door: Door | null; issuer: string | null; issuers: readonly string[]; companyName: string }): string | null {
+  if (args.to !== 'SSO_ONLY') return null
+  if (args.door === 'DIRECTORY' && args.issuer && args.issuers.includes(args.issuer)) return null
+  return `Sign in to ${args.companyName} through your company's directory once, then choose directory only. Otherwise it would sign you out with no way back in.`
 }
 
 // ── An invited public-address seat at a hybrid company ────────────────

@@ -100,7 +100,17 @@ export function configuredProviders(): Provider[] {
     )
   }
 
+  // LinkedIn, for workers and one-person firms only (founder, 2026-11-11:
+  // "Only the workers and solopreneurs can have Gmail or LinkedIn login").
+  // LinkedIn's standard OpenID Connect sign-in; the profile URL stays a
+  // field. A seat at a company with more than one person is refused to a
+  // LinkedIn session in the one caller check (linkedInSeatRefusal).
+  if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+    providers.push(linkedInDoor(process.env.LINKEDIN_CLIENT_ID, process.env.LINKEDIN_CLIENT_SECRET))
+  }
+
   providers.push(passwordDoor())
+  providers.push(directoryDoor())
 
   return providers
 }
@@ -144,6 +154,50 @@ export function passwordDoor(): Provider {
   })
 }
 
+/** LinkedIn's OpenID Connect sign-in, by its published discovery document. No new dependency. */
+export function linkedInDoor(clientId: string, clientSecret: string): Provider {
+  return {
+    id: 'linkedin',
+    name: 'LinkedIn',
+    type: 'oauth',
+    wellKnown: 'https://www.linkedin.com/oauth/.well-known/openid-configuration',
+    issuer: 'https://www.linkedin.com/oauth',
+    jwks_endpoint: 'https://www.linkedin.com/oauth/openid/jwks',
+    authorization: { params: { scope: 'openid profile email' } },
+    idToken: true,
+    checks: ['state'],
+    client: { token_endpoint_auth_method: 'client_secret_post' },
+    clientId,
+    clientSecret,
+    profile(p: Record<string, any>) {
+      return { id: String(p.sub), name: p.name ?? null, email: p.email ?? null, image: p.picture ?? null }
+    },
+  } as unknown as Provider
+}
+
+/**
+ * A company's own directory, as a NextAuth door (founder, 2026-11-11). It
+ * holds no key of its own: /api/sso/callback verifies the directory's id
+ * token and sets a two-minute ticket as an http-only cookie, and this door
+ * spends that ticket once (lib/identity/directory). Always registered, and
+ * never drawn as a button: the sign-in page reaches it through the work
+ * email.
+ */
+export function directoryDoor(): Provider {
+  return CredentialsProvider({
+    id: 'directory-oidc',
+    name: 'Your company\'s directory',
+    credentials: {},
+    async authorize(_credentials, req) {
+      const { spendTicket, cookieFrom, TICKET_COOKIE } = await import('@/lib/identity/directory')
+      const headers = (req?.headers ?? {}) as Record<string, string | undefined>
+      const who = await spendTicket(cookieFrom(headers.cookie ?? headers.Cookie, TICKET_COOKIE))
+      if (!who) throw new Error('This sign-in was already used, or ran out. Start again from the sign-in page.')
+      return { id: who.personId, email: who.email, verified: true, door: 'DIRECTORY', issuer: who.issuer } as any
+    },
+  })
+}
+
 /**
  * Why a Microsoft or Google sign-in is refused before it becomes a session,
  * or null when it may go on. Returned as the code the sign-in page reads
@@ -164,9 +218,9 @@ export function passwordDoor(): Provider {
  *     are honored: no email, or `xms_edov` false, is refused.
  */
 export function oauthRefusal(provider: string | undefined, profile: Record<string, unknown> | undefined, email: string | null | undefined): 'NoEmail' | 'EmailNotVerified' | null {
-  if (provider !== 'google' && provider !== 'azure-ad') return null
+  if (provider !== 'google' && provider !== 'azure-ad' && provider !== 'linkedin') return null
   if (!email || !String(email).includes('@')) return 'NoEmail'
-  if (provider === 'google') {
+  if (provider === 'google' || provider === 'linkedin') {
     const v = profile?.email_verified
     return v === true || v === 'true' ? null : 'EmailNotVerified'
   }
@@ -192,8 +246,14 @@ export function doorOfSignIn(provider: string | undefined, user?: { door?: unkno
   if (provider === 'google') return 'GOOGLE_SOCIAL'
   if (provider === 'email') return 'EMAIL_LINK'
   if (provider === 'credentials') return user?.door === 'VERIFY_TOKEN' ? 'VERIFY_TOKEN' : 'PASSWORD'
+  if (provider === 'linkedin') return 'LINKEDIN'
   if (provider.startsWith('directory-')) return 'DIRECTORY'
   return null
+}
+
+/** The issuer that vouched for a directory sign-in: the ticket's, said by the directory door. */
+function directoryIssuer(user: unknown, profile: unknown): string | null {
+  return String((user as any)?.issuer ?? (profile as any)?.iss ?? '') || null
 }
 
 /** NextAuth's provider id, as the Credential row names it. */
@@ -236,7 +296,7 @@ export const authOptions: NextAuthOptions = {
         const { checkDoor } = await import('@/lib/identity/read')
         const v = await checkDoor({
           door, email: sessionEmail(user.email)!, surface: 'WEB',
-          issuer: door === 'DIRECTORY' ? String((profile as any)?.iss ?? '') || null : null,
+          issuer: door === 'DIRECTORY' ? directoryIssuer(user, profile) : null,
         })
         if (!v.allowed) return '/login?error=DirectoryOnly'
       }
@@ -253,7 +313,7 @@ export const authOptions: NextAuthOptions = {
         // under, read on every request below (lib/identity).
         const door = doorOfSignIn(account?.provider, user as any)
         token.door = door
-        token.iss = door === 'DIRECTORY' ? String((profile as any)?.iss ?? '') || null : null
+        token.iss = door === 'DIRECTORY' ? directoryIssuer(user, profile) : null
         try {
           const { sessionVersionOf } = await import('@/lib/identity/read')
           token.sv = token.email ? await sessionVersionOf(String(token.email)) : 0

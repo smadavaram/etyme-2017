@@ -280,7 +280,8 @@ describe('the login page offers email and password even when no provider key is 
 
   it('registers the password door with no keys set at all', async () => {
     const mod = await import('@/lib/auth')
-    expect(mod.configuredProviders().map((p: any) => p.id)).toEqual(['credentials'])
+    // The password door, and the company directory's door (2026-11-11), which needs no key: it spends a ticket /api/sso/callback set.
+    expect(mod.configuredProviders().map((p: any) => p.options?.id ?? p.id)).toEqual(['credentials', 'directory-oidc'])
   })
 
   it('draws the email and password form before any provider button, and never behind a provider check', () => {

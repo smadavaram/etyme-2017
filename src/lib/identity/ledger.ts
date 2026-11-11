@@ -77,6 +77,12 @@ export interface IdentityEntry {
   surface: Surface
   /** What happened, in a sentence a person reads back. */
   says: string
+  /**
+   * An act that was asked for and refused, under the act's own name (a
+   * directory asking to remove the last Owner): written as a refusal, and
+   * before the refusal is sent, like the two refusal events.
+   */
+  refused?: boolean
 }
 
 const SHAPE = /^policy (SSO_ONLY|INVITE_ONLY|HYBRID|OPEN) · surface ([A-Z]+) · ([\s\S]+)$/
@@ -115,7 +121,7 @@ export function identityRow(e: IdentityEntry):
     ok: true,
     subject,
     action: e.event,
-    allowed: !isRefusal(e.event),
+    allowed: !(isRefusal(e.event) || e.refused === true),
     actorPersonId: e.actorPersonId,
     actorCompanyId: e.companyId,
     reason: identityReason(e),

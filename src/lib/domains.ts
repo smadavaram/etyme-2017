@@ -577,6 +577,9 @@ export const DOMAINS: Domain[] = [
       // policy per company, every door it answers, the session kill and the
       // identity ledger; the settings route that reads and sets the mode.
       'lib/identity', 'app/api/settings/sign-in',
+      // Stage B: the company's own directory as a sign-in door, the mock
+      // directory for the demo (reserved domains only), and SCIM 2.0.
+      'app/api/sso', 'app/api/mock-directory', 'app/api/scim', 'app/dashboard/settings/sign-in',
       // A seat that reads one region of a client's program (founder,
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.

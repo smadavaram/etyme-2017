@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { getCallerContext, getSessionIdentity, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { SIGN_IN_MODES, mayChangeMode, modeSays, effectiveMode, type SignInMode } from '@/lib/identity/policy'
+import { SIGN_IN_MODES, mayChangeMode, modeSays, effectiveMode, directoryOnlyLockout, type SignInMode } from '@/lib/identity/policy'
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 
@@ -88,6 +88,11 @@ export async function PATCH(request: NextRequest) {
   const before = await companyPolicy(company.id)
   const may = mayChangeMode({ roleName, to, issuers: before.policy.issuers, companyName: company.name })
   if (!may.ok) return NextResponse.json({ error: { code: may.status === 403 ? 'FORBIDDEN' : 'VALIDATION', field: 'mode', message: may.says } }, { status: may.status })
+  // Directory only closes every other door, the Owner's own included, so it
+  // is chosen from a session the company's own directory signed in.
+  const session = await getSessionIdentity()
+  const lockout = directoryOnlyLockout({ to, door: session?.door ?? null, issuer: session?.issuer ?? null, issuers: before.policy.issuers, companyName: company.name })
+  if (lockout) return NextResponse.json({ error: { code: 'VALIDATION', field: 'mode', message: lockout } }, { status: 422 })
 
   const data = {
     mode: to,
