@@ -29,7 +29,7 @@ import { reportError } from '@/lib/alerts'
  * Not yet a line in AccessAction (lib/access-log is regulatory's); the
  * column is text, so the row is written under this name today.
  */
-const OPEN_SUPERADMIN = 'SUPERADMIN_SETTINGS_OPEN' as AccessAction
+const OPEN_SUPERADMIN: AccessAction = 'SUPERADMIN_SETTINGS_OPEN'
 
 const REFUSED = "This screen is for Etyme's Superadmin only. A company's Owner and Admin set their own company's Ask Etyme under Settings."
 

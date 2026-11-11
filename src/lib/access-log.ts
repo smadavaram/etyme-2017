@@ -167,6 +167,7 @@ export type AccessAction =
   // from "Add consultant" is a seat reading at its firm, and stays
   // MARKETING_REQUEST.
   | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
+  | 'SUPERADMIN_SETTINGS_OPEN' // a Superadmin opened or changed the platform's Ask Etyme limits; no company data is read
 
 /**
  * Whose data was read (2026-11-01). A person, by id — every caller before
