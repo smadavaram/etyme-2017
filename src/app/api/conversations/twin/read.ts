@@ -22,6 +22,7 @@ import { OWNER_DESKS } from '@/lib/twin/readers'
 import { logBulkAccess } from '@/lib/access-log'
 import { runAgent } from '@/lib/agent-run'
 import { modelOnFor, recordModelPrompt } from '@/lib/model-boundary'
+import { askEtymeAllowanceFor } from '@/lib/model-allowance'
 import type { MaskVocabulary } from './mask'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -908,6 +909,16 @@ export function readersFor(
 
     async modelOn() {
       return caller.company ? modelOnFor(caller.company.id) : false
+    },
+
+    // The deployment's allowance for this person at the company they ask
+    // from, the same company the prompt log records (logPrompt below), so
+    // what is counted and what is checked are one company. A read that
+    // fails throws, and nothing leaves.
+    async allowance() {
+      if (!caller.company) return null
+      const v = await askEtymeAllowanceFor(caller.company.id, caller.person.id)
+      return v.may ? null : { says: v.says, links: v.links }
     },
 
     async vocabulary(): Promise<MaskVocabulary> {

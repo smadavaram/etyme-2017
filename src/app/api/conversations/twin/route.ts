@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
 import { pinnedFor } from './pinned'
-import { respond, whereAnswer, menuOf, placeOf, today, modelState, boundarySays, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
+import { respond, whereAnswer, menuOf, placeOf, today, greetingModelState, boundarySays, type ModelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
 import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, listThreads, startThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { threadIdOf, THREAD_PARAM, NOT_YOUR_CONVERSATION } from './thread-id'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor, MODEL_SWITCH_HREF } from '@/lib/model-boundary'
+import { companyAllowanceFor } from '@/lib/model-allowance'
 import { programView } from '@/app/api/program/view'
 import { programSummary } from '@/app/api/program/summary'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
@@ -598,18 +599,19 @@ export async function GET(request: NextRequest) {
       unreadNotices(caller, { program: seat?.clientCompany.id ?? null }),
       hatFactsOf(caller, request, { askWork: true }).catch(() => null),
     ]).then(([n, f]) => (f ? { ...n, shown: noticesForHat(f, 'firm', n.shown) } : n))
-    const [notices, threads, modelSwitch, party, week] = await Promise.all([
+    const [notices, threads, boundary, party, week] = await Promise.all([
       firmNotices,
-      unreadThreads(caller), modelSwitchFor(company.id), who, ownWeek,
+      unreadThreads(caller), boundaryOf(company.id), who, ownWeek,
     ])
-    // The boundary line reads the company's own switch, so it says what is
-    // true for this company; it is the greeting's last line.
-    const model = modelState(modelSwitch.on, process.env)
+    // The boundary line reads the switch and the company's allowance, the
+    // two halves of `modelOnFor`, so it says what is true for this company
+    // and never disagrees with what a free-text question is told.
+    const { model, held: modelHeld } = boundary
     // A new party's one next act, read off its own rows, and only where the
     // greeting has nothing else to recommend; a read that fails says nothing rather than a guess.
     const firstAct = () => firstActFacts(company.id, company.kind, party.party).then(firstActFor).catch(() => null)
     const greeted = await today(readers, {
-      greeting: true, picture, needs: queue, notices, threads, model, party: party.party, client: party.client, ownWeek: week,
+      greeting: true, picture, needs: queue, notices, threads, model, modelHeld, party: party.party, client: party.client, ownWeek: week,
       self: caller.person.name, firstAct, setup: await setupLine,
     })
     const answer = await withWelcome(caller, greeted, party.party, await thread)
@@ -745,6 +747,19 @@ async function onThePlant(caller: Caller, map: MapSeat | null, answer: Answer, q
 }
 
 /**
+ * The greeting's boundary state for a company: its switch and its
+ * allowance, read together, which is exactly what `modelOnFor` answers
+ * (lib/model-boundary). Held wherever the allowance refuses, with its own
+ * sentence, so a company held at its month or not yet opened is never told
+ * to turn the switch on, and never greeted as ON.
+ */
+async function boundaryOf(companyId: string): Promise<{ model: ModelState; held: string | null }> {
+  const [sw, allowance] = await Promise.all([modelSwitchFor(companyId), companyAllowanceFor(companyId)])
+  const held = allowance.may ? null : allowance.says
+  return { model: greetingModelState(sw.on, held, process.env), held }
+}
+
+/**
  * The greeting of a seat that reads the program by region: By region's
  * own first line and its number, read through `regionsView` for this
  * caller. A region seat's boundary line says nothing it asks leaves to a
@@ -755,8 +770,9 @@ async function mapGreeting(caller: Caller, map: MapSeat, take: number | undefine
     const thread = threadFor(caller, take)
     const data = await mapView(caller, { trail: 'Ask Etyme greeting' })
     if (!data) return notReadByRegion(caller)
-    const model = map.reach === 'REGION' ? 'OFF' : modelState((await modelSwitchFor(caller.company!.id)).on, process.env)
-    const boundary = map.reach === 'REGION' ? REGION_BOUNDARY : boundarySays(model)
+    const state = map.reach === 'REGION' ? null : await boundaryOf(caller.company!.id)
+    const model: ModelState = state ? state.model : 'OFF'
+    const boundary = state ? boundarySays(state.model, state.held) : REGION_BOUNDARY
     return NextResponse.json({
       data: { answer: mapNeeds(data, map.reach, true, boundary, { line: map.line }), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
     })

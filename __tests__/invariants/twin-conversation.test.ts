@@ -1742,7 +1742,7 @@ describe('every first screen names a person and the step in front of them (found
     expect(greet).toContain('const picture = who.then((w) => pictureFor(caller, w.party))')
     expect(greet).not.toMatch(/picture: await pictureFor/)
     expect(greet).toMatch(/const firmNotices = Promise\.all\(\[\s+unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\),/)
-    expect(greet).toMatch(/await Promise\.all\(\[\s+firmNotices,\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), who,/)
+    expect(greet).toMatch(/await Promise\.all\(\[\s+firmNotices,\s+unreadThreads\(caller\), boundaryOf\(company\.id\), who,/)
     // And the rules' own reads start beside them (2026-11-01), not after them.
     expect(greet.indexOf('startedReaders(readersFor(')).toBeLessThan(greet.indexOf('await Promise.all(['))
     // The paying clerk's receipts are each checked at the same time, not in turn.

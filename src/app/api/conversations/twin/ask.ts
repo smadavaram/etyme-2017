@@ -1084,6 +1084,21 @@ export function noSwitch(permissions: readonly string[] | null | undefined, href
 }
 
 /**
+ * Ask Etyme's allowance refused a free-text question (lib/model-allowance,
+ * 2026-11-11): its own sentence, which names the paid plan's outcomes and
+ * never the thing behind the answer, and its links ("Talk to us"). The
+ * Upgrade slot is empty until prices exist, so nothing is drawn for it.
+ */
+export interface AllowanceHeld { says: string; links: readonly { text: string; href: string }[] }
+
+/** The reply where the allowance holds a free-text question: its sentence and its links, nothing more. */
+export function heldByAllowance(h: AllowanceHeld): Answer {
+  return h.links.length
+    ? { kind: 'TEXT', says: h.says, links: h.links.map((l) => ({ label: l.text, href: l.href })) }
+    : { kind: 'TEXT', says: h.says }
+}
+
+/**
  * The model free text goes to: small, by the founder's word ("we don't
  * want a large model"), the smallest of the family this deployment
  * prices in lib/agent-run. One constant; the prompt log names it.
@@ -2398,6 +2413,15 @@ export interface Readers {
   /** Whether this company's settings desk turned the model on (lib/model-boundary's switch). */
   modelOn(): Promise<boolean>
   /**
+   * Ask Etyme's allowance for this person at this company
+   * (`askEtymeAllowanceFor` in lib/model-allowance): null where a free-text
+   * question may leave, else the sentence and links to say instead. Read
+   * only on the free-text path, after every rule had its turn, so a
+   * question the rules answer is never held and never counted.
+   */
+  allowance?(): Promise<AllowanceHeld | null>
+
+  /**
    * The people and firms this reader may read: for masking when something
    * is about to leave, and for the transaction rule when a question has no
    * word of the trade or names a firm by its legal form.
@@ -3003,7 +3027,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   if (opts.greeting) more.push({ says: closeFor(party, opts.client) })
   // The boundary, the greeting's last line: said on the first screen, once,
   // now that the phone draws no heading over the thread.
-  if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model) })
+  if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model, opts.modelHeld) })
   // The jobs behind the candidates to review, read only where there are any.
   const reviewIds = (queue?.items ?? []).filter((d) => d.type === 'SUBMISSION_REVIEW').map((d) => d.entityId)
   const jobs = reviewIds.length && read.submissionJobs ? await read.submissionJobs(reviewIds).catch(() => null) : null
@@ -3039,6 +3063,8 @@ export interface TodayOptions {
   threads?: { shown: readonly ThreadNote[]; more: number }
   /** Whether a model can be asked here; the greeting closes on what that means for this company's data. */
   model?: ModelState
+  /** Where `model` is HELD, the company allowance's own sentence, said as the boundary line. */
+  modelHeld?: string | null
   /** Whose Ask Etyme this is; the closing line is the party's own. A client's by default. */
   party?: Party
   /** For a seat in a client's program, the client whose book it is. */
@@ -3064,18 +3090,34 @@ export interface TodayOptions {
  * The boundary, said on the first screen (CLAUDE.md, "Ask Etyme is the
  * app"). The last clause follows whether a model can be asked here.
  */
-export type ModelState = 'OFF' | 'ON' | 'NO_KEY'
+export type ModelState = 'OFF' | 'ON' | 'NO_KEY' | 'HELD'
 
 /** The switch and the key together: ON only when both are on. */
 export function modelState(companyOn: boolean, env: Record<string, string | undefined>): ModelState {
   return !companyOn ? 'OFF' : modelConfigured(env) ? 'ON' : 'NO_KEY'
 }
 
-export function boundarySays(state: ModelState): string {
+/**
+ * The greeting's state, read from the same answer the switch gives
+ * (lib/model-boundary's `modelOnFor` is the switch AND the company's
+ * allowance): HELD wherever the company's allowance refuses, whatever the
+ * switch says, so the greeting never says ON for a company held at its line
+ * and never tells a company not yet opened to turn the switch on. ON only
+ * where `modelOnFor` would say yes and a key is set.
+ */
+export function greetingModelState(companyOn: boolean, heldSays: string | null, env: Record<string, string | undefined>): ModelState {
+  return heldSays ? 'HELD' : modelState(companyOn, env)
+}
+
+/** Where HELD is given no sentence of its own. */
+const HELD_PLAIN = 'Nothing you type leaves your company. The rules still answer.'
+
+export function boundarySays(state: ModelState, heldSays?: string | null): string {
   return 'Your data stays in your company. Every read is logged. ' + (
     state === 'ON' ? 'Free-text questions go to the model your company turned on, masked; every prompt is logged under Settings.'
       : state === 'NO_KEY' ? 'Nothing leaves to a model; it is not set up on this deployment.'
-        : 'Nothing leaves to a model; your company has not turned it on.')
+        : state === 'HELD' ? (heldSays?.trim() || HELD_PLAIN)
+          : 'Nothing leaves to a model; your company has not turned it on.')
 }
 
 /** The decisions queue as `respond` was handed it, read once; null where it was not read. */
@@ -3548,6 +3590,12 @@ export async function respond(
       // the switch included, because no model would be allowed to answer it.
       const off = await offRecord(intent.text, { named: (t) => read.named(t), names: () => read.vocabulary() })
       if (off) return { kind: 'TEXT', says: off }
+      // The allowance next (2026-11-11): a company not opened yet, past its
+      // month, or a person past their day hears the plan's sentence, before
+      // the switch, because turning the switch on would not change it.
+      // Only here, after every rule had its turn: a rule answer is never held.
+      const held = read.allowance ? await read.allowance() : null
+      if (held) return heldByAllowance(held)
       // Free text leaves only when the company turned the model on AND the
       // deployment has a key; the company's switch is said first, because
       // it is the one a person can change.
