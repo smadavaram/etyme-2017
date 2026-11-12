@@ -234,3 +234,81 @@ describe('the middleware and the library agree about what is ours', () => {
     expect(missing, `middleware treats these as ours but the form would hand them out: ${missing.join(', ')}`).toEqual([])
   })
 })
+
+// ── Connect your domain (founder, "build it" on the drawing, 2026-11-12) ──
+
+import { readFileSync as readSrc } from 'node:fs'
+import { connectDomainView, stepsMailto, DOMAIN_GIVES, NO_DOMAIN_LINE, MAIL_LINE } from '@/lib/domains-owned'
+import { canClaim } from '@/lib/company-domains'
+import { checkItemAnswer } from '@/lib/setup-checklist'
+
+describe('connect your domain', () => {
+  const waiting = { id: 'cd1', domain: 'byrnenursing.example', verifiedAt: null, verifiedVia: null, proofToken: 'tok7f3a' }
+
+  it('a domain waiting for its proof shows the one TXT record to add and the sentence that says to press Check now', () => {
+    const v = connectDomainView([waiting])
+    expect(v.rows[0]).toMatchObject({
+      state: 'WAITING', firstVerifiedOn: null,
+      record: { type: 'TXT', host: '_etyme-verify', name: '_etyme-verify.byrnenursing.example', value: 'etyme-domain-verification=tok7f3a' },
+    })
+    expect(v.rows[0].says).toBe('Add this TXT record where byrnenursing.example’s DNS is kept, then press Check now. It usually shows within a few minutes, sometimes an hour.')
+    expect(v.verified).toBe(false)
+    // One claim at a time: nothing new is offered while one waits.
+    expect(v.offerClaim).toBe(false)
+  })
+
+  it('a verified domain says how it was proved and the day it was first verified, and asks for nothing more', () => {
+    const v = connectDomainView([{ ...waiting, verifiedAt: new Date('2026-11-12T15:00:00Z'), verifiedVia: 'DNS_TXT' }])
+    expect(v.rows[0]).toMatchObject({ state: 'VERIFIED', firstVerifiedOn: '2026-11-12', record: null, says: 'byrnenursing.example is verified by its DNS record.' })
+    expect(v.verified).toBe(true)
+    expect(v.offerClaim).toBe(false)
+  })
+
+  it('a company with no domain is offered the field, and the step stays skippable', () => {
+    const v = connectDomainView([])
+    expect(v).toMatchObject({ rows: [], verified: false, offerClaim: true })
+    expect(checkItemAnswer('VENDOR', 'DOMAIN', 'SKIPPED')).toMatchObject({ ok: true })
+  })
+
+  it('the screen says what verifying gives: joining by sign-in, the company’s directory, and recovery', () => {
+    expect(DOMAIN_GIVES).toEqual([
+      'Colleagues on your domain join by signing in, with no invitation.',
+      'Your people can sign in through your company’s own directory.',
+      'An Owner who loses access can get it back by proving the domain again.',
+    ])
+    expect(MAIL_LINE).toBe('Your email keeps working. This adds one record and never changes or removes a mail record.')
+  })
+
+  it('Etyme does not sell, register or move domains, and the screen names no registrar and carries no referral link', () => {
+    expect(NO_DOMAIN_LINE).toContain('Etyme does not sell, hold or move domains')
+    const screen = readSrc('src/app/dashboard/settings/domain/connect-domain.tsx', 'utf8') + NO_DOMAIN_LINE
+    for (const word of ['GoDaddy', 'Namecheap', 'Bluehost', 'Google Workspace', 'Microsoft 365', 'referral', '?ref=', 'https://']) {
+      expect(screen, word).not.toContain(word)
+    }
+  })
+
+  it('a consumer address and Etyme’s own domain are refused in a sentence', () => {
+    expect(canClaim('gmail.com', undefined, false)).toMatchObject({ ok: false, reason: 'gmail.com belongs to everybody. A company cannot claim a consumer provider — invite those people individually instead.' })
+    expect(canClaim('etyme.com', undefined, false)).toMatchObject({ ok: false, reason: 'etyme.com is Etyme\'s own address, so no company can claim it. Your Etyme address stands for your company instead.' })
+  })
+
+  it('the steps can be emailed to the person who runs the DNS, from the person’s own mail and never through Etyme', () => {
+    const v = connectDomainView([waiting])
+    const link = stepsMailto(v.rows[0])!
+    expect(link.startsWith('mailto:?subject=')).toBe(true)
+    const body = decodeURIComponent(link.split('&body=')[1])
+    expect(body).toContain('Name: _etyme-verify')
+    expect(body).toContain('Value: etyme-domain-verification=tok7f3a')
+    expect(stepsMailto(connectDomainView([{ ...waiting, verifiedAt: new Date(), verifiedVia: 'DNS_TXT' }]).rows[0])).toBeNull()
+  })
+
+  it('the setup item and Settings draw one screen, and both claim and check through the one DNS proof', () => {
+    expect(readSrc('src/app/dashboard/settings/setup/items.tsx', 'utf8')).toContain('<ConnectDomain suggested={d.suggested}')
+    expect(readSrc('src/app/dashboard/settings/domain/page.tsx', 'utf8')).toContain('<ConnectDomain />')
+    const screen = readSrc('src/app/dashboard/settings/domain/connect-domain.tsx', 'utf8')
+    expect(screen).toContain("fetch('/api/settings/setup/domain'")
+    expect(screen).toContain("{ action: 'CHECK', id: r.id }")
+    expect(screen).toContain("{ action: 'CLAIM', domain }")
+    expect(readSrc('src/app/api/settings/domain/route.ts', 'utf8')).not.toMatch(/resolveTxt|companyDomain\.(create|update)/)
+  })
+})

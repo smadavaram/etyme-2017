@@ -288,3 +288,122 @@ export function tenantFromHost(host: string, platformHost = 'etyme.com'): {
 
   return { kind: 'CUSTOM', value: clean }
 }
+
+// ── Connect your domain: the screen's words ───────────────────────────
+
+/**
+ * What the "Connect your domain" screen says (founder, "build it" on the
+ * drawing, 2026-11-12). The screen sits behind the setup checklist's
+ * "Your domain" item and Settings → Company, and reads and writes through
+ * the one DNS proof the setup item already has (PUT
+ * /api/settings/setup/domain, CLAIM then CHECK). Nothing here reads DNS.
+ *
+ * Etyme does not sell, register, hold or move domains, and names no
+ * registrar or email provider: a company without one gets it anywhere.
+ * Every item stays skippable; nothing forces a domain on anybody.
+ */
+
+export interface DomainClaimRow {
+  id: string | null
+  domain: string
+  /** The day it was first proved; never moves once set. */
+  verifiedAt: Date | string | null
+  verifiedVia: string | null
+  proofToken: string | null
+  /** A domain the company already holds as verified with no claim row behind it (signed in by its work account before claims existed). */
+  verified?: boolean
+}
+
+export interface ConnectDomainRow {
+  id: string | null
+  domain: string
+  state: 'VERIFIED' | 'WAITING'
+  /** One sentence about where this domain stands. */
+  says: string
+  /** The first-verified day, as an ISO date the screen formats; null until it stands. */
+  firstVerifiedOn: string | null
+  /** The record to add, while it waits. */
+  record: { type: 'TXT'; host: string; name: string; value: string } | null
+}
+
+export interface ConnectDomainView {
+  rows: ConnectDomainRow[]
+  verified: boolean
+  /** May a new domain be typed: nothing verified and nothing waiting. */
+  offerClaim: boolean
+  gives: readonly string[]
+  noDomain: string
+  mail: string
+}
+
+/** What a verified domain gives, in the drawing's order. */
+export const DOMAIN_GIVES: readonly string[] = [
+  'Colleagues on your domain join by signing in, with no invitation.',
+  'Your people can sign in through your company’s own directory.',
+  'An Owner who loses access can get it back by proving the domain again.',
+]
+
+export const NO_DOMAIN_LINE =
+  'No domain yet? Any domain registrar, or the company that runs your work email, can get you one in your company’s name. Etyme does not sell, hold or move domains, and you can skip this step.'
+
+export const MAIL_LINE =
+  'Your email keeps working. This adds one record and never changes or removes a mail record.'
+
+const VIA_WORDS: Record<string, string> = {
+  DNS_TXT: 'by its DNS record',
+  OAUTH_TENANT: 'by your company’s sign-in account',
+  MANUAL: 'by Etyme staff',
+}
+
+function isoDay(v: Date | string | null): string | null {
+  if (!v) return null
+  const d = typeof v === 'string' ? new Date(v) : v
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
+}
+
+/** Pure: the screen, read from the company's claims. */
+export function connectDomainView(claims: readonly DomainClaimRow[]): ConnectDomainView {
+  const rows: ConnectDomainRow[] = claims.map((c) => {
+    const on = isoDay(c.verifiedAt)
+    if (on || c.verified) {
+      const via = VIA_WORDS[c.verifiedVia ?? ''] ?? ''
+      return {
+        id: c.id, domain: c.domain, state: 'VERIFIED', firstVerifiedOn: on, record: null,
+        says: `${c.domain} is verified${via ? ` ${via}` : ''}.`,
+      }
+    }
+    const r = c.proofToken ? verificationRecord(c.domain, c.proofToken) : null
+    return {
+      id: c.id, domain: c.domain, state: 'WAITING', firstVerifiedOn: null,
+      record: r ? { type: 'TXT', host: '_etyme-verify', name: r.name, value: r.value } : null,
+      says: r
+        ? `Add this TXT record where ${c.domain}’s DNS is kept, then press Check now. It usually shows within a few minutes, sometimes an hour.`
+        : `${c.domain} is not verified yet.`,
+    }
+  })
+  const verified = rows.some((r) => r.state === 'VERIFIED')
+  return {
+    rows, verified,
+    offerClaim: !verified && !rows.some((r) => r.record),
+    gives: DOMAIN_GIVES, noDomain: NO_DOMAIN_LINE, mail: MAIL_LINE,
+  }
+}
+
+/**
+ * The steps, as a plain email a person can send to whoever runs the
+ * company's DNS. A `mailto:` link: nothing leaves through Etyme.
+ */
+export function stepsMailto(row: Pick<ConnectDomainRow, 'domain' | 'record'>): string | null {
+  if (!row.record) return null
+  const subject = `Please add one DNS record for ${row.domain}`
+  const body = [
+    `Please add this TXT record to ${row.domain}:`,
+    '',
+    `Type: TXT`,
+    `Name: ${row.record.host}`,
+    `Value: ${row.record.value}`,
+    '',
+    'It proves we own the domain. It does not change or remove any mail record.',
+  ].join('\n')
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+}

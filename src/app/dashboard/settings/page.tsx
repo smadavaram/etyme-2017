@@ -438,6 +438,9 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
               {c.domain ?? '—'}{' '}
               {c.domainVerified && <span className="text-etyme-verified text-[12px]">verified</span>}
             </p>
+            <Link href="/dashboard/settings/domain" className="mt-1 inline-block text-[12.5px] text-etyme-action underline-offset-2 hover:underline">
+              {c.domainVerified ? 'Your domain' : 'Connect your domain'}
+            </Link>
           </div>
           <div>
             <Lbl>Type</Lbl>

@@ -7,6 +7,7 @@ import { Check, Field, FormMessage, Input, Select, SubmitButton, Textarea } from
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
+import { ConnectDomain } from '../domain/connect-domain'
 import { ENTITY_TYPES, W9_LINE, type ItemKey, type ItemWords, type ChecklistRow } from '@/lib/setup-checklist'
 
 /**
@@ -504,38 +505,11 @@ function TeamItem(p: Props) {
 
 function DomainItem(p: Props) {
   const d = p.read.detail.DOMAIN
-  const [domain, setDomain] = useState<string>(d.suggested)
-  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
-  async function act(body: any) {
-    setSaid(null)
-    try {
-      const j = await readJson(await fetch('/api/settings/setup/domain', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
-      setSaid({ tone: 'ok', text: j.data.says ?? 'Saved.' })
-      p.onDone(j.data)
-    } catch (e: any) { setSaid({ tone: 'error', text: e.message }) }
-  }
   const verified = d.claims.some((c: any) => c.verified)
+  // The same screen as Settings → Your domain, one DNS proof behind both.
   return (
     <Frame {...p} save={null} saveLabel={verified ? 'Save and continue' : 'Continue without it'}>
-      {d.claims.map((c: any) => (
-        <div key={c.domain} className="space-y-1 border-b border-etyme-rule py-2">
-          <p className="text-[13.5px] text-etyme-ink">{c.domain} · <span className={c.verified ? 'text-etyme-verified' : 'text-etyme-attention'}>{c.verified ? 'verified' : 'not verified yet'}</span></p>
-          {c.record && (
-            <>
-              <p className="text-[12.5px] text-etyme-muted">Add this TXT record to your DNS, then check.</p>
-              <p className="break-all font-mono text-[12px] text-etyme-ink">{c.record.name}<br />{c.record.value}</p>
-              <SubmitButton type="button" tone="secondary" onClick={() => act({ action: 'CHECK', id: c.id })}>Check now</SubmitButton>
-            </>
-          )}
-        </div>
-      ))}
-      {!verified && !d.claims.some((c: any) => c.record) && (
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label="Your domain"><Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="tapin.com" /></Field>
-          <SubmitButton type="button" tone="secondary" disabled={!domain.trim()} onClick={() => act({ action: 'CLAIM', domain })}>Get the record</SubmitButton>
-        </div>
-      )}
-      {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+      <ConnectDomain suggested={d.suggested} onChanged={(data) => p.onDone(data)} />
     </Frame>
   )
 }
