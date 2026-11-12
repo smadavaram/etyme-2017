@@ -35,11 +35,28 @@ interface LimitView {
   setAt: string | null
 }
 
+interface MailRow {
+  id: string
+  /** Already said for a reader: "Thu, Nov 12, 3:40 PM UTC". */
+  at: string
+  kind: string
+  company: string | null
+  provider: string | null
+  status: number | null
+  /** REFUSED, BUSY, DOWN, NOT_SET_UP or DEMO (lib/notify/mail-failure). */
+  failureKind: string
+  words: string | null
+  /** Masked: "s…@gmail.com". */
+  recipient: string | null
+}
+
 interface Screen {
   limits: LimitView[]
   note: string
   history: { says: string; at: string }[]
   says?: string
+  /** On the GET only: the email that did not go. */
+  mail?: { rows: MailRow[] | null; says: string }
 }
 
 const n = (x: number) => x.toLocaleString('en-US')
@@ -52,6 +69,7 @@ export default function SuperadminPage() {
   const [fieldErr, setFieldErr] = useState<{ field?: string; says: string } | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [mail, setMail] = useState<Screen['mail'] | null>(null)
 
   const load = useCallback(async () => {
     setErr(null)
@@ -64,6 +82,7 @@ export default function SuperadminPage() {
     try {
       const body = await readJson(res)
       setData(body.data)
+      setMail(body.data.mail ?? null)
       setTyped(Object.fromEntries((body.data.limits as LimitView[]).map((l) => [l.field, l.typed])))
     } catch (e: any) {
       setErr(e.message)
@@ -154,6 +173,8 @@ export default function SuperadminPage() {
         )}
       </Panel>
 
+      {mail && <MailFailuresPanel mail={mail} />}
+
       <IdentityCheckPanel />
     </div>
   )
@@ -206,3 +227,46 @@ function IdentityCheckPanel() {
     </Panel>
   )
 }
+
+/**
+ * "Email that did not go" (2026-11-12): the newest sends the provider
+ * refused or never took, so Etyme's staff can tell a bad key from a sending
+ * domain nobody verified. The provider's own words are shown here and
+ * nowhere a company's person reads. The recipient is masked; no title, body
+ * or person's name is ever sent to this screen. A row per send on a desktop,
+ * a stacked block on a phone, so nothing scrolls sideways.
+ */
+/** What the provider did, in a sentence for Etyme's staff. */
+function providerLine(r: MailRow): string {
+  if (r.provider) return `${r.provider} ${r.status !== null ? `answered ${r.status}` : 'did not answer'}`
+  if (r.failureKind === 'NOT_SET_UP') return 'No email sender is set up on this deployment'
+  if (r.failureKind === 'DEMO') return 'A demo address, so nothing was sent'
+  return 'The provider’s answer was not kept'
+}
+
+function MailFailuresPanel({ mail }: { mail: NonNullable<Screen['mail']> }) {
+  return (
+    <Panel title="Email that did not go" subtitle={mail.says}>
+      {mail.rows && mail.rows.length > 0 && (
+        <ul className="divide-y divide-etyme-rule">
+          {mail.rows.map((r) => (
+            <li key={r.id} className="py-2.5 text-[13px] text-etyme-ink space-y-0.5 min-w-0">
+              <div className="flex flex-wrap gap-x-2">
+                <span className="font-medium">{r.kind}</span>
+                <span className="text-etyme-muted">{r.at}</span>
+              </div>
+              <div className="text-etyme-muted break-words">
+                {[r.company ?? 'No company', r.recipient ? `to ${r.recipient}` : null].filter(Boolean).join(' · ')}
+              </div>
+              <div className="break-words">
+                {providerLine(r)}
+                {r.words ? `: ${r.words}` : '.'}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+

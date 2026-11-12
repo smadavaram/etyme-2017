@@ -17,6 +17,10 @@ const h = vi.hoisted(() => ({
   /** The person's model-answered prompts: when each was asked. */
   firstAt: null as Date | null,
   firstWhere: null as any,
+  /** Failed email notices, as the notification table holds them. */
+  mail: [] as any[],
+  /** Make the access log refuse a write. */
+  logFails: false,
 }))
 
 vi.mock('@/lib/db', () => {
@@ -36,8 +40,24 @@ vi.mock('@/lib/db', () => {
   const prisma: any = {
     platformSetting,
     platformSettingChange,
-    accessLog: { createMany: async ({ data }: any) => { h.accessRows.push(...data); return { count: data.length } } },
-    company: { findUnique: async ({ where }: any) => h.company.find((c) => c.id === where.id) ?? null },
+    accessLog: {
+      createMany: async ({ data }: any) => {
+        if (h.logFails && data.some((r: any) => r.allowed !== false)) throw new Error('the log is down')
+        h.accessRows.push(...data)
+        return { count: data.length }
+      },
+    },
+    company: {
+      findUnique: async ({ where }: any) => h.company.find((c) => c.id === where.id) ?? null,
+      findMany: async ({ where }: any) => [{ id: 'tp', name: 'Tapin' }].filter((c) => where.id.in.includes(c.id)),
+    },
+    person: {
+      findMany: async ({ where }: any) => [{ id: 'p-vik', primaryEmail: 'vikash@gmail.com' }].filter((p) => where.id.in.includes(p.id)),
+    },
+    notification: {
+      findMany: async ({ where, take }: any) =>
+        h.mail.filter((n) => n.channel === where.channel && n.deliveryState === where.deliveryState).slice(0, take),
+    },
     modelPrompt: {
       aggregate: async ({ where }: any) => {
         const total = where.personId ? h.sums.person : h.sums.company
@@ -82,6 +102,8 @@ beforeEach(() => {
   h.sums = { company: 0, person: 0 }
   h.firstAt = null
   h.firstWhere = null
+  h.mail = []
+  h.logFails = false
 })
 
 describe('only Etyme’s Superadmin opens or changes Ask Etyme’s limits', () => {
@@ -196,3 +218,70 @@ describe('every person’s free trial', () => {
     expect(await askEtymeAllowanceFor('tp', 'p1', NOW, LIMITS)).toMatchObject({ may: false, why: 'PERSON_DAY' })
   })
 })
+
+describe('the Superadmin reads the email that did not go', () => {
+  const failed = () => ({
+    id: 'n1', channel: 'EMAIL', deliveryState: 'FAILED', createdAt: new Date('2026-11-12T15:40:00Z'),
+    type: 'SYSTEM', title: 'Sharath invited you to Tapin', companyId: 'tp', personId: 'p-vik',
+    deliveryNote: 'Resend answered 403: The etyme.com domain is not verified. Please add and verify your domain.',
+  })
+
+  it('the list shows when, the kind of notice, the company, the provider’s status and its own words, and the recipient masked', async () => {
+    h.caller = SUPERADMIN
+    h.mail = [failed()]
+    const mail = (await (await GET(req())).json()).data.mail
+    expect(mail.rows).toHaveLength(1)
+    expect(mail.rows[0]).toMatchObject({
+      at: 'Thu, Nov 12, 3:40 PM UTC', kind: 'Invitation', company: 'Tapin', provider: 'Resend', status: 403,
+      failureKind: 'REFUSED', recipient: 'v…@gmail.com',
+    })
+    expect(mail.rows[0].words).toContain('domain is not verified')
+  })
+
+  it('the list never carries a notice’s title, its body, a person’s name or a full address', async () => {
+    h.caller = SUPERADMIN
+    h.mail = [failed()]
+    const text = JSON.stringify((await (await GET(req())).json()).data.mail)
+    expect(text).not.toContain('vikash@gmail.com')
+    expect(text).not.toContain('invited you to')
+    expect(text).not.toContain('Sharath')
+  })
+
+  it('reading the list writes an access-log row, waited for before the list is sent', async () => {
+    h.caller = SUPERADMIN
+    h.mail = [failed()]
+    await GET(req())
+    const read = h.accessRows.filter((r) => r.action === 'SUPERADMIN_EMAIL_FAILURES_READ')
+    expect(read).toHaveLength(1)
+    expect(read[0]).toMatchObject({ allowed: true, subjectId: 'sa', actorPersonId: 'sa' })
+    expect(read[0].reason).toContain('did not go')
+  })
+
+  it('where the read cannot be logged, the list is not sent and the screen says so in a sentence', async () => {
+    h.caller = SUPERADMIN
+    h.mail = [failed()]
+    h.logFails = true
+    const mail = (await (await GET(req())).json()).data.mail
+    expect(mail.rows).toBeNull()
+    expect(mail.says).toBe('The list of email that did not go could not be read just now. Reload to try again.')
+  })
+
+  it('a person who is not on the staff list is refused the list in the screen’s own sentence, and the refusal is logged before it is sent', async () => {
+    h.caller = OWNER
+    h.mail = [failed()]
+    const res = await GET(req())
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.data).toBeUndefined()
+    expect(JSON.stringify(body)).not.toContain('Tapin')
+    expect(h.accessRows).toHaveLength(1)
+    expect(h.accessRows[0].allowed).toBe(false)
+  })
+
+  it('with nothing failed, the screen says every email left', async () => {
+    h.caller = SUPERADMIN
+    const mail = (await (await GET(req())).json()).data.mail
+    expect(mail).toEqual({ rows: [], says: 'Every email sent from here has left. Nothing failed.' })
+  })
+})
+
