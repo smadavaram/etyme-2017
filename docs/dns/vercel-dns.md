@@ -1,5 +1,17 @@
 # Moving etyme.com's DNS to Vercel
 
+> **2026-11-12: the nameservers were switched before the records were
+> added, and mail to and from @etyme.com stopped.** Vercel's DNS for
+> etyme.com held no MX record and no SPF record. The records to restore
+> are in `docs/dns/etyme.com.mail-restore.zone`: the five Google MX
+> records first (receiving), then the one SPF record (sending). Type each
+> into Vercel → Domains → etyme.com → DNS Records; that only adds, and it
+> leaves the three records Resend added on 2026-11-11 alone. Since that
+> day Resend sends from etyme.com itself (`send`, `rsend` and
+> `resend._domainkey`), not from notify.etyme.com, and the site answers
+> on www.etyme.com, so steps 5 and 6 below and the `send.notify` lines in
+> `etyme.com.vercel.zone` are out of date.
+
 Option 2, chosen by the founder on 2026-11-09: Vercel holds the DNS, so
 every `<firm>.etyme.com` works the moment the firm exists, under one
 certificate for `*.etyme.com`.
