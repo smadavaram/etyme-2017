@@ -7954,3 +7954,10 @@ A small firm or a worker with no Google account still gets in.
   workers and one-person firms; removing it everywhere was the option
   not chosen.
 - Built from the sentence, no drawing, after the Owner pieces (architect).
+- **Sign up is as prominent as sign in. The founder, the same day:**
+  *"Make new here? Sign up prominent as most of my users will be new
+  users."* So under the one email box the page draws two full-width
+  buttons of equal size, "Sign in" and "Create your account", never a
+  small link. Sign-up asks for the email first too, then only the few
+  fields that kind of account needs. The second email box, the
+  directory section and the long sentence under the heading go.
