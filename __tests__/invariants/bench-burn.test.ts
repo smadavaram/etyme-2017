@@ -212,3 +212,60 @@ describe('Bench burn calculations', () => {
     })
   })
 })
+
+// ── Every amount in its own currency (2026-11-12) ───────────────────
+
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { burnTotals, byCostWithinCurrency } from '@/app/api/bench/burn/totals'
+
+describe('the bench cost is added up once per currency, never across two', () => {
+  const rows = [
+    { personId: 'a', currency: 'USD', tier: 'RETAINED', dailyCents: 32_000, toDateCents: 320_000 },
+    { personId: 'b', currency: 'INR', tier: 'MARKETING', dailyCents: 4_000_000, toDateCents: 40_000_000 },
+    { personId: 'c', currency: 'USD', tier: 'MARKETING', dailyCents: 24_000, toDateCents: 48_000 },
+  ]
+
+  it('a bench paid in dollars and rupees reads one total per currency, never a sum of the two', () => {
+    const t = burnTotals(rows)
+    expect(t.map((x) => x.currency)).toEqual(['USD', 'INR'])
+    expect(t[0].dailyCents).toBe(56_000)
+    expect(t[0].toDateCents).toBe(368_000)
+    expect(t[1].dailyCents).toBe(4_000_000)
+  })
+
+  it('a week is five working days and a month twenty-two, counted inside one currency', () => {
+    const [usd] = burnTotals(rows)
+    expect(usd.weeklyCents).toBe(56_000 * 5)
+    expect(usd.monthlyCents).toBe(56_000 * 22)
+  })
+
+  it('retained and marketing are split inside each currency', () => {
+    const [usd, inr] = burnTotals(rows)
+    expect(usd.retained).toEqual({ count: 1, dailyCents: 32_000 })
+    expect(usd.marketing).toEqual({ count: 1, dailyCents: 24_000 })
+    expect(inr.marketing).toEqual({ count: 1, dailyCents: 4_000_000 })
+  })
+
+  it('a rupee amount is never ranked above a dollar amount because its number is bigger', () => {
+    expect(byCostWithinCurrency(rows).map((r) => r.personId)).toEqual(['a', 'c', 'b'])
+  })
+
+  it('an empty bench has no totals at all, rather than a zero in a guessed currency', () => {
+    expect(burnTotals([])).toEqual([])
+  })
+
+  it('the route passes each person\'s pay currency to the burn arithmetic and divides nothing by a hundred', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/bench/burn/route.ts'), 'utf8')
+    expect(src).toMatch(/payCurrency: true/)
+    expect(src).toMatch(/burnOf\([\s\S]*?currency\s*\)/)
+    expect(src).not.toMatch(/\/ 100\b/)
+  })
+
+  it('the Bench page writes no dollar sign by hand and draws every burn figure through the shared formatter', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/bench/page.tsx'), 'utf8')
+    expect(src).not.toMatch(/`\$\$\{/)
+    expect(src).not.toMatch(/fmtDollars/)
+    expect(src).toMatch(/compact\(t\.dailyCents, t\.currency\)/)
+  })
+})

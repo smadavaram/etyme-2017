@@ -8,6 +8,7 @@ import { payTrail, READS_PAY } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import { burnOf } from '@/lib/bench-policy'
 import { benchHolidays } from '../holiday-pay'
+import { burnTotals, byCostWithinCurrency, WORKING_DAYS_A_MONTH, WORKING_DAYS_A_WEEK } from './totals'
 
 /**
  * GET /api/bench/burn
@@ -121,6 +122,7 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true,
                   payRate: true,
+                  payCurrency: true,
                   buyContract: { select: { id: true, state: true, contractType: true } },
                 },
                 take: 1,
@@ -142,15 +144,13 @@ export async function GET(request: NextRequest) {
     headline: string | null
     skills: string[]
     tier: string
-    payRate: number     // cents per hour
-    dailyCost: number   // dollars per day
-    weeklyCost: number  // dollars per week (5 days)
-    monthlyCost: number // dollars per month (22 working days)
+    payRate: number     // minor units per hour, in `currency`
+    /** The person's pay line's currency: every amount on this entry is in it. */
+    currency: string
     contractType: string
     daysOnBench: number
     availableFrom: string | null
-    totalBurnToDate: number // dollars burned since bench start
-    /** The same, in minor units, from `burnOf`. */
+    /** Minor units per working day, from `burnOf`, in `currency`. */
     dailyCents: number
     toDateCents: number
     workingDays: number
@@ -205,10 +205,10 @@ export async function GET(request: NextRequest) {
     // One door for the arithmetic (`burnOf` in lib/bench-policy): working
     // days counted, not five-sevenths of calendar days guessed.
     const holidayPay = holidays.payOf(l.consultant.personId)
-    const b = burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince, holidayPay }, now)
+    const currency = (candidacy.payCurrency || 'USD').toUpperCase()
+    const b = burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince, holidayPay }, now, currency)
     if (!b.onBench) continue
 
-    const dailyCost = b.dailyCents! / 100 // dollars, for the older readers
     entries.push({
       personId: l.consultant.personId,
       personName: l.consultant.person.name,
@@ -216,13 +216,10 @@ export async function GET(request: NextRequest) {
       skills: l.consultant.skills,
       tier: l.tier,
       payRate,
-      dailyCost,
-      weeklyCost: dailyCost * 5,
-      monthlyCost: dailyCost * 22,
+      currency,
       contractType: candidacy.buyContract.contractType,
       daysOnBench: b.calendarDays,
       availableFrom: l.consultant.availableFrom?.toISOString() ?? null,
-      totalBurnToDate: Math.round(b.toDateCents! / 100),
       dailyCents: b.dailyCents!,
       toDateCents: b.toDateCents!,
       workingDays: b.workingDays,
@@ -240,17 +237,13 @@ export async function GET(request: NextRequest) {
     'the bench burn'
   )
 
-  // Sort by daily cost descending (highest cost first)
-  entries.sort((a, b) => b.dailyCost - a.dailyCost)
-
-  // Aggregate by tier
-  const retained = entries.filter(e => e.tier === 'RETAINED')
-  const marketing = entries.filter(e => e.tier === 'MARKETING')
-
-  const totalDailyBurn = entries.reduce((sum, e) => sum + e.dailyCost, 0)
-  const totalWeeklyBurn = entries.reduce((sum, e) => sum + e.weeklyCost, 0)
-  const totalMonthlyBurn = entries.reduce((sum, e) => sum + e.monthlyCost, 0)
-  const totalBurnToDate = entries.reduce((sum, e) => sum + e.totalBurnToDate, 0)
+  // Every amount stays in its own currency: one total per currency
+  // (`burnTotals`), the people ordered by cost inside their own currency
+  // (`byCostWithinCurrency`), never two currencies added or ranked as raw
+  // numbers. Until 2026-11-12 this divided by a hundred and summed every
+  // line as dollars, so a firm paying in dong or euros read the wrong sum.
+  const ordered = byCostWithinCurrency(entries)
+  const totals = burnTotals(entries)
 
   // Open roles this firm could actually put somebody forward for.
   //
@@ -275,41 +268,26 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      burn: {
-        daily: Math.round(totalDailyBurn),
-        weekly: Math.round(totalWeeklyBurn),
-        monthly: Math.round(totalMonthlyBurn),
-        toDate: totalBurnToDate,
-        dailyCents: entries.reduce((n, e) => n + e.dailyCents, 0),
-        toDateCents: entries.reduce((n, e) => n + e.toDateCents, 0),
-      },
+      /** One total per currency, the currency with the most people first. */
+      totals,
       benchSize: entries.length,
       benchSizeTotal: listings.length, // includes non-paid
-      retained: {
-        count: retained.length,
-        dailyBurn: Math.round(retained.reduce((s, e) => s + e.dailyCost, 0)),
-      },
-      marketing: {
-        count: marketing.length,
-        dailyBurn: Math.round(marketing.reduce((s, e) => s + e.dailyCost, 0)),
-      },
       openRequirements,
-      entries: entries.map(e => ({
+      entries: ordered.map((e) => ({
         personId: e.personId,
         personName: e.personName,
         headline: e.headline,
         skills: e.skills,
         tier: e.tier,
         payRate: e.payRate,
-        dailyCost: Math.round(e.dailyCost),
-        weeklyCost: Math.round(e.weeklyCost),
-        monthlyCost: Math.round(e.monthlyCost),
+        currency: e.currency,
+        dailyCents: e.dailyCents,
+        weeklyCents: e.dailyCents * WORKING_DAYS_A_WEEK,
+        monthlyCents: e.dailyCents * WORKING_DAYS_A_MONTH,
+        toDateCents: e.toDateCents,
         contractType: e.contractType,
         daysOnBench: e.daysOnBench,
-        totalBurnToDate: e.totalBurnToDate,
         availableFrom: e.availableFrom,
-        dailyCents: e.dailyCents,
-        toDateCents: e.toDateCents,
         workingDays: e.workingDays,
         calendarDays: e.calendarDays,
         holidaysNotPaid: e.holidaysNotPaid,

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
-import { range, compact } from '@/lib/money-display'
+import { range, compact, amount } from '@/lib/money-display'
+import type { BurnTotal } from '@/app/api/bench/burn/totals'
 import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, type Free } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
@@ -130,11 +131,10 @@ interface RosterSummaryData {
 }
 
 interface BurnData {
-  burn: { daily: number; weekly: number; monthly: number; toDate: number }
+  /** One total per currency; two currencies are never added. */
+  totals: BurnTotal[]
   benchSize: number
   benchSizeTotal: number
-  retained: { count: number; dailyBurn: number }
-  marketing: { count: number; dailyBurn: number }
   openRequirements: number
   entries: Array<{
     personId: string
@@ -143,12 +143,11 @@ interface BurnData {
     skills: string[]
     tier: string
     payRate: number
-    dailyCost: number
-    weeklyCost: number
-    monthlyCost: number
+    currency: string
+    dailyCents: number
+    toDateCents: number
     contractType: string
     daysOnBench: number
-    totalBurnToDate: number
     availableFrom: string | null
   }>
 }
@@ -1592,11 +1591,8 @@ function RosterSurface({
 function BenchBurnPanel({ data }: { data: BurnData }) {
   const [expanded, setExpanded] = useState(false)
 
-  const fmtDollars = (n: number) =>
-    n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString()}`
-  const fmtDollarsFull = (n: number) => `$${n.toLocaleString()}`
-
-  // Top 3 highest-cost bench sitters
+  // Top 3 highest-cost bench sitters, ranked inside their own currency by
+  // the route (`byCostWithinCurrency`), never across two.
   const topBurners = data.entries.slice(0, 3)
 
   return (
@@ -1618,61 +1614,90 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
           </button>
         </div>
 
-        {/* Burn stats row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <div className="stat-label text-[9px] mb-0.5">Daily Burn</div>
-            <div className="text-2xl font-serif font-medium text-etyme-attention tabular-nums">
-              {fmtDollarsFull(data.burn.daily)}
+        {/* One row of figures per currency, never a sum of two. */}
+        {data.totals.map((t) => (
+          <div key={t.currency} className="mb-4">
+            {data.totals.length > 1 && (
+              <div className="stat-label text-[9px] mb-1">
+                Paid in {t.currency} · {t.count} {t.count === 1 ? 'person' : 'people'}
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+              <div>
+                <div className="stat-label text-[9px] mb-0.5">Daily Burn</div>
+                <div className="text-2xl font-serif font-medium text-etyme-attention tabular-nums">
+                  {compact(t.dailyCents, t.currency)}
+                </div>
+                <div className="text-[10px] text-etyme-faint">per working day</div>
+              </div>
+              <div>
+                <div className="stat-label text-[9px] mb-0.5">Weekly</div>
+                <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
+                  {compact(t.weeklyCents, t.currency)}
+                </div>
+                <div className="text-[10px] text-etyme-faint">5-day week</div>
+              </div>
+              <div>
+                <div className="stat-label text-[9px] mb-0.5">Monthly</div>
+                <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
+                  {compact(t.monthlyCents, t.currency)}
+                </div>
+                <div className="text-[10px] text-etyme-faint">22 working days</div>
+              </div>
+              <div>
+                <div className="stat-label text-[9px] mb-0.5">Total to Date</div>
+                <div className="text-xl font-serif font-medium text-etyme-attention tabular-nums">
+                  {compact(t.toDateCents, t.currency)}
+                </div>
+                <div className="text-[10px] text-etyme-faint">since bench start</div>
+              </div>
             </div>
-            <div className="text-[10px] text-etyme-faint">per working day</div>
-          </div>
-          <div>
-            <div className="stat-label text-[9px] mb-0.5">Weekly</div>
-            <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
-              {fmtDollars(data.burn.weekly)}
-            </div>
-            <div className="text-[10px] text-etyme-faint">5-day week</div>
-          </div>
-          <div>
-            <div className="stat-label text-[9px] mb-0.5">Monthly</div>
-            <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
-              {fmtDollars(data.burn.monthly)}
-            </div>
-            <div className="text-[10px] text-etyme-faint">22 working days</div>
-          </div>
-          <div>
-            <div className="stat-label text-[9px] mb-0.5">Total to Date</div>
-            <div className="text-xl font-serif font-medium text-etyme-attention tabular-nums">
-              {fmtDollars(data.burn.toDate)}
-            </div>
-            <div className="text-[10px] text-etyme-faint">since bench start</div>
-          </div>
-        </div>
 
-        {/* Tier breakdown */}
-        <div className="flex items-center gap-6 text-[12px]">
-          <div className="flex items-center gap-1.5">
-            <span className="chip chip--verified text-[9px]">{TIER_WORD.RETAINED}</span>
-            <span className="text-etyme-muted">
-              {data.retained.count} · {fmtDollarsFull(data.retained.dailyBurn)}/day
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="chip chip--action text-[9px]">{TIER_WORD.MARKETING}</span>
-            <span className="text-etyme-muted">
-              {data.marketing.count} · {fmtDollarsFull(data.marketing.dailyBurn)}/day
-            </span>
-          </div>
-          {data.openRequirements > 0 && (
-            <div className="flex items-center gap-1.5 ml-auto">
-              <span className="text-etyme-verified font-medium">
-                {data.openRequirements} open requirement{data.openRequirements !== 1 ? 's' : ''}
-              </span>
-              <span className="text-etyme-faint">for matching</span>
+            {/* Tier breakdown, in this currency */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[12px]">
+              <div className="flex items-center gap-1.5">
+                <span className="chip chip--verified text-[9px]">{TIER_WORD.RETAINED}</span>
+                <span className="text-etyme-muted">
+                  {t.retained.count} · {compact(t.retained.dailyCents, t.currency)}/day
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="chip chip--action text-[9px]">{TIER_WORD.MARKETING}</span>
+                <span className="text-etyme-muted">
+                  {t.marketing.count} · {compact(t.marketing.dailyCents, t.currency)}/day
+                </span>
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Visual burn bar: shares inside one currency only */}
+            {t.dailyCents > 0 && (
+              <div className="mt-3">
+                <div className="flex items-center gap-2 text-[10px] text-etyme-faint mb-1">
+                  <span>Retained share of daily burn</span>
+                </div>
+                <div className="h-2 rounded-full bg-etyme-canvas overflow-hidden flex">
+                  <div
+                    className="h-full bg-etyme-verified rounded-l-full transition-all"
+                    style={{ width: `${Math.round((t.retained.dailyCents / t.dailyCents) * 100)}%` }}
+                  />
+                  <div
+                    className="h-full bg-etyme-action rounded-r-full transition-all"
+                    style={{ width: `${Math.round((t.marketing.dailyCents / t.dailyCents) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {data.openRequirements > 0 && (
+          <div className="flex items-center gap-1.5 text-[12px]">
+            <span className="text-etyme-verified font-medium">
+              {data.openRequirements} open requirement{data.openRequirements !== 1 ? 's' : ''}
+            </span>
+            <span className="text-etyme-faint">for matching</span>
+          </div>
+        )}
       </div>
 
       {/* Expanded: top bench sitters by cost */}
@@ -1695,41 +1720,22 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
                     )}
                   </div>
                   <div className="flex items-center gap-4 tabular-nums">
-                    <span className="text-etyme-muted">
-                      {compact(e.payRate)}/hr
+                    <span className="text-etyme-muted hidden sm:inline">
+                      {compact(e.payRate, e.currency)}/hr
                     </span>
                     <span className="text-etyme-attention font-medium">
-                      {fmtDollarsFull(e.dailyCost)}/day
+                      {amount(e.dailyCents, e.currency)}/day
                     </span>
                     <span className="text-etyme-faint text-[11px] hidden md:inline">
                       {e.daysOnBench}d on bench
                     </span>
                     <span className="text-etyme-attention/70 text-[11px] hidden lg:inline">
-                      {fmtDollars(e.totalBurnToDate)} burned
+                      {compact(e.toDateCents, e.currency)} burned
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Visual burn bar */}
-      {data.burn.daily > 0 && (
-        <div className="border-t border-etyme-rule px-5 py-3">
-          <div className="flex items-center gap-2 text-[10px] text-etyme-faint mb-1">
-            <span>Retained share of daily burn</span>
-          </div>
-          <div className="h-2 rounded-full bg-etyme-canvas overflow-hidden flex">
-            <div
-              className="h-full bg-etyme-verified rounded-l-full transition-all"
-              style={{ width: `${Math.round((data.retained.dailyBurn / data.burn.daily) * 100)}%` }}
-            />
-            <div
-              className="h-full bg-etyme-action rounded-r-full transition-all"
-              style={{ width: `${Math.round((data.marketing.dailyBurn / data.burn.daily) * 100)}%` }}
-            />
           </div>
         </div>
       )}
