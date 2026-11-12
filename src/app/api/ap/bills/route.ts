@@ -21,7 +21,7 @@ import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 import { readLines } from '@/lib/money/keyed-lines'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
-import { tellSupplierPaid } from '@/lib/money/paid-notice'
+import { tellPaidOrReport, toldSays } from '@/lib/money/paid-notice'
 import { paidSellLine, clientLinesFrom } from '@/lib/money/paid-line'
 import {
   booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
@@ -811,6 +811,24 @@ export async function PATCH(request: NextRequest) {
       { status: 422 }
     )
   }
+  // The day money left has happened: a date after tomorrow (a day's grace
+  // for a payer ahead of UTC) is refused, as the confirmation refuses it,
+  // because a future date read as money gone would flatter days to pay.
+  const latest = new Date()
+  latest.setUTCHours(0, 0, 0, 0)
+  latest.setUTCDate(latest.getUTCDate() + 2)
+  if (paidAt.getTime() >= latest.getTime()) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'The paid date has not happened yet. Enter the day the money left.',
+          field: 'paidAt',
+        },
+      },
+      { status: 422 }
+    )
+  }
   if (paidAt < bill.receivedAt) {
     return NextResponse.json(
       {
@@ -903,7 +921,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   // Committed: the supplier is told, once (lib/money/paid-notice).
-  const suppliersTold = await tellSupplierPaid(out.notice).catch(() => 0)
+  const suppliersTold = await tellPaidOrReport(out.notice, 'a typed-in invoice receipt paid')
 
   const settled = out.settled
   const updated = {
@@ -935,9 +953,7 @@ export async function PATCH(request: NextRequest) {
         ? `Paid in full on ${formatDay(paidAt)}. Days to pay for this supplier count to this date.`
         : 'Part paid. No paid date is set — the obligation is still open, and dating it ' +
           'now would report the first installment as the day they were paid.') +
-        (suppliersTold > 0
-          ? ` ${vendorName} is told, in the app and by email where email can leave.`
-          : ` ${vendorName} has nobody on Etyme to tell, so tell them yourself.`),
+        ` ${toldSays([{ vendorName, told: suppliersTold }])}`,
     },
   })
 }

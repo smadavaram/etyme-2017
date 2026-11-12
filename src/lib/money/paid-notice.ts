@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions'
 import { amount } from '@/lib/money-display'
 import { formatDayLong } from '@/lib/format-date'
 import { payerSeats } from '@/lib/money/bank-check-read'
+import { reportError } from '@/lib/alerts'
 
 /**
  * The supplier is told the day it is paid (the founder, 2026-11-12):
@@ -129,6 +130,47 @@ export async function tellSupplierPaid(f: PaidFacts): Promise<number> {
     })
   ))
   return people.length
+}
+
+/**
+ * Tell the supplier, and never let a failure read as "nobody to tell".
+ * The number of people told; 0 where the supplier has nobody on Etyme;
+ * -1 where telling failed, reported to staff (lib/alerts) so it is seen.
+ * The payment has already committed either way: a notice that fails
+ * never undoes it.
+ */
+export async function tellPaidOrReport(f: PaidFacts, where: string): Promise<number> {
+  try {
+    return await tellSupplierPaid(f)
+  } catch (err) {
+    await reportError(`Telling a supplier it was paid failed (${where}):`, err).catch(() => undefined)
+    return -1
+  }
+}
+
+/**
+ * The sentence after a payment about who was told. Pure. `told` is what
+ * `tellPaidOrReport` answered: above 0 told, 0 nobody on Etyme, -1 failed.
+ * A failed notice is never said as "nobody on Etyme", because that firm
+ * has people and was not told.
+ */
+export function toldSays(told: { vendorName: string; told: number }[]): string {
+  const names = (xs: string[]) =>
+    xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+  const failed = [...new Set(told.filter((t) => t.told < 0).map((t) => t.vendorName))]
+  const nobody = [...new Set(told.filter((t) => t.told === 0).map((t) => t.vendorName))]
+    .filter((n) => !failed.includes(n))
+  const parts: string[] = []
+  if (failed.length > 0) parts.push(`We could not tell ${names(failed)} it was paid, so tell them yourself.`)
+  if (nobody.length > 0) {
+    parts.push(`${names(nobody)} ${nobody.length === 1 ? 'has' : 'have'} nobody on Etyme to tell, so tell them yourself.`)
+  }
+  if (parts.length === 0 && told.length > 0) {
+    return told.length === 1
+      ? `${told[0].vendorName} is told, in the app and by email where email can leave.`
+      : 'Each supplier paid is told, in the app and by email where email can leave.'
+  }
+  return parts.join(' ')
 }
 
 /**

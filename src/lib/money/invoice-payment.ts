@@ -6,7 +6,7 @@ import { fromPrismaDecimal, toDecimal } from '@/lib/money'
 import { partiesOf } from '@/lib/money/invoice-parties'
 import { mayPayFirm } from '@/lib/setup-gates'
 import type { ItemKey } from '@/lib/setup-checklist'
-import { tellSupplierPaid, type PaidFacts } from '@/lib/money/paid-notice'
+import { tellPaidOrReport, type PaidFacts } from '@/lib/money/paid-notice'
 
 /**
  * The one payment write.
@@ -225,6 +225,24 @@ export async function recordInvoicePayment(
   const amount = toDecimal({ minor: amountCents, currency })
   const newPaid = toDecimal({ minor: newPaidCents, currency })
 
+  // Conditional on the figure it was read at, before anything else is
+  // written: two presses at once (the receipt's page and the chat's Pay
+  // card, or one press twice) both read the same paid figure, and only the
+  // first finds the invoice still at it. The second writes nothing, so the
+  // payer's book never holds two payments for one balance and the supplier
+  // is told once. The same guard the typed-in receipt's write keeps.
+  const moved = await tx.invoice.updateMany({
+    where: { id: invoiceId, paid: invoice.paid, status: { notIn: ['PAID', 'CANCELLED'] } },
+    data: { paid: newPaid, status },
+  })
+  if (moved.count !== 1) {
+    return {
+      ok: false,
+      code: 'INVALID_STATE',
+      says: `${Doc} ${invoice.number} was paid or changed while this was read. Nothing was written again.`,
+    }
+  }
+
   const payment = await tx.payment.create({
     data: {
       invoiceId,
@@ -245,8 +263,6 @@ export async function recordInvoicePayment(
       receivedByCompany: { select: { name: true } },
     },
   })
-
-  await tx.invoice.update({ where: { id: invoiceId }, data: { paid: newPaid, status } })
 
   // Paid in full: the expenses that rode on this invoice are paid. When an
   // invoice falls due is its own `dueAt`; no cycle is completed here.
@@ -362,7 +378,7 @@ export async function emitInvoicePaid(
   if (!result.ok) return null
   const [event] = await Promise.all([
     emit({ ...result.event, ...(actor ?? {}) }),
-    result.notice ? tellSupplierPaid(result.notice).catch(() => 0) : Promise.resolve(0),
+    result.notice ? tellPaidOrReport(result.notice, 'invoice payment') : Promise.resolve(0),
   ])
   return event
 }

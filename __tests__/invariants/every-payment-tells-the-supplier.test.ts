@@ -23,8 +23,14 @@ vi.mock('@/lib/db', () => ({ prisma: { notification: { findMany: (...a: unknown[
 vi.mock('@/lib/notify', () => ({ notify: (...a: unknown[]) => notify(...a) }))
 vi.mock('@/lib/money/bank-check-read', () => ({ payerSeats: (...a: unknown[]) => payerSeats(...a) }))
 vi.mock('@/lib/events', () => ({ emit: (...a: unknown[]) => emit(...a) }))
+const ownerGate = vi.fn()
+const bankGate = vi.fn()
+const reportError = vi.fn()
+vi.mock('@/lib/owner-proof', () => ({ needsVerifiedOwnerAt: (...a: unknown[]) => ownerGate(...a) }))
+vi.mock('@/lib/setup-gates', () => ({ mayPayFirm: (...a: unknown[]) => bankGate(...a) }))
+vi.mock('@/lib/alerts', () => ({ reportError: (...a: unknown[]) => reportError(...a) }))
 
-import { paidNotice, tellSupplierPaid, suppliersBillHref, type PaidFacts } from '@/lib/money/paid-notice'
+import { paidNotice, tellSupplierPaid, tellPaidOrReport, toldSays, suppliersBillHref, type PaidFacts } from '@/lib/money/paid-notice'
 import { recordKeyedPayment, type KeyedPaymentInput } from '@/lib/money/keyed-payment'
 import { emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import { markPaidBody } from '@/lib/money/run-confirm'
@@ -49,6 +55,9 @@ beforeEach(() => {
     { personId: 'owner', permissions: ['settings.manage'] },
   ])
   emit.mockReset().mockResolvedValue({ id: 'e' })
+  ownerGate.mockReset().mockResolvedValue({ ok: true })
+  bankGate.mockReset().mockResolvedValue({ ok: true })
+  reportError.mockReset().mockResolvedValue(undefined)
 })
 
 describe('every payment goes through one function', () => {
@@ -74,7 +83,7 @@ describe('every payment goes through one function', () => {
 
   it('the receipt’s own Pay tells the supplier only after the payment has committed', () => {
     const tx = BILLS.indexOf('recordKeyedPayment(tx, {')
-    const told = BILLS.indexOf('await tellSupplierPaid(out.notice)')
+    const told = BILLS.indexOf('await tellPaidOrReport(out.notice,')
     expect(told).toBeGreaterThan(tx)
     expect(BILLS.slice(tx, told)).toContain('if (!out.ok)')
   })
@@ -145,16 +154,17 @@ describe('what the supplier reads', () => {
 
 function keyedTx(row: { totalCents: number; paidCents: number; status: string }, moves = 1) {
   const writes: string[] = []
+  const wheres: Record<string, unknown>[] = []
   const tx = {
     vendorBill: {
       findUnique: async () => row,
-      updateMany: async () => { if (moves === 1) writes.push('vendorBill.update'); return { count: moves } },
+      updateMany: async (a: { where: Record<string, unknown> }) => { wheres.push(a.where); if (moves === 1) writes.push('vendorBill.update'); return { count: moves } },
     },
     payment: { create: async () => { writes.push('payment.create'); return { id: 'pay-k' } } },
     automationLog: { create: async () => { writes.push('automationLog.create'); return {} } },
     invoice: { findUnique: async () => null },
   }
-  return { tx: tx as never, writes }
+  return { tx: tx as never, writes, wheres }
 }
 
 const KEYED: KeyedPaymentInput = {
@@ -180,6 +190,61 @@ describe('a typed-in receipt paid through the one write', () => {
     const out = await recordKeyedPayment(tx, KEYED)
     expect(out).toEqual({ ok: false, says: 'Consultis’s invoice CON-77 was paid or changed while this was read. Nothing was written again.' })
     expect(writes).toEqual([])
+  })
+})
+
+describe('the typed-in receipt’s write reads its gates again and touches only the payer’s own receipt', () => {
+  it('the paid figure is written only on the payer’s own receipt from that supplier, in the currency it was read in', async () => {
+    const { tx, wheres } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
+    await recordKeyedPayment(tx, KEYED)
+    expect(wheres[0]).toMatchObject({ id: 'vb-1', companyId: 'brightmoor', vendorCompanyId: 'consultis', currency: 'EUR', paidCents: 0 })
+  })
+
+  it('a bank check taken back between the press and the write stops the money, in the gate’s own sentence, and writes nothing', async () => {
+    bankGate.mockResolvedValue({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
+    const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
+    const out = await recordKeyedPayment(tx, KEYED)
+    expect(out).toEqual({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
+    expect(writes).toEqual([])
+  })
+
+  it('a paying company that has no verified Owner at the moment of the write pays nothing', async () => {
+    ownerGate.mockResolvedValue({ ok: false, says: 'Brightmoor Staffing pays no firm until it has a verified Owner.' })
+    const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
+    const out = await recordKeyedPayment(tx, KEYED)
+    expect(out.ok).toBe(false)
+    expect(writes).toEqual([])
+  })
+})
+
+describe('the day money left on a receipt’s own Pay', () => {
+  it('a paid date after tomorrow is refused in a sentence naming the field, as the confirmation refuses it', () => {
+    const pay = BILLS.slice(BILLS.indexOf('export async function PATCH'))
+    expect(pay).toContain("message: 'The paid date has not happened yet. Enter the day the money left.'")
+    expect(pay.indexOf('The paid date has not happened yet')).toBeLessThan(pay.indexOf('recordKeyedPayment(tx, {'))
+  })
+})
+
+describe('a notice that fails is never said as nobody to tell', () => {
+  it('a notice that throws is reported to staff and answers minus one, and the payment stands', async () => {
+    notify.mockRejectedValue(new Error('mail down'))
+    expect(await tellPaidOrReport(FACTS, 'test')).toBe(-1)
+    expect(reportError).toHaveBeenCalledTimes(1)
+  })
+
+  it('the sentence says we could not tell a firm whose notice failed, and nobody on Etyme only where nobody is there', () => {
+    expect(toldSays([{ vendorName: 'Consultis', told: -1 }])).toBe('We could not tell Consultis it was paid, so tell them yourself.')
+    expect(toldSays([{ vendorName: 'Consultis', told: 0 }])).toBe('Consultis has nobody on Etyme to tell, so tell them yourself.')
+    expect(toldSays([{ vendorName: 'Consultis', told: 2 }])).toBe('Consultis is told, in the app and by email where email can leave.')
+    expect(toldSays([{ vendorName: 'A', told: 1 }, { vendorName: 'B', told: -1 }, { vendorName: 'C', told: 0 }]))
+      .toBe('We could not tell B it was paid, so tell them yourself. C has nobody on Etyme to tell, so tell them yourself.')
+  })
+
+  it('the receipt’s own Pay and a run’s confirmation both tell through the reporting door, never a silent catch', () => {
+    expect(BILLS).not.toMatch(/tellSupplierPaid\([^)]*\)\.catch\(\(\) => 0\)/)
+    expect(RUNS).not.toMatch(/tellSupplierPaid\([^)]*\)\.catch\(\(\) => 0\)/)
+    expect(BILLS).toContain('toldSays(')
+    expect(RUNS).toContain('toldSays(')
   })
 })
 

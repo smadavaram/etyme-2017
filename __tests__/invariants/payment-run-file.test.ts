@@ -338,7 +338,27 @@ describe('the supplier is told the day it is paid, once per payment', () => {
   it('the supplier is told only for a payment the confirmation has just written, so the same file twice tells nobody twice', () => {
     const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/ap/payment-runs/route.ts'), 'utf8')
     const confirmPart = ROUTE.slice(ROUTE.indexOf('async function confirm('))
-    expect(confirmPart).toMatch(/for \(const p of result\.paid\) \{\s*told\.set\(p\.paymentId, await tellSupplierPaid\(/)
+    // Told inside the line's own pay step, right after its write returned ok:
+    // a refused write tells nobody, and a later line's failure never leaves
+    // an earlier payment untold.
+    expect(confirmPart).toMatch(/if \(out\.ok\) \{\s*paidAts\.push\(row\.paidAt\)\s*told\.set\(out\.paymentId, await tellPaidOrReport\(out\.notice,/)
+    expect(confirmPart.indexOf('recordKeyedPayment(tx, {')).toBeLessThan(confirmPart.indexOf('await tellPaidOrReport(out.notice,'))
+  })
+
+  it('a run whose later line fails still marks paid what committed, because the run’s paid state is written in a finally', () => {
+    const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/ap/payment-runs/route.ts'), 'utf8')
+    const confirmPart = ROUTE.slice(ROUTE.indexOf('async function confirm('))
+    expect(confirmPart).toMatch(/\} finally \{[\s\S]*data: \{ status: 'PAID', paidAt: last \}/)
+  })
+
+  it('a run is cancelled only from a draft or an approved state, never over a line it already paid', () => {
+    const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/ap/payment-runs/route.ts'), 'utf8')
+    const cancel = ROUTE.slice(ROUTE.indexOf("if (action === 'cancel')"), ROUTE.indexOf("if (action === 'approve')"))
+    expect(cancel).toContain("where: { id, status: { in: ['DRAFT', 'APPROVED'] } }")
+    expect(cancel).toContain('already paid from this run, so the run is not cancelled')
+    expect(cancel).not.toMatch(/paymentRun\.update\(/)
+    const approve = ROUTE.slice(ROUTE.indexOf("if (action === 'approve')"), ROUTE.indexOf("// action === 'pay'"))
+    expect(approve).toContain("where: { id, status: 'DRAFT' }")
   })
 })
 

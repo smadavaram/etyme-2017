@@ -199,6 +199,32 @@ describe('one payment, one write', () => {
     expect(await owedCents()).toBe(owed)
   })
 
+  it('two people paying the same invoice at the same moment write one payment, and the second is told it was paid while it was read', async () => {
+    const payments = await prisma.payment.count({ where: { invoiceId: w.invoice } })
+    const owed = await owedCents()
+
+    // The first press holds its transaction open after its write; the
+    // second reads the invoice in that moment, at the figure both saw.
+    const first = prisma.$transaction(async (tx) => {
+      const done = await recordInvoicePayment(tx, input(100, 'FIRST-PRESS'))
+      await new Promise((r) => setTimeout(r, 400))
+      return done
+    }, { timeout: 10_000 })
+    await new Promise((r) => setTimeout(r, 100))
+    const second = prisma.$transaction((tx) => recordInvoicePayment(tx, input(100, 'SECOND-PRESS')), { timeout: 10_000 })
+    const [a, b] = await Promise.all([first, second])
+
+    expect(a.ok).toBe(true)
+    expect(b.ok).toBe(false)
+    if (!b.ok) {
+      expect(b.code).toBe('INVALID_STATE')
+      expect(b.says).toMatch(/was paid or changed while this was read\. Nothing was written again\./)
+    }
+    expect(await prisma.payment.count({ where: { invoiceId: w.invoice } })).toBe(payments + 1)
+    expect(await prisma.payment.count({ where: { invoiceId: w.invoice, reference: 'SECOND-PRESS' } })).toBe(0)
+    expect(await owedCents()).toBe(owed - 100)
+  })
+
   it('a payment with no amount pays the balance owed', async () => {
     const owed = await owedCents()
     const f = await viaFunction(null, 'THE-REST')

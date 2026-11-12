@@ -10,7 +10,7 @@ import { readRunFile } from '@/lib/money/run-file-read'
 import { confirmRun, readConfirmBody, confirmedLine, type RunLineFacts } from '@/lib/money/run-confirm'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
 import { paymentReference } from '@/lib/money/run-file'
-import { tellSupplierPaid, type PaidFacts } from '@/lib/money/paid-notice'
+import { tellPaidOrReport, toldSays } from '@/lib/money/paid-notice'
 import { payWaitsAt } from '@/lib/money/pay-waits'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
@@ -340,7 +340,44 @@ export async function PATCH(request: NextRequest) {
         { status: 422 }
       )
     }
-    await prisma.paymentRun.update({ where: { id }, data: { status: 'CANCELLED' } })
+    // A line this run already paid is money gone: the run is not cancelled
+    // over it, and the refusal names each one. Paid by this run reads as
+    // the receipt paid past what it owed when the run was assembled.
+    const paidHere = await prisma.paymentRunItem.findMany({
+      where: { runId: id },
+      select: {
+        amountCents: true,
+        vendorBill: { select: { number: true, totalCents: true, paidCents: true, vendorCompany: { select: { name: true } } } },
+      },
+    })
+    const gone = paidHere
+      .filter((i) => i.vendorBill.paidCents > i.vendorBill.totalCents - i.amountCents)
+      .map((i) => `${i.vendorBill.vendorCompany.name}’s invoice ${i.vendorBill.number}`)
+    if (gone.length > 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'ALREADY_PAID',
+            message:
+              `${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} already paid from this run, so the run is not cancelled. ` +
+              'Record a refund or a credit from the supplier for money that should come back.',
+          },
+        },
+        { status: 422 }
+      )
+    }
+    // Conditional on the state it was read in: a cancel that races a
+    // confirmation never lands over a run that has just paid.
+    const cancelled = await prisma.paymentRun.updateMany({
+      where: { id, status: { in: ['DRAFT', 'APPROVED'] } },
+      data: { status: 'CANCELLED' },
+    })
+    if (cancelled.count !== 1) {
+      return NextResponse.json(
+        { error: { code: 'ALREADY_PAID', message: 'This run was paid or changed while this was read. Open it again to see where it stands.' } },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({
       data: { id, status: 'CANCELLED', note: 'Cancelled. Every invoice receipt in it is payable again.' },
     })
@@ -354,11 +391,18 @@ export async function PATCH(request: NextRequest) {
         { status: 422 }
       )
     }
-    const updated = await prisma.paymentRun.update({
-      where: { id },
+    // Conditional on the run still being the draft that was read.
+    const approved = await prisma.paymentRun.updateMany({
+      where: { id, status: 'DRAFT' },
       data: { status: 'APPROVED', approvedById: personId },
-      select: { id: true, status: true, totalCents: true, currency: true },
     })
+    if (approved.count !== 1) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_STATE', message: 'This run was approved, cancelled or changed while this was read. Open it again to see where it stands.' } },
+        { status: 409 }
+      )
+    }
+    const updated = { id, status: 'APPROVED', totalCents: run.totalCents, currency: run.currency }
     return NextResponse.json({
       data: {
         run: updated,
@@ -492,109 +536,108 @@ async function confirm(
   const payerName = caller.company!.name
 
   let runCurrency = ''
-  const notices = new Map<string, PaidFacts>()
-  const result = await confirmRun(
-    {
-      ownerGate: async () => {
-        const g = await needsVerifiedOwnerAt(companyId, 'PAY')
-        return g.ok ? { ok: true } : { ok: false, says: g.says, href: g.href }
-      },
-      loadRun: async () => {
-        const run = await prisma.paymentRun.findUnique({
-          where: { id: read.runId },
-          select: {
-            id: true, companyId: true, status: true, currency: true,
-            items: {
-              select: {
-                id: true, amountCents: true,
-                vendorBill: {
-                  select: {
-                    id: true, number: true, currency: true, totalCents: true, paidCents: true, status: true,
-                    receivedAt: true, vendorCompanyId: true, vendorCompany: { select: { name: true } },
+  // The supplier is told the moment its line commits, line by line, so a
+  // failure on a later line never leaves an earlier payment untold: a
+  // retry refuses that line as already paid and would never tell it.
+  const told = new Map<string, number>()
+  const paidAts: Date[] = []
+  let result: Awaited<ReturnType<typeof confirmRun>>
+  try {
+    result = await confirmRun(
+      {
+        ownerGate: async () => {
+          const g = await needsVerifiedOwnerAt(companyId, 'PAY')
+          return g.ok ? { ok: true } : { ok: false, says: g.says, href: g.href }
+        },
+        loadRun: async () => {
+          const run = await prisma.paymentRun.findUnique({
+            where: { id: read.runId },
+            select: {
+              id: true, companyId: true, status: true, currency: true,
+              items: {
+                select: {
+                  id: true, amountCents: true,
+                  vendorBill: {
+                    select: {
+                      id: true, number: true, currency: true, totalCents: true, paidCents: true, status: true,
+                      receivedAt: true, vendorCompanyId: true, vendorCompany: { select: { name: true } },
+                    },
                   },
                 },
+                orderBy: { id: 'asc' },
               },
-              orderBy: { id: 'asc' },
             },
-          },
-        })
-        if (!run || run.companyId !== companyId) return null
-        runCurrency = run.currency
-        const lines: RunLineFacts[] = run.items.map((i) => ({
-          runItemId: i.id,
-          billId: i.vendorBill.id,
-          number: i.vendorBill.number,
-          vendorName: i.vendorBill.vendorCompany.name,
-          vendorCompanyId: i.vendorBill.vendorCompanyId,
-          amountCents: i.amountCents,
-          currency: i.vendorBill.currency,
-          totalCents: i.vendorBill.totalCents,
-          paidCents: i.vendorBill.paidCents,
-          status: i.vendorBill.status,
-          receivedAt: i.vendorBill.receivedAt,
-        }))
-        return { id: run.id, status: run.status, currency: run.currency, lines }
-      },
-      gateSays: async (billId) => {
-        const gate = await mayPayKeyedReceipt(billId, personId)
-        if (!gate) return 'This invoice receipt could not be read, so it is not marked paid.'
-        return gate.ok ? null : gate.says
-      },
-      pay: async (row) => {
-        const out = await prisma.$transaction((tx) =>
-          recordKeyedPayment(tx, {
-            billId: row.billId,
-            payerCompanyId: companyId,
-            payerName,
-            vendorCompanyId: row.vendorCompanyId,
-            vendorName: row.vendorName,
-            number: row.number,
-            currency: row.currency,
-            amountCents: row.amountCents,
-            expectPaidCents: row.expectPaidCents,
-            paidAt: row.paidAt,
-            payerReference: row.payerReference,
-            etymeReference: paymentReference(row.runItemId),
-            runId: read.runId,
-            appliedById: personId,
-            appliedByName: caller.person.name,
           })
-        )
-        if (out.ok) notices.set(out.paymentId, out.notice)
-        return out
+          if (!run || run.companyId !== companyId) return null
+          runCurrency = run.currency
+          const lines: RunLineFacts[] = run.items.map((i) => ({
+            runItemId: i.id,
+            billId: i.vendorBill.id,
+            number: i.vendorBill.number,
+            vendorName: i.vendorBill.vendorCompany.name,
+            vendorCompanyId: i.vendorBill.vendorCompanyId,
+            amountCents: i.amountCents,
+            currency: i.vendorBill.currency,
+            totalCents: i.vendorBill.totalCents,
+            paidCents: i.vendorBill.paidCents,
+            status: i.vendorBill.status,
+            receivedAt: i.vendorBill.receivedAt,
+          }))
+          return { id: run.id, status: run.status, currency: run.currency, lines }
+        },
+        gateSays: async (billId) => {
+          const gate = await mayPayKeyedReceipt(billId, personId)
+          if (!gate) return 'This invoice receipt could not be read, so it is not marked paid.'
+          return gate.ok ? null : gate.says
+        },
+        pay: async (row) => {
+          const out = await prisma.$transaction((tx) =>
+            recordKeyedPayment(tx, {
+              billId: row.billId,
+              payerCompanyId: companyId,
+              payerName,
+              vendorCompanyId: row.vendorCompanyId,
+              vendorName: row.vendorName,
+              number: row.number,
+              currency: row.currency,
+              amountCents: row.amountCents,
+              expectPaidCents: row.expectPaidCents,
+              paidAt: row.paidAt,
+              payerReference: row.payerReference,
+              etymeReference: paymentReference(row.runItemId),
+              runId: read.runId,
+              appliedById: personId,
+              appliedByName: caller.person.name,
+            })
+          )
+          if (out.ok) {
+            paidAts.push(row.paidAt)
+            told.set(out.paymentId, await tellPaidOrReport(out.notice, 'a payment run line paid'))
+          }
+          return out
+        },
       },
-    },
-    read.by === 'FILE' ? { by: 'FILE', csv: read.csv } : { by: 'TYPED', reference: read.reference, paidOn: read.paidOn }
-  )
+      read.by === 'FILE' ? { by: 'FILE', csv: read.csv } : { by: 'TYPED', reference: read.reference, paidOn: read.paidOn }
+    )
+  } finally {
+    // The run is paid once every line in it is, even where a later line
+    // failed: what committed is on the run.
+    if (paidAts.length > 0) {
+      const left = await prisma.paymentRunItem.count({
+        where: { runId: read.runId, vendorBill: { status: { notIn: ['PAID', 'CANCELLED'] } } },
+      })
+      if (left === 0) {
+        const last = paidAts.reduce((d, x) => (x > d ? x : d), paidAts[0])
+        await prisma.paymentRun.updateMany({ where: { id: read.runId, status: 'APPROVED' }, data: { status: 'PAID', paidAt: last } })
+      }
+    }
+  }
 
   if (!result.ok) {
     return NextResponse.json(
       { error: { code: result.code, message: result.says, ...(result.href ? { href: result.href } : {}) } },
       { status: result.status }
     )
-  }
-
-  // The supplier is told, once per payment just written, after it committed
-  // (lib/money/paid-notice). A confirmation read twice writes nothing the
-  // second time, so it tells nobody the second time.
-  const told = new Map<string, number>()
-  for (const p of result.paid) {
-    told.set(p.paymentId, await tellSupplierPaid(notices.get(p.paymentId) ?? {
-      paymentId: p.paymentId, payerName, vendorCompanyId: p.vendorCompanyId, number: p.number,
-      amountCents: p.amountCents, currency: p.currency, paidAt: p.paidAt, payerReference: p.payerReference,
-    }).catch(() => 0))
-  }
-  const untold = [...new Set(result.paid.filter((p) => (told.get(p.paymentId) ?? 0) === 0).map((p) => p.vendorName))]
-
-  // The run is paid once every line in it is.
-  if (result.paid.length > 0) {
-    const left = await prisma.paymentRunItem.count({
-      where: { runId: read.runId, vendorBill: { status: { notIn: ['PAID', 'CANCELLED'] } } },
-    })
-    if (left === 0) {
-      const last = result.paid.reduce((d, p) => (p.paidAt > d ? p.paidAt : d), result.paid[0].paidAt)
-      await prisma.paymentRun.updateMany({ where: { id: read.runId, status: 'APPROVED' }, data: { status: 'PAID', paidAt: last } })
-    }
   }
 
   return NextResponse.json({
@@ -610,9 +653,9 @@ async function confirm(
       refused: result.refused,
       says:
         result.says +
-        (untold.length > 0
-          ? ` ${untold.join(', ')} ${untold.length === 1 ? 'has' : 'have'} nobody on Etyme to tell, so tell them yourself.`
-          : result.paid.length > 0 ? ' Each supplier paid is told, in the app and by email where email can leave.' : ''),
+        (result.paid.length > 0
+          ? ` ${toldSays(result.paid.map((p) => ({ vendorName: p.vendorName, told: told.get(p.paymentId) ?? 0 })))}`
+          : ''),
     },
   })
 }
