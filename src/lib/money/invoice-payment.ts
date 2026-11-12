@@ -1,3 +1,4 @@
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import type { Prisma } from '@prisma/client'
 import { emit, type EmitParams } from '@/lib/events'
 import { fromUnits } from '@/lib/money-display'
@@ -75,8 +76,10 @@ export interface InvoicePaymentInput {
 
 export type InvoicePaymentRefusal = {
   ok: false
-  code: 'NOT_FOUND' | 'NOT_ATTRIBUTED' | 'INVALID_STATE' | 'OVERPAYMENT' | 'VALIDATION' | 'BANK_NOT_CHECKED'
+  code: 'NOT_FOUND' | 'NOT_ATTRIBUTED' | 'INVALID_STATE' | 'OVERPAYMENT' | 'VALIDATION' | 'BANK_NOT_CHECKED' | 'OWNER_NOT_VERIFIED'
   says: string
+  /** Where the step is, for a refusal that names one by address (the proof rule). */
+  href?: string
   field?: 'amount'
   /** The setup step the refusal names, where a skipped step is what refuses. */
   step?: ItemKey
@@ -160,6 +163,16 @@ export async function recordInvoicePayment(
   }
   if (invoice.status === 'PAID') {
     return { ok: false, code: 'INVALID_STATE', says: `${Doc} is already fully paid` }
+  }
+
+  // No money leaves a company formed under the proof rule until it has a
+  // verified Owner (founder, 2026-11-11), in the gate's own sentence naming
+  // the step. The paying company only; a company formed before the rule
+  // answers ok, so nothing changes for it. One door, so the payment route
+  // and the twin's performer read it alike.
+  if (payer) {
+    const owner = await needsVerifiedOwnerAt(billedTo.id, 'PAY', tx as unknown as Parameters<typeof needsVerifiedOwnerAt>[2])
+    if (!owner.ok) return { ok: false, code: 'OWNER_NOT_VERIFIED', says: owner.says, href: owner.href }
   }
 
   // No money leaves for a firm whose bank details nobody checked. Only

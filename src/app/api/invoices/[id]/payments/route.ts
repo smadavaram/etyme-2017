@@ -216,6 +216,7 @@ export async function POST(
 
   if (!recorded.ok) {
     const status = recorded.code === 'NOT_FOUND' ? 404
+      : recorded.code === 'OWNER_NOT_VERIFIED' ? 403
       : recorded.code === 'INVALID_STATE' || recorded.code === 'BANK_NOT_CHECKED' ? 409 : 422
     return NextResponse.json(
       {
@@ -223,6 +224,7 @@ export async function POST(
           code: recorded.code, message: recorded.says,
           ...(recorded.field ? { field: recorded.field } : {}),
           ...(recorded.step ? { step: recorded.step } : {}),
+          ...(recorded.href ? { href: recorded.href } : {}),
         },
       },
       { status }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -335,6 +336,12 @@ export async function PATCH(request: NextRequest) {
       { status: 422 }
     )
   }
+
+  // The proof rule (founder, 2026-11-11): a company formed under it releases
+  // no money to a firm until it has a verified Owner, in the gate's own
+  // sentence naming the step. Before any write.
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+  if (!owner.ok) return NextResponse.json(gateRefusal(owner), { status: 403 })
 
   // ── Checked again at the moment money leaves ────────────────────────
   //

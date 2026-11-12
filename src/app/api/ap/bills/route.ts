@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { checkPayeeBank } from '@/lib/money/bank-check-read'
 import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
 import { hasPermission } from '@/lib/permissions'
@@ -762,6 +763,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such invoice receipt here' } }, { status: 404 })
   }
   const vendorName = bill.vendorCompany.name
+
+  // The proof rule (founder, 2026-11-11): a company formed under it pays no
+  // firm until it has a verified Owner, refused before any write in the
+  // gate's own sentence, which names the step and links to it.
+  const owner = await needsVerifiedOwnerAt(reading.companyId, 'PAY')
+  if (!owner.ok) return NextResponse.json(gateRefusal(owner), { status: 403 })
 
   // ── The one gate, run at the moment money leaves ────────────────────
   //

@@ -76,3 +76,79 @@ describe('a typed-in invoice receipt is never paid to a firm whose bank details 
     expect(doors.pay).toEqual({ offered: false, says: ASK_ROSALIND, bank: { mayCheck: false, facts } })
   })
 })
+
+/**
+ * The proof rule (founder, 2026-11-11): a company signed up under it pays
+ * no firm until it has a verified Owner, refused before any write in the
+ * gate's own sentence, which names the step. A company formed before the
+ * rule pays as before. `recordInvoicePayment` is the one door the payment
+ * route and the twin's performer both call.
+ */
+import { recordInvoicePayment } from '@/lib/money/invoice-payment'
+import { readFileSync } from 'node:fs'
+
+const KESTREL_HELD = { name: 'Kestrel Works', ownerProofRequiredAt: new Date('2026-11-12'), ownerVerifiedAt: null }
+const BRIGHTMOOR_BEFORE = { name: 'Brightmoor Staffing', ownerProofRequiredAt: null, ownerVerifiedAt: null }
+const OWNER_SAYS = 'Paying a firm waits until Kestrel Works has a verified Owner. Prove ownership under Setup → Prove ownership.'
+
+function fakeTx(payer: Record<string, unknown>) {
+  const writes: string[] = []
+  const write = (name: string) => async () => { writes.push(name); return {} }
+  return {
+    writes,
+    tx: {
+      invoice: {
+        findUnique: async () => ({
+          id: 'inv-1', number: 'CNS-0042', total: '4160.00', paid: '0', status: 'SENT', currency: 'USD',
+          engagement: { msa: { vendorId: 'consultis', clientId: 'payer' } },
+          workOrder: null, invoiceLines: [],
+        }),
+        update: write('invoice.update'),
+      },
+      company: { findUnique: async () => payer },
+      payment: { create: write('payment.create') },
+    } as any,
+  }
+}
+const PAY = (onBooksOf: string) => ({
+  invoiceId: 'inv-1', method: 'ACH', reference: 'BR-7781', appliedById: 'ap-seat', onBooksOf,
+  recordedBy: { companyId: onBooksOf, companyName: 'Payer', personName: 'Ana Ruiz' },
+})
+
+describe('paying a firm waits for a verified Owner at a company formed under the proof rule', () => {
+  it('a company held for a verified Owner is refused paying an invoice receipt, in the sentence that names the step, and nothing is written', async () => {
+    mayPayFirm.mockResolvedValue({ ok: true })
+    const { tx, writes } = fakeTx(KESTREL_HELD)
+    const r = await recordInvoicePayment(tx, PAY('payer'))
+    expect(r).toEqual({ ok: false, code: 'OWNER_NOT_VERIFIED', says: OWNER_SAYS, href: '/dashboard/settings/setup/ownership' })
+    expect(mayPayFirm).not.toHaveBeenCalled()
+    expect(writes).toEqual([])
+  })
+
+  it('a company formed before the rule pays as before: the owner gate lets it through to the bank check', async () => {
+    mayPayFirm.mockResolvedValue({ ok: false, says: 'Consultis’ bank details are not checked.', step: 'BANK' })
+    const { tx } = fakeTx(BRIGHTMOOR_BEFORE)
+    const r = await recordInvoicePayment(tx, PAY('payer'))
+    expect(r).toMatchObject({ ok: false, code: 'BANK_NOT_CHECKED' })
+    expect(mayPayFirm).toHaveBeenCalledWith('payer', 'consultis', tx)
+  })
+
+  it('a supplier recording money that arrived is never held for the payer’s Owner', async () => {
+    const { tx } = fakeTx(KESTREL_HELD)
+    // More than is owed, so the run stops at the amount, before any write.
+    const r = await recordInvoicePayment(tx, { ...PAY('consultis'), amountCents: 500_000 })
+    expect(r).toMatchObject({ ok: false, code: 'OVERPAYMENT' })
+  })
+
+  it('paying a typed-in invoice receipt and releasing a payment run read the same gate before any write, on the paying company', () => {
+    const bills = readFileSync('src/app/api/ap/bills/route.ts', 'utf8')
+    const gate = bills.indexOf("needsVerifiedOwnerAt(reading.companyId, 'PAY')")
+    expect(gate).toBeGreaterThan(0)
+    expect(gate).toBeLessThan(bills.indexOf('keyedPayGateNow(bill,'))
+    const runs = readFileSync('src/app/api/ap/payment-runs/route.ts', 'utf8')
+    const runGate = runs.indexOf("needsVerifiedOwnerAt(companyId, 'PAY')")
+    expect(runGate).toBeGreaterThan(0)
+    expect(runGate).toBeLessThan(runs.indexOf('applyRunPayment('))
+    for (const src of [bills, runs]) expect(src).toContain('NextResponse.json(gateRefusal(owner), { status: 403 })')
+  })
+})
