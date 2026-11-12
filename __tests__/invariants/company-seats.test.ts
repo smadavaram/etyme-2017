@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  seatsFrom, peopleOf, countSeats, countsByRole, countWords, roleHeldWords, peopleWords, personNameFor, teammatesOf,
+  seatsFrom, peopleOf, countSeats, countsByRole, countWords, roleHeldWords, peopleWords, personNameFor, teammatesOf, isSharedSignIn,
 } from '@/lib/company-seats'
 import { roleCanDo } from '@/lib/company-roles'
 import { PERMISSIONS } from '@/lib/permissions'
@@ -87,6 +87,60 @@ describe('one reader counts a company’s people the same way on every screen', 
     )
     expect(plan.ok).toBe(true)
     if (plan.ok) expect(plan.seats[0].name).toBe('Sharath')
+  })
+
+  it('timesheets at the company’s own address is a shared sign-in, shown by its address and never as a person called Timesheets', () => {
+    expect(isSharedSignIn('timesheets@etyme.com')).toBe(true)
+    expect(isSharedSignIn('Support@Tapin.example')).toBe(true)
+    const [s] = seatsFrom([row({ id: 'a', role: { name: 'AP & Payroll' }, person: { name: 'Timesheets', primaryEmail: 'timesheets@etyme.com', credentials: [] } })], 'Tapin')
+    expect(s.shared).toBe(true)
+    expect(s.name).toBe('timesheets@etyme.com')
+    expect(personNameFor('Hradmin', 'hradmin@etyme.com', 'Tapin')).toBe('hradmin@etyme.com')
+    expect(personNameFor('', 'payroll@etyme.com', 'Tapin')).toBe('payroll@etyme.com')
+    expect(personNameFor('Tapin', 'support@etyme.com', 'Tapin')).toBe('support@etyme.com')
+  })
+
+  it('oliver at the company is Oliver and never a shared sign-in, even where his name matches his address', () => {
+    expect(isSharedSignIn('oliver@etyme.com')).toBe(false)
+    const [s] = seatsFrom([row({ id: 'a', person: { name: 'Oliver', primaryEmail: 'oliver@etyme.com', credentials: [{ id: 'c' }] } })], 'Tapin')
+    expect(s.shared).toBe(false)
+    expect(s.name).toBe('Oliver')
+  })
+
+  it('a partner on a personal mail address is never a shared sign-in, whatever comes before the @', () => {
+    expect(isSharedSignIn('admin@gmail.com')).toBe(false)
+    expect(isSharedSignIn('hr@yahoo.com')).toBe(false)
+    expect(isSharedSignIn('sidhu871@gmail.com')).toBe(false)
+    expect(personNameFor('', 'admin@gmail.com', 'Tapin')).toBe('Admin')
+  })
+
+  it('a name somebody typed for a shared sign-in stays the name shown', () => {
+    expect(personNameFor('Accounts team', 'accounts@etyme.com', 'Tapin')).toBe('Accounts team')
+  })
+
+  it('a shared sign-in is still listed and counted exactly as before: invited, waiting, with access or paused', () => {
+    const shared = (id: string, o: Partial<Row> = {}) => row({ id, person: { name: '', primaryEmail: `${id}@tapin.example`, credentials: [] }, invitedAt: day, lastUsedAt: null, ...o })
+    const seats = seatsFrom([row({ id: 'owner' }), shared('timesheets'), shared('support', { suspendedAt: day })], 'Tapin')
+    expect(seats.filter((s) => s.shared)).toHaveLength(2)
+    expect(peopleOf(seats)).toHaveLength(3)
+    expect(countSeats(peopleOf(seats))).toEqual({ withAccess: 1, invited: 1, waitingForRole: 0, paused: 1 })
+  })
+
+  it('the staff tool stores a shared sign-in with no name typed as its address, and still never names a seat with the company’s name', () => {
+    const plan = planBootstrap(
+      { name: 'Tapin', kind: 'VENDOR', domain: 'etyme.com', address: 'tapin', seats: [
+        { email: 'sharath@etyme.com', role: 'Owner', name: 'Tapin' },
+        { email: 'timesheets@etyme.com', role: 'AP & Payroll' },
+        { email: 'oliver@etyme.com', role: 'Account Manager' },
+      ] } as never,
+      { company: null, people: {}, takenAddresses: new Set() } as never,
+    )
+    expect(plan.ok).toBe(true)
+    if (plan.ok) expect(plan.seats.map((s) => s.name)).toEqual(['Sharath', 'timesheets@etyme.com', 'Oliver'])
+  })
+
+  it('Team structure names a seat with the one reader’s words, so a shared sign-in reads as its address there too', () => {
+    expect(read('src/lib/team-structure/read.ts')).toContain('person: { name: c.name }')
   })
 
   it('the setup checklist counts teammates beside the person who set the company up, invited ones included, and a one-person firm reads nought, never minus one', () => {

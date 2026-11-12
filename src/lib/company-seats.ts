@@ -30,6 +30,7 @@ import { prisma } from '@/lib/db'
 import { hasSignedIn } from '@/lib/access-grant'
 import { stateOf } from '@/lib/account-lifecycle'
 import { isSamplePerson } from '@/lib/sample-seat'
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
 export type SeatState = 'INVITED' | 'WAITING_FOR_ROLE' | 'WITH_ACCESS' | 'PAUSED'
 
@@ -48,6 +49,12 @@ export interface CompanySeat {
   isPerson: boolean
   /** The shared sample seat of the home page: nobody's. */
   isSample: boolean
+  /**
+   * A shared sign-in, such as timesheets@ or support@ on the company's own
+   * mail: an address several people may use, not one person
+   * (`isSharedSignIn`). Listed and counted exactly like any other seat.
+   */
+  shared: boolean
 }
 
 export interface SeatCounts {
@@ -75,13 +82,49 @@ export function nameFromAddress(email: string): string {
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 /**
- * A person's name, never the company's. Where the name typed for a person
- * is the company's own name (a seat named "Tapin" at Tapin), or nothing was
- * typed, the name part of their address stands in. Pure.
+ * The words before the @ that name a mailbox, not a person (founder,
+ * 2026-11-12: timesheets@ read as a person called "Timesheets"). A fixed
+ * list on purpose: a name that happens to match its own address
+ * (oliver@, "Oliver") is a person, and is never guessed to be shared.
+ */
+export const SHARED_MAILBOX_WORDS: readonly string[] = [
+  'timesheets', 'timesheet', 'support', 'admin', 'hr', 'hradmin', 'info', 'billing', 'accounts', 'accounting',
+  'payroll', 'ap', 'ar', 'finance', 'noreply', 'no-reply', 'team', 'office', 'contact', 'hello', 'sales',
+  'jobs', 'careers', 'recruiting',
+]
+const MAILBOX = new Set(SHARED_MAILBOX_WORDS)
+
+/**
+ * Is this sign-in address a shared mailbox rather than one person? Both
+ * must hold: the part before the @ is one of the mailbox words, and the
+ * address is not on a personal mail provider (the sign-in rule's own list,
+ * `isConsumerDomain`), because hr@ on Gmail is somebody's own address.
+ * Pure.
+ */
+export function isSharedSignIn(email: string | null | undefined): boolean {
+  const e = String(email ?? '').trim().toLowerCase()
+  const at = e.lastIndexOf('@')
+  if (at < 1) return false
+  const domain = domainOfEmail(e)
+  if (!domain || isConsumerDomain(domain)) return false
+  return MAILBOX.has(e.slice(0, at))
+}
+
+/**
+ * The words to show for a seat, and the name to store for a person: never
+ * the company's. Where the name typed is the company's own name (a seat
+ * named "Tapin" at Tapin), or nothing was typed, the name part of the
+ * address stands in. A shared sign-in (`isSharedSignIn`) whose name is only
+ * that stand-in ("Timesheets" for timesheets@) is shown by its address
+ * instead, so a mailbox never reads as a person; a name somebody typed for
+ * it stays. Pure; every screen that names a seat reads this one answer.
  */
 export function personNameFor(typed: string | null | undefined, email: string | null | undefined, companyName: string | null | undefined): string {
   const t = String(typed ?? '').trim()
-  const fallback = email ? nameFromAddress(email) : t
+  const fromAddress = email ? nameFromAddress(email) : ''
+  const fallback = fromAddress || t
+  const standIn = !t || Boolean(companyName && same(t, companyName)) || Boolean(fromAddress && same(t, fromAddress))
+  if (standIn && email && isSharedSignIn(email)) return email.trim()
   if (!t) return fallback
   if (companyName && same(t, companyName)) return fallback || t
   return t
@@ -154,6 +197,7 @@ export function seatsFrom(rows: readonly Row[], companyName: string | null): Com
       state,
       isPerson: r.type !== 'CONSULTANT',
       isSample: isSamplePerson(r.person.primaryEmail),
+      shared: isSharedSignIn(r.person.primaryEmail),
     })
   }
   return out

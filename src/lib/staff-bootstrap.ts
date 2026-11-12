@@ -141,7 +141,9 @@ export function planBootstrap(input: BootstrapInput, existing: Existing): Plan {
     const role = clean(s.role)
     const person = existing.people[email]
     // A person is never given the company's name: a seat typed "Tapin" at
-    // Tapin reads as the name part of its address (lib/company-seats).
+    // Tapin reads as the name part of its address (lib/company-seats). A
+    // shared sign-in with no name typed (timesheets@) is stored as its
+    // address, never as a word that reads like a person ("Timesheets").
     const nm = personNameFor(clean(s.name) || nameFromEmail(email), email, existing.company?.name ?? name)
     if (!person) return { email, role, name: nm, does: 'CREATE_PERSON_AND_SEAT' as const }
     if (person.signedIn) {
