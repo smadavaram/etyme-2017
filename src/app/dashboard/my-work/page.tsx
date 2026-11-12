@@ -1,7 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-import { Lbl, Chip, LoadingState, ErrorState } from '@/components/ui'
+import { Lbl, Chip, LoadingState, ErrorState, FormMessage } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 import { amount, compact, rate as fmtRate } from '@/lib/money-display'
@@ -1113,18 +1113,26 @@ export default function MyWorkPage() {
 
   useEffect(() => { load() }, [load])
 
+  // The route's own sentence, kept beside the week it is about, never in
+  // a browser pop-up (money's screens ask and answer on the page).
+  const [sendSays, setSendSays] = useState<{ id: string; says: string } | null>(null)
+  const [sending, setSending] = useState<string | null>(null)
+
   async function submitTimesheet(id: string) {
-    const res = await fetch(`/api/timesheets/${id}/submit`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-    })
-    let j: any
+    setSendSays(null)
+    setSending(id)
     try {
-      j = await readJson(res)
+      const res = await fetch(`/api/timesheets/${id}/submit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      })
+      await readJson(res)
     } catch (e: any) {
-      alert(e.message)
+      setSendSays({ id, says: e?.message || 'The week could not be sent. Try again in a minute.' })
       return
+    } finally {
+      setSending(null)
     }
-    await load()
+    await load(true)
   }
 
   if (loading) return <LoadingState says="Opening your work…" />
@@ -1279,15 +1287,20 @@ export default function MyWorkPage() {
           <h2 className="font-serif text-lg text-etyme-ink mb-3">Hours to send</h2>
           <div className="bg-etyme-surface border border-etyme-attention/30 rounded-lg divide-y divide-etyme-rule">
             {open.map((t: Timesheet) => (
-              <div key={t.id} className="p-4 flex items-center gap-4">
-                <div className="flex-1">
-                  <div className="text-etyme-ink">{t.period}</div>
-                  <div className="text-xs text-etyme-muted tabular-nums">{t.hours} hours</div>
+              <div key={t.id} className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-etyme-ink">{t.period}</div>
+                    <div className="text-xs text-etyme-muted tabular-nums">{t.hours} hours</div>
+                  </div>
+                  <button onClick={() => submitTimesheet(t.id)} disabled={sending === t.id}
+                    className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-60 shrink-0">
+                    {sending === t.id ? 'Sending…' : 'Send for approval'}
+                  </button>
                 </div>
-                <button onClick={() => submitTimesheet(t.id)}
-                  className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-                  Send for approval
-                </button>
+                {sendSays?.id === t.id && (
+                  <div className="mt-2"><FormMessage tone="error">{sendSays.says}</FormMessage></div>
+                )}
               </div>
             ))}
           </div>

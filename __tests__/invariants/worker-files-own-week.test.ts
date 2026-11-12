@@ -219,3 +219,17 @@ describe('the page and the door behind it', () => {
     expect(post).not.toContain('body.personId')
   })
 })
+
+describe('a week the route will not take says why on the page, beside the week', () => {
+  const page = read('app/dashboard/my-work/page.tsx')
+
+  it('the worker\'s own page never answers a refused week in a browser pop-up', () => {
+    expect(page).not.toMatch(/\balert\(|\bconfirm\(|\bprompt\(/)
+  })
+
+  it('the route\'s sentence is kept beside the week it refused, as an error line', () => {
+    expect(page).toContain('setSendSays({ id, says: e?.message')
+    expect(page).toContain('sendSays?.id === t.id')
+    expect(page).toContain('<FormMessage tone="error">{sendSays.says}</FormMessage>')
+  })
+})
