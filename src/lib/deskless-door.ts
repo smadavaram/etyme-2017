@@ -74,6 +74,13 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // document is about reads their own, a seat at the issuer without the
   // paperwork desk is refused in a sentence, and a stranger is told
   // nothing is there.
+  // Screen walk on df3074094: a person asked to take ownership, or an
+  // Owner asked to agree to a removal, said yes on no screen. The Owners
+  // routes answer such a reader only the asks addressed to them
+  // (asksAddressedTo in lib/owner-asks), and the yes is decided by
+  // mayDecide in lib/owner-rules; everything else there is an Owner's.
+  'settings/owners': 'A seat reads only the Owner asks addressed to it, and nothing else about who owns the company.',
+  'settings/owners/*': 'A seat answers only an Owner ask addressed to it.',
   'documents/*/file': 'A seat that sees only its own work opens a document that is about its holder, and no other.',
 }
 

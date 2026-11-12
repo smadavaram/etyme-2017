@@ -4,8 +4,10 @@ import { notify } from '@/lib/notify'
 import { formatDay } from '@/lib/format-date'
 import {
   OWNER_ROLE, ADMIN_ROLE, liveOwners, mayAskAboutOwner, mayAskToPass, decidersFor, expiresFrom, lapsed,
-  passCardSays, ownerCardSays, onlyAnOwner, movesAloneAfterPass, type AskerAfter,
+  passCardSays, ownerCardSays, onlyAnOwner, movesAloneAfterPass, askSaysTo, type AskerAfter,
 } from '@/lib/owner-rules'
+import { asksAddressedTo } from '@/lib/owner-asks'
+import { ensureDefaultRoles } from '@/lib/company-roles'
 import { ADMIN_PERMISSIONS, isNarrowedAdmin } from '@/lib/company-defaults'
 import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { ownersDoor, refused } from './seats'
@@ -32,8 +34,17 @@ export async function GET(request: NextRequest) {
   if (door.error) return door.error
   const { company, seats, me, personId } = door.ok
   if (me.roleName !== OWNER_ROLE && me.roleName !== ADMIN_ROLE) {
-    return refused(`Who owns ${company.name} is read by its Owners and Admins.`, 403, 'FORBIDDEN')
+    // A person an open ask is addressed to reads that ask and nothing else
+    // about who owns the company (screen walk on df3074094).
+    const addressed = await asksAddressedTo(personId, company.id)
+    if (addressed.length === 0) {
+      return refused(`Who owns ${company.name} is read by its Owners and Admins.`, 403, 'FORBIDDEN')
+    }
+    return NextResponse.json({ data: { company: company.name, addressedOnly: true, asks: addressed } })
   }
+  // Every kind of company has an Admin (2026-11-12): a company formed
+  // before that gets it here, the way Users & permissions adds a role.
+  await ensureDefaultRoles(company.id, company.kind)
   const now = new Date()
   const [asks, roles, adminRole] = await Promise.all([
     prisma.ownershipRequest.findMany({
@@ -68,6 +79,8 @@ export async function GET(request: NextRequest) {
           const subject = bySeat.get(a.subjectContextId)
           const subjectName = subject?.name ?? 'a former seat'
           const deciders = subject ? decidersFor({ kind: a.kind, askedByPersonId: a.askedById, subject, seats }) : []
+          const mayDecide = deciders.some((d) => d.personId === personId) && a.askedById !== personId
+          const reader = a.askedById === personId ? 'ASKER' : mayDecide ? 'ADDRESSEE' : 'OTHER'
           return {
             id: a.id,
             kind: a.kind,
@@ -75,11 +88,15 @@ export async function GET(request: NextRequest) {
             askedBy: a.askedBy.name,
             reason: a.reason,
             waitsUntil: formatDay(a.expiresAt),
-            mayDecide: deciders.some((d) => d.personId === personId) && a.askedById !== personId,
+            mayDecide,
             mayCancel: a.askedById === personId,
-            says: a.kind === 'PASS'
-              ? passCardSays({ askerName: a.askedBy.name, companyName: company.name, after: (a.askerAfter ?? 'OWNER') as AskerAfter })
-              : ownerCardSays({ kind: a.kind, askerName: a.askedBy.name, subjectName, companyName: company.name, toRoleName: a.toRole?.name ?? null, reason: a.reason, youAreSubject: subject?.personId === personId }),
+            // Said to this reader: the asker reads "You asked …", the person
+            // who may say yes reads the card, anybody else reads who waits.
+            says: askSaysTo(reader, {
+              kind: a.kind, askerName: a.askedBy.name, subjectName, companyName: company.name,
+              after: (a.askerAfter ?? 'OWNER') as AskerAfter, toRoleName: a.toRole?.name ?? null, reason: a.reason,
+              deciderNames: deciders.map((d) => d.name), youAreSubject: subject?.personId === personId,
+            }),
           }
         }),
     },

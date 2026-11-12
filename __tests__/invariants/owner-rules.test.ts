@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   mayAskAboutOwner, mayAskToPass, mayDecide, decidersFor, passCardSays, liveOwners, LADDER, type Seat,
-  movesAloneAfterPass, movedAfterPassSays, ownerMovesOnOwnersPage,
+  movesAloneAfterPass, movedAfterPassSays, ownerMovesOnOwnersPage, askSaysTo, addresseeBecomes,
 } from '@/lib/owner-rules'
 import { canSuspend, canRevoke, type AccessRow } from '@/lib/account-lifecycle'
 import { rolesFor, ADMIN_PERMISSIONS, ADMIN_LOSES, isNarrowedAdmin } from '@/lib/company-defaults'
@@ -174,6 +174,13 @@ describe('Admin runs the system; the Owner runs the business', () => {
     expect(rolesFor('CONSULTANT_CORP').map((r) => r.name)).toEqual(['Owner', 'Member'])
   })
 
+  it('a company formed before the Admin existed gets it the next time Users & permissions or Settings → Owners is opened', () => {
+    const roles = readFileSync('src/lib/company-roles.ts', 'utf8')
+    expect(roles).toContain('for (const seed of rolesFor(kind as CompanyKind))')
+    const owners = readFileSync('src/app/api/settings/owners/route.ts', 'utf8')
+    expect(owners).toContain('await ensureDefaultRoles(company.id, company.kind)')
+  })
+
   it('no default grant widens a narrowed Admin again', () => {
     const src = readFileSync('src/lib/company-roles.ts', 'utf8')
     expect(src).toContain('isNarrowedAdmin(role.permissions)) continue')
@@ -271,3 +278,42 @@ describe('Users & permissions never moves an Owner off Owner', () => {
   })
 })
 
+describe('one ask, said to each reader', () => {
+  const pass = { kind: 'PASS' as const, askerName: 'Camille Roux', subjectName: 'Lorena Kellerman', companyName: 'Tapin', after: 'ADMIN' as const, reason: 'Lorena runs it now', deciderNames: ['Lorena Kellerman'], youAreSubject: false }
+  const remove = { kind: 'REMOVE' as const, askerName: 'Camille Roux', subjectName: 'Madhavi Rao', companyName: 'Tapin', reason: 'Left the firm', deciderNames: ['Madhavi Rao', 'Priya Nair'], youAreSubject: false }
+
+  it('the Owner who asked reads her own pass as hers, waiting, never as one addressed to her', () => {
+    const says = askSaysTo('ASKER', pass)
+    expect(says).toBe('You asked Lorena Kellerman to take over Tapin’s ownership. Waiting for Lorena Kellerman’s yes. After it you will be an Admin.')
+    expect(says).not.toMatch(/to you/)
+  })
+
+  it('the person taking over reads the card addressed to them', () => {
+    expect(askSaysTo('ADDRESSEE', { ...pass, youAreSubject: true })).toBe(passCardSays({ askerName: 'Camille Roux', companyName: 'Tapin', after: 'ADMIN' }))
+  })
+
+  it('another Owner or an Admin reads who asked and whose yes it waits for', () => {
+    expect(askSaysTo('OTHER', pass)).toBe('Camille Roux asked Lorena Kellerman to take over Tapin’s ownership. Waiting for Lorena Kellerman’s yes; Camille Roux will then be an Admin.')
+  })
+
+  it('the Owner who asked to remove an Owner reads whose yes it waits for, by name', () => {
+    expect(askSaysTo('ASKER', remove)).toBe('You asked to remove Madhavi Rao as an Owner of Tapin: Left the firm. Waiting for the yes of Madhavi Rao or Priya Nair.')
+  })
+
+  it('the Owner being removed, asked for the yes, reads it about themselves', () => {
+    expect(askSaysTo('ADDRESSEE', { ...remove, youAreSubject: true })).toMatch(/^Camille Roux asks to remove you as an Owner of Tapin/)
+  })
+
+  it('what the person saying yes becomes is said in a word', () => {
+    expect(addresseeBecomes({ kind: 'PASS', youAreSubject: true, companyName: 'Tapin' })).toBe('Owner')
+    expect(addresseeBecomes({ kind: 'REMOVE', youAreSubject: true, companyName: 'Tapin' })).toBe('No longer at Tapin')
+    expect(addresseeBecomes({ kind: 'DEMOTE', toRoleName: 'Admin', youAreSubject: true, companyName: 'Tapin' })).toBe('Admin')
+    expect(addresseeBecomes({ kind: 'REMOVE', youAreSubject: false, companyName: 'Tapin' })).toBeNull()
+  })
+
+  it('Settings → Owners says each ask to the reader reading it', () => {
+    const src = readFileSync('src/app/api/settings/owners/route.ts', 'utf8')
+    expect(src).toContain("const reader = a.askedById === personId ? 'ASKER' : mayDecide ? 'ADDRESSEE' : 'OTHER'")
+    expect(src).toContain('says: askSaysTo(reader, {')
+  })
+})

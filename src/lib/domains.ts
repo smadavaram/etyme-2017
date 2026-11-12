@@ -420,7 +420,7 @@ export const DOMAINS: Domain[] = [
       // ownership, and the two proofs that earn the Owner seat at a company
       // formed from 2026-11-12. The gate's refusals at money's, contracts'
       // and regulatory's routes are theirs to call.
-      'lib/owner-rules', 'lib/owner-proof',
+      'lib/owner-rules', 'lib/owner-proof', 'lib/owner-asks',
       // The one door to a seat's saved Ask Etyme conversation (founder,
       // 2026-10-18): the caller's own thread at the caller's own company,
       // and nobody else's. The route and the screen over it are

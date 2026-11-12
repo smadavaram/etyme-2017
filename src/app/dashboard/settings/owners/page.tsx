@@ -19,8 +19,14 @@ import { readJson } from '@/lib/read-response'
  */
 
 type Ask = { id: string; kind: 'PASS' | 'REMOVE' | 'DEMOTE'; subject: string; askedBy: string; reason: string; waitsUntil: string; mayDecide: boolean; mayCancel: boolean; says: string }
+type Addressed = {
+  id: string; kind: 'PASS' | 'REMOVE' | 'DEMOTE'; askedBy: string; subject: string; youAreSubject: boolean
+  reason: string; becomes: string | null; canThen: string; says: string; waitsUntil: string; answerUrl: string
+}
 type Read = {
   company: string
+  /** The reader is neither Owner nor Admin: only the asks addressed to them. */
+  addressedOnly?: false
   owners: { contextId: string; name: string; you: boolean }[]
   others: { contextId: string; name: string; role: string | null }[]
   roles: { id: string; name: string }[]
@@ -29,11 +35,13 @@ type Read = {
   asks: Ask[]
 }
 
+type AddressedRead = { company: string; addressedOnly: true; asks: Addressed[] }
+
 type Flow = null | { kind: 'pass'; after: 'ADMIN' | 'OWNER' | 'LEAVE' } | { kind: 'owner' }
 
 export default function OwnersPage() {
   const eyebrow = usePageSection('/dashboard/settings')
-  const [r, setR] = useState<Read | null>(null)
+  const [r, setR] = useState<Read | AddressedRead | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
@@ -44,12 +52,14 @@ export default function OwnersPage() {
   const [ownerAct, setOwnerAct] = useState<'remove' | 'demote'>('remove')
   const [toRoleId, setToRoleId] = useState('')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (afterAnswer = false) => {
     try {
       const j = await readJson(await fetch('/api/settings/owners'))
       setR(j.data)
     } catch (e: any) {
-      if (e?.status === 403) setRefused(e.message)
+      // Answered the last ask addressed to them: the answer stays on screen.
+      if (e?.status === 403 && afterAnswer) setR((prev) => (prev && prev.addressedOnly ? { ...prev, asks: [] } : prev))
+      else if (e?.status === 403) setRefused(e.message)
       else setError(e?.message ?? 'Could not read who owns this company.')
     }
   }, [])
@@ -61,7 +71,7 @@ export default function OwnersPage() {
       const j = await readJson(await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
       setSaid({ tone: 'ok', text: j.data.message })
       setFlow(null); setWho(''); setReason('')
-      await load()
+      await load(true)
     } catch (e: any) {
       setSaid({ tone: 'error', text: e.message })
     } finally {
@@ -72,6 +82,36 @@ export default function OwnersPage() {
   if (refused) return <RefusedState says={refused} />
   if (error) return <ErrorState says={error} />
   if (!r) return <LoadingState says="Reading who owns this company…" />
+
+  // Asked to take ownership, or to agree to an Owner's removal or move:
+  // the ask and nothing else about who owns the company.
+  if (r.addressedOnly) {
+    return (
+      <div className="space-y-5">
+        <PageHead eyebrow={eyebrow} title="Waiting for your yes" subtitle={`${r.company} asks you something about who owns it. Nothing changes until you answer.`} />
+        {r.asks.length === 0 && <Panel title="Nothing is waiting"><p className="text-[13.5px] text-etyme-muted">Nothing at {r.company} is waiting on your yes.</p></Panel>}
+        {r.asks.map((a) => (
+          <Panel key={a.id} title={a.kind === 'PASS' ? `${a.askedBy} asks you to take over ${r.company}` : `${a.askedBy} asks about ${a.youAreSubject ? 'your' : `${a.subject}’s`} seat as an Owner`}>
+            <div className="space-y-3">
+              <p className="text-[14px] text-etyme-ink">{a.says}</p>
+              <dl className="grid gap-x-4 gap-y-1.5 text-[13.5px] sm:grid-cols-[max-content_1fr]">
+                <dt className="text-etyme-muted">Asked by</dt><dd className="text-etyme-ink">{a.askedBy}</dd>
+                <dt className="text-etyme-muted">Why</dt><dd className="text-etyme-ink">{a.reason}</dd>
+                {a.becomes && <><dt className="text-etyme-muted">You become</dt><dd className="text-etyme-ink">{a.becomes}</dd></>}
+                <dt className="text-etyme-muted">Then</dt><dd className="text-etyme-ink">{a.canThen}</dd>
+              </dl>
+              <p className="text-[12px] text-etyme-faint">Waits until {a.waitsUntil}, then lapses and nothing changes.</p>
+              <div className="flex flex-wrap gap-2">
+                <SubmitButton type="button" pending={busy === `y${a.id}`} pendingLabel="Saying yes…" onClick={() => post(`y${a.id}`, a.answerUrl, { decision: 'yes' })}>Yes</SubmitButton>
+                <SubmitButton type="button" tone="secondary" pending={busy === `n${a.id}`} pendingLabel="Answering…" onClick={() => post(`n${a.id}`, a.answerUrl, { decision: 'no' })}>No</SubmitButton>
+              </div>
+            </div>
+          </Panel>
+        ))}
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+      </div>
+    )
+  }
 
   const adminRole = r.roles.find((x) => x.name === 'Admin')
 

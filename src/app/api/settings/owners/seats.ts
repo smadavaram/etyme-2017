@@ -5,29 +5,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
-import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { seatsAt } from '@/lib/owner-asks'
 import type { Seat } from '@/lib/owner-rules'
 import type { NextRequest } from 'next/server'
 
-export async function seatsAt(companyId: string): Promise<Seat[]> {
-  const rows = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, type: 'EMPLOYEE', ...NOT_THE_SAMPLE_SEAT },
-    select: {
-      id: true, personId: true, suspendedAt: true, expiresAt: true,
-      person: { select: { name: true, primaryEmail: true } },
-      role: { select: { name: true } },
-    },
-    orderBy: { grantedAt: 'asc' },
-  })
-  const now = Date.now()
-  return rows.map((r) => ({
-    contextId: r.id,
-    personId: r.personId,
-    name: r.person.name || r.person.primaryEmail,
-    roleName: r.role?.name ?? null,
-    live: !r.suspendedAt && (!r.expiresAt || r.expiresAt.getTime() > now),
-  }))
-}
+export { seatsAt }
 
 export type OwnersCaller = {
   caller: Awaited<ReturnType<typeof getCallerContext>>['caller']

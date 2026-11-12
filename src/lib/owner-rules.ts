@@ -227,3 +227,84 @@ export function lapsed(expiresAt: Date, now: Date = new Date()): boolean {
 export function expiresFrom(now: Date = new Date()): Date {
   return new Date(now.getTime() + ASK_DAYS * 86_400_000)
 }
+
+// ── One ask, said to each reader (screen walk on df3074094) ───────────
+
+/**
+ * Who is reading an ask decides its sentence. The walk found the asker
+ * reading her own pass as if it were to her ("Camille wants to pass
+ * ownership to you" on Camille's page). Three readers:
+ *  - ASKER: the Owner who asked, waiting.
+ *  - ADDRESSEE: whoever may say yes (the person taking over for a pass;
+ *    an Owner who did not ask for a removal or a move).
+ *  - OTHER: anybody else who reads the Owners screen (an Admin, an Owner
+ *    who is neither).
+ */
+export type AskReader = 'ASKER' | 'ADDRESSEE' | 'OTHER'
+
+export interface AskWords {
+  kind: AskKind
+  askerName: string
+  subjectName: string
+  companyName: string
+  /** PASS: what the asker becomes once the yes lands. */
+  after?: AskerAfter | null
+  /** DEMOTE: the role the Owner moves to. */
+  toRoleName?: string | null
+  reason: string
+  /** The names of whoever may say yes. */
+  deciderNames: readonly string[]
+  /** The reader is the seat the ask is about. */
+  youAreSubject: boolean
+}
+
+function either(names: readonly string[]): string {
+  if (names.length === 0) return 'another Owner'
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+}
+
+export function askSaysTo(reader: AskReader, w: AskWords): string {
+  if (reader === 'ADDRESSEE') {
+    return w.kind === 'PASS'
+      ? passCardSays({ askerName: w.askerName, companyName: w.companyName, after: (w.after ?? 'OWNER') as AskerAfter })
+      : ownerCardSays({ kind: w.kind, askerName: w.askerName, subjectName: w.subjectName, companyName: w.companyName, toRoleName: w.toRoleName ?? null, reason: w.reason, youAreSubject: w.youAreSubject })
+  }
+  const what = w.kind === 'PASS'
+    ? `to take over ${w.companyName}’s ownership`
+    : w.kind === 'REMOVE'
+      ? `to remove ${w.subjectName} as an Owner of ${w.companyName}`
+      : `to move ${w.subjectName} from Owner to ${w.toRoleName ?? 'another role'} at ${w.companyName}`
+  if (reader === 'ASKER') {
+    if (w.kind === 'PASS') {
+      return `You asked ${w.subjectName} ${what}. Waiting for ${w.subjectName}’s yes. After it you will be ${afterWords((w.after ?? 'OWNER') as AskerAfter, w.companyName)}.`
+    }
+    return `You asked ${what}: ${w.reason}. Waiting for the yes of ${either(w.deciderNames)}.`
+  }
+  if (w.kind === 'PASS') {
+    return `${w.askerName} asked ${w.subjectName} ${what}. Waiting for ${w.subjectName}’s yes; ${w.askerName} will then be ${afterWords((w.after ?? 'OWNER') as AskerAfter, w.companyName)}.`
+  }
+  return `${w.askerName} asked ${what}: ${w.reason}. Waiting for the yes of ${either(w.deciderNames)}.`
+}
+
+/** What the person saying yes becomes, in a word or two, or null where nothing changes for them. */
+export function addresseeBecomes(w: Pick<AskWords, 'kind' | 'toRoleName' | 'youAreSubject' | 'companyName'>): string | null {
+  if (w.kind === 'PASS') return OWNER_ROLE
+  if (!w.youAreSubject) return null
+  return w.kind === 'REMOVE' ? `No longer at ${w.companyName}` : (w.toRoleName ?? 'another role')
+}
+
+/** What the person saying yes can then do, in one sentence. */
+export function addresseeCanThen(w: Pick<AskWords, 'kind' | 'toRoleName' | 'youAreSubject' | 'companyName' | 'subjectName'>): string {
+  if (w.kind === 'PASS') {
+    return `As an Owner you run ${w.companyName}’s business: you pay firms, sign agreements, change the type of company and how people sign in, give access by team or for the whole company, and add, pass or remove Owners with another Owner’s yes.`
+  }
+  if (!w.youAreSubject) {
+    return w.kind === 'REMOVE'
+      ? `${w.subjectName}’s seat at ${w.companyName} ends. Everything ${w.subjectName} did stays under that name.`
+      : `${w.subjectName} holds what ${w.toRoleName ?? 'the new role'} holds and no Owner act.`
+  }
+  return w.kind === 'REMOVE'
+    ? `Your seat at ${w.companyName} ends. Everything you did stays under your name.`
+    : `You hold what ${w.toRoleName ?? 'the new role'} holds at ${w.companyName}. Owner acts are no longer yours.`
+}
