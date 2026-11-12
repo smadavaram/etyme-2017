@@ -1,4 +1,5 @@
 import { notify } from '@/lib/notify'
+import { hasPermission } from '@/lib/permissions'
 import { amount } from '@/lib/money-display'
 import { formatDayLong } from '@/lib/format-date'
 import { payerSeats } from '@/lib/money/bank-check-read'
@@ -47,9 +48,9 @@ export function paidNotice(f: PaidFacts): { title: string; body: string } {
 
 /** Who at the supplier hears it. Pure. */
 export function whoHearsPaid(seats: readonly { personId: string; permissions: readonly string[] }[]): string[] {
-  const bills = seats.filter((s) => s.permissions.includes('invoices.issue'))
+  const bills = seats.filter((s) => hasPermission([...s.permissions], 'invoices.issue'))
   if (bills.length > 0) return [...new Set(bills.map((s) => s.personId))]
-  const pays = seats.filter((s) => s.permissions.includes('payments.record'))
+  const pays = seats.filter((s) => hasPermission([...s.permissions], 'payments.record'))
   if (pays.length > 0) return [...new Set(pays.map((s) => s.personId))]
   return seats.length > 0 ? [seats[0].personId] : []
 }

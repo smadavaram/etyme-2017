@@ -218,11 +218,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // The firm's own account owner gets the link. Their address is not
   // written on the request, so the client's desks read the firm, not a
   // private inbox it never gave them.
-  const owner = await prisma.context.findFirst({
-    where: { companyId: entry.firmId, type: 'EMPLOYEE', revokedAt: null, suspendedAt: null, role: { permissions: { has: '*' } } },
-    select: { person: { select: { name: true, primaryEmail: true } } },
-    orderBy: { grantedAt: 'asc' },
-  })
+  const ownerSeat = { companyId: entry.firmId, type: 'EMPLOYEE' as const, revokedAt: null, suspendedAt: null }
+  const pick = { select: { person: { select: { name: true, primaryEmail: true } } }, orderBy: { grantedAt: 'asc' as const } }
+  // A firm signed up under the proof rule has no Owner until it proves
+  // one; its Admin, who signed it up, stands in. A role nobody holds
+  // falls back, it never goes silent.
+  const owner =
+    (await prisma.context.findFirst({ where: { ...ownerSeat, role: { permissions: { has: '*' } } }, ...pick })) ??
+    (await prisma.context.findFirst({ where: { ...ownerSeat, role: { name: 'Admin' } }, ...pick }))
 
   const note = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 500) : ''
   const how = comesInWords(comesInAs, underName)
