@@ -93,9 +93,11 @@ const OWNER_SAYS = 'Paying a firm waits until Kestrel Works has a verified Owner
 
 function fakeTx(payer: Record<string, unknown>) {
   const writes: string[] = []
+  const logged: { action: string; reason: string; payload: Record<string, unknown> }[] = []
   const write = (name: string) => async () => { writes.push(name); return {} }
   return {
     writes,
+    logged,
     tx: {
       invoice: {
         findUnique: async () => ({
@@ -107,6 +109,7 @@ function fakeTx(payer: Record<string, unknown>) {
       },
       company: { findUnique: async () => payer },
       payment: { create: write('payment.create') },
+      automationLog: { create: async (a: { data: { action: string; reason: string; payload: Record<string, unknown> } }) => { writes.push(`automationLog.create:${a.data.action}`); logged.push(a.data); return {} } },
     } as any,
   }
 }
@@ -116,12 +119,29 @@ const PAY = (onBooksOf: string) => ({
 })
 
 describe('paying a firm waits for a verified Owner at a company formed under the proof rule', () => {
-  it('a company held for a verified Owner is refused paying an invoice receipt, in the sentence that names the step, and nothing is written', async () => {
+  it('a company held for a verified Owner is refused paying an invoice receipt, in the sentence that names the step, and nothing is paid: the only row written is the refusal, in the words the person read', async () => {
     mayPayFirm.mockResolvedValue({ ok: true })
-    const { tx, writes } = fakeTx(KESTREL_HELD)
+    const { tx, writes, logged } = fakeTx(KESTREL_HELD)
     const r = await recordInvoicePayment(tx, PAY('payer'))
     expect(r).toEqual({ ok: false, code: 'OWNER_NOT_VERIFIED', says: OWNER_SAYS, href: '/dashboard/settings/setup/ownership' })
     expect(mayPayFirm).not.toHaveBeenCalled()
+    expect(writes).toEqual(['automationLog.create:PAYMENT_REFUSED'])
+    expect(logged[0]).toMatchObject({ reason: OWNER_SAYS, payload: { why: 'OWNER_NOT_VERIFIED', door: 'INVOICE_PAY', byPersonId: 'ap-seat', invoiceId: 'inv-1' } })
+  })
+
+  it('an invoice receipt refused over a supplier\u2019s unchecked bank details is kept as a refused payment, and nothing is paid', async () => {
+    mayPayFirm.mockResolvedValue({ ok: false, says: 'Consultis\u2019 bank details are not checked.', step: 'BANK' })
+    const { tx, writes, logged } = fakeTx(BRIGHTMOOR_BEFORE)
+    const r = await recordInvoicePayment(tx, PAY('payer'))
+    expect(r).toMatchObject({ ok: false, code: 'BANK_NOT_CHECKED' })
+    expect(writes).toEqual(['automationLog.create:PAYMENT_REFUSED'])
+    expect(logged[0]).toMatchObject({ reason: 'Consultis\u2019 bank details are not checked.', payload: { why: 'BANK_NOT_CHECKED' } })
+  })
+
+  it('a supplier recording money that arrived and typing too much is told so, and no refused payment is kept for a mistyped amount', async () => {
+    const { tx, writes } = fakeTx(BRIGHTMOOR_BEFORE)
+    const r = await recordInvoicePayment(tx, { ...PAY('consultis'), amountCents: 500_000 })
+    expect(r).toMatchObject({ ok: false, code: 'OVERPAYMENT' })
     expect(writes).toEqual([])
   })
 
@@ -171,5 +191,40 @@ describe('a typed-in invoice receipt is never recorded as already paid', () => {
     expect(create).toContain('paidAt: null,')
     expect(post).not.toMatch(/paidCents:\s*paidAt/)
     expect(bills.indexOf('recordKeyedPayment(tx,')).toBeGreaterThan(bills.indexOf('export async function PATCH'))
+  })
+})
+
+describe('every door that pays keeps a refused payment before it says the refusal', () => {
+  const read = (p: string) => readFileSync(p, 'utf8')
+
+  it('the payment route keeps a three-way check refusal before it answers, and never a document that is only not submitted yet', () => {
+    const route = read('src/app/api/invoices/[id]/payments/route.ts')
+    const kept = route.indexOf("door: 'INVOICE_PAY'")
+    expect(kept).toBeGreaterThan(0)
+    expect(kept).toBeLessThan(route.indexOf('return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: 409 })'))
+  })
+
+  it('paying a typed-in receipt keeps the Owner, three-way check, week and bank refusals before each is said', () => {
+    const bills = read('src/app/api/ap/bills/route.ts')
+    expect(bills.indexOf("await refusedPay('OWNER_NOT_VERIFIED', owner.says)")).toBeLessThan(bills.indexOf('NextResponse.json(gateRefusal(owner), { status: 403 })'))
+    expect(bills).toContain("await refusedPay('MATCH_FAILED', check.notAccepted.says)")
+    expect(bills).toContain('if (why) await refusedPay(why, gate.says)')
+  })
+
+  it('releasing a payment run and marking it paid from a confirmation keep every rule\u2019s refusal before the answer goes', () => {
+    const runs = read('src/app/api/ap/payment-runs/route.ts')
+    for (const why of ['OWNER_NOT_VERIFIED', 'MATCH_FAILED', 'BANK_NOT_CHECKED']) expect(runs).toContain(`await refusedRelease('${why}'`)
+    expect(runs).toContain("door: 'RUN_CONFIRM', why: 'OWNER_NOT_VERIFIED'")
+    expect(runs).toContain("why: gate.code === 'BANK_NOT_CHECKED' ? 'BANK_NOT_CHECKED' : 'MATCH_FAILED'")
+  })
+
+  it('a payment refusal is a rule\u2019s only: the three-way check, a check that could not run or an unaccepted week, the bank, or the Owner, and never a state or a typing mistake', async () => {
+    const { refusalWhy } = await import('@/lib/money/payment-refused')
+    expect(refusalWhy('MATCH_FAILED')).toBe('MATCH_FAILED')
+    expect(refusalWhy('NOT_CHECKED')).toBe('MATCH_FAILED')
+    expect(refusalWhy('WEEK_NOT_ACCEPTED')).toBe('MATCH_FAILED')
+    expect(refusalWhy('BANK_NOT_CHECKED')).toBe('BANK_NOT_CHECKED')
+    expect(refusalWhy('OWNER_NOT_VERIFIED')).toBe('OWNER_NOT_VERIFIED')
+    for (const c of ['NOT_SUBMITTED', 'HELD', 'INVALID_STATE', 'OVERPAYMENT', 'VALIDATION']) expect(refusalWhy(c)).toBeNull()
   })
 })

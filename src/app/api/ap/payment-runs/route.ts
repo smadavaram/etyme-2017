@@ -9,6 +9,7 @@ import { staffOnly } from '@/lib/seat'
 import { readRunFile } from '@/lib/money/run-file-read'
 import { confirmRun, readConfirmBody, confirmedLine, type RunLineFacts } from '@/lib/money/run-confirm'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
 import { paymentReference } from '@/lib/money/run-file'
 import { tellPaidOrReport, toldSays } from '@/lib/money/paid-notice'
 import { payWaitsAt } from '@/lib/money/pay-waits'
@@ -476,7 +477,13 @@ export async function PATCH(request: NextRequest) {
   // no money to a firm until it has a verified Owner, in the gate's own
   // sentence naming the step. Before any write.
   const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
-  if (!owner.ok) return NextResponse.json(gateRefusal(owner), { status: 403 })
+  // Every rule's refusal of the release is kept before it is said.
+  const refusedRelease = (why: 'MATCH_FAILED' | 'BANK_NOT_CHECKED' | 'OWNER_NOT_VERIFIED', says: string) =>
+    logPaymentRefused({ companyId, byPersonId: personId, door: 'RUN_RELEASE', why, says, runId: run.id })
+  if (!owner.ok) {
+    await refusedRelease('OWNER_NOT_VERIFIED', owner.says)
+    return NextResponse.json(gateRefusal(owner), { status: 403 })
+  }
 
   // ── Checked again at the moment money leaves ────────────────────────
   //
@@ -501,30 +508,17 @@ export async function PATCH(request: NextRequest) {
     } else stopped.push(gate.says)
   }
   if (stopped.length > 0) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'MATCH_FAILED',
-          message:
-            `This run is not released: ${stopped.length === 1 ? 'one invoice receipt in it' : `${stopped.length} invoice receipts in it`} ` +
-            `no longer ${stopped.length === 1 ? 'passes' : 'pass'} the three-way check. ${stopped.join(' ')} ` +
-            `Cancel the run and assemble it again.`,
-        },
-      },
-      { status: 422 }
-    )
+    const message =
+      `This run is not released: ${stopped.length === 1 ? 'one invoice receipt in it' : `${stopped.length} invoice receipts in it`} ` +
+      `no longer ${stopped.length === 1 ? 'passes' : 'pass'} the three-way check. ${stopped.join(' ')} ` +
+      `Cancel the run and assemble it again.`
+    await refusedRelease('MATCH_FAILED', message)
+    return NextResponse.json({ error: { code: 'MATCH_FAILED', message } }, { status: 422 })
   }
   if (unchecked.length > 0) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'BANK_NOT_CHECKED',
-          step: 'BANK',
-          message: `This run is not released. ${unchecked.join(' ')} Cancel the run and assemble it again without them, or check their details first.`,
-        },
-      },
-      { status: 409 }
-    )
+    const message = `This run is not released. ${unchecked.join(' ')} Cancel the run and assemble it again without them, or check their details first.`
+    await refusedRelease('BANK_NOT_CHECKED', message)
+    return NextResponse.json({ error: { code: 'BANK_NOT_CHECKED', step: 'BANK', message } }, { status: 409 })
   }
 
   // Every line through the one write a run's line makes, and every supplier
@@ -568,6 +562,9 @@ async function confirm(
   // retry refuses that line as already paid and would never tell it.
   const told = new Map<string, number>()
   const paidAts: Date[] = []
+  // A receipt the payment gate refuses today, read once per line.
+  const gateRefused = new Map<string, { says: string; code: string }>()
+  const lineOf = new Map<string, { billId: string; number: string }>()
   let result: Awaited<ReturnType<typeof confirmRun>>
   try {
     result = await confirmRun(
@@ -597,6 +594,7 @@ async function confirm(
           })
           if (!run || run.companyId !== companyId) return null
           runCurrency = run.currency
+          for (const i of run.items) lineOf.set(paymentReference(i.id), { billId: i.vendorBill.id, number: i.vendorBill.number })
           const lines: RunLineFacts[] = run.items.map((i) => ({
             runItemId: i.id,
             billId: i.vendorBill.id,
@@ -615,6 +613,7 @@ async function confirm(
         gateSays: async (billId) => {
           const gate = await mayPayKeyedReceipt(billId, personId)
           if (!gate) return 'This invoice receipt could not be read, so it is not marked paid.'
+          if (!gate.ok) gateRefused.set(billId, { says: gate.says, code: gate.code })
           return gate.ok ? null : gate.says
         },
         pay: async (row) => {
@@ -666,10 +665,27 @@ async function confirm(
   }
 
   if (!result.ok) {
+    if (result.code === 'OWNER_NOT_VERIFIED') {
+      await logPaymentRefused({ companyId, byPersonId: personId, door: 'RUN_CONFIRM', why: 'OWNER_NOT_VERIFIED', says: result.says, runId: read.runId })
+    }
     return NextResponse.json(
       { error: { code: result.code, message: result.says, ...(result.href ? { href: result.href } : {}) } },
       { status: result.status }
     )
+  }
+
+  // A row the payment gate refused (the three-way check or the bank) is
+  // kept before the answer goes; a row refused for its own figures is the
+  // file being read, and the one write keeps its own refusals.
+  for (const r of result.refused) {
+    const line = r.reference ? lineOf.get(r.reference) : undefined
+    const gate = line ? gateRefused.get(line.billId) : undefined
+    if (!line || !gate || !r.says.endsWith(gate.says)) continue
+    await logPaymentRefused({
+      companyId, byPersonId: personId, door: 'RUN_CONFIRM',
+      why: gate.code === 'BANK_NOT_CHECKED' ? 'BANK_NOT_CHECKED' : 'MATCH_FAILED',
+      says: r.says, vendorBillId: line.billId, runId: read.runId, number: line.number,
+    })
   }
 
   return NextResponse.json({

@@ -4,6 +4,7 @@ import { amount } from '@/lib/money-display'
 import { suppliersBillFor, type PaidFacts } from '@/lib/money/paid-notice'
 import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import { mayPayFirm } from '@/lib/setup-gates'
+import { logPaymentRefusedIn, type PaymentRefused } from '@/lib/money/payment-refused'
 
 /**
  * Pay a typed-in invoice receipt. The one write, from every door (the
@@ -75,10 +76,24 @@ export async function recordKeyedPayment(tx: Tx, p: KeyedPaymentInput): Promise<
   // (the proof rule) and the supplier's bank check. A check revoked a
   // moment ago stops the money here, in the gate's own sentence. The
   // three-way check stays the caller's, run at the moment of the press.
+  // A refusal by either is kept like any other, on this transaction,
+  // before the caller says it.
+  const refused = (why: PaymentRefused['why'], says: string) =>
+    logPaymentRefusedIn(tx, {
+      companyId: p.payerCompanyId, byPersonId: p.appliedById,
+      door: p.runId ? 'RUN_CONFIRM' : 'RECEIPT_PAY', why, says,
+      vendorBillId: p.billId, runId: p.runId, number: p.number,
+    })
   const owner = await needsVerifiedOwnerAt(p.payerCompanyId, 'PAY', tx as unknown as Parameters<typeof needsVerifiedOwnerAt>[2])
-  if (!owner.ok) return { ok: false, says: owner.says }
+  if (!owner.ok) {
+    await refused('OWNER_NOT_VERIFIED', owner.says)
+    return { ok: false, says: owner.says }
+  }
   const bank = await mayPayFirm(p.payerCompanyId, p.vendorCompanyId, tx as unknown as Parameters<typeof mayPayFirm>[2])
-  if (!bank.ok) return { ok: false, says: bank.says }
+  if (!bank.ok) {
+    await refused('BANK_NOT_CHECKED', bank.says)
+    return { ok: false, says: bank.says }
+  }
 
   const current = await tx.vendorBill.findUnique({
     where: { id: p.billId },

@@ -21,6 +21,7 @@ import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 import { readLines } from '@/lib/money/keyed-lines'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
+import { logPaymentRefused, refusalWhy } from '@/lib/money/payment-refused'
 import { tellPaidOrReport, toldSays } from '@/lib/money/paid-notice'
 import { paidSellLine, clientLinesFrom } from '@/lib/money/paid-line'
 import {
@@ -779,7 +780,16 @@ export async function PATCH(request: NextRequest) {
   // firm until it has a verified Owner, refused before any write in the
   // gate's own sentence, which names the step and links to it.
   const owner = await needsVerifiedOwnerAt(reading.companyId, 'PAY')
-  if (!owner.ok) return NextResponse.json(gateRefusal(owner), { status: 403 })
+  // Every rule's refusal below is kept before it is said.
+  const refusedPay = (why: NonNullable<ReturnType<typeof refusalWhy>>, says: string) =>
+    logPaymentRefused({
+      companyId: reading.companyId, byPersonId: caller.isService ? null : caller.person.id,
+      door: 'RECEIPT_PAY', why, says, vendorBillId: bill.id, number: bill.number,
+    })
+  if (!owner.ok) {
+    await refusedPay('OWNER_NOT_VERIFIED', owner.says)
+    return NextResponse.json(gateRefusal(owner), { status: 403 })
+  }
 
   // ── The one gate, run at the moment money leaves ────────────────────
   //
@@ -795,6 +805,7 @@ export async function PATCH(request: NextRequest) {
     ? null
     : await checkKeyedReceipt(asKeyed(bill), 'pay')
   if (check?.notAccepted) {
+    await refusedPay('MATCH_FAILED', check.notAccepted.says)
     return NextResponse.json(
       { error: { code: 'WEEK_NOT_ACCEPTED', message: check.notAccepted.says } },
       { status: 422 }
@@ -807,6 +818,8 @@ export async function PATCH(request: NextRequest) {
   // the three-way check). The sentence names who checks.
   const gate = await keyedPayGateNow(bill, vendorName, check, caller.isService ? null : caller.person.id)
   if (!gate.ok) {
+    const why = refusalWhy(gate.code)
+    if (why) await refusedPay(why, gate.says)
     return NextResponse.json(
       { error: { code: gate.code, message: gate.says, checks: check?.match.checks ?? [] } },
       { status: 409 }

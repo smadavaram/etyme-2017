@@ -368,6 +368,13 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
 // ── The things that are governance, not autonomy ─────────
 
 const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string }> = {
+  // A payment the rules refused (lib/money/payment-refused), written by
+  // every door that pays, before the refusal is said.
+  PAYMENT_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'A person tried to pay an invoice receipt or release a payment run and was refused in a sentence: the three-way check did not pass, the supplier\u2019s bank details were not checked, or the company was still waiting for a verified Owner. Nothing was paid, and the refusal is kept like any other.',
+  },
   EMAIL_INTAKE_DROPPED: {
     outcome: 'BLOCK',
     basis: 'RULE',
@@ -789,16 +796,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     basis: 'RULE',
     says: 'An Owner or Admin copied an invitation to send it themselves. What was copied takes nobody into the seat: the person still signs in with their own address.',
     willBeWrittenBy: 'etyme-regulatory',
-  },
-  // A payment the rules refused. Decided here with its outcome; money
-  // writes it from the one payment function and it moves onto the ladder
-  // in that commit.
-  PAYMENT_REFUSED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'BLOCK',
-    basis: 'RULE',
-    says: 'A person tried to pay an invoice receipt or release a payment run and was refused in a sentence: the three-way check did not pass, the supplier\u2019s bank details were not checked, or the company was still waiting for a verified Owner. Nothing was paid, and the refusal is kept like any other.',
-    willBeWrittenBy: 'etyme-money',
   },
 
   SUBMISSION_COVER_WARNED: {

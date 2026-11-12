@@ -7,6 +7,7 @@ import { partiesOf } from '@/lib/money/invoice-parties'
 import { mayPayFirm } from '@/lib/setup-gates'
 import type { ItemKey } from '@/lib/setup-checklist'
 import { tellPaidOrReport, type PaidFacts } from '@/lib/money/paid-notice'
+import { logPaymentRefusedIn } from '@/lib/money/payment-refused'
 
 /**
  * The one payment write.
@@ -179,14 +180,27 @@ export async function recordInvoicePayment(
   // and the twin's performer read it alike.
   if (payer) {
     const owner = await needsVerifiedOwnerAt(billedTo.id, 'PAY', tx as unknown as Parameters<typeof needsVerifiedOwnerAt>[2])
-    if (!owner.ok) return { ok: false, code: 'OWNER_NOT_VERIFIED', says: owner.says, href: owner.href }
+    if (!owner.ok) {
+      // Kept like any other refusal, on this transaction, before it is said.
+      await logPaymentRefusedIn(tx, {
+        companyId: billedTo.id, byPersonId: appliedById, door: 'INVOICE_PAY', why: 'OWNER_NOT_VERIFIED',
+        says: owner.says, invoiceId, number: invoice.number,
+      })
+      return { ok: false, code: 'OWNER_NOT_VERIFIED', says: owner.says, href: owner.href }
+    }
   }
 
   // No money leaves for a firm whose bank details nobody checked. Only
   // the paying side: a supplier recording what arrived moves no money.
   if (payer) {
     const bank = await mayPayFirm(billedTo.id, billedBy.id, tx as unknown as Parameters<typeof mayPayFirm>[2])
-    if (!bank.ok) return { ok: false, code: 'BANK_NOT_CHECKED', says: bank.says, step: bank.step }
+    if (!bank.ok) {
+      await logPaymentRefusedIn(tx, {
+        companyId: billedTo.id, byPersonId: appliedById, door: 'INVOICE_PAY', why: 'BANK_NOT_CHECKED',
+        says: bank.says, invoiceId, number: invoice.number,
+      })
+      return { ok: false, code: 'BANK_NOT_CHECKED', says: bank.says, step: bank.step }
+    }
   }
 
   const totalCents = fromPrismaDecimal(invoice.total, currency).minor

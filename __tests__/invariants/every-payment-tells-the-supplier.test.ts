@@ -161,7 +161,7 @@ function keyedTx(row: { totalCents: number; paidCents: number; status: string },
       updateMany: async (a: { where: Record<string, unknown> }) => { wheres.push(a.where); if (moves === 1) writes.push('vendorBill.update'); return { count: moves } },
     },
     payment: { create: async () => { writes.push('payment.create'); return { id: 'pay-k' } } },
-    automationLog: { create: async () => { writes.push('automationLog.create'); return {} } },
+    automationLog: { create: async (a: { data: { action: string } }) => { writes.push(a.data.action === 'PAYMENT_RECORDED' ? 'automationLog.create' : `automationLog.create:${a.data.action}`); return {} } },
     invoice: { findUnique: async () => null },
   }
   return { tx: tx as never, writes, wheres }
@@ -200,20 +200,20 @@ describe('the typed-in receipt’s write reads its gates again and touches only 
     expect(wheres[0]).toMatchObject({ id: 'vb-1', companyId: 'brightmoor', vendorCompanyId: 'consultis', currency: 'EUR', paidCents: 0 })
   })
 
-  it('a bank check taken back between the press and the write stops the money, in the gate’s own sentence, and writes nothing', async () => {
+  it('a bank check taken back between the press and the write stops the money, in the gate’s own sentence, and writes nothing but the refused payment', async () => {
     bankGate.mockResolvedValue({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
     const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
     const out = await recordKeyedPayment(tx, KEYED)
     expect(out).toEqual({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
-    expect(writes).toEqual([])
+    expect(writes).toEqual(['automationLog.create:PAYMENT_REFUSED'])
   })
 
-  it('a paying company that has no verified Owner at the moment of the write pays nothing', async () => {
+  it('a paying company that has no verified Owner at the moment of the write pays nothing, and the refusal is kept', async () => {
     ownerGate.mockResolvedValue({ ok: false, says: 'Brightmoor Staffing pays no firm until it has a verified Owner.' })
     const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
     const out = await recordKeyedPayment(tx, KEYED)
     expect(out.ok).toBe(false)
-    expect(writes).toEqual([])
+    expect(writes).toEqual(['automationLog.create:PAYMENT_REFUSED'])
   })
 })
 

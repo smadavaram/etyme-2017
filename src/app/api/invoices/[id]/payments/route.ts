@@ -10,6 +10,7 @@ import { fromUnits } from '@/lib/money-display'
 import { fromDecimal, fromPrismaDecimal, toDecimal } from '@/lib/money'
 import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import { matchInvoice, payGate, receiptStateRefusal } from '@/lib/invoice-match'
+import { logPaymentRefused, refusalWhy } from '@/lib/money/payment-refused'
 
 /**
  * POST /api/invoices/:id/payments
@@ -174,6 +175,15 @@ export async function POST(
     const byState = receiptStateRefusal(invoice)
     const gate = byState ?? payGate(invoice, await matchInvoice(id))
     if (!gate.ok) {
+      // The three-way check saying no is kept before it is said; a
+      // document not yet submitted or on hold is its state, not a refusal.
+      const why = refusalWhy(gate.code)
+      if (why) {
+        await logPaymentRefused({
+          companyId: billedTo.id, byPersonId: caller.person.id, door: 'INVOICE_PAY', why,
+          says: gate.says, invoiceId: id, number: invoice.number,
+        })
+      }
       return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: 409 })
     }
   }
