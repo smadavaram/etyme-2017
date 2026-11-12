@@ -21,6 +21,7 @@ import { teamsLinkStanding } from '@/lib/notify/teams-link'
 import { intakeLive } from '@/lib/email-intake/live'
 import { intakeStateFor } from '@/lib/email-intake/settings'
 import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
+import { joinSentenceFor } from '@/lib/join-words'
 import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
 
 export async function readSetup(companyId: string, reader: { personId: string; email: string }) {
@@ -36,7 +37,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   // characters, never the address. Read only where the deployment is open.
   const open = intakeLive()
   const intake = open ? await intakeStateFor(companyId) : null
-  const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains, headcount] = await Promise.all([
+  const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains, headcount, joins] = await Promise.all([
     checklistOf(companyId),
     setupReminderFor(companyId, { mayRun: true }),
     prisma.setupAnswer.findMany({ where: { companyId } }),
@@ -60,6 +61,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     prisma.companyDomain.findMany({ where: { companyId }, orderBy: { createdAt: 'asc' } }),
     // The company's people, counted by the one reader every screen uses.
     readCompanySeats(companyId).then((all) => countSeats(peopleOf(all))),
+    joinSentenceFor(companyId),
   ])
 
   // Names for every "who": answers, items, the bank, the people in charge.
@@ -121,7 +123,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     company: { id: c.id, name: c.name, kind: c.kind },
     checklist,
     reminder,
-    words: Object.fromEntries(keys.map((k) => [k, ITEM_WORDS[k]])),
+    words: Object.fromEntries(keys.map((k) => [k, joinWordsFor(k, joins)])),
     stamps,
     slugs: Object.fromEntries(keys.map((k) => [k, ITEM_SLUG[k]])),
     detail: {
@@ -194,6 +196,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         seats: headcount.withAccess + headcount.invited + headcount.paused,
         // "3 people: 1 with access · 2 invited": what the count counts.
         says: peopleWords(headcount),
+        joins,
       },
       DOMAIN: {
         suggested: domainFill?.domain ?? (c.domain && !/\.(example|invalid|local|test)$/.test(c.domain) ? c.domain : ''),
@@ -224,3 +227,21 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   }
 }
 
+/**
+ * An item's words, with how people join said from what the code does
+ * (lib/join-words) on the two items that are about it, never the shipped
+ * copy, which assumed a domain the company may never be able to verify.
+ */
+function joinWordsFor(k: ItemKey, joins: string | null) {
+  const w = ITEM_WORDS[k]
+  if (!joins) return w
+  if (k === 'TEAM') return { ...w, sub: `Each person gets the role for what they do here. ${joins}` }
+  if (k === 'DOMAIN') {
+    return {
+      ...w,
+      sub: `Prove you own your domain with one DNS record. Today: ${joins}`,
+      skipStops: `If you skip: people join as they do today. ${joins}`,
+    }
+  }
+  return w
+}

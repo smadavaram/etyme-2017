@@ -126,6 +126,8 @@ interface Settings {
   typeLine?: OwnerLine | null
   /** The company's people, counted once: "6 people: 3 with access · 3 invited". */
   people?: string
+  /** How people join this company, from what the code does (lib/join-words). Null for a one-person firm. */
+  joins?: string | null
 }
 
 // ── Bits ─────────────────────────────────────────────
@@ -405,13 +407,13 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
  * came from your identity provider" over a domain reading "—" (sign-up
  * walk, round five, problem 20).
  */
-function howYouCameIn(c: Pick<Company, 'slug' | 'domain' | 'domainVerified'>): string {
-  if (c.domain && c.domainVerified) {
-    return `Your domain, ${c.domain}, was verified when your company signed in with its work account. ` +
-      'It is not editable, and it decides who joins this company automatically.'
-  }
-  return `Your company signed up with an email and a password, so its Etyme address is ${c.slug}.etyme.com and it has no verified domain. ` +
-    'Colleagues join by invitation, or by signing up with that address, and are seated as Member until you give them a role.'
+function howYouCameIn(c: Pick<Company, 'slug' | 'domain' | 'domainVerified'>, joins: string | null | undefined): string {
+  // How people join is one sentence read from what the doors do
+  // (lib/join-words), never a copy typed here.
+  const came = c.domain && c.domainVerified
+    ? `Your domain, ${c.domain}, was verified when your company signed in with its work account. It is not editable.`
+    : `Your company's Etyme address is ${c.slug}.etyme.com, and it has no verified domain.`
+  return joins ? `${came} ${joins}` : came
 }
 
 function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: SendFn; busy: boolean; openModel: () => void }) {
@@ -424,7 +426,7 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
     <>
       <Panel
         title="Who you are"
-        subtitle={howYouCameIn(c)}
+        subtitle={howYouCameIn(c, data.joins)}
       >
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="block">
@@ -617,7 +619,7 @@ function RolesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
   return (
     <Panel
       title="Roles"
-      subtitle={`What somebody can do here. These were chosen for what your company is — a client gets Hiring Manager, a supplier gets Recruiter. Changing a role changes what everyone holding it can do, immediately.${data.people ? ` ${data.people}.` : ''}`}
+      subtitle={`What somebody can do here. These were chosen for what your company is. Changing a role changes what everyone holding it can do, immediately.${data.people ? ` ${data.people}.` : ''}`}
     >
       <div className="divide-y divide-etyme-rule">
         {data.roles.map((r) => (

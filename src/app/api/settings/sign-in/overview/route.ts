@@ -4,6 +4,7 @@ import { ownerOnlyLineAt } from '@/lib/owner-proof'
 import { appUrl } from '@/lib/app-url'
 import { companyPolicy } from '@/lib/identity/read'
 import { modeSays } from '@/lib/identity/policy'
+import { joinSentenceFor } from '@/lib/join-words'
 import { IDENTITY_EVENTS, readIdentityReason } from '@/lib/identity/ledger'
 import { isMockIssuer } from '@/lib/identity/mock-directory'
 import { verifiedDomainsOf } from '@/lib/identity/provision'
@@ -55,6 +56,8 @@ export async function GET(request: NextRequest) {
       mode: p.policy.mode,
       effective: p.effective,
       says: modeSays(p.effective, company.name),
+      // How people join this company, from what the doors do (lib/join-words).
+      joins: await joinSentenceFor(company.id),
       jit: p.row?.jit ?? false,
       scim: p.row?.scim ?? false,
       requiredAssurance: p.row?.requiredAssurance ?? null,

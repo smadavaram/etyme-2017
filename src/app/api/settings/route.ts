@@ -10,6 +10,7 @@ import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/l
 import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
 import { changeCompanyKind, isOwnerSeat } from './kind'
 import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, type SeatCounts } from '@/lib/company-seats'
+import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
 
 /**
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
   const companyId = caller.company.id
   const thisYear = new Date().getFullYear()
 
-  const [company, roles, locations, holidays, costCenters, seats] = await Promise.all([
+  const [company, roles, locations, holidays, costCenters, seats, joins] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: {
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
     // One reader of the company's seats (lib/company-seats), so a role's
     // count here is the one every other screen gives.
     readCompanySeats(companyId),
+    joinSentenceFor(companyId),
   ])
 
   // Every seat not ended, invited and paused included: what the role
@@ -186,7 +188,8 @@ export async function GET(request: NextRequest) {
       }),
       // The company's people, counted once, in words.
       people: peopleWords(countSeats(peopleOf(seats))),
-
+      // How people join this company, from what the code does (lib/join-words).
+      joins,
       locations,
       holidays: holidays.map((h) => ({ ...h, date: h.date.toISOString().slice(0, 10) })),
       costCenters,
