@@ -187,4 +187,11 @@ describe('what a role can do is counted against the whole catalog, for display o
     expect(read('src/components/settings/give-access.tsx')).toContain('Only an Owner gives this')
     expect(read('src/app/dashboard/settings/page.tsx')).toContain('`Permissions: ${r.canDo.words}`')
   })
+
+  it('a company just added prints each role’s permissions against the catalog, so the Owner’s role reads everything and never one', () => {
+    const src = read('src/app/api/companies/route.ts')
+    expect(src).toContain('permissionCount: roleCanDo(r).count,')
+    expect(src).toContain('permissions: roleCanDo(r).words,')
+    expect(src).not.toContain('permissionCount: r.permissions.length')
+  })
 })

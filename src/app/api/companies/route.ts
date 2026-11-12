@@ -13,6 +13,7 @@ import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany } from '@/lib/counterparty'
 import { speaksForItself } from '@/lib/public-site/speaks'
+import { roleCanDo } from '@/lib/company-roles'
 
 /**
  * POST /api/companies
@@ -390,7 +391,10 @@ export async function POST(request: NextRequest) {
         roles: result.roles.map((r) => ({
           id: r.id,
           name: r.name,
-          permissionCount: r.permissions.length,
+          // Counted against the catalog, so '*' reads as everything and
+          // never as one permission (Settings → Roles, 2026-11-12).
+          permissionCount: roleCanDo(r).count,
+          permissions: roleCanDo(r).words,
         })),
         context: result.context
           ? { id: result.context.id, type: result.context.type, role: result.seatedAs ?? 'Owner' }
