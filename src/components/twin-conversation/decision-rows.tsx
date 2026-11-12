@@ -5,8 +5,8 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { statusMeans } from '@/lib/read-response'
 import { FormMessage } from '@/components/ui'
-import type { QueueCard } from '@/app/api/conversations/twin/ask'
-import { batchLabel, batchOf, batchSays, todayRows } from './today-decisions'
+import type { QueueAct, QueueCard } from '@/app/api/conversations/twin/ask'
+import { batchLabel, batchLeavesOut, batchOf, batchSays, todayRows } from './today-decisions'
 
 /**
  * Today's queue as rows (founder, 2026-11-08, "One app, two tabs"): each
@@ -43,14 +43,18 @@ export function DecisionRows() {
 
   const settled = useMemo(() => new Set(Object.entries(done).filter(([, v]) => v.state !== 'ERROR').map(([k]) => k)), [done])
   const batch = rows ? batchOf(rows, settled) : null
+  const leftOut = rows ? batchLeavesOut(rows, settled) : null
 
-  async function press(card: QueueCard): Promise<{ ok: boolean; says: string }> {
-    if (!card.act) return { ok: false, says: 'This one opens its page.' }
+  // `act` is the card's yes by default, or its No where the card carries one
+  // (an Owner ask): the same one route, and the route's own sentence after.
+  async function press(card: QueueCard, chosen: QueueAct | null = card.act): Promise<{ ok: boolean; says: string }> {
+    const act = chosen
+    if (!act) return { ok: false, says: 'This one opens its page.' }
     try {
-      const res = await fetch(card.act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card.act.body) })
+      const res = await fetch(act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(act.body) })
       const body = await res.json().catch(() => null)
       const said = res.ok
-        ? { ok: true, says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : card.act.done }
+        ? { ok: true, says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : act.done }
         : { ok: false, says: body?.error?.message ?? statusMeans(res.status) }
       setDone((d) => ({ ...d, [card.key]: { state: said.ok ? 'DONE' : 'ERROR', says: said.says } }))
       return said
@@ -61,9 +65,9 @@ export function DecisionRows() {
     }
   }
 
-  async function one(card: QueueCard) {
+  async function one(card: QueueCard, chosen: QueueAct | null = card.act) {
     setBusy(card.key)
-    await press(card)
+    await press(card, chosen)
     setBusy(null)
   }
 
@@ -90,6 +94,7 @@ export function DecisionRows() {
           </button>
         )}
       </div>
+      {leftOut && <p className="text-[12.5px] text-etyme-muted">{leftOut}</p>}
       {batchSaid && <p role="status" className="text-[12.5px] text-etyme-muted">{batchSaid}</p>}
       <ul className="divide-y divide-etyme-rule overflow-hidden rounded-[12px] border border-etyme-rule bg-etyme-raised">
         {rows.map((card) => {
@@ -109,13 +114,18 @@ export function DecisionRows() {
                 )}
               </div>
               {!settledRow && (
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                   {card.act ? (
                     <button type="button" className="btn-primary text-[13px]" disabled={busy !== null} onClick={() => void one(card)}>
                       {busy === card.key ? 'Recording…' : card.act.label}
                     </button>
                   ) : (
                     <Link href={card.href as Route} className="btn-primary text-[13px]">{card.open ?? 'Open'}</Link>
+                  )}
+                  {card.no && (
+                    <button type="button" className="btn-secondary text-[13px]" disabled={busy !== null} onClick={() => void one(card, card.no ?? null)}>
+                      {card.no.label}
+                    </button>
                   )}
                   <button
                     type="button"

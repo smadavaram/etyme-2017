@@ -251,7 +251,9 @@ describe('Today’s decision rows: Yes, Not now, and Yes to all where every row 
   it('the rows read the one decisions list the number on Ask Etyme counts, and each Yes goes through its own route', () => {
     const rows = read('src/components/twin-conversation/decision-rows.tsx')
     expect(rows).toContain("fetch('/api/decisions')")
-    expect(rows).toContain('fetch(card.act.url, { method: \'POST\'')
+    // The press takes the card's own act (its Yes) unless a No is chosen, and posts it to that act's route.
+    expect(rows).toContain('chosen: QueueAct | null = card.act')
+    expect(rows).toContain('fetch(act.url, { method: \'POST\'')
   })
 
   it('what a batch did is said as how many were done and the first that was not', () => {

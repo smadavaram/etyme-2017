@@ -1,4 +1,4 @@
-import { queueCards, queueFrom, type QueueCard, type QueueRead } from '@/app/api/conversations/twin/ask'
+import { OWNER_ASK, queueCards, queueFrom, type QueueCard, type QueueRead } from '@/app/api/conversations/twin/ask'
 
 /**
  * Today's decision rows (founder, 2026-11-08, "One app, two tabs":
@@ -46,11 +46,34 @@ export function todayRows(body: unknown): { read: QueueRead | null; rows: QueueC
  * need a rate or a reference), because a batch that skips one of them, or
  * says yes for a field nobody filled, is a decision nobody made.
  */
+/**
+ * An ask about the company's Owners is never part of a batch: taking over,
+ * removing or moving an Owner is one person's answer about their own seat
+ * and their company's ownership, said on its own row with its own Yes or
+ * No, never swept up by "Yes to all".
+ */
+export function inBatch(r: QueueCard): boolean {
+  return r.type !== OWNER_ASK
+}
+
 export function batchOf(rows: readonly QueueCard[], settled: ReadonlySet<string> = new Set()): QueueCard[] | null {
-  const open = rows.filter((r) => !settled.has(r.key))
+  const open = rows.filter((r) => !settled.has(r.key) && inBatch(r))
   if (open.length < 2) return null
   if (!open.every((r) => r.act != null)) return null
   return open
+}
+
+/**
+ * What "Yes to all" says it leaves out, where a batch is offered and an
+ * open Owner ask sits among the rows; null otherwise.
+ */
+export function batchLeavesOut(rows: readonly QueueCard[], settled: ReadonlySet<string> = new Set()): string | null {
+  if (!batchOf(rows, settled)) return null
+  const asks = rows.filter((r) => !settled.has(r.key) && !inBatch(r)).length
+  if (asks === 0) return null
+  return asks === 1
+    ? 'Yes to all leaves out the ask about your company’s Owners. Answer it on its own row.'
+    : 'Yes to all leaves out the asks about your company’s Owners. Answer each on its own row.'
 }
 
 /** "Yes to all 3". */

@@ -128,3 +128,43 @@ describe('a seat with no role reads the Owner ask waiting on it', () => {
     expect(block).not.toMatch(/hasPermission|hasAnyPermission/)
   })
 })
+
+describe('Today’s row for an Owner ask has its own No, and is never part of Yes to all', () => {
+  const fx = { ...week, entityId: 't2', named: { whose: 'Omar Haddad', what: 'week', whats: 'weeks' } }
+  const many = () => {
+    const decisions = [ownerAskRow(pass, passFacts, 'p-dev', NOW), week, fx]
+    return { data: { decisions, total: decisions.length } }
+  }
+
+  it('Today’s row for an Owner ask has a No beside its Yes, through the same POST /api/settings/owners/:id', () => {
+    const [row] = queueCards(queueFrom(body())!)
+    expect(row.no?.label).toBe('No')
+    expect(row.no?.url).toBe('/api/settings/owners/ask-pass')
+    expect(row.no?.body).toEqual({ decision: 'no' })
+  })
+
+  it('Today draws the No beside the Yes and shows the route’s own sentence after the press', () => {
+    const rows = src('src/components/twin-conversation/decision-rows.tsx')
+    expect(rows).toContain('onClick={() => void one(card, card.no ?? null)}')
+    expect(rows).toContain('body?.data?.message')
+  })
+
+  it('a batch with an Owner ask among its rows leaves the ask out and says so', async () => {
+    const { batchOf, batchLeavesOut } = await import('@/components/twin-conversation/today-decisions')
+    const rows = todayRows(many()).rows
+    expect(rows).toHaveLength(3)
+    const batch = batchOf(rows)
+    expect(batch).not.toBeNull()
+    expect(batch!.map((r) => r.type)).not.toContain(OWNER_ASK)
+    expect(batch).toHaveLength(2)
+    expect(batchLeavesOut(rows)).toBe('Yes to all leaves out the ask about your company’s Owners. Answer it on its own row.')
+  })
+
+  it('Yes to all is never offered where the only other row is an Owner ask, so a batch can never take over, remove or move an Owner', async () => {
+    const { batchOf, batchLeavesOut } = await import('@/components/twin-conversation/today-decisions')
+    const rows = todayRows(body()).rows
+    expect(rows).toHaveLength(2)
+    expect(batchOf(rows)).toBeNull()
+    expect(batchLeavesOut(rows)).toBeNull()
+  })
+})
