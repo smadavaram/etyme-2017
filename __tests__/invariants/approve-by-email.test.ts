@@ -430,4 +430,11 @@ describe('a bill, sent to the firm that pays it', () => {
       .toBe('Sent again to dana@acme.test on Oct 21; first sent Oct 19')
     expect(billSentSays([], now)).toBeNull()
   })
+
+  it('the Bills page says a refused email in Etyme’s words, never the provider’s name, status or message', () => {
+    const now = new Date('2026-10-20T12:00:00Z')
+    const says = billSentSays([delivery({ to: [{ address: 'dana@acme.test', via: 'EMAIL', state: 'FAILED', note: 'Resend answered 403: The notify.etyme.com domain is not verified.' }] })], now)
+    expect(says).toBe('Not emailed to dana@acme.test. Etyme’s email sender refused it, so nothing was sent. Etyme has been told')
+    expect(says).not.toMatch(/Resend|403|verified/)
+  })
 })

@@ -188,7 +188,7 @@ export function mayForward(
     note:
       to.via === 'ONWARD'
         ? 'Sent on. The person who submitted them can see that it went, and when — never at what price.'
-        : 'Recorded as emailed. The person who submitted them can see that it went, and where.',
+        : 'Recorded as sent by email from your own mailbox; Etyme sends nothing to that address. The person who submitted them can see that it went, and where.',
     warning,
   }
 }

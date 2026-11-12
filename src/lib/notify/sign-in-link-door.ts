@@ -3,7 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { recordAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import { issueSetPassword } from '@/lib/password-door'
 import { demoEmail, hashToken } from '@/lib/password'
-import { emailSender } from '@/lib/senders'
+import { sendEmailNow } from '@/lib/notify/send-now'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { baseUrl } from '@/lib/signed-link'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
@@ -182,19 +182,15 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
   const lines = signInLetter({ name: g.person.name, firmName: g.company.name, loginUrl: login })
   const subject = signInSubject(g.company.name)
 
-  const sender = emailSender()
-  let state: AccountMailState = 'NOT_CONFIGURED'
-  let note: string | null = 'No email provider set up, so this was recorded and not sent.'
-  if (sender) {
-    try {
-      await sender.send(g.person.primaryEmail, subject, [...lines, '', link].join('\n'))
-      state = 'SENT'
-      note = null
-    } catch (e: any) {
-      state = 'FAILED'
-      note = String(e?.message ?? e).slice(0, 200)
-    }
-  }
+  // Awaited, so nothing below says "sent" before the send returned; a
+  // refused send keeps the provider's status and words on the row, and
+  // Etyme's staff are told (lib/notify/send-now).
+  const sent = await sendEmailNow({
+    to: g.person.primaryEmail, subject, body: [...lines, '', link].join('\n'),
+    companyId: g.company.id, personId: g.person.id,
+  }, { now })
+  const state: AccountMailState = sent.state === 'DEMO_SKIPPED' ? 'NOT_CONFIGURED' : sent.state
+  const note: string | null = sent.note
   // The link stays on the notice only where no email could leave
   // (`recordedBody`); the bell never lists it (`bellShows`).
   await prisma.notification.create({

@@ -4,6 +4,7 @@ import { minorPerUnit } from '@/lib/money'
 import { formatDay, formatMonthLong, formatRange } from '@/lib/format-date'
 import { andList, hello, paragraphs } from '@/lib/notify/letters'
 import type { DeliveryState } from '@/lib/notification-delivery'
+import { failureFromNote, mailFailureSays } from '@/lib/notify/mail-failure'
 
 /**
  * A bill reaching the firm that pays it — the words, the link and the
@@ -347,8 +348,12 @@ export function deliverySays(d: BillDelivery, now: Date): string {
     const why =
       t.state === 'DEMO_SKIPPED' ? 'it is a demo address, so nothing left'
         : t.state === 'NOT_CONFIGURED' ? 'email is not set up on this deployment, so nothing left'
-          : `the email did not leave (${t.note})`
-    parts.push(`Not emailed to ${t.address}: ${why}`)
+          : null
+    // A refused email says what Etyme's sender said in Etyme's words, never
+    // the provider's own (those are for Etyme's staff: lib/notify/mail-failures).
+    parts.push(why
+      ? `Not emailed to ${t.address}: ${why}`
+      : `Not emailed to ${t.address}. ${mailFailureSays(failureFromNote(t.note)).replace(/\.$/, '')}`)
   }
   return parts.join('. ')
 }

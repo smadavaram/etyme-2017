@@ -109,10 +109,11 @@ describe('what cannot be sent on', () => {
 })
 
 describe('when the next party is not on Etyme', () => {
-  it('records an email as an email', () => {
+  it('records an email as sent from the firm’s own mailbox, and never says Etyme emailed it', () => {
     const v = mayForward(actor(), SUB, { via: 'EMAIL', email: 'staffing@terumobct.com' })
     expect(v.ok).toBe(true)
-    expect(v.ok === true && v.note).toMatch(/emailed/)
+    expect(v.ok === true && v.note).toMatch(/sent by email from your own mailbox; Etyme sends nothing to that address/)
+    expect(v.ok === true && v.note).not.toMatch(/emailed/)
   })
 
   it('fails loudly when there is nowhere to send it', () => {
