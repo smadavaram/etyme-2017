@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { seatCapSays, sentAgainSays, SENDS_PER_SEAT_PER_HOUR } from '@/lib/access-grant'
+import { hourlyCapSays, INVITES_PER_HOUR, seatCapSays, sentAgainSays, SENDS_PER_SEAT_PER_HOUR } from '@/lib/access-grant'
 import { recordRefusal } from '@/lib/access-log'
-import { copyTextFor, invitationEmailsSince, modeOf, sendInvitationMail } from '../../invite/one'
+import { copyTextFor, invitationEmailsSince, invitationsThisHour, modeOf, sendInvitationMail, underInviteLock } from '../../invite/one'
 import { waitingSeatFor } from '../waiting-seat'
 
 /**
@@ -29,11 +29,48 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (refused) return refused
 
   const email = seat.person.primaryEmail
-  const now = new Date()
-  const window = await invitationEmailsSince(seat.id, new Date(now.getTime() - 3_600_000))
-  if (window.count >= SENDS_PER_SEAT_PER_HOUR) {
-    const again = new Date((window.oldest ?? now).getTime() + 3_600_000)
-    const message = seatCapSays(email, again, null)
+  // The company's hourly cap and the seat's are read and spent under one
+  // lock per company, the same lock the invite form takes, so a send again
+  // and an invitation pressed at once cannot both read room.
+  const outcome = await underInviteLock(seat.company.id, async () => {
+    const now = new Date()
+    const company = await invitationsThisHour(seat.company.id, now)
+    if (company.count + 1 > INVITES_PER_HOUR) {
+      const again = new Date((company.oldest ?? now).getTime() + 3_600_000)
+      return { kind: 'REFUSED' as const, message: hourlyCapSays(again, null), cap: 'HOURLY', again }
+    }
+    const window = await invitationEmailsSince(seat.id, new Date(now.getTime() - 3_600_000))
+    if (window.count >= SENDS_PER_SEAT_PER_HOUR) {
+      const again = new Date((window.oldest ?? now).getTime() + 3_600_000)
+      return { kind: 'REFUSED' as const, message: seatCapSays(email, again, null), cap: 'SEAT', again }
+    }
+
+    const mode = await modeOf(seat.company.id)
+    const sent = await sendInvitationMail({
+      contextId: seat.id,
+      person: seat.person,
+      inviterName: caller.person.name,
+      company: seat.company,
+      roleName: seat.roleName,
+      mode,
+      now,
+    })
+
+    await prisma.automationLog.create({
+      data: {
+        companyId: seat.company.id,
+        action: 'PERSON_INVITED',
+        summary: `${caller.person.name} sent the invitation to ${email} again`,
+        reason: 'Asked for on the waiting row. The same seat; nothing was duplicated.',
+        payload: { contextId: seat.id, email, act: 'SENT_AGAIN', mail: sent.mail.state },
+        reversible: true,
+      },
+    })
+    return { kind: 'SENT' as const, sent, mode }
+  })
+
+  if (outcome.kind === 'REFUSED') {
+    const { message, cap, again } = outcome
     await recordRefusal([seat.person.id], {
       actorPersonId: caller.person.id,
       actorCompanyId: seat.company.id,
@@ -41,30 +78,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       reason: message,
     })
     // The moment goes as an instant too, said by the screen in the reader's zone.
-    return NextResponse.json({ error: { code: 'TOO_MANY_THIS_HOUR', message, cap: 'SEAT', email, again: again.toISOString() } }, { status: 429 })
+    return NextResponse.json({ error: { code: 'TOO_MANY_THIS_HOUR', message, cap, email, again: again.toISOString() } }, { status: 429 })
   }
-
-  const mode = await modeOf(seat.company.id)
-  const sent = await sendInvitationMail({
-    contextId: seat.id,
-    person: seat.person,
-    inviterName: caller.person.name,
-    company: seat.company,
-    roleName: seat.roleName,
-    mode,
-    now,
-  })
-
-  await prisma.automationLog.create({
-    data: {
-      companyId: seat.company.id,
-      action: 'PERSON_INVITED',
-      summary: `${caller.person.name} sent the invitation to ${email} again`,
-      reason: 'Asked for on the waiting row. The same seat; nothing was duplicated.',
-      payload: { contextId: seat.id, email, act: 'SENT_AGAIN', mail: sent.mail.state },
-      reversible: true,
-    },
-  })
+  const { sent, mode } = outcome
 
   return NextResponse.json({
     data: {

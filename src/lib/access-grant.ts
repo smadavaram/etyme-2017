@@ -704,7 +704,7 @@ export function copyInvitation(c: CopyInvitation): string {
 
 /** The most addresses one press of Invite takes. */
 export const MAX_ADDRESSES_AT_ONCE = 20
-/** The most invitations a company sends in an hour, counted from the seats it invited. */
+/** The most invitation emails a company sends in an hour, first and again alike, counted from its automation log (`invitationsThisHour`). */
 export const INVITES_PER_HOUR = 60
 /** The most invitation emails one seat is sent in an hour, the first included. */
 export const SENDS_PER_SEAT_PER_HOUR = 3

@@ -152,6 +152,41 @@ export async function invitationEmailsSince(contextId: string, since: Date): Pro
   return { count: rows.length, oldest: rows[0]?.createdAt ?? null }
 }
 
+/**
+ * The invitation emails a company sent in the last hour, and the oldest of
+ * them: the one count the hourly cap reads, for one address, for several at
+ * once and for Send the invitation again alike (security review,
+ * 2026-11-12). Read from the automation log, whose rows belong to the
+ * company and survive a withdrawal, so withdrawing invitations never gives
+ * the hour back. A copied invitation sends nothing and is not counted.
+ */
+export async function invitationsThisHour(companyId: string, now: Date = new Date()): Promise<{ count: number; oldest: Date | null }> {
+  const rows = await prisma.automationLog.findMany({
+    where: { companyId, action: { in: [...INVITATION_SEND_ACTIONS] }, at: { gte: new Date(now.getTime() - 3_600_000) } },
+    orderBy: { at: 'asc' },
+    select: { at: true, payload: true },
+  })
+  const sends = rows.filter((r) => (r.payload as { act?: unknown } | null)?.act !== 'COPIED')
+  return { count: sends.length, oldest: sends[0]?.at ?? null }
+}
+
+/** The automation-log names an invitation email is written under, first and again. */
+export const INVITATION_SEND_ACTIONS = ['PERSON_INVITED', 'INVITATION_SENT_AGAIN'] as const
+
+/**
+ * Run the count and the invitations it allows one company at a time, so two
+ * presses at once cannot each read room for sixty and send a hundred and
+ * twenty. A Postgres lock held by one transaction for the company; the
+ * invitations themselves are written on their own connections inside it,
+ * and the next press for the same company waits until this one is done.
+ */
+export async function underInviteLock<T>(companyId: string, fn: () => Promise<T>): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'access-invite:' + companyId}))`
+    return fn()
+  }, { maxWait: 30_000, timeout: 180_000 })
+}
+
 /** The ready message for Copy invitation, from the company's mode. No token, ever. */
 export function copyTextFor(a: { inviterName: string; companyName: string; roleName: string | null; email: string; mode: EffectiveMode }): string {
   return copyInvitation({ ...a, appUrl: appUrl(), mailLeaves: mailLeaves() })

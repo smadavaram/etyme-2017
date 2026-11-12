@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import {
   hourlyCapSays, INVITES_PER_HOUR, MAX_ADDRESSES_AT_ONCE, OWNER_DESK, parseAddresses, tooManyAtOnceSays,
 } from '@/lib/access-grant'
-import { checkInviteRole, inviteOne, modeOf, type Inviter } from './one'
+import { checkInviteRole, invitationsThisHour, inviteOne, modeOf, underInviteLock, type Inviter } from './one'
 
 /**
  * POST /api/access/invite   { email, name?, roleId? }
@@ -108,31 +108,23 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       )
     }
-    // A cap per company per hour, counted from the invitations already sent.
-    const hourAgo = new Date(Date.now() - 3_600_000)
-    const sentThisHour = await prisma.context.findMany({
-      where: { companyId: caller.company.id, invitedAt: { gte: hourAgo } },
-      select: { invitedAt: true },
-      orderBy: { invitedAt: 'asc' },
+    // A cap per company per hour, counted from the invitation emails sent,
+    // read and spent under one lock per company (`underInviteLock`).
+    const outcome = await underInviteLock(caller.company.id, async () => {
+      const window = await invitationsThisHour(who.company.id)
+      if (window.count + addresses.length > INVITES_PER_HOUR) return { kind: 'CAPPED' as const, again: capAgain(window.oldest) }
+      const results = []
+      for (const address of addresses) {
+        // One at a time, awaited, so each refusal's row is written before the next.
+        const r = await inviteOne(who, { email: address, reason: body.reason }, role, mode)
+        results.push(r.ok
+          ? { email: r.email, ok: true, contextId: r.contextId, says: r.says, mail: r.mail, copyText: r.copyText }
+          : { email: r.email, ok: false, says: r.message, code: r.code })
+      }
+      return { kind: 'DONE' as const, results }
     })
-    if (sentThisHour.length + addresses.length > INVITES_PER_HOUR) {
-      const oldest = sentThisHour[0]?.invitedAt ?? new Date()
-      const again = new Date(oldest.getTime() + 3_600_000)
-      // The moment goes as an instant; the screen says it in the reader's
-      // zone (`capRefusalSays`). The sentence beside it is for any other caller.
-      return NextResponse.json(
-        { error: { code: 'TOO_MANY_THIS_HOUR', message: hourlyCapSays(again, null), cap: 'HOURLY', again: again.toISOString() } },
-        { status: 429 }
-      )
-    }
-    const results = []
-    for (const address of addresses) {
-      // One at a time, awaited, so each refusal's row is written before the next.
-      const r = await inviteOne(who, { email: address, reason: body.reason }, role, mode)
-      results.push(r.ok
-        ? { email: r.email, ok: true, contextId: r.contextId, says: r.says, mail: r.mail, copyText: r.copyText }
-        : { email: r.email, ok: false, says: r.message, code: r.code })
-    }
+    if (outcome.kind === 'CAPPED') return capRefusal(outcome.again)
+    const results = outcome.results
     for (const bad of notAddresses) results.push({ email: bad, ok: false, says: 'Not a whole address. Type the full address, like name@example.com.', code: 'VALIDATION' })
     const invited = results.filter((r) => r.ok).length
     return NextResponse.json(
@@ -141,7 +133,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const r = await inviteOne(who, { email: String(body.email ?? ''), name: body.name, reason: body.reason }, role, mode)
+  // One address is held to the same hourly cap as several.
+  const single = await underInviteLock(caller.company.id, async () => {
+    const window = await invitationsThisHour(who.company.id)
+    if (window.count + 1 > INVITES_PER_HOUR) return { kind: 'CAPPED' as const, again: capAgain(window.oldest) }
+    return { kind: 'DONE' as const, r: await inviteOne(who, { email: String(body.email ?? ''), name: body.name, reason: body.reason }, role, mode) }
+  })
+  if (single.kind === 'CAPPED') return capRefusal(single.again)
+  const r = single.r
   if (!r.ok) {
     return NextResponse.json(
       { error: { code: r.code, message: r.message, field: r.field } },
@@ -170,5 +169,22 @@ export async function POST(request: NextRequest) {
       },
     },
     { status: 201 }
+  )
+}
+
+/** When the hour's cap lets the next invitation go: an hour after the oldest one counted. */
+function capAgain(oldest: Date | null): Date {
+  return new Date((oldest ?? new Date()).getTime() + 3_600_000)
+}
+
+/**
+ * The hourly refusal. The moment goes as an instant; the screen says it in
+ * the reader's zone (`capRefusalSays`). The sentence beside it is for any
+ * other caller.
+ */
+function capRefusal(again: Date) {
+  return NextResponse.json(
+    { error: { code: 'TOO_MANY_THIS_HOUR', message: hourlyCapSays(again, null), cap: 'HOURLY', again: again.toISOString() } },
+    { status: 429 }
   )
 }

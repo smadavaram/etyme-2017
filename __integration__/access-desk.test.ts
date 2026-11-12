@@ -524,16 +524,65 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     expect(await prisma.person.count({ where: { primaryEmail: { startsWith: 'many' } } })).toBe(0)
   })
 
+  // Fill the company's hour to exactly n invitation emails, with rows that
+  // say they are fillers, a minute old.
+  const fillHourTo = async (n: number) => {
+    await prisma.automationLog.deleteMany({ where: { companyId: it_.firm, summary: 'hour filler' } })
+    const real = await prisma.automationLog.count({ where: { companyId: it_.firm, action: { in: ['PERSON_INVITED', 'INVITATION_SENT_AGAIN'] }, at: { gte: new Date(Date.now() - 3_600_000) }, NOT: { payload: { path: ['act'], equals: 'COPIED' } } } })
+    const rows = Array.from({ length: Math.max(0, n - real) }, () => ({
+      companyId: it_.firm, action: 'PERSON_INVITED', summary: 'hour filler', reason: 'filler', payload: { act: 'INVITED' }, at: new Date(Date.now() - 60_000),
+    }))
+    if (rows.length) await prisma.automationLog.createMany({ data: rows })
+  }
+
   it('a company that has sent its hour of invitations is refused a batch in one sentence that says when to try again', async () => {
     as(OWNER)
-    const ctx = await prisma.context.findMany({ where: { companyId: it_.firm, invitedAt: { gte: new Date(Date.now() - 3_600_000) } }, select: { id: true } })
-    // Fill the hour with seats invited a minute ago, then ask for more.
-    const filler = await prisma.person.create({ data: { primaryEmail: 'hour.filler@batch-works-fixture.com', name: 'Filler' }, select: { id: true } })
-    for (let i = ctx.length; i < 60; i++) {
-      await prisma.context.create({ data: { personId: filler.id, companyId: it_.firm, type: 'EMPLOYEE', invitedAt: new Date(Date.now() - 60_000), revokedAt: new Date(), grantReason: 'filler' } })
-    }
+    await fillHourTo(60)
     const r = await json(await invite(req('POST', '/api/access/invite', { emails: 'late@batch-works-fixture.com' })))
     expect(r.status, JSON.stringify(r.body)).toBe(429)
     expect(r.body.error.message).toMatch(/^60 invitations have gone out from here in the last hour\. Try again after /)
+  })
+
+  it('one address at a time is held to the same hourly cap as several, and nobody is seated past it', async () => {
+    as(OWNER)
+    await fillHourTo(60)
+    const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Late One', email: 'late.one@batch-works-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(429)
+    expect(r.body.error.cap).toBe('HOURLY')
+    expect(await prisma.person.count({ where: { primaryEmail: 'late.one@batch-works-fixture.com' } })).toBe(0)
+  })
+
+  it('withdrawing an invitation never gives the hour back', async () => {
+    as(OWNER)
+    await fillHourTo(59)
+    const first = await json(await invite(req('POST', '/api/access/invite', { email: 'take.back@batch-works-fixture.com' })))
+    expect(first.status, JSON.stringify(first.body)).toBe(201)
+    const gone = await json(await withdraw(req('DELETE', `/api/access/${first.body.data.contextId}`), seatParams(first.body.data.contextId)))
+    expect(gone.status, JSON.stringify(gone.body)).toBe(200)
+    const again = await json(await invite(req('POST', '/api/access/invite', { email: 'take.back.two@batch-works-fixture.com' })))
+    expect(again.status, JSON.stringify(again.body)).toBe(429)
+  })
+
+  it('two presses at once with room for one invite one person, never two', async () => {
+    as(OWNER)
+    await fillHourTo(59)
+    const [ra, rb] = await Promise.all([
+      invite(req('POST', '/api/access/invite', { emails: 'race.a@batch-works-fixture.com' })),
+      invite(req('POST', '/api/access/invite', { email: 'race.b@batch-works-fixture.com' })),
+    ])
+    const [a, b] = [await json(ra), await json(rb)]
+    expect([a.status, b.status].filter((x) => x === 429), JSON.stringify([a.body, b.body])).toHaveLength(1)
+    expect(await prisma.person.count({ where: { primaryEmail: { in: ['race.a@batch-works-fixture.com', 'race.b@batch-works-fixture.com'] } } })).toBe(1)
+  })
+
+  it('Send the invitation again counts against the company’s hour, and is refused once the hour is spent', async () => {
+    as(OWNER)
+    await fillHourTo(0)
+    const seat = await json(await invite(req('POST', '/api/access/invite', { email: 'again.cap@batch-works-fixture.com' })))
+    expect(seat.status, JSON.stringify(seat.body)).toBe(201)
+    await fillHourTo(60)
+    const r = await json(await sendAgain(req('POST', `/api/access/${seat.body.data.contextId}/resend`), seatParams(seat.body.data.contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(429)
+    expect(r.body.error.cap).toBe('HOURLY')
   })
 })
