@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
-import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
 
 /**
  * GET /api/program/team — who runs this client's contingent program.
@@ -139,15 +139,12 @@ export async function GET(request: NextRequest) {
   const companyId = caller.company.id
 
   const [seats, rules, orgUnits, costCentres] = await Promise.all([
-    prisma.context.findMany({
-      where: { companyId, revokedAt: null, NOT: { roleId: null }, ...NOT_THE_SAMPLE_SEAT },
-      orderBy: { grantedAt: 'asc' },
-      select: {
-        id: true, grantedAt: true, expiresAt: true,
-        person: { select: { id: true, name: true, primaryEmail: true } },
-        role: { select: { id: true, name: true } },
-      },
-    }),
+    // Who has a seat, read by the one reader Users & permissions reads
+    // (`readCompanySeats`), so the two screens count the same people: a
+    // seat with no role yet is a person here too, and the shared sample
+    // seat and a consultant on the books are not (`peopleOf`). It dropped
+    // a seat with no role, so it read one lower than Users & permissions.
+    readCompanySeats(companyId).then(peopleOf),
     prisma.approvalRule.findMany({
       where: { companyId, isActive: true },
       orderBy: [{ rank: 'asc' }],
@@ -269,20 +266,23 @@ export async function GET(request: NextRequest) {
       teams: orgUnits.map((u) => ({
         id: u.id, name: u.name, kind: u.kind, parentId: u.parentId,
       })),
+      /** "6 people: 3 with access · 3 invited", the count Users & permissions says. */
+      peopleSays: peopleWords(countSeats(seats)),
       people: seats.map((s) => ({
-        contextId: s.id,
-        person: s.person,
-        role: s.role,
-        grantedAt: s.grantedAt?.toISOString() ?? null,
-        expiresAt: s.expiresAt?.toISOString() ?? null,
+        contextId: s.contextId,
+        person: { id: s.personId, name: s.name, primaryEmail: s.email ?? '' },
+        role: s.roleId ? { id: s.roleId, name: s.roleName ?? '' } : null,
+        /** INVITED, WITH_ACCESS or PAUSED, the lifecycle's own word for the seat. */
+        state: s.state,
+        grantedAt: s.grantedAt.toISOString(),
         // What this person does on the program, rather than what the
         // permission table calls them.
-        approves: moneyRules.filter((r) => r.approver.id === s.person.id).length,
-        owns: costCentres.filter((c) => c.owner?.id === s.person.id).length,
+        approves: moneyRules.filter((r) => r.approver.id === s.personId).length,
+        owns: costCentres.filter((c) => c.owner?.id === s.personId).length,
         // The desks they hold, by the unit they hold them for. "HR for
         // Technology" is what this person does; "approves 2 rules" is not.
         holds: rules
-          .filter((r) => r.approver.id === s.person.id && (r.kind ?? 'VALUE') !== 'VALUE')
+          .filter((r) => r.approver.id === s.personId && (r.kind ?? 'VALUE') !== 'VALUE')
           .map((r) => ({
             kind: r.kind as 'HR' | 'PROCUREMENT',
             unit: r.orgUnit?.name ?? 'everywhere',

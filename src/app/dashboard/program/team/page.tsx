@@ -53,10 +53,14 @@ interface Team {
     plan: { period: string; approvedHeads: number; annualBudget: number } | null
   }[]
   teams: { id: string; name: string; kind: string; parentId: string | null }[]
+  /** "6 people: 3 with access · 3 invited", the count Users & permissions says. */
+  peopleSays: string | null
   people: {
     contextId: string
     person: { id: string; name: string; primaryEmail: string }
     role: { id: string; name: string } | null
+    /** The lifecycle's word for the seat, where the route said. */
+    state?: 'INVITED' | 'WITH_ACCESS' | 'PAUSED'
     approves: number
     owns: number
     holds?: { kind: 'HR' | 'PROCUREMENT'; unit: string }[]
@@ -83,6 +87,7 @@ function asTeam(data: any): Team | null {
     approvers: Array.isArray(data.approvers) ? data.approvers : [],
     budgets: Array.isArray(data.budgets) ? data.budgets : [],
     teams: Array.isArray(data.teams) ? data.teams : [],
+    peopleSays: typeof data.peopleSays === 'string' ? data.peopleSays : null,
     people: Array.isArray(data.people) ? data.people : [],
   }
 }
@@ -530,12 +535,15 @@ export default function ProgramTeamPage() {
           What each person does on the program, rather than what the
           permission table calls them.
         </p>
+        {team.peopleSays && <p className="mt-1 text-[13px] text-etyme-ink">{team.peopleSays}</p>}
         <ul className="mt-4 space-y-2">
           {team.people.map((p) => (
             <li key={p.contextId} className="card flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[14px] text-etyme-ink">{p.person.name}</span>
                 <span className="ml-2 text-[12px] text-etyme-faint">{p.role?.name ?? 'no role'}</span>
+                {p.state === 'INVITED' && <span className="chip chip--passive ml-2">invited</span>}
+                {p.state === 'PAUSED' && <span className="chip chip--attention ml-2">paused</span>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {/* What they do, in the words of the job. "approves 2

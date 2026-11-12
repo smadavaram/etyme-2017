@@ -49,6 +49,9 @@ import { readerScope } from '@/app/api/program/reader-scope'
 import { papersWaitingOn } from '@/lib/document-stages/arrived-papers'
 import { regionContracts } from '@/lib/region-scope'
 import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
+import { asksAddressedTo } from '@/lib/owner-asks'
+import { ownerAskRow } from './owner-ask'
+import type { AskerAfter } from '@/lib/owner-rules'
 
 /**
  * GET /api/decisions
@@ -73,6 +76,7 @@ import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expens
  *   TWIN_QUESTION      — the twin asked a person, and this seat may answer it
  *   START_HELD         — a client's start the paperwork will refuse on the day
  *   NO_AGREEMENT       — a client's supplier with people on site and no agreement on file
+ *   OWNER_ASK          — an ask about the company's Owners, waiting on this person's yes
  *
  * Each decision has: type, title, subtitle, urgency (HIGH|MEDIUM|LOW),
  * entityType, entityId, dueDate (if applicable), and actionUrl.
@@ -1302,6 +1306,33 @@ export async function GET(request: NextRequest) {
       amount: null,
       createdAt: new Date(`${askedOn.get(row.entityId) ?? now.toISOString().slice(0, 10)}T00:00:00Z`).toISOString(),
     })
+  }
+
+  // ── 10. An ask about the company's Owners, waiting on this person ──
+  //
+  // A pass of ownership, or an Owner's removal or move, waits seven days
+  // on one person's yes (lib/owner-rules). The person it waits on read it
+  // in Ask Etyme and on Owners, and not on Today, so the mark and Today
+  // disagreed by one while it waited. One row per ask addressed to the
+  // caller, read by the one reader the Owners route reads
+  // (`asksAddressedTo`), counted in the total; Ask Etyme adds no row the
+  // queue already carries (`withOwnerAsks`), so nothing is counted twice.
+  // A read that fails adds nothing rather than a guess.
+  const ownerAsks = await asksAddressedTo(caller.person.id, companyId).catch(() => [])
+  if (ownerAsks.length > 0) {
+    const facts = await prisma.ownershipRequest.findMany({
+      where: { id: { in: ownerAsks.map((a) => a.id) }, companyId },
+      select: { id: true, askedById: true, askerAfter: true, subjectContextId: true, toRole: { select: { name: true } } },
+    }).catch(() => [])
+    const byId = new Map(facts.map((f) => [f.id, f]))
+    for (const a of ownerAsks) {
+      const f = byId.get(a.id)
+      if (!f) continue
+      decisions.push(ownerAskRow(a, {
+        askedById: f.askedById, askerAfter: (f.askerAfter ?? null) as AskerAfter | null,
+        subjectContextId: f.subjectContextId, toRoleName: f.toRole?.name ?? null,
+      }, caller.person.id, now))
+    }
   }
 
   // ── Sort by urgency, then by created date ─────────

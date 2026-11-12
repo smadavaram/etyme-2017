@@ -122,6 +122,7 @@ const THING: Record<string, [string, string]> = {
   INVOICE_RECEIPT_HELD: ['held invoice receipt', 'held invoice receipts'],
   INVOICE_OVERDUE: ['overdue bill', 'overdue bills'],
   RATE_CONFIRMATION: ['rate', 'rates'],
+  OWNER_ASK: ['Owner ask', 'Owner asks'],
 }
 
 /**

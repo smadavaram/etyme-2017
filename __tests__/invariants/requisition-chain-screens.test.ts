@@ -600,8 +600,12 @@ describe('the shared sample seat on the requisition pickers', () => {
   // that seat out where they read who is at the company.
   it('the shared sample is never offered as a requisition owner, approver or panel member', () => {
     const team = code(read('src/app/api/program/team/route.ts'))
-    expect(team).toContain("import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'")
-    expect(team).toMatch(/prisma\.context\.findMany\(\{\s*where: \{ companyId, revokedAt: null, NOT: \{ roleId: null \}, \.\.\.NOT_THE_SAMPLE_SEAT \}/)
+    // Since 2026-11-12 the route reads the one reader of seats Users &
+    // permissions reads, and `peopleOf` is what leaves the sample out
+    // (and a consultant on the books), so the two screens count alike.
+    expect(team).toContain("import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'")
+    expect(team).toContain('readCompanySeats(companyId).then(peopleOf)')
+    expect(team).not.toMatch(/prisma\.context\.findMany/)
     // The pickers read that route and no other list of people.
     for (const page of [LIST_PAGE, DETAIL_PAGE]) expect(page).toContain("fetch('/api/program/team')")
     // A desk asked by permission on a supplier's walk is not the sample either.
@@ -609,5 +613,21 @@ describe('the shared sample seat on the requisition pickers', () => {
     // An Owner's `*` counts as the permission (2026-10-20), and the sample
     // is still left out of the same query.
     expect(desks).toMatch(/permissions: \{ hasSome: \[permission, '\*'\] \} \}, \.\.\.NOT_THE_SAMPLE_SEAT/)
+  })
+})
+
+describe('Program team counts who has a seat the way Users & permissions does', () => {
+  it('Program team reads the one reader of seats, so a seat with no role yet is counted and the two screens agree', () => {
+    const team = code(read('src/app/api/program/team/route.ts'))
+    expect(team).toContain('readCompanySeats(companyId).then(peopleOf)')
+    expect(team).not.toContain('NOT: { roleId: null }')
+    expect(team).toContain('peopleSays: peopleWords(countSeats(seats))')
+  })
+
+  it('Program team says how many people have a seat, and marks a seat invited or paused', () => {
+    const page = read('src/app/dashboard/program/team/page.tsx')
+    expect(page).toContain('{team.peopleSays && ')
+    expect(page).toContain("p.state === 'INVITED'")
+    expect(page).toContain("p.state === 'PAUSED'")
   })
 })
