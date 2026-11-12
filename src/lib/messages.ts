@@ -31,6 +31,8 @@
 
 import { prisma } from '@/lib/db'
 import { emailSender } from '@/lib/senders'
+import { reportMailRefused } from '@/lib/notification-delivery'
+import { isMailRefused } from '@/lib/notify/mail-failure'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { choicesBlock } from '@/lib/reply-link'
 import type { Kind } from '@/lib/texts'
@@ -140,7 +142,14 @@ async function settle(id: string, status: Status, reason: string): Promise<Sent>
 async function deliver(to: string, subject: string, body: string): Promise<void> {
   const sender = emailSender()
   if (!sender) throw new Error('No email provider configured')
-  await sender.send(to, subject, body)
+  try {
+    await sender.send(to, subject, body)
+  } catch (err) {
+    // A refused send is a broken edge: Etyme's staff hear (one email an
+    // hour), and the provider's cleaned words go on the row as the reason.
+    if (isMailRefused(err)) await reportMailRefused(err)
+    throw err
+  }
 }
 
 /**

@@ -1,5 +1,6 @@
 import { demoAddress, DEMO_ADDRESS_NOTE, type Sender } from '@/lib/notification-delivery'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { MailRefused, providerMessageOf, type MailProvider } from '@/lib/notify/mail-failure'
 import {
   teamsCard, teamsLinkKind, teamsEdge, TEAMS_LINK_RETIRED_SENTENCE, type TeamsFacts,
 } from '@/lib/notify/teams-link'
@@ -37,18 +38,18 @@ export function emailSender(): Sender | null {
       // send writes "demo address, nothing sent".
       if (demoAddress(to)) throw new Error(DEMO_ADDRESS_NOTE)
       if (resend) {
-        const res = await fetch('https://api.resend.com/emails', {
+        const res = await asked('Resend', () => fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${resend}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ from, to, subject: title, text: body }),
-        })
-        if (!res.ok) throw new Error(`Resend returned ${res.status}`)
+        }))
+        if (!res.ok) throw await refusal('Resend', res)
         return
       }
-      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      const res = await asked('SendGrid', () => fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${sendgrid}`,
@@ -60,9 +61,37 @@ export function emailSender(): Sender | null {
           subject: title,
           content: [{ type: 'text/plain', value: body }],
         }),
-      })
-      if (!res.ok) throw new Error(`SendGrid returned ${res.status}`)
+      }))
+      if (!res.ok) throw await refusal('SendGrid', res)
     },
+  }
+}
+
+/**
+ * The provider's answer to a send it did not take, as a `MailRefused`
+ * carrying its status and its own words (cleaned in lib/notify/mail-failure:
+ * no address, nothing key-like, at most 300 characters). Until 2026-11-12
+ * this threw "Resend returned 403" and never read the body, so a sending
+ * domain nobody verified and a bad key read the same.
+ */
+async function refusal(provider: MailProvider, res: Response): Promise<MailRefused> {
+  let body: unknown = null
+  try {
+    const text = await res.text()
+    try { body = JSON.parse(text) } catch { body = text }
+  } catch {
+    body = null
+  }
+  return new MailRefused(provider, res.status, providerMessageOf(body))
+}
+
+/** A fetch that never answered is the provider not answering, said the same way. */
+async function asked(provider: MailProvider, call: () => Promise<Response>): Promise<Response> {
+  try {
+    return await call()
+  } catch (err) {
+    // The error of a failed fetch names no secret, but it is cleaned anyway.
+    throw new MailRefused(provider, null, err instanceof Error ? err.message : String(err))
   }
 }
 
@@ -135,3 +164,4 @@ export function senderStatus(
     },
   ]
 }
+export { MailRefused, isMailRefused } from '@/lib/notify/mail-failure'

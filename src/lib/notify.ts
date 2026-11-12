@@ -301,7 +301,8 @@ async function deliver(
       body,
       configuredSenders(),
       new Date(),
-      appLink(page)
+      appLink(page),
+      { companyId, personId }
     )
 
     await prisma.notification.update({

@@ -21,6 +21,7 @@
  */
 
 import { teamsLinkKind, RETIRED_LINK_ROUTE_REASON, TEAMS_WORKFLOWS_SENT_NOTE } from '@/lib/notify/teams-link'
+import { isMailRefused, type MailFailure } from '@/lib/notify/mail-failure'
 
 export type Channel = 'IN_APP' | 'EMAIL' | 'TEAMS'
 /**
@@ -156,6 +157,36 @@ export interface DeliveryOutcome {
   state: DeliveryState
   note: string
   deliveredAt: Date | null
+  /**
+   * Why an email did not leave, where the email sender said so: the
+   * provider's status and its own cleaned words (lib/notify/mail-failure).
+   * The note carries the same, for the row.
+   */
+  failure?: MailFailure
+}
+
+/** What a company's id and a person's id are, for the staff alert. */
+export interface DeliveryContext {
+  companyId?: string | null
+  personId?: string | null
+}
+
+/**
+ * Etyme's staff hear when the email provider refuses a send, through
+ * `reportError` (lib/alerts): an Incident row every time, one email per
+ * hour. Loaded on first use, because lib/alerts reads the sender and the
+ * sender reads this file. Never throws.
+ */
+export async function reportMailRefused(err: unknown, ctx: DeliveryContext = {}): Promise<void> {
+  try {
+    const { reportError } = await import('@/lib/alerts')
+    await reportError('email: the provider refused a send', err, {
+      companyId: ctx.companyId ?? null,
+      personId: ctx.personId ?? null,
+    })
+  } catch {
+    // Telling staff is best-effort; the row keeps the reason either way.
+  }
 }
 
 /**
@@ -178,7 +209,8 @@ export async function attemptDelivery(
   body: string,
   senders: Sender[],
   now: Date,
-  link?: string | null
+  link?: string | null,
+  ctx: DeliveryContext = {}
 ): Promise<DeliveryOutcome> {
   // In-app is not sent anywhere. It is already written, and the person sees
   // it the moment they look.
@@ -226,9 +258,15 @@ export async function attemptDelivery(
       deliveredAt: now,
     }
   } catch (err) {
+    if (isMailRefused(err)) {
+      // The provider's status and its own words, cleaned, on the row; and
+      // Etyme's staff told, because a refused send is a broken edge.
+      void reportMailRefused(err, ctx)
+      return { state: 'FAILED', note: err.message, deliveredAt: null, failure: err.failure }
+    }
     return {
       state: 'FAILED',
-      note: err instanceof Error ? err.message.slice(0, 200) : 'Sending failed',
+      note: err instanceof Error ? err.message.slice(0, 300) : 'Sending failed',
       deliveredAt: null,
     }
   }
