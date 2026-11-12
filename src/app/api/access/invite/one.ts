@@ -27,7 +27,7 @@ import { checkDoor, companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import type { EffectiveMode } from '@/lib/identity/policy'
 import {
-  alreadyInvitedSays, copyInvitation, hasSignedIn, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
+  alreadyInvitedSays, copyInvitation, hasSignedIn, invitedAs, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
   type InviteDoor, type InviteMail, type InviteMailState,
 } from '@/lib/access-grant'
 
@@ -206,9 +206,7 @@ export type InviteOne =
       ok: true
       email: string
       contextId: string
-      personName: string
       role: string | null
-      door: InviteDoor
       mail: InviteMail & { state: InviteMailState }
       says: string
       copyText: string
@@ -338,16 +336,17 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
     roleName: role?.name ?? null,
     mode,
   })
-  const login = baseUrl() ? `${baseUrl()}/login` : null
+  // The reply and its sentence are the same for an address Etyme has never
+  // seen and one it knows: no door, no record's name, nothing that says
+  // whether the address already holds a password (security review,
+  // 2026-11-12). The real door and name are used inside the email only.
   return {
     ok: true,
     email,
     contextId: context.id,
-    personName: person.name,
     role: role?.name ?? null,
-    door: sent.door,
     mail: sent.mail,
-    says: inviteSays({ personName: person.name, email, roleName: role?.name ?? null, door: sent.door, mail: sent.mail.state, login, reason: sent.mail.why }),
+    says: inviteSays({ personName: invitedAs(input.name, email), email, roleName: role?.name ?? null, mail: sent.mail.state, reason: sent.mail.why }),
     copyText: copyTextFor({ inviterName: inviter.name, companyName: company?.name ?? inviter.company.name, roleName: role?.name ?? null, email, mode }),
     note: check.reason,
   }

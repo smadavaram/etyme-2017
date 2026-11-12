@@ -118,7 +118,6 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Kemi Adeyemi', email, roleId: it_.roles['HR'] })))
     vi.unstubAllGlobals()
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.wayIn).toBe('PASSWORD')
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, select: { id: true } })
     const stored = await prisma.notification.findFirstOrThrow({ where: { personId: person.id, channel: 'EMAIL' } })
     expect(stored.deliveryState).toBe('FAILED')
@@ -143,7 +142,6 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     const email = 'tara@elsewhere-works-fixture.com'
     const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Tara Quinn', email, roleId: it_.roles['HR'] })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.wayIn).toBe('PASSWORD')
 
     const mail = sent.find((m) => m.to === email)!
     expect(mail.text).toContain('Set your password and you are signed in. You are in Brightmoor Staffing as HR.')
@@ -390,9 +388,22 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     as(OWNER)
     const r = await json(await invite(req('POST', '/api/access/invite', { email: 'hana@has-password-fixture.com' })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.wayIn).not.toBe('PASSWORD')
     expect(r.body.data.mail.state).toBe('FAILED')
     expect(r.body.data.says).not.toContain('emailed')
+  })
+
+  it('inviting an address that already has a password and one Etyme has never seen gives the same reply, naming only what the inviter typed', async () => {
+    mailOn(() => new Response('{"message":"down"}', { status: 500 }))
+    await prisma.person.create({ data: { primaryEmail: 'rin@known-fixture.com', name: 'Rin Real-Name', passwordHash: 'x' } })
+    as(OWNER)
+    const known = await json(await invite(req('POST', '/api/access/invite', { email: 'rin@known-fixture.com' })))
+    const fresh = await json(await invite(req('POST', '/api/access/invite', { email: 'rin@unknown-fixture.com' })))
+    expect(known.status, JSON.stringify(known.body)).toBe(201)
+    expect(fresh.status, JSON.stringify(fresh.body)).toBe(201)
+    expect(Object.keys(known.body.data).sort()).toEqual(Object.keys(fresh.body.data).sort())
+    expect(known.body.data.says.replace(/known-fixture/g, 'X')).toBe(fresh.body.data.says.replace(/unknown-fixture/g, 'X'))
+    expect(JSON.stringify(known.body)).not.toContain('Rin Real-Name')
+    expect(known.body.data.wayIn).toBeUndefined()
   })
 
   it('a waiting row carries a copied invitation with the sign-in page and the address, and no token and no seat id', async () => {

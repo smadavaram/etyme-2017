@@ -160,7 +160,6 @@ export async function POST(request: NextRequest) {
         role: r.role,
         state: 'INVITED',
         note: r.note,
-        wayIn: r.door,
         // Whether the email left and when, or why not (`mailLine` draws it).
         mail: r.mail,
         // The ready message for Copy invitation. It holds no link that takes the seat.

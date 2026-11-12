@@ -82,7 +82,7 @@ describe('inviting the team', () => {
     // whether or not an email could leave.
     expect(route).toContain('inviteSays(')
     for (const mail of ['SENT', 'FAILED', 'NOT_CONFIGURED'] as const) {
-      const says = inviteSays({ personName: 'Imelda Santoro', email: 'imelda@brightmoor.example', roleName: 'Accounts Receivable', door: 'PASSWORD', mail, login: null })
+      const says = inviteSays({ personName: 'Imelda Santoro', email: 'imelda@brightmoor.example', roleName: 'Accounts Receivable', mail })
       expect(says, mail).toContain('The seat is theirs when they sign in with imelda@brightmoor.example.')
     }
   })

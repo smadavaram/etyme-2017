@@ -575,14 +575,21 @@ export const SEND_AGAIN_LABEL = 'Send the invitation again'
 /** What the inviter presses to put a ready message, with no link that takes the seat, on the clipboard. */
 export const COPY_LABEL = 'Copy invitation'
 
+/**
+ * What the inviter is told, the same for every address (security review,
+ * 2026-11-12): whether the person already holds a password, signs in with
+ * a work account, or is new to Etyme decides only what the email itself
+ * says, never this sentence. A sentence that said "the email has a link to
+ * set their password" for one address and not another told the inviter
+ * which addresses already have an Etyme account. `personName` is what the
+ * inviter typed, else the address's own first part; never the name the
+ * record holds for somebody already on Etyme.
+ */
 export function inviteSays(i: {
   personName: string
   email: string
   roleName: string | null
-  door: InviteDoor
   mail: InviteMailState
-  /** The sign-in address, where this deployment knows it. */
-  login: string | null
   /**
    * Why the email did not leave, in Etyme's words (`mailFailureSays` in
    * lib/notify/mail-failure), never the provider's. Read on FAILED.
@@ -595,7 +602,7 @@ export function inviteSays(i: {
     : ' Give them a role when they arrive.'
 
   if (i.mail === 'SENT') {
-    return `${head} and emailed.${seat}${i.door === 'PASSWORD' ? ' The email has a link to set their password.' : ''}`
+    return `${head} and emailed.${seat} The email tells them how to sign in.`
   }
   if (i.mail === 'FAILED') {
     const why = i.reason ? ` ${i.reason}` : ''
@@ -604,16 +611,15 @@ export function inviteSays(i: {
   if (i.mail === 'DEMO_SKIPPED') {
     return `${head}.${seat} This is a demo address, so no email went to it.`
   }
-  // No email can leave this deployment.
-  if (i.door === 'PASSWORD') {
-    return `${head}.${seat} No email can be sent from here yet; the one-time link is kept with Etyme staff.`
-  }
-  if (i.login) {
-    // They already hold a password, or sign in with their work account:
-    // the address is a door they can open.
-    return `${head}.${seat} No email can be sent from here yet, so send them the sign-in address yourself: ${i.login}.`
-  }
-  return `${head}.${seat} No email can be sent from here yet, and this deployment does not know its own address. Send them the sign-in address yourself.`
+  // No email can leave this deployment. One sentence for every address.
+  return `${head}.${seat} No email can be sent from here yet. Press ${COPY_LABEL} on their row and send it to them yourself; ` +
+    'where they have no password yet, Etyme staff hold a one-time link for them.'
+}
+
+/** The name an invitation is said under: what the inviter typed, else the address's first part. Never the record's. */
+export function invitedAs(typed: unknown, email: string): string {
+  const t = String(typed ?? '').trim()
+  return t || email.split('@')[0]
 }
 
 // ── Whether the invitation email left, on the reply and on every waiting row ──
