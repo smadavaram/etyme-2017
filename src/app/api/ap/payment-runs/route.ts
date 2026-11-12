@@ -9,7 +9,7 @@ import { mayPayFirm } from '@/lib/setup-gates'
 import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
 import { readRunFile } from '@/lib/money/run-file-read'
-import { confirmRun, readConfirmBody, type RunLineFacts } from '@/lib/money/run-confirm'
+import { confirmRun, readConfirmBody, confirmedLine, type RunLineFacts } from '@/lib/money/run-confirm'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
 import { paymentReference } from '@/lib/money/run-file'
 import { tellSupplierPaid } from '@/lib/money/paid-notice'
@@ -729,5 +729,35 @@ async function loadPayable(companyId: string) {
     inRunId: b.paymentRunItems[0]?.runId ?? null,
   }))
 
-  return { payable, runs: liveRuns }
+  // A paid run says who confirmed it, when, and the payer's reference,
+  // read from the payment rows its confirmation wrote, so a reload keeps
+  // what the person who brought the file back saw.
+  const paidIds = liveRuns.filter((r) => r.status === 'PAID').map((r) => r.id)
+  const confirmations = paidIds.length === 0 ? [] : await prisma.payment.findMany({
+    where: {
+      payerCompanyId: companyId,
+      method: 'PAYMENT_RUN',
+      vendorBill: { paymentRunItems: { some: { runId: { in: paidIds } } } },
+    },
+    select: {
+      reference: true, appliedAt: true,
+      appliedBy: { select: { name: true } },
+      vendorBill: { select: { paymentRunItems: { where: { runId: { in: paidIds } }, select: { runId: true } } } },
+    },
+    take: 5_000,
+  })
+  const byRun = new Map<string, { appliedAt: Date | null; appliedByName: string | null; reference: string | null }[]>()
+  for (const p of confirmations) {
+    for (const i of p.vendorBill?.paymentRunItems ?? []) {
+      const list = byRun.get(i.runId) ?? []
+      list.push({ appliedAt: p.appliedAt, appliedByName: p.appliedBy?.name ?? null, reference: p.reference })
+      byRun.set(i.runId, list)
+    }
+  }
+  const runs = liveRuns.map((r) => ({
+    ...r,
+    confirmed: r.status === 'PAID' ? confirmedLine(r.id, byRun.get(r.id) ?? []) : null,
+  }))
+
+  return { payable, runs }
 }

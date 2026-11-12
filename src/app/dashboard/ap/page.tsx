@@ -17,7 +17,8 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
-import { DownloadRunFile, ConfirmRunPaid } from './payment-run-file'
+import { DownloadRunFile, ConfirmRunPaid, RunConfirmSummary } from './payment-run-file'
+import type { ConfirmSummary } from '@/lib/money/run-confirm'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -847,6 +848,12 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
   const [said, setSaid] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [payOn, setPayOn] = useState(() => new Date().toISOString().slice(0, 10))
+  // What was said about one run, on that run's row: the route's sentence
+  // after Approve, Mark it paid or Cancel, and what a confirmation did.
+  // Kept here rather than in the row's form, so it survives the run
+  // turning paid (which takes the form away) until the page is left.
+  const [rowSaid, setRowSaid] = useState<Record<string, { says: string; failed?: boolean }>>({})
+  const [confirmed, setConfirmed] = useState<Record<string, ConfirmSummary>>({})
 
   const load = useCallback(async () => {
     setFailed(null)
@@ -896,10 +903,10 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
         body: JSON.stringify({ id, action }),
       })
       const b = await readJson(r)
-      setSaid(b.data.note)
+      setRowSaid((m) => ({ ...m, [id]: { says: b.data.note } }))
       await load()
     } catch (e: any) {
-      setFailed(e.message)
+      setRowSaid((m) => ({ ...m, [id]: { says: e.message, failed: true } }))
     } finally {
       setBusy(false)
     }
@@ -1057,6 +1064,21 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                   </span>
                 )}
               </div>
+              {r.status === 'PAID' && r.confirmed && (
+                <p className="mt-2 text-[13px] text-etyme-ink">{r.confirmed}</p>
+              )}
+              {rowSaid[r.id] && (
+                <p
+                  className={`mt-2 text-[13px] ${rowSaid[r.id].failed ? 'text-etyme-attention' : 'text-etyme-ink'}`}
+                >
+                  {rowSaid[r.id].says}
+                </p>
+              )}
+              {confirmed[r.id] && (
+                <div className="mt-3 border-t border-etyme-rule pt-3">
+                  <RunConfirmSummary summary={confirmed[r.id]} />
+                </div>
+              )}
               {desk.mayRun && r.status !== 'PAID' && r.status !== 'CANCELLED' && (
                 <div className="mt-3 flex flex-wrap gap-3 border-t border-etyme-rule pt-3">
                   {r.status === 'DRAFT' && (
@@ -1070,7 +1092,15 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                     </button>
                   )}
                   {r.status === 'APPROVED' && <DownloadRunFile runId={r.id} disabled={busy} />}
-                  {r.status === 'APPROVED' && <ConfirmRunPaid runId={r.id} onDone={() => void load()} />}
+                  {r.status === 'APPROVED' && (
+                    <ConfirmRunPaid
+                      runId={r.id}
+                      onDone={(summary) => {
+                        setConfirmed((m) => ({ ...m, [r.id]: summary }))
+                        void load()
+                      }}
+                    />
+                  )}
                   {r.status === 'APPROVED' && (
                     <button
                       className="text-[13px] underline"

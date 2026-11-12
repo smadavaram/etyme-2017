@@ -384,3 +384,67 @@ export async function confirmRun(deps: ConfirmDeps, input: { by: 'FILE'; csv: st
 
 /** The run's file columns, re-exported for the screen's help line. */
 export const RUN_REFERENCE_COLUMN = RUN_FILE_COLUMNS[0]
+
+// ── What the screen keeps saying after the run turns paid ─────────────
+
+/** One firm, or a list of them, said the way a person says it. */
+function namesOf(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+export interface ConfirmSummary {
+  /** The route's own sentence: how many were marked paid, and who has nobody on Etyme to tell. */
+  says: string
+  /** How many suppliers were told, by name; null where nothing was paid. */
+  told: string | null
+  refused: RowRefusal[]
+}
+
+/**
+ * The confirmation's answer, kept on the run's row after the run turns
+ * paid, so the person who brought the file back reads what it did: how
+ * many were marked paid, how many suppliers were told, every refusal.
+ */
+export function confirmSummary(d: {
+  says: string
+  refused?: RowRefusal[]
+  paid?: { vendorName: string; suppliersTold: number }[]
+}): ConfirmSummary {
+  const paid = d.paid ?? []
+  const told = [...new Set(paid.filter((p) => p.suppliersTold > 0).map((p) => p.vendorName))]
+  return {
+    says: d.says,
+    told:
+      paid.length === 0
+        ? null
+        : told.length === 0
+          ? 'No supplier was told.'
+          : `${told.length} supplier${told.length === 1 ? ' was' : 's were'} told: ${namesOf(told)}.`,
+    refused: d.refused ?? [],
+  }
+}
+
+/**
+ * Who confirmed a paid run, when, and the payer's reference, read from
+ * the payment rows the confirmation wrote. A run marked paid by hand
+ * carries the run's own id as its reference, which is not the payer's,
+ * so it is said as none given. Null where no payment row stands behind it.
+ */
+export function confirmedLine(
+  runId: string,
+  rows: { appliedAt: Date | null; appliedByName: string | null; reference: string | null }[]
+): string | null {
+  if (rows.length === 0) return null
+  const by = [...new Set(rows.map((r) => r.appliedByName).filter((n): n is string => !!n))]
+  const days = rows.map((r) => r.appliedAt).filter((d): d is Date => !!d)
+  const at = days.length > 0 ? new Date(Math.max(...days.map((d) => d.getTime()))) : null
+  const refs = [...new Set(rows.map((r) => r.reference?.trim()).filter((x): x is string => !!x && x !== runId))]
+  return (
+    `Confirmed paid${by.length > 0 ? ` by ${namesOf(by)}` : ''}` +
+    `${at ? ` on ${at.toISOString().slice(0, 10)}` : ''}, ` +
+    (refs.length === 0
+      ? 'with no payer’s reference.'
+      : `payer’s reference${refs.length === 1 ? '' : 's'} ${namesOf(refs)}.`)
+  )
+}

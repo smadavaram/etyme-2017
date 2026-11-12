@@ -341,3 +341,53 @@ describe('the supplier is told the day it is paid, once per payment', () => {
     expect(confirmPart).toMatch(/for \(const p of result\.paid\) \{\s*told\.set\(p\.paymentId, await tellSupplierPaid\(/)
   })
 })
+
+// ── What the screen keeps saying once the run is paid ─────────────────
+
+import { confirmSummary, confirmedLine } from '@/lib/money/run-confirm'
+
+describe('the person who brought the confirmation back reads what it did, on the run’s row', () => {
+  const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/ap/page.tsx'), 'utf8')
+  const FORM = readFileSync(join(process.cwd(), 'src/app/dashboard/ap/payment-run-file.tsx'), 'utf8')
+
+  it('the summary says how many were marked paid, how many suppliers were told by name, who has nobody to tell, and every refusal', () => {
+    const s = confirmSummary({
+      says: '2 invoice receipts were marked paid. Nimbus Talent has nobody on Etyme to tell, so tell them yourself.',
+      paid: [{ vendorName: 'Pinnacle Staffing', suppliersTold: 2 }, { vendorName: 'Nimbus Talent', suppliersTold: 0 }],
+      refused: [{ line: 4, reference: 'ETY-x', says: 'Line 4: ETY-x names no invoice receipt in this run, so nothing was marked paid for it.' }],
+    })
+    expect(s.says).toContain('Nimbus Talent has nobody on Etyme to tell')
+    expect(s.told).toBe('1 supplier was told: Pinnacle Staffing.')
+    expect(s.refused.map((x) => x.says)).toEqual(['Line 4: ETY-x names no invoice receipt in this run, so nothing was marked paid for it.'])
+    expect(confirmSummary({ says: 'Nothing was marked paid.', paid: [] }).told).toBeNull()
+  })
+
+  it('the summary is kept on the run’s row outside the form, so it stays after the run turns paid and the form goes', () => {
+    expect(PAGE).toContain('setConfirmed((m) => ({ ...m, [r.id]: summary }))')
+    const summaryAt = PAGE.indexOf('<RunConfirmSummary summary={confirmed[r.id]} />')
+    const formGate = PAGE.indexOf("{desk.mayRun && r.status !== 'PAID' && r.status !== 'CANCELLED' && (")
+    expect(summaryAt).toBeGreaterThan(0)
+    expect(summaryAt).toBeLessThan(formGate)
+    expect(FORM).toContain('onDone(said)')
+  })
+
+  it('on reload a paid run says who confirmed it, when, and the payer’s reference', () => {
+    expect(confirmedLine('run1', [
+      { appliedAt: new Date('2026-11-13T15:00:00Z'), appliedByName: 'Rosalind Tay', reference: 'ACH-88123' },
+      { appliedAt: new Date('2026-11-13T15:00:01Z'), appliedByName: 'Rosalind Tay', reference: 'ACH-88123' },
+    ])).toBe('Confirmed paid by Rosalind Tay on 2026-11-13, payer’s reference ACH-88123.')
+    expect(PAGE).toContain("r.status === 'PAID' && r.confirmed")
+  })
+
+  it('a run marked paid by hand carries the run’s own id, which is never shown as the payer’s reference', () => {
+    expect(confirmedLine('run1', [{ appliedAt: new Date('2026-11-13T00:00:00Z'), appliedByName: 'Desmond Achebe', reference: 'run1' }]))
+      .toBe('Confirmed paid by Desmond Achebe on 2026-11-13, with no payer’s reference.')
+    expect(confirmedLine('run1', [])).toBeNull()
+  })
+
+  it('pressing Approve it, Mark it paid or Cancel shows the route’s own sentence on that run’s row, and a refusal too', () => {
+    expect(PAGE).toContain('setRowSaid((m) => ({ ...m, [id]: { says: b.data.note } }))')
+    expect(PAGE).toContain('setRowSaid((m) => ({ ...m, [id]: { says: e.message, failed: true } }))')
+    expect(PAGE).toContain('{rowSaid[r.id].says}')
+  })
+})

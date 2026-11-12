@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { confirmBody } from '@/lib/money/run-confirm'
+import { confirmBody, confirmSummary, type ConfirmSummary } from '@/lib/money/run-confirm'
 
 /**
  * The file an approved run leaves as, for the payer's own payment system
@@ -57,19 +57,40 @@ export function DownloadRunFile({ runId, disabled }: { runId: string; disabled?:
 }
 
 /**
- * The confirmation, back from the payer's own system: the file it wrote,
- * or one reference and the day the money left, for the whole run. What was
- * marked paid and every row refused are said on the page, in the route's
- * own sentences.
+ * What a confirmation did, in the route's own sentences: how many were
+ * marked paid, how many suppliers were told, any supplier with nobody on
+ * Etyme to tell, and every row refused. Drawn on the run's row, so it
+ * stays there after the run turns paid, until the page is left.
  */
-export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: () => void }) {
+export function RunConfirmSummary({ summary }: { summary: ConfirmSummary }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[13px] text-etyme-ink">{summary.says}</p>
+      {summary.told && <p className="text-[13px] text-etyme-ink">{summary.told}</p>}
+      {summary.refused.length > 0 && (
+        <ul className="space-y-1">
+          {summary.refused.map((x) => (
+            <li key={`${x.line}-${x.reference}`} className="text-[13px] text-etyme-attention">{x.says}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The confirmation, back from the payer's own system: the file it wrote,
+ * or one reference and the day the money left, for the whole run. What it
+ * did is handed to `onDone`, which keeps it on the run's row; with no
+ * `onDone` the form says it itself.
+ */
+export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: (summary: ConfirmSummary) => void }) {
   const [csv, setCsv] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [reference, setReference] = useState('')
   const [paidOn, setPaidOn] = useState('')
   const [busy, setBusy] = useState(false)
-  const [said, setSaid] = useState<string | null>(null)
-  const [refused, setRefused] = useState<{ line: number; reference: string; says: string }[]>([])
+  const [summary, setSummary] = useState<ConfirmSummary | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
 
   async function pick(file: File | null) {
@@ -80,8 +101,7 @@ export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: () =
   async function send() {
     setBusy(true)
     setFailed(null)
-    setSaid(null)
-    setRefused([])
+    setSummary(null)
     try {
       const r = await fetch('/api/ap/payment-runs', {
         method: 'PATCH',
@@ -89,16 +109,15 @@ export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: () =
         body: JSON.stringify(confirmBody({ runId, csv, reference, paidOn })),
       })
       const b = await readJson(r)
-      setSaid(b.data.says)
-      setRefused(b.data.refused ?? [])
-      onDone?.()
+      const said = confirmSummary(b.data)
+      if (onDone) onDone(said)
+      else setSummary(said)
     } catch (e: any) {
       setFailed(e.message)
     } finally {
       setBusy(false)
     }
   }
-
   return (
     <div className="mt-3 w-full space-y-2 border-t border-etyme-rule pt-3">
       <p className="stat-label">Paid from your system? Bring back the confirmation</p>
@@ -139,14 +158,7 @@ export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: () =
           {busy ? 'Working…' : 'Mark what it names as paid'}
         </button>
       </div>
-      {said && <p className="text-[13px] text-etyme-ink">{said}</p>}
-      {refused.length > 0 && (
-        <ul className="space-y-1">
-          {refused.map((x) => (
-            <li key={`${x.line}-${x.reference}`} className="text-[13px] text-etyme-attention">{x.says}</li>
-          ))}
-        </ul>
-      )}
+      {summary && <RunConfirmSummary summary={summary} />}
       {failed && <p className="text-[13px] text-etyme-attention">{failed}</p>}
     </div>
   )
