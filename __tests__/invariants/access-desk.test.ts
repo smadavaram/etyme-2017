@@ -965,3 +965,27 @@ describe('Users & permissions at phone width', () => {
     expect(waitingRow).toContain('w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words')
   })
 })
+
+describe('the sentence a paused person reads', () => {
+  it('a reason that ends in its own period is said with one period, never two', async () => {
+    const { pausedSays } = await import('@/lib/access-grant')
+    const s = pausedSays('Tapin', 'On leave until she is back.')
+    expect(s).toBe('Your access at Tapin is paused: On leave until she is back. Somebody there can lift it.')
+    expect(s).not.toContain('..')
+  })
+
+  it('a reason with no stop, or ending in a question or exclamation mark, still reads as one sentence with one stop', async () => {
+    const { pausedSays } = await import('@/lib/access-grant')
+    expect(pausedSays('Tapin', 'on leave')).toBe('Your access at Tapin is paused: on leave. Somebody there can lift it.')
+    expect(pausedSays('Tapin', 'Back Monday!  ')).not.toMatch(/[.!?]\s*\./)
+  })
+
+  it('a pause with no reason says so plainly, and a seat with no company name says this company', async () => {
+    const { pausedSays } = await import('@/lib/access-grant')
+    expect(pausedSays(null, null)).toBe('Your access at this company is paused. Somebody there can lift it.')
+  })
+
+  it('the email telling a person they were paused joins the reason the same way', () => {
+    expect(read('src/app/api/access/[contextId]/route.ts')).toContain('paused it: ${clause(reason)}.')
+  })
+})

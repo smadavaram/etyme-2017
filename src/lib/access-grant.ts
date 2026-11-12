@@ -31,6 +31,7 @@ import { hasPermission, inWords, PERMISSIONS } from '@/lib/permissions'
 import { formatDay } from '@/lib/format-date'
 import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy, type EffectiveMode } from '@/lib/identity/policy'
 import { momentFor } from '@/lib/when'
+import { clause } from '@/lib/owner-rules'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
@@ -889,4 +890,19 @@ export const INVITE_ADDRESS_MISSING = 'Type the full address, like name@example.
 /** Whether the box holds a whole address: the same test the invite route makes (lib/account-lifecycle `checkInvite`). */
 export function looksLikeAddress(raw: string): boolean {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw.trim())
+}
+
+
+// ── A paused seat, said to the person ─────────────────────────────────
+
+/**
+ * What a person whose seat is paused reads, on the refusal and on the page
+ * the refusal opens (the Owner walk, 2026-11-12: "…until she is back..
+ * Somebody there can lift it."). The reason is somebody's own words, and
+ * often ends in its own period, so it is joined through `clause`, which
+ * trims the reason's last stop: one period, always.
+ */
+export function pausedSays(companyName: string | null, reason: string | null): string {
+  const why = reason ? clause(reason) : ''
+  return `Your access at ${companyName ?? 'this company'} is paused${why ? `: ${why}` : ''}. Somebody there can lift it.`
 }
