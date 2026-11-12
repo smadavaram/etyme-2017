@@ -153,8 +153,13 @@ export function canSuspend(target: AccessRow, all: AccessRow[], actor?: Actor): 
   }
 }
 
-export function canReinstate(target: AccessRow): Verdict {
+export function canReinstate(target: AccessRow, actor?: Actor): Verdict {
   const state = stateOf(target)
+
+  // An Admin never acts on an Owner, lifting a pause included.
+  if (target.isOwner && actor && !actor.isOwner && state === 'SUSPENDED') {
+    return { allowed: false, reason: 'Only an Owner lifts an Owner’s pause. An Admin never can.', consequences: [] }
+  }
 
   if (state === 'ACTIVE' || state === 'INVITED') {
     return { allowed: false, reason: 'They are not suspended.', consequences: [] }
@@ -321,4 +326,15 @@ export function checkInvite(
     reason: `${clean} is outside ${companyDomain ?? 'your domain'}, so they can only get in because you asked them.`,
     outsider: true,
   }
+}
+
+/**
+ * What a row's menu on Users & permissions offers this reader: Pause,
+ * Reinstate and End, each with the verdict the route will give, so a
+ * control is drawn only where the route would allow it (screen walk on
+ * df3074094: nothing on a screen called the route, and an Admin must never
+ * be offered an act on an Owner). Read by GET /api/access per row.
+ */
+export function rowActs(target: AccessRow, all: AccessRow[], actor: Actor): { pause: Verdict; reinstate: Verdict; end: Verdict } {
+  return { pause: canSuspend(target, all, actor), reinstate: canReinstate(target, actor), end: canRevoke(target, all, actor) }
 }

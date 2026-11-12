@@ -317,3 +317,27 @@ describe('one ask, said to each reader', () => {
     expect(src).toContain('says: askSaysTo(reader, {')
   })
 })
+
+describe('what a row on Users & permissions offers each reader', () => {
+  it('an Admin is offered no Pause, Reinstate or End on an Owner’s row', async () => {
+    const { rowActs } = await import('@/lib/account-lifecycle')
+    const owner = row('Sharath', true)
+    const other = row('Madhavi', true)
+    const admin = row('Vikash', false)
+    const acts = rowActs(owner, [owner, other, admin], { isOwner: false })
+    expect([acts.pause.allowed, acts.end.allowed]).toEqual([false, false])
+    const paused = { ...owner, suspendedAt: new Date('2026-11-10') }
+    expect(rowActs(paused, [paused, other, admin], { isOwner: false }).reinstate.allowed).toBe(false)
+    expect(rowActs(paused, [paused, other, admin], { isOwner: false }).reinstate.reason).toBe('Only an Owner lifts an Owner’s pause. An Admin never can.')
+  })
+
+  it('an Owner is offered Pause and End on an Admin’s row, and Reinstate once paused', async () => {
+    const { rowActs } = await import('@/lib/account-lifecycle')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const acts = rowActs(admin, [owner, admin], { isOwner: true })
+    expect([acts.pause.allowed, acts.end.allowed, acts.reinstate.allowed]).toEqual([true, true, false])
+    const paused = { ...admin, suspendedAt: new Date('2026-11-10') }
+    expect(rowActs(paused, [owner, paused], { isOwner: true }).reinstate.allowed).toBe(true)
+  })
+})
