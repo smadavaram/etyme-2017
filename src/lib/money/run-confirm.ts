@@ -12,9 +12,10 @@ import { decimalAmount, paymentReference, runItemOf, TOTAL_REFERENCE, RUN_FILE_C
  * Two ways back:
  *   · a CSV, one row per payment, naming the Etyme payment reference the
  *     run's file carried, the amount, the paid date and the payer's own
- *     bank or system reference (the currency column is read where it is
- *     there; a run is one currency, so where it is not the amount is read
- *     in the run's currency);
+ *     bank or system reference. The currency column is optional (the
+ *     founder's ruling, 2026-11-12): a run is one currency, so a row with
+ *     no currency is read in the run's own currency, and a row that names
+ *     one must name the run's or it is refused;
  *   · one reference and one date typed for the whole run, which names
  *     every line of it.
  *
@@ -262,7 +263,15 @@ export function decideRows(
     seen.add(l.runItemId)
 
     const who = `${l.vendorName}’s invoice ${l.number}`
-    const cur = l.currency.toUpperCase()
+    // A run is one currency (the founder's ruling, 2026-11-12): the
+    // currency column is optional, a row without it is read in the run's
+    // own currency, and a row that names one must name the run's. A line
+    // owed in another currency than its run is refused, never converted.
+    const cur = run.currency.toUpperCase()
+    if (l.currency.toUpperCase() !== cur) {
+      refuse(`${where}: ${who} is owed in ${l.currency.toUpperCase()} and this run pays in ${cur}. Nothing was written.`)
+      continue
+    }
     if (l.status === 'PAID' || l.totalCents - l.paidCents <= 0) {
       refuse(`${where}: ${who} is already paid. Nothing was written again.`)
       continue

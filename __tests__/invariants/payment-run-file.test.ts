@@ -184,6 +184,27 @@ describe('the confirmation from the payer’s own system marks paid what it name
     expect(r.ok && r.refused[0].says).toContain('owed in USD and the confirmation says EUR')
   })
 
+  it('a confirmation with no currency column is read in the run’s own currency', async () => {
+    const w = world([runLine()])
+    const csv = ['etyme_payment_reference,amount,paid_date,payer_reference', 'ETY-item1,3920.00,2026-11-13,ACH-88123'].join('\r\n')
+    const r = await confirmRun(w.deps, { by: 'FILE', csv })
+    expect(r.ok && r.paid.length).toBe(1)
+    expect(w.writes[0]).toMatchObject({ amountCents: 392_000, currency: 'USD' })
+  })
+
+  it('a row whose currency cell is empty is read in the run’s own currency too', async () => {
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,,2026-11-13,ACH-88123']) })
+    expect(r.ok && r.paid.length).toBe(1)
+  })
+
+  it('a line owed in another currency than its run is refused, never converted', async () => {
+    const w = world([runLine({ currency: 'EUR' })])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,,2026-11-13,ACH-88123']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused[0].says).toContain('is owed in EUR and this run pays in USD. Nothing was written.')
+  })
+
   it('the same confirmation twice pays once', async () => {
     const w = world([runLine()])
     const csv = FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123'])
