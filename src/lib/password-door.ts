@@ -29,9 +29,8 @@
  * A company made here has an Etyme address and no verified domain, so it
  * claims nothing: a Microsoft or Google sign-in on the same domain never
  * joins it that way (`decideEntry` reads verified claims only). A
- * colleague joins by invitation, or by signing up with the same address
- * from the owner's own email domain, and is seated as Member with the
- * owner told. Where the email domain is already a verified tenant, the
+ * colleague joins it by invitation only; typing its Etyme address seats
+ * nobody (coordinator's ruling, 2026-11-12). Where the email domain is already a verified tenant, the
  * mailbox proof is the same proof a magic link gives, and the person
  * joins that tenant rather than founding a second one: one tenant is one
  * domain name.
@@ -414,37 +413,37 @@ async function addressesHeld(exceptPersonId: string | null): Promise<{ companies
   return { companies, pending }
 }
 
-/** The email domains of the people who own a company. */
-async function ownerDomains(companyId: string): Promise<Set<string>> {
-  const owners = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, role: { name: { in: ['Owner', 'Admin'] } } },
-    select: { person: { select: { primaryEmail: true } } },
-  })
-  return new Set(owners.map((o) => domainOfEmail(o.person.primaryEmail)).filter((d): d is string => !!d))
-}
-
 /**
- * The one company a work email belongs at, read off the email domains of
- * its owners. Never a personal domain (a gmail owner of a one-person firm
- * makes no other gmail user a colleague), never a seeded company, and only
- * where exactly one company answers.
+ * The one company a work email joins by signing up: the company that has
+ * verified the email's domain and lets people join through it, read by the
+ * same rule as the Microsoft and Google doors (`decideEntry`). Never a
+ * personal domain, never Etyme's own, never a seeded company, and never a
+ * company read off its owners' addresses: a company with no verified domain
+ * is joined by invitation only, as every screen says (coordinator's ruling,
+ * 2026-11-12, on Tapin: an @etyme.com sign-up had been seated there).
  */
 export async function colleagueCompany(rawEmail: unknown): Promise<{ id: string; slug: string; name: string } | null> {
   const email = cleanEmail(rawEmail)
   if (!looksLikeEmail(email) || demoEmail(email)) return null
   const domain = domainOfEmail(email)
-  if (!domain || isConsumerDomain(domain)) return null
-  const seats = await prisma.context.findMany({
-    where: {
-      revokedAt: null, role: { name: { in: ['Owner', 'Admin'] } },
-      person: { primaryEmail: { endsWith: `@${domain}`, mode: 'insensitive' } },
-      company: { isDemo: false },
-    },
-    select: { company: { select: { id: true, slug: true, name: true } } },
-  })
-  const found = new Map(seats.filter((s) => s.company).map((s) => [s.company!.id, s.company!] as const))
-  return found.size === 1 ? [...found.values()][0] : null
+  if (!domain || isConsumerDomain(domain) || isPlatformDomain(domain)) return null
+  const entry = decideEntry(email, await claims())
+  if (entry.action !== 'JOIN' && entry.action !== 'REQUEST') return null
+  const c = await prisma.company.findUnique({ where: { id: entry.companyId }, select: { id: true, slug: true, name: true, isDemo: true } })
+  return c && !c.isDemo ? { id: c.id, slug: c.slug, name: c.name } : null
 }
+
+/**
+ * What the sign-up says when the Etyme address typed is a company's
+ * already. The same sentence whoever types it, so it never says whether
+ * the person's own domain matches anybody at that company.
+ */
+export function addressTakenSays(address: string): string {
+  return `${address}.etyme.com is already taken. To join a company already on Etyme, ask its Owner or Admin for an invitation; to start your own, choose another address.`
+}
+
+/** What a confirmed sign-up says where it once would have joined a company with no verified domain. */
+export const ASK_FOR_AN_INVITATION = 'Your email is confirmed. To join a company already on Etyme, ask its Owner or Admin for an invitation.'
 
 /**
  * What the sign-up form shows after the email field: whether this email
@@ -543,26 +542,19 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
   const held = await addressesHeld(existing?.id ?? null)
   const raw = String(input.address ?? '').trim().toLowerCase()
 
-  // The address is a company's already. The owner's colleague, on the
-  // owner's own email domain, joins it; anybody else is told it is taken.
-  const holder = held.companies.get(raw)
-  let joinCompanyId: string | undefined
-  if (holder) {
-    if (personal || !(await ownerDomains(holder)).has(domain!)) {
-      return refuse(`${raw}.etyme.com is already somebody else's. Choose another, or ask that company to invite you.`, 'address')
-    }
-    joinCompanyId = holder
-  } else {
-    const taken = new Set([...held.companies.keys(), ...held.pending])
-    const verdict = checkAddress(raw, taken, name)
-    if (!verdict.ok) return refuse(verdict.says, 'address')
-  }
+  // The address is a company's already. Nobody joins a company by typing
+  // its Etyme address: a company with a verified domain is joined by that
+  // domain (above), and every other company by invitation only. One
+  // sentence for everybody, so it says nothing about who the person is.
+  if (held.companies.has(raw)) return refuse(addressTakenSays(raw), 'address')
+  const taken = new Set([...held.companies.keys(), ...held.pending])
+  const verdict = checkAddress(raw, taken, name)
+  if (!verdict.ok) return refuse(verdict.says, 'address')
 
   return begin(email, personName, {
     kind: 'COMPANY',
     passwordHash: await hashPassword(password),
     personName, name, type: type.key, country, currency, address: raw,
-    ...(joinCompanyId ? { joinCompanyId } : {}),
   }, password)
 }
 
@@ -735,10 +727,13 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
     }
   }
 
-  // A colleague naming their company's address from the owner's domain.
+  // A colleague of a company that verified their email's domain. Read
+  // again on the day the link is pressed: a link sent before the door
+  // closed, or before a domain was unverified, joins nobody by an address.
   if (pending.joinCompanyId) {
-    const c = await prisma.company.findUnique({ where: { id: pending.joinCompanyId }, select: { id: true, name: true } })
-    if (c) return joinAsMember(named, c, `Signed up with ${pending.address}.etyme.com from the owner's email domain`)
+    const c = await colleagueCompany(person.primaryEmail)
+    if (c && c.id === pending.joinCompanyId) return joinAsMember(named, c, `Verified email on a domain ${c.name} owns`)
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: ASK_FOR_AN_INVITATION }
   }
 
   // The email domain is already a verified tenant: one tenant is one domain.

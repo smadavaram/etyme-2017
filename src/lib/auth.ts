@@ -358,10 +358,10 @@ export const authOptions: NextAuthOptions = {
       const r = signInFailureReport(String(code), metadata)
       // Anybody can make a callback fail, so this writes at most one row
       // per place per hour (`signInFailureOncePerHour`); the rest are
-      // console lines only.
+      // dropped, because this door writes no log line of its own.
       void signInFailureOncePerHour(r.place)
         .then((first) => {
-          if (!first) { console.error(`[${r.place}]`, r.message); return }
+          if (!first) return
           return import('@/lib/alerts').then(({ reportError }) => reportError(r.place, r.message))
         })
         // reportError writes the console line itself; a failed import has nowhere else to go.

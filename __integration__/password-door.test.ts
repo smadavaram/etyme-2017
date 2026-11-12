@@ -128,7 +128,7 @@ describe('a password door, until the single sign-on keys exist', () => {
   it('an address is lowercase letters, digits and hyphens, never a reserved word, and never taken twice', async () => {
     const taken = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: STRANGER }))))
     expect(taken.status).toBe(422)
-    expect(taken.body.error).toMatchObject({ field: 'address', message: 'kestrel.etyme.com is already somebody else\'s. Choose another, or ask that company to invite you.' })
+    expect(taken.body.error).toMatchObject({ field: 'address', message: 'kestrel.etyme.com is already taken. To join a company already on Etyme, ask its Owner or Admin for an invitation; to start your own, choose another address.' })
 
     const reserved = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: STRANGER, address: 'demo' }))))
     expect(reserved.body.error.field).toBe('address')
@@ -183,8 +183,9 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(await prisma.company.count({ where: { slug: 'harrowgate' } })).toBe(0)
 
     // Signing up again with an email that already has an account answers
-    // the same, and tells the mailbox owner instead of the stranger.
-    const dupe = await json(await signUp(req('POST', '/api/auth/password/signup', company())))
+    // the same, and tells the mailbox owner instead of the stranger. (A
+    // fresh address: a taken one is refused for everybody alike.)
+    const dupe = await json(await signUp(req('POST', '/api/auth/password/signup', company({ address: 'kestrel-again' }))))
     expect(dupe.body.data.says).toBe(`Check your email. We sent a link to ${OWNER}. It works for 24 hours.`)
     expect(sent[sent.length - 1]).toMatchObject({ to: OWNER, subject: 'Set your Etyme password' })
     expect(sent[sent.length - 1].text).toContain('You already have an account.')
@@ -259,24 +260,16 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect((await checkPassword(email, PASSWORD, '10.0.2.1')).ok).toBe(true)
   })
 
-  it('a colleague signing up with the same address and the owner\'s email domain is seated as Member and the owner is told', async () => {
+  it('a colleague typing the company\'s Etyme address from the owner\'s email domain is seated nowhere and told to ask an Owner or Admin for an invitation, in the sentence a stranger reads', async () => {
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: COLLEAGUE, name: 'Kestrel Works' }))))
-    expect(r.status, JSON.stringify(r.body)).toBe(200)
-    const v = await verifyEmail(lastLink(COLLEAGUE, 'verify'))
-    expect(v).toMatchObject({ ok: true, landing: '/start?welcome=1', says: 'You are in Kestrel Works as Member. Your owner has been told; you will see more once they give you a role.' })
-
-    const kestrel = await prisma.company.findUniqueOrThrow({ where: { slug: 'kestrel' } })
-    const seat = await prisma.context.findFirstOrThrow({ where: { person: { primaryEmail: COLLEAGUE } }, include: { role: true } })
-    expect(seat).toMatchObject({ companyId: kestrel.id, type: 'EMPLOYEE', role: { name: 'Member' } })
-    expect(await prisma.company.count({ where: { name: 'Kestrel Works' } })).toBe(1)
-
-    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNER } })
-    let told = 0
-    for (let i = 0; i < 50 && told === 0; i++) {
-      told = await prisma.notification.count({ where: { personId: owner.id, companyId: kestrel.id, body: { contains: COLLEAGUE } } })
-      if (!told) await new Promise((res) => setTimeout(res, 20))
-    }
-    expect(told).toBeGreaterThan(0)
+    const stranger = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: STRANGER, name: 'Kestrel Works' }))))
+    expect(r.status).toBe(422)
+    expect(r.body.error).toMatchObject({ field: 'address', message: 'kestrel.etyme.com is already taken. To join a company already on Etyme, ask its Owner or Admin for an invitation; to start your own, choose another address.' })
+    expect(stranger.body.error).toEqual(r.body.error)
+    // The probe offers no company either: Kestrel has no verified domain.
+    const p = await json(await probe(req('GET', `/api/auth/password/signup?email=${encodeURIComponent(COLLEAGUE)}`)))
+    expect(p.body.data.joins).toBeNull()
+    expect(await prisma.context.count({ where: { person: { primaryEmail: COLLEAGUE } } })).toBe(0)
   })
 
   it('a Microsoft or Google sign-in joins an address only through its verified domain', async () => {
