@@ -114,12 +114,35 @@ export async function commissionAccruals(
   period: CommissionPeriod,
   opts: { earnedById?: string; sellContractIds?: readonly string[] } = {}
 ): Promise<RowAccrual[]> {
+  return (await commissionAccrualsOver(companyId, [period], opts))[0]
+}
+
+/** How many windows the margin service prices at once, so a long span never starves the pool. */
+const PRICE_AT_ONCE = 6
+
+/**
+ * The same answer as `commissionAccruals`, for several periods at once,
+ * one list per period in the order given. The rows, the placements, the
+ * cash bills and the postings are read once for the whole span and cut per
+ * period in memory; the margin service prices each distinct window once,
+ * a few at a time. Review of 2026-11-12: Bench profit read every month
+ * from the earliest placement on as its own set of reads, so a placement
+ * with years behind it cost a set of reads a month.
+ */
+export async function commissionAccrualsOver(
+  companyId: string,
+  periods: readonly CommissionPeriod[],
+  opts: { earnedById?: string; sellContractIds?: readonly string[] } = {}
+): Promise<RowAccrual[][]> {
+  if (periods.length === 0) return []
+  const spanFrom = new Date(Math.min(...periods.map((p) => p.from.getTime())))
+  const spanTo = new Date(Math.max(...periods.map((p) => p.to.getTime())))
   const rows = await prisma.contractCommission.findMany({
     where: {
       companyId,
       ...(opts.earnedById ? { earnedById: opts.earnedById } : {}),
-      fromDate: { lte: period.to },
-      OR: [{ toDate: null }, { toDate: { gte: period.from } }],
+      fromDate: { lte: spanTo },
+      OR: [{ toDate: null }, { toDate: { gte: spanFrom } }],
     },
     include: {
       earnedBy: { select: { id: true, name: true } },
@@ -135,39 +158,30 @@ export async function commissionAccruals(
     orderBy: { setAt: 'asc' },
     take: 2000,
   })
-  if (rows.length === 0) return []
+  if (rows.length === 0) return periods.map(() => [])
 
-  const placed = rows.map((r) => {
+  const placedAll = rows.map((r) => {
     const sells = r.sellContract
       ? [r.sellContract]
       : (r.buyContract?.sellLinks ?? []).map((l) => l.sellContract).filter((s) => s.companyId === companyId)
     return { r, sells }
   }).filter(({ sells }) => !opts.sellContractIds || sells.some((s) => opts.sellContractIds!.includes(s.id)))
-  if (placed.length === 0) return []
+  if (placedAll.length === 0) return periods.map(() => [])
 
-  const sellIds = [...new Set(placed.flatMap((p) => p.sells.map((s) => s.id)))]
+  // In force in a period: the row's own days touch it.
+  const inForce = (r: { fromDate: Date; toDate: Date | null }, p: CommissionPeriod) =>
+    r.fromDate <= p.to && (!r.toDate || r.toDate >= p.from)
+  const placedBy = periods.map((p) => placedAll.filter(({ r }) => inForce(r, p)))
+
+  const sellIds = [...new Set(placedAll.flatMap((p) => p.sells.map((s) => s.id)))]
   const pairs = sellIds.length ? await pairsFor(companyId, 'ALL', sellIds) : null
 
-  // ── Which windows to price ───────────────────────────────────────────
-  //
-  // A row on accepted weeks that covers the whole period reads the period
-  // as one window; a row that starts or ends inside it reads week by week,
-  // so a week outside its own days is never counted.
-  const covers = (r: { fromDate: Date; toDate: Date | null }) => r.fromDate <= period.from && (!r.toDate || r.toDate >= period.to)
-  const accepted = placed.filter((p) => p.r.accrueOn === 'ACCEPTED')
-  const weekly = accepted.some((p) => !covers(p.r))
-  const windows = new Map<string, { from: Date; to: Date }>()
-  if (accepted.length) {
-    if (weekly) for (const s of sundaysIn(period)) windows.set(s.toISOString(), { from: s, to: new Date(s.getTime() + 7 * DAY) })
-    else windows.set(`period:${period.from.toISOString()}`, { from: period.from, to: new Date(period.to.getTime() + DAY) })
-  }
-
-  // ── On cash: the weeks whose bill was paid in full in the period ─────
-  const cashSells = [...new Set(placed.filter((p) => p.r.accrueOn === 'CASH').flatMap((p) => p.sells.map((s) => s.id)))]
-  const paidWeeks = new Map<string, Set<string>>() // sell id → week starts (ISO) paid in the period
-  if (cashSells.length) {
+  // ── On cash: every bill on the span's cash placements, read once ─────
+  const cashSellsAll = [...new Set(placedAll.filter((p) => p.r.accrueOn === 'CASH').flatMap((p) => p.sells.map((s) => s.id)))]
+  const cashBills: { sellContractId: string; week: Date; paidOn: Date | null }[] = []
+  if (cashSellsAll.length) {
     const lines = await prisma.invoiceLine.findMany({
-      where: { sellContractId: { in: cashSells }, timesheetId: { not: null }, invoice: { status: { notIn: [...DRAWS_NOTHING] } } },
+      where: { sellContractId: { in: cashSellsAll }, timesheetId: { not: null }, invoice: { status: { notIn: [...DRAWS_NOTHING] } } },
       select: {
         sellContractId: true,
         timesheet: { select: { periodStart: true } },
@@ -178,75 +192,113 @@ export async function commissionAccruals(
     for (const l of lines) {
       if (!l.sellContractId || !l.timesheet) continue
       const cur = l.invoice.currency
-      const on = paidInFullOn(
-        fromPrismaDecimal(l.invoice.total, cur).minor,
-        l.invoice.payments.map((p) => ({ minor: fromPrismaDecimal(p.amount, cur).minor, at: p.receivedAt })),
-      )
-      if (!on || on < period.from || on.getTime() >= period.to.getTime() + DAY) continue
-      const w = l.timesheet.periodStart
-      const key = w.toISOString()
-      windows.set(key, { from: w, to: new Date(w.getTime() + 7 * DAY) })
-      paidWeeks.set(l.sellContractId, (paidWeeks.get(l.sellContractId) ?? new Set()).add(key))
+      cashBills.push({
+        sellContractId: l.sellContractId,
+        week: l.timesheet.periodStart,
+        paidOn: paidInFullOn(
+          fromPrismaDecimal(l.invoice.total, cur).minor,
+          l.invoice.payments.map((p) => ({ minor: fromPrismaDecimal(p.amount, cur).minor, at: p.receivedAt })),
+        ),
+      })
     }
   }
 
-  // ── The margin service, once per window ──────────────────────────────
-  const facts = new Map<string, Map<string, WeekFact>>() // window key → sell id → fact
+  // ── Which windows each period prices ─────────────────────────────────
+  //
+  // A row on accepted weeks that covers the whole period reads the period
+  // as one window; a row that starts or ends inside it reads week by week,
+  // so a week outside its own days is never counted.
+  const plans = periods.map((period, i) => {
+    const placed = placedBy[i]
+    const covers = (r: { fromDate: Date; toDate: Date | null }) => r.fromDate <= period.from && (!r.toDate || r.toDate >= period.to)
+    const accepted = placed.filter((p) => p.r.accrueOn === 'ACCEPTED')
+    const weekly = accepted.some((p) => !covers(p.r))
+    const windows = new Map<string, { from: Date; to: Date }>()
+    if (accepted.length) {
+      if (weekly) for (const s of sundaysIn(period)) windows.set(s.toISOString(), { from: s, to: new Date(s.getTime() + 7 * DAY) })
+      else windows.set(`period:${period.from.toISOString()}`, { from: period.from, to: new Date(period.to.getTime() + DAY) })
+    }
+    const cashSells = new Set(placed.filter((p) => p.r.accrueOn === 'CASH').flatMap((p) => p.sells.map((s) => s.id)))
+    const paidWeeks = new Map<string, Set<string>>() // sell id → week starts (ISO) paid in the period
+    for (const b of cashBills) {
+      if (!cashSells.has(b.sellContractId)) continue
+      if (!b.paidOn || b.paidOn < period.from || b.paidOn.getTime() >= period.to.getTime() + DAY) continue
+      const key = b.week.toISOString()
+      windows.set(key, { from: b.week, to: new Date(b.week.getTime() + 7 * DAY) })
+      paidWeeks.set(b.sellContractId, (paidWeeks.get(b.sellContractId) ?? new Set()).add(key))
+    }
+    return { period, placed, weekly, windows, paidWeeks }
+  })
+
+  // ── The margin service, once per distinct window, a few at a time ────
+  const priced = new Map<string, Map<string, WeekFact>>() // window key → sell id → fact
   if (pairs) {
-    await Promise.all([...windows.entries()].map(async ([key, w]) => {
-      const books = await placementBooks(companyId, { scope: 'ALL', pairs, window: w })
-      facts.set(key, new Map(books.map((b) => [b.sellContractId, factOf(b, w.from)])))
-    }))
+    const all = new Map<string, { from: Date; to: Date }>()
+    for (const pl of plans) for (const [k, w] of pl.windows) all.set(k, w)
+    const todo = [...all.entries()]
+    for (let i = 0; i < todo.length; i += PRICE_AT_ONCE) {
+      await Promise.all(todo.slice(i, i + PRICE_AT_ONCE).map(async ([key, w]) => {
+        const books = await placementBooks(companyId, { scope: 'ALL', pairs, window: w })
+        priced.set(key, new Map(books.map((b) => [b.sellContractId, factOf(b, w.from)])))
+      }))
+    }
   }
 
-  // ── What was posted under each row ───────────────────────────────────
+  // ── What was posted under each row, read once ────────────────────────
   const posted = await prisma.orderPosting.findMany({
-    where: { companyId, kind: 'COMMISSION', source: 'PAYROLL', reversalOfId: null, OR: placed.map((p) => ({ sourceId: { startsWith: `commission-row:${p.r.id}:` } })) },
+    where: { companyId, kind: 'COMMISSION', source: 'PAYROLL', reversalOfId: null, OR: placedAll.map((p) => ({ sourceId: { startsWith: `commission-row:${p.r.id}:` } })) },
     select: { sourceId: true, amountCents: true, txAmountCents: true },
   })
 
-  return placed.map(({ r, sells }) => {
-    const terms: CommissionTerms = {
-      sellContractId: r.sellContractId, buyContractId: r.buyContractId, earnedById: r.earnedById,
-      kind: r.kind, basis: r.basis, rateBps: r.rateBps, amountCents: r.amountCents, capCents: r.capCents,
-      fromDate: r.fromDate, toDate: r.toDate, accrueOn: r.accrueOn, reason: r.reason,
+  return plans.map(({ period, placed, weekly, windows, paidWeeks }) => {
+    const facts = new Map<string, Map<string, WeekFact>>()
+    for (const key of windows.keys()) {
+      const f = priced.get(key)
+      if (f) facts.set(key, f)
     }
-    const weeks: WeekFact[] = []
-    for (const s of sells) {
-      if (r.accrueOn === 'CASH') {
-        for (const key of paidWeeks.get(s.id) ?? []) {
-          const f = facts.get(key)?.get(s.id)
-          if (f) weeks.push(f)
-        }
-      } else {
-        for (const [key, byLine] of facts) {
-          if (!windowsFromAccepted(key, weekly, period)) continue
-          const f = byLine.get(s.id)
-          if (f) weeks.push(f)
+    return placed.map(({ r, sells }) => {
+      const terms: CommissionTerms = {
+        sellContractId: r.sellContractId, buyContractId: r.buyContractId, earnedById: r.earnedById,
+        kind: r.kind, basis: r.basis, rateBps: r.rateBps, amountCents: r.amountCents, capCents: r.capCents,
+        fromDate: r.fromDate, toDate: r.toDate, accrueOn: r.accrueOn, reason: r.reason,
+      }
+      const weeks: WeekFact[] = []
+      for (const s of sells) {
+        if (r.accrueOn === 'CASH') {
+          for (const key of paidWeeks.get(s.id) ?? []) {
+            const f = facts.get(key)?.get(s.id)
+            if (f) weeks.push(f)
+          }
+        } else {
+          for (const [key, byLine] of facts) {
+            if (!windowsFromAccepted(key, weekly, period)) continue
+            const f = byLine.get(s.id)
+            if (f) weeks.push(f)
+          }
         }
       }
-    }
-    const mine = posted.filter((p) => p.sourceId?.startsWith(`commission-row:${r.id}:`))
-    const thisKey = postingKey(r.id, period)
-    const centsOf = (p: (typeof posted)[number]) => Math.abs(p.txAmountCents ?? p.amountCents)
-    const already = mine.filter((p) => p.sourceId !== thisKey).reduce((n, p) => n + centsOf(p), 0)
-    const now = mine.find((p) => p.sourceId === thisKey)
-    const accrual = accrueCommission(terms, weeks, already)
-    const state: RowAccrual['state'] = now
-      ? 'POSTED'
-      : accrual.earnedCents == null ? 'BLANK'
-      : (accrual.amountCents ?? 0) > 0 ? 'ACCRUED'
-      : r.accrueOn === 'CASH' && accrual.weeks === 0 ? 'WAITING'
-      : 'NOTHING'
-    const first = sells[0] ?? null
-    return {
-      id: r.id, kind: r.kind, basis: r.basis, accrueOn: r.accrueOn, terms,
-      earnedBy: r.earnedBy, setBy: r.setBy, setAt: r.setAt,
-      lineId: r.sellContractId ?? r.buyContractId!, side: r.sellContractId ? 'SELL' : 'BUY',
-      sellContractIds: sells.map((s) => s.id),
-      person: first?.person ?? null, client: first?.clientCompany ?? null,
-      accrual, postedCents: now ? centsOf(now) : null, alreadyCents: already, state,
-    }
+      const mine = posted.filter((p) => p.sourceId?.startsWith(`commission-row:${r.id}:`))
+      const thisKey = postingKey(r.id, period)
+      const centsOf = (p: (typeof posted)[number]) => Math.abs(p.txAmountCents ?? p.amountCents)
+      const already = mine.filter((p) => p.sourceId !== thisKey).reduce((n, p) => n + centsOf(p), 0)
+      const now = mine.find((p) => p.sourceId === thisKey)
+      const accrual = accrueCommission(terms, weeks, already)
+      const state: RowAccrual['state'] = now
+        ? 'POSTED'
+        : accrual.earnedCents == null ? 'BLANK'
+        : (accrual.amountCents ?? 0) > 0 ? 'ACCRUED'
+        : r.accrueOn === 'CASH' && accrual.weeks === 0 ? 'WAITING'
+        : 'NOTHING'
+      const first = sells[0] ?? null
+      return {
+        id: r.id, kind: r.kind, basis: r.basis, accrueOn: r.accrueOn, terms,
+        earnedBy: r.earnedBy, setBy: r.setBy, setAt: r.setAt,
+        lineId: r.sellContractId ?? r.buyContractId!, side: r.sellContractId ? 'SELL' : 'BUY',
+        sellContractIds: sells.map((s) => s.id),
+        person: first?.person ?? null, client: first?.clientCompany ?? null,
+        accrual, postedCents: now ? centsOf(now) : null, alreadyCents: already, state,
+      } satisfies RowAccrual
+    })
   })
 }
 
