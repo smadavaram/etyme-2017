@@ -140,6 +140,7 @@ export async function POST(
     // Only for the refusal, so it names a desk rather than a key.
     companyKind: seat ? 'CLIENT' : caller.company?.kind ?? null,
     companyName: seat ? seat.clientCompany.name : caller.company?.name ?? null,
+    publicSeat: caller.publicSeat ?? false,
   }
   /**
    * The company this signature is made *on behalf of*, for everything

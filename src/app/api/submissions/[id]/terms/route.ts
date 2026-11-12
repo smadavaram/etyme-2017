@@ -11,6 +11,7 @@ import {
   checkStatedTerms, engagementOf, perHour, noneDueBeforeAward, ENGAGEMENT_WORDS, TERMS_PAPER,
 } from '@/lib/award/hire-terms'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
+import { orderOnEmploymentLineRefusal } from '@/lib/purchase-order'
 import { placementStatus } from '@/lib/award/placement-status'
 import { nameIfKnown } from '../../name-if-known'
 import { notAPartySays } from './not-a-party'
@@ -63,7 +64,7 @@ async function load(id: string) {
         select: {
           buyContract: {
             select: {
-              id: true, contractType: true, vendorCompanyId: true,
+              id: true, contractType: true, vendorCompanyId: true, workOrderId: true,
               candidates: { select: { id: true, personId: true, payRate: true, payCurrency: true } },
               docs: {
                 where: { template: { name: TERMS_PAPER } },
@@ -305,6 +306,18 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     currency: sell.billCurrency,
   })
   if (!stated.ok) return refuse(stated.code, stated.says, 422)
+  // A pay line that sits on a purchase order is a supplier's line; stating
+  // it as the firm's own W2 would leave an order on an employment line,
+  // which no update may write (`orderOnEmploymentLineRefusal`, the one rule
+  // every buy-line update asks). The line keeps its order; the firm takes
+  // it off the order first, or states it as a supplier's line.
+  if (line) {
+    const onOrder = orderOnEmploymentLineRefusal({
+      contractType: stated.contractType, vendorCompanyId: stated.vendorCompanyId,
+      workOrderId: line.workOrderId, personName: l.sub.person.name,
+    })
+    if (onOrder) return refuse('ORDER_ON_EMPLOYMENT_LINE', onOrder, 409)
+  }
 
   const employee = await employs(l.sub.fromCompanyId, l.sub.personId)
   const holidays = sell.endDate

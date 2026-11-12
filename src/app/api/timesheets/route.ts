@@ -306,6 +306,7 @@ export async function GET(request: NextRequest) {
     // of firm, and under a seat the desk is the client's.
     companyKind: asClient ? 'CLIENT' : caller.company?.kind ?? null,
     companyName: desk?.companyName ?? caller.company?.name ?? null,
+    publicSeat: caller.publicSeat ?? false,
   }
 
   const filingFor = await ownFiling(caller.person.id)

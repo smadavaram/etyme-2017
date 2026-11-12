@@ -344,3 +344,16 @@ describe('the reminders an award for work already under way writes', () => {
     expect(terms).not.toMatch(/onlyPeriodsAfter/)
   })
 })
+
+describe('a purchase order never sits on a W2 pay line stated on the terms', () => {
+  it('stating a pay line that sits on a purchase order as the firm’s own W2 is refused in the one rule’s sentence, and the line keeps its order', () => {
+    const terms = src('src/app/api/submissions/[id]/terms/route.ts')
+    expect(terms).toContain("import { orderOnEmploymentLineRefusal } from '@/lib/purchase-order'")
+    expect(terms).toMatch(/id: true, contractType: true, vendorCompanyId: true, workOrderId: true,/)
+    const asked = terms.indexOf('orderOnEmploymentLineRefusal({')
+    const written = terms.indexOf('tx.buyContract.update(')
+    expect(asked).toBeGreaterThan(0)
+    expect(asked).toBeLessThan(written)
+    expect(terms).toContain("if (onOrder) return refuse('ORDER_ON_EMPLOYMENT_LINE', onOrder, 409)")
+  })
+})

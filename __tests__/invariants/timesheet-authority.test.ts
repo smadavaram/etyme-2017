@@ -102,3 +102,23 @@ describe('approving hours', () => {
     expect(mayApprove(actor({ companyId: 'terumo', permissions: ['*'] }), CONTRACT).ok).toBe(true)
   })
 })
+
+describe('a seat on a public address is told its address is why it may not sign hours', () => {
+  it('a seat invited on a public address is told its address, not its role, is why it may not sign hours off', () => {
+    const v = mayApprove({ ...actor({ companyId: 'terumo', permissions: [] }), companyName: 'Tapin', publicSeat: true }, CONTRACT)
+    expect(v.ok).toBe(false)
+    expect(v.reason).toMatch(/^You were invited to Tapin on a public address/)
+  })
+
+  it('a seat on its company’s own address that cannot sign hours is still told who at the firm does', () => {
+    const v = mayApprove({ ...actor({ companyId: 'terumo', permissions: [] }), companyName: 'Tapin', publicSeat: false }, CONTRACT)
+    expect(v.ok).toBe(false)
+    expect(v.reason).not.toMatch(/public address/)
+  })
+
+  it('every route that asks who may sign hours passes whether the seat is on a public address', () => {
+    for (const f of ['src/app/api/timesheets/route.ts', 'src/app/api/timesheets/[id]/approve/route.ts', 'src/app/api/timesheets/[id]/reject/route.ts']) {
+      expect(require('node:fs').readFileSync(f, 'utf8')).toContain('publicSeat: caller.publicSeat ?? false,')
+    }
+  })
+})

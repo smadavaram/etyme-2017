@@ -25,7 +25,7 @@
  *   which is the whole point of the control, so a vendor approving their
  *   own timesheet would be marking their own homework.
  */
-import { askTheDesk } from '@/lib/permissions'
+import { refusalFor } from '@/lib/api-context'
 
 
 export interface Parties {
@@ -54,6 +54,12 @@ export interface Actor {
    */
   companyKind?: string | null
   companyName?: string | null
+  /**
+   * A seat invited on a public address (`CallerContext.publicSeat`). Only
+   * for the refusal: its address, not its role, is why it may not sign
+   * hours, so it is told that rather than to ask the role it holds.
+   */
+  publicSeat?: boolean
 }
 
 export interface Verdict {
@@ -93,15 +99,14 @@ export function mayApprove(a: Actor, t: Parties): Verdict {
   if (!holds(a, 'timesheets.approve')) {
     // Not "needs the timesheets.approve permission". A key is a thing
     // nobody can grant themselves and it says nothing about what to do;
-    // `askTheDesk` names the desks at this kind of firm that sign hours.
+    // `refusalFor` names the desks at this kind of firm that sign hours,
+    // and tells a seat on a public address that its address is why.
     return {
       ok: false,
-      reason: askTheDesk({
-        doing: 'Signing hours off',
-        needs: 'timesheets.approve',
-        kind: a.companyKind ?? null,
-        companyName: a.companyName ?? null,
-      }),
+      reason: refusalFor(
+        { publicSeat: a.publicSeat ?? false, company: { kind: a.companyKind ?? null, name: a.companyName ?? null } } as Parameters<typeof refusalFor>[0],
+        { doing: 'Signing hours off', needs: 'timesheets.approve' }
+      ),
     }
   }
 
