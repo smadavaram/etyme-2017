@@ -13,7 +13,7 @@ import {
   deskLine, desksOffered, assessDeskChange, waitingLine, inviteLetter,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
   MEMBER_DESK, INVITE_LINK_HOURS, type DeskChange, type InviteLetter,
-  inviteSays, invitedAs, mayHoldOutsideSeat,
+  inviteSays, mayHoldOutsideSeat,
 } from '@/lib/access-grant'
 import { MEMBER_ROLE, rolesFor } from '@/lib/company-defaults'
 import { TEMPLATE_PACKS } from '@/lib/template-packs'
@@ -319,39 +319,24 @@ describe('sign-up walk, round seven: the heading over Your data and Users & perm
 })
 
 describe('what the inviter is told', () => {
-  const base = { personName: 'Dana Whitfield', email: 'dana@northbend.example', roleName: 'Program Manager' }
+  const base = { personName: 'Dana Whitfield', email: 'dana@northbend.example', roleName: 'Program Manager', login: 'https://app.etyme.example/login' }
 
-  it('an invitation never claims an email went when none could, and says to copy it and send it yourself', () => {
-    const none = inviteSays({ ...base, mail: 'NOT_CONFIGURED' })
-    expect(none).toBe('Dana Whitfield has been invited as Program Manager. The seat is theirs when they sign in with dana@northbend.example. No email can be sent from here yet. Press Copy invitation on their row and send it to them yourself; where they have no password yet, Etyme staff hold a one-time link for them.')
+  it('an invitation never claims an email went when none could, and never hands out a sign-in address the person cannot use', () => {
+    const none = inviteSays({ ...base, door: 'PASSWORD', mail: 'NOT_CONFIGURED' })
+    expect(none).toBe('Dana Whitfield has been invited as Program Manager. The seat is theirs when they sign in with dana@northbend.example. No email can be sent from here yet; the one-time link is kept with Etyme staff.')
     expect(none).not.toContain('emailed')
+    expect(none).not.toContain('/login')
 
-    const failed = inviteSays({ ...base, mail: 'FAILED' })
+    const failed = inviteSays({ ...base, door: 'PASSWORD', mail: 'FAILED' })
     expect(failed).toContain('the email to dana@northbend.example did not go')
     expect(failed).not.toContain('/login')
 
-    const sent = inviteSays({ ...base, mail: 'SENT' })
-    expect(sent).toBe('Dana Whitfield has been invited as Program Manager and emailed. The seat is theirs when they sign in with dana@northbend.example. The email tells them how to sign in.')
-  })
+    const sent = inviteSays({ ...base, door: 'PASSWORD', mail: 'SENT' })
+    expect(sent).toBe('Dana Whitfield has been invited as Program Manager and emailed. The seat is theirs when they sign in with dana@northbend.example. The email has a link to set their password.')
 
-  it('what the inviter is told never says whether the address already has a password', () => {
-    // The sentence takes no door at all: whether the person holds a
-    // password, a work account or nothing decides only what the email says.
-    for (const mail of ['SENT', 'FAILED', 'NOT_CONFIGURED', 'DEMO_SKIPPED'] as const) {
-      const says = inviteSays({ ...base, mail })
-      expect(says, mail).not.toMatch(/set their password|already has|has an account|kept with Etyme staff/)
-    }
-    const route = read('src/app/api/access/invite/route.ts')
-    const one = read('src/app/api/access/invite/one.ts')
-    expect(route).not.toContain('wayIn')
-    expect(one).not.toMatch(/personName:\s*person\.name/)
-    expect(one).not.toMatch(/door:\s*sent\.door/)
-  })
-
-  it('an invitation is said under the name the inviter typed, else the address, never the name Etyme already holds', () => {
-    expect(invitedAs('Sam Okafor', 'sam@elsewhere.example')).toBe('Sam Okafor')
-    expect(invitedAs('   ', 'sam@elsewhere.example')).toBe('sam')
-    expect(invitedAs(undefined, 'kemi@nowhere.example')).toBe('kemi')
+    // Somebody who already holds a password, or a work-account door, can use the address.
+    expect(inviteSays({ ...base, door: 'NONE', mail: 'NOT_CONFIGURED' })).toContain('send them the sign-in address yourself: https://app.etyme.example/login.')
+    expect(inviteSays({ ...base, door: 'WORK_ACCOUNT', mail: 'NOT_CONFIGURED' })).toContain('https://app.etyme.example/login')
   })
 })
 
@@ -627,11 +612,11 @@ import { resendVerdict, offersFor } from '@/app/api/access/row-acts'
 import { mailFailureSays } from '@/lib/notify/mail-failure'
 
 describe('an invitation says whether its email left, and why not', () => {
-  const base = { personName: 'Vik Ippili', email: 'vik@partner-mail.example', roleName: 'Admin' }
+  const base = { personName: 'Vik Ippili', email: 'vik@partner-mail.example', roleName: 'Admin', login: 'https://app.etyme.example/login' }
 
   it('an invitation the email sender refused tells the inviter why in Etyme’s words, and says to send it again or copy it', () => {
     const why = mailFailureSays({ kind: 'REFUSED' })
-    const says = inviteSays({ ...base, mail: 'FAILED', reason: why })
+    const says = inviteSays({ ...base, door: 'PASSWORD', mail: 'FAILED', reason: why })
     expect(says).toContain('the email to vik@partner-mail.example did not go.')
     expect(says).toContain(why)
     expect(says).toContain(`Press ${SEND_AGAIN_LABEL} on their row, or ${COPY_LABEL}.`)
@@ -640,7 +625,7 @@ describe('an invitation says whether its email left, and why not', () => {
   })
 
   it('a demo address is said as a demo address, never as a failure', () => {
-    const says = inviteSays({ ...base, mail: 'DEMO_SKIPPED' })
+    const says = inviteSays({ ...base, door: 'PASSWORD', mail: 'DEMO_SKIPPED' })
     expect(says).toContain('This is a demo address, so no email went to it.')
     expect(says).not.toContain('did not go')
   })
