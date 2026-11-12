@@ -12,6 +12,7 @@ import { readRunFile } from '@/lib/money/run-file-read'
 import { confirmRun, readConfirmBody, type RunLineFacts } from '@/lib/money/run-confirm'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
 import { paymentReference } from '@/lib/money/run-file'
+import { tellSupplierPaid } from '@/lib/money/paid-notice'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
@@ -615,6 +616,18 @@ async function confirm(
     )
   }
 
+  // The supplier is told, once per payment just written, after it committed
+  // (lib/money/paid-notice). A confirmation read twice writes nothing the
+  // second time, so it tells nobody the second time.
+  const told = new Map<string, number>()
+  for (const p of result.paid) {
+    told.set(p.paymentId, await tellSupplierPaid({
+      paymentId: p.paymentId, payerName, vendorCompanyId: p.vendorCompanyId, number: p.number,
+      amountCents: p.amountCents, currency: p.currency, paidAt: p.paidAt, payerReference: p.payerReference,
+    }).catch(() => 0))
+  }
+  const untold = [...new Set(result.paid.filter((p) => (told.get(p.paymentId) ?? 0) === 0).map((p) => p.vendorName))]
+
   // The run is paid once every line in it is.
   if (result.paid.length > 0) {
     const left = await prisma.paymentRunItem.count({
@@ -634,9 +647,14 @@ async function confirm(
         reference: paymentReference(p.runItemId), number: p.number, vendorName: p.vendorName,
         amountMinor: p.amountCents, currency: p.currency, paidOn: p.paidAt.toISOString().slice(0, 10),
         payerReference: p.payerReference, paymentId: p.paymentId,
+        suppliersTold: told.get(p.paymentId) ?? 0,
       })),
       refused: result.refused,
-      says: result.says,
+      says:
+        result.says +
+        (untold.length > 0
+          ? ` ${untold.join(', ')} ${untold.length === 1 ? 'has' : 'have'} nobody on Etyme to tell, so tell them yourself.`
+          : result.paid.length > 0 ? ' Each supplier paid is told, in the app and by email where email can leave.' : ''),
     },
   })
 }

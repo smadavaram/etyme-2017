@@ -298,3 +298,46 @@ describe('every field the confirmation refuses without, the screen offers', () =
     expect(confirmBody({ runId: 'r', reference: '  ', paidOn: '' })).toEqual({ action: 'confirm', id: 'r' })
   })
 })
+
+// ── The supplier is told ──────────────────────────────────────────────
+
+import { paidNotice, whoHearsPaid } from '@/lib/money/paid-notice'
+
+describe('the supplier is told the day it is paid, once per payment', () => {
+  it('the notice names the invoice, the amount in its currency, the payer’s reference and the paid date', () => {
+    const n = paidNotice({
+      paymentId: 'pay1', payerName: 'Northbend Athletic', vendorCompanyId: 'pinnacle', number: 'PR-2026-0441',
+      amountCents: 392_000, currency: 'USD', paidAt: new Date('2026-11-13T00:00:00Z'), payerReference: 'ACH-88123',
+    })
+    expect(n.title).toBe('Northbend Athletic paid your invoice PR-2026-0441')
+    expect(n.body).toBe('Northbend Athletic paid your invoice PR-2026-0441: $3,920.00 on November 13, 2026, reference ACH-88123.')
+  })
+
+  it('a dong payment is said in dong, with no cents', () => {
+    const n = paidNotice({
+      paymentId: 'pay2', payerName: 'Corvane Packaging', vendorCompanyId: 'v', number: 'HCM-12',
+      amountCents: 9_240_000, currency: 'VND', paidAt: new Date('2026-11-13T00:00:00Z'), payerReference: 'VCB-1',
+    })
+    expect(n.body).not.toMatch(/\.\d\d\b/)
+    expect(n.body).toContain('9,240,000')
+  })
+
+  it('the supplier’s billing seats hear it; where nobody bills, whoever records payments; where neither, the first seat', () => {
+    expect(whoHearsPaid([
+      { personId: 'owner', permissions: ['settings.manage'] },
+      { personId: 'ar', permissions: ['invoices.issue'] },
+    ])).toEqual(['ar'])
+    expect(whoHearsPaid([
+      { personId: 'owner', permissions: ['settings.manage'] },
+      { personId: 'ap', permissions: ['payments.record'] },
+    ])).toEqual(['ap'])
+    expect(whoHearsPaid([{ personId: 'owner', permissions: [] }])).toEqual(['owner'])
+    expect(whoHearsPaid([])).toEqual([])
+  })
+
+  it('the supplier is told only for a payment the confirmation has just written, so the same file twice tells nobody twice', () => {
+    const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/ap/payment-runs/route.ts'), 'utf8')
+    const confirmPart = ROUTE.slice(ROUTE.indexOf('async function confirm('))
+    expect(confirmPart).toMatch(/for \(const p of result\.paid\) \{\s*told\.set\(p\.paymentId, await tellSupplierPaid\(/)
+  })
+})
