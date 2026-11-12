@@ -23,7 +23,7 @@ import {
 } from '@/lib/public-site/docs-page'
 import { STEP_PAGES, stepRoute, STEP_HEADINGS } from '@/lib/public-site/docs/process'
 import { TOPICS, topicRoute } from '@/lib/public-site/docs/topics'
-import { DOCS_HOME, WHO_DOES_WHAT, REFERENCE, docRoutes, docSlugs } from '@/lib/public-site/docs/index'
+import { DOCS_HOME, WHO_DOES_WHAT, REFERENCE, docRoutes, docSlugs, copyOfDoc as copyOfDocFor } from '@/lib/public-site/docs/index'
 import { oldAddresses, replacementFor } from '@/lib/public-site/docs/redirects'
 import DocsSlugPage from '@/app/(site)/docs/[slug]/page'
 import ProcessHomePage from '@/app/(site)/docs/process/page'
@@ -660,5 +660,36 @@ describe('Etyme never moves money, and the Invoices step says so (the founder, 2
 
   it('the time and money reference says your own system pays what Payables and Payroll approved', () => {
     expect(REFERENCE.find((r) => r.slug === 'time-and-money')!.lines.join(' ')).toContain('Your own system pays them.')
+  })
+})
+
+describe('The documentation says who runs a company on Etyme, and how its people sign in (the founder, 2026-11-11)', () => {
+  const words = (path: string) => { const c = copyOfDocFor(path)!; return [...c.hero, ...c.body].join(' ') }
+
+  it('who does what says, inside a company, an Owner runs the business, an Admin manages people and settings and never acts on an Owner, and a new company’s first person is an Admin until ownership is proven', () => {
+    expect(WHO_DOES_WHAT.inside.heading).toBe('Inside a company')
+    expect(WHO_DOES_WHAT.inside.lines).toEqual([
+      'An Owner runs the business.',
+      'An Admin manages people and settings, and never acts on an Owner.',
+      'A new company’s first person is an Admin until ownership is proven.',
+    ])
+    expect(words('who-does-what')).toContain('never acts on an Owner')
+    // The two words are used exactly; the Admin is never called a manager of the business or an IT owner.
+    expect(words('who-does-what')).not.toMatch(/IT owner|super-?owner|tenant admin/i)
+  })
+
+  it('the who does what page draws the lines under their own heading, after the table', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/public-site/docs-page.tsx'), 'utf8')
+    const view = src.slice(src.indexOf('export function WhoDoesWhatView'))
+    expect(view.indexOf('<Table')).toBeLessThan(view.indexOf('{w.inside.heading}'))
+    expect(view).toContain('<Lines lines={w.inside.lines} />')
+  })
+
+  it('the integrations page says how people sign in: a client’s team through its own directory with no separate Etyme password, a small team by invitation with the account it already has', () => {
+    const lines = REFERENCE.find((r) => r.slug === 'integrations')!.lines
+    expect(lines).toContain('For a client: your team signs in through your company’s directory. No separate Etyme password.')
+    expect(lines).toContain('For a small team: invited by email, sign in with the account you already have.')
+    // No company-size range, and no claim of a sign-in standard that is not built.
+    expect(words('integrations')).not.toMatch(/\b\d+\s*(?:–|-|to)\s*\d+\s+(?:contractors|people|employees|seats)\b|\bSAML\b|government/i)
   })
 })

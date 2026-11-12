@@ -253,6 +253,8 @@ export function WhoDoesWhatView() {
     <Page here={`/docs/${w.slug}`} title={w.title} lede={w.lede}>
       <Table columns={w.columns} rows={w.rows.map((r) => [r.who, r.buysFrom, r.sellsTo, r.sees])} />
       <p className="mt-3 text-[14px] leading-relaxed text-etyme-muted">{w.closing}</p>
+      <H2>{w.inside.heading}</H2>
+      <div className="mt-3"><Lines lines={w.inside.lines} /></div>
     </Page>
   )
 }
