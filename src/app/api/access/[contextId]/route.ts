@@ -49,27 +49,36 @@ export async function POST(
       { status: 403 }
     )
   }
-  if (!hasPermission(caller.permissions, 'team.manage')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: askTheDesk({
-            doing: 'Changing somebody’s access here',
-            needs: 'team.manage',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
-          }),
-        },
-      },
-      { status: 403 }
-    )
-  }
-
   const { contextId } = await params
   const body = await request.json().catch(() => ({}))
   const action = String(body.action ?? '')
   const reason = String(body.reason ?? '').trim()
+
+  // Every refusal below is written to the access log, and waited for,
+  // before it is sent (security review, 2026-11-12). Its subject is the
+  // person whose seat was asked about, wherever the seat is; nothing about
+  // them goes into the reply.
+  const askedAbout = await prisma.context.findUnique({ where: { id: contextId }, select: { personId: true } })
+  const refuse = async (status: number, code: string, message: string) => {
+    if (askedAbout) {
+      await recordRefusal([askedAbout.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: action === 'suspend' ? 'ACCESS_SUSPEND' : action === 'reinstate' ? 'ACCESS_REINSTATE' : 'ACCESS_REVOKE',
+        reason: message,
+      })
+    }
+    return NextResponse.json({ error: { code, message } }, { status })
+  }
+
+  if (!hasPermission(caller.permissions, 'team.manage')) {
+    return refuse(403, 'FORBIDDEN', askTheDesk({
+      doing: 'Changing somebody’s access here',
+      needs: 'team.manage',
+      kind: caller.company?.kind,
+      companyName: caller.company?.name,
+    }))
+  }
 
   if (!['suspend', 'reinstate', 'revoke'].includes(action)) {
     return NextResponse.json(
@@ -82,23 +91,13 @@ export async function POST(
   // know who else could let people in.
   const all = await loadAll(caller.company.id)
   const target = all.find((r) => r.contextId === contextId)
-  if (!target) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Nobody here with that seat' } },
-      { status: 404 }
-    )
-  }
+  if (!target) return refuse(404, 'NOT_FOUND', 'Nobody here with that seat')
 
   const person = await prisma.context.findUnique({
     where: { id: contextId },
     select: { person: { select: { id: true, name: true, primaryEmail: true } }, role: { select: { name: true } } },
   })
-  if (!person) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Nobody here with that seat' } },
-      { status: 404 }
-    )
-  }
+  if (!person) return refuse(404, 'NOT_FOUND', 'Nobody here with that seat')
 
   // Ending or pausing somebody's access is not a thing to do without
   // saying why. The reviewer in six months is rarely the person who did it.
@@ -125,12 +124,7 @@ export async function POST(
       : action === 'reinstate' ? canReinstate(target, actor)
         : canRevoke(target, all, actor)
 
-  if (!verdict.allowed) {
-    return NextResponse.json(
-      { error: { code: 'REFUSED', message: verdict.reason } },
-      { status: 409 }
-    )
-  }
+  if (!verdict.allowed) return refuse(409, 'REFUSED', verdict.reason)
 
   const now = new Date()
   const actorId = realPersonId(caller)

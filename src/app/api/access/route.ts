@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
+import { recordRefusal } from '@/lib/access-log'
 import {
   assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
@@ -381,25 +382,29 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!hasPermission(caller.permissions, 'settings.manage')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: askTheDesk({
-            doing: 'Giving somebody a seat here',
-            needs: 'settings.manage',
-            kind: caller.company.kind,
-            companyName: caller.company.name,
-          }),
-        },
-      },
-      { status: 403 }
-    )
+  const body = await request.json().catch(() => ({}))
+  const { contextId, roleId, days, reason } = body
+
+  // A refusal about a seat is written, and waited for, before it is sent
+  // (security review, 2026-11-12), naming the person whose seat was asked
+  // about wherever it is; nothing about them goes into the reply.
+  const refuseAbout = async (message: string) => {
+    const asked = typeof contextId === 'string'
+      ? await prisma.context.findUnique({ where: { id: contextId }, select: { personId: true } })
+      : null
+    if (asked) await recordRefusal([asked.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'DESK_CHANGE', reason: message })
   }
 
-  const body = await request.json()
-  const { contextId, roleId, days, reason } = body
+  if (!hasPermission(caller.permissions, 'settings.manage')) {
+    const message = askTheDesk({
+      doing: 'Giving somebody a seat here',
+      needs: 'settings.manage',
+      kind: caller.company.kind,
+      companyName: caller.company.name,
+    })
+    await refuseAbout(message)
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message } }, { status: 403 })
+  }
 
   const target = await prisma.context.findFirst({
     where: { id: contextId, companyId: caller.company.id, revokedAt: null },
@@ -409,6 +414,7 @@ export async function POST(request: NextRequest) {
     },
   })
   if (!target) {
+    await refuseAbout('That person is not at this company')
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'That person is not at this company' } },
       { status: 404 }
@@ -469,8 +475,11 @@ export async function POST(request: NextRequest) {
       })
       return NextResponse.json({ data: { message: says } })
     }
+    const message = alone ? 'Say why, in a sentence. It is kept beside the change with your name.' : ownerMovesOnOwnersPage(target.person.name)
+    // Written, and waited for, before the refusal is sent (security review, 2026-11-12).
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: message })
     return NextResponse.json(
-      { error: { code: 'DESK_REFUSED', message: alone ? 'Say why, in a sentence. It is kept beside the change with your name.' : ownerMovesOnOwnersPage(target.person.name), href: '/dashboard/settings/owners' } },
+      { error: { code: 'DESK_REFUSED', message, href: '/dashboard/settings/owners' } },
       { status: 422 }
     )
   }
@@ -493,6 +502,7 @@ export async function POST(request: NextRequest) {
     personName: target.person.name,
   })
   if (!move.allowed) {
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: move.says })
     return NextResponse.json(
       { error: { code: 'DESK_REFUSED', message: move.says } },
       { status: 422 }
@@ -519,6 +529,7 @@ export async function POST(request: NextRequest) {
   })
 
   if (!decision.allowed) {
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: decision.summary })
     return NextResponse.json(
       {
         error: {

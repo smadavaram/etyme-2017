@@ -317,6 +317,32 @@ describe('Users & permissions names everybody by address and withdraws an invita
     it_.waitingOwner = seat.id
   })
 
+  it('an Admin asked to pause an Owner is refused in a sentence, and the refusal is in the access log before it is sent', async () => {
+    const owner = await prisma.context.findFirstOrThrow({
+      where: { companyId: it_.firm, role: { name: 'Owner' }, revokedAt: null, person: { primaryEmail: OWNER } },
+      select: { id: true, personId: true },
+    })
+    as('ines.admin@brightmoor.demo.etyme.local')
+    const r = await json(await seatAct(req('POST', `/api/access/${owner.id}`, { action: 'suspend', reason: 'Trying' }), seatParams(owner.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('REFUSED')
+    const logged = await prisma.accessLog.findFirst({ where: { subjectId: owner.personId, action: 'ACCESS_SUSPEND', allowed: false } })
+    expect(logged, 'the refusal was sent with no row behind it').not.toBeNull()
+  })
+
+  it('an Admin asked to move an Owner off Owner is refused, and the refusal is in the access log before it is sent', async () => {
+    const owner = await prisma.context.findFirstOrThrow({
+      where: { companyId: it_.firm, role: { name: 'Owner' }, revokedAt: null, person: { primaryEmail: OWNER } },
+      select: { id: true, personId: true },
+    })
+    as('ines.admin@brightmoor.demo.etyme.local')
+    const r = await json(await grant(req('POST', '/api/access', { contextId: owner.id, roleId: it_.roles['Admin'], days: null, reason: 'Trying' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.code).toBe('DESK_REFUSED')
+    const logged = await prisma.accessLog.findFirst({ where: { subjectId: owner.personId, action: 'DESK_CHANGE', allowed: false } })
+    expect(logged, 'the refusal was sent with no row behind it').not.toBeNull()
+  })
+
   it('an Owner withdraws another Owner’s invitation while she stays an Owner herself', async () => {
     as(OWNER)
     const r = await json(await withdraw(req('DELETE', `/api/access/${it_.waitingOwner}`), seatParams(it_.waitingOwner)))
