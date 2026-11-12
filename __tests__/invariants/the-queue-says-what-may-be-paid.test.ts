@@ -74,9 +74,9 @@ describe('one invoice receipt is one item in the count', () => {
     expect(route).toContain("q.entityType === 'Invoice' && RECEIPT_QUESTIONS.has(q.action)")
     expect(route).toContain("decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)")
     // Every receipt row carries the question's id (Pay, held by the check,
-    // held on the bank: walk 7, 2026-11-08), so Ask Etyme can still draw
-    // the twin's card on the one row.
-    expect(route.match(/twinApprovalId,\n/g)?.length).toBe(3)
+    // held on the bank: walk 7, 2026-11-08; held for a verified Owner:
+    // 2026-11-12), so Ask Etyme can still draw the twin's card on the one row.
+    expect(route.match(/twinApprovalId,\n/g)?.length).toBe(4)
   })
 })
 
@@ -137,5 +137,47 @@ describe('a seat’s program queue is callable for Ask Etyme, from the code the 
     expect(queue).toContain('export async function programQueue(')
     expect(queue).toContain('await programView(caller, requestedClientId, opts)')
     expect(read('src/app/api/program/route.ts')).toContain("await programView(caller, request.nextUrl.searchParams.get('clientCompanyId'))")
+  })
+})
+
+describe('Pay is never offered where the company still waits for a verified Owner', () => {
+  const line = { says: 'Tapin has no verified Owner yet, so no money leaves it. An Owner proves the company and themselves under Setup.', href: '/dashboard/settings/setup/prove-ownership', linkSays: 'Prove ownership' }
+
+  it('a receipt that would be Pay at a company waiting for a verified Owner is held in the gate’s own sentence, and opens Prove ownership', async () => {
+    const { ownerWaitsReceiptDecision } = await import('@/app/api/decisions/receipt-to-pay')
+    const row = ownerWaitsReceiptDecision(receipt, line, NOW)
+    expect(row.title).toBe('Held: paying waits for a verified Owner — Pinnacle Resourcing')
+    expect(row.subtitle.endsWith(line.says)).toBe(true)
+    expect(row.reason).toBe(line.says)
+    expect(row.actionUrl).toBe(line.href)
+    expect(row.payWaits.linkSays).toBe('Prove ownership')
+  })
+
+  it('a receipt held for a verified Owner adds nothing to the money waiting to be paid, and is never read as a bank hold', async () => {
+    const { ownerWaitsReceiptDecision } = await import('@/app/api/decisions/receipt-to-pay')
+    const { isBankHeld } = await import('@/app/api/conversations/twin/held-receipt')
+    const row = ownerWaitsReceiptDecision(receipt, line, NOW)
+    expect(row.amount).toBeNull()
+    expect(isBankHeld({ type: 'INVOICE_RECEIPT_HELD', title: row.title, subtitle: row.subtitle, reason: row.reason })).toBe(false)
+  })
+
+  it('the queue reads the Owner gate the payment route reads before it writes any Pay row', () => {
+    const route = read('src/app/api/decisions/route.ts')
+    expect(route).toContain("import { payWaitsAt } from '@/lib/money/pay-waits'")
+    const gate = route.indexOf('await payWaitsAt(companyId)')
+    const pay = route.indexOf("type: 'INVOICE_RECEIPT_TO_PAY'")
+    expect(gate).toBeGreaterThan(0)
+    expect(gate).toBeLessThan(pay)
+    expect(route.slice(gate, pay)).toContain('ownerWaitsReceiptDecision(receipt, ownerWaits, now)')
+  })
+
+  it('Today draws no Pay on a receipt held for a verified Owner, and opens the step instead', async () => {
+    const { ownerWaitsReceiptDecision } = await import('@/app/api/decisions/receipt-to-pay')
+    const { todayRows } = await import('@/components/twin-conversation/today-decisions')
+    const row = { type: 'INVOICE_RECEIPT_HELD', named: { whose: 'Pinnacle Resourcing' }, ...ownerWaitsReceiptDecision(receipt, line, NOW) }
+    const [card] = todayRows({ data: { decisions: [row], total: 1 } }).rows
+    expect(card.act).toBeNull()
+    expect(card.open).not.toBe('Pay')
+    expect(card.href).toBe(line.href)
   })
 })

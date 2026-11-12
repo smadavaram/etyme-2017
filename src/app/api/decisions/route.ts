@@ -22,7 +22,8 @@ import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { firmsAcceptingOnlyFor } from '@/lib/money/own-firm-acceptance'
 import { disputedBillDecision } from './disputed-bill'
-import { receiptToPayDecision, heldReceiptDecision, bankHeldReceiptDecision, type BankHold } from './receipt-to-pay'
+import { receiptToPayDecision, heldReceiptDecision, bankHeldReceiptDecision, ownerWaitsReceiptDecision, type BankHold } from './receipt-to-pay'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { mayPayFirm } from '@/lib/setup-gates'
 import { bankHoldAt } from '@/lib/money/bank-check-read'
 import { matchInvoices, payGate } from '@/lib/invoice-match'
@@ -1141,6 +1142,12 @@ export async function GET(request: NextRequest) {
       return [{ inv, outstandingCents, vendorName: parties.vendor?.name ?? 'Your supplier', parties }]
     })
     const checked = await matchInvoices(payable.map((p) => p.inv.id))
+    // The Owner gate the payment route reads first (`payWaitsAt`): at a
+    // company still waiting for a verified Owner no receipt is Pay, and
+    // each says the gate's own sentence with its link instead. Read once,
+    // only where something would be paid; a read that fails holds nothing
+    // back, because the payment route still refuses in its own sentence.
+    const ownerWaits = payable.length > 0 ? await payWaitsAt(companyId).catch(() => null) : null
     // The bank gate the payment write reads (`mayPayFirm`), once per
     // supplier rather than once per receipt, and where it holds, money's
     // own sentence to this reader (`bankHoldAt`): who checks, or "Check
@@ -1167,6 +1174,15 @@ export async function GET(request: NextRequest) {
       const twinApprovalId = askedOn.get(inv.id) ?? null
       if (twinApprovalId) foldedQuestions.add(twinApprovalId)
       if (payGate(inv, match).ok) {
+        if (ownerWaits) {
+          decisions.push({
+            type: 'INVOICE_RECEIPT_HELD',
+            named: { whose: vendorName, what: 'held invoice receipt', whats: 'held invoice receipts' },
+            ...ownerWaitsReceiptDecision(receipt, ownerWaits, now),
+            twinApprovalId,
+          })
+          continue
+        }
         const payer = parties.client ?? caller.company
         const hold = payer && parties.vendor
           ? await bankHoldFor(

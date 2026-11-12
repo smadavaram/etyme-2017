@@ -211,3 +211,40 @@ export function bankHeldReceiptDecision(r: ReceiptToPay, hold: BankHold, now: Da
     createdAt: (r.receivedAt ?? r.dueAt).toISOString(),
   }
 }
+
+// ── A company waiting for a verified Owner pays nobody ───────────────
+//
+// The proof rule (founder, 2026-11-11): until a company has a verified
+// Owner, no money leaves it, and the payment route refuses Pay in the
+// gate's own sentence. A row that offered Pay there offered a button the
+// route refuses, and the AP clerk learned the rule by pressing it. So a
+// receipt that would otherwise be Pay is held, in the gate's own sentence
+// (`payWaitsAt` in lib/money/pay-waits), and opens the step that clears
+// it, Prove ownership. One row, counted once, as the bank hold is.
+
+/** The Owner gate's line as `payWaitsAt` returns it, where it holds. */
+export interface PayWaits {
+  says: string
+  href: string | null
+  linkSays: string | null
+}
+
+export function ownerWaitsReceiptDecision(r: ReceiptToPay, line: PayWaits, now: Date): HeldReceiptDecision & { reason: string; payWaits: PayWaits } {
+  const currency = (r.currency || 'USD').toUpperCase()
+  const daysToDue = Math.floor((r.dueAt.getTime() - now.getTime()) / DAY)
+  return {
+    title: `Held: paying waits for a verified Owner — ${r.vendorName}`,
+    subtitle: [`Invoice ${r.number}`, amount(r.outstandingCents, currency), dueSays(r.dueAt, now), line.says].join(' · '),
+    urgency: daysToDue <= 7 ? 'HIGH' : 'MEDIUM',
+    entityType: 'INVOICE',
+    entityId: r.id,
+    dueDate: r.dueAt.toISOString(),
+    // The step that clears it, never the receipt's Pay.
+    actionUrl: line.href ?? `/dashboard/invoices/${r.id}`,
+    amount: null,
+    createdAt: (r.receivedAt ?? r.dueAt).toISOString(),
+    reason: line.says,
+    /** The gate's line whole, so a screen draws its sentence and its link words in place of Pay. */
+    payWaits: line,
+  }
+}
