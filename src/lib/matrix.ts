@@ -1408,7 +1408,8 @@ export const MATRIX: L1[] = [
             'FIXED 2026-10-27 by etyme-architect: the invited colleague lands in Ask Etyme itself (ASK_ETYME_HREF), so a phone opens the chat and not the thread list',
             'BUILT 2026-10-29 by etyme-architect (\u201cTapin gets agents, not a website\u201d, step 4): a firm\u2019s Etyme address on a subdomain (tapin.etyme.com) opens its generated page by a rewrite, never a redirect, asked of the page\u2019s own public reader; a subdomain that names no firm with a page, or does not answer in 1.5 seconds, opens the home page; signing in, signing up and the dashboard on a firm\u2019s address are sent to the platform\u2019s own host \u2014 src/middleware.ts. The DNS wildcard for *.etyme.com on the deployment is the founder\u2019s',
             'DONE 2026-11-03 by etyme-conversation (587d75767): a firm that employs or lists a person with no account reads a sign-in link on the person\u2019s row, to copy where no email can leave and sent with Send again where it can; a reserved demo address is never given a password (src/lib/notify/sign-in-link.ts)',
-            'DONE 2026-11-03 by etyme-supply (63687d592): a firm\u2019s consultant drawer and its bench rows show the person\u2019s one-time sign-in link where the person has no account'],
+            'DONE 2026-11-03 by etyme-supply (63687d592): a firm\u2019s consultant drawer and its bench rows show the person\u2019s one-time sign-in link where the person has no account',
+            'BUILT 2026-11-12 by etyme-architect (founder: \u201cRebuild this path really simple\u201d): the sign-in page asks for the email first \u2014 one email box and two full-width buttons of equal size, Create your account first and Sign in second; Sign in asks /api/auth/doors which door that address\u2019s company allows and draws only it: its directory (straight there), Google or Microsoft where the deployment holds their keys, or a password; a directory-only domain is never offered a password; the answer is decided from the domain, never from whether the address has an account (doorsFor in lib/login-doors)'],
           implementedBy: ['src/app/(auth)/another-account.tsx', 'src/lib/auth.ts', 'src/lib/login-doors.ts', 'src/lib/own-seat.ts', 'src/lib/api-context.ts', 'src/lib/password.ts', 'src/lib/password-door.ts', 'src/lib/seat-member.ts', 'src/lib/auth.ts',
             'src/lib/staff-bootstrap.ts', 'src/app/api/staff/bootstrap-company/route.ts',
             'src/lib/domains-owned.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts', 'src/lib/seed-rebuild.ts',
@@ -1425,6 +1426,7 @@ export const MATRIX: L1[] = [
             'src/app/api/health/route.ts', 'src/middleware.ts',
             'src/app/api/notifications/sign-in-link/route.ts', 'src/app/dashboard/conversations/sign-in-link.tsx', 'src/lib/notify/sign-in-link-door.ts', 'src/lib/notify/sign-in-link.ts',
             'src/app/dashboard/bench/our-bench.tsx', 'src/app/dashboard/consultants/page.tsx',
+            'src/app/api/auth/doors/route.ts',
           ],
           testedBy: ['__tests__/invariants/sign-up-heading.test.ts', '__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
             '__tests__/invariants/company-domains.test.ts', '__tests__/invariants/setup-steps.test.ts',
@@ -1433,6 +1435,7 @@ export const MATRIX: L1[] = [
             '__integration__/onboarding-followups.test.ts',
             '__integration__/sign-in-link.test.ts', '__tests__/invariants/sign-in-link.test.ts',
             '__tests__/components/consultants.test.ts',
+            '__tests__/invariants/sign-in-email-first.test.ts',
           ] },
         // Enterprise identity (founder, 2026-11-11, "go identity"): the
         // client's own directory is the only door, small teams stay
