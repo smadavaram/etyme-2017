@@ -425,16 +425,22 @@ export type BenchReading =
        * or asks for papers (`onTheBench`).
        */
       asked: BenchRow[]
+      /**
+       * Who is on the firm's bench today by the one list (`benchAt`) that
+       * Consultants, Today and Ask Etyme read; null where the route did not
+       * read it (a partner's bench, a person's own listings).
+       */
+      onBench: number | null
       why: null
     }
   /**
    * The shape was not understood. `rows` is empty and must not be read as
    * a count of anything — `why` is what goes on the screen instead.
    */
-  | { ok: false; rows: []; retained: null; marketing: null; asked: []; why: string }
+  | { ok: false; rows: []; retained: null; marketing: null; asked: []; onBench: null; why: string }
 
 function unreadable(why: string): BenchReading {
-  return { ok: false, rows: [], retained: null, marketing: null, asked: [], why }
+  return { ok: false, rows: [], retained: null, marketing: null, asked: [], onBench: null, why }
 }
 
 /**
@@ -614,6 +620,7 @@ export function readBench(payload: unknown): BenchReading {
     retained: rows.filter((r) => r.tier === 'RETAINED').length,
     marketing: rows.filter((r) => r.tier === 'MARKETING').length,
     asked,
+    onBench: typeof data.totals?.onBench === 'number' ? data.totals.onBench : null,
     why: null,
   }
 }

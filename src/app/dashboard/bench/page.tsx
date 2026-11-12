@@ -585,6 +585,8 @@ export default function BenchPage() {
   const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
   // Whom the firm asked and who has not said yes: listed apart from the
   // bench, never in it (`onTheBench`, the screen walk of 2026-10-22).
+  // The one bench count (`benchAt`) Consultants, Today and Ask Etyme give.
+  const [onBenchCount, setOnBenchCount] = useState<number | null>(null)
   const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; personId: string; name: string; consent: string | null }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -691,6 +693,7 @@ export default function BenchPage() {
       setRoster([])
       setRosterSays(null)
       setEntries(flat)
+      setOnBenchCount(forScope === 'company' ? reading.onBench : null)
       const askedRows = forScope === 'company'
         ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, personId: r.personId, name: r.name, consent: r.consent }))
         : []
@@ -706,6 +709,7 @@ export default function BenchPage() {
       if (thisRequest !== requestId.current) return
       setError(err.message)
       setEntries([])
+      setOnBenchCount(null)
       setAskedPeople([])
       setRoster([])
     } finally {
@@ -1167,7 +1171,9 @@ export default function BenchPage() {
       {/* Stats row */}
       {scope !== 'payroll' && !loading && (entries.length > 0 || askedPeople.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-          <Stat label="Total" value={stats.total} />
+          {onBenchCount != null
+            ? <Stat label="On the bench" value={onBenchCount} />
+            : <Stat label="Total" value={stats.total} />}
           <Stat label={TIER_WORD.RETAINED} value={stats.retained} tone="verified" />
           <Stat label={scope === 'network' ? 'Shown to you' : TIER_WORD.MARKETING} value={stats.marketing} />
           <Stat label="Invited, waiting" value={stats.waiting} tone="attention" />

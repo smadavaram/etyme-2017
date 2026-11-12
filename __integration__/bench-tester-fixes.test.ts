@@ -3,6 +3,8 @@ import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as bench } from '@/app/api/bench/route'
 import { POST as nudge } from '@/app/api/bench/listings/[id]/nudge/route'
 import { poolFor } from '@/lib/match-pool'
+import { GET as consultants } from '@/app/api/consultants/route'
+import { benchAt } from '@/app/api/today/reads'
 
 /**
  * The bench tester's findings of 2026-09-30, walked on the seeded world.
@@ -94,5 +96,17 @@ describe('matching', () => {
     const pool = await poolFor({ id: job.id, companyId: cloud.id, payerCompanyId: null, endClientCompanyId: null, startDate: job.startDate }, cloud.id, { suggest: false })
     expect(pool.entries.map((e) => e.personId)).not.toContain(helena.id)
     expect(pool.says).toMatch(/placed past the day this job starts/)
+  })
+})
+
+describe('the Bench page counts the bench from the one shared list', () => {
+  it('the Bench page\'s bench count is the number Consultants and Today read for the same firm', async () => {
+    as(TECHPEPLE)
+    const b = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const c = await json(await consultants(req('GET', '/api/consultants')))
+    const today = await benchAt(cloud.id, new Date())
+    expect(b.body.data.totals.onBench).toBe(today.length)
+    expect(c.body.data.bench, JSON.stringify(c.body).slice(0, 300)).not.toBeNull()
+    expect(b.body.data.totals.onBench).toBe(c.body.data.bench.count)
   })
 })

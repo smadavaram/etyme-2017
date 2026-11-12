@@ -137,6 +137,16 @@ describe('Consultants, Today and Ask Etyme count the bench from one list', () =>
     expect(page).not.toContain('ready to deploy')
   })
 
+  it('the Bench page reads the same benchAt list for its count, so its tile cannot differ from Consultants, Today and Ask Etyme', () => {
+    const route = read('src/app/api/bench/route.ts')
+    expect(route).toContain("import { benchAt } from '@/app/api/today/reads'")
+    expect(route).toContain("scope === 'company' && companyId ? await benchAt(companyId, now) : null")
+    expect(route).toContain('onBench: benchToday ? benchToday.length : null')
+    const page = read('src/app/dashboard/bench/page.tsx')
+    expect(page).toContain("setOnBenchCount(forScope === 'company' ? reading.onBench : null)")
+    expect(page).toContain('<Stat label="On the bench" value={onBenchCount} />')
+  })
+
   it('three people said yes to Tapin and one is on a project, so Consultants reads two on the bench, the number Today and Ask Etyme read', async () => {
     h.bench = [
       { personId: 'anika', name: 'Anika Shah', since: '2026-10-20' },

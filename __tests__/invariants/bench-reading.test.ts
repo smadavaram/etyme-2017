@@ -92,3 +92,15 @@ describe('the bench answer has one reader', () => {
     expect(r.why).toBeNull()
   })
 })
+
+describe('the bench page counts the bench from the one shared list', () => {
+  it('the count the route read from the shared bench list is handed to the page as it came', () => {
+    const a = answer([listing()]) as any
+    a.data.totals.onBench = 4
+    expect(readBench(a).onBench).toBe(4)
+  })
+
+  it('a partner\'s bench, which reads no shared count, gives no count rather than a guessed one', () => {
+    expect(readBench(answer([listing()])).onBench).toBeNull()
+  })
+})

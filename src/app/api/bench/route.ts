@@ -19,6 +19,7 @@ import {
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 import { stayEndedRow, stayRow } from '@/lib/bench-stay'
+import { benchAt } from '@/app/api/today/reads'
 import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany, onTheBench } from '@/lib/bench-filter'
 
 /**
@@ -226,6 +227,14 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // Who is on the firm's bench today is one list, `benchAt`
+  // (app/api/today/reads), read by Consultants, Today and Ask Etyme. The
+  // tile here reads the same list, so four screens cannot give four
+  // numbers (the second Tapin walk, 2026-10-30). Only the count and each
+  // listed person's place on it leave this route; nobody's name is added.
+  const benchToday = scope === 'company' && companyId ? await benchAt(companyId, now) : null
+  const onBenchToday = benchToday ? new Set(benchToday.map((b) => b.personId)) : null
+
   // When each of them is free, read off the work at any firm — one door
   // (`whenFree`), the same one the matches and the training page read,
   // so no page calls somebody free whom another calls placed.
@@ -328,6 +337,8 @@ export async function GET(request: NextRequest) {
       free: freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
       stay: stayRow({ state: l.state, stayDays: l.stayDays, staysUntil: l.staysUntil }, now),
       oursSays: oursOf.get(l.consultant.personId) ?? null,
+      // Whether `benchAt` names them today; null where this scope does not read it.
+      onBenchToday: onBenchToday ? onBenchToday.has(l.consultant.personId) : null,
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,
       grantedAt: l.grantedAt.toISOString(),
@@ -462,6 +473,9 @@ export async function GET(request: NextRequest) {
         MARKETING: grouped.MARKETING?.length ?? 0,
         total: (grouped.RETAINED?.length ?? 0) + (grouped.MARKETING?.length ?? 0),
         waiting,
+        // The one bench count Consultants, Today and Ask Etyme give; null
+        // outside the firm's own bench.
+        onBench: benchToday ? benchToday.length : null,
       },
       asked,
       ended,
