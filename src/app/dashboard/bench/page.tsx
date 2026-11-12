@@ -1628,7 +1628,7 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
                 Paid in {t.currency} · {t.count} {t.count === 1 ? 'person' : 'people'}
               </div>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-2">
               <div>
                 <div className="stat-label text-[9px] mb-0.5">Daily Burn</div>
                 <div className="text-2xl font-serif font-medium text-etyme-attention tabular-nums">
