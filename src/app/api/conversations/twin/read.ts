@@ -57,6 +57,7 @@ import { reachFor, jobInReach, outsideReachSays, type Reach } from '@/app/api/re
 import { GET as complianceRoute } from '@/app/api/compliance/route'
 import { labelFor } from '@/lib/document-type'
 import { maySendBills } from '@/lib/money/bill-send'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { billsDueToday } from './bill-due'
 import { NEEDS_RATE, PUT_FORWARD_SIGNED_IN } from '@/lib/twin/supplier-performers'
 import { mayChasePaper } from '@/lib/setup-gates'
@@ -784,6 +785,12 @@ export function readersFor(
         })
       }
       return { ok: true as const, receipts: out }
+    },
+
+    async payWaits() {
+      // The gate the payment route reads first, for this seat's own company only.
+      if (!ownCompany) return null
+      return payWaitsAt(companyId)
     },
 
     async papersGate(): Promise<string | null> {

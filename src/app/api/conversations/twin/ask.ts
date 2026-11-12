@@ -2399,6 +2399,12 @@ export interface Readers {
    * sentence; null otherwise. Optional: a reader for a client has none.
    */
   papersGate?(): Promise<string | null>
+  /**
+   * The Owner gate's line on paying (`payWaitsAt` in lib/money/pay-waits)
+   * where this company still waits for a verified Owner; null where it may
+   * pay. Read only where one of Etyme's own questions asks to pay.
+   */
+  payWaits?(): Promise<PayWaitsLine | null>
   /** A placement or a receipt the message names, at this company, where it names one. */
   named(text: string): Promise<Named>
   /** Weeks waiting for this company's signature, oldest first, at most WEEKS_SHOWN, and how many in all. */
@@ -2919,7 +2925,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   const now = opts.now ?? new Date()
   const month = monthOf(now)
   const party = opts.party ?? 'CLIENT'
-  const [items, others, limits, told, spend, needsRaw, held, picture, billing] = await Promise.all([
+  const [asked, others, limits, told, spend, needsRaw, held, picture, billing] = await Promise.all([
     read.waiting(), read.othersWaiting(), read.limits(), read.told(),
     opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
     opts.needs ? opts.needs().catch(() => null) : Promise.resolve(null),
@@ -2936,6 +2942,11 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // The queue's count, and where the route read them, its rows.
   const queue: QueueRead | null = needsRaw == null ? null : typeof needsRaw === 'number' ? { total: needsRaw, items: [] } : needsRaw
   const needs = queue?.total ?? null
+  // Etyme's own pay questions at a company still waiting for a verified
+  // Owner: held, never a Pay card (the payment route refuses it there).
+  // The nightly run raises none there now (a7fcc1324); this holds one
+  // raised before, and is the same gate the queue and the route read.
+  const { items, payHeld } = await withoutHeldPay(asked, queue, read)
 
   // Recommendation first: what this desk should do, in that order. It
   // names the reader's own work only (walk three, 2026-10-26: compliance
@@ -3020,6 +3031,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // confirmed: the gate's own sentence, once however many starts it held,
   // and like the setup line never counted.
   if (papersGate) more.push(papersGateLine(papersGate))
+  if (payHeld) more.push(payHeld)
   if (opts.greeting && (opts.notices || opts.threads)) {
     const said = heldNoticeTitles(held)
     // Nor is the twin's own question said again as the notice that told
@@ -3045,6 +3057,42 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   return {
     kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
     items, ...(held.length ? { held } : {}), ...(cards.length ? { queue: cards } : {}), more, ...(opts.greeting ? { greeting: true } : {}),
+  }
+}
+
+/** Whether one of Etyme's own questions asks this seat to pay an invoice receipt. */
+function asksToPay(i: WaitingItem): boolean {
+  return i.action === RECEIPT_PAY
+}
+
+/**
+ * Etyme's own pay questions, held where the company still waits for a
+ * verified Owner: dropped from the cards, because Pay there is a button
+ * the payment route refuses, and said once in the gate's own sentence with
+ * its link, Prove ownership, unless the queue's held row for the receipt
+ * already says it on its card. Every other question is kept as it is.
+ */
+export async function withoutHeldPay(
+  asked: WaitingItem[],
+  queue: QueueRead | null,
+  read: Pick<Readers, 'payWaits'>,
+): Promise<{ items: WaitingItem[]; payHeld: RichLine | null }> {
+  const pays = asked.filter(asksToPay)
+  if (pays.length === 0) return { items: asked, payHeld: null }
+  // The queue's own held rows first: the same gate, already read for this seat.
+  const fromQueue = (queue?.items ?? []).find((d) => d.type === 'INVOICE_RECEIPT_HELD' && d.payWaits)?.payWaits ?? null
+  const line = fromQueue ?? (read.payWaits ? await read.payWaits().catch(() => null) : null)
+  if (!line) return { items: asked, payHeld: null }
+  // Each keeps its number, so "approve 2" still means the question it meant.
+  const items = asked.filter((i) => !asksToPay(i))
+  const carded = new Set((queue?.items ?? []).filter((d) => d.type === 'INVOICE_RECEIPT_HELD' && d.payWaits).map((d) => d.entityId))
+  const unsaid = pays.filter((i) => !(i.entity?.type === 'Invoice' && carded.has(i.entity.id)))
+  if (unsaid.length === 0) return { items, payHeld: null }
+  const says = /[.!?]$/.test(line.says) ? line.says : `${line.says}.`
+  const which = unsaid.length === 1 ? `Paying ${unsaid[0].title} is held.` : `Paying ${counted(unsaid.length, 'invoice receipt').toLowerCase()} is held.`
+  return {
+    items,
+    payHeld: { says: `${which} ${says}`, ...(line.href && line.linkSays ? { links: [{ text: line.linkSays, href: line.href }] } : {}) },
   }
 }
 
@@ -3755,6 +3803,29 @@ export interface QueueItem {
   reason?: string | null
   /** A receipt held on the bank: whether this seat is the one that checks, where the queue says. */
   mayCheck?: boolean | null
+  /**
+   * A receipt held because the company still waits for a verified Owner
+   * (`payWaits` on GET /api/decisions' INVOICE_RECEIPT_HELD rows): the
+   * gate's own sentence and the step that clears it, Prove ownership.
+   */
+  payWaits?: PayWaitsLine | null
+}
+
+/** The Owner gate's line on paying, as `payWaitsAt` (lib/money/pay-waits) returns it where it holds. */
+export interface PayWaitsLine {
+  says: string
+  href: string | null
+  linkSays: string | null
+}
+
+/** A payWaits object off the wire, kept only where its sentence is said and its link stays on this site. */
+export function payWaitsFrom(x: unknown): PayWaitsLine | null {
+  if (!x || typeof x !== 'object') return null
+  const w = x as Record<string, unknown>
+  if (typeof w.says !== 'string' || !w.says.trim()) return null
+  const href = typeof w.href === 'string' && /^\/(?!\/)/.test(w.href) ? w.href : null
+  const linkSays = href && typeof w.linkSays === 'string' && w.linkSays.trim() ? w.linkSays.trim() : null
+  return { says: w.says.trim(), href, linkSays }
 }
 
 /** The job a candidate to review was put forward to, and the words that tell it apart from the client's other jobs of its title. */
@@ -3851,6 +3922,7 @@ export function queueFrom(body: unknown): QueueRead | null {
       ...(typeof x.reason === 'string' && x.reason.trim() ? { reason: x.reason.trim() }
         : typeof x.says === 'string' && x.says.trim() ? { reason: x.says.trim() } : {}),
       ...(typeof x.mayCheck === 'boolean' ? { mayCheck: x.mayCheck } : {}),
+      ...(payWaitsFrom(x.payWaits) ? { payWaits: payWaitsFrom(x.payWaits) } : {}),
     })
   }
   const says = typeof (data as { says?: unknown }).says === 'string' && (data as { says: string }).says.trim() ? (data as { says: string }).says.trim() : null
@@ -4003,6 +4075,11 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
     case 'INVOICE_RECEIPT_HELD': {
       // Held on the bank: said as the hold, in the twin's own words for it,
       // never as a receipt waiting to be paid (walk 7, 2026-11-08).
+      // Held for a verified Owner: whose receipt, and what it waits on.
+      if (d.payWaits) {
+        const number = (d.subtitle ?? '').match(/^Invoice (\S+)/)?.[1]
+        return `${possessive(who)} invoice receipt${number ? ` ${number}` : ''} is held: paying waits for a verified Owner`
+      }
       if (!isBankHeld(d)) return cap(d.title)
       return bankHeldName(d, d.whose?.trim() || afterDash(d.title))
     }
@@ -4167,6 +4244,20 @@ export function queueCards(
       // "waits for you to pay it" — its button is Pay, to the receipt's own
       // page, where the payment and its bank reference are recorded.
       const pay = d.type === 'INVOICE_RECEIPT_TO_PAY'
+      // Held because the company still waits for a verified Owner: the
+      // gate's own sentence, and the step that clears it, Prove ownership,
+      // in place of Open; never Pay, which the payment route refuses here.
+      if (d.type === 'INVOICE_RECEIPT_HELD' && d.payWaits) {
+        return {
+          key: `${d.type}:${d.entityId}`,
+          type: d.type,
+          title: `${queueName(d)}.`,
+          fact: /[.!?]$/.test(d.payWaits.says) ? d.payWaits.says : `${d.payWaits.says}.`,
+          href: d.payWaits.href ?? heldHref(d, RECEIPTS_HREF),
+          act: null,
+          open: d.payWaits.href ? (d.payWaits.linkSays ?? 'Open') : OPEN_THE_RECEIPT,
+        }
+      }
       // Held on the supplier's bank: the row's own sentence, never Pay. The
       // seat that checks opens the check; anybody else opens the receipt.
       if (isBankHeld(d)) {

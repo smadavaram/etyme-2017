@@ -30,9 +30,9 @@ vi.mock('@/lib/twin/rules/invoice', async (actual) => {
 })
 
 import { receiptNoticeToday, receiptNoticesToday, isReceiptFlagNotice, MISMATCH_TITLE } from '@/app/api/conversations/twin/receipt-notices'
-import { queueCards, queueName, queueFrom, namedNeedsSays, respond, type QueueItem, type QueueRead, type Readers } from '@/app/api/conversations/twin/ask'
+import { queueCards, queueName, queueFrom, namedNeedsSays, respond, withoutHeldPay, type QueueItem, type QueueRead, type Readers } from '@/app/api/conversations/twin/ask'
 import { CHECK_THE_BANK, OPEN_THE_RECEIPT } from '@/app/api/conversations/twin/held-receipt'
-import { bankHeldReceiptDecision } from '@/app/api/decisions/receipt-to-pay'
+import { bankHeldReceiptDecision, ownerWaitsReceiptDecision } from '@/app/api/decisions/receipt-to-pay'
 
 const BANK_SAYS = 'Pinnacle Resourcing’s bank details are not checked. Rosalind Tay checks them on this invoice receipt, then it can be paid.'
 const CLIENT = 'c-northbend'
@@ -203,5 +203,56 @@ describe('a receipt held on the bank, in the chat', () => {
     expect(a.says).toContain('No invoice receipt is ready for you to pay.')
     expect(a.says).toContain('PR-2026-0441 from Pinnacle Resourcing is held: the bank details are not checked. Ask Rosalind Tay to check them, then pay.')
     expect(a.table).toBeUndefined()
+  })
+})
+
+describe('a receipt held because the company still waits for a verified Owner, in the chat and on Today', () => {
+  const r = { id: 'inv-451', number: 'PR-2026-0451', vendorName: 'Pinnacle Resourcing', outstandingCents: 416000, currency: 'USD', dueAt: new Date('2026-11-20T00:00:00Z'), receivedAt: null }
+  const now = new Date('2026-11-12T00:00:00Z')
+  const GATE = { says: 'Paying waits until Tapin has a verified Owner.', href: '/dashboard/settings/setup/owner', linkSays: 'Prove ownership' }
+  const queue = () => queueFrom({ data: { total: 1, decisions: [{ type: 'INVOICE_RECEIPT_HELD', named: { whose: 'Pinnacle Resourcing' }, ...ownerWaitsReceiptDecision(r, GATE, now) }] } })!
+  const payQuestion = (id: string, entityId: string, n: number) => ({
+    n, approvalId: id, entryId: `e-${id}`, says: 'Pay an invoice receipt', title: `${entityId} from Pinnacle Resourcing`,
+    ruleCited: 'invoice', rationale: 'clean', href: `/dashboard/invoices/${entityId}`, action: 'invoice_receipt.pay', entity: { type: 'Invoice', id: entityId },
+  })
+
+  it('the held row’s card says the gate’s own sentence and opens Prove ownership in place of Open, never Pay', () => {
+    const [card] = queueCards(queue())
+    expect(card.title).toBe('Pinnacle Resourcing’s invoice receipt PR-2026-0451 is held: paying waits for a verified Owner.')
+    expect(card.fact).toBe('Paying waits until Tapin has a verified Owner.')
+    expect(card.open).toBe('Prove ownership')
+    expect(card.href).toBe('/dashboard/settings/setup/owner')
+    expect(card.act).toBeNull()
+  })
+
+  it('a gate line whose link leaves the site is not followed, and the card opens the receipt instead', () => {
+    const q = queueFrom({ data: { total: 1, decisions: [{ type: 'INVOICE_RECEIPT_HELD', ...ownerWaitsReceiptDecision(r, { ...GATE, href: 'https://elsewhere.example/x' }, now) }] } })!
+    const [card] = queueCards(q)
+    expect(card.open).toBe(OPEN_THE_RECEIPT)
+    expect(card.href).not.toMatch(/elsewhere/)
+  })
+
+  it('Etyme’s own Pay question on that receipt is held, not drawn as a Pay card, because the held row already says it', async () => {
+    const asked = [payQuestion('a1', 'inv-451', 1), { ...payQuestion('a2', 'x', 2), action: 'bench.put_forward', entity: undefined }]
+    const got = await withoutHeldPay(asked as any, queue(), {})
+    expect(got.items.map((i) => i.approvalId)).toEqual(['a2'])
+    expect(got.items[0].n).toBe(2)
+    expect(got.payHeld).toBeNull()
+  })
+
+  it('where the queue could not be read, the gate is read on its own and the held Pay question is said once with Prove ownership', async () => {
+    const got = await withoutHeldPay([payQuestion('a1', 'inv-451', 1)] as any, null, { payWaits: async () => GATE })
+    expect(got.items).toEqual([])
+    expect(got.payHeld).toEqual({
+      says: 'Paying inv-451 from Pinnacle Resourcing is held. Paying waits until Tapin has a verified Owner.',
+      links: [{ text: 'Prove ownership', href: '/dashboard/settings/setup/owner' }],
+    })
+  })
+
+  it('at a company that may pay, Etyme’s Pay question stays a Pay card as before', async () => {
+    const asked = [payQuestion('a1', 'inv-451', 1)]
+    const got = await withoutHeldPay(asked as any, null, { payWaits: async () => null })
+    expect(got.items).toBe(asked)
+    expect(got.payHeld).toBeNull()
   })
 })
