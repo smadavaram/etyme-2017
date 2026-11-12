@@ -152,7 +152,6 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
     prefix: `src/app/(site)${route}/`,
     why: 'An old product page, folded into its step on 2026-10-15: it answers with a permanent redirect to that step (lib/public-site/folded), and draws nothing.',
   })),
-  { prefix: 'src/app/census/', why: 'The contractor census, closed on November 13, 2026 (the founder, 2026-10-14): the address answers with the ordinary not-found page and draws nothing.' },
   { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
   { prefix: 'src/app/legal/', why: 'Regulatory’s agreements; read for price and AI with the other legal pages.' },
 ]

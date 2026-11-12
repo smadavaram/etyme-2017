@@ -1074,7 +1074,7 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(PAGE).not.toContain('GET_THE_AUDIT')
     expect(PAGE).not.toMatch(/spend audit/i)
     expect(CLOSE_SRC).not.toContain('GET_THE_AUDIT')
-    expect(readFileSync(join(process.cwd(), 'src/app/census/page.tsx'), 'utf8')).toMatch(/notFound\(\)/)
+    expect(existsSync(join(process.cwd(), 'src/app/census'))).toBe(false)
   })
 
   it('says VMS software without the page reading as software staffing', () => {

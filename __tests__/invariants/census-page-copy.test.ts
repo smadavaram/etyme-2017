@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { everyFrameLink } from '@/lib/public-site/nav'
@@ -12,8 +12,8 @@ import { FOOTER_LINKS, DOORS } from '@/lib/public-site/skeleton-words'
  * 2026-10-14 and kept its page reachable, linked from nowhere, for thirty
  * days. This file held the page's words to the software's own until then;
  * now it holds that the page is gone and that nothing public offers it.
- * It stays because the delivery matrix names it until the census rows are
- * taken off; the copy tests left with the page.
+ * The page, its form and its copy were deleted on November 12, 2026, once
+ * the delivery matrix stopped naming them; the copy tests left with the page.
  */
 
 const root = process.cwd()
@@ -40,10 +40,10 @@ function publicSources(): string[] {
 
 describe('The contractor census page has closed', () => {
 
-  it('the census address shows the ordinary not-found page, with no form, no header and no copy of its own', () => {
-    const page = code(read('src/app/census/page.tsx'))
-    expect(page).toMatch(/notFound\(\)/)
-    expect(page).not.toMatch(/CensusFlow|census-copy|SiteHeader|<form|<input|metadata/)
+  it('the census page, its form and its copy are deleted, so the address shows the ordinary not-found page', () => {
+    for (const f of ['src/app/census/page.tsx', 'src/app/census/flow.tsx', 'src/lib/census-copy.ts']) {
+      expect(existsSync(join(root, f)), f).toBe(false)
+    }
   })
 
   it('no public page is registered at the census address', () => {

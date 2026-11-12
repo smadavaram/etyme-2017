@@ -69,11 +69,11 @@ function britishIn(file: string): string[] {
 /**
  * The pages a stranger opens, and the files their words come from: the
  * home page, the marketing site and its doors, a firm's generated page,
- * the census, the demo door and the sign-up and sign-in forms.
+ * the demo door and the sign-up and sign-in forms.
  */
 const PUBLIC = [
-  'src/app/page.tsx', 'src/app/(site)', 'src/app/site', 'src/app/c', 'src/app/census', 'src/app/demo',
-  'src/app/(auth)', 'src/lib/public-site', 'src/lib/site-voice.ts', 'src/lib/census-copy.ts', 'src/lib/password-words.ts',
+  'src/app/page.tsx', 'src/app/(site)', 'src/app/site', 'src/app/c', 'src/app/demo',
+  'src/app/(auth)', 'src/lib/public-site', 'src/lib/site-voice.ts', 'src/lib/password-words.ts',
 ]
 
 /** The one quoted British word a public file may hold: the demo desk key, which is an address. */

@@ -48,7 +48,6 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 const HOME = ['src/app/page.tsx', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/skeleton.tsx'].map(read).join('\n')
 const FRAME = read('src/lib/public-site/frame.tsx')
 const CLOSE = read('src/lib/public-site/close-band.tsx')
-const CENSUS = read('src/app/census/page.tsx')
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 /**
@@ -179,11 +178,13 @@ describe('One ladder, named once', () => {
     expect(CLOSE.slice(CLOSE.indexOf('bg-etyme-action'))).toMatch(/^[^}]*\}?[\s\S]{0,400}\{`\$\{SEE_IT\.t\} →`\}/)
   })
 
-  it('the census closed on November 13, 2026: its address shows the ordinary not-found page and no public page registers it', () => {
+  it('the census page is deleted with its form: no file draws the census address, and no public page registers it', () => {
     // Kept reachable for thirty days so a link already sent did not land
-    // on a missing page (CLAUDE.md, 2026-10-14); the thirty days are over.
-    expect(code(CENSUS)).toMatch(/notFound\(\)/)
-    expect(code(CENSUS)).not.toMatch(/CensusFlow|CENSUS_COPY|<SiteHeader|<form|<input/)
+    // on a missing page (CLAUDE.md, 2026-10-14); it closed on November 13,
+    // 2026 and its files are gone, so the address shows the ordinary
+    // not-found page.
+    expect(existsSync(join(process.cwd(), 'src/app/census'))).toBe(false)
+    expect(existsSync(join(process.cwd(), 'src/lib/census-copy.ts'))).toBe(false)
     expect(PUBLIC_PAGES.find((p) => p.route === '/census')).toBeUndefined()
     // The funnel no longer carries the audit's constant for anybody to draw.
     expect(code(read('src/lib/public-site/funnel.ts'))).not.toMatch(/GET_THE_AUDIT|\/census/)
