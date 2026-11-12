@@ -906,3 +906,62 @@ describe('Users & permissions says how people join in the one join sentence', ()
     expect(joinSentence(facts({ kind: 'CONSULTANT_CORP' }))).toBeNull()
   })
 })
+
+/**
+ * The Owner walk at 390 wide, 2026-11-12: Pause and End access on every
+ * "Everyone with access" row were drawn off the right edge, because the
+ * row did not wrap and its buttons and two fixed columns would not
+ * shrink. The browser walk is the real guard; these sentences read the
+ * row's own classes so the shape cannot quietly come back.
+ */
+describe('Users & permissions at phone width', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const between = (from: string, to: string) => {
+    const a = page.indexOf(from)
+    const b = page.indexOf(to, a + from.length)
+    expect(a).toBeGreaterThan(-1)
+    expect(b).toBeGreaterThan(a)
+    return page.slice(a, b)
+  }
+  const everyoneRow = between('<div key={p.contextId} className="p-4">', '{acting?.contextId === p.contextId')
+  const waitingRow = between('<div key={w.contextId} className="p-4">', '{acting?.contextId === w.contextId')
+  const rowActs = between('function RowActs(', 'function CopyInvitation(')
+  const classes = (s: string) => [...s.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2])
+
+  it('every flex row on an "Everyone with access" row wraps, so its buttons drop under the name on a phone', () => {
+    const flexRows = classes(everyoneRow).filter((c) => /(^|\s)flex(\s|$)/.test(c) && !c.includes('flex-col'))
+    expect(flexRows.length).toBeGreaterThan(0)
+    for (const c of flexRows) expect(c).toContain('flex-wrap')
+  })
+
+  it('every flex row on a "Waiting for access" row wraps too', () => {
+    const flexRows = classes(waitingRow).filter((c) => /(^|\s)flex(\s|$)/.test(c) && !c.includes('flex-col'))
+    expect(flexRows.length).toBeGreaterThan(0)
+    for (const c of flexRows) expect(c).toContain('flex-wrap')
+  })
+
+  it('Change role, Pause, Reinstate, End access and Withdraw invitation sit in a group of their own that takes the full width on a phone', () => {
+    expect(everyoneRow).toMatch(/className="flex flex-wrap items-center gap-2 w-full sm:w-auto">\s*\{data\.canGrant !== false/)
+    expect(waitingRow).toMatch(/className="flex flex-wrap items-center gap-2 w-full sm:w-auto">/)
+    expect(everyoneRow.indexOf('<RowActs')).toBeGreaterThan(everyoneRow.indexOf('w-full sm:w-auto">\n                  {data.canGrant'))
+  })
+
+  it('no button on a row refuses to shrink: no shrink-0 on the row or on its Pause, Reinstate, End and Withdraw buttons', () => {
+    for (const c of [...classes(everyoneRow), ...classes(waitingRow), ...classes(rowActs)]) {
+      expect(c).not.toContain('shrink-0')
+    }
+  })
+
+  it('no fixed-width column on a row holds its width below sm: the end day and the sensitivity stack under the name', () => {
+    for (const c of [...classes(everyoneRow), ...classes(waitingRow)]) {
+      for (const tok of c.split(/\s+/)) {
+        // A bare w-<n> or max-w-[…] holds at every width; an sm: one only from sm up.
+        expect(tok).not.toMatch(/^(max-)?w-(\d|\[)/)
+      }
+    }
+  })
+
+  it('a reader who may not give roles reads why across the full width on a phone, never in a box wider than the screen', () => {
+    expect(waitingRow).toContain('w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words')
+  })
+})

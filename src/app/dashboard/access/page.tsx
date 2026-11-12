@@ -372,7 +372,7 @@ function RowActs({ contextId, acts, open, onOpen, keptEnd }: {
           key={a}
           type="button"
           onClick={() => onOpen(contextId, open === a ? null : a)}
-          className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] shrink-0 hover:bg-etyme-action/5 ${a === 'revoke' || a === 'withdraw' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
+          className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] hover:bg-etyme-action/5 ${a === 'revoke' || a === 'withdraw' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
           {open === a ? 'Cancel' : a === 'withdraw' ? WITHDRAW_LABEL : ACT_LABEL[a]}
         </button>
       ))}
@@ -799,17 +799,21 @@ export default function AccessPage() {
                     <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
                     <MailSaid mail={w.mail} />
                   </div>
-                  {data.canGrant === false ? (
-                    <span className="max-w-[380px] text-xs text-etyme-muted shrink-0">{data.whyNotGrant}</span>
-                  ) : (
-                    <button
-                      onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
-                      className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
-                      {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
-                    </button>
-                  )}
-                  <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
-                    open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
+                  {/* The row's buttons: a line of their own under the name on a
+                      phone, wrapping, and beside it from sm up. */}
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {data.canGrant === false ? (
+                      <span className="w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words">{data.whyNotGrant}</span>
+                    ) : (
+                      <button
+                        onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
+                        className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                        {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
+                      </button>
+                    )}
+                    <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
+                      open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
+                  </div>
                 </div>
                 {(w.acts?.resend || (w.acts?.copy && w.copyText)) && (
                   <div className="mt-2 flex flex-wrap gap-2 items-start">
@@ -919,30 +923,36 @@ export default function AccessPage() {
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-etyme-muted shrink-0 sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
-                <div className="sm:w-24 sm:text-right shrink-0">
-                  <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
-                    {p.sensitivity.toLowerCase().replace('_', ' ')}
-                  </Chip>
+                {/* The end day and the sensitivity: under the name on a phone,
+                    their own fixed columns only from sm up. */}
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <div className="text-xs text-etyme-muted sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
+                  <div className="sm:w-24 sm:text-right">
+                    <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
+                      {p.sensitivity.toLowerCase().replace('_', ' ')}
+                    </Chip>
+                  </div>
                 </div>
                 {/* Change desk, on every row. A desk given on arrival is
                     rarely the right one, and an owner with no way to
                     change it has a seat nobody can use. Hidden from a
                     reader the route would refuse, with the reason said
                     once above in "Waiting for access". */}
-                {data.canGrant !== false && (
-                  <button
-                    onClick={() => {
-                      setGranting(granting === p.contextId ? null : p.contextId)
-                      setForm({ roleId: '', endsOn: '', reason: '' })
-                      setActing(null)
-                    }}
-                    className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5 shrink-0">
-                    {granting === p.contextId ? 'Cancel' : 'Change role'}
-                  </button>
-                )}
-                <RowActs contextId={p.contextId} acts={p.acts} keptEnd={keptEnd.has(p.contextId)}
-                  open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {data.canGrant !== false && (
+                    <button
+                      onClick={() => {
+                        setGranting(granting === p.contextId ? null : p.contextId)
+                        setForm({ roleId: '', endsOn: '', reason: '' })
+                        setActing(null)
+                      }}
+                      className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5">
+                      {granting === p.contextId ? 'Cancel' : 'Change role'}
+                    </button>
+                  )}
+                  <RowActs contextId={p.contextId} acts={p.acts} keptEnd={keptEnd.has(p.contextId)}
+                    open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
+                </div>
               </div>
 
               {acting?.contextId === p.contextId && (
