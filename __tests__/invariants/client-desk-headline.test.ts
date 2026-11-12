@@ -37,6 +37,13 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
     )
   })
 
+  it('ten things or more open on the count spelled out, "Ten things need you", the same words Ask Etyme says', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => week(`Person ${i}`))
+    expect(deskHeadline(ten).says.startsWith('Ten things need you: ')).toBe(true)
+    const twelve = Array.from({ length: 12 }, () => week('Marcus Oyelaran'))
+    expect(deskHeadline(twelve).says).toBe('Twelve things need you: Marcus Oyelaran’s twelve weeks.')
+  })
+
   it('past three things it names the first two and says "and n more"', () => {
     const said = deskHeadline([
       week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Teleworld'), week('Helena Marsh'),
