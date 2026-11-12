@@ -31,3 +31,6 @@ What is left:
    Then update the signup and company-setup tests that assume the signer-up is the Owner, and count them.
    Run: tsc; setup-checklist, setup-steps, company-setup, signup-*, two-hats, autonomy, legal-pages, matrix, map, domain-ownership, every-route-has-a-door.
 4. Matrix: add L3.2.2.19 for the proof rule. Add a task to L3.6.3.12 for the thirteenth item. Run npm run matrix.
+
+## Added 2026-11-12, after this handover
+See CLAUDE.md "After a pass, the new Owner may move the old one to Admin": (1) exception in lib/owner-rules — the Owner who took over by a pass may move the previous Owner to Admin alone; (2) a Superadmin act to change a company's Owner on papers (agreement + tax form), recorded and logged; (3) still open: POST /api/access lets an Owner move another Owner off Owner with no second yes — route it through Settings → Owners.
