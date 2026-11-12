@@ -79,7 +79,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
 
   const [
     realCompanies, realSignIns, importsTotal, importsCommitted,
-    emailSent, emailUnsent, teams, nike, nikeHr,
+    emailSent, emailUnsent, emailDidNotGo, teams, nike, nikeHr,
     lastRun, runsTold, incidentsTold, incidentsToday,
   ] = await Promise.all([
     // Not a demo workspace, not one of the seeded world's firms.
@@ -94,6 +94,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     prisma.import.count({ where: { committedAt: { not: null } } }),
     prisma.notification.count({ where: { channel: 'EMAIL', deliveryState: 'SENT' } }),
     prisma.notification.count({ where: { channel: 'EMAIL', deliveryState: { in: ['PENDING', 'NOT_CONFIGURED'] } } }),
+    prisma.notification.count({ where: { channel: 'EMAIL', deliveryState: 'FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
     teamsFacts(),
     prisma.company.findUnique({ where: { slug: 'world-nike' }, select: { id: true } }),
     // The HR desk is what the 2026-09-13 seed adds; an older world has none.
@@ -112,7 +113,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     realCompanies,
     realSignIns,
     imports: { total: importsTotal, committed: importsCommitted },
-    email: { sent: emailSent, unsent: emailUnsent },
+    email: { sent: emailSent, unsent: emailUnsent, didNotGoToday: emailDidNotGo },
     teams,
     // Never throws (teamsBotFacts counts what it cannot read as nothing).
     teamsBot: teamsBotEdge(await teamsBotFacts()),

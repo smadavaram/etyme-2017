@@ -70,7 +70,13 @@ export interface ReadinessFacts {
   /** People who have signed in through Microsoft, Google, an email link or a password. */
   realSignIns: number
   imports: { total: number; committed: number }
-  email: { sent: number; unsent: number }
+  /**
+   * `didNotGoToday`: email the provider refused, or never answered, in the
+   * last 24 hours (Notification FAILED). Founder, 2026-11-12: every
+   * invitation to Tapin failed on a sending domain nobody had verified,
+   * and /ready said "proven" because some email had once left.
+   */
+  email: { sent: number; unsent: number; didNotGoToday?: number }
   /** Workflows links saved, retired links still saved, and posts a Workflows link accepted. */
   teams: TeamsFacts
   /**
@@ -245,6 +251,14 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
             says: `${count(f.email.sent, 'email has', 'emails have')} been sent.`,
           }
   )
+  // Proven once is not working today: a count of what did not go in the
+  // last day is said beside the edge, with where to read why.
+  const didNotGo = f.email.didNotGoToday ?? 0
+  if (f.env.emailSender && didNotGo > 0) {
+    const e = edges[edges.length - 1]
+    e.says = `${e.says} ${didNotGoSays(didNotGo)}`
+    e.fix = 'Read why under Superadmin, Email that did not go. A sending domain nobody verified fails every email at once.'
+  }
 
   // ── Teams hears ──────────────────────────────────────────────────────
   //
@@ -436,6 +450,11 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
 function list(items: string[]): string {
   if (items.length <= 1) return items.join('')
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+/** The line /ready says beside Email when sends failed in the last day. Pure. */
+export function didNotGoSays(n: number): string {
+  return `${count(n, 'email', 'emails')} did not go in the last 24 hours. Superadmin lists each one under Email that did not go, with the provider’s answer.`
 }
 
 function count(n: number, one: string, many: string): string {

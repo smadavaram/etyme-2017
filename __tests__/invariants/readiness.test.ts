@@ -277,3 +277,30 @@ describe('replies by email', () => {
     expect(src).toContain('signedDeliveries: null')
   })
 })
+
+describe('email that did not go today is said on /ready (founder, 2026-11-12)', () => {
+  const emailEdge = (f: ReadinessFacts) => assess(f, NOW).edges.find((e) => e.key === 'email')!
+
+  it('a deployment that once sent email and failed three today still reads proven, and says the three and where to read why', () => {
+    const e = emailEdge({ ...READY, email: { sent: 40, unsent: 0, didNotGoToday: 3 } })
+    expect(e.state).toBe('PROVEN')
+    expect(e.says).toBe('40 emails have been sent. 3 emails did not go in the last 24 hours. Superadmin lists each one under Email that did not go, with the provider’s answer.')
+    expect(e.fix).toMatch(/Superadmin, Email that did not go/)
+  })
+
+  it('a sender that has never got an email out and failed one today says the one, not only that nothing has left', () => {
+    const e = emailEdge({ ...TODAY, email: { sent: 0, unsent: 0, didNotGoToday: 1 } })
+    expect(e.state).toBe('SET')
+    expect(e.says).toContain('1 email did not go in the last 24 hours.')
+  })
+
+  it('a day with nothing failed says nothing more than before', () => {
+    expect(emailEdge({ ...READY, email: { sent: 40, unsent: 0, didNotGoToday: 0 } }).says).toBe('40 emails have been sent.')
+  })
+
+  it('the count is the email notices marked failed in the last 24 hours, read beside the others', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/readiness-facts.ts'), 'utf8')
+    expect(src).toContain("prisma.notification.count({ where: { channel: 'EMAIL', deliveryState: 'FAILED', createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })")
+    expect(src).toContain('didNotGoToday: emailDidNotGo')
+  })
+})
