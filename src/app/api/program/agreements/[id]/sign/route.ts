@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { ensureBaseline, recordVersion, type TermSnapshot } from '../../trail'
 import { actingDesk } from '@/lib/program-seat'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
@@ -104,6 +105,11 @@ export async function POST(
       { status: 403 }
     )
   }
+
+  // A company signed up under the proof rule signs nothing until it has
+  // a verified Owner (founder, 2026-11-11). Older companies are not held.
+  const owner = await needsVerifiedOwnerAt(companyId, 'SIGN')
+  if (!owner.ok) return NextResponse.json(gateRefusal(owner), { status: 403 })
 
   if (
     !hasPermission(deskPermissions, 'rates.write') &&
