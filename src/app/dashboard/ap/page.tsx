@@ -17,6 +17,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
+import { DownloadRunFile } from './payment-run-file'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -763,6 +764,9 @@ function Exceptions({ books, onOpen }: { books: Books; onOpen: (id: string) => v
   return (
     <div className="space-y-3">
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">{data?.note}</p>
+      <p className="max-w-[70ch] text-[13px] text-etyme-ink">
+        Etyme does not send money. Download an approved run for your payment system, then bring back its confirmation.
+      </p>
 
       {rows.length === 0 && (
         <EmptyState
@@ -1065,6 +1069,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                       Approve it
                     </button>
                   )}
+                  {r.status === 'APPROVED' && <DownloadRunFile runId={r.id} disabled={busy} />}
                   {r.status === 'APPROVED' && (
                     <button
                       className="text-[13px] underline"

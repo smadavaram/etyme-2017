@@ -8,6 +8,7 @@ import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { mayPayFirm } from '@/lib/setup-gates'
 import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
+import { readRunFile } from '@/lib/money/run-file-read'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
@@ -64,6 +65,51 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company.id
   const url = new URL(request.url)
+
+  // ── ?export=<run>: an approved run as a file for the payer's own system ──
+  //
+  // Etyme never moves money (founder, 2026-11-12). The file is read by the
+  // seat that may release the run, every line through the payment gate as
+  // it stands today, and the pay-to details it carries are recorded in the
+  // access log before it leaves (lib/money/run-file-read). `&format=csv`
+  // answers the file itself; otherwise JSON, so the screen can say what
+  // was left out and why before it saves the file.
+  const exportId = url.searchParams.get('export')
+  if (exportId != null) {
+    if (!hasPermission(caller.permissions, 'payments.record')) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: refusalFor(caller, { doing: 'Downloading a payment run', needs: 'payments.record' }) } },
+        { status: 403 }
+      )
+    }
+    if (!exportId) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Which run?', field: 'export' } }, { status: 422 })
+    }
+    const read = await readRunFile(caller, companyId, exportId)
+    if (!read.ok) {
+      return NextResponse.json({ error: { code: read.code, message: read.says } }, { status: read.status })
+    }
+    if (url.searchParams.get('format') === 'csv') {
+      return new NextResponse(read.file.csv, {
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="${read.file.filename}"`,
+        },
+      })
+    }
+    return NextResponse.json({
+      data: {
+        runId: read.runId,
+        filename: read.file.filename,
+        csv: read.file.csv,
+        rows: read.file.rows,
+        held: read.file.held,
+        totals: read.file.totals,
+        says: read.file.says,
+      },
+    })
+  }
+
   const currency = (url.searchParams.get('currency') ?? 'USD').toUpperCase()
   const scheduledFor = url.searchParams.get('scheduledFor')
     ? new Date(String(url.searchParams.get('scheduledFor')))
