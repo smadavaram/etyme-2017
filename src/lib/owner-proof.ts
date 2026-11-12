@@ -35,51 +35,12 @@ import { prisma } from '@/lib/db'
 type Db = typeof prisma
 
 // ── The acts that wait ───────────────────────────────────────────────
+//
+// The pure half lives in lib/owner-gate, so a screen can say the gate's own
+// sentence without bundling the database. Re-exported here for the routes.
 
-export type GatedAct = 'PAY' | 'BANK' | 'SIGN' | 'COMPANY_TYPE' | 'SIGN_IN_MODE' | 'GIVE_ACCESS' | 'PASS_OWNERSHIP'
-
-/** Each act, said as the start of its refusal. */
-export const GATED_ACT_WORDS: Record<GatedAct, string> = {
-  PAY: 'Paying a firm',
-  BANK: 'Changing bank details',
-  SIGN: 'Signing an agreement',
-  COMPANY_TYPE: 'Changing the type of company',
-  SIGN_IN_MODE: 'Changing how people sign in',
-  GIVE_ACCESS: 'Giving access by team or for the whole company',
-  PASS_OWNERSHIP: 'Passing ownership',
-}
-
-/** Where the step is: the checklist item's own address. */
-export const PROVE_OWNERSHIP_HREF = '/dashboard/settings/setup/ownership'
-export const PROVE_OWNERSHIP_PLACE = 'Setup → Prove ownership'
-
-export interface GateFacts {
-  ownerProofRequiredAt: Date | null
-  ownerVerifiedAt: Date | null
-}
-
-export type OwnerGate = { ok: true } | { ok: false; says: string; href: string; step: 'OWNERSHIP' }
-
-/** Whether the proof rule applies to this company and is not yet met. */
-export function waitsForVerifiedOwner(c: GateFacts): boolean {
-  return c.ownerProofRequiredAt !== null && c.ownerVerifiedAt === null
-}
-
-/**
- * Pure: may this act go ahead at this company? One sentence that names the
- * step and links to it where it may not. A company formed before the rule
- * (no `ownerProofRequiredAt`) is never refused.
- */
-export function needsVerifiedOwner(c: GateFacts & { name?: string | null }, act: GatedAct): OwnerGate {
-  if (!waitsForVerifiedOwner(c)) return { ok: true }
-  const who = c.name ? `${c.name} has` : 'this company has'
-  return {
-    ok: false,
-    says: `${GATED_ACT_WORDS[act]} waits until ${who} a verified Owner. Prove ownership under ${PROVE_OWNERSHIP_PLACE}.`,
-    href: PROVE_OWNERSHIP_HREF,
-    step: 'OWNERSHIP',
-  }
-}
+import { needsVerifiedOwner, ownerOnlyLine, type GatedAct, type GateFacts, type OwnerGate, type OwnerLine } from '@/lib/owner-gate'
+export * from '@/lib/owner-gate'
 
 /**
  * The gate, read from the database. Every route that does a gated act
@@ -94,6 +55,12 @@ export async function needsVerifiedOwnerAt(companyId: string, act: GatedAct, db:
   })
   if (!c) return { ok: true }
   return needsVerifiedOwner(c, act)
+}
+
+/** `ownerOnlyLine` (lib/owner-gate) for a company read from the database. */
+export async function ownerOnlyLineAt(companyId: string, act: GatedAct, db: Db = prisma): Promise<OwnerLine> {
+  const c = await db.company.findUnique({ where: { id: companyId }, select: { name: true, ownerProofRequiredAt: true, ownerVerifiedAt: true } })
+  return ownerOnlyLine(c ?? { ownerProofRequiredAt: null, ownerVerifiedAt: null }, act)
 }
 
 /** The refusal body every gated route answers with. */

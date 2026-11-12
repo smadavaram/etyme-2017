@@ -6,6 +6,7 @@
  * screen does.
  */
 import { prisma } from '@/lib/db'
+import { ownerOnlyLine } from '@/lib/owner-gate'
 import {
   ITEM_WORDS, itemsFor, sourceWords, itemStamp, ITEM_SLUG, bankWords, bankStanding, inviteRoleFor, DUTIES, DUTY_WORDS,
   type ItemKey, type AnswerSource, type Duty,
@@ -101,6 +102,10 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   })
 
   const keys = itemsFor(c.kind, { ownerProofRequired: facts.ownerProofRequired })
+  // Bank details wait for a verified Owner under the proof rule; the item
+  // says so before Save, in the gate's own sentence with its link.
+  const bankGate = ownerOnlyLine({ name: c.name, ownerProofRequiredAt: facts.ownerProofRequired ? new Date(0) : null, ownerVerifiedAt: facts.ownerVerified ? new Date(0) : null }, 'BANK')
+  const bankWaits = bankGate.href ? bankGate : null
   const stamps: Partial<Record<ItemKey, string>> = {}
   for (const k of keys) {
     const r = record[k]
@@ -178,8 +183,9 @@ export async function readSetup(companyId: string, reader: { personId: string; e
             shows: bankWords({ bankName: remit.bankName, accountName: remit.accountName ?? remit.legalName, last4: remit.accountLast4 }),
             standing: bankStanding({ verifiedAt: remit.verifiedAt, verifiedBy: nameOf(remit.verifiedById), verifiedAtFirm: checkedAt?.name ?? null }),
             enteredBy: nameOf(remit.enteredById),
+            waits: bankWaits,
           }
-        : { bankName: '', accountName: c.legalName ?? c.name, last4: '', routingLast4: '', shows: null, standing: bankStanding({ verifiedAt: null }), enteredBy: null },
+        : { bankName: '', accountName: c.legalName ?? c.name, last4: '', routingLast4: '', shows: null, standing: bankStanding({ verifiedAt: null }), enteredBy: null, waits: bankWaits },
       COMPANIES: { count: facts.counterparties, href: c.kind === 'CLIENT' ? '/dashboard/suppliers' : '/dashboard/companies' },
       TEAM: { seats: seats.length },
       DOMAIN: {

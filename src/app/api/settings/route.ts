@@ -1,3 +1,4 @@
+import { ownerOnlyLine } from '@/lib/owner-gate'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
-        kindSetById: true, kindSetAt: true,
+        kindSetById: true, kindSetAt: true, ownerProofRequiredAt: true, ownerVerifiedAt: true,
       },
     }),
     prisma.role.findMany({
@@ -193,6 +194,10 @@ export async function GET(request: NextRequest) {
       canEditGovernance: hasPermission(caller.permissions, 'governance.write'),
       // The type is the Owner's to change, and nobody else's.
       canChangeType: mayChangeType,
+      // What a reader who may not change it is told: the gate's sentence
+      // with the link to Prove ownership where there is no verified Owner
+      // to ask, the Owner-only sentence otherwise (lib/owner-gate).
+      typeLine: mayChangeType || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE'),
     },
   })
 }

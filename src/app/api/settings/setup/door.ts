@@ -38,6 +38,9 @@ export async function setupDoor(
   return { caller: caller as Seated, personId, error: null }
 }
 
-export function refused(says: string, status = 422) {
+export function refused(says: string, status = 422, href?: string | null) {
+  // A refusal that names a step carries its link (the Owner gate's Prove
+  // ownership), so the screen draws it under the sentence.
+  if (href) return NextResponse.json({ error: { code: 'OWNER_NOT_VERIFIED', message: says, href } }, { status: 403 })
   return NextResponse.json({ error: { code: status === 403 ? 'FORBIDDEN' : 'VALIDATION', message: says } }, { status })
 }

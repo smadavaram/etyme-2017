@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { ownerOnlyLineAt } from '@/lib/owner-proof'
 import { appUrl } from '@/lib/app-url'
 import { companyPolicy } from '@/lib/identity/read'
 import { modeSays } from '@/lib/identity/policy'
@@ -61,6 +62,9 @@ export async function GET(request: NextRequest) {
       requireDirectorySuppliers: p.row?.requireDirectorySuppliers ?? false,
       setBy: p.row?.setBy ?? null, setAt: p.row?.setAt ?? null, reason: p.row?.reason ?? null,
       mayChange: roleName === 'Owner',
+      // Beside the form for an Admin: the gate's sentence with its link where no
+      // Owner is verified yet, else the Owner-only sentence (lib/owner-gate).
+      ownerLine: roleName === 'Owner' ? null : await ownerOnlyLineAt(company.id, 'SIGN_IN_MODE'),
       slug: (await prisma.company.findUniqueOrThrow({ where: { id: company.id }, select: { slug: true } })).slug,
       domains,
       directory: provider ? {

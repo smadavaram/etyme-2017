@@ -174,3 +174,63 @@ describe('signing an agreement waits for a verified Owner', () => {
     expect(firstWrite === -1 || gate < firstWrite).toBe(true)
   })
 })
+
+describe('an Owner-only screen at a company with no verified Owner names Prove ownership, with its link', () => {
+  it('beside an Owner act, a company waiting for a verified Owner is told the gate’s sentence and given the link, never "ask the Owner"', async () => {
+    const { ownerOnlyLine } = await import('@/lib/owner-gate')
+    for (const act of ['COMPANY_TYPE', 'SIGN_IN_MODE', 'BANK'] as const) {
+      const line = ownerOnlyLine(GATED, act)
+      expect(line.says).toBe((needsVerifiedOwner(GATED, act) as { says: string }).says)
+      expect(line.says).toContain('Prove ownership under Setup → Prove ownership')
+      expect(line.href).toBe(PROVE_OWNERSHIP_HREF)
+      expect(line.linkSays).toBe('Prove ownership')
+      expect(line.says).not.toMatch(/Ask the Owner/)
+    }
+  })
+
+  it('at a company that has its Owner, the Owner-only sentence stands and there is no link', async () => {
+    const { ownerOnlyLine } = await import('@/lib/owner-gate')
+    const owned = { ownerProofRequiredAt: null, ownerVerifiedAt: null }
+    expect(ownerOnlyLine(owned, 'COMPANY_TYPE')).toEqual({ says: 'Only the Owner changes the type. Ask the Owner if it is wrong.', href: null, linkSays: null })
+    expect(ownerOnlyLine(owned, 'SIGN_IN_MODE').says).toBe('Only an Owner changes how people sign in.')
+  })
+
+  it('a gate refusal from a route is read with its link', async () => {
+    const { refusalLine } = await import('@/lib/owner-gate')
+    expect(refusalLine({ message: 'Changing bank details waits …', href: PROVE_OWNERSHIP_HREF, code: 'OWNER_NOT_VERIFIED' }))
+      .toEqual({ says: 'Changing bank details waits …', href: PROVE_OWNERSHIP_HREF, linkSays: 'Prove ownership' })
+    expect(refusalLine({ message: 'x', code: 'OWNER_NOT_VERIFIED' })?.href).toBe(PROVE_OWNERSHIP_HREF)
+  })
+
+  it('the words a screen reads carry no database, so a page can import them', () => {
+    expect(read('src/lib/owner-gate.ts')).not.toMatch(/@\/lib\/db|@prisma\/client/)
+  })
+
+  it('Settings says the type line from the one helper, not its own words', () => {
+    expect(read('src/app/api/settings/route.ts')).toContain("typeLine: mayChangeType || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE')")
+    const page = read('src/app/dashboard/settings/page.tsx')
+    expect(page).toContain('<OwnerGateLine line={data.typeLine}')
+    expect(page).not.toContain('subtitle="Only the Owner changes the type. Ask the Owner if it is wrong."')
+  })
+
+  it('Settings → Sign-in says the gate’s sentence to an Admin, and a save there is refused in it before the Owner-only sentence', () => {
+    for (const p of ['src/app/api/settings/sign-in/route.ts', 'src/app/api/settings/sign-in/overview/route.ts']) {
+      expect(read(p)).toContain("ownerLine: roleName === 'Owner' ? null : await ownerOnlyLineAt(company.id, 'SIGN_IN_MODE')")
+    }
+    const gate = read('src/app/api/settings/sign-in/gate.ts')
+    expect(gate.indexOf("needsVerifiedOwnerAt(caller.company.id, 'SIGN_IN_MODE')")).toBeLessThan(gate.indexOf('Only an Owner of ${caller.company.name} changes how its people sign in'))
+    const page = read('src/app/dashboard/settings/sign-in/page.tsx')
+    expect(page).toContain('<OwnerGateLine line={o.ownerLine')
+    expect(page).not.toContain('You can read this page. Only an Owner changes how people sign in.')
+  })
+
+  it('Setup → Bank details says the gate before Save and keeps the link when the route refuses', () => {
+    const route = read('src/app/api/settings/setup/[item]/route.ts')
+    expect(route).toContain('return { ok: false, says: gate.says, href: gate.href }')
+    expect(route).toContain('return refused(said.says, 422, said.href)')
+    expect(read('src/app/api/settings/setup/read.ts')).toContain('waits: bankWaits')
+    const items = read('src/app/dashboard/settings/setup/items.tsx')
+    expect(items).toContain('<OwnerGateLine line={d.waits} />')
+    expect(items).toContain("const line = body?.error?.href ? refusalLine(body.error) : null")
+  })
+})

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 
 /**
  * Who may open Settings → Sign-in: the company's Owners read and set it,
@@ -22,6 +23,10 @@ export async function signInSeat(request: NextRequest, mustSet: boolean) {
     return { error: NextResponse.json({ error: { code: 'FORBIDDEN', message: `How ${caller.company.name}'s people sign in is read by its Owners and Admins.` } }, { status: 403 }) }
   }
   if (mustSet && roleName !== 'Owner') {
+    // At a company still waiting for a verified Owner there is no Owner to
+    // ask, so the refusal is the gate's own, naming Prove ownership.
+    const gate = await needsVerifiedOwnerAt(caller.company.id, 'SIGN_IN_MODE')
+    if (!gate.ok) return { error: NextResponse.json(gateRefusal(gate), { status: 403 }) }
     return { error: NextResponse.json({ error: { code: 'FORBIDDEN', message: `Only an Owner of ${caller.company.name} changes how its people sign in. An Admin may read it.` } }, { status: 403 }) }
   }
   const by = realPersonId(caller)

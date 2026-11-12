@@ -1,5 +1,7 @@
 'use client'
 
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import type { OwnerLine } from '@/lib/owner-gate'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
@@ -112,6 +114,8 @@ interface Settings {
   canEdit: boolean
   /** The type is the Owner's to change, and nobody else's (lib/company-kind). */
   canChangeType?: boolean
+  /** Beside the type for a reader who may not change it (lib/owner-gate). */
+  typeLine?: OwnerLine | null
 }
 
 // ── Bits ─────────────────────────────────────────────
@@ -534,8 +538,9 @@ function TypePanel({ data, busy }: { data: Settings; busy: boolean }) {
   if (!data.canChangeType) {
     if (!data.canEdit) return null
     return (
-      <Panel title="What kind of company you are" subtitle="Only the Owner changes the type. Ask the Owner if it is wrong.">
+      <Panel title="What kind of company you are">
         <p className="text-sm text-etyme-ink">{now?.label ?? kindWord(c.kind as any)}</p>
+        <OwnerGateLine line={data.typeLine} className="mt-2" />
       </Panel>
     )
   }

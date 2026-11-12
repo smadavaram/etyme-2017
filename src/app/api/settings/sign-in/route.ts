@@ -5,7 +5,7 @@ import { SIGN_IN_MODES, mayChangeMode, modeSays, effectiveMode, directoryOnlyLoc
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { modeWord } from '@/lib/identity/screen-words'
-import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { needsVerifiedOwnerAt, gateRefusal, ownerOnlyLineAt } from '@/lib/owner-proof'
 
 /**
  * GET   /api/settings/sign-in — how this company's people sign in
@@ -59,6 +59,9 @@ export async function GET(request: NextRequest) {
       setAt: p.row?.setAt ?? null,
       reason: p.row?.reason ?? null,
       mayChange: roleName === 'Owner',
+      // Beside the form for an Admin: the gate's sentence with its link where no
+      // Owner is verified yet, else the Owner-only sentence (lib/owner-gate).
+      ownerLine: roleName === 'Owner' ? null : await ownerOnlyLineAt(company.id, 'SIGN_IN_MODE'),
     },
   })
 }

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Check, ErrorState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea, Chip } from '@/components/ui'
 import { momentFor, readerZone } from '@/lib/when'
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
 
 /**
@@ -34,6 +36,8 @@ type Overview = {
   setAt: string | null
   reason: string | null
   mayChange: boolean
+  /** Beside the form for a reader who may not change it (lib/owner-gate). */
+  ownerLine?: OwnerLine | null
   slug: string
   domains: string[]
   directory: null | {
@@ -58,6 +62,8 @@ async function readJson<T>(res: Response): Promise<T> {
     const e: any = new Error(body?.error?.message ?? `That did not go through (${res.status}).`)
     e.status = res.status
     e.field = body?.error?.field ?? null
+    e.href = body?.error?.href ?? null
+    e.code = body?.error?.code ?? null
     throw e
   }
   return body as T
@@ -71,6 +77,7 @@ export default function SignInSettings() {
   const [refused, setRefused] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
+  const [saidLine, setSaidLine] = useState<OwnerLine | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<Record<string, string>>({})
   const [token, setToken] = useState<string | null>(null)
@@ -116,7 +123,7 @@ export default function SignInSettings() {
   useEffect(() => { void load() }, [load])
 
   async function send(key: string, url: string, method: string, body?: unknown) {
-    setBusy(key); setSaid(null); setFieldError({})
+    setBusy(key); setSaid(null); setSaidLine(null); setFieldError({})
     try {
       const j = await readJson<{ data: { says?: string; token?: string; ok?: boolean } }>(await fetch(url, {
         method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body),
@@ -127,6 +134,7 @@ export default function SignInSettings() {
       await load()
     } catch (e: any) {
       if (e?.field) setFieldError({ [e.field]: e.message })
+      else if (e?.href) setSaidLine(refusalLine(e))
       else setSaid(e?.message ?? 'That did not go through.')
     } finally {
       setBusy(null)
@@ -143,7 +151,8 @@ export default function SignInSettings() {
     <div className="space-y-6">
       <PageHead eyebrow={eyebrow} title="Sign-in" subtitle={o.says} />
       {said && <p role="status" className="text-sm text-etyme-ink">{said}</p>}
-      {!can && <p className="text-[13px] text-etyme-muted">You can read this page. Only an Owner changes how people sign in.</p>}
+      {saidLine && <div role="alert"><OwnerGateLine line={saidLine} className="text-etyme-ink" /></div>}
+      {!can && <OwnerGateLine line={o.ownerLine ?? { says: 'Only an Owner changes how people sign in.', href: null, linkSays: null }} />}
 
       <Panel title="How your people sign in" subtitle={o.setAt ? setLine({ setBy: o.setBy, on: when(o.setAt), reason: o.reason }) : 'Nothing is set yet.'}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void send('mode', '/api/settings/sign-in', 'PATCH', { mode, reason, jit, scim, requiredAssurance: assurance, dataRegion: region, requireDirectorySuppliers: dirSuppliers }) }}>

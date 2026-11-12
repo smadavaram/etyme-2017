@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { Check, Field, FormMessage, Input, Select, SubmitButton, Textarea } from '@/components/ui'
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
@@ -58,14 +60,21 @@ function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save an
   const w = read.words[item]
   const [busy, setBusy] = useState<'SAVE' | 'SKIP' | null>(null)
   const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  // A refusal that names a step (the Owner gate) keeps its link.
+  const [saidLine, setSaidLine] = useState<OwnerLine | null>(null)
 
   async function send(kind: 'SAVE' | 'SKIP') {
-    setBusy(kind); setSaid(null)
+    setBusy(kind); setSaid(null); setSaidLine(null)
     try {
       const path = PATH[item]
       const res = kind === 'SAVE' && save && path
         ? await fetch(`/api/settings/setup/${path}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(save()) })
         : await fetch('/api/settings/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ item, outcome: kind === 'SAVE' ? 'DONE' : 'SKIPPED' }) })
+      if (!res.ok) {
+        const body = await res.clone().json().catch(() => null)
+        const line = body?.error?.href ? refusalLine(body.error) : null
+        if (line) { setSaidLine(line); return }
+      }
       const j = await readJson(res)
       if (j.data?.says) setSaid({ tone: 'ok', text: j.data.says })
       onDone(j.data)
@@ -89,6 +98,7 @@ function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save an
         <SubmitButton type="button" tone="secondary" pending={busy === 'SKIP'} pendingLabel="Skipping…" disabled={busy !== null} onClick={() => send('SKIP')}>Skip for now</SubmitButton>
       </div>
       {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+      {saidLine && <div role="alert"><OwnerGateLine line={saidLine} className="text-etyme-ink" /></div>}
       <p className="text-[12.5px] text-etyme-muted">{w.skipStops}</p>
       <p className="text-[12px] text-etyme-faint">{read.stamps[item]}</p>
     </section>
@@ -453,6 +463,7 @@ function BankItem(p: Props) {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
   return (
     <Frame {...p} save={() => ({ ...f, accountNumber: f.accountNumber || d.last4, routingNumber: f.routingNumber || d.routingLast4 })}>
+      <OwnerGateLine line={d.waits} />
       {d.shows && (
         <p className="text-[13.5px] text-etyme-ink">
           {d.shows}
