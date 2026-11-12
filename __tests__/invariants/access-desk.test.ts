@@ -1029,7 +1029,10 @@ describe('one moment, said one way', () => {
 
   it('the hourly refusals send the moment to try again as an instant beside the sentence', () => {
     expect(invite).toContain("cap: 'HOURLY', again: again.toISOString()")
-    expect(resend).toContain("cap: 'SEAT', email, again: again.toISOString()")
+    // Send again carries either cap, the company's hour or the seat's, as an instant.
+    expect(resend).toContain("cap: 'SEAT'")
+    expect(resend).toContain("cap: 'HOURLY'")
+    expect(resend).toContain("cap, email, again: again.toISOString()")
   })
 
   it('the screen says that moment in the reader’s own zone, never the server’s UTC', async () => {
