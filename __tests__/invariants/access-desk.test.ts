@@ -872,7 +872,7 @@ describe('Users & permissions says how people join in the one join sentence', ()
   const route = read('src/app/api/access/route.ts')
   const page = read('src/app/dashboard/access/page.tsx')
   const facts = (over: Partial<import('@/lib/join-words').JoinFacts> = {}): import('@/lib/join-words').JoinFacts => ({
-    companyName: 'Tapin', kind: 'VENDOR', slug: 'tapin', mode: 'OPEN', domains: [], ownerEmailDomains: ['etyme.com', 'gmail.com'], ...over,
+    companyName: 'Tapin', kind: 'VENDOR', slug: 'tapin', mode: 'OPEN', domains: [], ...over,
   })
 
   it('the fixed sentence that everybody on the email domain joins at once as Member is gone', () => {
@@ -893,7 +893,7 @@ describe('Users & permissions says how people join in the one join sentence', ()
 
   it('a verified domain set to join at once is said as joining at once as Member, waiting for a role', async () => {
     const { joinSentence } = await import('@/lib/join-words')
-    const s = joinSentence(facts({ companyName: 'Brightmoor Staffing', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }], ownerEmailDomains: ['brightmoor.example'] }))
+    const s = joinSentence(facts({ companyName: 'Brightmoor Staffing', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))
     expect(s).toContain('on brightmoor.example joins at once as Member and waits for a role')
   })
 

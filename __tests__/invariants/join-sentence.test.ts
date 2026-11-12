@@ -13,25 +13,25 @@ import { joinSentence, type JoinFacts } from '@/lib/join-words'
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const facts = (o: Partial<JoinFacts> = {}): JoinFacts => ({
   companyName: 'Brightmoor Staffing', kind: 'VENDOR', slug: 'brightmoor', mode: 'OPEN',
-  domains: [], ownerEmailDomains: ['brightmoor.example'], ...o,
+  domains: [], ...o,
 })
 
 describe('how people join this company is said from what the code does', () => {
-  it('a company with no verified domain is told people join by invitation, and a colleague on its Owner’s email domain who signs up with its Etyme address joins as Member and waits for a role', () => {
+  it('a company with no verified domain is told people join by invitation only, because typing its Etyme address seats nobody', () => {
     expect(joinSentence(facts())).toBe(
-      'People join Brightmoor Staffing by invitation. An Owner or Admin invites each person from Users & permissions. ' +
-      'A colleague with an address on brightmoor.example who signs up with brightmoor.etyme.com also joins, as Member, and waits for a role.'
-    )
-  })
-
-  it('a company whose Owner is on a personal address is told people join by invitation only', () => {
-    expect(joinSentence(facts({ ownerEmailDomains: ['gmail.com'] }))).toBe(
       'People join Brightmoor Staffing by invitation only. An Owner or Admin invites each person from Users & permissions.'
     )
+    expect(joinSentence(facts())).not.toContain('etyme.com')
+    // The door says the same: a colleague is found by a verified domain only.
+    const door = read('src/lib/password-door.ts')
+    const fn = door.slice(door.indexOf('export async function colleagueCompany'), door.indexOf('export function addressTakenSays'))
+    expect(fn).toContain('isPlatformDomain(domain)')
+    expect(fn).toContain('decideEntry(email, await claims())')
+    expect(door).not.toContain('ownerDomains(')
   })
 
   it('a company whose people are on Etyme’s own domain is told people join by invitation only', () => {
-    expect(joinSentence(facts({ companyName: 'Tapin', slug: 'tapin', ownerEmailDomains: ['etyme.com', 'gmail.com'] }))).toBe(
+    expect(joinSentence(facts({ companyName: 'Tapin', slug: 'tapin' }))).toBe(
       'People join Tapin by invitation only. An Owner or Admin invites each person from Users & permissions.'
     )
   })
@@ -50,7 +50,6 @@ describe('how people join this company is said from what the code does', () => {
 
   it('a domain claimed and not yet verified, or verified and closed, lets nobody in by it', () => {
     const s = joinSentence(facts({
-      ownerEmailDomains: [],
       domains: [{ domain: 'a.example', verified: false, joinPolicy: 'AUTO' }, { domain: 'b.example', verified: true, joinPolicy: 'NONE' }],
     }))!
     expect(s).toContain('by invitation only')
