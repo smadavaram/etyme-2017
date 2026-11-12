@@ -7897,3 +7897,27 @@ the world half rewritten. `seedWorld` now reads the first company's
 is a true no-op whenever it happens. The cost is that a world seeded in
 March goes on reading as March: to move the dates forward, drop the
 world and seed it again. `__integration__/reseed-across-days.test.ts`.
+
+**Shipped to production 2026-11-12 (2c314683a on the deploy branch,
+source 3288d493e), on the founder's "deploy".** In it: sign-in by
+company directory with the Owner's choice of directory only, invitation
+only or hybrid; a person turned off in the directory locked out on the
+next click; limits on a seat invited on a public address; the
+Superadmin screen for Ask Etyme limits and the three-day trial; the
+model connection, waiting for the key; the forwarding setup item
+(intake stays closed); Google directory import (off until the privacy
+line is approved); and the walk's fixes, including EMAIL_SERVER no
+longer breaking sign-in. Release pass on 376de51b8: type check and
+build clean, 14,871 of 14,872 unit, 2,833 of 2,834 integration; the two
+reds were old test lines for words removed on purpose, fixed in
+3288d493e and green alone. The identity walk on 62a498151 said ships.
+Gates: no Ruby, brand kit present, no source difference, no schema
+line removed. Smoke: health "Serving 2c314683" with the database ready
+and the schema there; every public page, the four doors and
+`/site/tapin` 200; the inbound email door 404 to a POST. **Open:**
+Resend's records for etyme.com are live in DNS (2026-11-11) and
+`NOTIFY_FROM_EMAIL` must be an address on that domain; etyme.com has no
+MX records, so @etyme.com mailboxes receive nothing; the public-seat
+refusal sentence on the timesheet-approve and a few settings routes;
+the password door and emailed link under directory-only are proven by
+unit tests only.
