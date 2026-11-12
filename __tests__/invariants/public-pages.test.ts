@@ -258,7 +258,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     for (const m of MODULES) expect(copyOfModule(m).hero[0], m.route).toBe(CATEGORY)
     for (const v of everyDoorView()) expect(copyOfPartyPage(v, v.tab?.key).hero[0], v.href).toBe(CATEGORY)
     // No reference page draws it: the documentation, security, About,
-    // Contact, the demo, the census, the legal pages and sign-in.
+    // Contact, the demo, the legal pages and sign-in.
     const reference = [
       ...PUBLIC_PAGES.filter((p) => !['HOME', 'MODULE', 'PARTY'].includes(p.kind)).map((p) => p.routeFile),
       'src/lib/public-site/docs-page.tsx', 'src/lib/public-site/company-page.tsx', 'src/app/(auth)/door-frame.tsx',
@@ -622,7 +622,6 @@ describe('One header and footer on every new page', () => {
       expect(md.title, s).not.toMatch(/Etyme/)
       expect((md as { description?: string }).description, `${s} has no description`).toBeTruthy()
     }
-    expect(read('src/app/census/page.tsx')).not.toMatch(/title: '[^']*Etyme'/)
   })
 
   it('every route a public page is registered at is mounted by a file that exists', () => {
@@ -653,7 +652,7 @@ describe('One header and footer on every new page', () => {
 
   it('no link in the header, the sheet or the footer goes to the census', () => {
     // It was the spend audit's one door; the audit left every page on
-    // 2026-10-14 and the census is linked from nowhere until it closes.
+    // 2026-10-14 and the census page closed on November 13, 2026.
     expect(everyFrameLink().filter((h) => h.startsWith('/census'))).toEqual([])
     expect(FOOTER.flatMap((g) => g.links).filter((l) => /audit/i.test(l.label))).toEqual([])
     expect(read('src/lib/public-site/frame.tsx')).not.toMatch(/SPEND_AUDIT|PRIMARY\./)

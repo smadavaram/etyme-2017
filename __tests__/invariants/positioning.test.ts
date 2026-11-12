@@ -54,7 +54,6 @@ import {
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
-import { CENSUS_COPY } from '@/lib/census-copy'
 // Read rather than described: the page may say a certificate stops work
 // only while this list holds the key it is talking about.
 import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
@@ -74,7 +73,7 @@ import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/publ
 import { HEADER, everyFrameLink } from '@/lib/public-site/nav'
 import { STEPS } from '@/lib/public-site/steps'
 import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation'
-import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
+import { CLOSE_BAND, SEE_IT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { copyOfPartyPage, everyDoorView, partyAt } from '@/lib/public-site/parties'
@@ -1018,23 +1017,6 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(aimed, aimed.join('\n')).toEqual([])
   })
 
-  it('no sentence on the census page reads as a threat to a supplier either', () => {
-    // The census is the door to the program office service, so it is
-    // the page most likely to reach for "find out what your suppliers
-    // are really charging". What it may say is what the client cannot
-    // answer about its own workforce: the lowest rate, the highest
-    // rate and the gap, which is the client's own knowledge of its own
-    // spend. The agreement it links to already promises we never
-    // approach a supplier; the page above it must not undo that.
-    const census = readFileSync(join(process.cwd(), 'src/app/census/page.tsx'), 'utf8')
-    const said = [...copyFrom(census), JSON.stringify(CENSUS_COPY)].join(' ')
-    const aimed = readsAsAimedAtSuppliers(said)
-    expect(aimed, aimed.join('\n')).toEqual([])
-    // And the guard is reading something, rather than passing on an
-    // empty page.
-    expect(said).toContain('across every supplier')
-  })
-
   it('keeps the two labels the founder named, in one line of About, never in a headline', () => {
     // A program manager has already evaluated things called both of
     // those, and inventing a third word costs the recognition. Since
@@ -1083,15 +1065,16 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
-  it('links the census from nowhere, now that the audit is deleted from every page', () => {
+  it('offers the audit nowhere, now that the census page has closed', () => {
     // The census was the spend audit, the primary call from 2026-10-09 and
     // the second call from the morning of 2026-10-14. The founder deleted
-    // it the same day; the page stays reachable for thirty days, linked
-    // from nowhere (public-funnel.test.ts holds every public page to it).
+    // it the same day and kept the page reachable for thirty days, linked
+    // from nowhere; it closed on November 13, 2026, and its address shows
+    // the ordinary not-found page.
     expect(PAGE).not.toContain('GET_THE_AUDIT')
     expect(PAGE).not.toMatch(/spend audit/i)
     expect(CLOSE_SRC).not.toContain('GET_THE_AUDIT')
-    expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(true)
+    expect(readFileSync(join(process.cwd(), 'src/app/census/page.tsx'), 'utf8')).toMatch(/notFound\(\)/)
   })
 
   it('says VMS software without the page reading as software staffing', () => {
@@ -2144,7 +2127,6 @@ function everyPublicPage(): [string, string][] {
   out.push(['the close band', [...closeBandCopy(), SEE_IT.d].join(' ')])
   // The panel that shows the product working, on every page above (2026-10-14).
   out.push(['the panel', storyCopy().join(' ')])
-  out.push(['/census', JSON.stringify(CENSUS_COPY)])
   return out
 }
 
@@ -2155,14 +2137,12 @@ describe('Two words nobody uses (the founder, 2026-10-14)', () => {
     // world." The firm that runs a client's program is an MSP; the
     // client's own person is the program manager; a desk is the person's
     // job title, or "team". Read on every public page a stranger can open,
-    // the header, the sheet and the footer, the doors' lines, the census
-    // while it stays, and the words a screen reader hears on the
+    // the header, the sheet and the footer, the doors' lines, and the words a screen reader hears on the
     // documentation's flow charts. Routes and keys (/for/program-offices,
     // desk: 'ap') are addresses and are not read.
     const two = /\b(?:program(?:me)?[ -]offices?|desks?)\b/i
     const said = [
-      ...everyPublicPage().filter(([route]) => route !== '/census'),
-      ['the census', [...Object.values(CENSUS_COPY.form), ...CENSUS_COPY.desks.map((d) => d.label)].join(' ')],
+      ...everyPublicPage(),
       ['the doors', JSON.stringify([...HOME_DOORS, ...SKELETON_FOOTER_LINKS].map((d) => d.t))],
       ['the party doors and their tabs', [OPEN_DEMO, ...everyDoorView().flatMap((p) => [p.signUp.t, p.caption ?? '', p.tab?.label ?? ''])].join(' ')],
       // The documentation drew pictures until 2026-10-15; its flow charts are words now, each box naming who.
@@ -2428,7 +2408,7 @@ describe('Plain words on public pages, defined once', () => {
   })
 
   it('the home page, the header, the footer and every product and company page say job, job request and bill, never role or requisition, and invoice only for what a supplier sends', () => {
-    const pages = everyPublicPage().filter(([route]) => !route.startsWith('/docs') && route !== '/census')
+    const pages = everyPublicPage().filter(([route]) => !route.startsWith('/docs'))
     expect(pages.length).toBeGreaterThan(10)
     for (const [route, text] of pages) {
       const found = supplierSide(text).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []
@@ -2462,8 +2442,6 @@ describe('Plain words on public pages, defined once', () => {
       expect(text, route).not.toMatch(/three-way match/i)
     }
     expect(onDoc('invoices')).toContain('The three-way check: the hours, the invoice receipt, and the contract rate must all agree.')
-    // The census template's column is job now, and the page says so.
-    expect(CENSUS_COPY.send.optionA.says).toContain('supplier, job, site')
   })
 
   it('the set-aside for a supplier’s invoice is narrow: a bill to a customer called an invoice is still caught', () => {
@@ -2497,13 +2475,6 @@ describe('Plain words on public pages, defined once', () => {
 
   // "The legend under every drawing ends on a whole sentence" held the
   // party pages' drawings, which left the site on 2026-10-15.
-
-  it('the census asks for the invoice receipts a client holds, what it received from its suppliers', () => {
-    for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
-      expect(said).toContain('invoice receipts')
-      expect(supplierSide(said), said.slice(0, 60)).not.toMatch(/\binvoic/i)
-    }
-  })
 
   it('what a supplier sends is an invoice receipt on every public page, never a supplier bill or a supplier invoice', () => {
     // CLAUDE.md, 2026-09-28: what a firm receives from below is an

@@ -24,11 +24,9 @@ import {
   sizesAgainstIncumbents, longSentences, headlinesFrom, withoutVerb, promisesAnAccount,
 } from '@/lib/positioning'
 import {
-  SEE_IT, GET_THE_AUDIT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
+  SEE_IT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
 } from '@/lib/public-site/funnel'
 import { HEADER, frameCopy, frameButtons, everyFrameLink } from '@/lib/public-site/nav'
-import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-copy'
-import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { CONTACT, COMPANY_PAGES } from '@/lib/public-site/company'
 import { OPEN_DEMO, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
@@ -51,6 +49,7 @@ const HOME = ['src/app/page.tsx', 'src/lib/public-site/skeleton-words.ts', 'src/
 const FRAME = read('src/lib/public-site/frame.tsx')
 const CLOSE = read('src/lib/public-site/close-band.tsx')
 const CENSUS = read('src/app/census/page.tsx')
+const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 /**
  * The words on everything a reader presses, read out of the source files
@@ -73,8 +72,6 @@ function buttonLabels(src: string): string[] {
 
 const SITE_SOURCES = [
   'src/app/page.tsx',
-  'src/app/census/page.tsx',
-  'src/app/census/flow.tsx',
   'src/lib/public-site/frame.tsx',
   'src/lib/public-site/close-band.tsx',
   'src/lib/public-site/module-page.tsx',
@@ -126,10 +123,9 @@ describe('One ladder, named once', () => {
     const audit = /\/census\b|GET_THE_AUDIT|SPEND_AUDIT|spend audit|free audit/i
     expect(everyFrameLink().filter((h) => h.startsWith('/census'))).toEqual([])
     expect([...frameCopy(), ...closeBandCopy()].filter((t) => audit.test(t))).toEqual([])
-    const drawers = SITE_SOURCES.filter((f) => !f.startsWith('src/app/census/'))
+    const drawers = SITE_SOURCES
       .concat(['src/lib/public-site/nav.ts', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/sub-page.tsx'])
     // Code only: a comment that records why the audit left is history, not a link.
-    const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     for (const f of drawers) expect(code(read(f)), f).not.toMatch(audit)
     const data = JSON.stringify([MODULES, PARTY_PAGES, STEPS, TOPICS, STEP_PAGES, WHO_DOES_WHAT, REFERENCE, DOCS_HOME, COMPANY_PAGES, DOORS, FOOTER_LINKS])
     expect(data).not.toMatch(audit)
@@ -183,19 +179,14 @@ describe('One ladder, named once', () => {
     expect(CLOSE.slice(CLOSE.indexOf('bg-etyme-action'))).toMatch(/^[^}]*\}?[\s\S]{0,400}\{`\$\{SEE_IT\.t\} →`\}/)
   })
 
-  it('the census, linked from nowhere until it closes, says at its top when it closes and where to write instead', () => {
-    // Kept reachable for thirty days so a link already sent does not land
-    // on a missing page (CLAUDE.md, 2026-10-14). It still draws the shared
-    // header and footer, and its own form is its end.
-    expect(CENSUS).toContain("'This page closes on November 13, 2026.'")
-    expect(CENSUS).toMatch(/lead: 'Write to us from', link: 'Contact', after: 'instead\.', href: '\/contact'/)
-    expect(CENSUS.indexOf('{CLOSES.says}')).toBeGreaterThan(CENSUS.indexOf('<SiteHeader />'))
-    expect(CENSUS.indexOf('{CLOSES.says}')).toBeLessThan(CENSUS.indexOf('{CENSUS_COPY.headline}'))
-    expect(read('KNOWN-LIMITS.md')).toMatch(/\/census[\s\S]{0,400}November 13, 2026/)
-    expect(CENSUS).toContain('<SiteHeader />')
-    expect(CENSUS).toContain('<SiteFooter />')
-    expect(CENSUS).not.toContain('<CloseBand')
-    expect(CENSUS).toContain('<CensusFlow />')
+  it('the census closed on November 13, 2026: its address shows the ordinary not-found page and no public page registers it', () => {
+    // Kept reachable for thirty days so a link already sent did not land
+    // on a missing page (CLAUDE.md, 2026-10-14); the thirty days are over.
+    expect(code(CENSUS)).toMatch(/notFound\(\)/)
+    expect(code(CENSUS)).not.toMatch(/CensusFlow|CENSUS_COPY|<SiteHeader|<form|<input/)
+    expect(PUBLIC_PAGES.find((p) => p.route === '/census')).toBeUndefined()
+    // The funnel no longer carries the audit's constant for anybody to draw.
+    expect(code(read('src/lib/public-site/funnel.ts'))).not.toMatch(/GET_THE_AUDIT|\/census/)
   })
 })
 
@@ -211,13 +202,6 @@ describe('No button promises what the site cannot give', () => {
       ...frameButtons(),
       ...FOOTER_LINKS.map((l) => l.t),
       ...WAYS_FORWARD.map((w) => w.t),
-      CENSUS_COPY.start.button, CENSUS_COPY.start.secondary, CENSUS_COPY.form.button,
-      // Every button the census flow offers, at each step it can be on.
-      ...[
-        NOTHING_YET,
-        { ...NOTHING_YET, requestId: 'r' },
-        { ...NOTHING_YET, requestId: 'r', uploadToken: 't' },
-      ].flatMap((state) => offered(state).map((step) => step.button ?? '')),
       ...SITE_SOURCES.flatMap((f) => buttonLabels(read(f))),
       // The buttons the shared skeleton draws from data (2026-10-14): the
       // demo under the frame, which every door and tab draws too since
@@ -278,73 +262,12 @@ describe('No button promises what the site cannot give', () => {
     expect(FRAME).toContain('links.map')
   })
 
-  it('the census promises its own time, and nothing on the site promises a faster one', () => {
+  it('nothing on the site promises an answer faster than a person can give it', () => {
     // The header said "Your numbers back in 24 hours" for a day while the
-    // census page promised five working days. The header no longer offers
-    // the census at all; the one place left that does (/demo) carries the
-    // census's own time.
-    expect(CENSUS_COPY.standfirst).toContain('inside five working days')
-    expect(GET_THE_AUDIT.d).toContain('five working days')
-    const everywhere = [...frameCopy(), ...closeBandCopy(), GET_THE_AUDIT.d].join(' ')
-    expect(everywhere).not.toMatch(/24 hours|ten minutes|same day|within an hour/i)
-  })
-})
-
-describe('The census, while it stays, says what to send and where', () => {
-
-  it('the census offer says what to send and where, with a verb', () => {
-    // A buyer-side review, 2026-09-27, read "Send what you already hold.
-    // A named person sends one page back inside five working days." as a
-    // riddle. The line opens on what to do, names where it is done, and
-    // names what to send in a CFO's own words.
-    const offer = GET_THE_AUDIT.d
-    expect(offer).toMatch(/^(Ask|Upload|Send|Fill in)\b/)
-    expect(offer).toContain('the audit page')
-    expect(GET_THE_AUDIT.href).toBe('/census')
-    expect(offer).toContain('upload your contractor list')
-    // What a firm receives from below is an invoice receipt; what it
-    // issues upward is a bill (CLAUDE.md, 2026-09-28).
-    expect(offer).toContain('invoice receipts')
-    expect(offer).toContain('a spreadsheet is fine')
-    expect(offer).toContain('five working days')
-
-    // Every one of those is something the census really takes: a list of
-    // contractors is its template, one row per contractor; invoice receipts are
-    // its second option; and a spreadsheet opens, whether CSV or Excel.
-    expect(CENSUS_COPY.send.optionA.says).toContain('One row per contractor')
-    expect(CENSUS_COPY.send.optionB.says).toContain('invoice receipts')
-    expect(acceptedKinds()).toEqual(expect.arrayContaining(['CSV', 'XLSX']))
-    // And the page the button leads to says the same thing first.
-    expect(CENSUS_COPY.standfirst).toMatch(/^Upload your contractor list/)
-    expect(CENSUS_COPY.standfirst).toContain('invoice receipts you hold')
-
-    // The riddle is gone everywhere.
-    const everywhere = [...frameCopy(), ...closeBandCopy(), offer, CENSUS_COPY.standfirst, CENSUS].join(' ')
-    expect(everywhere).not.toContain('what you already hold')
-    expect(longSentences(offer, 30)).toEqual([])
-  })
-
-  it('the census asks for a work email and says who answers and when', () => {
-    // Its first screen, before any scrolling: what it asks for, who
-    // answers, and when. The page and the upload link go to a work
-    // address, because a census is a company's own data.
-    const first = [CENSUS_COPY.headline, CENSUS_COPY.standfirst, CENSUS_COPY.start.says].join(' ')
-    expect(first).toContain('work email')
-    expect(first).toContain('A named person at Etyme')
-    expect(first).toContain('inside five working days')
-    expect(first).toContain('writes to you by name')
-    // And the form asks for exactly that, and refuses a personal address
-    // in a sentence rather than accepting a lead nobody can place.
-    expect(CENSUS_COPY.form.emailLabel).toBe('Your work email')
-    expect(checkWorkEmail('dana@gmail.com').ok).toBe(false)
-    expect(checkWorkEmail('dana@northbend.example').ok).toBe(true)
-    // The first screen carries a way to the form, and the committee that
-    // reads top to bottom still meets what it gets before it is asked.
-    const hero = CENSUS.slice(CENSUS.indexOf('{CENSUS_COPY.headline}'), CENSUS.indexOf('id="what-you-get"'))
-    expect(hero).toContain('{CENSUS_COPY.start.says}')
-    expect(hero).toContain('href={CENSUS_COPY.start.href}')
-    expect(CENSUS_COPY.start.href).toBe('#ask')
-    expect(CENSUS.indexOf('id="what-you-get"')).toBeLessThan(CENSUS.indexOf('<CensusFlow />'))
+    // census page promised five working days. The census is gone, and no
+    // promise of speed came back in its place.
+    const everywhere = [...frameCopy(), ...closeBandCopy(), ...WAYS_FORWARD.map((w) => w.d)].join(' ')
+    expect(everywhere).not.toMatch(/24 hours|ten minutes|same day|within an hour|five working days/i)
   })
 })
 

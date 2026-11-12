@@ -71,7 +71,7 @@ export function readMarketEvent(input: MarketEventInput): { ok: true; row: Marke
   }
   const page = typeof input.page === 'string' ? input.page : ''
   if (!/^\/[A-Za-z0-9/_-]{0,120}$/.test(page)) {
-    return { ok: false, says: 'The page is a path on this site, with no query string, such as "/" or "/census".' }
+    return { ok: false, says: 'The page is a path on this site, with no query string, such as "/" or "/contact".' }
   }
   const visit = typeof input.visit === 'string' ? input.visit : ''
   if (!/^[a-f0-9]{16,64}$/.test(visit)) {

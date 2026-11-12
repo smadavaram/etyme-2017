@@ -32,7 +32,7 @@ import { FOLDED } from './folded'
 export type PageKind =
   /** The front door. */
   | 'HOME'
-  /** A door that asks for something: the census, the demo. */
+  /** A door that asks for something: the demo. */
   | 'DOOR'
   /** One of the four steps of the product, a page each. */
   | 'MODULE'
@@ -93,9 +93,6 @@ export const SITE_GROUP = 'src/app/(site)'
 
 export const PUBLIC_PAGES: PublicPage[] = [
   { route: '/', title: 'Home', kind: 'HOME', routeFile: 'src/app/page.tsx' },
-  // Linked from nowhere since 2026-10-14 and deleted on November 13, 2026;
-  // registered until then so every guard still reads what it says.
-  { route: '/census', title: 'Contractor census (closes November 13, 2026)', kind: 'DOOR', routeFile: 'src/app/census/page.tsx' },
   { route: '/demo', title: 'Open the example program', kind: 'DOOR', routeFile: 'src/app/demo/page.tsx' },
 
   ...MODULE_ROUTES.map((route) => ({
@@ -155,8 +152,9 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
     prefix: `src/app/(site)${route}/`,
     why: 'An old product page, folded into its step on 2026-10-15: it answers with a permanent redirect to that step (lib/public-site/folded), and draws nothing.',
   })),
+  { prefix: 'src/app/census/', why: 'The contractor census, closed on November 13, 2026 (the founder, 2026-10-14): the address answers with the ordinary not-found page and draws nothing.' },
   { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
-  { prefix: 'src/app/legal/', why: 'Regulatory’s agreements, reached from the census; read for price and AI with the other legal pages.' },
+  { prefix: 'src/app/legal/', why: 'Regulatory’s agreements; read for price and AI with the other legal pages.' },
 ]
 
 /** The page a route is registered under, or null. */

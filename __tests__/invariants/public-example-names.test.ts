@@ -36,7 +36,6 @@ import { docRoutes, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/ind
 import { frameCopy } from '@/lib/public-site/nav'
 import { closeBandCopy, WAYS_FORWARD } from '@/lib/public-site/funnel'
 import { ASK_COPY } from '@/lib/public-site/leads'
-import { CENSUS_COPY, promises } from '@/lib/census-copy'
 import { sampleFirms } from '@/lib/public-site/sample-desk'
 import { SAMPLE_LABEL } from '@/lib/public-site/sample-desk-view'
 import { speaksForItself } from '@/lib/public-site/speaks'
@@ -153,17 +152,6 @@ function everything(): Said[] {
     const c = copyOfDoc(route.slice('/docs/'.length))
     if (c) add(route, [...c.hero, ...c.body])
   }
-
-  add('/census', [
-    ...copyFrom(read('src/app/census/page.tsx')),
-    ...Object.values(CENSUS_COPY).flatMap(function flat(v: unknown): string[] {
-      if (typeof v === 'string') return [v]
-      if (Array.isArray(v)) return v.flatMap(flat)
-      if (v && typeof v === 'object') return Object.values(v).flatMap(flat)
-      return []
-    }),
-    ...promises().flatMap((p) => [p.heading, p.says]),
-  ])
 
   add('every header, footer and close', [
     ...frameCopy(), ...closeBandCopy(), ...WAYS_FORWARD.map((w) => w.d),

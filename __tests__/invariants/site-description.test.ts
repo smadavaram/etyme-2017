@@ -13,7 +13,7 @@ import {
   unverifiableClaims,
   readsAsAimedAtSuppliers,
 } from '@/lib/positioning'
-import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
+import { ASK_A_PERSON } from '@/lib/public-site/funnel'
 import { NEXT_STEP_LEAD } from '@/app/demo/seats'
 
 /**

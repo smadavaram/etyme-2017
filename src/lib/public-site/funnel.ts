@@ -16,8 +16,8 @@
  *                 talk first.
  *
  * The contractor spend audit was the second rung from 2026-09-27 and the
- * primary call from 2026-10-09. It left every page on 2026-10-14 (see
- * `GET_THE_AUDIT` below for why the constant is still here).
+ * primary call from 2026-10-09. It left every page on 2026-10-14, and its
+ * page closed on November 13, 2026.
  *
  * ── What the first rung may not say ──────────────────────────────────
  *
@@ -58,28 +58,12 @@ export const SEE_IT: Way = {
   href: '/demo',
 }
 
-/**
- * The contractor census, which was the spend audit. Retired from every
- * public page on 2026-10-14 (the founder: "Does anyone need the audit
- * form? I think it's useless."). Nobody had used it, and a second call on
- * every page is a decision the buyer has to make before the one that
- * matters. `/census` stays reachable, linked from nowhere on this site,
- * until November 13, 2026, and is then deleted with its form and route
- * (`KNOWN-LIMITS.md`, the market's section).
- *
- * Kept as a constant for one reason: `/demo` (platform's,
- * `src/app/demo/page.tsx`) still links it at its foot, and removing the
- * export would break a file this domain may not edit. The test
- * `public-funnel.test.ts` names that file as the one place left, and the
- * list may only shrink. Nothing in `lib/public-site` draws it.
+/*
+ * The contractor census, which was the spend audit, left every public
+ * page on 2026-10-14 (the founder: "Does anyone need the audit form? I
+ * think it's useless.") and closed on November 13, 2026. Its constant
+ * went with it; nothing on the site offers an audit.
  */
-export const GET_THE_AUDIT: Way = {
-  t: 'Get a Free Contractor Spend Audit',
-  short: 'Free audit',
-  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the invoice receipts you hold. ' +
-    'A named person sends back one page inside five working days.',
-  href: '/census',
-}
 
 /** The third rung: a person. The form sits on the contact page. */
 export const ASK_A_PERSON: Way = {

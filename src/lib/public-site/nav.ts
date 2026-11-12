@@ -40,9 +40,9 @@
  *
  * ── No audit, since 2026-10-14 ───────────────────────────────────────
  *
- * The founder deleted the contractor spend audit from every page. The
- * header, the sheet and the footer carry no link to `/census`, and the
- * test holds that no public page does.
+ * The founder deleted the contractor spend audit from every page, and its
+ * page closed on November 13, 2026. The header, the sheet and the footer
+ * carry no link to `/census`, and the test holds that no public page does.
  */
 
 import { FOOTER_LINKS } from './skeleton-words'
