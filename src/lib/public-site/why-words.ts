@@ -97,12 +97,14 @@ export function whyDrawings(): WhyDrawing[] {
  * The four lines, from the drawing. Each of `links` is words in `text`
  * that open `href`.
  *
- * "Signs in with your work account" and "Exports to your accounting
+ * "Your team signs in through your company's directory" (the founder's
+ * public words for a client, 2026-11-11) and "Exports to your accounting
  * system" are claims, and a claim on a public page is one the reader can
  * check (release walk, 2026-10-27), so each opens the page that says it:
- * the security page, whose first list, Done, says "Sign in with your
- * company's work account" (its top, not an anchor: no link lands in the
- * middle of a page), and the documentation's Integrations page, which
+ * the security page, whose first list, Done, says a company can require
+ * sign-in through its own directory (its top, not an anchor: no link
+ * lands in the middle of a page), and the documentation's Integrations
+ * page, which
  * says journal entries go to your books once and that no named connector
  * is built.
  */
@@ -111,9 +113,9 @@ export interface FourLine { lead: string; text: string; links?: readonly { words
 export const FOUR_LINES: readonly FourLine[] = [
   {
     lead: 'In it:',
-    text: 'Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+    text: 'Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Suppliers and contractors join free, and nobody needs training. Your team signs in through your company’s directory. No separate Etyme password. Exports to your accounting system.',
     links: [
-      { words: 'Signs in with your work account', href: '/security' },
+      { words: 'Your team signs in through your company’s directory', href: '/security' },
       { words: 'Exports to your accounting system', href: '/docs/integrations' },
     ],
   },

@@ -28,10 +28,15 @@
  *
  * Every security line is a claim `docs/security-posture.md` makes with
  * the file behind it. The drawing named the two sign-in providers; no
- * public page names a company (`lib/positioning`), so the line says "your
- * company's work account", which is what `lib/auth` signs in with once a
- * deployment has the keys (`/ready` says whether it does). Nothing here
- * has a date, because no date is contracted.
+ * public page names a company (`lib/positioning`), so the sign-in lines
+ * say "your directory". Since 2026-11-12 they say what `lib/identity`
+ * does: a company may require its own directory alone, a person the
+ * directory turns off is signed out on the next request, and a seat
+ * invited on a personal address at a company with a directory holds no
+ * money or signing act; SAML is said as not built. The internal posture
+ * file still calls directory sign-in not built (section 2), and is
+ * regulatory's to correct. Nothing here has a date, because no date is
+ * contracted.
  */
 
 import { ADDRESS } from './nav'
@@ -150,7 +155,7 @@ export const SECURITY: CompanyPage = {
   // The drawing's line was "What is done, and what is not done yet." It
   // names the records it is about, because every public page says what
   // kind of thing this is above the fold (lib/positioning, category first).
-  lede: 'What is done to protect your contractor and supplier records, and what is not done yet.',
+  lede: 'What protects your contractor and supplier records, and what is not done yet.',
   blocks: [
     {
       id: 'done',
@@ -158,11 +163,17 @@ export const SECURITY: CompanyPage = {
       tone: 'ok',
       lines: [
         { t: 'A company sees only its own records. The database filters them, not the screen.' },
-        { t: 'Sign in with your company’s work account, or a password.' },
+        // Sign-in, as built 2026-11-11 and walked on 2026-11-12: a company's
+        // own directory, the directory-only mode, a person the directory
+        // turns off losing the session on the next request, and the limit
+        // on a seat invited on a personal address (lib/identity/policy).
+        { t: 'A company can require sign-in through its own directory alone.' },
+        { t: 'Turned off in your directory, a person is out on their next click.' },
+        { t: 'At a company with a directory, a personal-address seat cannot bill, pay or sign.' },
         { t: 'Every look at a person’s record is logged, and so is every refusal.' },
-        { t: 'Nobody approves their own hours, their own job request or a supplier they recommended.' },
+        { t: 'Nobody approves their own hours, job request or recommended supplier.' },
         { t: 'A person can download or erase their own data. Signed hours and amounts stay.' },
-        { t: 'When something fails, our staff get an email.' },
+        { t: 'Our staff are emailed when something fails.' },
       ],
     },
     {
@@ -171,7 +182,8 @@ export const SECURITY: CompanyPage = {
       tone: 'no',
       lines: [
         { t: 'No SOC 2 report, no ISO 27001 certificate, no penetration test.' },
-        { t: 'Two-step sign-in comes from your company’s account. Etyme does not enforce it.' },
+        { t: 'SAML sign-in is not built.' },
+        { t: 'Etyme does not enforce two-step sign-in. Your directory or account does.' },
         { t: 'Restoring from backup has not been tested. No disaster recovery plan.' },
         { t: 'Encryption is the hosting provider’s. Etyme has not checked it.' },
         { t: 'No named security officer.' },
@@ -184,12 +196,12 @@ export const SECURITY: CompanyPage = {
       id: 'next',
       title: 'Next, in this order',
       ordered: ['Penetration test', 'SOC 2 Type I', 'SOC 2 Type II, then ISO 27001'],
-      note: 'No dates yet, because none is contracted. A date goes here when one is.',
+      note: 'No dates yet, because none is contracted.',
     },
     {
       id: 'report',
       title: 'Found a problem?',
-      paragraphs: [`Write to ${ADDRESS.email}. Test only on the demo. It holds no real people and no real money.`],
+      paragraphs: [`Write to ${ADDRESS.email}. Test only on the demo.`],
     },
   ],
 }

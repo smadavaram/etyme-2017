@@ -463,20 +463,23 @@ describe('Under the panel, two drawings and four lines, every name and figure th
 
   it('the four lines are the drawing’s, word for word, and the security line opens the security page', () => {
     expect(FOUR_LINES.map((l) => `${l.lead} ${l.text}`)).toEqual([
-      'In it: Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Your suppliers and contractors join at no cost, and nobody at a supplier needs training. Signs in with your work account. Exports to your accounting system.',
+      // The sign-in sentence is the founder's public words for a client (2026-11-11).
+      'In it: Jobs · Submissions · Timesheets · Invoices · Papers · Suppliers. Suppliers and contractors join free, and nobody needs training. Your team signs in through your company’s directory. No separate Etyme password. Exports to your accounting system.',
       'Price: free while we test. Founding firms keep their terms.',
       'Security: what is done and what is not, on one page. No SOC 2 yet; it is next.',
       'Talk to a person: support@etyme.com. One sentence is enough.',
     ])
     expect(FOUR_LINES[2].links).toEqual([{ words: 'on one page', href: '/security' }])
     expect(FOUR_LINES[3].links).toEqual([{ words: 'support@etyme.com', href: 'mailto:support@etyme.com' }])
-    // Each claim in "In it" stands on something built: the work-account
-    // sign-in and the accounting export.
+    // Each claim in "In it" stands on something built: sign-in through a
+    // company's own directory, refusing every other door when it asks, and
+    // the accounting export.
     expect(read('src/lib/auth.ts')).toContain('AzureADProvider')
+    expect(read('src/lib/identity/policy.ts')).toContain("'SSO_ONLY'")
     expect(read('src/lib/erp-profiles.ts')).toContain("'QUICKBOOKS'")
   })
 
-  it('the sign-up band promises no speed, and each claim in "In it" opens the page where a reader checks it: the work-account sign-in on the security page, the export in the documentation', () => {
+  it('the sign-up band promises no speed, and each claim in "In it" opens the page where a reader checks it: the directory sign-in on the security page, the export in the documentation', () => {
     // "Two minutes." was a promised speed nobody measured (release walk, 2026-10-27).
     for (const line of [BAND.line, BAND_FOR_SELF.line]) {
       expect(line, line).not.toMatch(/minute/i)
@@ -485,17 +488,17 @@ describe('Under the panel, two drawings and four lines, every name and figure th
     expect(unverifiableClaims('Two minutes. Free while we are testing.')).not.toEqual([])
     const inIt = FOUR_LINES[0]
     expect(inIt.links).toEqual([
-      { words: 'Signs in with your work account', href: '/security' },
+      { words: 'Your team signs in through your company’s directory', href: '/security' },
       { words: 'Exports to your accounting system', href: '/docs/integrations' },
     ])
     for (const l of inIt.links!) expect(inIt.text).toContain(l.words)
     // What each link lands on says the same thing, under the heading it names.
     const done = SECURITY_PAGE.blocks.find((b) => b.id === 'done')!
-    expect(done.lines!.map((l) => l.t)).toContain('Sign in with your company’s work account, or a password.')
+    expect(done.lines!.map((l) => l.t)).toContain('A company can require sign-in through its own directory alone.')
     expect(referenceAt('integrations')!.lines).toContain('Journal entries go to your books once. An entry already sent never goes again.')
     expect(docSlugs()).toContain('integrations')
     // And the page draws each as a link, in reading order.
-    expect(piecesOf(inIt).filter((p) => p.href).map((p) => p.t)).toEqual(['Signs in with your work account', 'Exports to your accounting system'])
+    expect(piecesOf(inIt).filter((p) => p.href).map((p) => p.t)).toEqual(['Your team signs in through your company’s directory', 'Exports to your accounting system'])
     expect(piecesOf(inIt).map((p) => p.t).join('')).toBe(inIt.text)
     const html = renderToStaticMarkup(createElement(WhyBelow))
     expect(html).toContain('href="/security"')

@@ -516,19 +516,44 @@ describe('Security, About and Contact say only what can be checked', () => {
   it('the security position says what is done, what is not done yet, what is next in order with no date nobody has committed to, and where to report a problem', () => {
     // As drawn, 2026-10-15: Done, Not done yet, Next in this order, Found a problem.
     expect(SECURITY.blocks.map((b) => b.title)).toEqual(['Done', 'Not done yet', 'Next, in this order', 'Found a problem?'])
-    expect(SECURITY.blocks.find((b) => b.id === 'done')!.lines).toHaveLength(6)
-    expect(SECURITY.blocks.find((b) => b.id === 'not')!.lines).toHaveLength(5)
+    // Three sign-in lines joined Done and one Not done yet on 2026-11-12.
+    expect(SECURITY.blocks.find((b) => b.id === 'done')!.lines).toHaveLength(8)
+    expect(SECURITY.blocks.find((b) => b.id === 'not')!.lines).toHaveLength(6)
     const next = SECURITY.blocks.find((b) => b.id === 'next')!
     expect(next.ordered).toEqual(['Penetration test', 'SOC 2 Type I', 'SOC 2 Type II, then ISO 27001'])
     const when = [...next.ordered!, next.note!].join(' ')
     expect(when).not.toMatch(/\b20\d\d\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\b|\bQ[1-4]\b/)
-    expect(next.note).toBe('No dates yet, because none is contracted. A date goes here when one is.')
+    expect(next.note).toBe('No dates yet, because none is contracted.')
     const report = SECURITY.blocks.find((b) => b.id === 'report')!.paragraphs!.join(' ')
     expect(report).toContain('support@etyme.com')
     expect(report).toContain('Test only on the demo.')
     // The long version is an internal document no reader can open, so no
     // link promises it.
     expect(all(copyOfCompanyPage(SECURITY))).not.toMatch(/long version/i)
+  })
+
+  it('the security position says what is done about sign-in as things a reader can check: a company may require its own directory, a person turned off there is out on the next click, and a personal-address seat cannot bill, pay or sign', () => {
+    const done = SECURITY.blocks.find((b) => b.id === 'done')!.lines!.map((l) => l.t)
+    expect(done).toContain('A company can require sign-in through its own directory alone.')
+    expect(done).toContain('Turned off in your directory, a person is out on their next click.')
+    expect(done).toContain('At a company with a directory, a personal-address seat cannot bill, pay or sign.')
+    // Each stands on the code: the directory-only mode, the session ended
+    // when the directory turns a seat off, and the acts a public-address
+    // seat at a company with a directory never holds.
+    const policy = read('src/lib/identity/policy.ts')
+    expect(policy).toContain("'SSO_ONLY'")
+    expect(policy).toContain('Your sessions were ended. Sign in again.')
+    for (const act of ['invoices.issue', 'payments.record', 'timesheets.approve']) expect(policy).toContain(`'${act}'`)
+  })
+
+  it('the security position keeps what is not done yet honest about sign-in: SAML is not built, and two-step sign-in is not enforced by Etyme', () => {
+    const not = SECURITY.blocks.find((b) => b.id === 'not')!.lines!.map((l) => l.t)
+    expect(not).toContain('SAML sign-in is not built.')
+    expect(not).toContain('Etyme does not enforce two-step sign-in. Your directory or account does.')
+    expect(not).toContain('No SOC 2 report, no ISO 27001 certificate, no penetration test.')
+    const said = all(copyOfCompanyPage(SECURITY))
+    expect(said).not.toMatch(/\bSAML\b(?! sign-in is not built)/)
+    expect(said).not.toMatch(/\b(certified|accredited|government[- ]approved|FedRAMP)\b/i)
   })
 
   it('contact names Durham, North Carolina and says a person answers, with no promised reply time', () => {
