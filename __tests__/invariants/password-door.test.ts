@@ -284,12 +284,14 @@ describe('the login page offers email and password even when no provider key is 
     expect(mod.configuredProviders().map((p: any) => p.options?.id ?? p.id)).toEqual(['credentials', 'directory-oidc'])
   })
 
-  it('draws the email and password form before any provider button, and never behind a provider check', () => {
+  it('draws the password form wherever the doors route names it, and never behind a provider check', () => {
+    // Since 2026-11-12 Google and Microsoft are drawn above the password
+    // (lib/login-doors orderDoors); the password is still always offered
+    // where the address's company allows it, alone where it is the only door.
     const page = read('src/app/(auth)/login/page.tsx')
-    const form = page.indexOf("signIn('credentials'")
-    const microsoft = page.indexOf('<AccountDoors')
-    expect(form).toBeGreaterThan(0)
-    expect(page.indexOf('id="pw"')).toBeLessThan(microsoft)
+    expect(page.indexOf("signIn('credentials'")).toBeGreaterThan(0)
+    expect(page).toContain("if (d === 'password') {")
+    expect(page).toContain("const passwordAlone = ordered.length === 1 && ordered[0] === 'password'")
     expect(page).not.toContain("has('credentials')")
     expect(page).not.toContain('No sign-in method is switched on')
   })
@@ -389,8 +391,8 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(offers(new Set(['credentials']), 'azure-ad')).toBe(false)
     // The sign-in page draws Microsoft and Google only after the doors route named them for the address.
     const page = read('src/app/(auth)/login/page.tsx')
-    expect(page).toContain('const accounts = doors')
-    expect(page).toContain('<AccountDoors available={accounts}')
+    expect(page).toContain('const ordered = doors ? orderDoors(doors, lastDoor) : []')
+    expect(page).toContain('{ordered.map(door)}')
   })
 
   it('the sign-up form offers the one-person firm, which may use a personal email', async () => {

@@ -36,9 +36,9 @@ export function signInRefusal(code: string | null | undefined): string | null {
   if (!code) return null
   switch (code) {
     case 'EmailNotVerified':
-      return 'Your Microsoft or Google account has not confirmed that email address, so it cannot sign you in here. Sign in with your email and password instead.'
+      return 'Your Microsoft or Google account has not confirmed that email address, so it cannot sign you in here. Sign in another way.'
     case 'NoEmail':
-      return 'Your Microsoft or Google account did not share an email address, so it cannot sign you in here. Sign in with your email and password instead.'
+      return 'Your Microsoft or Google account did not share an email address, so it cannot sign you in here. Sign in another way.'
     case 'DirectoryOnly':
       // A company's sign-in policy refused the door (lib/identity). The
       // company is not named, because the page does not know which.
@@ -51,11 +51,166 @@ export function signInRefusal(code: string | null | undefined): string | null {
       return 'Your company\'s directory did not answer. Try again in a minute, or ask your company\'s IT.'
     case 'DirectoryRefused':
       return 'Your company\'s directory did not sign you in. Start again, or ask your company\'s IT.'
+    case 'SessionUnread':
+      // The person's session version could not be read at sign-in, twice
+      // (lib/auth). Never signed in at a guessed version (fault 4).
+      return SESSION_UNREAD_SAYS
     case 'CredentialsSignin':
       return null
     default:
-      return 'That sign-in did not go through. Try again, or sign in with your email and password.'
+      // A provider's own callback that did not finish (a slow answer from
+      // Google, a code used twice by the back button) and anything we did
+      // not write. Never "use your password": the page does not know
+      // whether this address is offered one, and a directory-only
+      // company's people never are (fault 3, 2026-11-12).
+      return didNotFinish(code) ? SIGN_IN_DID_NOT_FINISH : 'That sign-in did not go through. Try again.'
   }
+}
+
+// ── A sign-in that did not finish, and Try again (2026-11-12) ─────────
+
+/** The codes NextAuth sends back when a provider's round trip broke part way. */
+const UNFINISHED = new Set(['OAuthCallback', 'OAuthSignin', 'Callback'])
+
+/** Whether a code means the round trip with the provider did not finish, rather than a refusal. */
+export function didNotFinish(code: string | null | undefined): boolean {
+  return !!code && UNFINISHED.has(code)
+}
+
+/** Said where Etyme could not read what it needs to finish a sign-in. */
+export const SESSION_UNREAD_SAYS = 'Etyme could not finish signing you in. Try again in a minute.'
+
+export const SIGN_IN_DID_NOT_FINISH = 'That sign-in did not finish. Try again.'
+export const TRY_AGAIN = 'Try again'
+
+/**
+ * What Try again restarts: the provider pressed and the address typed,
+ * kept in this tab's session storage (never the address bar, never a
+ * log) and read once. A fresh sign-in starts, so a one-time code the
+ * back button used twice is never replayed.
+ */
+export const RETRY_KEY = 'etyme_retry'
+export type RetryDoor = 'google' | 'microsoft' | 'linkedin'
+export interface Retry { door: RetryDoor; email: string }
+
+/** A stored retry, read back; null for anything that is not one. */
+export function parseRetry(raw: string | null | undefined): Retry | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw)
+    const door = v?.door
+    if (door !== 'google' && door !== 'microsoft' && door !== 'linkedin') return null
+    const email = typeof v.email === 'string' && looksLikeEmail(v.email) ? v.email.trim().slice(0, 254) : ''
+    return { door, email }
+  } catch {
+    return null
+  }
+}
+
+/** Keep the door pressed and the address, for this tab only. Never throws. */
+export function keepRetry(door: RetryDoor, email?: string | null): void {
+  try {
+    const e = (email ?? '').trim()
+    globalThis.sessionStorage?.setItem(RETRY_KEY, JSON.stringify({ door, email: looksLikeEmail(e) ? e : '' }))
+  } catch {
+    // A browser that refuses storage still signs in; it only loses Try again.
+  }
+}
+
+/** Read the kept retry once, and clear it. Never throws. */
+export function takeRetry(): Retry | null {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(RETRY_KEY) ?? null
+    globalThis.sessionStorage?.removeItem(RETRY_KEY)
+    return parseRetry(raw)
+  } catch {
+    return null
+  }
+}
+
+/** NextAuth's provider id for a door. */
+export function providerOf(door: RetryDoor): 'google' | 'azure-ad' | 'linkedin' {
+  return door === 'microsoft' ? 'azure-ad' : door
+}
+
+/**
+ * What a provider button asks the provider for: its account chooser, and
+ * the address the person typed as a hint, so Google opens on that account.
+ * The hint is only what the person typed; it reveals nothing.
+ */
+export function chooserFor(email?: string | null): { prompt: 'select_account'; login_hint?: string } {
+  const e = (email ?? '').trim()
+  return looksLikeEmail(e) ? { ...CHOOSE_ACCOUNT, login_hint: e } : { ...CHOOSE_ACCOUNT }
+}
+
+// ── The door this browser used last (fault 1, 2026-11-12) ────────────
+
+/**
+ * The door this browser used last, kept in local storage as one of four
+ * words and nothing else: never the address, never `directory` (that door
+ * goes straight to the company before any list is drawn). Read only in
+ * the browser, never on the server.
+ */
+export const LAST_DOOR_KEY = 'etyme_last_door'
+export type RememberedDoor = 'google' | 'microsoft' | 'linkedin' | 'password'
+const REMEMBERED: readonly RememberedDoor[] = ['google', 'microsoft', 'linkedin', 'password']
+
+/** A stored value, read back; null for anything that is not one of the four words. */
+export function parseLastDoor(raw: unknown): RememberedDoor | null {
+  return typeof raw === 'string' && (REMEMBERED as readonly string[]).includes(raw) ? (raw as RememberedDoor) : null
+}
+
+/** Remember the door used. Never throws. */
+export function rememberDoor(door: RememberedDoor): void {
+  try {
+    globalThis.localStorage?.setItem(LAST_DOOR_KEY, door)
+  } catch {
+    // Storage refused: the page still draws, in the usual order.
+  }
+}
+
+/** The door remembered on this browser, or null. Never throws. */
+export function readLastDoor(): RememberedDoor | null {
+  try {
+    return parseLastDoor(globalThis.localStorage?.getItem(LAST_DOOR_KEY) ?? null)
+  } catch {
+    return null
+  }
+}
+
+/** The line over the password box when a company-account door is drawn above it. */
+export const OR_USE_A_PASSWORD = 'or use a password'
+
+/**
+ * The order the second screen draws the doors it was offered: the
+ * company-account doors first (Google, then Microsoft), then LinkedIn,
+ * then the password. The door this browser used last goes first, but
+ * only when the address is offered it; a remembered door the address is
+ * not offered is ignored. `directory` is never drawn in a list. Pure.
+ */
+export function orderDoors(doors: readonly SignInDoor[], last: RememberedDoor | null): SignInDoor[] {
+  const rank: Record<SignInDoor, number> = { google: 0, microsoft: 1, linkedin: 2, password: 3, directory: 9 }
+  const drawn = doors.filter((d) => d !== 'directory').slice().sort((a, b) => rank[a] - rank[b])
+  if (last && drawn.includes(last)) return [last, ...drawn.filter((d) => d !== last)]
+  return drawn
+}
+
+// ── Already signed in (fault 2, 2026-11-12) ───────────────────────────
+
+/** The one button a signed-in browser is shown on the sign-in page. */
+export function continueAs(email: string): string {
+  return `Continue as ${email.trim()}`
+}
+export const USE_ANOTHER_ACCOUNT = 'Use another account'
+
+/**
+ * The address a link carried (`/login?email=`), for the email box and
+ * nothing else: no call is made with it and nothing is submitted. Null
+ * for anything that is not an address.
+ */
+export function emailFromLink(raw: string | null | undefined): string | null {
+  const e = String(raw ?? '').trim().slice(0, 254)
+  return looksLikeEmail(e) ? e : null
 }
 
 // ── Another account ───────────────────────────────────────────────────
