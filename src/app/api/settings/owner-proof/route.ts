@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import {
-  proofFactsAt, proofStanding, mayBecomeOwner, waitsForVerifiedOwner, NOT_GATED_LINE, GATED_ACT_WORDS,
+  proofFactsAt, proofStanding, mayBecomeOwner, waitsForVerifiedOwner, NOT_GATED_LINE, GATED_ACT_WORDS, verifiedOwnerSays,
 } from '@/lib/owner-proof'
 import { becomeOwner } from './become'
 
@@ -58,6 +58,10 @@ export async function GET(request: NextRequest) {
       company: c.name,
       gated,
       verified: c.ownerVerifiedAt !== null,
+      // Once verified, the item says who and since when, and nothing to do.
+      doneSays: c.ownerVerifiedAt
+        ? verifiedOwnerSays({ companyName: c.name, verifiedAt: c.ownerVerifiedAt, readerIsOwner: role === 'Owner', person: facts.person })
+        : null,
       line: gated
         ? `Until ${c.name} has a verified Owner, these wait: ${Object.values(GATED_ACT_WORDS).map((w) => w.toLowerCase()).join(', ')}.`
         : c.ownerProofRequiredAt === null ? NOT_GATED_LINE : `${c.name} has a verified Owner.`,

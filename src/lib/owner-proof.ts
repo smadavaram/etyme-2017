@@ -31,6 +31,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { formatDay } from '@/lib/format-date'
 
 type Db = typeof prisma
 
@@ -182,4 +183,29 @@ export function mayBecomeOwner(input: {
     return { ok: false, says: `${input.companyName} has a verified Owner. Ask them to add you from Settings → Owners.` }
   }
   return { ok: true, reseat: true }
+}
+
+/** The sentence for a second press of Record with the same result. */
+export function alreadyRecordedSays(r: { provider: string; reference: string; checkedOn: Date; personName: string; companyName: string }): string {
+  return `${r.provider}’s result for ${r.personName} at ${r.companyName}, reference ${r.reference}, ${formatDay(r.checkedOn)}, is already recorded. Nothing was recorded twice.`
+}
+
+/**
+ * What Prove ownership says once the company has its verified Owner (screen
+ * walk on df3074094): a verified one-person firm still read "Two proofs…",
+ * "Not answered yet" and the skip warning. Now it says who the Owner is,
+ * since when, and on which provider's result, and nothing to do.
+ */
+export function verifiedOwnerSays(input: {
+  companyName: string
+  verifiedAt: Date
+  readerIsOwner: boolean
+  person: ProofFacts['person']
+}): string {
+  const since = formatDay(input.verifiedAt)
+  if (!input.readerIsOwner) return `${input.companyName} has a verified Owner since ${since}. Nothing is left to do here.`
+  if (!input.person) return `You are an Owner of ${input.companyName}, which has a verified Owner since ${since}. Nothing is left to do here.`
+  const ref = input.person.reference ? `, reference ${input.person.reference}` : ''
+  const on = input.person.checkedOn ? `, ${formatDay(input.person.checkedOn)}` : ''
+  return `You are the Owner of ${input.companyName} since ${since}, on ${input.person.provider}’s result${ref}${on}. Nothing is left to do here.`
 }

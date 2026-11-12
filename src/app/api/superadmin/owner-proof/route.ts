@@ -4,7 +4,7 @@ import { getCallerContext, realPersonId, type CallerContext } from '@/lib/api-co
 import { accessActor, recordAccess, recordRefusal, type AccessAction, type AccessSubject } from '@/lib/access-log'
 import { notify } from '@/lib/notify'
 import { formatDay } from '@/lib/format-date'
-import { waitsForVerifiedOwner } from '@/lib/owner-proof'
+import { waitsForVerifiedOwner, alreadyRecordedSays } from '@/lib/owner-proof'
 import { becomeOwner } from '@/app/api/settings/owner-proof/become'
 
 /**
@@ -71,28 +71,43 @@ export async function POST(request: NextRequest) {
   })
   if (!seat) return bad('email', `${email} holds no seat at ${company.name}.`)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.ownerProof.create({
-      data: {
-        companyId: company.id, personId: seat.personId, kind: 'PERSON', source: provider, reference,
-        result, checkedOn, confirmed: body.confirmed, recordedById: staffId,
-      },
-    })
-    await tx.automationLog.create({
-      data: {
-        companyId: company.id,
-        action: 'OWNER_PROOF_RECORDED',
-        summary: `Etyme recorded ${provider}’s identity check of ${seat.person.name} at ${company.name}`,
-        reason: `${provider}, reference ${reference}, ${formatDay(checkedOn)}: “${result}”`,
-        payload: { personId: seat.personId, provider, reference, checkedOn: checkedOn.toISOString(), confirmed: body.confirmed, byPersonId: staffId },
-        reversible: false,
-      },
-    })
-    await recordAccess([seat.personId], {
-      ...accessActor(caller), action: RECORD_PROOF,
-      reason: `A Superadmin recorded ${provider}’s identity check for ${seat.person.name} at ${company.name}.`,
-    }, tx)
-  })
+  // A second press of Record writes nothing: the same provider's result,
+  // reference, date and words for the same person is already on the
+  // record (screen walk on df3074094). Read inside a serializable
+  // transaction, so two presses at once cannot both write.
+  const already = alreadyRecordedSays({ provider, reference, checkedOn, personName: seat.person.name, companyName: company.name })
+  const same = { companyId: company.id, personId: seat.personId, kind: 'PERSON' as const, source: provider, reference, checkedOn, result, confirmed: body.confirmed as boolean }
+  let repeated = false
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (await tx.ownerProof.findFirst({ where: same, select: { id: true } })) { repeated = true; return }
+      await tx.ownerProof.create({
+        data: {
+          companyId: company.id, personId: seat.personId, kind: 'PERSON', source: provider, reference,
+          result, checkedOn, confirmed: body.confirmed, recordedById: staffId,
+        },
+      })
+      await tx.automationLog.create({
+        data: {
+          companyId: company.id,
+          action: 'OWNER_PROOF_RECORDED',
+          summary: `Etyme recorded ${provider}’s identity check of ${seat.person.name} at ${company.name}`,
+          reason: `${provider}, reference ${reference}, ${formatDay(checkedOn)}: “${result}”`,
+          payload: { personId: seat.personId, provider, reference, checkedOn: checkedOn.toISOString(), confirmed: body.confirmed, byPersonId: staffId },
+          reversible: false,
+        },
+      })
+      await recordAccess([seat.personId], {
+        ...accessActor(caller), action: RECORD_PROOF,
+        reason: `A Superadmin recorded ${provider}’s identity check for ${seat.person.name} at ${company.name}.`,
+      }, tx)
+    }, { isolationLevel: 'Serializable' })
+  } catch (e: any) {
+    // Two presses at once: the one that lost the race wrote nothing.
+    if (e?.code !== 'P2034') throw e
+    repeated = true
+  }
+  if (repeated) return NextResponse.json({ error: { code: 'ALREADY_RECORDED', message: already } }, { status: 409 })
 
   // A one-person firm's own person is its Owner on the person proof alone.
   let seated = false

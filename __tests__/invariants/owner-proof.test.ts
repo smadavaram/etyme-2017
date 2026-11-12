@@ -234,3 +234,48 @@ describe('an Owner-only screen at a company with no verified Owner names Prove o
     expect(items).toContain("const line = body?.error?.href ? refusalLine(body.error) : null")
   })
 })
+
+describe('the small things the screen walk found on the proofs', () => {
+  it('pressing Record twice on the Superadmin identity form writes one row and refuses the repeat in a sentence', async () => {
+    const { alreadyRecordedSays } = await import('@/lib/owner-proof')
+    expect(alreadyRecordedSays({ provider: 'Persona', reference: 'inq_42', checkedOn: new Date('2026-11-12T00:00:00Z'), personName: 'Colleen Byrne', companyName: 'Byrne Nursing' }))
+      .toBe('Persona’s result for Colleen Byrne at Byrne Nursing, reference inq_42, Nov 12, 2026, is already recorded. Nothing was recorded twice.')
+    const src = read('src/app/api/superadmin/owner-proof/route.ts')
+    expect(src.indexOf('tx.ownerProof.findFirst({ where: same')).toBeLessThan(src.indexOf('tx.ownerProof.create({'))
+    expect(src).toContain("{ isolationLevel: 'Serializable' }")
+    expect(src).toContain("code: 'ALREADY_RECORDED', message: already } }, { status: 409 }")
+  })
+
+  it('a verified one-person firm’s Prove ownership says she is the Owner, since when, and on which provider’s result', async () => {
+    const { verifiedOwnerSays } = await import('@/lib/owner-proof')
+    const says = verifiedOwnerSays({
+      companyName: 'Byrne Nursing', verifiedAt: new Date('2026-11-12T15:00:00Z'), readerIsOwner: true,
+      person: { provider: 'Persona', reference: 'inq_42', checkedOn: new Date('2026-11-11T00:00:00Z'), result: 'Approved' },
+    })
+    expect(says).toBe('You are the Owner of Byrne Nursing since Nov 12, 2026, on Persona’s result, reference inq_42, Nov 11, 2026. Nothing is left to do here.')
+    expect(says).not.toMatch(/Two proofs|Not answered yet|If you skip/)
+  })
+
+  it('once verified, Prove ownership draws no proofs list, stamp, skip warning or buttons', () => {
+    expect(read('src/app/api/settings/owner-proof/route.ts')).toContain('doneSays: c.ownerVerifiedAt')
+    const items = read('src/app/dashboard/settings/setup/items.tsx')
+    expect(items).toContain("doneLine={proof?.doneSays ?? 'Reading who the Owner is…'}")
+    expect(items).toContain('{doneLine == null ? w.sub : doneLine}')
+    expect(items).toContain('{doneLine == null && <>')
+  })
+
+  it('the two doors on the sign-in screen stand the same height, the filled one carrying a border like the outlined one', () => {
+    const frame = read('src/app/(auth)/door-frame.tsx')
+    const login = read('src/app/(auth)/login/page.tsx')
+    expect(frame).toMatch(/doorButton =\s*'w-full px-4 py-2\.5 rounded-lg border border-transparent/)
+    expect(login).toMatch(/outlineButton =\s*'w-full px-4 py-2\.5 rounded-lg border /)
+  })
+
+  it('a reason typed with its own full stop is said with one stop, never two', async () => {
+    const { clause, askSaysTo } = await import('@/lib/owner-rules')
+    expect(clause('Left the firm.')).toBe('Left the firm')
+    expect(clause('  Away on leave...  ')).toBe('Away on leave')
+    expect(askSaysTo('ASKER', { kind: 'REMOVE', askerName: 'A', subjectName: 'B', companyName: 'Tapin', reason: 'Left the firm.', deciderNames: ['C'], youAreSubject: false }))
+      .not.toContain('..')
+  })
+})

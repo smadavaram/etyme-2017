@@ -56,8 +56,10 @@ export const doorField =
   'w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule bg-etyme-raised text-sm text-etyme-ink ' +
   'placeholder:text-etyme-faint focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action transition-all'
 
+// A transparent 1px border so a filled door and an outlined one stand the
+// same height side by side (screen walk on df3074094: they differed by 2px).
 export const doorButton =
-  'w-full px-4 py-2.5 rounded-lg bg-etyme-action text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50'
+  'w-full px-4 py-2.5 rounded-lg border border-transparent bg-etyme-action text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50'
 
 export function DoorLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (

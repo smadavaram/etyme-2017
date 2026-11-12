@@ -49,7 +49,9 @@ interface Props {
 }
 
 /** The frame every item shares, and the two buttons. */
-function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save and continue', noSave = false }: Props & {
+function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save and continue', noSave = false, doneLine }: Props & {
+  /** The item is finished for good (Prove ownership once verified): this sentence, and no buttons, stamp or skip warning. */
+  doneLine?: string | null
   /** The body to PUT, or null where Save only records the item done. */
   save: (() => unknown) | null
   children: ReactNode
@@ -90,9 +92,10 @@ function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save an
       <div>
         <p className="text-[10px] uppercase tracking-[0.09em] text-etyme-muted">{place}</p>
         <h2 className="mt-1.5 font-serif text-[24px] tracking-[-0.02em] text-etyme-ink">{w.label}</h2>
-        <p className="mt-1 text-[13.5px] text-etyme-muted">{w.sub}</p>
+        <p className="mt-1 text-[13.5px] text-etyme-muted">{doneLine == null ? w.sub : doneLine}</p>
       </div>
       {children}
+      {doneLine == null && <>
       <div className="flex flex-wrap items-center gap-2.5 pt-2">
         {!noSave && <SubmitButton type="button" pending={busy === 'SAVE'} pendingLabel="Saving…" disabled={busy !== null} onClick={() => send('SAVE')}>{saveLabel}</SubmitButton>}
         <SubmitButton type="button" tone="secondary" pending={busy === 'SKIP'} pendingLabel="Skipping…" disabled={busy !== null} onClick={() => send('SKIP')}>Skip for now</SubmitButton>
@@ -101,6 +104,7 @@ function Frame({ item, place, read, onDone, save, children, saveLabel = 'Save an
       {saidLine && <div role="alert"><OwnerGateLine line={saidLine} className="text-etyme-ink" /></div>}
       <p className="text-[12.5px] text-etyme-muted">{w.skipStops}</p>
       <p className="text-[12px] text-etyme-faint">{read.stamps[item]}</p>
+      </>}
     </section>
   )
 }
@@ -555,8 +559,17 @@ function OwnershipItem(p: Props) {
     } catch (e: any) { setSaid({ tone: 'error', text: e.message }) } finally { setBusy(false) }
   }
   const verified = p.read.detail.OWNERSHIP?.verified === true
+  // Verified: who the Owner is, since when and on which result, and no
+  // proofs, stamp, skip warning or buttons (screen walk on df3074094).
+  if (verified) {
+    return (
+      <Frame {...p} save={null} doneLine={proof?.doneSays ?? 'Reading who the Owner is…'}>
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+      </Frame>
+    )
+  }
   return (
-    <Frame {...p} save={null} noSave={!verified}>
+    <Frame {...p} save={null} noSave>
       {!proof ? (
         <p className="text-[13px] text-etyme-muted">Reading your proofs…</p>
       ) : (

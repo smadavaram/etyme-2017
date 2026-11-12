@@ -204,13 +204,22 @@ export function passCardSays(input: { askerName: string; companyName: string; af
   return `${input.askerName} wants to pass ${input.companyName}’s ownership to you. After this you are an Owner of ${input.companyName}. They will be ${afterWords(input.after, input.companyName)}.`
 }
 
+/**
+ * A reason typed by a person, ready to sit inside a sentence: its own last
+ * stop taken off, so "…: Left the firm.. Nothing changes" never reads with
+ * two (screen walk on df3074094).
+ */
+export function clause(reason: string): string {
+  return reason.trim().replace(/[\s.!?…。]+$/u, '')
+}
+
 /** The yes card's sentence for removing or moving an Owner. */
 export function ownerCardSays(input: { kind: 'REMOVE' | 'DEMOTE'; askerName: string; subjectName: string; companyName: string; toRoleName?: string | null; reason: string; youAreSubject: boolean }): string {
   const who = input.youAreSubject ? 'you' : input.subjectName
   const what = input.kind === 'REMOVE'
     ? `remove ${who} as an Owner of ${input.companyName}, ending ${input.youAreSubject ? 'your' : 'their'} seat there`
     : `move ${who} from Owner to ${input.toRoleName ?? 'another role'} at ${input.companyName}`
-  return `${input.askerName} asks to ${what}: ${input.reason}. Nothing changes until an Owner who did not ask says yes.`
+  return `${input.askerName} asks to ${what}: ${clause(input.reason)}. Nothing changes until an Owner who did not ask says yes.`
 }
 
 /** The record line, the drawing's ledger: "ownership passed · by A · to B · accepted by B · A now: Admin". */
@@ -279,12 +288,12 @@ export function askSaysTo(reader: AskReader, w: AskWords): string {
     if (w.kind === 'PASS') {
       return `You asked ${w.subjectName} ${what}. Waiting for ${w.subjectName}’s yes. After it you will be ${afterWords((w.after ?? 'OWNER') as AskerAfter, w.companyName)}.`
     }
-    return `You asked ${what}: ${w.reason}. Waiting for the yes of ${either(w.deciderNames)}.`
+    return `You asked ${what}: ${clause(w.reason)}. Waiting for the yes of ${either(w.deciderNames)}.`
   }
   if (w.kind === 'PASS') {
     return `${w.askerName} asked ${w.subjectName} ${what}. Waiting for ${w.subjectName}’s yes; ${w.askerName} will then be ${afterWords((w.after ?? 'OWNER') as AskerAfter, w.companyName)}.`
   }
-  return `${w.askerName} asked ${what}: ${w.reason}. Waiting for the yes of ${either(w.deciderNames)}.`
+  return `${w.askerName} asked ${what}: ${clause(w.reason)}. Waiting for the yes of ${either(w.deciderNames)}.`
 }
 
 /** What the person saying yes becomes, in a word or two, or null where nothing changes for them. */
