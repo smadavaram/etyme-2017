@@ -1,3 +1,4 @@
+import { joinSentenceFor } from '@/lib/join-words'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import { companyPolicy } from '@/lib/identity/read'
@@ -293,7 +294,11 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       })
       const co = await prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { domain: true } })
       if (!co.domain) await prisma.company.update({ where: { id: c.id }, data: { domain: claim.domain, domainVerified: true } })
-      return { ok: true, says: `${claim.domain} is verified. Colleagues on ${claim.domain} now join by signing in.` }
+      // How people join now is the join sentence's, never a promise of its
+      // own: an invitation-only company, or a domain that asks first, does
+      // not let colleagues in by signing in.
+      const joins = await joinSentenceFor(c.id).catch(() => null)
+      return { ok: true, says: `${claim.domain} is verified.${joins ? ` ${joins}` : ''}` }
     }
     const domain = str(body.domain, 120).toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
     const elsewhere = await prisma.companyDomain.findUnique({ where: { domain }, select: { companyId: true, company: { select: { name: true } }, verifiedAt: true, joinPolicy: true } })

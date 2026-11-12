@@ -317,7 +317,9 @@ describe('the admin’s setup checklist', () => {
     txt.resolve = async (name: string) => (name === record.name ? [[record.value]] : [])
     try {
       const checked = await json(await put('domain', { action: 'CHECK', id: row.id }))
-      expect(checked.body.data.says).toBe('tapinwalk-staffing.co is verified. Colleagues on tapinwalk-staffing.co now join by signing in.')
+      // The join sentence, read after the proof: a fresh claim asks first.
+      expect(checked.body.data.says).toMatch(/^tapinwalk-staffing\.co is verified\. People join /)
+      expect(checked.body.data.says).not.toContain('now join by signing in')
     } finally {
       txt.resolve = real
     }

@@ -132,8 +132,8 @@ export const ITEM_WORDS: Record<ItemKey, ItemWords> = {
   },
   DOMAIN: {
     label: 'Your domain',
-    line: 'Verify your domain so colleagues join by signing in',
-    sub: 'Prove you own your domain with one DNS record. Then colleagues join by signing in.',
+    line: 'Verify your domain',
+    sub: 'Prove you own your domain with one DNS record.',
     reminder: 'your domain',
     skipStops: 'If you skip: colleagues join by invitation until the domain is verified.',
   },

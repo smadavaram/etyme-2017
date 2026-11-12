@@ -332,13 +332,24 @@ export interface ConnectDomainView {
   /** May a new domain be typed: nothing verified and nothing waiting. */
   offerClaim: boolean
   gives: readonly string[]
+  /**
+   * How people join today, from the one join sentence (lib/join-words), or
+   * null. The domain page says it rather than promising a join by domain:
+   * an invitation-only company, or a domain that asks first or admits
+   * nobody, is never told colleagues join by signing in.
+   */
+  joins: string | null
   noDomain: string
   mail: string
 }
 
-/** What a verified domain gives, in the drawing's order. */
+/**
+ * What a verified domain gives, in the drawing's order. Who joins is not
+ * one of them: that is the join sentence's (`joins`), read from the sign-in
+ * mode and the domain's own join rule.
+ */
 export const DOMAIN_GIVES: readonly string[] = [
-  'Colleagues on your domain join by signing in, with no invitation.',
+  'You choose whether people on your domain may join by signing in, or come in by invitation only.',
   'Your people can sign in through your company’s own directory.',
   'An Owner who loses access can get it back by proving the domain again.',
 ]
@@ -362,7 +373,7 @@ function isoDay(v: Date | string | null): string | null {
 }
 
 /** Pure: the screen, read from the company's claims. */
-export function connectDomainView(claims: readonly DomainClaimRow[]): ConnectDomainView {
+export function connectDomainView(claims: readonly DomainClaimRow[], joins: string | null = null): ConnectDomainView {
   const rows: ConnectDomainRow[] = claims.map((c) => {
     const on = isoDay(c.verifiedAt)
     if (on || c.verified) {
@@ -385,7 +396,7 @@ export function connectDomainView(claims: readonly DomainClaimRow[]): ConnectDom
   return {
     rows, verified,
     offerClaim: !verified && !rows.some((r) => r.record),
-    gives: DOMAIN_GIVES, noDomain: NO_DOMAIN_LINE, mail: MAIL_LINE,
+    gives: DOMAIN_GIVES, joins, noDomain: NO_DOMAIN_LINE, mail: MAIL_LINE,
   }
 }
 

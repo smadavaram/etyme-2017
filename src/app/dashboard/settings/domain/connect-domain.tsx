@@ -131,6 +131,7 @@ export function ConnectDomain({ suggested = '', onChanged }: { suggested?: strin
         <ul className="list-disc space-y-1 pl-5 text-[13px] text-etyme-ink">
           {view.gives.map((g) => <li key={g}>{g}</li>)}
         </ul>
+        {view.joins && <p className="text-[13px] text-etyme-muted">Today: {view.joins}</p>}
       </div>
       {!view.verified && <p className="text-[13px] text-etyme-muted">{view.noDomain}</p>}
     </div>

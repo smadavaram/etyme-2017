@@ -270,13 +270,28 @@ describe('connect your domain', () => {
     expect(checkItemAnswer('VENDOR', 'DOMAIN', 'SKIPPED')).toMatchObject({ ok: true })
   })
 
-  it('the screen says what verifying gives: joining by sign-in, the company’s directory, and recovery', () => {
+  it('the screen says what verifying gives: the choice of who joins by sign-in, the company’s directory, and recovery, and never promises colleagues join with no invitation', () => {
     expect(DOMAIN_GIVES).toEqual([
-      'Colleagues on your domain join by signing in, with no invitation.',
+      'You choose whether people on your domain may join by signing in, or come in by invitation only.',
       'Your people can sign in through your company’s own directory.',
       'An Owner who loses access can get it back by proving the domain again.',
     ])
     expect(MAIL_LINE).toBe('Your email keeps working. This adds one record and never changes or removes a mail record.')
+  })
+
+  it('the domain page says how people join today in the one join sentence, and verifying a domain answers with it, never with a join of its own', () => {
+    const tapin = 'People join Tapin by invitation only. An Owner or Admin invites each person from Users & permissions.'
+    expect(connectDomainView([], tapin).joins).toBe(tapin)
+    expect(connectDomainView([]).joins).toBeNull()
+    const read = (f: string) => require('node:fs').readFileSync(require('node:path').join(process.cwd(), f), 'utf8') as string
+    expect(read('src/app/api/settings/domain/route.ts')).toContain('joinSentenceFor(companyId)')
+    expect(read('src/app/dashboard/settings/domain/connect-domain.tsx')).toContain('Today: {view.joins}')
+    const check = read('src/app/api/settings/setup/[item]/route.ts')
+    expect(check).not.toContain('now join by signing in')
+    expect(check).toContain('is verified.${joins ? ` ${joins}` : \'\'}')
+    const words = read('src/lib/setup-checklist.ts')
+    expect(words).toContain("line: 'Verify your domain',")
+    expect(words).not.toContain('so colleagues join by signing in')
   })
 
   it('Etyme does not sell, register or move domains, and the screen names no registrar and carries no referral link', () => {

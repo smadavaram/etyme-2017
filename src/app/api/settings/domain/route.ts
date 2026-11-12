@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { setupDoor } from '../setup/door'
 import { connectDomainView, type DomainClaimRow } from '@/lib/domains-owned'
+import { joinSentenceFor } from '@/lib/join-words'
 
 /**
  * GET /api/settings/domain — the "Connect your domain" screen, for the
@@ -14,13 +15,14 @@ export async function GET(request: NextRequest) {
   const door = await setupDoor(request, 'Connecting your domain')
   if (door.error) return door.error
   const companyId = door.caller.company.id
-  const [c, claims] = await Promise.all([
+  const [c, claims, joins] = await Promise.all([
     prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, domain: true, domainVerified: true } }),
     prisma.companyDomain.findMany({
       where: { companyId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: { id: true, domain: true, verifiedAt: true, verifiedVia: true, proofToken: true },
     }),
+    joinSentenceFor(companyId).catch(() => null),
   ])
   const rows: DomainClaimRow[] = [
     // A domain the company held as verified before claims existed.
@@ -29,5 +31,5 @@ export async function GET(request: NextRequest) {
       : []),
     ...claims,
   ]
-  return NextResponse.json({ data: { company: c.name, ...connectDomainView(rows) } })
+  return NextResponse.json({ data: { company: c.name, ...connectDomainView(rows, joins) } })
 }
