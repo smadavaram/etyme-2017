@@ -1,5 +1,9 @@
 /**
- * The one base address every mailed link is built from.
+ * The one base address every mailed link is built from, every link Etyme
+ * offers to copy, and the target of the middleware's redirect from a
+ * firm's address to the app (fault 4, 2026-11-12). A session cookie lives
+ * on one host only, so every way back into the app goes to this one;
+ * production holds https://www.etyme.com in NEXTAUTH_URL.
  *
  * NEXTAUTH_URL first, because it is the address sign-in already uses,
  * so a link and the sign-in it leads to agree. Then NEXT_PUBLIC_APP_URL,

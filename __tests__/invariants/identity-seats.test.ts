@@ -160,6 +160,28 @@ describe('taking a seat away ends the person’s sessions when it was their last
     expect(timeline).toEqual(['context.update', 'log:MEMBERSHIP_REVOKED'])
   })
 
+  it('pausing one of a person’s two seats keeps the session', async () => {
+    liveSeatsLeft = 1
+    const { POST } = await import('@/app/api/access/[contextId]/route')
+    const res = await POST(req({ action: 'suspend', reason: 'On leave from this client' }), { params: Promise.resolve({ contextId: 'ctx-priya' }) })
+    expect(res.status).toBe(200)
+    expect((await res.json()).data.sessionsEnded).toBe(false)
+    expect(prisma.person.update).not.toHaveBeenCalled()
+    expect(timeline).toEqual(['context.update'])
+  })
+
+  it('a session ends only when no live seat is left', async () => {
+    for (const [left, ended] of [[2, false], [1, false], [0, true]] as const) {
+      timeline.length = 0
+      vi.clearAllMocks()
+      liveSeatsLeft = left
+      const { POST } = await import('@/app/api/access/[contextId]/route')
+      const res = await POST(req({ action: 'suspend', reason: 'On leave' }), { params: Promise.resolve({ contextId: 'ctx-priya' }) })
+      expect((await res.json()).data.sessionsEnded, `${left} seats left`).toBe(ended)
+      expect(timeline.includes('person.endSessions'), `${left} seats left`).toBe(ended)
+    }
+  })
+
   it('each event written carries the company, the actor, the subject, the policy and the surface', async () => {
     prisma.companySignInPolicy.findUnique.mockResolvedValueOnce({
       mode: 'HYBRID', jit: false, scim: false, requiredAssurance: null, dataRegion: null,

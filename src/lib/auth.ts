@@ -270,6 +270,20 @@ function directoryIssuer(user: unknown, profile: unknown): string | null {
   return String((user as any)?.issuer ?? (profile as any)?.iss ?? '') || null
 }
 
+/**
+ * A person's session version, read once and once more if the first read
+ * fails. Throws where both fail, so no session is ever signed in at a
+ * guessed version (fault 4, 2026-11-12).
+ */
+export async function readSessionVersion(email: string): Promise<number> {
+  const { sessionVersionOf } = await import('@/lib/identity/read')
+  try {
+    return await sessionVersionOf(email)
+  } catch {
+    return await sessionVersionOf(email)
+  }
+}
+
 /** NextAuth's provider id, as the Credential row names it. */
 const PROVIDER_ROW: Record<string, 'MICROSOFT' | 'GOOGLE' | 'EMAIL'> = {
   'azure-ad': 'MICROSOFT',
@@ -355,6 +369,18 @@ export const authOptions: NextAuthOptions = {
         })
         if (!v.allowed) return '/login?error=DirectoryOnly'
       }
+      // The session version this session is signed in under, read before
+      // the session exists. Read twice; where both fail the sign-in ends
+      // with one sentence, because a session stamped 0 for a person whose
+      // version is above 0 is refused on its very next request and reads as
+      // being signed out for no reason (fault 4, 2026-11-12).
+      if (user.email) {
+        try {
+          ;(user as any).sv = await readSessionVersion(sessionEmail(user.email)!)
+        } catch {
+          return '/login?error=SessionUnread'
+        }
+      }
       // Personal email domains may sign in; they cannot register a company
       // (the company creation endpoint checks that separately).
       return true
@@ -369,12 +395,15 @@ export const authOptions: NextAuthOptions = {
         const door = doorOfSignIn(account?.provider, user as any)
         token.door = door
         token.iss = door === 'DIRECTORY' ? directoryIssuer(user, profile) : null
-        try {
-          const { sessionVersionOf } = await import('@/lib/identity/read')
-          token.sv = token.email ? await sessionVersionOf(String(token.email)) : 0
-        } catch {
-          token.sv = 0
-        }
+        // When this sign-in began, for the one act that asks for a recent
+        // sign-in: a first password (lib/password-door). Kept in the token
+        // and never put on the session the browser reads.
+        token.authAt = Date.now()
+        // Read by the sign-in callback above; read here again only where
+        // that did not run. Never guessed as 0: a read that fails twice ends
+        // the sign-in (fault 4).
+        const known = (user as any).sv
+        token.sv = typeof known === 'number' ? known : token.email ? await readSessionVersion(String(token.email)) : 0
         return token
       }
       // Every request: a session that was ended ("sign out everywhere", a

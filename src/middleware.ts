@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { appUrl } from '@/lib/app-url'
 import { MAP_COOKIE, keyOpens } from '@/lib/map-gate'
 import {
   EMBED_FRAME_HEADERS, SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_COOKIE_PATHS, SAMPLE_COOKIE_SECONDS,
@@ -188,8 +189,12 @@ export async function middleware(request: NextRequest) {
   // "Tapin gets agents, not a website": `tapin.etyme.com` opens Tapin's
   // generated page). Signing in and the app stay on the platform's own
   // host, where the session cookie lives, so those paths are sent there.
+  // The target is the one address every mailed link is built from
+  // (lib/app-url, NEXTAUTH_URL), never the request's own host, so a
+  // person lands on the host their session cookie lives on, in one hop
+  // (fault 4, 2026-11-12).
   if (kind === 'SUBDOMAIN' && isAppPath(path)) {
-    return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, `https://${PLATFORM_HOST}`))
+    return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, appUrl()))
   }
 
   // A subdomain that names no firm with a page opens the home page, never

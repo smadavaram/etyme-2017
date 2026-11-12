@@ -136,3 +136,49 @@ describe('an Admin never ends an Owner\u2019s sessions', () => {
     expect(db.person.update.mock.calls[0][0].where).toEqual({ id: 'p-oliver' })
   })
 })
+
+describe('a sign-in is never stamped with a guessed session version (fault 4, 2026-11-12)', () => {
+  it('a failed read of the session version never signs a person in at version 0', async () => {
+    db.person.findUnique.mockRejectedValue(new Error('connection reset'))
+    await expect(jwt({}, { user: { id: 'u', email: 'sharath@etyme.com', door: 'PASSWORD' }, account: { provider: 'credentials' } }))
+      .rejects.toThrow('connection reset')
+  })
+
+  it('a first read that fails is read once more, and the sign-in goes on at the person’s real version', async () => {
+    db.person.findUnique.mockRejectedValueOnce(new Error('connection reset')).mockResolvedValueOnce({ sessionVersion: 3 })
+    const t = await jwt({}, { user: { id: 'u', email: 'sharath@etyme.com', door: 'PASSWORD' }, account: { provider: 'credentials' } })
+    expect(t.sv).toBe(3)
+  })
+
+  it('where the version cannot be read at sign-in, the sign-in ends with one sentence on the sign-in page', async () => {
+    db.person.findUnique.mockRejectedValue(new Error('connection reset'))
+    const { authOptions } = await import('@/lib/auth')
+    const out = await authOptions.callbacks!.signIn!({
+      user: { id: 'u', email: 'sharath@etyme.com' } as any,
+      account: { provider: 'google', type: 'oauth', providerAccountId: 'sub' } as any,
+      profile: { email_verified: true } as any,
+    } as any)
+    expect(out).toBe('/login?error=SessionUnread')
+    const { signInRefusal } = await import('@/lib/login-doors')
+    expect(signInRefusal('SessionUnread')).toBe('Etyme could not finish signing you in. Try again in a minute.')
+  })
+
+  it('the version read by the sign-in callback is the one the session carries', async () => {
+    db.person.findUnique.mockResolvedValue({ sessionVersion: 2 })
+    const { authOptions } = await import('@/lib/auth')
+    const user: any = { id: 'u', email: 'sharath@etyme.com' }
+    expect(await authOptions.callbacks!.signIn!({ user, account: { provider: 'google', type: 'oauth', providerAccountId: 'sub' } as any, profile: { email_verified: true } as any } as any)).toBe(true)
+    db.person.findUnique.mockRejectedValue(new Error('would not be read again'))
+    const t = await jwt({}, { user, account: { provider: 'google' } })
+    expect(t.sv).toBe(2)
+  })
+
+  it('a firm’s address sends a sign-in to the one app address the mailed links use, never to its own host', async () => {
+    const { readFileSync } = await import('node:fs')
+    const mw = readFileSync('src/middleware.ts', 'utf8')
+    expect(mw).toContain('return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, appUrl()))')
+    expect(mw).not.toContain('`https://${PLATFORM_HOST}`')
+    // No redirect for the bare platform host or the deployment's own address: the host does the first, walks use the second.
+    expect(mw).not.toMatch(/redirect\([^)]*www\./)
+  })
+})

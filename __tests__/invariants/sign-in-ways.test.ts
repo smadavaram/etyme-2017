@@ -220,7 +220,8 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
   it('a session carries one spelling of the email, so Sharath@Etyme.com and sharath@etyme.com are one person', async () => {
     const { sessionEmail, authOptions } = await import('@/lib/auth')
     expect(sessionEmail(' Sharath@Etyme.com ')).toBe('sharath@etyme.com')
-    const token = await authOptions.callbacks!.jwt!({ token: {}, user: { id: 'g-1', email: 'Sharath@Etyme.com' } } as any)
+    // The sign-in callback reads the session version first and hands it on (fault 4).
+    const token = await authOptions.callbacks!.jwt!({ token: {}, user: { id: 'g-1', email: 'Sharath@Etyme.com', sv: 0 } } as any)
     expect(token.email).toBe('sharath@etyme.com')
     expect(read('src/lib/api-context.ts')).toContain('const email = session.user.email.trim().toLowerCase()')
   })
