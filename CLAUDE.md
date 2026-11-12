@@ -7928,3 +7928,29 @@ support@etyme.com."* So `ETYME_STAFF_EMAILS` on production holds
 support@etyme.com, which opens the Superadmin screen and receives
 staff alerts. It stays Etyme's own mailbox and holds no seat at Tapin
 or any company. sharath@etyme.com stays Tapin's Owner and nothing more.
+
+## The sign-in page asks for the email first — the founder, 2026-11-12
+
+On the sign-in page showing a password box, a directory box and a
+Google button at once: *"I thought we went identity based and undid
+password based."* He chose the first of two options: **the page shows
+one email box, and after the address is typed it shows only the door
+that company allows**: its directory, Google or Microsoft, or a
+password. Nobody at a directory-only company ever sees a password box.
+A small firm or a worker with no Google account still gets in.
+- **The email is routing, never proof.** It only decides which door is
+  drawn. Who the person is comes from the door: the company's own
+  directory signs an answer Etyme checks (issuer, subject, signature,
+  and the assurance level the company requires), and the person must be
+  provisioned in that company. A government office is the same case:
+  its own identity provider checks the smart card or national ID, and
+  Etyme never reads a card.
+- **The page never says whether an address has an account.** An unknown
+  address is shown the same ordinary doors as a known one, so nobody
+  learns who is on Etyme by typing addresses.
+- **A directory is bound only to a domain the company has verified**, so
+  nobody can claim another organization's addresses.
+- The password door stays for invitation-only and hybrid companies,
+  workers and one-person firms; removing it everywhere was the option
+  not chosen.
+- Built from the sentence, no drawing, after the Owner pieces (architect).
