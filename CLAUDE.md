@@ -7961,3 +7961,10 @@ A small firm or a worker with no Google account still gets in.
   small link. Sign-up asks for the email first too, then only the few
   fields that kind of account needs. The second email box, the
   directory section and the long sentence under the heading go.
+
+**Tapin has no domain and gets none. The founder, 2026-11-12:** *"Tapin
+is a makeshift company for Etyme and does not have a domain."* So Tapin
+stays on invitation or hybrid sign-in, its people on the addresses they
+were invited on, and nothing asks it for a domain of its own; recovery
+by domain proof does not apply to it, and the staff tool is its
+recovery.
