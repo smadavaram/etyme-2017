@@ -61,11 +61,17 @@ export async function GET(request: NextRequest) {
     prisma.role.findFirst({ where: { companyId: company.id, name: ADMIN_ROLE }, select: { permissions: true } }),
   ])
   const iAmOwner = me.roleName === OWNER_ROLE && me.live
+  // Who passed ownership to the reader: that Owner is moved to Admin alone,
+  // so the move form says so rather than asking for a yes (Owner walk).
+  const passedBy = iAmOwner ? await passedToSeatBy(company.id, me.contextId) : []
   const bySeat = new Map(seats.map((s) => [s.contextId, s]))
   return NextResponse.json({
     data: {
       company: company.name,
-      owners: liveOwners(seats).map((s) => ({ contextId: s.contextId, name: s.name, you: s.personId === personId })),
+      owners: liveOwners(seats).map((s) => ({
+        contextId: s.contextId, name: s.name, you: s.personId === personId,
+        aloneToAdmin: iAmOwner && movesAloneAfterPass({ actor: me, subject: s, toRoleName: ADMIN_ROLE, passedToActorBy: passedBy, seats }),
+      })),
       others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live).map((s) => ({ contextId: s.contextId, name: s.name, role: s.roleName })),
       roles,
       iAmOwner,

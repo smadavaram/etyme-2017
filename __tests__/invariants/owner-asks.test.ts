@@ -104,3 +104,51 @@ describe('Settings → Owners opens for the person an ask is addressed to, and s
     }
   })
 })
+
+describe('after a person answers an ownership ask, their answer stays on the screen (Owner walk, 2026-11-12)', () => {
+  const page = readFileSync('src/app/dashboard/settings/owners/page.tsx', 'utf8')
+
+  it('a refused read after an answer turns the page into the addressed view with nothing waiting, never a refusal', async () => {
+    const { viewAfterRefusedRead } = await import('@/app/dashboard/settings/owners/view')
+    expect(viewAfterRefusedRead({ company: 'Tapin', addressedOnly: true, asks: [{}] })).toEqual({ company: 'Tapin', addressedOnly: true, asks: [] })
+    expect(viewAfterRefusedRead({ company: 'Tapin', asks: [{}] })).toEqual({ company: 'Tapin', addressedOnly: true, asks: [] })
+    expect(viewAfterRefusedRead(null)).toBeNull()
+  })
+
+  it('the page tells a refusal from a fault by the status readJson carries, on the first read and after an answer', () => {
+    expect(page).toContain('if (isRefusal(e) && afterAnswer) setR((prev) => viewAfterRefusedRead(prev)')
+    expect(page).toContain('else if (isRefusal(e)) setRefused(e.message)')
+    expect(page).not.toContain('e?.status === 403')
+  })
+
+  it('the route’s answer sentence is drawn above the panels, and “Nothing is waiting” is not said beside a fresh answer', () => {
+    const addressed = page.slice(page.indexOf('if (r.addressedOnly) {'), page.indexOf('const adminRole'))
+    expect(addressed.indexOf('{said && <FormMessage')).toBeLessThan(addressed.indexOf('r.asks.map('))
+    expect(addressed).toContain("r.asks.length === 0 && !(said && said.tone === 'ok')")
+    expect(addressed).toContain('title="Answered"')
+  })
+})
+
+describe('the move form says when the new Owner moves the previous one alone (Owner walk, 2026-11-12)', () => {
+  it('after a pass, moving the Owner who passed it to Admin says nobody else is asked, and the button says what it does', async () => {
+    const { moveFormSays } = await import('@/app/dashboard/settings/owners/view')
+    const says = moveFormSays({ alone: true, subjectName: 'Madhavi', companyName: 'Tapin' })
+    expect(says.line).toBe('Madhavi passed Tapin’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and Madhavi is told by email.')
+    expect(says.button).toBe('Move them to Admin')
+    expect(says.line).not.toMatch(/needs the yes/)
+  })
+
+  it('every other removal or move still says it needs the yes of an Owner who did not ask', async () => {
+    const { moveFormSays } = await import('@/app/dashboard/settings/owners/view')
+    const says = moveFormSays({ alone: false, subjectName: 'Madhavi', companyName: 'Tapin' })
+    expect(says.line).toMatch(/^This needs the yes of an Owner who did not ask\./)
+    expect(says.button).toBe('Ask for their yes')
+  })
+
+  it('the Owners read marks the Owner the reader may move alone, from the same rule the move itself reads', () => {
+    const route = readFileSync('src/app/api/settings/owners/route.ts', 'utf8')
+    expect(route).toContain('aloneToAdmin: iAmOwner && movesAloneAfterPass({ actor: me, subject: s, toRoleName: ADMIN_ROLE, passedToActorBy: passedBy, seats })')
+    const page = readFileSync('src/app/dashboard/settings/owners/page.tsx', 'utf8')
+    expect(page).toContain("alone: !!chosenOwner?.aloneToAdmin && ownerAct === 'demote' && !!adminRole && chosenRoleId === adminRole.id")
+  })
+})

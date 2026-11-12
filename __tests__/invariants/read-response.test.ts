@@ -75,3 +75,27 @@ describe('the sentences themselves', () => {
     expect(statusMeans(503)).not.toMatch(/you/i)
   })
 })
+
+describe('a refusal carries its status and the route’s code, so a page can draw it as a refusal', () => {
+  it('a 403 rejects with status 403 and the route’s code beside its sentence', async () => {
+    const r = res(403, JSON.stringify({ error: { message: 'Who owns Tapin is read by its Owners and Admins.', code: 'FORBIDDEN' } }))
+    const e = await readJson(r).catch((x) => x)
+    expect(e.message).toBe('Who owns Tapin is read by its Owners and Admins.')
+    expect(e.status).toBe(403)
+    expect(e.code).toBe('FORBIDDEN')
+  })
+
+  it('a refusal with no body still carries its status', async () => {
+    const e = await readJson(res(403)).catch((x) => x)
+    expect(e.status).toBe(403)
+    expect(e.code).toBeUndefined()
+  })
+
+  it('isRefusal is true for a 403 and false for a fault or an empty reply', async () => {
+    const { isRefusal } = await import('@/lib/read-response')
+    expect(isRefusal(await readJson(res(403)).catch((x) => x))).toBe(true)
+    expect(isRefusal(await readJson(res(500)).catch((x) => x))).toBe(false)
+    expect(isRefusal(await readJson(res(200)).catch((x) => x))).toBe(false)
+    expect(isRefusal(new Error('plain'))).toBe(false)
+  })
+})

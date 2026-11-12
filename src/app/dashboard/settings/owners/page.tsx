@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePageSection } from '@/components/page-section'
 import { Chip, ErrorState, Field, FormMessage, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
-import { readJson } from '@/lib/read-response'
+import { readJson, isRefusal } from '@/lib/read-response'
+import { viewAfterRefusedRead, moveFormSays } from './view'
 
 /**
  * Settings → Owners (founder, 2026-11-11, drawn and built): who owns the
@@ -27,7 +28,8 @@ type Read = {
   company: string
   /** The reader is neither Owner nor Admin: only the asks addressed to them. */
   addressedOnly?: false
-  owners: { contextId: string; name: string; you: boolean }[]
+  /** aloneToAdmin: this Owner passed ownership to the reader, who moves them to Admin with nobody else asked. */
+  owners: { contextId: string; name: string; you: boolean; aloneToAdmin?: boolean }[]
   others: { contextId: string; name: string; role: string | null }[]
   roles: { id: string; name: string }[]
   iAmOwner: boolean
@@ -57,9 +59,10 @@ export default function OwnersPage() {
       const j = await readJson(await fetch('/api/settings/owners'))
       setR(j.data)
     } catch (e: any) {
-      // Answered the last ask addressed to them: the answer stays on screen.
-      if (e?.status === 403 && afterAnswer) setR((prev) => (prev && prev.addressedOnly ? { ...prev, asks: [] } : prev))
-      else if (e?.status === 403) setRefused(e.message)
+      // Answered the last ask addressed to them: the next read is refused,
+      // and the answer stays on screen in place of the refusal.
+      if (isRefusal(e) && afterAnswer) setR((prev) => viewAfterRefusedRead(prev) as Read | AddressedRead | null)
+      else if (isRefusal(e)) setRefused(e.message)
       else setError(e?.message ?? 'Could not read who owns this company.')
     }
   }, [])
@@ -88,8 +91,11 @@ export default function OwnersPage() {
   if (r.addressedOnly) {
     return (
       <div className="space-y-5">
-        <PageHead eyebrow={eyebrow} title="Waiting for your yes" subtitle={`${r.company} asks you something about who owns it. Nothing changes until you answer.`} />
-        {r.asks.length === 0 && <Panel title="Nothing is waiting"><p className="text-[13.5px] text-etyme-muted">Nothing at {r.company} is waiting on your yes.</p></Panel>}
+        {r.asks.length === 0 && said?.tone === 'ok'
+          ? <PageHead eyebrow={eyebrow} title="Answered" subtitle={`Your answer is recorded at ${r.company}.`} />
+          : <PageHead eyebrow={eyebrow} title="Waiting for your yes" subtitle={`${r.company} asks you something about who owns it. Nothing changes until you answer.`} />}
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+        {r.asks.length === 0 && !(said && said.tone === 'ok') && <Panel title="Nothing is waiting"><p className="text-[13.5px] text-etyme-muted">Nothing at {r.company} is waiting on your yes.</p></Panel>}
         {r.asks.map((a) => (
           <Panel key={a.id} title={a.kind === 'PASS' ? `${a.askedBy} asks you to take over ${r.company}` : `${a.askedBy} asks about ${a.youAreSubject ? 'your' : `${a.subject}’s`} seat as an Owner`}>
             <div className="space-y-3">
@@ -108,12 +114,18 @@ export default function OwnersPage() {
             </div>
           </Panel>
         ))}
-        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
       </div>
     )
   }
 
   const adminRole = r.roles.find((x) => x.name === 'Admin')
+  const chosenOwner = r.owners.find((o) => o.contextId === who) ?? null
+  const chosenRoleId = toRoleId || adminRole?.id || ''
+  const moveSays = moveFormSays({
+    alone: !!chosenOwner?.aloneToAdmin && ownerAct === 'demote' && !!adminRole && chosenRoleId === adminRole.id,
+    subjectName: chosenOwner?.name ?? null,
+    companyName: r.company,
+  })
 
   return (
     <div className="space-y-5">
@@ -184,16 +196,16 @@ export default function OwnersPage() {
               </Field>
               {ownerAct === 'demote' && (
                 <Field label="Their new role">
-                  <Select value={toRoleId || adminRole?.id || ''} onChange={(e) => setToRoleId(e.target.value)}>
+                  <Select value={chosenRoleId} onChange={(e) => setToRoleId(e.target.value)}>
                     <option value="">Choose a role</option>
                     {r.roles.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </Select>
                 </Field>
               )}
               <Field label="Why"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} /></Field>
-              <p className="text-[12.5px] text-etyme-muted">This needs the yes of an Owner who did not ask. Nothing changes until they answer, and you can withdraw it. The last Owner is never removed.</p>
-              <div className="flex gap-2">
-                <SubmitButton type="button" pending={busy === 'owner'} pendingLabel="Asking…" onClick={() => post('owner', '/api/settings/owners', { action: ownerAct, contextId: who, reason, toRoleId: ownerAct === 'demote' ? (toRoleId || adminRole?.id || '') : undefined })}>Ask for their yes</SubmitButton>
+              <p className="text-[12.5px] text-etyme-muted">{moveSays.line}</p>
+              <div className="flex flex-wrap gap-2">
+                <SubmitButton type="button" pending={busy === 'owner'} pendingLabel={moveSays.pending} onClick={() => post('owner', '/api/settings/owners', { action: ownerAct, contextId: who, reason, toRoleId: ownerAct === 'demote' ? chosenRoleId : undefined })}>{moveSays.button}</SubmitButton>
                 <SubmitButton type="button" tone="secondary" onClick={() => setFlow(null)}>Cancel</SubmitButton>
               </div>
             </div>
@@ -226,7 +238,7 @@ export default function OwnersPage() {
           <li>One step, one record. They become Owner and you become what you chose, in the same moment.</li>
           <li>There is never no Owner. The last Owner cannot be removed or moved.</li>
           <li>Only an Owner removes an Owner. An Admin cannot.</li>
-          <li>Removing or moving an Owner needs the yes of an Owner who did not ask.</li>
+          <li>Removing or moving an Owner needs the yes of an Owner who did not ask. One exception: whoever took over by a pass moves the Owner who passed it to them to Admin alone.</li>
           <li>What stays: the address, the bank check, signed agreements, every record.</li>
           <li>If nobody can say yes because an Owner lost access, write to support@etyme.com.</li>
         </ul>
