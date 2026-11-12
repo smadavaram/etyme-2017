@@ -129,6 +129,19 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
     const client = ctx.firmBySlug.get(l.client)
     if (!person || !client) continue
 
+    // What they work in, on their own record, so matching can weigh them
+    // when they come off the project. Matching reads an employee's skills
+    // from their consultant profile and nothing else, and nobody lists a
+    // firm's own employee, so until this the seeded Teleworld people read
+    // "no skills on record". Written only where nothing is there yet: a
+    // person who said their own skills on their own page keeps them.
+    const own = await db.consultantProfile.findUnique({ where: { personId: person.id }, select: { id: true, skills: true } })
+    if (!own) {
+      await db.consultantProfile.create({ data: { personId: person.id, skills: l.skills, location: `${l.site.city}, ${l.site.state}` } })
+    } else if (own.skills.length === 0) {
+      await db.consultantProfile.update({ where: { id: own.id }, data: { skills: l.skills } })
+    }
+
     const site =
       (await db.companyLocation.findFirst({ where: { companyId: client.id, name: l.site.name }, select: { id: true } })) ??
       (await db.companyLocation.create({

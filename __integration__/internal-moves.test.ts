@@ -77,6 +77,17 @@ describe('Our bench, as the seeded world has it', () => {
     expect(karthik.releaser).toBeNull()
   })
 
+  it('the seeded employees rolling off carry their skills on record, so Our bench and matching can weigh them', async () => {
+    const r = await read(RAHUL)
+    const felix = r.body.data.rows.find((x: any) => x.name === 'Felix Brenner')
+    const amara = r.body.data.rows.find((x: any) => x.name === 'Amara Nwosu')
+    expect(felix.skillsSay).not.toMatch(/no skills on record/)
+    expect(felix.skillsSay).toContain('ERP finance')
+    expect(amara.skillsSay).toContain('Data pipelines')
+    const felixRecord = await prisma.consultantProfile.findFirstOrThrow({ where: { person: { name: 'Felix Brenner' } }, select: { skills: true } })
+    expect(felixRecord.skills).toEqual(['ERP finance', 'General ledger', 'Retail'])
+  })
+
   it('somebody kept until a date reads as free from that date', async () => {
     const r = await read(RAHUL)
     const amara = r.body.data.rows.find((x: any) => x.name === 'Amara Nwosu')

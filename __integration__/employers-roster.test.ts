@@ -180,14 +180,17 @@ describe('a firm sees the people it employs even where none of them has agreed t
     }
   })
 
-  it('the consultants page still reports only consultant records, and the roster is elsewhere', async () => {
-    // Deliberately unchanged: `/api/consultants` reads ConsultantProfile,
-    // and an integrator's own W2 has no such row and needs none. What the
-    // screen owed was to stop reporting a confident nought over five real
-    // people — it now says how many are on the payroll and links there.
+  it('the consultants page reports only consultant records, each of the firm\'s own employees with one reads as employed here, and the roster is elsewhere', async () => {
+    // `/api/consultants` reads ConsultantProfile. Since 2026-11-12 the seed
+    // records the skills of the three Teleworld employees on a project
+    // (lib/seed-internal-moves), so matching can weigh them; those three
+    // records are on the page as employed here, never as on the bench.
+    // Karthik Menon has said nothing yet and has no record. The payroll
+    // count stays on the roster.
     as(TELEWORLD)
     const c = await json(await consultants(req('GET', '/api/consultants')))
-    expect(c.body.data.consultants).toHaveLength(0)
+    const rows = c.body.data.consultants.map((x: any) => [x.person?.name ?? x.name, x.standing]).sort()
+    expect(rows).toEqual([['Amara Nwosu', 'EMPLOYED'], ['Deepa Varma', 'EMPLOYED'], ['Felix Brenner', 'EMPLOYED']])
 
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body.data.summary.total).toBe(4)
