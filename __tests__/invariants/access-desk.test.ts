@@ -511,7 +511,7 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
 
   it('the invitation panel is drawn before the four figures, so it is first on a phone', () => {
     expect(page.indexOf('<Panel title="Invite a teammate"')).toBeGreaterThan(-1)
-    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeLessThan(page.indexOf('<Stat label="Waiting"'))
+    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeLessThan(page.indexOf('<Stat label="With access"'))
   })
 
   it('Invite is never greyed out without a sentence saying why', () => {
@@ -773,5 +773,136 @@ describe('inviting several at once', () => {
     expect(page).toMatch(/max-h-80 overflow-y-auto overflow-x-hidden/)
     expect(page).toContain('<CopyInvitation contextId={l.contextId} text={l.copyText} />')
     expect(page).toContain('<SendAgain contextId={l.contextId}')
+  })
+})
+
+// ── Faults 10 and 14 (founder, 2026-11-12): one count, one join sentence ──
+
+describe('Users & permissions counts people the way Settings and Team structure do', () => {
+  const route = read('src/app/api/access/route.ts')
+  const page = read('src/app/dashboard/access/page.tsx')
+  const rolesRoute = read('src/app/api/roles/route.ts')
+
+  type Row = Parameters<typeof import('@/lib/company-seats').seatsFrom>[0][number]
+  const row = (over: Partial<Row> & { email?: string; signedIn?: boolean } = {}): Row => {
+    const { email = 'meera@brightmoor.example', signedIn = true, ...rest } = over
+    return {
+      id: `c-${Math.random()}`, personId: 'p', type: 'EMPLOYEE', roleId: 'r-rec', orgUnitId: null,
+      grantedAt: new Date('2026-10-01'), invitedAt: signedIn ? null : new Date('2026-11-10'),
+      lastUsedAt: null, suspendedAt: null, revokedAt: null,
+      role: { name: 'Recruiter' },
+      person: { name: 'Meera Pillai', primaryEmail: email, credentials: signedIn ? [{ id: 'k' }] : [] },
+      ...rest,
+    }
+  }
+
+  it('Users & permissions reads its figures from the one reader of seats that Settings and Team structure read', () => {
+    expect(route).toContain("from '@/lib/company-seats'")
+    expect(route).toContain('readCompanySeats(caller.company.id)')
+    expect(route).toContain('countSeats(peopleOf(seats))')
+    expect(route).toContain('peopleSays')
+  })
+
+  it('the headline says what it counts, as "6 people: 3 with access · 3 invited"', async () => {
+    const { peopleWords } = await import('@/lib/company-seats')
+    expect(peopleWords({ withAccess: 3, invited: 3, paused: 0 })).toBe('6 people: 3 with access · 3 invited')
+    expect(page).toContain('{s.peopleSays}')
+  })
+
+  it('a person invited who never signed in is counted as invited, not as with access', async () => {
+    const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
+    const c = countSeats(peopleOf(seatsFrom([row(), row({ signedIn: false })], 'Brightmoor Staffing')))
+    expect(c).toEqual({ withAccess: 1, invited: 1, paused: 0 })
+  })
+
+  it('a paused seat is counted as paused, and never as with access', async () => {
+    const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
+    const c = countSeats(peopleOf(seatsFrom([row(), row({ suspendedAt: new Date('2026-11-11') })], 'Brightmoor Staffing')))
+    expect(c).toEqual({ withAccess: 1, invited: 0, paused: 1 })
+  })
+
+  it('each figure on the page says what it counts', () => {
+    expect(page).toContain('<Stat label="With access" value={s.withAccess} sub="signed in, not paused" />')
+    expect(page).toContain('<Stat label="Invited" value={s.invited} sub="not signed in yet"')
+    expect(page).toContain('<Stat label="Paused" value={s.paused} sub="cannot sign in now" />')
+    expect(page).not.toContain('<Stat label="Waiting"')
+  })
+
+  it('a consultant seat is listed and marked, and never counted among the company’s people', async () => {
+    const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
+    const c = countSeats(peopleOf(seatsFrom([row(), row({ type: 'CONSULTANT' })], 'Brightmoor Staffing')))
+    expect(c.withAccess).toBe(1)
+    expect(route).toContain('consultant: isConsultant(c.id)')
+    expect(page).toContain("const CONSULTANT_NOTE = 'consultant on your books, not counted'")
+  })
+
+  it('the shared sample seat is neither listed nor counted on Users & permissions', async () => {
+    const { seatsFrom, peopleOf } = await import('@/lib/company-seats')
+    const { SAMPLE_PERSON_EMAIL } = await import('@/lib/sample-seat')
+    expect(peopleOf(seatsFrom([row({ email: SAMPLE_PERSON_EMAIL })], 'Northbend Athletic'))).toEqual([])
+    expect(route).toContain('const listed = contexts.filter(c => !isSample(c.id))')
+  })
+
+  it('a seat named with the company’s own name reads as the name in its address, never as the company', async () => {
+    const { seatsFrom } = await import('@/lib/company-seats')
+    const [s] = seatsFrom([row({ person: { name: 'Tapin', primaryEmail: 'sharath@tapin.example', credentials: [{ id: 'k' }] } })], 'Tapin')
+    expect(s.name).toBe('Sharath')
+    expect(route).toContain('name: seatOf.get(c.id)?.name ?? c.person.name')
+  })
+
+  it('the role pickers count a role’s permissions the way Settings → Roles does, so the Owner reads everything', async () => {
+    const { roleCanDo } = await import('@/lib/company-roles')
+    expect(roleCanDo({ permissions: ['*'] }).everything).toBe(true)
+    expect(rolesRoute).toContain('permissionCount: roleCanDo(r).count')
+    expect(rolesRoute).not.toContain('permissions.length')
+  })
+})
+
+describe('Users & permissions says how people join in the one join sentence', () => {
+  const route = read('src/app/api/access/route.ts')
+  const page = read('src/app/dashboard/access/page.tsx')
+  const facts = (over: Partial<import('@/lib/join-words').JoinFacts> = {}): import('@/lib/join-words').JoinFacts => ({
+    companyName: 'Tapin', kind: 'VENDOR', slug: 'tapin', mode: 'OPEN', domains: [], ownerEmailDomains: ['etyme.com', 'gmail.com'], ...over,
+  })
+
+  it('the fixed sentence that everybody on the email domain joins at once as Member is gone', () => {
+    expect(page).not.toContain('joins automatically as a Member')
+    expect(page).not.toContain('Anyone signing in on your company’s email domain')
+  })
+
+  it('the line under the heading and the invitation form’s help read the join sentence the route sends', () => {
+    expect(route).toContain('joinSentenceFor(caller.company.id)')
+    expect(page).toContain('subtitle={memberLine(data.canInvite === false ? data.joins : null)}')
+    expect(page).toContain('{inviteHelp(data.joins)}')
+  })
+
+  it('a company with no verified domain whose Owners sign in on Gmail or Etyme’s own domain is told people join by invitation only', async () => {
+    const { joinSentence } = await import('@/lib/join-words')
+    expect(joinSentence(facts())).toBe('People join Tapin by invitation only. An Owner or Admin invites each person from Users & permissions.')
+  })
+
+  it('a verified domain set to join at once is said as joining at once as Member, waiting for a role', async () => {
+    const { joinSentence } = await import('@/lib/join-words')
+    const s = joinSentence(facts({ companyName: 'Brightmoor Staffing', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }], ownerEmailDomains: ['brightmoor.example'] }))
+    expect(s).toContain('on brightmoor.example joins at once as Member and waits for a role')
+  })
+
+  it('a verified domain that asks to join is never said to join at once', async () => {
+    const { joinSentence } = await import('@/lib/join-words')
+    const s = joinSentence(facts({ domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'REQUEST' }] }))!
+    expect(s).toContain('asks to join')
+    expect(s).not.toContain('at once')
+  })
+
+  it('a directory-only company is never told about passwords or emailed links', async () => {
+    const { joinSentence } = await import('@/lib/join-words')
+    const s = joinSentence(facts({ mode: 'SSO_ONLY' }))!
+    expect(s).toContain('directory')
+    expect(s.toLowerCase()).not.toMatch(/password|link/)
+  })
+
+  it('a one-person firm is told nothing about colleagues joining', async () => {
+    const { joinSentence } = await import('@/lib/join-words')
+    expect(joinSentence(facts({ kind: 'CONSULTANT_CORP' }))).toBeNull()
   })
 })

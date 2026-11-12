@@ -168,6 +168,7 @@ export type AccessAction =
   // MARKETING_REQUEST.
   | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
   | 'SUPERADMIN_SETTINGS_OPEN' // a Superadmin opened or changed the platform's Ask Etyme limits; no company data is read
+  | 'SUPERADMIN_EMAIL_FAILURES_READ' // a Superadmin read the newest email sends that did not go, across companies: when, the kind, the company, the provider's answer and a masked recipient
   | 'OWNER_PROOF_RECORD' // a Superadmin recorded an identity-verification provider's result for a named person at a named company, verbatim; Etyme renders no verdict
   // ── Who signs in, and how: the identity events ────────────────────
   //

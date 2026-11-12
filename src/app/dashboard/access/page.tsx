@@ -49,6 +49,8 @@ interface Waiting {
   mail?: InviteMail | null
   /** The ready message for Copy invitation; it holds no link that takes the seat. */
   copyText?: string | null
+  /** A consultant on the firm's books: listed, never counted among its people. */
+  consultant?: boolean
 }
 interface Person {
   contextId: string
@@ -64,6 +66,8 @@ interface Person {
   /** Why the seat is paused, where it is. */
   pausedReason?: string | null
   acts?: RowOffer
+  /** A consultant on the firm's books: listed, never counted among its people. */
+  consultant?: boolean
 }
 interface Finding {
   contextId: string
@@ -73,6 +77,31 @@ interface Finding {
   finding: string
   detail: string
   suggestion: string | null
+}
+
+/** Said beside a consultant's seat, which is listed and never counted. */
+const CONSULTANT_NOTE = 'consultant on your books, not counted'
+
+/**
+ * The line under the heading: how people join, read off what the doors do
+ * (`joins` from GET /api/access, lib/join-words), then what a Member sees.
+ * Said once on the page: under the heading for a reader who cannot invite,
+ * in the invitation form's help for one who can, so a phone does not read
+ * the same sentence twice in a row. A one-person firm has no colleagues
+ * and gets no join sentence.
+ */
+function memberLine(joins: string | null | undefined): string {
+  const member = 'A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a role.'
+  return joins ? `${joins} ${member}` : member
+}
+
+/**
+ * The invitation form's help text: how the invited seat is taken, then how
+ * people join, in the same sentence the heading reads.
+ */
+function inviteHelp(joins: string | null | undefined): string {
+  const how = 'Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.'
+  return joins ? `${how} ${joins}` : how
 }
 
 /** When access ends, as a day through the shared formatter: "ends Mar 3, 2027", or "no end date". */
@@ -650,7 +679,7 @@ export default function AccessPage() {
       <PageHead
         eyebrow={section}
         title="Users & permissions"
-        subtitle="Anyone signing in on your company’s email domain joins automatically as a Member. A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a role."
+        subtitle={memberLine(data.canInvite === false ? data.joins : null)}
       />
 
       {/* ── Invite a teammate ──
@@ -668,7 +697,7 @@ export default function AccessPage() {
         ) : (
         <>
         <p className="text-sm text-etyme-muted mb-3">
-          Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.
+          {inviteHelp(data.joins)}
         </p>
         <div className="mb-3">
           <button type="button" onClick={() => { setSeveral(!several); setAddressError(null); setBatch(null) }}
@@ -746,11 +775,15 @@ export default function AccessPage() {
       </Panel>
 
       {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
+      {/* The headline and the figures come from the one reader of seats
+          (lib/company-seats), so Settings and Team structure say the same
+          numbers for this company, and each figure says what it counts. */}
+      {s.peopleSays && <p className="text-sm text-etyme-ink mb-3 break-words">{s.peopleSays}</p>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <Stat label="Waiting" value={s.waiting} tone={s.waiting > 0 ? 'attention' : 'default'} />
-        <Stat label="With access" value={s.withAccess} />
-        <Stat label="Needs a decision" value={s.needsAttention} />
-        <Stat label="Never used" value={s.dormant} sub="held but untouched" />
+        <Stat label="With access" value={s.withAccess} sub="signed in, not paused" />
+        <Stat label="Invited" value={s.invited} sub="not signed in yet" tone={s.invited > 0 ? 'attention' : 'default'} />
+        <Stat label="Paused" value={s.paused} sub="cannot sign in now" />
+        <Stat label="Needs a decision" value={s.needsAttention} sub="no role yet, ended or never used" />
       </div>
 
       {data.waitingForAccess.length > 0 && (
@@ -761,7 +794,7 @@ export default function AccessPage() {
               <div key={w.contextId} className="p-4">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="flex-1 min-w-[12rem]">
-                    <div className="text-etyme-ink">{w.person.name}</div>
+                    <div className="text-etyme-ink">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
                     <Address email={w.person.primaryEmail} />
                     <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
                     <MailSaid mail={w.mail} />
@@ -875,7 +908,7 @@ export default function AccessPage() {
             <div key={p.contextId} className="p-4">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div className="flex-1 min-w-[12rem]">
-                  <div className="text-etyme-ink">{p.person.name}</div>
+                  <div className="text-etyme-ink">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
                   <Address email={p.person.primaryEmail} />
                   <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                     {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}

@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { sensitivityOf } from '@/lib/access-grant'
-import { ensureDefaultRoles } from '@/lib/company-roles'
+import { ensureDefaultRoles, roleCanDo } from '@/lib/company-roles'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 
 /**
@@ -68,7 +68,11 @@ export async function GET(request: NextRequest) {
         id: r.id,
         name: r.name,
         isDefault: r.isDefault,
-        permissionCount: r.permissions.length,
+        // Counted the way Settings → Roles counts (lib/company-roles
+        // `roleCanDo`): Owner's "*" is everything, not one, so the change-
+        // role and invitation pickers agree with the Roles tab.
+        permissionCount: roleCanDo(r).count,
+        canDo: roleCanDo(r).words,
         sensitivity: sensitivityOf(r.permissions),
       })),
     },

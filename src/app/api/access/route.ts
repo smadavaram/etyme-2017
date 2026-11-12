@@ -19,6 +19,8 @@ import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act
 import { offersFor } from './row-acts'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
+import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
+import { joinSentenceFor } from '@/lib/join-words'
 
 /**
  * Who may read the access register.
@@ -121,6 +123,27 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // ── The figures, from the one reader of seats (founder, 2026-11-12) ──
+  // Users & permissions, Settings and Team structure counted a company's
+  // people from three queries and disagreed by one. Every figure here is
+  // now read through lib/company-seats, so the same company reads the same
+  // numbers on every screen: its people (not a consultant on its books,
+  // not the shared sample seat), each once, as with access, invited (never
+  // signed in) or paused. The sample seat is nobody, so it is not listed
+  // either; a consultant's seat is still listed, marked, and not counted.
+  const [seats, joins] = await Promise.all([
+    readCompanySeats(caller.company.id),
+    joinSentenceFor(caller.company.id),
+  ])
+  const seatOf = new Map(seats.map(s => [s.contextId, s]))
+  const isSample = (id: string) => seatOf.get(id)?.isSample === true
+  const isConsultant = (id: string) => seatOf.get(id)?.isPerson === false
+  const counts = countSeats(peopleOf(seats))
+  const consultantsListed = seats.filter(s => !s.isPerson && !s.isSample).length
+  const peopleSays = peopleWords(counts) + (consultantsListed
+    ? ` Also listed: ${consultantsListed} ${consultantsListed === 1 ? 'consultant' : 'consultants'} on your books, not counted among your people.`
+    : '')
+
   // An invitation is not access, whatever desk it carries. A seat with no
   // desk, or whose person has never signed in, waits; the rest have access.
   const signedInOf = (c: (typeof contexts)[number]) => hasSignedIn({
@@ -128,8 +151,9 @@ export async function GET(request: NextRequest) {
     lastUsedAt: c.lastUsedAt,
     everSignedIn: c.person.credentials.length > 0,
   })
-  const withAccess = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
-  const waiting = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
+  const listed = contexts.filter(c => !isSample(c.id))
+  const withAccess = listed.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
+  const waiting = listed.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
   // The address each person signs in with, under their name on every row
   // (founder, 2026-11-12: people with access hid it while people waiting
   // showed it). This register is read only on governance.read, the desks
@@ -137,14 +161,16 @@ export async function GET(request: NextRequest) {
   // is never shown: it is nobody's address.
   const emailOf = (email: string | null | undefined): string | null =>
     email && email.trim() && !isSamplePerson(email) ? email : null
-  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: c.person.name, primaryEmail: emailOf(c.person.primaryEmail) })
+  // The person's name as the one reader says it: never the company's own
+  // name (a seat named "Tapin" at Tapin reads as the name in its address).
+  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: seatOf.get(c.id)?.name ?? c.person.name, primaryEmail: emailOf(c.person.primaryEmail) })
   const emailByContext = new Map(contexts.map(c => [c.id, emailOf(c.person.primaryEmail)]))
 
   const review = reviewAccess(
     withAccess
       .map(c => ({
         contextId: c.id,
-        personName: c.person.name,
+        personName: seatOf.get(c.id)?.name ?? c.person.name,
         roleName: c.role!.name,
         permissions: c.role!.permissions,
         grantedAt: c.grantedAt,
@@ -253,6 +279,9 @@ export async function GET(request: NextRequest) {
           // The desk they will have when they come in, or null.
           role: c.role?.name ?? null,
           roleId: c.role?.id ?? null,
+          // A consultant on the firm's books: listed so a seat can be acted
+          // on, and never counted among the company's people.
+          consultant: isConsultant(c.id),
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
           // A seat may be given an end day before they come in.
           expiresAt: c.expiresAt?.toISOString() ?? null,
@@ -267,6 +296,7 @@ export async function GET(request: NextRequest) {
         roleId: c.role!.id,
         // "Member · give them a role" for the seat everybody arrives on.
         line: deskLine(c.role!.name),
+        consultant: isConsultant(c.id),
         sensitivity: sensitivityOf(c.role!.permissions),
         grantedAt: c.grantedAt.toISOString(),
         expiresAt: c.expiresAt?.toISOString() ?? null,
@@ -309,9 +339,25 @@ export async function GET(request: NextRequest) {
         kind: caller.company.kind,
         companyName: caller.company.name,
       }),
+      // How people join this company, in one sentence read off what the
+      // doors do (lib/join-words), or null for a one-person firm. It
+      // replaces the fixed line that said everybody on the email domain
+      // joins at once as Member, which was true only of a verified domain
+      // set to join at once.
+      joins,
       summary: {
+        // The headline, from the one reader: "6 people: 3 with access ·
+        // 3 invited". The same words Settings and Team structure say.
+        peopleSays,
+        // The company's people in each state (lib/company-seats). A Member
+        // with no role who has signed in has access and is counted here;
+        // the list still shows them under "Waiting for access" with "no
+        // role yet", and "Needs a decision" counts them.
+        withAccess: counts.withAccess,
+        invited: counts.invited,
+        paused: counts.paused,
+        // The rows under "Waiting for access": invited, or in with no role.
         waiting: waiting.length,
-        withAccess: withAccess.length,
         // Every review finding plus every Member waiting for a desk: a
         // Member reads "give them a role" on the list, so it is counted.
         needsAttention: needsDecisionCount(
