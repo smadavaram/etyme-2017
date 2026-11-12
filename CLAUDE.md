@@ -8147,8 +8147,15 @@ and "Sign up is as prominent as sign in" of the same day.
 - **What stays underneath:** a company on directory-only sign-in is
   sent to its directory whichever button its people press, and never
   sees a password box; the page never says whether an address has an
-  account; LinkedIn is for a worker and a one-person firm; the email is
-  routing, never proof.
+  account; the email is routing, never proof.
+- **LinkedIn is for candidates only, and the button says so** (founder,
+  the same evening: *"For LinkedIn, mention for candidate only"*). The
+  button reads "Continue with LinkedIn" with "Candidates only" beside
+  it. Somebody with a seat at a company is refused there in one sentence
+  that says which button to use. Coordinator's reading, reversible in a
+  sentence: this narrows the rule of 2026-11-11, which also let a
+  one-person firm use LinkedIn; a one-person firm now signs in with
+  Google, Microsoft or a password.
 - **The lesson, the fourth time on this page:** a sign-in page is
   photographed at phone width and shown to the founder before it is
   called built. Words in a reply did not catch a greyed button, two
