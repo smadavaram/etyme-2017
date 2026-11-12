@@ -13,12 +13,14 @@ import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import type { Policy } from '@/lib/bench-policy'
 import {
   mayReadBenchProfit, benchSpell, benchToBill, courseGroup, utilization, moveSaving, policySays, isMove,
-  benchReachSays, FIRM_WIDE_ONLY_SAYS,
-  type Earned, type LineSpan, type Placed, type Standing,
+  benchReachSays, FIRM_WIDE_ONLY_SAYS, commissionOver, withCommission,
+  type Earned, type CommissionMonth, type LineSpan, type Placed, type Standing,
 } from '@/lib/bench-profit'
 import { marginReachFor, teamsSay } from '@/lib/money/margin-reach'
 import { benchPeopleInReach } from '@/lib/consultant-portfolio/margin-reach'
 import { benchHolidays } from '../holiday-pay'
+import { commissionAccruals, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/bench/profit
@@ -273,7 +275,7 @@ export async function GET(request: NextRequest) {
   const courseOf = new Map<string, string>()
   for (const e of enrollments) if (!courseOf.has(e.personId)) courseOf.set(e.personId, e.course.title)
 
-  const people = []
+  const rows: Array<{ person: { personId: string; name: string; listed: boolean; course: string | null; placedAt: string | null; currency: string; holiday: ReturnType<typeof holidays.answerOf> }; row: ReturnType<typeof benchToBill>; placed: Sell | null; marginCurrency: string | null; benchCurrency: string }> = []
   // Whose pay each figure was worked from, for the trail.
   const trail: { personId: string; payRate: number }[] = []
   for (const pid of ids) {
@@ -314,17 +316,86 @@ export async function GET(request: NextRequest) {
           : null,
     })
     trail.push({ personId: pid, payRate: pay?.payRateCents ?? 0 })
-    people.push({
-      personId: pid,
-      name: names.get(pid)!,
-      listed: listed.has(pid),
-      course: courseOf.get(pid) ?? null,
-      placedAt: placedLine ? siteOf(placedLine) : null,
-      currency: pay?.currency ?? firm.homeCurrency,
-      holiday: holidays.answerOf(pid),
-      ...row,
+    rows.push({
+      person: {
+        personId: pid,
+        name: names.get(pid)!,
+        listed: listed.has(pid),
+        course: courseOf.get(pid) ?? null,
+        placedAt: placedLine ? siteOf(placedLine) : null,
+        currency: pay?.currency ?? firm.homeCurrency,
+        holiday: holidays.answerOf(pid),
+      },
+      row,
+      placed: placedLine,
+      marginCurrency: placedLine ? (await earnedOn(placedLine)).currency : null,
+      benchCurrency: pay?.currency ?? firm.homeCurrency,
     })
   }
+
+  // ── Less the commission on each placement ──────────────────────────
+  //
+  // Money's own reader (`commissionAccruals`, `commissionByPlacement`),
+  // read one pay period at a time — money's month (`monthPeriod`) — from
+  // the month the earliest placement here started to this one, the way
+  // Ask Etyme adds a person's commissions up. Nothing is worked out here.
+  // Where the firm has no commission row on any line, nothing is read and
+  // every placed person's line says the figure is before commission.
+  const placedLines = rows.flatMap((r) => (r.placed ? [r.placed] : []))
+  const placedIds = [...new Set(placedLines.map((l) => l.id))]
+  const firmHasRows = placedIds.length > 0 && (await prisma.contractCommission.count({ where: { companyId } })) > 0
+  const monthsOf = new Map<string, Map<string, CommissionMonth>[]>()
+  const older = new Set<string>()
+  if (firmHasRows) {
+    const first = placedLines.reduce((a, l) => (l.startDate < a ? l.startDate : a), now)
+    const periods = []
+    for (let y = first.getUTCFullYear(), m = first.getUTCMonth(); y < now.getUTCFullYear() || (y === now.getUTCFullYear() && m <= now.getUTCMonth()); m === 11 ? (y++, m = 0) : m++) {
+      periods.push(monthPeriod(new Date(Date.UTC(y, m, 15))))
+    }
+    const perMonth: Map<string, CommissionMonth>[] = []
+    const earners = new Set<string>()
+    for (let i = 0; i < periods.length; i += 6) {
+      const batch = await Promise.all(periods.slice(i, i + 6).map((p) => commissionAccruals(companyId, p, { sellContractIds: placedIds })))
+      for (const accruals of batch) {
+        for (const a of accruals) earners.add(a.earnedBy.id)
+        perMonth.push(commissionByPlacement(accruals))
+      }
+    }
+    for (const id of placedIds) monthsOf.set(id, perMonth)
+    for (const l of await prisma.contractLink.findMany({
+      where: { sellContractId: { in: placedIds }, buyContract: { commissionType: { not: null } } },
+      select: { sellContractId: true },
+    })) older.add(l.sellContractId)
+    // A commission is somebody's pay: whose rows these totals were read
+    // from goes on the record, the reader's own excepted.
+    const others = [...earners].filter((id) => id !== caller.person.id)
+    if (others.length) {
+      logBulkAccess(others, {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId,
+        action: 'PAYROLL_VIEW',
+        reason: 'Read on Bench profit: commission taken off each placement’s margin',
+      })
+    }
+  }
+
+  const people = rows.map((r) => ({
+    ...r.person,
+    // The margin's own currency (the bill's), which may differ from the pay's.
+    marginCurrency: r.marginCurrency,
+    ...withCommission(
+      r.row,
+      r.placed
+        ? commissionOver({
+            firmHasRows,
+            older: older.has(r.placed.id),
+            months: (monthsOf.get(r.placed.id) ?? []).map((m) => m.get(r.placed!.id)),
+          })
+        : null,
+      r.marginCurrency,
+      r.benchCurrency,
+    ),
+  }))
   people.sort((a, b) => (b.days ?? -1) - (a.days ?? -1) || a.name.localeCompare(b.name))
 
   // ── Per course ──────────────────────────────────────────────────────
@@ -468,6 +539,9 @@ export async function GET(request: NextRequest) {
           ' A holiday not paid is taken out of their cost. The holidays are the ones on your company calendar' +
           (firm.country ? ` for ${firm.country}.` : '.'),
         'The margin is what the client’s approved hours billed, less what you paid for the hours you accepted, on the weeks both sides signed, less employer burden where you employ the person — the same figure as the placement page and Profitability, to the cent.',
+        firmHasRows
+          ? 'After commission is the margin less the commissions earned on the placement in every month since it started, read from the commission rows on its lines. It is still before admin cost.'
+          : 'No commission is set on any of your lines, so the margin is before commission.',
         'A figure the record cannot support is left blank, with the reason beside it.',
       ],
     },

@@ -40,6 +40,13 @@ interface Person {
   costCounted: string | null
   marginCents: number | null
   marginSays: string
+  /** The margin's own currency (the bill's). Null where not placed. */
+  marginCurrency: string | null
+  /** The commission on the placement, taken off the margin. Null where not known or none is set. */
+  commissionCents: number | null
+  /** "Before commission: …", the commission and what is left, or why it is not known. Null where not placed. */
+  commissionSays: string | null
+  afterCommissionCents: number | null
   paidBackOn: string | null
   leftCents: number | null
   paybackSays: string
@@ -179,7 +186,19 @@ export function BenchProfit() {
     {
       key: 'marginCents', label: 'Margin since placed', align: 'right',
       sortValue: (r) => r.marginCents,
-      render: (r) => <span className="tabular-nums" title={r.marginSays}>{r.spell === 'NOW' ? '—' : money(r.marginCents, r.currency)}</span>,
+      render: (r) => <span className="tabular-nums" title={r.marginSays}>{r.spell === 'NOW' ? '—' : money(r.marginCents, r.marginCurrency ?? r.currency)}</span>,
+    },
+    {
+      key: 'afterCommissionCents', label: 'After commission', align: 'right',
+      sortValue: (r) => r.afterCommissionCents,
+      // The commission is money's own figure, read month by month; where the
+      // firm sets none, the cell says the margin is before commission.
+      render: (r) => (
+        <div className="text-right">
+          <span className="tabular-nums">{r.afterCommissionCents == null ? '—' : money(r.afterCommissionCents, r.marginCurrency ?? r.currency)}</span>
+          {r.commissionSays && <p className="text-[11px] text-etyme-muted">{r.commissionSays}</p>}
+        </div>
+      ),
     },
     {
       key: 'paybackSays', label: 'Paid back',
@@ -273,7 +292,8 @@ export function BenchProfit() {
                 {' · '}Bench cost {money(r.costCents, r.currency)}
                 {r.costCounted ? ` (${r.costCounted})` : ''}
               </p>
-              {r.spell !== 'NOW' && <p className="text-[12px] text-etyme-muted">Margin since placed: {money(r.marginCents, r.currency)}</p>}
+              {r.spell !== 'NOW' && <p className="text-[12px] text-etyme-muted">Margin since placed: {money(r.marginCents, r.marginCurrency ?? r.currency)}</p>}
+              {r.commissionSays && <p className="text-[12px] text-etyme-muted">{r.commissionSays}</p>}
               <p className="text-[12px] text-etyme-muted">{r.paybackSays}</p>
               {turnsHolidays && <HolidaySwitchCell personId={r.personId} answer={r.holiday} onTurned={turned} />}
             </div>

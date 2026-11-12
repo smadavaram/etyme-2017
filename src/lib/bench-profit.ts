@@ -543,6 +543,155 @@ export function benchToBill(input: {
   }
 }
 
+// ── Less the commission on the placement (2026-11-12) ─────────────────
+//
+// The founder, 2026-10-08: bench profit per profile is billed, less what
+// was paid for them, less expenses, less admin cost, less the commission
+// paid on the placement. Since 2026-11-08 a commission is a row on the
+// line (`ContractCommission`), and money's reader (`commissionAccruals`,
+// `commissionByPlacement` in lib/money/commission-accrual) says what each
+// row earned in each pay period. Nothing here works a commission out: the
+// route reads money's figure month by month, money's own pay period, and
+// these two functions only add those months up and take the total off.
+
+/** What money's reader said a placement's commission came to, one month of it. */
+export interface CommissionMonth {
+  cents: number | null
+  currency: string | null
+  blankedBecause: string | null
+}
+
+/** The commission on one placement, over every month since it started. */
+export type CommissionOn =
+  /** The firm has no commission row on any line: the figure is before commission. */
+  | { kind: 'NONE_RECORDED' }
+  | { kind: 'FIGURE'; cents: number; currency: string | null }
+  | { kind: 'BLANK'; why: string }
+
+/**
+ * The months added up, each in its own currency: one currency, or blank.
+ * A month money left blank blanks the total with money's own reason. A
+ * month with no entry is a month nothing was earned on this placement.
+ * `older` is an older commission agreement (a commission-type buy line
+ * linked to the placement), whose share is not on the line. Pure.
+ */
+export function commissionOver(input: {
+  firmHasRows: boolean
+  older: boolean
+  months: ReadonlyArray<CommissionMonth | undefined>
+}): CommissionOn {
+  if (!input.firmHasRows) return { kind: 'NONE_RECORDED' }
+  if (input.older) {
+    return { kind: 'BLANK', why: 'An older commission agreement pays on this placement, and its share is not on the line.' }
+  }
+  let cents = 0
+  let currency: string | null = null
+  for (const m of input.months) {
+    if (!m) continue
+    if (m.cents == null) return { kind: 'BLANK', why: m.blankedBecause ?? 'A commission on this placement cannot be worked out.' }
+    if (m.cents === 0) continue
+    if (m.currency && currency && m.currency !== currency) {
+      return { kind: 'BLANK', why: 'Its commissions are in two currencies, and two currencies are never added.' }
+    }
+    currency = m.currency ?? currency
+    cents += m.cents
+  }
+  return { kind: 'FIGURE', cents, currency }
+}
+
+/** Said where the firm records no commission on any line. */
+export const BEFORE_COMMISSION = 'Before commission: no commission is set on any of your lines.'
+
+export interface AfterCommission {
+  /** The commission taken off, in the margin's currency. Null where not known or none is recorded. */
+  commissionCents: number | null
+  /** Null where they are not placed. */
+  commissionSays: string | null
+  /** The margin less the commission. Null where either is not known, or no commission is recorded. */
+  afterCommissionCents: number | null
+}
+
+/**
+ * A person's bench to bill, with the commission on their placement taken
+ * off the margin. Where the firm records no commission at all, nothing
+ * moves and the line says the figure is before commission. Where the
+ * commission is not known, the payback is not named either, because a
+ * margin with an unknown amount still to come off cannot say it caught
+ * up. Commission is earned by the month, never by the week, so where it
+ * is above nought the day the bench was paid back is not named; whether
+ * it was paid back, and what is left, still are. Pure.
+ */
+export function withCommission(
+  row: BenchToBill,
+  c: CommissionOn | null,
+  marginCurrency: string | null,
+  benchCurrency: string,
+): BenchToBill & AfterCommission {
+  if (c == null) {
+    // Not placed: no margin, and no commission to take off it.
+    return { ...row, commissionCents: null, commissionSays: null, afterCommissionCents: null }
+  }
+  if (c.kind === 'NONE_RECORDED') {
+    return { ...row, commissionCents: null, commissionSays: BEFORE_COMMISSION, afterCommissionCents: null }
+  }
+  if (c.kind === 'BLANK') {
+    return {
+      ...row,
+      commissionCents: null,
+      commissionSays: `Commission not known: ${c.why.replace(/\.$/, '')}.`,
+      afterCommissionCents: null,
+      paidBackOn: null,
+      leftCents: null,
+      paybackSays: 'Not known yet, because the commission on this placement is not.',
+    }
+  }
+  if (c.cents > 0 && c.currency && marginCurrency && c.currency !== marginCurrency) {
+    return {
+      ...row,
+      commissionCents: null,
+      commissionSays: `Commission not known: it is in ${c.currency} and the margin is in ${marginCurrency}, and two currencies are never added.`,
+      afterCommissionCents: null,
+      paidBackOn: null,
+      leftCents: null,
+      paybackSays: 'Not known yet, because the commission on this placement is not.',
+    }
+  }
+  if (row.marginCents == null) {
+    return {
+      ...row,
+      commissionCents: c.cents,
+      commissionSays: c.cents === 0
+        ? 'No commission earned on this placement.'
+        : `${amount(c.cents, c.currency ?? marginCurrency ?? benchCurrency)} commission on this placement; the margin is not known, so nothing is said after it.`,
+      afterCommissionCents: null,
+    }
+  }
+  const margin = row.marginCents
+  const after = margin - c.cents
+  const ccy = marginCurrency ?? c.currency ?? benchCurrency
+  if (c.cents === 0) {
+    return { ...row, commissionCents: 0, commissionSays: 'No commission earned on this placement.', afterCommissionCents: after }
+  }
+  const out = {
+    ...row,
+    commissionCents: c.cents,
+    commissionSays: `${amount(c.cents, ccy)} commission on this placement, leaving ${amount(after, ccy)}.`,
+    afterCommissionCents: after,
+  }
+  // The payback, read on the margin after commission.
+  if (row.costCents == null || row.costCents === 0 || ccy !== benchCurrency) return out
+  if (after >= row.costCents) {
+    return {
+      ...out,
+      paidBackOn: null,
+      leftCents: 0,
+      paybackSays: 'Paid back after commission. The day is not named, because commission is earned by the month, not by the week.',
+    }
+  }
+  const left = row.costCents - after
+  return { ...out, paidBackOn: null, leftCents: left, paybackSays: `Not yet. ${amount(left, ccy)} left to earn back after commission.` }
+}
+
 // ── Per course ────────────────────────────────────────────────────────
 
 /** The middle value; the mean of the two middle values for an even count. Null for none. */

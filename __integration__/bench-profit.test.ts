@@ -450,3 +450,50 @@ describe('the bench counts the firm’s own week', () => {
     }
   })
 })
+
+// ── Less the commission on the placement (2026-11-12) ─────────────────
+
+import { commissionAccruals, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'
+
+describe('bench profit takes off the commission paid on each placement', () => {
+  it('a firm with no commission row on any line reads every placed person\'s margin as before commission', async () => {
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
+    expect(await prisma.contractCommission.count({ where: { companyId: firm.id } })).toBe(0)
+    as(OWNER)
+    const r = await json(await benchProfit(req('GET', '/api/bench/profit')))
+    const tobias = row(r.body, 'Tobias Wren')
+    expect(tobias.commissionSays).toBe('Before commission: no commission is set on any of your lines.')
+    expect(tobias.afterCommissionCents).toBeNull()
+  })
+
+  it('with a commission row on Tobias Wren\'s line, his margin after commission is his margin less money\'s own figure for every month since he started', async () => {
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
+    const tobiasP = await prisma.person.findFirstOrThrow({ where: { name: 'Tobias Wren' }, select: { id: true } })
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: firm.id, personId: tobiasP.id, state: { in: ['IN_PROGRESS', 'PAUSED', 'ENDED'] } },
+      orderBy: { startDate: 'desc' }, select: { id: true, startDate: true },
+    })
+    const owner = await prisma.person.findFirstOrThrow({ where: { primaryEmail: OWNER }, select: { id: true } })
+    await prisma.contractCommission.create({
+      data: {
+        companyId: firm.id, sellContractId: line.id, earnedById: owner.id, kind: 'SALES', basis: 'SHARE_OF_BILLED', rateBps: 300,
+        fromDate: new Date(Date.UTC(2020, 0, 1)), accrueOn: 'ACCEPTED', setById: owner.id, reason: 'Sold the Corveldt deal',
+      },
+    })
+    // Money's own figure, one month at a time from the month he started.
+    const now = new Date()
+    let expected = 0
+    for (let y = line.startDate.getUTCFullYear(), m = line.startDate.getUTCMonth(); y < now.getUTCFullYear() || (y === now.getUTCFullYear() && m <= now.getUTCMonth()); m === 11 ? (y++, m = 0) : m++) {
+      const per = commissionByPlacement(await commissionAccruals(firm.id, monthPeriod(new Date(Date.UTC(y, m, 15))), { sellContractIds: [line.id] }))
+      expected += per.get(line.id)?.cents ?? 0
+    }
+    expect(expected).toBeGreaterThan(0)
+
+    as(OWNER)
+    const r = await json(await benchProfit(req('GET', '/api/bench/profit')))
+    const tobias = row(r.body, 'Tobias Wren')
+    expect(tobias.commissionCents).toBe(expected)
+    expect(tobias.afterCommissionCents).toBe(tobias.marginCents - expected)
+    expect(tobias.commissionSays).toMatch(/commission on this placement, leaving/)
+  })
+})

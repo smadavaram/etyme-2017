@@ -448,3 +448,87 @@ describe('the seeded bench vendor, whatever day the world is born', () => {
     }
   })
 })
+
+// ── Less the commission on the placement (2026-11-12) ─────────────────
+
+import { commissionOver, withCommission, BEFORE_COMMISSION } from '@/lib/bench-profit'
+
+describe('bench profit per person takes off the commission paid on the placement', () => {
+  const placement = { id: 'p', startsOn: d('2026-03-02'), endsOn: null }
+  const spell = { kind: 'BEFORE' as const, from: d('2026-01-11'), to: d('2026-03-02'), days: 50, placement }
+  const weeks = (n: number) => Array.from({ length: n }, (_, i) => ({ endsOn: new Date(Date.UTC(2026, 2, 6 + i * 7)), marginCents: 104_000 }))
+  const earned = (n: number): Earned => ({ marginCents: 104_000 * n, refusedBecause: null, currency: 'USD', weeks: weeks(n) })
+  const row = (n: number) => benchToBill({ spell, policy: HALF, payRateCents: 6200, contractType: 'W2', currency: 'USD', earned: earned(n) })
+  const month = (cents: number | null, currency = 'USD', why: string | null = null) => ({ cents, currency, blankedBecause: why })
+
+  it('a firm with no commission row on any line reads the margin as before commission, and nothing moves', () => {
+    const r = withCommission(row(12), commissionOver({ firmHasRows: false, older: false, months: [] }), 'USD', 'USD')
+    expect(r.commissionSays).toBe(BEFORE_COMMISSION)
+    expect(r.afterCommissionCents).toBeNull()
+    expect(r.paidBackOn).toBe('2026-05-01')
+  })
+
+  it('the commission is money\'s figure for each month since placement, added up, and taken off the margin', () => {
+    const c = commissionOver({ firmHasRows: true, older: false, months: [month(20_000), undefined, month(30_000)] })
+    expect(c).toEqual({ kind: 'FIGURE', cents: 50_000, currency: 'USD' })
+    const r = withCommission(row(12), c, 'USD', 'USD')
+    expect(r.commissionCents).toBe(50_000)
+    expect(r.afterCommissionCents).toBe(1_248_000 - 50_000)
+    expect(r.commissionSays).toBe('$500.00 commission on this placement, leaving $11,980.00.')
+  })
+
+  it('paid back after commission is said without a day, because commission is earned by the month and not by the week', () => {
+    const r = withCommission(row(12), { kind: 'FIGURE', cents: 50_000, currency: 'USD' }, 'USD', 'USD')
+    expect(r.paidBackOn).toBeNull()
+    expect(r.leftCents).toBe(0)
+    expect(r.paybackSays).toContain('Paid back after commission. The day is not named')
+  })
+
+  it('a commission that keeps the margin short of the bench cost says what is left to earn back after it', () => {
+    // Nine weeks is $9,360 against $8,928; $1,000 of commission leaves $8,360, $568 short.
+    const r = withCommission(row(9), { kind: 'FIGURE', cents: 100_000, currency: 'USD' }, 'USD', 'USD')
+    expect(r.leftCents).toBe(892_800 - (936_000 - 100_000))
+    expect(r.paybackSays).toBe('Not yet. $568.00 left to earn back after commission.')
+  })
+
+  it('a month money left blank blanks the commission with money\'s reason, and the payback is not named', () => {
+    const c = commissionOver({ firmHasRows: true, older: false, months: [month(20_000), month(null, 'USD', '2 weeks have no margin to stand behind.')] })
+    const r = withCommission(row(12), c, 'USD', 'USD')
+    expect(r.commissionCents).toBeNull()
+    expect(r.afterCommissionCents).toBeNull()
+    expect(r.commissionSays).toBe('Commission not known: 2 weeks have no margin to stand behind.')
+    expect(r.paidBackOn).toBeNull()
+    expect(r.leftCents).toBeNull()
+  })
+
+  it('commissions in two currencies are never added', () => {
+    const c = commissionOver({ firmHasRows: true, older: false, months: [month(20_000, 'USD'), month(9_000_00, 'INR')] })
+    expect(c.kind).toBe('BLANK')
+  })
+
+  it('an older commission agreement on the placement leaves the figure blank rather than too high', () => {
+    const c = commissionOver({ firmHasRows: true, older: true, months: [month(20_000)] })
+    expect(c).toEqual({ kind: 'BLANK', why: 'An older commission agreement pays on this placement, and its share is not on the line.' })
+  })
+
+  it('a placement with no commission earned keeps its payback day', () => {
+    const r = withCommission(row(12), commissionOver({ firmHasRows: true, older: false, months: [undefined, month(0)] }), 'USD', 'USD')
+    expect(r.commissionCents).toBe(0)
+    expect(r.afterCommissionCents).toBe(1_248_000)
+    expect(r.paidBackOn).toBe('2026-05-01')
+  })
+
+  it('somebody on the bench now has no commission line at all', () => {
+    const now = benchToBill({ spell: { kind: 'NOW', from: d('2026-04-02'), to: d('2026-06-01'), days: 60, startsOn: null }, policy: HALF, payRateCents: 6400, contractType: 'W2', currency: 'USD', earned: null })
+    const r = withCommission(now, null, null, 'USD')
+    expect(r.commissionSays).toBeNull()
+    expect(r.paybackSays).toContain('Not placed yet.')
+  })
+
+  it('the bench profit route reads the commission from money\'s own reader, never a figure of its own', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/bench/profit/route.ts'), 'utf8')
+    expect(route).toContain("import { commissionAccruals, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'")
+    expect(route).toContain('commissionByPlacement(accruals)')
+    expect(route).not.toMatch(/rateBps|accrueCommission/)
+  })
+})
