@@ -17,7 +17,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
-import { DownloadRunFile, ConfirmRunPaid, RunConfirmSummary } from './payment-run-file'
+import { DownloadRunFile, ConfirmRunPaid, MarkRunPaid, RunConfirmSummary } from './payment-run-file'
 import type { ConfirmSummary } from '@/lib/money/run-confirm'
 import { formatDay } from '@/lib/format-date'
 
@@ -893,7 +893,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
     }
   }
 
-  async function move(id: string, action: 'approve' | 'pay' | 'cancel') {
+  async function move(id: string, action: 'approve' | 'cancel') {
     setBusy(true)
     setFailed(null)
     try {
@@ -1102,14 +1102,14 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                     />
                   )}
                   {r.status === 'APPROVED' && (
-                    <button
-                      className="text-[13px] underline"
-                      style={{ color: 'var(--color-action)' }}
+                    <MarkRunPaid
+                      runId={r.id}
                       disabled={busy}
-                      onClick={() => move(r.id, 'pay')}
-                    >
-                      Mark it paid
-                    </button>
+                      onDone={(summary) => {
+                        setConfirmed((m) => ({ ...m, [r.id]: summary }))
+                        void load()
+                      }}
+                    />
                   )}
                   <button
                     className="text-[13px] underline text-etyme-muted"

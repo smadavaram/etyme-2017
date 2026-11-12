@@ -231,8 +231,10 @@ export async function POST(
     )
   }
 
-  // Committed: only now does the world hear the invoice was paid.
-  void emitInvoicePaid(recorded)
+  // Committed: only now does the world hear the invoice was paid, and the
+  // supplier is told, once (lib/money/paid-notice). Awaited, so a retry a
+  // moment later finds the notice already written and tells nobody again.
+  await emitInvoicePaid(recorded).catch((err) => reportError('Telling a payment failed:', err))
 
   const result = recorded.payment
   const totalNum = toDecimal({ minor: recorded.invoice.totalCents, currency: invoice.currency })

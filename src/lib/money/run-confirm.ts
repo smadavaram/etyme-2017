@@ -190,6 +190,15 @@ export function confirmBody(form: { runId: string; csv?: string | null; referenc
   return body
 }
 
+/**
+ * What "Mark it paid" posts: the run, the payer's reference and the day the
+ * money left. Both are always sent, so an empty one is refused by the route
+ * in the sentence that names it.
+ */
+export function markPaidBody(form: { runId: string; reference: string; paidOn: string }) {
+  return { action: 'pay', id: form.runId, reference: form.reference.trim(), paidOn: form.paidOn.trim() }
+}
+
 // ── Deciding each row ─────────────────────────────────────────────────
 
 export interface RunLineFacts {

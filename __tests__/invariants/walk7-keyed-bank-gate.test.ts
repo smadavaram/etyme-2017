@@ -148,7 +148,7 @@ describe('paying a firm waits for a verified Owner at a company formed under the
     const runs = readFileSync('src/app/api/ap/payment-runs/route.ts', 'utf8')
     const runGate = runs.indexOf("needsVerifiedOwnerAt(companyId, 'PAY')")
     expect(runGate).toBeGreaterThan(0)
-    expect(runGate).toBeLessThan(runs.indexOf('applyRunPayment('))
+    expect(runGate).toBeLessThan(runs.indexOf('recordKeyedPayment(tx,'))
     for (const src of [bills, runs]) expect(src).toContain('NextResponse.json(gateRefusal(owner), { status: 403 })')
   })
 })

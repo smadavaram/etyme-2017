@@ -290,7 +290,7 @@ describe('every field the confirmation refuses without, the screen offers', () =
   it('the route reads its body through the one reader, and the confirmation’s write is the run line’s one write', () => {
     expect(ROUTE).toContain('readConfirmBody(body)')
     expect(ROUTE).toContain('recordKeyedPayment(tx,')
-    expect(ROUTE).toContain('mayPayKeyedReceipt(billId)')
+    expect(ROUTE).toContain('mayPayKeyedReceipt(billId, personId)')
     expect(ROUTE).toContain("needsVerifiedOwnerAt(companyId, 'PAY')")
   })
 
@@ -385,7 +385,7 @@ describe('the person who brought the confirmation back reads what it did, on the
     expect(confirmedLine('run1', [])).toBeNull()
   })
 
-  it('pressing Approve it, Mark it paid or Cancel shows the route’s own sentence on that run’s row, and a refusal too', () => {
+  it('pressing Approve it or Cancel shows the route’s own sentence on that run’s row, and a refusal too', () => {
     expect(PAGE).toContain('setRowSaid((m) => ({ ...m, [id]: { says: b.data.note } }))')
     expect(PAGE).toContain('setRowSaid((m) => ({ ...m, [id]: { says: e.message, failed: true } }))')
     expect(PAGE).toContain('{rowSaid[r.id].says}')

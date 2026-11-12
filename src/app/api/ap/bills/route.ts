@@ -20,6 +20,8 @@ import {
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 import { readLines } from '@/lib/money/keyed-lines'
+import { recordKeyedPayment } from '@/lib/money/keyed-payment'
+import { tellSupplierPaid } from '@/lib/money/paid-notice'
 import { paidSellLine, clientLinesFrom } from '@/lib/money/paid-line'
 import {
   booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
@@ -852,85 +854,66 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const newPaid = bill.paidCents + addCents
-  const settled = newPaid >= bill.totalCents
-
-  // ── Who paid whom ──────────────────────────────────────────────────
+  // ── Who paid whom, through the one write ──────────────────────────
   //
-  // Written on every payment, as a payment on a platform invoice is: a
-  // `Payment` row naming the receipt it pays, who paid, who was paid, how
-  // much, when, how and the reference, and who pressed it — beside the
-  // receipt's own paid figure, in one transaction, so the two can never
-  // disagree. Never unapplied cash on the supplier's books: it names the
-  // receipt it settles, and every receivables view leaves such a row out.
-  // Under the seat where it was made in one.
+  // Every door that pays a typed-in invoice receipt goes through
+  // `recordKeyedPayment` (lib/money/keyed-payment): the receipt's paid
+  // figure and date, the `Payment` row naming who paid whom, how much,
+  // when, how and the reference, and the trail, in one transaction, so the
+  // two can never disagree. The write refuses where the receipt's paid
+  // figure moved since it was read, so a second press at the same moment
+  // pays nothing. Only a receipt paid in full carries a paid date: a part
+  // payment has not closed the obligation. Under the seat where it was
+  // made in one.
   //
   // No cycle is closed here, on purpose: the date this receipt was expected
   // closed when it was recorded, and when it falls due is the receipt's own
-  // `dueAt`, never a cycle (lib/cycle-kinds). Closing again would close the
-  // next period's date.
+  // `dueAt`, never a cycle (lib/cycle-kinds).
   const method = body.method ? String(body.method) : null
-  const reference = body.reference ? String(body.reference) : null
-  const d = decimalsFor(bill.currency)
-  const { updated, payment } = await prisma.$transaction(async (tx) => {
-    const updated = await tx.vendorBill.update({
-      where: { id },
-      data: {
-        paidCents: newPaid,
-        // Only a bill paid in full carries a paid date. A part payment has
-        // not closed the obligation, and dating it as if it had would
-        // report the first installment as the day the supplier was paid.
-        paidAt: settled ? paidAt : null,
-        status: settled ? 'PAID' : 'APPROVED',
-      },
-      select: { id: true, paidCents: true, totalCents: true, paidAt: true, status: true },
-    })
-    const payment = await tx.payment.create({
-      data: {
-        vendorBillId: bill.id,
-        payerCompanyId: reading.companyId,
-        receivedByCompanyId: bill.vendorCompanyId,
-        amount: (addCents / 10 ** d).toFixed(d),
-        currency: bill.currency,
-        method,
-        reference,
-        receivedAt: paidAt,
-        appliedAt: new Date(),
-        appliedById: caller.person.id,
-      },
-      select: { id: true },
-    })
-    await tx.automationLog.create({
-      data: {
-        companyId: reading.companyId,
-        action: 'PAYMENT_RECORDED',
-        summary:
-          `Payment of ${amount(addCents, bill.currency)} recorded on ${vendorName}’s invoice ${bill.number}. ` +
-          (settled ? 'Now paid in full.' : `${amount(bill.totalCents - newPaid, bill.currency)} outstanding.`),
-        reason:
-          moneyTrailFor(reading.seat ?? null, `Payment of ${amount(addCents, bill.currency)} recorded`) ??
-          `Recorded by ${caller.person.name} at ${caller.company!.name}, paying`,
-        payload: {
-          vendorBillId: bill.id,
-          paymentId: payment.id,
-          number: bill.number,
-          paidBy: { companyId: reading.companyId, name: reading.companyName },
-          paidTo: { companyId: bill.vendorCompanyId, name: vendorName },
-          paidCents: addCents,
-          currency: bill.currency,
-          method,
-          reference,
-          paidAt: paidAt.toISOString(),
-          settled,
-          byPersonId: caller.person.id,
-          seatId: reading.seat?.id ?? null,
-          officeCompanyId: reading.seat?.officeCompany.id ?? null,
-        },
-        reversible: false,
+  const reference = body.reference ? String(body.reference).trim() || null : null
+  const out = await prisma.$transaction((tx) =>
+    recordKeyedPayment(tx, {
+      billId: bill.id,
+      payerCompanyId: reading.companyId,
+      payerName: reading.companyName,
+      vendorCompanyId: bill.vendorCompanyId,
+      vendorName,
+      number: bill.number,
+      currency: bill.currency,
+      amountCents: addCents,
+      expectPaidCents: bill.paidCents,
+      paidAt,
+      payerReference: reference,
+      etymeReference: null,
+      runId: null,
+      method,
+      appliedById: caller.person.id,
+      appliedByName: caller.person.name,
+      reason:
+        moneyTrailFor(reading.seat ?? null, `Payment of ${amount(addCents, bill.currency)} recorded`) ??
+        `Recorded by ${caller.person.name} at ${caller.company!.name}, paying`,
+      trail: {
+        seatId: reading.seat?.id ?? null,
+        officeCompanyId: reading.seat?.officeCompany.id ?? null,
       },
     })
-    return { updated, payment }
-  })
+  )
+  if (!out.ok) {
+    return NextResponse.json({ error: { code: 'INVALID_STATE', message: out.says } }, { status: 409 })
+  }
+
+  // Committed: the supplier is told, once (lib/money/paid-notice).
+  const suppliersTold = await tellSupplierPaid(out.notice).catch(() => 0)
+
+  const settled = out.settled
+  const updated = {
+    id: bill.id,
+    paidCents: out.paidCents,
+    totalCents: bill.totalCents,
+    paidAt: settled ? paidAt : null,
+    status: settled ? 'PAID' : 'APPROVED',
+  }
+  const payment = { id: out.paymentId }
 
   return NextResponse.json({
     data: {
@@ -947,10 +930,14 @@ export async function PATCH(request: NextRequest) {
         recordedBy: caller.person.name,
       },
       readInASeat: reading.seated,
-      note: settled
+      suppliersTold,
+      note: (settled
         ? `Paid in full on ${formatDay(paidAt)}. Days to pay for this supplier count to this date.`
         : 'Part paid. No paid date is set — the obligation is still open, and dating it ' +
-          'now would report the first installment as the day they were paid.',
+          'now would report the first installment as the day they were paid.') +
+        (suppliersTold > 0
+          ? ` ${vendorName} is told, in the app and by email where email can leave.`
+          : ` ${vendorName} has nobody on Etyme to tell, so tell them yourself.`),
     },
   })
 }

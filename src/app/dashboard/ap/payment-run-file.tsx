@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { confirmBody, confirmSummary, type ConfirmSummary } from '@/lib/money/run-confirm'
+import { confirmBody, confirmSummary, markPaidBody, type ConfirmSummary } from '@/lib/money/run-confirm'
 
 /**
  * The file an approved run leaves as, for the payer's own payment system
@@ -156,6 +156,75 @@ export function ConfirmRunPaid({ runId, onDone }: { runId: string; onDone?: (sum
         </label>
         <button type="button" className="btn-primary" disabled={busy} onClick={send}>
           {busy ? 'Working…' : 'Mark what it names as paid'}
+        </button>
+      </div>
+      {summary && <RunConfirmSummary summary={summary} />}
+      {failed && <p className="text-[13px] text-etyme-attention">{failed}</p>}
+    </div>
+  )
+}
+
+/**
+ * "Mark it paid": the payer's reference and the day the money left, the
+ * same two things a typed confirmation carries, for the whole run. The
+ * route pays every line through the one write and tells each supplier
+ * once; a press without either field is refused in the route's own
+ * sentence, beside the fields.
+ */
+export function MarkRunPaid({ runId, disabled, onDone }: { runId: string; disabled?: boolean; onDone?: (summary: ConfirmSummary) => void }) {
+  const [reference, setReference] = useState('')
+  const [paidOn, setPaidOn] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [summary, setSummary] = useState<ConfirmSummary | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  async function send() {
+    setBusy(true)
+    setFailed(null)
+    setSummary(null)
+    try {
+      const r = await fetch('/api/ap/payment-runs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(markPaidBody({ runId, reference, paidOn })),
+      })
+      const b = await readJson(r)
+      const said = confirmSummary(b.data)
+      if (onDone) onDone(said)
+      else setSummary(said)
+    } catch (e: any) {
+      setFailed(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 w-full space-y-2 border-t border-etyme-rule pt-3">
+      <p className="stat-label">Paid already? Mark it paid</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-[13px] text-etyme-ink">
+          Your payment reference
+          <input
+            type="text"
+            name="markReference"
+            className="mt-1 block rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+          />
+        </label>
+        <label className="text-[13px] text-etyme-ink">
+          Paid on
+          <input
+            type="date"
+            name="markPaidOn"
+            className="mt-1 block rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]"
+            value={paidOn}
+            onChange={(e) => setPaidOn(e.target.value)}
+          />
+        </label>
+        <button type="button" className="btn-primary" disabled={busy || disabled} onClick={send}>
+          {busy ? 'Working…' : 'Mark it paid'}
         </button>
       </div>
       {summary && <RunConfirmSummary summary={summary} />}

@@ -1,10 +1,17 @@
 import type { Prisma } from '@prisma/client'
 import { decimalsFor } from '@/lib/money'
 import { amount } from '@/lib/money-display'
+import { suppliersBillFor, type PaidFacts } from '@/lib/money/paid-notice'
 
 /**
- * Mark a typed-in invoice receipt paid, from a confirmation the payer's
- * own system sent back. The write a payment run's line makes.
+ * Pay a typed-in invoice receipt. The one write, from every door (the
+ * founder, 2026-11-12): the confirmation the payer's own system sent back,
+ * a run's "Mark it paid", and the receipt's own Pay (`PATCH
+ * /api/ap/bills`). No route writes a `Payment` row on a receipt itself.
+ *
+ * It returns what the supplier is told (`notice`); the caller tells it
+ * with `tellSupplierPaid` once the transaction has committed, never
+ * inside it, so a payment rolled back tells nobody.
  *
  * A payment run's lines are typed-in receipts (`VendorBill`), never a
  * platform invoice (`Invoice`): a `PaymentRunItem` names a receipt and
@@ -37,16 +44,25 @@ export interface KeyedPaymentInput {
   /** The paid figure the receipt was read at. The write refuses if it moved. */
   expectPaidCents: number
   paidAt: Date
-  /** The payer's own bank or system reference, from the confirmation. */
-  payerReference: string
-  /** The Etyme payment reference the run's file carried. */
-  etymeReference: string
-  runId: string
+  /** The payer's own bank or system reference. Null only on the receipt's own Pay, where it is optional. */
+  payerReference: string | null
+  /** The Etyme payment reference the run's file carried. Null off a run. */
+  etymeReference: string | null
+  /** The run the payment went in. Null for a receipt paid on its own. */
+  runId: string | null
+  /** How it was paid. A run's payment is PAYMENT_RUN. */
+  method?: string | null
   appliedById: string
   appliedByName: string
+  /** The trail's reason, where the caller has a better one (a seated payment). */
+  reason?: string | null
+  /** More facts for the trail (the seat it was made in). */
+  trail?: Record<string, unknown>
 }
 
-export type KeyedPaymentOutcome = { ok: true; paymentId: string; settled: boolean } | { ok: false; says: string }
+export type KeyedPaymentOutcome =
+  | { ok: true; paymentId: string; settled: boolean; paidCents: number; notice: PaidFacts }
+  | { ok: false; says: string }
 
 export async function recordKeyedPayment(tx: Tx, p: KeyedPaymentInput): Promise<KeyedPaymentOutcome> {
   const current = await tx.vendorBill.findUnique({
@@ -78,7 +94,7 @@ export async function recordKeyedPayment(tx: Tx, p: KeyedPaymentInput): Promise<
       receivedByCompanyId: p.vendorCompanyId,
       amount: (p.amountCents / 10 ** d).toFixed(d),
       currency: p.currency,
-      method: 'PAYMENT_RUN',
+      method: p.method === undefined ? 'PAYMENT_RUN' : p.method,
       reference: p.payerReference,
       receivedAt: p.paidAt,
       appliedAt: new Date(),
@@ -92,9 +108,13 @@ export async function recordKeyedPayment(tx: Tx, p: KeyedPaymentInput): Promise<
       companyId: p.payerCompanyId,
       action: 'PAYMENT_RECORDED',
       summary:
-        `Payment of ${amount(p.amountCents, p.currency)} recorded on ${p.vendorName}’s invoice ${p.number}, ` +
-        `from the confirmation of payment run ${p.runId}. ` + (settled ? 'Now paid in full.' : ''),
-      reason: `Recorded by ${p.appliedByName} at ${p.payerName}, from the payer's own payment system (reference ${p.payerReference})`,
+        `Payment of ${amount(p.amountCents, p.currency)} recorded on ${p.vendorName}’s invoice ${p.number}` +
+        (p.runId ? `, from payment run ${p.runId}. ` : '. ') +
+        (settled ? 'Now paid in full.' : `${amount(current.totalCents - newPaid, p.currency)} outstanding.`),
+      reason:
+        p.reason ??
+        `Recorded by ${p.appliedByName} at ${p.payerName}, paying` +
+          (p.payerReference ? ` (reference ${p.payerReference})` : ''),
       payload: {
         vendorBillId: p.billId,
         paymentId: payment.id,
@@ -109,10 +129,33 @@ export async function recordKeyedPayment(tx: Tx, p: KeyedPaymentInput): Promise<
         paidAt: p.paidAt.toISOString(),
         settled,
         byPersonId: p.appliedById,
+        method: p.method === undefined ? 'PAYMENT_RUN' : p.method,
+        ...(p.trail ?? {}),
       },
       reversible: false,
     },
   })
 
-  return { ok: true, paymentId: payment.id, settled }
+  // Where the supplier raised this bill on Etyme, the notice names it.
+  const suppliersBill = await suppliersBillFor(tx, {
+    number: p.number, vendorCompanyId: p.vendorCompanyId, payerCompanyId: p.payerCompanyId,
+  })
+
+  return {
+    ok: true,
+    paymentId: payment.id,
+    settled,
+    paidCents: newPaid,
+    notice: {
+      paymentId: payment.id,
+      payerName: p.payerName,
+      vendorCompanyId: p.vendorCompanyId,
+      number: p.number,
+      amountCents: p.amountCents,
+      currency: p.currency,
+      paidAt: p.paidAt,
+      payerReference: p.payerReference,
+      suppliersBill,
+    },
+  }
 }

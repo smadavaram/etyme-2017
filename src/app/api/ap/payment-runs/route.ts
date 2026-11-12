@@ -5,17 +5,15 @@ import { getCallerContext, realPersonId, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
-import { mayPayFirm } from '@/lib/setup-gates'
-import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
 import { readRunFile } from '@/lib/money/run-file-read'
 import { confirmRun, readConfirmBody, confirmedLine, type RunLineFacts } from '@/lib/money/run-confirm'
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
 import { paymentReference } from '@/lib/money/run-file'
-import { tellSupplierPaid } from '@/lib/money/paid-notice'
+import { tellSupplierPaid, type PaidFacts } from '@/lib/money/paid-notice'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
-  proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
+  proposeRun, remittanceAdvice, mayApproveRun,
   type PayableBill,
 } from '@/lib/ap-delay'
 
@@ -381,14 +379,23 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date()
-  if (Number.isNaN(paidAt.getTime())) {
+  // "Mark it paid" says what the confirmation says: the payer's reference
+  // and the day the money left (the founder, 2026-11-12). A press without
+  // them is refused in a sentence naming the field, which the row draws.
+  const reference = String(body.reference ?? '').trim()
+  const paidOn = String(body.paidOn ?? body.paidAt ?? '').trim().slice(0, 10)
+  if (!reference) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'That paidAt could not be read', field: 'paidAt' } },
+      { error: { code: 'VALIDATION', field: 'reference', message: 'Enter the reference your bank or payment system gave this payment, then mark it paid.' } },
       { status: 422 }
     )
   }
-
+  if (!paidOn) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', field: 'paidOn', message: 'Enter the day the money left, then mark it paid.' } },
+      { status: 422 }
+    )
+  }
   // The proof rule (founder, 2026-11-11): a company formed under it releases
   // no money to a firm until it has a verified Owner, in the gate's own
   // sentence naming the step. Before any write.
@@ -401,12 +408,21 @@ export async function PATCH(request: NextRequest) {
   // One receipt that no longer passes stops the release, named, rather
   // than leaving the run to pay part of a file somebody approved whole:
   // cancel the run, and the next one leaves that receipt out with why.
+  //
+  // And no money to a firm whose bank details nobody checked: the same
+  // gate, read once per receipt, its bank hold told in the bank's own
+  // words (the setup checklist's Bank details step), never as a receipt
+  // that fails the check. Each sentence is the one the receipt's own Pay
+  // and the confirmation say, for this reader. Never payroll: a run pays
+  // firms only.
   const stopped: string[] = []
+  const unchecked: string[] = []
   for (const i of run.items) {
-    const gate = await mayPayKeyedReceipt(i.vendorBillId)
-    // A bank hold is the gate's too now, and is told below, in the
-    // bank's own words, never as a receipt that fails the check.
-    if (gate && !gate.ok && gate.code !== 'BANK_NOT_CHECKED') stopped.push(gate.says)
+    const gate = await mayPayKeyedReceipt(i.vendorBillId, personId)
+    if (!gate || gate.ok) continue
+    if (gate.code === 'BANK_NOT_CHECKED') {
+      if (!unchecked.includes(gate.says)) unchecked.push(gate.says)
+    } else stopped.push(gate.says)
   }
   if (stopped.length > 0) {
     return NextResponse.json(
@@ -422,18 +438,6 @@ export async function PATCH(request: NextRequest) {
       { status: 422 }
     )
   }
-
-  // ── And no money to a firm whose bank details nobody checked ───────
-  //
-  // The setup checklist's Bank details step (`mayPayFirm`, 2026-10-28):
-  // one firm in the run whose details are not checked stops the release,
-  // in the gate's own sentence, for the same reason a held receipt does.
-  // Never payroll: a run pays firms only.
-  const unchecked: string[] = []
-  for (const vendor of [...new Set(run.items.map((i) => i.vendorBill.vendorCompanyId))]) {
-    const bank = await mayPayFirm(companyId, vendor)
-    if (!bank.ok) unchecked.push(bank.says)
-  }
   if (unchecked.length > 0) {
     return NextResponse.json(
       {
@@ -447,65 +451,10 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const outcomes = applyRunPayment(
-    run.items.map((i) => ({ billId: i.vendorBillId, amountCents: i.amountCents })),
-    run.items.map((i) => i.vendorBill),
-    paidAt
-  )
-
-  const releasedBy = personId
-  await prisma.$transaction(async (tx) => {
-    for (const o of outcomes) {
-      await tx.vendorBill.update({
-        where: { id: o.billId },
-        data: { paidCents: o.paidCentsAfter, paidAt: o.paidAt, status: o.status },
-      })
-      // Who paid whom, the same row a payment recorded on the receipt
-      // itself writes: the receipt it settles, the payer, the supplier,
-      // the amount, the day and the run it went in.
-      const item = run.items.find((i) => i.vendorBillId === o.billId)
-      if (item && item.amountCents > 0) {
-        const d = decimalsFor(item.vendorBill.currency)
-        await tx.payment.create({
-          data: {
-            vendorBillId: o.billId,
-            payerCompanyId: companyId,
-            receivedByCompanyId: item.vendorBill.vendorCompanyId,
-            amount: (item.amountCents / 10 ** d).toFixed(d),
-            currency: item.vendorBill.currency,
-            method: 'PAYMENT_RUN',
-            reference: run.id,
-            receivedAt: paidAt,
-            appliedAt: new Date(),
-            appliedById: releasedBy,
-          },
-        })
-      }
-      // Settling a bill closes no cycle. The bill's own three dates say
-      // everything a run needs — when it was received, when it falls
-      // due, and now when it was paid — and a "vendor bill due" cycle
-      // was a fourth date, guessed monthly in advance, that could only
-      // ever disagree with them. See lib/cycle-kinds.
-    }
-    await tx.paymentRun.update({ where: { id }, data: { status: 'PAID', paidAt } })
-  })
-
-  const settled = outcomes.filter((o) => o.paidAt != null).length
-
-  return NextResponse.json({
-    data: {
-      id,
-      status: 'PAID',
-      paidAt: paidAt.toISOString(),
-      bills: outcomes.length,
-      settled,
-      note:
-        `${settled} of ${outcomes.length} invoice receipt${outcomes.length === 1 ? '' : 's'} settled in ` +
-        `full and carry the paid date. A part payment carries none — the obligation is ` +
-        `still open, and dating it now would report the first installment as the day the ` +
-        `supplier was paid, which is the figure every float number counts to.`,
-    },
-  })
+  // Every line through the one write a run's line makes, and every supplier
+  // paid told once, exactly as a confirmation typed for the whole run does:
+  // "Mark it paid" is that confirmation, with one reference and one day.
+  return confirm(caller, companyId, { id, reference, paidOn })
 }
 
 // ── The confirmation from the payer's own system ──────────────────────
@@ -538,6 +487,7 @@ async function confirm(
   const payerName = caller.company!.name
 
   let runCurrency = ''
+  const notices = new Map<string, PaidFacts>()
   const result = await confirmRun(
     {
       ownerGate: async () => {
@@ -581,12 +531,12 @@ async function confirm(
         return { id: run.id, status: run.status, currency: run.currency, lines }
       },
       gateSays: async (billId) => {
-        const gate = await mayPayKeyedReceipt(billId)
+        const gate = await mayPayKeyedReceipt(billId, personId)
         if (!gate) return 'This invoice receipt could not be read, so it is not marked paid.'
         return gate.ok ? null : gate.says
       },
-      pay: (row) =>
-        prisma.$transaction((tx) =>
+      pay: async (row) => {
+        const out = await prisma.$transaction((tx) =>
           recordKeyedPayment(tx, {
             billId: row.billId,
             payerCompanyId: companyId,
@@ -604,7 +554,10 @@ async function confirm(
             appliedById: personId,
             appliedByName: caller.person.name,
           })
-        ),
+        )
+        if (out.ok) notices.set(out.paymentId, out.notice)
+        return out
+      },
     },
     read.by === 'FILE' ? { by: 'FILE', csv: read.csv } : { by: 'TYPED', reference: read.reference, paidOn: read.paidOn }
   )
@@ -621,7 +574,7 @@ async function confirm(
   // second time, so it tells nobody the second time.
   const told = new Map<string, number>()
   for (const p of result.paid) {
-    told.set(p.paymentId, await tellSupplierPaid({
+    told.set(p.paymentId, await tellSupplierPaid(notices.get(p.paymentId) ?? {
       paymentId: p.paymentId, payerName, vendorCompanyId: p.vendorCompanyId, number: p.number,
       amountCents: p.amountCents, currency: p.currency, paidAt: p.paidAt, payerReference: p.payerReference,
     }).catch(() => 0))

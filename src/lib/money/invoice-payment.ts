@@ -6,6 +6,7 @@ import { fromPrismaDecimal, toDecimal } from '@/lib/money'
 import { partiesOf } from '@/lib/money/invoice-parties'
 import { mayPayFirm } from '@/lib/setup-gates'
 import type { ItemKey } from '@/lib/setup-checklist'
+import { tellSupplierPaid, type PaidFacts } from '@/lib/money/paid-notice'
 
 /**
  * The one payment write.
@@ -109,6 +110,12 @@ export type InvoicePaymentRecorded = {
    * `emitInvoicePaid` once the transaction has committed, never inside it.
    */
   event: EmitParams
+  /**
+   * What the supplier is told, by `emitInvoicePaid` after the commit. Null
+   * where the supplier itself recorded money that arrived: nobody is told
+   * of their own entry.
+   */
+  notice: PaidFacts | null
 }
 
 export type InvoicePaymentResult = InvoicePaymentRecorded | InvoicePaymentRefusal
@@ -320,21 +327,42 @@ export async function recordInvoicePayment(
     doc,
     amountCents,
     event,
+    // The bill the supplier raised on Etyme is this invoice, so the notice
+    // names it and opens it.
+    notice: payer
+      ? {
+          paymentId: payment.id,
+          payerName: payment.payerCompany?.name ?? billedTo.name ?? 'Your client',
+          vendorCompanyId: billedBy.id,
+          number: invoice.number,
+          amountCents,
+          currency,
+          paidAt: payment.receivedAt,
+          payerReference: reference ?? null,
+          suppliersBill: { id: invoice.id, number: invoice.number },
+        }
+      : null,
   }
 }
 
 /**
- * Send the `invoice.paid` event of a payment that has committed.
+ * Send the `invoice.paid` event of a payment that has committed, and tell
+ * the supplier it was paid (lib/money/paid-notice), once.
  *
  * Call it after `prisma.$transaction(...)` has returned, never inside the
- * callback: a payment rolled back must leave no event behind. A refusal
- * emits nothing. The twin's performer passes its own actor, so the event
- * says the twin recorded it under the person it acts for.
+ * callback: a payment rolled back must leave no event and no notice
+ * behind. A refusal emits nothing and tells nobody. The twin's performer
+ * passes its own actor, so the event says the twin recorded it under the
+ * person it acts for; the supplier reads the same notice either way.
  */
-export function emitInvoicePaid(
+export async function emitInvoicePaid(
   result: InvoicePaymentResult,
   actor?: Pick<EmitParams, 'actorKind' | 'actorTwinKind'>
 ): Promise<{ id: string } | null> {
-  if (!result.ok) return Promise.resolve(null)
-  return emit({ ...result.event, ...(actor ?? {}) })
+  if (!result.ok) return null
+  const [event] = await Promise.all([
+    emit({ ...result.event, ...(actor ?? {}) }),
+    result.notice ? tellSupplierPaid(result.notice).catch(() => 0) : Promise.resolve(0),
+  ])
+  return event
 }
