@@ -2941,7 +2941,10 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // names the reader's own work only (walk three, 2026-10-26: compliance
   // and HR were told to "ask the AP clerk to approve IN-FMDSDT"); who else
   // is asked stays a fact line below.
+  // An Owner ask addressed to this reader leads, by name (./owner-asks):
+  // only this person can answer it, and the company's ownership waits on it.
   let recommend: RichLine | undefined =
+    (opts.owners?.ask ?? null) ??
     itemsAskSays(items) ??
     (told.told.length ? toldAskSays(told.told[0]) : null) ??
     (held.length ? heldAskSays(held) : null) ??
@@ -3008,6 +3011,11 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // First, because said after the facts it sat below the first screen and
   // the release walk read the greeting as having none (2026-11-03).
   if (opts.greeting && opts.setup) more.unshift(opts.setup)
+  // Who owns the company (./owner-asks), outside the six lines and never
+  // counted: the asker's own ask waiting on somebody else's yes, once, and
+  // the Become Owner offer for an Admin whose proofs both stand.
+  if (opts.greeting && opts.owners?.waiting) more.splice(opts.setup ? 1 : 0, 0, opts.owners.waiting)
+  if (opts.greeting && opts.owners?.become) more.splice(opts.setup ? 1 : 0, 0, opts.owners.become)
   // Start papers Ask Etyme could not ask for, because the set was never
   // confirmed: the gate's own sentence, once however many starts it held,
   // and like the setup line never counted.
@@ -3020,6 +3028,8 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
     const carded = new Set(items.map((i) => i.approvalId))
     // Nor is a link request said again as the notice that told of it: its card is above.
     for (const d of queue?.items ?? []) if (d.type === LINK_REQUEST) carded.add(d.entityId)
+    // Nor an Owner ask's notice: its card, with Yes, is above.
+    for (const d of queue?.items ?? []) if (d.type === OWNER_ASK) carded.add(d.entityId)
     more.push(...sinceSays((opts.notices?.shown ?? []).filter((n) => !n.settled && !said.has(n.title) && !(n.entityId && carded.has(n.entityId))), opts.notices?.older ?? 0, {
       now, threads: opts.threads?.shown, moreThreads: opts.threads?.more, self: opts.self,
     }))
@@ -3084,6 +3094,13 @@ export interface TodayOptions {
    * only, and never counted.
    */
   setup?: RichLine | null
+  /**
+   * Who owns the company, read by ./owner-asks: the Owner ask addressed to
+   * this reader, said first as the recommendation (its card is in the
+   * queue); the asker's own line saying her ask waits on the other person;
+   * and the Become Owner offer. The two lines are facts, never counted.
+   */
+  owners?: { ask?: RichLine | null; waiting?: RichLine | null; become?: RichLine | null }
 }
 
 /**
@@ -3714,6 +3731,8 @@ export function placedSays(f: { personName: string; siteName: string; throughNam
 
 /** Another firm already on Etyme asks to link with this one (./firm-asks). */
 export const LINK_REQUEST = 'LINK_REQUEST'
+/** An Owner ask addressed to this reader: pass ownership, or remove or move an Owner (./owner-asks). */
+export const OWNER_ASK = 'OWNER_ASK'
 /** Somebody asked from the firm's public page to join its bench, where no letter could leave (./firm-asks). */
 export const JOIN_ASK = 'JOIN_ASK'
 
@@ -3860,6 +3879,8 @@ export interface QueueCard {
   act: QueueAct | null
   /** The words on the button that opens `href` where `act` is null: "Open", or "Pay" on a receipt to pay. */
   open?: string
+  /** Why this reader is asked, one tap away under the card; absent where the fact says it. */
+  why?: string
 }
 
 /** What a receipt to pay says where no card of Etyme's pays it here: the button opens the receipt. */
@@ -3957,6 +3978,10 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
     case LINK_REQUEST:
     case JOIN_ASK:
       return cap(d.title)
+    // An Owner ask addressed to this reader (./owner-asks): the ask's own
+    // sentence, "Camille Ostrander asks you to take over as Owner of …".
+    case OWNER_ASK:
+      return cap(d.title)
     case 'OWN_PAPER':
       // A one-person firm's own paper, asked of her as the worker: the card's own name.
       return cap(d.whose?.trim() || d.title)
@@ -4029,6 +4054,13 @@ export function queueAct(d: QueueItem): QueueAct | null {
   // is a new act kind first, with its tier. The card opens who applied.
   // A link request is answered by the one route Companies presses; Not
   // now on the card changes nothing, so the ask stays for the next look.
+  // An Owner ask is answered by the one route the Owners page presses,
+  // POST /api/settings/owners/:id, never the twin's approval route: it is
+  // the person's own decision about their own seat and their company's
+  // ownership, nothing Etyme drafted. The route's own sentence is shown.
+  if (d.type === OWNER_ASK) {
+    return { label: 'Yes', url: `/api/settings/owners/${id}`, body: { decision: 'yes' }, done: 'Answered yes, and recorded under your name.' }
+  }
   if (d.type === LINK_REQUEST) {
     return { label: 'Yes, link', url: `/api/trade-links/${id}`, body: { action: 'accept' }, done: `Linked. ${d.whose ?? 'They'} ${d.whose ? 'is' : 'are'} on your companies.` }
   }
@@ -4129,13 +4161,14 @@ export function queueCards(
         type: d.type,
         title: `${queueName(d)}.`,
         fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle)
-          : d.type === LINK_REQUEST || d.type === JOIN_ASK ? (d.subtitle ?? '')
+          : d.type === LINK_REQUEST || d.type === JOIN_ASK || d.type === OWNER_ASK ? (d.subtitle ?? '')
           : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim()
           : pay ? `${factOf(d.subtitle)} ${PAY_OPENS_THE_RECEIPT}`.trim()
           : factOf(d.subtitle),
         href: d.actionUrl ?? (pay ? RECEIPTS_HREF : DECISIONS_HREF),
         act: queueAct(d),
         ...(pay ? { open: 'Pay' } : {}),
+        ...(d.type === OWNER_ASK && d.reason ? { why: d.reason } : {}),
       }
     }), jobs)
 }

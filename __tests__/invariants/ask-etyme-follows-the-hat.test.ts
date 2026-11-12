@@ -123,9 +123,10 @@ describe('Karthik Menon, an integrator’s own engineer with no role on the firm
     expect(nothingOfTheFirm('Teleworld')).toBe('Nothing of Teleworld’s is addressed to you; your own work is under You, in the account menu.')
     expect(nothingOfTheFirm('Teleworld Solutions')).toBe('Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu.')
     expect(ROUTE).toMatch(/if \(await inFirmHatWithNothing\(caller, request\)\) return nothingOfTheFirmGreeting\(caller, request\)/)
-    // No chips and no number in that hat: nothing of the firm's is his to decide.
+    // No chips, and no number but an Owner ask addressed to him: nothing
+    // of the firm's book is his to decide, but taking over as Owner is (2026-11-12).
     expect(ROUTE).toMatch(/party: 'FIRM', client: null, chips: \[\]/)
-    expect(ROUTE).toMatch(/inFirmHatWithNothing\(caller, request\)\)\) return NextResponse\.json\(\{ data: \{ total: 0 \} \}\)/)
+    expect(ROUTE).toMatch(/inFirmHatWithNothing\(caller, request\)\)\) \{\s*return NextResponse\.json\(\{ data: \{ total: \(await ownerAsksOf\(caller\)\)\.items\.length \} \}\)/)
   })
 
   it('Karthik Menon in his You hat reads his own week, pay and papers', () => {

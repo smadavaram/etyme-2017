@@ -1030,6 +1030,13 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
       <p className="font-medium">{card.title}</p>
       {card.fact && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{card.fact}</p>}
+      {/* Why this reader is asked, one tap away (an Owner ask: who says yes, the asker's reason, the day it lapses). */}
+      {card.why && (
+        <details className="mt-0.5 text-[12.5px] text-etyme-muted">
+          <summary className="cursor-pointer">Why you?</summary>
+          <p className="mt-1">{card.why}</p>
+        </details>
+      )}
       {settled ? (
         <p className="mt-2">
           <span className={`chip ${done.state === 'DONE' ? 'chip--verified' : 'chip--passive'}`}>{done.state === 'DONE' ? 'Done' : 'Kept waiting'}</span>
