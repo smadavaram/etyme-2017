@@ -134,7 +134,7 @@ export interface ReferenceDoc {
 export const TIME_AND_MONEY: ReferenceDoc = {
   slug: 'time-and-money',
   title: 'Time and money',
-  lede: 'One approved week is the receipt. The client pays from it, and every supplier bills from it.',
+  lede: 'One approved week is the receipt. Every supplier and every payment works from it.',
   lines: [
     'Only the person who worked the week files it. Nobody else may.',
     'The client approves it first. Then each firm below accepts the same week, in turn.',
@@ -143,7 +143,9 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     // names the two ledgers; inside the pages a firm still issues a bill
     // and receives an invoice receipt. A client reads Payables only.
     'On the menu, a firm’s bills are under Accounting, in Receivables. A client has only Payables.',
-    'A supplier is paid on its matched invoice, in Payables. Employees are paid in Payroll.',
+    // Etyme never moves money (the founder, 2026-11-12): an approved run
+    // leaves as a file for the payer's own system, which pays it.
+    'A supplier is approved on its matched invoice, in Payables; employees in Payroll. Your own system pays them.',
   ],
   table: {
     columns: ['A failed check on an invoice receipt', 'Can a person waive it?'],

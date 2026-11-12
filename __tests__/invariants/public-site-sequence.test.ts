@@ -631,3 +631,34 @@ describe('The documentation names the menu the app draws', () => {
     expect(lines.some((l) => /under Network, in Suppliers/.test(l))).toBe(true)
   })
 })
+
+describe('Etyme never moves money, and the Invoices step says so (the founder, 2026-11-12)', () => {
+  const invoices = STEP_PAGES.find((p) => p.slug === 'invoices')!
+  const step = STEPS.find((s) => s.route === '/invoices')!
+  const docWords = [invoices.lede, ...invoices.flow.flatMap((b) => [b.role ?? '', b.t]), ...invoices.rules].join(' ')
+
+  it('the Invoices documentation says Etyme never moves money and your own system pays', () => {
+    expect(invoices.rules).toContain('Etyme never moves money. Your own system pays.')
+    expect(invoices.lede).toMatch(/your own system pays it/)
+  })
+
+  it('the Invoices flow chart walks the payment run: the AP clerk approves it, your payment system pays it from a file, the confirmation comes back, and each supplier is told', () => {
+    const order = ['Approves a payment run', 'Pays the run from the file', 'Brings back the confirmation', 'each supplier is told it was paid']
+      .map((t) => invoices.flow.findIndex((b) => b.t.includes(t)))
+    expect(order.every((i) => i >= 0), JSON.stringify(order)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect(invoices.flow.find((b) => b.t.startsWith('Pays the run'))!.role).toBe('Your payment system')
+  })
+
+  it('no box on the Invoices step or its documentation says the AP clerk or Etyme pays', () => {
+    const boxes = [...invoices.flow.map((b) => b.t), ...step.flow.map((b) => b.t), ...step.involved.map((i) => i.does)]
+    for (const b of boxes) expect(b, b).not.toMatch(/^(AP )?pays what matched|Etyme pays/i)
+    expect(step.flow.map((b) => b.t)).toContain('Your own system pays it, and the supplier is told')
+    expect(step.involved.find((i) => i.who === 'AP clerk')!.does).toContain('Etyme never moves money.')
+    expect(docWords).not.toMatch(/Etyme (pays|sends the money|transfers)/i)
+  })
+
+  it('the time and money reference says your own system pays what Payables and Payroll approved', () => {
+    expect(REFERENCE.find((r) => r.slug === 'time-and-money')!.lines.join(' ')).toContain('Your own system pays them.')
+  })
+})
