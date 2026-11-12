@@ -307,12 +307,40 @@ export function signInFailureReport(code: string, meta: unknown): { place: strin
           : typeof meta === 'string' ? meta
             : ''
   const message = String(inner)
-    .replace(/[^\s@<>"'(),;:]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '[address at $1]')
+    // The whole address goes, domain too: a domain says which company tried.
+    .replace(/[^\s@<>"'(),;:]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[an address]')
     .replace(/[A-Za-z0-9_\-.~+/=]{24,}/g, '[cut]')
     .slice(0, 300)
   return {
     place: `Sign-in did not finish (${code}${provider ? `, ${provider}` : ''})`,
     message: message || 'No reason was given.',
+  }
+}
+
+const HOUR_MS = 3_600_000
+const lastSignInFailure = new Map<string, number>()
+
+/**
+ * Whether this is the first failed sign-in at this place this hour. A
+ * stranger can send garbage to a provider callback all day; each failure
+ * would otherwise be an incident row. Answered from this instance's memory
+ * first, then from the incident log, so a fresh instance does not add a
+ * second row in the same hour (security reader, 2026-11-12).
+ */
+export async function signInFailureOncePerHour(place: string, now: number = Date.now()): Promise<boolean> {
+  const last = lastSignInFailure.get(place)
+  if (last !== undefined && now - last < HOUR_MS) return false
+  lastSignInFailure.set(place, now)
+  if (lastSignInFailure.size > 200) lastSignInFailure.clear()
+  try {
+    const { prisma } = await import('@/lib/db')
+    const already = await prisma.incident.findFirst({
+      where: { where: place, at: { gte: new Date(now - HOUR_MS) } },
+      select: { id: true },
+    })
+    return !already
+  } catch {
+    return true
   }
 }
 
@@ -328,8 +356,14 @@ export const authOptions: NextAuthOptions = {
   logger: {
     error(code, metadata) {
       const r = signInFailureReport(String(code), metadata)
-      void import('@/lib/alerts')
-        .then(({ reportError }) => reportError(r.place, r.message))
+      // Anybody can make a callback fail, so this writes at most one row
+      // per place per hour (`signInFailureOncePerHour`); the rest are
+      // console lines only.
+      void signInFailureOncePerHour(r.place)
+        .then((first) => {
+          if (!first) { console.error(`[${r.place}]`, r.message); return }
+          return import('@/lib/alerts').then(({ reportError }) => reportError(r.place, r.message))
+        })
         // reportError writes the console line itself; a failed import has nowhere else to go.
         .catch(() => {})
     },

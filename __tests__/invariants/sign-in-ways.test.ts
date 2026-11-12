@@ -318,7 +318,7 @@ describe('a sign-in is given time to finish, and a failure says why to staff (fa
     }
   })
 
-  it('a failed provider callback is written to the incident log with the provider and the reason, and with no token, code or address in it', async () => {
+  it('a failed provider callback is written to the incident log with the provider and the reason, and with no token, code, address or address domain in it', async () => {
     const { signInFailureReport } = await import('@/lib/auth')
     const timedOut = signInFailureReport('OAUTH_CALLBACK_ERROR', { error: { message: 'outgoing request timed out after 3500ms' }, providerId: 'google' })
     expect(timedOut).toEqual({ place: 'Sign-in did not finish (OAUTH_CALLBACK_ERROR, google)', message: 'outgoing request timed out after 3500ms' })
@@ -327,7 +327,8 @@ describe('a sign-in is given time to finish, and a failure says why to staff (fa
       message: 'invalid_grant for sharath@etyme.com code 4/0AeanS0ZxQb8wYk3pQm1TzLr9vUu2cXyHq state eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0',
     })
     expect(leaky.message).toContain('invalid_grant')
-    expect(leaky.message).toContain('[address at etyme.com]')
+    expect(leaky.message).toContain('[an address]')
+    expect(leaky.message).not.toContain('etyme.com')
     expect(leaky.message).not.toContain('sharath@')
     expect(leaky.message).not.toContain('4/0AeanS0ZxQb8wYk3pQm1TzLr9vUu2cXyHq')
     expect(leaky.message).not.toContain('eyJhbGciOiJkaXIi')
@@ -338,5 +339,17 @@ describe('a sign-in is given time to finish, and a failure says why to staff (fa
     const src = read('src/lib/auth.ts')
     expect(src).toContain('const r = signInFailureReport(String(code), metadata)')
     expect(src).toContain('reportError(r.place, r.message)')
+  })
+
+  it('a stranger failing the provider callback again and again writes one incident row per place per hour, never one per try', async () => {
+    const { signInFailureOncePerHour } = await import('@/lib/auth')
+    const place = `Sign-in did not finish (TEST_${Math.random().toString(36).slice(2)})`
+    const t = Date.UTC(2026, 10, 12, 9)
+    // The first answer may read the incident log; with no database it still says first.
+    expect(await signInFailureOncePerHour(place, t)).toBe(true)
+    expect(await signInFailureOncePerHour(place, t + 1_000)).toBe(false)
+    expect(await signInFailureOncePerHour(place, t + 59 * 60_000)).toBe(false)
+    const src = read('src/lib/auth.ts')
+    expect(src.indexOf('signInFailureOncePerHour(r.place)')).toBeLessThan(src.indexOf('reportError(r.place, r.message)'))
   })
 })
