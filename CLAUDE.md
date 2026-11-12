@@ -8131,13 +8131,15 @@ and "Sign up is as prominent as sign in" of the same day.
   Email box and Continue, for a password or a company's own directory.
   The password box appears only after the email, and only for an
   account that has one.
-- **Sign up is one line under the heading**, "New to Etyme? Create an
-  account", and the same screen: the account buttons, or an email. By
+- **Sign up is one line under the heading**, the live page's own "New
+  here? Sign up", and the same screen: the account buttons, or an email. By
   email it asks a name, company or candidate, the company's name, what
   it does and a password, and nothing else. An account button asks
   nothing: the first screen inside asks what it needs.
-- **The branding does not move.** The wordmark, the serif heading, the
-  warm ground, the existing fields and buttons. No dark ground, no new
+- **The branding does not move.** On a photograph of the page live on
+  production: *"This page was good, just the flow was bad."* The
+  wordmark, the serif heading, the warm ground, the existing fields and
+  buttons. No dark ground, no new
   color. **One filled button on a screen**; every other button is an
   outline.
 - **No button is greyed out for an empty field.** It can be pressed and
