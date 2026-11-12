@@ -5936,8 +5936,9 @@ menu names the two ledgers). Reports is cash flow and profitability
 (founder, 2026-11-08): Profitability is a page of the Reports link at
 its own address, and Reports is offered only where the seat may open
 Receivables' AR, Payables or Profitability. A client reads Accounting
-with Payables only until the Reports page has been read as a client
-(coordinator's call, 2026-11-08, reversible in a sentence). A group
+with Payables and Reports since 2026-11-12, its Reports being what it
+owes its suppliers, paid and due, and the forecast of it, never a
+margin and never Profitability. A group
 is a heading and never a link, and a link is drawn only where the role
 may open one of its pages. Ask Etyme is not on the menu: the switch is
 Ask Etyme. In the table, "Network: Candidates, Companies" is the heading
@@ -5956,7 +5957,7 @@ Suppliers).
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Today · Network: Candidates, Suppliers · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Payables · Settings | Conversations → Ask Etyme. By region → Today. Contacts, Agreements, Supplier scorecards → Suppliers. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. AP, Budget, POs → Payables. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites, Team structure, Sign-in → Settings. |
+| Client | Today · Network: Candidates, Suppliers · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Payables, Reports · Settings | Conversations → Ask Etyme. By region → Today. Contacts, Agreements, Supplier scorecards → Suppliers. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. AP, Budget, POs → Payables. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites, Team structure, Sign-in → Settings. |
 | Supplier | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Payroll, Reports · Settings | Conversations → Ask Etyme. Rate history, Our scorecard → Today. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts → Companies. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Rolloff → Timesheets. AR → Receivables. AP → Payables. Profitability → Reports. Commissions → Payroll. Users & permissions, Setup, Sites, Team structure, Sign-in, Import, Integrations, Automation, DNR list, Data requests, Your data → Settings. |
 | Integrator | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Payroll, Reports · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
 | MSP | Today · Network: Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Reports · Settings | The supplier's, with no Candidates under Network, no Payroll link and no Our scorecard: an MSP places nobody and pays nobody. AR → Receivables. AP → Payables. Profitability → Reports. Suppliers, Supplier scorecards, Contacts → Companies. |

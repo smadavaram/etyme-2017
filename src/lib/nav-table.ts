@@ -811,10 +811,11 @@ const SOLO_NAV: NavSection[] = [
  */
 const CLIENT_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
-  // No Reports here yet (coordinator's call, 2026-11-08): the Reports page
-  // was written for a firm that sells, and is not shown to a client until
-  // it has been read as one. A client reads Accounting with Payables only.
-  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION]),
+  // Reports, under Accounting after Payables (2026-11-12): a client's
+  // Reports reads its own book, what it owes its suppliers, paid and due,
+  // and the 90-day forecast of it, and never a margin (money, 3c65fae1e).
+  // No Profitability: a client sells nothing.
+  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }, BY_REGION, REPORTS]),
   // Network (founder, 2026-11-04): its memory of people, and the firms
   // it buys from with the people at them. Above Jobs ("Network can stay
   // above the jobs"): the master data first, the process after it.

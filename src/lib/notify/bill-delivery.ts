@@ -8,7 +8,7 @@ import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
-import { askTheDesk } from '@/lib/permissions'
+import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
 import {
   billLetter, billNotice, billLinkToken, billLinkUrl, billLinkExpiresAt, billLinkOpen,
@@ -493,6 +493,12 @@ export async function resendBillToCustomer(a: {
   invoiceId: string
   byPersonId: string
   companyId: string
+  /**
+   * Whether the person pressing is on a limited public-address seat
+   * (founder, 2026-11-11), from the route's caller. A refusal then says
+   * the address is why, through the one refusal (`refusalFor`).
+   */
+  publicSeat?: boolean
   now?: Date
 }): Promise<({ ok: true } & BillSent) | Refused> {
   const now = a.now ?? new Date()
@@ -509,8 +515,11 @@ export async function resendBillToCustomer(a: {
     select: { id: true },
   })
   if (!seat) {
-    const firm = await prisma.company.findUnique({ where: { id: a.companyId }, select: { kind: true, name: true } })
-    return { ok: false, status: 403, code: 'FORBIDDEN', says: askTheDesk({ doing: 'Sending a bill again', needs: 'invoices.issue', kind: firm?.kind, companyName: firm?.name }) }
+    const firm: CallerContext['company'] = await prisma.company.findUnique({
+      where: { id: a.companyId },
+      select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true },
+    })
+    return { ok: false, status: 403, code: 'FORBIDDEN', says: refusalFor({ publicSeat: a.publicSeat ?? false, company: firm }, { doing: 'Sending a bill again', needs: 'invoices.issue' }) }
   }
   const n = w.bill.number
   if (w.bill.status === 'DRAFT' || w.bill.status === 'ISSUED') {

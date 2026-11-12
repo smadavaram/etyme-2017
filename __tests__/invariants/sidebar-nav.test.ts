@@ -1768,11 +1768,12 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(accounting.links[accounting.links.length - 1].label).toBe('Reports')
   })
 
-  it('a client reads Accounting with Payables only, and no Reports until the Reports page has been read as a client', () => {
+  it('a client reads Accounting with Payables and Reports, its Reports being its own book and never Profitability (2026-11-12)', () => {
     const accounting = menuFor('CLIENT', false).find((g) => g.heading === 'Accounting')!
-    expect(accounting.links.map((l) => l.label)).toEqual(['Payables'])
+    expect(accounting.links.map((l) => l.label)).toEqual(['Payables', 'Reports'])
     expect(accounting.links[0].covers.map((i) => i.href)).toEqual(['/dashboard/invoices', '/dashboard/ap', '/dashboard/program/budget', '/dashboard/purchase-orders'])
-    expect(getNavForKind('CLIENT', false).flatMap((s) => s.items).map((i) => i.href)).not.toContain('/dashboard/reports')
+    expect(accounting.links[1].covers.map((i) => i.href)).toEqual(['/dashboard/reports'])
+    expect(getNavForKind('CLIENT', false).flatMap((s) => s.items).map((i) => i.href)).not.toContain('/dashboard/profitability')
   })
 
   it('Reports is cash flow and profitability, so Profitability is no link of its own: its page is reached under Reports, at the address it always had', () => {
