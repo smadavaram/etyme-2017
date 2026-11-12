@@ -8,7 +8,11 @@
  * and nobody could say which number was right.
  *
  * This reads each live seat once, with what it is:
- *  - its state: INVITED (never signed in), WITH_ACCESS, or PAUSED;
+ *  - its state: INVITED (never signed in), WAITING_FOR_ROLE (signed in,
+ *    and nobody has given them a role yet), WITH_ACCESS (signed in with a
+ *    role), or PAUSED. Users & permissions lists a seat with no role under
+ *    "Waiting for access" (`seatPlace` in lib/access-grant), so it is never
+ *    counted as with access here either;
  *  - its role, or none;
  *  - whether it is a person at the company or a consultant on its books;
  *  - whether it is the shared sample seat, which is nobody.
@@ -27,7 +31,7 @@ import { hasSignedIn } from '@/lib/access-grant'
 import { stateOf } from '@/lib/account-lifecycle'
 import { isSamplePerson } from '@/lib/sample-seat'
 
-export type SeatState = 'INVITED' | 'WITH_ACCESS' | 'PAUSED'
+export type SeatState = 'INVITED' | 'WAITING_FOR_ROLE' | 'WITH_ACCESS' | 'PAUSED'
 
 export interface CompanySeat {
   contextId: string
@@ -49,7 +53,17 @@ export interface CompanySeat {
 export interface SeatCounts {
   withAccess: number
   invited: number
+  /** Signed in, not paused, and holding no role yet. */
+  waitingForRole: number
   paused: number
+}
+
+/** No seats in any state. */
+export const NO_SEATS: SeatCounts = { withAccess: 0, invited: 0, waitingForRole: 0, paused: 0 }
+
+/** Every seat counted, whatever its state. */
+export function seatTotal(c: SeatCounts): number {
+  return c.withAccess + c.invited + c.waitingForRole + c.paused
 }
 
 /** The name part of an address, in words: "sharath.m@x.com" → "Sharath M". */
@@ -73,13 +87,17 @@ export function personNameFor(typed: string | null | undefined, email: string | 
   return t
 }
 
-/** The state a seat reads as, from the lifecycle's own rule. Pure. */
-export function seatStateOf(s: { revokedAt: Date | null; suspendedAt: Date | null; signedIn: boolean }): SeatState | null {
+/**
+ * The state a seat reads as, from the lifecycle's own rule, with one more
+ * step: a signed-in seat with no role waits for one, the way Users &
+ * permissions lists it (`seatPlace`). Pure.
+ */
+export function seatStateOf(s: { revokedAt: Date | null; suspendedAt: Date | null; signedIn: boolean; hasRole?: boolean }): SeatState | null {
   const st = stateOf({ contextId: '', personId: '', roleId: null, rolePermissions: [], revokedAt: s.revokedAt, suspendedAt: s.suspendedAt, hasSignedIn: s.signedIn })
   if (st === 'REVOKED') return null
   if (st === 'SUSPENDED') return 'PAUSED'
   if (st === 'INVITED') return 'INVITED'
-  return 'WITH_ACCESS'
+  return s.hasRole === false ? 'WAITING_FOR_ROLE' : 'WITH_ACCESS'
 }
 
 /** Every live seat at one company, once each, oldest first. */
@@ -121,6 +139,7 @@ export function seatsFrom(rows: readonly Row[], companyName: string | null): Com
     const state = seatStateOf({
       revokedAt: r.revokedAt, suspendedAt: r.suspendedAt,
       signedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+      hasRole: Boolean(r.role?.name),
     })
     if (!state) continue
     out.push({
@@ -156,10 +175,11 @@ export function teammatesOf(seats: readonly CompanySeat[]): number {
 
 /** How many seats are in each state. */
 export function countSeats(seats: readonly Pick<CompanySeat, 'state'>[]): SeatCounts {
-  const c: SeatCounts = { withAccess: 0, invited: 0, paused: 0 }
+  const c: SeatCounts = { ...NO_SEATS }
   for (const s of seats) {
     if (s.state === 'WITH_ACCESS') c.withAccess++
     else if (s.state === 'INVITED') c.invited++
+    else if (s.state === 'WAITING_FOR_ROLE') c.waitingForRole++
     else c.paused++
   }
   return c
@@ -173,25 +193,27 @@ export function countsByRole(seats: readonly CompanySeat[]): Map<string | null, 
 }
 
 /**
- * The counts in words: "2 with access", then " · 3 invited" and
- * " · 1 paused" only where not zero. Where all three are zero, `empty`.
+ * The counts in words: "2 with access", then " · 3 invited",
+ * " · 1 waiting for a role" and " · 1 paused" only where not zero. Where
+ * all are zero, `empty`.
  */
 export function countWords(c: SeatCounts, empty = 'nobody yet'): string {
-  if (c.withAccess === 0 && c.invited === 0 && c.paused === 0) return empty
+  if (seatTotal(c) === 0) return empty
   const parts = [`${c.withAccess} with access`]
   if (c.invited) parts.push(`${c.invited} invited`)
+  if (c.waitingForRole) parts.push(`${c.waitingForRole} waiting for a role`)
   if (c.paused) parts.push(`${c.paused} paused`)
   return parts.join(' · ')
 }
 
 /** A role's line on Settings → Roles. */
 export function roleHeldWords(c: SeatCounts | undefined): string {
-  return countWords(c ?? { withAccess: 0, invited: 0, paused: 0 }, 'nobody holds this yet')
+  return countWords(c ?? NO_SEATS, 'nobody holds this yet')
 }
 
 /** The headline for a company's people: "6 people: 3 with access · 3 invited". */
 export function peopleWords(c: SeatCounts): string {
-  const n = c.withAccess + c.invited + c.paused
+  const n = seatTotal(c)
   if (n === 0) return 'Nobody here yet.'
   return `${n} ${n === 1 ? 'person' : 'people'}: ${countWords(c)}`
 }

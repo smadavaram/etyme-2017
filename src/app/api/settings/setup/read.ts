@@ -20,7 +20,7 @@ import { verificationRecord } from '@/lib/domains-owned'
 import { teamsLinkStanding } from '@/lib/notify/teams-link'
 import { intakeLive } from '@/lib/email-intake/live'
 import { intakeStateFor } from '@/lib/email-intake/settings'
-import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, seatTotal } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
 
@@ -193,7 +193,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         : { bankName: '', accountName: c.legalName ?? c.name, last4: '', routingLast4: '', shows: null, standing: bankStanding({ verifiedAt: null }), enteredBy: null, waits: bankWaits },
       COMPANIES: { count: facts.counterparties, href: c.kind === 'CLIENT' ? '/dashboard/suppliers' : '/dashboard/companies' },
       TEAM: {
-        seats: headcount.withAccess + headcount.invited + headcount.paused,
+        seats: seatTotal(headcount),
         // "3 people: 1 with access · 2 invited": what the count counts.
         says: peopleWords(headcount),
         joins,

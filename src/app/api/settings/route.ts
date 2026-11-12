@@ -9,7 +9,7 @@ import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
 import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
 import { changeCompanyKind, isOwnerSeat } from './kind'
-import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, type SeatCounts } from '@/lib/company-seats'
+import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, NO_SEATS, type SeatCounts } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
 
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
   for (const s of seats) heldBy.set(s.roleId, (heldBy.get(s.roleId) ?? 0) + 1)
   // The company's own people per role, by state: what a person reads.
   const byRole = countsByRole(seats)
-  const none: SeatCounts = { withAccess: 0, invited: 0, paused: 0 }
+  const none: SeatCounts = NO_SEATS
   // Who last changed the type, by name, and whether this seat may: the
   // Owner alone (lib/company-kind).
   const [typeSetBy, mayChangeType] = await Promise.all([

@@ -35,12 +35,26 @@ describe('one reader counts a company’s people the same way on every screen', 
   it('a person invited who never signed in is counted as invited, never as having access', () => {
     const seats = seatsFrom([invited('a')], 'Tapin')
     expect(seats[0].state).toBe('INVITED')
-    expect(countSeats(seats)).toEqual({ withAccess: 0, invited: 1, paused: 0 })
+    expect(countSeats(seats)).toEqual({ withAccess: 0, invited: 1, waitingForRole: 0, paused: 0 })
   })
 
   it('a paused seat is counted as paused, and never as with access', () => {
     const seats = seatsFrom([row({ id: 'a', suspendedAt: day })], 'Tapin')
-    expect(countSeats(seats)).toEqual({ withAccess: 0, invited: 0, paused: 1 })
+    expect(countSeats(seats)).toEqual({ withAccess: 0, invited: 0, waitingForRole: 0, paused: 1 })
+  })
+
+  it('a person who signed in and holds no role is counted as waiting for a role, never as with access, so the headline agrees with the "Waiting for access" list', async () => {
+    const { seatPlace } = await import('@/lib/access-grant')
+    const seats = seatsFrom([row({ id: 'a' }), row({ id: 'b', role: null, roleId: null })], 'Tapin')
+    expect(seats.map((s) => s.state)).toEqual(['WITH_ACCESS', 'WAITING_FOR_ROLE'])
+    expect(countSeats(seats)).toEqual({ withAccess: 1, invited: 0, waitingForRole: 1, paused: 0 })
+    expect(peopleWords(countSeats(seats))).toBe('2 people: 1 with access · 1 waiting for a role')
+    // The list's own rule says the same of each seat.
+    expect(seatPlace({ roleName: null, signedIn: true })).toBe('WAITING')
+    expect(seats.filter((s) => s.state === 'WITH_ACCESS').length)
+      .toBe(seats.filter((s) => seatPlace({ roleName: s.roleName, signedIn: true }) === 'WITH_ACCESS').length)
+    // Settings → Roles puts the same seat under no role, never under a role's count.
+    expect(countsByRole(seats).get(null)).toEqual({ withAccess: 0, invited: 0, waitingForRole: 1, paused: 0 })
   })
 
   it('an ended seat is not counted at all', () => {
@@ -84,8 +98,8 @@ describe('one reader counts a company’s people the same way on every screen', 
   it('the company’s people are said with what was counted: “6 people: 3 with access · 3 invited”', () => {
     const seats = seatsFrom([row({ id: 'a' }), row({ id: 'b' }), row({ id: 'c' }), invited('d'), invited('e'), invited('f')], 'Tapin')
     expect(peopleWords(countSeats(peopleOf(seats)))).toBe('6 people: 3 with access · 3 invited')
-    expect(peopleWords({ withAccess: 1, invited: 0, paused: 0 })).toBe('1 person: 1 with access')
-    expect(peopleWords({ withAccess: 0, invited: 0, paused: 0 })).toBe('Nobody here yet.')
+    expect(peopleWords({ withAccess: 1, invited: 0, waitingForRole: 0, paused: 0 })).toBe('1 person: 1 with access')
+    expect(peopleWords({ withAccess: 0, invited: 0, waitingForRole: 0, paused: 0 })).toBe('Nobody here yet.')
   })
 
   it('Settings, Team structure, the setup checklist and Give access all read the one reader, and the Owners reader is left as it was for the last-Owner guard', () => {
@@ -118,14 +132,14 @@ describe('a role says who holds it: with access, invited and paused, and never �
   })
 
   it('a role reads its people with access first, then invited and paused only where they are not nought', () => {
-    expect(countWords({ withAccess: 2, invited: 0, paused: 0 })).toBe('2 with access')
-    expect(countWords({ withAccess: 2, invited: 1, paused: 1 })).toBe('2 with access · 1 invited · 1 paused')
-    expect(countWords({ withAccess: 2, invited: 0, paused: 3 })).toBe('2 with access · 3 paused')
+    expect(countWords({ withAccess: 2, invited: 0, waitingForRole: 0, paused: 0 })).toBe('2 with access')
+    expect(countWords({ withAccess: 2, invited: 1, waitingForRole: 0, paused: 1 })).toBe('2 with access · 1 invited · 1 paused')
+    expect(countWords({ withAccess: 2, invited: 0, waitingForRole: 0, paused: 3 })).toBe('2 with access · 3 paused')
   })
 
   it('a role nobody holds reads “nobody holds this yet”, and only when all three are nought', () => {
     expect(roleHeldWords(undefined)).toBe('nobody holds this yet')
-    expect(roleHeldWords({ withAccess: 0, invited: 0, paused: 1 })).toBe('0 with access · 1 paused')
+    expect(roleHeldWords({ withAccess: 0, invited: 0, waitingForRole: 0, paused: 1 })).toBe('0 with access · 1 paused')
   })
 
   it('the Roles list never uses the word persons, and a refusal to delete a role says people', () => {

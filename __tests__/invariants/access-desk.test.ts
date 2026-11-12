@@ -815,20 +815,20 @@ describe('Users & permissions counts people the way Settings and Team structure 
 
   it('the headline says what it counts, as "6 people: 3 with access · 3 invited"', async () => {
     const { peopleWords } = await import('@/lib/company-seats')
-    expect(peopleWords({ withAccess: 3, invited: 3, paused: 0 })).toBe('6 people: 3 with access · 3 invited')
+    expect(peopleWords({ withAccess: 3, invited: 3, waitingForRole: 0, paused: 0 })).toBe('6 people: 3 with access · 3 invited')
     expect(page).toContain('{s.peopleSays}')
   })
 
   it('a person invited who never signed in is counted as invited, not as with access', async () => {
     const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
     const c = countSeats(peopleOf(seatsFrom([row(), row({ signedIn: false })], 'Brightmoor Staffing')))
-    expect(c).toEqual({ withAccess: 1, invited: 1, paused: 0 })
+    expect(c).toEqual({ withAccess: 1, invited: 1, waitingForRole: 0, paused: 0 })
   })
 
   it('a paused seat is counted as paused, and never as with access', async () => {
     const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
     const c = countSeats(peopleOf(seatsFrom([row(), row({ suspendedAt: new Date('2026-11-11') })], 'Brightmoor Staffing')))
-    expect(c).toEqual({ withAccess: 1, invited: 0, paused: 1 })
+    expect(c).toEqual({ withAccess: 1, invited: 0, waitingForRole: 0, paused: 1 })
   })
 
   it('each figure on the page says what it counts', () => {
