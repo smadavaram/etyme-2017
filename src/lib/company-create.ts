@@ -216,7 +216,9 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
 
   const roles: CreatedCompany['roles'] = []
   const proofRule = input.ownerProofRequired === true
-  for (const r of rolesFor(input.kind, { narrowAdmin: proofRule })) {
+  // The founder's Admin is the full one until an Owner is verified, then
+  // narrowed in that same transaction (coordinator's call, 2026-11-12).
+  for (const r of rolesFor(input.kind, { foundingAdmin: proofRule })) {
     roles.push(
       await db.role.create({
         data: { companyId: company.id, name: r.name, permissions: [...r.permissions], isDefault: true },

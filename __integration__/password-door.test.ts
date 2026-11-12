@@ -98,7 +98,12 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(made).toMatchObject({ name: 'Kestrel Works', kind: 'CLIENT', country: 'US', currency: 'USD', domain: null, domainVerified: false })
     // No verified domain, so nothing is claimed: the address is the tenant.
     expect(made.claimedDomains).toEqual([])
-    expect(made.contexts.map((c) => [c.personId, c.role?.name])).toEqual([[person.id, 'Owner']])
+    // The first person is an Admin until both proofs stand (2026-11-12), and
+    // the company works at once: the founder's Admin posts a job and bills.
+    expect(made.contexts.map((c) => [c.personId, c.role?.name])).toEqual([[person.id, 'Admin']])
+    expect(made.ownerProofRequiredAt).not.toBeNull()
+    const admin = made.contexts[0].role!
+    expect(admin.permissions).toEqual(expect.arrayContaining(['requirements.write', 'invoices.issue', 'timesheets.approve']))
 
     // Lands in the steps with step 2 answered on the form; Sites is next (2026-10-28).
     as(OWNER)
@@ -444,7 +449,8 @@ describe('a password door, until the single sign-on keys exist', () => {
     const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'diallo-nursing' } })
     expect(firm).toMatchObject({ kind: 'CONSULTANT_CORP', name: 'Diallo Nursing LLC', country: 'US', currency: 'USD' })
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, include: { contexts: { include: { role: true } } } })
-    expect(person.contexts.some((c) => c.companyId === firm.id && c.role?.name === 'Owner')).toBe(true)
+    // A one-person firm's person is its Admin until the identity check stands.
+    expect(person.contexts.some((c) => c.companyId === firm.id && c.role?.name === 'Admin')).toBe(true)
     expect(person.contexts.some((c) => c.type === 'CONSULTANT')).toBe(true)
     expect((await prisma.consultantProfile.findUnique({ where: { personId: person.id } }))?.ownCompanyId).toBe(firm.id)
     expect(await checkPassword(email, PASSWORD, '10.0.9.5')).toMatchObject({ ok: true })

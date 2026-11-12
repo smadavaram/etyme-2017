@@ -238,8 +238,14 @@ describe('the admin’s setup checklist', () => {
     expect(item).toMatchObject({ outcome: 'DONE', answeredById: ownerId })
   })
 
-  it('bank details are shown as the bank, the account name and four digits', async () => {
+  it('bank details wait for a verified Owner, then are shown as the bank, the account name and four digits', async () => {
     as(OWNER)
+    // Formed under the proof rule, so bank details wait in a sentence naming the step.
+    const held = await json(await put('bank', { bankName: 'Bellrock Bank', accountName: 'Tapinwalk LLC', accountNumber: '000123456789', routingNumber: '021000021' }))
+    expect(held.status).toBeGreaterThanOrEqual(400)
+    expect(JSON.stringify(held.body)).toContain('Changing bank details waits until Tapinwalk has a verified Owner. Prove ownership under Setup → Prove ownership.')
+    expect(await prisma.remitTo.count({ where: { companyId } })).toBe(0)
+    await prisma.company.update({ where: { id: companyId }, data: { ownerVerifiedAt: new Date(), ownerVerifiedById: ownerId } })
     const saved = await json(await put('bank', { bankName: 'Bellrock Bank', accountName: 'Tapinwalk LLC', accountNumber: '000123456789', routingNumber: '021000021' }))
     expect(saved.status, JSON.stringify(saved.body)).toBe(200)
     const bank = saved.body.data.detail.BANK
@@ -326,8 +332,9 @@ describe('the admin’s setup checklist', () => {
     expect(made.status, JSON.stringify(made.body)).toBe(201)
     const read = (await json(await readChecklist(req('GET', '/api/settings/setup')))).body.data
     const keys = read.checklist.rows.map((r: any) => r.key)
-    expect(keys).toEqual(['COMPANY', 'ADDRESSES', 'HOW_YOU_WORK', 'PAPERS', 'BANK', 'COMPANIES', 'INTEGRATIONS'])
-    expect(read.checklist.intro).toMatch(/^Seven things\./)
+    // Signed up under the proof rule, so it proves its person (no domain) to become its Owner.
+    expect(keys).toEqual(['COMPANY', 'ADDRESSES', 'HOW_YOU_WORK', 'PAPERS', 'BANK', 'COMPANIES', 'OWNERSHIP', 'INTEGRATIONS'])
+    expect(read.checklist.intro).toMatch(/^Eight things\./)
     expect(read.detail.PAPERS.sets.map((s: any) => s.party)).toEqual(['CUSTOMERS'])
   })
 

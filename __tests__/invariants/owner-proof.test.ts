@@ -4,7 +4,7 @@ import {
   needsVerifiedOwner, waitsForVerifiedOwner, proofStanding, mayBecomeOwner, needsDomainProof,
   GATED_ACT_WORDS, PROVE_OWNERSHIP_HREF, type GatedAct, type ProofFacts,
 } from '@/lib/owner-proof'
-import { rolesFor, isNarrowedAdmin } from '@/lib/company-defaults'
+import { rolesFor, isNarrowedAdmin, ADMIN_PERMISSIONS } from '@/lib/company-defaults'
 import { itemsFor, checklistFor, checkItemAnswer, itemHref, NO_FACTS } from '@/lib/setup-checklist'
 import { ACTIONS } from '@/lib/autonomy'
 
@@ -42,11 +42,34 @@ describe('the first person is an Admin', () => {
     expect(rolesFor('VENDOR')).toEqual(rolesFor('VENDOR', { narrowAdmin: false }))
   })
 
-  it('the Admin a founder holds under the rule holds no money or contract act', () => {
+  it('a new company’s first person can post a job, issue a bill and approve a week at once, at every kind of company', () => {
+    for (const kind of ['CLIENT', 'VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const) {
+      const admin = rolesFor(kind, { foundingAdmin: true }).find((r) => r.name === 'Admin')!
+      for (const p of ['requirements.write', 'invoices.issue', 'timesheets.approve', 'team.manage', 'settings.manage']) {
+        expect(admin.permissions, `${kind} ${p}`).toContain(p)
+      }
+      expect(admin.permissions, kind).not.toContain('pnl.read')
+      expect(isNarrowedAdmin(admin.permissions), kind).toBe(false)
+    }
+    expect(read('src/lib/company-create.ts')).toContain('rolesFor(input.kind, { foundingAdmin: proofRule })')
+  })
+
+  it('the narrowed Admin, what an Owner gets by pressing Narrow Admin, holds no money or contract act', () => {
     for (const kind of ['CLIENT', 'VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const) {
       const admin = rolesFor(kind, { narrowAdmin: true }).find((r) => r.name === 'Admin')!
       expect(isNarrowedAdmin(admin.permissions), kind).toBe(true)
     }
+  })
+
+  it('the Admin role narrows to people and settings in the same transaction that seats the first verified Owner, and says so in the log', () => {
+    const become = read('src/app/api/settings/owner-proof/become.ts')
+    expect(become).toContain('narrowed = await narrowFoundingAdmin(tx, {')
+    expect(become).toContain('firstVerification: !company.ownerVerifiedAt, underRule: company.ownerProofRequiredAt !== null')
+    expect(become).toContain("data: { permissions: [...ADMIN_PERMISSIONS] }")
+    expect(become).toContain("action: 'ADMIN_NARROWED'")
+    expect(ADMIN_PERMISSIONS).toEqual(['team.manage', 'settings.manage', 'governance.read', 'privacy.manage'])
+    // The Superadmin's record for a one-person firm goes through the same write.
+    expect(read('src/app/api/superadmin/owner-proof/route.ts')).toContain('becomeOwner(')
   })
 })
 
@@ -137,5 +160,17 @@ describe('Owner is earned by the two proofs', () => {
       expect((ACTIONS as any)[a]?.kind, a).toBe('ATTRIBUTED')
     }
     expect(read('src/lib/access-log.ts')).toContain("| 'OWNER_PROOF_RECORD'")
+  })
+})
+
+describe('signing an agreement waits for a verified Owner', () => {
+  it('the route that records a signature on an agreement reads the Owner gate before any write', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync('src/app/api/program/agreements/[id]/sign/route.ts', 'utf8')
+    const gate = src.indexOf("needsVerifiedOwnerAt(companyId, 'SIGN')")
+    expect(gate).toBeGreaterThan(-1)
+    expect(src).toMatch(/gateRefusal\(owner\)/)
+    const firstWrite = src.search(/prisma\.\w+\.(update|create|upsert)|\$transaction/)
+    expect(firstWrite === -1 || gate < firstWrite).toBe(true)
   })
 })

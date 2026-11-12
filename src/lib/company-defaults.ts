@@ -518,19 +518,38 @@ export function isNarrowedAdmin(permissions: readonly string[]): boolean {
 }
 
 /**
+ * The Admin a company formed under the proof rule starts with (coordinator's
+ * call, 2026-11-12, reversible in a sentence): the full Admin, everything
+ * but profit and loss, so the person who signs a company up can post a job,
+ * issue a bill and approve a week at once ("the company works at once").
+ * Only the Owner's acts wait, by `needsVerifiedOwnerAt` in lib/owner-proof.
+ * It is narrowed to people and settings in the same transaction that seats
+ * the company's first verified Owner (`narrowFoundingAdmin` in
+ * api/settings/owner-proof/become), so an Admin invited after that holds
+ * the narrowed role. One role row per company cannot be both at once.
+ */
+export const FOUNDING_ADMIN: RoleSeed = {
+  name: ADMIN_ROLE,
+  blurb: 'Runs the company day to day until an Owner is verified. Cannot see profit and loss.',
+  permissions: everything().filter((p) => p !== 'pnl.read'),
+}
+
+/**
  * The roles a company of this kind starts with.
  *
- * `narrowAdmin` is for a company formed under the proof rule (2026-11-12):
- * its first person is seated as Admin, so every kind gets the narrowed
- * Admin, a supplier's broad Admin replaced by it. Every other caller, the
- * seeded world included, reads exactly the sets it read before.
+ * `foundingAdmin` is for a company formed under the proof rule (2026-11-12):
+ * its first person is seated as Admin, so every kind gets the full founding
+ * Admin, narrowed when the first Owner is verified. `narrowAdmin` gives the
+ * narrowed Admin instead (what an Owner gets by pressing "Narrow Admin to
+ * people and settings"). Every other caller, the seeded world included,
+ * reads exactly the sets it read before.
  */
-export function rolesFor(kind: CompanyKind, opts: { narrowAdmin?: boolean } = {}): RoleSeed[] {
+export function rolesFor(kind: CompanyKind, opts: { narrowAdmin?: boolean; foundingAdmin?: boolean } = {}): RoleSeed[] {
   const base = baseRolesFor(kind)
-  if (!opts.narrowAdmin) return base
+  if (!opts.narrowAdmin && !opts.foundingAdmin) return base
   const owner = base.filter((r) => r.isOwner)
   const rest = base.filter((r) => !r.isOwner && r.name !== ADMIN_ROLE)
-  return [...owner, NARROW_ADMIN, ...rest]
+  return [...owner, opts.narrowAdmin ? NARROW_ADMIN : FOUNDING_ADMIN, ...rest]
 }
 
 function baseRolesFor(kind: CompanyKind): RoleSeed[] {
