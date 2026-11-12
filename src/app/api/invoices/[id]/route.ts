@@ -16,6 +16,7 @@ import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
 import { payToSays } from '@/lib/money/pay-to-words'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
 import { bankHoldAt, checkPayeeBank } from '@/lib/money/bank-check-read'
 import { receiptParties } from '@/lib/money/payee-bank'
@@ -296,6 +297,14 @@ export async function GET(
   // nobody checked (`mayPayFirm`, the setup checklist's Bank details
   // step), which the payment write refuses too: no Pay drawn, the
   // refusal's sentence instead.
+  // And first, in the order the payment write asks: a paying company still
+  // waiting for a verified Owner pays nobody, so the page says the gate's
+  // own sentence with its link to Prove ownership before anybody presses
+  // Pay (lib/money/pay-waits).
+  if (payPanel.kind === 'PAY' && direction === 'PAYABLE' && parties.client) {
+    const waits = await payWaitsAt(parties.client.id)
+    if (waits?.href) payPanel = { kind: 'OWNER_WAITS', says: waits.says, href: waits.href, linkSays: waits.linkSays ?? 'Prove ownership' }
+  }
   if (payPanel.kind === 'PAY' && parties.vendor && parties.client) {
     const bank = await mayPayFirm(parties.client.id, parties.vendor.id)
     if (!bank.ok) {

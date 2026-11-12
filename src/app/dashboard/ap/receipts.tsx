@@ -1,5 +1,6 @@
 'use client'
 
+import { OwnerGateLine } from '@/components/owner-gate-line'
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -353,7 +354,10 @@ function ReceiptPanel({ receipt: r, books, onClose, onMoved }: {
           )
         ) : (
           <>
-            {r.doors.pay.says && <p className="text-[13px] text-etyme-muted"><span className="font-medium text-etyme-ink">Not payable now.</span> {r.doors.pay.says}</p>}
+            {r.doors.pay.says && r.doors.pay.href ? (
+              // A step stops it (Setup, Prove ownership): the gate's own sentence and its link.
+              <OwnerGateLine line={{ says: r.doors.pay.says, href: r.doors.pay.href, linkSays: 'Prove ownership' }} />
+            ) : r.doors.pay.says && <p className="text-[13px] text-etyme-muted"><span className="font-medium text-etyme-ink">Not payable now.</span> {r.doors.pay.says}</p>}
             {/* Held on the supplier's bank, and this reader is who checks it: the check, here. */}
             {r.doors.pay.bank?.mayCheck && r.doors.pay.bank.facts && (
               <div className="rounded border border-etyme-rule p-3">

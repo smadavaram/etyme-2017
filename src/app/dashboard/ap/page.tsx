@@ -1,5 +1,6 @@
 'use client'
 
+import { OwnerGateLine } from '@/components/owner-gate-line'
 import { readJson } from '@/lib/read-response'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -149,6 +150,14 @@ export default function ApPage() {
         books={books}
         onSwitch={readInstead}
       />
+
+      {/* A company still waiting for a verified Owner pays nobody: said here,
+          with its link, before anybody presses Pay on a receipt below. */}
+      {data?.payWaits && (
+        <div className="panel">
+          <OwnerGateLine line={data.payWaits} />
+        </div>
+      )}
 
 
       {loading && !denied && <LoadingState says="Laying the hops end to end…" />}
@@ -1092,7 +1101,9 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                     </button>
                   )}
                   {r.status === 'APPROVED' && <DownloadRunFile runId={r.id} disabled={busy} />}
-                  {r.status === 'APPROVED' && (
+                  {/* No Mark it paid or confirmation where the company still waits
+                      for a verified Owner: the page's own line says why, with its link. */}
+                  {r.status === 'APPROVED' && !data?.payWaits && (
                     <ConfirmRunPaid
                       runId={r.id}
                       onDone={(summary) => {
@@ -1101,7 +1112,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                       }}
                     />
                   )}
-                  {r.status === 'APPROVED' && (
+                  {r.status === 'APPROVED' && !data?.payWaits && (
                     <MarkRunPaid
                       runId={r.id}
                       disabled={busy}

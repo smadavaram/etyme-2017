@@ -215,3 +215,55 @@ describe('a supplier’s bill paid through the one invoice write', () => {
     expect(notify).not.toHaveBeenCalled()
   })
 })
+
+// ── Before anybody presses Pay, at a company waiting for a verified Owner ──
+
+import { receiptDoors } from '@/lib/money/receipt-screen'
+import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
+
+describe('a company waiting for a verified Owner sees the sentence and no Pay control', () => {
+  const OWNER_SAYS = 'Paying a firm waits until Kestrel Staffing has a verified Owner. Prove ownership under Setup → Prove ownership.'
+
+  it('a typed-in receipt’s Pay is not offered, and its door carries the gate’s sentence and the link to Prove ownership', () => {
+    const doors = receiptDoors(
+      {
+        number: 'CON-77', vendorName: 'Consultis', status: 'APPROVED', currency: 'USD', totalCents: 416_000, paidCents: 0,
+        paymentCount: 0, inRun: null, checks: [], hard: null, waivers: [],
+      } as never,
+      { mayPay: true, mayWaive: true, mayRecord: true, paySays: null, waiveSays: null, recordSays: null } as never,
+      { ok: false, says: OWNER_SAYS, href: '/dashboard/settings/setup/ownership' },
+    )
+    expect(doors.pay).toEqual({ offered: false, says: OWNER_SAYS, href: '/dashboard/settings/setup/ownership' })
+  })
+
+  it('the receipts list asks the owner gate before the bank or the check, the order the payment route asks', () => {
+    const READ = read('src/lib/money/receipts-read.ts')
+    expect(READ).toContain('const ownerWaits = await payWaitsAt(companyId)')
+    const at = READ.indexOf('? { ok: false, says: ownerWaits.says, href: ownerWaits.href }')
+    expect(at).toBeGreaterThan(0)
+    expect(at).toBeLessThan(READ.indexOf('keyedPayGateNow(b, vendorName, check, viewerId)'))
+    expect(read('src/app/dashboard/ap/receipts.tsx')).toContain("<OwnerGateLine line={{ says: r.doors.pay.says, href: r.doors.pay.href, linkSays: 'Prove ownership' }} />")
+  })
+
+  it('a supplier’s bill on its own page reads the gate’s sentence in place of Pay, never beside it', () => {
+    const ROUTE = read('src/app/api/invoices/[id]/route.ts')
+    const waits = ROUTE.indexOf('const waits = await payWaitsAt(parties.client.id)')
+    expect(waits).toBeGreaterThan(0)
+    expect(waits).toBeLessThan(ROUTE.indexOf('const bank = await mayPayFirm(parties.client.id, parties.vendor.id)'))
+    const MONEY = read('src/app/dashboard/invoices/invoice-money.tsx')
+    expect(MONEY).toContain("payPanel.kind === 'OWNER_WAITS'")
+    expect(MONEY).toContain('<OwnerGateLine className="mt-2" line={{ says: payPanel.says, href: payPanel.href, linkSays: payPanel.linkSays }} />')
+    // The Pay form is drawn only where the panel says PAY.
+    expect(MONEY).toContain("const gateSaysPay = payPanel.kind === 'PAY'")
+    // A payable receipt is PAY before the owner gate is read; the gate is the route's.
+    expect(receiptPayPanel({ direction: 'PAYABLE', invoice: { number: 'X', status: 'SUBMITTED' }, match: { matched: true, summary: '', checks: [], lines: [] }, supplierName: 'S' }).kind).toBe('PAY')
+  })
+
+  it('Payables says the line at the top, and the payment run draws no Mark it paid or confirmation while it waits', () => {
+    expect(AP_PAGE).toContain('<OwnerGateLine line={data.payWaits} />')
+    expect(AP_PAGE).toContain("{r.status === 'APPROVED' && !data?.payWaits && (\n                    <ConfirmRunPaid")
+    expect(AP_PAGE).toContain("{r.status === 'APPROVED' && !data?.payWaits && (\n                    <MarkRunPaid")
+    expect(read('src/app/api/ap/route.ts').match(/payWaits,/g)?.length).toBe(3)
+    expect(RUNS).toContain('payWaitsAt(companyId)')
+  })
+})

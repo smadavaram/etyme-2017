@@ -11,6 +11,7 @@ import { confirmRun, readConfirmBody, confirmedLine, type RunLineFacts } from '@
 import { recordKeyedPayment } from '@/lib/money/keyed-payment'
 import { paymentReference } from '@/lib/money/run-file'
 import { tellSupplierPaid, type PaidFacts } from '@/lib/money/paid-notice'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
   proposeRun, remittanceAdvice, mayApproveRun,
@@ -124,11 +125,15 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const { payable, runs } = await loadPayable(companyId)
+  const [{ payable, runs }, payWaits] = await Promise.all([loadPayable(companyId), payWaitsAt(companyId)])
   const proposed = proposeRun(payable, currency, scheduledFor)
 
   return NextResponse.json({
     data: {
+      // Where the company still waits for a verified Owner, the gate's own
+      // sentence and its link; the page draws no Mark it paid beside it,
+      // because the route would refuse it (lib/money/pay-waits).
+      payWaits,
       currencies: [...new Set(payable.map((b) => b.currency.toUpperCase()))].sort(),
       proposed: {
         currency: proposed.currency,

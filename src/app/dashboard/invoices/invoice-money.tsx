@@ -1,5 +1,6 @@
 'use client'
 
+import { OwnerGateLine } from '@/components/owner-gate-line'
 import { useEffect, useState } from 'react'
 import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
@@ -401,6 +402,17 @@ export function InvoiceMoney({
           {payPanel.bank?.mayCheck && payPanel.bank.facts && (
             <BankCheck invoiceId={invoice.id} facts={payPanel.bank.facts} onChecked={onPaid} onToast={onToast} />
           )}
+        </div>
+      )}
+
+      {/* The paying company still waits for a verified Owner: the gate's own
+          sentence and its link, before anybody presses Pay, and no Pay. */}
+      {outstanding > 0 && !notSubmitted && payPanel.kind === 'OWNER_WAITS' && (
+        <div id="pay" className="border-t border-etyme-rule pt-6">
+          <p className="text-sm text-etyme-ink">
+            {fmtMinorExact(outstanding, invoice.currency)} is not payable yet, due {plainDate(invoice.dueAt)}.
+          </p>
+          <OwnerGateLine className="mt-2" line={{ says: payPanel.says, href: payPanel.href, linkSays: payPanel.linkSays }} />
         </div>
       )}
 

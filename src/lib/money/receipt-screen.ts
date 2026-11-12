@@ -87,6 +87,8 @@ export interface Doors {
   pay: {
     offered: boolean
     says: string | null
+    /** Where the step is, where a step is what stops the payment (Setup, Prove ownership). */
+    href?: string | null
     /** Held on the payee's bank: may this reader check it here, and what they would check. Absent otherwise. */
     bank?: { mayCheck: boolean; facts: { bankName: string | null; accountName: string | null; accountLast4: string | null } | null }
   }
@@ -111,7 +113,7 @@ const waivedOn = (at: Date) => dayOfMomentFor(at, null)
 export function receiptDoors(
   r: ReceiptFacts,
   role: ReaderRole,
-  gate: { ok: boolean; says?: string | null; bank?: Doors['pay']['bank'] },
+  gate: { ok: boolean; says?: string | null; href?: string | null; bank?: Doors['pay']['bank'] },
 ): Doors {
   const open = r.status !== 'PAID' && r.status !== 'CANCELLED'
 
@@ -166,7 +168,12 @@ export function receiptDoors(
         ? { offered: false, says: null }
         : gate.ok
           ? { offered: true, says: null }
-          : { offered: false, says: gate.says ?? r.hard ?? null, ...(gate.bank ? { bank: gate.bank } : {}) },
+          : {
+              offered: false,
+              says: gate.says ?? r.hard ?? null,
+              ...(gate.href ? { href: gate.href } : {}),
+              ...(gate.bank ? { bank: gate.bank } : {}),
+            },
   }
 }
 

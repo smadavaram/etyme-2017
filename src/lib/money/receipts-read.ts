@@ -17,6 +17,7 @@ import { receiptDoors, paymentSays, type Doors, type ReaderRole } from '@/lib/mo
 import { decimalsFor } from '@/lib/money'
 import { formatDay } from '@/lib/format-date'
 import type { MatchCheck } from '@/lib/three-way-match'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 
 /** The most receipts the screen lists at once, newest first. */
 export const MOST_RECEIPTS = 200
@@ -90,6 +91,11 @@ export async function receiptsFor(companyId: string, role: ReaderRole, viewerId:
       })
     : []
 
+  // A company still waiting for a verified Owner pays nobody: every open
+  // receipt reads the gate's own sentence with its link, before any Pay is
+  // drawn, the first refusal the payment route gives (lib/money/pay-waits).
+  const ownerWaits = await payWaitsAt(companyId)
+
   const rows: ReceiptRow[] = []
   for (const b of bills) {
     const vendorName = b.vendorCompany.name
@@ -97,8 +103,10 @@ export async function receiptsFor(companyId: string, role: ReaderRole, viewerId:
     const check = open ? await checkKeyedReceipt(asKeyed(b), 'pay') : null
     // The payment route refuses an unaccepted week first, in the sentence
     // that names it; the screen says the same.
-    const gate = !check
+    const gate: { ok: boolean; says?: string | null; href?: string | null; bank?: Doors['pay']['bank'] } = !check
       ? { ok: false, says: null }
+      : ownerWaits
+        ? { ok: false, says: ownerWaits.says, href: ownerWaits.href }
       : check.notAccepted
         ? { ok: false, says: check.notAccepted.says }
         : await keyedPayGateNow(b, vendorName, check, viewerId)

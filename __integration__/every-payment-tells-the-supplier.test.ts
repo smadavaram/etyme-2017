@@ -214,3 +214,79 @@ describe('every payment goes through one function, and the supplier is told ever
     expect(await prisma.notification.count({ where: { entityId: id, type: 'INVOICE' } })).toBe(notes.length)
   })
 })
+
+// ── A company still waiting for a verified Owner ──────────────────────
+
+import { GET as receipts } from '@/app/api/ap/receipts/route'
+import { GET as payables } from '@/app/api/ap/route'
+import { GET as runsPage } from '@/app/api/ap/payment-runs/route'
+import { GET as invoicePage } from '@/app/api/invoices/[id]/route'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
+
+describe('a company waiting for a verified Owner is told before anybody presses Pay', () => {
+  beforeAll(async () => {
+    await putBack()
+    await prisma.paymentRunItem.deleteMany({ where: { vendorBillId: s.ownPay } })
+    await prisma.remitTo.updateMany({ where: { companyId: s.ownVendor }, data: { verifiedAt: new Date() } })
+    const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
+    s.brightmoor = brightmoor.id
+    await prisma.company.update({ where: { id: brightmoor.id }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
+    const gate = await needsVerifiedOwnerAt(brightmoor.id, 'PAY')
+    if (gate.ok) throw new Error('Brightmoor should be waiting for a verified Owner now.')
+    s.ownerSays = gate.says
+  })
+
+  it('the Payables page says the gate’s own sentence with its link to Prove ownership', async () => {
+    as(PAYROLL)
+    const r = await json(await payables(req('GET', '/api/ap')))
+    expect(r.status).toBe(200)
+    expect(r.body.data.payWaits).toEqual({ says: s.ownerSays, href: '/dashboard/settings/setup/ownership', linkSays: 'Prove ownership' })
+  })
+
+  it('a typed-in receipt draws no Pay control and says the gate’s sentence with its link, the one the route refuses with', async () => {
+    as(PAYROLL)
+    const r = await json(await receipts(req('GET', '/api/ap/receipts')))
+    const row = r.body.data.receipts.find((x: { id: string }) => x.id === s.ownPay)
+    expect(row.doors.pay.offered).toBe(false)
+    expect(row.doors.pay.says).toBe(s.ownerSays)
+    expect(row.doors.pay.href).toBe('/dashboard/settings/setup/ownership')
+
+    as(PAYROLL)
+    const refused = await json(await payBill(req('PATCH', '/api/ap/bills', { id: s.ownPay, method: 'ACH', reference: 'ACH-O' })))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.message).toBe(s.ownerSays)
+    expect(await payments(s.ownPay)).toBe(0)
+  })
+
+  it('the payment run says the same line, so the page draws no Mark it paid', async () => {
+    as(PAYROLL)
+    const r = await json(await runsPage(req('GET', '/api/ap/payment-runs')))
+    expect(r.status).toBe(200)
+    expect(r.body.data.payWaits?.says).toBe(s.ownerSays)
+  })
+
+  it('a company that may pay is told nothing of the kind', async () => {
+    await prisma.company.update({ where: { id: s.brightmoor }, data: { ownerProofRequiredAt: null } })
+    as(PAYROLL)
+    const r = await json(await payables(req('GET', '/api/ap')))
+    expect(r.body.data.payWaits).toBeNull()
+  })
+
+  it('a supplier’s bill on its own page reads the gate’s sentence and no Pay where its payer waits for a verified Owner', async () => {
+    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    let target: string | null = null
+    for (const c of await prisma.invoice.findMany({
+      where: { status: { in: ['SUBMITTED', 'ISSUED'] }, OR: [{ engagement: { msa: { clientId: nike.id } } }, { workOrder: { issuedById: nike.id } }] },
+      select: { id: true }, orderBy: { number: 'asc' },
+    })) {
+      if ((await mayPayInvoiceReceipt(c.id))?.ok) { target = c.id; break }
+    }
+    expect(target, 'Northbend has a supplier’s bill it may pay now').toBeTruthy()
+    await prisma.company.update({ where: { id: nike.id }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
+    const says = (await needsVerifiedOwnerAt(nike.id, 'PAY') as { says: string }).says
+    as(NIKE_AP)
+    const r = await json(await invoicePage(req('GET', `/api/invoices/${target}`), { params: Promise.resolve({ id: target! }) }))
+    expect(r.status).toBe(200)
+    expect(r.body.data.payPanel).toEqual({ kind: 'OWNER_WAITS', says, href: '/dashboard/settings/setup/ownership', linkSays: 'Prove ownership' })
+  })
+})

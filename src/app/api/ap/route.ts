@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { getCallerContext } from '@/lib/api-context'
@@ -144,6 +145,10 @@ export async function GET(request: NextRequest) {
 
   const companyId = reading.companyId
   const usName = reading.companyName
+  // Where the paying company still waits for a verified Owner, the page
+  // says the gate's own sentence and its link before any Pay
+  // (lib/money/pay-waits). Null where it may pay.
+  const payWaits = await payWaitsAt(companyId)
   noteMoneyRead(reading, 'Accounts payable read')
   const now = new Date()
   const gaps: string[] = []
@@ -191,6 +196,7 @@ export async function GET(request: NextRequest) {
           source: 'SUPPLIER_INVOICES',
           us: usName,
           reading: { company: usName, inASeat: reading.seated, says: reading.says },
+          payWaits,
           gaps,
           supplierInvoices: {
             says: owed.says,
@@ -213,6 +219,7 @@ export async function GET(request: NextRequest) {
         source: 'NONE',
         us: usName,
         reading: { company: usName, inASeat: reading.seated, says: reading.says },
+          payWaits,
         gaps,
         supplierInvoices: { says: owed.says, openCount: 0, books: [], rows: [] },
         note:
@@ -582,6 +589,7 @@ export async function GET(request: NextRequest) {
       source: 'BILLS_AND_INVOICES',
       us: usName,
       reading: { company: usName, inASeat: reading.seated, says: reading.says },
+          payWaits,
       // So the screen says "withheld" where the chains would be rather
       // than "nothing could be tied together", which is a different
       // sentence and would be a lie.

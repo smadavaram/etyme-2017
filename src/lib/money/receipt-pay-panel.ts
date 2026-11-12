@@ -46,6 +46,12 @@ export type ReceiptPayPanel =
   | { kind: 'NOT_SUBMITTED'; says: string }
   /** Paid, cancelled or void: nothing to pay, and the gate's sentence says why. */
   | { kind: 'CLOSED'; says: string }
+  /**
+   * Payable, and the paying company still waits for a verified Owner (the
+   * proof rule): the gate's own sentence and its link to Setup, Prove
+   * ownership, and no Pay (lib/money/pay-waits).
+   */
+  | { kind: 'OWNER_WAITS'; says: string; href: string; linkSays: string }
   /** Held: what holds it, the hours, the way forward, and no Pay. */
   | {
       kind: 'HELD'
