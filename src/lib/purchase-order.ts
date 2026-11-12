@@ -157,6 +157,35 @@ export function canAttachPoToBuyContract(contract: {
   return { allowed: true, reason: 'Subcontract — the PO is this company\'s commitment to the supplier' }
 }
 
+/**
+ * The same rule on an update: a buy line that is on a purchase order, or
+ * is about to be, may never become an employment line, and an employment
+ * line may never be put on an order. Null where the change keeps the rule;
+ * else the sentence the route refuses with. Pure.
+ *
+ * The create path refuses the contradiction (`POST /api/contracts`). An
+ * update is how it would come back: the terms a worker is offered can
+ * change a line's type after the award, and a line that was a supplier's
+ * on an order would then read as a W2 employee with a purchase order
+ * raised to them. Every path that changes a buy line's type, its supplier
+ * or its order asks this first, with the line as it would be after.
+ */
+export function orderOnEmploymentLineRefusal(after: {
+  contractType: string
+  vendorCompanyId: string | null
+  workOrderId: string | null
+  personName?: string | null
+}): string | null {
+  if (!after.workOrderId) return null
+  const verdict = canAttachPoToBuyContract(after)
+  if (verdict.allowed) return null
+  const who = after.personName?.trim() ? `${after.personName.trim()}’s pay line` : 'This pay line'
+  return (
+    `${who} is on a purchase order, and a ${after.contractType} line employs the person directly, so it cannot be on one. ` +
+    'Take the line off the order first, or keep it as a supplier’s line.'
+  )
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // OVER-BILLING — the other half of the duplicate check
 // ═════════════════════════════════════════════════════════════════════

@@ -15,7 +15,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { poBalance, canAttachPoToBuyContract } from '@/lib/purchase-order'
+import { poBalance, canAttachPoToBuyContract, orderOnEmploymentLineRefusal } from '@/lib/purchase-order'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 
 // ── What a PO is that a contract is not ────────────────
 
@@ -245,5 +247,48 @@ describe('Purchase order balance decides whether more may be billed', () => {
     const b = poBalance({ amountCents: 0, invoicedCents: 0, status: OPEN })
     expect(b.consumedPercent).toBe(100)
     expect(b.canInvoice).toBe(false)
+  })
+})
+
+describe('a purchase order can never sit on a W2 line, on any update', () => {
+  it('a supplier’s line on an order that would become a W2 line is refused in a sentence that says what to do', () => {
+    const says = orderOnEmploymentLineRefusal({ contractType: 'W2', vendorCompanyId: null, workOrderId: 'po-1', personName: 'Ravi Kalathil' })
+    expect(says).toBe(
+      'Ravi Kalathil’s pay line is on a purchase order, and a W2 line employs the person directly, so it cannot be on one. ' +
+      'Take the line off the order first, or keep it as a supplier’s line.'
+    )
+  })
+
+  it('a W2 line with a vendor typed in is still refused an order', () => {
+    expect(orderOnEmploymentLineRefusal({ contractType: 'W2', vendorCompanyId: 'v1', workOrderId: 'po-1' })).not.toBeNull()
+  })
+
+  it('a W2 line on no order, and a supplier’s line on an order, are both left alone', () => {
+    expect(orderOnEmploymentLineRefusal({ contractType: 'W2', vendorCompanyId: null, workOrderId: null })).toBeNull()
+    expect(orderOnEmploymentLineRefusal({ contractType: 'C2C', vendorCompanyId: 'v1', workOrderId: 'po-1' })).toBeNull()
+  })
+
+  it('no route writes a buy line’s order on an update without asking the rule first', () => {
+    const files: string[] = []
+    const walk = (d: string) => {
+      for (const n of readdirSync(d)) {
+        const f = join(d, n)
+        if (statSync(f).isDirectory()) walk(f)
+        else if (f.endsWith('.ts') && !/seed/.test(f)) files.push(f)
+      }
+    }
+    walk(join(process.cwd(), 'src/app/api'))
+    walk(join(process.cwd(), 'src/lib'))
+    const unasked: string[] = []
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8')
+      const re = /buyContract\.(update|updateMany|upsert)\(\{[\s\S]{0,400}?\}\)/g
+      for (const m of src.match(re) ?? []) {
+        if (/workOrderId\s*:/.test(m.replace(/where:\s*\{[^}]*\}/, '')) && !src.includes('orderOnEmploymentLineRefusal(')) {
+          unasked.push(f.replace(process.cwd() + '/', ''))
+        }
+      }
+    }
+    expect(unasked).toEqual([])
   })
 })
