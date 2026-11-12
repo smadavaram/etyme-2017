@@ -7921,3 +7921,10 @@ MX records, so @etyme.com mailboxes receive nothing; the public-seat
 refusal sentence on the timesheet-approve and a few settings routes;
 the password door and emailed link under directory-only are proven by
 unit tests only.
+
+**The Superadmin address is support@etyme.com. The founder, 2026-11-12:**
+*"Sharath@etyme.com would be too personal - I will use
+support@etyme.com."* So `ETYME_STAFF_EMAILS` on production holds
+support@etyme.com, which opens the Superadmin screen and receives
+staff alerts. It stays Etyme's own mailbox and holds no seat at Tapin
+or any company. sharath@etyme.com stays Tapin's Owner and nothing more.
