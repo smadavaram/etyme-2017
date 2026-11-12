@@ -45,6 +45,7 @@ import { linkWithStaff } from '@/lib/password-words'
 import { personNameFor } from '@/lib/company-seats'
 import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
+import { sendEmailNow } from '@/lib/notify/send-now'
 import { appUrl } from '@/lib/supplier-link'
 import { createCompany } from '@/lib/company-create'
 import { recordAnswers } from '@/lib/setup-checklist-state'
@@ -168,20 +169,15 @@ function demoRefusal(email: string): Answer | null {
  * staff to pass on (`recordedBody`).
  */
 async function mail(personId: string, to: string, subject: string, lines: string[], link: string | null): Promise<boolean> {
-  const sender = emailSender()
   const body = [...lines, ...(link ? ['', link] : [])].join('\n')
-  let state: AccountMailState = 'NOT_CONFIGURED'
-  let note: string | null = 'No email provider set up, so this was recorded and not sent.'
-  if (sender) {
-    try {
-      await sender.send(to, subject, body)
-      state = 'SENT'
-      note = null
-    } catch (e: any) {
-      state = 'FAILED'
-      note = String(e?.message ?? e).slice(0, 200)
-    }
-  }
+  // One send for every account email (lib/notify/send-now): a refusal keeps
+  // the provider's status and cleaned words on the row, where Superadmin's
+  // list and /ready read them, and Etyme's staff are told within the hour.
+  // Before 2026-11-12 the door kept the thrown message alone, so a refused
+  // confirm or reset email was counted and never explained.
+  const sent = await sendEmailNow({ to, subject, body, personId, companyId: null })
+  const state: AccountMailState = sent.state === 'SENT' ? 'SENT' : sent.state === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'FAILED'
+  const note = sent.note
   // Written down so delivery can be checked, and written read: a sign-up
   // or reset email is not a notice for the bell. The mailbox is where the
   // person reads it.
@@ -192,7 +188,7 @@ async function mail(personId: string, to: string, subject: string, lines: string
       // The link is cut out once the email left; kept for staff only where
       // no email could be sent (conversation's rule, lib/notify/account-mail).
       title: subject, body: recordedBody(lines, link, state),
-      deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? at : null,
+      deliveryState: sent.state, deliveryNote: note, deliveredAt: state === 'SENT' ? at : null,
       status: 'READ', readAt: at,
     },
   })

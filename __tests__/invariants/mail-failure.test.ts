@@ -269,3 +269,14 @@ describe('The list of email that did not go, for Etyme’s own staff', () => {
     expect(noticeKindOf('ACCOUNT_MAIL', 'Set your password')).toBe('Account email')
   })
 })
+
+describe('The password door’s confirm and reset emails go through the one send (2026-11-12)', () => {
+  it('a confirm or reset email the provider refuses keeps the provider’s status and words on its row, and staff are told, through sendEmailNow', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync('src/lib/password-door.ts', 'utf8')
+    const mail = src.slice(src.indexOf('async function mail('), src.indexOf('function link(path: string)'))
+    expect(mail).toContain('const sent = await sendEmailNow({ to, subject, body, personId, companyId: null })')
+    expect(mail).toContain('deliveryState: sent.state, deliveryNote: note')
+    expect(mail).not.toMatch(/sender\.send\(/)
+  })
+})
