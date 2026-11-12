@@ -9,6 +9,9 @@ import { mayPayFirm } from '@/lib/setup-gates'
 import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
 import { readRunFile } from '@/lib/money/run-file-read'
+import { confirmRun, readConfirmBody, type RunLineFacts } from '@/lib/money/run-confirm'
+import { recordKeyedPayment } from '@/lib/money/keyed-payment'
+import { paymentReference } from '@/lib/money/run-file'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
@@ -282,6 +285,8 @@ export async function PATCH(request: NextRequest) {
   const id = String(body.id ?? '')
   const action = String(body.action ?? '')
 
+  if (action === 'confirm') return confirm(caller, companyId, body)
+
   if (!id || !['approve', 'pay', 'cancel'].includes(action)) {
     return NextResponse.json(
       {
@@ -498,6 +503,140 @@ export async function PATCH(request: NextRequest) {
         `full and carry the paid date. A part payment carries none — the obligation is ` +
         `still open, and dating it now would report the first installment as the day the ` +
         `supplier was paid, which is the figure every float number counts to.`,
+    },
+  })
+}
+
+// ── The confirmation from the payer's own system ──────────────────────
+//
+// `{ action: 'confirm', id, csv }` or `{ action: 'confirm', id, reference,
+// paidOn }`. Etyme never moves money (founder, 2026-11-12): the payer's
+// system paid, and this marks each receipt the confirmation names paid,
+// through the gates a payment asks (the proof rule, the three-way check
+// and the bank, `mayPayKeyedReceipt`) and the one write a run's line makes
+// (`recordKeyedPayment`). A row that names nothing in this run, a
+// different amount or currency, or a receipt already paid is refused in a
+// sentence and nothing is written for it (lib/money/run-confirm).
+
+async function confirm(
+  caller: NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>,
+  companyId: string,
+  body: Record<string, unknown>,
+) {
+  const read = readConfirmBody(body)
+  if (!read.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: read.says, field: read.field } }, { status: 422 })
+  }
+  const personId = realPersonId(caller)
+  if (!personId) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'A payment is recorded by a person, and this request names none.' } },
+      { status: 403 }
+    )
+  }
+  const payerName = caller.company!.name
+
+  let runCurrency = ''
+  const result = await confirmRun(
+    {
+      ownerGate: async () => {
+        const g = await needsVerifiedOwnerAt(companyId, 'PAY')
+        return g.ok ? { ok: true } : { ok: false, says: g.says, href: g.href }
+      },
+      loadRun: async () => {
+        const run = await prisma.paymentRun.findUnique({
+          where: { id: read.runId },
+          select: {
+            id: true, companyId: true, status: true, currency: true,
+            items: {
+              select: {
+                id: true, amountCents: true,
+                vendorBill: {
+                  select: {
+                    id: true, number: true, currency: true, totalCents: true, paidCents: true, status: true,
+                    receivedAt: true, vendorCompanyId: true, vendorCompany: { select: { name: true } },
+                  },
+                },
+              },
+              orderBy: { id: 'asc' },
+            },
+          },
+        })
+        if (!run || run.companyId !== companyId) return null
+        runCurrency = run.currency
+        const lines: RunLineFacts[] = run.items.map((i) => ({
+          runItemId: i.id,
+          billId: i.vendorBill.id,
+          number: i.vendorBill.number,
+          vendorName: i.vendorBill.vendorCompany.name,
+          vendorCompanyId: i.vendorBill.vendorCompanyId,
+          amountCents: i.amountCents,
+          currency: i.vendorBill.currency,
+          totalCents: i.vendorBill.totalCents,
+          paidCents: i.vendorBill.paidCents,
+          status: i.vendorBill.status,
+          receivedAt: i.vendorBill.receivedAt,
+        }))
+        return { id: run.id, status: run.status, currency: run.currency, lines }
+      },
+      gateSays: async (billId) => {
+        const gate = await mayPayKeyedReceipt(billId)
+        if (!gate) return 'This invoice receipt could not be read, so it is not marked paid.'
+        return gate.ok ? null : gate.says
+      },
+      pay: (row) =>
+        prisma.$transaction((tx) =>
+          recordKeyedPayment(tx, {
+            billId: row.billId,
+            payerCompanyId: companyId,
+            payerName,
+            vendorCompanyId: row.vendorCompanyId,
+            vendorName: row.vendorName,
+            number: row.number,
+            currency: row.currency,
+            amountCents: row.amountCents,
+            expectPaidCents: row.expectPaidCents,
+            paidAt: row.paidAt,
+            payerReference: row.payerReference,
+            etymeReference: paymentReference(row.runItemId),
+            runId: read.runId,
+            appliedById: personId,
+            appliedByName: caller.person.name,
+          })
+        ),
+    },
+    read.by === 'FILE' ? { by: 'FILE', csv: read.csv } : { by: 'TYPED', reference: read.reference, paidOn: read.paidOn }
+  )
+
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: { code: result.code, message: result.says, ...(result.href ? { href: result.href } : {}) } },
+      { status: result.status }
+    )
+  }
+
+  // The run is paid once every line in it is.
+  if (result.paid.length > 0) {
+    const left = await prisma.paymentRunItem.count({
+      where: { runId: read.runId, vendorBill: { status: { notIn: ['PAID', 'CANCELLED'] } } },
+    })
+    if (left === 0) {
+      const last = result.paid.reduce((d, p) => (p.paidAt > d ? p.paidAt : d), result.paid[0].paidAt)
+      await prisma.paymentRun.updateMany({ where: { id: read.runId, status: 'APPROVED' }, data: { status: 'PAID', paidAt: last } })
+    }
+  }
+
+  return NextResponse.json({
+    data: {
+      runId: read.runId,
+      currency: runCurrency,
+      paid: result.paid.map((p) => ({
+        reference: paymentReference(p.runItemId), number: p.number, vendorName: p.vendorName,
+        amountMinor: p.amountCents, currency: p.currency, paidOn: p.paidAt.toISOString().slice(0, 10),
+        payerReference: p.payerReference, paymentId: p.paymentId,
+      })),
+      refused: result.refused,
+      says: result.says,
     },
   })
 }

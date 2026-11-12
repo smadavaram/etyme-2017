@@ -17,7 +17,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
-import { DownloadRunFile } from './payment-run-file'
+import { DownloadRunFile, ConfirmRunPaid } from './payment-run-file'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -1070,6 +1070,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                     </button>
                   )}
                   {r.status === 'APPROVED' && <DownloadRunFile runId={r.id} disabled={busy} />}
+                  {r.status === 'APPROVED' && <ConfirmRunPaid runId={r.id} onDone={() => void load()} />}
                   {r.status === 'APPROVED' && (
                     <button
                       className="text-[13px] underline"

@@ -42,7 +42,7 @@ describe('an approved payment run, exported as a file for the payer’s own syst
     expect(head).toEqual([...RUN_FILE_COLUMNS])
     expect(row).toEqual([
       'ETY-item1', 'Pinnacle Staffing', 'PR-2026-0441', 'bill1', 'PO-2026-ADIVD',
-      '3920.00', 'USD', '2026-11-20', 'First Ohio Bank', 'Pinnacle Staffing LLC', '4471',
+      '3920.00', 'USD', '2026-11-20', 'First Ohio Bank', 'Pinnacle Staffing LLC', '4471', '', '',
     ])
     expect(f.rows).toBe(1)
     expect(f.says).toContain('Etyme sends no money')
@@ -113,5 +113,188 @@ describe('an approved payment run, exported as a file for the payer’s own syst
   it('a cell a spreadsheet would read as a formula is written as text', () => {
     expect(csvCell('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`)
     expect(csvCell('Smith, Jones & Co')).toBe('"Smith, Jones & Co"')
+  })
+})
+
+// ── The confirmation from the payer's own system ──────────────────────
+
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import {
+  confirmRun, parseConfirmation, parseAmount, readConfirmBody, confirmBody, CONFIRM_FIELDS,
+  type ConfirmDeps, type RunLineFacts, type PayRow,
+} from '@/lib/money/run-confirm'
+
+const TODAY = new Date('2026-11-14T12:00:00Z')
+
+function runLine(over: Partial<RunLineFacts> = {}): RunLineFacts {
+  return {
+    runItemId: 'item1', billId: 'bill1', number: 'PR-2026-0441', vendorName: 'Pinnacle Staffing',
+    vendorCompanyId: 'pinnacle', amountCents: 392_000, currency: 'USD', totalCents: 392_000, paidCents: 0,
+    status: 'APPROVED', receivedAt: new Date('2026-11-01T00:00:00Z'), ...over,
+  }
+}
+
+/** A run held in memory: the write moves the receipt the way the database would, and counts. */
+function world(lines: RunLineFacts[], over: Partial<ConfirmDeps> = {}) {
+  const writes: PayRow[] = []
+  const deps: ConfirmDeps = {
+    ownerGate: async () => ({ ok: true }),
+    loadRun: async () => ({ id: 'run1', status: 'APPROVED', currency: 'USD', lines: lines.map((l) => ({ ...l })) }),
+    gateSays: async () => null,
+    pay: async (row) => {
+      const l = lines.find((x) => x.billId === row.billId)!
+      if (l.paidCents !== row.expectPaidCents || l.status === 'PAID') return { ok: false, says: 'moved' }
+      l.paidCents += row.amountCents
+      if (l.paidCents >= l.totalCents) l.status = 'PAID'
+      writes.push(row)
+      return { ok: true, paymentId: `pay${writes.length}` }
+    },
+    today: TODAY,
+    ...over,
+  }
+  return { deps, writes, lines }
+}
+
+const FILE = (rows: string[]) =>
+  ['etyme_payment_reference,amount,currency,paid_date,payer_reference', ...rows].join('\r\n')
+
+describe('the confirmation from the payer’s own system marks paid what it names, and nothing else', () => {
+  it('a confirmation row naming a run line at the balance owed marks that receipt paid, with the payer’s reference and the day', async () => {
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123']) })
+    expect(r.ok && r.paid.length).toBe(1)
+    expect(w.writes[0]).toMatchObject({ billId: 'bill1', amountCents: 392_000, payerReference: 'ACH-88123' })
+    expect(w.writes[0].paidAt.toISOString().slice(0, 10)).toBe('2026-11-13')
+    expect(r.ok && r.says).toBe('1 invoice receipt was marked paid.')
+  })
+
+  it('a confirmation row with a wrong amount is refused and nothing is written', async () => {
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3900.00,USD,2026-11-13,ACH-88123']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused[0].says).toContain('says 3900.00 USD for Pinnacle Staffing’s invoice PR-2026-0441, and 3920.00 USD is owed on it')
+    expect(r.ok && r.says).toBe('Nothing was marked paid. One row was refused, and nothing was written for it.')
+  })
+
+  it('a confirmation row in another currency is refused and nothing is written', async () => {
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,EUR,2026-11-13,ACH-88123']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused[0].says).toContain('owed in USD and the confirmation says EUR')
+  })
+
+  it('the same confirmation twice pays once', async () => {
+    const w = world([runLine()])
+    const csv = FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123'])
+    await confirmRun(w.deps, { by: 'FILE', csv })
+    const again = await confirmRun(w.deps, { by: 'FILE', csv })
+    expect(w.writes.length).toBe(1)
+    expect(again.ok && again.paid).toEqual([])
+    expect(again.ok && again.refused[0].says).toContain('is already paid. Nothing was written again')
+  })
+
+  it('a receipt the file does not name stays unpaid', async () => {
+    const w = world([runLine(), runLine({ runItemId: 'item2', billId: 'bill2', number: 'PR-2026-0443' })])
+    await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123']) })
+    expect(w.writes.map((x) => x.billId)).toEqual(['bill1'])
+    expect(w.lines[1].status).toBe('APPROVED')
+    expect(w.lines[1].paidCents).toBe(0)
+  })
+
+  it('a row naming a receipt that is not in this run is refused, and nothing is written for it', async () => {
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-somebodyelse,3920.00,USD,2026-11-13,X', 'PR-2026-0441,3920.00,USD,2026-11-13,X']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused.map((x) => x.says)).toEqual([
+      'Line 2: ETY-somebodyelse names no invoice receipt in this run, so nothing was marked paid for it.',
+      'Line 3: PR-2026-0441 names no invoice receipt in this run, so nothing was marked paid for it.',
+    ])
+  })
+
+  it('a company held for a verified Owner cannot confirm payment', async () => {
+    const w = world([runLine()], {
+      ownerGate: async () => ({ ok: false, says: 'Paying a firm waits for a verified Owner.', href: '/dashboard/settings/setup' }),
+    })
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123']) })
+    expect(r).toMatchObject({ ok: false, status: 403, code: 'OWNER_NOT_VERIFIED' })
+    expect(w.writes).toEqual([])
+  })
+
+  it('a receipt that fails the payment gate today is refused in the gate’s own sentence, never marked paid', async () => {
+    const w = world([runLine()], { gateSays: async () => 'Bank details not checked. Ask Rosalind Tay to check them, then pay.' })
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,USD,2026-11-13,ACH-88123']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused[0].says).toContain('Ask Rosalind Tay to check them')
+  })
+
+  it('a paid date in the future, or before the receipt arrived, is refused', async () => {
+    const w = world([runLine(), runLine({ runItemId: 'item2', billId: 'bill2' })])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: FILE(['ETY-item1,3920.00,USD,2026-12-01,A', 'ETY-item2,3920.00,USD,2026-10-01,B']) })
+    expect(w.writes).toEqual([])
+    expect(r.ok && r.refused.map((x) => x.says)).toEqual([
+      'Line 2: 2026-12-01 has not happened yet. A confirmation says the day money left.',
+      'Line 3: Pinnacle Staffing’s invoice PR-2026-0441 cannot be paid on 2026-10-01, before it arrived.',
+    ])
+  })
+
+  it('one typed reference for the whole run names every line of it, each at the run’s own amount', async () => {
+    const w = world([runLine(), runLine({ runItemId: 'item2', billId: 'bill2', amountCents: 100, totalCents: 100 })])
+    const r = await confirmRun(w.deps, { by: 'TYPED', reference: 'WIRE-551', paidOn: '2026-11-13' })
+    expect(w.writes.map((x) => [x.billId, x.amountCents, x.payerReference])).toEqual([['bill1', 392_000, 'WIRE-551'], ['bill2', 100, 'WIRE-551']])
+    expect(r.ok && r.says).toBe('2 invoice receipts were marked paid.')
+  })
+
+  it('a file with no reference or amount column is refused in one sentence before anything is read', () => {
+    const p = parseConfirmation('amount,paid_date\r\n3920.00,2026-11-13')
+    expect(p.ok).toBe(false)
+    expect(!p.ok && p.says).toContain('no etyme_payment_reference, payer_reference columns')
+  })
+
+  it('the run’s own file, filled in by the payer’s system, comes back as its confirmation, and its total row is skipped', async () => {
+    const filled = runFile(RUN, [line()]).csv.replace('4471,,', '4471,2026-11-13,ACH-88123')
+    const p = parseConfirmation(filled)
+    expect(p.ok && p.rows.map((r) => [r.reference, r.amount, r.paidOn, r.payerReference])).toEqual([['ETY-item1', '3920.00', '2026-11-13', 'ACH-88123']])
+    const w = world([runLine()])
+    const r = await confirmRun(w.deps, { by: 'FILE', csv: filled })
+    expect(r.ok && r.paid.length).toBe(1)
+  })
+
+  it('an amount is read strictly: no more places than the currency has, no letters, thousands commas read', () => {
+    expect(parseAmount('3,920.00', 'USD')).toBe(392_000)
+    expect(parseAmount('3920.5', 'USD')).toBe(392_050)
+    expect(parseAmount('3920.001', 'USD')).toBeNull()
+    expect(parseAmount('$3920', 'USD')).toBeNull()
+    expect(parseAmount('170', 'VND')).toBe(170)
+    expect(parseAmount('170.5', 'VND')).toBeNull()
+  })
+})
+
+describe('every field the confirmation refuses without, the screen offers', () => {
+  const SCREEN = readFileSync(join(process.cwd(), 'src/app/dashboard/ap/payment-run-file.tsx'), 'utf8')
+  const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/ap/payment-runs/route.ts'), 'utf8')
+
+  it('each field the reader refuses with is one the screen’s body sends, and the screen draws an input for it', () => {
+    const refusedFields = new Set<string>()
+    for (const body of [{}, { id: 'r' }, { id: 'r', reference: 'x' }]) {
+      const v = readConfirmBody(body)
+      if (!v.ok) refusedFields.add(v.field)
+    }
+    expect([...refusedFields].sort()).toEqual(['id', 'paidOn', 'reference'])
+    const sent = new Set(Object.keys(confirmBody({ runId: 'r', csv: 'a', reference: 'x', paidOn: '2026-11-13' })))
+    for (const f of CONFIRM_FIELDS) expect(sent.has(f), f).toBe(true)
+    for (const f of ['csv', 'reference', 'paidOn']) expect(SCREEN, `no input for ${f}`).toContain(`name="${f}"`)
+    expect(SCREEN).toContain('confirmBody(')
+  })
+
+  it('the route reads its body through the one reader, and the confirmation’s write is the run line’s one write', () => {
+    expect(ROUTE).toContain('readConfirmBody(body)')
+    expect(ROUTE).toContain('recordKeyedPayment(tx,')
+    expect(ROUTE).toContain('mayPayKeyedReceipt(billId)')
+    expect(ROUTE).toContain("needsVerifiedOwnerAt(companyId, 'PAY')")
+  })
+
+  it('a filled-in field is sent and an empty one is not', () => {
+    expect(confirmBody({ runId: 'r', reference: '  ', paidOn: '' })).toEqual({ action: 'confirm', id: 'r' })
   })
 })

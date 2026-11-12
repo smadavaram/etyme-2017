@@ -25,7 +25,9 @@ import { decimalsFor } from '@/lib/money'
  *     a bad row upstream can never put one in a file;
  *   · the due date as YYYY-MM-DD;
  *   · a stable Etyme payment reference, one per line of the run, which the
- *     confirmation carries back.
+ *     confirmation carries back;
+ *   · a blank paid date and payer reference, so the payer's system can fill
+ *     them in and send the same file back as its confirmation.
  *
  * A line whose receipt does not pass the payment gate today is left out
  * and named in a sentence, never quietly dropped: the same gate the run's
@@ -46,6 +48,10 @@ export const RUN_FILE_COLUMNS = [
   'bank_name',
   'account_name',
   'account_last4',
+  // Left blank, for the payer's system to fill in: the file can come back
+  // as its own confirmation (lib/money/run-confirm).
+  'paid_date',
+  'payer_reference',
 ] as const
 
 /** The reference cell on a total row, which the confirmation import skips. */
@@ -183,6 +189,8 @@ export function runFile(
         l.bank?.bankName ?? '',
         l.bank?.accountName ?? '',
         lastFour(l.bank?.accountLast4),
+        '',
+        '',
       ].map(csvCell).join(',')
     )
   }
@@ -198,7 +206,7 @@ export function runFile(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([currency, minor]) => ({ currency, minor, amount: decimalAmount(minor, currency) }))
   for (const t of totals) {
-    out.push([TOTAL_REFERENCE, `Total ${t.currency}`, '', '', '', t.amount, t.currency, '', '', '', ''].map(csvCell).join(','))
+    out.push([TOTAL_REFERENCE, `Total ${t.currency}`, '', '', '', t.amount, t.currency, '', '', '', '', '', ''].map(csvCell).join(','))
   }
 
   const day = run.scheduledFor.toISOString().slice(0, 10)
