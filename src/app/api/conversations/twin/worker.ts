@@ -38,7 +38,8 @@ import { formatDay } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { isDeskless } from '@/lib/nav-table'
 import { generalAsk, anotherBook } from './transaction'
-import { sinceSays, type Link, type RichLine, type NoticeLine, type ThreadNote } from './ask'
+import { countWord, countWordLower } from './count-words'
+import { sinceSays, type Link, type RichLine, type NoticeLine, type ThreadNote, type QueueCard } from './ask'
 
 // ── Whose Ask Etyme this is ──────────────────────────────────────────
 
@@ -334,12 +335,19 @@ export interface WorkerAnswer {
   tail?: RichLine[]
   table?: WorkerTable
   links?: Link[]
+  /**
+   * In the greeting, an Owner ask addressed to her at her own company
+   * (./owner-asks), as the firm's queue card with Yes and No through
+   * POST /api/settings/owners/:id: a seat with no role is greeted here,
+   * and the ask is hers to answer whatever her role (the Owner walk,
+   * 2026-11-12: "Nothing needs you today" while the ask waited on her).
+   */
+  queue?: QueueCard[]
 }
 
 // ── Small words ──────────────────────────────────────────────────────
 
-const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-const numberWord = (n: number) => (n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : String(n))
+const numberWord = (n: number) => countWord(n)
 const r2 = (n: number) => Math.round(n * 100) / 100
 const hoursWord = (n: number) => `${r2(n).toLocaleString('en-US')} hour${r2(n) === 1 ? '' : 's'}`
 /** "Oct 19", the year left off: the chat is read today. */
@@ -554,8 +562,22 @@ export function needNamesSays(cards: readonly Pick<WorkerCard, 'name'>[]): strin
   return needSays(n)
 }
 
-const LOWER_NUMBERS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-const lowerNumber = (n: number) => (n < LOWER_NUMBERS.length ? LOWER_NUMBERS[n] : String(n))
+const lowerNumber = (n: number) => countWordLower(n)
+
+/**
+ * The headline where an Owner ask waits on her beside her own work, one
+ * count for both: "One thing needs you: the Owner ask below.", "Three
+ * things need you: the Owner ask below, your week of Oct 11–17 and your
+ * I-9." Her own things are named after the ask, two at most.
+ */
+export function withOwnerAsksSays(asks: number, cards: readonly Pick<WorkerCard, 'name'>[]): string {
+  const total = asks + cards.length
+  const head = `${countWord(total)} thing${total === 1 ? ' needs' : 's need'} you`
+  const own = cards.slice(0, 2).map((c) => c.name)
+  const rest = cards.length - own.length
+  const parts = [`the Owner ask${asks === 1 ? '' : 's'} below`, ...own, ...(rest > 0 ? [`${lowerNumber(rest)} more`] : [])]
+  return `${head}: ${listed(parts)}.`
+}
 /** "Professional license" → "professional license"; an acronym ("I-9", "W-4") keeps its capitals. */
 const lowerFirst = (x: string) => (/^[A-Z][A-Z0-9-]/.test(x) ? x : x.charAt(0).toLowerCase() + x.slice(1))
 /** Her own page, opened at the week a card is about. */
@@ -726,9 +748,7 @@ function noWork(f: WorkerFacts): boolean {
 /** Lines in the greeting under the headline, before the papers: what fits. */
 export const WORKER_LINES = 4
 
-const NUMBER_WORDS_LOWER = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
-  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
-const lowerWord = (n: number) => (n >= 0 && n < NUMBER_WORDS_LOWER.length ? NUMBER_WORDS_LOWER[n] : String(n))
+const lowerWord = (n: number) => countWordLower(n)
 
 /**
  * Where she stands against a client's time limit, in whole months:
@@ -777,7 +797,14 @@ export function latestWeekLine(f: Pick<WorkerFacts, 'sent'> & Partial<Pick<Worke
  */
 export function workerToday(
   f: WorkerFacts,
-  opts: { greeting?: boolean; notices?: { shown: readonly NoticeLine[]; older: number }; threads?: { shown: readonly ThreadNote[]; more: number }; now?: Date } = {},
+  opts: {
+    greeting?: boolean
+    notices?: { shown: readonly NoticeLine[]; older: number }
+    threads?: { shown: readonly ThreadNote[]; more: number }
+    now?: Date
+    /** The Owner asks addressed to her (./owner-asks): said first, as the recommendation, and counted in the headline. */
+    owners?: { lead: RichLine | null; cards: readonly QueueCard[] }
+  } = {},
 ): WorkerAnswer {
   const cards = cardsFor(f)
   // A paper that does not stop the work waits until after the money.
@@ -816,11 +843,15 @@ export function workerToday(
   if (opts.greeting) tail.push({ says: WORKER_CLOSE }, { says: WORKER_BOUNDARY })
 
   const lead = shown[0] ?? later[0]
+  // An Owner ask addressed to her leads: only she can answer it, and the company's ownership waits on it.
+  const asks = opts.greeting ? [...(opts.owners?.cards ?? [])] : []
+  const askLead = asks.length ? opts.owners?.lead ?? null : null
   return {
     kind: 'WORKER',
     ...(opts.greeting ? { greeting: true, where: chainsToSay(f.placements) } : {}),
-    ...(lead ? { recommend: recommendFor(lead) } : firstAct ? { recommend: firstAct } : {}),
-    says: `${needNamesSays([...first, ...later])} Checked just now.`,
+    ...(askLead ? { recommend: askLead } : lead ? { recommend: recommendFor(lead) } : firstAct ? { recommend: firstAct } : {}),
+    says: `${asks.length ? withOwnerAsksSays(asks.length, [...first, ...later]) : needNamesSays([...first, ...later])} Checked just now.`,
+    ...(asks.length ? { queue: asks } : {}),
     cards: shown,
     more,
     ...(later.length ? { papers: { says: papersLine(later), cards: later } } : {}),

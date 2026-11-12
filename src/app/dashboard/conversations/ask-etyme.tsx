@@ -16,7 +16,7 @@ import {
   payQuestion, payYesSays, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer, type RateAnswer,
   putForwardQuestion, putForwardScoreSays, putForwardWhyRows, putForwardBandSays, putForwardPress, putForwardDoneSays,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
-  type Party, type QueueCard, type ListTable,
+  type Party, type QueueCard, type ListTable, answerHoldsCard, withLeadOf,
 } from '@/app/api/conversations/twin/ask'
 import { askOf } from './ask-href'
 import { THREAD_PARAM } from '@/app/api/conversations/twin/thread-id'
@@ -369,22 +369,44 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
    * accept — exactly as the decisions page and Timesheets press it. A
    * refusal shows the route's own sentence and the card stays, with Open.
    */
-  const act = async (card: QueueCard) => {
-    if (!card.act) return
+  const act = async (card: QueueCard, which: 'yes' | 'no' = 'yes') => {
+    const press = which === 'no' ? card.no : card.act
+    if (!press) return
     setDeciding(card.key)
     try {
-      const res = await fetch(card.act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card.act.body) })
+      const res = await fetch(press.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(press.body) })
       const body = await res.json().catch(() => null)
       setActed((a) => ({
         ...a,
         [card.key]: res.ok
-          ? { state: 'DONE', says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : card.act!.done }
+          ? { state: 'DONE', says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : press.done }
           : { state: 'ERROR', says: body?.error?.message ?? statusMeans(res.status) },
       }))
+      // An Owner ask answered: the recommendation and the headline that
+      // named it are read again at once, never left until a reload.
+      if (res.ok && card.type === 'OWNER_ASK') void rereadLead(card.key)
     } catch {
       setActed((a) => ({ ...a, [card.key]: { state: 'ERROR', says: 'Your answer did not reach Etyme, so nothing changed. Try again.' } }))
     } finally {
       setDeciding(null)
+    }
+  }
+  /**
+   * The greeting read again, and only its recommendation and headline
+   * put in place on the line that drew the card (`withLeadOf`). Nothing
+   * else on the screen moves; a read that fails leaves the line as it is.
+   */
+  const rereadLead = async (key: string) => {
+    try {
+      const res = await fetch(named(THREAD), { cache: 'no-store' })
+      const body = await res.json().catch(() => null)
+      const fresh: Answer | null = res.ok ? (body?.data?.answer ?? null) : null
+      if (!fresh || !live.current) return
+      const swap = (t: Turn): Turn => (t.from === 'etyme' && answerHoldsCard(t.answer, key) ? { ...t, answer: withLeadOf(t.answer, fresh) } : t)
+      setTurns((all) => all.map(swap))
+      setHistory((all) => all.map(swap))
+    } catch {
+      // The card already says what the route said; the lead stays until the next look.
     }
   }
   const actLater = (card: QueueCard) => setActed((a) => ({ ...a, [card.key]: { state: 'LATER', says: 'Kept waiting. Nothing changed.' } }))
@@ -507,7 +529,7 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
                         renewed={renewed}
                         onRenew={(card) => void renew(card)}
                         acted={acted}
-                        onAct={(card) => void act(card)}
+                        onAct={(card, which) => void act(card, which)}
                         onActLater={actLater}
                       />
                     </FromEtyme>
@@ -641,12 +663,12 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, re
   renewed: Record<string, { ok: boolean; says: string }>
   onRenew: (card: WorkerCardFact) => void
   acted: Acted
-  onAct: (card: QueueCard) => void
+  onAct: (card: QueueCard, which?: 'yes' | 'no') => void
   onActLater: (card: QueueCard) => void
 }) {
   switch (answer.kind) {
     case 'WORKER':
-      return <WorkerReply answer={answer} firstName={firstName} deciding={deciding} renewed={renewed} onRenew={onRenew} acted={acted} onLater={(key) => onActLater({ key } as QueueCard)} />
+      return <WorkerReply answer={answer} firstName={firstName} deciding={deciding} renewed={renewed} onRenew={onRenew} acted={acted} onLater={(key) => onActLater({ key } as QueueCard)} onAct={onAct} onActLater={onActLater} />
 
     case 'LIST':
       return (
@@ -1022,7 +1044,7 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
   card: QueueCard
   done?: { state: 'DONE' | 'LATER' | 'ERROR'; says: string }
   busy: boolean
-  onAct: (card: QueueCard) => void
+  onAct: (card: QueueCard, which?: 'yes' | 'no') => void
   onLater: (card: QueueCard) => void
 }) {
   const settled = done && done.state !== 'ERROR'
@@ -1049,6 +1071,10 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
               <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => onAct(card)}>
                 {busy ? 'Recording…' : card.act.label}
               </button>
+              {/* An Owner ask's No: the same one route, declining it; the Owner who asked is told. */}
+              {card.no && (
+                <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onAct(card, 'no')}>{card.no.label}</button>
+              )}
               <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(card)}>Not now</button>
             </>
           ) : (
@@ -1326,7 +1352,7 @@ function WeekTable({ rows }: { rows: WeekRow[] }) {
  * Renew is her own press on her bench route. Nothing here asks the
  * approval route, because nothing here is the twin's to do.
  */
-function WorkerReply({ answer, firstName, deciding, renewed, onRenew, acted, onLater }: {
+function WorkerReply({ answer, firstName, deciding, renewed, onRenew, acted, onLater, onAct, onActLater }: {
   answer: WorkerAnswer
   firstName: string | null
   deciding: string | null
@@ -1334,6 +1360,8 @@ function WorkerReply({ answer, firstName, deciding, renewed, onRenew, acted, onL
   onRenew: (card: WorkerCardFact) => void
   acted: Acted
   onLater: (key: string) => void
+  onAct: (card: QueueCard, which?: 'yes' | 'no') => void
+  onActLater: (card: QueueCard) => void
 }) {
   const hello = answer.greeting ? `${partOfDay(new Date().getHours())}${firstName ? `, ${firstName}` : ''}.` : null
   return (
@@ -1347,6 +1375,14 @@ function WorkerReply({ answer, firstName, deciding, renewed, onRenew, acted, onL
         </div>
       )}
       <p className={hello && !answer.recommend ? 'mt-2' : ''}>{answer.says}</p>
+      {/* An Owner ask addressed to her, first: the firm's card, Yes and No through the Owners route. */}
+      {(answer.queue ?? []).length > 0 && (
+        <ol className="mt-2 flex flex-col gap-2">
+          {answer.queue!.map((c) => (
+            <QueueCardView key={c.key} card={c} done={acted[c.key]} busy={deciding === c.key} onAct={onAct} onLater={onActLater} />
+          ))}
+        </ol>
+      )}
       {answer.cards.length > 0 && (
         <ol className="mt-2 flex flex-col gap-2">
           {answer.cards.map((c) => (

@@ -7,6 +7,7 @@ import { BY_REGION_HREF } from '@/lib/nav-table'
 import { regionsView, type RegionsData } from '@/app/api/program/regions/read'
 import { readerScope } from '@/app/api/program/reader-scope'
 import { heldOverSays, type SpendLine, type ManagerRow, type RegionRow, type ContractorRow, type GreetingItem } from '@/app/api/program/regions/rollup'
+import { countWordLower } from './count-words'
 import { readAsk, type Answer, type Link, type ListTable, type QueueRead } from './ask'
 
 /**
@@ -211,7 +212,6 @@ function refusal(own: string, asked: string): string {
 
 // ── Words ────────────────────────────────────────────────────────────
 
-const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
 function count(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`
 }
@@ -219,7 +219,7 @@ function upper(s: string): string {
   return s.replace(/^./, (c) => c.toUpperCase())
 }
 function word(n: number): string {
-  return n >= 0 && n < WORDS.length ? WORDS[n] : String(n)
+  return countWordLower(n)
 }
 
 /** The By region page for this seat, opened on a region or a manager. */

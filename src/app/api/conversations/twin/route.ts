@@ -844,7 +844,12 @@ async function owedCount(caller: Caller, request: NextRequest) {
   }
   try {
     // Her facts in count-only mode: only what decides how many things need her.
-    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request, undefined, { forCount: true }), needs: needsFor(request, caller) })
+    const owed = await owedTotal({ worker, facts: () => workerFacts(caller, request, undefined, { forCount: true }), needs: needsFor(request, caller) })
+    // A worker's greeting counts the Owner asks addressed to her beside her
+    // own cards, so the mark says what the greeting says. A firm seat's
+    // queue already carries them (`withOwnerAsks`), counted once.
+    const asks = worker && owed !== null ? (await ownerAsksOf(caller)).items.length : 0
+    const total = owed === null ? null : owed + asks
     return NextResponse.json({ data: { total } })
   } catch (err) {
     await reportError('Ask Etyme could not count what a seat owes', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
@@ -866,11 +871,23 @@ async function workerGreeting(caller: Caller, request: NextRequest) {
     const hat = await hatFactsOf(caller, request)
     const own = youOffered(hat)
     const [allNotices, allThreads, facts] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request)])
-    const notices = own ? { ...allNotices, shown: noticesForHat(hat, 'you', allNotices.shown) } : allNotices
+    const owners = await ownerAsksOf(caller)
+    // An Owner ask addressed to this person is theirs to answer whatever
+    // their role (the Owner walk, 2026-11-12): it leads, as its card, and
+    // its notice is not said again under it.
+    const asked = new Set(owners.items.map((d) => d.entityId))
+    const hatNotices = own ? noticesForHat(hat, 'you', allNotices.shown) : allNotices.shown
+    const carded = hatNotices.filter((n) => n.entityId && asked.has(n.entityId))
+    const notices = { ...allNotices, shown: hatNotices.filter((n) => !(n.entityId && asked.has(n.entityId))) }
     const threads = own ? { shown: [], more: 0, noticeIds: [] } : allThreads
-    const answer = workerToday(facts, { greeting: true, notices, threads })
+    const answer = workerToday(facts, {
+      greeting: true, notices, threads,
+      ...(owners.items.length ? { owners: { lead: ownerAskLead(owners.items), cards: queueCards({ total: owners.items.length, items: owners.items }) } } : {}),
+    })
     await Promise.all([
       markNoticesSeen(caller, notices.shown.map((n) => n.id)),
+      // An Owner ask's notice, said as its card above, is read with the rest.
+      markNoticesSeen(caller, carded.map((n) => n.id)),
       // A colleague's paper held back is marked read with the rest, never said.
       markNoticesSeen(caller, [...allNotices.withheld]),
       markNoticesSeen(caller, threads.noticeIds),

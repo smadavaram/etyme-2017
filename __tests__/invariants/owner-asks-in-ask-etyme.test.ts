@@ -14,7 +14,9 @@ import {
   askedOfMe, askedByMe, ownerAskItems, ownerAskLead, withOwnerAsks, waitingOnOthersSays, becomeOwnerSays, ownerAsksHeadline,
   OWNER_ASK, type OwnerAsk,
 } from '@/app/api/conversations/twin/owner-asks'
-import { queueCards, namedNeedsSays, today, type Readers, type QueueRead } from '@/app/api/conversations/twin/ask'
+import { queueCards, namedNeedsSays, today, answerHoldsCard, withLeadOf, spellLeadingCount, type Readers, type QueueRead, type Answer } from '@/app/api/conversations/twin/ask'
+import { workerToday, withOwnerAsksSays, type WorkerFacts } from '@/app/api/conversations/twin/worker'
+import { countWord, countWordLower, thingsNeedYou } from '@/app/api/conversations/twin/count-words'
 import { proofStanding } from '@/lib/owner-proof'
 import type { Seat } from '@/lib/owner-rules'
 
@@ -201,5 +203,108 @@ describe('Become Owner, for an Admin whose two proofs stand', () => {
     expect(becomeOwnerSays({ gate, standing: half, seatRole: 'Admin', seatLive: true, liveOwners: 0, companyName: 'Tapin' })).toBeNull()
     expect(becomeOwnerSays({ gate, standing: both, seatRole: 'Owner', seatLive: true, liveOwners: 1, companyName: 'Tapin' })).toBeNull()
     expect(becomeOwnerSays({ gate, standing: both, seatRole: 'Admin', seatLive: true, liveOwners: 1, companyName: 'Tapin' })).toBeNull()
+  })
+})
+
+// ── The Owner walk, 2026-11-12: a seat with no role, the No, and the words ──
+
+describe('a seat with no role asked to take over (the Owner walk, 2026-11-12)', () => {
+  const MEMBER: WorkerFacts = {
+    seat: 'EMPLOYEE', seatAt: null, placements: [], toFile: [], returned: [], sent: [], ownCompanyBills: null, weeksWithNoRate: 0,
+    papers: [], runningOut: [], interviews: [], stays: [], consent: { benches: [], asking: [], employers: [] }, unread: [], pageOn: false,
+  } as unknown as WorkerFacts
+  const owners = () => {
+    const items = ownerAskItems([pass()], seats, 'p-dev', CO)
+    return { lead: ownerAskLead(items), cards: queueCards({ total: items.length, items }) }
+  }
+
+  it('a Member asked to take over reads the ask first with Yes and No', () => {
+    const a = workerToday(MEMBER, { greeting: true, owners: owners() })
+    expect(a.recommend?.says).toMatch(/^Camille Ostrander asks you to take over as Owner of Northbend Athletic\./)
+    expect(a.says).toBe('One thing needs you: the Owner ask below. Checked just now.')
+    const card = a.queue![0]
+    expect(card.act).toMatchObject({ label: 'Yes', url: '/api/settings/owners/ask-pass', body: { decision: 'yes' } })
+    expect(card.no).toMatchObject({ label: 'No', url: '/api/settings/owners/ask-pass', body: { decision: 'no' } })
+  })
+
+  it('the mark says one: the worker’s count and the Owner asks addressed to her are one figure', () => {
+    const route = src('src/app/api/conversations/twin/route.ts')
+    expect(route).toMatch(/const asks = worker && owed !== null \? \(await ownerAsksOf\(caller\)\)\.items\.length : 0/)
+    expect(route).toMatch(/const total = owed === null \? null : owed \+ asks/)
+    // The greeting a seat with no role reads draws the asks from the same read.
+    expect(route).toMatch(/workerToday\(facts, \{[\s\S]{0,200}owners: \{ lead: ownerAskLead\(owners\.items\)/)
+  })
+
+  it('a seat the ask is not addressed to reads nothing about it', () => {
+    expect(askedOfMe([pass()], seats, 'p-ana', NOW)).toEqual([])
+    const a = workerToday(MEMBER, { greeting: true })
+    expect(a.queue).toBeUndefined()
+    expect(a.says).not.toMatch(/Owner ask/)
+  })
+
+  it('beside her own work the headline counts the ask and her things as one number, the ask first', () => {
+    expect(withOwnerAsksSays(1, [{ name: 'your week of Oct 11–17' }, { name: 'your I-9' }]))
+      .toBe('Three things need you: the Owner ask below, your week of Oct 11–17 and your I-9.')
+  })
+
+  it('a queue that already carries the Owner ask, as the decisions queue now does, is not counted twice', () => {
+    const asks = ownerAskItems([pass()], seats, 'p-dev', CO)
+    const fromDecisions: QueueRead = { total: 2, items: [{ ...asks[0] }, { type: 'TIMESHEET_APPROVAL', entityId: 't1', title: 'Approve timesheet — Helena Marsh' }] }
+    expect(withOwnerAsks(fromDecisions, asks)!.total).toBe(2)
+  })
+
+  it('the screen draws the No beside the Yes, through the same route, and a worker’s greeting draws the card too', () => {
+    const view = src('src/app/dashboard/conversations/ask-etyme.tsx')
+    expect(view).toMatch(/card\.no && \(/)
+    expect(view).toMatch(/onClick=\{\(\) => onAct\(card, 'no'\)\}/)
+    expect(view).toMatch(/function WorkerReply[\s\S]*answer\.queue \?\? \[\]\)\.length > 0/)
+  })
+})
+
+describe('after Yes or No, the lead is read again at once', () => {
+  const card = () => queueCards({ total: 1, items: ownerAskItems([pass()], seats, 'p-dev', CO) })[0]
+
+  it('the recommendation and the headline are taken from the greeting read again, and the cards stay', () => {
+    const c = card()
+    const old: Answer = { kind: 'NEEDS', greeting: true, items: [], recommend: { says: 'Camille Ostrander asks you to take over… Answer below, or on Owners.' }, says: 'Three things need you.', queue: [c] }
+    const fresh: Answer = { kind: 'NEEDS', greeting: true, items: [], says: 'Two things need you.' }
+    const next = withLeadOf(old, fresh)
+    if (next.kind !== 'NEEDS') throw new Error(next.kind)
+    expect(next.recommend).toBeUndefined()
+    expect(next.says).toBe('Two things need you.')
+    expect(next.queue).toEqual([c])
+    expect(answerHoldsCard(old, c.key)).toBe(true)
+    expect(answerHoldsCard(fresh, c.key)).toBe(false)
+  })
+
+  it('the screen reads the greeting again after an Owner ask is answered, without a reload', () => {
+    const view = src('src/app/dashboard/conversations/ask-etyme.tsx')
+    expect(view).toMatch(/if \(res\.ok && card\.type === 'OWNER_ASK'\) void rereadLead\(card\.key\)/)
+    expect(view).toMatch(/withLeadOf\(t\.answer, fresh\)/)
+  })
+})
+
+describe('a count that opens a sentence is spelled out', () => {
+  it('“Ten things need you”, never “10 things need you”, for every number the greeting can say', () => {
+    expect(thingsNeedYou(10)).toBe('Ten things need you.')
+    expect(countWord(42)).toBe('Forty-two')
+    expect(countWord(112)).toBe('One hundred twelve')
+    expect(countWordLower(20)).toBe('twenty')
+    expect(countWord(1204)).toBe('1,204')
+    expect(ownerAsksHeadline(10)).toBe('Ten things need you: the Owner asks below.')
+    expect(withOwnerAsksSays(1, Array.from({ length: 9 }, (_, i) => ({ name: `paper ${i}` })))).toMatch(/^Ten things need you:/)
+  })
+
+  it('the decisions queue’s own sentence is said with its leading count spelled out', () => {
+    expect(spellLeadingCount('10 things need you: A; B.')).toBe('Ten things need you: A; B.')
+    expect(spellLeadingCount('Three things need you.')).toBe('Three things need you.')
+    const q: QueueRead = { total: 10, items: [], says: '10 things need you' }
+    expect(namedNeedsSays(q, [])!.says).toMatch(/^Ten things need you\. Open the list\.$/)
+  })
+
+  it('no greeting file keeps a number list of its own', () => {
+    for (const f of ['ask.ts', 'worker.ts', 'regions.ts', 'owner-asks.ts']) {
+      expect(src(`src/app/api/conversations/twin/${f}`)).not.toMatch(/NUMBER_WORDS|NUM_LOWER|LOWER_NUMBERS|const WORDS =/)
+    }
   })
 })

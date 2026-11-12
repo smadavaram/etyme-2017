@@ -48,6 +48,7 @@ import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoneyOnRecord, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
 import { isTwinAct } from '@/lib/autonomy'
+import { countWord, countWordLower } from './count-words'
 import {
   readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, asksFirmWide, ACCESS_LINK, GIVE_ACCESS_ACT,
   type GiveAccessAsked, type GrantOffer, type GrantBody, type RoleHolders, type GrantHeld,
@@ -1624,14 +1625,13 @@ export function needsSays(items: readonly WaitingItem[]): string {
 
 // ── Today: who else is asked, and the time limit ─────────────────────
 
-const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-/** "Two", "12". Sentence case, for the start of a line. */
+/** "Two", "Twelve". Sentence case, for the start of a line, through the one count helper (./count-words). */
 function numberWord(n: number): string {
-  return String(n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n)
+  return countWord(n)
 }
-/** "Two invoice receipts", "12 questions". Sentence case, for the start of a line. */
+/** "Two invoice receipts", "Twelve questions". Sentence case, for the start of a line. */
 function counted(n: number, noun: string): string {
-  return `${n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n} ${noun}${n === 1 ? '' : 's'}`
+  return `${countWord(n)} ${noun}${n === 1 ? '' : 's'}`
 }
 
 /** Every question waiting is a bench person to put forward, so the line says put forward rather than approve. */
@@ -3868,6 +3868,42 @@ export interface QueueAct {
   done: string
 }
 
+/** Whether a greeting drew the queue card with this key (an Owner ask's, a decision's). */
+export function answerHoldsCard(a: Answer, key: string): boolean {
+  return (a.kind === 'NEEDS' || a.kind === 'WORKER') && (a.queue ?? []).some((c) => c.key === key)
+}
+
+/**
+ * The greeting as it reads once an Owner ask on it is answered (the Owner
+ * walk, 2026-11-12: after Yes the "Recommended" line and "Three things
+ * need you" stayed until a reload, while the mark already said nine).
+ * The recommendation and the headline are taken from the greeting read
+ * again just now; the cards, the answered one included, stay as they
+ * were, so the route's own sentence stays under the card that drew it.
+ */
+export function withLeadOf(old: Answer, fresh: Answer): Answer {
+  if (old.kind !== 'NEEDS' && old.kind !== 'WORKER') return old
+  if (fresh.kind !== 'NEEDS' && fresh.kind !== 'WORKER') return old
+  const { recommend: _gone, ...rest } = old
+  void _gone
+  const next = { ...rest, ...(fresh.recommend ? { recommend: fresh.recommend } : {}), says: fresh.says } as Answer
+  if (next.kind === 'NEEDS') {
+    const links = fresh.kind === 'NEEDS' ? fresh.saysLinks : undefined
+    const { saysLinks: _old, ...withoutLinks } = next
+    void _old
+    return { ...withoutLinks, ...(links ? { saysLinks: links } : {}) }
+  }
+  return next
+}
+
+/**
+ * An Owner ask's No: the one route the Owners page presses, { decision: 'no' }.
+ * Nothing changes and the Owner who asked is told, in the route's own sentence.
+ */
+export function ownerAskNo(entityId: string): QueueAct {
+  return { label: 'No', url: `/api/settings/owners/${encodeURIComponent(entityId)}`, body: { decision: 'no' }, done: 'Answered no. Nothing changed, and the Owner who asked is told.' }
+}
+
 /** A decision as a card in the chat: what it is, one line of fact, and its button. */
 export interface QueueCard {
   key: string
@@ -3881,6 +3917,12 @@ export interface QueueCard {
   open?: string
   /** Why this reader is asked, one tap away under the card; absent where the fact says it. */
   why?: string
+  /**
+   * A second act beside the first, through the same one route, where a no
+   * is as much the person's answer as a yes: an Owner ask's No, which
+   * declines it and tells the Owner who asked. Absent on every other card.
+   */
+  no?: QueueAct
 }
 
 /** What a receipt to pay says where no card of Etyme's pays it here: the button opens the receipt. */
@@ -3921,8 +3963,7 @@ function heldStartSays(d: QueueItem): string {
   return doc ? `${name} cannot start${on} without ${doc}` : `${possessive(name)} start${on} is held by paperwork`
 }
 
-const NUM_LOWER = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-const lowerNumber = (n: number) => (n < NUM_LOWER.length ? NUM_LOWER[n] : String(n))
+const lowerNumber = (n: number) => countWordLower(n)
 
 /**
  * One decision as the headline names it: the person or the thing, and
@@ -4169,6 +4210,7 @@ export function queueCards(
         act: queueAct(d),
         ...(pay ? { open: 'Pay' } : {}),
         ...(d.type === OWNER_ASK && d.reason ? { why: d.reason } : {}),
+        ...(d.type === OWNER_ASK ? { no: ownerAskNo(d.entityId) } : {}),
       }
     }), jobs)
 }
@@ -4194,6 +4236,15 @@ export function withoutOwnWeek(q: QueueRead | null, self: string | null | undefi
   return { total: Math.max(0, q.total - (q.items.length - kept.length)), items: kept }
 }
 
+/**
+ * A sentence that opens with a figure, "10 things need you", said with the
+ * count spelled out, "Ten things need you", through the one count helper,
+ * whoever wrote the sentence (the Owner walk, 2026-11-12).
+ */
+export function spellLeadingCount(says: string): string {
+  return says.replace(/^(\d{1,3}(?:,\d{3})*|\d+)(?=\s)/, (m) => countWord(Number(m.replace(/,/g, ''))))
+}
+
 /** The words at the end of the headline that open the decisions list. */
 export const OPEN_THE_LIST = 'Open the list'
 
@@ -4205,7 +4256,7 @@ export const OPEN_THE_LIST = 'Open the list'
 export function namedNeedsSays(q: QueueRead, twin: readonly WaitingItem[]): { says: string; links: { text: string; href: string }[] } | null {
   if (q.total <= 0) return null
   // The queue's own sentence, where it gave one: one number, one sentence, everywhere.
-  if (q.says) return { says: `${q.says.replace(/[.\s]*$/, '.')} ${OPEN_THE_LIST}.`, links: [{ text: OPEN_THE_LIST, href: DECISIONS_HREF }] }
+  if (q.says) return { says: `${spellLeadingCount(q.says).replace(/[.\s]*$/, '.')} ${OPEN_THE_LIST}.`, links: [{ text: OPEN_THE_LIST, href: DECISIONS_HREF }] }
   // Inside the sentence a paper of her own reads "your professional
   // license", never a capital after the colon (walk three, 2026-10-26).
   const named = q.items.slice(0, 3).map((d) => (d.type === 'OWN_PAPER' ? midSentence(queueName(d, twin)) : queueName(d, twin)))

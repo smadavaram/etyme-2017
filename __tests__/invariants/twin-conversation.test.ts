@@ -241,7 +241,9 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(chat).toContain("const RENEW = '/api/me/benches'")
     const calls = [...chat.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
     // Every read of the conversation, Show earlier and Clear name the conversation open (2026-11-08).
-    expect(calls).toEqual(['named(THREAD', 'named(`${THREAD}?only=thread&take=1000`', 'named(THREAD', 'THREAD', 'THREAD', 'url', 'card.act.url', 'RENEW', 'GRANTS'])
+    // A card's act is its Yes or, on an Owner ask, its No (`press`); after an Owner ask
+    // is answered the greeting is read again for its lead (the Owner walk, 2026-11-12).
+    expect(calls).toEqual(['named(THREAD', 'named(`${THREAD}?only=thread&take=1000`', 'named(THREAD', 'THREAD', 'THREAD', 'url', 'press.url', 'named(THREAD', 'RENEW', 'GRANTS'])
     // The Owner's give-access card posts to Give access's one route and nowhere else (2026-11-08).
     expect(chat).toContain("const GRANTS = '/api/settings/grants'")
     // After a yes the reply links to the record and to the ledger entry,
@@ -443,7 +445,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       'Your AP clerk has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. They are not yours to approve.',
       'Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.',
       // The program's picture, from /api/program's own counts and this month's invoice receipts, never two currencies added.
-      '12 contractors are on site today, through four suppliers.',
+      // A count that opens a sentence is spelled out (the Owner walk, 2026-11-12).
+      'Twelve contractors are on site today, through four suppliers.',
       'Suppliers billed £1,000 and $11,342.50 so far in October.',
       GREETING_CLOSE,
     ])
@@ -451,7 +454,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(hello.more!.map((l) => l.links ?? [])).toEqual([
       [{ text: 'PR-2026-0441', href: '/dashboard/invoices/inv-441' }, { text: 'IN-XSWQQZ-20260901', href: '/dashboard/invoices/inv-cs' }],
       [{ text: 'Tobias Lindqvist', href: '/dashboard/people/p-tobias' }],
-      [{ text: '12 contractors', href: '/dashboard/contracts' }],
+      [{ text: 'Twelve contractors', href: '/dashboard/contracts' }],
       [{ text: '£1,000', href: '/dashboard/invoices' }, { text: '$11,342.50', href: '/dashboard/invoices' }],
       [],
     ])

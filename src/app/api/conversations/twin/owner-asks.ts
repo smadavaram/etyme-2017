@@ -28,6 +28,7 @@ import {
   PROVE_OWNERSHIP_HREF, PROVE_OWNERSHIP_PLACE, mayBecomeOwner, proofFactsAt, proofStanding, type GateFacts,
 } from '@/lib/owner-proof'
 import { seatsAt } from '@/app/api/settings/owners/seats'
+import { countWord } from './count-words'
 import { OWNER_ASK, type QueueItem, type QueueRead, type RichLine } from './ask'
 
 export { OWNER_ASK }
@@ -181,13 +182,13 @@ export function ownerAskLead(items: readonly QueueItem[]): RichLine | null {
   if (asks.length === 0) return null
   const first = asks[0]
   const more = asks.length - 1
-  const tail = more > 0 ? ` ${more === 1 ? 'One more Owner ask waits' : `${more} more Owner asks wait`} for you below.` : ''
+  const tail = more > 0 ? ` ${more === 1 ? 'One more Owner ask waits' : `${countWord(more)} more Owner asks wait`} for you below.` : ''
   return { says: `${first.title}. ${first.subtitle ?? ''}${tail} Answer below, or on Owners.`.replace(/\s+/g, ' ').trim(), links: [{ text: 'Owners', href: OWNERS_HREF }] }
 }
 
 /** The headline where the only things a seat owes are Owner asks: "One thing needs you, below." */
 export function ownerAsksHeadline(n: number): string {
-  return n === 1 ? 'One thing needs you: the Owner ask below.' : `${n} things need you: the Owner asks below.`
+  return n === 1 ? 'One thing needs you: the Owner ask below.' : `${countWord(n)} things need you: the Owner asks below.`
 }
 
 /**
