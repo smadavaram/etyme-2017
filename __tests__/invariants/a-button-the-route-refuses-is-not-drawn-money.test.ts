@@ -88,6 +88,14 @@ describe('a seat invited on a public address reads that its address is why, neve
       expect(src).toContain('refusalFor(')
     }
   })
+
+  it('Send again on a bill hands the presser\u2019s public-address seat to the inner refusal, so a seat that lost the sender\u2019s role there is told its address is why', async () => {
+    const route = read('src/app/api/invoices/[id]/resend/route.ts')
+    expect(route).toMatch(/resendBillToCustomer\(\{[^}]*publicSeat: caller\.publicSeat \?\? false[^}]*\}\)/)
+    const { refusalFor } = await import('@/lib/api-context')
+    const says = refusalFor({ publicSeat: true, company: { name: 'Tapin', kind: 'VENDOR' } as any }, { doing: 'Sending a bill again', needs: 'invoices.issue' })
+    expect(says).toContain('public address')
+  })
 })
 
 describe('a question to the supplier is typed on the page and kept through a refusal', () => {

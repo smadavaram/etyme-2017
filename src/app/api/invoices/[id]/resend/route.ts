@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   try {
-    const r = await resendBillToCustomer({ invoiceId: id, byPersonId: caller.person.id, companyId })
+    const r = await resendBillToCustomer({ invoiceId: id, byPersonId: caller.person.id, companyId, publicSeat: caller.publicSeat ?? false })
     if (!r.ok) {
       return NextResponse.json({ error: { code: r.code, message: r.says } }, { status: r.status })
     }
