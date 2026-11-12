@@ -329,7 +329,8 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
   })
 
   it('with no email sender, reset says so before any form, because a reset link kept for staff would open an existing account', () => {
-    expect(RESET_SHUT).toBe('Password reset is off on this deployment until an email sender is set up.')
+    // Reworded 2026-11-12 (fault 5): it points to Set a password in the account menu.
+    expect(RESET_SHUT).toBe('Etyme cannot send email here yet, so a reset link cannot reach you. If you can still sign in with Google or Microsoft, do that, then choose Set a password in the account menu.')
     const src = read('src/app/(auth)/reset/page.tsx')
     expect(src.indexOf('mailLeaves()')).toBeGreaterThan(0)
     expect(src.indexOf('{RESET_SHUT}')).toBeGreaterThan(src.indexOf('mailLeaves()'))

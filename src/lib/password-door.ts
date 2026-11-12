@@ -56,6 +56,7 @@ import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { mayClaim } from '@/lib/supplier-list'
 import { reservedDomain } from '@/lib/demo-company'
 import { possessive } from '@/lib/requisition-approval'
+import { sealBlob, openBlob, deploymentSecret } from '@/lib/identity/oidc'
 import {
   weakPasswordReason, hashPassword, passwordMatches, newToken, hashToken, expiresAfter, tokenUsable,
   secondsToWait, waitSentence, checkAddress, numberedAddress, cleanEmail, looksLikeEmail,
@@ -977,4 +978,211 @@ export async function resetLinkState(token: unknown, now: Date = new Date()): Pr
   if (!usable.ok) return { ok: false, says: usable.says }
   if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: DEMO_REFUSAL }
   return { ok: true }
+}
+
+// ── Set a password while signed in (fault 5, 2026-11-12) ──────────────
+
+/**
+ * A signed-in person sets a password of their own, or changes it, from
+ * the account menu, with no email. Built because the only other way to a
+ * password was Forgot your password, which needs mail that was failing,
+ * so a person seated by the staff tool and signed in with Google had no
+ * credential of Etyme's own to fall back on.
+ *
+ *  - A first password needs a sign-in in the last fifteen minutes, read
+ *    from when the session was signed in (lib/auth `authAt`), so an idle
+ *    stolen session cannot plant one. It does not end other sessions: it
+ *    adds no way in that the session did not already hold.
+ *  - Changing a password needs the current one, slowed after wrong tries
+ *    like the sign-in door, and ends every other session the person holds
+ *    by raising their session version; this session is carried over by a
+ *    sealed ticket the jwt callback checks (`versionAfterOwnChange`).
+ *  - Never at a directory-only company's address (the same policy check
+ *    the door uses, the refusal's row written first), never for a demo
+ *    address, never a weak password.
+ *  - The email is marked confirmed only where the session came through
+ *    Google or Microsoft, which vouched for it at sign-in (lib/auth
+ *    `oauthRefusal`).
+ *  - The row is written before the answer, the person is told in the app
+ *    and by email where email leaves, and the password is never logged.
+ *
+ * A password never opens a seat at a directory-only company even when a
+ * person holds one there on another address: the seat check reads the
+ * door the session came through on every request (`seatRefusal`).
+ */
+
+/** How recent a sign-in a first password needs. */
+export const FIRST_PASSWORD_MINUTES = 15
+
+export const SIGN_IN_AGAIN_TO_SET = 'Sign in again to set a password.'
+export const NOT_YOUR_CURRENT = 'That is not your current password.'
+export const PASSWORD_SET_SAYS = 'Your password is set. You can sign in with your email and this password.'
+export const PASSWORD_CHANGED_SAYS = 'Your password is changed. Every other place you were signed in is signed out.'
+
+/** What the account menu and the page read about the person's own password. */
+export interface OwnPasswordState {
+  hasPassword: boolean
+  /** False where the address's company signs in through its directory only, or the address is the demo world's. */
+  allowed: boolean
+  says: string | null
+}
+
+/**
+ * Whether this person may set a password, and whether they have one. Reads
+ * the policy without writing a refusal row: nothing was asked for yet.
+ */
+export async function ownPasswordState(rawEmail: unknown): Promise<OwnPasswordState> {
+  const email = cleanEmail(rawEmail)
+  if (!looksLikeEmail(email)) return { hasPassword: false, allowed: false, says: SIGN_IN_AGAIN_TO_SET }
+  if (demoEmail(email)) return { hasPassword: false, allowed: false, says: DEMO_REFUSAL }
+  const { policyFacts } = await import('@/lib/identity/read')
+  const { decideDoor } = await import('@/lib/identity/policy')
+  const facts = await policyFacts(email, null)
+  const v = decideDoor({ door: 'PASSWORD', email, domainCompany: facts.domainCompany, target: null, issuer: null, publicAddress: facts.publicAddress })
+  const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { passwordHash: true } })
+  return { hasPassword: Boolean(person?.passwordHash), allowed: v.allowed, says: v.allowed ? null : v.says }
+}
+
+export interface OwnPasswordAsk {
+  /** The session's own address, read from the session on the server, never from the body. */
+  email: unknown
+  /** The door the session came through. */
+  door: Door | null | undefined
+  /** When the session was signed in, in milliseconds. */
+  authAt: unknown
+  /** The session's version, so the ticket that carries this session over names it. */
+  sessionVersion: unknown
+  current?: unknown
+  password: unknown
+}
+
+export type OwnPasswordAnswer =
+  | { ok: true; says: string; changed: boolean; refresh: string | null }
+  | { ok: false; status: number; field?: string; says: string }
+
+/** The doors that vouched for the address at sign-in. */
+const PROVIDER_VOUCHED: ReadonlySet<string> = new Set(['GOOGLE_SOCIAL', 'MICROSOFT_SOCIAL'])
+
+export async function setOwnPassword(ask: OwnPasswordAsk, now: Date = new Date()): Promise<OwnPasswordAnswer> {
+  const email = cleanEmail(ask.email)
+  if (!looksLikeEmail(email)) return { ok: false, status: 401, says: SIGN_IN_AGAIN_TO_SET }
+  const demo = demoRefusal(email)
+  if (demo && !demo.ok) return demo
+  // A directory-only company's address never holds a password. The
+  // refusal's row is written before this returns (lib/identity).
+  const shut = await policyRefusal(email, 'PASSWORD')
+  if (shut && !shut.ok) return shut
+
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true, name: true, passwordHash: true, emailVerifiedAt: true, sessionVersion: true },
+  })
+  if (!person) return { ok: false, status: 401, says: SIGN_IN_AGAIN_TO_SET }
+
+  const pw = String(ask.password ?? '')
+  const weak = weakPasswordReason(pw, { email })
+  if (weak) return { ok: false, status: 422, field: 'password', says: weak }
+
+  const changing = person.passwordHash !== null
+  if (changing) {
+    // Wrong current passwords are counted against this person's address,
+    // the same counter the sign-in door reads.
+    const wait = secondsToWait(await failuresFor(email, null, now), now)
+    if (wait > 0) return { ok: false, status: 429, field: 'current', says: waitSentence(wait) }
+    if (!(await passwordMatches(person.passwordHash, String(ask.current ?? '')))) {
+      await prisma.signInFailure.create({ data: { email, ip: null, at: now, personId: person.id } })
+      const after = secondsToWait(await failuresFor(email, null, now), now)
+      return { ok: false, status: 422, field: 'current', says: after > 0 ? `${NOT_YOUR_CURRENT} ${waitSentence(after)}` : NOT_YOUR_CURRENT }
+    }
+  } else {
+    const at = Number(ask.authAt)
+    if (!Number.isFinite(at) || now.getTime() - at > FIRST_PASSWORD_MINUTES * 60_000 || at > now.getTime() + 60_000) {
+      return { ok: false, status: 403, says: SIGN_IN_AGAIN_TO_SET }
+    }
+  }
+
+  const { policyFacts } = await import('@/lib/identity/read')
+  const { effectiveMode } = await import('@/lib/identity/policy')
+  const { recordIdentityEvent } = await import('@/lib/identity/ledger')
+  const policy = effectiveMode((await policyFacts(email, null)).domainCompany)
+  const vouched = PROVIDER_VOUCHED.has(String(ask.door ?? ''))
+  const hash = await hashPassword(pw)
+
+  const written = await prisma.$transaction(async (tx) => {
+    const p = await tx.person.update({
+      where: { id: person.id },
+      data: {
+        passwordHash: hash,
+        ...(vouched && !person.emailVerifiedAt ? { emailVerifiedAt: now } : {}),
+        // A change ends every other session; a first password ends none.
+        ...(changing ? { sessionVersion: { increment: 1 }, sessionsEndedAt: now, sessionsEndedById: person.id } : {}),
+      },
+      select: { sessionVersion: true },
+    })
+    await recordIdentityEvent({
+      event: 'PASSWORD_SET',
+      companyId: null,
+      actorPersonId: person.id,
+      subject: { personId: person.id },
+      policy,
+      surface: 'WEB',
+      says: changing
+        ? `${person.name} changed their own password while signed in; every other session they held is ended.`
+        : `${person.name} set a password of their own while signed in${vouched ? ', on an address their sign-in provider confirmed' : ''}.`,
+    }, tx)
+    return p
+  })
+  await prisma.signInFailure.deleteMany({ where: { email } })
+
+  // Told in the app, and by email where email leaves (lib/identity/password-notice).
+  const { tellPasswordSet } = await import('@/lib/identity/password-notice')
+  await tellPasswordSet(person.id, changing, now)
+
+  const fromSv = Number(ask.sessionVersion ?? 0)
+  return {
+    ok: true,
+    changed: changing,
+    says: changing ? PASSWORD_CHANGED_SAYS : PASSWORD_SET_SAYS,
+    refresh: changing ? refreshTicket({ email, authAt: Number(ask.authAt), fromSv: Number.isFinite(fromSv) ? fromSv : 0, toSv: written.sessionVersion }, now) : null,
+  }
+}
+
+// ── Carrying this session over a change (the jwt update trigger) ──────
+
+const REFRESH_LABEL = 'own-password-refresh'
+/** How long the browser has to carry this session over a change it just made. */
+export const REFRESH_SECONDS = 120
+
+/**
+ * A sealed ticket naming this session (its address, when it was signed
+ * in and the version it held) and the version the change raised it to.
+ * Handed back to the browser that changed the password, which hands it to
+ * NextAuth's update at once; it opens nothing else and dies in two minutes.
+ */
+export function refreshTicket(t: { email: string; authAt: number; fromSv: number; toSv: number }, now: Date = new Date()): string | null {
+  const own = deploymentSecret()
+  return own ? sealBlob({ e: t.email, a: t.authAt, f: t.fromSv, t: t.toSv }, REFRESH_LABEL, REFRESH_SECONDS, own, now.getTime()) : null
+}
+
+/**
+ * The version a session may carry after its own person changed their
+ * password from it, or null. The ticket must name this session exactly,
+ * and the version is read again here on the server and must still be the
+ * one the change wrote, so a sign-out everywhere after the change is never
+ * undone. Never takes a version from the browser.
+ */
+export async function versionAfterOwnChange(
+  token: { email?: unknown; authAt?: unknown; sv?: unknown },
+  ticket: unknown,
+  now: Date = new Date(),
+): Promise<number | null> {
+  const own = deploymentSecret()
+  if (!own || typeof ticket !== 'string') return null
+  const v = openBlob<{ e: string; a: number; f: number; t: number }>(ticket, REFRESH_LABEL, own, now.getTime())
+  if (!v) return null
+  const email = cleanEmail(token.email)
+  if (v.e !== email || v.a !== Number(token.authAt) || v.f !== Number(token.sv ?? 0)) return null
+  const { sessionVersionOf } = await import('@/lib/identity/read')
+  const current = await sessionVersionOf(email)
+  return current === v.t ? current : null
 }

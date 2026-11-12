@@ -8,7 +8,7 @@ import { POST as confirmReset } from '@/app/api/auth/password/reset/confirm/rout
 import { GET as entry } from '@/app/api/onboarding/route'
 import { POST as enter } from '@/app/api/onboarding/route'
 import { GET as probe } from '@/app/api/auth/password/signup/route'
-import { verifyEmail, checkPassword, resetPassword, issueSetPassword, resetLinkState } from '@/lib/password-door'
+import { verifyEmail, checkPassword, resetPassword, issueSetPassword, resetLinkState, setOwnPassword } from '@/lib/password-door'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, firmAddedYou, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
 import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
@@ -583,5 +583,35 @@ describe('a password door, until the single sign-on keys exist', () => {
     } finally {
       process.env.RESEND_API_KEY = key
     }
+  })
+  it('a person seated by the staff tool, signed in with Google, sets a password and can then sign in with it', async () => {
+    // Fault 5, the founder's own case on 2026-11-12: seated by the staff
+    // tool, in with Google, no password and no email to reset one with.
+    const mira = 'mira@pellbrook.test'
+    const MIRA_PW = 'harbor lantern seven oaks'
+    const { bootstrapCompany } = await import('@/lib/staff-bootstrap')
+    const made = await bootstrapCompany({ name: 'Pellbrook Talent', domain: 'pellbrook.test', kind: 'VENDOR', address: 'pellbrook', seats: [{ email: mira, role: 'Owner' }] } as any)
+    expect(made.ok, JSON.stringify(made)).toBe(true)
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: mira } })
+    expect(person.passwordHash).toBeNull()
+
+    const { authOptions } = await import('@/lib/auth')
+    const user: any = { id: 'google-sub-mira', email: mira }
+    const account = { provider: 'google', providerAccountId: 'google-sub-mira', type: 'oauth' }
+    expect(await authOptions.callbacks!.signIn!({ user, account, profile: { email_verified: true } } as any)).toBe(true)
+    const token: any = await authOptions.callbacks!.jwt!({ token: {}, user, account } as any)
+    expect(token).toMatchObject({ email: mira, door: 'GOOGLE_SOCIAL' })
+
+    expect((await checkPassword(mira, MIRA_PW, null)).ok).toBe(false)
+    const set = await setOwnPassword({ email: token.email, door: token.door, authAt: token.authAt, sessionVersion: token.sv, password: MIRA_PW })
+    expect(set).toMatchObject({ ok: true, changed: false })
+
+    const signedIn = await checkPassword(mira, MIRA_PW, null)
+    expect(signedIn).toMatchObject({ ok: true, email: mira, personId: person.id })
+    expect(await prisma.accessLog.count({ where: { action: 'PASSWORD_SET', subjectId: person.id } })).toBe(1)
+    // A first password ends no session: the one that set it still stands.
+    const { liveSessionStands } = await import('@/lib/identity/read')
+    expect(await liveSessionStands({ email: mira, door: 'GOOGLE_SOCIAL', issuer: null, tokenVersion: token.sv })).toEqual({ stands: true })
+    expect(logged.join('\n')).not.toContain(MIRA_PW)
   })
 })

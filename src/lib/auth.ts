@@ -386,7 +386,7 @@ export const authOptions: NextAuthOptions = {
       return true
     },
 
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
       if (user) {
         token.id = user.id
         token.email = sessionEmail(user.email)
@@ -405,6 +405,20 @@ export const authOptions: NextAuthOptions = {
         const known = (user as any).sv
         token.sv = typeof known === 'number' ? known : token.email ? await readSessionVersion(String(token.email)) : 0
         return token
+      }
+      // The one session that just changed its own password from the
+      // account menu is carried over the version that change raised: the
+      // sealed ticket must name this session, and the version is read again
+      // on the server, never taken from the browser (lib/password-door,
+      // fault 5). Every other session of the person ends below.
+      if (trigger === 'update' && token.email) {
+        try {
+          const { versionAfterOwnChange } = await import('@/lib/password-door')
+          const lifted = await versionAfterOwnChange(token, (session as { refresh?: unknown } | undefined)?.refresh)
+          if (lifted !== null) token.sv = lifted
+        } catch {
+          // No ticket, or one that does not hold: the check below decides.
+        }
       }
       // Every request: a session that was ended ("sign out everywhere", a
       // directory that disabled the person), or signed in by a door the

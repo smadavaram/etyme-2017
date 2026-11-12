@@ -1427,6 +1427,8 @@ export const MATRIX: L1[] = [
             'src/app/api/notifications/sign-in-link/route.ts', 'src/app/dashboard/conversations/sign-in-link.tsx', 'src/lib/notify/sign-in-link-door.ts', 'src/lib/notify/sign-in-link.ts',
             'src/app/dashboard/bench/our-bench.tsx', 'src/app/dashboard/consultants/page.tsx',
             'src/app/api/auth/doors/route.ts',
+            'src/app/dashboard/settings/password/page.tsx', 'src/components/shell/password-line.tsx',
+            'src/lib/identity/password-notice.ts',
           ],
           testedBy: ['__tests__/invariants/sign-up-heading.test.ts', '__tests__/invariants/twin-supplier-acts.test.ts', '__tests__/invariants/staff-without-a-seat.test.ts', '__integration__/deskless-one-door.test.ts', '__tests__/invariants/password-door.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts',
             '__tests__/invariants/company-domains.test.ts', '__tests__/invariants/setup-steps.test.ts',
@@ -1436,6 +1438,7 @@ export const MATRIX: L1[] = [
             '__integration__/sign-in-link.test.ts', '__tests__/invariants/sign-in-link.test.ts',
             '__tests__/components/consultants.test.ts',
             '__tests__/invariants/sign-in-email-first.test.ts',
+            '__tests__/invariants/set-own-password.test.ts',
           ] },
         // Enterprise identity (founder, 2026-11-11, "go identity"): the
         // client's own directory is the only door, small teams stay

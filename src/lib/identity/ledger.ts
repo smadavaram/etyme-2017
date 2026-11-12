@@ -37,6 +37,8 @@ export const IDENTITY_EVENTS = [
   'AUTH_POLICY_CHANGED',
   /** "Sign out everywhere": every live session of a person ended. Not one of the eleven; the act the kill is made of. */
   'SESSIONS_ENDED',
+  /** A signed-in person set or changed their own password from the account menu (fault 5, 2026-11-12). Never the password. */
+  'PASSWORD_SET',
 ] as const
 export type IdentityEvent = (typeof IDENTITY_EVENTS)[number]
 
@@ -60,6 +62,7 @@ export const WRITTEN_BY: Record<IdentityEvent, string | null> = {
   MEMBERSHIP_REVOKED: 'src/app/api/access/[contextId]/route.ts',
   AUTH_POLICY_CHANGED: 'src/app/api/settings/sign-in/route.ts',
   SESSIONS_ENDED: 'src/lib/identity/read.ts',
+  PASSWORD_SET: 'src/lib/password-door.ts',
 }
 
 export const SURFACES = ['WEB', 'API', 'TEAMS', 'STAFF', 'DIRECTORY', 'SCIM', 'CRON'] as const
@@ -99,6 +102,17 @@ export function readIdentityReason(reason: string | null | undefined): { policy:
   return { policy: m[1] as EffectiveMode, surface: m[2] as Surface, says: m[3] }
 }
 
+/**
+ * The access log's name for an event: the event's own name. One name is
+ * not yet in lib/access-log's `AccessAction` list, which is
+ * etyme-regulatory's file: `PASSWORD_SET`, asked of them on 2026-11-12.
+ * Until it is added the conversion is made here, once, and the name is
+ * spelled the same either side, so a query finds every row.
+ */
+function accessActionOf(e: IdentityEvent): AccessAction {
+  return e as AccessAction
+}
+
 /** Whether an event is a refusal: written refused, and before the refusal is sent. */
 export function isRefusal(event: IdentityEvent): boolean {
   return event === 'LOGIN_REFUSED_SSO_ONLY' || event === 'JOIN_REFUSED_BY_POLICY'
@@ -120,7 +134,7 @@ export function identityRow(e: IdentityEntry):
   return {
     ok: true,
     subject,
-    action: e.event,
+    action: accessActionOf(e.event),
     allowed: !(isRefusal(e.event) || e.refused === true),
     actorPersonId: e.actorPersonId,
     actorCompanyId: e.companyId,

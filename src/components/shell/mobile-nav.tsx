@@ -10,6 +10,7 @@ import { useSession } from '@/components/session-provider'
 import { mayOpen } from '@/lib/nav-table'
 import { HatList } from '@/components/shell/hat-list'
 import { LimitedSeatLine, SuperadminLine } from '@/components/shell/superadmin-line'
+import { PasswordLine } from '@/components/shell/password-line'
 
 /**
  * The navigation, on a phone.
@@ -193,6 +194,7 @@ function Account({
       {/* Etyme's own platform tools, staff list only (founder, 2026-11-11). */}
       <SuperadminLine roomy />
       <LimitedSeatLine roomy />
+      <PasswordLine roomy />
     <div className="px-4 py-3">
       <p className="text-[13px] font-medium text-etyme-ink truncate">{name || 'Signed in'}</p>
       {email && <p className="text-[12px] text-etyme-muted truncate">{email}</p>}
