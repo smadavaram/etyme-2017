@@ -170,3 +170,29 @@ describe('Admin runs the system; the Owner runs the business', () => {
     expect(liveOwners([sharath, { ...madhavi, live: false }]).map((s) => s.name)).toEqual(['Sharath'])
   })
 })
+
+describe('Users & permissions holds the same Owner rules', () => {
+  it('an Admin can never pause or end an Owner from Users & permissions, and an Owner can pause or end an Admin', async () => {
+    const { canSuspend, canRevoke } = await import('@/lib/account-lifecycle')
+    const seat = (id: string, isOwner: boolean, perms: string[]) => ({
+      contextId: id, personId: id, hasSignedIn: true, roleId: id, rolePermissions: perms,
+      suspendedAt: null, revokedAt: null, isOwner,
+    })
+    const owner = seat('o', true, ['team.manage', 'settings.manage'])
+    const admin = seat('a', false, ['team.manage', 'settings.manage'])
+    const all = [owner, admin] as never[]
+    expect(canSuspend(owner as never, all, { isOwner: false }).allowed).toBe(false)
+    expect(canRevoke(owner as never, all, { isOwner: false }).allowed).toBe(false)
+    expect(canRevoke(owner as never, all, { isOwner: false }).reason).toMatch(/An Admin never can/)
+    expect(canSuspend(admin as never, all, { isOwner: true }).allowed).toBe(true)
+    expect(canRevoke(admin as never, all, { isOwner: true }).allowed).toBe(true)
+  })
+
+  it('the route that pauses and ends a seat says who is acting and whether the seat is an Owner’s', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
+    expect(src).toMatch(/isOwner: r\.role\?\.name === OWNER_ROLE/)
+    expect(src).toMatch(/canSuspend\(target, all, actor\)/)
+    expect(src).toMatch(/canRevoke\(target, all, actor\)/)
+  })
+})

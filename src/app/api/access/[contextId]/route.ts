@@ -14,6 +14,7 @@ import {
 } from '@/lib/account-lifecycle'
 import { possessive } from '@/lib/requisition-approval'
 import { hasSignedIn } from '@/lib/access-grant'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 
@@ -114,10 +115,13 @@ export async function POST(
     )
   }
 
+  // Who is acting, by the seat they hold here: an Admin never pauses or
+  // ends an Owner; an Owner may pause or end an Admin.
+  const actor = { isOwner: all.some((r) => r.personId === caller.person.id && r.isOwner && !r.revokedAt && !r.suspendedAt) }
   const verdict =
-    action === 'suspend' ? canSuspend(target, all)
+    action === 'suspend' ? canSuspend(target, all, actor)
       : action === 'reinstate' ? canReinstate(target)
-        : canRevoke(target, all)
+        : canRevoke(target, all, actor)
 
   if (!verdict.allowed) {
     return NextResponse.json(
@@ -387,7 +391,7 @@ async function loadAll(companyId: string): Promise<AccessRow[]> {
     select: {
       id: true, personId: true, roleId: true, lastUsedAt: true, invitedAt: true,
       suspendedAt: true, revokedAt: true,
-      role: { select: { permissions: true } },
+      role: { select: { permissions: true, name: true } },
       person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
@@ -404,5 +408,7 @@ async function loadAll(companyId: string): Promise<AccessRow[]> {
     rolePermissions: r.role?.permissions ?? [],
     suspendedAt: r.suspendedAt,
     revokedAt: r.revokedAt,
+    // Only an Owner acts on an Owner (founder, 2026-11-11 and 11-12).
+    isOwner: r.role?.name === OWNER_ROLE,
   }))
 }
