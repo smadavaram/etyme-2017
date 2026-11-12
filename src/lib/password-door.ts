@@ -930,7 +930,19 @@ export async function requestReset(rawEmail: unknown): Promise<Answer> {
     // Signed up and never confirmed: the confirming link is what they need.
     await resendVerification(email)
   }
-  return { ok: true, says: `If there is an account for ${email}, we sent a link. It works for ${RESET_HOURS} hour.` }
+  return { ok: true, says: resetAskedSays(email) }
+}
+
+/**
+ * What "Forgot your password" answers, whatever happened. The same for an
+ * address with an account and one without, so it says nothing about which;
+ * and it never claims the email went, because the provider may refuse it
+ * after this answer is written (the founder's 2026-11-12 day: Resend refused
+ * every send). A refused send is kept on the notice and staff are alerted
+ * by the one send; the person is told where to turn if nothing comes.
+ */
+export function resetAskedSays(email: string): string {
+  return `If there is an account for ${email}, a link is on its way. It works for ${RESET_HOURS} hour. If nothing arrives in a few minutes, check your spam folder, then write to support@etyme.com.`
 }
 
 export async function resetPassword(token: unknown, password: unknown, now: Date = new Date()): Promise<Answer & { email?: string; invitation?: boolean }> {

@@ -193,9 +193,11 @@ describe('a password door, until the single sign-on keys exist', () => {
 
   it('a reset link works once and dies after an hour', async () => {
     const asked = await json(await askReset(req('POST', '/api/auth/password/reset', { email: OWNER })))
-    expect(asked.body.data.says).toBe(`If there is an account for ${OWNER}, we sent a link. It works for 1 hour.`)
+    expect(asked.body.data.says).toBe(`If there is an account for ${OWNER}, a link is on its way. It works for 1 hour. If nothing arrives in a few minutes, check your spam folder, then write to support@etyme.com.`)
     const nobody = await json(await askReset(req('POST', '/api/auth/password/reset', { email: 'nobody@kestrelworks.test' })))
-    expect(nobody.body.data.says).toBe('If there is an account for nobody@kestrelworks.test, we sent a link. It works for 1 hour.')
+    expect(nobody.body.data.says).toBe('If there is an account for nobody@kestrelworks.test, a link is on its way. It works for 1 hour. If nothing arrives in a few minutes, check your spam folder, then write to support@etyme.com.')
+    // Never a claim that the email went: the provider may still refuse it.
+    expect(nobody.body.data.says).not.toMatch(/we sent/i)
 
     const token = lastLink(OWNER, 'reset')
     const { resetPassword } = await import('@/lib/password-door')
