@@ -29,3 +29,28 @@ export function googleOutcomeSays(code: string | null | undefined): { says: stri
   if (!code || !Object.prototype.hasOwnProperty.call(GOOGLE_OUTCOMES, code)) return null
   return { says: GOOGLE_OUTCOMES[code as GoogleOutcome], no: code !== 'connected' }
 }
+
+/**
+ * The same, for Microsoft Entra ID: Microsoft sends the IT admin back from
+ * its admin-consent screen, and the callback redirects with `?entra=<code>`.
+ */
+export const ENTRA_OUTCOMES = {
+  connected: 'Microsoft Entra ID is connected, read only. Choose Microsoft Entra ID and preview what it would change; nothing changes until you say yes.',
+  declined: 'Microsoft Entra ID was not connected: the consent on Microsoft was cancelled or not granted. Nothing was kept.',
+  expired: 'Microsoft Entra ID was not connected: the connection took too long or came from another window. Start again from Connect.',
+  'not-yours': 'Microsoft Entra ID was not connected: it was started by another seat or for another company. The Owner or an Admin starts it again from here.',
+  signin: 'Microsoft Entra ID was not connected: you were not signed in when Microsoft sent you back. Sign in and start again from Connect.',
+  off: 'Microsoft Entra ID cannot be connected on this deployment yet. Nothing was kept.',
+  domain: 'Microsoft Entra ID was not connected: the domain is no longer verified for your company. Verify it under Settings, then connect again.',
+  tenant: 'Microsoft Entra ID was not connected: the organization that granted access does not hold your verified domain in Microsoft. Sign in as an administrator of the Microsoft 365 organization that holds your domain.',
+  read: 'Microsoft Entra ID was not connected: Microsoft did not let Etyme read your users. Ask your admin to grant admin consent for reading users, read only.',
+  failed: 'Microsoft Entra ID was not connected: something went wrong on our side. Nothing was kept; try again.',
+} as const
+
+export type EntraOutcome = keyof typeof ENTRA_OUTCOMES
+
+/** The sentence for a code in the address, or null for anything this file does not know. */
+export function entraOutcomeSays(code: string | null | undefined): { says: string; no: boolean } | null {
+  if (!code || !Object.prototype.hasOwnProperty.call(ENTRA_OUTCOMES, code)) return null
+  return { says: ENTRA_OUTCOMES[code as EntraOutcome], no: code !== 'connected' }
+}

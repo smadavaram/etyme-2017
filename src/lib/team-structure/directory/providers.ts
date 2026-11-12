@@ -1,5 +1,6 @@
 import type { DirectoryPerson } from './csv'
 import { googleReadiness, GOOGLE_DIRECTORY } from './google'
+import { entraReadiness } from './entra'
 
 /**
  * Microsoft Entra ID and Google Workspace, read as the directory, read
@@ -11,9 +12,10 @@ import { googleReadiness, GOOGLE_DIRECTORY } from './google'
  * Google Workspace connects from the screen (2026-11-11): the company's
  * Workspace administrator allows one read-only scope on Google's consent
  * screen, and the consent is kept per company as a DirectoryConnection
- * with the refresh token sealed (./google, ./sealed). Entra ID is not
- * built: its admin consent has nowhere to be kept yet, so it stays
- * "not connected".
+ * with the refresh token sealed (./google, ./sealed). Entra ID connects
+ * from the screen too (2026-11-12): the client's IT admin grants Etyme's
+ * multitenant app User.Read.All with admin consent, and the connection
+ * keeps only the tenant id and the verified domain (./entra).
  */
 
 export type SourceKey = 'ENTRA' | 'GOOGLE' | 'CSV'
@@ -25,11 +27,14 @@ export interface SourceState {
   connected: boolean
   /** What the client's IT admin approves before the source can be read. */
   adminApproves: string | null
-  /** Google only: this deployment can connect it from the screen now. */
+  /** Google and Entra: this deployment can connect it from the screen now. */
   connectable?: boolean
-  /** Google only: the company's connection, where one is kept. Never the token. */
+  /** Google and Entra: the company's connection, where one is kept. Never a token. */
   connection?: GoogleConnectionView | null
 }
+
+/** A kept connection as the card reads it, Google's or Entra's. */
+export type DirectoryConnectionView = GoogleConnectionView
 
 /** What the card says about a kept connection. The token is never part of it. */
 export interface GoogleConnectionView {
@@ -41,19 +46,30 @@ export interface GoogleConnectionView {
 }
 
 /** The three sources and their state on this deployment, for one company. */
-export function directorySources(env: Record<string, string | undefined> = process.env, google: GoogleConnectionView | null = null): SourceState[] {
-  const entraApp = Boolean(env.ETYME_DIRECTORY_ENTRA_CLIENT_ID && env.ETYME_DIRECTORY_ENTRA_CLIENT_SECRET)
+export function directorySources(
+  env: Record<string, string | undefined> = process.env,
+  google: GoogleConnectionView | null = null,
+  entra: DirectoryConnectionView | null = null,
+): SourceState[] {
+  const e = entraReadiness(env)
+  const entraConnected = e.ready && Boolean(entra)
   const g = googleReadiness(env)
   const googleConnected = g.ready && Boolean(google)
   return [
     {
       key: 'ENTRA',
       label: 'Microsoft Entra ID',
-      says: 'Active Directory in the cloud. Your admin approves read-only access once.',
-      connected: false,
-      adminApproves: entraApp
-        ? 'Your Microsoft 365 admin grants Etyme the application permission User.Read.All (read every user’s profile, read only) with admin consent for your tenant. Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
-        : 'Not set up on this deployment yet: Etyme has not turned on Microsoft Entra ID here. Once it does, your Microsoft 365 admin approves read-only access to your users once.',
+      says: entraConnected ? `Connected for ${entra!.domain}. Read only.` : 'Active Directory in the cloud. Your admin approves read-only access once.',
+      connected: entraConnected,
+      connectable: e.ready && !entra,
+      connection: entra,
+      adminApproves: entraConnected
+        ? null
+        : e.ready
+          ? 'A Microsoft 365 global administrator presses Connect, signs in to Microsoft and grants Etyme the application permission User.Read.All (read every user’s profile, read only) with admin consent for your organization. Etyme reads names, email, department, job title, office, country and manager, and writes nothing.'
+          // With the app's keys absent this reads exactly as it did
+          // before Entra connected: Etyme's own plumbing is never named.
+          : entraNotSetUp(e.missing),
     },
     {
       key: 'GOOGLE',
@@ -79,6 +95,19 @@ export function directorySources(env: Record<string, string | undefined> = proce
       adminApproves: null,
     },
   ]
+}
+
+/**
+ * Why Entra cannot be connected here, in words. The app's keys absent reads
+ * as it always did; the switch alone off says the privacy notice is waiting;
+ * the key that signs the consent is Etyme's plumbing and is never named.
+ */
+function entraNotSetUp(missing: string[]): string {
+  const switchOff = missing.find((m) => m.startsWith('directory connections'))
+  if (switchOff && !missing.some((m) => m.startsWith('Etyme has not'))) {
+    return `Not set up on this deployment yet: ${switchOff}. Once it is, your Microsoft 365 admin connects it here and grants read-only access to your users, once.`
+  }
+  return 'Not set up on this deployment yet: Etyme has not turned on Microsoft Entra ID here. Once it does, your Microsoft 365 admin approves read-only access to your users once.'
 }
 
 // ── Microsoft Entra ID, through Microsoft Graph ───────────────────────

@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { parseCsvRows, readDirectoryCsv } from '@/lib/team-structure/directory/csv'
 import { applyOrder, planFromDirectory, type PlanSeat, type PlanUnit } from '@/lib/team-structure/directory/plan'
-import { directorySources, readEntra, readGoogle, GRAPH_USERS } from '@/lib/team-structure/directory/providers'
+import { directorySources, readEntra, readGoogle, entraToken, GRAPH_USERS } from '@/lib/team-structure/directory/providers'
+import { adminConsentUrl, entraReadiness, tenantForDomain, onlyDomain, isTenantId } from '@/lib/team-structure/directory/entra'
+import { entraOutcomeSays, ENTRA_OUTCOMES } from '@/lib/team-structure/directory/outcome'
+import { signState, readState } from '@/lib/team-structure/directory/sealed'
+import { readFileSync as readSrcFile } from 'node:fs'
+
+const ENTRA_ENV = {
+  ETYME_DIRECTORY_ENTRA_CLIENT_ID: '11111111-2222-3333-4444-555555555555',
+  ETYME_DIRECTORY_ENTRA_CLIENT_SECRET: 'entra-secret',
+  ETYME_DIRECTORY_TOKEN_KEY: Buffer.alloc(32, 7).toString('base64'),
+  ETYME_DIRECTORY_LIVE: '1',
+}
+const TENANT = '9b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0'
 
 /**
  * The team structure from the directory (founder, 2026-11-09): read
@@ -144,8 +156,8 @@ describe('the preview of every change', () => {
 })
 
 describe('Microsoft Entra ID and Google Workspace', () => {
-  it('neither is connected today, and each says what the client’s IT admin approves', () => {
-    const s = directorySources({ ETYME_DIRECTORY_ENTRA_CLIENT_ID: 'x', ETYME_DIRECTORY_ENTRA_CLIENT_SECRET: 'y' })
+  it('neither is connected until a company connects it, and each says what the client’s IT admin approves', () => {
+    const s = directorySources({ ...ENTRA_ENV, ETYME_DIRECTORY_GOOGLE_CLIENT_ID: 'g', ETYME_DIRECTORY_GOOGLE_CLIENT_SECRET: 'h' })
     expect(s.map((x) => [x.key, x.connected])).toEqual([['ENTRA', false], ['GOOGLE', false], ['CSV', true]])
     expect(s[0].adminApproves).toMatch(/User\.Read\.All .*admin consent/)
     expect(s[1].adminApproves).toMatch(/Google Workspace administrator .*read only/)
@@ -173,5 +185,103 @@ describe('Microsoft Entra ID and Google Workspace', () => {
   it('a refusal from Microsoft is said in a sentence that names the permission to grant', async () => {
     const f = (async () => new Response('{}', { status: 403 })) as unknown as typeof fetch
     await expect(readEntra('t', f)).rejects.toThrow(/User\.Read\.All/)
+  })
+})
+
+describe('Microsoft Entra ID, connected by the client’s IT admin', () => {
+  const kept = { domain: 'corvane.example', connectedBy: 'Graham Ellery', connectedAt: '2026-11-12T00:00:00Z', lastReadAt: null, lastReadCount: null }
+
+  it('with the app’s keys absent, Entra reads exactly as before: not connected, nothing to press', () => {
+    for (const env of [{}, { ETYME_DIRECTORY_LIVE: '1', ETYME_DIRECTORY_TOKEN_KEY: ENTRA_ENV.ETYME_DIRECTORY_TOKEN_KEY }]) {
+      const e = directorySources(env, null, kept)[0]
+      expect(e).toMatchObject({ key: 'ENTRA', connected: false, connectable: false })
+      expect(e.adminApproves).toBe('Not set up on this deployment yet: Etyme has not turned on Microsoft Entra ID here. Once it does, your Microsoft 365 admin approves read-only access to your users once.')
+    }
+  })
+
+  it('with the switch or the key missing it cannot be connected, and the words never name a setting', () => {
+    for (const env of [{ ...ENTRA_ENV, ETYME_DIRECTORY_LIVE: undefined }, { ...ENTRA_ENV, ETYME_DIRECTORY_TOKEN_KEY: undefined }]) {
+      expect(entraReadiness(env).ready).toBe(false)
+      const e = directorySources(env)[0]
+      expect(e).toMatchObject({ connected: false, connectable: false })
+      expect(e.adminApproves).toMatch(/^Not set up on this deployment yet: /)
+      expect(e.adminApproves).not.toMatch(/ETYME_|_ID|_SECRET|_KEY|signs the connection/)
+    }
+    expect(directorySources({ ...ENTRA_ENV, ETYME_DIRECTORY_LIVE: undefined })[0].adminApproves).toContain('the privacy notice that names them is waiting for approval')
+  })
+
+  it('with everything set it can be connected, and once connected the card reads it as connected with no secret in it', () => {
+    expect(directorySources(ENTRA_ENV)[0]).toMatchObject({ connected: false, connectable: true })
+    const e = directorySources(ENTRA_ENV, null, kept)[0]
+    expect(e).toMatchObject({ connected: true, connectable: false, adminApproves: null, says: 'Connected for corvane.example. Read only.' })
+    expect(Object.keys(e.connection!)).toEqual(['domain', 'connectedBy', 'connectedAt', 'lastReadAt', 'lastReadCount'])
+  })
+
+  it('the admin-consent screen opens in the tenant that holds the company’s verified domain and sends the admin back to this app only', () => {
+    const url = new URL(adminConsentUrl({ clientId: ENTRA_ENV.ETYME_DIRECTORY_ENTRA_CLIENT_ID, origin: 'https://etyme2040.vercel.app/', state: 's1', domain: 'corvane.example' }))
+    expect(url.origin + url.pathname).toBe('https://login.microsoftonline.com/corvane.example/v2.0/adminconsent')
+    expect(url.searchParams.get('scope')).toBe('https://graph.microsoft.com/.default')
+    expect(url.searchParams.get('redirect_uri')).toBe('https://etyme2040.vercel.app/api/settings/team-structure/directory')
+    expect(url.searchParams.get('state')).toBe('s1')
+  })
+
+  it('the consent’s state is signed for Entra, so Google’s callback and Microsoft’s are never confused', () => {
+    const s = signState({ companyId: 'c1', personId: 'p1', domain: 'corvane.example', provider: 'ENTRA' }, Date.now(), ENTRA_ENV)
+    expect(readState(s, Date.now(), ENTRA_ENV)).toMatchObject({ companyId: 'c1', personId: 'p1', domain: 'corvane.example', provider: 'ENTRA' })
+    const route = readSrcFile('src/app/api/settings/team-structure/directory/route.ts', 'utf8')
+    expect(route).toContain("readState(q.get('state') ?? '')?.provider === 'ENTRA') return entraCallback(request)")
+    expect(route).toContain("if (!state || state.provider !== 'ENTRA')")
+  })
+
+  it('the tenant that consented must be the tenant Microsoft says holds the domain', async () => {
+    const asked: string[] = []
+    const f = (async (url: string) => { asked.push(url); return new Response(JSON.stringify({ issuer: `https://login.microsoftonline.com/${TENANT}/v2.0` })) }) as unknown as typeof fetch
+    expect(await tenantForDomain('corvane.example', f)).toBe(TENANT)
+    expect(asked).toEqual(['https://login.microsoftonline.com/corvane.example/v2.0/.well-known/openid-configuration'])
+    const unknown = (async () => new Response(JSON.stringify({ error: 'invalid_tenant' }), { status: 400 })) as unknown as typeof fetch
+    await expect(tenantForDomain('nobody.example', unknown)).rejects.toMatchObject({ code: 'tenant' })
+    expect(readSrcFile('src/app/api/settings/team-structure/directory/route.ts', 'utf8')).toContain("if (holder !== tenant.toLowerCase())")
+    expect(isTenantId(TENANT)).toBe(true)
+    expect(isTenantId('corvane.example')).toBe(false)
+  })
+
+  it('a read asks Microsoft for an app-only token for that tenant, from the deployment’s own secret', async () => {
+    const calls: { url: string; body: string }[] = []
+    const f = (async (url: string, init?: RequestInit) => { calls.push({ url, body: String(init?.body ?? '') }); return new Response(JSON.stringify({ access_token: 'at' })) }) as unknown as typeof fetch
+    expect(await entraToken({ tenantId: TENANT, clientId: 'cid', clientSecret: 'sec' }, f)).toBe('at')
+    expect(calls[0].url).toBe(`https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/token`)
+    const form = new URLSearchParams(calls[0].body)
+    expect(form.get('grant_type')).toBe('client_credentials')
+    expect(form.get('scope')).toBe('https://graph.microsoft.com/.default')
+  })
+
+  it('only the connected domain’s people are read, and a manager outside it is not named', () => {
+    const p = (email: string, manager: string | null) => ({ name: email, email, department: 'Quality', manager, officeLocation: null, country: null, jobTitle: null })
+    expect(onlyDomain([p('dana@corvane.example', 'astrid@corvane.example'), p('guest@other.example', null), p('liv@corvane.example', 'boss@other.example')], 'corvane.example'))
+      .toEqual([p('dana@corvane.example', 'astrid@corvane.example'), p('liv@corvane.example', null)])
+  })
+
+  it('the connection keeps the tenant id and the domain, and no secret per company', () => {
+    const route = readSrcFile('src/app/api/settings/team-structure/directory/route.ts', 'utf8')
+    expect(route).toContain("create: { companyId: writer.companyId, provider: 'ENTRA', domain: state.domain, customerId: holder, scope: ENTRA_PERMISSION, tokenSealed: '', connectedById: writer.personId }")
+    // Every directory read and refusal goes to the access log as DIRECTORY_READ.
+    expect(route).toContain("reason: `Refused: reading ${writer.companyName}'s directory from Microsoft Entra ID. ${why}`")
+    expect(route).toContain("Connected ${writer.companyName}'s Microsoft Entra ID directory for ${state.domain}, read only")
+    // Read only: nothing in the Entra code writes to Microsoft Graph.
+    expect(readSrcFile('src/lib/team-structure/directory/entra.ts', 'utf8') + route).not.toMatch(/method: '(PATCH|PUT|DELETE)'/)
+  })
+
+  it('what Microsoft sends back is said from a short code, never from words in the address', () => {
+    expect(entraOutcomeSays('connected')).toEqual({ says: ENTRA_OUTCOMES.connected, no: false })
+    expect(entraOutcomeSays('declined')?.no).toBe(true)
+    expect(entraOutcomeSays('<script>')).toBeNull()
+    const page = readSrcFile('src/app/dashboard/settings/team-structure/page.tsx', 'utf8')
+    expect(page).toContain("entraOutcomeSays(url.searchParams.get('entra'))")
+  })
+
+  it('the dialog follows only Microsoft’s own consent screen, and offers Connect only where the deployment can', () => {
+    const dialog = readSrcFile('src/app/dashboard/settings/team-structure/import-dialog.tsx', 'utf8')
+    expect(dialog).toContain("'https://login.microsoftonline.com/'")
+    expect(dialog).toContain("source === 'ENTRA' && chosen?.connectable &&")
   })
 })

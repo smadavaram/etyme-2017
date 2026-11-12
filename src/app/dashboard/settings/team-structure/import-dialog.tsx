@@ -10,8 +10,9 @@ import { dayOfMomentFor, readerZone } from '@/lib/when'
  * The file works today. Google Workspace connects here (2026-11-11): the
  * company's Workspace administrator presses Connect, allows read-only
  * access on Google's own consent screen, and comes back to this dialog;
- * Disconnect deletes the stored access. Entra ID says what the client's IT
- * admin has to approve. A preview of every change comes first, each ticked or not,
+ * Disconnect deletes the stored access. Microsoft Entra ID connects the
+ * same way (2026-11-12): the client's IT admin grants read-only access on
+ * Microsoft's own admin-consent screen. A preview of every change comes first, each ticked or not,
  * and only the ticked ones are made, through the same acts the tree uses
  * (/api/settings/team-structure/directory).
  */
@@ -98,34 +99,40 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
     }
   }
 
-  const previewGoogle = async () => {
-    const data = await send({ source: 'GOOGLE' })
+  // The directory a preview was read from, where it was not a file.
+  const [readFrom, setReadFrom] = useState<'GOOGLE' | 'ENTRA'>('GOOGLE')
+
+  const previewDirectory = async (key: 'GOOGLE' | 'ENTRA') => {
+    const data = await send({ source: key })
     if (data) {
       setFileName(null)
+      setCsv(null)
+      setReadFrom(key)
       setPreview(data)
       setTicked(new Set((data.changes as Change[]).filter((c) => c.ticked).map((c) => c.key)))
     }
   }
 
-  const connectGoogle = async () => {
-    const data = await send({ source: 'GOOGLE', connect: true })
-    // Only ever Google's own consent screen; anything else is not followed.
-    if (data?.url && String(data.url).startsWith('https://accounts.google.com/')) window.location.assign(data.url)
+  const connectDirectory = async (key: 'GOOGLE' | 'ENTRA') => {
+    const data = await send({ source: key, connect: true })
+    // Only ever the provider's own consent screen; anything else is not followed.
+    const own = key === 'GOOGLE' ? 'https://accounts.google.com/' : 'https://login.microsoftonline.com/'
+    if (data?.url && String(data.url).startsWith(own)) window.location.assign(data.url)
   }
 
-  const disconnectGoogle = async () => {
-    const data = await send({ source: 'GOOGLE', disconnect: true })
+  const disconnectDirectory = async (key: 'GOOGLE' | 'ENTRA') => {
+    const data = await send({ source: key, disconnect: true })
     if (data) {
       setSaid({ says: data.says, no: false })
       await loadSources()
     }
   }
 
-  const fromGoogle = preview !== null && csv === null
+  const fromDirectory = preview !== null && csv === null
 
   const apply = async () => {
-    if (!csv && !fromGoogle) return
-    const data = await send(fromGoogle ? { source: 'GOOGLE', apply: [...ticked] } : { source: 'CSV', csv, apply: [...ticked] })
+    if (!csv && !fromDirectory) return
+    const data = await send(fromDirectory ? { source: readFrom, apply: [...ticked] } : { source: 'CSV', csv, apply: [...ticked] })
     if (!data) return
     if (data.refused.length || data.skipped.length) {
       setResult({ refused: data.refused, skipped: data.skipped })
@@ -187,26 +194,29 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
             {chosen && !chosen.connected && chosen.adminApproves && (
               <p className="rounded-lg bg-etyme-attention-wash p-3 text-[13px]">{chosen.label} is not connected. {chosen.adminApproves} A file exported from Active Directory works today.</p>
             )}
-            {chosen?.key === 'GOOGLE' && chosen.connection && (
+            {(chosen?.key === 'GOOGLE' || chosen?.key === 'ENTRA') && chosen.connection && (
               <p className="rounded-lg border border-etyme-rule bg-etyme-raised p-3 text-[13px]">
                 Connected for {chosen.connection.domain}{chosen.connection.connectedBy ? ` by ${chosen.connection.connectedBy}` : ''} on {day(chosen.connection.connectedAt)}. Read only.
                 {chosen.connection.lastReadAt ? ` Last read ${day(chosen.connection.lastReadAt)}: ${chosen.connection.lastReadCount ?? 0} people.` : ' Not read yet.'}
-                {' '}Disconnect deletes the stored access; your team structure stays.
+                {' '}{chosen.key === 'GOOGLE' ? 'Disconnect deletes the stored access; your team structure stays.' : 'Disconnect stops Etyme reading it; your team structure stays.'}
               </p>
             )}
             <input ref={file} type="file" accept=".csv,text/csv" className="sr-only" aria-label="Choose the file from Active Directory" onChange={(e) => { const f = e.target.files?.[0]; if (f) void readFile(f) }} />
             <div className="flex flex-wrap gap-2">
               {source === 'CSV' && <button className="btn-primary" disabled={busy} onClick={() => file.current?.click()}>{busy ? 'Reading…' : 'Choose the file'}</button>}
-              {source === 'GOOGLE' && chosen?.connected && <button className="btn-primary" disabled={busy} onClick={previewGoogle}>{busy ? 'Reading…' : 'Preview from Google'}</button>}
-              {source === 'GOOGLE' && chosen?.connectable && <button className="btn-primary" disabled={busy} onClick={connectGoogle}>{busy ? 'Opening Google…' : 'Connect Google Workspace'}</button>}
-              {source === 'GOOGLE' && chosen?.connection && <button className="btn-secondary" disabled={busy} onClick={disconnectGoogle}>Disconnect</button>}
+              {source === 'GOOGLE' && chosen?.connected && <button className="btn-primary" disabled={busy} onClick={() => previewDirectory('GOOGLE')}>{busy ? 'Reading…' : 'Preview from Google'}</button>}
+              {source === 'GOOGLE' && chosen?.connectable && <button className="btn-primary" disabled={busy} onClick={() => connectDirectory('GOOGLE')}>{busy ? 'Opening Google…' : 'Connect Google Workspace'}</button>}
+              {source === 'GOOGLE' && chosen?.connection && <button className="btn-secondary" disabled={busy} onClick={() => disconnectDirectory('GOOGLE')}>Disconnect</button>}
+              {source === 'ENTRA' && chosen?.connected && <button className="btn-primary" disabled={busy} onClick={() => previewDirectory('ENTRA')}>{busy ? 'Reading…' : 'Preview from Microsoft'}</button>}
+              {source === 'ENTRA' && chosen?.connectable && <button className="btn-primary" disabled={busy} onClick={() => connectDirectory('ENTRA')}>{busy ? 'Opening Microsoft…' : 'Connect Microsoft Entra ID'}</button>}
+              {source === 'ENTRA' && chosen?.connection && <button className="btn-secondary" disabled={busy} onClick={() => disconnectDirectory('ENTRA')}>Disconnect</button>}
               <button className="btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>
         ) : (
           <>
             <div>
-              <p className="eyebrow">{fromGoogle ? 'Google Workspace' : fileName ?? 'A file from Active Directory'} · Preview</p>
+              <p className="eyebrow">{fromDirectory ? (readFrom === 'ENTRA' ? 'Microsoft Entra ID' : 'Google Workspace') : fileName ?? 'A file from Active Directory'} · Preview</p>
               <h2 className="headline-serif text-[21px] text-etyme-ink">
                 {preview.changes.length ? `${preview.changes.length} ${preview.changes.length === 1 ? 'change' : 'changes'}. Nothing changes until you say yes.` : 'Your tree already matches your directory.'}
               </h2>

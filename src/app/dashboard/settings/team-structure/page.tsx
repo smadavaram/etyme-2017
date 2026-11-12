@@ -7,7 +7,7 @@ import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
 import { ImportDialog } from './import-dialog'
-import { googleOutcomeSays } from '@/lib/team-structure/directory/outcome'
+import { googleOutcomeSays, entraOutcomeSays } from '@/lib/team-structure/directory/outcome'
 import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
@@ -63,14 +63,16 @@ export default function TeamStructurePage() {
   const [importing, setImporting] = useState(false)
   // Google sends the administrator back here with a short code; the
   // sentence is chosen from the code, and the code leaves the address.
-  const [googleBack, setGoogleBack] = useState<{ says: string; no: boolean } | null>(null)
+  const [googleBack, setGoogleBack] = useState<{ source: 'GOOGLE' | 'ENTRA'; said: { says: string; no: boolean } } | null>(null)
   useEffect(() => {
+    // Microsoft does the same with ?entra=<code>.
     const url = new URL(window.location.href)
-    const said = googleOutcomeSays(url.searchParams.get('google'))
-    if (!url.searchParams.has('google')) return
-    url.searchParams.delete('google')
+    const key = url.searchParams.has('entra') ? 'entra' : url.searchParams.has('google') ? 'google' : null
+    if (!key) return
+    const said = key === 'entra' ? entraOutcomeSays(url.searchParams.get('entra')) : googleOutcomeSays(url.searchParams.get('google'))
+    url.searchParams.delete(key)
     window.history.replaceState(null, '', url.pathname + (url.search || ''))
-    if (said) { setGoogleBack(said); setImporting(true) }
+    if (said) { setGoogleBack({ source: key === 'entra' ? 'ENTRA' : 'GOOGLE', said }); setImporting(true) }
   }, [])
   const [drop, setDrop] = useState<{ id: string; zone: Zone } | null>(null)
   const [choose, setChoose] = useState<Choose | null>(null)
@@ -458,7 +460,7 @@ export default function TeamStructurePage() {
         />
       )}
       {choose && <Chooser choose={choose} tree={tree} busy={busy} onClose={() => setChoose(null)} onAct={act} />}
-      {importing && <ImportDialog opening={googleBack ? { source: 'GOOGLE', said: googleBack } : undefined} onClose={() => { setImporting(false); setGoogleBack(null) }} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
+      {importing && <ImportDialog opening={googleBack ?? undefined} onClose={() => { setImporting(false); setGoogleBack(null) }} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
     </div>
   )
 }

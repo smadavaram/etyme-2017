@@ -218,3 +218,102 @@ describe('connecting Corvane’s Google Workspace', () => {
     expect(again.status).toBe(409)
   })
 })
+
+// ── Microsoft Entra ID, the same door (2026-11-12) ─────────────────────
+
+const TENANT = '9b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0'
+const ENTRA_ENV = { ETYME_DIRECTORY_ENTRA_CLIENT_ID: '11111111-2222-3333-4444-555555555555', ETYME_DIRECTORY_ENTRA_CLIENT_SECRET: 'entra-SECRET-client' }
+
+/** Microsoft, answered here: the sign-in metadata, the token endpoint and Graph's users. */
+function microsoft(opts: { holder?: string; graph?: number } = {}) {
+  return vi.fn(async (url: string) => {
+    asked.push(String(url))
+    if (String(url).includes('/.well-known/openid-configuration')) return new Response(JSON.stringify({ issuer: `https://login.microsoftonline.com/${opts.holder ?? TENANT}/v2.0` }))
+    if (String(url).includes('/oauth2/v2.0/token')) return new Response(JSON.stringify({ access_token: 'at-ENTRA-1', expires_in: 3600 }))
+    if (String(url).startsWith('https://graph.microsoft.com/')) {
+      if (opts.graph && opts.graph !== 200) return new Response('{}', { status: opts.graph })
+      return new Response(JSON.stringify({ value: [
+        { displayName: 'Astrid Berge', mail: `astrid@${VERIFIED}`, department: 'Operations', jobTitle: 'Head of Operations' },
+        { displayName: 'A guest', mail: 'guest@elsewhere.example', department: 'Operations' },
+      ] }))
+    }
+    return new Response('{}', { status: 404 })
+  })
+}
+
+async function connectEntra(who = OWNER, query = (state: string) => `admin_consent=True&tenant=${TENANT}&state=${encodeURIComponent(state)}`) {
+  const start = await post({ source: 'ENTRA', connect: true }, who)
+  expect(start.status, JSON.stringify(start.body)).toBe(200)
+  const state = new URL(start.body.data.url).searchParams.get('state')!
+  as(who)
+  const back = await directoryGet(req('GET', `/api/settings/team-structure/directory?${query(state)}`))
+  return { start, back }
+}
+
+describe('connecting Corvane’s Microsoft Entra ID', () => {
+  beforeEach(() => {
+    for (const [k, v] of Object.entries(ENTRA_ENV)) process.env[k] = v
+    vi.stubGlobal('fetch', microsoft())
+  })
+  afterAll(() => { for (const k of Object.keys(ENTRA_ENV)) delete process.env[k] })
+
+  it('the admin consents in the tenant that holds the verified domain, and the connection keeps the tenant id and no secret', async () => {
+    const { start, back } = await connectEntra()
+    expect(new URL(start.body.data.url).pathname).toBe(`/${VERIFIED}/v2.0/adminconsent`)
+    expect(back.headers.get('location')).toBe('http://localhost:3000/dashboard/settings/team-structure?entra=connected')
+    const row = await prisma.directoryConnection.findUniqueOrThrow({ where: { companyId_provider: { companyId: corvaneId, provider: 'ENTRA' } } })
+    expect(row).toMatchObject({ domain: VERIFIED, customerId: TENANT, scope: 'User.Read.All', tokenSealed: '' })
+    expect(JSON.stringify(row)).not.toContain('entra-SECRET-client')
+  })
+
+  it('a read from Entra reads the domain’s people only, writes an access-log row, and never returns the token', async () => {
+    await connectEntra()
+    const before = await reads()
+    const preview = await post({ source: 'ENTRA' })
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200)
+    expect(preview.body.data.people).toBe(1)
+    expect(await reads()).toBe(before + 1)
+    const row = await prisma.accessLog.findFirstOrThrow({ where: { subjectCompanyId: corvaneId, allowed: true }, orderBy: { at: 'desc' } })
+    expect(row.reason).toMatch(/from microsoft entra id: 1 people, for the team structure, as a preview\.$/)
+    expect(JSON.stringify(preview.body)).not.toContain('at-ENTRA-1')
+  })
+
+  it('a tenant that does not hold the domain keeps nothing, and the refusal is logged', async () => {
+    vi.stubGlobal('fetch', microsoft({ holder: '00000000-1111-2222-3333-444444444444' }))
+    const before = await refusals()
+    const { back } = await connectEntra()
+    expect(back.headers.get('location')).toMatch(/entra=tenant$/)
+    expect(await prisma.directoryConnection.count({ where: { companyId: corvaneId, provider: 'ENTRA' } })).toBe(0)
+    expect(await refusals()).toBe(before + 1)
+  })
+
+  it('a consent Microsoft did not grant keeps nothing', async () => {
+    const { back } = await connectEntra(OWNER, (state) => `error=access_denied&state=${encodeURIComponent(state)}`)
+    expect(back.headers.get('location')).toMatch(/entra=declined$/)
+    expect(await prisma.directoryConnection.count({ where: { companyId: corvaneId, provider: 'ENTRA' } })).toBe(0)
+  })
+
+  it('a grant that does not let Etyme read users keeps nothing', async () => {
+    vi.stubGlobal('fetch', microsoft({ graph: 403 }))
+    const { back } = await connectEntra()
+    expect(back.headers.get('location')).toMatch(/entra=read$/)
+    expect(await prisma.directoryConnection.count({ where: { companyId: corvaneId, provider: 'ENTRA' } })).toBe(0)
+  })
+
+  it('without the app’s keys the card reads as before, not connected, and Connect is refused in words', async () => {
+    for (const k of Object.keys(ENTRA_ENV)) delete process.env[k]
+    as(OWNER)
+    const s = await json(await directoryGet(req('GET', '/api/settings/team-structure/directory')))
+    expect(s.body.data.sources.find((x: any) => x.key === 'ENTRA')).toMatchObject({ connected: false, connectable: false })
+    const r = await post({ source: 'ENTRA', connect: true })
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).not.toMatch(/ETYME_/)
+  })
+
+  it('disconnect stops Etyme reading it and says how the admin takes the consent back', async () => {
+    await connectEntra()
+    const r = await post({ source: 'ENTRA', disconnect: true })
+    expect(r.body.data.says).toMatch(/removes Etyme under Enterprise applications/)
+    expect(await prisma.directoryConnection.count({ where: { companyId: corvaneId, provider: 'ENTRA' } })).toBe(0)
+  })
+})

@@ -71,6 +71,8 @@ export interface ConsentState {
   personId: string
   /** The verified domain to connect. */
   domain: string
+  /** Which directory the consent is for; absent means Google, as before Entra existed. */
+  provider?: 'GOOGLE' | 'ENTRA'
   /** Seconds since the epoch after which the state is refused. */
   exp: number
   nonce: string
@@ -91,7 +93,7 @@ export function signState(s: Omit<ConsentState, 'exp' | 'nonce'>, now = Date.now
   return `${body}.${b64u(createHmac('sha256', key).update(body).digest())}`
 }
 
-/** The state Google sent back, if this deployment signed it and it is still in date; null otherwise. */
+/** The state Google or Microsoft sent back, if this deployment signed it and it is still in date; null otherwise. */
 export function readState(state: string, now = Date.now(), env: Env = process.env): ConsentState | null {
   const key = stateKey(env)
   const [body, mac, extra] = String(state ?? '').split('.')

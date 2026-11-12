@@ -2017,16 +2017,20 @@ model DirectoryConnection {
   id            String    @id @default(cuid())
   companyId     String
   company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  /// GOOGLE today. ENTRA is not built.
+  /// GOOGLE or ENTRA.
   provider      String
   /// The verified domain of the company this connection reads, and only
   /// that domain's people are read (CompanyDomain, verified).
   domain        String
-  /// Google's customer id for the Workspace, as the directory returned it.
+  /// Google's customer id for the Workspace, as the directory returned it;
+  /// for ENTRA, the Microsoft tenant id that granted admin consent.
   customerId    String?
-  /// The one scope Google granted, as Google said it.
+  /// The one scope Google granted, as Google said it; for ENTRA, the
+  /// application permission granted (User.Read.All).
   scope         String
   /// The refresh token, sealed (AES-256-GCM): "v1.<iv>.<tag>.<ciphertext>".
+  /// Empty for ENTRA: Etyme's multitenant app reads with client credentials
+  /// from the deployment's own secret, so nothing secret is kept per company.
   tokenSealed   String
   /// Who at the company connected it, and when.
   connectedById String?
