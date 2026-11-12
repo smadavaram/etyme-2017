@@ -704,23 +704,24 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 
 ## The public site — etyme-market (2026-10-14)
 
-1. **`/census` is to be deleted on November 13, 2026, with its form and
-   its route.** The founder deleted the audit from every page on
-   2026-10-14 ("Does anyone need the audit form? I think it's useless.").
-   Until that date the page stays reachable, linked from nowhere on the
-   public site, with one line at its top: "This page closes on November
-   13, 2026. Write to us from Contact instead." On that date: delete
-   `src/app/census/` and `src/lib/census-copy.ts` (market), the
-   `/api/census/*` routes and `lib/census` with their letters
-   (regulatory, money, conversation — each its own), the `AUDIT` kind in
-   `POST /api/market/leads` and its words in `lib/public-site/leads`
-   (market), the `/census` entry in `lib/public-site/pages`, and the
-   `GET_THE_AUDIT` constant in `lib/public-site/funnel`. Owner of the
-   date: market.
-2. **`/demo` still links the audit.** Its foot (`src/app/demo/page.tsx`
-   and the words in `src/app/demo/seats.ts`) is the platform's and was
-   not touched. `public-funnel.test.ts` names it as the one place left,
-   and fails when it is gone so the line can be deleted.
+1. **`/census` closed on November 13, 2026; its files are not all gone.**
+   The founder deleted the audit from every page on 2026-10-14 and kept
+   the page reachable for thirty days. Done by market (cf7ad8a3b): the
+   page answers with the ordinary not-found page, it left
+   `lib/public-site/pages`, `GET_THE_AUDIT` left `lib/public-site/funnel`,
+   and the `AUDIT` kind and its words left `POST /api/market/leads` and
+   `lib/public-site/leads`. Still standing, each its owner's: the
+   delivery matrix names `src/app/census/page.tsx`, `flow.tsx` and
+   `src/lib/census-copy.ts` (rows L3.1.4.5 and L3.1.4.6, architect), so
+   those three files stay, unread, until the rows drop them and market
+   deletes them; the `/api/census/*` routes, `lib/census`, the
+   agreement at `/legal/census-agreement` and its document (regulatory,
+   money); the letters in `lib/notify/census` (conversation); stored
+   census rows, cleared by the retention sweep (regulatory).
+2. **`/demo` no longer links the audit** (closed): its foot offers Sign
+   up and a person, and `public-funnel.test.ts` holds it. The comment
+   above `NEXT_STEP_LEAD` in `src/app/demo/seats.ts` still says "the audit
+   and a person" (platform's).
 3. **The lane drawings are no longer shown, and are not deleted.** Since
    2026-10-15 no page draws `public/model/*.png`: the ten party pages
    that showed them became one table ("Who does what"), and the nine
