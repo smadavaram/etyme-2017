@@ -23,6 +23,8 @@
  * 2026-11-12 the first person is an Admin, and Owner is earned by proof.
  */
 
+import { passCardForNewOwner } from '@/lib/notify/owner-words'
+
 export const OWNER_ROLE = 'Owner'
 export const ADMIN_ROLE = 'Admin'
 export const LADDER = ['Superadmin', 'Owner', 'Admin'] as const
@@ -199,9 +201,12 @@ export function afterWords(after: AskerAfter, companyName: string): string {
   return after === 'OWNER' ? 'an Owner too' : after === 'ADMIN' ? 'an Admin' : `no longer at ${companyName}`
 }
 
-/** The yes card's sentence for a pass, as the person taking over reads it. */
+/**
+ * The yes card's sentence for a pass, as the person taking over reads it:
+ * the asker named again, never "They" (lib/notify/owner-words).
+ */
 export function passCardSays(input: { askerName: string; companyName: string; after: AskerAfter }): string {
-  return `${input.askerName} wants to pass ${input.companyName}’s ownership to you. After this you are an Owner of ${input.companyName}. They will be ${afterWords(input.after, input.companyName)}.`
+  return passCardForNewOwner({ askerName: input.askerName, subjectName: '', companyName: input.companyName, after: input.after })
 }
 
 /**
@@ -220,12 +225,6 @@ export function ownerCardSays(input: { kind: 'REMOVE' | 'DEMOTE'; askerName: str
     ? `remove ${who} as an Owner of ${input.companyName}, ending ${input.youAreSubject ? 'your' : 'their'} seat there`
     : `move ${who} from Owner to ${input.toRoleName ?? 'another role'} at ${input.companyName}`
   return `${input.askerName} asks to ${what}: ${clause(input.reason)}. Nothing changes until an Owner who did not ask says yes.`
-}
-
-/** The record line, the drawing's ledger: "ownership passed · by A · to B · accepted by B · A now: Admin". */
-export function passedLine(input: { askerName: string; subjectName: string; after: AskerAfter }): string {
-  const now = input.after === 'OWNER' ? 'Owner' : input.after === 'ADMIN' ? 'Admin' : 'left'
-  return `Ownership passed by ${input.askerName} to ${input.subjectName}, accepted by ${input.subjectName}; ${input.askerName} now: ${now}.`
 }
 
 /** Whether an ask has run past its seven days. */

@@ -11,7 +11,11 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { ADMIN_PERMISSIONS, ADMIN_ROLE } from '@/lib/company-defaults'
-import { OWNER_ROLE, passedLine, movedAfterPassSays, type AskerAfter } from '@/lib/owner-rules'
+import { OWNER_ROLE, movedAfterPassSays, type AskerAfter } from '@/lib/owner-rules'
+import {
+  passDoneForNewOwner, passDoneForAsker, passDoneTitleForAsker, passDoneForOthers, saidNoTitle, saidNoBody,
+  type PassFacts, type NoFacts,
+} from '@/lib/notify/owner-words'
 import { notify } from '@/lib/notify'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { companyPolicy } from '@/lib/identity/read'
@@ -41,8 +45,28 @@ interface Landing {
   reason: string
 }
 
+/**
+ * What a landed pass says, to each reader in their own words (the Owner
+ * walk, 2026-11-12, lib/notify/owner-words): the person who took over reads
+ * the answer in the second person, the Owner who passed it reads the notice
+ * in the second person, and the log reads plain third person.
+ */
+export function passLandedWords(f: PassFacts): { forNewOwner: string; forAsker: { title: string; body: string }; forRecord: string } {
+  return {
+    forNewOwner: passDoneForNewOwner(f),
+    forAsker: { title: passDoneTitleForAsker(f), body: passDoneForAsker(f) },
+    forRecord: passDoneForOthers(f),
+  }
+}
+
+/** The notice the Owner who asked reads when the answer is no. */
+export function saidNoNotice(f: NoFacts): { title: string; body: string } {
+  return { title: saidNoTitle(f), body: saidNoBody(f) }
+}
+
 /** Both changes of a pass in one step: the subject is an Owner, the asker what they chose. */
-export async function landPass(l: Landing & { after: AskerAfter }): Promise<string> {
+export async function landPass(l: Landing & { after: AskerAfter }): Promise<ReturnType<typeof passLandedWords>> {
+  const words = passLandedWords({ askerName: l.asker.name, subjectName: l.subject.name, companyName: l.company.name, after: l.after })
   const now = new Date()
   const policy = l.after === 'LEAVE' ? (await companyPolicy(l.company.id)).effective : null
   await prisma.$transaction(async (tx) => {
@@ -73,14 +97,14 @@ export async function landPass(l: Landing & { after: AskerAfter }): Promise<stri
       data: {
         companyId: l.company.id,
         action: 'OWNERSHIP_PASSED',
-        summary: passedLine({ askerName: l.asker.name, subjectName: l.subject.name, after: l.after }),
+        summary: words.forRecord,
         reason: l.reason,
         payload: { requestId: l.requestId, from: l.asker.personId, to: l.subject.personId, after: l.after, at: now.toISOString() },
         reversible: true,
       },
     })
   })
-  return passedLine({ askerName: l.asker.name, subjectName: l.subject.name, after: l.after })
+  return words
 }
 
 /** An Owner removed (their seat ended) or moved to another role, on another Owner's yes. */

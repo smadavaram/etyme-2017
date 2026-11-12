@@ -110,9 +110,34 @@ describe('passing ownership', () => {
     expect(mayDecide({ kind: 'PASS', askedByPersonId: sharath.personId, deciderPersonId: oliver.personId, subject: oliver, seats, expired: false, pending: true }).ok).toBe(true)
   })
 
-  it('the person taking over reads who asked and what the asker becomes', () => {
+  it('the person taking over reads who asked and what the asker becomes, the asker named again and never "They"', () => {
     expect(passCardSays({ askerName: 'sharath@etyme.com', companyName: 'Tapin', after: 'ADMIN' }))
-      .toBe('sharath@etyme.com wants to pass Tapin’s ownership to you. After this you are an Owner of Tapin. They will be an Admin.')
+      .toBe('sharath@etyme.com wants to pass Tapin’s ownership to you. After this you are an Owner of Tapin. sharath@etyme.com will be an Admin.')
+  })
+
+  it('a landed pass is said to the new Owner, to the Owner who passed it and in the log each in its own words, from the owner-words sentences and nothing typed beside them', async () => {
+    const words = await import('@/lib/notify/owner-words')
+    const { passLandedWords, saidNoNotice } = await import('@/app/api/settings/owners/act')
+    const f = { askerName: 'Camille Ostrander', subjectName: 'Lorena Kellerman', companyName: 'Tapin', after: 'ADMIN' as const }
+    const landed = passLandedWords(f)
+    expect(landed.forNewOwner).toBe('You are now an Owner of Tapin. Camille Ostrander is now an Admin.')
+    expect(landed.forNewOwner).toBe(words.passDoneForNewOwner(f))
+    expect(landed.forAsker).toEqual({ title: words.passDoneTitleForAsker(f), body: words.passDoneForAsker(f) })
+    expect(landed.forRecord).toBe(words.passDoneForOthers(f))
+    expect(landed.forRecord).not.toContain('now: Admin')
+    const no = { deciderName: 'Ines Okafor', kind: 'REMOVE' as const, subjectName: 'Ines Okafor', companyName: 'Tapin' }
+    expect(saidNoNotice(no)).toEqual({ title: words.saidNoTitle(no), body: words.saidNoBody(no) })
+    expect(saidNoNotice(no).body).toBe('Ines Okafor said no to being removed as an Owner of Tapin. Nothing changed.')
+
+    // The landing route sends exactly those: the pass's words to the asker and the screen, the no's notice.
+    const route = readFileSync('src/app/api/settings/owners/[id]/route.ts', 'utf8')
+    expect(route).toContain('title: words.forAsker.title, body: words.forAsker.body')
+    expect(route).toContain('message: words.forNewOwner')
+    expect(route).toContain('title: no.title, body: no.body')
+    expect(route).not.toContain('said no to your ask about')
+    const act = readFileSync('src/app/api/settings/owners/act.ts', 'utf8')
+    expect(act).toContain('summary: words.forRecord')
+    expect(act).not.toContain('passedLine(')
   })
 
   it('both changes of a pass land together in one transaction, with the ask marked accepted and the row logged', () => {

@@ -45,7 +45,7 @@ describe('the person an Owner ask is addressed to can answer it', () => {
     const asks = await asksAddressedTo('p-lorena', 'co-tapin')
     expect(asks.map((a) => a.id)).toEqual(['pass1'])
     const a = asks[0]
-    expect(a.says).toBe('Camille Roux wants to pass Tapin’s ownership to you. After this you are an Owner of Tapin. They will be an Admin.')
+    expect(a.says).toBe('Camille Roux wants to pass Tapin’s ownership to you. After this you are an Owner of Tapin. Camille Roux will be an Admin.')
     expect(a.becomes).toBe('Owner')
     expect(a.canThen).toMatch(/^As an Owner you run Tapin’s business/)
     expect(a.askedBy).toBe('Camille Roux')

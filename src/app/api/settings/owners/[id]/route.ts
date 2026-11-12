@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { mayDecide, lapsed, type AskerAfter } from '@/lib/owner-rules'
 import { ownersDoor, seatsAt, refused } from '../seats'
-import { landPass, landOwnerChange } from '../act'
+import { landPass, landOwnerChange, saidNoNotice } from '../act'
 
 /**
  * POST /api/settings/owners/:id — { decision: 'yes' | 'no' | 'cancel', reason? }
@@ -81,10 +81,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         },
       }),
     ])
+    // What was asked, in the asker's own words (lib/notify/owner-words),
+    // never "your ask about <the decider>".
+    const no = saidNoNotice({
+      deciderName: caller!.person.name, kind: ask.kind as 'PASS' | 'REMOVE' | 'DEMOTE',
+      subjectName: subject.name, companyName: company.name, toRoleName: ask.toRole?.name ?? null,
+    })
     void notify({
       personId: ask.askedById, companyId: company.id, type: 'SYSTEM',
-      title: `${caller!.person.name} said no`,
-      body: `${caller!.person.name} said no to your ask about ${subject.name} at ${company.name}. Nothing changed.`,
+      title: no.title, body: no.body,
       entityId: ask.id, channel: 'EMAIL',
     })
     return NextResponse.json({ data: { message: 'Answered no. Nothing changed, and the Owner who asked is told.' } })
@@ -102,9 +107,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     subject: { personId: subject.personId, name: subject.name, contextId: subject.contextId },
     reason: ask.reason,
   }
-  const says = ask.kind === 'PASS'
-    ? await landPass({ ...landing, after: (ask.askerAfter ?? 'OWNER') as AskerAfter })
-    : await landOwnerChange({ ...landing, kind: ask.kind, toRoleId: ask.toRoleId, toRoleName: ask.toRole?.name ?? null })
+  if (ask.kind === 'PASS') {
+    // Each reader in their own words: the new Owner on the screen, the
+    // Owner who passed it in the notice (lib/notify/owner-words).
+    const words = await landPass({ ...landing, after: (ask.askerAfter ?? 'OWNER') as AskerAfter })
+    void notify({
+      personId: ask.askedById, companyId: company.id, type: 'SYSTEM',
+      title: words.forAsker.title, body: words.forAsker.body,
+      entityId: ask.id, channel: 'EMAIL',
+    })
+    return NextResponse.json({ data: { message: words.forNewOwner } })
+  }
+  const says = await landOwnerChange({ ...landing, kind: ask.kind, toRoleId: ask.toRoleId, toRoleName: ask.toRole?.name ?? null })
 
   if (ask.askedById !== personId) {
     void notify({
