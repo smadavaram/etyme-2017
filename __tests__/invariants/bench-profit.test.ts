@@ -527,8 +527,15 @@ describe('bench profit per person takes off the commission paid on the placement
 
   it('the bench profit route reads the commission from money\'s own reader, never a figure of its own', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/bench/profit/route.ts'), 'utf8')
-    expect(route).toContain("import { commissionAccruals, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'")
+    expect(route).toContain("import { commissionAccrualsOver, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'")
     expect(route).toContain('commissionByPlacement(accruals)')
     expect(route).not.toMatch(/rateBps|accrueCommission/)
+  })
+
+  it('the bench profit route reads every month\'s commission in one pass over the span, and works out each placed person\'s margin once', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/bench/profit/route.ts'), 'utf8')
+    expect(route).toContain('commissionAccrualsOver(companyId, periods')
+    expect(route).not.toMatch(/commissionAccruals\(/)
+    expect(route.match(/await earnedOn\(placedLine\)/g) ?? []).toHaveLength(1)
   })
 })

@@ -19,7 +19,7 @@ import {
 import { marginReachFor, teamsSay } from '@/lib/money/margin-reach'
 import { benchPeopleInReach } from '@/lib/consultant-portfolio/margin-reach'
 import { benchHolidays } from '../holiday-pay'
-import { commissionAccruals, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'
+import { commissionAccrualsOver, commissionByPlacement, monthPeriod } from '@/lib/money/commission-accrual'
 import { logBulkAccess } from '@/lib/access-log'
 
 /**
@@ -299,13 +299,14 @@ export async function GET(request: NextRequest) {
           ? payOn(lastEnded)
           : null
 
+    const earned = placedLine ? await earnedOn(placedLine) : null
     const row = benchToBill({
       spell,
       policy,
       payRateCents: pay?.payRateCents ?? null,
       contractType: pay?.contractType ?? null,
       currency: pay?.currency ?? firm.homeCurrency,
-      earned: placedLine ? await earnedOn(placedLine) : null,
+      earned,
       holidayPay: holidays.payOf(pid),
       // Said wherever the rate is not a line paying them on those days, so
       // the figure reads as what the policy says, never as money paid out.
@@ -328,15 +329,15 @@ export async function GET(request: NextRequest) {
       },
       row,
       placed: placedLine,
-      marginCurrency: placedLine ? (await earnedOn(placedLine)).currency : null,
+      marginCurrency: earned?.currency ?? null,
       benchCurrency: pay?.currency ?? firm.homeCurrency,
     })
   }
 
   // ── Less the commission on each placement ──────────────────────────
   //
-  // Money's own reader (`commissionAccruals`, `commissionByPlacement`),
-  // read one pay period at a time — money's month (`monthPeriod`) — from
+  // Money's own reader (`commissionAccrualsOver`, `commissionByPlacement`),
+  // read once over every pay period — money's month (`monthPeriod`) — from
   // the month the earliest placement here started to this one, the way
   // Ask Etyme adds a person's commissions up. Nothing is worked out here.
   // Where the firm has no commission row on any line, nothing is read and
@@ -352,15 +353,11 @@ export async function GET(request: NextRequest) {
     for (let y = first.getUTCFullYear(), m = first.getUTCMonth(); y < now.getUTCFullYear() || (y === now.getUTCFullYear() && m <= now.getUTCMonth()); m === 11 ? (y++, m = 0) : m++) {
       periods.push(monthPeriod(new Date(Date.UTC(y, m, 15))))
     }
-    const perMonth: Map<string, CommissionMonth>[] = []
     const earners = new Set<string>()
-    for (let i = 0; i < periods.length; i += 6) {
-      const batch = await Promise.all(periods.slice(i, i + 6).map((p) => commissionAccruals(companyId, p, { sellContractIds: placedIds })))
-      for (const accruals of batch) {
-        for (const a of accruals) earners.add(a.earnedBy.id)
-        perMonth.push(commissionByPlacement(accruals))
-      }
-    }
+    const perMonth: Map<string, CommissionMonth>[] = (await commissionAccrualsOver(companyId, periods, { sellContractIds: placedIds })).map((accruals) => {
+      for (const a of accruals) earners.add(a.earnedBy.id)
+      return commissionByPlacement(accruals)
+    })
     for (const id of placedIds) monthsOf.set(id, perMonth)
     for (const l of await prisma.contractLink.findMany({
       where: { sellContractId: { in: placedIds }, buyContract: { commissionType: { not: null } } },
