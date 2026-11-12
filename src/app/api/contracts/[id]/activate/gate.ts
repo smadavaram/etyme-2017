@@ -12,8 +12,8 @@
  */
 
 import { contractSide, type ContractSide } from '@/lib/resolve-client-company'
-import { hasPermission, askTheDesk, desksHolding, type Permission } from '@/lib/permissions'
-import type { CallerContext } from '@/lib/api-context'
+import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
+import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { partiesSay } from './words'
 
 export const VALID_ACTIONS = ['verify', 'activate', 'pause', 'resume', 'complete', 'cancel'] as const
@@ -96,7 +96,7 @@ export function gateRefusal(
       status: 403,
       error: {
         code: 'FORBIDDEN',
-        message: askTheDesk({ doing: DOING[action], needs, kind: caller.company?.kind, companyName: caller.company?.name }),
+        message: refusalFor(caller, { doing: DOING[action], needs }),
       },
     }
   }

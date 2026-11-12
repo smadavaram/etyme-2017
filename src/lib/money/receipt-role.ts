@@ -6,7 +6,8 @@
  * client seated the reader). No database.
  */
 
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
+import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { mayRecordSupplierInvoice, NOT_THE_PAYING_DESK } from '@/lib/money/desks'
 import { waiveDesk } from '@/lib/money/pay-desk'
 import { seatMayPay, seatedRefusal, type Books } from '@/lib/money/seated-books'
@@ -36,6 +37,9 @@ export function receiptRole(reading: Books): ReaderRole {
       ? null
       : seated && !seated.ok
         ? seated.says
-        : askTheDesk({ doing: 'Recording a payment', needs: 'payments.record', kind: reading.companyKind, companyName: reading.companyName }),
+        : refusalFor(
+            { publicSeat: reading.caller.publicSeat, company: { kind: reading.companyKind, name: reading.companyName } as CallerContext['company'] },
+            { doing: 'Recording a payment', needs: 'payments.record' },
+          ),
   }
 }

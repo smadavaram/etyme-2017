@@ -61,6 +61,34 @@ describe('Accept on an expense is drawn only for a seat the route lets decide it
   })
 })
 
+describe('a seat invited on a public address reads that its address is why, never "ask the role you hold"', () => {
+  it('a public-address seat refused an expense decision is told its address is the reason, and its Owner can move it', () => {
+    const says = expenseDecideRefusal(
+      { permissions: ['requirements.read'], seat: null, companyName: 'Northbend Athletic', acting: { publicSeat: true } },
+      'CLIENT',
+    )
+    expect(says).toContain('You were invited to Northbend Athletic on a public address')
+    expect(says).toContain('An Owner of Northbend Athletic can move you to a company-directory address.')
+  })
+
+  it('a seat on a company address refused the same decision still reads who decides it', () => {
+    const says = expenseDecideRefusal(
+      { permissions: ['requirements.read'], seat: null, companyName: 'Northbend Athletic', acting: { publicSeat: false } },
+      'CLIENT',
+    )
+    expect(says).not.toContain('public address')
+  })
+
+  it('the invoice receipt’s Pay and a placement’s lifecycle buttons are refused through the caller-aware sentence', () => {
+    const role = readFileSync(join(process.cwd(), 'src/lib/money/receipt-role.ts'), 'utf8')
+    const gate = readFileSync(join(process.cwd(), 'src/app/api/contracts/[id]/activate/gate.ts'), 'utf8')
+    for (const src of [role, gate]) {
+      expect(src).not.toMatch(/askTheDesk\(/)
+      expect(src).toContain('refusalFor(')
+    }
+  })
+})
+
 describe('a question to the supplier is typed on the page and kept through a refusal', () => {
   const page = read('src/app/dashboard/invoices/page.tsx')
 
