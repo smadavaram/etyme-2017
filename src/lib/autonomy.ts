@@ -519,6 +519,15 @@ const RULE_ATTRIBUTED = [
   // permission to a role or a person, or took one away, on Users &
   // permissions (2026-11-08). A person's own act, recorded like a role edit.
   'PERMISSION_GRANTED', 'PERMISSION_REVOKED',
+  // Who owns the company (founder, 2026-11-11): an Owner asked to pass
+  // ownership or to remove or move an Owner; a second person said yes or
+  // no, or the asker withdrew; ownership passed with both changes in one
+  // step; an Owner removed or moved on another Owner's yes; the Owner
+  // narrowed the Admin role to people and settings; somebody holding both
+  // proofs became the Owner; a Superadmin recorded a provider's identity
+  // check. Every one a person's own act; none has a rung.
+  'OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED',
+  'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }

@@ -474,7 +474,66 @@ export const GRANTED_SINCE: {
   },
 ]
 
-export function rolesFor(kind: CompanyKind): RoleSeed[] {
+// ── Admin runs the system; the Owner runs the business ─────────────────
+
+/**
+ * The Admin a company formed from 2026-11-12 is given (founder,
+ * 2026-11-11: "treat admin as manager or IT owner and not business owner
+ * in the whole app"). People (inviting, pausing and ending seats, never an
+ * Owner's), roles, team structure, the directory import, sites, setup and
+ * integrations: all of them `team.manage` and `settings.manage`. The
+ * register of who holds what (`governance.read`), and a person's data
+ * request, which is a people task (`privacy.manage`).
+ *
+ * Not money and not contracts: no payroll, no paying or sending bills, no
+ * bank check, no signing, no award, no extension, no rate, no margin. The
+ * Owner gives those through a business role (Finance, AP & Payroll,
+ * Contract Manager), so an Admin is never a back door to them. The company
+ * type, the domain claim and giving access by team or company are the
+ * Owner's by the routes that do them.
+ */
+export const ADMIN_ROLE = 'Admin'
+export const ADMIN_PERMISSIONS: readonly Permission[] = ['team.manage', 'settings.manage', 'governance.read', 'privacy.manage']
+
+const NARROW_ADMIN: RoleSeed = {
+  name: ADMIN_ROLE,
+  blurb: 'People, roles, settings and integrations. No money, no contracts.',
+  permissions: [...ADMIN_PERMISSIONS],
+}
+
+/**
+ * The money and contract acts an Admin no longer holds. An Admin role
+ * holding none of them reads as narrowed, and no default grant widens it
+ * again (`ensureDefaultRoles` in lib/company-roles).
+ */
+export const ADMIN_LOSES: readonly Permission[] = [
+  'invoices.issue', 'payments.record', 'payroll.run', 'payroll.approve', 'orders.raise',
+  'requirements.write', 'assignments.write', 'assignments.terminate', 'rates.write',
+  'timesheets.approve', 'margin.read', 'pnl.read', 'consultants.cost',
+]
+
+/** Whether an Admin role is the narrowed one: it holds no money or contract act. */
+export function isNarrowedAdmin(permissions: readonly string[]): boolean {
+  return !permissions.includes('*') && !ADMIN_LOSES.some((p) => permissions.includes(p))
+}
+
+/**
+ * The roles a company of this kind starts with.
+ *
+ * `narrowAdmin` is for a company formed under the proof rule (2026-11-12):
+ * its first person is seated as Admin, so every kind gets the narrowed
+ * Admin, a supplier's broad Admin replaced by it. Every other caller, the
+ * seeded world included, reads exactly the sets it read before.
+ */
+export function rolesFor(kind: CompanyKind, opts: { narrowAdmin?: boolean } = {}): RoleSeed[] {
+  const base = baseRolesFor(kind)
+  if (!opts.narrowAdmin) return base
+  const owner = base.filter((r) => r.isOwner)
+  const rest = base.filter((r) => !r.isOwner && r.name !== ADMIN_ROLE)
+  return [...owner, NARROW_ADMIN, ...rest]
+}
+
+function baseRolesFor(kind: CompanyKind): RoleSeed[] {
   switch (kind) {
     case 'CLIENT':
       return CLIENT_ROLES

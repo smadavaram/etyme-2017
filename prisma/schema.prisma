@@ -277,6 +277,12 @@ model Person {
   /// The identities a company's directory vouches for: issuer and subject.
   externalIdentities     ExternalIdentity[]
   signInPoliciesSet      CompanySignInPolicy[] @relation("signInPolicySetBy")
+  /// Owners (2026-11-12): asks this person made or decided, and the proofs
+  /// about them or recorded by them.
+  ownershipAsked         OwnershipRequest[]    @relation("ownershipAskedBy")
+  ownershipDecided       OwnershipRequest[]    @relation("ownershipDecidedBy")
+  ownerProofs            OwnerProof[]          @relation("ownerProofOf")
+  ownerProofsRecorded    OwnerProof[]          @relation("ownerProofRecordedBy")
   identityProvidersSet   IdentityProvider[]    @relation("identityProviderSetBy")
   scimTokensMade         ScimToken[]           @relation("scimTokenMadeBy")
   directoryGroupRolesSet DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
@@ -366,19 +372,21 @@ enum Provider {
 }
 
 model Context {
-  id         String      @id @default(cuid())
-  personId   String
-  person     Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type       ContextType
-  companyId  String?
-  company    Company?    @relation(fields: [companyId], references: [id])
-  roleId     String?
-  role       Role?       @relation(fields: [roleId], references: [id])
-  orgUnitId  String? // a delivery manager owns a practice, not the firm
-  orgUnit    OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  id            String             @id @default(cuid())
+  personId      String
+  person        Person             @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type          ContextType
+  companyId     String?
+  company       Company?           @relation(fields: [companyId], references: [id])
+  roleId        String?
+  role          Role?              @relation(fields: [roleId], references: [id])
+  orgUnitId     String? // a delivery manager owns a practice, not the firm
+  orgUnit       OrgUnit?           @relation(fields: [orgUnitId], references: [id])
   /// The boxes this seat leads on the team structure (2026-11-09).
-  leads      OrgUnit[]   @relation("unitLead")
-  orgChanges OrgChange[] @relation("orgChangeSeat")
+  leads         OrgUnit[]          @relation("unitLead")
+  /// Asks about this seat as an Owner: becoming one, or no longer being one.
+  ownershipAsks OwnershipRequest[]
+  orgChanges    OrgChange[]        @relation("orgChangeSeat")
 
   // ── Side, and persona ───────────────────────────────────────────────
   //
@@ -775,38 +783,38 @@ model Company {
   /// The days nobody is expected to work, 0 = Sunday through 6 = Saturday.
   /// A day off decides what a sheet expects and what a date shifts around,
   /// never what a worker may file. Empty means every day is a working day.
-  daysOff             Int[]     @default([0, 6])
+  daysOff              Int[]     @default([0, 6])
   /// The weekday after a week ends on which its hours are due. Default Monday.
-  hoursDueWeekday     Int       @default(1)
+  hoursDueWeekday      Int       @default(1)
   /// The weekday by which a week's hours must be approved. Default Wednesday.
-  approveByWeekday    Int       @default(3)
+  approveByWeekday     Int       @default(3)
   /// Extra weeks approvers are given past that weekday: 0 or 1, never more,
   /// because every day an approval waits the bill and the pay wait behind it.
-  approvalExtraWeeks  Int       @default(0)
+  approvalExtraWeeks   Int       @default(0)
   /// When somebody last answered the questions above. Null: nobody has, and
   /// the defaults stand.
-  weekSettingsSetAt   DateTime?
+  weekSettingsSetAt    DateTime?
   /// The person who last answered them.
-  weekSettingsSetById String?
+  weekSettingsSetById  String?
   // ── Payroll: the company's choice ──────────────────────────────────
   //
   // The founder, 2026-10-07: "Give choice to businesses when they want to
   // configure payroll." The defaults are today's packs; a company may
   // change them. Read and written only through src/lib/payroll-settings.ts.
   /// How often pay is run: WEEKLY, BIWEEKLY, SEMIMONTHLY or MONTHLY.
-  payPeriod           String    @default("BIWEEKLY")
+  payPeriod            String    @default("BIWEEKLY")
   /// Weekly and biweekly: days after the period's Saturday that pay is worked out (4 = Wednesday).
-  payCalcOffsetDays   Int       @default(4)
+  payCalcOffsetDays    Int       @default(4)
   /// Weekly and biweekly: days after the period's Saturday that pay is paid (6 = Friday).
-  payDayOffsetDays    Int       @default(6)
+  payDayOffsetDays     Int       @default(6)
   /// Semimonthly and monthly: the pay days of the month, 1 to 28, where 28 means month end.
-  payDaysOfMonth      Int[]     @default([28])
+  payDaysOfMonth       Int[]     @default([28])
   /// Semimonthly and monthly: how many days before the pay day pay is worked out (28 - 3 = the 25th).
-  payCalcDaysBefore   Int       @default(3)
+  payCalcDaysBefore    Int       @default(3)
   /// When somebody last answered the payroll questions. Null: the defaults stand.
-  paySettingsSetAt    DateTime?
+  paySettingsSetAt     DateTime?
   /// The person who last answered them.
-  paySettingsSetById  String?
+  paySettingsSetById   String?
   // ── Setup: five steps, then it stops ───────────────────────────────
   //
   // The founder, 2026-10-07: after the first sign-in a new company walks
@@ -817,13 +825,13 @@ model Company {
   /// When this company began setup. Null for a company formed before the
   /// steps existed, or recorded by somebody else as a counterparty: setup
   /// is never asked of it and the dashboard never reminds it.
-  setupStartedAt      DateTime?
+  setupStartedAt       DateTime?
   /// When every step had an answer, done or skipped. After this the steps
   /// are never shown again unless somebody follows the dashboard's link back.
-  setupFinishedAt     DateTime?
+  setupFinishedAt      DateTime?
   /// One entry per step answered: { COMPANY | WORK | PEOPLE | TEAM:
   /// { outcome: DONE | SKIPPED, byId, at } }. Who answered and when.
-  setupSteps          Json?
+  setupSteps           Json?
   // ── The admin's setup checklist (founder, 2026-10-22; "Build it",
   // 2026-10-28) ─────────────────────────────────────────────────────
   //
@@ -835,42 +843,52 @@ model Company {
   // (the rules) and src/lib/setup-checklist-state.ts (the record).
   /// The name on the company's tax registration and its bills, where it
   /// differs from the name people use. Null reads as `name`.
-  legalName           String?
+  legalName            String?
   /// "Doing business as": the trading name, where there is one.
-  dba                 String?
+  dba                  String?
   /// The year the company was established, as the company says it.
-  establishedYear     Int?
+  establishedYear      Int?
   /// The company's own website, as somebody typed it. Never fetched in
   /// this wave: the guarded website read is not built.
-  website             String?
+  website              String?
   /// Where the logo is kept, an address this deployment serves.
-  logoUrl             String?
+  logoUrl              String?
   /// The main phone number, as the company writes it.
-  phone               String?
+  phone                String?
   /// The billing address is the legal address unless somebody says not.
   /// A `CompanyAddress` of kind BILLING is read only when this is false.
-  billingSameAsLegal  Boolean   @default(true)
+  billingSameAsLegal   Boolean   @default(true)
   /// Where suppliers send invoices and clients send remittances: a shared
   /// mailbox, not a person, so it is a column and not a person in charge.
-  accountsEmail       String?
+  accountsEmail        String?
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
-  supplierPosture     String?
+  supplierPosture      String?
   /// Who last changed the company's type (kind and posture) after sign-up,
   /// and when: only its Owner, from Settings → Company (the founder's
   /// Tapin, 2026-11-02). Null until anybody does. A record of a person,
   /// never followed, like reportingCurrencySetById.
-  kindSetById         String?
-  kindSetAt           DateTime?
-  currency            String    @default("USD")
+  kindSetById          String?
+  kindSetAt            DateTime?
+  /// When the rule "the first person is an Admin; Owner is earned by proof"
+  /// began to apply to this company (founder, 2026-11-11): set by the
+  /// sign-up doors at creation from 2026-11-12. Null for every company
+  /// formed before, which is treated as having a verified Owner, so nothing
+  /// is taken from a company already trading.
+  ownerProofRequiredAt DateTime?
+  /// When somebody holding both proofs (lib/owner-proof) became its Owner,
+  /// and who. A record of a person, never followed, like kindSetById.
+  ownerVerifiedAt      DateTime?
+  ownerVerifiedById    String?
+  currency             String    @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to
   // email, and when there is no email either the notification says so
   // rather than sitting in the app pretending it was sent.
-  teamsWebhookUrl     String?
+  teamsWebhookUrl      String?
 
   /// The words on their public page.
   ///
@@ -921,6 +939,8 @@ model Company {
   directoryConnections  DirectoryConnection[]
   /// How this company's people sign in (2026-11-11). No row is today's behavior.
   signInPolicy          CompanySignInPolicy?
+  ownershipRequests     OwnershipRequest[]
+  ownerProofs           OwnerProof[]
   identityProviders     IdentityProvider[]
   scimTokens            ScimToken[]
   directoryGroupRoles   DirectoryGroupRole[]
@@ -2227,6 +2247,8 @@ model Role {
   permissionGrants PermissionGrant[]
   /// Directory groups that seat people in this role (2026-11-11).
   directoryGroups  DirectoryGroupRole[]
+  /// Asks to move an Owner to this role (2026-11-12).
+  ownershipMoves   OwnershipRequest[]
 
   @@index([companyId])
 }
@@ -10422,4 +10444,101 @@ enum InboundEmailKind {
   REMITTANCE
   PAYROLL_CONFIRMATION
   UNSORTED
+}
+
+/// An act on who owns a company that needs a second person's yes
+/// (founder, 2026-11-11). PASS: an Owner passes ownership to another seat,
+/// and that seat's holder says yes. REMOVE and DEMOTE: an Owner ends or
+/// moves another Owner (or themself), and an Owner who is neither of them
+/// says yes. Nothing changes until the yes; both changes then land in one
+/// transaction. Never deleted: a declined, cancelled or lapsed ask stays.
+model OwnershipRequest {
+  id               String            @id @default(cuid())
+  companyId        String
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind             OwnershipAsk
+  state            OwnershipAskState @default(PENDING)
+  askedById        String
+  askedBy          Person            @relation("ownershipAskedBy", fields: [askedById], references: [id], onDelete: Cascade)
+  /// The seat the act is about: who becomes Owner (PASS), or the Owner who
+  /// is removed or moved (REMOVE, DEMOTE).
+  subjectContextId String
+  subjectContext   Context           @relation(fields: [subjectContextId], references: [id], onDelete: Cascade)
+  /// PASS only: what the Owner who asked becomes once the yes lands.
+  askerAfter       OwnerAfter?
+  /// DEMOTE, and PASS with askerAfter ADMIN: the role moved to.
+  toRoleId         String?
+  toRole           Role?             @relation(fields: [toRoleId], references: [id], onDelete: SetNull)
+  /// Why, in the asker's words.
+  reason           String
+  decidedById      String?
+  decidedBy        Person?           @relation("ownershipDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt        DateTime?
+  /// Seven days after it was asked; unanswered, it lapses and nothing changes.
+  expiresAt        DateTime
+  createdAt        DateTime          @default(now())
+
+  @@index([companyId, state])
+  @@index([askedById])
+  @@index([subjectContextId])
+  @@index([toRoleId])
+  @@index([decidedById])
+}
+
+enum OwnershipAsk {
+  PASS
+  REMOVE
+  DEMOTE
+}
+
+enum OwnershipAskState {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  LAPSED
+}
+
+enum OwnerAfter {
+  OWNER
+  ADMIN
+  LEAVE
+}
+
+/// One of the two proofs a person needs to be seated Owner of a company
+/// formed under the proof rule (founder, 2026-11-11). DOMAIN: the company's
+/// domain, by the DNS proof or by its own directory. PERSON: an identity
+/// check by a provider, recorded verbatim with its name, reference and
+/// date; Etyme renders no verdict and keeps no copy of an identity paper.
+model OwnerProof {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId     String
+  person       Person         @relation("ownerProofOf", fields: [personId], references: [id], onDelete: Cascade)
+  kind         OwnerProofKind
+  /// DOMAIN: DNS or DIRECTORY. PERSON: the provider's name, as it gave it.
+  source       String
+  /// DOMAIN: the domain proved. PERSON: the provider's own reference.
+  reference    String?
+  /// PERSON: the provider's result, word for word.
+  result       String?
+  /// PERSON: whether the provider confirmed the person is who they say,
+  /// as the provider said it. The provider's verdict, never Etyme's. A
+  /// DOMAIN row is written only when the proof holds, so it is true.
+  confirmed    Boolean        @default(false)
+  /// PERSON: the date the provider put on its result.
+  checkedOn    DateTime?
+  recordedById String
+  recordedBy   Person         @relation("ownerProofRecordedBy", fields: [recordedById], references: [id], onDelete: Cascade)
+  recordedAt   DateTime       @default(now())
+
+  @@index([companyId, personId])
+  @@index([personId])
+  @@index([recordedById])
+}
+
+enum OwnerProofKind {
+  DOMAIN
+  PERSON
 }

@@ -90,6 +90,10 @@ export const DELETE_ORDER = [
   // A permission the Owner gave (2026-11-08) names a role, a seat, a unit
   // and the people who gave and took it, so it goes before all of them.
   'PermissionGrant',
+  // Who owns a company (2026-11-12): an ask names a seat, a role and the
+  // people who asked and decided; a proof names the person and who
+  // recorded it. Both go before every one of them.
+  'OwnershipRequest', 'OwnerProof',
   // A change to the team structure (2026-11-09) names the person who made
   // it, a seat, a box and a line; it goes before all of them.
   'OrgChange',
@@ -266,6 +270,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Company.reportingCurrencySetById': { as: 'RECORD' },
   // Who last changed the company's type (PATCH /api/settings/kind). A record of a person, never followed.
   'Company.kindSetById': { as: 'RECORD' },
+  // Who became the verified Owner (2026-11-12): a record of a person.
+  'Company.ownerVerifiedById': { as: 'RECORD' },
   // The setup checklist (2026-10-28): who answered, who recorded, who
   // typed the bank details and which firm's Finance checked them. Records
   // of a person or a firm, never followed.

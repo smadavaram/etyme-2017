@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { rolesFor, RENAMED_ROLES, GRANTED_SINCE, REVOKED_SINCE } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES, GRANTED_SINCE, REVOKED_SINCE, ADMIN_ROLE, isNarrowedAdmin } from '@/lib/company-defaults'
 import type { CompanyKind } from '@prisma/client'
 
 /**
@@ -43,6 +43,9 @@ export async function ensureDefaultRoles(
       select: { id: true, permissions: true },
     })
     if (!role) continue
+    // A narrowed Admin (2026-11-12) holds no money or contract act, by the
+    // Owner's choice or the company's start; no default grant widens it.
+    if (grant.role === ADMIN_ROLE && isNarrowedAdmin(role.permissions)) continue
     const missing = grant.permissions.filter((p) => !role.permissions.includes(p))
     if (missing.length === 0) continue
     await prisma.role.update({

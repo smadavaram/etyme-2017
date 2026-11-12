@@ -234,13 +234,16 @@ export default function SettingsPage() {
           {/* The setup checklist (2026-10-28): every item, done, skipped or to do. */}
           <Link href={'/dashboard/settings/setup' as any} className="text-etyme-action-press">Setup checklist</Link>
           {' '}— your company, addresses, sites, the people in charge, papers, bank details and your domain, one at a time.
+          {' '}{/* Who owns the company (2026-11-12): pass ownership, add or remove an Owner. */}
+          <Link href={'/dashboard/settings/owners' as any} className="text-etyme-action-press">Owners</Link>
+          {' '}— who owns the company, and passing ownership.
         </p>
       )}
 
       {!canEdit && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">
           <p className="text-[13px] text-etyme-ink">
-            You can read this but not change it. Your company’s owner or an admin changes
+            You can read this but not change it. Your company’s Owner or an Admin changes
             settings — ask whoever gave you your role.
           </p>
         </div>

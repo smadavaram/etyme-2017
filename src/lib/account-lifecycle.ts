@@ -40,6 +40,45 @@ export interface AccessRow {
   rolePermissions: string[]
   suspendedAt: Date | null
   revokedAt: Date | null
+  /**
+   * Whether the seat is an Owner's (2026-11-12). Optional so a caller that
+   * has not been brought up to the Owner rules reads as before; the access
+   * route sets it from the seat's role name, and with it the Owner rules
+   * below apply.
+   */
+  isOwner?: boolean
+}
+
+/** Who is acting, for the Owner rules: only an Owner acts on an Owner. */
+export interface Actor {
+  isOwner: boolean
+}
+
+/**
+ * The Owner rules for pausing and ending a seat (founder, 2026-11-11).
+ * Only an Owner pauses an Owner, and never the last live one; an Owner's
+ * seat is never ended here at all, because removing an Owner needs a
+ * second Owner's yes and goes through Settings → Owners.
+ */
+function ownerVerdict(action: 'suspend' | 'revoke', target: AccessRow, all: AccessRow[], actor?: Actor): Verdict | null {
+  if (!target.isOwner) return null
+  if (action === 'revoke') {
+    return {
+      allowed: false,
+      reason: actor?.isOwner
+        ? 'They are an Owner. Removing an Owner needs another Owner’s yes: ask from Settings → Owners.'
+        : 'They are an Owner. Only an Owner removes an Owner, from Settings → Owners, with another Owner’s yes. An Admin never can.',
+      consequences: [],
+    }
+  }
+  if (!actor?.isOwner) {
+    return { allowed: false, reason: 'They are an Owner. Only an Owner pauses an Owner. An Admin never can.', consequences: [] }
+  }
+  const otherOwners = all.filter((r) => r.isOwner && r.contextId !== target.contextId && !r.revokedAt && !r.suspendedAt && r.hasSignedIn).length
+  if (otherOwners === 0) {
+    return { allowed: false, reason: 'They are the only Owner. There is never no Owner: pass ownership first.', consequences: [] }
+  }
+  return null
 }
 
 export function stateOf(row: AccessRow): AccessState {
@@ -79,7 +118,7 @@ function othersWhoCanManage(rows: AccessRow[], excludingContextId: string): numb
   ).length
 }
 
-export function canSuspend(target: AccessRow, all: AccessRow[]): Verdict {
+export function canSuspend(target: AccessRow, all: AccessRow[], actor?: Actor): Verdict {
   const state = stateOf(target)
 
   if (state === 'REVOKED') {
@@ -88,6 +127,8 @@ export function canSuspend(target: AccessRow, all: AccessRow[]): Verdict {
   if (state === 'SUSPENDED') {
     return { allowed: false, reason: 'They are already suspended.', consequences: [] }
   }
+  const owner = ownerVerdict('suspend', target, all, actor)
+  if (owner) return owner
 
   const canManage =
     hasPermission(target.rolePermissions, 'team.manage')
@@ -136,10 +177,12 @@ export function canReinstate(target: AccessRow): Verdict {
   }
 }
 
-export function canRevoke(target: AccessRow, all: AccessRow[]): Verdict {
+export function canRevoke(target: AccessRow, all: AccessRow[], actor?: Actor): Verdict {
   if (stateOf(target) === 'REVOKED') {
     return { allowed: false, reason: 'Their access has already ended.', consequences: [] }
   }
+  const owner = ownerVerdict('revoke', target, all, actor)
+  if (owner) return owner
 
   const canManage =
     hasPermission(target.rolePermissions, 'team.manage')
