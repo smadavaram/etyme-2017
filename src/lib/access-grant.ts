@@ -27,8 +27,9 @@
  * the cost of not doing it lands on somebody else years later.
  */
 
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, inWords, PERMISSIONS } from '@/lib/permissions'
 import { formatDay } from '@/lib/format-date'
+import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy, type EffectiveMode } from '@/lib/identity/policy'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
@@ -643,4 +644,84 @@ export function mayHoldOutsideSeat(input: {
       `${input.firmName} cannot hold ${input.clientName}’s ${input.role.name} role: ${why}. ` +
       `Choose the role it runs the program in, Program Manager most often.`,
   }
+}
+
+
+// ── The invitation form, in the company's own sign-in terms ────────────
+
+/** What the invitation form says, read from the company's sign-in policy. */
+export interface InviteForm {
+  /** The mode the one policy function reads; never sent to a reader who cannot manage people. */
+  mode: EffectiveMode
+  /** The label over the address box. */
+  emailLabel: string
+  /** One line under the box: who may be invited, and what follows. */
+  hint: string
+  /** Whether a personal address (Gmail and the rest) may be invited at all. */
+  personalWelcome: boolean
+}
+
+/**
+ * What a seat on a personal address cannot do at this company, in words,
+ * or null where the company does not limit one. Read from the one limit
+ * (`isLimitedPublicSeat` and `narrowForPublicSeat` in lib/identity/policy,
+ * which lib/api-context applies on every request), never retyped here.
+ */
+export function personalSeatCannot(policy: CompanyPolicy | null): string | null {
+  if (!isLimitedPublicSeat(policy, true)) return null
+  const keeps = new Set(narrowForPublicSeat(['*'], PERMISSIONS))
+  const withheld = PERMISSIONS.filter((p) => !keeps.has(p))
+  return withheld.length > 0 ? inWords(withheld) : null
+}
+
+/**
+ * The invitation form's label and hint, by the company's sign-in mode
+ * (founder, 2026-11-12: "Work email" told him a partner on Gmail could not
+ * be invited, when his company invites exactly that).
+ *
+ * - Directory only: an address on the company's own domain may still be
+ *   invited (the INVITE door allows it, lib/identity/policy `decideDoor`);
+ *   anybody else is added in the company's directory.
+ * - Invitation only, hybrid, or nothing set: any address, a personal one
+ *   welcome; where the company limits a seat on a personal address, the
+ *   hint says what that seat cannot do.
+ * - A one-person firm keeps the form it had.
+ */
+export function inviteFormWords(args: { policy: CompanyPolicy | null; domain: string | null; oneFirm: boolean }): InviteForm {
+  const mode = effectiveMode(args.policy)
+  if (args.oneFirm) {
+    return {
+      mode,
+      emailLabel: 'Work email',
+      hint: 'Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.',
+      personalWelcome: mode !== 'SSO_ONLY',
+    }
+  }
+  if (mode === 'SSO_ONLY') {
+    return {
+      mode,
+      emailLabel: args.domain ? `Work email on ${args.domain}` : 'Work email',
+      hint: args.domain
+        ? `People outside ${args.domain} are added in your company’s directory, and appear here the first time they sign in.`
+        : 'People are added in your company’s directory, and appear here the first time they sign in.',
+      personalWelcome: false,
+    }
+  }
+  const cannot = personalSeatCannot(args.policy)
+  return {
+    mode,
+    emailLabel: 'Email address',
+    hint: cannot
+      ? `A company address, or a personal one such as Gmail for a partner. A seat on a personal address cannot ${cannot}.`
+      : 'A company address, or a personal one such as Gmail for a partner.',
+    personalWelcome: true,
+  }
+}
+
+/** What the address box says when Invite is pressed with no whole address in it. */
+export const INVITE_ADDRESS_MISSING = 'Type the full address, like name@example.com.'
+
+/** Whether the box holds a whole address: the same test the invite route makes (lib/account-lifecycle `checkInvite`). */
+export function looksLikeAddress(raw: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw.trim())
 }

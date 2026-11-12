@@ -236,7 +236,9 @@ describe('sign-up walk, round three: Users & permissions counts and says what is
 
   it('a desk’s end date is printed as a day a person reads, on the page and in the email', () => {
     const page = read('src/app/dashboard/access/page.tsx')
-    expect(page).toContain('until ${formatDay(iso)}')
+    // The row says the end day itself (founder, 2026-11-12), never "12 days left".
+    expect(page).toContain('`ends ${formatDay(iso)}`')
+    expect(page).not.toContain('days left')
     expect(page).not.toContain('iso.slice(0, 10)')
     const n = deskChangedNotice({ roleName: 'Recruiter', companyName: 'Walk Co', expiresAt: new Date('2027-07-05T00:00:00Z'), landing: '/dashboard' })
     expect(n.body).toContain('It runs until Jul 5, 2027.')
@@ -369,7 +371,9 @@ describe('Pause, Reinstate and End on Users & permissions', () => {
   it('the page draws Pause, Reinstate and End only where the row’s offer allows', () => {
     expect(page).toContain('if (acts.pause) offered.push(\'suspend\')')
     expect(page).toContain('if (acts.reinstate) offered.push(\'reinstate\')')
-    expect(page).toContain('if (acts.end) offered.push(\'revoke\')')
+    // End on a waiting row only once withdrawing was refused on history.
+    expect(page).toContain('if (acts.end || (acts.endInstead && keptEnd)) offered.push(\'revoke\')')
+    expect(page).toContain('if (acts.withdraw) offered.push(\'withdraw\')')
   })
 
   it('the page asks no question in a browser pop-up: no alert, confirm or prompt', () => {
@@ -384,5 +388,201 @@ describe('Pause, Reinstate and End on Users & permissions', () => {
   it('a paused seat says it is paused, and why, on its row after the page is read again', () => {
     expect(register).toContain('pausedReason: c.suspendedAt ? c.suspendReason ?? null : null')
     expect(page).toContain("p.acts?.state === 'SUSPENDED'")
+  })
+})
+
+/**
+ * The founder on Tapin's Users & permissions, 2026-11-12: people with
+ * access hid their address while people waiting showed it; a waiting row
+ * offered Pause and End to somebody who never came in; the end of a seat
+ * was a number of days hidden in Change role; and the invitation form,
+ * low on a phone, said "Work email" to a company that invites partners on
+ * Gmail and greyed Invite out with no word why.
+ */
+describe('Users & permissions as the founder read it, 2026-11-12', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const register = read('src/app/api/access/route.ts')
+  const seatRoute = read('src/app/api/access/[contextId]/route.ts')
+
+  // ── Fault 15: who is who ──
+
+  it('every person with access is listed with their sign-in email under their name', () => {
+    const everyone = page.slice(page.indexOf('Everyone with access'))
+    expect(everyone).toContain('<Address email={p.person.primaryEmail} />')
+  })
+
+  it('a person waiting for access is listed with their sign-in email under their name', () => {
+    const waiting = page.slice(page.indexOf('Waiting for access'), page.indexOf('Worth a look'))
+    expect(waiting).toContain('<Address email={w.person.primaryEmail} />')
+  })
+
+  it('a finding worth a look names the person’s sign-in email too', () => {
+    expect(register).toContain('personEmail: emailByContext.get(r.contextId) ?? null')
+    expect(page).toContain('<Address email={r.personEmail} />')
+  })
+
+  it('a person with no address shows nothing under their name, never the word null', () => {
+    expect(page).toContain('if (!email) return null')
+    expect(register).toContain("email && email.trim() && !isSamplePerson(email) ? email : null")
+  })
+
+  it('the shared sample seat’s reserved address is never shown on the register', () => {
+    expect(register).toContain('isSamplePerson(email)')
+  })
+
+  it('a long address is cut at phone width and shown whole on hover or a long press, so the role line stays on screen', () => {
+    expect(page).toMatch(/className="text-xs text-etyme-muted truncate select-all" title=\{email\}/)
+  })
+
+  it('the Pause, End and Withdraw forms name the person with their sign-in address', async () => {
+    const { nameWithAddress } = await import('@/app/api/access/row-acts')
+    expect(nameWithAddress('Meera Iyer', 'meera@brightmoor.demo.etyme.local')).toBe('Meera Iyer (meera@brightmoor.demo.etyme.local)')
+    expect(nameWithAddress('Meera Iyer', null)).toBe('Meera Iyer')
+    expect(page).toContain('`Why is ${who} being paused?`')
+    expect(page).toContain('`Why is ${who}’s access ending?`')
+    expect(page).toContain('Withdraw the invitation to {who}?')
+  })
+
+  it('a reader without the permission to read the register is not sent anyone’s email', () => {
+    const gate = register.indexOf('if (!hasPermission(caller.permissions, TO_READ))')
+    const firstRead = register.indexOf('prisma.context.findMany')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(firstRead)
+  })
+
+  // ── Fault 12: withdraw, and the end day ──
+
+  it('a waiting row shows its end day, or says no end date', () => {
+    expect(register).toContain('expiresAt: c.expiresAt?.toISOString() ?? null,\n          acts: actsOf(c.id)')
+    expect(page).toContain('{w.said} · {until(w.expiresAt)}')
+    expect(page).toContain("if (!iso) return 'no end date'")
+  })
+
+  it('the Ends on field turns a calendar day into the days the route already takes', async () => {
+    const { daysUntilEndDay } = await import('@/app/api/access/row-acts')
+    const now = new Date(2026, 10, 12, 15, 30)
+    expect(daysUntilEndDay('2026-11-13', now)).toEqual({ days: 1 })
+    expect(daysUntilEndDay('2027-03-03', now)).toEqual({ days: 111 })
+    expect(page).toContain('<Field label="Ends on"')
+    expect(page).toContain('type="date" min={tomorrowField()}')
+    expect(page).not.toContain('For how long?')
+  })
+
+  it('the Ends on field refuses a day in the past, or today, in one sentence', async () => {
+    const { daysUntilEndDay } = await import('@/app/api/access/row-acts')
+    const now = new Date(2026, 10, 12, 9, 0)
+    const said = 'Pick a day after today. Access cannot end on a day that has already begun.'
+    expect(daysUntilEndDay('2026-11-01', now)).toEqual({ says: said })
+    expect(daysUntilEndDay('2026-11-12', now)).toEqual({ says: said })
+    expect(daysUntilEndDay('not a day', now)).toEqual({ says: 'Pick the day their access ends.' })
+  })
+
+  it('the grant route refuses an end that is not a day after today, in the same sentence', () => {
+    expect(register).toContain("message: 'Pick a day after today. Access cannot end on a day that has already begun.', field: 'days'")
+  })
+
+  it('a waiting row offers Withdraw invitation and calls the withdraw route, with no browser pop-up', () => {
+    expect(page).toContain("sendAndRead(`/api/access/${contextId}`, 'DELETE')")
+    expect(page).toContain("a === 'withdraw' ? WITHDRAW_LABEL")
+    expect(page).not.toMatch(/\b(alert|confirm|prompt)\(/)
+  })
+
+  it('a withdrawal refused because the person has history keeps End access on the row', () => {
+    expect(page).toContain('if (!r.ok && r.endInstead)')
+    expect(seatRoute).toContain("return refuse(409, 'HAS_HISTORY', verdict.reason, { endInstead: true })")
+  })
+
+  it('the withdraw route holds the Owner rule with the reader as actor, and writes each refusal before it is sent', () => {
+    expect(seatRoute).toContain('withdrawVerdict(target, all, actor)')
+    const refuse = seatRoute.slice(seatRoute.indexOf('const refuse = async'), seatRoute.indexOf('return NextResponse.json({ error: { code, message, ...extra } }'))
+    expect(refuse).toContain('await recordRefusal([ctx.personId]')
+    expect(refuse).toContain("action: 'INVITATION_WITHDRAW'")
+  })
+
+  it('ending a seat that is still waiting cancels the person’s unused set-password link', () => {
+    const block = seatRoute.slice(seatRoute.indexOf("if (action === 'revoke' && stateOf(target) === 'INVITED')"))
+    expect(block).toContain("purpose: 'RESET', usedAt: null")
+    expect(block).toContain('data: { expiresAt: now }')
+  })
+
+  // ── Fault 9: the invitation form ──
+
+  it('the invitation panel is drawn before the four figures, so it is first on a phone', () => {
+    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeGreaterThan(-1)
+    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeLessThan(page.indexOf('<Stat label="Waiting"'))
+  })
+
+  it('Invite is never greyed out without a sentence saying why', () => {
+    const button = page.slice(page.indexOf('onClick={sendInvite}') - 200, page.indexOf('onClick={sendInvite}') + 200)
+    expect(button).not.toContain('disabled=')
+  })
+
+  it('pressing Invite with an incomplete address says what is wrong beside the box', async () => {
+    const { looksLikeAddress, INVITE_ADDRESS_MISSING } = await import('@/lib/access-grant')
+    expect(looksLikeAddress('meera@')).toBe(false)
+    expect(looksLikeAddress('meera')).toBe(false)
+    expect(looksLikeAddress(' meera@brightmoor.example ')).toBe(true)
+    expect(INVITE_ADDRESS_MISSING).toBe('Type the full address, like name@example.com.')
+    expect(page).toContain('if (!looksLikeAddress(invite.email)) { setAddressError(INVITE_ADDRESS_MISSING)')
+    expect(page).toContain('error={addressError}')
+    expect(page).toContain("if (r.field === 'email') setAddressError(r.text)")
+  })
+
+  it('the box’s check is the invite route’s own test of an address', async () => {
+    const { looksLikeAddress } = await import('@/lib/access-grant')
+    const { checkInvite } = await import('@/lib/account-lifecycle')
+    for (const a of ['a@b.co', 'a@b', '@b.co', 'a b@c.co', 'partner@gmail.com']) {
+      expect(looksLikeAddress(a), a).toBe(checkInvite(a, null, false).reason !== 'That is not an email address.')
+    }
+  })
+
+  const policy = (mode: 'SSO_ONLY' | 'INVITE_ONLY' | 'HYBRID' | null, issuers: string[] = []) =>
+    ({ companyId: 'c', companyName: 'Tapin', mode, issuers })
+
+  it('at an invitation-only company the form calls the address Email address and says a personal address is welcome', async () => {
+    const { inviteFormWords } = await import('@/lib/access-grant')
+    const f = inviteFormWords({ policy: policy('INVITE_ONLY'), domain: null, oneFirm: false })
+    expect(f.emailLabel).toBe('Email address')
+    expect(f.hint).toBe('A company address, or a personal one such as Gmail for a partner.')
+    expect(f.personalWelcome).toBe(true)
+    expect(f.mode).toBe('INVITE_ONLY')
+  })
+
+  it('at a hybrid company the hint says what a seat on a personal address cannot do, read from the one limit', async () => {
+    const { inviteFormWords, personalSeatCannot } = await import('@/lib/access-grant')
+    const { inWords, PERMISSIONS } = await import('@/lib/permissions')
+    const { PUBLIC_SEAT_WITHHELD } = await import('@/lib/identity/policy')
+    const f = inviteFormWords({ policy: policy('HYBRID', ['https://login.example']), domain: 'tapin.example', oneFirm: false })
+    expect(f.emailLabel).toBe('Email address')
+    const cannot = personalSeatCannot(policy('HYBRID', ['https://login.example']))!
+    expect(cannot).toBe(inWords(PERMISSIONS.filter((p) => (PUBLIC_SEAT_WITHHELD as readonly string[]).includes(p))))
+    expect(f.hint).toBe(`A company address, or a personal one such as Gmail for a partner. A seat on a personal address cannot ${cannot}.`)
+  })
+
+  it('a company with nothing set reads like invitation only, with no limit said that the record does not apply', async () => {
+    const { inviteFormWords, personalSeatCannot } = await import('@/lib/access-grant')
+    expect(personalSeatCannot(policy(null))).toBeNull()
+    expect(personalSeatCannot(policy('INVITE_ONLY'))).toBeNull()
+    expect(inviteFormWords({ policy: policy(null), domain: null, oneFirm: false }).emailLabel).toBe('Email address')
+  })
+
+  it('at a directory-only company the label is Work email on its domain, and people outside it are added in the directory', async () => {
+    const { inviteFormWords } = await import('@/lib/access-grant')
+    const f = inviteFormWords({ policy: policy('SSO_ONLY', ['https://login.example']), domain: 'corvane.example', oneFirm: false })
+    expect(f.emailLabel).toBe('Work email on corvane.example')
+    expect(f.hint).toBe('People outside corvane.example are added in your company’s directory, and appear here the first time they sign in.')
+    expect(f.personalWelcome).toBe(false)
+  })
+
+  it('a one-person firm keeps the form it had', async () => {
+    const { inviteFormWords } = await import('@/lib/access-grant')
+    expect(inviteFormWords({ policy: policy(null), domain: null, oneFirm: true }).emailLabel).toBe('Work email')
+  })
+
+  it('the sign-in mode is read from the one policy function and sent only to a reader who may invite', () => {
+    expect(register).toContain('companyPolicy(caller.company.id)')
+    expect(register).toContain('if (mayInvite) {')
+    expect(register).toContain('...(inviteForm ? { invite: inviteForm } : {})')
+    expect(page).toContain('(data.invite as InviteForm | undefined)?.emailLabel')
   })
 })

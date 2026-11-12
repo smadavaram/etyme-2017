@@ -1,10 +1,13 @@
 'use client'
 
 import { readJson, statusMeans } from '@/lib/read-response'
-import { desksOffered } from '@/lib/access-grant'
+import { desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, type InviteForm } from '@/lib/access-grant'
 import { formatDay } from '@/lib/format-date'
 import { GiveAccess } from '@/components/settings/give-access'
-import { ACT_LABEL, ASKS, lifecycleBody, type LifecycleAction, type RowOffer } from '@/app/api/access/row-acts'
+import {
+  ACT_LABEL, ASKS, WITHDRAW_LABEL, lifecycleBody, nameWithAddress, daysUntilEndDay, tomorrowField,
+  type LifecycleAction, type RowOffer,
+} from '@/app/api/access/row-acts'
 
 import { useEffect, useState, useCallback } from 'react'
 import { usePageSection } from '@/components/page-section'
@@ -21,9 +24,10 @@ import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingSt
  * Every grant ends on a date. Renewing is a click; forgetting is safe.
  */
 
+/** The sign-in address, or null where there is none to show (the shared sample's, or none at all). */
 interface Waiting {
   contextId: string
-  person: { id: string; name: string; primaryEmail: string }
+  person: { id: string; name: string; primaryEmail: string | null }
   waitingDays: number
   /** The desk they will have when they come in, or null. */
   role: string | null
@@ -34,11 +38,13 @@ interface Waiting {
    * whatever desk they were given, never under "Everyone with access".
    */
   said: string
+  /** The day this seat ends, set before they arrive, or null. */
+  expiresAt?: string | null
   acts?: RowOffer
 }
 interface Person {
   contextId: string
-  person: { id: string; name: string; primaryEmail: string }
+  person: { id: string; name: string; primaryEmail: string | null }
   role: string
   roleId: string
   /** The role, or "Member · give them a role". */
@@ -54,21 +60,34 @@ interface Person {
 interface Finding {
   contextId: string
   personName: string
+  personEmail?: string | null
   roleName: string
   finding: string
   detail: string
   suggestion: string | null
 }
 
-/** How long access runs, said the way somebody would say it. */
-function until(iso: string | null): string {
+/** When access ends, as a day through the shared formatter: "ends Mar 3, 2027", or "no end date". */
+function until(iso: string | null | undefined): string {
   if (!iso) return 'no end date'
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
-  if (d < 0) return `ended ${Math.abs(d)} days ago`
-  if (d === 0) return 'ends today'
-  if (d <= 30) return `${d} days left`
-  return `until ${formatDay(iso)}`
+  return new Date(iso).getTime() < Date.now() ? `ended ${formatDay(iso)}` : `ends ${formatDay(iso)}`
 }
+
+/**
+ * The sign-in address under a name. A long address is cut with an
+ * ellipsis at phone width and shown whole on hover or a long press, so the
+ * role line under it stays on the screen. Nothing at all where there is
+ * no address.
+ */
+function Address({ email }: { email: string | null | undefined }) {
+  if (!email) return null
+  return (
+    <div className="text-xs text-etyme-muted truncate select-all" title={email}>{email}</div>
+  )
+}
+
+/** What a row can be asked to do on this page: the three lifecycle acts, and withdrawing an invitation. */
+type RowAction = LifecycleAction | 'withdraw'
 
 /**
  * Can they see it?
@@ -243,10 +262,18 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
  */
 interface Said { contextId: string; text: string; tone: 'ok' | 'error'; href?: string | null; notes?: string[] }
 
-async function postAndRead(url: string, body: unknown): Promise<{ ok: boolean; data?: any; text: string; href: string | null }> {
+interface Read { ok: boolean; data?: any; text: string; href: string | null; endInstead?: boolean; field?: string | null }
+
+async function postAndRead(url: string, body: unknown): Promise<Read> {
+  return sendAndRead(url, 'POST', body)
+}
+
+async function sendAndRead(url: string, method: 'POST' | 'DELETE', body?: unknown): Promise<Read> {
   let res: Response
   try {
-    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    res = await fetch(url, body === undefined
+      ? { method }
+      : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   } catch {
     return { ok: false, text: 'That did not reach Etyme. Check the connection and press again.', href: null }
   }
@@ -258,6 +285,8 @@ async function postAndRead(url: string, body: unknown): Promise<{ ok: boolean; d
     ok: false,
     text: j?.error?.message ?? statusMeans(res.status),
     href: typeof j?.error?.href === 'string' ? j.error.href : null,
+    endInstead: j?.error?.endInstead === true,
+    field: typeof j?.error?.field === 'string' ? j.error.field : null,
   }
 }
 
@@ -281,19 +310,23 @@ function RowSaid({ said }: { said: Said }) {
 /**
  * Pause, Reinstate and End on one row, each drawn only where the register
  * says the route would take it. Pause and End ask for the reason in a
- * field on the page; Reinstate asks nothing.
+ * field on the page; Reinstate asks nothing. A waiting row draws Withdraw
+ * invitation in their place, and End access only once withdrawing was
+ * refused because the person has history (`keptEnd`).
  */
-function RowActs({ contextId, acts, open, onOpen }: {
+function RowActs({ contextId, acts, open, onOpen, keptEnd }: {
   contextId: string
   acts: RowOffer | undefined
-  open: LifecycleAction | null
-  onOpen: (contextId: string, action: LifecycleAction | null) => void
+  open: RowAction | null
+  onOpen: (contextId: string, action: RowAction | null) => void
+  keptEnd: boolean
 }) {
   if (!acts) return null
-  const offered: LifecycleAction[] = []
+  const offered: RowAction[] = []
+  if (acts.withdraw) offered.push('withdraw')
   if (acts.pause) offered.push('suspend')
   if (acts.reinstate) offered.push('reinstate')
-  if (acts.end) offered.push('revoke')
+  if (acts.end || (acts.endInstead && keptEnd)) offered.push('revoke')
   if (offered.length === 0) return null
   return (
     <>
@@ -302,24 +335,29 @@ function RowActs({ contextId, acts, open, onOpen }: {
           key={a}
           type="button"
           onClick={() => onOpen(contextId, open === a ? null : a)}
-          className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] shrink-0 hover:bg-etyme-action/5 ${a === 'revoke' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
-          {open === a ? 'Cancel' : ACT_LABEL[a]}
+          className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] shrink-0 hover:bg-etyme-action/5 ${a === 'revoke' || a === 'withdraw' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
+          {open === a ? 'Cancel' : a === 'withdraw' ? WITHDRAW_LABEL : ACT_LABEL[a]}
         </button>
       ))}
     </>
   )
 }
 
-function ActForm({ action, acts, name, reason, setReason, pending, onSubmit }: {
-  action: LifecycleAction
+function ActForm({ action, acts, name, email, reason, setReason, pending, onSubmit }: {
+  action: RowAction
   acts: RowOffer | undefined
   name: string
+  /** Said beside the name, so the form names which person (founder, 2026-11-12). */
+  email: string | null | undefined
   reason: string
   setReason: (v: string) => void
   pending: boolean
   onSubmit: () => void
 }) {
-  const says = action === 'suspend' ? acts?.pauseSays ?? [] : action === 'revoke' ? acts?.endSays ?? [] : []
+  const who = nameWithAddress(name, email)
+  const says = action === 'suspend' ? acts?.pauseSays ?? []
+    : action === 'revoke' ? acts?.endSays ?? []
+      : action === 'withdraw' ? acts?.withdrawSays ?? [] : []
   return (
     <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
       {says.length > 0 && (
@@ -327,16 +365,20 @@ function ActForm({ action, acts, name, reason, setReason, pending, onSubmit }: {
           {says.map((c) => <li key={c}>{c}</li>)}
         </ul>
       )}
-      {ASKS[action].includes('reason') && (
+      {action === 'withdraw' && (
+        <p className="text-[13px] text-etyme-ink break-words">Withdraw the invitation to {who}?</p>
+      )}
+      {action !== 'withdraw' && ASKS[action].includes('reason') && (
         <Field
-          label={action === 'suspend' ? `Why is ${name} being paused?` : `Why is ${name}’s access ending?`}
+          label={action === 'suspend' ? `Why is ${who} being paused?` : `Why is ${who}’s access ending?`}
           help={action === 'suspend' ? 'They are told this, and somebody will ask later.' : 'It goes on the record with your name.'}>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason"
             placeholder={action === 'suspend' ? 'On leave until March' : 'Left the company on Friday'} />
         </Field>
       )}
+      {action === 'reinstate' && <p className="text-[13px] text-etyme-ink break-words">Put {who} back with the role they had.</p>}
       <SubmitButton type="button" onClick={onSubmit} pending={pending} pendingLabel="Saving…" className="self-start">
-        {action === 'reinstate' ? `Reinstate ${name}` : action === 'suspend' ? `Pause ${name}` : `End ${name}’s access`}
+        {action === 'reinstate' ? `Reinstate ${name}` : action === 'suspend' ? `Pause ${name}` : action === 'withdraw' ? 'Withdraw it' : `End ${name}’s access`}
       </SubmitButton>
     </div>
   )
@@ -355,12 +397,18 @@ export default function AccessPage() {
   // gives the same answer — and it is the route's own sentence.
   const [refused, setRefused] = useState<string | null>(null)
   const [granting, setGranting] = useState<string | null>(null)
-  const [form, setForm] = useState({ roleId: '', days: '', reason: '' })
+  // "Ends on" is a calendar day; the route takes days, worked out on Grant.
+  const [form, setForm] = useState({ roleId: '', endsOn: '', reason: '' })
+  const [endsOnError, setEndsOnError] = useState<string | null>(null)
   const [invite, setInvite] = useState({ name: '', email: '', roleId: '' })
   const [inviting, setInviting] = useState(false)
   const [invited, setInvited] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
-  // Pause, Reinstate or End open on one row, with its reason field.
-  const [acting, setActing] = useState<{ contextId: string; action: LifecycleAction } | null>(null)
+  // What is wrong with the address, beside its box, after Invite is pressed.
+  const [addressError, setAddressError] = useState<string | null>(null)
+  // Pause, Reinstate, End or Withdraw open on one row, with its reason field.
+  const [acting, setActing] = useState<{ contextId: string; action: RowAction } | null>(null)
+  // Waiting rows whose withdraw was refused on history: End access is drawn there.
+  const [keptEnd, setKeptEnd] = useState<Set<string>>(new Set())
   const [actReason, setActReason] = useState('')
   const [actPending, setActPending] = useState(false)
   // The route's own sentence under the row it was about. Kept outside
@@ -372,18 +420,23 @@ export default function AccessPage() {
   // they sign in, so the client's Contacts page fills with the people
   // who work its account.
   async function sendInvite() {
+    // Never a greyed button with no words: the press says what is missing, beside the box.
+    if (!looksLikeAddress(invite.email)) { setAddressError(INVITE_ADDRESS_MISSING); setInvited(null); return }
+    setAddressError(null)
     setInviting(true); setInvited(null)
     try {
-      const res = await fetch('/api/access/invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined }),
+      const r = await sendAndRead('/api/access/invite', 'POST', {
+        name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined,
       })
-      const j = await readJson(res)
-      setInvited({ text: j.data.says ?? `${invite.email.trim()} has been invited.`, tone: 'ok' })
+      if (!r.ok) {
+        // A refusal about the address is said beside the address box.
+        if (r.field === 'email') setAddressError(r.text)
+        else setInvited({ text: r.text, tone: 'error' })
+        return
+      }
+      setInvited({ text: r.data?.says ?? `${invite.email.trim()} has been invited.`, tone: 'ok' })
       setInvite({ name: '', email: '', roleId: '' })
       await load()
-    } catch (e: any) {
-      setInvited({ text: e.message, tone: 'error' })
     } finally {
       setInviting(false)
     }
@@ -409,30 +462,45 @@ export default function AccessPage() {
 
   async function grant(contextId: string) {
     if (!form.roleId) { setSaid({ contextId, text: 'Pick a role first.', tone: 'error' }); return }
+    let days: number | null = null
+    if (form.endsOn) {
+      const d = daysUntilEndDay(form.endsOn)
+      if ('says' in d) { setEndsOnError(d.says); return }
+      days = d.days
+    }
+    setEndsOnError(null)
     const r = await postAndRead('/api/access', {
       contextId,
       roleId: form.roleId,
-      days: form.days ? parseInt(form.days, 10) : null,
+      days,
       reason: form.reason,
     })
     if (!r.ok) { setSaid({ contextId, text: r.text, tone: 'error', href: r.href }); return }
     setSaid({ contextId, text: r.text, tone: 'ok', notes: r.data?.notes ?? [] })
-    setGranting(null); setForm({ roleId: '', days: '', reason: '' })
+    setGranting(null); setForm({ roleId: '', endsOn: '', reason: '' })
     await load()
   }
 
-  function openAct(contextId: string, action: LifecycleAction | null) {
+  function openAct(contextId: string, action: RowAction | null) {
     setActing(action ? { contextId, action } : null)
     setActReason('')
     setGranting(null)
     if (said?.contextId === contextId) setSaid(null)
   }
 
-  async function act(contextId: string, action: LifecycleAction) {
+  async function act(contextId: string, action: RowAction) {
     setActPending(true)
     try {
-      const r = await postAndRead(`/api/access/${contextId}`, lifecycleBody(action, { reason: actReason }))
+      const r = action === 'withdraw'
+        ? await sendAndRead(`/api/access/${contextId}`, 'DELETE')
+        : await postAndRead(`/api/access/${contextId}`, lifecycleBody(action, { reason: actReason }))
       setSaid({ contextId, text: r.text, tone: r.ok ? 'ok' : 'error', href: r.href })
+      // Refused because they have history: the sentence says to end their
+      // access, and End access stays on the row to do it.
+      if (!r.ok && r.endInstead) {
+        setKeptEnd((k) => new Set(k).add(contextId))
+        setActing(null)
+      }
       if (r.ok) {
         setActing(null); setActReason('')
         await load()
@@ -468,20 +536,15 @@ export default function AccessPage() {
         subtitle="Anyone signing in on your company’s email domain joins automatically as a Member. A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a role."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <Stat label="Waiting" value={s.waiting} tone={s.waiting > 0 ? 'attention' : 'default'} />
-        <Stat label="With access" value={s.withAccess} />
-        <Stat label="Needs a decision" value={s.needsAttention} />
-        <Stat label="Never used" value={s.dormant} sub="held but untouched" />
-      </div>
-
-      {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
       {/* ── Invite a teammate ──
+          First, before the figures (founder, 2026-11-12): on a phone the
+          four figures stacked one per row pushed the form below the fold.
           Reading who holds what opened to the desks that audit it; the
           two acts on this page did not. A form the route will refuse is
           the button-that-lies one layer in, so a reader who cannot
-          invite is told whose desk it is instead of being handed three
-          boxes and a 403. */}
+          invite is told whose role it is instead of being handed three
+          boxes and a 403. The label and the line under the address follow
+          the company's sign-in mode, sent only to a reader who may invite. */}
       <Panel title="Invite a teammate" className="mb-8">
         {data.canInvite === false ? (
           <p className="text-sm text-etyme-muted">{data.whyNotInvite}</p>
@@ -490,15 +553,25 @@ export default function AccessPage() {
         <p className="text-sm text-etyme-muted mb-3">
           Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-2 items-center">
-          <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" aria-label="Name" />
-          <Input value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="Work email" aria-label="Work email" />
-          <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })} aria-label="Role">
-            <option value="">What they do here…</option>
-            {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </Select>
-          <SubmitButton type="button" onClick={sendInvite} pending={inviting} pendingLabel="Inviting…"
-            disabled={!invite.email.includes('@')}>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-3 items-start">
+          <Field label="Name (optional)">
+            <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name (optional)" />
+          </Field>
+          <Field label={(data.invite as InviteForm | undefined)?.emailLabel ?? 'Email address'}
+            help={(data.invite as InviteForm | undefined)?.hint}
+            error={addressError}>
+            <Input value={invite.email} type="email" autoComplete="off"
+              onChange={(e) => { setInvite({ ...invite, email: e.target.value }); if (addressError) setAddressError(null) }}
+              placeholder="name@example.com" />
+          </Field>
+          <Field label="What they do here">
+            <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })}>
+              <option value="">Pick a role…</option>
+              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </Field>
+          {/* Always pressable: a missing or half address is said beside the box. */}
+          <SubmitButton type="button" onClick={sendInvite} pending={inviting} pendingLabel="Inviting…" className="sm:mt-[22px] self-start">
             Invite
           </SubmitButton>
         </div>
@@ -507,18 +580,25 @@ export default function AccessPage() {
         )}
       </Panel>
 
+      {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <Stat label="Waiting" value={s.waiting} tone={s.waiting > 0 ? 'attention' : 'default'} />
+        <Stat label="With access" value={s.withAccess} />
+        <Stat label="Needs a decision" value={s.needsAttention} />
+        <Stat label="Never used" value={s.dormant} sub="held but untouched" />
+      </div>
+
       {data.waitingForAccess.length > 0 && (
         <section className="mb-8">
           <h2 className="font-serif text-lg text-etyme-ink mb-3">Waiting for access</h2>
           <div className="bg-etyme-surface border border-etyme-attention/30 rounded-lg divide-y divide-etyme-rule">
             {data.waitingForAccess.map((w: Waiting) => (
               <div key={w.contextId} className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="flex-1 min-w-[12rem]">
                     <div className="text-etyme-ink">{w.person.name}</div>
-                    <div className="text-xs text-etyme-muted">
-                      {w.person.primaryEmail} · {w.said}
-                    </div>
+                    <Address email={w.person.primaryEmail} />
+                    <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
                   </div>
                   {data.canGrant === false ? (
                     <span className="max-w-[380px] text-xs text-etyme-muted shrink-0">{data.whyNotGrant}</span>
@@ -529,12 +609,12 @@ export default function AccessPage() {
                       {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
                     </button>
                   )}
-                  <RowActs contextId={w.contextId} acts={w.acts}
+                  <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
                     open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
                 </div>
 
                 {acting?.contextId === w.contextId && (
-                  <ActForm action={acting.action} acts={w.acts} name={w.person.name}
+                  <ActForm action={acting.action} acts={w.acts} name={w.person.name} email={w.person.primaryEmail}
                     reason={actReason} setReason={setActReason} pending={actPending}
                     onSubmit={() => act(w.contextId, acting.action)} />
                 )}
@@ -559,10 +639,9 @@ export default function AccessPage() {
                       <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
                         placeholder="Joining the Talvern Medical delivery team" />
                     </Field>
-                    <Field label="For how long?" help="Access ends on a date. Renewing takes a click.">
-                      <Input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
-                        placeholder="leave blank for the usual" type="number"
-                        className="w-40 tabular-nums" />
+                    <Field label="Ends on" help="Leave it empty for the usual length. Renewing takes a click." error={endsOnError}>
+                      <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
+                        type="date" min={tomorrowField()} className="w-48 tabular-nums" />
                     </Field>
                     <SubmitButton type="button" onClick={() => grant(w.contextId)} className="self-start">
                       Grant it
@@ -588,8 +667,9 @@ export default function AccessPage() {
                   ? 'border-etyme-attention' : 'border-etyme-rule'
               }`}>
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-etyme-ink">
+                  <span className="text-etyme-ink min-w-0">
                     {r.personName} <span className="text-etyme-muted">· {r.roleName}</span>
+                    <Address email={r.personEmail} />
                   </span>
                   <Chip tone={r.finding === 'EXPIRED' || r.finding === 'DORMANT' ? 'attention' : 'passive'}>
                     {r.finding.toLowerCase()}
@@ -621,9 +701,10 @@ export default function AccessPage() {
           )}
           {data.people.map((p: Person) => (
             <div key={p.contextId} className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex-1 min-w-[12rem]">
                   <div className="text-etyme-ink">{p.person.name}</div>
+                  <Address email={p.person.primaryEmail} />
                   <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                     {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}
                   </div>
@@ -633,8 +714,8 @@ export default function AccessPage() {
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-etyme-muted shrink-0 w-32 text-right">{until(p.expiresAt)}</div>
-                <div className="w-24 text-right shrink-0">
+                <div className="text-xs text-etyme-muted shrink-0 sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
+                <div className="sm:w-24 sm:text-right shrink-0">
                   <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
                     {p.sensitivity.toLowerCase().replace('_', ' ')}
                   </Chip>
@@ -648,19 +729,19 @@ export default function AccessPage() {
                   <button
                     onClick={() => {
                       setGranting(granting === p.contextId ? null : p.contextId)
-                      setForm({ roleId: '', days: '', reason: '' })
+                      setForm({ roleId: '', endsOn: '', reason: '' })
                       setActing(null)
                     }}
                     className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5 shrink-0">
                     {granting === p.contextId ? 'Cancel' : 'Change role'}
                   </button>
                 )}
-                <RowActs contextId={p.contextId} acts={p.acts}
+                <RowActs contextId={p.contextId} acts={p.acts} keptEnd={keptEnd.has(p.contextId)}
                   open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
               </div>
 
               {acting?.contextId === p.contextId && (
-                <ActForm action={acting.action} acts={p.acts} name={p.person.name}
+                <ActForm action={acting.action} acts={p.acts} name={p.person.name} email={p.person.primaryEmail}
                   reason={actReason} setReason={setActReason} pending={actPending}
                   onSubmit={() => act(p.contextId, acting.action)} />
               )}
@@ -677,10 +758,9 @@ export default function AccessPage() {
                     <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
                       placeholder="Runs the client's bills from this month" />
                   </Field>
-                  <Field label="For how long?">
-                    <Input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
-                      placeholder="leave blank for the usual" type="number"
-                      className="w-40 tabular-nums" />
+                  <Field label="Ends on" help="Leave it empty for the usual length." error={endsOnError}>
+                    <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
+                      type="date" min={tomorrowField()} className="w-48 tabular-nums" />
                   </Field>
                   <SubmitButton type="button" onClick={() => grant(p.contextId)} className="self-start">
                     Change role

@@ -191,6 +191,7 @@ export type AccessAction =
   | 'INVITE_SENT'               // an Owner or Admin invited a person to a seat
   | 'INVITE_ACCEPTED'           // an invited person signed in to the seat for the first time
   | 'MEMBERSHIP_REVOKED'        // a person's seat at a company was ended
+  | 'INVITATION_WITHDRAW'       // somebody asked to withdraw a person's invitation; written only when refused
   | 'AUTH_POLICY_CHANGED'       // a company's Owner changed how its people sign in
   | 'SESSIONS_ENDED'            // every live session a person held was ended
   | 'DIRECTORY_READ'            // the company's Google Workspace directory was read, read only, to propose team structure

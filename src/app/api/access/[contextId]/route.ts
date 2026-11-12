@@ -17,6 +17,8 @@ import { hasSignedIn } from '@/lib/access-grant'
 import { OWNER_ROLE, clause } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { recordRefusal } from '@/lib/access-log'
+import { withdrawVerdict } from '../row-acts'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -171,6 +173,25 @@ export async function POST(
     }
   })
 
+  // ── Ending a seat that is still waiting cancels its unused link ──────
+  //
+  // Somebody invited and never signed in holds one thing that still works:
+  // the set-password link in the invitation. Ending the seat cancels it
+  // too, unless the person still holds a live seat somewhere else, whose
+  // own invitation that link may be (an invitation's link replaces any
+  // older one, so there is only ever one). The link then says it expired.
+  if (action === 'revoke' && stateOf(target) === 'INVITED') {
+    const elsewhere = await prisma.context.count({
+      where: { personId: person.person.id, revokedAt: null, id: { not: contextId } },
+    })
+    if (elsewhere === 0) {
+      await prisma.emailToken.updateMany({
+        where: { personId: person.person.id, purpose: 'RESET', usedAt: null, expiresAt: { gt: now } },
+        data: { expiresAt: now },
+      })
+    }
+  }
+
   // ── The last live seat anywhere ends every live session ────────────
   //
   // A seat already stops working on the next request, because every
@@ -280,11 +301,23 @@ export async function POST(
 }
 
 /**
- * DELETE — remove somebody invited who never arrived.
+ * DELETE — withdraw the invitation of somebody invited who never arrived.
  *
  * Almost never allowed. A person who approved a timesheet or was placed on
  * a contract is part of how those are explained, and deleting them leaves
- * an approval signed by nobody.
+ * an approval signed by nobody; the refusal then says to end their access,
+ * and the page draws End access beside it.
+ *
+ * The Owner rules hold here as on Pause and End (founder, 2026-11-11 and
+ * 2026-11-12): only an Owner withdraws an Owner's invitation, an Admin
+ * never, and never so that no Owner is left. Nobody withdraws their own
+ * seat. Every refusal is written before it is sent.
+ *
+ * The person's unused set-password link goes with them: the person row is
+ * removed where this was their only seat, and their links are removed with
+ * it (`EmailToken.personId` cascades). Where they hold a seat at another
+ * company only this seat goes, and the person and that company's
+ * invitation stay.
  */
 export async function DELETE(
   request: NextRequest,
@@ -292,41 +325,65 @@ export async function DELETE(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  if (!caller.company || !hasPermission(caller.permissions, 'team.manage')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: askTheDesk({
-            doing: 'Taking somebody’s seat away',
-            needs: 'team.manage',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
-          }),
+  const { contextId } = await params
+
+  // Whose invitation this is, read before any refusal so the refusal's row
+  // names them. Only a seat at the caller's own company is ever found.
+  const ctx = caller.company
+    ? await prisma.context.findFirst({
+        where: { id: contextId, companyId: caller.company.id },
+        select: {
+          id: true, personId: true, lastUsedAt: true, invitedAt: true, revokedAt: true,
+          person: {
+            select: {
+              name: true, primaryEmail: true,
+              credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
+            },
+          },
         },
-      },
-      { status: 403 }
-    )
+      })
+    : null
+
+  const refuse = async (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => {
+    if (ctx) {
+      await recordRefusal([ctx.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'INVITATION_WITHDRAW',
+        reason: message,
+      })
+    }
+    return NextResponse.json({ error: { code, message, ...extra } }, { status })
   }
 
-  const { contextId } = await params
-  const ctx = await prisma.context.findFirst({
-    where: { id: contextId, companyId: caller.company.id },
-    select: {
-      id: true, personId: true, lastUsedAt: true, invitedAt: true,
-      person: {
-        select: {
-          name: true, primaryEmail: true,
-          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
-        },
-      },
-    },
-  })
+  if (!caller.company || !hasPermission(caller.permissions, 'team.manage')) {
+    return refuse(403, 'FORBIDDEN', askTheDesk({
+      doing: 'Withdrawing somebody’s invitation',
+      needs: 'team.manage',
+      kind: caller.company?.kind,
+      companyName: caller.company?.name,
+    }))
+  }
   if (!ctx) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Nobody here with that seat' } },
       { status: 404 }
     )
+  }
+
+  // The Owner rule and the self rule, with the reader as actor: the same
+  // verdict the register drew the press from.
+  const all = await loadAll(caller.company.id)
+  const target = all.find((r) => r.contextId === contextId)!
+  const actor = {
+    isOwner: all.some((r) => r.personId === caller.person.id && r.isOwner && !r.revokedAt && !r.suspendedAt),
+    personId: caller.person.id,
+  }
+  const may = withdrawVerdict(target, all, actor)
+  if (!may.allowed) {
+    // A person who has signed in is ended, not withdrawn; say so and keep End.
+    return refuse(409, target.hasSignedIn ? 'HAS_HISTORY' : 'REFUSED', may.reason,
+      target.hasSignedIn ? { endInstead: true } : {})
   }
 
   const [approvals, submissions, contracts, timesheets, otherCompanies] = await Promise.all([
@@ -337,6 +394,10 @@ export async function DELETE(
     prisma.context.count({ where: { personId: ctx.personId, companyId: { not: caller.company.id } } }),
   ])
 
+  // A seat at another company does not stop this seat going: the person
+  // is not ours to delete, but this seat is. So the history is judged with
+  // no other company counted, and the person row is removed below only
+  // where no seat is left.
   const verdict = canDeleteOutright({
     // An invitation nobody accepted has never been used.
     // A desk change clears the seat's use date, so a sign-in anywhere
@@ -349,20 +410,19 @@ export async function DELETE(
     submissions,
     contracts,
     timesheets,
-    otherCompanies,
+    otherCompanies: 0,
   })
 
   if (!verdict.allowed) {
-    return NextResponse.json(
-      { error: { code: 'HAS_HISTORY', message: verdict.reason } },
-      { status: 409 }
-    )
+    // The sentence already says to end their access; the page keeps End
+    // on the row for exactly this answer.
+    return refuse(409, 'HAS_HISTORY', verdict.reason, { endInstead: true })
   }
 
   await prisma.$transaction([
     prisma.context.delete({ where: { id: contextId } }),
     // The person row goes too, but only because they exist solely as this
-    // unaccepted invitation.
+    // unaccepted invitation. Their unused links go with it (cascade).
     prisma.person.deleteMany({ where: { id: ctx.personId, contexts: { none: {} } } }),
   ])
 
@@ -372,7 +432,7 @@ export async function DELETE(
       action: 'INVITATION_WITHDRAWN',
       summary: `${caller.person.name} withdrew the invitation to ${ctx.person.primaryEmail}`,
       reason: 'They never signed in and nothing was attached to them',
-      payload: { email: ctx.person.primaryEmail },
+      payload: { email: ctx.person.primaryEmail, otherCompanies },
       reversible: false,
     },
   })
@@ -380,7 +440,7 @@ export async function DELETE(
   return NextResponse.json({
     data: {
       removed: ctx.person.primaryEmail,
-      message: `The invitation to ${ctx.person.primaryEmail} is gone. If they were meant to be here, invite them again.`,
+      message: `The invitation to ${ctx.person.name} (${ctx.person.primaryEmail}) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, invite them again.`,
     },
   })
 }

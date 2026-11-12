@@ -72,8 +72,8 @@ describe('inviting the team', () => {
   it('Users & permissions has the form: name, work email, what they do here', () => {
     const page = read('src/app/dashboard/access/page.tsx')
     expect(page).toContain('Invite a teammate')
-    expect(page).toContain("fetch('/api/access/invite'")
-    expect(page).toContain('<option value="">What they do here…</option>')
+    expect(page).toContain("sendAndRead('/api/access/invite'")
+    expect(page).toContain('<Field label="What they do here">')
   })
   it('the invitation is emailed and says when the seat becomes theirs', () => {
     const route = read('src/app/api/access/invite/route.ts')

@@ -390,3 +390,76 @@ describe('what Users & permissions draws on each row, from the register', () => 
     expect(src).toContain('paused it: ${clause(reason)}.')
   })
 })
+
+describe('withdrawing an invitation on Users & permissions (founder, 2026-11-12)', () => {
+  const waiting = (id: string, isOwner = false): AccessRow => ({ ...row(id, isOwner, []), hasSignedIn: false })
+
+  it('somebody invited who never signed in is offered Withdraw invitation, not Pause or End access', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const sidhu = waiting('Sidhu')
+    const offer = offersFor([owner, sidhu], { isOwner: true, personId: owner.personId }, true).get(sidhu.contextId)!
+    expect([offer.withdraw, offer.pause, offer.end]).toEqual([true, false, false])
+    expect(offer.withdrawSays).toContain('The invitation is cancelled, and the link in it stops working.')
+  })
+
+  it('a waiting row keeps End access behind Withdraw, drawn only if the person turns out to have history', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const sidhu = waiting('Sidhu')
+    const offer = offersFor([owner, sidhu], { isOwner: true, personId: owner.personId }, true).get(sidhu.contextId)!
+    expect(offer.endInstead).toBe(true)
+    expect(offer.endSays.length).toBeGreaterThan(0)
+  })
+
+  it('a person who has signed in is offered End access and not Withdraw invitation', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const offer = offersFor([owner, admin], { isOwner: true, personId: owner.personId }, true).get(admin.contextId)!
+    expect([offer.withdraw, offer.end]).toEqual([false, true])
+  })
+
+  it('an Admin is never offered an act on an Owner’s waiting seat', async () => {
+    const { offersFor, withdrawVerdict } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const invitedOwner = waiting('Madhavi', true)
+    const all = [owner, admin, invitedOwner]
+    const offer = offersFor(all, { isOwner: false, personId: admin.personId }, true).get(invitedOwner.contextId)!
+    expect([offer.withdraw, offer.pause, offer.end, offer.endInstead]).toEqual([false, false, false, false])
+    expect(withdrawVerdict(invitedOwner, all, { isOwner: false }).reason).toBe('They are invited as an Owner. Only an Owner withdraws an Owner’s invitation. An Admin never can.')
+  })
+
+  it('an Owner withdraws another Owner’s invitation while a signed-in Owner stays, and never so that no Owner is left', async () => {
+    const { withdrawVerdict } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const invitedOwner = waiting('Madhavi', true)
+    expect(withdrawVerdict(invitedOwner, [owner, invitedOwner], { isOwner: true, personId: owner.personId }).allowed).toBe(true)
+    const pausedOwner = { ...owner, suspendedAt: new Date('2026-11-10') }
+    expect(withdrawVerdict(invitedOwner, [pausedOwner, invitedOwner], { isOwner: true }).reason).toBe('There would be no Owner left. Pass ownership first.')
+  })
+
+  it('nobody withdraws their own seat', async () => {
+    const { withdrawVerdict } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const me = waiting('Vikash')
+    expect(withdrawVerdict(me, [owner, me], { isOwner: false, personId: me.personId }).reason).toBe('This is your own seat. Somebody else here withdraws it.')
+  })
+
+  it('a person who signed in has no invitation left to withdraw, and is told to end their access instead', async () => {
+    const { withdrawVerdict } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    expect(withdrawVerdict(admin, [owner, admin], { isOwner: true }).reason).toBe('They have signed in, so there is no invitation left to withdraw. End their access instead.')
+  })
+
+  it('a reader who cannot change access is offered no Withdraw either', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const sidhu = waiting('Sidhu')
+    for (const o of offersFor([owner, sidhu], { isOwner: true }, false).values()) {
+      expect([o.withdraw, o.endInstead]).toEqual([false, false])
+    }
+  })
+})

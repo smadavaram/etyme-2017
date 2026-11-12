@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as access, POST as grant } from '@/app/api/access/route'
 import { POST as invite } from '@/app/api/access/invite/route'
+import { POST as seatAct, DELETE as withdraw } from '@/app/api/access/[contextId]/route'
+import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { resetPassword } from '@/lib/password-door'
 
@@ -196,5 +198,139 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     expect(row.body).toMatch(/^You now have the HR role at Brightmoor Staffing\. Sign in to see it\./)
     expect(row.channel).not.toBe('IN_APP')
     expect((row.data as any).href).toMatch(/^\/dashboard/)
+  })
+})
+
+/**
+ * The founder on Tapin's Users & permissions, 2026-11-12, walked on the
+ * same world: who is who by address, and a waiting row's Withdraw
+ * invitation in place of Pause and End.
+ */
+describe('Users & permissions names everybody by address and withdraws an invitation', () => {
+  const seatParams = (contextId: string) => ({ params: Promise.resolve({ contextId }) })
+  const unusedLink = (personId: string) => prisma.emailToken.create({
+    data: { personId, purpose: 'RESET', tokenHash: randomBytes(24).toString('hex'), expiresAt: new Date(Date.now() + 72 * 3_600_000), payload: { invitation: true } },
+    select: { id: true },
+  })
+  const inviteOne = async (name: string, email: string, roleId?: string) => {
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', { name, email, ...(roleId ? { roleId } : {}) })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const p = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, select: { id: true } })
+    const c = await prisma.context.findFirstOrThrow({ where: { personId: p.id, companyId: it_.firm, revokedAt: null }, select: { id: true } })
+    return { personId: p.id, contextId: c.id }
+  }
+
+  it('every person with access is listed with their sign-in email under their name', async () => {
+    as(OWNER)
+    const r = await json(await access(req('GET', '/api/access')))
+    expect(r.status).toBe(200)
+    const meera = r.body.data.people.find((p: any) => p.contextId === it_.memberContext)
+    expect(meera.person.primaryEmail).toBe(MEMBER)
+    for (const p of r.body.data.people) expect(p.person.primaryEmail).not.toBe('null')
+  })
+
+  it('the invitation form’s words come with the register to a reader who may invite', async () => {
+    as(OWNER)
+    const r = await json(await access(req('GET', '/api/access')))
+    expect(r.body.data.canInvite).toBe(true)
+    expect(typeof r.body.data.invite.emailLabel).toBe('string')
+    expect(typeof r.body.data.invite.hint).toBe('string')
+  })
+
+  it('withdrawing an invitation removes the seat, the person and their unused set-password link', async () => {
+    const { personId, contextId } = await inviteOne('Wren Ito', 'wren.ito@brightmoor-walk.example')
+    await unusedLink(personId)
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.message).toBe('The invitation to Wren Ito (wren.ito@brightmoor-walk.example) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, invite them again.')
+    expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
+    expect(await prisma.person.count({ where: { id: personId } })).toBe(0)
+    expect(await prisma.emailToken.count({ where: { personId } })).toBe(0)
+  })
+
+  it('inviting the same address again after a withdrawal makes one seat, not two', async () => {
+    const email = 'wren.ito@brightmoor-walk.example'
+    await inviteOne('Wren Ito', email)
+    const p = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, select: { id: true } })
+    expect(await prisma.context.count({ where: { personId: p.id, companyId: it_.firm } })).toBe(1)
+  })
+
+  it('a waiting seat of somebody who also holds a seat elsewhere is withdrawn here, and the person stays', async () => {
+    const { personId, contextId } = await inviteOne('Noor Basri', 'noor.basri@brightmoor-walk.example')
+    const other = await prisma.company.create({ data: { name: 'Harbor Row Works', slug: 'harbor-row-access-desk', kind: 'VENDOR', currency: 'USD' }, select: { id: true } })
+    await prisma.context.create({ data: { personId, companyId: other.id, type: 'EMPLOYEE', invitedAt: new Date(), grantReason: 'Invited there too' } })
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    // Never says the person holds a seat somewhere else.
+    expect(r.body.data.message).not.toMatch(/another company|elsewhere/)
+    expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
+    expect(await prisma.person.count({ where: { id: personId } })).toBe(1)
+  })
+
+  it('an Admin cannot withdraw an Owner’s invitation, and the refusal is in the access log before it is sent', async () => {
+    const admin = await prisma.person.create({ data: { primaryEmail: 'ines.admin@brightmoor.demo.etyme.local', name: 'Ines Vale' }, select: { id: true } })
+    await prisma.context.create({
+      data: { personId: admin.id, companyId: it_.firm, type: 'EMPLOYEE', roleId: it_.roles['Admin'], lastUsedAt: new Date(), grantReason: 'Runs people and settings' },
+    })
+    const owner = await prisma.person.create({ data: { primaryEmail: 'owen.next@brightmoor-walk.example', name: 'Owen Hart' }, select: { id: true } })
+    const seat = await prisma.context.create({
+      data: { personId: owner.id, companyId: it_.firm, type: 'EMPLOYEE', roleId: it_.roles['Owner'], invitedAt: new Date(), grantReason: 'Invited as a second Owner' },
+      select: { id: true },
+    })
+    as('ines.admin@brightmoor.demo.etyme.local')
+    const r = await json(await withdraw(req('DELETE', `/api/access/${seat.id}`), seatParams(seat.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.message).toBe('They are invited as an Owner. Only an Owner withdraws an Owner’s invitation. An Admin never can.')
+    expect(await prisma.context.count({ where: { id: seat.id } })).toBe(1)
+    const logged = await prisma.accessLog.findFirst({ where: { subjectId: owner.id, action: 'INVITATION_WITHDRAW', allowed: false } })
+    expect(logged, 'the refusal was sent with no row behind it').not.toBeNull()
+    it_.waitingOwner = seat.id
+  })
+
+  it('an Owner withdraws another Owner’s invitation while she stays an Owner herself', async () => {
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${it_.waitingOwner}`), seatParams(it_.waitingOwner)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+  })
+
+  it('a withdrawal refused because the person has history says to end their access instead, and End is kept', async () => {
+    // Somebody with a week on the record, never signed in, invited here.
+    const worker = await prisma.person.findFirstOrThrow({
+      where: { timesheets: { some: {} }, credentials: { none: { lastUsedAt: { not: null } } }, contexts: { none: { companyId: it_.firm } } },
+      select: { id: true },
+    })
+    const seat = await prisma.context.create({
+      data: { personId: worker.id, companyId: it_.firm, type: 'EMPLOYEE', invitedAt: new Date(), grantReason: 'Invited to the firm' },
+      select: { id: true },
+    })
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${seat.id}`), seatParams(seat.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('HAS_HISTORY')
+    expect(r.body.error.endInstead).toBe(true)
+    expect(r.body.error.message).toContain('End their access instead')
+    expect(await prisma.accessLog.count({ where: { subjectId: worker.id, action: 'INVITATION_WITHDRAW', allowed: false } })).toBeGreaterThan(0)
+  })
+
+  it('ending a seat that is still waiting cancels the person’s unused set-password link', async () => {
+    const { personId, contextId } = await inviteOne('Lior Ben', 'lior.ben@brightmoor-walk.example')
+    const link = await unusedLink(personId)
+    as(OWNER)
+    const r = await json(await seatAct(req('POST', `/api/access/${contextId}`, { action: 'revoke', reason: 'Not joining after all' }), seatParams(contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const after = await prisma.emailToken.findUniqueOrThrow({ where: { id: link.id }, select: { expiresAt: true } })
+    expect(after.expiresAt.getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('the grant route refuses an end day that is not after today, in one sentence', async () => {
+    as(OWNER)
+    const r = await json(await grant(req('POST', '/api/access', {
+      contextId: it_.memberContext, roleId: it_.roles['Recruiter'], days: 0, reason: 'Back on recruiting',
+    })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toBe('Pick a day after today. Access cannot end on a day that has already begun.')
   })
 })

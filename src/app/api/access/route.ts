@@ -8,8 +8,10 @@ import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import {
   assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
-  hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
+  hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
 } from '@/lib/access-grant'
+import { companyPolicy } from '@/lib/identity/read'
+import { isSamplePerson } from '@/lib/sample-seat'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
@@ -126,7 +128,15 @@ export async function GET(request: NextRequest) {
   })
   const withAccess = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
   const waiting = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
-  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: c.person.name, primaryEmail: c.person.primaryEmail })
+  // The address each person signs in with, under their name on every row
+  // (founder, 2026-11-12: people with access hid it while people waiting
+  // showed it). This register is read only on governance.read, the desks
+  // that audit who holds what. The shared sample seat's reserved address
+  // is never shown: it is nobody's address.
+  const emailOf = (email: string | null | undefined): string | null =>
+    email && email.trim() && !isSamplePerson(email) ? email : null
+  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: c.person.name, primaryEmail: emailOf(c.person.primaryEmail) })
+  const emailByContext = new Map(contexts.map(c => [c.id, emailOf(c.person.primaryEmail)]))
 
   const review = reviewAccess(
     withAccess
@@ -163,10 +173,28 @@ export async function GET(request: NextRequest) {
       revokedAt: c.revokedAt,
       isOwner: c.role?.name === OWNER_DESK,
     })),
-    { isOwner: actorIsOwner && !mine?.suspendedAt },
+    { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
     hasPermission(caller.permissions, 'team.manage'),
   )
   const actsOf = (id: string) => offers.get(id)!
+
+  // The invitation form's words, from the company's own sign-in policy,
+  // read by the one policy function. Sent only to a reader who may invite:
+  // how a company signs its people in is not a thing to hand an auditor
+  // who cannot act on it.
+  const mayInvite = hasPermission(caller.permissions, 'team.manage')
+  let inviteForm: ReturnType<typeof inviteFormWords> | null = null
+  if (mayInvite) {
+    const [read, co] = await Promise.all([
+      companyPolicy(caller.company.id),
+      prisma.company.findUnique({ where: { id: caller.company.id }, select: { domain: true, domainVerified: true } }),
+    ])
+    inviteForm = inviteFormWords({
+      policy: read.policy,
+      domain: co?.domainVerified ? co.domain : null,
+      oneFirm: caller.company.kind === 'CONSULTANT_CORP',
+    })
+  }
 
   return NextResponse.json({
     data: {
@@ -195,6 +223,8 @@ export async function GET(request: NextRequest) {
           role: c.role?.name ?? null,
           roleId: c.role?.id ?? null,
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
+          // A seat may be given an end day before they come in.
+          expiresAt: c.expiresAt?.toISOString() ?? null,
           acts: actsOf(c.id),
         }
       }),
@@ -216,13 +246,15 @@ export async function GET(request: NextRequest) {
       })),
       // Only what needs a decision. A review that lists everybody is a
       // review nobody reads.
-      review,
+      review: review.map(r => ({ ...r, personEmail: emailByContext.get(r.contextId) ?? null })),
       // What this reader may actually do here, so the screen does not
       // offer a form the route will refuse. Reading opened up on
       // governance.read; granting and inviting did not move.
       canGrant: hasPermission(caller.permissions, 'settings.manage'),
       actorIsOwner,
-      canInvite: hasPermission(caller.permissions, 'team.manage'),
+      canInvite: mayInvite,
+      // Absent for a reader who cannot invite (see above).
+      ...(inviteForm ? { invite: inviteForm } : {}),
       whyNotGrant: hasPermission(caller.permissions, 'settings.manage') ? null : askTheDesk({
         doing: 'Giving somebody a seat here',
         needs: 'settings.manage',
@@ -302,6 +334,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'That person is not at this company' } },
       { status: 404 }
+    )
+  }
+
+  // An end day is a day after today. The page's "Ends on" field turns a
+  // calendar day into days and refuses a past one before it is sent; this
+  // is the same rule for any other caller.
+  if (days !== null && days !== undefined && days !== '' && !(Number.isInteger(Number(days)) && Number(days) >= 1)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Pick a day after today. Access cannot end on a day that has already begun.', field: 'days' } },
+      { status: 422 }
     )
   }
 
@@ -392,7 +434,7 @@ export async function POST(request: NextRequest) {
   const decision = assessGrant({
     roleName: role.name,
     permissions: role.permissions,
-    requestedDays: days === null || days === undefined ? null : Number(days),
+    requestedDays: days === null || days === undefined || days === '' ? null : Number(days),
     reason: String(reason ?? ''),
     selfGranted: target.personId === caller.person.id,
     otherHoldersOfCritical: otherCritical,
