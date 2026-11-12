@@ -440,7 +440,7 @@ export async function DELETE(
   return NextResponse.json({
     data: {
       removed: ctx.person.primaryEmail,
-      message: `The invitation to ${ctx.person.name} (${ctx.person.primaryEmail}) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, invite them again.`,
+      message: `The invitation to ${ctx.person.name} (${ctx.person.primaryEmail}) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.`,
     },
   })
 }

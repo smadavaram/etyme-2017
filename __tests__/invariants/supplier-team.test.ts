@@ -76,7 +76,7 @@ describe('inviting the team', () => {
     expect(page).toContain('<Field label="What they do here">')
   })
   it('the invitation is emailed and says when the seat becomes theirs', () => {
-    const route = read('src/app/api/access/invite/route.ts')
+    const route = read('src/app/api/access/invite/route.ts') + read('src/app/api/access/invite/one.ts')
     expect(route).toContain("channel: 'EMAIL'")
     // The inviter's sentence is written by inviteSays (lib/access-grant),
     // whether or not an email could leave.

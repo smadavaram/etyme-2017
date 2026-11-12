@@ -33,6 +33,13 @@ export interface RowOffer {
    * because then ending the seat is the one way left.
    */
   endInstead: boolean
+  /**
+   * Send the invitation again, and Copy invitation, on a seat invited and
+   * never signed in, not paused or ended (founder, 2026-11-12). The same
+   * Owner rule: an Admin never sends again to, or copies for, an Owner's seat.
+   */
+  resend: boolean
+  copy: boolean
   state: AccessState
   /** What Pause, End or Withdraw does, said before somebody presses it. */
   pauseSays: string[]
@@ -41,7 +48,7 @@ export interface RowOffer {
 }
 
 const NOTHING = (state: AccessState): RowOffer => ({
-  pause: false, reinstate: false, end: false, withdraw: false, endInstead: false, state, pauseSays: [], endSays: [], withdrawSays: [],
+  pause: false, reinstate: false, end: false, withdraw: false, endInstead: false, resend: false, copy: false, state, pauseSays: [], endSays: [], withdrawSays: [],
 })
 
 /** Who is withdrawing: the Owner rule needs whether they are an Owner, and the self rule who they are. */
@@ -87,8 +94,35 @@ export function withdrawVerdict(target: AccessRow, all: AccessRow[], actor: With
     reason: 'Invited, never signed in.',
     consequences: [
       'The invitation is cancelled, and the link in it stops working.',
-      'If they were meant to be here, invite them again: the same address gets a fresh invitation and one seat.',
+      'If they were meant to be here, use the Invite form above: the same address gets a new invitation and one seat.',
     ],
+  }
+}
+
+/**
+ * Whether this reader may send this seat's invitation again, or copy it.
+ *
+ * Only a seat that was invited, whose person has never signed in, and that
+ * is neither paused nor ended: a link sent to somebody who signs in already
+ * would be a free password reset for a live account. Only an Owner acts on
+ * an Owner's seat. Nobody sends their own. Pure.
+ */
+export function resendVerdict(target: AccessRow & { invited?: boolean }, actor: Withdrawer): Verdict {
+  const state = stateOf(target)
+  if (actor.personId && target.personId === actor.personId) {
+    return { allowed: false, reason: 'This is your own seat.', consequences: [] }
+  }
+  if (state === 'REVOKED') return { allowed: false, reason: 'Their access has ended, so there is no invitation to send. Use the Invite form above for a new one.', consequences: [] }
+  if (state === 'SUSPENDED') return { allowed: false, reason: 'Their seat is paused. Reinstate it first.', consequences: [] }
+  if (target.hasSignedIn) return { allowed: false, reason: 'They have already signed in, so there is no invitation left to send.', consequences: [] }
+  if (target.invited === false) return { allowed: false, reason: 'Nobody invited them; they came in on the company’s domain.', consequences: [] }
+  if (target.isOwner && !actor.isOwner) {
+    return { allowed: false, reason: 'They are invited as an Owner. Only an Owner sends an Owner’s invitation. An Admin never can.', consequences: [] }
+  }
+  return {
+    allowed: true,
+    reason: 'Invited, never signed in.',
+    consequences: ['Sends the same invitation again, to the address on their record. No second seat is made, and any older link stops working.'],
   }
 }
 
@@ -97,7 +131,7 @@ export function withdrawVerdict(target: AccessRow, all: AccessRow[], actor: With
  * (no `team.manage`, which the route asks for) is offered nothing on any
  * row; the route would refuse each press.
  */
-export function offersFor(all: AccessRow[], actor: Withdrawer, mayManage: boolean): Map<string, RowOffer> {
+export function offersFor(all: (AccessRow & { invited?: boolean })[], actor: Withdrawer, mayManage: boolean): Map<string, RowOffer> {
   const out = new Map<string, RowOffer>()
   for (const row of all) {
     const state = stateOf(row)
@@ -107,8 +141,11 @@ export function offersFor(all: AccessRow[], actor: Withdrawer, mayManage: boolea
     // End kept back for the one case the withdraw route refuses on history.
     if (state === 'INVITED') {
       const w = withdrawVerdict(row, all, actor)
+      const again = resendVerdict(row, actor)
       out.set(row.contextId, {
         ...NOTHING(state),
+        resend: again.allowed,
+        copy: again.allowed,
         withdraw: w.allowed,
         withdrawSays: w.allowed ? w.consequences : [],
         endInstead: w.allowed && v.end.allowed,

@@ -1,7 +1,11 @@
 'use client'
 
 import { readJson, statusMeans } from '@/lib/read-response'
-import { desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, type InviteForm } from '@/lib/access-grant'
+import {
+  desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, parseAddresses, MAX_ADDRESSES_AT_ONCE,
+  COPY_LABEL, SEND_AGAIN_LABEL, type InviteForm, type InviteMail,
+} from '@/lib/access-grant'
+import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
 import { GiveAccess } from '@/components/settings/give-access'
 import {
@@ -9,7 +13,7 @@ import {
   type LifecycleAction, type RowOffer,
 } from '@/app/api/access/row-acts'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
 
@@ -41,6 +45,10 @@ interface Waiting {
   /** The day this seat ends, set before they arrive, or null. */
   expiresAt?: string | null
   acts?: RowOffer
+  /** The newest invitation email: whether it left and when, or why not. */
+  mail?: InviteMail | null
+  /** The ready message for Copy invitation; it holds no link that takes the seat. */
+  copyText?: string | null
 }
 interface Person {
   contextId: string
@@ -343,6 +351,69 @@ function RowActs({ contextId, acts, open, onOpen, keptEnd }: {
   )
 }
 
+/**
+ * Copy invitation (founder, 2026-11-12): the ready message on the
+ * clipboard, and who copied it on the record. Where the browser refuses the
+ * clipboard, the text is shown in a read-only box, already selected, to
+ * copy by hand: never a browser pop-up.
+ */
+function CopyInvitation({ contextId, text }: { contextId: string; text: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'by-hand'>('idle')
+  const box = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => { if (state === 'by-hand') box.current?.select() }, [state])
+  async function copy() {
+    let done = false
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); done = true }
+    } catch { done = false }
+    setState(done ? 'copied' : 'by-hand')
+    // Who copied which seat's invitation, and when. The answer changes nothing on the page.
+    void fetch(`/api/access/${contextId}/copied`, { method: 'POST' }).catch(() => {})
+  }
+  return (
+    <div className="min-w-0">
+      <button type="button" onClick={copy}
+        className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action shrink-0 hover:bg-etyme-action/5">
+        {COPY_LABEL}
+      </button>
+      {state === 'copied' && <span className="ml-2"><FormMessage tone="ok">Copied. Paste it into a message to them.</FormMessage></span>}
+      {state === 'by-hand' && (
+        <div className="mt-2">
+          <p className="text-[13px] text-etyme-muted mb-1">Copy this text and send it to them yourself.</p>
+          <textarea ref={box} readOnly value={text} aria-label="The invitation to copy" rows={4}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full max-w-full text-[13px] p-2 border border-etyme-rule rounded bg-etyme-raised text-etyme-ink break-words" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Whether the invitation email left and when, or why not, in the reader's own zone. */
+function MailSaid({ mail }: { mail: InviteMail | null | undefined }) {
+  const line = mailLine(mail, readerZone())
+  if (!line) return null
+  const sent = mail?.state === 'SENT'
+  return <div className={`text-xs mt-0.5 break-words ${sent ? 'text-etyme-muted' : 'text-etyme-attention'}`}>{line}</div>
+}
+
+/** Send the invitation again, and its answer under the button. The same seat; nothing is duplicated. */
+function SendAgain({ contextId, onSent }: { contextId: string; onSent: (r: Read) => void }) {
+  const [pending, setPending] = useState(false)
+  async function press() {
+    setPending(true)
+    try { onSent(await postAndRead(`/api/access/${contextId}/resend`, {})) } finally { setPending(false) }
+  }
+  return (
+    <SubmitButton type="button" tone="secondary" onClick={press} pending={pending} pendingLabel="Sending…" className="shrink-0">
+      {SEND_AGAIN_LABEL}
+    </SubmitButton>
+  )
+}
+
+/** One address's line after inviting several at once: what happened, and Copy and Send again where they apply. */
+interface BatchLine { email: string; ok: boolean; says: string; contextId?: string; mail?: InviteMail | null; copyText?: string | null }
+
 function ActForm({ action, acts, name, email, reason, setReason, pending, onSubmit }: {
   action: RowAction
   acts: RowOffer | undefined
@@ -405,6 +476,12 @@ export default function AccessPage() {
   const [invited, setInvited] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
   // What is wrong with the address, beside its box, after Invite is pressed.
   const [addressError, setAddressError] = useState<string | null>(null)
+  // The invitation just made: whether its email left, and its Copy.
+  const [lastInvite, setLastInvite] = useState<{ contextId: string; mail: InviteMail | null; copyText: string | null } | null>(null)
+  // Several addresses at once, one role, and one line per address after.
+  const [several, setSeveral] = useState(false)
+  const [batchText, setBatchText] = useState('')
+  const [batch, setBatch] = useState<BatchLine[] | null>(null)
   // Pause, Reinstate, End or Withdraw open on one row, with its reason field.
   const [acting, setActing] = useState<{ contextId: string; action: RowAction } | null>(null)
   // Waiting rows whose withdraw was refused on history: End access is drawn there.
@@ -420,10 +497,11 @@ export default function AccessPage() {
   // they sign in, so the client's Contacts page fills with the people
   // who work its account.
   async function sendInvite() {
+    if (several) return sendSeveral()
     // Never a greyed button with no words: the press says what is missing, beside the box.
     if (!looksLikeAddress(invite.email)) { setAddressError(INVITE_ADDRESS_MISSING); setInvited(null); return }
     setAddressError(null)
-    setInviting(true); setInvited(null)
+    setInviting(true); setInvited(null); setLastInvite(null)
     try {
       const r = await sendAndRead('/api/access/invite', 'POST', {
         name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined,
@@ -434,11 +512,50 @@ export default function AccessPage() {
         else setInvited({ text: r.text, tone: 'error' })
         return
       }
-      setInvited({ text: r.data?.says ?? `${invite.email.trim()} has been invited.`, tone: 'ok' })
+      setInvited({ text: r.data?.says ?? `${invite.email.trim()} has been invited.`, tone: r.data?.mail && r.data.mail.state !== 'SENT' ? 'error' : 'ok' })
+      setLastInvite(r.data?.contextId ? { contextId: r.data.contextId, mail: r.data.mail ?? null, copyText: r.data.copyText ?? null } : null)
       setInvite({ name: '', email: '', roleId: '' })
       await load()
     } finally {
       setInviting(false)
+    }
+  }
+
+  // Several at once: one role for all, one line per address, a refusal on one never stopping the rest.
+  async function sendSeveral() {
+    const { addresses, notAddresses } = parseAddresses(batchText)
+    if (addresses.length === 0) {
+      setAddressError(notAddresses.length ? `${notAddresses[0]} is not a whole address. ${INVITE_ADDRESS_MISSING}` : 'Type the addresses, one per line or separated by commas.')
+      return
+    }
+    if (addresses.length > MAX_ADDRESSES_AT_ONCE) {
+      setAddressError(`That is ${addresses.length} addresses. Invite at most ${MAX_ADDRESSES_AT_ONCE} at a time, then the rest.`)
+      return
+    }
+    setAddressError(null); setInviting(true); setInvited(null); setBatch(null)
+    try {
+      const r = await sendAndRead('/api/access/invite', 'POST', { emails: batchText, roleId: invite.roleId || undefined })
+      if (!r.ok) {
+        if (r.field === 'emails') setAddressError(r.text)
+        else setInvited({ text: r.text, tone: 'error' })
+        return
+      }
+      setBatch(r.data?.results ?? [])
+      setInvited({ text: r.data?.says ?? 'Done.', tone: 'ok' })
+      setBatchText('')
+      await load()
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  // What Send the invitation again said, put under the line it was pressed on.
+  function sentAgain(contextId: string, r: Read) {
+    setSaid({ contextId, text: r.text, tone: r.ok && r.data?.mail?.state === 'SENT' ? 'ok' : 'error' })
+    if (r.ok) {
+      if (lastInvite?.contextId === contextId) setLastInvite({ ...lastInvite, mail: r.data?.mail ?? null })
+      setBatch((b) => b?.map((l) => l.contextId === contextId ? { ...l, mail: r.data?.mail ?? null } : l) ?? null)
+      void load()
     }
   }
 
@@ -553,10 +670,28 @@ export default function AccessPage() {
         <p className="text-sm text-etyme-muted mb-3">
           Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-3 items-start">
-          <Field label="Name (optional)">
-            <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name (optional)" />
-          </Field>
+        <div className="mb-3">
+          <button type="button" onClick={() => { setSeveral(!several); setAddressError(null); setBatch(null) }}
+            className="text-[13px] text-etyme-action underline">
+            {several ? 'Invite one person' : 'Invite several at once'}
+          </button>
+        </div>
+        <div className={`grid grid-cols-1 gap-3 items-start ${several ? 'sm:grid-cols-[1.6fr_1fr_auto]' : 'sm:grid-cols-[1fr_1.3fr_1fr_auto]'}`}>
+          {!several && (
+            <Field label="Name (optional)">
+              <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name (optional)" />
+            </Field>
+          )}
+          {several ? (
+            <Field label={`Addresses, at most ${MAX_ADDRESSES_AT_ONCE}`}
+              help={`One per line, or separated by commas. ${(data.invite as InviteForm | undefined)?.hint ?? ''}`.trim()}
+              error={addressError}>
+              <textarea value={batchText} rows={4} aria-label="Addresses"
+                onChange={(e) => { setBatchText(e.target.value); if (addressError) setAddressError(null) }}
+                placeholder={'name@example.com\nother@example.com'}
+                className="w-full max-w-full text-sm p-2 border border-etyme-rule rounded bg-etyme-raised text-etyme-ink" />
+            </Field>
+          ) : (
           <Field label={(data.invite as InviteForm | undefined)?.emailLabel ?? 'Email address'}
             help={(data.invite as InviteForm | undefined)?.hint}
             error={addressError}>
@@ -564,6 +699,7 @@ export default function AccessPage() {
               onChange={(e) => { setInvite({ ...invite, email: e.target.value }); if (addressError) setAddressError(null) }}
               placeholder="name@example.com" />
           </Field>
+          )}
           <Field label="What they do here">
             <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })}>
               <option value="">Pick a role…</option>
@@ -576,6 +712,35 @@ export default function AccessPage() {
           </SubmitButton>
         </div>
         {invited && <div className="mt-2"><FormMessage tone={invited.tone === 'ok' ? 'ok' : 'error'}>{invited.text}</FormMessage></div>}
+        {lastInvite && !several && (
+          <div className="mt-2 flex flex-col gap-2">
+            <MailSaid mail={lastInvite.mail} />
+            <div className="flex flex-wrap gap-2 items-start">
+              {lastInvite.copyText && <CopyInvitation contextId={lastInvite.contextId} text={lastInvite.copyText} />}
+              {lastInvite.mail?.state !== 'SENT' && <SendAgain contextId={lastInvite.contextId} onSent={(r) => sentAgain(lastInvite.contextId, r)} />}
+            </div>
+            {said?.contextId === lastInvite.contextId && <RowSaid said={said} />}
+          </div>
+        )}
+        {batch && batch.length > 0 && (
+          // One line per address, scrolling inside its own box on a phone.
+          <ul className="mt-3 max-h-80 overflow-y-auto overflow-x-hidden border border-etyme-rule rounded divide-y divide-etyme-rule">
+            {batch.map((l) => (
+              <li key={l.email} className="p-3 min-w-0">
+                <div className="text-sm text-etyme-ink break-all">{l.email}</div>
+                <div className={`text-xs mt-0.5 break-words ${l.ok ? 'text-etyme-muted' : 'text-etyme-danger'}`}>{l.says}</div>
+                {l.ok && <MailSaid mail={l.mail} />}
+                {l.ok && l.contextId && (
+                  <div className="mt-2 flex flex-wrap gap-2 items-start">
+                    {l.copyText && <CopyInvitation contextId={l.contextId} text={l.copyText} />}
+                    <SendAgain contextId={l.contextId} onSent={(r) => sentAgain(l.contextId!, r)} />
+                  </div>
+                )}
+                {l.contextId && said?.contextId === l.contextId && <RowSaid said={said} />}
+              </li>
+            ))}
+          </ul>
+        )}
         </>
         )}
       </Panel>
@@ -599,6 +764,7 @@ export default function AccessPage() {
                     <div className="text-etyme-ink">{w.person.name}</div>
                     <Address email={w.person.primaryEmail} />
                     <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
+                    <MailSaid mail={w.mail} />
                   </div>
                   {data.canGrant === false ? (
                     <span className="max-w-[380px] text-xs text-etyme-muted shrink-0">{data.whyNotGrant}</span>
@@ -612,6 +778,12 @@ export default function AccessPage() {
                   <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
                     open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
                 </div>
+                {(w.acts?.resend || (w.acts?.copy && w.copyText)) && (
+                  <div className="mt-2 flex flex-wrap gap-2 items-start">
+                    {w.acts?.copy && w.copyText && <CopyInvitation contextId={w.contextId} text={w.copyText} />}
+                    {w.acts?.resend && <SendAgain contextId={w.contextId} onSent={(r) => sentAgain(w.contextId, r)} />}
+                  </div>
+                )}
 
                 {acting?.contextId === w.contextId && (
                   <ActForm action={acting.action} acts={w.acts} name={w.person.name} email={w.person.primaryEmail}

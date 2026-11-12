@@ -1,28 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, inWords } from '@/lib/permissions'
-import { emit } from '@/lib/events'
-import { notify } from '@/lib/notify'
-import { checkInvite } from '@/lib/account-lifecycle'
-import { doorOpen, issueSetPassword } from '@/lib/password-door'
-import { emailSender } from '@/lib/senders'
-import { baseUrl } from '@/lib/signed-link'
-import { inviteLetter, inviteSays, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
-import { checkDoor } from '@/lib/identity/read'
-import { recordIdentityEvent } from '@/lib/identity/ledger'
-
-/** Whether Microsoft or Google sign-in is set up here, read the way lib/auth reads it. */
-function workAccountOn(): boolean {
-  return Boolean(
-    (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) ||
-    (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-  )
-}
+import { hasPermission } from '@/lib/permissions'
+import {
+  hourlyCapSays, INVITES_PER_HOUR, MAX_ADDRESSES_AT_ONCE, OWNER_DESK, parseAddresses, tooManyAtOnceSays,
+} from '@/lib/access-grant'
+import { checkInviteRole, inviteOne, modeOf, type Inviter } from './one'
 
 /**
  * POST /api/access/invite   { email, name?, roleId? }
+ * POST /api/access/invite   { emails: "a@x.com, b@y.com" | string[], roleId? }
+ *
+ * The second shape invites several at once, at most twenty, one role for
+ * all, and answers one line per address (`inviteOne` in ./one).
  *
  * Making somebody a seat before they have signed in.
  *
@@ -71,255 +61,110 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const email = String(body.email ?? '').trim().toLowerCase()
 
-  const company = await prisma.company.findUnique({
-    where: { id: caller.company.id },
-    select: { domain: true, name: true },
-  })
-
-  const existing = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: {
-      id: true,
-      name: true,
-      passwordHash: true,
-      contexts: {
-        where: { companyId: caller.company.id, revokedAt: null },
-        select: { id: true },
-      },
-    },
-  })
-
-  const check = checkInvite(email, company?.domain ?? null, (existing?.contexts.length ?? 0) > 0)
-  if (!check.ok) {
-    return NextResponse.json(
-      { error: { code: 'CANNOT_INVITE', message: check.reason, field: 'email' } },
-      { status: 422 }
-    )
+  // Whether the inviter holds Owner here: only an Owner invites an Owner.
+  // Asked only where a role was chosen, the one place it decides anything.
+  const mine = body.roleId
+    ? await prisma.context.findUnique({ where: { id: caller.context.id }, select: { role: { select: { name: true } } } })
+    : null
+  const who: Inviter = {
+    personId: inviter,
+    name: caller.person.name,
+    permissions: caller.permissions,
+    isOwner: mine?.role?.name === OWNER_DESK,
+    company: { id: caller.company.id, name: caller.company.name },
   }
 
   // A role is optional. Without one they arrive able to see nothing, which
   // is the same as somebody joining on the domain — and is the safe
   // default, because an invitation is already an exception.
-  let role: { id: string; name: string; permissions: string[] } | null = null
-  if (body.roleId) {
-    role = await prisma.role.findFirst({
-      where: { id: String(body.roleId), companyId: caller.company.id },
-      select: { id: true, name: true, permissions: true },
-    })
-    if (!role) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'No such role here', field: 'roleId' } },
-        { status: 422 }
-      )
-    }
-    // Nobody hands out more than they hold, on invitation any more than on
-    // a key or a grant.
-    const beyond = role.permissions.filter((p) => !hasPermission(caller.permissions, p as any))
-    if (beyond.length > 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'BEYOND_YOU',
-            // What they would be handing over, said rather than keyed.
-            // "consultants.cost, margin.read" is a list of codes; the
-            // reader has to know it means somebody's pay and the
-            // margin on a placement before they can judge it.
-            message:
-              `Somebody on ${role.name} can ${inWords(beyond)} — and you cannot, so you ` +
-              `cannot hand it out. Pick a role inside your own, or ask the account owner ` +
-              `to seat them.`,
-            field: 'roleId',
-          },
-        },
-        { status: 422 }
-      )
-    }
-  }
-
-  // ── The company's sign-in policy, asked before anybody is seated ──
-  //
-  // A directory-only company seats its people through its own directory,
-  // so an address off its own domain (a Gmail, a partner's work address)
-  // is never invited into it (founder, 2026-11-11). This is the door
-  // `inviteRefusal` in lib/identity/read wraps; it is called directly so
-  // the governing policy it read is the one the INVITE_SENT row names,
-  // without reading it twice. A refusal's row is written, and waited for,
-  // inside it, so the refusal below goes out after its row.
-  const policyDoor = await checkDoor({
-    door: 'INVITE', email, targetCompanyId: caller.company.id,
-    actorPersonId: inviter, subjectPersonId: existing?.id ?? null, surface: 'WEB',
-  })
-  if (!policyDoor.allowed) {
+  const roleCheck = await checkInviteRole(who, body.roleId)
+  if (!roleCheck.ok) {
     return NextResponse.json(
-      { error: { code: 'DIRECTORY_ONLY', message: policyDoor.says, field: 'email' } },
-      { status: 403 }
+      { error: { code: roleCheck.code, message: roleCheck.message, field: roleCheck.field } },
+      { status: roleCheck.status }
+    )
+  }
+  const role = roleCheck.role
+
+  // The company's sign-in mode decides what the email and the copied
+  // invitation say (a directory-only company is never sent a password).
+  const mode = await modeOf(caller.company.id)
+
+  // ── Several at once (founder, 2026-11-12) ──
+  // One role for all of them, each address its own seat and its own
+  // checks, one result per address; a refusal on one never stops the rest.
+  if (body.emails !== undefined) {
+    const { addresses, notAddresses } = parseAddresses(body.emails)
+    if (addresses.length === 0) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: notAddresses.length ? `${notAddresses[0]} is not a whole address. Type the full address, like name@example.com.` : 'Type the addresses, one per line or separated by commas.', field: 'emails' } },
+        { status: 422 }
+      )
+    }
+    if (addresses.length > MAX_ADDRESSES_AT_ONCE) {
+      return NextResponse.json(
+        { error: { code: 'TOO_MANY', message: tooManyAtOnceSays(addresses.length), field: 'emails' } },
+        { status: 422 }
+      )
+    }
+    // A cap per company per hour, counted from the invitations already sent.
+    const hourAgo = new Date(Date.now() - 3_600_000)
+    const sentThisHour = await prisma.context.findMany({
+      where: { companyId: caller.company.id, invitedAt: { gte: hourAgo } },
+      select: { invitedAt: true },
+      orderBy: { invitedAt: 'asc' },
+    })
+    if (sentThisHour.length + addresses.length > INVITES_PER_HOUR) {
+      const oldest = sentThisHour[0]?.invitedAt ?? new Date()
+      return NextResponse.json(
+        { error: { code: 'TOO_MANY_THIS_HOUR', message: hourlyCapSays(new Date(oldest.getTime() + 3_600_000), null) } },
+        { status: 429 }
+      )
+    }
+    const results = []
+    for (const address of addresses) {
+      // One at a time, awaited, so each refusal's row is written before the next.
+      const r = await inviteOne(who, { email: address, reason: body.reason }, role, mode)
+      results.push(r.ok
+        ? { email: r.email, ok: true, contextId: r.contextId, says: r.says, mail: r.mail, copyText: r.copyText }
+        : { email: r.email, ok: false, says: r.message, code: r.code })
+    }
+    for (const bad of notAddresses) results.push({ email: bad, ok: false, says: 'Not a whole address. Type the full address, like name@example.com.', code: 'VALIDATION' })
+    const invited = results.filter((r) => r.ok).length
+    return NextResponse.json(
+      { data: { results, says: `${invited} of ${results.length} invited.` } },
+      { status: 200 }
     )
   }
 
-  // A seat on a public address at a hybrid company needs no mark here: the
-  // caller check reads the person's own address and the seat's policy on
-  // every request and withholds the money and signing acts there
-  // (`isLimitedPublicSeat` and `narrowForPublicSeat` in lib/api-context).
-
-  const now = new Date()
-
-  // The person may already exist — a consultant, or somebody at another
-  // company. Inviting them here adds a seat rather than a second account.
-  const person = existing
-    ? await prisma.person.findUniqueOrThrow({ where: { id: existing.id }, select: { id: true, name: true } })
-    : await prisma.person.create({
-        data: {
-          primaryEmail: email,
-          name: String(body.name ?? '').trim() || email.split('@')[0],
-        },
-        select: { id: true, name: true },
-      })
-
-  // The seat and its INVITE_SENT row commit together, so a seat never
-  // exists without the identity event that made it.
-  const companyId = caller.company.id
-  const context = await prisma.$transaction(async (tx) => {
-    const seat = await tx.context.create({
-      data: {
-        personId: person.id,
-        companyId,
-        type: 'EMPLOYEE',
-        roleId: role?.id ?? null,
-        grantedById: inviter,
-        invitedAt: now,
-        invitedById: inviter,
-        // How the seat was made. The limit on a public address at a hybrid
-        // company is read from the address and the policy, not from this.
-        source: 'INVITE',
-        grantReason: body.reason ? String(body.reason).trim() : `Invited by ${caller.person.name}`,
-      },
-      select: { id: true },
-    })
-    await recordIdentityEvent({
-      event: 'INVITE_SENT',
-      companyId,
-      actorPersonId: inviter,
-      subject: { personId: person.id },
-      policy: policyDoor.policy,
-      surface: 'WEB',
-      says: `${caller.person.name} invited ${email}${role ? ` as ${role.name}` : ' with no role yet'}.`,
-    }, tx)
-    return seat
-  })
-
-  await prisma.automationLog.create({
-    data: {
-      companyId: caller.company.id,
-      action: 'PERSON_INVITED',
-      summary: `${caller.person.name} invited ${email}${role ? ` as ${role.name}` : ' with no role yet'}`,
-      // The reason this is worth logging: it is an exception to the rule
-      // everything else depends on.
-      reason: check.reason,
-      payload: { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider },
-      reversible: true,
-    },
-  })
-
-  void emit({
-    type: 'company.member_joined',
-    companyId: caller.company.id,
-    subjectType: 'Person',
-    subjectId: person.id,
-    actorPersonId: inviter,
-    payload: { email, invited: true, roleName: role?.name ?? null, outsider: check.outsider },
-  })
-
-  // ── The email: always a way in, never only an instruction ──
-  //
-  // Round one of the sign-up walk found the invitation said "Sign in with
-  // priya@…" and carried no link, so the person invited had an
-  // instruction and no door. Where this deployment can send mail, the
-  // email carries a one-time link to set a password, issued as a RESET
-  // token so the password door's own /reset page takes it. Where only
-  // Microsoft or Google is on, it gives the sign-in address. Somebody who
-  // already has a password is sent the sign-in address, not a reset.
-  const login = baseUrl() ? `${baseUrl()}/login` : ''
-  const hasPassword = Boolean(existing?.passwordHash)
-  const door: InviteDoor =
-    doorOpen() && login && !hasPassword ? 'PASSWORD'
-      : workAccountOn() ? 'WORK_ACCOUNT'
-        : 'NONE'
-  const title = `${caller.person.name} invited you to ${company?.name ?? 'their company'}`
-
-  // How the email went, so the inviter is never told it went when it did not.
-  let mail: AccountMailState = emailSender() ? 'SENT' : 'NOT_CONFIGURED'
-
-  if (door === 'PASSWORD') {
-    // One door mints the link, and it kills any older one for this person.
-    const setPasswordUrl = await issueSetPassword(person.id, INVITE_LINK_HOURS, now)
-    const letter = inviteLetter({
-      door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
-      setPasswordUrl, loginUrl: login,
-      linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),
-    })
-    // Sent here rather than through notify, because notify keeps the body
-    // and the token must live in the mailbox and nowhere else — the same
-    // rule lib/password-door keeps for its own links.
-    const sender = emailSender()
-    let state: AccountMailState = 'NOT_CONFIGURED'
-    let note: string | null = 'No email provider set up, so this was recorded and not sent.'
-    if (sender) {
-      try {
-        await sender.send(email, title, [...letter.lines, '', letter.link!].join('\n'))
-        state = 'SENT'
-        note = null
-      } catch (e: any) {
-        state = 'FAILED'
-        note = String(e?.message ?? e).slice(0, 200)
-      }
-    }
-    await prisma.notification.create({
-      data: {
-        personId: person.id, companyId: caller.company.id, type: 'SYSTEM', channel: 'EMAIL',
-        // Where no email can be sent, the link is kept on the notice so staff
-        // can pass it on and a stuck invitation can be rescued; sent or
-        // failed, it lives in the mailbox only (lib/notify/account-mail).
-        title, body: recordedBody(letter.lines, letter.link, state),
-        entityId: context.id,
-        deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? new Date() : null,
-      },
-    })
-    mail = state
-  } else {
-    const letter = inviteLetter({
-      door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
-      setPasswordUrl: null, loginUrl: login, linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),
-    })
-    void notify({
-      personId: person.id,
-      companyId: caller.company.id,
-      type: 'SYSTEM',
-      title,
-      body: letter.lines.join('\n'),
-      entityId: context.id,
-      channel: 'EMAIL',
-    })
+  const r = await inviteOne(who, { email: String(body.email ?? ''), name: body.name, reason: body.reason }, role, mode)
+  if (!r.ok) {
+    return NextResponse.json(
+      { error: { code: r.code, message: r.message, field: r.field } },
+      { status: r.status }
+    )
   }
-
-  // What the inviter is told, from what happened to the email
-  // (`inviteSays` in lib/access-grant).
-  const says = inviteSays({ personName: person.name, email, roleName: role?.name ?? null, door, mail, login: login || null })
 
   return NextResponse.json(
     {
       data: {
-        says,
-        contextId: context.id,
-        email,
-        role: role?.name ?? null,
+        // What the inviter is told, from what happened to the email
+        // (`inviteSays` in lib/access-grant): never "emailed" before it left.
+        says: r.says,
+        contextId: r.contextId,
+        email: r.email,
+        role: r.role,
         state: 'INVITED',
-        note: check.reason,
-        wayIn: door,
-        message: role
-          ? `${email} can sign in as ${role.name}. Until they do, they show as invited rather than active.`
-          : `${email} can sign in. They will see nothing until somebody gives them a role.`,
+        note: r.note,
+        wayIn: r.door,
+        // Whether the email left and when, or why not (`mailLine` draws it).
+        mail: r.mail,
+        // The ready message for Copy invitation. It holds no link that takes the seat.
+        copyText: r.copyText,
+        message: r.role
+          ? `${r.email} can sign in as ${r.role}. Until they do, they show as invited rather than active.`
+          : `${r.email} can sign in. They will see nothing until somebody gives them a role.`,
       },
     },
     { status: 201 }

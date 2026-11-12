@@ -30,6 +30,7 @@
 import { hasPermission, inWords, PERMISSIONS } from '@/lib/permissions'
 import { formatDay } from '@/lib/format-date'
 import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy, type EffectiveMode } from '@/lib/identity/policy'
+import { momentFor } from '@/lib/when'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
@@ -477,7 +478,12 @@ export function deskChangedNotice(n: {
  */
 export const INVITE_LINK_HOURS = 72
 
-export type InviteDoor = 'PASSWORD' | 'WORK_ACCOUNT' | 'NONE'
+/**
+ * DIRECTORY: the company signs in through its own directory only, so the
+ * email names the directory and carries no set-password link at all: a
+ * password is a door that company has shut (founder, 2026-11-11).
+ */
+export type InviteDoor = 'PASSWORD' | 'WORK_ACCOUNT' | 'DIRECTORY' | 'NONE'
 
 export interface InviteLetter {
   door: InviteDoor
@@ -515,6 +521,16 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
       link: l.setPasswordUrl,
     }
   }
+  if (l.door === 'DIRECTORY') {
+    return {
+      lines: [
+        l.loginUrl
+          ? `Sign in at ${l.loginUrl} through ${l.companyName}’s company directory, with this email address. ${youAre}`
+          : `Sign in through ${l.companyName}’s company directory, with this email address. ${youAre}`,
+      ],
+      link: null,
+    }
+  }
   if (l.loginUrl) {
     return {
       lines: [
@@ -547,8 +563,16 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
 // to the email, and offers a sign-in address only to somebody who can
 // use it: a person who already has a password, or a work-account door.
 
-/** How the invitation email went: SENT, FAILED, or NOT_CONFIGURED (no provider here). */
-export type InviteMailState = 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
+/**
+ * How the invitation email went: SENT, FAILED, NOT_CONFIGURED (no provider
+ * here), or DEMO_SKIPPED (a reserved demo address, never sent to).
+ */
+export type InviteMailState = 'SENT' | 'FAILED' | 'NOT_CONFIGURED' | 'DEMO_SKIPPED'
+
+/** What the inviter presses on a waiting row to email the same invitation once more. */
+export const SEND_AGAIN_LABEL = 'Send the invitation again'
+/** What the inviter presses to put a ready message, with no link that takes the seat, on the clipboard. */
+export const COPY_LABEL = 'Copy invitation'
 
 export function inviteSays(i: {
   personName: string
@@ -558,6 +582,11 @@ export function inviteSays(i: {
   mail: InviteMailState
   /** The sign-in address, where this deployment knows it. */
   login: string | null
+  /**
+   * Why the email did not leave, in Etyme's words (`mailFailureSays` in
+   * lib/notify/mail-failure), never the provider's. Read on FAILED.
+   */
+  reason?: string | null
 }): string {
   const head = i.roleName ? `${i.personName} has been invited as ${i.roleName}` : `${i.personName} has been invited`
   const seat = i.roleName
@@ -568,7 +597,11 @@ export function inviteSays(i: {
     return `${head} and emailed.${seat}${i.door === 'PASSWORD' ? ' The email has a link to set their password.' : ''}`
   }
   if (i.mail === 'FAILED') {
-    return `${head}, and the email to ${i.email} did not go.${seat} Invite them again to send a new link.`
+    const why = i.reason ? ` ${i.reason}` : ''
+    return `${head}, and the email to ${i.email} did not go.${why}${seat} Press ${SEND_AGAIN_LABEL} on their row, or ${COPY_LABEL}.`
+  }
+  if (i.mail === 'DEMO_SKIPPED') {
+    return `${head}.${seat} This is a demo address, so no email went to it.`
   }
   // No email can leave this deployment.
   if (i.door === 'PASSWORD') {
@@ -580,6 +613,138 @@ export function inviteSays(i: {
     return `${head}.${seat} No email can be sent from here yet, so send them the sign-in address yourself: ${i.login}.`
   }
   return `${head}.${seat} No email can be sent from here yet, and this deployment does not know its own address. Send them the sign-in address yourself.`
+}
+
+// ── Whether the invitation email left, on the reply and on every waiting row ──
+//
+// The founder, 2026-11-12: three invitations to Tapin each said "did not
+// go" and nothing else, and the reason was never on the row he came back
+// to. Each waiting row now reads its newest invitation email and says one
+// line about it, the reason in Etyme's words and what to do next.
+
+/** The newest invitation email for a seat, as the register reads it off the record. */
+export interface InviteMail {
+  state: InviteMailState | 'PENDING'
+  /** When it left; null where it did not. An ISO string on the wire. */
+  at: Date | string | null
+  /** Why it did not leave, in Etyme's words; null where it left. */
+  why: string | null
+}
+
+/**
+ * "Email sent Thu, Nov 12, 3:40 PM PST." or "Email not sent: <why> Copy
+ * the invitation, or send it again." The moment is printed in the reader's
+ * own zone (lib/when). Null where no invitation email is on the record.
+ */
+export function mailLine(m: InviteMail | null | undefined, zone: string | null): string | null {
+  if (!m) return null
+  if (m.state === 'SENT' && m.at) return `Email sent ${momentFor(new Date(m.at), zone)}.`
+  if (m.state === 'PENDING') return 'Email waiting to go.'
+  if (m.state === 'SENT') return 'Email sent.'
+  const why = m.why ?? (m.state === 'NOT_CONFIGURED' ? 'No email can be sent from here yet.' : 'It did not leave.')
+  const next = m.state === 'DEMO_SKIPPED' ? ''
+    : m.state === 'NOT_CONFIGURED' ? ' Copy the invitation and send it to them yourself.'
+      : ' Copy the invitation, or send it again.'
+  return `Email not sent: ${why}${next}`
+}
+
+// ── Copy invitation ────────────────────────────────────────────────────
+//
+// An invitation's one carrier was the email, so when the email failed the
+// founder wrote to his partners by hand. The copied message carries what
+// the seat needs and nothing that takes it: the seat is claimed only by a
+// sign-in at the invited address (Google and Microsoft vouch for the
+// address; a password reset proves the mailbox), so a plain sign-in link is
+// no secret. The one-time set-password link IS the seat, and it is never
+// put here, on a clipboard, a screen or a log.
+
+export interface CopyInvitation {
+  inviterName: string
+  companyName: string
+  roleName: string | null
+  email: string
+  /** The app's one address (lib/app-url `appUrl`), with no path. */
+  appUrl: string
+  /** The company's sign-in mode, read by the one policy function. */
+  mode: EffectiveMode
+  /** Whether an email can leave this deployment, so "Forgot your password?" can work. */
+  mailLeaves: boolean
+}
+
+/** The sign-in page with the address carried, so the box is filled. Never a token, never a seat id. */
+export function signInLinkFor(appUrl: string, email: string): string {
+  return `${appUrl.replace(/\/+$/, '')}/login?email=${encodeURIComponent(email.trim().toLowerCase())}`
+}
+
+/** The ready message "Copy invitation" puts on the clipboard. Pure. */
+export function copyInvitation(c: CopyInvitation): string {
+  const as = c.roleName ? ` as ${c.roleName}` : ''
+  const head = `${c.inviterName} invited you to ${c.companyName} on Etyme${as}.`
+  const link = signInLinkFor(c.appUrl, c.email)
+  if (c.mode === 'SSO_ONLY') {
+    return `${head} Open ${link} and sign in through ${c.companyName}’s company directory as ${c.email}.`
+  }
+  const body = `${head} Open ${link} and continue with Google or Microsoft as ${c.email}, whichever your company uses.`
+  // "Forgot your password?" emails a link to a person a firm invited who
+  // has no password yet (lib/password-door `requestReset`: a live seat
+  // makes them an account), so it is offered only where mail can leave.
+  return c.mailLeaves
+    ? `${body} No Google or Microsoft account on that address? Choose Forgot your password? on that page and use the link we email you.`
+    : body
+}
+
+// ── Inviting several at once ───────────────────────────────────────────
+
+/** The most addresses one press of Invite takes. */
+export const MAX_ADDRESSES_AT_ONCE = 20
+/** The most invitations a company sends in an hour, counted from the seats it invited. */
+export const INVITES_PER_HOUR = 60
+/** The most invitation emails one seat is sent in an hour, the first included. */
+export const SENDS_PER_SEAT_PER_HOUR = 3
+
+/**
+ * The addresses in a pasted list: one per line, or separated by commas or
+ * semicolons, lowercased, each once, in the order typed. What is not a
+ * whole address is returned apart, so it is said and never silently
+ * dropped. Pure.
+ */
+export function parseAddresses(raw: string | readonly string[]): { addresses: string[]; notAddresses: string[] } {
+  const parts = (Array.isArray(raw) ? raw : String(raw ?? '').split(/[\n,;]+/))
+    .map((p) => String(p).trim().replace(/^.*<([^>]+)>\s*$/, '$1').trim().toLowerCase())
+    .filter(Boolean)
+  const addresses: string[] = []
+  const notAddresses: string[] = []
+  for (const p of parts) {
+    if (!looksLikeAddress(p)) { if (!notAddresses.includes(p)) notAddresses.push(p); continue }
+    if (!addresses.includes(p)) addresses.push(p)
+  }
+  return { addresses, notAddresses }
+}
+
+/** The refusal for a list longer than one press takes. */
+export function tooManyAtOnceSays(n: number): string {
+  return `That is ${n} addresses. Invite at most ${MAX_ADDRESSES_AT_ONCE} at a time, then the rest.`
+}
+
+/** The refusal once a company has sent its hour's invitations, with when to try again in the reader's zone. */
+export function hourlyCapSays(again: Date, zone: string | null): string {
+  return `${INVITES_PER_HOUR} invitations have gone out from here in the last hour. Try again after ${momentFor(again, zone)}.`
+}
+
+/** The refusal once one seat has been emailed its hour's invitations. */
+export function seatCapSays(email: string, again: Date, zone: string | null): string {
+  return `${email} was emailed ${SENDS_PER_SEAT_PER_HOUR} times in the last hour. ${COPY_LABEL} and send it yourself, or send it again after ${momentFor(again, zone)}.`
+}
+
+/** What Send the invitation again says once it has run. */
+export function sentAgainSays(email: string, mail: InviteMailState, why: string | null): string {
+  if (mail === 'SENT') return `Sent again to ${email}. It is the same seat; nothing was duplicated.`
+  return `Not sent to ${email}: ${why ?? 'it did not leave.'} It is the same seat; nothing was duplicated. ${COPY_LABEL} and send it to them yourself.`
+}
+
+/** The refusal for an address already waiting on an invitation here. */
+export function alreadyInvitedSays(email: string): string {
+  return `${email} is already invited here. Press ${SEND_AGAIN_LABEL} on their row to email them once more, or ${COPY_LABEL}.`
 }
 
 // ── What an outside firm's seat may never hold ─────────────────────────

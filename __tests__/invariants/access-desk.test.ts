@@ -126,14 +126,16 @@ describe('the invitation email', () => {
   })
 
   it('the old bare instruction is gone from the invitation route', () => {
-    const route = read('src/app/api/access/invite/route.ts')
+    // The invitation and its email are written by one file every invitation
+    // door calls (the form, several at once, and Send the invitation again).
+    const route = read('src/app/api/access/invite/route.ts') + read('src/app/api/access/invite/one.ts')
     expect(route).not.toContain('Somebody there will decide what you can see.')
     // One door mints the set-password link, and it kills older ones.
-    expect(route).toContain('issueSetPassword(person.id, INVITE_LINK_HOURS')
+    expect(route).toContain('issueSetPassword(a.person.id, INVITE_LINK_HOURS')
     expect(route).not.toContain('prisma.emailToken.create')
     // The token lives in the mailbox and nowhere else, except where no email
     // can be sent: the one door (lib/notify/account-mail) keeps it for staff.
-    expect(route).toContain('recordedBody(letter.lines, letter.link, state)')
+    expect(route).toContain("recordedBody(letter.lines, letter.link, state === 'DEMO_SKIPPED' ? 'NOT_CONFIGURED' : state)")
   })
 })
 
@@ -584,5 +586,192 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
     expect(register).toContain('if (mayInvite) {')
     expect(register).toContain('...(inviteForm ? { invite: inviteForm } : {})')
     expect(page).toContain('(data.invite as InviteForm | undefined)?.emailLabel')
+  })
+})
+
+// ── The founder's three invitations to Tapin, 2026-11-12 ───────────────
+//
+// Faults 6 to 9 of his fifteen: each email "did not go" with no reason;
+// nothing to copy and send by hand; "Invite them again" was a sentence and
+// no control; and one address at a time.
+import {
+  mailLine, copyInvitation, signInLinkFor, parseAddresses, tooManyAtOnceSays, hourlyCapSays, seatCapSays,
+  sentAgainSays, alreadyInvitedSays, MAX_ADDRESSES_AT_ONCE, SEND_AGAIN_LABEL, COPY_LABEL,
+} from '@/lib/access-grant'
+import { resendVerdict, offersFor } from '@/app/api/access/row-acts'
+import { mailFailureSays } from '@/lib/notify/mail-failure'
+
+describe('an invitation says whether its email left, and why not', () => {
+  const base = { personName: 'Vik Ippili', email: 'vik@partner-mail.example', roleName: 'Admin', login: 'https://app.etyme.example/login' }
+
+  it('an invitation the email sender refused tells the inviter why in Etyme’s words, and says to send it again or copy it', () => {
+    const why = mailFailureSays({ kind: 'REFUSED' })
+    const says = inviteSays({ ...base, door: 'PASSWORD', mail: 'FAILED', reason: why })
+    expect(says).toContain('the email to vik@partner-mail.example did not go.')
+    expect(says).toContain(why)
+    expect(says).toContain(`Press ${SEND_AGAIN_LABEL} on their row, or ${COPY_LABEL}.`)
+    expect(says).not.toMatch(/Resend|SendGrid|\b4\d\d\b|5\d\d/)
+    expect(says).not.toContain('Invite them again')
+  })
+
+  it('a demo address is said as a demo address, never as a failure', () => {
+    const says = inviteSays({ ...base, door: 'PASSWORD', mail: 'DEMO_SKIPPED' })
+    expect(says).toContain('This is a demo address, so no email went to it.')
+    expect(says).not.toContain('did not go')
+  })
+
+  it('a waiting row says "Email sent" with the day and time in the reader’s own zone', () => {
+    const line = mailLine({ state: 'SENT', at: '2026-11-12T23:40:00.000Z', why: null }, 'America/Los_Angeles')
+    expect(line).toBe('Email sent Thu, Nov 12, 3:40 PM PST.')
+  })
+
+  it('a waiting row whose email was refused says "Email not sent", the reason, and what to do', () => {
+    const why = mailFailureSays({ kind: 'BUSY' })
+    expect(mailLine({ state: 'FAILED', at: null, why }, 'UTC')).toBe(`Email not sent: ${why} Copy the invitation, or send it again.`)
+    expect(mailLine({ state: 'NOT_CONFIGURED', at: null, why: mailFailureSays({ kind: 'NOT_SET_UP' }) }, 'UTC'))
+      .toBe('Email not sent: No email can be sent from here yet. Copy the invitation and send it to them yourself.')
+    expect(mailLine(null, 'UTC')).toBeNull()
+  })
+
+  it('a directory-only company is never sent a set-password link: its invitation’s door is the directory', async () => {
+    const { doorFor } = await import('@/app/api/access/invite/one')
+    expect(doorFor({ mode: 'SSO_ONLY', hasPassword: false, login: 'https://app.etyme.example/login' })).toBe('DIRECTORY')
+    expect(doorFor({ mode: 'HYBRID', hasPassword: true, login: 'https://app.etyme.example/login' })).not.toBe('PASSWORD')
+  })
+
+  it('a directory-only company’s invitation email carries no set-password link and names the directory', () => {
+    const l = inviteLetter({
+      door: 'DIRECTORY', companyName: 'Corvane Packaging', roleName: 'HR', setPasswordUrl: null,
+      loginUrl: 'https://app.etyme.example/login', linkHours: INVITE_LINK_HOURS, workAccount: true,
+    })
+    expect(l.link).toBeNull()
+    expect(l.lines.join(' ')).toContain('through Corvane Packaging’s company directory')
+    expect(l.lines.join(' ')).not.toMatch(/password/i)
+  })
+})
+
+describe('Copy invitation', () => {
+  const c = {
+    inviterName: 'Sharath', companyName: 'Tapin', roleName: 'Admin', email: 'Sidhu.Partner@gmail.example',
+    appUrl: 'https://www.etyme.example/', mode: 'HYBRID' as const, mailLeaves: true,
+  }
+
+  it('a copied invitation holds the sign-in page with the address carried, and no token and no seat id', () => {
+    const text = copyInvitation(c)
+    expect(text).toContain('https://www.etyme.example/login?email=sidhu.partner%40gmail.example')
+    expect(text).not.toMatch(/\/reset\/|token|contextId|ctx_/i)
+    expect(signInLinkFor('https://www.etyme.example/', 'a@b.example')).toBe('https://www.etyme.example/login?email=a%40b.example')
+  })
+
+  it('a copied invitation names the inviter, the company, the role and the exact address, and says Google or Microsoft, whichever the company uses', () => {
+    expect(copyInvitation(c)).toBe(
+      'Sharath invited you to Tapin on Etyme as Admin. Open https://www.etyme.example/login?email=sidhu.partner%40gmail.example ' +
+      'and continue with Google or Microsoft as Sidhu.Partner@gmail.example, whichever your company uses. ' +
+      'No Google or Microsoft account on that address? Choose Forgot your password? on that page and use the link we email you.',
+    )
+  })
+
+  it('a copied invitation for a directory-only company says the company’s directory and never the word password', () => {
+    const text = copyInvitation({ ...c, mode: 'SSO_ONLY', companyName: 'Corvane Packaging', email: 'mia@corvane.example' })
+    expect(text).toContain('sign in through Corvane Packaging’s company directory as mia@corvane.example')
+    expect(text).not.toMatch(/password|Google|Microsoft/i)
+  })
+
+  it('where no email can leave, a copied invitation does not send them to Forgot your password', () => {
+    expect(copyInvitation({ ...c, mailLeaves: false })).not.toContain('Forgot your password?')
+  })
+
+  it('a copied invitation with no role yet says only who invited them and where', () => {
+    expect(copyInvitation({ ...c, roleName: null })).toMatch(/^Sharath invited you to Tapin on Etyme\. Open /)
+  })
+
+  it('Copy invitation never puts the text on a browser pop-up, and falls back to a selected read-only box', () => {
+    const page = read('src/app/dashboard/access/page.tsx')
+    expect(page).toContain('navigator.clipboard.writeText(text)')
+    expect(page).toMatch(/<textarea ref=\{box\} readOnly/)
+    expect(page).not.toMatch(/\b(alert|confirm|prompt)\(/)
+    // Who copied is recorded by a small POST, never the text itself.
+    expect(page).toContain('/api/access/${contextId}/copied')
+  })
+})
+
+describe('Send the invitation again', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    contextId: 'c1', personId: 'p1', hasSignedIn: false, roleId: 'r', rolePermissions: [],
+    suspendedAt: null, revokedAt: null, isOwner: false, invited: true, ...over,
+  }) as any
+
+  it('Send again and Copy are offered only on a seat that was invited and never signed in', () => {
+    expect(resendVerdict(row(), { isOwner: true, personId: 'me' }).allowed).toBe(true)
+    expect(resendVerdict(row({ hasSignedIn: true }), { isOwner: true, personId: 'me' }).reason)
+      .toBe('They have already signed in, so there is no invitation left to send.')
+    expect(resendVerdict(row({ invited: false }), { isOwner: true, personId: 'me' }).allowed).toBe(false)
+  })
+
+  it('a paused or ended seat is not sent its invitation again', () => {
+    expect(resendVerdict(row({ suspendedAt: new Date() }), { isOwner: true, personId: 'me' }).reason).toBe('Their seat is paused. Reinstate it first.')
+    expect(resendVerdict(row({ revokedAt: new Date() }), { isOwner: true, personId: 'me' }).allowed).toBe(false)
+  })
+
+  it('an Admin cannot send an invitation again to an Owner’s seat, and an Owner can', () => {
+    expect(resendVerdict(row({ isOwner: true }), { isOwner: false, personId: 'me' }).reason)
+      .toBe('They are invited as an Owner. Only an Owner sends an Owner’s invitation. An Admin never can.')
+    expect(resendVerdict(row({ isOwner: true }), { isOwner: true, personId: 'me' }).allowed).toBe(true)
+  })
+
+  it('a reader who cannot manage people is offered neither Send again nor Copy on any row', () => {
+    const offer = offersFor([row()], { isOwner: true, personId: 'me' }, false).get('c1')!
+    expect(offer.resend).toBe(false)
+    expect(offer.copy).toBe(false)
+    const mine = offersFor([row()], { isOwner: true, personId: 'me' }, true).get('c1')!
+    expect(mine.resend && mine.copy).toBe(true)
+  })
+
+  it('Send again says it went to the address on record, as the same seat, or why it did not', () => {
+    expect(sentAgainSays('vik@partner-mail.example', 'SENT', null)).toBe('Sent again to vik@partner-mail.example. It is the same seat; nothing was duplicated.')
+    const why = mailFailureSays({ kind: 'DOWN' })
+    const not = sentAgainSays('vik@partner-mail.example', 'FAILED', why)
+    expect(not).toContain(why)
+    expect(not).toContain('nothing was duplicated')
+  })
+
+  it('the invite form tells the inviter an address is already invited and where to press Send again', () => {
+    expect(alreadyInvitedSays('vik@partner-mail.example')).toBe(`vik@partner-mail.example is already invited here. Press ${SEND_AGAIN_LABEL} on their row to email them once more, or ${COPY_LABEL}.`)
+  })
+
+  it('a seat emailed three times in an hour is refused in one sentence that says when to try again and points to Copy', () => {
+    const says = seatCapSays('vik@partner-mail.example', new Date('2026-11-12T23:40:00.000Z'), 'America/New_York')
+    expect(says).toBe('vik@partner-mail.example was emailed 3 times in the last hour. Copy invitation and send it yourself, or send it again after Thu, Nov 12, 6:40 PM EST.')
+  })
+
+  it('"Invite them again" is gone from every word a person reads on Users & permissions', () => {
+    for (const f of ['src/lib/access-grant.ts', 'src/app/api/access/row-acts.ts', 'src/app/api/access/[contextId]/route.ts', 'src/app/dashboard/access/page.tsx']) {
+      expect(read(f), f).not.toMatch(/invite them again/i)
+    }
+  })
+})
+
+describe('inviting several at once', () => {
+  it('several addresses pasted one per line or with commas are read once each, lowercased, and what is not an address is kept apart', () => {
+    expect(parseAddresses('A@x.example, b@y.example\nA@x.example;  not-an-address \n\n Pat Lee <pat@z.example>')).toEqual({
+      addresses: ['a@x.example', 'b@y.example', 'pat@z.example'],
+      notAddresses: ['not-an-address'],
+    })
+  })
+
+  it('a list of more than twenty addresses is refused in one sentence', () => {
+    expect(MAX_ADDRESSES_AT_ONCE).toBe(20)
+    expect(tooManyAtOnceSays(23)).toBe('That is 23 addresses. Invite at most 20 at a time, then the rest.')
+  })
+
+  it('a company that has sent its hour of invitations is told when to try again', () => {
+    expect(hourlyCapSays(new Date('2026-11-12T23:40:00.000Z'), 'UTC')).toBe('60 invitations have gone out from here in the last hour. Try again after Thu, Nov 12, 11:40 PM UTC.')
+  })
+
+  it('the result is one line per address in a box that scrolls on its own at phone width, each with Copy and Send again', () => {
+    const page = read('src/app/dashboard/access/page.tsx')
+    expect(page).toMatch(/max-h-80 overflow-y-auto overflow-x-hidden/)
+    expect(page).toContain('<CopyInvitation contextId={l.contextId} text={l.copyText} />')
+    expect(page).toContain('<SendAgain contextId={l.contextId}')
   })
 })

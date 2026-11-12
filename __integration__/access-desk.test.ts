@@ -3,6 +3,8 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as access, POST as grant } from '@/app/api/access/route'
 import { POST as invite } from '@/app/api/access/invite/route'
 import { POST as seatAct, DELETE as withdraw } from '@/app/api/access/[contextId]/route'
+import { POST as sendAgain } from '@/app/api/access/[contextId]/resend/route'
+import { POST as copied } from '@/app/api/access/[contextId]/copied/route'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { resetPassword } from '@/lib/password-door'
@@ -244,7 +246,7 @@ describe('Users & permissions names everybody by address and withdraws an invita
     as(OWNER)
     const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.message).toBe('The invitation to Wren Ito (wren.ito@brightmoor-walk.example) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, invite them again.')
+    expect(r.body.data.message).toBe('The invitation to Wren Ito (wren.ito@brightmoor-walk.example) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.')
     expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
     expect(await prisma.person.count({ where: { id: personId } })).toBe(0)
     expect(await prisma.emailToken.count({ where: { personId } })).toBe(0)
@@ -332,5 +334,195 @@ describe('Users & permissions names everybody by address and withdraws an invita
     })))
     expect(r.status).toBe(422)
     expect(r.body.error.message).toBe('Pick a day after today. Access cannot end on a day that has already begun.')
+  })
+})
+
+/**
+ * The founder's three invitations to Tapin, 2026-11-12, on the same world:
+ * an email that did not go says why on the row; Copy invitation holds no
+ * link that takes the seat; Send the invitation again is the same seat;
+ * and several addresses go at once.
+ */
+describe('an invitation that did not go says why, and can be copied or sent again', () => {
+  const seatParams = (contextId: string) => ({ params: Promise.resolve({ contextId }) })
+  const mailOn = (answer: () => Response) => {
+    process.env.RESEND_API_KEY = 're_test'
+    process.env.NOTIFY_FROM_EMAIL = 'notices@etyme.example'
+    process.env.NEXTAUTH_URL = 'https://app.etyme.example'
+    const out: { to: string; text: string }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: { body: string }) => {
+      if (String(url).includes('resend')) {
+        const b = JSON.parse(init.body)
+        out.push({ to: Array.isArray(b.to) ? b.to[0] : b.to, text: b.text ?? '' })
+      }
+      return answer()
+    }))
+    return out
+  }
+  const ok = () => new Response(JSON.stringify({ id: 'sent' }), { status: 200 })
+  const refused = () => new Response(JSON.stringify({ name: 'validation_error', message: 'The notify.etyme.example domain is not verified.' }), { status: 403 })
+  const waitingRow = async (contextId: string) => {
+    const list = await json(await access(req('GET', '/api/access')))
+    return list.body.data.waitingForAccess.find((w: any) => w.contextId === contextId)
+  }
+
+  afterAll(() => vi.unstubAllGlobals())
+
+  it('an invitation the email sender refused tells the inviter why in a sentence, and the waiting row keeps it', async () => {
+    mailOn(refused)
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Vik Ippili', email: 'vik@partner-works-fixture.com', roleId: it_.roles['HR'] })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.mail.state).toBe('FAILED')
+    expect(r.body.data.mail.why).toBe('Etyme’s email sender refused it, so nothing was sent. Etyme has been told.')
+    expect(r.body.data.says).toContain('did not go. Etyme’s email sender refused it')
+    expect(r.body.data.says).not.toMatch(/403|Resend|not verified|emailed/)
+    const row = await waitingRow(r.body.data.contextId)
+    expect(row.mail.state).toBe('FAILED')
+    expect(row.mail.why).toBe(r.body.data.mail.why)
+    expect(row.acts.resend && row.acts.copy).toBe(true)
+    it_.vik = r.body.data.contextId
+  })
+
+  it('an invitation to a person who already has a password is not called emailed until the email has left', async () => {
+    mailOn(() => new Response('{"message":"down"}', { status: 500 }))
+    await prisma.person.create({ data: { primaryEmail: 'hana@has-password-fixture.com', name: 'Hana Sato', passwordHash: 'x' } })
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', { email: 'hana@has-password-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.wayIn).not.toBe('PASSWORD')
+    expect(r.body.data.mail.state).toBe('FAILED')
+    expect(r.body.data.says).not.toContain('emailed')
+  })
+
+  it('a waiting row carries a copied invitation with the sign-in page and the address, and no token and no seat id', async () => {
+    as(OWNER)
+    const row = await waitingRow(it_.vik)
+    expect(row.copyText).toContain('https://app.etyme.example/login?email=vik%40partner-works-fixture.com')
+    expect(row.copyText).not.toMatch(/\/reset\/|token/i)
+    expect(row.copyText).not.toContain(it_.vik)
+  })
+
+  it('copying an invitation is written to the record with who copied it, and nothing secret', async () => {
+    as(OWNER)
+    const r = await json(await copied(req('POST', `/api/access/${it_.vik}/copied`), seatParams(it_.vik)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const row = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'PERSON_INVITED', summary: { contains: 'copied the invitation' } }, orderBy: { at: 'desc' } })
+    expect(row?.summary).toMatch(/copied the invitation for vik@partner-works-fixture\.com$/)
+    expect(JSON.stringify(row)).not.toMatch(/\/reset\//)
+  })
+
+  it('pressing Send the invitation again sends the same invitation for the same seat, makes no second seat, and only the newest link works', async () => {
+    const out = mailOn(ok)
+    as(OWNER)
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'vik@partner-works-fixture.com' }, select: { id: true } })
+    const r = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`, { email: 'someone.else@elsewhere.example' }), seatParams(it_.vik)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.says).toBe('Sent again to vik@partner-works-fixture.com. It is the same seat; nothing was duplicated.')
+    // Only to the address on the record, never one from the request.
+    expect(out.map((m) => m.to)).toEqual(['vik@partner-works-fixture.com'])
+    expect(await prisma.context.count({ where: { personId: person.id, companyId: it_.firm } })).toBe(1)
+    const live = await prisma.emailToken.count({ where: { personId: person.id, purpose: 'RESET', usedAt: null } })
+    expect(live).toBe(1)
+    expect((await waitingRow(it_.vik)).mail.state).toBe('SENT')
+  })
+
+  it('a third Send again in one hour is refused in one sentence that points to Copy invitation, and is logged before it is sent', async () => {
+    mailOn(ok)
+    as(OWNER)
+    const third = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`), seatParams(it_.vik)))
+    expect(third.status, JSON.stringify(third.body)).toBe(200)
+    const fourth = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`), seatParams(it_.vik)))
+    expect(fourth.status, JSON.stringify(fourth.body)).toBe(429)
+    expect(fourth.body.error.message).toMatch(/^vik@partner-works-fixture\.com was emailed 3 times in the last hour\. Copy invitation and send it yourself, or send it again after /)
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'vik@partner-works-fixture.com' }, select: { id: true } })
+    expect(await prisma.accessLog.count({ where: { subjectId: person.id, action: 'INVITATION_SEND_AGAIN', allowed: false } })).toBeGreaterThan(0)
+  })
+
+  it('Send again on a row whose person already signed in is refused in one sentence', async () => {
+    mailOn(ok)
+    as(OWNER)
+    const r0 = await json(await invite(req('POST', '/api/access/invite', { email: 'lee.signed@partner-works-fixture.com' })))
+    await prisma.context.update({ where: { id: r0.body.data.contextId }, data: { lastUsedAt: new Date() } })
+    const r = await json(await sendAgain(req('POST', `/api/access/${r0.body.data.contextId}/resend`), seatParams(r0.body.data.contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.message).toBe('They have already signed in, so there is no invitation left to send.')
+  })
+
+  it('an Admin cannot send an invitation again to an Owner’s seat', async () => {
+    const admin = await prisma.person.create({ data: { primaryEmail: 'rae.admin@brightmoor.demo.etyme.local', name: 'Rae Admin' }, select: { id: true } })
+    await prisma.context.create({ data: { personId: admin.id, companyId: it_.firm, type: 'EMPLOYEE', roleId: it_.roles['Admin'], lastUsedAt: new Date(), grantReason: 'People and settings' } })
+    const owner = await prisma.person.create({ data: { primaryEmail: 'olu.owner@brightmoor-walk.example', name: 'Olu Next' }, select: { id: true } })
+    const seat = await prisma.context.create({
+      data: { personId: owner.id, companyId: it_.firm, type: 'EMPLOYEE', roleId: it_.roles['Owner'], invitedAt: new Date(), grantReason: 'A second Owner' },
+      select: { id: true },
+    })
+    as('rae.admin@brightmoor.demo.etyme.local')
+    const r = await json(await sendAgain(req('POST', `/api/access/${seat.id}/resend`), seatParams(seat.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.message).toBe('They are invited as an Owner. Only an Owner sends an Owner’s invitation. An Admin never can.')
+    it_.raeEmail = 'rae.admin@brightmoor.demo.etyme.local'
+  })
+
+  it('the invite form tells the inviter an address is already invited and where to press Send again', async () => {
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', { email: 'vik@partner-works-fixture.com' })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toBe('vik@partner-works-fixture.com is already invited here. Press Send the invitation again on their row to email them once more, or Copy invitation.')
+  })
+
+  it('several addresses are invited at once with one role, each with its own line, and one refused does not stop the others', async () => {
+    mailOn(ok)
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', {
+      emails: 'ana@batch-works-fixture.com, ben@batch-works-fixture.com\nvik@partner-works-fixture.com\nnot-an-address',
+      roleId: it_.roles['Recruiter'],
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const lines = r.body.data.results
+    expect(lines.map((l: any) => [l.email, l.ok])).toEqual([
+      ['ana@batch-works-fixture.com', true], ['ben@batch-works-fixture.com', true],
+      ['vik@partner-works-fixture.com', false], ['not-an-address', false],
+    ])
+    expect(lines[0].mail.state).toBe('SENT')
+    expect(lines[0].copyText).toContain('as Recruiter')
+    expect(lines[2].says).toContain('already invited here')
+    for (const l of lines) expect(l.says).not.toMatch(/another company|elsewhere on Etyme|has an account/)
+  })
+
+  it('an address seated here already is said as "already has a seat here" and nothing about anywhere else', async () => {
+    as(OWNER)
+    const r = await json(await invite(req('POST', '/api/access/invite', { emails: [MEMBER] })))
+    expect(r.body.data.results[0]).toMatchObject({ ok: false, says: 'They already have a seat here.' })
+  })
+
+  it('an Admin cannot invite an Owner in a batch', async () => {
+    as(it_.raeEmail)
+    const r = await json(await invite(req('POST', '/api/access/invite', { emails: 'x1@batch-works-fixture.com', roleId: it_.roles['Owner'] })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.field).toBe('roleId')
+    expect(await prisma.person.count({ where: { primaryEmail: 'x1@batch-works-fixture.com' } })).toBe(0)
+  })
+
+  it('a batch of more than twenty addresses is refused in one sentence and nobody is invited', async () => {
+    as(OWNER)
+    const many = Array.from({ length: 21 }, (_, i) => `many${i}@batch-works-fixture.com`)
+    const r = await json(await invite(req('POST', '/api/access/invite', { emails: many })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toBe('That is 21 addresses. Invite at most 20 at a time, then the rest.')
+    expect(await prisma.person.count({ where: { primaryEmail: { startsWith: 'many' } } })).toBe(0)
+  })
+
+  it('a company that has sent its hour of invitations is refused a batch in one sentence that says when to try again', async () => {
+    as(OWNER)
+    const ctx = await prisma.context.findMany({ where: { companyId: it_.firm, invitedAt: { gte: new Date(Date.now() - 3_600_000) } }, select: { id: true } })
+    // Fill the hour with seats invited a minute ago, then ask for more.
+    const filler = await prisma.person.create({ data: { primaryEmail: 'hour.filler@batch-works-fixture.com', name: 'Filler' }, select: { id: true } })
+    for (let i = ctx.length; i < 60; i++) {
+      await prisma.context.create({ data: { personId: filler.id, companyId: it_.firm, type: 'EMPLOYEE', invitedAt: new Date(Date.now() - 60_000), revokedAt: new Date(), grantReason: 'filler' } })
+    }
+    const r = await json(await invite(req('POST', '/api/access/invite', { emails: 'late@batch-works-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(429)
+    expect(r.body.error.message).toMatch(/^60 invitations have gone out from here in the last hour\. Try again after /)
   })
 })

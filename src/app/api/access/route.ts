@@ -17,6 +17,8 @@ import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
 import { offersFor } from './row-acts'
+import { copyTextFor, latestInviteMails } from './invite/one'
+import type { EffectiveMode } from '@/lib/identity/policy'
 
 /**
  * Who may read the access register.
@@ -172,6 +174,7 @@ export async function GET(request: NextRequest) {
       suspendedAt: c.suspendedAt,
       revokedAt: c.revokedAt,
       isOwner: c.role?.name === OWNER_DESK,
+      invited: c.invitedAt !== null,
     })),
     { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
     hasPermission(caller.permissions, 'team.manage'),
@@ -184,16 +187,44 @@ export async function GET(request: NextRequest) {
   // who cannot act on it.
   const mayInvite = hasPermission(caller.permissions, 'team.manage')
   let inviteForm: ReturnType<typeof inviteFormWords> | null = null
+  let mode: EffectiveMode = 'OPEN'
   if (mayInvite) {
     const [read, co] = await Promise.all([
       companyPolicy(caller.company.id),
       prisma.company.findUnique({ where: { id: caller.company.id }, select: { domain: true, domainVerified: true } }),
     ])
+    mode = read.effective
     inviteForm = inviteFormWords({
       policy: read.policy,
       domain: co?.domainVerified ? co.domain : null,
       oneFirm: caller.company.kind === 'CONSULTANT_CORP',
     })
+  }
+
+  // Each waiting invitation's newest email, read once for every row
+  // (founder, 2026-11-12): whether it left and when, or why not, in
+  // Etyme's words. And the ready message Copy invitation puts on the
+  // clipboard, which holds no link that takes the seat. Both only for a
+  // reader who may act on the row.
+  const invitedWaiting = waiting.filter(c => c.invitedAt !== null && actsOf(c.id).copy)
+  const mails = await latestInviteMails(invitedWaiting.map(c => c.id))
+  const inviterIds = [...new Set(invitedWaiting.map(c => c.invitedById).filter((id): id is string => Boolean(id)))]
+  const inviters = inviterIds.length
+    ? new Map((await prisma.person.findMany({ where: { id: { in: inviterIds } }, select: { id: true, name: true } })).map(p => [p.id, p.name]))
+    : new Map<string, string>()
+  const inviteOf = (c: (typeof contexts)[number]) => {
+    if (c.invitedAt === null || !actsOf(c.id).copy) return {}
+    const email = emailOf(c.person.primaryEmail)
+    return {
+      mail: mails.get(c.id) ?? null,
+      copyText: email ? copyTextFor({
+        inviterName: (c.invitedById && inviters.get(c.invitedById)) || caller.person.name,
+        companyName: caller.company!.name,
+        roleName: c.role?.name ?? null,
+        email,
+        mode,
+      }) : null,
+    }
   }
 
   return NextResponse.json({
@@ -226,6 +257,7 @@ export async function GET(request: NextRequest) {
           // A seat may be given an end day before they come in.
           expiresAt: c.expiresAt?.toISOString() ?? null,
           acts: actsOf(c.id),
+          ...inviteOf(c),
         }
       }),
       people: withAccess.map(c => ({
