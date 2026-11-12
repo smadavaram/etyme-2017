@@ -57,7 +57,7 @@ export const WRITTEN_BY: Record<IdentityEvent, string | null> = {
   LOGIN_SUCCEEDED: 'src/lib/identity/sign-in.ts', // called from the sign-in event in src/lib/auth.ts
   LOGIN_REFUSED_SSO_ONLY: 'src/lib/identity/read.ts',
   JOIN_REFUSED_BY_POLICY: 'src/lib/identity/read.ts',
-  INVITE_SENT: 'src/app/api/access/invite/route.ts',
+  INVITE_SENT: 'src/app/api/access/invite/one.ts',
   INVITE_ACCEPTED: 'src/lib/identity/sign-in.ts',
   MEMBERSHIP_REVOKED: 'src/app/api/access/[contextId]/route.ts',
   AUTH_POLICY_CHANGED: 'src/app/api/settings/sign-in/route.ts',
@@ -103,14 +103,13 @@ export function readIdentityReason(reason: string | null | undefined): { policy:
 }
 
 /**
- * The access log's name for an event: the event's own name. One name is
- * not yet in lib/access-log's `AccessAction` list, which is
- * etyme-regulatory's file: `PASSWORD_SET`, asked of them on 2026-11-12.
- * Until it is added the conversion is made here, once, and the name is
- * spelled the same either side, so a query finds every row.
+ * The access log's name for an event: the event's own name, every one of
+ * which is in lib/access-log's `AccessAction` list (PASSWORD_SET landed
+ * there on 2026-11-12), so no conversion is made. The return type keeps it
+ * that way: an identity event missing from the list fails the type check.
  */
 function accessActionOf(e: IdentityEvent): AccessAction {
-  return e as AccessAction
+  return e
 }
 
 /** Whether an event is a refusal: written refused, and before the refusal is sent. */

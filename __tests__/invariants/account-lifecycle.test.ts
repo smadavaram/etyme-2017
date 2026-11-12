@@ -155,6 +155,12 @@ describe('removing a person outright', () => {
     expect(canDeleteOutright(clean).allowed).toBe(true)
   })
 
+  it('withdrawing an invitation says its link no longer lets them in and points to the Invite form, never "invite them again"', () => {
+    const says = canDeleteOutright(clean).consequences.join(' ')
+    expect(says).toBe('The invitation disappears, and nothing they were sent lets them in. If they were meant to be here, use the Invite form above to send a new one.')
+    expect(says).not.toMatch(/invite them again/i)
+  })
+
   it('refuses once they have signed in, because they are part of the record', () => {
     expect(canDeleteOutright({ ...clean, hasSignedIn: true }).allowed).toBe(false)
   })

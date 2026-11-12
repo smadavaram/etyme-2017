@@ -269,7 +269,7 @@ export function canDeleteOutright(f: Footprint): Verdict {
   return {
     allowed: true,
     reason: 'Invited, never arrived, nothing attached.',
-    consequences: ['The invitation disappears. If they were meant to be here, invite them again.'],
+    consequences: ['The invitation disappears, and nothing they were sent lets them in. If they were meant to be here, use the Invite form above to send a new one.'],
   }
 }
 

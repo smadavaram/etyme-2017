@@ -65,6 +65,14 @@ describe('the identity events and their names', () => {
     }
   })
 
+  it('every identity event is written to the access log under its own name, with no conversion between the two lists', () => {
+    for (const e of IDENTITY_EVENTS) {
+      expect(identityRow({ event: e, companyId: 'co', actorPersonId: 'p', subject: null, policy: 'HYBRID', surface: 'WEB', says: 'A sentence.' } as never)).toMatchObject({ ok: true, action: e })
+    }
+    const src = readFileSync(join(ROOT, 'src/lib/identity/ledger.ts'), 'utf8')
+    expect(src).toMatch(/function accessActionOf\(e: IdentityEvent\): AccessAction \{\n  return e\n\}/)
+  })
+
   it('an event nothing writes yet is listed as not written in the known limits, so a stub is never read as built', () => {
     const limits = readFileSync(join(ROOT, 'KNOWN-LIMITS.md'), 'utf8').split('## Identity, pass 1')[1] ?? ''
     for (const e of IDENTITY_EVENTS) if (!WRITTEN_BY[e]) expect(limits, e).toContain(e)
