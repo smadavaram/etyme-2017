@@ -545,9 +545,19 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
     const { inviteFormWords } = await import('@/lib/access-grant')
     const f = inviteFormWords({ policy: policy('INVITE_ONLY'), domain: null, oneFirm: false })
     expect(f.emailLabel).toBe('Email address')
-    expect(f.hint).toBe('A company address, or a personal one such as Gmail for a partner.')
+    expect(f.hint).toBe('A company address, or a personal one such as Gmail for a partner. A seat on a personal address can do everything its role can, money and signing included.')
     expect(f.personalWelcome).toBe(true)
     expect(f.mode).toBe('INVITE_ONLY')
+  })
+
+  it('at an invitation-only company or one with nothing set the hint says a personal-address seat is not limited, because the record limits one only at a hybrid company', async () => {
+    const { inviteFormWords, PERSONAL_SEAT_UNLIMITED } = await import('@/lib/access-grant')
+    const { isLimitedPublicSeat } = await import('@/lib/identity/policy')
+    for (const mode of ['INVITE_ONLY', null] as const) {
+      expect(isLimitedPublicSeat(policy(mode), true)).toBe(false)
+      expect(inviteFormWords({ policy: policy(mode), domain: null, oneFirm: false }).hint).toContain(PERSONAL_SEAT_UNLIMITED)
+    }
+    expect(inviteFormWords({ policy: policy('HYBRID', ['https://login.example']), domain: null, oneFirm: false }).hint).not.toContain(PERSONAL_SEAT_UNLIMITED)
   })
 
   it('at a hybrid company the hint says what a seat on a personal address cannot do, read from the one limit', async () => {

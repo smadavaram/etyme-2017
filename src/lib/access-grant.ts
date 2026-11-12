@@ -871,8 +871,9 @@ export function personalSeatCannot(policy: CompanyPolicy | null): string | null 
  *   invited (the INVITE door allows it, lib/identity/policy `decideDoor`);
  *   anybody else is added in the company's directory.
  * - Invitation only, hybrid, or nothing set: any address, a personal one
- *   welcome; where the company limits a seat on a personal address, the
- *   hint says what that seat cannot do.
+ *   welcome; where the company limits a seat on a personal address (hybrid),
+ *   the hint says what that seat cannot do, and where it does not, the hint
+ *   says the seat holds everything its role holds.
  * - A one-person firm keeps the form it had.
  */
 export function inviteFormWords(args: { policy: CompanyPolicy | null; domain: string | null; oneFirm: boolean }): InviteForm {
@@ -901,10 +902,18 @@ export function inviteFormWords(args: { policy: CompanyPolicy | null; domain: st
     emailLabel: 'Email address',
     hint: cannot
       ? `A company address, or a personal one such as Gmail for a partner. A seat on a personal address cannot ${cannot}.`
-      : 'A company address, or a personal one such as Gmail for a partner.',
+      : `A company address, or a personal one such as Gmail for a partner. ${PERSONAL_SEAT_UNLIMITED}`,
     personalWelcome: true,
   }
 }
+
+/**
+ * Said where the company does not limit a seat on a personal address
+ * (invitation only, or nothing set): the record applies the limit at a
+ * hybrid company only (`isLimitedPublicSeat`), so the hint says the seat
+ * holds what its role holds and the Owner is not surprised later.
+ */
+export const PERSONAL_SEAT_UNLIMITED = 'A seat on a personal address can do everything its role can, money and signing included.'
 
 /** What the address box says when Invite is pressed with no whole address in it. */
 export const INVITE_ADDRESS_MISSING = 'Type the full address, like name@example.com.'
