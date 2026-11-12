@@ -1024,7 +1024,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
 
       {advice.length > 0 && (
         <div className="panel">
-          <Lbl>Remittance advice</Lbl>
+          <Lbl>Remittance advice, scheduled</Lbl>
           {advice.map((a: any) => (
             <pre
               key={a.vendorCompanyId}
@@ -1062,19 +1062,39 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
                 </span>
               </div>
               <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-etyme-faint">
-                <span className="tabular-nums">
-                  scheduled {new Date(r.scheduledFor).toISOString().slice(0, 10)}
-                </span>
+                {r.status !== 'PAID' && (
+                  <span className="tabular-nums">scheduled for {formatDay(r.scheduledFor)}</span>
+                )}
                 {r.createdBy && <span>assembled by {r.createdBy.name}</span>}
                 {r.approvedBy && <span>approved by {r.approvedBy.name}</span>}
                 {r.paidAt && (
                   <span className="tabular-nums">
-                    paid {new Date(r.paidAt).toISOString().slice(0, 10)}
+                    paid on {formatDay(r.paidAt)}
                   </span>
                 )}
               </div>
               {r.status === 'PAID' && r.confirmed && (
                 <p className="mt-2 text-[13px] text-etyme-ink">{r.confirmed}</p>
+              )}
+              {/* A paid run's advice says the day its confirmation paid it. */}
+              {r.status === 'PAID' && (r.advice ?? []).length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[13px]" style={{ color: 'var(--color-action)' }}>Remittance advice</summary>
+                  {r.advice.map((a: any) => (
+                    <pre
+                      key={a.vendorCompanyId}
+                      className="mt-2 overflow-x-auto whitespace-pre-wrap border-t border-etyme-rule pt-2 text-[11px] text-etyme-muted"
+                      style={{ fontFamily: 'IBM Plex Mono, monospace' }}
+                    >
+                      {a.text}
+                    </pre>
+                  ))}
+                </details>
+              )}
+              {/* Approve it is drawn only where the route would take it; the
+                  person who assembled the draft reads who approves instead. */}
+              {desk.mayRun && r.status === 'DRAFT' && r.approve && !r.approve.may && r.approve.says && (
+                <p className="mt-2 text-[13px] text-etyme-ink">{r.approve.says}</p>
               )}
               {rowSaid[r.id] && (
                 <p
@@ -1090,7 +1110,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
               )}
               {desk.mayRun && r.status !== 'PAID' && r.status !== 'CANCELLED' && (
                 <div className="mt-3 flex flex-wrap gap-3 border-t border-etyme-rule pt-3">
-                  {r.status === 'DRAFT' && (
+                  {r.status === 'DRAFT' && r.approve?.may && (
                     <button
                       className="text-[13px] underline"
                       style={{ color: 'var(--color-action)' }}

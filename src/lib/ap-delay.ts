@@ -65,6 +65,7 @@
  */
 
 import { format, fromMinor } from '@/lib/money'
+import { formatDay } from '@/lib/format-date'
 
 const DAY = 86_400_000
 
@@ -1198,9 +1199,25 @@ export interface RemittanceAdvice {
  * invoice, and it fails for the same reason.
  */
 export function remittanceAdvice(
-  run: { currency: string; scheduledFor: Date; lines: RunLine[] },
+  run: {
+    currency: string
+    scheduledFor: Date
+    lines: RunLine[]
+    /**
+     * The day the payment was confirmed paid, from the confirmation itself
+     * (`PaymentRun.paidAt`). Where it is set the advice says that day and
+     * nothing about the schedule; where it is not, the run has not paid
+     * and the advice says the scheduled day as scheduled. Walk 2 of the
+     * Owner rules, 2026-11-12: a run confirmed paid on Nov 12 read
+     * "Payment dated 2026-12-08", its scheduled day.
+     */
+    paidOn?: Date | null
+  },
   payerName: string
 ): RemittanceAdvice[] {
+  const dated = run.paidOn
+    ? `Paid on ${formatDay(run.paidOn)}`
+    : `Payment scheduled for ${formatDay(run.scheduledFor)}`
   const byVendor = new Map<string, RunLine[]>()
   for (const l of run.lines) {
     byVendor.set(l.vendorCompanyId, [...(byVendor.get(l.vendorCompanyId) ?? []), l])
@@ -1210,7 +1227,7 @@ export function remittanceAdvice(
     .map(([vendorCompanyId, lines]) => {
       const total = lines.reduce((n, l) => n + l.amountCents, 0)
       const listed = lines
-        .map((l) => `  ${l.billNumber}   ${run.currency} ${cents(l.amountCents, run.currency)}   due ${iso(l.dueAt)}`)
+        .map((l) => `  ${l.billNumber}   ${run.currency} ${cents(l.amountCents, run.currency)}   due ${formatDay(l.dueAt)}`)
         .join('\n')
 
       return {
@@ -1225,7 +1242,7 @@ export function remittanceAdvice(
         })),
         text:
           `Remittance advice from ${payerName}\n` +
-          `Payment dated ${iso(run.scheduledFor)}\n\n` +
+          `${dated}\n\n` +
           `Covering ${lines.length} invoice${lines.length === 1 ? '' : 's'}:\n` +
           `${listed}\n\n` +
           `Total ${run.currency} ${cents(total, run.currency)}\n\n` +
@@ -1251,7 +1268,13 @@ export interface ApprovalVerdict {
  */
 export function mayApproveRun(
   run: { status: string; createdById: string | null },
-  approverPersonId: string
+  approverPersonId: string,
+  /**
+   * Who approves instead, already said (`approverSays` in
+   * `lib/money/pay-desk`), so the route's refusal and the sentence drawn
+   * where "Approve it" would be are one sentence.
+   */
+  whoApproves?: string
 ): ApprovalVerdict {
   if (run.status !== 'DRAFT') {
     return {
@@ -1263,6 +1286,7 @@ export function mayApproveRun(
     return {
       ok: false,
       says:
+        whoApproves ??
         'You assembled this run, so you cannot also release it. One person who can do ' +
         'both is the entire control on money leaving the building — ask somebody else ' +
         'to approve it.',

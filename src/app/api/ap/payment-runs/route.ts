@@ -13,6 +13,9 @@ import { paymentReference } from '@/lib/money/run-file'
 import { tellPaidOrReport, toldSays } from '@/lib/money/paid-notice'
 import { payWaitsAt } from '@/lib/money/pay-waits'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
+import { approverSays } from '@/lib/money/pay-desk'
+import { reportError } from '@/lib/alerts'
+import type { CompanyKind } from '@/lib/company-defaults'
 import {
   proposeRun, remittanceAdvice, mayApproveRun,
   type PayableBill,
@@ -125,8 +128,28 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const [{ payable, runs }, payWaits] = await Promise.all([loadPayable(companyId), payWaitsAt(companyId)])
+  const [{ payable, runs: loaded }, payWaits] = await Promise.all([loadPayable(companyId), payWaitsAt(companyId)])
   const proposed = proposeRun(payable, currency, scheduledFor)
+
+  // Approve it is drawn only where the route would take it: the same
+  // verdict the PATCH reads (`mayApproveRun`), for this reader. The person
+  // who assembled a draft reads who approves it instead (walk 2 of the
+  // Owner rules, 2026-11-12). Where the reader may not run payments at
+  // all, the page draws no run buttons, so nothing is said per run.
+  const reader = realPersonId(caller) ?? ''
+  const whoApproves = approverSays(caller.company.kind as CompanyKind)
+  const mayRelease = hasPermission(caller.permissions, 'payments.record')
+  const runs = loaded.map(({ createdById, ...r }) => {
+    const verdict = r.status === 'DRAFT' && mayRelease
+      ? mayApproveRun({ status: r.status, createdById }, reader, whoApproves)
+      : null
+    return {
+      ...r,
+      approve: verdict ? { may: verdict.ok, says: verdict.ok ? null : verdict.says } : null,
+      // A paid run's advice says the day its confirmation paid it.
+      advice: r.status === 'PAID' ? remittanceAdvice(paidRunAdvice(r), caller.company!.name) : [],
+    }
+  })
 
   return NextResponse.json({
     data: {
@@ -384,7 +407,11 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (action === 'approve') {
-    const verdict = mayApproveRun({ status: run.status, createdById: run.createdById }, personId ?? '')
+    const verdict = mayApproveRun(
+      { status: run.status, createdById: run.createdById },
+      personId ?? '',
+      approverSays(caller.company.kind as CompanyKind),
+    )
     if (!verdict.ok) {
       return NextResponse.json(
         { error: { code: 'SEGREGATION', message: verdict.says } },
@@ -628,7 +655,12 @@ async function confirm(
       })
       if (left === 0) {
         const last = paidAts.reduce((d, x) => (x > d ? x : d), paidAts[0])
-        await prisma.paymentRun.updateMany({ where: { id: read.runId, status: 'APPROVED' }, data: { status: 'PAID', paidAt: last } })
+        const flipped = await prisma.paymentRun.updateMany({ where: { id: read.runId, status: 'APPROVED' }, data: { status: 'PAID', paidAt: last } })
+        // The advice kept on each line is what the supplier is sent: it
+        // now says the day the confirmation paid, not the scheduled day.
+        if (flipped.count === 1) {
+          await rewriteAdvice(read.runId, last, payerName).catch((e) => reportError('Rewriting a paid run’s remittance advice', e))
+        }
       }
     }
   }
@@ -682,7 +714,14 @@ async function loadPayable(companyId: string) {
       where: { companyId },
       select: {
         id: true, currency: true, status: true, scheduledFor: true, paidAt: true,
-        totalCents: true,
+        totalCents: true, createdById: true,
+        items: {
+          select: {
+            vendorBillId: true, amountCents: true,
+            vendorBill: { select: { number: true, dueAt: true, vendorCompany: { select: { id: true, name: true } } } },
+          },
+          orderBy: { id: 'asc' },
+        },
         createdBy: { select: { name: true } },
         approvedBy: { select: { name: true } },
         _count: { select: { items: true } },
@@ -761,4 +800,57 @@ async function loadPayable(companyId: string) {
   }))
 
   return { payable, runs }
+}
+
+// ── A paid run's advice ───────────────────────────────────────────────
+
+type RunWithItems = {
+  currency: string
+  scheduledFor: Date
+  paidAt: Date | null
+  items: {
+    vendorBillId: string
+    amountCents: number
+    vendorBill: { number: string; dueAt: Date; vendorCompany: { id: string; name: string } }
+  }[]
+}
+
+/** The advice's input for a run, dated by its confirmation where it paid. */
+function paidRunAdvice(run: RunWithItems) {
+  return {
+    currency: run.currency,
+    scheduledFor: run.scheduledFor,
+    paidOn: run.paidAt,
+    lines: run.items.map((i) => ({
+      billId: i.vendorBillId,
+      billNumber: i.vendorBill.number,
+      vendorCompanyId: i.vendorBill.vendorCompany.id,
+      vendorName: i.vendorBill.vendorCompany.name,
+      amountCents: i.amountCents,
+      dueAt: i.vendorBill.dueAt,
+    })),
+  }
+}
+
+/** Each line's kept advice, written again once the run is confirmed paid. */
+async function rewriteAdvice(runId: string, paidOn: Date, payerName: string) {
+  const run = await prisma.paymentRun.findUnique({
+    where: { id: runId },
+    select: {
+      currency: true, scheduledFor: true, paidAt: true,
+      items: {
+        select: {
+          id: true, vendorBillId: true, amountCents: true,
+          vendorBill: { select: { number: true, dueAt: true, vendorCompany: { select: { id: true, name: true } } } },
+        },
+      },
+    },
+  })
+  if (!run) return
+  const advice = remittanceAdvice({ ...paidRunAdvice(run), paidOn }, payerName)
+  const byVendor = new Map(advice.map((a) => [a.vendorCompanyId, a.text]))
+  for (const i of run.items) {
+    const text = byVendor.get(i.vendorBill.vendorCompany.id)
+    if (text) await prisma.paymentRunItem.update({ where: { id: i.id }, data: { remittance: text } })
+  }
 }

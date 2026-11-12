@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { payDesk, desksThatPay, payDeskPermissions, runDesk, waiveDesk } from '@/lib/money/pay-desk'
+import { payDesk, desksThatPay, payDeskPermissions, runDesk, waiveDesk, approverSays, whoApprovesRuns } from '@/lib/money/pay-desk'
+import { mayApproveRun } from '@/lib/ap-delay'
 import { rolesFor } from '@/lib/company-defaults'
 
 /**
@@ -218,5 +219,42 @@ describe('a program office reading its own books opens its own invoices', () => 
   it('a row on the list opens the invoice in the book the list was reading', () => {
     expect(LIST).toMatch(/invoiceHref\(/)
     expect(DETAIL).toMatch(/BOOKS_PARAM/)
+  })
+})
+
+describe('Approve it, on a payment run, is drawn only where the route takes it', () => {
+  it('the person who put a run together reads who approves it, named from the roles that may release a run, and never the role that may not', () => {
+    const says = approverSays('VENDOR')
+    expect(says).toContain('You put this run together, so somebody else approves it')
+    expect(says).toContain('AP & Payroll')
+    expect(says).toContain('Finance')
+    expect(says).toContain('the Owner')
+    expect(says).not.toContain('Recruiter')
+    expect(says).not.toContain('HR')
+    expect(says).not.toMatch(/payments\.record|desk/i)
+  })
+
+  it('every role named as approving a run holds what the route asks for, and the Owner is said last', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP'] as const) {
+      const names = whoApprovesRuns(kind)
+      expect(names[names.length - 1]).toBe('the Owner')
+      for (const name of names.filter((n) => n !== 'the Owner')) {
+        expect(runDesk({ permissions: perms(kind, name), companyKind: kind, inASeat: null }).mayRun).toBe(true)
+      }
+    }
+  })
+
+  it('the route refuses the assembler in the same sentence the screen draws where Approve it would be', () => {
+    const v = mayApproveRun({ status: 'DRAFT', createdById: 'desmond' }, 'desmond', approverSays('VENDOR'))
+    expect(v.ok).toBe(false)
+    expect(v.says).toBe(approverSays('VENDOR'))
+  })
+
+  it('the payment runs screen draws Approve it only where the route said this reader may approve, and the sentence otherwise', () => {
+    const page = read('app/dashboard/ap/page.tsx')
+    expect(page).toContain("r.status === 'DRAFT' && r.approve?.may")
+    expect(page).toContain('{r.approve.says}')
+    const route = read('app/api/ap/payment-runs/route.ts')
+    expect(route).toMatch(/mayApproveRun\(\{ status: r\.status, createdById \}, reader, whoApproves\)/)
   })
 })

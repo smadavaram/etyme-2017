@@ -173,6 +173,33 @@ export function runDesk(input: {
   }
 }
 
+/**
+ * Who approves a payment run somebody else put together.
+ *
+ * Read off the same two checks the approve route makes: the role holds
+ * `payments.record` (every PATCH on a run asks for it), and the person is
+ * not the one who assembled the run (`mayApproveRun` in `lib/ap-delay`).
+ * So the names are every default role at this kind of company that holds
+ * the permission, the Owner said last as "the Owner"; the second check is
+ * the sentence's "somebody other than you". Walk 2 of the Owner rules,
+ * 2026-11-12: "Approve it" was drawn for the person who assembled the
+ * run, and the route refuses it, so the assembler reads this instead.
+ */
+export function whoApprovesRuns(kind: CompanyKind | null | undefined): string[] {
+  if (!kind) return []
+  const roles = rolesFor(kind).filter((r) => hasPermission(r.permissions, 'payments.record'))
+  const named = roles.filter((r) => !r.isOwner).map((r) => r.name)
+  return roles.some((r) => r.isOwner) ? [...named, 'the Owner'] : named
+}
+
+/** The one sentence said where "Approve it" would be, to the person who assembled the run. */
+export function approverSays(kind: CompanyKind | null | undefined): string {
+  const names = whoApprovesRuns(kind)
+  return names.length === 0
+    ? 'You put this run together, so somebody else approves it before it is released.'
+    : `You put this run together, so somebody else approves it before it is released: ${either(names)}, anybody but you.`
+}
+
 export type WaiveDeskVerdict =
   | { mayWaive: true; says: null }
   | { mayWaive: false; says: string | null }

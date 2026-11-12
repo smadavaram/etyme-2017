@@ -7,6 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
   type PayableBill,
@@ -154,6 +156,35 @@ describe('The advice that lets the supplier place the money', () => {
     const advices = remittanceAdvice(run, 'Acme Staffing')
     expect(advices).toHaveLength(1)
     expect(advices[0].lines).toHaveLength(3)
+  })
+})
+
+describe('The day a remittance advice says', () => {
+  const run = (paidOn: Date | null) => ({
+    currency: 'USD',
+    scheduledFor: new Date('2026-12-08T00:00:00Z'),
+    paidOn,
+    lines: [{ billId: 'a', billNumber: 'SUP-100', vendorCompanyId: 'v1', vendorName: 'Sub A', amountCents: 100_000, dueAt: new Date('2026-12-01T00:00:00Z') }],
+  })
+
+  it('a run confirmed paid gives its advice the day the confirmation paid it, never the day it was scheduled', () => {
+    const [a] = remittanceAdvice(run(new Date('2026-11-12T15:30:00Z')), 'Acme Staffing')
+    expect(a.text).toContain('Paid on Nov 12, 2026')
+    expect(a.text).not.toContain('Dec 8, 2026')
+    expect(a.text).not.toContain('Payment dated')
+  })
+
+  it('a run not yet paid says its day as scheduled, through the shared date formatter', () => {
+    const [a] = remittanceAdvice(run(null), 'Acme Staffing')
+    expect(a.text).toContain('Payment scheduled for Dec 8, 2026')
+    expect(a.text).toContain('due Dec 1, 2026')
+    expect(a.text).not.toContain('2026-12-08')
+  })
+
+  it('a paid run’s advice on the payment runs screen is read with the run’s own paid date, and the kept advice is written again when the run is confirmed paid', () => {
+    const route = readFileSync(join(__dirname, '../../src/app/api/ap/payment-runs/route.ts'), 'utf8')
+    expect(route).toContain('paidOn: run.paidAt')
+    expect(route).toContain('rewriteAdvice(read.runId, last, payerName)')
   })
 })
 
