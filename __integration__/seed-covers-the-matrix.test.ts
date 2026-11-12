@@ -61,6 +61,11 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // Owners (2026-11-11/12): an ask about who owns a company, and a proof
+  // of ownership. A seeded ask would claim an Owner asked; a seeded proof
+  // would claim a provider checked somebody, and Etyme renders no verdict.
+  ownershipRequest: 'written when an Owner passes ownership, or removes or demotes another Owner, and waits for a second person’s yes; the seed asks nothing on anybody’s behalf',
+  ownerProof: 'written when an Admin presses Become Owner on both proofs or a Superadmin records an identity provider’s result verbatim; the seeded companies were formed before the proof rule and need none',
   // A change to the team structure (2026-11-09): kept when the Owner or an
   // Admin draws the tree or imports a directory; the seed draws Corvane's
   // tree as data and records no change on anybody's behalf.

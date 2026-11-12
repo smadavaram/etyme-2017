@@ -15,7 +15,13 @@ const db = vi.hoisted(() => ({
   identityProvider: { findMany: vi.fn() },
   person: { findUnique: vi.fn() },
   role: { findFirst: vi.fn() },
-  company: { findUniqueOrThrow: vi.fn(async () => ({ name: 'Tapin' })) },
+  company: {
+    findUniqueOrThrow: vi.fn(async () => ({ name: 'Tapin' })),
+    // The proof rule's gate reads the company (lib/owner-proof). Tapin was
+    // formed before the rule, so nothing waits on it and its Owner changes
+    // the policy exactly as before.
+    findUnique: vi.fn(async (): Promise<any> => ({ name: 'Tapin', ownerProofRequiredAt: null, ownerVerifiedAt: null })),
+  },
   accessLog: { createMany: vi.fn(async (_args: any) => ({ count: 1 })) },
   $transaction: vi.fn(),
   incident: { create: vi.fn() },
@@ -162,6 +168,19 @@ describe('the policy is changed by an Owner only, and the change commits with it
     db.role.findFirst.mockResolvedValue({ name: 'Admin' })
     const res = await patch({ mode: 'HYBRID', reason: 'why not' })
     expect(res.status).toBe(403)
+    expect(db.companySignInPolicy.upsert).not.toHaveBeenCalled()
+    expect(db.accessLog.createMany).not.toHaveBeenCalled()
+  })
+
+  it('at a company formed under the proof rule with no verified Owner yet, the change waits in a sentence that names Prove ownership, and nothing is written', async () => {
+    asCaller.value = caller('r-admin')
+    db.role.findFirst.mockResolvedValue({ name: 'Admin' })
+    db.company.findUnique.mockResolvedValueOnce({ name: 'Newco', ownerProofRequiredAt: new Date('2026-11-12'), ownerVerifiedAt: null })
+    const res = await patch({ mode: 'HYBRID', reason: 'Our partners use Gmail.' })
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error.code).toBe('OWNER_NOT_VERIFIED')
+    expect(body.error.message).toMatch(/Prove ownership/)
     expect(db.companySignInPolicy.upsert).not.toHaveBeenCalled()
     expect(db.accessLog.createMany).not.toHaveBeenCalled()
   })

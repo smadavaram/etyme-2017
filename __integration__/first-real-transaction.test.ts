@@ -79,11 +79,21 @@ describe('Chapter 1 — a one-person corporation registers on a gmail address', 
     expect(listing).not.toBeNull()
   })
 
-  it('a company of one has one role that runs it, Owner, and no staff desks', async () => {
+  it('a company of one has the Owner she earns by proof, the Admin seat she holds until then, and no staff desks', async () => {
     // Member is the seat anybody arriving on a claimed domain is given at
-    // once (founder, 2026-10-07): their own work only, no desk.
+    // once (founder, 2026-10-07): their own work only, no desk. Since
+    // 2026-11-12 the person who signs a company up is its Admin until an
+    // Owner is verified; a one-person firm proves the person alone.
     const roles = await prisma.role.findMany({ where: { companyId: soloCompanyId } })
-    expect(roles.map((r) => r.name).sort()).toEqual(['Member', 'Owner'])
+    expect(roles.map((r) => r.name).sort()).toEqual(['Admin', 'Member', 'Owner'])
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { companyId: soloCompanyId, person: { primaryEmail: SHARATH }, revokedAt: null },
+      include: { role: true },
+    })
+    expect(seat.role?.name).toBe('Admin')
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: soloCompanyId } })
+    expect(company.ownerProofRequiredAt).not.toBeNull()
+    expect(company.ownerVerifiedAt).toBeNull()
   })
 })
 

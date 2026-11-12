@@ -103,7 +103,8 @@ describe('a new company walks five steps, then stops', () => {
     // Since the setup checklist (2026-10-28) the one line is the checklist's:
     // every item still owed, in its order, linking to it.
     expect(s.body.data.reminder).toEqual({
-      says: 'Finish setting up: your company, addresses, the people in charge and 5 more.',
+      // Proving ownership is one of them since 2026-11-12: the founder is its Admin until then.
+      says: 'Finish setting up: your company, addresses, the people in charge and 6 more.',
       href: '/dashboard/settings/setup',
       link: 'Complete setup',
     })
@@ -151,11 +152,15 @@ describe('a new company walks five steps, then stops', () => {
       if (told === 0) await new Promise((res) => setTimeout(res, 100))
     }
     expect(told).toBeGreaterThan(0)
+    // The founder who heard it is the company's Admin: it has no Owner
+    // until one is verified, and an Owner nobody holds falls back.
+    const founderSeat = await prisma.context.findFirstOrThrow({ where: { companyId, personId: founderId, revokedAt: null }, include: { role: true } })
+    expect(founderSeat.role?.name).toBe('Admin')
 
     // The teammate finishes the team item; it leaves the line.
     as(FOUNDER)
     const s = await json(await readSetup(req('GET', '/api/onboarding/setup')))
-    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge and 4 more.')
+    expect(s.body.data.reminder.says).toBe('Finish setting up: your company, addresses, the people in charge and 5 more.')
   })
 
   it('a colleague with a role lands on their own desk', async () => {
@@ -184,7 +189,7 @@ describe('a new company walks five steps, then stops', () => {
     const done = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'WORK', outcome: 'DONE' })))
     expect(done.body.data).toMatchObject({ finished: true, next: null, owed: [] })
     // Her line is the checklist's, and never names a team or a site.
-    expect(done.body.data.reminder.says).toBe('Finish setting up: your company, addresses, papers you require and 3 more.')
+    expect(done.body.data.reminder.says).toBe('Finish setting up: your company, addresses, papers you require and 4 more.')
     const list = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'PEOPLE', outcome: 'SKIPPED' })))
     expect(list.body.error.message).toBe('A one-person firm has no contractor list or team to set up.')
   })

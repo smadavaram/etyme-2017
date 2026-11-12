@@ -337,12 +337,18 @@ function seatReader(now: Date): SeatReader {
     owners(companyId: string) {
       let hit = byOwner.get(companyId)
       if (!hit) {
+        // A company formed under the proof rule (2026-11-12) has no Owner
+        // until one is verified; its Admin, who signed it up, hears in the
+        // Owner's place. A role nobody holds falls back, never goes silent.
         hit = prisma.context
           .findMany({
-            where: { companyId, ...live, role: { name: 'Owner' } },
-            select: { personId: true },
+            where: { companyId, ...live, role: { name: { in: ['Owner', 'Admin'] } } },
+            select: { personId: true, role: { select: { name: true } } },
           })
-          .then((seatRows) => [...new Set(seatRows.map((r) => r.personId))])
+          .then((seatRows) => {
+            const owners = seatRows.filter((r) => r.role?.name === 'Owner')
+            return [...new Set((owners.length > 0 ? owners : seatRows).map((r) => r.personId))]
+          })
         byOwner.set(companyId, hit)
       }
       return hit

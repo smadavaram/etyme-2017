@@ -58,6 +58,14 @@ describe('A company of one is not staffed like a company of forty', () => {
     expect(roles[0].name).toBe('Owner')
   })
 
+  it('under the proof rule a one-person firm gains only the Admin seat its person holds until she is the proven Owner, no staff desk, and her menu reads exactly as an Owner\'s', async () => {
+    const roles = rolesFor('CONSULTANT_CORP', { foundingAdmin: true })
+    expect(roles.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Member'])
+    const { menuFor } = await import('@/lib/nav-table')
+    const labels = (p: readonly string[]) => JSON.stringify(menuFor('CONSULTANT_CORP', false, { permissions: p }))
+    expect(labels(roles.find((r) => r.name === 'Admin')!.permissions)).toBe(labels(roles[0].permissions))
+  })
+
   it('and that role says what it means in one sentence', () => {
     expect(rolesFor('CONSULTANT_CORP')[0].blurb).toBe('Everything. It is your company.')
   })
@@ -100,6 +108,9 @@ describe('The registration route actually opens these doors', () => {
     const CREATE = readFileSync(join(process.cwd(), 'src/lib/company-create.ts'), 'utf8')
     expect(ROUTE).toContain('createCompany(')
     expect(ROUTE).not.toContain('const DEFAULT_ROLES')
-    expect(CREATE).toContain('rolesFor(input.kind)')
+    // Per kind, with the founding Admin added for a company formed under
+    // the proof rule (2026-11-12): still the kind's own set, never a
+    // vendor's seven for everybody.
+    expect(CREATE).toMatch(/rolesFor\(input\.kind(\)|, \{)/)
   })
 })

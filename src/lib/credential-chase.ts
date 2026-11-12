@@ -40,6 +40,7 @@ import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
 import { packetByKey } from '@/lib/packets'
 import { formatDayLong } from '@/lib/format-date'
+import { waitsForVerifiedOwner } from '@/lib/owner-proof'
 import type { Finding } from '@/lib/watch'
 
 /** The packet the ask is made with. Regulation wrote it; this raises it. */
@@ -197,7 +198,7 @@ async function whoChases(personId: string): Promise<{ id: string; name: string }
       select: {
         type: true,
         role: { select: { name: true } },
-        company: { select: { id: true, name: true, kind: true } },
+        company: { select: { id: true, name: true, kind: true, ownerProofRequiredAt: true, ownerVerifiedAt: true } },
       },
     }),
   ])
@@ -213,7 +214,12 @@ async function whoChases(personId: string): Promise<{ id: string; name: string }
     })),
   ]
   const ownCompanyIds = seats
-    .filter((c) => c.company && (c.role?.name === 'Owner' || c.company.kind === 'CONSULTANT_CORP'))
+    .filter((c) => c.company && (
+      c.role?.name === 'Owner' || c.company.kind === 'CONSULTANT_CORP'
+      // A founder under the proof rule (2026-11-12) holds the Admin seat
+      // until an Owner is verified; the firm is still theirs.
+      || (c.role?.name === 'Admin' && waitsForVerifiedOwner(c.company))
+    ))
     .map((c) => c.company!.id)
   const benchSeat = seats.find((c) => c.company && (c.type === 'CONSULTANT' || c.type === 'EMPLOYEE'))
   const who = whoAsksTheWorker({
