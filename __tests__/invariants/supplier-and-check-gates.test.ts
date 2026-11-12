@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { rolesFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
+import { rolesFor, isNarrowedAdmin, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { readsOnlyOwnWork } from '@/lib/console-home'
 import { hasPermission } from '@/lib/permissions'
 import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS, ADDS_SUPPLIERS, CANNOT_ADD_SUPPLIER, CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
@@ -113,9 +113,19 @@ describe('every desk that uses the supplier list today still gets in', () => {
     for (const kind of ['CLIENT', 'MSP'] as const) {
       // A seat that reads only its holder's own work is not a desk; it is
       // asserted shut in the sentence below, not skipped silently.
-      for (const r of rolesFor(kind).filter((r) => !readsOnlyOwnWork(r.permissions))) {
+      // The narrowed Admin runs people and settings, not the panel
+      // (2026-11-12); it is asserted shut in the sentence after.
+      for (const r of rolesFor(kind).filter((r) => !readsOnlyOwnWork(r.permissions) && !(r.name === 'Admin' && isNarrowedAdmin(r.permissions)))) {
         expect(maySeeSuppliers(r.permissions), `${kind} ${r.name}`).toBe(true)
       }
+    }
+  })
+
+  it('a client’s or an MSP’s Admin runs people and settings and is not shown the supplier list', () => {
+    for (const kind of ['CLIENT', 'MSP'] as const) {
+      const admin = rolesFor(kind).find((r) => r.name === 'Admin')!
+      expect(isNarrowedAdmin(admin.permissions), kind).toBe(true)
+      expect(maySeeSuppliers(admin.permissions), kind).toBe(false)
     }
   })
 

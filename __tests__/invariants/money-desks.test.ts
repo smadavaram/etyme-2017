@@ -6,7 +6,7 @@ import {
   mayOpen, refusal, maySeeBothSides, mayRecordSupplierInvoice,
   type MoneyPage,
 } from '@/lib/money/desks'
-import { rolesFor, type CompanyKind, type RoleSeed } from '@/lib/company-defaults'
+import { rolesFor, isNarrowedAdmin, type CompanyKind, type RoleSeed } from '@/lib/company-defaults'
 
 /**
  * The desk a money page is named for can open it.
@@ -89,12 +89,23 @@ describe('A money gate never refuses the desk the page is for', () => {
     for (const page of MONEY_PAGES) {
       for (const { kind, role } of everySeat()) {
         if (!page.desks.includes(role.name)) continue
+        // The narrowed Admin (people and settings, 2026-11-12) holds no
+        // money; it is asserted shut in the sentence below.
+        if (role.name === 'Admin' && isNarrowedAdmin(role.permissions)) continue
         if (!mayOpen(role.permissions, page)) {
           refused.push(`${kind} “${role.name}” cannot open ${page.title} — ${role.blurb}`)
         }
       }
     }
     expect(refused, refused.join('\n  ')).toEqual([])
+  })
+
+  it('a client’s or an MSP’s Admin runs people and settings and opens no money page', () => {
+    for (const kind of ['CLIENT', 'MSP'] as const) {
+      const admin = rolesFor(kind).find((r) => r.name === 'Admin')!
+      expect(isNarrowedAdmin(admin.permissions), kind).toBe(true)
+      for (const page of MONEY_PAGES) expect(mayOpen(admin.permissions, page), `${kind} Admin / ${page.title}`).toBe(false)
+    }
   })
 
   it('every desk a money page names is a real role somebody is actually seated in', () => {

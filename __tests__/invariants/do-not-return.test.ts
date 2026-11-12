@@ -8,7 +8,7 @@ import {
   CANNOT_READ, NO_COMPANY, cannotBar, cannotLift,
 } from '@/app/api/blacklist/desks'
 import { decideSubmission, type Situation } from '@/lib/representation'
-import { rolesFor, type CompanyKind, type RoleSeed } from '@/lib/company-defaults'
+import { rolesFor, isNarrowedAdmin, type CompanyKind, type RoleSeed } from '@/lib/company-defaults'
 import { PERMISSIONS } from '@/lib/permissions'
 
 /**
@@ -91,6 +91,15 @@ describe('who may read the list of people and firms this company will not work w
     expect(refused).toEqual([])
   })
 
+  it('a client’s or an MSP’s Admin, which runs people and settings, bars neither a person nor a firm', () => {
+    for (const kind of ['CLIENT', 'MSP'] as const) {
+      const admin = seat(kind, 'Admin')
+      expect(isNarrowedAdmin(admin.permissions), kind).toBe(true)
+      expect(mayBar(admin.permissions, 'PERSON'), kind).toBe(false)
+      expect(mayBar(admin.permissions, 'COMPANY'), kind).toBe(false)
+    }
+  })
+
   it('the desk that owns suppliers can read the firms its company has barred', () => {
     expect(mayRead(seat('CLIENT', 'Procurement Lead').permissions)).toBe(true)
     expect(mayRead(seat('MSP', 'Supplier Manager').permissions)).toBe(true)
@@ -155,6 +164,9 @@ describe('who may put somebody on it, and who may take them off', () => {
     for (const { kind, role } of everySeat()) {
       for (const half of ['PERSON', 'COMPANY'] as const) {
         if (!BARRING_DESKS[half].includes(role.name)) continue
+        // The narrowed Admin a client and an MSP hold (2026-11-12) runs
+        // people and settings, not the panel; it is asserted shut below.
+        if (role.name === 'Admin' && isNarrowedAdmin(role.permissions)) continue
         if (!mayBar(role.permissions, half)) refused.push(`${kind} ${role.name} / ${half}`)
       }
     }

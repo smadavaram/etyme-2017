@@ -146,6 +146,33 @@ export const REVOKED_SINCE: readonly { role: string; was: readonly Permission[];
   { role: MEMBER_ROLE, was: ['assignments.read', 'timesheets.read'], now: [] },
 ]
 
+// ── Admin runs the system; the Owner runs the business ─────────────────
+
+/**
+ * The Admin a company formed from 2026-11-12 is given (founder,
+ * 2026-11-11: "treat admin as manager or IT owner and not business owner
+ * in the whole app"). People (inviting, pausing and ending seats, never an
+ * Owner's), roles, team structure, the directory import, sites, setup and
+ * integrations: all of them `team.manage` and `settings.manage`. The
+ * register of who holds what (`governance.read`), and a person's data
+ * request, which is a people task (`privacy.manage`).
+ *
+ * Not money and not contracts: no payroll, no paying or sending bills, no
+ * bank check, no signing, no award, no extension, no rate, no margin. The
+ * Owner gives those through a business role (Finance, AP & Payroll,
+ * Contract Manager), so an Admin is never a back door to them. The company
+ * type, the domain claim and giving access by team or company are the
+ * Owner's by the routes that do them.
+ */
+export const ADMIN_ROLE = 'Admin'
+export const ADMIN_PERMISSIONS: readonly Permission[] = ['team.manage', 'settings.manage', 'governance.read', 'privacy.manage']
+
+const NARROW_ADMIN: RoleSeed = {
+  name: ADMIN_ROLE,
+  blurb: 'People, roles, settings and integrations. No money, no contracts.',
+  permissions: [...ADMIN_PERMISSIONS],
+}
+
 // ── A staffing supplier ───────────────────────────────────────────────
 
 const SUPPLIER_ROLES: RoleSeed[] = [
@@ -267,6 +294,10 @@ const CLIENT_ROLES: RoleSeed[] = [
     permissions: everything(),
     isOwner: true,
   },
+  // Every kind of company has an Admin (coordinator's call, 2026-11-12):
+  // a client had none, so "the previous Owner becomes Admin" was
+  // impossible there. It is the narrowed one: people and settings.
+  NARROW_ADMIN,
   {
     name: 'Program Manager',
     blurb: 'Runs the contingent workforce program. Sets the rules.',
@@ -334,6 +365,7 @@ const MSP_ROLES: RoleSeed[] = [
     permissions: everything(),
     isOwner: true,
   },
+  NARROW_ADMIN,
   {
     name: 'Program Manager',
     blurb: 'Runs the client’s program and its supplier panel.',
@@ -474,32 +506,6 @@ export const GRANTED_SINCE: {
   },
 ]
 
-// ── Admin runs the system; the Owner runs the business ─────────────────
-
-/**
- * The Admin a company formed from 2026-11-12 is given (founder,
- * 2026-11-11: "treat admin as manager or IT owner and not business owner
- * in the whole app"). People (inviting, pausing and ending seats, never an
- * Owner's), roles, team structure, the directory import, sites, setup and
- * integrations: all of them `team.manage` and `settings.manage`. The
- * register of who holds what (`governance.read`), and a person's data
- * request, which is a people task (`privacy.manage`).
- *
- * Not money and not contracts: no payroll, no paying or sending bills, no
- * bank check, no signing, no award, no extension, no rate, no margin. The
- * Owner gives those through a business role (Finance, AP & Payroll,
- * Contract Manager), so an Admin is never a back door to them. The company
- * type, the domain claim and giving access by team or company are the
- * Owner's by the routes that do them.
- */
-export const ADMIN_ROLE = 'Admin'
-export const ADMIN_PERMISSIONS: readonly Permission[] = ['team.manage', 'settings.manage', 'governance.read', 'privacy.manage']
-
-const NARROW_ADMIN: RoleSeed = {
-  name: ADMIN_ROLE,
-  blurb: 'People, roles, settings and integrations. No money, no contracts.',
-  permissions: [...ADMIN_PERMISSIONS],
-}
 
 /**
  * The money and contract acts an Admin no longer holds. An Admin role

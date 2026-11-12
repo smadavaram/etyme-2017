@@ -8,7 +8,7 @@ import { askedLines } from '@/app/dashboard/my-work/asked-to-market'
 import { EMPTY_PAPERWORK } from '@/app/dashboard/my-work/paperwork-rows'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
 import { hasAnyPermission } from '@/lib/permissions'
-import { rolesFor, MEMBER_ROLE } from '@/lib/company-defaults'
+import { rolesFor, isNarrowedAdmin, MEMBER_ROLE } from '@/lib/company-defaults'
 import { readsOnlyOwnWork } from '@/lib/console-home'
 import { BURN_READ_BY } from '@/lib/bench-filter'
 
@@ -123,9 +123,17 @@ describe('who reads who is ending soon', () => {
   it('every desk a client seats still reads Ending soon', () => {
     // A seat that reads only its holder's own work is not a desk; it is
     // asserted shut in the sentence below, not skipped silently.
-    for (const r of rolesFor('CLIENT').filter((r) => !readsOnlyOwnWork(r.permissions))) {
+    // The narrowed Admin runs people and settings (2026-11-12) and is
+    // asserted shut in the sentence after.
+    for (const r of rolesFor('CLIENT').filter((r) => !readsOnlyOwnWork(r.permissions) && !(r.name === 'Admin' && isNarrowedAdmin(r.permissions)))) {
       expect(hasAnyPermission(r.permissions, ENDING_SOON_READERS), r.name).toBe(true)
     }
+  })
+
+  it('a client’s Admin runs people and settings and does not read Ending soon', () => {
+    const admin = rolesFor('CLIENT').find((r) => r.name === 'Admin')!
+    expect(isNarrowedAdmin(admin.permissions)).toBe(true)
+    expect(hasAnyPermission(admin.permissions, ENDING_SOON_READERS)).toBe(false)
   })
 
   it('a Member does not read Ending soon', () => {

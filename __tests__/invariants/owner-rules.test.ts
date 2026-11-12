@@ -154,7 +154,24 @@ describe('Admin runs the system; the Owner runs the business', () => {
   it('every company formed before keeps the roles it shipped with, the broad Admin included', () => {
     const admin = rolesFor('VENDOR').find((r) => r.name === 'Admin')!
     expect(isNarrowedAdmin(admin.permissions)).toBe(false)
-    expect(rolesFor('CLIENT').some((r) => r.name === 'Admin')).toBe(false)
+  })
+
+  it('every kind of company has an Admin, so a previous Owner can always become one', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const) {
+      expect(rolesFor(kind).some((r) => r.name === 'Admin'), kind).toBe(true)
+    }
+  })
+
+  it('a client and an MSP, which had no Admin, get the narrowed one: people and settings, no money and no contracts', () => {
+    for (const kind of ['CLIENT', 'MSP'] as const) {
+      const admin = rolesFor(kind).find((r) => r.name === 'Admin')!
+      expect([...admin.permissions].sort()).toEqual([...ADMIN_PERMISSIONS].sort())
+      expect(isNarrowedAdmin(admin.permissions)).toBe(true)
+    }
+  })
+
+  it('a one-person firm outside the proof rule stays as it is, with no Admin', () => {
+    expect(rolesFor('CONSULTANT_CORP').map((r) => r.name)).toEqual(['Owner', 'Member'])
   })
 
   it('no default grant widens a narrowed Admin again', () => {
@@ -253,3 +270,4 @@ describe('Users & permissions never moves an Owner off Owner', () => {
     expect(src.indexOf('ownerMovesOnOwnersPage(target.person.name)')).toBeLessThan(src.indexOf('const decision = assessGrant({'))
   })
 })
+
