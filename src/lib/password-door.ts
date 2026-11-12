@@ -208,6 +208,15 @@ function link(path: string): string {
  * earlier one of the same purpose, marked so the older link says a newer
  * one was sent rather than that it was used.
  */
+/**
+ * Every unused link of one kind for a person, spent now, so an old email's
+ * link no longer works (2026-11-12: Ending a seat still waiting on its
+ * invitation). Nothing is sent and no link is shown.
+ */
+export async function cancelUnusedLinks(personId: string, purpose: 'VERIFY' | 'RESET', now: Date = new Date()): Promise<void> {
+  return supersede(personId, purpose, now)
+}
+
 async function supersede(personId: string, purpose: 'VERIFY' | 'RESET', now: Date = new Date()): Promise<void> {
   const older = await prisma.emailToken.findMany({
     where: { personId, purpose, usedAt: null },

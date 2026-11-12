@@ -59,8 +59,11 @@ export interface Actor {
  * Only an Owner pauses an Owner, and never the last live one; an Owner's
  * seat is never ended here at all, because removing an Owner needs a
  * second Owner's yes and goes through Settings → Owners.
+ *
+ * Exported (2026-11-12) so the withdraw route reads the Owner rule from
+ * here rather than repeating it: null where the rule has nothing to say.
  */
-function ownerVerdict(action: 'suspend' | 'revoke', target: AccessRow, all: AccessRow[], actor?: Actor): Verdict | null {
+export function ownerVerdict(action: 'suspend' | 'revoke', target: AccessRow, all: AccessRow[], actor?: Actor): Verdict | null {
   if (!target.isOwner) return null
   if (action === 'revoke') {
     return {
