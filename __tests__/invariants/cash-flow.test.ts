@@ -235,9 +235,22 @@ describe('the Reports page', () => {
     expect(page).toContain('<ListSurface<CashRow>')
   })
 
-  it('a client is not shown Reports yet, while its link is held back', () => {
-    expect(page).toContain("company.kind === 'CLIENT'")
-    expect(page).toContain('Reports is not open for a client yet.')
+  it('a client reads Reports as Cash flow only, and is never offered Profitability whatever its roles hold', () => {
+    expect(page).not.toContain('Reports is not open for a client yet.')
+    expect(page).toContain("const isClient = company?.kind === 'CLIENT'")
+    expect(page).toContain("const readsMargin = !isClient && permissions != null && mayOpen('/dashboard/profitability', permissions)")
+    expect(page).toContain('What you owe your suppliers, paid and due, and what you will owe them over the next 90 days.')
+  })
+
+  it('a client’s cash flow is read as a client wherever the page is opened, and its forecast draws no money in', () => {
+    expect(page).toContain("<CashFlowTab kind={company.kind} name={company.name} />")
+    expect(page).toContain("client={kind === 'CLIENT'}")
+    const answer = read('src/app/api/ap/cash-flow.ts')
+    expect(answer).toContain("const client = reading.seated || company?.kind === 'CLIENT'")
+    // A client is never handed a bill, a payment in or payroll: the seller's
+    // readers sit behind the one test.
+    expect(answer.indexOf('if (!client) {')).toBeLessThan(answer.indexOf('loadBook(companyId, now)'))
+    expect(answer.indexOf('if (!client) {')).toBeLessThan(answer.indexOf('payrollRoute('))
   })
 
   it('the cash flow answer sits behind the Accounts payable door and reads each page’s own reader', () => {

@@ -57,10 +57,11 @@ import { CutTable } from '../profitability/cut-table'
  * cash flow where Bills or Invoice receipts open, Profitability where
  * Profitability does. A seat that opens neither reads one sentence.
  *
- * A client is held back for now (the architect holds its link, the
- * coordinator's call of 2026-11-08): the route answers a client's own book
- * — what it owes its suppliers, paid and due, by age band, and never a
- * margin — and the page says it is not open yet rather than drawing it.
+ * A client reads Cash flow only, never Profitability, whatever its roles
+ * hold: the route answers a client's own book — what it owes its
+ * suppliers, paid and due, by age band, and the forecast of what it will
+ * owe — and never a margin, a pay rate or a rung below the supplier it
+ * pays (lib/money/cash-flow, ./cash-forecast).
  */
 
 type Tab = 'cash-flow' | 'profitability'
@@ -72,7 +73,10 @@ export default function ReportsPage() {
   const params = useSearchParams()
 
   const readsCash = permissions != null && (mayOpen('/dashboard/ap', permissions) || mayOpen('/dashboard/ar', permissions))
-  const readsMargin = permissions != null && mayOpen('/dashboard/profitability', permissions)
+  // A client never reads a margin, whatever its roles hold: its Reports is
+  // what it owes its suppliers, paid and due, and the forecast of it.
+  const isClient = company?.kind === 'CLIENT'
+  const readsMargin = !isClient && permissions != null && mayOpen('/dashboard/profitability', permissions)
   const offered: Tab[] = [...(readsCash ? ['cash-flow' as const] : []), ...(readsMargin ? ['profitability' as const] : [])]
   const asked = params?.get('tab') === 'profitability' ? 'profitability' : 'cash-flow'
   const tab: Tab | null = offered.includes(asked) ? asked : offered[0] ?? null
@@ -81,17 +85,11 @@ export default function ReportsPage() {
     return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   if (permissions == null) return <LoadingState />
-  if (company.kind === 'CLIENT') {
-    return (
-      <>
-        <PageHead eyebrow={eyebrow} title="Reports" />
-        <EmptyState says="Reports is not open for a client yet. What you owe your suppliers is under Payables." />
-      </>
-    )
-  }
   if (!tab) {
     return (
-      <RefusedState says="Reports add up your firm’s cash flow and what it made. Your role reads neither. Ask whoever manages roles at your company for Accounts receivable, Accounts payable or Finance." />
+      <RefusedState says={isClient
+        ? 'Reports add up what your company owes its suppliers, paid and due. Your role does not read invoice receipts. Ask whoever manages roles at your company.'
+        : 'Reports add up your firm’s cash flow and what it made. Your role reads neither. Ask whoever manages roles at your company for Accounts receivable, Accounts payable or Finance.'} />
     )
   }
 
@@ -100,7 +98,9 @@ export default function ReportsPage() {
       <PageHead
         eyebrow={eyebrow}
         title="Reports"
-        subtitle="Cash in and out, and what the work made. Nothing else is here."
+        subtitle={isClient
+          ? 'What you owe your suppliers, paid and due, and what you will owe them over the next 90 days.'
+          : 'Cash in and out, and what the work made. Nothing else is here.'}
       />
       <nav aria-label="Reports" className="mb-5 flex gap-1 border-b border-etyme-rule">
         {offered.map((t) => (
