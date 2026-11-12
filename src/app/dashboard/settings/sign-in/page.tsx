@@ -151,11 +151,11 @@ export default function SignInSettings() {
 
   return (
     <div className="space-y-6">
-      {/* With nothing set, the mode's own sentence promises a domain join a
-          company with no verified domain cannot give; the join sentence is
-          read from the doors themselves, so it leads. */}
-      <PageHead eyebrow={eyebrow} title="Sign-in" subtitle={o.effective === 'OPEN' && o.joins ? o.joins : o.says} />
-      {o.effective !== 'OPEN' && o.joins && <p className="text-[13.5px] text-etyme-muted max-w-prose">{o.joins}</p>}
+      {/* One sentence about joining under the heading: the join sentence,
+          read from the doors themselves (lib/join-words). The mode's own
+          sentence stays the ledger's; a one-person firm, which has nobody
+          to join it, reads the mode's sentence instead. */}
+      <PageHead eyebrow={eyebrow} title="Sign-in" subtitle={o.joins ?? o.says} />
       {said && <p role="status" className="text-sm text-etyme-ink">{said}</p>}
       {saidLine && <div role="alert"><OwnerGateLine line={saidLine} className="text-etyme-ink" /></div>}
       {!can && <OwnerGateLine line={o.ownerLine ?? { says: 'Only an Owner changes how people sign in.', href: null, linkSays: null }} />}

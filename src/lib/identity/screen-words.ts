@@ -15,7 +15,7 @@ export function modeOptionSays(mode: string): string {
     case 'SSO_ONLY':
       return 'Your people sign in only through your company’s directory. Etyme creates no passwords for them, and removing them in your directory removes them here.'
     case 'INVITE_ONLY':
-      return 'Nobody joins by your domain. An Owner or Admin invites each person, who signs in with Google, Microsoft or an email and password.'
+      return 'An Owner or Admin invites each person, who signs in with Google, Microsoft or an email and password.'
     case 'HYBRID':
       return 'Your people sign in through your company’s directory, and an Owner or Admin may also invite people on public addresses. Those seats never pay, bill, sign or award.'
     default:

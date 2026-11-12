@@ -82,6 +82,15 @@ describe('how people join this company is said from what the code does', () => {
     expect(read('src/app/dashboard/settings/page.tsx')).not.toContain('or by signing up with that address')
   })
 
+  it('Settings, Sign-in draws one sentence about joining under its heading, and the invitation-only choice says what it does rather than who joins', async () => {
+    const page = read('src/app/dashboard/settings/sign-in/page.tsx')
+    expect(page).toContain('subtitle={o.joins ?? o.says}')
+    expect(page).not.toContain("o.effective !== 'OPEN' && o.joins")
+    const { modeOptionSays } = await import('@/lib/identity/screen-words')
+    expect(modeOptionSays('INVITE_ONLY')).toBe('An Owner or Admin invites each person, who signs in with Google, Microsoft or an email and password.')
+    expect(modeOptionSays('INVITE_ONLY')).not.toMatch(/joins/)
+  })
+
   it('the Roles subtitle names no role, so a bench vendor is never told it gets a Hiring Manager', () => {
     const page = read('src/app/dashboard/settings/page.tsx')
     const roles = page.slice(page.indexOf('function RolesTab'), page.indexOf('// ── Locations'))
