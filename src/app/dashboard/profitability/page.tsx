@@ -7,6 +7,7 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { Chip, EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact } from '@/lib/money-display'
 import { CutTable } from './cut-table'
 
 /**
@@ -43,8 +44,13 @@ import { CutTable } from './cut-table'
 type By = 'order' | 'contract' | 'candidate' | 'customer'
 type Scope = 'all' | 'live'
 
-const money = (c: number) =>
-  `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
+/**
+ * An amount in its own currency, through the shared formatter. A figure
+ * whose currency the route could not name (a total over two) is never
+ * printed as dollars: the route sends null for it and says why.
+ */
+const money = (c: number | null | undefined, currency: string | null | undefined) =>
+  currency ? compact(c, currency) : '—'
 
 const TONE: Record<string, ChipTone> = {
   LOSS: 'attention',
@@ -186,7 +192,7 @@ export default function ProfitabilityPage() {
             {data.agreed.billRateCents != null && (
               <Stat
                 label="Bill rate, blended"
-                value={<>{money(data.agreed.billRateCents)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
+                value={<>{money(data.agreed.billRateCents, data.agreed.currency)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
                 sub={<>
                   {data.agreed.placements} placement{data.agreed.placements === 1 ? '' : 's'}
                   {data.agreed.currency ? ` · ${data.agreed.currency}` : ''}
@@ -196,7 +202,7 @@ export default function ProfitabilityPage() {
             {data.agreed.payRateCents != null && (
               <Stat
                 label="Pay rate, blended"
-                value={<>{money(data.agreed.payRateCents)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
+                value={<>{money(data.agreed.payRateCents, data.agreed.currency)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
               />
             )}
           </div>
@@ -221,6 +227,11 @@ export default function ProfitabilityPage() {
         </div>
       )}
 
+      {/* A book in two currencies has no one figure: the reason, never a sum. */}
+      {!data?.overall && data?.overallRefusedBecause && (
+        <p className="panel text-[13px] text-etyme-attention">{data.overallRefusedBecause}</p>
+      )}
+
       {data?.overall && (
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -229,21 +240,21 @@ export default function ProfitabilityPage() {
                 call, and the three figures under it stand either way. */}
             <Stat
               label={data.labels?.revenue ?? 'Billed'}
-              value={money(data.overall.revenueCents)}
+              value={money(data.overall.revenueCents, data.overall.currency)}
               sub={<>
                 hours signed on both sides
                 {data.billing && (
                   <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-etyme-muted">
-                    <li>{money(data.billing.acceptedNotBilledCents)} accepted, not yet billed</li>
-                    <li>{money(data.billing.billedCents)} billed</li>
-                    <li>{money(data.billing.collectedCents)} collected</li>
+                    <li>{money(data.billing.acceptedNotBilledCents, data.billing.currency)} accepted, not yet billed</li>
+                    <li>{money(data.billing.billedCents, data.billing.currency)} billed</li>
+                    <li>{money(data.billing.collectedCents, data.billing.currency)} collected</li>
                   </ul>
                 )}
               </>}
             />
             <Stat
               label="Earned margin"
-              value={money(marginOf(data.overall))}
+              value={money(marginOf(data.overall), data.overall.currency)}
               tone={marginOf(data.overall) < 0 ? 'attention' : 'verified'}
             />
             <Stat
@@ -258,7 +269,7 @@ export default function ProfitabilityPage() {
             {data.overall.cashCents != null && (
               <Stat
                 label="In the bank"
-                value={money(data.overall.cashCents)}
+                value={money(data.overall.cashCents, data.overall.currency)}
                 tone={data.overall.cashCents < 0 ? 'attention' : 'default'}
               />
             )}
@@ -386,7 +397,7 @@ export default function ProfitabilityPage() {
                     <li key={p.key} className="flex justify-between gap-4 text-[13px]">
                       <span className="text-etyme-ink">{p.label}</span>
                       <span className="tabular-nums text-etyme-muted">
-                        {money(p.revenueCents)} billed · {money(p.grossCents)}
+                        {money(p.revenueCents, p.currency)} billed · {money(p.grossCents, p.currency)}
                         {p.grossPct == null ? '' : ` · ${p.grossPct}%`}
                       </span>
                     </li>
@@ -406,13 +417,13 @@ export default function ProfitabilityPage() {
                       <tr key={m.key}>
                         <td className="py-0.5 pr-4 text-etyme-muted">{m.label}</td>
                         <td className="py-0.5 pr-4 text-right tabular-nums text-etyme-ink">
-                          {money(m.revenueCents)}
+                          {money(m.revenueCents, m.currency)}
                         </td>
                         <td
                           className="py-0.5 text-right tabular-nums"
                           style={{ color: m.grossCents < 0 ? 'var(--color-attention)' : 'var(--color-muted)' }}
                         >
-                          {money(m.grossCents)}
+                          {money(m.grossCents, m.currency)}
                         </td>
                       </tr>
                     ))}
@@ -643,7 +654,7 @@ function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
             {preview.postings.map((p: any) => (
               <li key={p.leg} className="flex justify-between gap-4 text-[13px]">
                 <span className="text-etyme-muted">{p.says}</span>
-                <span className="tabular-nums text-etyme-ink">{money(p.amountCents)}</span>
+                <span className="tabular-nums text-etyme-ink">{money(p.amountCents, p.currency ?? row.currency)}</span>
               </li>
             ))}
           </ul>

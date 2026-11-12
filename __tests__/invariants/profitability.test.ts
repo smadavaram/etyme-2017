@@ -250,3 +250,48 @@ describe('a placement with no buy contract behind it has no margin, not a perfec
     )
   })
 })
+
+describe('every amount in its own currency, and two currencies never added', () => {
+  it('a placement billed in rupees says its margin in rupees, never with a dollar sign', () => {
+    const p = profitOf(line({ currency: 'INR', billRateCents: 250_000, payRateCents: 180_000, billedHours: 160, paidHours: 160 }))
+    expect(p.currency).toBe('INR')
+    expect(p.says).toMatch(/₹/)
+    expect(p.says).not.toContain('$')
+  })
+
+  it('a total over a rupee placement and a dollar placement adds nothing and says why', () => {
+    const t = total([profitOf(line({ currency: 'INR' })), profitOf(line({ currency: 'USD' }))])
+    expect(t.mixedCurrencies).toBe(true)
+    expect(t.currency).toBeNull()
+    expect(t.marginPct).toBeNull()
+    expect(t.says).toContain('two currencies are never added')
+  })
+
+  it('a person whose placements run in two currencies gets no one figure for the year', () => {
+    const c = forCandidate([profitOf(line({ currency: 'INR' })), profitOf(line({ currency: 'USD' }))], { idleDays: 10, costPerIdleDayCents: 50_000 })
+    expect(c.netMarginPct).toBeNull()
+    expect(c.netSays).toContain('two currencies are never added')
+    expect(c.netSays).not.toContain('$')
+  })
+
+  it('a client billed in two currencies is not told one sum still to collect', () => {
+    const c = forCustomer([profitOf(line({ currency: 'EUR' })), profitOf(line({ currency: 'USD' }))], { contracts: 2, people: 2, unpaidCents: 900_000 })
+    expect(c.cashSays).toBe('What is still to collect is owed in more than one currency, so it is not added.')
+  })
+
+  it('the Profitability page prints every amount through the shared formatter with the figure’s own currency', () => {
+    const page = require('node:fs').readFileSync(require('node:path').join(process.cwd(), 'src/app/dashboard/profitability/page.tsx'), 'utf8') as string
+    expect(page).not.toMatch(/\$\$\{/)
+    expect(page).toContain("currency ? compact(c, currency) : '—'")
+    // Every call passes a currency.
+    expect(page.match(/\bmoney\([^()]*(\([^()]*\))?[^()]*\)/g)!.every((m) => m.includes(','))).toBe(true)
+  })
+
+  it('the route sends each contract row its currency, and a book in two currencies an overall of none with the reason', () => {
+    const route = require('node:fs').readFileSync(require('node:path').join(process.cwd(), 'src/app/api/profitability/route.ts'), 'utf8') as string
+    expect(route).toContain('currency: b.currency,')
+    expect(route).toContain('const overallRefusedBecause = summed.mixedCurrencies ? MIXED_CURRENCIES_SAYS : null')
+    expect(route).toContain('rows: perCurrency(postingsByPerson)')
+    expect(route).toContain('rows: perCurrency(postingsByCustomer)')
+  })
+})

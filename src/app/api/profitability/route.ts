@@ -4,7 +4,7 @@ import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
-  total, forCandidate, forCustomer, health, belowFloor,
+  total, forCandidate, forCustomer, health, belowFloor, MIXED_CURRENCIES_SAYS,
 } from '@/lib/profitability'
 import {
   CUTS, CUT_HEADING, NO_OFFICE, askAbout, cutOf, earnerKey, mayReadCut, periodOf, periodWindow, profitCut,
@@ -318,14 +318,26 @@ export async function GET(request: NextRequest) {
       settledCents: p.settledCents,
     }))
 
+    // Two currencies are never added (founder, 2026-11-09). Postings in two
+    // currencies are sliced within each currency, a row per person or
+    // customer per currency, and the book has no one overall figure.
+    const postedIn = [...new Set(ps.map((p) => (p.currency ?? 'USD').toUpperCase()))]
+    const perCurrency = <T,>(slice: (xs: Posting[]) => T[]): T[] =>
+      postedIn.flatMap((c) => slice(ps.filter((p) => (p.currency ?? 'USD').toUpperCase() === c)))
+    const overallOf = () => (postedIn.length > 1 ? null : resultOf(ps))
+    const overallRefusedBecause = postedIn.length > 1
+      ? `Postings here are in ${postedIn.join(' and ')}, and two currencies are never added, so there is no one figure across them.`
+      : null
+
     if (by === 'candidate') {
       return NextResponse.json({
         data: {
           ...common,
           by: 'candidate',
           source: 'POSTINGS',
-          rows: postingsByPerson(ps),
-          overall: resultOf(ps),
+          rows: perCurrency(postingsByPerson),
+          overall: overallOf(),
+          overallRefusedBecause,
           note:
             'One consultant, every customer and every rate they ever had. ' +
             'A rate change no longer splits them in two.',
@@ -339,8 +351,9 @@ export async function GET(request: NextRequest) {
           ...common,
           by: 'customer',
           source: 'POSTINGS',
-          rows: postingsByCustomer(ps),
-          overall: resultOf(ps),
+          rows: perCurrency(postingsByCustomer),
+          overall: overallOf(),
+          overallRefusedBecause,
           note:
             'One customer, every consultant placed there. ' +
             'The customer is a field now, not part of a consultant\u2019s name.',
@@ -401,7 +414,8 @@ export async function GET(request: NextRequest) {
             allocatedOverhead: spread.find((a) => a.key === r.orderId) ?? null,
           }))
           .sort((a, b) => b.result.revenueCents - a.result.revenueCents),
-        overall: resultOf(ps),
+        overall: overallOf(),
+        overallRefusedBecause,
         /** Overhead in a currency no order bills in, left where it is and said. */
         overheadUnspread: unspread,
         note:
@@ -492,6 +506,8 @@ export async function GET(request: NextRequest) {
     const floor = meta.get(b.sellContractId)?.msa?.minMarginPct ?? null
     return {
       contractId: b.sellContractId,
+      // Every amount on the row is in the line's own billing currency.
+      currency: b.currency,
       person: b.person,
       client: b.customer,
       contractType: b.contractType ?? 'C2C',
@@ -620,8 +636,13 @@ export async function GET(request: NextRequest) {
   // Added up as lib/profitability always has, with the rate taken from the
   // weeks the margin covers — never the margin over revenue it has no cost
   // against — and blank where one placement has no cost behind it.
+  // Two currencies are never added: a book in two has no overall figure,
+  // and the reason is said in its place (`total` refuses the sum).
   const summed = total(inScope.map((r) => r.profit))
-  const overall = { ...summed, marginPct: common.earned.pct, says: common.earned.says }
+  const overall = summed.mixedCurrencies
+    ? null
+    : { ...summed, currency: summed.currency ?? inScope[0]?.currency ?? null, marginPct: common.earned.pct, says: common.earned.says }
+  const overallRefusedBecause = summed.mixedCurrencies ? MIXED_CURRENCIES_SAYS : null
 
   return NextResponse.json({
     data: {
@@ -631,6 +652,7 @@ export async function GET(request: NextRequest) {
       scopeSays: scopeSays(scope),
       rows: inScope.sort((a, b) => a.profit.marginCents - b.profit.marginCents),
       overall,
+      overallRefusedBecause,
       // What the work earned, and what the two sides agreed. Both, both
       // labeled. A book with nothing in the hours ledger has no earned
       // margin and still has an agreed one, and saying only the first

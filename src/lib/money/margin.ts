@@ -142,7 +142,7 @@ export function billingTotal(rows: Billing[]): Billing | null {
  * The percentage is the margin over the revenue of the weeks it covers —
  * never over revenue it has no cost against.
  */
-export function profitFrom(e: PlacementEarned, burdenSays: string | null): Profit {
+export function profitFrom(e: PlacementEarned, burdenSays: string | null, currency?: string | null): Profit {
   const costUnknown = e.costCents == null
   const pay = e.costCents ?? 0
   const burden = e.burdenCents ?? 0
@@ -167,8 +167,9 @@ export function profitFrom(e: PlacementEarned, burdenSays: string | null): Profi
     says:
       e.marginCents == null
         ? (e.marginRefusedBecause ?? 'No earned margin yet.')
-        : `${EARNED_MARGIN}: ${amount(e.marginCents)} on ${amount(e.marginRevenueCents ?? 0)}` +
+        : `${EARNED_MARGIN}: ${amount(e.marginCents, currency ?? undefined)} on ${amount(e.marginRevenueCents ?? 0, currency ?? undefined)}` +
           (pct == null ? '.' : ` — ${pct.toFixed(1)}%.`),
+    ...(currency ? { currency } : {}),
   }
 }
 
@@ -496,7 +497,7 @@ export async function placementBooks(
       hopsBelow: at?.hopsBelow ?? 0,
       agreed: spreadOn(p, scope),
       earned,
-      profit: profitFrom(earned, b?.says ?? null),
+      profit: profitFrom(earned, b?.says ?? null, billCurrency),
       billing,
       currency: billCurrency,
     })

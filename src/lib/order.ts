@@ -92,6 +92,8 @@ const DIRECT: PostingKind[] = ['PAY', 'BURDEN', 'PREMIUM', 'COMMISSION', 'VISA']
 export interface Result {
   /** Postings counted, after reversals cancel out. */
   count: number
+  /** The currency every amount here is in: the postings' own. */
+  currency: string
   revenueCents: number
   payCents: number
   burdenCents: number
@@ -208,6 +210,7 @@ export function resultOf(all: Posting[]): Result {
 
   return {
     count: ps.length,
+    currency: currencyOf(ps),
     revenueCents: revenue,
     payCents: pay,
     burdenCents: burden,

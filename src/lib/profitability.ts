@@ -1,3 +1,4 @@
+import { compact } from '@/lib/money-display'
 /**
  * What a placement actually made, once everything is counted.
  *
@@ -90,6 +91,8 @@ export interface Line {
    */
   revenueCents?: number
   payCents?: number
+  /** The currency the placement is billed and paid in. Dollars where absent. */
+  currency?: string | null
 }
 
 export interface Profit {
@@ -108,7 +111,19 @@ export interface Profit {
   /** What in here is an assumption rather than a measurement. */
   assumptions: string[]
   says: string
+  /**
+   * The currency every amount above is in. Absent on an older caller,
+   * read as dollars. Null on a total over placements billed in more than
+   * one currency, whose amounts are not added (`mixedCurrencies`).
+   */
+  currency?: string | null
+  /** True where the lines were in more than one currency, so nothing was added. */
+  mixedCurrencies?: boolean
 }
+
+/** What a total over two currencies says instead of a figure. */
+export const MIXED_CURRENCIES_SAYS =
+  'These placements are billed in more than one currency, and two currencies are never added. Read each placement on its own.'
 
 /** Below this a placement is usually costing more attention than it earns. */
 export const THIN_BELOW_PCT = 15
@@ -121,6 +136,7 @@ export const THIN_BELOW_PCT = 15
  * and pretending they are is the quiet error this is built to stop.
  */
 export function profitOf(l: Line): Profit {
+  const cur = l.currency ?? null
   const revenue = l.revenueCents ?? Math.round(l.billedHours * l.billRateCents)
 
   // ── Refuse before computing ─────────────────────────────────────────
@@ -143,8 +159,9 @@ export function profitOf(l: Line): Profit {
         'No buy contract behind this placement, so nothing here knows what it costs.',
       ],
       says:
-        `${money(revenue)} billed and no cost on record. ` +
+        `${money(revenue, cur)} billed and no cost on record. ` +
         `Raise the buy contract before trusting any margin on this one.`,
+      ...(cur ? { currency: cur } : {}),
     }
   }
 
@@ -173,7 +190,7 @@ export function profitOf(l: Line): Profit {
   }
   if (expenseMargin < 0) {
     assumptions.push(
-      `${money(-expenseMargin)} of expenses were reimbursed and not billed on.`
+      `${money(-expenseMargin, cur)} of expenses were reimbursed and not billed on.`
     )
   }
 
@@ -188,7 +205,8 @@ export function profitOf(l: Line): Profit {
     marginCents: margin,
     marginPct: revenue === 0 ? null : Math.round((margin / revenue) * 1000) / 10,
     assumptions,
-    says: lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100),
+    says: lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100, cur),
+    ...(cur ? { currency: cur } : {}),
   }
 }
 
@@ -197,22 +215,37 @@ function unknownSays(n: number): string {
   return n === 1 ? '1 has' : `${n} have`
 }
 
-function lineSays(revenue: number, margin: number, pct: number | null): string {
+function lineSays(revenue: number, margin: number, pct: number | null, cur?: string | null): string {
   if (revenue === 0) {
     return margin < 0
-      ? `Nothing billed and ${money(-margin)} spent.`
+      ? `Nothing billed and ${money(-margin, cur)} spent.`
       : 'Nothing billed yet.'
   }
   if (margin < 0) {
-    return `Losing ${money(-margin)} on ${money(revenue)} billed.`
+    return `Losing ${money(-margin, cur)} on ${money(revenue, cur)} billed.`
   }
   const p = pct == null ? '' : ` — ${pct.toFixed(1)}%`
-  return `${money(margin)} on ${money(revenue)}${p}.`
+  return `${money(margin, cur)} on ${money(revenue, cur)}${p}.`
 }
 
 // ── Adding several up ─────────────────────────────────────────────────
 
 export function total(lines: Profit[]): Profit {
+  // Two currencies are never added: a total over a book billed in rupees
+  // and dollars has no figure, and says why (founder, 2026-11-09).
+  const currencies = new Set(lines.map((p) => (p.currency ?? 'USD').toUpperCase()))
+  if (currencies.size > 1) {
+    return {
+      costUnknown: lines.some((p) => p.costUnknown),
+      revenueCents: 0, payCents: 0, burdenCents: 0, commissionCents: 0, expenseMarginCents: 0,
+      costCents: 0, marginCents: 0, marginPct: null,
+      assumptions: [...new Set(lines.flatMap((p) => p.assumptions))],
+      says: MIXED_CURRENCIES_SAYS,
+      currency: null,
+      mixedCurrencies: true,
+    }
+  }
+  const cur = lines.find((p) => p.currency)?.currency ?? null
   const sum = (f: (p: Profit) => number) => lines.reduce((n, p) => n + f(p), 0)
 
   const revenue = sum((p) => p.revenueCents)
@@ -237,9 +270,10 @@ export function total(lines: Profit[]): Profit {
     marginPct: anyUnknown || revenue === 0 ? null : Math.round((margin / revenue) * 1000) / 10,
     assumptions: [...new Set(lines.flatMap((p) => p.assumptions))],
     says: anyUnknown
-      ? `${money(revenue)} billed across ${lines.length} placement${lines.length === 1 ? '' : 's'}. ` +
+      ? `${money(revenue, cur)} billed across ${lines.length} placement${lines.length === 1 ? '' : 's'}. ` +
         `${unknownSays(lines.filter((p) => p.costUnknown).length)} no cost on record, so this total is not a margin.`
-      : lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100),
+      : lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100, cur),
+    ...(cur ? { currency: cur } : {}),
   }
 }
 
@@ -273,6 +307,13 @@ export interface CandidateProfit extends Profit {
  */
 export function forCandidate(lines: Profit[], bench: Bench): CandidateProfit {
   const t = total(lines)
+  if (t.mixedCurrencies) {
+    return {
+      ...t, benchCents: 0, netMarginCents: 0, netMarginPct: null, profitableOnPaperOnly: false,
+      netSays: `${MIXED_CURRENCIES_SAYS} ${bench.idleDays} idle days on top.`,
+    }
+  }
+  const cur = t.currency
   const benchCents = Math.round(bench.idleDays * bench.costPerIdleDayCents)
   const net = t.marginCents - benchCents
 
@@ -292,13 +333,13 @@ export function forCandidate(lines: Profit[], bench: Bench): CandidateProfit {
     netSays: t.costUnknown
       ? `${t.says} ${bench.idleDays} idle days on top.`
       : onPaperOnly
-      ? `Every assignment made money and the year did not. ${money(t.marginCents)} earned, ` +
-        `${money(benchCents)} spent on ${bench.idleDays} idle days — ${money(-net)} down.`
+      ? `Every assignment made money and the year did not. ${money(t.marginCents, cur)} earned, ` +
+        `${money(benchCents, cur)} spent on ${bench.idleDays} idle days — ${money(-net, cur)} down.`
       : benchCents === 0
         ? t.says
         : net < 0
-          ? `${money(-net)} down once ${bench.idleDays} idle days are counted.`
-          : `${money(net)} after ${bench.idleDays} idle days.`,
+          ? `${money(-net, cur)} down once ${bench.idleDays} idle days are counted.`
+          : `${money(net, cur)} after ${bench.idleDays} idle days.`,
   }
 }
 
@@ -327,6 +368,10 @@ export function forCustomer(
   meta: { contracts: number; people: number; unpaidCents: number }
 ): CustomerProfit {
   const t = total(lines)
+  if (t.mixedCurrencies) {
+    return { ...t, ...meta, marginOnPaperOnly: false, cashSays: 'What is still to collect is owed in more than one currency, so it is not added.' }
+  }
+  const cur = t.currency
   // A margin nobody can compute cannot be "on paper only" either.
   const onPaper = !t.costUnknown && t.marginCents > 0 && meta.unpaidCents > t.marginCents
 
@@ -335,10 +380,10 @@ export function forCustomer(
     ...meta,
     marginOnPaperOnly: onPaper,
     cashSays: onPaper
-      ? `${money(t.marginCents)} of margin and ${money(meta.unpaidCents)} still unpaid — ` +
+      ? `${money(t.marginCents, cur)} of margin and ${money(meta.unpaidCents, cur)} still unpaid — ` +
         `more is outstanding than has been earned.`
       : meta.unpaidCents > 0
-        ? `${money(meta.unpaidCents)} still to collect.`
+        ? `${money(meta.unpaidCents, cur)} still to collect.`
         : 'All settled.',
   }
 }
@@ -391,8 +436,7 @@ export function belowFloor(p: Profit, floorPct: number | null): string | null {
   return `${p.marginPct}% against a floor of ${floorPct}%. Somebody has to approve this or reprice it.`
 }
 
-function money(cents: number): string {
-  const d = Math.abs(cents) / 100
-  const s = `$${d.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-  return cents < 0 ? `-${s}` : s
+/** An amount in its own currency, through the shared formatter. Dollars where a caller named none. */
+function money(cents: number, currency?: string | null): string {
+  return compact(cents, currency ?? 'USD')
 }
