@@ -313,11 +313,12 @@ export async function POST(
  * never, and never so that no Owner is left. Nobody withdraws their own
  * seat. Every refusal is written before it is sent.
  *
- * The person's unused set-password link goes with them: the person row is
- * removed where this was their only seat, and their links are removed with
- * it (`EmailToken.personId` cascades). Where they hold a seat at another
- * company only this seat goes, and the person and that company's
- * invitation stay.
+ * Only this company's seat is removed. The person row goes too only where
+ * this invitation made it and nothing else hangs off it (no seat anywhere,
+ * no profile, bench listing, papers, sign-in, password or work), and their
+ * links go with it (`EmailToken.personId` cascades). Anybody who was on
+ * Etyme before stays, with everything other firms hold about them; their
+ * unused link is cancelled where they hold no other live seat.
  */
 export async function DELETE(
   request: NextRequest,
@@ -419,12 +420,48 @@ export async function DELETE(
     return refuse(409, 'HAS_HISTORY', verdict.reason, { endInstead: true })
   }
 
-  await prisma.$transaction([
-    prisma.context.delete({ where: { id: contextId } }),
-    // The person row goes too, but only because they exist solely as this
-    // unaccepted invitation. Their unused links go with it (cascade).
-    prisma.person.deleteMany({ where: { id: ctx.personId, contexts: { none: {} } } }),
-  ])
+  // Only this company's seat goes. The person row goes with it only where
+  // this invitation made them and nothing else hangs off them: no seat
+  // anywhere, no profile or bench listing, no papers, no sign-in, no
+  // password, no work (security review, 2026-11-12). A person who was on
+  // Etyme before, a consultant whose papers other firms hold, stays.
+  const madeBy = await prisma.automationLog.findFirst({
+    where: { companyId: caller.company.id, action: 'PERSON_INVITED', payload: { path: ['contextId'], equals: contextId } },
+    orderBy: { at: 'asc' },
+    select: { payload: true },
+  })
+  const createdHere = (madeBy?.payload as { createdPerson?: unknown } | null)?.createdPerson === true
+  const now = new Date()
+  const personGone = await prisma.$transaction(async (tx) => {
+    await tx.context.delete({ where: { id: contextId } })
+    if (!createdHere) return false
+    // Their unused links go with the person row (cascade).
+    const gone = await tx.person.deleteMany({
+      where: {
+        id: ctx.personId,
+        passwordHash: null,
+        contexts: { none: {} },
+        consultant: { is: null },
+        verifications: { none: {} },
+        credentials: { none: {} },
+        submissions: { none: {} },
+        timesheets: { none: {} },
+        sellContracts: { none: {} },
+      },
+    })
+    return gone.count > 0
+  })
+  // Where the person stays and holds no other live seat, the link this
+  // invitation sent is cancelled, so it no longer opens anything.
+  if (!personGone) {
+    const elsewhere = await prisma.context.count({ where: { personId: ctx.personId, revokedAt: null } })
+    if (elsewhere === 0) {
+      await prisma.emailToken.updateMany({
+        where: { personId: ctx.personId, purpose: 'RESET', usedAt: null, expiresAt: { gt: now } },
+        data: { expiresAt: now },
+      })
+    }
+  }
 
   await prisma.automationLog.create({
     data: {
@@ -432,7 +469,7 @@ export async function DELETE(
       action: 'INVITATION_WITHDRAWN',
       summary: `${caller.person.name} withdrew the invitation to ${ctx.person.primaryEmail}`,
       reason: 'They never signed in and nothing was attached to them',
-      payload: { email: ctx.person.primaryEmail, otherCompanies },
+      payload: { email: ctx.person.primaryEmail, otherCompanies, personRemoved: personGone },
       reversible: false,
     },
   })
@@ -440,7 +477,9 @@ export async function DELETE(
   return NextResponse.json({
     data: {
       removed: ctx.person.primaryEmail,
-      message: `The invitation to ${ctx.person.name} (${ctx.person.primaryEmail}) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.`,
+      // Named by the address only: the record's name of somebody already on
+      // Etyme is not the inviter's to learn.
+      message: `The invitation to ${ctx.person.primaryEmail} is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.`,
     },
   })
 }

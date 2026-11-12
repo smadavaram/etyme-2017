@@ -348,7 +348,10 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
       // The reason this is worth logging: it is an exception to the rule
       // everything else depends on.
       reason: check.reason,
-      payload: { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider, act: 'INVITED' },
+      // createdPerson: whether this invitation made the person row. Withdrawing
+      // the invitation deletes the person only where it did (security
+      // review, 2026-11-12), never somebody who was on Etyme before.
+      payload: { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider, act: 'INVITED', createdPerson: !existing },
       reversible: true,
     },
   })

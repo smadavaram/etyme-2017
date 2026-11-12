@@ -244,7 +244,7 @@ describe('Users & permissions names everybody by address and withdraws an invita
     as(OWNER)
     const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.message).toBe('The invitation to Wren Ito (wren.ito@brightmoor-walk.example) is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.')
+    expect(r.body.data.message).toBe('The invitation to wren.ito@brightmoor-walk.example is withdrawn, and its link no longer opens a seat here. If they were meant to be here, use the Invite form above; it makes a new invitation.')
     expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
     expect(await prisma.person.count({ where: { id: personId } })).toBe(0)
     expect(await prisma.emailToken.count({ where: { personId } })).toBe(0)
@@ -268,6 +268,33 @@ describe('Users & permissions names everybody by address and withdraws an invita
     expect(r.body.data.message).not.toMatch(/another company|elsewhere/)
     expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
     expect(await prisma.person.count({ where: { id: personId } })).toBe(1)
+  })
+
+  it('withdrawing an invitation to somebody already on Etyme removes only this seat, and their profile and papers stay', async () => {
+    const email = 'kofi.bench@brightmoor-walk.example'
+    const known = await prisma.person.create({ data: { primaryEmail: email, name: 'Kofi Real-Name' }, select: { id: true } })
+    await prisma.consultantProfile.create({ data: { personId: known.id } })
+    const { contextId } = await inviteOne('Kofi', email)
+    const link = await unusedLink(known.id)
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.message).not.toContain('Kofi Real-Name')
+    expect(await prisma.context.count({ where: { id: contextId } })).toBe(0)
+    expect(await prisma.person.count({ where: { id: known.id } })).toBe(1)
+    expect(await prisma.consultantProfile.count({ where: { personId: known.id } })).toBe(1)
+    const after = await prisma.emailToken.findUniqueOrThrow({ where: { id: link.id }, select: { expiresAt: true } })
+    expect(after.expiresAt.getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('withdrawing an invitation never deletes a person this invitation did not make, even with nothing else on the record', async () => {
+    const email = 'plain.known@brightmoor-walk.example'
+    const known = await prisma.person.create({ data: { primaryEmail: email, name: 'Plain Known' }, select: { id: true } })
+    const { contextId } = await inviteOne('Plain', email)
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${contextId}`), seatParams(contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(await prisma.person.count({ where: { id: known.id } })).toBe(1)
   })
 
   it('an Admin cannot withdraw an Owner’s invitation, and the refusal is in the access log before it is sent', async () => {
