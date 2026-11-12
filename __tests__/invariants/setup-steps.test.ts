@@ -227,7 +227,8 @@ describe('setup after round two of the sign-up walk', () => {
 
     // The page says nothing about colleagues to her, and draws no list or team step.
     const page = src('src/app/(auth)/start/page.tsx')
-    expect(page).toContain("{!solo && ' Colleagues join by invitation")
+    // How people join is the join sentence, which is null for a one-person firm (lib/join-words).
+    expect(page).toContain('{setup.company.joinSays && ` ${setup.company.joinSays}`}')
     expect(page).toContain("{step === 'PEOPLE' && !solo && (")
     expect(page).toContain("{step === 'TEAM' && !solo && (")
     expect(page).not.toMatch(/Step \d of 5/)

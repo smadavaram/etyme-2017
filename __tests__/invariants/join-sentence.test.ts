@@ -89,3 +89,23 @@ describe('how people join this company is said from what the code does', () => {
     expect(roles).not.toMatch(/Hiring Manager|Recruiter/)
   })
 })
+
+describe('the sign-up start page says how people join from the same sentence (2026-11-12)', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/start/page.tsx'), 'utf8')
+  const state = readFileSync(join(process.cwd(), 'src/lib/setup-state.ts'), 'utf8')
+
+  it('once the company exists, the start page prints the join sentence the doors are read for, never a line of its own', () => {
+    expect(state).toContain('joinSentenceFor(companyId).catch(() => null)')
+    expect(page).toContain('{setup.company.joinSays && ` ${setup.company.joinSays}`}')
+    expect(page).not.toContain('Colleagues join by invitation, or by signing up with the same Etyme address')
+  })
+
+  it('before the company exists, the page promises nobody joins by their web address, and names the invitation step', () => {
+    expect(page).not.toContain('Anyone else from your web address who signs in will join you as Member.')
+    expect(page).toContain("const BEFORE_THE_COMPANY_JOIN_LINE = 'Colleagues come in by your invitation, on the Your team step. Settings then says any other way people can join.'")
+  })
+
+  it('the start page, a browser page, never imports the database reader behind the sentence', () => {
+    expect(page).not.toMatch(/from '@\/lib\/join-words'/)
+  })
+})
