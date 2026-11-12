@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDay } from '@/lib/format-date'
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
@@ -420,11 +421,7 @@ function AlumniAction({ person, onAskBack, acting, desk }: {
     <div className="text-right">
       {person.eligibleDate && (
         <div className="text-[11px] text-etyme-attention font-semibold whitespace-nowrap">
-          Eligible {new Date(person.eligibleDate + 'T00:00:00').toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          Eligible {formatDay(person.eligibleDate)}
         </div>
       )}
       {!person.eligibleDate && person.ledgerStatus === 'BREAK_REQUIRED' && (

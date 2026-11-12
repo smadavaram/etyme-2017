@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDay, formatMonth } from '@/lib/format-date'
 import { educationEmptySays, type EducationShown } from '@/lib/consultant-portfolio/education'
 import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
@@ -762,7 +763,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
                       <span className="text-etyme-verified font-medium">Now</span>
                     </span>
                   ) : (
-                    <span className="tabular-nums">{new Date(consultant.availableFrom).toLocaleDateString()}</span>
+                    <span className="tabular-nums">{formatDay(consultant.availableFrom)}</span>
                   )}
                 </p>
               </div>
@@ -809,8 +810,8 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
                         {contractStateLabel(c.state)}
                       </span>
                       <span className="text-[11px] tabular-nums text-etyme-faint">
-                        {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        {c.endDate && ` – ${new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
+                        {formatMonth(c.startDate)}
+                        {c.endDate && ` – ${formatMonth(c.endDate)}`}
                       </span>
                     </div>
                   </div>
@@ -830,8 +831,8 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
                   <div key={c.id} className="flex items-center justify-between text-sm text-etyme-muted">
                     <span>{c.clientName ?? 'Unknown'}</span>
                     <span className="tabular-nums text-[12px]">
-                      {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                      {c.endDate && ` – ${new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
+                      {formatMonth(c.startDate)}
+                      {c.endDate && ` – ${formatMonth(c.endDate)}`}
                     </span>
                   </div>
                 ))}
@@ -884,7 +885,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
                   {rateProgression.progression.map((p, i) => (
                     <div key={i} className="flex items-center gap-2 text-[12px]">
                       <span className="tabular-nums text-etyme-faint w-[70px] shrink-0">
-                        {new Date(p.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        {formatMonth(p.date)}
                       </span>
                       <span className={`chip ${
                         p.state === 'IN_PROGRESS' ? 'chip--verified' :
@@ -1224,7 +1225,7 @@ export default function ConsultantsPage() {
             </span>
           ) : (
             <span className="text-[12px] tabular-nums text-etyme-muted">
-              {new Date(row.availableFrom).toLocaleDateString()}
+              {formatDay(row.availableFrom)}
             </span>
           )
         ) : (

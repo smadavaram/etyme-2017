@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDay } from '@/lib/format-date'
 import { useEffect, useState, useCallback } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact } from '@/lib/money-display'
@@ -80,7 +81,7 @@ function locationLabel(
 
 /** "Oct 21, 2026" — the way the dashboard says a day, never "10/21/2026". */
 function endDay(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDay(iso)
 }
 
 /** " · $132/hr", or nothing where this seat may not read the rate. */
@@ -287,7 +288,7 @@ function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
 const ENDING_COLUMNS: Column<UntrackedContract>[] = [
   { key: 'person', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.person?.name ?? 'Unknown'}</span>, sortValue: (c) => c.person?.name ?? '' },
   { key: 'clientCompany', label: 'Where', render: (c) => <span className="text-etyme-muted">{clientLabel(c.clientCompany, c.endClientCompany)}</span>, sortValue: (c) => c.endClientCompany?.name ?? c.clientCompany?.name ?? '' },
-  { key: 'endDate', label: 'Last day', render: (c) => <span className="tabular-nums">{new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> },
+  { key: 'endDate', label: 'Last day', render: (c) => <span className="tabular-nums">{formatDay(c.endDate, { year: false })}</span> },
   { key: 'daysLeft', label: 'Days left', align: 'right', render: (c) => <span className={`tabular-nums ${c.daysLeft <= 14 ? 'text-etyme-attention' : ''}`}>{c.daysLeft}</span> },
   { key: 'billRate', label: 'Rate', align: 'right', render: (c) => <span className="tabular-nums">{c.billRate != null ? `${compact(c.billRate)}/hr` : '—'}</span>, hideOnMobile: true },
 ]
@@ -295,7 +296,7 @@ const ENDING_COLUMNS: Column<UntrackedContract>[] = [
 const TRACKED_COLUMNS: Column<TrackedRolloff>[] = [
   { key: 'person', label: 'Person', render: (e) => <span className="text-etyme-ink">{e.person?.name ?? 'Unknown'}</span>, sortValue: (e) => e.person?.name ?? '' },
   { key: 'clientCompany', label: 'Where', render: (e) => <span className="text-etyme-muted">{clientLabel(e.clientCompany, e.endClientCompany)}</span>, sortValue: (e) => e.endClientCompany?.name ?? e.clientCompany?.name ?? '' },
-  { key: 'endDate', label: 'Last day', render: (e) => <span className="tabular-nums">{new Date(e.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> },
+  { key: 'endDate', label: 'Last day', render: (e) => <span className="tabular-nums">{formatDay(e.endDate, { year: false })}</span> },
   { key: 'daysLeft', label: 'Days left', align: 'right', render: (e) => <span className={`tabular-nums ${e.daysLeft <= 14 ? 'text-etyme-attention' : ''}`}>{e.daysLeft}</span> },
   { key: 'outcome', label: 'What happened', render: (e) => <span className="text-etyme-muted">{e.outcome ? e.outcome.toLowerCase().replace(/_/g, ' ') : e.claimedById ? 'claimed' : 'open'}</span>, sortValue: (e) => e.outcome ?? '' },
 ]

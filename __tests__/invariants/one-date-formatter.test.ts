@@ -44,10 +44,8 @@ const NOT_YET_MOVED: string[] = [
   'src/app/api/program/agreements/verdict.ts',
   'src/app/api/requirements/[id]/matches/asked.ts',
   'src/app/api/timesheets/filing.ts',
-  'src/app/dashboard/alumni/page.tsx',
   'src/app/dashboard/blacklist/page.tsx',
   'src/app/dashboard/compliance/page.tsx',
-  'src/app/dashboard/consultants/page.tsx',
   'src/app/dashboard/contracts/page.tsx',
   'src/app/dashboard/conversations/page.tsx',
   'src/app/dashboard/decisions/page.tsx',
@@ -69,7 +67,6 @@ const NOT_YET_MOVED: string[] = [
   'src/app/dashboard/requirements/[id]/pile/page.tsx',
   'src/app/dashboard/requirements/page.tsx',
   'src/app/dashboard/requisitions/page.tsx',
-  'src/app/dashboard/rolloff/page.tsx',
   'src/app/dashboard/submissions/[id]/terms/page.tsx',
   'src/app/dashboard/submissions/page.tsx',
   'src/app/dashboard/suppliers/page.tsx',
@@ -184,6 +181,14 @@ describe('a screen prints a date through the one formatter', () => {
   it('the allowlist only shrinks from the 78 files it held when the rule arrived', () => {
     // Raise this number and the review will ask why; lower it as files move.
     expect(NOT_YET_MOVED.length).toBeLessThanOrEqual(78)
+  })
+
+  it('the Consultants, Roll-off and Alumni pages print every day through the shared formatter', () => {
+    for (const f of ['alumni', 'consultants', 'rolloff']) {
+      const p = `src/app/dashboard/${f}/page.tsx`
+      expect(formatsADate(read(p)), p).toEqual([])
+      expect(read(p), p).toContain("from '@/lib/format-date'")
+    }
   })
 
   it('the two doors exist and are the only files exempt', () => {
