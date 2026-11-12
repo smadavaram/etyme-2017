@@ -396,3 +396,19 @@ describe('one card per receipt: pay replaces approve on a supplier’s invoice',
     expect(questionTitle('invoice_receipt.pay', 'Invoice', { number: 'PR-2026-0451', supplierName: 'Pinnacle Resourcing' })).toBe('Pay Pinnacle Resourcing’s invoice PR-2026-0451?')
   })
 })
+
+describe('the twin asks nobody to pay at a company still waiting for a verified Owner', () => {
+  it('a clean receipt at a company waiting for a verified Owner is checked and recorded, and no pay or approve question is raised', async () => {
+    T().company = [{ id: CLIENT, name: 'Northbend Athletic', ownerProofRequiredAt: new Date('2026-11-11T00:00:00Z'), ownerVerifiedAt: null }]
+    await runTwin(CLIENT)
+    expect(T().twinAction.some((a) => a.action === 'invoice_receipt.record')).toBe(true)
+    expect(asked('invoice_receipt.pay')).toEqual([])
+    expect(asked('invoice_receipt.approve')).toEqual([])
+  })
+
+  it('once the Owner is verified, the next night asks to pay the same receipt', async () => {
+    T().company = [{ id: CLIENT, name: 'Northbend Athletic', ownerProofRequiredAt: new Date('2026-11-11T00:00:00Z'), ownerVerifiedAt: new Date('2026-11-12T00:00:00Z') }]
+    await runTwin(CLIENT)
+    expect(asked('invoice_receipt.pay')).toHaveLength(1)
+  })
+})

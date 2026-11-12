@@ -35,6 +35,7 @@ import { ruleSetFor } from '@/lib/twin/rule-set'
 import { act, closeOvertaken, runMemo, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
 import { tierIn } from '@/lib/twin/role-contract'
 import { invoiceSupplierIds } from '@/lib/twin/performers'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 
 /** The role the twin acts in, by its name on a client's roles. */
 export const PROGRAM_MANAGER_ROLE = 'Program Manager'
@@ -311,7 +312,12 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
   // company's role contract places the act; a contract saved before the
   // act existed never placed it, so that company keeps the old question
   // until its contract is edited, rather than getting none.
-  const asksPay = tierIn(memo.contract, RECEIPT_PAY) !== 'NEVER'
+  // At a company still waiting for a verified Owner no money leaves it
+  // (the proof rule, 2026-11-11), so the twin asks nobody to pay there:
+  // the card's Yes would only be refused. The receipt is still checked and
+  // recorded, and the queue says the hold in the gate's own sentence.
+  const payWaits = !(await needsVerifiedOwnerAt(companyId, 'PAY')).ok
+  const asksPay = tierIn(memo.contract, RECEIPT_PAY) !== 'NEVER' && !payWaits
   const toPay = verdicts.filter((v) => v.verdict === 'CLEAN' && v.payable).map((v) => v.invoiceId)
   const approves = asksPay ? await approveQuestions(companyId, toPay) : { open: new Set<string>(), declined: new Set<string>() }
   const pays = asksPay ? await payQuestions(companyId, toPay) : { open: new Map<string, { since: Date; entryId: string }>(), declined: new Set<string>() }
@@ -372,6 +378,8 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
       continue
     }
     if (recorded.outcome !== 'PERFORMED') continue
+    // The older approve question is a yes to pay as well: not asked either.
+    if (payWaits && flag === 'NONE') continue
     if (flag === 'NONE') {
       tally(await act({
         companyId, action: RECEIPT_APPROVE, entity, rule: v.ruleCited, rationale: v.rationale,
