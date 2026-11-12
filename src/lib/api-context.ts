@@ -24,6 +24,7 @@ import {
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { pausedSays } from '@/lib/access-grant'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 import { PERMISSIONS, askTheDesk, type Permission } from '@/lib/permissions'
 
@@ -305,9 +306,10 @@ export function whenThereIsNoSeat(args: {
       staff: false,
       status: 403,
       code: 'SUSPENDED',
-      says:
-        `Your access at ${args.paused.companyName ?? 'this company'} is paused` +
-        `${args.paused.reason ? `: ${args.paused.reason}` : ''}. Somebody there can lift it.`,
+      // One sentence for a paused seat, the same one the paused page shows
+      // (`pausedSays` in lib/access-grant): the reason is cut to a clause, so
+      // "back." never meets ". Somebody" as a double period.
+      says: pausedSays(args.paused.companyName, args.paused.reason),
     }
   }
 

@@ -166,7 +166,9 @@ export const OWN_ROWS_ON_READ: Readonly<Record<string, string>> = {
   // requisition approval names its approver, and a supplier review asks
   // mayActAt of this person. A seat that sees only its own work holds none of those
   // permissions, so it reads only what names it, and no colleague's
-  // rolloff or rate.
+  // rolloff or rate. An Owner ask (pass ownership, remove or demote an
+  // Owner) addressed to this seat is one of those: it names the seat by
+  // person id and sits behind no permission, so it reaches here too.
   decisions: 'A seat that sees only its own work reads only what names it — an approval it was named on — and nothing a role’s permission gates.',
 }
 
