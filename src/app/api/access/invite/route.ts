@@ -117,8 +117,11 @@ export async function POST(request: NextRequest) {
     })
     if (sentThisHour.length + addresses.length > INVITES_PER_HOUR) {
       const oldest = sentThisHour[0]?.invitedAt ?? new Date()
+      const again = new Date(oldest.getTime() + 3_600_000)
+      // The moment goes as an instant; the screen says it in the reader's
+      // zone (`capRefusalSays`). The sentence beside it is for any other caller.
       return NextResponse.json(
-        { error: { code: 'TOO_MANY_THIS_HOUR', message: hourlyCapSays(new Date(oldest.getTime() + 3_600_000), null) } },
+        { error: { code: 'TOO_MANY_THIS_HOUR', message: hourlyCapSays(again, null), cap: 'HOURLY', again: again.toISOString() } },
         { status: 429 }
       )
     }

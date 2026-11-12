@@ -989,3 +989,36 @@ describe('the sentence a paused person reads', () => {
     expect(read('src/app/api/access/[contextId]/route.ts')).toContain('paused it: ${clause(reason)}.')
   })
 })
+
+describe('one moment, said one way', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const invite = read('src/app/api/access/invite/route.ts')
+  const resend = read('src/app/api/access/[contextId]/resend/route.ts')
+
+  it('the hourly refusals send the moment to try again as an instant beside the sentence', () => {
+    expect(invite).toContain("cap: 'HOURLY', again: again.toISOString()")
+    expect(resend).toContain("cap: 'SEAT', email, again: again.toISOString()")
+  })
+
+  it('the screen says that moment in the reader’s own zone, never the server’s UTC', async () => {
+    const { capRefusalSays } = await import('@/lib/access-grant')
+    const err = { code: 'TOO_MANY_THIS_HOUR', cap: 'HOURLY', again: '2026-11-12T23:40:00.000Z' }
+    expect(capRefusalSays(err, 'America/Los_Angeles')).toBe('60 invitations have gone out from here in the last hour. Try again after Thu, Nov 12, 3:40 PM PST.')
+    const seat = capRefusalSays({ code: 'TOO_MANY_THIS_HOUR', cap: 'SEAT', email: 'vik@partner-mail.example', again: '2026-11-12T23:40:00.000Z' }, 'America/New_York')!
+    expect(seat).toContain('vik@partner-mail.example')
+    expect(seat).toContain('6:40 PM EST')
+    expect(page).toContain('capRefusalSays(j?.error, readerZone())')
+  })
+
+  it('any other refusal is left to the route’s own sentence', async () => {
+    const { capRefusalSays } = await import('@/lib/access-grant')
+    expect(capRefusalSays({ code: 'VALIDATION', again: '2026-11-12T23:40:00.000Z' }, 'UTC')).toBeNull()
+    expect(capRefusalSays({ code: 'TOO_MANY_THIS_HOUR', cap: 'HOURLY', again: 'not a day' }, 'UTC')).toBeNull()
+    expect(capRefusalSays(null, 'UTC')).toBeNull()
+  })
+
+  it('"Email sent" on a row and after an invitation is drawn on the screen from the instant, in the reader’s zone', () => {
+    expect(page).toContain('mailLine(mail, readerZone())')
+    expect(invite).not.toMatch(/Email sent/)
+  })
+})

@@ -32,14 +32,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const now = new Date()
   const window = await invitationEmailsSince(seat.id, new Date(now.getTime() - 3_600_000))
   if (window.count >= SENDS_PER_SEAT_PER_HOUR) {
-    const message = seatCapSays(email, new Date((window.oldest ?? now).getTime() + 3_600_000), null)
+    const again = new Date((window.oldest ?? now).getTime() + 3_600_000)
+    const message = seatCapSays(email, again, null)
     await recordRefusal([seat.person.id], {
       actorPersonId: caller.person.id,
       actorCompanyId: seat.company.id,
       action: 'INVITATION_SEND_AGAIN',
       reason: message,
     })
-    return NextResponse.json({ error: { code: 'TOO_MANY_THIS_HOUR', message } }, { status: 429 })
+    // The moment goes as an instant too, said by the screen in the reader's zone.
+    return NextResponse.json({ error: { code: 'TOO_MANY_THIS_HOUR', message, cap: 'SEAT', email, again: again.toISOString() } }, { status: 429 })
   }
 
   const mode = await modeOf(seat.company.id)

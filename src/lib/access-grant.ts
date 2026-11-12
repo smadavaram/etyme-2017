@@ -737,6 +737,28 @@ export function seatCapSays(email: string, again: Date, zone: string | null): st
   return `${email} was emailed ${SENDS_PER_SEAT_PER_HOUR} times in the last hour. ${COPY_LABEL} and send it yourself, or send it again after ${momentFor(again, zone)}.`
 }
 
+/**
+ * The two hourly refusals, said in the reader's own zone. The route sends
+ * the moment as an instant (`again`, ISO) beside its sentence, because the
+ * server does not know the reader's zone and would print UTC while every
+ * other moment on the page is local: one moment, said one way. Null where
+ * the refusal is not one of these.
+ */
+export interface CapRefusal {
+  code?: unknown
+  again?: unknown
+  cap?: unknown
+  email?: unknown
+}
+export function capRefusalSays(err: CapRefusal | null | undefined, zone: string | null): string | null {
+  if (!err || err.code !== 'TOO_MANY_THIS_HOUR' || typeof err.again !== 'string') return null
+  const again = new Date(err.again)
+  if (Number.isNaN(again.getTime())) return null
+  if (err.cap === 'SEAT' && typeof err.email === 'string') return seatCapSays(err.email, again, zone)
+  if (err.cap === 'HOURLY') return hourlyCapSays(again, zone)
+  return null
+}
+
 /** What Send the invitation again says once it has run. */
 export function sentAgainSays(email: string, mail: InviteMailState, why: string | null): string {
   if (mail === 'SENT') return `Sent again to ${email}. It is the same seat; nothing was duplicated.`

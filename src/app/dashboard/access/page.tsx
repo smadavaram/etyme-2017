@@ -2,7 +2,7 @@
 
 import { readJson, statusMeans } from '@/lib/read-response'
 import {
-  desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, parseAddresses, MAX_ADDRESSES_AT_ONCE,
+  desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, capRefusalSays, parseAddresses, MAX_ADDRESSES_AT_ONCE,
   COPY_LABEL, SEND_AGAIN_LABEL, type InviteForm, type InviteMail,
 } from '@/lib/access-grant'
 import { readerZone } from '@/lib/when'
@@ -320,7 +320,8 @@ async function sendAndRead(url: string, method: 'POST' | 'DELETE', body?: unknow
   if (res.ok && j?.data) return { ok: true, data: j.data, text: j.data.message ?? j.data.says ?? 'Done.', href: null }
   return {
     ok: false,
-    text: j?.error?.message ?? statusMeans(res.status),
+    // An hourly refusal's moment is said here, in the reader's zone, never as the server's UTC.
+    text: capRefusalSays(j?.error, readerZone()) ?? j?.error?.message ?? statusMeans(res.status),
     href: typeof j?.error?.href === 'string' ? j.error.href : null,
     endInstead: j?.error?.endInstead === true,
     field: typeof j?.error?.field === 'string' ? j.error.field : null,
