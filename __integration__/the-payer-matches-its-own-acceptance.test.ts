@@ -193,6 +193,21 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
 })
 
 describe('a typed-in invoice receipt is paid on the same check as a platform invoice (release walk, 2026-10-18)', () => {
+  it('a typed-in receipt sent with a paid date, a paid amount or the status PAID is refused and nothing is written: it is paid from its row', async () => {
+    as(CS)
+    const before = await prisma.vendorBill.count({ where: { companyId: s.cs } })
+    const payments = await prisma.payment.count({ where: { payerCompanyId: s.cs } })
+    for (const extra of [{ paidAt: new Date().toISOString() }, { paid: 100 }, { status: 'PAID' }]) {
+      const r = await invoice('CE-HM-PAID', 38, extra)
+      expect(r.status, JSON.stringify(r.body)).toBe(422)
+      expect(r.body.error.message).toBe(
+        'An invoice receipt is recorded unpaid. Record it without a paid date, then pay it from its row so the payment is checked and the supplier is told.'
+      )
+    }
+    expect(await prisma.vendorBill.count({ where: { companyId: s.cs } })).toBe(before)
+    expect(await prisma.payment.count({ where: { payerCompanyId: s.cs } })).toBe(payments)
+  })
+
   it('a typed-in receipt marked disputed is not paid while its difference stands, and the refusal says why', async () => {
     as(CS)
     const id = await idOf('CE-HM-3')
@@ -315,7 +330,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
       },
     })
     as(CS)
-    const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay' })))
+    const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay', reference: 'ACH-RUN-1', paidOn: new Date().toISOString().slice(0, 10) })))
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.code).toBe('MATCH_FAILED')
     expect(r.body.error.message).toMatch(/^This run is not released: one invoice receipt in it no longer passes the three-way check\./)
@@ -829,10 +844,10 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
       },
     })
     as(CS)
-    const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay' })))
+    const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay', reference: 'ACH-RUN-1', paidOn: new Date().toISOString().slice(0, 10) })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const p = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
-    expect(p).toMatchObject({ payerCompanyId: s.cs, receivedByCompanyId: s.techpeple, method: 'PAYMENT_RUN', reference: run.id })
+    expect(p).toMatchObject({ payerCompanyId: s.cs, receivedByCompanyId: s.techpeple, method: 'PAYMENT_RUN', reference: 'ACH-RUN-1' })
     expect(Math.round(Number(p.amount) * 100)).toBe(150_000)
   })
 })

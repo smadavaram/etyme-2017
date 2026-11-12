@@ -233,7 +233,33 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const status = String(body.status ?? (paidAt ? 'PAID' : 'RECEIVED')).toUpperCase()
+  // ── Never recorded as already paid ────────────────────────────────
+  //
+  // Review of 2026-11-12: a receipt typed in with a paid date, a paid
+  // amount or the status PAID was written settled here, with no Payment
+  // row, no word to the supplier, and none of the gates a payment passes:
+  // the verified Owner, the supplier's checked bank, the three-way check.
+  // Every payment goes through one function (`recordKeyedPayment`, read
+  // by PATCH below), so intake records the receipt unpaid and the payment
+  // is made from its row.
+  const statusAsked = body.status == null ? null : String(body.status).toUpperCase()
+  const paidOnIntake = paidAt != null || Number(body.paid ?? 0) > 0 || statusAsked === 'PAID'
+  if (paidOnIntake) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message:
+            'An invoice receipt is recorded unpaid. Record it without a paid date, then pay it from its row ' +
+            'so the payment is checked and the supplier is told.',
+          field: paidAt != null ? 'paidAt' : statusAsked === 'PAID' ? 'status' : 'paid',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const status = statusAsked ?? 'RECEIVED'
   if (!STATUSES.includes(status)) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: `Status must be one of ${STATUSES.join(', ')}`, field: 'status' } },
@@ -549,24 +575,6 @@ export async function POST(request: NextRequest) {
   const failedSoft = match.checks.filter((c) => c.outcome === 'FAIL')
   const statusAfterMatch = failedSoft.length > 0 ? 'DISPUTED' : status
 
-  // Recorded as already paid, it is paid on the same check as any other
-  // payment: a receipt that does not pass is not written down as settled.
-  const paidOnIntake = paidAt != null || Number(body.paid ?? 0) > 0 || status === 'PAID'
-  if (failedSoft.length > 0 && paidOnIntake) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'MATCH_FAILED',
-          message:
-            `${match.summary.replace(/[.\s]+$/, '')}. A receipt that does not pass the check is not recorded as paid. ` +
-            `Record it without a paid date and it is held as disputed.`,
-          checks: match.checks,
-        },
-      },
-      { status: 422 }
-    )
-  }
-
   // ── Checked before saving ─────────────────────────────────────────
   //
   // The screen asks what the check would say before the clerk saves, and
@@ -607,10 +615,11 @@ export async function POST(request: NextRequest) {
       periodEnd: coversTo,
       currency,
       totalCents,
-      paidCents: paidAt ? totalCents : Math.round(Number(body.paid ?? 0) * 10 ** decimalsFor(currency)),
+      // Unpaid on intake, always: a payment is made from the row (PATCH).
+      paidCents: 0,
       receivedAt,
       dueAt,
-      paidAt,
+      paidAt: null,
       status: statusAfterMatch,
       payWhenPaid,
       // Written with the receipt, in one statement, so a receipt is never

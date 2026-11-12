@@ -152,3 +152,24 @@ describe('paying a firm waits for a verified Owner at a company formed under the
     for (const src of [bills, runs]) expect(src).toContain('NextResponse.json(gateRefusal(owner), { status: 403 })')
   })
 })
+
+describe('a typed-in invoice receipt is never recorded as already paid', () => {
+  const bills = readFileSync('src/app/api/ap/bills/route.ts', 'utf8')
+  const post = bills.slice(bills.indexOf('export async function POST'), bills.indexOf('export async function PATCH'))
+
+  it('a receipt typed in with a paid date, a paid amount or the status PAID is refused before anything is written, in a sentence that says to pay it from its row', () => {
+    const refusal = post.indexOf('if (paidOnIntake)')
+    expect(refusal).toBeGreaterThan(0)
+    expect(post).toContain("paidAt != null || Number(body.paid ?? 0) > 0 || statusAsked === 'PAID'")
+    expect(refusal).toBeLessThan(post.indexOf('prisma.vendorBill.create'))
+    expect(post).toContain('then pay it from its row')
+  })
+
+  it('intake writes every receipt unpaid, so the only way to pay one is the one payment function behind the Owner and bank gates', () => {
+    const create = post.slice(post.indexOf('prisma.vendorBill.create'))
+    expect(create).toContain('paidCents: 0,')
+    expect(create).toContain('paidAt: null,')
+    expect(post).not.toMatch(/paidCents:\s*paidAt/)
+    expect(bills.indexOf('recordKeyedPayment(tx,')).toBeGreaterThan(bills.indexOf('export async function PATCH'))
+  })
+})
