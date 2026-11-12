@@ -583,7 +583,7 @@ export const ALL_SEATS: Program[] = [
 ]
 
 /**
- * The words before the two links at the foot of `/demo` — the audit and a
+ * The words before the two links at the foot of `/demo` — Sign up and a
  * person, from `lib/public-site/funnel`. Here rather than in the page so a
  * test can read the whole line against `promisesAnAccount`.
  */
