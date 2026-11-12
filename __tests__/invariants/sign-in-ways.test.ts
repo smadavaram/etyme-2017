@@ -278,3 +278,64 @@ describe('every sign-in door shows the account chooser (founder, 2026-10-20)', (
     expect(PICK_ANOTHER_ACCOUNT).toMatch(/^You are signed out\. Sign in with the account you want\./)
   })
 })
+
+describe('a sign-in is given time to finish, and a failure says why to staff (fault 3, 2026-11-12)', () => {
+  const KEYS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'AZURE_AD_CLIENT_ID', 'AZURE_AD_CLIENT_SECRET', 'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET']
+  let saved: Record<string, string | undefined> = {}
+  beforeEach(() => {
+    saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]))
+    for (const k of KEYS) process.env[k] = 'k'
+  })
+  afterEach(() => {
+    for (const k of KEYS) (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k]))
+  })
+  const timeoutOf = async (id: string) => {
+    const mod = await import('@/lib/auth')
+    const p: any = mod.configuredProviders().find((x: any) => x.id === id)
+    return p?.options?.httpOptions?.timeout ?? p?.httpOptions?.timeout
+  }
+
+  it('a Google sign-in is given ten seconds, not three and a half, to finish talking to Google', async () => {
+    const { OAUTH_HTTP_TIMEOUT_MS } = await import('@/lib/auth')
+    expect(OAUTH_HTTP_TIMEOUT_MS).toBe(10_000)
+    expect(await timeoutOf('google')).toBe(10_000)
+  })
+
+  it('the Microsoft and LinkedIn sign-ins get the same ten seconds', async () => {
+    expect(await timeoutOf('azure-ad')).toBe(10_000)
+    expect(await timeoutOf('linkedin')).toBe(10_000)
+  })
+
+  it('a company directory’s calls wait the same ten seconds', () => {
+    expect(read('src/lib/identity/directory.ts')).toContain('signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS)')
+    expect(read('src/lib/identity/directory.ts')).not.toContain('AbortSignal.timeout(5000)')
+  })
+
+  it('the sign-in route and the directory’s two routes are given thirty seconds by the host', () => {
+    for (const f of ['src/app/api/auth/[...nextauth]/route.ts', 'src/app/api/sso/callback/route.ts', 'src/app/api/sso/start/route.ts']) {
+      expect(read(f), f).toContain('export const maxDuration = 30')
+    }
+  })
+
+  it('a failed provider callback is written to the incident log with the provider and the reason, and with no token, code or address in it', async () => {
+    const { signInFailureReport } = await import('@/lib/auth')
+    const timedOut = signInFailureReport('OAUTH_CALLBACK_ERROR', { error: { message: 'outgoing request timed out after 3500ms' }, providerId: 'google' })
+    expect(timedOut).toEqual({ place: 'Sign-in did not finish (OAUTH_CALLBACK_ERROR, google)', message: 'outgoing request timed out after 3500ms' })
+    const leaky = signInFailureReport('OAUTH_CALLBACK_ERROR', {
+      providerId: 'google',
+      message: 'invalid_grant for sharath@etyme.com code 4/0AeanS0ZxQb8wYk3pQm1TzLr9vUu2cXyHq state eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0',
+    })
+    expect(leaky.message).toContain('invalid_grant')
+    expect(leaky.message).toContain('[address at etyme.com]')
+    expect(leaky.message).not.toContain('sharath@')
+    expect(leaky.message).not.toContain('4/0AeanS0ZxQb8wYk3pQm1TzLr9vUu2cXyHq')
+    expect(leaky.message).not.toContain('eyJhbGciOiJkaXIi')
+    expect(signInFailureReport('SIGNIN_OAUTH_ERROR', new Error('state cookie was missing')).message).toBe('state cookie was missing')
+  })
+
+  it('NextAuth’s own errors go to the incident log through reportError, never a token beside them', () => {
+    const src = read('src/lib/auth.ts')
+    expect(src).toContain('const r = signInFailureReport(String(code), metadata)')
+    expect(src).toContain('reportError(r.place, r.message)')
+  })
+})

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sealBlob, deploymentSecret } from '@/lib/identity/oidc'
 import { finishDirectorySignIn, STATE_COOKIE, TICKET_COOKIE, TICKET_LIFE_SECONDS } from '@/lib/identity/directory'
 
+/** Thirty seconds, so the directory's calls, ten seconds each (OAUTH_HTTP_TIMEOUT_MS), finish before the host stops them. */
+export const maxDuration = 30
+
 /**
  * GET /api/sso/callback?code&state
  *

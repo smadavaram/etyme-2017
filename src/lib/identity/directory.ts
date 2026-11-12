@@ -3,7 +3,7 @@ import { appUrl } from '@/lib/app-url'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 import { unseal } from '@/lib/team-structure/directory/sealed'
 import {
-  claimsOf, deploymentSecret, discoveryProblem, openBlob, pkce, randomToken, safeOutboundUrl, sameToken, sealBlob, verifyIdToken,
+  claimsOf, deploymentSecret, discoveryProblem, openBlob, OAUTH_HTTP_TIMEOUT_MS, pkce, randomToken, safeOutboundUrl, sameToken, sealBlob, verifyIdToken,
   type Discovery, type Jwks,
 } from '@/lib/identity/oidc'
 import {
@@ -97,7 +97,7 @@ export function providerSecret(p: Pick<ProviderRow, 'issuer' | 'secretRef' | 'se
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const u = safeOutboundUrl(url)
   if (!u) throw new Error('not an https address')
-  const res = await fetch(u, { ...init, redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+  const res = await fetch(u, { ...init, redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS) })
   const text = await res.text()
   if (text.length > 256 * 1024) throw new Error('answer too large')
   if (!res.ok) throw new Error(`answered ${res.status}`)

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { findDirectory, startDirectorySignIn, safeNext, STATE_COOKIE, STATE_LIFE_SECONDS } from '@/lib/identity/directory'
 
+/** Thirty seconds, so reading the directory's discovery document (ten seconds at most) is never cut off first. */
+export const maxDuration = 30
+
 /**
  * GET /api/sso/start?email=<work email>&next=/start
  * GET /api/sso/start?company=<the company's Etyme address>

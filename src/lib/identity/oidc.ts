@@ -56,6 +56,17 @@ export interface Discovery {
 
 export const CLOCK_SKEW_SECONDS = 60
 
+/**
+ * How long one outgoing call in a sign-in may take: a provider's discovery
+ * document, its token exchange, a company directory's keys. Ten seconds,
+ * not the three and a half the OpenID client library waits by default,
+ * which a cold start on the first connection to a provider can exceed
+ * (fault 3, 2026-11-12: a Google sign-in came back unfinished and the
+ * second try worked). Every OAuth door in lib/auth and every call the
+ * company-directory door makes read this one figure.
+ */
+export const OAUTH_HTTP_TIMEOUT_MS = 10_000
+
 const b64u = (b: Buffer) => b.toString('base64url')
 
 function json(part: string): Record<string, unknown> | null {

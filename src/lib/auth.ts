@@ -6,6 +6,16 @@ import EmailProvider from 'next-auth/providers/email'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import type { Door } from '@/lib/identity/policy'
 import { emailLinkDoorOn } from '@/lib/readiness'
+import { OAUTH_HTTP_TIMEOUT_MS } from '@/lib/identity/oidc'
+
+export { OAUTH_HTTP_TIMEOUT_MS }
+
+/**
+ * What every OAuth and OpenID door is given to talk to its provider. The
+ * OpenID client library waits 3.5 seconds per call by default; Google's
+ * discovery, token and key calls each get ten (lib/identity/oidc).
+ */
+export const OAUTH_HTTP = { timeout: OAUTH_HTTP_TIMEOUT_MS } as const
 
 /**
  * NextAuth configuration.
@@ -78,6 +88,7 @@ export function configuredProviders(): Provider[] {
         // wants — Terumo BCT and Nike are different tenants.
         tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
         authorization: { params: { ...ACCOUNT_CHOOSER.params } },
+        httpOptions: OAUTH_HTTP,
       })
     )
   }
@@ -88,6 +99,7 @@ export function configuredProviders(): Provider[] {
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         authorization: { params: { ...ACCOUNT_CHOOSER.params } },
+        httpOptions: OAUTH_HTTP,
       })
     )
   }
@@ -168,6 +180,7 @@ export function linkedInDoor(clientId: string, clientSecret: string): Provider {
     idToken: true,
     checks: ['state'],
     client: { token_endpoint_auth_method: 'client_secret_post' },
+    httpOptions: OAUTH_HTTP,
     clientId,
     clientSecret,
     profile(p: Record<string, any>) {
@@ -264,8 +277,49 @@ const PROVIDER_ROW: Record<string, 'MICROSOFT' | 'GOOGLE' | 'EMAIL'> = {
   email: 'EMAIL',
 }
 
+/**
+ * Why a sign-in failed, in a form Etyme's staff can read: the code, the
+ * provider, and the inner message only. Never a token, a code, a cookie
+ * or a whole address: an address is cut to its domain and anything long
+ * enough to be a token is cut out. Pure.
+ */
+export function signInFailureReport(code: string, meta: unknown): { place: string; message: string } {
+  const m = (meta ?? {}) as Record<string, any>
+  const provider = typeof m.providerId === 'string' ? m.providerId : typeof m.provider === 'string' ? m.provider : null
+  const inner =
+    meta instanceof Error ? meta.message
+      : typeof m.error?.message === 'string' ? m.error.message
+        : typeof m.message === 'string' ? m.message
+          : typeof meta === 'string' ? meta
+            : ''
+  const message = String(inner)
+    .replace(/[^\s@<>"'(),;:]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '[address at $1]')
+    .replace(/[A-Za-z0-9_\-.~+/=]{24,}/g, '[cut]')
+    .slice(0, 300)
+  return {
+    place: `Sign-in did not finish (${code}${provider ? `, ${provider}` : ''})`,
+    message: message || 'No reason was given.',
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: configuredProviders(),
+
+  /**
+   * A sign-in that fails inside NextAuth (a provider that did not answer
+   * in time, a state cookie that did not come back) goes to the incident
+   * log with its real reason, so staff learn why (fault 3, 2026-11-12).
+   * The alert email is sent at most once an hour per place (lib/alerts).
+   */
+  logger: {
+    error(code, metadata) {
+      const r = signInFailureReport(String(code), metadata)
+      void import('@/lib/alerts')
+        .then(({ reportError }) => reportError(r.place, r.message))
+        // reportError writes the console line itself; a failed import has nowhere else to go.
+        .catch(() => {})
+    },
+  },
 
   session: {
     strategy: 'jwt',
