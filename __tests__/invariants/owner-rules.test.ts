@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   mayAskAboutOwner, mayAskToPass, mayDecide, decidersFor, passCardSays, liveOwners, LADDER, type Seat,
+  movesAloneAfterPass, movedAfterPassSays, ownerMovesOnOwnersPage,
 } from '@/lib/owner-rules'
 import { canSuspend, canRevoke, type AccessRow } from '@/lib/account-lifecycle'
 import { rolesFor, ADMIN_PERMISSIONS, ADMIN_LOSES, isNarrowedAdmin } from '@/lib/company-defaults'
@@ -194,5 +195,61 @@ describe('Users & permissions holds the same Owner rules', () => {
     expect(src).toMatch(/isOwner: r\.role\?\.name === OWNER_ROLE/)
     expect(src).toMatch(/canSuspend\(target, all, actor\)/)
     expect(src).toMatch(/canRevoke\(target, all, actor\)/)
+  })
+})
+
+describe('after a pass, the new Owner may move the previous one to Admin alone', () => {
+  // Madhavi passed Tapin's ownership to Sharath and stayed an Owner.
+  const after = { actor: sharath, subject: madhavi, passedToActorBy: [madhavi.personId], seats: [sharath, madhavi, vikash] }
+
+  it('the Owner who took over by a pass moves the Owner who passed it to Admin with no second yes', () => {
+    expect(movesAloneAfterPass({ ...after, toRoleName: 'Admin' })).toBe(true)
+  })
+
+  it('the exception reaches only the person they took over from', () => {
+    const third = seat('Priya', 'Owner')
+    expect(movesAloneAfterPass({ ...after, subject: third, seats: [sharath, madhavi, third], toRoleName: 'Admin' })).toBe(false)
+    expect(movesAloneAfterPass({ ...after, passedToActorBy: [], toRoleName: 'Admin' })).toBe(false)
+  })
+
+  it('the exception moves the previous Owner to Admin and to no other role, and never ends their seat', () => {
+    expect(movesAloneAfterPass({ ...after, toRoleName: 'Account Manager' })).toBe(false)
+    expect(movesAloneAfterPass({ ...after, toRoleName: null })).toBe(false)
+  })
+
+  it('an Admin, a paused Owner, or the previous Owner acting on the new one gets no exception', () => {
+    expect(movesAloneAfterPass({ ...after, actor: vikash, toRoleName: 'Admin' })).toBe(false)
+    expect(movesAloneAfterPass({ ...after, actor: { ...sharath, live: false }, toRoleName: 'Admin' })).toBe(false)
+    expect(movesAloneAfterPass({ actor: madhavi, subject: sharath, passedToActorBy: [], seats: [sharath, madhavi], toRoleName: 'Admin' })).toBe(false)
+  })
+
+  it('the move is recorded in a sentence that says who took over from whom, and the previous Owner is told', () => {
+    expect(movedAfterPassSays({ actorName: 'Sharath', subjectName: 'Madhavi', companyName: 'Tapin' }))
+      .toBe('Sharath, who took over Tapin’s ownership from Madhavi, moved Madhavi from Owner to Admin. Madhavi agreed to the pass, so no second yes was asked.')
+    const act = readFileSync('src/app/api/settings/owners/act.ts', 'utf8')
+    expect(act).toContain("action: 'OWNER_MOVED'")
+    expect(act).toContain('afterPass: true')
+    expect(act).toMatch(/void notify\(\{\s*personId: l\.subject\.personId/)
+    const owners = readFileSync('src/app/api/settings/owners/route.ts', 'utf8')
+    expect(owners.indexOf('movesAloneAfterPass(')).toBeLessThan(owners.indexOf('mayAskAboutOwner({ kind, actor: me'))
+  })
+})
+
+describe('Users & permissions never moves an Owner off Owner', () => {
+  it('moving an Owner to another role from Users & permissions is refused and sends the person to Settings → Owners', () => {
+    expect(ownerMovesOnOwnersPage('Madhavi'))
+      .toBe('Madhavi is an Owner. Moving an Owner to another role needs another Owner’s yes, so it is done under Settings → Owners.')
+    const src = readFileSync('src/app/api/access/route.ts', 'utf8')
+    expect(src).toContain('if (target.role?.name === OWNER_DESK && role.name !== OWNER_DESK) {')
+    expect(src).toContain('ownerMovesOnOwnersPage(target.person.name)')
+    expect(src).toContain("href: '/dashboard/settings/owners'")
+  })
+
+  it('except the Owner who took over by a pass moving the previous Owner to Admin, written by the same function Settings → Owners uses', () => {
+    const src = readFileSync('src/app/api/access/route.ts', 'utf8')
+    expect(src).toContain('movesAloneAfterPass({')
+    expect(src).toContain('await landMoveAfterPass({')
+    // The refusal comes before any grant is assessed or written.
+    expect(src.indexOf('ownerMovesOnOwnersPage(target.person.name)')).toBeLessThan(src.indexOf('const decision = assessGrant({'))
   })
 })

@@ -152,6 +152,48 @@ export function mayDecide(input: {
   return { ok: true }
 }
 
+// ── After a pass: the new Owner may move the previous one to Admin ────
+
+/**
+ * The one exception to "moving an Owner needs another Owner's yes"
+ * (founder, 2026-11-12): the Owner who took over by a pass may move the
+ * Owner who passed it to them to Admin alone. The previous Owner agreed to
+ * the pass, so no second yes is asked. It reaches only the person they
+ * took over from, only to Admin, and never the last Owner; it is recorded
+ * with who and when, and the previous Owner is told.
+ *
+ * `passedToActorBy` is the people whose pass to the actor was accepted
+ * (OwnershipRequest PASS, ACCEPTED, the actor's seat as its subject).
+ */
+export function movesAloneAfterPass(input: {
+  actor: Seat
+  subject: Seat
+  toRoleName: string | null | undefined
+  passedToActorBy: readonly string[]
+  seats?: readonly Seat[]
+}): boolean {
+  const { actor, subject } = input
+  if (!isOwner(actor) || !actor.live) return false
+  if (!isOwner(subject) || subject.personId === actor.personId) return false
+  if (input.toRoleName !== ADMIN_ROLE) return false
+  if (!input.passedToActorBy.includes(subject.personId)) return false
+  if (input.seats && liveOwners(input.seats).filter((s) => s.contextId !== subject.contextId).length === 0) return false
+  return true
+}
+
+/** The record line and the previous Owner's notice for that move. */
+export function movedAfterPassSays(input: { actorName: string; subjectName: string; companyName: string }): string {
+  return `${input.actorName}, who took over ${input.companyName}’s ownership from ${input.subjectName}, moved ${input.subjectName} from Owner to Admin. ${input.subjectName} agreed to the pass, so no second yes was asked.`
+}
+
+/**
+ * Users & permissions never moves an Owner off Owner: the yes goes through
+ * Settings → Owners. Said in one sentence, the place named.
+ */
+export function ownerMovesOnOwnersPage(personName: string): string {
+  return `${personName} is an Owner. Moving an Owner to another role needs another Owner’s yes, so it is done under Settings → Owners.`
+}
+
 /** What the asker becomes, in words: "an Admin", "an Owner too", "no longer at Tapin". */
 export function afterWords(after: AskerAfter, companyName: string): string {
   return after === 'OWNER' ? 'an Owner too' : after === 'ADMIN' ? 'an Admin' : `no longer at ${companyName}`

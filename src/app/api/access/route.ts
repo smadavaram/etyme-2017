@@ -12,6 +12,8 @@ import {
 } from '@/lib/access-grant'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
+import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
+import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
 
 /**
  * Who may read the access register.
@@ -297,6 +299,35 @@ export async function POST(request: NextRequest) {
     where: { id: caller.context.id },
     select: { role: { select: { name: true } } },
   })
+
+  // ── An Owner is moved off Owner only under Settings → Owners ──
+  // (founder, 2026-11-11 and 2026-11-12): moving an Owner needs another
+  // Owner's yes, which this route has no card for. The one exception is
+  // the Owner who took over by a pass moving the previous Owner to Admin
+  // (lib/owner-rules `movesAloneAfterPass`), written by the same function
+  // Settings → Owners uses, so it is recorded and the previous Owner told.
+  if (target.role?.name === OWNER_DESK && role.name !== OWNER_DESK) {
+    const seatOf = (id: string, personId: string, name: string, roleName: string | null, live: boolean): Seat => ({ contextId: id, personId, name, roleName, live })
+    const me = seatOf(caller.context.id, caller.person.id, caller.person.name, actor?.role?.name ?? null, true)
+    const them = seatOf(target.id, target.personId, target.person.name, OWNER_DESK, !target.suspendedAt)
+    const alone = me.roleName === OWNER_DESK && movesAloneAfterPass({
+      actor: me, subject: them, toRoleName: role.name, passedToActorBy: await passedToSeatBy(caller.company.id, caller.context.id),
+    })
+    const why = String(reason ?? '').trim().slice(0, 500)
+    if (alone && why) {
+      const says = await landMoveAfterPass({
+        company: { id: caller.company.id, name: caller.company.name },
+        actor: { personId: caller.person.id, name: caller.person.name },
+        subject: { personId: target.personId, name: target.person.name, contextId: target.id },
+        reason: why,
+      })
+      return NextResponse.json({ data: { message: says } })
+    }
+    return NextResponse.json(
+      { error: { code: 'DESK_REFUSED', message: alone ? 'Say why, in a sentence. It is kept beside the change with your name.' : ownerMovesOnOwnersPage(target.person.name), href: '/dashboard/settings/owners' } },
+      { status: 422 }
+    )
+  }
   const othersWhoCanGiveDesks = await prisma.context.count({
     where: {
       companyId: caller.company.id,

@@ -11,7 +11,8 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { ADMIN_PERMISSIONS, ADMIN_ROLE } from '@/lib/company-defaults'
-import { OWNER_ROLE, passedLine, type AskerAfter } from '@/lib/owner-rules'
+import { OWNER_ROLE, passedLine, movedAfterPassSays, type AskerAfter } from '@/lib/owner-rules'
+import { notify } from '@/lib/notify'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { companyPolicy } from '@/lib/identity/read'
 
@@ -118,6 +119,57 @@ export async function landOwnerChange(l: Landing & { kind: 'REMOVE' | 'DEMOTE'; 
         reversible: l.kind === 'DEMOTE',
       },
     })
+  })
+  return says
+}
+
+/** The people whose pass of ownership to this seat was accepted. */
+export async function passedToSeatBy(companyId: string, contextId: string): Promise<string[]> {
+  const rows = await prisma.ownershipRequest.findMany({
+    where: { companyId, kind: 'PASS', state: 'ACCEPTED', subjectContextId: contextId },
+    select: { askedById: true },
+  })
+  return [...new Set(rows.map((r) => r.askedById))]
+}
+
+/**
+ * The Owner who took over by a pass moves the previous Owner to Admin
+ * alone (lib/owner-rules `movesAloneAfterPass` decides; this writes). One
+ * transaction: the seat moved and the log row, with who and when; then
+ * the previous Owner is told.
+ */
+export async function landMoveAfterPass(l: {
+  company: { id: string; name: string }
+  actor: { personId: string; name: string }
+  subject: { personId: string; name: string; contextId: string }
+  reason: string
+}): Promise<string> {
+  const now = new Date()
+  const says = movedAfterPassSays({ actorName: l.actor.name, subjectName: l.subject.name, companyName: l.company.name })
+  await prisma.$transaction(async (tx) => {
+    await tx.context.update({
+      where: { id: l.subject.contextId },
+      data: { roleId: await adminRoleId(tx, l.company.id), grantedById: l.actor.personId, grantedAt: now, grantReason: `Moved to Admin after passing ownership: ${l.reason}` },
+    })
+    await tx.automationLog.create({
+      data: {
+        companyId: l.company.id,
+        action: 'OWNER_MOVED',
+        summary: says,
+        reason: l.reason,
+        payload: { subject: l.subject.personId, by: l.actor.personId, toRole: ADMIN_ROLE, afterPass: true, at: now.toISOString() },
+        reversible: true,
+      },
+    })
+  })
+  void notify({
+    personId: l.subject.personId,
+    companyId: l.company.id,
+    type: 'SYSTEM',
+    title: `You are now an Admin at ${l.company.name}`,
+    body: `${says} Reason: ${l.reason}`,
+    channel: 'EMAIL',
+    data: { href: '/dashboard/settings/owners' },
   })
   return says
 }

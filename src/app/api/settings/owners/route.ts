@@ -4,11 +4,12 @@ import { notify } from '@/lib/notify'
 import { formatDay } from '@/lib/format-date'
 import {
   OWNER_ROLE, ADMIN_ROLE, liveOwners, mayAskAboutOwner, mayAskToPass, decidersFor, expiresFrom, lapsed,
-  passCardSays, ownerCardSays, onlyAnOwner, type AskerAfter,
+  passCardSays, ownerCardSays, onlyAnOwner, movesAloneAfterPass, type AskerAfter,
 } from '@/lib/owner-rules'
 import { ADMIN_PERMISSIONS, isNarrowedAdmin } from '@/lib/company-defaults'
 import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { ownersDoor, refused } from './seats'
+import { passedToSeatBy, landMoveAfterPass } from './act'
 
 /**
  * GET  /api/settings/owners — the Owners, the seats that could take over,
@@ -148,6 +149,20 @@ export async function POST(request: NextRequest) {
       const role = await prisma.role.findFirst({ where: { id: String(body.toRoleId ?? ''), companyId: company.id }, select: { id: true, name: true } })
       toRoleId = role?.id ?? null
       toRoleName = role?.name ?? null
+    }
+    // After a pass, the new Owner moves the previous one to Admin alone
+    // (founder, 2026-11-12): the previous Owner agreed to the pass.
+    if (kind === 'DEMOTE') {
+      const passedBy = await passedToSeatBy(company.id, me.contextId)
+      if (movesAloneAfterPass({ actor: me, subject, toRoleName, passedToActorBy: passedBy, seats })) {
+        const says = await landMoveAfterPass({
+          company: { id: company.id, name: company.name },
+          actor: { personId, name: caller!.person.name },
+          subject: { personId: subject.personId, name: subject.name, contextId: subject.contextId },
+          reason,
+        })
+        return NextResponse.json({ data: { message: says } })
+      }
     }
     const v = mayAskAboutOwner({ kind, actor: me, subject, seats, toRoleName })
     if (!v.ok) return refused(v.says)
