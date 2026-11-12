@@ -52,11 +52,16 @@ full dependency list is eleven runtime packages (`package.json`).
 | Email and password sign-in | Built — argon2id hash, at least 12 characters, five failed tries in 15 minutes and the door waits a minute, reset and verification links stored only as a hash | `src/lib/password.ts`, `src/lib/password-door.ts` |
 | A provider with no credentials is not offered at all | Built | `configuredProviders()` in `src/lib/auth.ts` |
 | Consumer email domains cannot register a company | Built | `isExcludedDomain()` in `src/lib/auth.ts` |
-| Session | JWT cookie, 30 days | `src/lib/auth.ts` |
+| Session | JWT cookie, 30 days, checked on every request against a session version on the person, so ending a person's sessions takes effect on their next click | `src/lib/auth.ts`, `sessionStands()` in `src/lib/identity/policy.ts`, `endSessions()` in `src/lib/identity/read.ts` |
 | Role-based permissions per seat | Built | `src/lib/permissions.ts`, `src/lib/seat.ts`, `src/lib/company-roles.ts` |
 | Seat lifecycle — invited, active, suspended, revoked | Built | `src/lib/account-lifecycle.ts` |
 | MFA | **Not enforced by Etyme.** Inherited from the corporate tenant where one is connected. The email link path has no second factor. | — |
-| SSO enforcement / SCIM provisioning | **Not built.** | — |
+| Sign-in through the company's own directory (OpenID Connect) | Built — the directory's signed ID token is checked (issuer, audience, signature, expiry), and the person is known by the directory's issuer and subject, not the email. Configured per company; the client secret is held as a reference to the platform's secret store or sealed, never stored in the database in plain text | `src/lib/identity/oidc.ts`, `src/lib/identity/directory.ts`, `src/app/api/sso/callback/route.ts` |
+| Directory-only enforcement | Built — at a company set to sign in through its directory only, every other door refuses at the API, not only on the screen: password, emailed link, Google and Microsoft social sign-in, claim links and the staff bootstrap. Each refusal is written to the identity ledger | `decideDoor()` and `seatRefusal()` in `src/lib/identity/policy.ts` |
+| SCIM 2.0 provisioning | Built — users and groups, by a per-company token stored only as a hash; a group maps to a role by company setting | `src/app/api/scim/v2/Users`, `src/app/api/scim/v2/Groups`, `src/lib/identity/scim.ts`, `src/lib/identity/provision.ts` |
+| Deprovisioning | Built — a person turned off or removed in the directory has every seat at that company paused and every live session ended on the next request, and the event is logged | `src/lib/identity/provision.ts` |
+| SAML 2.0 sign-in | **Not built.** A SAML directory can be configured and stored; signing in through one is refused in a sentence that says so | `SAML_NOT_BUILT` in `src/lib/identity/directory.ts` |
+| Directory conformance and certification | **Not done.** No third-party SCIM or OpenID conformance suite has been run, and the demo's stand-in directory is a mock | `KNOWN-LIMITS.md` |
 
 **Roles are in the trade's own words**, per kind of company — Account
 Manager, Contract Manager, Accounts Receivable, AP & Payroll, Compliance
