@@ -648,3 +648,30 @@ describe('a student’s CPT page: every field the start rule reads, the Visas ta
     expect(petitionBody({ personId: 'p', type: 'H1B', country: 'US', employerNamed: 'x' })).toEqual({ personId: 'p', type: 'H1B', country: 'US' })
   })
 })
+
+describe('Pause and End on Users & permissions ask the reason the access route asks for', () => {
+  const route = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/route.ts'), 'utf8')
+  const page = readFileSync(join(process.cwd(), 'src/app/dashboard/access/page.tsx'), 'utf8')
+
+  it('the access route refuses a pause or an ending with no reason, in a sentence naming the reason field', () => {
+    expect(route).toContain("if (action !== 'reinstate' && !reason)")
+    expect(route).toContain("'Say why they are being paused. They can be told, and somebody will ask later.'")
+    expect(route).toContain("field: 'reason'")
+  })
+
+  it('a pause with no reason typed posts no reason, which the route refuses, and the page has the field for it', async () => {
+    const { ASKS, lifecycleBody } = await import('@/app/api/access/row-acts')
+    expect(ASKS.suspend).toContain('reason')
+    expect(ASKS.revoke).toContain('reason')
+    expect(lifecycleBody('suspend', {}).reason).toBe('')
+    expect(lifecycleBody('suspend', { reason: '  On leave until March ' })).toEqual({ action: 'suspend', reason: 'On leave until March' })
+    expect(page).toContain("ASKS[action].includes('reason')")
+    expect(page).toContain('aria-label="Reason"')
+  })
+
+  it('Reinstate asks nothing and posts no reason', async () => {
+    const { ASKS, lifecycleBody } = await import('@/app/api/access/row-acts')
+    expect(ASKS.reinstate).toEqual([])
+    expect(lifecycleBody('reinstate', { reason: 'x' }).reason).toBe('')
+  })
+})

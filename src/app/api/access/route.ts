@@ -14,6 +14,7 @@ import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
+import { offersFor } from './row-acts'
 
 /**
  * Who may read the access register.
@@ -146,6 +147,27 @@ export async function GET(request: NextRequest) {
   const mine = contexts.find(c => c.id === caller.context.id)
   const actorIsOwner = mine?.role?.name === OWNER_DESK
 
+  // Pause, Reinstate and End, per row, for this reader: the same verdicts
+  // POST /api/access/:contextId gives (lib/account-lifecycle `rowActs`),
+  // so the page draws a press only where the route would take it. An
+  // Admin is never offered Pause or End on an Owner; the last Owner is
+  // never offered either.
+  const offers = offersFor(
+    contexts.map(c => ({
+      contextId: c.id,
+      personId: c.personId,
+      hasSignedIn: signedInOf(c),
+      roleId: c.roleId,
+      rolePermissions: c.role?.permissions ?? [],
+      suspendedAt: c.suspendedAt,
+      revokedAt: c.revokedAt,
+      isOwner: c.role?.name === OWNER_DESK,
+    })),
+    { isOwner: actorIsOwner && !mine?.suspendedAt },
+    hasPermission(caller.permissions, 'team.manage'),
+  )
+  const actsOf = (id: string) => offers.get(id)!
+
   return NextResponse.json({
     data: {
       // People who joined on the domain and have no desk yet. This is
@@ -173,6 +195,7 @@ export async function GET(request: NextRequest) {
           role: c.role?.name ?? null,
           roleId: c.role?.id ?? null,
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
+          acts: actsOf(c.id),
         }
       }),
       people: withAccess.map(c => ({
@@ -187,6 +210,9 @@ export async function GET(request: NextRequest) {
         expiresAt: c.expiresAt?.toISOString() ?? null,
         lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
         reason: c.grantReason,
+        // A paused seat says so on its row, with why.
+        pausedReason: c.suspendedAt ? c.suspendReason ?? null : null,
+        acts: actsOf(c.id),
       })),
       // Only what needs a decision. A review that lists everybody is a
       // review nobody reads.

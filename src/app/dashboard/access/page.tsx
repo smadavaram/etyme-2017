@@ -1,9 +1,10 @@
 'use client'
 
-import { readJson } from '@/lib/read-response'
+import { readJson, statusMeans } from '@/lib/read-response'
 import { desksOffered } from '@/lib/access-grant'
 import { formatDay } from '@/lib/format-date'
 import { GiveAccess } from '@/components/settings/give-access'
+import { ACT_LABEL, ASKS, lifecycleBody, type LifecycleAction, type RowOffer } from '@/app/api/access/row-acts'
 
 import { useEffect, useState, useCallback } from 'react'
 import { usePageSection } from '@/components/page-section'
@@ -33,6 +34,7 @@ interface Waiting {
    * whatever desk they were given, never under "Everyone with access".
    */
   said: string
+  acts?: RowOffer
 }
 interface Person {
   contextId: string
@@ -45,6 +47,9 @@ interface Person {
   expiresAt: string | null
   lastUsedAt: string | null
   reason: string | null
+  /** Why the seat is paused, where it is. */
+  pausedReason?: string | null
+  acts?: RowOffer
 }
 interface Finding {
   contextId: string
@@ -231,6 +236,112 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
   )
 }
 
+/**
+ * A route's answer, read here rather than through `readJson`, which keeps
+ * a refusal's sentence and drops its link: the Owner refusal on Change
+ * role carries `href` to Settings → Owners, and the page shows it.
+ */
+interface Said { contextId: string; text: string; tone: 'ok' | 'error'; href?: string | null; notes?: string[] }
+
+async function postAndRead(url: string, body: unknown): Promise<{ ok: boolean; data?: any; text: string; href: string | null }> {
+  let res: Response
+  try {
+    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  } catch {
+    return { ok: false, text: 'That did not reach Etyme. Check the connection and press again.', href: null }
+  }
+  const raw = await res.text().catch(() => '')
+  let j: any = null
+  try { j = raw ? JSON.parse(raw) : null } catch { j = null }
+  if (res.ok && j?.data) return { ok: true, data: j.data, text: j.data.message ?? j.data.says ?? 'Done.', href: null }
+  return {
+    ok: false,
+    text: j?.error?.message ?? statusMeans(res.status),
+    href: typeof j?.error?.href === 'string' ? j.error.href : null,
+  }
+}
+
+/** The answer under a row: the route's own sentence, and its link where it sent one. */
+function RowSaid({ said }: { said: Said }) {
+  return (
+    <div className="mt-3">
+      <FormMessage tone={said.tone}>
+        {said.text}
+        {said.notes?.length ? said.notes.map((n) => <span key={n} className="block mt-1">{n}</span>) : null}
+        {said.href && (
+          <a href={said.href} className="block mt-1 text-etyme-action underline">
+            {said.href === '/dashboard/settings/owners' ? 'Open Settings → Owners' : 'Open it'}
+          </a>
+        )}
+      </FormMessage>
+    </div>
+  )
+}
+
+/**
+ * Pause, Reinstate and End on one row, each drawn only where the register
+ * says the route would take it. Pause and End ask for the reason in a
+ * field on the page; Reinstate asks nothing.
+ */
+function RowActs({ contextId, acts, open, onOpen }: {
+  contextId: string
+  acts: RowOffer | undefined
+  open: LifecycleAction | null
+  onOpen: (contextId: string, action: LifecycleAction | null) => void
+}) {
+  if (!acts) return null
+  const offered: LifecycleAction[] = []
+  if (acts.pause) offered.push('suspend')
+  if (acts.reinstate) offered.push('reinstate')
+  if (acts.end) offered.push('revoke')
+  if (offered.length === 0) return null
+  return (
+    <>
+      {offered.map((a) => (
+        <button
+          key={a}
+          type="button"
+          onClick={() => onOpen(contextId, open === a ? null : a)}
+          className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] shrink-0 hover:bg-etyme-action/5 ${a === 'revoke' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
+          {open === a ? 'Cancel' : ACT_LABEL[a]}
+        </button>
+      ))}
+    </>
+  )
+}
+
+function ActForm({ action, acts, name, reason, setReason, pending, onSubmit }: {
+  action: LifecycleAction
+  acts: RowOffer | undefined
+  name: string
+  reason: string
+  setReason: (v: string) => void
+  pending: boolean
+  onSubmit: () => void
+}) {
+  const says = action === 'suspend' ? acts?.pauseSays ?? [] : action === 'revoke' ? acts?.endSays ?? [] : []
+  return (
+    <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
+      {says.length > 0 && (
+        <ul className="text-[13px] text-etyme-muted list-disc pl-5 space-y-0.5">
+          {says.map((c) => <li key={c}>{c}</li>)}
+        </ul>
+      )}
+      {ASKS[action].includes('reason') && (
+        <Field
+          label={action === 'suspend' ? `Why is ${name} being paused?` : `Why is ${name}’s access ending?`}
+          help={action === 'suspend' ? 'They are told this, and somebody will ask later.' : 'It goes on the record with your name.'}>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason"
+            placeholder={action === 'suspend' ? 'On leave until March' : 'Left the company on Friday'} />
+        </Field>
+      )}
+      <SubmitButton type="button" onClick={onSubmit} pending={pending} pendingLabel="Saving…" className="self-start">
+        {action === 'reinstate' ? `Reinstate ${name}` : action === 'suspend' ? `Pause ${name}` : `End ${name}’s access`}
+      </SubmitButton>
+    </div>
+  )
+}
+
 export default function AccessPage() {
   // The heading the reader's own menu puts over this page — Governance on
   // every firm's menu — never a "Settings" no menu has (sign-up walk,
@@ -248,6 +359,13 @@ export default function AccessPage() {
   const [invite, setInvite] = useState({ name: '', email: '', roleId: '' })
   const [inviting, setInviting] = useState(false)
   const [invited, setInvited] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
+  // Pause, Reinstate or End open on one row, with its reason field.
+  const [acting, setActing] = useState<{ contextId: string; action: LifecycleAction } | null>(null)
+  const [actReason, setActReason] = useState('')
+  const [actPending, setActPending] = useState(false)
+  // The route's own sentence under the row it was about. Kept outside
+  // the data, so it stays on the page after the register is read again.
+  const [said, setSaid] = useState<Said | null>(null)
 
   // Bring the team in by name: the account manager, HR, the contract
   // desk, finance. Each is emailed and seated with their role before
@@ -290,30 +408,38 @@ export default function AccessPage() {
   useEffect(() => { load() }, [load])
 
   async function grant(contextId: string) {
-    if (!form.roleId) { alert('Pick a role'); return }
-    const res = await fetch('/api/access', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contextId,
-        roleId: form.roleId,
-        days: form.days ? parseInt(form.days, 10) : null,
-        reason: form.reason,
-      }),
+    if (!form.roleId) { setSaid({ contextId, text: 'Pick a role first.', tone: 'error' }); return }
+    const r = await postAndRead('/api/access', {
+      contextId,
+      roleId: form.roleId,
+      days: form.days ? parseInt(form.days, 10) : null,
+      reason: form.reason,
     })
-    let j: any
-    try {
-      j = await readJson(res)
-    } catch (e: any) {
-      // The server's own words where it sent any, and a sentence
-      // rather than a parser error where it sent nothing.
-      alert(e.message)
-      return
-    }
-    const notes = j.data.notes?.length ? '\n\n' + j.data.notes.join('\n') : ''
-    alert(j.data.message + notes)
+    if (!r.ok) { setSaid({ contextId, text: r.text, tone: 'error', href: r.href }); return }
+    setSaid({ contextId, text: r.text, tone: 'ok', notes: r.data?.notes ?? [] })
     setGranting(null); setForm({ roleId: '', days: '', reason: '' })
     await load()
+  }
+
+  function openAct(contextId: string, action: LifecycleAction | null) {
+    setActing(action ? { contextId, action } : null)
+    setActReason('')
+    setGranting(null)
+    if (said?.contextId === contextId) setSaid(null)
+  }
+
+  async function act(contextId: string, action: LifecycleAction) {
+    setActPending(true)
+    try {
+      const r = await postAndRead(`/api/access/${contextId}`, lifecycleBody(action, { reason: actReason }))
+      setSaid({ contextId, text: r.text, tone: r.ok ? 'ok' : 'error', href: r.href })
+      if (r.ok) {
+        setActing(null); setActReason('')
+        await load()
+      }
+    } finally {
+      setActPending(false)
+    }
   }
 
   if (loading) return <LoadingState says="Reading who holds which role…" />
@@ -398,12 +524,20 @@ export default function AccessPage() {
                     <span className="max-w-[380px] text-xs text-etyme-muted shrink-0">{data.whyNotGrant}</span>
                   ) : (
                     <button
-                      onClick={() => setGranting(granting === w.contextId ? null : w.contextId)}
+                      onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
                       className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
                       {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
                     </button>
                   )}
+                  <RowActs contextId={w.contextId} acts={w.acts}
+                    open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
                 </div>
+
+                {acting?.contextId === w.contextId && (
+                  <ActForm action={acting.action} acts={w.acts} name={w.person.name}
+                    reason={actReason} setReason={setActReason} pending={actPending}
+                    onSubmit={() => act(w.contextId, acting.action)} />
+                )}
 
                 {granting === w.contextId && (
                   <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
@@ -435,6 +569,7 @@ export default function AccessPage() {
                     </SubmitButton>
                   </div>
                 )}
+                {said?.contextId === w.contextId && <RowSaid said={said} />}
               </div>
             ))}
           </div>
@@ -476,6 +611,10 @@ export default function AccessPage() {
 
       <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>
+        {/* A seat that was ended leaves the register, so its sentence is said here. */}
+        {said && !data.people.some((p: Person) => p.contextId === said.contextId)
+          && !data.waitingForAccess.some((w: Waiting) => w.contextId === said.contextId)
+          && <div className="mb-3"><RowSaid said={said} /></div>}
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.people.length === 0 && (
             <EmptyState compact says="Nobody has access yet." />
@@ -488,6 +627,11 @@ export default function AccessPage() {
                   <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                     {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}
                   </div>
+                  {p.acts?.state === 'SUSPENDED' && (
+                    <div className="text-xs text-etyme-attention mt-0.5">
+                      Paused{p.pausedReason ? `: ${p.pausedReason}` : ''}
+                    </div>
+                  )}
                 </div>
                 <div className="text-xs text-etyme-muted shrink-0 w-32 text-right">{until(p.expiresAt)}</div>
                 <div className="w-24 text-right shrink-0">
@@ -505,12 +649,21 @@ export default function AccessPage() {
                     onClick={() => {
                       setGranting(granting === p.contextId ? null : p.contextId)
                       setForm({ roleId: '', days: '', reason: '' })
+                      setActing(null)
                     }}
                     className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5 shrink-0">
                     {granting === p.contextId ? 'Cancel' : 'Change role'}
                   </button>
                 )}
+                <RowActs contextId={p.contextId} acts={p.acts}
+                  open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
               </div>
+
+              {acting?.contextId === p.contextId && (
+                <ActForm action={acting.action} acts={p.acts} name={p.person.name}
+                  reason={actReason} setReason={setActReason} pending={actPending}
+                  onSubmit={() => act(p.contextId, acting.action)} />
+              )}
 
               {granting === p.contextId && (
                 <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
@@ -534,6 +687,7 @@ export default function AccessPage() {
                   </SubmitButton>
                 </div>
               )}
+              {said?.contextId === p.contextId && <RowSaid said={said} />}
             </div>
           ))}
         </div>

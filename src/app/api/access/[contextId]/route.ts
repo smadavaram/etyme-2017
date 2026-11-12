@@ -14,7 +14,7 @@ import {
 } from '@/lib/account-lifecycle'
 import { possessive } from '@/lib/requisition-approval'
 import { hasSignedIn } from '@/lib/access-grant'
-import { OWNER_ROLE } from '@/lib/owner-rules'
+import { OWNER_ROLE, clause } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 
@@ -120,7 +120,7 @@ export async function POST(
   const actor = { isOwner: all.some((r) => r.personId === caller.person.id && r.isOwner && !r.revokedAt && !r.suspendedAt) }
   const verdict =
     action === 'suspend' ? canSuspend(target, all, actor)
-      : action === 'reinstate' ? canReinstate(target)
+      : action === 'reinstate' ? canReinstate(target, actor)
         : canRevoke(target, all, actor)
 
   if (!verdict.allowed) {
@@ -255,7 +255,7 @@ export async function POST(
         ? `Your access at ${caller.company.name} is paused`
         : `Your access at ${caller.company.name} is back`,
       body: action === 'suspend'
-        ? `${caller.person.name} paused it: ${reason}. Nothing you have done is lost, and lifting it puts you back exactly where you were.`
+        ? `${caller.person.name} paused it: ${clause(reason)}. Nothing you have done is lost, and lifting it puts you back exactly where you were.`
         : `${caller.person.name} lifted the pause. You are back with the role you had.`,
       entityId: contextId,
       channel: 'EMAIL',

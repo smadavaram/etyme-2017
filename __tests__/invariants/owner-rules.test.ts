@@ -341,3 +341,52 @@ describe('what a row on Users & permissions offers each reader', () => {
     expect(rowActs(paused, [owner, paused], { isOwner: true }).reinstate.allowed).toBe(true)
   })
 })
+
+describe('what Users & permissions draws on each row, from the register', () => {
+  it('the register offers an Admin no Pause or End on an Owner’s row', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const other = row('Madhavi', true)
+    const admin = row('Vikash', false)
+    const offer = offersFor([owner, other, admin], { isOwner: false }, true).get(owner.contextId)!
+    expect([offer.pause, offer.end, offer.reinstate]).toEqual([false, false, false])
+  })
+
+  it('the register offers an Owner Pause and End on an Admin’s row, each with what it does', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const offer = offersFor([owner, admin], { isOwner: true }, true).get(admin.contextId)!
+    expect([offer.pause, offer.end, offer.reinstate]).toEqual([true, true, false])
+    expect(offer.pauseSays.length).toBeGreaterThan(0)
+  })
+
+  it('the last Owner is never offered Pause or End, not even by another reader who is an Owner', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const offer = offersFor([owner, admin], { isOwner: true }, true).get(owner.contextId)!
+    expect([offer.pause, offer.end]).toEqual([false, false])
+  })
+
+  it('a reader who cannot change access is offered nothing on any row', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    for (const o of offersFor([owner, admin], { isOwner: true }, false).values()) {
+      expect([o.pause, o.reinstate, o.end]).toEqual([false, false, false])
+    }
+  })
+
+  it('the access route reads the same verdict for Reinstate as the register, with the reader as actor', () => {
+    const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
+    expect(src).toContain("canReinstate(target, actor)")
+  })
+
+  it('a paused person is told the reason with one stop, however the reason was typed', async () => {
+    const { clause } = await import('@/lib/owner-rules')
+    expect(`paused it: ${clause('On leave until March.')}. Nothing`).toBe('paused it: On leave until March. Nothing')
+    const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
+    expect(src).toContain('paused it: ${clause(reason)}.')
+  })
+})

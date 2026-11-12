@@ -356,3 +356,33 @@ describe('the seat a client grants an outside firm', () => {
     }
   })
 })
+
+describe('Pause, Reinstate and End on Users & permissions', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const register = read('src/app/api/access/route.ts')
+
+  it('the register says, per row, what this reader may press, read from the access route’s own verdicts', () => {
+    expect(register).toContain('offersFor(')
+    expect(register.match(/acts: actsOf\(c\.id\)/g)?.length).toBe(2)
+  })
+
+  it('the page draws Pause, Reinstate and End only where the row’s offer allows', () => {
+    expect(page).toContain('if (acts.pause) offered.push(\'suspend\')')
+    expect(page).toContain('if (acts.reinstate) offered.push(\'reinstate\')')
+    expect(page).toContain('if (acts.end) offered.push(\'revoke\')')
+  })
+
+  it('the page asks no question in a browser pop-up: no alert, confirm or prompt', () => {
+    expect(page).not.toMatch(/\b(alert|confirm|prompt)\(/)
+  })
+
+  it('Change role shows the route’s sentence and its link to Settings → Owners on the page', () => {
+    expect(page).toContain("href: typeof j?.error?.href === 'string' ? j.error.href : null")
+    expect(page).toContain('Open Settings → Owners')
+  })
+
+  it('a paused seat says it is paused, and why, on its row after the page is read again', () => {
+    expect(register).toContain('pausedReason: c.suspendedAt ? c.suspendReason ?? null : null')
+    expect(page).toContain("p.acts?.state === 'SUSPENDED'")
+  })
+})
