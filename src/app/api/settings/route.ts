@@ -9,6 +9,8 @@ import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
 import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
 import { changeCompanyKind, isOwnerSeat } from './kind'
+import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, type SeatCounts } from '@/lib/company-seats'
+import { roleCanDo } from '@/lib/company-roles'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
   const companyId = caller.company.id
   const thisYear = new Date().getFullYear()
 
-  const [company, roles, locations, holidays, costCenters, memberCounts] = await Promise.all([
+  const [company, roles, locations, holidays, costCenters, seats] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: {
@@ -106,14 +108,19 @@ export async function GET(request: NextRequest) {
       orderBy: { code: 'asc' },
       select: { id: true, code: true, name: true, glAccount: true },
     }),
-    prisma.context.groupBy({
-      by: ['roleId'],
-      where: { companyId, revokedAt: null },
-      _count: { _all: true },
-    }),
+    // One reader of the company's seats (lib/company-seats), so a role's
+    // count here is the one every other screen gives.
+    readCompanySeats(companyId),
   ])
 
-  const heldBy = new Map(memberCounts.map((m) => [m.roleId, m._count._all]))
+  // Every seat not ended, invited and paused included: what the role
+  // editor's delete guard counts, so a role with only an invited person
+  // never reads as held by nobody.
+  const heldBy = new Map<string | null, number>()
+  for (const s of seats) heldBy.set(s.roleId, (heldBy.get(s.roleId) ?? 0) + 1)
+  // The company's own people per role, by state: what a person reads.
+  const byRole = countsByRole(seats)
+  const none: SeatCounts = { withAccess: 0, invited: 0, paused: 0 }
   // Who last changed the type, by name, and whether this seat may: the
   // Owner alone (lib/company-kind).
   const [typeSetBy, mayChangeType] = await Promise.all([
@@ -155,14 +162,31 @@ export async function GET(request: NextRequest) {
         // answer is editing a role.
         canSeeOutside: roles
           .filter((r) => hasPermission(r.permissions, 'network.read'))
-          .map((r) => ({ role: r.name, heldBy: heldBy.get(r.id) ?? 0 })),
+          // Only people who have access can see anything: an invited
+          // person who never signed in sees nothing yet.
+          .map((r) => ({ role: r.name, heldBy: (byRole.get(r.id) ?? none).withAccess })),
       },
-      roles: roles.map((r) => ({
-        ...r,
-        // How many people hold it. A role nobody holds is either new or
-        // dead, and the difference matters before deleting one.
-        heldBy: heldBy.get(r.id) ?? 0,
-      })),
+      roles: roles.map((r) => {
+        const c = byRole.get(r.id) ?? none
+        const can = roleCanDo(r)
+        return {
+          ...r,
+          // Every seat not ended that holds it. A role nobody holds is
+          // either new or dead, and the difference matters before deleting one.
+          heldBy: heldBy.get(r.id) ?? 0,
+          // The company's own people holding it, by state, and in words:
+          // "2 with access · 3 invited", "nobody holds this yet".
+          withAccess: c.withAccess,
+          invited: c.invited,
+          paused: c.paused,
+          heldWords: roleHeldWords(c),
+          // What it can do, against the whole catalog (lib/company-roles).
+          canDo: { everything: can.everything, count: can.count, of: can.of, words: can.words, list: can.list },
+        }
+      }),
+      // The company's people, counted once, in words.
+      people: peopleWords(countSeats(peopleOf(seats))),
+
       locations,
       holidays: holidays.map((h) => ({ ...h, date: h.date.toISOString().slice(0, 10) })),
       costCenters,

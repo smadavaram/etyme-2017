@@ -42,6 +42,7 @@ import type { Door } from '@/lib/identity/policy'
 import { landingFor } from '@/lib/nav-table'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import { linkWithStaff } from '@/lib/password-words'
+import { personNameFor } from '@/lib/company-seats'
 import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
 import { appUrl } from '@/lib/supplier-link'
@@ -686,11 +687,13 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
       passwordHash: person.passwordHash ?? pending.passwordHash,
       // The person's own name, from the form. A candidate link sent before
       // the form carried personName has the name in `name`.
-      ...(pending.personName ? { name: pending.personName }
+      // Never the company's own name for a person founding it: the name
+      // part of the address stands in (lib/company-seats).
+      ...(pending.personName ? { name: personNameFor(pending.personName, person.primaryEmail, pending.kind === 'COMPANY' && !pending.joinCompanyId ? pending.name : null) }
         : pending.kind === 'CANDIDATE' && pending.name ? { name: pending.name } : {}),
     },
   })
-  const named = { ...person, name: pending.personName || person.name }
+  const named = { ...person, name: pending.personName ? personNameFor(pending.personName, person.primaryEmail, pending.kind === 'COMPANY' && !pending.joinCompanyId ? pending.name : null) : person.name }
 
   // From a supplier invitation: the claim seats them; nothing is founded here.
   if (pending.kind === 'CLAIM' && pending.claimToken) {

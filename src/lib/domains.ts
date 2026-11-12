@@ -679,6 +679,9 @@ export const DOMAINS: Domain[] = [
       'lib/cycle-shift',
       'lib/company-defaults', 'lib/company-roles', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
+      // One reader of a company's seats, and how people join a company,
+      // said from what the code does (2026-11-12).
+      'lib/company-seats', 'lib/join-words',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
       'lib/demo-seed-consultant', 'lib/demo-session',

@@ -1,3 +1,4 @@
+import { readCompanySeats, peopleOf } from '@/lib/company-seats'
 import { NextRequest, NextResponse } from 'next/server'
 import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
@@ -92,16 +93,15 @@ export async function GET(request: NextRequest) {
       },
     }),
     prisma.role.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
-    prisma.context.findMany({
-      where: { companyId, revokedAt: null },
-      select: { id: true, person: { select: { name: true } }, role: { select: { name: true } } },
-      orderBy: { grantedAt: 'asc' },
-      take: 1000,
-    }),
+    // The one reader of a company's seats (lib/company-seats): its own
+    // people, each once, never a consultant on its books or the sample seat.
+    readCompanySeats(companyId).then(peopleOf),
     prisma.orgUnit.findMany({ where: { companyId }, select: { id: true, name: true, parentId: true }, orderBy: { name: 'asc' } }),
   ])
 
-  const permissions = [...PERMISSIONS, ...(isOwner ? [GRANT_RIGHT] : [])].map((key) => ({
+  // The catalog, and apart from it the Owner's own right to let somebody
+  // give access to others, so the list and the count on Roles agree.
+  const options = [...PERMISSIONS, ...(isOwner ? [GRANT_RIGHT] : [])].map((key) => ({
     key,
     label: labelOf(key),
     personOnly: key === GRANT_RIGHT || (PERSON_ONLY as readonly string[]).includes(key),
@@ -110,15 +110,25 @@ export async function GET(request: NextRequest) {
     // and submissions. Anything else is the whole company's only.
     scopes: key !== GRANT_RIGHT && GRANTABLE_TO_A_TEAM.has(key) ? GRANT_SCOPES : ['COMPANY'],
   }))
+  const permissions = options.filter((o) => o.key !== GRANT_RIGHT)
+  const ownerRight = options.find((o) => o.key === GRANT_RIGHT) ?? null
 
   return NextResponse.json({
     data: {
       canGive: isOwner || grantRight,
       isOwner,
       permissions,
+      // The size of the catalog, said beside the list (lib/company-roles).
+      catalogCount: PERMISSIONS.length,
+      // Only an Owner sees it, and it is not one of the catalog's.
+      ownerRight,
       scopes: GRANT_SCOPES.map((s) => ({ key: s, label: SCOPE_LABELS[s] })),
       roles: roles.filter((r) => r.name !== 'Owner'),
-      people: seats.map((s) => ({ contextId: s.id, name: s.person.name, roleName: s.role?.name ?? null })),
+      people: seats.map((s) => ({
+        contextId: s.contextId, name: s.name, roleName: s.roleName,
+        // Said beside the name, so an invited or paused person is not read as somebody with access.
+        state: s.state,
+      })),
       units,
       grants: grants.map((g) => ({
         id: g.id,

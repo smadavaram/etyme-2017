@@ -21,6 +21,7 @@
  * gets a fresh link (the old one stops working), and a person who has
  * signed in is never touched.
  */
+import { nameFromAddress, personNameFor } from '@/lib/company-seats'
 import { prisma } from '@/lib/db'
 import { classifyEmail } from '@/lib/onboarding'
 import { reservedDomain } from '@/lib/demo-company'
@@ -84,9 +85,7 @@ export type Plan =
 const clean = (s: unknown) => String(s ?? '').trim()
 
 function nameFromEmail(email: string): string {
-  const local = email.split('@')[0] ?? email
-  const words = local.replace(/[._-]+/g, ' ').trim()
-  return words ? words.replace(/\b\w/g, (c) => c.toUpperCase()) : email
+  return nameFromAddress(email)
 }
 
 /** Pure: what a bootstrap would do, or why it refuses. */
@@ -141,7 +140,9 @@ export function planBootstrap(input: BootstrapInput, existing: Existing): Plan {
     const email = clean(s.email).toLowerCase()
     const role = clean(s.role)
     const person = existing.people[email]
-    const nm = clean(s.name) || nameFromEmail(email)
+    // A person is never given the company's name: a seat typed "Tapin" at
+    // Tapin reads as the name part of its address (lib/company-seats).
+    const nm = personNameFor(clean(s.name) || nameFromEmail(email), email, existing.company?.name ?? name)
     if (!person) return { email, role, name: nm, does: 'CREATE_PERSON_AND_SEAT' as const }
     if (person.signedIn) {
       // Somebody who already signs in is never given a link or a password.

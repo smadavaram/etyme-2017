@@ -16,6 +16,7 @@ import {
 import { countryFromDomain } from '@/lib/company-defaults'
 import { skipStops, confirmAllWords } from '@/lib/site-rules'
 import { setupReminderFor } from '@/lib/setup-checklist-state'
+import { readCompanySeats, teammatesOf } from '@/lib/company-seats'
 
 async function checklistReminder(companyId: string): Promise<(Reminder & { link: string }) | null> {
   const r = await setupReminderFor(companyId, { mayRun: true })
@@ -65,10 +66,10 @@ export interface SetupState {
 export async function setupFactsFor(companyId: string): Promise<SetupFacts> {
   const [imported, seats] = await Promise.all([
     prisma.import.count({ where: { companyId, committedAt: { not: null } } }),
-    prisma.context.count({ where: { companyId, type: 'EMPLOYEE', revokedAt: null } }),
+    readCompanySeats(companyId),
   ])
-  // The founder holds one seat; anybody else is a teammate.
-  return { peopleImported: imported > 0, teammates: Math.max(0, seats - 1) }
+  // The founder holds one seat; anybody else is a teammate (lib/company-seats).
+  return { peopleImported: imported > 0, teammates: teammatesOf(seats) }
 }
 
 export async function setupStateFor(

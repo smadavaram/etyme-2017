@@ -397,7 +397,7 @@ export default function TeamStructurePage() {
       <PageHead
         eyebrow={eyebrow}
         title="Who leads what, and where"
-        subtitle="Drag a box to move a team. Drag a name to move a person. Every change is kept with who made it and when."
+        subtitle={`Drag a box to move a team. Drag a name to move a person. Every change is kept with who made it and when. ${tree.peopleSays}${tree.peopleSays.endsWith('.') ? '' : '.'}`}
         actions={
           <>
             <button className="btn-primary" onClick={() => setImporting(true)}>Import from your directory</button>

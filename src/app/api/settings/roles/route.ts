@@ -190,7 +190,7 @@ export async function PATCH(request: NextRequest) {
       data: {
         companyId,
         action: 'ROLE_PERMISSIONS_CHANGED',
-        summary: `${caller!.person.name} changed what ${role.name} can do — ${existing._count.contexts} person(s) affected`,
+        summary: `${caller!.person.name} changed what ${role.name} can do — ${existing._count.contexts} ${existing._count.contexts === 1 ? 'person' : 'people'} affected`,
         reason: [
           added.length ? `gained ${added.join(', ')}` : null,
           removed.length ? `lost ${removed.join(', ')}` : null,
@@ -220,7 +220,7 @@ export async function PATCH(request: NextRequest) {
       affected: existing._count.contexts,
       message:
         existing._count.contexts > 0
-          ? `Saved. ${existing._count.contexts} person(s) hold this role and their access changed just now.`
+          ? `Saved. ${existing._count.contexts} ${existing._count.contexts === 1 ? 'person holds' : 'people hold'} this role and their access changed just now.`
           : 'Saved. Nobody holds this role yet.',
     },
   })
@@ -249,7 +249,9 @@ export async function DELETE(request: NextRequest) {
       {
         error: {
           code: 'IN_USE',
-          message: `${existing._count.contexts} person(s) hold ${existing.name}. Give them another role first.`,
+          // Every seat that holds it counts, invited and paused included:
+          // a role with only an invited person is not a role nobody holds.
+          message: `${existing._count.contexts} ${existing._count.contexts === 1 ? 'person holds' : 'people hold'} ${existing.name}, counting anybody invited or paused. Give them another role first.`,
         },
       },
       { status: 409 }

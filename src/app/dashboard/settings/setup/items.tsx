@@ -510,7 +510,7 @@ function TeamItem(p: Props) {
   const d = p.read.detail.TEAM
   return (
     <Frame {...p} save={null}>
-      <p className="text-[13px] text-etyme-muted">{d.seats} {d.seats === 1 ? 'person is' : 'people are'} seated here.</p>
+      <p className="text-[13px] text-etyme-muted">{d.says ?? `${d.seats} ${d.seats === 1 ? 'person is' : 'people are'} seated here.`}</p>
       <InviteTeammate onInvited={() => p.onReload()} />
     </Frame>
   )

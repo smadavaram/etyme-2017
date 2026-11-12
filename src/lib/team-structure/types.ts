@@ -36,6 +36,8 @@ export interface TreeRead {
   unplaced: SeatName[]
   /** Every live seat, for the lead and person pickers. */
   seats: SeatName[]
+  /** The company's people counted, in words: "6 people: 3 with access · 3 invited". */
+  peopleSays: string
   limitMonths: number | null
   lastChange: { id: string; says: string; by: string | null; at: string; yours: boolean } | null
   /** The people named on the screen, for the access log. */

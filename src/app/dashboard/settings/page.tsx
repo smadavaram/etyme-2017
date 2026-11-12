@@ -58,7 +58,15 @@ interface Role {
   name: string
   permissions: string[]
   isDefault: boolean
+  /** Every seat not ended that holds it, invited and paused included. */
   heldBy: number
+  withAccess: number
+  invited: number
+  paused: number
+  /** "2 with access · 3 invited", or "nobody holds this yet" (lib/company-seats). */
+  heldWords: string
+  /** What it can do against the whole catalog (lib/company-roles). */
+  canDo: { everything: boolean; count: number; of: number; words: string; list: string[] }
 }
 interface Location {
   id: string
@@ -116,6 +124,8 @@ interface Settings {
   canChangeType?: boolean
   /** Beside the type for a reader who may not change it (lib/owner-gate). */
   typeLine?: OwnerLine | null
+  /** The company's people, counted once: "6 people: 3 with access · 3 invited". */
+  people?: string
 }
 
 // ── Bits ─────────────────────────────────────────────
@@ -359,7 +369,7 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
                   <div key={r.role} className="flex items-baseline justify-between max-w-sm">
                     <span className="text-[14px] text-etyme-ink">{r.role}</span>
                     <span className="text-[12px] text-etyme-muted tabular-nums">
-                      {r.heldBy} {r.heldBy === 1 ? 'person' : 'people'}
+                      {r.heldBy === 0 ? 'nobody with access yet' : `${r.heldBy} with access`}
                     </span>
                   </div>
                 ))}
@@ -607,28 +617,31 @@ function RolesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
   return (
     <Panel
       title="Roles"
-      subtitle="What somebody can do here. These were chosen for what your company is — a client gets Hiring Manager, a supplier gets Recruiter. Changing a role changes what everyone holding it can do, immediately."
+      subtitle={`What somebody can do here. These were chosen for what your company is — a client gets Hiring Manager, a supplier gets Recruiter. Changing a role changes what everyone holding it can do, immediately.${data.people ? ` ${data.people}.` : ''}`}
     >
       <div className="divide-y divide-etyme-rule">
         {data.roles.map((r) => (
           <div key={r.id} className="py-3">
             <div className="flex items-baseline justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <span className="text-[14px] text-etyme-ink font-medium">{r.name}</span>
                 <span className="ml-2 text-[12px] text-etyme-faint tabular-nums">
-                  {r.heldBy === 0 ? 'nobody holds this' : `${r.heldBy} person${r.heldBy === 1 ? '' : 's'}`}
+                  {r.heldWords}
                 </span>
               </div>
               <button
                 onClick={() => setOpen(open === r.id ? null : r.id)}
                 className="text-[12px] text-etyme-action shrink-0"
               >
-                {open === r.id ? 'Hide' : `${r.permissions.length} permissions`}
+                {open === r.id ? 'Hide' : `Permissions: ${r.canDo.words}`}
               </button>
             </div>
-            {open === r.id && (
+            {open === r.id && r.canDo.count === 0 && (
+              <p className="mt-2 text-[12.5px] text-etyme-muted">Sees their own work and their own hours, nothing else. Give a person another role from Users &amp; permissions to let them do more.</p>
+            )}
+            {open === r.id && r.canDo.count > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
-                {r.permissions.slice().sort().map((p) => (
+                {r.canDo.list.slice().sort().map((p) => (
                   <span key={p} className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-etyme-canvas text-etyme-muted">
                     {p}
                   </span>

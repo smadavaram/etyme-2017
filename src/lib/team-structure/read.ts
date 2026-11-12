@@ -3,6 +3,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { standingAgainstLimit } from '@/lib/tenure-days'
 import { boxLine, childrenOf, kindWord, rollUp, type UnitFacts } from './tree'
 import type { BoxRead, SeatName, TreeRead } from './types'
+import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
 
 /**
  * The tree as Settings → Team structure draws it, read at one company and
@@ -35,12 +36,13 @@ export async function readTree(companyId: string, viewerPersonId: string, now = 
         location: { select: { id: true, name: true, country: true, timeZone: true, region: true } },
       },
     }),
-    prisma.context.findMany({
-      where: { companyId, revokedAt: null },
-      select: { id: true, orgUnitId: true, grantedAt: true, person: { select: { name: true } }, role: { select: { name: true } } },
-      orderBy: { grantedAt: 'asc' },
-      take: 5000,
-    }),
+    // The one reader of a company's seats (lib/company-seats): the
+    // company's own people, never a consultant on its books or the shared
+    // sample seat, and never named with the company's own name.
+    readCompanySeats(companyId).then((all) => peopleOf(all).map((c) => ({
+      id: c.contextId, orgUnitId: c.orgUnitId, grantedAt: c.grantedAt, state: c.state,
+      person: { name: c.name }, role: c.roleName ? { name: c.roleName } : null,
+    }))),
     prisma.sellContract.findMany({
       where: { orgUnit: { companyId }, state: { in: [...LIVE_LINES] } },
       select: {
@@ -163,6 +165,9 @@ export async function readTree(companyId: string, viewerPersonId: string, now = 
     boxes,
     unplaced: seats.filter((c) => !c.orgUnitId && !leads.has(c.id) && c.id !== ownerSeat?.id).map(seat),
     seats: seats.map(seat),
+    // What the tree counts, said: "6 people: 3 with access · 3 invited".
+    // The company's own box is a box, never one of its people.
+    peopleSays: peopleWords(countSeats(seats)),
     limitMonths,
     lastChange: last ? { id: last.id, says: last.says, by: last.actor?.name ?? null, at: last.at.toISOString(), yours: last.actorPersonId === viewerPersonId } : null,
     contractorPersonIds: [...new Set(lines.map((l) => l.personId))],

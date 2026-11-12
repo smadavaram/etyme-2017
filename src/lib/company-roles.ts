@@ -1,6 +1,36 @@
 import { prisma } from '@/lib/db'
 import { rolesFor, RENAMED_ROLES, GRANTED_SINCE, REVOKED_SINCE, ADMIN_ROLE, isNarrowedAdmin } from '@/lib/company-defaults'
 import type { CompanyKind } from '@prisma/client'
+import { PERMISSIONS, type Permission } from '@/lib/permissions'
+
+/**
+ * What a role can do, against the whole catalog (founder, 2026-11-12).
+ *
+ * The Roles list printed the length of a role's stored list, so the Owner
+ * read 34, the Admin 33, Member 0 and Give access offered 35, and none of
+ * them said against what. One answer now: a role holding `*` holds the
+ * whole catalog; any other holds its own list filtered to the catalog, in
+ * the catalog's order, so a name dropped from the catalog is not counted.
+ *
+ * For display and counting only. What a role may do is still decided by
+ * `hasPermission` on the stored list, which this never changes.
+ */
+export function roleCanDo(role: { permissions: readonly string[] }): {
+  everything: boolean
+  list: Permission[]
+  count: number
+  /** The size of the catalog: the same number for every kind of company. */
+  of: number
+  /** "Everything (34)", "5 of 34" or "none yet". */
+  words: string
+} {
+  const of = PERMISSIONS.length
+  const held = new Set(role.permissions)
+  const list = held.has('*') ? [...PERMISSIONS] : PERMISSIONS.filter((p) => held.has(p))
+  const everything = list.length === of
+  const words = everything ? `Everything (${of})` : list.length === 0 ? 'none yet' : `${list.length} of ${of}`
+  return { everything, list, count: list.length, of, words }
+}
 
 /**
  * A company formed last month has the roles that existed last month.

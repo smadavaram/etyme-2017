@@ -20,6 +20,7 @@ import { verificationRecord } from '@/lib/domains-owned'
 import { teamsLinkStanding } from '@/lib/notify/teams-link'
 import { intakeLive } from '@/lib/email-intake/live'
 import { intakeStateFor } from '@/lib/email-intake/settings'
+import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
 import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
 
 export async function readSetup(companyId: string, reader: { personId: string; email: string }) {
@@ -35,7 +36,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   // characters, never the address. Read only where the deployment is open.
   const open = intakeLive()
   const intake = open ? await intakeStateFor(companyId) : null
-  const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains] = await Promise.all([
+  const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains, headcount] = await Promise.all([
     checklistOf(companyId),
     setupReminderFor(companyId, { mayRun: true }),
     prisma.setupAnswer.findMany({ where: { companyId } }),
@@ -57,6 +58,8 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     }),
     prisma.remitTo.findFirst({ where: { companyId }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     prisma.companyDomain.findMany({ where: { companyId }, orderBy: { createdAt: 'asc' } }),
+    // The company's people, counted by the one reader every screen uses.
+    readCompanySeats(companyId).then((all) => countSeats(peopleOf(all))),
   ])
 
   // Names for every "who": answers, items, the bank, the people in charge.
@@ -187,7 +190,11 @@ export async function readSetup(companyId: string, reader: { personId: string; e
           }
         : { bankName: '', accountName: c.legalName ?? c.name, last4: '', routingLast4: '', shows: null, standing: bankStanding({ verifiedAt: null }), enteredBy: null, waits: bankWaits },
       COMPANIES: { count: facts.counterparties, href: c.kind === 'CLIENT' ? '/dashboard/suppliers' : '/dashboard/companies' },
-      TEAM: { seats: seats.length },
+      TEAM: {
+        seats: headcount.withAccess + headcount.invited + headcount.paused,
+        // "3 people: 1 with access · 2 invited": what the count counts.
+        says: peopleWords(headcount),
+      },
       DOMAIN: {
         suggested: domainFill?.domain ?? (c.domain && !/\.(example|invalid|local|test)$/.test(c.domain) ? c.domain : ''),
         claims: [
@@ -216,3 +223,4 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     },
   }
 }
+
