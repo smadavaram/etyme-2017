@@ -6,13 +6,12 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { endsPastLimit, evaluateGovernance } from '@/lib/governance'
 import { loadContractHolidays } from '@/lib/holidays'
-import { hasPermission } from '@/lib/permissions'
-import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 import { extensionEnd } from '@/lib/money/extension-end'
 import { formatDay } from '@/lib/format-date'
+import { extendGate } from './gate'
 
 /**
  * POST /api/contracts/:id/extend
@@ -38,6 +37,43 @@ import { formatDay } from '@/lib/format-date'
  * with no connection to either company could put months of money on
  * somebody else's placement.
  */
+/**
+ * GET /api/contracts/:id/extend — may this reader extend this placement,
+ * and if not, the sentence the press would be refused with. The drawer
+ * asks it before it draws Extend, so a button the route refuses is never
+ * drawn. A buy line is extended from its sell line.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const { id } = await params
+  const contract = await prisma.sellContract.findUnique({
+    where: { id },
+    select: {
+      state: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      company: { select: { name: true } },
+      clientCompany: { select: { name: true } },
+      endClientCompany: { select: { name: true } },
+    },
+  })
+  if (!contract) {
+    const buy = await prisma.buyContract.findUnique({ where: { id }, select: { id: true } })
+    return NextResponse.json({
+      data: {
+        may: false,
+        says: buy
+          ? 'A pay line is extended with its placement. Open the placement under Sell contracts and extend it there.'
+          : 'This contract is not on the record.',
+      },
+    })
+  }
+  const gate = extendGate(caller, contract)
+  return NextResponse.json({ data: gate.ok ? { may: true, says: null } : { may: false, says: gate.says } })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -75,37 +111,10 @@ export async function POST(
 
   // A stranger is told so in words; a party missing the permission is told
   // which one, because "forbidden" on a button on their own screen reads
-  // as a fault.
-  const side = contractSide(caller, contract)
-  if (!side) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_A_PARTY',
-          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can extend it.`,
-        },
-      },
-      { status: 403 }
-    )
-  }
-
-  if (!hasPermission(caller.permissions, 'assignments.write')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: refusalFor(caller, { doing: 'Extending a placement', needs: 'assignments.write' }),
-        },
-      },
-      { status: 403 }
-    )
-  }
-
-  if (!['IN_PROGRESS', 'PAUSED'].includes(contract.state)) {
-    return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: `Cannot extend a ${contract.state} contract` } },
-      { status: 409 }
-    )
+  // as a fault. The same answer the drawer asks before it draws Extend.
+  const gate = extendGate(caller, contract)
+  if (!gate.ok) {
+    return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: gate.status })
   }
 
   const oldEnd = contract.endDate

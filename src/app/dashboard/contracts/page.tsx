@@ -698,6 +698,9 @@ function ContractDetailDrawer({
   const [masters, setMasters] = useState<MasterContract[] | null>(null)
   const [tagging, setTagging] = useState(false)
   const [showExtendConfirm, setShowExtendConfirm] = useState(false)
+  // Whether the extend route will take this reader's press, asked before
+  // Extend is drawn: the route's own sentence stands where it will not.
+  const [extend, setExtend] = useState<{ may: boolean; says: string | null } | null>(null)
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
   const [activating, setActivating] = useState(false)
@@ -741,6 +744,16 @@ function ContractDetailDrawer({
       setTagging(false)
     }
   }
+
+  useEffect(() => {
+    if (contract.state !== 'IN_PROGRESS') return
+    let live = true
+    fetch(`/api/contracts/${contract.id}/extend`)
+      .then((r) => r.json().catch(() => ({})))
+      .then((b) => { if (live) setExtend(b?.data ?? { may: false, says: b?.error?.message ?? null }) })
+      .catch(() => { if (live) setExtend({ may: false, says: null }) })
+    return () => { live = false }
+  }, [contract.id, contract.state])
 
   const line = lineOf(contract, viewerId)
 
@@ -1084,12 +1097,15 @@ function ContractDetailDrawer({
               <div>
                 <p className="eyebrow mb-3">Quick actions</p>
                 <div className="flex gap-3 flex-wrap">
-                  <button
-                    onClick={() => setShowExtendConfirm(true)}
-                    className="btn-primary flex-1"
-                  >
-                    Extend
-                  </button>
+                  {/* Drawn only where the extend route takes this reader's press. */}
+                  {extend?.may && (
+                    <button
+                      onClick={() => setShowExtendConfirm(true)}
+                      className="btn-primary flex-1"
+                    >
+                      Extend
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowRolloffConfirm(true)}
                     className="btn-secondary flex-1"
@@ -1097,6 +1113,9 @@ function ContractDetailDrawer({
                     Initiate rolloff
                   </button>
                 </div>
+                {extend && !extend.may && extend.says && (
+                  <p className="mt-2 text-[13px] text-etyme-muted">{extend.says}</p>
+                )}
                 <div className="flex gap-3 mt-2">
                   {canPause && (
                     <button
