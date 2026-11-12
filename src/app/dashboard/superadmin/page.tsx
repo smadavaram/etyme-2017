@@ -153,6 +153,56 @@ export default function SuperadminPage() {
           </ul>
         )}
       </Panel>
+
+      <IdentityCheckPanel />
     </div>
+  )
+}
+
+/**
+ * Record an identity check (founder, 2026-11-11: Owner is earned by proof).
+ * No provider is chosen yet, so a Superadmin records the provider's result
+ * here, word for word, for one named person at one named company. Etyme
+ * renders no verdict and keeps no copy of an identity paper. Every field
+ * POST /api/superadmin/owner-proof asks for is a field here.
+ */
+function IdentityCheckPanel() {
+  const [f, setF] = useState({ company: '', email: '', provider: '', reference: '', checkedOn: '', result: '', confirmed: '' })
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string; field?: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value })
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true); setSaid(null)
+    const res = await fetch('/api/superadmin/owner-proof', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...f, confirmed: f.confirmed === 'yes' ? true : f.confirmed === 'no' ? false : null }),
+    })
+    const body = await res.json().catch(() => ({}))
+    setBusy(false)
+    if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'Not recorded. Try again.', field: body.error?.field }); return }
+    setSaid({ tone: 'ok', text: body.data.message })
+    setF({ company: '', email: '', provider: '', reference: '', checkedOn: '', result: '', confirmed: '' })
+  }
+  return (
+    <Panel title="Record an identity check" subtitle="The provider’s result, word for word, for one person at one company. Etyme renders no verdict and keeps no copy of an identity paper.">
+      <form onSubmit={send} className="max-w-[520px] space-y-3">
+        <Field label="Company’s Etyme address (before .etyme.com)"><Input value={f.company} onChange={set('company')} /></Field>
+        <Field label="The person’s sign-in email"><Input type="email" value={f.email} onChange={set('email')} /></Field>
+        <Field label="Provider"><Input value={f.provider} onChange={set('provider')} /></Field>
+        <Field label="Provider’s reference"><Input value={f.reference} onChange={set('reference')} /></Field>
+        <Field label="Date on the result"><Input type="date" value={f.checkedOn} onChange={set('checkedOn')} /></Field>
+        <Field label="The provider’s result, word for word"><Input value={f.result} onChange={set('result')} /></Field>
+        <Field label="Did the provider confirm the person is who they say?">
+          <select value={f.confirmed} onChange={set('confirmed')} className="w-full rounded-[8px] border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink">
+            <option value="">Choose</option>
+            <option value="yes">Yes, the provider confirmed it</option>
+            <option value="no">No, the provider did not</option>
+          </select>
+        </Field>
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+        <SubmitButton pending={busy} pendingLabel="Recording…">Record the check</SubmitButton>
+      </form>
+    </Panel>
   )
 }

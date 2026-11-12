@@ -48,10 +48,19 @@ COMMERCIAL GENERAL LIABILITY  GL-778812  06/01/2026  06/01/2027  EACH OCCURRENCE
 
 describe('the twelve items, in order', () => {
   it('reads Your company, Addresses, Sites, the people in charge, how you work, papers, bank details, your companies, your team, your domain, integrations and automatic forwarding, in that order', () => {
-    expect(ITEM_ORDER.map((k) => ITEM_WORDS[k].label)).toEqual([
+    expect(itemsFor('VENDOR').map((k) => ITEM_WORDS[k].label)).toEqual([
       'Your company', 'Addresses', 'Sites', 'The people in charge', 'How you work', 'Papers you require',
       'Bank details', 'Your companies', 'Your team', 'Your domain', 'Integrations', 'Automatic forwarding',
     ])
+  })
+
+  it('a company signed up under the proof rule reads Prove ownership right after its domain, thirteen in all', () => {
+    expect(ITEM_ORDER.map((k) => ITEM_WORDS[k].label)).toEqual([
+      'Your company', 'Addresses', 'Sites', 'The people in charge', 'How you work', 'Papers you require',
+      'Bank details', 'Your companies', 'Your team', 'Your domain', 'Prove ownership', 'Integrations', 'Automatic forwarding',
+    ])
+    expect(itemsFor('VENDOR', { ownerProofRequired: true })).toEqual(ITEM_ORDER)
+    expect(itemsFor('CONSULTANT_CORP', { ownerProofRequired: true })).toContain('OWNERSHIP')
   })
 
   it('a one-person firm’s checklist has no team, no sites and no papers for suppliers', () => {
@@ -65,7 +74,7 @@ describe('the twelve items, in order', () => {
 
   it('a client is never asked for bank details, because it pays and is not paid', () => {
     expect(itemsFor('CLIENT')).not.toContain('BANK')
-    expect(itemsFor('VENDOR')).toEqual(ITEM_ORDER)
+    expect(itemsFor('VENDOR')).toEqual(ITEM_ORDER.filter((k) => k !== 'OWNERSHIP'))
   })
 
   it('every item can be skipped and the company still works', () => {

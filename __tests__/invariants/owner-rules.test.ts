@@ -129,7 +129,7 @@ describe('passing ownership', () => {
   })
 
   it('every ownership act has a place in the autonomy ladder, as a person’s own act', () => {
-    for (const a of ['OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED', 'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED']) {
+    for (const a of ['OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED', 'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED', 'OWNER_VERIFIED', 'OWNER_PROOF_RECORDED']) {
       expect(ACTIONS[a]?.kind, a).toBe('ATTRIBUTED')
     }
   })

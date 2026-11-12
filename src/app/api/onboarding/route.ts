@@ -383,6 +383,8 @@ export async function POST(request: NextRequest) {
     posture: type.posture,
     byPersonId: person.id,
     seatAsOwner: true,
+    // The first person is an Admin; Owner is earned by proof (2026-11-12).
+    ownerProofRequired: true,
     claimDomain: newCompanyDomain !== null,
     startsSetup: true,
   })

@@ -52,6 +52,15 @@ export interface CreateCompanyInput {
   /** Seat that person as Owner. False when recording a counterparty. */
   seatAsOwner: boolean
   /**
+   * The proof rule (founder, 2026-11-11): the person who signs a company
+   * up is seated as Admin, not Owner, and Owner is earned by proof
+   * (lib/owner-proof). True at the three sign-up doors (the password door,
+   * the first sign-in, Add company). Every other caller, the seeded and
+   * generated worlds and the staff tool included, leaves it unset and makes
+   * the company exactly as before.
+   */
+  ownerProofRequired?: boolean
+  /**
    * The firm writing a counterparty down, where that is how it began
    * (`Company.listedById`): the register it is on until somebody there
    * claims it. Null for a firm founded by its own people.
@@ -91,7 +100,10 @@ export interface CreatedCompany {
   company: { id: string; name: string; slug: string; kind: CompanyKind; domain: string | null; siteLiveAt: Date | null; supplierPosture: string | null }
   roles: { id: string; name: string; permissions: string[] }[]
   ownerRoleId: string
+  /** The founder's seat: the Owner's, or the Admin's under the proof rule. */
   ownerContextId: string | null
+  /** The role the founder was seated in. */
+  seatedAs: 'Owner' | 'Admin' | null
   templatePack: string
   country: string
   currency: string
@@ -178,6 +190,7 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
       siteWrittenBy: 'RULES',
       siteWrittenAt: now,
       ...(input.startsSetup ? { setupStartedAt: now, setupSteps: setupSteps as any } : {}),
+      ...(input.ownerProofRequired ? { ownerProofRequiredAt: now } : {}),
     },
     select: { id: true, name: true, slug: true, kind: true, domain: true, siteLiveAt: true, supplierPosture: true },
   })
@@ -202,7 +215,8 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
   }
 
   const roles: CreatedCompany['roles'] = []
-  for (const r of rolesFor(input.kind)) {
+  const proofRule = input.ownerProofRequired === true
+  for (const r of rolesFor(input.kind, { narrowAdmin: proofRule })) {
     roles.push(
       await db.role.create({
         data: { companyId: company.id, name: r.name, permissions: [...r.permissions], isDefault: true },
@@ -211,12 +225,15 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     )
   }
   const ownerRoleId = roles.find((r) => r.name === 'Owner')!.id
+  // Under the proof rule the founder holds the Admin seat until both
+  // proofs stand; the Owner seat is earned (lib/owner-proof).
+  const firstRoleId = proofRule ? roles.find((r) => r.name === 'Admin')!.id : ownerRoleId
 
   const ownerContextId = input.seatAsOwner
     ? (
         await db.context.create({
           data: {
-            personId: input.byPersonId, type: 'EMPLOYEE', companyId: company.id, roleId: ownerRoleId,
+            personId: input.byPersonId, type: 'EMPLOYEE', companyId: company.id, roleId: firstRoleId,
             ...(input.createdAt ? { grantedAt: input.createdAt } : {}),
           },
           select: { id: true },
@@ -266,6 +283,7 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     roles,
     ownerRoleId,
     ownerContextId,
+    seatedAs: ownerContextId ? (proofRule ? 'Admin' : 'Owner') : null,
     templatePack,
     country,
     currency,

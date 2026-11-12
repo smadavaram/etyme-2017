@@ -3,6 +3,7 @@ import { bankChange, type BankFacts } from '@/lib/money/remit-change'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 
 /**
  * GET    /api/settings/remit-to      — where customers send money
@@ -50,6 +51,12 @@ async function guard(request: NextRequest, write: boolean) {
         { status: 403 }
       ),
     }
+  }
+  // The proof rule (2026-11-12): where the money arrives waits for a
+  // verified Owner at a company formed under it, in a sentence naming the step.
+  if (write) {
+    const gate = await needsVerifiedOwnerAt(caller.company.id, 'BANK')
+    if (!gate.ok) return { caller: null, error: NextResponse.json(gateRefusal(gate), { status: 403 }) }
   }
   return { caller, error: null }
 }

@@ -22,6 +22,7 @@ export const STEP_PLACE: Record<ItemKey, string> = {
   COMPANIES: 'Setup → Your companies',
   TEAM: 'Setup → Your team',
   DOMAIN: 'Setup → Your domain',
+  OWNERSHIP: 'Setup → Prove ownership',
   INTEGRATIONS: 'Setup → Integrations',
   FORWARDING: 'Setup → Automatic forwarding',
 }

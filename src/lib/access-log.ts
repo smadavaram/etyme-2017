@@ -168,6 +168,7 @@ export type AccessAction =
   // MARKETING_REQUEST.
   | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
   | 'SUPERADMIN_SETTINGS_OPEN' // a Superadmin opened or changed the platform's Ask Etyme limits; no company data is read
+  | 'OWNER_PROOF_RECORD' // a Superadmin recorded an identity-verification provider's result for a named person at a named company, verbatim; Etyme renders no verdict
   // ── Who signs in, and how: the identity events ────────────────────
   //
   // `lib/identity/ledger` (etyme-architect, 2026-11-11): the founder's

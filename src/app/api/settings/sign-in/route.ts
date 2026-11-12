@@ -5,6 +5,7 @@ import { SIGN_IN_MODES, mayChangeMode, modeSays, effectiveMode, directoryOnlyLoc
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { modeWord } from '@/lib/identity/screen-words'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 
 /**
  * GET   /api/settings/sign-in — how this company's people sign in
@@ -85,6 +86,10 @@ export async function PATCH(request: NextRequest) {
   if (!reason) {
     return NextResponse.json({ error: { code: 'VALIDATION', field: 'reason', message: 'Say why, in a sentence. It is kept beside the change.' } }, { status: 422 })
   }
+
+  // The proof rule (2026-11-12): the sign-in mode waits for a verified Owner.
+  const gate = await needsVerifiedOwnerAt(company.id, 'SIGN_IN_MODE')
+  if (!gate.ok) return NextResponse.json(gateRefusal(gate), { status: 403 })
 
   const before = await companyPolicy(company.id)
   const may = mayChangeMode({ roleName, to, issuers: before.policy.issuers, companyName: company.name })

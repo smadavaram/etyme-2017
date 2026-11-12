@@ -269,6 +269,9 @@ export async function POST(request: NextRequest) {
           currency: body?.currency ?? null,
           byPersonId: person.id,
           seatAsOwner: adding.ownsIt,
+          // Somebody founding their own firm is its Admin until they prove
+          // the domain and themselves (lib/owner-proof, 2026-11-12).
+          ownerProofRequired: adding.ownsIt,
           claimDomain: adding.ownsIt,
           startsSetup: adding.ownsIt,
           // A counterparty is on the caller's register, a shell nobody has
@@ -334,7 +337,7 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return { company, roles, person, context }
+      return { company, roles, person, context, seatedAs: made.seatedAs }
     }, { timeout: 20_000 })
 
     // ── The register, where the caller said what this firm is to them ──
@@ -390,7 +393,7 @@ export async function POST(request: NextRequest) {
           permissionCount: r.permissions.length,
         })),
         context: result.context
-          ? { id: result.context.id, type: result.context.type, role: 'Owner' }
+          ? { id: result.context.id, type: result.context.type, role: result.seatedAs ?? 'Owner' }
           : null,
         // What just happened, in the words the rule used, so the screen
         // does not have to guess whether the creator is now its owner.

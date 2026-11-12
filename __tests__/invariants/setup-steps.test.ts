@@ -38,7 +38,7 @@ describe('setup asks five things, then stops', () => {
     // The hard-coded seven, "Accountant" among them, are gone.
     expect(addCompany).not.toContain('const DEFAULT_ROLES')
     expect(addCompany).not.toContain("'Accountant'")
-    for (const piece of ['packFor(input.kind, country)', 'rolesFor(input.kind)', 'companyLocation.create', 'holidaysFor(country, y)']) {
+    for (const piece of ['packFor(input.kind, country)', 'rolesFor(input.kind, { narrowAdmin: proofRule })', 'companyLocation.create', 'holidaysFor(country, y)']) {
       expect(create, piece).toContain(piece)
     }
   })

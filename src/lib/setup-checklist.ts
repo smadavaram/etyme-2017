@@ -32,6 +32,7 @@ export type ItemKey =
   | 'COMPANIES'
   | 'TEAM'
   | 'DOMAIN'
+  | 'OWNERSHIP'
   | 'INTEGRATIONS'
   | 'FORWARDING'
 
@@ -40,13 +41,15 @@ export type ItemState = 'DONE' | 'SKIPPED' | 'TODO'
 export type AnswerSource = 'DOMAIN' | 'PAPER' | 'IMPORT' | 'WEBSITE' | 'PERSON'
 
 /**
- * The twelve, in the order they are read. Sites is read third, after
+ * The thirteen, in the order they are read. Sites is read third, after
  * Addresses; automatic forwarding last, after Integrations (founder,
- * 2026-11-11).
+ * 2026-11-11); proving ownership right after the domain it may rest on
+ * (founder, 2026-11-11, "The first person is an Admin; Owner is earned by
+ * proof").
  */
 export const ITEM_ORDER: readonly ItemKey[] = [
   'COMPANY', 'ADDRESSES', 'SITES', 'PEOPLE_IN_CHARGE', 'HOW_YOU_WORK', 'PAPERS',
-  'BANK', 'COMPANIES', 'TEAM', 'DOMAIN', 'INTEGRATIONS', 'FORWARDING',
+  'BANK', 'COMPANIES', 'TEAM', 'DOMAIN', 'OWNERSHIP', 'INTEGRATIONS', 'FORWARDING',
 ]
 
 export interface ItemWords {
@@ -134,6 +137,13 @@ export const ITEM_WORDS: Record<ItemKey, ItemWords> = {
     reminder: 'your domain',
     skipStops: 'If you skip: colleagues join by invitation until the domain is verified.',
   },
+  OWNERSHIP: {
+    label: 'Prove ownership',
+    line: 'Your domain and your identity, so the company has a verified Owner',
+    sub: 'Two proofs: your company’s domain, and an identity check by a provider. Then you become the Owner.',
+    reminder: 'proving ownership',
+    skipStops: 'If you skip: paying, bank details, signing, the company type, how people sign in and giving access by team wait for a verified Owner.',
+  },
   INTEGRATIONS: {
     label: 'Integrations',
     line: 'Teams, and the export for your accounting system',
@@ -160,13 +170,20 @@ export const ITEM_WORDS: Record<ItemKey, ItemWords> = {
  *    (Coordinator's call, 2026-11-11, reversible in a sentence.)
  *  - A client pays and is never paid, so it has no bank details to give.
  *  - Everybody else reads all twelve.
+ *  - Prove ownership is read only by a company under the proof rule
+ *    (`Company.ownerProofRequiredAt`, set at sign-up from 2026-11-12),
+ *    of every kind; a one-person firm proves the person only
+ *    (lib/owner-proof). A company formed before the rule reads its list as
+ *    before (coordinator's call, reversible in a sentence: say "ask the
+ *    older companies too" and the flag is dropped here).
  */
-export function itemsFor(kind: string | null | undefined): readonly ItemKey[] {
+export function itemsFor(kind: string | null | undefined, opts: { ownerProofRequired?: boolean } = {}): readonly ItemKey[] {
+  const order = opts.ownerProofRequired ? ITEM_ORDER : ITEM_ORDER.filter((k) => k !== 'OWNERSHIP')
   if (kind === 'CONSULTANT_CORP') {
-    return ITEM_ORDER.filter((k) => k !== 'SITES' && k !== 'TEAM' && k !== 'PEOPLE_IN_CHARGE' && k !== 'DOMAIN' && k !== 'FORWARDING')
+    return order.filter((k) => k !== 'SITES' && k !== 'TEAM' && k !== 'PEOPLE_IN_CHARGE' && k !== 'DOMAIN' && k !== 'FORWARDING')
   }
-  if (kind === 'CLIENT') return ITEM_ORDER.filter((k) => k !== 'BANK')
-  return ITEM_ORDER
+  if (kind === 'CLIENT') return order.filter((k) => k !== 'BANK')
+  return order
 }
 
 // ── What is already true, read off the company's own rows ────────────
@@ -199,13 +216,17 @@ export interface ChecklistFacts {
   teamsSet: boolean
   /** A forwarded email from this company's own people was accepted: the rule works. */
   forwardingSeen: boolean
+  /** The company is under the proof rule (`Company.ownerProofRequiredAt`), so it reads Prove ownership. */
+  ownerProofRequired: boolean
+  /** The company has a verified Owner (`Company.ownerVerifiedAt`, lib/owner-proof). */
+  ownerVerified: boolean
 }
 
 export const NO_FACTS: ChecklistFacts = {
   legalNameSet: false, legalAddress: false, billingAddress: false, sitesConfirmed: false,
   inChargeNamed: false, workAnswered: false, papersConfirmed: [], papersOwed: [],
   bankEntered: false, counterparties: 0, teammates: 0, domainVerified: false, teamsSet: false,
-  forwardingSeen: false,
+  forwardingSeen: false, ownerProofRequired: false, ownerVerified: false,
 }
 
 export type ChecklistRecord = Partial<Record<ItemKey, { outcome: ItemOutcome; byId: string | null; at: string }>>
@@ -223,6 +244,7 @@ export function doneByFacts(item: ItemKey, f: ChecklistFacts): boolean {
     case 'COMPANIES': return f.counterparties > 0
     case 'TEAM': return f.teammates > 0
     case 'DOMAIN': return f.domainVerified
+    case 'OWNERSHIP': return f.ownerVerified
     case 'INTEGRATIONS': return f.teamsSet
     case 'FORWARDING': return f.forwardingSeen
   }
@@ -256,16 +278,16 @@ export interface Checklist {
   todo: number
   /** "3 done · 2 skipped · 6 to do". */
   countLine: string
-  /** "Twelve things. Skip any of them for now." */
+  /** "Thirteen things. Skip any of them for now." */
   intro: string
   /** The items still owed, in order: to do and skipped. */
   owed: ItemKey[]
 }
 
-const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve']
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen']
 
 export function checklistFor(input: { kind: string | null | undefined; record: ChecklistRecord; facts: ChecklistFacts }): Checklist {
-  const keys = itemsFor(input.kind)
+  const keys = itemsFor(input.kind, { ownerProofRequired: input.facts.ownerProofRequired })
   const rows = keys.map((key, i): ChecklistRow => {
     const state = stateOf(key, input.record, input.facts)
     const w = ITEM_WORDS[key]
@@ -333,10 +355,13 @@ export type ItemVerdict =
   | { ok: false; says: string }
 
 /** Whether this item may be answered this way at this kind of company. Every item may be skipped. */
-export function checkItemAnswer(kind: string | null | undefined, item: unknown, outcome: unknown): ItemVerdict {
+export function checkItemAnswer(kind: string | null | undefined, item: unknown, outcome: unknown, opts: { ownerProofRequired?: boolean } = {}): ItemVerdict {
   if (!ITEM_ORDER.includes(item as ItemKey)) return { ok: false, says: 'That is not one of the setup items.' }
   const key = item as ItemKey
-  if (!itemsFor(kind).includes(key)) {
+  if (key === 'OWNERSHIP' && !opts.ownerProofRequired) {
+    return { ok: false, says: 'Your company was formed before an Owner had to be proven, so it has no ownership item to answer.' }
+  }
+  if (!itemsFor(kind, opts).includes(key)) {
     return { ok: false, says: notForKind(kind, key) }
   }
   if (outcome !== 'DONE' && outcome !== 'SKIPPED') return { ok: false, says: 'Say whether the item is done or skipped.' }
@@ -452,6 +477,7 @@ export const ITEM_SLUG: Readonly<Record<ItemKey, string>> = {
   COMPANIES: 'companies',
   TEAM: 'team',
   DOMAIN: 'domain',
+  OWNERSHIP: 'ownership',
   INTEGRATIONS: 'integrations',
   FORWARDING: 'forwarding',
 }

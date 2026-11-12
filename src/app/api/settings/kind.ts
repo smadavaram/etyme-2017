@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { kindWord } from '@/lib/parties'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import {
   KIND_CHOICES, NO_KIND_FACTS, aChoice, choiceByKey, choiceOf, kindChangeVerdict, kindChangedSays,
   type KindChoice, type KindFacts,
@@ -132,6 +133,11 @@ export async function changeCompanyKind(input: {
     const choices = KIND_CHOICES.map((c) => c.label).join(', ')
     return { ok: false, status: 422, field: 'type', message: `Choose what kind of company ${company.name} is: ${choices}.` }
   }
+
+  // The proof rule (2026-11-12): at a company formed under it, the type
+  // waits for a verified Owner, and the refusal names the step.
+  const gate = await needsVerifiedOwnerAt(company.id, 'COMPANY_TYPE')
+  if (!gate.ok) return { ok: false, status: 403, message: gate.says, field: 'type' }
 
   const owner = await isOwnerSeat(input.contextId, company.id)
   const facts = owner ? await kindFactsOf(company.id, input.person.id, now) : null

@@ -181,3 +181,38 @@ export function ownershipItemDone(c: { ownerVerifiedAt: Date | null }): boolean 
 
 /** The line under the item for a company formed before the rule. */
 export const NOT_GATED_LINE = 'Your company was formed before this rule, so nothing waits on it. Completing it means a lost sign-in can be recovered by proof.'
+
+// ── Becoming the Owner ───────────────────────────────────────────────
+
+export type BecomeVerdict = { ok: true; reseat: boolean } | { ok: false; says: string }
+
+/**
+ * Pure: may this person press "Become Owner" (or, already an Owner,
+ * "Record my proofs")? Under the proof rule the Admin holding both proofs
+ * becomes the Owner while the company has none; once it has one, a second
+ * Owner comes through Pass ownership on Settings → Owners. At a company
+ * formed before the rule, an Owner holding both proofs records them, and
+ * nobody is reseated.
+ */
+export function mayBecomeOwner(input: {
+  gate: GateFacts
+  standing: ProofStanding
+  seatRole: string | null
+  seatLive: boolean
+  liveOwners: number
+  companyName: string
+}): BecomeVerdict {
+  if (!input.seatLive) return { ok: false, says: `You hold no working seat at ${input.companyName}.` }
+  if (!input.standing.complete) {
+    const missing = [input.standing.needsDomain && !input.standing.domain.done ? 'the domain' : null, !input.standing.person.done ? 'your identity check' : null].filter(Boolean)
+    return { ok: false, says: `Both proofs first: ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} still to come.` }
+  }
+  if (input.seatRole === 'Owner') return { ok: true, reseat: false }
+  if (input.gate.ownerProofRequiredAt === null) {
+    return { ok: false, says: `${input.companyName} already has its Owners. Ask one of them to pass ownership to you from Settings → Owners.` }
+  }
+  if (input.liveOwners > 0) {
+    return { ok: false, says: `${input.companyName} has a verified Owner. Ask them to add you from Settings → Owners.` }
+  }
+  return { ok: true, reseat: true }
+}

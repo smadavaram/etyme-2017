@@ -320,7 +320,15 @@ async function firmThatAdded(personId: string): Promise<string | null> {
 /** Whether the person owns a company here already. A candidate, or somebody a firm added, owns none. */
 async function ownsAFirm(personId: string): Promise<boolean> {
   const owner = await prisma.context.findFirst({
-    where: { personId, revokedAt: null, companyId: { not: null }, role: { name: 'Owner' } },
+    where: {
+      personId, revokedAt: null, companyId: { not: null },
+      OR: [
+        { role: { name: 'Owner' } },
+        // A founder under the proof rule (2026-11-12) holds the Admin seat
+        // until both proofs stand; the firm is still theirs.
+        { role: { name: 'Admin' }, company: { ownerProofRequiredAt: { not: null }, ownerVerifiedAt: null } },
+      ],
+    },
     select: { id: true },
   })
   return owner !== null
@@ -784,6 +792,8 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
     posture: type.posture,
     byPersonId: person.id,
     seatAsOwner: true,
+    // The first person is an Admin; Owner is earned by proof (2026-11-12).
+    ownerProofRequired: true,
     claimDomain: false,
     startsSetup: true,
   })

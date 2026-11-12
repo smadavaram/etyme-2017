@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { Check, Field, FormMessage, Input, Select, SubmitButton, Textarea } from '@/components/ui'
@@ -114,6 +114,7 @@ export function ItemBody(p: Props) {
     case 'COMPANIES': return <CompaniesItem {...p} />
     case 'TEAM': return <TeamItem {...p} />
     case 'DOMAIN': return <DomainItem {...p} />
+    case 'OWNERSHIP': return <OwnershipItem {...p} />
     case 'INTEGRATIONS': return <IntegrationsItem {...p} />
     case 'FORWARDING': return <ForwardingItem {...p} />
   }
@@ -533,6 +534,64 @@ function DomainItem(p: Props) {
           <Field label="Your domain"><Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="tapin.com" /></Field>
           <SubmitButton type="button" tone="secondary" disabled={!domain.trim()} onClick={() => act({ action: 'CLAIM', domain })}>Get the record</SubmitButton>
         </div>
+      )}
+      {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+    </Frame>
+  )
+}
+
+// ── Prove ownership ──────────────────────────────────────────────────
+
+/**
+ * The two proofs that make the company's first Admin its verified Owner
+ * (founder, 2026-11-11): the domain and the person. The item reads the
+ * caller's own proofs from /api/settings/owner-proof and offers "Become
+ * Owner" only where both stand; it is done only once the company has a
+ * verified Owner, so until then it can only be skipped.
+ */
+function OwnershipItem(p: Props) {
+  const [proof, setProof] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  async function load() {
+    try {
+      const j = await readJson(await fetch('/api/settings/owner-proof'))
+      setProof(j.data)
+    } catch (e: any) { setSaid({ tone: 'error', text: e.message }) }
+  }
+  useEffect(() => { load() }, [])
+  async function become() {
+    setBusy(true); setSaid(null)
+    try {
+      const j = await readJson(await fetch('/api/settings/owner-proof', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'become-owner' }) }))
+      setSaid({ tone: 'ok', text: j.data?.message ?? 'Done.' })
+      p.onReload()
+      load()
+    } catch (e: any) { setSaid({ tone: 'error', text: e.message }) } finally { setBusy(false) }
+  }
+  const verified = p.read.detail.OWNERSHIP?.verified === true
+  return (
+    <Frame {...p} save={null} noSave={!verified}>
+      {!proof ? (
+        <p className="text-[13px] text-etyme-muted">Reading your proofs…</p>
+      ) : (
+        <>
+          <p className="text-[13px] text-etyme-ink">{proof.line}</p>
+          {proof.needsDomain && (
+            <div className="space-y-1">
+              <Lbl>Your domain</Lbl>
+              <p className={`text-[13.5px] ${proof.domain.done ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{proof.domain.says}</p>
+            </div>
+          )}
+          <div className="space-y-1">
+            <Lbl>Your identity</Lbl>
+            <p className={`text-[13.5px] ${proof.person.done ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{proof.person.says}</p>
+          </div>
+          {proof.offer && (
+            <SubmitButton type="button" pending={busy} pendingLabel="Recording…" onClick={become}>{proof.offer}</SubmitButton>
+          )}
+          {proof.says && <p className="text-[12.5px] text-etyme-muted">{proof.says}</p>}
+        </>
       )}
       {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
     </Frame>

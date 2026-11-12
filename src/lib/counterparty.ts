@@ -234,7 +234,7 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
     return {
       ok: true,
       ownsIt: true,
-      says: 'Registering a firm of your own makes you its owner. That is what registering means.',
+      says: 'Registering a firm of your own seats you as its Admin. You become its Owner once you prove the domain and yourself, under Setup → Prove ownership.',
     }
   }
 

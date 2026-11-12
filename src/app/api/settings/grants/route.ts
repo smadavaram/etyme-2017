@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasAnyPermission, PERMISSIONS } from '@/lib/permissions'
@@ -147,6 +148,13 @@ export async function POST(request: NextRequest) {
   const scope = typeof body.scope === 'string' ? body.scope.trim() : ''
   const orgUnitId = typeof body.orgUnitId === 'string' && body.orgUnitId ? body.orgUnitId : null
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+
+  // The proof rule (2026-11-12): giving access by team or for the whole
+  // company waits for a verified Owner. A person's own-work grant does not.
+  if (scope === 'COMPANY' || scope === 'UNIT') {
+    const gate = await needsVerifiedOwnerAt(companyId, 'GIVE_ACCESS')
+    if (!gate.ok) return NextResponse.json(gateRefusal(gate), { status: 403 })
+  }
 
   // Every live grant at the company, read once: the holder's sets and what
   // they already hold come from it.

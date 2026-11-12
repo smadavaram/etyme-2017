@@ -1,4 +1,5 @@
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import { companyPolicy } from '@/lib/identity/read'
 import { NextRequest, NextResponse } from 'next/server'
 import { bankChange } from '@/lib/money/remit-change'
@@ -228,6 +229,10 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
 
   // ── Bank details ───────────────────────────────────────────────────
   async BANK(c, by, body) {
+    // Bank details wait for a verified Owner at a company formed under the
+    // proof rule (2026-11-12), in the gate's own sentence.
+    const gate = await needsVerifiedOwnerAt(c.id, 'BANK')
+    if (!gate.ok) return { ok: false, says: gate.says }
     const bankName = str(body.bankName, 120)
     const accountName = str(body.accountName, 200)
     const last4 = lastFour(body.accountNumber ?? body.last4)

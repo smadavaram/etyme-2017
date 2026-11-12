@@ -527,7 +527,7 @@ const RULE_ATTRIBUTED = [
   // proofs became the Owner; a Superadmin recorded a provider's identity
   // check. Every one a person's own act; none has a rung.
   'OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED',
-  'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED',
+  'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED', 'OWNER_VERIFIED', 'OWNER_PROOF_RECORDED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }

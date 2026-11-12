@@ -100,8 +100,9 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     }
   })
 
+  const keys = itemsFor(c.kind, { ownerProofRequired: facts.ownerProofRequired })
   const stamps: Partial<Record<ItemKey, string>> = {}
-  for (const k of itemsFor(c.kind)) {
+  for (const k of keys) {
     const r = record[k]
     stamps[k] = r
       ? itemStamp(r.outcome, nameOf(r.byId), r.at, checklist.rows.find((x) => x.key === k)?.state)
@@ -112,9 +113,9 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     company: { id: c.id, name: c.name, kind: c.kind },
     checklist,
     reminder,
-    words: Object.fromEntries(itemsFor(c.kind).map((k) => [k, ITEM_WORDS[k]])),
+    words: Object.fromEntries(keys.map((k) => [k, ITEM_WORDS[k]])),
     stamps,
-    slugs: Object.fromEntries(itemsFor(c.kind).map((k) => [k, ITEM_SLUG[k]])),
+    slugs: Object.fromEntries(keys.map((k) => [k, ITEM_SLUG[k]])),
     detail: {
       COMPANY: {
         legalName: c.legalName ?? '',
@@ -193,6 +194,8 @@ export async function readSetup(companyId: string, reader: { personId: string; e
           })),
         ],
       },
+      // The proofs themselves are read by the item from /api/settings/owner-proof.
+      OWNERSHIP: { verified: facts.ownerVerified },
       INTEGRATIONS: { teams: teamsLinkStanding(c.teamsWebhookUrl) },
       FORWARDING: {
         ...forwardingView({ open, demo: c.isDemo, enabled: intake?.enabled === true, addressHint: intake?.addressHint ?? null }),

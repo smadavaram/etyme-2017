@@ -8269,7 +8269,10 @@ model WebhookDelivery {
 /// eleventh decided, read third, after Addresses. FORWARDING is the
 /// twelfth (founder, 2026-11-11): the mail rule a company's mail
 /// administrator sets so business email reaches its forwarding address
-/// with no per-user setting. Etyme never reads a mailbox.
+/// with no per-user setting. Etyme never reads a mailbox. OWNERSHIP is
+/// the thirteenth (founder, 2026-11-11): the two proofs, the domain and
+/// the person, that make a company's first Admin its verified Owner
+/// (lib/owner-proof). Done only once Company.ownerVerifiedAt is set.
 enum SetupItemKey {
   COMPANY
   ADDRESSES
@@ -8281,6 +8284,7 @@ enum SetupItemKey {
   COMPANIES
   TEAM
   DOMAIN
+  OWNERSHIP
   INTEGRATIONS
   FORWARDING
 }
