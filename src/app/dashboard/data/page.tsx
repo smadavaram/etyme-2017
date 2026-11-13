@@ -6,6 +6,10 @@ import { refusalSentence } from '@/lib/refusal-words'
 import { EmptyState, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel, RefusedState, Stat, SubmitButton } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { mayOpen } from '@/lib/nav-table'
+import { IMPORT_RECORDS_LABEL, IMPORT_RECORDS_POINTS, IMPORT_RECORDS_SAYS, TEAM_STRUCTURE_HREF, importRecordsSubtitle } from '@/lib/team-structure/directory/words'
 
 /**
  * Loading reference data.
@@ -81,6 +85,7 @@ function parseCSV(text: string): Record<string, string>[] {
 }
 
 export default function DataPage() {
+  const seat = sidebarPropsFrom(useSession())
   // The section this page sits under on the reader's own menu, never a
   // word typed by hand (sign-up walk, round four, item 13).
   const section = usePageSection('/dashboard/data')
@@ -149,16 +154,24 @@ export default function DataPage() {
   if (!sheets) {
     return error
       ? <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />
-      : <LoadingState says="Opening import…" />
+      : <LoadingState says="Opening Import records…" />
   }
 
   return (
     <>
       <PageHead
         eyebrow={section}
-        title="Import"
-        subtitle="Cost centers, work sites, purchase orders, holidays, people. Matched on a key, so loading the same file twice changes nothing the second time."
+        title={IMPORT_RECORDS_LABEL}
+        subtitle={importRecordsSubtitle()}
       />
+      {/* Two doors, two verbs (fault 22): teams and their leads are read on Team structure. */}
+      <p className="-mt-3 mb-5 text-[13px] text-etyme-muted">
+        {IMPORT_RECORDS_SAYS}{' '}
+        {/* The link only where Team structure opens for this seat; otherwise the sentence alone. */}
+        {mayOpen(TEAM_STRUCTURE_HREF, seat.permissions)
+          ? <a href={TEAM_STRUCTURE_HREF} className="text-etyme-action-press hover:underline">{IMPORT_RECORDS_POINTS}</a>
+          : `${IMPORT_RECORDS_POINTS.replace(/\.$/, '')}, on Team structure, which your Owner or an Admin opens.`}
+      </p>
 
       {note && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">

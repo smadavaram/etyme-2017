@@ -6,7 +6,13 @@ import type { RollUp } from './tree'
  * writes (lib/team-structure/read).
  */
 
-export interface SeatName { contextId: string; name: string; role: string | null }
+export interface SeatName {
+  contextId: string
+  name: string
+  role: string | null
+  /** The address the person signs in with, where the seat has one; shown under the name on the plain list. */
+  email?: string | null
+}
 export interface ContractorName { sellContractId: string; personId: string; name: string; job: string | null; supplier: string; onSite: boolean }
 
 export interface BoxRead {

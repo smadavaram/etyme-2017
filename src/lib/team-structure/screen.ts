@@ -37,3 +37,36 @@ export function menuStaysOpen(menu: { at: number; touch: boolean }, now: number,
 export function holdStopsHere(on: 'box' | 'person' | 'contractor'): boolean {
   return on !== 'box'
 }
+
+/**
+ * A company with no box under the company box opens as a plain list of
+ * its people, never a chart of one box (founder's first-day list, fault
+ * 18, 2026-11-13: Tapin, six people and no teams). Keyed on boxes alone: a
+ * company with one region and everybody in it is a chart.
+ */
+export function drawsAsList(tree: { boxes: readonly unknown[] }): boolean {
+  return tree.boxes.length === 0
+}
+
+/** The one sentence over the plain list. */
+export function noTeamsSays(companyName: string): string {
+  return `${companyName} has no teams yet. Add a team when one person starts answering for others.`
+}
+
+/** The people on the plain list: the Owner first, then everybody else, each once. */
+export function listPeople<T extends { contextId: string }>(owner: T | null, unplaced: readonly T[]): T[] {
+  const out: T[] = owner ? [owner] : []
+  for (const p of unplaced) if (!out.some((o) => o.contextId === p.contextId)) out.push(p)
+  return out
+}
+
+/** A role in words on the list: its own name, or that nobody gave one yet. */
+export function roleInWords(role: string | null | undefined): string {
+  return role && role !== 'Member' ? role : 'No role yet'
+}
+
+/** Where a person's name on Team structure opens: their row on Users & permissions. */
+export const PERSON_LINK = '/dashboard/access'
+
+/** How many rows the plain list shows before "Show everyone". */
+export const LIST_SHOWS = 50

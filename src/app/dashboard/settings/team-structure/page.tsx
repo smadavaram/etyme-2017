@@ -7,8 +7,12 @@ import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
 import { ImportDialog } from './import-dialog'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { mayOpen } from '@/lib/nav-table'
+import { IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL, READ_TEAMS_LABEL, READ_TEAMS_SAYS } from '@/lib/team-structure/directory/words'
 import { googleOutcomeSays, entraOutcomeSays } from '@/lib/team-structure/directory/outcome'
-import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
+import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, PERSON_LINK, roleInWords } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -49,6 +53,7 @@ const zoneOf = (e: DragEvent, el: HTMLElement, stacked: boolean): Zone => {
 const localTime = (tz: string) => clockFor(new Date(), tz) ?? ''
 
 export default function TeamStructurePage() {
+  const seat = sidebarPropsFrom(useSession())
   const eyebrow = usePageSection('/dashboard/settings/team-structure')
   const [tree, setTree] = useState<TreeRead | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
@@ -61,6 +66,7 @@ export default function TeamStructurePage() {
   const [allNames, setAllNames] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<Menu | null>(null)
   const [importing, setImporting] = useState(false)
+  const [everyone, setEveryone] = useState(false)
   // Google sends the administrator back here with a short code; the
   // sentence is chosen from the code, and the code leaves the address.
   const [googleBack, setGoogleBack] = useState<{ source: 'GOOGLE' | 'ENTRA'; said: { says: string; no: boolean } } | null>(null)
@@ -267,8 +273,13 @@ export default function TeamStructurePage() {
       onTouchEnd={onTouchEnd}
       className="-mx-1 flex cursor-grab justify-between gap-2 rounded-box px-1 text-[12px] leading-snug hover:bg-etyme-sunk"
     >
-      <span className="truncate">{label}</span>
-      <span className="max-w-[80px] truncate text-[11px] text-etyme-faint">{aside}</span>
+      {/* A name and a role wrap to a second line and are never cut
+          (fault 18: "Account Man…"); a person's name opens Users &
+          permissions. */}
+      {m.for === 'person'
+        ? <a href={PERSON_LINK} draggable={false} onClick={(e) => e.stopPropagation()} className="min-w-0 break-words text-etyme-ink hover:underline [-webkit-touch-callout:none]">{label}</a>
+        : <span className="min-w-0 break-words">{label}</span>}
+      <span className="max-w-[50%] shrink-0 break-words text-right text-[11px] text-etyme-faint">{aside}</span>
     </div>
   )
 
@@ -392,26 +403,114 @@ export default function TeamStructurePage() {
     )
   }
 
-  return (
-    <div className="mx-auto max-w-[1320px] space-y-5 px-4 py-6">
-      <PageHead
-        eyebrow={eyebrow}
-        title="Who leads what, and where"
-        subtitle={`Drag a box to move a team. Drag a name to move a person. Every change is kept with who made it and when. ${tree.peopleSays}${tree.peopleSays.endsWith('.') ? '' : '.'}`}
-        actions={
-          <>
-            <button className="btn-primary" onClick={() => setImporting(true)}>Import from your directory</button>
+  const asList = drawsAsList(tree)
+  const peopleLine = `${tree.peopleSays}${tree.peopleSays.endsWith('.') ? '' : '.'}`
+  const head = (
+    <PageHead
+      eyebrow={eyebrow}
+      title="Who leads what, and where"
+      subtitle={asList
+        ? `Every change is kept with who made it and when. ${peopleLine}`
+        : `Drag a box to move a team. Drag a name to move a person. Every change is kept with who made it and when. ${peopleLine}`}
+      actions={
+        <>
+          {asList && <button className="btn-primary" disabled={busy} onClick={() => addUnder(null)}>Add a team</button>}
+          <button className={asList ? 'btn-secondary' : 'btn-primary'} onClick={() => setImporting(true)}>{READ_TEAMS_LABEL}</button>
+          {/* Undo only where there is a change to undo; another person's last change says whose it was. */}
+          {tree.lastChange && (
             <button
               className="btn-secondary"
-              disabled={busy || !tree.lastChange?.yours}
-              title={tree.lastChange && !tree.lastChange.yours ? `The last change was ${tree.lastChange.by ?? 'somebody else'}'s.` : undefined}
+              disabled={busy || !tree.lastChange.yours}
+              title={!tree.lastChange.yours ? `The last change was ${tree.lastChange.by ?? 'somebody else'}'s.` : undefined}
               onClick={() => act('UNDO', {})}
             >
               Undo
             </button>
-          </>
-        }
-      />
+          )}
+        </>
+      }
+    />
+  )
+  const crossLink = (
+    <p className="text-[12.5px] text-etyme-muted">
+      {READ_TEAMS_SAYS}{' '}
+      {mayOpen(IMPORT_RECORDS_HREF, seat.permissions)
+        ? <><a href={IMPORT_RECORDS_HREF} className="text-etyme-action-press hover:underline">{IMPORT_RECORDS_LABEL}</a>.</>
+        : `${IMPORT_RECORDS_LABEL}.`}
+    </p>
+  )
+  const popups = (
+    <>
+      {menu && (
+        <ContextMenu
+          menu={menu}
+          tree={tree}
+          boxes={boxes}
+          kidsOf={kidsOf}
+          folded={folded}
+          onClose={() => setMenu(null)}
+          onAct={act}
+          onAddUnder={addUnder}
+          onAddBeside={addBeside}
+          onAskDelete={askDelete}
+          onFold={(id) => { const s = new Set(folded); s.has(id) ? s.delete(id) : s.add(id); setFolded(s) }}
+          onFocus={focusField}
+          onSay={(says) => setSaid({ says, no: false })}
+          onChoose={setChoose}
+        />
+      )}
+      {choose && <Chooser choose={choose} tree={tree} busy={busy} onClose={() => setChoose(null)} onAct={act} />}
+      {importing && <ImportDialog opening={googleBack ?? undefined} onClose={() => { setImporting(false); setGoogleBack(null) }} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
+    </>
+  )
+
+  // ── A company with no teams: a plain list of its people, never a chart of one box ──
+  if (asList) {
+    const people = listPeople(tree.owner, tree.unplaced)
+    const shown = everyone ? people : people.slice(0, LIST_SHOWS)
+    return (
+      <div className="mx-auto max-w-[900px] space-y-5 px-4 py-6">
+        {head}
+        {crossLink}
+        {said && <p role="status" className={`text-[13px] ${said.no ? 'text-etyme-attention' : 'text-etyme-verified'}`}>{said.says}</p>}
+        <section className="rounded-lg border border-etyme-rule bg-etyme-surface p-4">
+          <p className="text-[14px] text-etyme-ink">{noTeamsSays(company.name)}</p>
+          <ul className="mt-3 divide-y divide-etyme-rule" aria-label={`${company.name}'s people`}>
+            {shown.map((p) => {
+              const m: MenuFor = { for: 'person', contextId: p.contextId, box: null, name: p.name }
+              return (
+                <li
+                  key={p.contextId}
+                  onContextMenu={onContext(m)}
+                  onTouchStart={onTouchStart(m)}
+                  onTouchEnd={onTouchEnd}
+                  className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+                >
+                  <span className="min-w-0">
+                    <a href={PERSON_LINK} className="break-words text-[14px] font-medium text-etyme-ink hover:underline [-webkit-touch-callout:none]">{p.name}</a>
+                    {p.email && <span className="block break-all text-[12px] text-etyme-muted">{p.email}</span>}
+                  </span>
+                  <span className="break-words text-[13px] text-etyme-muted sm:text-right">{roleInWords(p.role)}</span>
+                </li>
+              )
+            })}
+          </ul>
+          {people.length > LIST_SHOWS && (
+            <button className="mt-2 text-[13px] text-etyme-action-press hover:underline" onClick={() => setEveryone(!everyone)}>
+              {everyone ? 'Show fewer' : `Show everyone (${people.length})`}
+            </button>
+          )}
+          <p className="mt-3 text-[12px] text-etyme-faint">Right-click a name, or press and hold on a phone, for what you can do with that person.</p>
+        </section>
+        {popups}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-[1320px] space-y-5 px-4 py-6">
+      {head}
+      {crossLink}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-etyme-muted">
         <span><b className="font-medium text-etyme-ink">Drop on a box</b> to put it under that box</span>
         <span><b className="font-medium text-etyme-ink">Drop on its edge</b> to put it beside</span>
@@ -441,26 +540,7 @@ export default function TeamStructurePage() {
         </div>
       </div>
 
-      {menu && (
-        <ContextMenu
-          menu={menu}
-          tree={tree}
-          boxes={boxes}
-          kidsOf={kidsOf}
-          folded={folded}
-          onClose={() => setMenu(null)}
-          onAct={act}
-          onAddUnder={addUnder}
-          onAddBeside={addBeside}
-          onAskDelete={askDelete}
-          onFold={(id) => { const s = new Set(folded); s.has(id) ? s.delete(id) : s.add(id); setFolded(s) }}
-          onFocus={focusField}
-          onSay={(says) => setSaid({ says, no: false })}
-          onChoose={setChoose}
-        />
-      )}
-      {choose && <Chooser choose={choose} tree={tree} busy={busy} onClose={() => setChoose(null)} onAct={act} />}
-      {importing && <ImportDialog opening={googleBack ?? undefined} onClose={() => { setImporting(false); setGoogleBack(null) }} onApplied={async (says: string) => { setImporting(false); setSaid({ says, no: false }); await load() }} />}
+      {popups}
     </div>
   )
 }

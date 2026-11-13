@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
+import { NOT_AVAILABLE_YET, READ_TEAMS_LABEL, splitSources, tileStatus, IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL } from '@/lib/team-structure/directory/words'
 
 /**
- * "Import from your directory" (founder, 2026-11-09: "Can it be integrated
+ * "Read teams from your directory", once "Import from your directory" (founder, 2026-11-09: "Can it be integrated
  * or imported from Active Directory"). Three sources, as drawn: Microsoft
  * Entra ID, Google Workspace, and a file exported from Active Directory.
  * The file works today. Google Workspace connects here (2026-11-11): the
@@ -70,7 +71,13 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
     void loadSources()
   }, [])
 
-  const chosen = sources.find((s) => s.key === source) ?? null
+  const FILE_ONLY: Source = { key: 'CSV', label: 'A file from Active Directory', says: 'An export from Active Directory on your own servers (CSV).', connected: true, adminApproves: null }
+  const { open, waiting } = splitSources(sources.length ? sources : [FILE_ONLY])
+  // A source folded as waiting is never the chosen one: the dialog opens on what works.
+  const chosen = open.find((s) => s.key === source) ?? null
+  useEffect(() => {
+    if (sources.length && !open.some((s) => s.key === source)) setSource(open[0]?.key ?? 'CSV')
+  }, [sources]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (body: Record<string, unknown>) => {
     setBusy(true)
@@ -146,16 +153,19 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div role="dialog" aria-modal="true" aria-label={preview ? 'Changes from your directory' : 'Import from your directory'} className="flex max-h-[88vh] w-full max-w-[640px] flex-col gap-3.5 overflow-auto rounded-r-lg border border-etyme-rule bg-etyme-surface p-5 shadow-float">
+      <div role="dialog" aria-modal="true" aria-label={preview ? 'Changes from your directory' : READ_TEAMS_LABEL} className="flex max-h-[88vh] w-full max-w-[640px] flex-col gap-3.5 overflow-auto rounded-r-lg border border-etyme-rule bg-etyme-surface p-5 shadow-float">
         {!preview ? (
           <>
             <div>
               <p className="eyebrow">Team structure</p>
-              <h2 className="headline-serif text-[21px] text-etyme-ink">Import from your directory</h2>
+              <h2 className="headline-serif text-[21px] text-etyme-ink">{READ_TEAMS_LABEL}</h2>
             </div>
             <p className="text-[13.5px] text-etyme-muted">Etyme reads your departments, who reports to whom, and each person’s office. You see every change before it is made.</p>
+            {/* What works or can be connected today, the file first where
+                nothing is connected; a source waiting on Etyme is folded
+                under "Not available yet" with whose move it is (fault 22). */}
             <div className="grid gap-2 sm:grid-cols-3">
-              {(sources.length ? sources : [{ key: 'CSV', label: 'A file from Active Directory', says: 'An export from Active Directory on your own servers (CSV).', connected: true, adminApproves: null } as Source]).map((s, i) => (
+              {open.map((s, i) => (
                 <button
                   key={s.key}
                   ref={i === 0 ? first : undefined}
@@ -165,10 +175,18 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
                 >
                   <b className="text-[13.5px] font-medium text-etyme-ink">{s.label}</b>
                   {s.says}
-                  {!s.connected && <span className="text-[11.5px] text-etyme-attention">Not connected</span>}
+                  {tileStatus(s) && <span className="text-[11.5px] text-etyme-muted">{tileStatus(s)}</span>}
                 </button>
               ))}
             </div>
+            {waiting.length > 0 && (
+              <details className="rounded-lg border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px] text-etyme-muted">
+                <summary className="cursor-pointer text-etyme-ink">{NOT_AVAILABLE_YET}: {waiting.map((s) => s.label).join(', ')}</summary>
+                <ul className="mt-1.5 space-y-1">
+                  {waiting.map((s) => <li key={s.key}><b className="font-medium text-etyme-ink">{s.label}.</b> {tileStatus(s)}</li>)}
+                </ul>
+              </details>
+            )}
             <div>
               <p className="eyebrow mb-1.5">What is read, and where it goes</p>
               <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-etyme-rule pt-2 text-[13px] sm:grid-cols-[auto_1fr]">
@@ -188,10 +206,10 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
                 <li>Nothing is deleted. A box that is no longer in the directory is shown to you, not removed.</li>
                 <li>Your own edits here stay. If the directory disagrees, you are asked.</li>
                 <li>People are matched to their seats by email. Nobody gets a seat from an import; you invite them.</li>
-                <li>Contractors are not in your directory, so nobody on a contract is moved.</li>
+                <li>Contractors are not in your directory, so nobody on a contract is moved. Contractors, suppliers and sites come in under <a href={IMPORT_RECORDS_HREF} className="text-etyme-action-press hover:underline">{IMPORT_RECORDS_LABEL}</a>.</li>
               </ul>
             </div>
-            {chosen && !chosen.connected && chosen.adminApproves && (
+            {chosen && !chosen.connected && chosen.connectable && chosen.adminApproves && (
               <p className="rounded-lg bg-etyme-attention-wash p-3 text-[13px]">{chosen.label} is not connected. {chosen.adminApproves} A file exported from Active Directory works today.</p>
             )}
             {(chosen?.key === 'GOOGLE' || chosen?.key === 'ENTRA') && chosen.connection && (

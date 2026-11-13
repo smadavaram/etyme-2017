@@ -212,3 +212,140 @@ describe('the screen, as walk 10 found it', () => {
     expect(reachWithTeam(['COMPANY', 'UNIT'], null)).toEqual({ scope: 'COMPANY', orgUnitId: '' })
   })
 })
+
+/**
+ * ── A company with no teams, and two doors that point at each other ──
+ *
+ * The founder's first-day list, faults 18 and 22 (2026-11-13), read as
+ * Tapin's Owner: six people and no teams opened as a chart of one box with
+ * every role cut ("Account Man…"), and "Import" meant two different things.
+ */
+import { drawsAsList, listPeople, noTeamsSays, roleInWords, PERSON_LINK, LIST_SHOWS } from '@/lib/team-structure/screen'
+import {
+  importRecordsLoads, importRecordsSubtitle, splitSources, tileStatus, READ_TEAMS_LABEL, READ_TEAMS_SAYS,
+  IMPORT_RECORDS_SAYS, IMPORT_RECORDS_POINTS, IMPORT_RECORDS_HREF, TEAM_STRUCTURE_HREF, NOT_AVAILABLE_YET, WAITING_ON_ETYME,
+  TEAMS_LINK_HREF,
+} from '@/lib/team-structure/directory/words'
+import { directorySources as sourcesNow } from '@/lib/team-structure/directory/providers'
+import { IMPORTABLE } from '@/lib/importable'
+import { readFileSync as readScreen } from 'node:fs'
+
+describe('a company with no teams opens as a plain list of its people', () => {
+  const page = readScreen('src/app/dashboard/settings/team-structure/page.tsx', 'utf8')
+  const owner = { contextId: 'o', name: 'Sharath', role: 'Owner', email: 'sharath@etyme.com' }
+  const rest = [
+    { contextId: 'a', name: 'Oliver', role: 'Account Manager', email: 'oliver@etyme.com' },
+    { contextId: 't', name: 'timesheets@etyme.com', role: 'AP & Payroll', email: 'timesheets@etyme.com' },
+    { contextId: 'm', name: 'Sidhu', role: 'Member', email: 'sidhu871@gmail.com' },
+  ]
+
+  it('a company with no teams opens Team structure as a list of its people, not a chart', () => {
+    expect(drawsAsList({ boxes: [] })).toBe(true)
+    expect(page).toMatch(/if \(asList\) \{/)
+  })
+
+  it('a company with one box and everybody in it still opens as the chart', () => {
+    expect(drawsAsList({ boxes: [{ id: 'r1' }] })).toBe(false)
+  })
+
+  it('the empty team structure says the company has no teams yet and offers Add a team, the add-under act on the company box', () => {
+    expect(noTeamsSays('Tapin')).toBe('Tapin has no teams yet. Add a team when one person starts answering for others.')
+    expect(page).toMatch(/className="btn-primary" disabled=\{busy\} onClick=\{\(\) => addUnder\(null\)\}>Add a team</)
+  })
+
+  it('the list names every person once, the Owner first, with the role in words and the sign-in address', () => {
+    const people = listPeople(owner, [...rest, owner])
+    expect(people.map((p) => p.contextId)).toEqual(['o', 'a', 't', 'm'])
+    expect(people.map((p) => roleInWords(p.role))).toEqual(['Owner', 'Account Manager', 'AP & Payroll', 'No role yet'])
+    expect(page).toMatch(/\{p\.email && <span className="block break-all/)
+  })
+
+  it('a person’s name on the team structure opens Users and permissions', () => {
+    expect(PERSON_LINK).toBe('/dashboard/access')
+    expect(page).toMatch(/<a href=\{PERSON_LINK\}[^>]*>\{p\.name\}<\/a>/)
+  })
+
+  it('the right-click and press-and-hold menu still work on a person in the list', () => {
+    const row = page.slice(page.indexOf('if (asList) {'))
+    expect(row).toMatch(/onContextMenu=\{onContext\(m\)\}/)
+    expect(row).toMatch(/onTouchStart=\{onTouchStart\(m\)\}/)
+  })
+
+  it('a long list shows the first rows and then Show everyone, never three hundred rows at once', () => {
+    expect(LIST_SHOWS).toBeGreaterThan(0)
+    expect(page).toMatch(/Show everyone \(\$\{people\.length\}\)/)
+  })
+
+  it('a role name on the team structure is never cut with an ellipsis, at any width', () => {
+    expect(page).not.toMatch(/max-w-\[80px\]/)
+    expect(page).not.toMatch(/className="truncate"/)
+  })
+
+  it('Undo is drawn only where there is a change to undo', () => {
+    expect(page).toMatch(/\{tree\.lastChange && \(\s*<button/)
+  })
+})
+
+describe('two verbs for two doors, each pointing at the other', () => {
+  it('Import records says what it really loads, read off the kinds list, and promises no supplier or team', () => {
+    expect(importRecordsLoads()).toBe('candidates, sites, purchase orders, cost centers and holidays')
+    expect(importRecordsLoads(IMPORTABLE).split(/, | and /).length).toBe(IMPORTABLE.length)
+    expect(importRecordsSubtitle()).not.toMatch(/supplier|team|contractor/i)
+  })
+
+  it('Import records says it does not bring in teams and links to Team structure', () => {
+    expect(`${IMPORT_RECORDS_SAYS} ${IMPORT_RECORDS_POINTS}`).toBe('This does not bring in your teams or who leads them. Read those from your directory.')
+    expect(TEAM_STRUCTURE_HREF).toBe('/dashboard/settings/team-structure')
+    const data = readScreen('src/app/dashboard/data/page.tsx', 'utf8')
+    expect(data).toMatch(/<a href=\{TEAM_STRUCTURE_HREF\}/)
+    expect(data).toMatch(/title=\{IMPORT_RECORDS_LABEL\}/)
+  })
+
+  it('Read teams from your directory says what it reads and links to Import records', () => {
+    expect(READ_TEAMS_LABEL).toBe('Read teams from your directory')
+    expect(READ_TEAMS_SAYS).toBe('This reads teams, leads and staff. Candidates, sites, purchase orders, cost centers and holidays come in under')
+    expect(IMPORT_RECORDS_HREF).toBe('/dashboard/data')
+    const page = readScreen('src/app/dashboard/settings/team-structure/page.tsx', 'utf8')
+    expect(page).toMatch(/\{READ_TEAMS_LABEL\}<\/button>/)
+    expect(page).not.toMatch(/Import from your directory/)
+  })
+
+  it('a cross-link is drawn only where the reader may open the page it points at', () => {
+    for (const f of ['src/app/dashboard/data/page.tsx', 'src/app/dashboard/settings/team-structure/page.tsx', 'src/app/dashboard/integrations/page.tsx']) {
+      expect(readScreen(f, 'utf8'), f).toMatch(/mayOpen\([A-Z_]+_HREF, seat\.permissions\)/)
+    }
+  })
+
+  it('a directory source waiting on Etyme is folded under Not available yet and says whose move it is', () => {
+    const none = sourcesNow({})
+    const { open, waiting } = splitSources(none)
+    expect(open.map((s) => s.key)).toEqual(['CSV'])
+    expect(waiting.map((s) => s.key).sort()).toEqual(['ENTRA', 'GOOGLE'])
+    for (const s of waiting) expect(tileStatus(s)).toBe(WAITING_ON_ETYME)
+    expect(WAITING_ON_ETYME).toBe('Waiting on Etyme to switch this on. Use a file exported from your directory until then.')
+    expect(NOT_AVAILABLE_YET).toBe('Not available yet')
+  })
+
+  it('a company with no keys sees the file source first and working', () => {
+    const { open } = splitSources([
+      { key: 'GOOGLE', connected: false, connectable: true },
+      { key: 'CSV', connected: true },
+    ])
+    expect(open.map((s) => s.key)).toEqual(['CSV', 'GOOGLE'])
+    expect(tileStatus({ key: 'GOOGLE', connected: false, connectable: true })).toBe('Your admin connects it here, once.')
+    expect(tileStatus({ key: 'CSV', connected: true })).toBeNull()
+  })
+
+  it('no directory tile reads only Not connected or Not ready yet', () => {
+    const dialog = readScreen('src/app/dashboard/settings/team-structure/import-dialog.tsx', 'utf8')
+    expect(dialog).not.toMatch(/>Not connected</)
+    expect(dialog).not.toMatch(/Not ready yet/)
+    expect(dialog).toMatch(/<details/)
+  })
+
+  it('Integrations has one line that links to where the Teams link is pasted, and no new panel', () => {
+    expect(TEAMS_LINK_HREF).toBe('/dashboard/settings?tab=company')
+    const page = readScreen('src/app/dashboard/integrations/page.tsx', 'utf8')
+    expect(page).toMatch(/<a href=\{TEAMS_LINK_HREF\}/)
+  })
+})

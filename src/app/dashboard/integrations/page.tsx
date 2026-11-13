@@ -4,6 +4,10 @@ import { usePageSection } from '@/components/page-section'
 import { amount, DEFAULT_CURRENCY } from '@/lib/money-display'
 import { ErrorState, Field, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { useEffect, useState } from 'react'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { mayOpen } from '@/lib/nav-table'
+import { TEAMS_LINK_ASK, TEAMS_LINK_HREF, TEAMS_LINK_SAYS, TEAMS_LINK_WHERE } from '@/lib/team-structure/directory/words'
 
 /**
  * Their books, fed from ours. Export once, stamped as sent; reconcile
@@ -11,6 +15,7 @@ import { useEffect, useState } from 'react'
  */
 
 export default function IntegrationsPage() {
+  const seat = sidebarPropsFrom(useSession())
   const section = usePageSection('/dashboard/integrations')
   const [data, setData] = useState<any>(null)
   const [runs, setRuns] = useState<any[]>([])
@@ -118,6 +123,15 @@ export default function IntegrationsPage() {
         title="Integrations"
         subtitle="The journal exports once and is stamped as sent — a re-export is a double posting somebody’s auditor finds. Reconciliation names every break, because a bare difference gets redone next month from zero."
       />
+
+      {/* The one integration a small firm uses is the Teams link, pasted on
+          Settings; one line points there, no panel of its own (fault 22). */}
+      <p className="mb-5 text-[13px] text-etyme-muted">
+        {TEAMS_LINK_SAYS}{' '}
+        {mayOpen(TEAMS_LINK_HREF, seat.permissions)
+          ? <a href={TEAMS_LINK_HREF} className="text-etyme-action-press hover:underline">{TEAMS_LINK_WHERE}</a>
+          : TEAMS_LINK_ASK}
+      </p>
 
       {loading && <LoadingState says="Opening integrations…" />}
       {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}

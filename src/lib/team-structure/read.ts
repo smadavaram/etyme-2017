@@ -41,7 +41,7 @@ export async function readTree(companyId: string, viewerPersonId: string, now = 
     // sample seat, and never named with the company's own name.
     readCompanySeats(companyId).then((all) => peopleOf(all).map((c) => ({
       id: c.contextId, orgUnitId: c.orgUnitId, grantedAt: c.grantedAt, state: c.state,
-      person: { name: c.name }, role: c.roleName ? { name: c.roleName } : null,
+      person: { name: c.name, email: c.email }, role: c.roleName ? { name: c.roleName } : null,
     }))),
     prisma.sellContract.findMany({
       where: { orgUnit: { companyId }, state: { in: [...LIVE_LINES] } },
@@ -64,7 +64,7 @@ export async function readTree(companyId: string, viewerPersonId: string, now = 
     }),
   ])
 
-  const seat = (c: (typeof seats)[number]): SeatName => ({ contextId: c.id, name: c.person.name, role: c.role?.name ?? null })
+  const seat = (c: (typeof seats)[number]): SeatName => ({ contextId: c.id, name: c.person.name, role: c.role?.name ?? null, email: c.person.email })
   const seatById = new Map(seats.map((c) => [c.id, c]))
 
   // ── The time limit, where the company set one ──
