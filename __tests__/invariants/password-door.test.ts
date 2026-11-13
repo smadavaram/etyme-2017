@@ -288,17 +288,20 @@ describe('the login page offers email and password even when no provider key is 
     // Since 2026-11-12 Google and Microsoft are drawn above the password
     // (lib/login-doors orderDoors); the password is still always offered
     // where the address's company allows it, alone where it is the only door.
+    // Since the evening of 2026-11-12 the password is asked on the second
+    // screen, after Continue with the email, wherever the route names it.
     const page = read('src/app/(auth)/login/page.tsx')
     expect(page.indexOf("signIn('credentials'")).toBeGreaterThan(0)
-    expect(page).toContain("if (d === 'password') {")
-    expect(page).toContain("const passwordAlone = ordered.length === 1 && ordered[0] === 'password'")
+    expect(page).toContain("const offersPassword = ordered.includes('password')")
+    expect(page).toContain('{offersPassword ? (')
     expect(page).not.toContain("has('credentials')")
     expect(page).not.toContain('No sign-in method is switched on')
   })
 
   it('links to sign-up and to a reset from the sign-in form', () => {
     const page = read('src/app/(auth)/login/page.tsx')
-    expect(page).toContain('window.location.assign(signUpWith(email))')
+    // "New here? Sign up" is a link under the heading, carrying the address typed.
+    expect(page).toContain('href={signUpWith(email)}')
     expect(page).toContain('href="/reset"')
   })
 })
@@ -390,10 +393,11 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(companyAccounts(null)).toEqual([])
     expect(offers(new Set(['credentials', 'email']), 'email')).toBe(true)
     expect(offers(new Set(['credentials']), 'azure-ad')).toBe(false)
-    // The sign-in page draws Microsoft and Google only after the doors route named them for the address.
-    const page = read('src/app/(auth)/login/page.tsx')
-    expect(page).toContain('const ordered = doors ? orderDoors(doors, lastDoor) : []')
-    expect(page).toContain('{ordered.map(door)}')
+    // The account buttons are drawn from the deployment's own list, and from nothing else.
+    const { accountButtons } = await import('@/lib/login-doors')
+    expect(accountButtons(null, 'google')).toEqual([])
+    expect(accountButtons(new Set(['credentials']), null)).toEqual([])
+    expect(read('src/app/(auth)/account-doors.tsx')).toContain('const drawn = accountButtons(available, retry ?? last)')
   })
 
   it('the sign-up form offers the one-person firm, which may use a personal email', async () => {

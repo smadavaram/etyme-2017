@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { configuredProviders } from '@/lib/auth'
 import { policyFacts } from '@/lib/identity/read'
 import { domainOfEmail } from '@/lib/company-domains'
-import { doorsFor, looksLikeEmail, tooManyDoorAsks, directoryStart } from '@/lib/login-doors'
+import { doorsFor, looksLikeEmail, tooManyDoorAsks, directoryStart, NO_DIRECTORY_YET } from '@/lib/login-doors'
+import { openDoorProof } from '@/lib/identity/door-proof'
 
 /**
  * POST /api/auth/doors { email }
@@ -14,6 +15,14 @@ import { doorsFor, looksLikeEmail, tooManyDoorAsks, directoryStart } from '@/lib
  * address has an account, so a known address and an unknown one on the
  * same kind of domain get the same answer. Nothing is read beyond the
  * sign-in policy and the directories turned on for that domain.
+ *
+ * POST /api/auth/doors { proof }, the second question (2026-11-12): an
+ * account button a directory-only company refused comes back with a
+ * sealed proof that the address just went through that provider
+ * (lib/identity/door-proof). Only then does the answer name the company
+ * and its directory, because only then has the address proved itself. A
+ * proof that is forged, altered or out of date is answered as if nothing
+ * was sent.
  */
 
 const asked = new Map<string, number[]>()
@@ -36,6 +45,22 @@ export async function POST(request: NextRequest) {
   if (asked.size > 10_000) asked.clear()
 
   const body = await request.json().catch(() => ({}))
+  if (body?.proof !== undefined) {
+    const proven = openDoorProof(body.proof)
+    const facts = proven ? await policyFacts(proven) : null
+    const co = facts?.domainCompany
+    if (!proven || !co || facts!.publicAddress) return NextResponse.json({ data: { directory: null } })
+    return NextResponse.json({
+      data: {
+        directory: {
+          email: proven,
+          company: co.companyName,
+          start: co.issuers.length > 0 ? directoryStart(proven) : null,
+          says: co.issuers.length > 0 ? null : NO_DIRECTORY_YET,
+        },
+      },
+    })
+  }
   const email = String(body?.email ?? '').trim().toLowerCase()
   if (!looksLikeEmail(email)) {
     return NextResponse.json(

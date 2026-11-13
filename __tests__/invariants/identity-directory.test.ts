@@ -178,9 +178,10 @@ describe('the mock directory is a mock, for demo companies only', () => {
 })
 
 describe('who may come in through which door, beyond the directory', () => {
-  it('a LinkedIn session is refused a seat at a company with colleagues, and allowed a one-person firm’s and a worker’s own', () => {
-    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Northbend Athletic', kind: 'CLIENT' })).toMatch(/workers and one-person firms/)
-    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Colleen Byrne LLC', kind: 'CONSULTANT_CORP' })).toBeNull()
+  it('a LinkedIn session is refused a seat at any company, a one-person firm’s included, and allowed a candidate’s own', () => {
+    // Narrowed by the founder on 2026-11-12: "For LinkedIn, mention for candidate only".
+    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Northbend Athletic', kind: 'CLIENT' })).toMatch(/^LinkedIn is for candidates only\. Sign in to Northbend Athletic with Continue with Google/)
+    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Colleen Byrne LLC', kind: 'CONSULTANT_CORP' })).toMatch(/^LinkedIn is for candidates only/)
     expect(linkedInSeatRefusal('LINKEDIN', null)).toBeNull()
     expect(linkedInSeatRefusal('GOOGLE_SOCIAL', { name: 'Northbend Athletic', kind: 'CLIENT' })).toBeNull()
   })

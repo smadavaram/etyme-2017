@@ -192,17 +192,19 @@ export function seatRefusal(seatCompany: CompanyPolicy | null, s: Pick<SessionFa
 }
 
 /**
- * LinkedIn is a door for a worker and a one-person firm, never for a seat
- * at a company with colleagues (founder, 2026-11-11: "Only the workers and
- * solopreneurs can have Gmail or LinkedIn login. Rest would be Microsoft,
- * Google enterprise or Okta login"). A worker's own seat holds no company;
- * a one-person firm is a CONSULTANT_CORP. Every other company's seat is
- * refused to a LinkedIn session, in a sentence that says the way in.
+ * LinkedIn is a door for a candidate, never for a seat at a company.
+ * The founder, 2026-11-11, let workers and one-person firms use it; on
+ * 2026-11-12 he narrowed it: "For LinkedIn, mention for candidate only".
+ * A worker's own seat holds no company; every company's seat, a one-person
+ * firm's included, is refused to a LinkedIn session, in a sentence that
+ * says the way in.
  */
 export function linkedInSeatRefusal(door: Door | null, seatCompany: { name: string; kind: string } | null | undefined): string | null {
   if (door !== 'LINKEDIN' || !seatCompany) return null
-  if (seatCompany.kind === 'CONSULTANT_CORP') return null
-  return `LinkedIn sign-in is for workers and one-person firms. Sign in to ${seatCompany.name} through your company's directory, or with Microsoft, Google or your email and password where ${seatCompany.name} allows it.`
+  // Since 2026-11-12 LinkedIn is for candidates only (founder: "For
+  // LinkedIn, mention for candidate only"), so a one-person firm's seat is
+  // refused too: she signs in with Google, Microsoft or her email.
+  return `LinkedIn is for candidates only. Sign in to ${seatCompany.name} with Continue with Google, Continue with Microsoft or your email, or through your company's directory where ${seatCompany.name} uses one.`
 }
 
 /**

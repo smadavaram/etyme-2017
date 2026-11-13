@@ -401,7 +401,23 @@ export const authOptions: NextAuthOptions = {
           door, email: sessionEmail(user.email)!, surface: 'WEB',
           issuer: door === 'DIRECTORY' ? directoryIssuer(user, profile) : null,
         })
-        if (!v.allowed) return '/login?error=DirectoryOnly'
+        if (!v.allowed) {
+          // An address Google, Microsoft or LinkedIn just vouched for, on a
+          // directory-only company's domain: the sign-in page is handed a
+          // sealed proof of it and draws that company's own directory
+          // (lib/identity/door-proof). Nothing is said for any other door.
+          const proven = v.policy === 'SSO_ONLY' && (door === 'GOOGLE_SOCIAL' || door === 'MICROSOFT_SOCIAL' || door === 'LINKEDIN')
+          const { sealDoorProof } = await import('@/lib/identity/door-proof')
+          const proof = proven ? sealDoorProof(sessionEmail(user.email)!) : null
+          return proof ? `/login?error=DirectoryOnly&proof=${proof}` : '/login?error=DirectoryOnly'
+        }
+        // LinkedIn is for candidates only (founder, 2026-11-12): anybody who
+        // holds a seat at a company, a one-person firm included, is told
+        // which button to use. The row is written before the refusal.
+        if (door === 'LINKEDIN') {
+          const { linkedInSeatAtSignIn } = await import('@/lib/identity/read')
+          if (await linkedInSeatAtSignIn(sessionEmail(user.email)!)) return '/login?error=LinkedInHasSeat'
+        }
       }
       // The session version this session is signed in under, read before
       // the session exists. Read twice; where both fail the sign-in ends

@@ -39,6 +39,8 @@ export function signInRefusal(code: string | null | undefined): string | null {
       return 'Your Microsoft or Google account has not confirmed that email address, so it cannot sign you in here. Sign in another way.'
     case 'NoEmail':
       return 'Your Microsoft or Google account did not share an email address, so it cannot sign you in here. Sign in another way.'
+    case 'LinkedInHasSeat':
+      return LINKEDIN_HAS_SEAT_SAYS
     case 'DirectoryOnly':
       // A company's sign-in policy refused the door (lib/identity). The
       // company is not named, because the page does not know which.
@@ -248,15 +250,90 @@ export function directoryStart(email: string, next = '/start'): string {
   return `/api/sso/start?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(next)}`
 }
 
-/** LinkedIn's button says who it is for, because it is not a door to a company with colleagues. */
-export const LINKEDIN_DOOR_SAYS = 'For workers and one-person firms.'
+/**
+ * LinkedIn's button says who it is for, on the button itself (founder,
+ * 2026-11-12: "For LinkedIn, mention for candidate only"). A one-person
+ * firm signs in with Google, Microsoft or a password.
+ */
+export const LINKEDIN_DOOR_SAYS = 'Candidates only'
 
-// ── The email first, then only its door (founder, 2026-11-12) ─────────
+/**
+ * Said where somebody who holds a seat at a company signed in through
+ * LinkedIn (lib/auth refuses it in the sign-in callback, the row written
+ * first). They have just proved the address through LinkedIn, so the
+ * sentence may say they hold a seat; it names no company.
+ */
+export const LINKEDIN_HAS_SEAT_SAYS =
+  'LinkedIn is for candidates only. You have a seat at a company on Etyme, so use Continue with Google, Continue with Microsoft or your email.'
 
-/** The heading of the first screen, and its two buttons, Create first. */
-export const WELCOME = 'Welcome to Etyme'
-export const CREATE_ACCOUNT = 'Create your account'
+// ── The account buttons first, then the email (founder, 2026-11-12, evening) ──
+//
+// "I meant how a new user signs up, or Google sign in, or Microsoft sign
+// in, or LinkedIn sign in, and then if the user wants to use username and
+// password or directory sign in." The words of every screen, in one place.
+
+export const SIGN_IN_HEADING = 'Sign in to Etyme'
+export const SIGN_UP_HEADING = 'Create your Etyme account'
+export const WELCOME_BACK = 'Welcome back'
 export const SIGN_IN = 'Sign in'
+export const CONTINUE = 'Continue'
+export const OR_USE_YOUR_EMAIL = 'or use your email'
+/** Under the email's Continue on the sign-in screen. */
+export const EMAIL_HINT = 'For a password, or your company\u2019s own sign-in.'
+/** Said, never a greyed button, where the email box is empty or half typed. */
+export const TYPE_YOUR_EMAIL = 'Type your email address, like you@company.com.'
+/** Said, never a greyed button, where the password box is empty. */
+export const TYPE_YOUR_PASSWORD = 'Type your password.'
+
+/** A provider's name as its button says it. */
+export function providerName(door: RetryDoor): string {
+  return door === 'google' ? 'Google' : door === 'microsoft' ? 'Microsoft' : 'LinkedIn'
+}
+export function continueWith(door: RetryDoor): string {
+  return `Continue with ${providerName(door)}`
+}
+/** The filled button on a sign-in that did not finish. */
+export function tryAgainWith(door: RetryDoor): string {
+  return `Try ${providerName(door)} again`
+}
+
+/**
+ * The account buttons the first screen draws: Google, Microsoft and
+ * LinkedIn, only where this deployment holds their keys, the door this
+ * browser used last first, else in that order. Nothing while the list of
+ * providers is not known. Pure.
+ */
+export function accountButtons(available: KnownDoors, last: RememberedDoor | null): RetryDoor[] {
+  const offered: SignInDoor[] = [
+    offers(available, 'google') ? 'google' : null,
+    offers(available, 'azure-ad') ? 'microsoft' : null,
+    offers(available, 'linkedin') ? 'linkedin' : null,
+  ].filter((d): d is SignInDoor => d !== null)
+  return orderDoors(offered, last).filter((d): d is RetryDoor => d === 'google' || d === 'microsoft' || d === 'linkedin')
+}
+
+/** The directory screen, after an account button a directory-only company refused. */
+export function directoryCardSays(company: string): string {
+  return `${company} signs in through its own directory. No Etyme password, and no personal account.`
+}
+export function continueToDirectory(company: string): string {
+  return `Continue to ${company}\u2019s sign-in`
+}
+
+/**
+ * An address cut in the middle so it fits on one line of a button, the
+ * start and the domain kept: "sharath.madavaram…@etyme.com". The whole
+ * address stays in the button's accessible name.
+ */
+export function middleEllipsis(email: string, max = 34): string {
+  const e = email.trim()
+  if (e.length <= max) return e
+  const at = e.lastIndexOf('@')
+  const tail = at > 0 ? e.slice(at) : e.slice(-Math.floor(max / 2))
+  const keep = Math.max(1, max - tail.length - 1)
+  if (tail.length >= max - 1) return `${e.slice(0, Math.ceil((max - 1) / 2))}\u2026${e.slice(-Math.floor((max - 1) / 2))}`
+  return `${e.slice(0, keep)}\u2026${tail}`
+}
 
 /** A door the second screen may draw. `directory` is never drawn beside another. */
 export type SignInDoor = 'directory' | 'google' | 'microsoft' | 'linkedin' | 'password'
@@ -324,7 +401,7 @@ export function doorsFor(q: DoorsQuestion): DoorsAnswer {
   return { doors }
 }
 
-/** Where "Create your account" goes, carrying the address so it is typed once. */
+/** Where "Sign up" goes, carrying the address so it is typed once. */
 export function signUpWith(email: string): string {
   const e = email.trim()
   return e ? `/signup?email=${encodeURIComponent(e)}` : '/signup'

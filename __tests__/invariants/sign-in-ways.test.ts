@@ -161,20 +161,21 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
     expect(companyAccounts(new Set(['credentials']))).toEqual([])
     expect(companyAccounts(null)).toEqual([])
     expect(companyAccounts(new Set(['credentials', 'azure-ad', 'google']))).toEqual(['Microsoft', 'Google'])
+    const { accountButtons } = await import('@/lib/login-doors')
+    expect(accountButtons(new Set(['credentials']), null)).toEqual([])
+    expect(accountButtons(new Set(['credentials', 'azure-ad', 'google', 'linkedin']), null)).toEqual(['google', 'microsoft', 'linkedin'])
     const doors = read('src/app/(auth)/account-doors.tsx')
-    expect(doors).toContain('if (companyAccounts(available).length === 0) return null')
-    expect(doors).toContain("offers(available, 'azure-ad') ? 'microsoft' : null")
-    expect(doors).toContain("offers(available, 'google') ? 'google' : null")
+    expect(doors).toContain('if (drawn.length === 0) return null')
     const form = read('src/app/(auth)/signup/form.tsx')
     expect(form).toContain('const available = useKnownDoors()')
-    expect(form).toContain('{!claimToken && <AccountDoors available={available} callbackUrl="/start" />}')
+    expect(form).toContain('{!claimToken && <AccountButtons available={available} callbackUrl="/start" />}')
     // No sentence about missing keys on sign-up.
     expect(form).not.toContain('not set up on this deployment')
   })
 
-  it('the sign-in page and the sign-up page draw the same Microsoft and Google buttons through one shared press', () => {
-    // Since 2026-11-12 the sign-in page draws Google above the password
-    // (lib/login-doors orderDoors); the sign-up page keeps its form first.
+  it('the sign-in page and the sign-up page draw the same Google, Microsoft and LinkedIn buttons through one shared press', async () => {
+    // Since the evening of 2026-11-12 both pages draw the account buttons
+    // first and the email under "or use your email".
     const login = read('src/app/(auth)/login/page.tsx')
     const form = read('src/app/(auth)/signup/form.tsx')
     for (const page of [login, form]) {
@@ -182,12 +183,14 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
       expect(page).not.toContain("signIn('azure-ad'")
       expect(page).not.toContain("signIn('google'")
     }
-    expect(login).toContain('<AccountDoorButton door={d}')
-    expect(form.indexOf('</form>')).toBeLessThan(form.indexOf('<AccountDoors'))
+    expect(login).toContain('<AccountButtons available={available}')
+    expect(form.indexOf('<AccountButtons')).toBeLessThan(form.indexOf('<form onSubmit={next}'))
+    expect(login.indexOf('<AccountButtons')).toBeLessThan(login.indexOf('<form className="space-y-3" onSubmit={askDoors}'))
     const doors = read('src/app/(auth)/account-doors.tsx')
     expect(doors).toContain('void signIn(providerOf(door), { callbackUrl }, chooserFor(email))')
-    expect(doors).toContain('Continue with Microsoft')
-    expect(doors).toContain('Continue with Google')
+    const { continueWith } = await import('@/lib/login-doors')
+    expect(['google', 'microsoft', 'linkedin'].map((d) => continueWith(d as any))).toEqual(['Continue with Google', 'Continue with Microsoft', 'Continue with LinkedIn'])
+    expect(doors).toContain('continueWith(door)')
   })
 
   it('a Google sign-in is refused where Google has not confirmed the email, because the email is who the session is', async () => {
@@ -272,7 +275,8 @@ describe('every sign-in door shows the account chooser (founder, 2026-10-20)', (
     // browser, never the line beside a form (fault 2).
     const page = read('src/app/(auth)/login/page.tsx')
     expect(page).not.toMatch(/<AnotherAccount[ \/]/)
-    expect(page).toContain('{continueAs(signedIn)}')
+    expect(page).toContain('{CONTINUE}')
+    expect(page).toContain('aria-label={`${CONTINUE} as ${signedIn}`}')
     expect(page).toContain('signOut({ callbackUrl: AFTER_ANOTHER_ACCOUNT })')
     expect(page).toContain("params.get('another') === '1'")
     const { PICK_ANOTHER_ACCOUNT } = await import('@/lib/login-doors')

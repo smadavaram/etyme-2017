@@ -65,7 +65,7 @@ describe('the integrator’s import', () => {
 })
 
 describe('sign-up guesses', () => {
-  it('the sign-up form suggests the Etyme address, the country and the currency, and a person may change each', () => {
+  it('the sign-up form suggests the Etyme address, which a person may change, and sends the country and the currency it guessed from the address', () => {
     const g = signUpGuesses('maeve@quarrybrook.co.uk', 'Quarrybrook Staffing')
     expect(g.address).toBe('quarrybrook-staffing')
     expect(g.country).toBe('GB')
@@ -82,8 +82,10 @@ describe('sign-up guesses', () => {
     expect(form).toContain('signUpGuesses(email, name)')
     // A guess fills a field until the person touches it, and never after.
     expect(form).toContain('setTouched((t) => ({ ...t, address: true }))')
-    expect(form).toContain('setTouched((t) => ({ ...t, country: true }))')
-    expect(form).toContain('setTouched((t) => ({ ...t, currency: true }))')
+    // Since 2026-11-12 the country and the currency are the guesses, sent and
+    // never asked on sign-up; setup's checklist says them and changes them.
+    expect(form).toContain('country: guesses.country, currency: guesses.currency')
+    expect(form).not.toContain('id="country"')
   })
 })
 

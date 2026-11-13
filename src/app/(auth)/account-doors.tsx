@@ -3,29 +3,28 @@
 import { useEffect, useState } from 'react'
 import { signIn, getProviders } from 'next-auth/react'
 import {
-  offers, companyAccounts, chooserFor, keepRetry, rememberDoor, orderDoors, readLastDoor, providerOf,
-  type KnownDoors, type RetryDoor,
+  chooserFor, keepRetry, rememberDoor, readLastDoor, providerOf, accountButtons, continueWith, tryAgainWith,
+  LINKEDIN_DOOR_SAYS, type KnownDoors, type RetryDoor,
 } from '@/lib/login-doors'
 
 /**
- * Microsoft and Google, one button each, shared by every door.
+ * Google, Microsoft and LinkedIn, one button each, shared by every door.
  *
- * The founder, 2026-10-16: "bring back Microsoft and Google sign up/sign
- * in as alternative." The password form stays the main way in (decided
- * 2026-10-08) and sits above; these two sit under it, after an "or", on
- * the sign-in page and the sign-up page alike. One component so the two
- * pages cannot drift.
+ * Since the founder's evening of 2026-11-12 ("how a new user signs up, or
+ * Google sign in, or Microsoft sign in, or LinkedIn sign in, and then if
+ * the user wants to use username and password or directory sign in") the
+ * account buttons come first on the sign-in page and the sign-up page
+ * alike, and the email under "or use your email". One component so the
+ * two pages cannot drift.
  *
  * A button is drawn only when NextAuth lists its provider, which it does
  * only when the deployment holds that provider's keys (lib/auth). A
  * Microsoft button that lands on an error page is worse than none. While
  * the list is unknown nothing is drawn (lib/login-doors).
  *
- * Since 2026-11-12 the sign-in page draws Google first and the password
- * under "or use a password" (lib/login-doors `orderDoors`); this file
- * holds the one button handler every door shares, so the door used last
- * is remembered and Try again knows what to restart, wherever the press
- * happened.
+ * This file holds the one button handler every door shares, so the door
+ * used last is remembered and Try again knows what to restart, wherever
+ * the press happened.
  *
  * Both ask the provider for its account chooser (`CHOOSE_ACCOUNT`, and
  * `ACCOUNT_CHOOSER` on the providers in lib/auth), so a browser signed in
@@ -52,6 +51,12 @@ export function useKnownDoors(): KnownDoors {
 const accountButton =
   'w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-etyme-rule ' +
   'hover:border-etyme-action/30 hover:bg-etyme-canvas transition-all text-sm font-medium text-etyme-ink'
+
+// The same button, filled, for "Try <Provider> again": doorButton's color
+// and border with the account button's shape, so both stand one height.
+const retryButton =
+  'w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-transparent bg-etyme-action ' +
+  'hover:opacity-90 transition-opacity text-sm font-medium text-white'
 
 /**
  * The one press of a provider button, on every door: remember the door on
@@ -99,45 +104,68 @@ function GoogleMark() {
   )
 }
 
-/** One company-account button: Google or Microsoft. */
-export function AccountDoorButton({ door, callbackUrl = '/start', email, autoFocus = false }: {
-  door: 'google' | 'microsoft'
+function LinkedInMark() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="24" height="24" rx="4" fill="#0A66C2" />
+      <path d="M7.1 9.6H4.8V19h2.3V9.6zM6 5.6a1.3 1.3 0 1 0 0 2.7 1.3 1.3 0 0 0 0-2.7zM19.2 13.8c0-2.5-1.3-4.4-3.8-4.4-1.2 0-2.1.6-2.5 1.3V9.6h-2.2V19H13v-4.7c0-1.3.3-2.5 1.8-2.5s1.6 1.4 1.6 2.6V19h2.3v-5.2z" fill="#fff" />
+    </svg>
+  )
+}
+
+const MARKS: Record<RetryDoor, () => JSX.Element> = { google: GoogleMark, microsoft: MicrosoftMark, linkedin: LinkedInMark }
+
+/**
+ * One account button: Google, Microsoft or LinkedIn, an outline, with the
+ * provider's small mark. Filled only as "Try <Provider> again" after that
+ * provider's sign-in did not finish, the one filled button on that screen.
+ * LinkedIn carries "Candidates only" at its right edge and in its name.
+ */
+export function AccountDoorButton({ door, callbackUrl = '/start', email, autoFocus = false, retry = false }: {
+  door: RetryDoor
   callbackUrl?: string
   email?: string | null
   autoFocus?: boolean
+  /** The provider whose sign-in did not finish: filled, and said as Try again. */
+  retry?: boolean
 }) {
+  const Mark = MARKS[door]
+  const words = retry ? tryAgainWith(door) : continueWith(door)
   return (
-    <button type="button" autoFocus={autoFocus} data-door={door}
-      onClick={() => startAccountDoor(door, callbackUrl, email)} className={accountButton}>
-      {door === 'google' ? <GoogleMark /> : <MicrosoftMark />}
-      {door === 'google' ? 'Continue with Google' : 'Continue with Microsoft'}
+    <button type="button" autoFocus={autoFocus} data-door={retry ? 'try-again' : door}
+      aria-label={door === 'linkedin' ? `${words}, ${LINKEDIN_DOOR_SAYS.toLowerCase()}` : undefined}
+      onClick={() => startAccountDoor(door, callbackUrl, email)} className={retry ? retryButton : accountButton}>
+      <Mark />
+      <span className="flex-1 min-w-0 text-left">{words}</span>
+      {door === 'linkedin' && (
+        <span className={`shrink-0 text-xs font-normal ${retry ? 'text-white/80' : 'text-etyme-muted'}`}>{LINKEDIN_DOOR_SAYS}</span>
+      )}
     </button>
   )
 }
 
 /**
- * Google and Microsoft under an "or", for a page whose own form comes
- * first (sign-up). Google first, or the door this browser used last.
+ * The account buttons, full width, one under another: only the providers
+ * this deployment holds keys for, the door this browser used last first
+ * (lib/login-doors `accountButtons`). Shared by sign-in and sign-up, so the
+ * two cannot drift. Nothing is drawn while the list is not known.
  */
-export function AccountDoors({ available, callbackUrl = '/start' }: { available: KnownDoors; callbackUrl?: string }) {
+export function AccountButtons({ available, callbackUrl = '/start', email, retry = null }: {
+  available: KnownDoors
+  callbackUrl?: string
+  email?: string | null
+  /** The provider whose sign-in did not finish, drawn first and filled. */
+  retry?: RetryDoor | null
+}) {
   const [last, setLast] = useState<ReturnType<typeof readLastDoor>>(null)
   useEffect(() => { setLast(readLastDoor()) }, [])
-  if (companyAccounts(available).length === 0) return null
-  const doors = orderDoors(
-    [offers(available, 'google') ? 'google' : null, offers(available, 'azure-ad') ? 'microsoft' : null]
-      .filter((d): d is 'google' | 'microsoft' => d !== null),
-    last,
-  ).filter((d): d is 'google' | 'microsoft' => d === 'google' || d === 'microsoft')
+  const drawn = accountButtons(available, retry ?? last)
+  if (drawn.length === 0) return null
   return (
-    <div data-account-doors>
-      <div className="flex items-center gap-3 my-6">
-        <div className="flex-1 h-px bg-etyme-rule" />
-        <span className="text-xs text-etyme-muted">or</span>
-        <div className="flex-1 h-px bg-etyme-rule" />
-      </div>
-      <div className="space-y-3">
-        {doors.map((d) => <AccountDoorButton key={d} door={d} callbackUrl={callbackUrl} />)}
-      </div>
+    <div data-account-doors className="space-y-3">
+      {drawn.map((d) => (
+        <AccountDoorButton key={d} door={d} callbackUrl={callbackUrl} email={email} retry={d === retry} />
+      ))}
     </div>
   )
 }

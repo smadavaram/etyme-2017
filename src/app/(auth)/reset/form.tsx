@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-frame'
+import { looksLikeEmail, TYPE_YOUR_EMAIL } from '@/lib/login-doors'
 
 /**
  * Forgot your password: ask for a one-time link. It lives an hour and
@@ -17,6 +18,9 @@ export function ResetForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (busy) return
+    // Never a greyed button: an empty or half-typed address is said.
+    if (!looksLikeEmail(email)) { setError(TYPE_YOUR_EMAIL); return }
     setBusy(true); setError(null)
     try {
       const j = await readJson(await fetch('/api/auth/password/reset', {
@@ -39,12 +43,12 @@ export function ResetForm() {
           <p className="text-sm mt-6"><a href="/login" className="text-etyme-action-press hover:underline">Back to sign in</a></p>
         </>
       ) : (
-        <form onSubmit={submit} className="space-y-4 mt-6">
+        <form onSubmit={submit} className="space-y-4 mt-6" noValidate>
           <p className="text-sm text-etyme-muted">Type your email. We send a link that works for one hour.</p>
           <div>
             <DoorLabel htmlFor="email">Email</DoorLabel>
-            <input id="email" type="email" required autoComplete="email" value={email}
-              onChange={(e) => setEmail(e.target.value)} className={doorField} />
+            <input id="email" type="email" inputMode="email" autoComplete="email" value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(null) }} className={doorField} />
           </div>
           <DoorError says={error} />
           <button type="submit" disabled={busy} className={doorButton}>{busy ? 'Sending…' : 'Send the link'}</button>

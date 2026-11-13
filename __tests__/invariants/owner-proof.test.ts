@@ -268,7 +268,9 @@ describe('the small things the screen walk found on the proofs', () => {
     const frame = read('src/app/(auth)/door-frame.tsx')
     const login = read('src/app/(auth)/login/page.tsx')
     expect(frame).toMatch(/doorButton =\s*'w-full px-4 py-2\.5 rounded-lg border border-transparent/)
-    expect(login).toMatch(/outlineButton =\s*'w-full px-4 py-2\.5 rounded-lg border /)
+    // The outline lives beside the filled one in the shared frame since 2026-11-12.
+    expect(frame).toMatch(/doorOutline =\s*'w-full px-4 py-2\.5 rounded-lg border /)
+    expect(login).toContain('className={doorOutline}')
   })
 
   it('a reason typed with its own full stop is said with one stop, never two', async () => {

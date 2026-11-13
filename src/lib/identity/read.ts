@@ -200,3 +200,33 @@ export async function companyPolicy(companyId: string): Promise<{
     row: row ? { jit: row.jit, scim: row.scim, requiredAssurance: row.requiredAssurance, dataRegion: row.dataRegion, requireDirectorySuppliers: row.requireDirectorySuppliers, setAt: row.setAt, setBy: row.setBy?.name ?? null, reason: row.reason } : null,
   }
 }
+
+/**
+ * LinkedIn is for candidates only (founder, 2026-11-12: "For LinkedIn,
+ * mention for candidate only"). Read in the sign-in callback, after
+ * LinkedIn proved the address: a person who holds any seat at a company,
+ * a one-person firm included, is refused there, the row written before the
+ * refusal goes back. A person with no seat anywhere signs in, and /start
+ * seats them as a candidate. Returns whether the sign-in was refused.
+ */
+export async function linkedInSeatAtSignIn(email: string, surface: Surface = 'WEB'): Promise<boolean> {
+  const address = email.trim().toLowerCase()
+  if (!address) return false
+  const seat = await prisma.context.findFirst({
+    where: { revokedAt: null, companyId: { not: null }, person: { primaryEmail: address } },
+    select: { personId: true, companyId: true, company: { select: { name: true } } },
+    orderBy: { grantedAt: 'asc' },
+  })
+  if (!seat?.companyId) return false
+  const facts = await policyFacts(address, seat.companyId)
+  await recordIdentityEvent({
+    event: 'JOIN_REFUSED_BY_POLICY',
+    companyId: seat.companyId,
+    actorPersonId: seat.personId,
+    subject: { personId: seat.personId },
+    policy: effectiveMode(facts.target),
+    surface,
+    says: `Refused a LinkedIn sign-in for ${address}, who holds a seat at ${seat.company?.name ?? 'a company'}: LinkedIn is for candidates only.`,
+  })
+  return true
+}

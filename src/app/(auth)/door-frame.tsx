@@ -74,3 +74,32 @@ export function DoorError({ says }: { says: string | null }) {
   if (!says) return null
   return <p role="alert" className="text-sm text-etyme-attention">{says}</p>
 }
+
+/**
+ * Every other button on a door page: an outline. One filled button a
+ * screen (founder, 2026-11-12: "The blue became very very prominent").
+ */
+export const doorOutline =
+  'w-full px-4 py-2.5 rounded-lg border border-etyme-action text-sm font-medium text-etyme-action-press ' +
+  'hover:bg-etyme-canvas transition-colors disabled:opacity-50'
+
+/** The line between the account buttons and the email: "or use your email". */
+export function DoorDivider({ words }: { words: string }) {
+  return (
+    <div className="flex items-center gap-3 my-5">
+      <div className="flex-1 h-px bg-etyme-rule" />
+      <span className="text-xs text-etyme-muted">{words}</span>
+      <div className="flex-1 h-px bg-etyme-rule" />
+    </div>
+  )
+}
+
+/** The address a second screen is about, and Change, which goes back. */
+export function DoorWho({ email, onChange }: { email: string; onChange: () => void }) {
+  return (
+    <div data-door-who className="flex items-center justify-between gap-3 mb-5 rounded-lg border border-etyme-rule bg-etyme-canvas px-3.5 py-2.5">
+      <span className="text-sm text-etyme-ink truncate min-w-0">{email}</span>
+      <button type="button" onClick={onChange} className="text-sm text-etyme-action-press hover:underline shrink-0">Change</button>
+    </div>
+  )
+}

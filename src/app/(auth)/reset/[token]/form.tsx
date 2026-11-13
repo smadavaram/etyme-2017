@@ -20,6 +20,9 @@ export function ResetWithLinkForm({ token }: { token: string }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (busy) return
+    // Never a greyed button: an empty password is said.
+    if (!password) { setError('Type a new password.'); return }
     setBusy(true); setError(null)
     try {
       const j = await readJson(await fetch('/api/auth/password/reset/confirm', {
@@ -51,11 +54,11 @@ export function ResetWithLinkForm({ token }: { token: string }) {
           <p className="text-sm mt-6"><a href="/login" className="text-etyme-action-press hover:underline">Sign in</a></p>
         </>
       ) : (
-        <form onSubmit={submit} className="space-y-4 mt-6">
+        <form onSubmit={submit} className="space-y-4 mt-6" noValidate>
           <div>
             <DoorLabel htmlFor="password">New password</DoorLabel>
-            <input id="password" type="password" required autoComplete="new-password" value={password}
-              onChange={(e) => setPassword(e.target.value)} className={doorField} />
+            <input id="password" type="password" autoComplete="new-password" value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null) }} className={doorField} />
             <p className="text-xs text-etyme-muted mt-1">At least 12 characters. Not your email.</p>
           </div>
           <DoorError says={error} />
