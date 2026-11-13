@@ -62,6 +62,12 @@ export function defaultPostureFor(kind: string): OutsidePosture {
       return 'ALLOWED'
     case 'GSI':
     case 'CLIENT':
+      return 'NAMED_ONLY'
+    case 'UNCLASSIFIED':
+      // A company somebody recorded by name and nobody has said the kind
+      // of. Closed on purpose, not by falling through: until it is
+      // classified nobody knows whether looking outward is its job.
+      return 'NAMED_ONLY'
     default:
       return 'NAMED_ONLY'
   }
