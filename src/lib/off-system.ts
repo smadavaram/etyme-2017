@@ -36,7 +36,7 @@
  * decides.
  */
 
-import type { SupplierStanding } from '@/lib/counterparty'
+import type { SupplierStanding, Position } from '@/lib/counterparty'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
 export interface CompanyStanding {
@@ -48,6 +48,12 @@ export interface CompanyStanding {
   listedById?: string | null
   /** Its Etyme address, where it has one worth printing. */
   slug?: string | null
+  /**
+   * What kind of company it is, where the caller read it. A company of
+   * kind UNCLASSIFIED (recorded, not classified yet) is named on a contract
+   * or an order only once it holds that position with the caller.
+   */
+  kind?: string | null
 }
 
 /** On the register, not on the system. */
@@ -289,11 +295,37 @@ export function mayNameCounterparty(input: {
   relationshipExists: boolean
   /** What the other firm is to the caller, in the caller's words. */
   as: 'client' | 'supplier'
+  /**
+   * What the other firm is to the caller on its own register
+   * (`positionsOf` in lib/counterparty). Read only for a company not
+   * classified yet; a caller that does not pass it names none of those.
+   */
+  positions?: readonly Position[]
 }): Verdict {
   const { callerCompanyId: me, other } = input
 
   if (other.id === me) {
     return { ok: false, says: `A firm cannot be its own ${input.as}.` }
+  }
+
+  // A company recorded and not classified yet holds a position only by
+  // its own register row (founder, 2026-11-12): never named as a client or
+  // a supplier on a contract or an order before it is extended to one.
+  if (other.kind === 'UNCLASSIFIED') {
+    const need: Position[] = input.as === 'client' ? ['CUSTOMER'] : ['SUPPLIER', 'PRIME']
+    const held = input.positions ?? []
+    const step = input.as === 'client' ? 'Customer' : 'Supplier'
+    if (!held.some((p) => need.includes(p))) {
+      if (other.listedById != null && other.listedById !== me && !input.relationshipExists) {
+        return { ok: false, says: `${other.name} is not on your Companies list. Add it there first, then extend it to ${step}.` }
+      }
+      return {
+        ok: false,
+        says: held.length === 0
+          ? `${other.name} is on your Companies list and is not classified yet. Extend it to ${step} first.`
+          : `${other.name} is on your Companies list but is not your ${input.as} yet. Extend it to ${step} first.`,
+      }
+    }
   }
 
   if (isShell(other)) {

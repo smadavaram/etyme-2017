@@ -1109,7 +1109,10 @@ export const MATRIX: L1[] = [
             'Never another client\u2019s name to a client, and never every enterprise on the platform to a bench vendor two rungs down',
             'The page says what the list is for the reader in front of it, rather than offering everybody a platform administrator\u2019s sentence',
             'Adding a firm from inside a seat is recording a counterparty, needs the desk that manages who we trade with, and seats the creator nowhere \u2014 only the sign-up door makes owners',
-            'A firm put on the register says what it is to us, because a name nothing can point at is a logo in a list',
+            'A firm added as a classified company from inside a seat still says what it is to us. A firm recorded as \u201cCompany \u2014 not classified yet\u201d (founder, 2026-11-12) needs only its name and holds no position: on the Companies list with a Not classified badge and in Contacts\u2019 Works at, and on no supplier list, client list, count, send-a-job picker, contract or order until it is extended',
+            'Two facts, never one: the Kind is what a company is; the position (Customer above us, Supplier below us, Prime, MSP) is on the register row between the two firms, so one company can be a Customer and a Supplier at once and a Kind never decides either',
+            'Extend to Supplier or to Customer writes the position in one step, never reads or changes the Kind, and is written to the history with who, when and the position. Customer also writes the unsigned agreement record. Removing a position is refused while an order, a line, a bill, a signed agreement, a submission, an open invitation or a supplier request hangs off it, and leaves the other position and the Kind as they were',
+            'The Kind of a company the caller recorded and nobody claimed may be set later; a firm on Etyme says its own Kind through its Owner. A company with no Kind is never invited and never claimed. Recording, extending, removing and setting the Kind send no email and write no notice',
           ],
           implementedBy: [
             'src/lib/counterparty.ts', 'src/lib/directory-scope.ts',
@@ -1119,6 +1122,7 @@ export const MATRIX: L1[] = [
           testedBy: [
             '__tests__/invariants/counterparty.test.ts',
             '__tests__/invariants/the-register-is-not-the-platform.test.ts',
+            '__tests__/invariants/company-not-classified.test.ts',
           ] },
         { code: 'L3.2.2.7', name: 'Contact book', owner: 'Account manager', status: B,
           tasks: ['FIXED 2026-10-05, outside review: Add contact asks one way to reach somebody \u2014 an email address or a phone number, either is enough \u2014 on the form and on the route in one sentence (lib/contact-reach); the name and the company carry required beside the sentences; the role is asked as \u201cTheir role at that firm\u201d and starts on Other, which is what it saves', 

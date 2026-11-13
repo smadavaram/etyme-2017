@@ -79,3 +79,220 @@ describe('a company not classified yet is a record, never a reader', () => {
     expect(src).toMatch(/recordOnly\s*\n?\s*\? \{\}/)
   })
 })
+
+// ── The rules, pure ──────────────────────────────────────────────────
+
+import {
+  mayAddCompany, mayRecordCompany, positionsOf, isNotClassified, isMine, mayExtend, mayRemovePosition,
+  maySetRecordedKind, mayInviteRecorded, mayClaimRecorded, sameNameAmong, sameNameRefused, firmNameKey,
+  NEVER_EMAILS, type PositionWork,
+} from '@/lib/counterparty'
+import { mayNameCounterparty } from '@/lib/off-system'
+
+const tapin = { id: 'tapin', name: 'Tapin' }
+const owner = ['*']
+const none: PositionWork = { orders: 0, lines: 0, bills: 0, signedAgreement: false, submissions: 0, openInvitations: 0, supplierRequests: 0 }
+const rivermark = { id: 'rm', name: 'Rivermark Partners', claimedAt: null, listedById: 'tapin', slug: 'rivermark' }
+
+describe('recording a company with no position', () => {
+  it('a seated person who manages who the firm trades with may record a company with only its name and no relationship', () => {
+    const v = mayAddCompany({ seatedAt: tapin, permissions: ['vendors.manage'], relationship: null, kind: 'UNCLASSIFIED' })
+    expect(v.ok).toBe(true)
+    expect(v.ownsIt).toBe(false)
+    expect(v.says).toContain(NEVER_EMAILS)
+  })
+
+  it('a firm added from inside a seat, as a classified company, must still say what it is to us', () => {
+    const v = mayAddCompany({ seatedAt: tapin, permissions: owner, relationship: null, kind: 'VENDOR' })
+    expect(v.ok).toBe(false)
+    expect(v.says).toContain('a client, a supplier, a prime or an MSP')
+  })
+
+  it('a seat that does not manage who the firm trades with cannot record one, and is told who can', () => {
+    const v = mayRecordCompany({ seatedAt: tapin, permissions: ['timesheets.read'] })
+    expect(v.ok).toBe(false)
+    expect(v.says).toContain('whoever manages who you trade with')
+  })
+
+  it('somebody with no seat cannot found their own firm as not classified', () => {
+    expect(mayAddCompany({ seatedAt: null, permissions: [], kind: 'UNCLASSIFIED' }).ok).toBe(false)
+  })
+
+  it('the same name twice, without case, spaces or punctuation, is refused in a sentence that names the one already there', () => {
+    const mine = [{ id: 'rm', name: 'Rivermark Partners, LLC' }]
+    expect(firmNameKey('rivermark partners llc')).toBe(firmNameKey('Rivermark Partners, LLC'))
+    const hit = sameNameAmong('RIVERMARK  partners llc.', mine)
+    expect(hit?.id).toBe('rm')
+    expect(sameNameRefused(hit!)).toBe('Rivermark Partners, LLC is on your Companies list already. Open it there rather than record it twice.')
+    expect(sameNameAmong('Rivermark Capital', mine)).toBeNull()
+  })
+})
+
+describe('a position lives on the relationship record, never on the Kind', () => {
+  it('a company not classified yet holds a position only by its own register rows, never by an agreement alone', () => {
+    expect(positionsOf({ kind: 'UNCLASSIFIED', stored: [], derived: [{ relationship: 'CLIENT' }] })).toEqual([])
+    expect(positionsOf({ kind: 'UNCLASSIFIED', stored: [{ relationship: 'SUPPLIER' }], derived: [] })).toEqual(['SUPPLIER'])
+  })
+
+  it('every company that exists today keeps reading exactly as the register reads it', () => {
+    expect(positionsOf({ kind: 'VENDOR', stored: [], derived: [{ relationship: 'SUPPLIER' }] })).toEqual(['SUPPLIER'])
+    expect(positionsOf({ kind: 'CLIENT', stored: [{ relationship: 'CLIENT' }], derived: [{ relationship: 'CLIENT' }] })).toEqual(['CUSTOMER'])
+  })
+
+  it('one company can be a Customer and a Supplier at once', () => {
+    expect(positionsOf({ kind: 'GSI', stored: [{ relationship: 'SUPPLIER' }, { relationship: 'CLIENT' }], derived: [] })).toEqual(['CUSTOMER', 'SUPPLIER'])
+  })
+
+  it('not classified means on my list because I recorded it, with no position with me', () => {
+    expect(isMine(rivermark, 'tapin')).toBe(true)
+    expect(isNotClassified({ mine: true, positions: [] })).toBe(true)
+    expect(isNotClassified({ mine: true, positions: ['SUPPLIER'] })).toBe(false)
+    // A firm reached only through work between us keeps reading as today.
+    expect(isNotClassified({ mine: false, positions: [] })).toBe(false)
+  })
+})
+
+describe('extending a company', () => {
+  const ask = (as: string, over: Partial<Parameters<typeof mayExtend>[0]> = {}) =>
+    mayExtend({ as, me: tapin, permissions: owner, other: rivermark, worksTogether: false, positions: [], ...over })
+
+  it('extension does not read the company’s Kind: the rule is handed no Kind at all', () => {
+    const src = read('src/lib/counterparty.ts')
+    const body = src.slice(src.indexOf('export function mayExtend('), src.indexOf('function alreadyOnEtymeSays'))
+    expect(body).not.toMatch(/\.kind\b/)
+  })
+
+  it('extending a company to Supplier writes the Supplier position and says its kind did not change', () => {
+    const v = ask('SUPPLIER')
+    expect(v.ok && v.relationship).toBe('SUPPLIER')
+    expect(v.ok && v.says).toContain('What kind of company it is did not change')
+  })
+
+  it('extending a company to Customer writes the Customer position with no agreement signed yet', () => {
+    const v = ask('customer')
+    expect(v.ok && v.relationship).toBe('CLIENT')
+    expect(v.ok && v.says).toContain('no agreement signed yet')
+  })
+
+  it('a GSI can be extended to Customer and then to Supplier, and the second does not touch the first', () => {
+    expect(ask('CUSTOMER').ok).toBe(true)
+    const second = ask('SUPPLIER', { positions: ['CUSTOMER'] })
+    expect(second.ok && second.already).toBe(false)
+  })
+
+  it('extending to a position already held changes nothing and says so', () => {
+    const v = ask('SUPPLIER', { positions: ['SUPPLIER'] })
+    expect(v.ok && v.already).toBe(true)
+    expect(v.ok && v.says).toBe('Rivermark Partners is already your supplier. Nothing changed.')
+  })
+
+  it('a company that is already on Etyme and does not work with you can only be extended by asking them to link', () => {
+    const v = ask('SUPPLIER', { other: { ...rivermark, claimedAt: new Date(), listedById: null } })
+    expect(v.ok).toBe(false)
+    expect(!v.ok && v.code).toBe('ALREADY_ON_ETYME')
+    expect(!v.ok && v.says).toContain('Ask them to link')
+  })
+
+  it('another firm’s record is not yours to extend', () => {
+    const v = ask('CUSTOMER', { other: { ...rivermark, listedById: 'brightmoor' } })
+    expect(!v.ok && v.says).toBe('Rivermark Partners is not on your Companies list. Add it there first, then extend it.')
+  })
+
+  it('only the seats that may add a company may extend one, and anything but Supplier or Customer is refused in a sentence', () => {
+    expect(ask('SUPPLIER', { permissions: ['timesheets.read'] }).ok).toBe(false)
+    const v = ask('PRIME')
+    expect(!v.ok && v.says).toBe('Say whether to extend it to Supplier or to Customer.')
+  })
+})
+
+describe('removing a position', () => {
+  const take = (as: string, positions: any[], work: Partial<PositionWork> = {}) =>
+    mayRemovePosition({ as, me: tapin, permissions: owner, other: rivermark, positions, work: { ...none, ...work } })
+
+  it('removing the last position leaves the company on the Companies list, not classified, with its Kind unchanged', () => {
+    const v = take('CUSTOMER', ['CUSTOMER'])
+    expect(v.ok && v.notClassifiedAfter).toBe(true)
+    expect(v.ok && v.says).toContain('It stays on your Companies list, not classified.')
+    expect(v.ok && v.says).toContain('What kind of company it is did not change')
+  })
+
+  it('removing one of two positions leaves the other', () => {
+    const v = take('SUPPLIER', ['CUSTOMER', 'SUPPLIER'])
+    expect(v.ok && v.notClassifiedAfter).toBe(false)
+    expect(v.ok && v.says).toContain('It is still your customer.')
+  })
+
+  it('a position with real work hanging off it is refused in one sentence that names the work', () => {
+    const v = take('CUSTOMER', ['CUSTOMER'], { orders: 2, signedAgreement: true })
+    expect(!v.ok && v.code).toBe('STILL_IN_USE')
+    expect(!v.ok && v.says).toBe('Rivermark Partners stays your customer while 2 orders and a signed agreement hang off it. End or move that work first.')
+    expect(!take('SUPPLIER', ['SUPPLIER'], { openInvitations: 1 }).ok).toBe(true)
+    expect(!take('SUPPLIER', ['SUPPLIER'], { supplierRequests: 1 }).ok).toBe(true)
+    expect(!take('CUSTOMER', ['CUSTOMER'], { submissions: 1 }).ok).toBe(true)
+    expect(!take('CUSTOMER', ['CUSTOMER'], { bills: 1 }).ok).toBe(true)
+    expect(!take('CUSTOMER', ['CUSTOMER'], { lines: 1 }).ok).toBe(true)
+  })
+
+  it('a position the company does not hold cannot be removed', () => {
+    const v = take('SUPPLIER', ['CUSTOMER'])
+    expect(!v.ok && v.says).toBe('Rivermark Partners is not your supplier, so there is nothing to remove.')
+  })
+})
+
+describe('saying what kind of company a recorded firm is', () => {
+  const set = (to: string, other: Partial<Parameters<typeof maySetRecordedKind>[0]['other']> = {}) =>
+    maySetRecordedKind({ to, me: tapin, permissions: owner, other: { ...rivermark, kind: 'UNCLASSIFIED', seats: 0, ...other } })
+
+  it('a company recorded here and still unclaimed can have its type set to Vendor, and setting it gives no position', () => {
+    const v = set('VENDOR')
+    expect(v.ok && v.to).toBe('VENDOR')
+    expect(v.ok && v.says).toBe('Rivermark Partners is a supplier now. What it is to you did not change.')
+  })
+
+  it('a firm on Etyme never has its Kind set by anybody but its own Owner', () => {
+    expect(!set('CLIENT', { claimedAt: new Date() }).ok).toBe(true)
+    const v = set('CLIENT', { seats: 1 })
+    expect(!v.ok && v.says).toBe('Rivermark Partners is on Etyme, so only its own Owner says what kind of company it is.')
+  })
+
+  it('another firm’s record and a kind outside the four are refused in a sentence', () => {
+    expect(!set('VENDOR', { listedById: 'brightmoor' }).ok).toBe(true)
+    const v = set('CONSULTANT_CORP')
+    expect(!v.ok && v.says).toBe('Say what kind of company Rivermark Partners is: a supplier, a client, an MSP or an integrator.')
+  })
+})
+
+describe('an invitation and a claim wait for the Kind', () => {
+  it('a company not classified yet cannot be invited until somebody says what kind it is', () => {
+    const v = mayInviteRecorded({ name: 'Rivermark Partners', kind: 'UNCLASSIFIED' })
+    expect(!v.ok && v.says).toBe('Say what kind of company Rivermark Partners is before you invite them.')
+    expect(mayInviteRecorded({ name: 'Rivermark Partners', kind: 'VENDOR' }).ok).toBe(true)
+  })
+
+  it('a claim link never seats anybody at a company with no roles, and never reads it as a supplier', () => {
+    const v = mayClaimRecorded({ name: 'Rivermark Partners', kind: 'UNCLASSIFIED' })
+    expect(v.ok).toBe(false)
+    expect(!v.ok && v.says).not.toMatch(/supplier/i)
+    expect(mayClaimRecorded({ name: 'Rivermark Partners', kind: 'CLIENT' }).ok).toBe(true)
+  })
+})
+
+describe('a company not classified yet is never named on a contract or an order', () => {
+  const name = (as: 'client' | 'supplier', positions?: any[], other: object = {}) =>
+    mayNameCounterparty({ callerCompanyId: 'tapin', other: { ...rivermark, kind: 'UNCLASSIFIED', ...other }, relationshipExists: false, as, positions })
+
+  it('my own recorded company with no position is refused as a client or a supplier, naming the step', () => {
+    expect(name('client').says).toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Customer first.')
+    expect(name('supplier').says).toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Supplier first.')
+  })
+
+  it('a company extended to Supplier is still not a client until it is extended to Customer', () => {
+    expect(name('client', ['SUPPLIER']).says).toBe('Rivermark Partners is on your Companies list but is not your client yet. Extend it to Customer first.')
+    expect(name('supplier', ['SUPPLIER']).ok).toBe(true)
+    expect(name('client', ['CUSTOMER']).ok).toBe(true)
+  })
+
+  it('a company recorded the old way, classified, reads exactly as it did', () => {
+    expect(mayNameCounterparty({ callerCompanyId: 'tapin', other: { ...rivermark, kind: 'CLIENT' }, relationshipExists: false, as: 'client' }).ok).toBe(true)
+  })
+})

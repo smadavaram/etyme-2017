@@ -482,7 +482,9 @@ export async function findFirmByWord(
 ): Promise<FirmByWord> {
   const typed = String(word ?? '').trim()
   if (typed.length < 2) return { ok: false, says: `Type the ${opts.kindWord}\u2019s name or its Etyme address.` }
-  const live = { claimedAt: { not: null }, isDemo: opts.isDemo === true, kind: { in: opts.kinds } } as const
+  // Never a company not classified yet: it is a record on one firm's list,
+  // and the claimed-only filter already keeps every unclaimed record out.
+  const live = { claimedAt: { not: null }, isDemo: opts.isDemo === true, kind: { in: opts.kinds.filter((k) => k !== 'UNCLASSIFIED') } } as const
   const pick = { id: true, name: true, slug: true, kind: true } as const
 
   const address = addressOf(typed)
