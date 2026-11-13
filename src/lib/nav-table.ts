@@ -121,7 +121,9 @@ export type NavItem = {
   pageCalls?: readonly string[]
 }
 
-export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+// UNCLASSIFIED (2026-11-12) is a firm another company wrote down: it has no
+// seat, so it is never a reader and no menu is ever built for it.
+export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
 
 // What the pages behind two links call beyond the route their gate is
 // read from, so a refusal at any of them names the page rather than
@@ -1669,6 +1671,9 @@ function kindNav(kind: CompanyKind): NavSection[] {
     // invoices, her paperwork. She used to fall through to the vendor's
     // and be offered a bench, a pipeline and a commission run.
     case 'CONSULTANT_CORP': return SOLO_NAV
+    // A company not classified yet has no seat, so nobody reads its menu;
+    // it gets none rather than a supplier's by the default branch.
+    case 'UNCLASSIFIED': return []
     case 'VENDOR':
     default:       return VENDOR_NAV
   }

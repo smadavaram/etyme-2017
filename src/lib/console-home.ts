@@ -30,7 +30,9 @@
  * (`lib/program-seat`) — never merely because it trades there.
  */
 
-export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+// UNCLASSIFIED (2026-11-12) has no seat, so it never opens a console; it is
+// named so a reader handed one does not fail to type check.
+export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
 
 /** The three consoles this product has. */
 export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY

@@ -179,6 +179,10 @@ const KIND_WORDS: Record<CompanyKind, { word: string; label: string; other: stri
   MSP: { word: 'MSP', label: 'MSP · Managed program', other: 'MSP' },
   GSI: { word: 'Integrator', label: 'Integrator · Delivery', other: 'integrator' },
   CONSULTANT_CORP: { word: 'Own company', label: 'Own company · One person', other: 'one-person firm' },
+  // A firm a company wrote down without saying what kind it is (2026-11-12).
+  // The kind reads "Company"; whether it holds a position with the reader
+  // ("Not classified") is the register's, never the kind's.
+  UNCLASSIFIED: { word: 'Company', label: 'Company · Not classified yet', other: 'company' },
 }
 
 export function kindWord(kind: CompanyKind | null | undefined): string {

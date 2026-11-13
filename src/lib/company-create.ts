@@ -99,7 +99,8 @@ export interface CreateCompanyInput {
 export interface CreatedCompany {
   company: { id: string; name: string; slug: string; kind: CompanyKind; domain: string | null; siteLiveAt: Date | null; supplierPosture: string | null }
   roles: { id: string; name: string; permissions: string[] }[]
-  ownerRoleId: string
+  /** Null only for a company not classified yet, which has no roles. */
+  ownerRoleId: string | null
   /** The founder's seat: the Owner's, or the Admin's under the proof rule. */
   ownerContextId: string | null
   /** The role the founder was seated in. */
@@ -108,6 +109,7 @@ export interface CreatedCompany {
   country: string
   currency: string
   holidaysSeeded: number
+  /** Empty for a company not classified yet: nobody chose what it does. */
   siteTagline: string
 }
 
@@ -121,10 +123,18 @@ export interface CreatedCompany {
  */
 export async function createCompany(input: CreateCompanyInput, db: Db = prisma): Promise<CreatedCompany> {
   const name = input.name.trim()
+  // A company not classified yet (2026-11-12) is only ever a record another
+  // firm wrote down: nobody is seated at it, it claims no domain, holds no
+  // domain at all, and says nothing on a public page, whatever a caller
+  // passes. A record of a firm not on Etyme never seats anybody.
+  const recordOnly = input.kind === 'UNCLASSIFIED'
+  if (recordOnly && input.seatAsOwner) {
+    throw new Error('A company not classified yet is a record on another firm\'s list; nobody is seated at it.')
+  }
   // The last lock on Etyme's own domain: whatever a caller passes, no
   // company is made holding etyme.com or a name under it, and none claims
   // it (lib/company-domains, isPlatformDomain).
-  const domain = isPlatformDomain(input.domain) ? null : input.domain
+  const domain = recordOnly || isPlatformDomain(input.domain) ? null : input.domain
   const country = knownCountry(input.country) ?? countryFromDomain(domain)
   const currency = knownCurrency(input.currency) ?? currencyFor(country)
   const templatePack = packFor(input.kind, country)
@@ -184,18 +194,18 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
       listedById: input.seatAsOwner ? null : input.listedById ?? null,
       isDemo: input.isDemo === true,
       networkVerifiedAt: null,
-      siteTagline: voice.tagline,
-      siteIntro: voice.intro,
-      siteHeadings: voice.headings as any,
-      siteWrittenBy: 'RULES',
-      siteWrittenAt: now,
+      // No words for a company nobody classified: a tagline for a business
+      // type nobody chose would read as a claim.
+      ...(recordOnly
+        ? {}
+        : { siteTagline: voice.tagline, siteIntro: voice.intro, siteHeadings: voice.headings as any, siteWrittenBy: 'RULES', siteWrittenAt: now }),
       ...(input.startsSetup ? { setupStartedAt: now, setupSteps: setupSteps as any } : {}),
       ...(input.ownerProofRequired ? { ownerProofRequiredAt: now } : {}),
     },
     select: { id: true, name: true, slug: true, kind: true, domain: true, siteLiveAt: true, supplierPosture: true },
   })
 
-  if (input.claimDomain && domain) {
+  if (input.claimDomain && domain && !recordOnly) {
     const held = await db.companyDomain.findUnique({ where: { domain }, select: { id: true } })
     if (!held) {
       await db.companyDomain.create({
@@ -226,12 +236,12 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
       })
     )
   }
-  const ownerRoleId = roles.find((r) => r.name === 'Owner')!.id
+  const ownerRoleId = recordOnly ? null : roles.find((r) => r.name === 'Owner')!.id
   // Under the proof rule the founder holds the Admin seat until both
   // proofs stand; the Owner seat is earned (lib/owner-proof).
   const firstRoleId = proofRule ? roles.find((r) => r.name === 'Admin')!.id : ownerRoleId
 
-  const ownerContextId = input.seatAsOwner
+  const ownerContextId = input.seatAsOwner && firstRoleId
     ? (
         await db.context.create({
           data: {
@@ -266,7 +276,8 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
   // shift against. Elsewhere the company adds its own: seeding another
   // country's dates would look deliberate and nobody would check them.
   let holidaysSeeded = 0
-  if ((HOLIDAY_COUNTRIES as readonly string[]).includes(country)) {
+  // A company not classified yet has no dates to shift, so no calendar.
+  if (!recordOnly && (HOLIDAY_COUNTRIES as readonly string[]).includes(country)) {
     const thisYear = now.getUTCFullYear()
     const dates = [thisYear, thisYear + 1].flatMap((y) => holidaysFor(country, y) ?? [])
     const made = await db.holiday.createMany({
@@ -278,7 +289,9 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
 
   // A worker who named this firm before it was on Etyme ("never send me to
   // them") has it on her list by its record from today (2026-10-27).
-  await honorNamedClientsAt(company.id, name, db)
+  // Never for a record only one firm can see: it would take the worker's
+  // named firm off the next company of that name that truly joins.
+  if (!recordOnly) await honorNamedClientsAt(company.id, name, db)
 
   return {
     company: { ...company, kind: company.kind as CompanyKind },
@@ -290,7 +303,7 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     country,
     currency,
     holidaysSeeded,
-    siteTagline: voice.tagline,
+    siteTagline: recordOnly ? '' : voice.tagline,
   }
 }
 

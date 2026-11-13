@@ -20,7 +20,13 @@ import type { Permission } from '@/lib/permissions'
  * becomes noise.
  */
 
-export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+/**
+ * UNCLASSIFIED is a firm another company wrote down and has not classified
+ * (2026-11-12). It is never a reader: it has no roles, no seats, no menu.
+ * Every reader keyed by kind names it on purpose, so nothing reads it as a
+ * Vendor or a Consultant by a default branch.
+ */
+export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
 
 export interface RoleSeed {
   name: string
@@ -560,6 +566,11 @@ export function rolesFor(kind: CompanyKind, opts: { narrowAdmin?: boolean; found
 
 function baseRolesFor(kind: CompanyKind): RoleSeed[] {
   switch (kind) {
+    // Nobody sits at a company that is only a record on another firm's
+    // list, so it starts with no roles at all. A claim refuses it rather
+    // than seat an Owner nobody can be (see mayClaimKind in lib/counterparty).
+    case 'UNCLASSIFIED':
+      return []
     case 'CLIENT':
       return CLIENT_ROLES
     case 'MSP':
@@ -625,6 +636,9 @@ export function packFor(kind: CompanyKind, country: string | null): string {
   // cycle shape — ERP programs bill and roll differently
   // from general IT contract staffing.
   if (kind === 'GSI') return 'US_SAP'
+  // Every other kind, a company not classified yet included, carries the
+  // country's plain pack: it bills and pays nobody until a firm on Etyme
+  // claims it, so the column is filled and never read.
   return 'US_IT'
 }
 
@@ -734,6 +748,12 @@ export function mayRegisterWithEmail(
   emailIsPersonal: boolean
 ): RegistrationVerdict {
   if (!emailIsPersonal) return { ok: true, says: 'Work email — any kind of company.' }
+
+  // Nobody registers a company that is not classified: it is only ever a
+  // record another firm wrote down, and that firm's seat is the check.
+  if (kind === 'UNCLASSIFIED') {
+    return { ok: false, says: 'Say what kind of company you are registering: a supplier, a client, an MSP, an integrator or your own one-person company.' }
+  }
 
   if (kind === 'CONSULTANT_CORP') {
     return {

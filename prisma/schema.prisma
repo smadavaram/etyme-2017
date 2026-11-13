@@ -1784,6 +1784,12 @@ enum CompanyKind {
   // recruit, so it never appears in vendor lists or requirement
   // distribution.
   CONSULTANT_CORP
+  // A firm one company wrote down and has not classified yet (founder,
+  // 2026-11-12: "Company — not classified yet"). It is never a reader:
+  // no roles, no seats, no domain claim. What it is to the firm that
+  // recorded it lives on that firm's Counterparty rows, never here, and
+  // a company recorded this way with no such row holds no position.
+  UNCLASSIFIED
 }
 
 // Work sites / offices for a company. Clients have locations where consultants work;
