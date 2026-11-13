@@ -31,7 +31,7 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
-import { firmNameKey } from '@/lib/counterparty'
+import { firmNameKey, type HeldWith } from '@/lib/counterparty'
 
 // ── Who may open the supplier register ───────────────────────────────
 //
@@ -400,15 +400,34 @@ export const SENDS_A_JOB_TO = ['SUPPLIER', 'PRIME'] as const
 export const PUTS_FORWARD_TO = ['CLIENT', 'PRIME', 'MSP'] as const
 
 /**
- * Whether a job may be sent to this company. A company of any Kind other
- * than not classified is the existing rules' to decide; one not
- * classified yet needs a Supplier position on the sender's register.
+ * Whether the sender's register must be asked before a job or a person
+ * goes to this company. Decided from the register, never from the Kind
+ * alone (review, 2026-11-13): a company of Kind not classified, one the
+ * sender recorded as not classified and gave a Kind since (`held.recorded`),
+ * and a record of the sender's own that holds no position at all
+ * (`held.notClassified`, the Companies badge) all read the same way.
+ * `held` is `standingWith` in app/api/companies/positions; where a caller
+ * passes none, only the Kind is read. Pure.
+ */
+export function readsNotClassified(
+  company: { kind?: string | null },
+  held?: HeldWith | null,
+): boolean {
+  return company.kind === 'UNCLASSIFIED' || held?.recorded === true || held?.notClassified === true
+}
+
+/**
+ * Whether a job may be sent to this company. A company holding a position
+ * with the sender, or not on its Companies list at all, is the existing
+ * rules' to decide; one not classified needs a Supplier position on the
+ * sender's register, whatever Kind it was given.
  */
 export function mayBeSentJob(
   company: { name: string; kind?: string | null },
   relationships: readonly string[],
+  held?: HeldWith | null,
 ): { ok: true } | { ok: false; says: string } {
-  if (company.kind !== 'UNCLASSIFIED') return { ok: true }
+  if (!readsNotClassified(company, held)) return { ok: true }
   if (relationships.some((r) => (SENDS_A_JOB_TO as readonly string[]).includes(r))) return { ok: true }
   return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Supplier first.` }
 }
@@ -421,8 +440,9 @@ export function mayBeSentJob(
 export function mayBePutForwardTo(
   company: { name: string; kind?: string | null },
   relationships: readonly string[],
+  held?: HeldWith | null,
 ): { ok: true } | { ok: false; says: string } {
-  if (company.kind !== 'UNCLASSIFIED') return { ok: true }
+  if (!readsNotClassified(company, held)) return { ok: true }
   if (relationships.some((r) => (PUTS_FORWARD_TO as readonly string[]).includes(r))) return { ok: true }
   return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Customer first.` }
 }

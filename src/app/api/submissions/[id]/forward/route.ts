@@ -10,7 +10,8 @@ import { landingFor } from './landing'
 import { actingDesk } from '@/lib/program-seat'
 import { sendOnActor } from '../../row-doors'
 import { recordRefusal } from '@/lib/access-log'
-import { mayBePutForwardTo } from '@/lib/supplier-list'
+import { mayBePutForwardTo, readsNotClassified } from '@/lib/supplier-list'
+import { standingWith } from '@/app/api/companies/positions'
 
 /**
  * POST /api/submissions/:id/forward
@@ -112,7 +113,7 @@ export async function POST(
   if (via === 'ONWARD') {
     const destination = await prisma.company.findUnique({
       where: { id: body.toCompanyId },
-      select: { id: true, name: true, kind: true, listedById: true },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
     })
     if (!destination) {
       return NextResponse.json(
@@ -121,15 +122,18 @@ export async function POST(
       )
     }
 
-    // Never a company nobody has classified yet (the neutral Company,
-    // 2026-11-12): a person goes up only to a firm extended to Customer
-    // on this firm's register. Another firm's record is never named.
-    if (destination.kind === 'UNCLASSIFIED') {
+    // Never a company holding no position with this firm (the neutral
+    // Company, 2026-11-12): a person goes up only to a firm extended to
+    // Customer on this firm's register. Decided from the register, never
+    // from the Kind: a record given a Kind and no position is still not a
+    // customer (review, 2026-11-13). Another firm's record is never named.
+    const held = await standingWith(desk!.companyId, destination)
+    if (readsNotClassified(destination, held)) {
       const rows = await prisma.counterparty.findMany({
         where: { companyId: desk!.companyId, otherCompanyId: destination.id },
         select: { relationship: true },
       })
-      const may = mayBePutForwardTo(destination, rows.map((r) => r.relationship))
+      const may = mayBePutForwardTo(destination, rows.map((r) => r.relationship), held)
       if (!may.ok) {
         const says =
           destination.listedById === desk!.companyId

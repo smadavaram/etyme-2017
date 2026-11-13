@@ -11,6 +11,8 @@ import { sendJobTo, type VendorBand } from '../../send'
 import { maySendJob } from '../../who-sends'
 import { recordRefusal } from '@/lib/access-log'
 import { mayBeSentJob } from '@/lib/supplier-list'
+import { isMine } from '@/lib/counterparty'
+import { positionsFor } from '@/app/api/companies/positions'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -192,7 +194,7 @@ export async function POST(
   const [vendorCompanies, registerRows] = await Promise.all([
     prisma.company.findMany({
       where: { id: { in: vendorIds } },
-      select: { id: true, name: true, kind: true, listedById: true },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
     }),
     prisma.counterparty.findMany({
       where: { companyId: requisition.companyId, otherCompanyId: { in: vendorIds } },
@@ -201,12 +203,24 @@ export async function POST(
   ])
   const vendorMap = new Map(vendorCompanies.map(c => [c.id, { id: c.id, name: c.name }]))
 
-  // Never a company on the Companies list that nobody has classified yet
-  // (the neutral Company, 2026-11-12): it is a record, and a job goes to
-  // it only once it is extended to Supplier, which writes the register
-  // row read here. The refusal names it and the step, logged first.
+  // Never a company on the Companies list that holds no position (the
+  // neutral Company, 2026-11-12): it is a record, and a job goes to it
+  // only once it is extended to Supplier, which writes the register row
+  // read here. Decided from the register, never from the Kind: a record
+  // given a Kind and no position is still not a supplier (review,
+  // 2026-11-13). Only the raising company's own records and companies of
+  // Kind not classified are read; every other firm reads as before. The
+  // refusal names it and the step, logged first.
+  const heldBy = await positionsFor(
+    requisition.companyId,
+    vendorCompanies.filter((c) => isMine(c, requisition.companyId) || c.kind === 'UNCLASSIFIED'),
+  )
   for (const c of vendorCompanies) {
-    const may = mayBeSentJob(c, registerRows.filter((r) => r.otherCompanyId === c.id).map((r) => r.relationship))
+    const may = mayBeSentJob(
+      c,
+      registerRows.filter((r) => r.otherCompanyId === c.id).map((r) => r.relationship),
+      heldBy.get(c.id) ?? null,
+    )
     if (!may.ok) {
       // Another firm's record is never named: it is that firm's list.
       const says =

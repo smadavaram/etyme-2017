@@ -22,6 +22,7 @@ vi.mock('@/lib/senders', async (orig) => {
 
 const companies = await import('@/app/api/companies/route')
 const extend = await import('@/app/api/companies/[id]/extend/route')
+const kind = await import('@/app/api/companies/[id]/kind/route')
 const suppliers = await import('@/app/api/suppliers/route')
 const distribute = await import('@/app/api/requisitions/[id]/distribute/route')
 const forward = await import('@/app/api/submissions/[id]/forward/route')
@@ -119,6 +120,48 @@ describe('a company not classified yet, on the demand side', () => {
     expect(p.status).toBe(200)
     expect(p.body.data.added[0].companyId).toBe(id)
     expect(await prisma.company.count({ where: { listedById: brightmoor, name: { equals: 'Ashgrove Contract Staff', mode: 'insensitive' } } })).toBe(1)
+  })
+
+  it('a recorded company given the Kind Vendor and no position is still refused a job in the same sentence, and is sent one once it is extended to Supplier', async () => {
+    as(OWNER)
+    const id = (await record('Tolland Bridge Staffing')).body.data.company.id
+    const k = await json(await kind.PATCH(req('PATCH', `/api/companies/${id}/kind`, { kind: 'VENDOR' }), { params: { id } } as any))
+    expect(k.status, JSON.stringify(k.body)).toBe(200)
+    const before = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: id } })
+    const r = await json(
+      await distribute.POST(req('POST', `/api/requisitions/${jobId}/distribute`, { vendors: [{ companyId: id }] }), { params: Promise.resolve({ id: jobId }) } as any),
+    )
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toBe('Tolland Bridge Staffing is on your Companies list and is not classified yet. Extend it to Supplier first.')
+    expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: id } })).toBe(before + 1)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: id } })).toBe(0)
+
+    const e = await json(await extend.POST(req('POST', `/api/companies/${id}/extend`, { as: 'SUPPLIER' }), { params: { id } } as any))
+    expect(e.status, JSON.stringify(e.body)).toBe(201)
+    const again = await json(
+      await distribute.POST(req('POST', `/api/requisitions/${jobId}/distribute`, { vendors: [{ companyId: id }] }), { params: Promise.resolve({ id: jobId }) } as any),
+    )
+    expect(again.status, JSON.stringify(again.body)).toBe(200)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: id, requirementId: jobId } })).toBe(1)
+    expect((await prisma.company.findUniqueOrThrow({ where: { id } })).kind).toBe('VENDOR')
+  })
+
+  it('a recorded company given the Kind Client and no position is still refused a person sent on, and the refusal says to extend it to Customer', async () => {
+    as(OWNER)
+    const id = (await record('Marlowe Fenn Holdings')).body.data.company.id
+    const k = await json(await kind.PATCH(req('PATCH', `/api/companies/${id}/kind`, { kind: 'CLIENT' }), { params: { id } } as any))
+    expect(k.status, JSON.stringify(k.body)).toBe(200)
+    const person = await prisma.person.create({ data: { name: 'Petra Lindgren', primaryEmail: 'petra.lindgren.walk@example.invalid' } })
+    const sub = await prisma.submission.create({
+      data: { requirementId: jobId, personId: person.id, fromCompanyId: techpeple, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
+      select: { id: true },
+    })
+    const r = await json(
+      await forward.POST(req('POST', `/api/submissions/${sub.id}/forward`, { via: 'ONWARD', toCompanyId: id, rate: 11000 }), { params: Promise.resolve({ id: sub.id }) } as any),
+    )
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toBe('Marlowe Fenn Holdings is on your Companies list and is not classified yet. Extend it to Customer first.')
+    expect(await prisma.submission.count({ where: { toCompanyId: id } })).toBe(0)
   })
 
   it('nothing on this walk was emailed to a company not classified yet', () => {
