@@ -7,6 +7,7 @@ import type { CfoLine } from './home-cfo'
 import {
   SEE_IT_WORK, DEMO_COMPANY, DEMO_LABEL, DEMO_SENT, DEMO_BACK, DEMO_NOT_NOW, CFO_SHOW, CFO_HIDE, CFO_LABEL,
 } from './home-words'
+import { FILLED, OUTLINE } from './home-buttons'
 
 /**
  * The three things on the home page a reader presses that are not links:
@@ -16,15 +17,6 @@ import {
  * seed (`./home-demo`), and its Send shows one plain line in place of the
  * buttons, with a way back; nothing is posted, counted or sent.
  */
-
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
-
-/** The filled button, at least 44 pixels high. */
-export const FILLED =
-  `inline-flex min-h-11 items-center justify-center rounded-lg bg-etyme-action px-5 py-2.5 text-center text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 ${FOCUS}`
-/** The outline button beside it, at least 44 pixels high. */
-export const OUTLINE =
-  `inline-flex min-h-11 items-center justify-center rounded-lg border border-etyme-rule bg-etyme-surface px-5 py-2.5 text-center text-[15px] font-semibold text-etyme-ink transition-colors hover:border-etyme-action ${FOCUS}`
 
 /**
  * See it work: an anchor to the demo, so it works with no script, and

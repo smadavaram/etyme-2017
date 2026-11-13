@@ -3,7 +3,8 @@ import { SiteHeader } from '@/lib/public-site/frame'
 import { CategoryLine, SkeletonFooter } from '@/lib/public-site/skeleton'
 import { homeDemo } from '@/lib/public-site/home-demo'
 import { homeCfoLines } from '@/lib/public-site/home-cfo'
-import { SeeItWork, HomeDemoBlock, CfoView, FILLED } from '@/lib/public-site/home-parts'
+import { SeeItWork, HomeDemoBlock, CfoView } from '@/lib/public-site/home-parts'
+import { FILLED } from '@/lib/public-site/home-buttons'
 import {
   HOME_HEADLINE, HOME_SUBHEAD, HOME_FIT, COMPLEMENT_LINE, START_FREE, UNDER_START,
   PROOF_HEADING, PROOF_CARDS, STRIP, PRICE_LINE, SECURITY_LINE, SECURITY_LINK,

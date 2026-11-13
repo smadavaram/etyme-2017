@@ -111,6 +111,18 @@ describe('Start free leads somewhere real', () => {
     expect(PAGE).not.toMatch(/<form\b/)
   })
 
+  it('the page takes its button shapes from a file the server can read, so Start free is never drawn as plain text', () => {
+    // A value imported from a 'use client' file reaches a server page as a
+    // reference: inside a template literal it prints "[object Object]", and
+    // the hero's Start free lost its shape on a phone (2026-11-13).
+    const buttons = readFileSync(join(ROOT, 'src/lib/public-site/home-buttons.ts'), 'utf8')
+    expect(buttons).not.toMatch(/^'use client'/m)
+    expect(PAGE).toMatch(/import \{ FILLED \} from '@\/lib\/public-site\/home-buttons'/)
+    expect(PAGE).not.toMatch(/import \{[^}]*\b(FILLED|OUTLINE)\b[^}]*\} from '@\/lib\/public-site\/home-parts'/)
+    const parts = readFileSync(join(ROOT, 'src/lib/public-site/home-parts.tsx'), 'utf8')
+    expect(parts).not.toMatch(/export const (FILLED|OUTLINE)\b/)
+  })
+
   it('the header on the home page is the wordmark, a plain Sign in link and Start free; every other page’s header is unchanged', () => {
     const frame = read('src/lib/public-site/frame.tsx')
     expect(frame).toContain("export function SiteHeader({ button }: { button?: { t: string; href: string } } = {})")
