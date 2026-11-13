@@ -260,6 +260,8 @@ export async function POST(
       where: { id: invite.companyId },
       data: {
         claimedAt: new Date(),
+        // What the firm that recorded this company typed about it is its note, never this company's answer (review, 2026-11-13).
+        website: null, entityType: null,
         // Only where the record had none and nobody else holds it. A
         // domain that came from a paste is a guess; one that came from
         // the person who signed in is at least their own address.
