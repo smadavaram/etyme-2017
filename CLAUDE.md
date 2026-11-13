@@ -5959,8 +5959,8 @@ Suppliers).
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
-| Client | Today · Network: Candidates, Suppliers · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Payables, Reports · Settings | Conversations → Ask Etyme. By region → Today. Contacts, Agreements, Supplier scorecards → Suppliers. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. AP, Budget, POs → Payables. Users & permissions, Program team, MSPs, Org view, Program twin, Data requests, Your data, Import, Sites, Team structure, Sign-in → Settings. |
-| Supplier | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Payroll, Reports · Settings | Conversations → Ask Etyme. Rate history, Our scorecard → Today. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts → Companies. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Rolloff → Timesheets. AR → Receivables. AP → Payables. Profitability → Reports. Commissions → Payroll. Users & permissions, Setup, Sites, Team structure, Sign-in, Import, Integrations, Automation, DNR list, Data requests, Your data → Settings. |
+| Client | Today · Network: Candidates, Suppliers · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Payables, Reports · Settings | Conversations → Ask Etyme. By region → Today. Contacts, Agreements, Supplier scorecards → Suppliers. Interviews → Submissions. Ending soon, Past contractors, Tenure, Duplicate check, Compliance, Document requests → Contracts. AP, Budget, POs → Payables. Users & permissions, Team structure, Owners, Sign-in, Program team, MSPs, Sites, Import records, Program twin, Org view, Data requests, Your data → Settings. |
+| Supplier | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Payroll, Reports · Settings | Conversations → Ask Etyme. Rate history, Our scorecard → Today. Bench, Bench pay, Bench check-ins, Training → Candidates. Suppliers, Contacts → Companies. Leads, Shared with you → Jobs. Interviews → Submissions. Sell contracts, Buy contracts, POs, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue → Contracts. Rolloff → Timesheets. AR → Receivables. AP → Payables. Profitability → Reports. Commissions → Payroll. Users & permissions, Team structure, Owners, Sign-in, Setup, Sites, Integrations, Import records, Activity log, Data requests, Your data, DNR list → Settings. |
 | Integrator | Today · Network: Candidates, Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Payroll, Reports · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
 | MSP | Today · Network: Companies · Jobs · Submissions · HR: Contracts, Timesheets, Expenses · Accounting: Receivables, Payables, Reports · Settings | The supplier's, with no Candidates under Network, no Payroll link and no Our scorecard: an MSP places nobody and pays nobody. AR → Receivables. AP → Payables. Profitability → Reports. Suppliers, Supplier scorecards, Contacts → Companies. |
 | One-person firm | Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
@@ -5970,14 +5970,14 @@ Each link opens the first of its pages the reader may open, and on any
 of them the shell draws the tab row under the page header, the noun's
 own page first (`components/shell/section-pills`). Nothing behind the
 menu is deleted: every page keeps its address, and search and the +
-button still find it. Network and Contracts are the two links whose
-tab rows are grouped: each group's name, then its pages ("Candidates:
+button still find it. Network, Contracts and Settings are the links whose
+tab rows are grouped (Settings: People · Company · Records): each group's name, then its pages ("Candidates:
 Bench · Bench pay · … | Companies: Suppliers · Contacts"; "Contracts:
 Sell contracts · Buy contracts · POs | Paperwork: Missing paperwork ·
 Document requests · …"), the group's name being the link to its own
 register where one is named after it, so Bench, Contacts or Document
 requests is one click from the link. Settings keeps Papers you require
-(the setup checklist's item), the DNR list and the automation ladder.
+(the setup checklist's item), the DNR list and the activity log.
 The tab row's groups are not the menu's headings: the eyebrow over a
 page still reads the noun it is a tab of (Network over Bench, Timesheets
 over Expenses, Today over Profitability), because the tabs did not move. The money is three links in the founder's order:

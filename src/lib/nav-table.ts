@@ -522,12 +522,32 @@ const SIGN_IN: NavItem = {
 const USERS: NavItem = { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', needs: ['governance.read'] }
 // Five onboardings, derived live from what exists, read by the seats that bring each party on.
 const SETUP: NavItem = { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', needs: SETS_UP_A_PARTY, api: 'onboarding/readiness' }
-// Any one kind of sheet this seat may load opens it.
-const IMPORT: NavItem = { label: 'Import', href: '/dashboard/data', icon: '⤓', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS }
+/**
+ * The records import (founder's first-day list, fault 22): it loads
+ * contractors, suppliers, sites and other records from a sheet, and never
+ * teams or who leads them, which Team structure reads from a directory.
+ * Two verbs for two things, so the label says which one this is.
+ * Any one kind of sheet this seat may load opens it.
+ */
+export const IMPORT_RECORDS_LABEL = 'Import records'
+const IMPORT: NavItem = { label: IMPORT_RECORDS_LABEL, href: '/dashboard/data', icon: '⤓', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS }
 // The journal out to their books, and the statement back against ours. Money, so read by the seats that read money.
 const INTEGRATIONS: NavItem = { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', needs: ['invoices.read'], api: 'integrations/export' }
-// What the system did on the company's behalf.
-const AUTOMATION: NavItem = { label: 'Automation', href: '/dashboard/automation', icon: '⚙', needs: ['governance.read'] }
+/**
+ * What Etyme did on the company's behalf, and who asked (founder's
+ * first-day list, fault 19, 2026-11-13). The tab read "Automation", which
+ * promised a switchboard; the page is a log. One constant, so the word is
+ * one change. The address, the key and the file names do not move.
+ */
+export const ACTIVITY_LOG_LABEL = 'Activity log'
+const AUTOMATION: NavItem = { label: ACTIVITY_LOG_LABEL, href: '/dashboard/automation', icon: '⚙', needs: ['governance.read'] }
+/**
+ * Who owns the company, passing ownership and the Owner rules (founder,
+ * 2026-11-11). Read by its Owners and Admins, which the route asks by role
+ * name; both, and no other shipped role, hold settings.manage. A pill of
+ * its own since the first-day list (fault 20): it was a link in a sentence.
+ */
+const OWNERS: NavItem = { label: 'Owners', href: '/dashboard/settings/owners', icon: '♔', needs: ['settings.manage'] }
 const PAPERWORK: NavItem = { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', ...PAPERWORK_READS }
 /** A queue, not a report: the loose ends of the firm's placements. */
 const MISSING_PAPERWORK: NavItem = { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' }
@@ -549,22 +569,32 @@ const DNR_LIST: NavItem = { label: 'DNR list', href: '/dashboard/blacklist', ico
 const DATA_REQUESTS: NavItem = { label: 'Data requests', href: '/dashboard/privacy', icon: '⚖', needs: ['governance.read'], api: 'data-requests' }
 const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' }
 
-/**
- * A supplier's Settings, every tab in the order a firm reaches for it.
- * The papers' working pages left it for Contracts on 2026-11-04 (founder:
- * "Should the paperwork be connected to contracts — why is it
- * navigationally independent?"); the DNR list and the automation ladder
- * stay, and Papers you require is the setup checklist's item.
- */
-const FIRM_SETTINGS: NavItem[] = [
-  SETTINGS, SITES, TEAM_STRUCTURE, SIGN_IN, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION, DNR_LIST,
-  DATA_REQUESTS, YOUR_DATA_HERE,
-]
-
 const tabbed = (label: string, items: NavItem[]): NavSection => ({ label, tabbed: true, items })
 
 /** Tabs that sit in one group of a section's tab row. */
 const inGroup = (group: string, items: NavItem[]): NavItem[] => items.map((i) => ({ ...i, group }))
+
+/**
+ * The three groups of Settings' tab row (founder's first-day list, fault
+ * 20, 2026-11-13): twelve flat pills became People, Company and Records,
+ * the way Network and Contracts already read. A role sees only the pills
+ * it may open, so only the groups that hold one.
+ */
+export const SETTINGS_GROUPS = ['People', 'Company', 'Records'] as const
+
+/**
+ * A supplier's, integrator's and MSP's Settings. The papers' working pages
+ * left it for Contracts on 2026-11-04 (founder: "Should the paperwork be
+ * connected to contracts — why is it navigationally independent?"); the
+ * DNR list and the activity log stay, and Papers you require is the setup
+ * checklist's item. The Settings link still opens the company's own
+ * settings page first where the seat may open it (`menuOf`).
+ */
+const FIRM_SETTINGS: NavItem[] = [
+  ...inGroup('People', [USERS, TEAM_STRUCTURE, OWNERS, SIGN_IN]),
+  ...inGroup('Company', [SETTINGS, SETUP, SITES, INTEGRATIONS, IMPORT]),
+  ...inGroup('Records', [AUTOMATION, DATA_REQUESTS, YOUR_DATA_HERE, DNR_LIST]),
+]
 
 /**
  * ── Network: the master data a firm keeps ───────────────────────────
@@ -862,25 +892,32 @@ const CLIENT_NAV: NavSection[] = [
     { label: 'Budget', href: '/dashboard/program/budget', icon: '◱' },
     POS,
   ]),
+  // The client's Settings in the same three groups as a firm's (fault 20):
+  // who is seated and who runs the program under People; the company's own
+  // settings and sites under Company; what the record shows and keeps under
+  // Records, where the twin's ledger and the managers' rate finding sit.
   tabbed('Settings', [
-    SETTINGS,
-    SITES,
-    TEAM_STRUCTURE,
-    SIGN_IN,
-    USERS,
-    // Who runs the program: approvers, the lead, and who is answerable
-    // for each budget. Read by whoever raises a job request, sets the
-    // program up, or seats people — the three its GET handler asks for.
-    { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', needs: ['requirements.write', 'settings.manage', 'team.manage'] },
-    // The MSP the client seats in its program, granted and taken back here.
-    { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', needs: ['governance.read'] },
-    { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
-    // The program manager's twin (2026-10-12): what it did, what it is
-    // waiting on a person for, and what it may do.
-    { label: 'Program twin', href: '/dashboard/twin', icon: '◎', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },
-    DATA_REQUESTS,
-    YOUR_DATA_HERE,
-    IMPORT,
+    ...inGroup('People', [
+      USERS,
+      TEAM_STRUCTURE,
+      OWNERS,
+      SIGN_IN,
+      // Who runs the program: approvers, the lead, and who is answerable
+      // for each budget. Read by whoever raises a job request, sets the
+      // program up, or seats people — the three its GET handler asks for.
+      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', needs: ['requirements.write', 'settings.manage', 'team.manage'] },
+      // The MSP the client seats in its program, granted and taken back here.
+      { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', needs: ['governance.read'] },
+    ]),
+    ...inGroup('Company', [SETTINGS, SITES, IMPORT]),
+    ...inGroup('Records', [
+      // The program manager's twin (2026-10-12): what it did, what it is
+      // waiting on a person for, and what it may do.
+      { label: 'Program twin', href: '/dashboard/twin', icon: '◎', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },
+      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
+      DATA_REQUESTS,
+      YOUR_DATA_HERE,
+    ]),
   ]),
 ]
 
@@ -1221,6 +1258,14 @@ export function menuOf(sections: readonly NavSection[], grouped: boolean): MenuG
     if (s.label === 'Timesheets') {
       push(heading, linkOf('Timesheets', s.items.filter((i) => i.href !== EXPENSES_HREF)))
       push(heading, linkOf('Expenses', s.items.filter((i) => i.href === EXPENSES_HREF)))
+      continue
+    }
+    if (s.label === 'Settings') {
+      // The Settings link opens the company's own settings page where the
+      // seat may open it, though People leads the tab row; a seat that may
+      // not opens the first pill it may (HR: Users & permissions).
+      const home = s.items.filter((i) => i.href === SETTINGS.href)
+      push(heading, linkOf('Settings', [...home, ...s.items.filter((i) => i.href !== SETTINGS.href)]))
       continue
     }
     push(heading, linkOf(LINK_LABEL_OF[s.label] ?? s.label, s.items))

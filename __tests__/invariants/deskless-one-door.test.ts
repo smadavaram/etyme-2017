@@ -336,14 +336,15 @@ describe('round seven: the door names the page, opens a worker’s own signed pa
     expect(desklessDoor({ ...KARTHIK, path: '/api/documents/d1/send', method: 'POST' }).open).toBe(false)
   })
 
-  it('every refusal the round-seven walk read as "What you opened" names its page: Leads, What is coming, Import, Our scorecard, Supplier scorecards, Training and Paperwork', () => {
+  it('every refusal the round-seven walk read as "What you opened" names its page: Leads, What is coming, Import records, Our scorecard, Supplier scorecards, Training and Paperwork', () => {
     // Problem 10.
     const pages: [string, string, string][] = [
       ['VENDOR', '/api/openings', 'Leads'],
       ['VENDOR', '/api/governance/horizon', 'What is coming'],
       ['CLIENT', '/api/governance/horizon', 'What is coming'],
-      ['CLIENT', '/api/imports', 'Import'],
-      ['VENDOR', '/api/imports/i1/rows', 'Import'],
+      // The records import, labeled Import records since the first-day list (fault 22).
+      ['CLIENT', '/api/imports', 'Import records'],
+      ['VENDOR', '/api/imports/i1/rows', 'Import records'],
       ['VENDOR', '/api/me/scorecard', 'Our scorecard'],
       ['CLIENT', '/api/vendors/scorecards', 'Supplier scorecards'],
       ['CLIENT', '/api/vendors/risk', 'Supplier scorecards'],

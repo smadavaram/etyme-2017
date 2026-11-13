@@ -450,3 +450,33 @@ describe('Payload inspection', () => {
     expect(payloadKeys({})).toEqual([])
   })
 })
+
+// The founder's first-day list, fault 19 (2026-11-13): the tab read
+// Automation over a log. The page is headed with what it is.
+import { readFileSync as readPage } from 'fs'
+import { ACTIVITY_LOG_TITLE, ACTIVITY_LOG_SUBTITLE, UNPROMPTED_PANEL_HEADING } from '@/app/dashboard/automation/words'
+
+describe('the activity log says what it is', () => {
+  const page = readPage('src/app/dashboard/automation/page.tsx', 'utf8')
+    .split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n')
+
+  it('the activity log page is headed with what Etyme did and who asked, never "the system"', () => {
+    expect(ACTIVITY_LOG_TITLE).toBe('What Etyme did, and who asked')
+    expect(page).toContain('title={ACTIVITY_LOG_TITLE}')
+    expect(page).not.toMatch(/the system/i)
+  })
+
+  it('the line under the heading tells the activity log apart from the record of who read what', () => {
+    expect(ACTIVITY_LOG_SUBTITLE).toMatch(/access log/)
+  })
+
+  it('the panel of what Etyme does unprompted is headed What Etyme does without being asked', () => {
+    expect(UNPROMPTED_PANEL_HEADING).toBe('What Etyme does without being asked')
+    expect(page).toContain('{UNPROMPTED_PANEL_HEADING}')
+    expect(page).not.toMatch(/How far from a person/)
+  })
+
+  it('no loading, empty or refused line on the page says Automation', () => {
+    expect(page).not.toMatch(/automation log|automation entries/i)
+  })
+})

@@ -4,10 +4,11 @@ import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
+import { ACTIVITY_LOG_SUBTITLE, ACTIVITY_LOG_TITLE, UNPROMPTED_PANEL_HEADING } from './words'
 import { Check, Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, Panel, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 /**
- * Automation Log — what the system did, with reasons.
+ * The activity log (the Settings tab once labeled Automation) — what Etyme did, and who asked.
  *
  * BUILD.md §3: "GET /api/automation — what ran, with reasons"
  *
@@ -183,7 +184,7 @@ export default function AutomationPage() {
       const res = await fetch(`/api/automation?${params.toString()}`)
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}))
-        setRefused(body.error?.message ?? 'The automation log is not part of your seat. Ask your company’s owner if you need it.')
+        setRefused(body.error?.message ?? 'The activity log is not part of your seat. Ask your company’s Owner if you need it.')
         setEntries([])
         return
       }
@@ -253,14 +254,14 @@ export default function AutomationPage() {
   const topRung = rungsPresent.length ? rungsPresent[rungsPresent.length - 1] : null
 
   if (refused) return <RefusedState says={refused} />
-  if (!answered) return <LoadingState says="Opening the automation log…" />
+  if (!answered) return <LoadingState says="Opening the activity log…" />
 
   return (
     <>
       <PageHead
         eyebrow={section}
-        title="What the system did on its own"
-        subtitle="Every action, the level it acted at, the rule it followed, and whether it can still be undone. Most of this is a date or a threshold, not a judgment, and the rows say which."
+        title={ACTIVITY_LOG_TITLE}
+        subtitle={ACTIVITY_LOG_SUBTITLE}
         actions={
           <button onClick={fetchEntries} className="btn-secondary text-[13px]">
             Refresh
@@ -281,9 +282,9 @@ export default function AutomationPage() {
           reached are offered — a rung with nothing behind it is a claim. */}
       {rungsPresent.length > 0 && (
         <Panel className="mb-5">
-          <p className="stat-label mb-2">How far from a person&apos;s hand</p>
+          <p className="stat-label mb-2">{UNPROMPTED_PANEL_HEADING}</p>
           <FilterChips<'ALL' | Rung>
-            label="How far from a person’s hand"
+            label={UNPROMPTED_PANEL_HEADING}
             options={[
               { key: 'ALL', label: 'Everything', count: total },
               ...rungsPresent.map((r) => ({ key: r, label: `${r} ${LADDER[r].name}`, count: levelCounts[r] })),
@@ -294,7 +295,7 @@ export default function AutomationPage() {
           <p className="text-[12px] text-etyme-muted mt-2.5">
             {levelFilter
               ? LADDER[levelFilter].says
-              : 'A level is only given to what the system did unprompted. A refusal aimed at somebody who asked for something is governance, not autonomy, and carries no level.'}
+              : 'A level is only given to what Etyme did unprompted. A refusal aimed at somebody who asked for something is governance, not autonomy, and carries no level.'}
           </p>
         </Panel>
       )}
@@ -325,14 +326,14 @@ export default function AutomationPage() {
 
       {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => fetchEntries() }} /></div>}
 
-      {loading && <LoadingState says="Opening the automation log…" />}
+      {loading && <LoadingState says="Opening the activity log…" />}
 
       {!loading && entries.length === 0 && (
         <EmptyState
-          says="No automation entries found."
+          says="Nothing in the activity log yet."
           detail={actionFilter || levelFilter
             ? 'Try a different filter to see other entries.'
-            : 'The system has not done anything on its own yet.'}
+            : 'Etyme has not done anything on its own yet.'}
         />
       )}
 

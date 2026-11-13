@@ -129,10 +129,12 @@ describe('a menu is eleven links at most, and every other page is a tab of one o
     expect(linksOf(network)[0]).toMatchObject({ label: 'Network', href: '/dashboard/bench' })
   })
 
-  it('groups tabs only under Network and Contracts: every other page that was a neighbor is a plain tab', () => {
+  // Settings joined the grouped rows on 2026-11-13 (the founder's first-day
+  // list, fault 20): People, Company, Records, the way Network and Contracts read.
+  it('groups tabs only under Network, Contracts and Settings: every other page that was a neighbor is a plain tab', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
       for (const worker of [false, true]) {
-        const items = getNavForKind(kind, false, { worker }).flatMap((s) => s.label === 'Network' || s.label === 'Contracts' ? [] : s.items)
+        const items = getNavForKind(kind, false, { worker }).flatMap((s) => s.label === 'Network' || s.label === 'Contracts' || s.label === 'Settings' ? [] : s.items)
         expect(items.filter((i) => i.group).map((i) => i.label), kind).toEqual([])
       }
     }
@@ -853,6 +855,8 @@ describe('a menu offers only what this seat can actually open', () => {
   const DESK_GATES: Record<string, { stands: string[]; desks: readonly string[] }> = {
     'bench/profit': { stands: ['pnl.read'], desks: BENCH_PROFIT_DESKS },
     'settings/bench': { stands: ['settings.manage', 'pnl.read'], desks: BENCH_PAY_DESKS },
+    // Who owns the company is read by its Owners and Admins, asked by role name.
+    'settings/owners': { stands: ['settings.manage'], desks: ['Owner', 'Admin'] },
   }
 
   it('a page gated by the desk\'s name is offered by a permission only that desk holds', () => {
@@ -1847,5 +1851,125 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     const slots = read('src/components/shell/rail-slots.tsx')
     expect(slots).toContain('createPortal(children, target)')
     expect(slots).toContain('{heading && filled &&')
+  })
+})
+
+/**
+ * ── Settings in three groups, and two words that said the wrong thing ──
+ *
+ * The founder's first-day list, faults 19, 20 and 22 (2026-11-13), read as
+ * Tapin's Owner: twelve flat Settings pills, a tab called Automation over
+ * a log, and one verb, Import, for two different doors.
+ */
+describe('Settings reads People, Company and Records, and each label says what its page is', () => {
+  const rowOf = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT', permissions?: readonly string[]) => {
+    const sections = getNavForKind(kind, false, { permissions })
+    const s = sections.find((x) => x.label === 'Settings')!
+    return { sections, items: s.items, groups: tabsFor(sections, s.items[0].href)?.groups ?? [] }
+  }
+  const role = (kind: 'VENDOR' | 'CLIENT', name: string) => rolesFor(kind).find((r) => r.name === name)!.permissions
+
+  for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+    it(`a ${kind === 'VENDOR' ? 'supplier' : kind === 'GSI' ? 'integrator' : 'MSP'}'s Settings tab row is drawn in three groups, People, Company and Records, in that order`, () => {
+      const { groups } = rowOf(kind)
+      expect(groups.map((g) => g.name)).toEqual(['People', 'Company', 'Records'])
+      expect(groups.map((g) => g.tabs.map((t) => t.label))).toEqual([
+        ['Users & permissions', 'Team structure', 'Owners', 'Sign-in'],
+        ['Settings', 'Setup', 'Sites', 'Integrations', 'Import records'],
+        ['Activity log', 'Data requests', 'Your data', 'DNR list'],
+      ])
+    })
+  }
+
+  it('a client’s Settings is grouped People, Company and Records, with no page named twice', () => {
+    const { groups, items } = rowOf('CLIENT')
+    expect(groups.map((g) => g.name)).toEqual(['People', 'Company', 'Records'])
+    expect(groups.map((g) => g.tabs.map((t) => t.label))).toEqual([
+      ['Users & permissions', 'Team structure', 'Owners', 'Sign-in', 'Program team', 'MSPs'],
+      ['Settings', 'Sites', 'Import records'],
+      ['Program twin', 'Org view', 'Data requests', 'Your data'],
+    ])
+    expect(new Set(items.map((i) => i.href)).size).toBe(items.length)
+  })
+
+  it('Owners is a tab under People and opens /dashboard/settings/owners, offered only to a seat that holds settings.manage', () => {
+    const owners = rowOf('VENDOR').items.find((i) => i.label === 'Owners')!
+    expect(owners.href).toBe('/dashboard/settings/owners')
+    expect(owners.group).toBe('People')
+    expect(rowOf('VENDOR', role('VENDOR', 'HR')).items.map((i) => i.label)).not.toContain('Owners')
+  })
+
+  it('Users & permissions still opens /dashboard/access though its tab sits under Settings', () => {
+    expect(rowOf('VENDOR').items.find((i) => i.label === 'Users & permissions')!.href).toBe('/dashboard/access')
+  })
+
+  it('the Settings link opens the company’s own settings page for an Owner, though People leads the tab row', () => {
+    const link = menuLinks(menuFor('VENDOR', false, { permissions: ['*'] })).find((l) => l.label === 'Settings')!
+    expect(link.href).toBe('/dashboard/settings')
+  })
+
+  it('HR sees only the pills it may open, and the Settings link opens Users & permissions', () => {
+    const hr = role('VENDOR', 'HR')
+    const { items, groups } = rowOf('VENDOR', hr)
+    expect(items.map((i) => i.label)).not.toContain('Settings')
+    for (const g of groups) expect(g.tabs.length).toBeGreaterThan(0)
+    const link = menuLinks(menuFor('VENDOR', false, { permissions: hr })).find((l) => l.label === 'Settings')!
+    expect(link.href).toBe(items[0].href)
+  })
+
+  it('AP & Payroll sees only the Company and Records groups, each with its one pill, and no People group', () => {
+    const { groups } = rowOf('VENDOR', role('VENDOR', 'AP & Payroll'))
+    expect(groups.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
+      ['Company', ['Integrations']],
+      ['Records', ['Your data']],
+    ])
+    // A group with one pill still reads as a group: its name is drawn over it.
+    expect(groupRow(groups[0])).toEqual({ head: null, name: 'Company', pages: groups[0].tabs })
+  })
+
+  it('a supplier’s Settings tab reads Activity log where it read Automation, and still opens /dashboard/automation', () => {
+    const items = rowOf('VENDOR').items
+    expect(items.map((i) => i.label)).not.toContain('Automation')
+    expect(items.find((i) => i.label === 'Activity log')!.href).toBe('/dashboard/automation')
+  })
+
+  it('the menu link for the records import reads Import records and keeps its address', () => {
+    for (const kind of ['VENDOR', 'CLIENT'] as const) {
+      const items = rowOf(kind).items
+      expect(items.map((i) => i.label)).not.toContain('Import')
+      expect(items.find((i) => i.label === 'Import records')!.href).toBe('/dashboard/data')
+    }
+  })
+
+  it('the + button and search offer Activity log and Import records under their new names', () => {
+    const labels = itemsOf(getNavForKind('VENDOR', false)).map((i) => i.label)
+    expect(labels).toEqual(expect.arrayContaining(['Activity log', 'Import records']))
+    expect(labels).not.toContain('Automation')
+  })
+})
+
+describe('the Settings home page keeps only tabs no pill repeats', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/page.tsx'), 'utf8')
+  const tabs = page.match(/const TABS = \[([^\]]+)\]/)![1]
+
+  it('the Settings home page no longer draws a Locations tab, which the Sites pill already is', () => {
+    expect(tabs).not.toMatch(/'Locations'/)
+    expect(page).not.toMatch(/LocationsTab/)
+  })
+
+  it('the Roles tab stays, because it is the only screen that lists what each role can do', () => {
+    expect(tabs).toMatch(/'Roles'/)
+    expect(page).toMatch(/Permissions: \$\{r\.canDo\.words\}/)
+  })
+
+  it('the Roles tab draws the level chip Users & permissions draws, from the same reader, its why on hover and on a tap', () => {
+    expect(page).toMatch(/import \{ levelOf \} from '@\/lib\/access-grant'/)
+    expect(page).toMatch(/levelOf\(r\.name, r\.permissions\)\.label/)
+    expect(page).toMatch(/title=\{levelOf\(r\.name, r\.permissions\)\.why\}/)
+    expect(page).toMatch(/onClick=\{\(\) => setWhy\(/)
+  })
+
+  it('Owners is not repeated as a link in a sentence on the Settings home page, now that it is a pill', () => {
+    expect(page).not.toMatch(/href=\{'\/dashboard\/settings\/owners'/)
   })
 })
