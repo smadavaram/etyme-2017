@@ -7,6 +7,9 @@ import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { readAgreementTerms, mayRecordAgreement } from '@/lib/money/agreement-record'
 import { AGREEMENT_TERMS_SELECT, termsFor } from '@/lib/money/order-terms'
 import { currentTerms, ensureBaseline, recordVersion } from '@/app/api/program/agreements/trail'
+import { standingWith } from '@/app/api/companies/positions'
+import { workTogether } from '@/lib/company-create'
+import { recordRefusal } from '@/lib/access-log'
 
 const RHYTHM_WORDS: Record<string, string> = {
   WEEKLY: 'weekly', BIWEEKLY: 'every other week', SEMIMONTHLY: 'twice a month', MONTHLY: 'monthly',
@@ -99,7 +102,10 @@ export async function POST(request: NextRequest) {
   const [mine, other] = await Promise.all([
     prisma.company.findUnique({ where: { id: me }, select: { id: true, name: true, currency: true } }),
     otherId
-      ? prisma.company.findUnique({ where: { id: otherId }, select: { id: true, name: true, claimedAt: true } })
+      ? prisma.company.findUnique({
+          where: { id: otherId },
+          select: { id: true, name: true, claimedAt: true, listedById: true, kind: true },
+        })
       : Promise.resolve(null),
   ])
   if (!mine) {
@@ -152,17 +158,39 @@ export async function POST(request: NextRequest) {
       })
     : null
 
+  // Another firm's own record of a company is named only where real work
+  // lies between the two (`workTogether`, never a row the caller wrote
+  // alone), and a record of the caller's own only by the position it holds
+  // on the caller's register (`standingWith`), never by its Kind.
+  const theirRecord = other != null && other.claimedAt == null && other.listedById != null && other.listedById !== me
+  const worksTogether = theirRecord ? await workTogether(me, other.id) : false
+  const held = other ? await standingWith(me, other) : null
+
   const verdict = mayRecordAgreement({
     caller: { id: mine.id, name: mine.name },
     other,
     callerSells: body.callerSells,
     relationshipExists,
+    worksTogether,
+    held,
     existing: live
       ? { ...live, signatures: live._count.signatures, versions: live._count.versions }
       : null,
   })
   if (!verdict.ok) {
-    const status = verdict.says.includes('already on file') ? 409 : verdict.field === 'otherCompanyId' && other ? 403 : 422
+    // Written before the refusal is sent (CLAUDE.md, 2026-10-08). An id
+    // nothing has is a read of nobody, so there is no subject to log.
+    if (other) {
+      await recordRefusal([{ companyId: other.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: me,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused recording an agreement with a company: ${verdict.says}`,
+      })
+    }
+    // An id another firm keeps a record under is answered exactly as an id
+    // nothing has: the same words, the same code, the same status.
+    const status = verdict.unknown ? 422 : verdict.says.includes('already on file') ? 409 : verdict.field === 'otherCompanyId' && other ? 403 : 422
     return NextResponse.json({ error: { code: status === 409 ? 'DUPLICATE' : 'NOT_YOURS', message: verdict.says, field: verdict.field } }, { status })
   }
 

@@ -41,6 +41,7 @@
 
 import { isAnchor, ANCHORS } from '@/lib/billing-cascade'
 import type { OrderTerms, AgreementTerms as ReadByTheCascade } from '@/lib/money/order-terms'
+import { lacksPosition, type HeldWith, type Position } from '@/lib/counterparty'
 
 /** The period engine's own rhythms: an agreement says nothing the cascade cannot read. */
 export type AgreementRhythm = OrderTerms['frequency']
@@ -190,24 +191,52 @@ export function isPlaceholder(a: ExistingAgreement): boolean {
 
 export type RecordVerdict =
   | { ok: true; fillId: string | null; vendorId: string; clientId: string; says: string }
-  | { ok: false; says: string; field: string }
+  /** `unknown`: answered exactly as an id that is not on Etyme at all. */
+  | { ok: false; says: string; field: string; unknown?: true }
+
+/**
+ * What an id the caller may not name gets: the same words whether nothing
+ * has that id or another firm keeps its own private record under it, so the
+ * answer never confirms another firm holds a record of a company.
+ */
+export const AGREEMENT_UNKNOWN_FIRM_SAYS =
+  'Pick the firm the agreement is with. Add them from Companies first if they are not there; they do not need to be on Etyme.'
 
 export function mayRecordAgreement(input: {
   caller: { id: string; name: string }
-  other: { id: string; name: string; claimedAt: Date | null } | null
+  other: { id: string; name: string; claimedAt: Date | null; listedById?: string | null; kind?: string | null } | null
   /** True where the caller sells to the other firm; false where it buys from them. */
   callerSells: boolean
   /** Whether the two already trade: an order, a contract, an agreement, a job sent, or the register. */
   relationshipExists: boolean
+  /**
+   * `workTogether(caller, other)` in lib/company-create: real work between
+   * the two, never a register row the caller wrote alone. Read for a
+   * company another firm recorded; left out, it is read as no.
+   */
+  worksTogether?: boolean
+  /**
+   * Where the other company sits with the caller on the caller's own
+   * register (`standingWith` in app/api/companies/positions). Decides, for
+   * a company the caller recorded, whether it may be the client or the
+   * supplier on this agreement, never its Kind.
+   */
+  held?: HeldWith | null
   /** The live agreement between the pair, where there is one. */
   existing: ExistingAgreement | null
 }): RecordVerdict {
   const { caller, other } = input
   if (!other) {
-    return { ok: false, field: 'otherCompanyId', says: 'Pick the firm the agreement is with. Add them from Companies first if they are not there; they do not need to be on Etyme.' }
+    return { ok: false, field: 'otherCompanyId', unknown: true, says: AGREEMENT_UNKNOWN_FIRM_SAYS }
   }
   if (other.id === caller.id) {
     return { ok: false, field: 'otherCompanyId', says: 'An agreement is between two firms. Pick the other party to it.' }
+  }
+  // Another firm's own record of a company, not on Etyme: that firm's note,
+  // not the caller's. Named only where real work already lies between the
+  // two, and otherwise answered as an id nobody has (review, 2026-11-13).
+  if (other.claimedAt == null && other.listedById != null && other.listedById !== caller.id && !input.worksTogether) {
+    return { ok: false, field: 'otherCompanyId', unknown: true, says: AGREEMENT_UNKNOWN_FIRM_SAYS }
   }
   if (other.claimedAt != null && !input.relationshipExists) {
     return {
@@ -217,6 +246,25 @@ export function mayRecordAgreement(input: {
         `${other.name} is on Etyme and the two of you do not trade here yet, so an agreement in their name ` +
         `would be one nobody at ${other.name} knows about. Start from a job they sent you, an order, or ` +
         `ask them to add you, then record it.`,
+    }
+  }
+  // A company on the caller's Companies list is a client only by its
+  // Customer position and a supplier only by its Supplier position (founder,
+  // 2026-11-12), read from the register and never from the Kind, the same
+  // rule a contract line and an order read. So recording an agreement is
+  // never a second way to give a position: that is Extend, with its entry
+  // in the company's history.
+  const need: Position[] = input.callerSells ? ['CUSTOMER'] : ['SUPPLIER', 'PRIME']
+  if (lacksPosition(input.held ?? null, other.kind, need)) {
+    const step = input.callerSells ? 'Customer' : 'Supplier'
+    const word = input.callerSells ? 'client' : 'supplier'
+    const held = input.held?.positions ?? []
+    return {
+      ok: false,
+      field: 'otherCompanyId',
+      says: held.length === 0
+        ? `${other.name} is on your Companies list and is not classified yet. Extend it to ${step} first.`
+        : `${other.name} is on your Companies list but is not your ${word} yet. Extend it to ${step} first.`,
     }
   }
 
