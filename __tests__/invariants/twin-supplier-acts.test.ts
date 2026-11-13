@@ -299,7 +299,7 @@ describe('the supplier’s twin is held to its role contract', () => {
 
 describe('a firm’s Etyme address', () => {
   const visit = (url: string) => middleware(new NextRequest(url, { headers: { host: new URL(url).host } }))
-  it('a firm’s Etyme address on a subdomain opens its generated page, and a stranger’s subdomain opens the home page', async () => {
+  it('a firm’s Etyme address on a subdomain opens its generated page, a stranger’s subdomain opens the home page, and signing in goes to the deployment’s own app address', async () => {
     const fetched: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (u: URL | string) => {
       fetched.push(String(u))
@@ -315,15 +315,23 @@ describe('a firm’s Etyme address', () => {
       expect(stranger.headers.get('location')).toBeNull()
       expect(fetched).toEqual(['https://tapin.etyme.com/api/site/tapin', 'https://nobody-here.etyme.com/api/site/nobody-here'])
 
-      // Signing in stays on the platform's own host.
+      // Signing in goes to the one app address the deployment's sign-in
+      // already uses (lib/app-url, NEXTAUTH_URL; fault 4, 2026-11-12), never
+      // a host written into the code: it is the address that works today
+      // and the host the session cookie lives on.
+      vi.stubEnv('NEXTAUTH_URL', 'https://www.etyme.com')
       const signIn = await visit('https://tapin.etyme.com/login?next=%2Fdashboard')
-      expect(signIn.headers.get('location')).toBe('https://etyme.com/login?next=%2Fdashboard')
+      expect(signIn.headers.get('location')).toBe('https://www.etyme.com/login?next=%2Fdashboard')
+      vi.stubEnv('NEXTAUTH_URL', 'https://etyme2040.vercel.app/')
+      const elsewhere = await visit('https://tapin.etyme.com/login')
+      expect(elsewhere.headers.get('location')).toBe('https://etyme2040.vercel.app/login')
       // The platform's own names are never a firm's page.
       const app = await visit('https://app.etyme.com/')
       expect(app.headers.get('x-middleware-rewrite')).toBeNull()
       expect(fetched).toHaveLength(2)
     } finally {
       vi.unstubAllGlobals()
+      vi.unstubAllEnvs()
     }
   })
 
