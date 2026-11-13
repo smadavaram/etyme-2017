@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { DOMAINS, SHARED, domainOf, isShared, mayWrite, READERS } from '@/lib/domains'
 
@@ -153,5 +153,41 @@ describe('The shared list stays short, because it is the only queue', () => {
 
   it('stays small — a long shared list is a system with no parallelism at all', () => {
     expect(SHARED.length).toBeLessThanOrEqual(10)
+  })
+})
+
+/**
+ * CLAUDE.md is read in full by every agent before it starts. On 2026-11-13
+ * it had grown to 84,000 words, and reading it was the largest cost of
+ * every piece of work (the founder: "we are timing out quickly"). It now
+ * holds the rules that stand; the full record of each decision is one
+ * file in docs/decisions/. This keeps it that way.
+ */
+describe('CLAUDE.md holds the rules that stand, and the record is in docs/decisions', () => {
+  const claude = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8')
+  const dir = join(ROOT, 'docs/decisions')
+  const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md')
+  const index = readFileSync(join(dir, 'README.md'), 'utf8')
+
+  it('CLAUDE.md stays under 15,000 words, because every agent reads all of it before it starts', () => {
+    const words = claude.split(/\s+/).filter(Boolean).length
+    expect(words, `CLAUDE.md is ${words} words. Put the full record in docs/decisions/ and keep one to four lines here.`).toBeLessThan(15_000)
+  })
+
+  it('CLAUDE.md says where the full record is and how a new decision is written', () => {
+    expect(claude).toContain('## How this file is kept')
+    expect(claude).toContain('docs/decisions/README.md')
+  })
+
+  it('every decision file is listed in the index, and the index lists no file that is not there', () => {
+    const listed = [...index.matchAll(/\]\(([^)]+\.md)\)/g)].map((m) => m[1]).sort()
+    expect(listed).toEqual([...files].sort())
+  })
+
+  it('every file number a rule in CLAUDE.md points to is a decision file', () => {
+    const numbers = new Set(files.map((f) => f.slice(0, 2)))
+    const pointed = [...claude.matchAll(/Full text → ([0-9, ]+)\./g)].flatMap((m) => m[1].split(',').map((n) => n.trim()))
+    expect(pointed.length).toBeGreaterThan(20)
+    expect(pointed.filter((n) => !numbers.has(n))).toEqual([])
   })
 })
