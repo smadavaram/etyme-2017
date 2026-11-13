@@ -26,8 +26,8 @@ import type { MapCell, RoleMap, Tone } from './corvane-map'
  * party's roles over its own book (`./door-maps`). A map with one seat —
  * a worker's own page — draws no tab row.
  *
- * `doorsOpen` is the page's one read of whether Corvane is seeded on this
- * deployment (`./corvane-seeded`). Where it is not, no "Open the demo as …"
+ * `doorsOpen` says whether the seat's demo door is open on this deployment;
+ * the caller decides it. Where it is not, no "Open the demo as …"
  * link is drawn, because the door behind it would answer 404; the reader
  * is told the demo is being set up instead.
  */

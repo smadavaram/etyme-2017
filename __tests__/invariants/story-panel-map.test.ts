@@ -60,7 +60,6 @@ import {
   type MapView, type MapCell, type SeatKey,
 } from '@/lib/public-site/corvane-map'
 import { CorvaneMapView, DEMO_BEING_SET_UP } from '@/lib/public-site/corvane-map-view'
-import { corvaneIsSeeded, SEEDED_WAIT_MS } from '@/lib/public-site/corvane-seeded'
 import { demoRequest } from '@/lib/public-site/demo-link'
 import { homeCfoLines } from '@/lib/public-site/home-cfo'
 import { CFO_LABEL } from '@/lib/public-site/home-words'
@@ -330,19 +329,6 @@ describe('The map’s four roles are tabs at their own addresses', () => {
     expect((open.match(/data-map-door="open"/g) ?? []).length).toBe(MAP.views.length)
     expect(open).toContain('Open the demo as Margaret Osei')
     expect(open).not.toContain(DEMO_BEING_SET_UP)
-  })
-
-  it('the Corvane check asks the database once whether world-corvane exists, waits at most 800 milliseconds, and anything but a found company in time reads as not set up; the home page no longer asks it', async () => {
-    const asked: unknown[] = []
-    const db = (answer: () => Promise<{ id: string } | null>) => ({ company: { findUnique: (a: unknown) => { asked.push(a); return answer() } } })
-    expect(await corvaneIsSeeded(db(async () => ({ id: 'c1' })))).toBe(true)
-    expect(await corvaneIsSeeded(db(async () => null))).toBe(false)
-    expect(await corvaneIsSeeded(db(async () => { throw new Error('P1001') }))).toBe(false)
-    expect(asked[0]).toEqual({ where: { slug: 'world-corvane' }, select: { id: true } })
-    // A database slower than the bound reads as not set up, so the page is never held for it.
-    expect(SEEDED_WAIT_MS).toBeLessThanOrEqual(800)
-    expect(await corvaneIsSeeded(db(() => new Promise((r) => setTimeout(() => r({ id: 'c1' }), 50))), 5)).toBe(false)
-    expect(read('src/app/page.tsx')).not.toContain('corvaneIsSeeded')
   })
 
   it('each role’s demo link seats the reader at Corvane in that role, naming the person where several hold it', () => {

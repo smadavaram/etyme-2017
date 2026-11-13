@@ -21,7 +21,7 @@
  *     (`matchInvoices` and `payGate` in lib/invoice-match), so the door
  *     can never call a receipt clean that the demo would hold.
  *
- * Bounded like the home page's one read (`./corvane-seeded`): a database
+ * Bounded: a database
  * slower than the wait, an unseeded world, or any failure reads as null,
  * and the map says the figure is on the demo rather than guessing one. A
  * plausible wrong number is worse than a blank.
