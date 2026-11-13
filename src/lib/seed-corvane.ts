@@ -25,7 +25,8 @@
  * plant's contractors on site at the drawing's count, at the site's own
  * rate in the site's own currency; the drawing's open jobs and weeks to
  * sign; the nearest time limit at each plant, against an 18-month limit;
- * seven invoice receipts, one held over the hours at Dayton; one start
+ * thirteen invoice receipts, one clean in every region and seven held
+ * over the signed hours across the six regions, Dayton's the largest; one start
  * on hold for papers at Dayton.
  *
  * Not seeded, on purpose: matches, interviews and hires (the drawing
@@ -60,6 +61,7 @@ import { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day, seedWeek, signingDays } from '@/lib/seed-days'
 import { minorPerUnit } from '@/lib/money'
+import { spendInReporting, SAMPLE_RATE_TABLE, SAMPLE_RATES_WRITTEN_ON, type ReportingSpend } from '@/lib/money/reporting-currency'
 import { rolesFor } from '@/lib/company-defaults'
 import { ownSeatGrantReason } from '@/lib/own-seat'
 import { orderNumbers, orderNumberAttempt, headerWindow, ORDER_RHYTHM } from '@/lib/award'
@@ -67,7 +69,7 @@ import { REGION_UNIT_KIND, SITE_UNIT_KIND } from '@/lib/region-scope'
 import { periodFor } from '@/lib/periods'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
-import { postAssertion } from '@/lib/order-postings'
+import { postAssertions } from '@/lib/order-postings'
 import { bookPostings } from '@/lib/seed-order-to-cash'
 import { planCyclesFor, DEMO_MONTHLY_PAY } from '@/lib/contract-cycles'
 import { policyFrom } from '@/lib/cycle-shift'
@@ -84,9 +86,39 @@ import {
   CORVANE_SUPPLIERS, COUNTRY_NAMES, CORVANE_JOBS, CORVANE_JOB_SKILLS, CORVANE_PEOPLE, CORVANE_OPERATIONS_UNIT,
   CORVANE_DEPARTMENTS, CORVANE_RECEIPTS, FILLED_JOB_MONTHS,
   addressSafe, supplierSlug, corvaneSeatEmail, plantPlace, plantSuppliers, corvaneContractors, corvanePlaces,
-  corvaneSellId, corvaneEarlierSellIds, workerEmail, billRateMinor, payRateMinor, jobBand, plantOpenJobs,
+  corvaneSellId, corvaneEarlierSellIds, workerEmail, billRateMinor, payRateMinor, jobBand, plantOpenJobs, receiptOverMinor,
   type RegionKey, type CountryKey, type CorvanePlant, type PlannedContractor,
 } from '@/lib/seed-corvane/plan'
+
+/**
+ * The held receipts' total over the signed hours, in the reporting
+ * currency at the shipped sample rates, through money's own conversion,
+ * with the largest receipt in the same currency. Here and not in
+ * `plan.ts` because the sample table's file reaches the database client;
+ * a browser page reads `corvaneHeldFacts` for the counts and the
+ * per-currency figures. `total` is null where a currency has no rate.
+ */
+export function corvaneHeldInReporting(): {
+  spend: ReportingSpend
+  /** The held receipts, each in the reporting currency's minor units; null where a currency has no rate. */
+  receipts: { plant: string; supplier: string; overMinor: number | null }[]
+} {
+  const held = CORVANE_RECEIPTS.filter((r) => r.held)
+  const one = (r: (typeof held)[number]) => {
+    const p = CORVANE_PLANTS.find((x) => x.key === r.plant)!
+    return { currency: CORVANE_COUNTRIES[p.cc].currency, minor: receiptOverMinor(r) }
+  }
+  const inUsd = (r: (typeof held)[number]) => spendInReporting([one(r)], 'USD', SAMPLE_RATE_TABLE, SAMPLE_RATES_WRITTEN_ON).total?.minor ?? null
+  const plantOf = (key: string) => CORVANE_PLANTS.find((x) => x.key === key)!
+  return {
+    spend: spendInReporting(held.map(one), 'USD', SAMPLE_RATE_TABLE, SAMPLE_RATES_WRITTEN_ON),
+    receipts: held.map((r) => ({
+      plant: r.plant,
+      supplier: plantSuppliers(plantOf(r.plant))[r.lines[0].index % plantOf(r.plant).suppliers],
+      overMinor: inUsd(r),
+    })),
+  }
+}
 
 const regionOf = (key: RegionKey) => CORVANE_REGIONS.find((r) => r.key === key)!
 
@@ -573,9 +605,12 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   const toSign = here.flatMap((p) => live.filter((w) => w.plant.key === p.key).slice(0, p.weeksToSign))
   const last = seedWeek(1, 40)
   const totalOf = (d: Record<string, number>) => Object.values(d).reduce((a, b) => a + b, 0)
-  // ── And signed weeks behind each receipt ──
-  const receipts = CORVANE_RECEIPTS.filter((r) => here.some((p) => p.key === r.plant))
-    .map((r) => ({ r, w: live.find((w) => w.plant.key === r.plant && w.index === 0)! }))
+  // ── And signed weeks behind each receipt, one per contractor on it ──
+  const receipts = CORVANE_RECEIPTS.filter((r) => here.some((p) => p.key === r.plant)).map((r) => {
+    const on = r.lines.map((l) => ({ l, w: live.find((w) => w.plant.key === r.plant && w.index === l.index)! }))
+    return { r, w: on[0].w, on }
+  })
+  const weeks = receipts.flatMap(({ r, on }) => on.map(({ l, w }) => ({ r, l, w, ts: `cv_ts_${w.key}_w${r.week}` })))
   await db.timesheet.createMany({
     data: [
       ...toSign.map((w) => ({
@@ -583,12 +618,12 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
         periodStart: last.start, periodEnd: last.end, days: last.days, totalHours: totalOf(last.days),
         status: 'SUBMITTED', submittedAt: last.end,
       })),
-      ...receipts.map(({ r, w }) => {
-        const wk = seedWeek(r.week, r.accepted)
+      ...weeks.map(({ r, l, w, ts }) => {
+        const wk = seedWeek(r.week, l.accepted)
         const signed = signingDays(wk.start)
         return {
-          id: `cv_ts_${w.key}_w${r.week}`, sellContractId: sid(w), personId: who(w),
-          periodStart: wk.start, periodEnd: wk.end, days: wk.days, totalHours: r.accepted,
+          id: ts, sellContractId: sid(w), personId: who(w),
+          periodStart: wk.start, periodEnd: wk.end, days: wk.days, totalHours: l.accepted,
           status: 'APPROVED', submittedAt: wk.end,
           approvedAt: signed.signedAt(0), approvedById: manager(w.plant),
           clientApprovedAt: signed.signedAt(0), clientApprovedById: manager(w.plant),
@@ -599,12 +634,11 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
     skipDuplicates: true,
   })
   await db.workAssertion.createMany({
-    data: receipts.flatMap(({ r, w }) => {
-      const signed = signingDays(seedWeek(r.week, r.accepted).start)
-      const ts = `cv_ts_${w.key}_w${r.week}`
+    data: weeks.flatMap(({ r, l, w, ts }) => {
+      const signed = signingDays(seedWeek(r.week, l.accepted).start)
       return [
-        { id: `${ts}_client`, timesheetId: ts, companyId: co.id, role: 'CLIENT_APPROVAL', hours: r.accepted, rateCents: billRateMinor(w.plant.cc), state: 'LIVE', byId: manager(w.plant), at: signed.signedAt(0) },
-        { id: `${ts}_employer`, timesheetId: ts, companyId: supplierIds.get(supplierSlug(w.supplier))!, role: 'EMPLOYER_ACCEPTANCE', hours: r.accepted, rateCents: payRateMinor(w.plant.cc), state: 'LIVE', byId: ownerOf(w.supplier), at: signed.signedAt(1) },
+        { id: `${ts}_client`, timesheetId: ts, companyId: co.id, role: 'CLIENT_APPROVAL', hours: l.accepted, rateCents: billRateMinor(w.plant.cc), state: 'LIVE', byId: manager(w.plant), at: signed.signedAt(0) },
+        { id: `${ts}_employer`, timesheetId: ts, companyId: supplierIds.get(supplierSlug(w.supplier))!, role: 'EMPLOYER_ACCEPTANCE', hours: l.accepted, rateCents: payRateMinor(w.plant.cc), state: 'LIVE', byId: ownerOf(w.supplier), at: signed.signedAt(1) },
       ]
     }),
     skipDuplicates: true,
@@ -613,10 +647,18 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   // Each signature posted to the books, through the function the route that
   // signs a week calls, so a rebuild of the postings finds nothing to change
   // (hop-ledger-books). A signature already posted is left as it is.
-  for (const { r, w } of receipts) {
-    const ts = `cv_ts_${w.key}_w${r.week}`
-    await postAssertion(`${ts}_client`, manager(w.plant))
-    await postAssertion(`${ts}_employer`, ownerOf(w.supplier))
+  // Posted from one read per person who signed (`postAssertions`): the
+  // rows are the ones one call per signature makes, and a receipt
+  // carrying several weeks keeps the step inside its line.
+  const bySigner = new Map<string, string[]>()
+  for (const { w, ts } of weeks) {
+    for (const [id, by] of [[`${ts}_client`, manager(w.plant)], [`${ts}_employer`, ownerOf(w.supplier)]] as const) {
+      bySigner.set(by, [...(bySigner.get(by) ?? []), id])
+    }
+  }
+  for (const [by, ids] of bySigner) {
+    const posted = await postAssertions(ids, by)
+    if (posted.failed.length > 0) throw posted.failed[0].error
   }
   // And booked, a balanced entry per posting in its own currency: the base
   // world's books part does not walk Corvane's firms (seed-stays-in-its-world).
@@ -626,6 +668,9 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   // One whole billing period under the terms of the document the line is
   // on, and the due date those terms compute, the way a bill is raised
   // (POST /api/invoices/generate; the twin's own demo receipts the same).
+  // A receipt carrying several contractors' weeks reads its period and
+  // terms from its first line: every line on it is one supplier's, on one
+  // order, for one week.
   const initials = (name: string) => addressSafe(name).split('-').filter(Boolean).map((p) => p[0]).join('').toUpperCase().slice(0, 3)
   const terms = new Map(
     (await db.sellContract.findMany({
@@ -636,15 +681,17 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       },
     })).map((c) => [c.id, c])
   )
+  const lineMinor = (l: { billed: number }, w: PlannedContractor) => Math.round(l.billed * billRateMinor(w.plant.cc))
+  const invoiceTotal = ({ on }: (typeof receipts)[number]) => on.reduce((n, { l, w }) => n + lineMinor(l, w), 0) / minorPerUnit(CORVANE_COUNTRIES[on[0].w.plant.cc].currency)
   await db.invoice.createMany({
-    data: receipts.map(({ r, w }, k) => {
-      const wk = seedWeek(r.week, r.accepted)
+    data: receipts.map((x, k) => {
+      const { r, w } = x
+      const wk = seedWeek(r.week, r.lines[0].accepted)
       const line = terms.get(sid(w))!
       const firstWorked = new Date(`${Object.keys(wk.days).sort()[0]}T00:00:00Z`)
       const period = periodFor(firstWorked, periodTermsFor('SELL', line))
       const billed = termsFor('SELL', line)
       const currency = CORVANE_COUNTRIES[w.plant.cc].currency
-      const amount = Math.round(r.billed * billRateMinor(w.plant.cc))
       const issuedAt = new Date(wk.end.getTime() + 2 * 86_400_000)
       const due = dueOn({
         anchor: billed.paymentTermsFrom ?? 'PERIOD_END', days: billed.paymentTermsDays ?? 30,
@@ -654,25 +701,39 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       return {
         id: `cv_inv_${w.key}_w${r.week}`, engagementId: `cv_eng_${sup}`, workOrderId: `cv_wo_${sup}`,
         number: `${initials(w.supplier)}-${w.plant.cc}-${day(0).getUTCFullYear()}-${String(410 + k + (r.held ? 50 : 0)).padStart(4, '0')}`,
-        periodStart: period.start, periodEnd: period.end, currency, total: amount / minorPerUnit(currency), paid: 0,
+        periodStart: period.start, periodEnd: period.end, currency, total: invoiceTotal(x), paid: 0,
         issuedAt, submittedAt: issuedAt, dueAt: due.dueAt, status: 'SUBMITTED',
         soldToId: co.id, billToId: co.id, payerId: co.id, shipToId: `cv_site_${w.plant.key}`,
       }
     }) as never,
     skipDuplicates: true,
   })
-  await db.invoiceLine.createMany({
-    data: receipts.map(({ r, w }) => {
-      const wk = seedWeek(r.week, r.accepted)
-      return {
-        id: `cv_line_${w.key}_w${r.week}`, invoiceId: `cv_inv_${w.key}_w${r.week}`, timesheetId: `cv_ts_${w.key}_w${r.week}`,
-        sellContractId: sid(w), personId: who(w), hours: r.billed, rateCents: billRateMinor(w.plant.cc),
-        amountCents: Math.round(r.billed * billRateMinor(w.plant.cc)),
-        description: `${w.name} — ${wk.start.toISOString().slice(0, 10)} to ${wk.end.toISOString().slice(0, 10)}`,
-      }
-    }),
-    skipDuplicates: true,
-  })
+  const invoiceLines = receipts.flatMap(({ r, w: first, on }) => on.map(({ l, w }) => {
+    const wk = seedWeek(r.week, l.accepted)
+    return {
+      id: `cv_line_${w.key}_w${r.week}`, invoiceId: `cv_inv_${first.key}_w${r.week}`, timesheetId: `cv_ts_${w.key}_w${r.week}`,
+      sellContractId: sid(w), personId: who(w), hours: l.billed, rateCents: billRateMinor(w.plant.cc),
+      amountCents: lineMinor(l, w),
+      description: `${w.name} — ${wk.start.toISOString().slice(0, 10)} to ${wk.end.toISOString().slice(0, 10)}`,
+    }
+  }))
+  await db.invoiceLine.createMany({ data: invoiceLines, skipDuplicates: true })
+
+  // A world seeded before 2026-11-13 holds Dayton's receipt as one line of
+  // 41.5 hours. Its line and its header are brought to the plan here, once,
+  // and only while the receipt is still waiting to be paid; a world that
+  // already holds the plan writes nothing.
+  const stale = (await db.invoiceLine.findMany({
+    where: { id: { in: invoiceLines.map((l) => l.id) }, invoice: { status: 'SUBMITTED', paid: 0 } },
+    select: { id: true, hours: true, invoiceId: true },
+  })).filter((row) => Number(row.hours) !== invoiceLines.find((l) => l.id === row.id)!.hours)
+  for (const row of stale) {
+    const l = invoiceLines.find((x) => x.id === row.id)!
+    await db.invoiceLine.update({ where: { id: row.id }, data: { hours: l.hours, amountCents: l.amountCents } })
+  }
+  for (const x of receipts.filter(({ w, r }) => stale.some((row) => row.invoiceId === `cv_inv_${w.key}_w${r.week}`))) {
+    await db.invoice.update({ where: { id: `cv_inv_${x.w.key}_w${x.r.week}` }, data: { total: invoiceTotal(x) } })
+  }
 
   // ── Papers, US only: an I-9 from a named passport, and a provider's check ──
   // The start on hold has the check and no I-9, so it cannot start.

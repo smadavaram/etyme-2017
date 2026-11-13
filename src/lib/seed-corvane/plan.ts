@@ -434,19 +434,125 @@ export function plantOpenJobs(plant: CorvanePlant): { id: string; title: Corvane
   }))
 }
 
+/** One contractor's week on an invoice receipt: their place at the plant, the hours billed and the hours signed. */
+export interface CorvaneReceiptLine {
+  /** The contractor's place in the plant's list (`PlannedContractor.index`). */
+  index: number
+  billed: number
+  accepted: number
+}
+
+/**
+ * One supplier's invoice receipt for one week at one plant. `billed` and
+ * `accepted` are the sums over its lines, so a reader that wants one
+ * figure (the hours over, at the plant's one rate) reads it whole.
+ */
+export interface CorvaneReceipt {
+  plant: string
+  week: number
+  billed: number
+  accepted: number
+  held: boolean
+  lines: readonly CorvaneReceiptLine[]
+}
+
+/** A receipt from its lines; the first line's contractor names it in the record. */
+function receipt(plant: string, week: number, lines: readonly [number, number][]): CorvaneReceipt {
+  const ls = lines.map(([index, over]) => ({ index, billed: 40 + over, accepted: 40 }))
+  return {
+    plant, week, lines: ls,
+    billed: ls.reduce((n, l) => n + l.billed, 0),
+    accepted: ls.reduce((n, l) => n + l.accepted, 0),
+    held: ls.some((l) => l.billed > l.accepted),
+  }
+}
+
 /**
  * The invoice receipts: one clean at the first plant of every region, and
- * at Dayton a second, billed 41.5 hours against 40 accepted, which the
- * three-way check holds. The weeks are the first contractor's two weeks
- * before last, signed by the plant's hiring manager. A receipt's total is
- * read by its currency's own minor unit (money, 53597f3f3): the dong has
- * none, so the Vietnamese receipt's total is 40 × the dong rate exactly.
+ * seven held, each one supplier's weekly invoice carrying several of its
+ * contractors' weeks, some billing overtime nobody signed (founder,
+ * 2026-11-13: "$42 looks like money nobody cares about"). A line is
+ * `[place at the plant, hours billed past the 40 signed]`; no line is
+ * more than 12 hours over. Every line on a receipt is one supplier's: the
+ * places step by the plant's supplier count, which is how
+ * `corvaneContractors` hands people to suppliers. Held at Dayton, Fresno,
+ * Antwerp, Belfast, Monterrey, Pune and Bắc Ninh, one or two in every
+ * region, between four and six tenths of a percent of the month in total
+ * at the sample rates; Dayton's is the largest (the seed's
+ * test reads both through the product's own functions).
+ *
+ * Every week is the week before last, signed by the plant's hiring
+ * manager for 40 hours. A receipt's total is read by its currency's own
+ * minor unit (money, 53597f3f3): the dong has none.
+ *
+ * Dayton's receipt keeps the id and number of the one 41.5-hour receipt it
+ * replaces (`cv_inv_dayton_0_w2`), and the receipts step brings a world
+ * seeded before this up to it once, while nobody has paid it.
  */
-export const CORVANE_RECEIPTS: readonly { plant: string; week: number; billed: number; accepted: number; held: boolean }[] = [
-  ...CORVANE_REGIONS
-    .map((r) => ({ plant: CORVANE_PLANTS.find((p) => p.region === r.key)!.key, week: 3, billed: 40, accepted: 40, held: false })),
-  { plant: 'dayton', week: 2, billed: 41.5, accepted: 40, held: true },
+export const CORVANE_RECEIPTS: readonly CorvaneReceipt[] = [
+  ...CORVANE_REGIONS.map((r) => receipt(CORVANE_PLANTS.find((p) => p.region === r.key)!.key, 3, [[0, 0]])),
+  receipt('dayton', 2, [[0, 12], [3, 10.5], [6, 8], [9, 0]]),
+  receipt('fresno', 2, [[0, 10], [3, 8], [6, 6.5]]),
+  receipt('antwerp', 2, [[0, 11], [3, 9], [6, 7.5]]),
+  receipt('belfast', 2, [[0, 10], [3, 8], [6, 6]]),
+  receipt('monterrey', 2, [[0, 12], [3, 11], [6, 10], [9, 8], [12, 6]]),
+  receipt('pune', 2, [[0, 12], [4, 11], [8, 10], [12, 9], [16, 8]]),
+  receipt('bac-ninh', 2, [[0, 12], [3, 10], [6, 9], [9, 8]]),
 ]
+
+/** What a receipt bills past the signed hours, at its plant's rate, in the plant currency's minor units. */
+export function receiptOverMinor(r: Pick<CorvaneReceipt, 'plant' | 'lines'>): number {
+  const plant = CORVANE_PLANTS.find((p) => p.key === r.plant)!
+  return r.lines.reduce((n, l) => n + Math.round((l.billed - l.accepted) * billRateMinor(plant.cc)), 0)
+}
+
+/** The held receipts, said for the demo: how many, where, by how much, and the largest. */
+export interface CorvaneHeldFacts {
+  /** Invoice receipts held by the three-way check this month. */
+  count: number
+  /** Contractor-weeks on them that bill past the signed hours. */
+  weeksOver: number
+  /** How many of the six regions hold one. */
+  regions: number
+  /** What they bill past the signed hours, per currency, in each one's minor units, in the receipts' order (dollars first). */
+  byCurrency: { currency: string; minor: number }[]
+  /**
+   * The largest, by what it bills over in the reporting currency. Which is
+   * largest is the seed's test to prove through the sample rates; this
+   * file reads no rate (see `corvaneHeldInReporting` in lib/seed-corvane).
+   */
+  largest: { site: string; city: string; supplier: string; weeks: number; hoursOver: number; overMinor: number; currency: string }
+}
+
+const supplierOn = (r: CorvaneReceipt) => {
+  const plant = CORVANE_PLANTS.find((p) => p.key === r.plant)!
+  const sups = plantSuppliers(plant)
+  return sups[r.lines[0].index % sups.length]
+}
+
+/** The held receipts, worked out from the plan: pure, so a browser page may import it. */
+export function corvaneHeldFacts(): CorvaneHeldFacts {
+  const held = CORVANE_RECEIPTS.filter((r) => r.held)
+  const plantOf = (key: string) => CORVANE_PLANTS.find((p) => p.key === key)!
+  const by = new Map<string, number>()
+  for (const r of held) {
+    const cur = CORVANE_COUNTRIES[plantOf(r.plant).cc].currency
+    by.set(cur, (by.get(cur) ?? 0) + receiptOverMinor(r))
+  }
+  const dayton = held.find((r) => r.plant === CORVANE_PLANTS[0].key)!
+  const p = plantOf(dayton.plant)
+  return {
+    count: held.length,
+    weeksOver: held.reduce((n, r) => n + r.lines.filter((l) => l.billed > l.accepted).length, 0),
+    regions: new Set(held.map((r) => plantOf(r.plant).region)).size,
+    byCurrency: [...by].map(([currency, minor]) => ({ currency, minor })),
+    largest: {
+      site: p.plant, city: p.city, supplier: supplierOn(dayton),
+      weeks: dayton.lines.filter((l) => l.billed > l.accepted).length,
+      hoursOver: dayton.billed - dayton.accepted, overMinor: receiptOverMinor(dayton), currency: CORVANE_COUNTRIES[p.cc].currency,
+    },
+  }
+}
 
 // ── What the home page's demo reads (2026-11-13) ─────────────────────
 
@@ -490,6 +596,8 @@ export interface CorvaneDemoFacts {
     sentTo: number
     suppliers: string[]
   }
+  /** The invoice receipts the three-way check holds this month (`corvaneHeldFacts`). */
+  held: CorvaneHeldFacts
 }
 
 const daysToLimitOf = (c: PlannedContractor) => LIMIT_DAYS - 1 - c.startedDaysAgo
@@ -536,5 +644,6 @@ export function corvaneDemoFacts(): CorvaneDemoFacts {
       band: band ? { minMinor: band.billMin, maxMinor: band.billMax, currency: CORVANE_COUNTRIES[dayton.cc].currency } : null,
       sentTo: plantSuppliers(dayton).length, suppliers: plantSuppliers(dayton),
     },
+    held: corvaneHeldFacts(),
   }
 }

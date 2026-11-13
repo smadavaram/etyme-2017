@@ -9,6 +9,7 @@ import { limitReachedOn } from '@/lib/tenure-days'
 import { worldStepNames, WORLD_SLUGS } from '@/lib/seed-world'
 import { DESK_ROLES } from '@/lib/demo-desks'
 import { CORVANE_JOBS, CORVANE_JOB_SKILLS, payRateMinor, corvaneEarlierSellIds, corvaneDemoFacts, LIMIT_DAYS, BELFAST_HANDOVER_DAYS_AGO, jobBand, plantOpenJobs } from '@/lib/seed-corvane'
+import { corvaneHeldFacts, corvaneHeldInReporting, receiptOverMinor } from '@/lib/seed-corvane'
 import { programMonthlySpend } from '@/lib/program-spend'
 import { spendInReporting, SAMPLE_RATE_TABLE } from '@/lib/money/reporting-currency'
 import { format, fromMinor } from '@/lib/money'
@@ -200,16 +201,82 @@ describe('Corvane Packaging is the drawing, plant for plant', () => {
     expect(imports).toEqual(['@/lib/tenure-days', '@/lib/money'])
   })
 
-  it('the held Dayton receipt is $180 over the 40 signed hours: an hour and a half at the specialist rate', () => {
-    const held = CORVANE_RECEIPTS.find((r) => r.held)!
-    const plant = CORVANE_PLANTS.find((p) => p.key === held.plant)!
-    const over = Math.round((held.billed - held.accepted) * billRateMinor(plant.cc))
-    expect(format(fromMinor(over, CORVANE_COUNTRIES[plant.cc].currency))).toBe('$180.00')
+  it('between five and eight invoice receipts are held this month, in at least three regions, each one supplier’s weekly invoice for several of its contractors at one site', () => {
+    const { onSite } = corvaneContractors()
+    const held = CORVANE_RECEIPTS.filter((r) => r.held)
+    expect(held.length).toBeGreaterThanOrEqual(5)
+    expect(held.length).toBeLessThanOrEqual(8)
+    expect(new Set(held.map((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region)).size).toBeGreaterThanOrEqual(3)
+    for (const r of held) {
+      const people = r.lines.map((l) => onSite.find((c) => c.plant.key === r.plant && c.index === l.index))
+      expect(people.every(Boolean), r.plant).toBe(true)
+      expect(new Set(people.map((c) => c!.supplier)).size, r.plant).toBe(1)
+      expect(r.lines.length, r.plant).toBeGreaterThan(1)
+      expect(r.billed, r.plant).toBe(r.lines.reduce((n, l) => n + l.billed, 0))
+      expect(r.accepted, r.plant).toBe(r.lines.reduce((n, l) => n + l.accepted, 0))
+    }
   })
 
-  it('Dayton holds one invoice receipt over the accepted hours, and every region one clean receipt', () => {
+  it('no contractor’s week on a held receipt bills more than 12 hours past the 40 signed, and no contractor’s week is on two receipts', () => {
+    const weeks = CORVANE_RECEIPTS.flatMap((r) => r.lines.map((l) => ({ ...l, at: `${r.plant}_${l.index}_w${r.week}` })))
+    for (const l of weeks) {
+      expect(l.accepted, l.at).toBe(40)
+      expect(l.billed - l.accepted, l.at).toBeGreaterThanOrEqual(0)
+      expect(l.billed - l.accepted, l.at).toBeLessThanOrEqual(12)
+    }
+    expect(new Set(weeks.map((l) => l.at)).size).toBe(weeks.length)
+  })
+
+  it('what the held receipts bill past the signed hours is between 0.4 and 0.6 percent of the month’s spend, both in dollars at the sample rates', () => {
+    const { onSite } = corvaneContractors()
+    const byCurrency = new Map<string, number>()
+    for (const c of onSite) {
+      const cur = CORVANE_COUNTRIES[c.plant.cc].currency
+      byCurrency.set(cur, (byCurrency.get(cur) ?? 0) + programMonthlySpend([{ rateMinorPerHour: billRateMinor(c.plant.cc) }]).totalMinor)
+    }
+    const month = spendInReporting([...byCurrency].map(([currency, minor]) => ({ currency, minor })), 'USD', SAMPLE_RATE_TABLE, new Date(Date.UTC(2026, 10, 13))).total!.minor
+    const held = corvaneHeldInReporting()
+    const total = held.spend.total!.minor
+    expect(held.spend.reportingCurrency).toBe('USD')
+    expect(held.spend.missing).toEqual([])
+    expect(total / month).toBeGreaterThanOrEqual(0.004)
+    expect(total / month).toBeLessThanOrEqual(0.006)
+    // The total is the receipts', one by one: nothing added that no receipt holds.
+    expect(held.receipts.reduce((n, r) => n + r.overMinor!, 0)).toBeGreaterThanOrEqual(total - held.receipts.length)
+    expect(held.receipts.reduce((n, r) => n + r.overMinor!, 0)).toBeLessThanOrEqual(total + held.receipts.length)
+  })
+
+  it('the largest held receipt is Dayton’s, from one supplier, between $3,000 and $4,500 over the signed hours, and keeps the id and number the 41.5-hour receipt had', () => {
+    const held = corvaneHeldInReporting().receipts
+    const largest = [...held].sort((a, b) => b.overMinor! - a.overMinor!)[0]
+    expect(largest.plant).toBe('dayton')
+    expect(held.filter((r) => r.overMinor === largest.overMinor)).toHaveLength(1)
+    expect(largest.overMinor).toBeGreaterThanOrEqual(300_000)
+    expect(largest.overMinor).toBeLessThanOrEqual(450_000)
+    // The first held receipt in the United States is the one whose number ends 461.
+    const us = CORVANE_RECEIPTS.filter((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region === 'us')
+    expect(us.findIndex((r) => r.held && r.plant === 'dayton')).toBe(1)
+    expect(us[1].lines[0].index).toBe(0)
+    expect(us[1].week).toBe(2)
+  })
+
+  it('the demo’s held facts are the seed’s own receipts: how many, how many regions, and the largest’s site, supplier, weeks, hours and money', () => {
+    const facts = corvaneDemoFacts().held
+    expect(facts).toEqual(corvaneHeldFacts())
     const held = CORVANE_RECEIPTS.filter((r) => r.held)
-    expect(held).toEqual([{ plant: 'dayton', week: 2, billed: 41.5, accepted: 40, held: true }])
+    expect(facts.count).toBe(held.length)
+    expect(facts.regions).toBe(new Set(held.map((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region)).size)
+    const largest = corvaneHeldInReporting().receipts.find((r) => r.plant === 'dayton')!
+    expect(facts.largest).toMatchObject({ site: 'Dayton, Ohio', city: 'Dayton', supplier: largest.supplier, currency: 'USD', overMinor: largest.overMinor })
+    const dayton = held.find((r) => r.plant === 'dayton')!
+    expect(facts.largest.hoursOver).toBe(dayton.billed - dayton.accepted)
+    expect(facts.largest.weeks).toBe(dayton.lines.filter((l) => l.billed > l.accepted).length)
+    expect(facts.byCurrency.reduce((n, c) => n + (c.currency === 'USD' ? c.minor : 0), 0))
+      .toBe(held.filter((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.cc === 'US').reduce((n, r) => n + receiptOverMinor(r), 0))
+    expect(format(fromMinor(facts.largest.overMinor, facts.largest.currency))).toMatch(/^\$\d,\d{3}\.\d{2}$/)
+  })
+
+  it('every region keeps one clean receipt that bills exactly the hours signed', () => {
     const clean = CORVANE_RECEIPTS.filter((r) => !r.held)
     const regions = clean.map((r) => CORVANE_PLANTS.find((p) => p.key === r.plant)!.region)
     expect(new Set(regions).size).toBe(6)

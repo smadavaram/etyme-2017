@@ -7,8 +7,10 @@ import { GET as me } from '@/app/api/me/route'
 import { POST as demo } from '@/app/api/demo/route'
 import {
   seedCorvane, corvaneSteps, corvaneSeatEmail, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE, CORVANE_COUNTRIES, CORVANE_TIME_LIMIT_MONTHS,
-  billRateMinor,
+  billRateMinor, CORVANE_RECEIPTS, corvaneHeldFacts,
 } from '@/lib/seed-corvane'
+import { matchInvoices, payGate } from '@/lib/invoice-match'
+import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
 import { limitReachedOn } from '@/lib/tenure-days'
 import { regionScopeFor, regionContracts, regionRequirements } from '@/lib/region-scope'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
@@ -75,17 +77,61 @@ describe('Corvane Packaging, as the drawing has it', () => {
     expect(currentAlone === null || currentAlone.getTime() - across.getTime() > 150 * 86_400_000).toBe(true)
   })
 
-  it('Dayton holds one invoice receipt billed over the accepted hours, and one start with no I-9', async () => {
+  it('Dayton’s held receipt carries one supplier’s weeks, three of them over the 40 signed hours as the plan says, and one start has no I-9', async () => {
+    const plan = CORVANE_RECEIPTS.find((r) => r.held && r.plant === 'dayton')!
     const lines = await prisma.invoiceLine.findMany({
-      where: { sellContract: atSite('dayton') },
+      where: { invoiceId: 'cv_inv_dayton_0_w2' },
       include: { timesheet: { include: { assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } } } },
     })
+    expect(lines).toHaveLength(plan.lines.length)
     const over = lines.filter((l) => Number(l.hours) > Number(l.timesheet!.assertions[0].hours))
-    expect(over).toHaveLength(1)
-    expect([Number(over[0].hours), Number(over[0].timesheet!.assertions[0].hours)]).toEqual([41.5, 40])
+    expect(over).toHaveLength(plan.lines.filter((l) => l.billed > l.accepted).length)
+    expect(lines.reduce((n, l) => n + Number(l.hours), 0)).toBe(plan.billed)
+    expect(lines.reduce((n, l) => n + Number(l.timesheet!.assertions[0].hours), 0)).toBe(plan.accepted)
     const hold = await prisma.sellContract.findMany({ where: { ...atSite('dayton'), state: 'DRAFT' }, select: { personId: true } })
     expect(hold).toHaveLength(1)
     expect(await prisma.verification.count({ where: { personId: hold[0].personId, type: 'I9_EVERIFY' } })).toBe(0)
+  })
+
+  it('every held receipt is held by the three-way check for its hours and for nothing else, and every clean one passes it', async () => {
+    const invoices = await prisma.invoice.findMany({
+      where: { payerId: corvaneId, status: 'SUBMITTED' }, select: { id: true, number: true, status: true, shipToId: true },
+    })
+    expect(invoices).toHaveLength(CORVANE_RECEIPTS.length)
+    const matches = await matchInvoices(invoices.map((i) => i.id))
+    const held = invoices.filter((i) => !payGate(i, matches.get(i.id)!).ok)
+    expect(held.map((i) => i.shipToId).sort()).toEqual(CORVANE_RECEIPTS.filter((r) => r.held).map((r) => `cv_site_${r.plant}`).sort())
+    for (const i of held) {
+      const failed = matches.get(i.id)!.checks.filter((c) => c.outcome !== 'PASS').map((c) => c.code)
+      expect(failed, i.number).toEqual(['QUANTITY'])
+    }
+    for (const i of invoices.filter((x) => !held.includes(x))) expect(matches.get(i.id)!.cleanMatch, i.number).toBe(true)
+  })
+
+  it('the daily run reads every held receipt as a mismatch on the hours that nobody may pay, and every clean one as clean', async () => {
+    const verdicts = await pendingReceiptsFor(corvaneId)
+    const sites = new Map((await prisma.invoice.findMany({ where: { payerId: corvaneId }, select: { id: true, shipToId: true } })).map((i) => [i.id, i.shipToId]))
+    expect(verdicts).toHaveLength(CORVANE_RECEIPTS.length)
+    const mismatched = verdicts.filter((v) => v.verdict === 'MISMATCH')
+    expect(mismatched.map((v) => sites.get(v.invoiceId)).sort()).toEqual(CORVANE_RECEIPTS.filter((r) => r.held).map((r) => `cv_site_${r.plant}`).sort())
+    for (const v of mismatched) {
+      expect(v.failing, v.number ?? v.invoiceId).toEqual(['QUANTITY'])
+      expect(v.payable, v.number ?? v.invoiceId).toBe(false)
+    }
+    for (const v of verdicts.filter((x) => !mismatched.includes(x))) expect(v.verdict, v.number ?? v.invoiceId).toBe('CLEAN')
+  })
+
+  it('what the held receipts bill past the signed hours, line by line on the record, is what the plan says, currency by currency', async () => {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { invoice: { payerId: corvaneId, status: 'SUBMITTED' } },
+      select: { hours: true, rateCents: true, invoice: { select: { currency: true } }, timesheet: { select: { assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { hours: true } } } } },
+    })
+    const over = new Map<string, number>()
+    for (const l of lines) {
+      const past = Number(l.hours) - Number(l.timesheet!.assertions[0].hours)
+      if (past > 0) over.set(l.invoice.currency, (over.get(l.invoice.currency) ?? 0) + Math.round(past * l.rateCents))
+    }
+    expect(Object.fromEntries(over)).toEqual(Object.fromEntries(corvaneHeldFacts().byCurrency.map((c) => [c.currency, c.minor])))
   })
 
   it('every signed week behind a receipt is on the books, each line in its own firm’s home currency', async () => {
@@ -209,8 +255,27 @@ describe('seeding Corvane again', () => {
       prisma.workOrder.count(), prisma.verification.count(), prisma.orgUnit.count(), prisma.companyLocation.count(),
       prisma.company.count(), prisma.role.count(), prisma.governanceRule.count(),
     ])
-    const before = await count()
+    const receipts = async () => (await prisma.invoice.findMany({
+      where: { payerId: corvaneId }, orderBy: { id: 'asc' },
+      select: { id: true, number: true, total: true, invoiceLines: { orderBy: { id: 'asc' }, select: { id: true, hours: true, amountCents: true } } },
+    })).map((i) => JSON.stringify(i))
+    const before = [await count(), await prisma.invoiceLine.count(), await receipts()]
     for (const step of corvaneSteps()) await seedCorvane({ domain: DOMAIN, prefix: 'world-' }, step)
-    expect(await count()).toEqual(before)
+    expect([await count(), await prisma.invoiceLine.count(), await receipts()]).toEqual(before)
+  })
+
+  it('a world seeded with the one 41.5-hour Dayton receipt is brought to the plan once, while nobody has paid it', async () => {
+    const plan = CORVANE_RECEIPTS.find((r) => r.held && r.plant === 'dayton')!
+    const was = await prisma.invoice.findUniqueOrThrow({ where: { id: 'cv_inv_dayton_0_w2' }, select: { number: true, total: true } })
+    await prisma.invoiceLine.update({ where: { id: 'cv_line_dayton_0_w2' }, data: { hours: 41.5, amountCents: Math.round(41.5 * billRateMinor('US')) } })
+    await prisma.invoice.update({ where: { id: 'cv_inv_dayton_0_w2' }, data: { total: 4980 } })
+    await seedCorvane({ domain: DOMAIN, prefix: 'world-' }, 'corvane:plants:us')
+    const now = await prisma.invoice.findUniqueOrThrow({
+      where: { id: 'cv_inv_dayton_0_w2' }, select: { number: true, total: true, invoiceLines: { select: { hours: true, amountCents: true } } },
+    })
+    expect(now.number).toBe(was.number)
+    expect(Number(now.total)).toBe(Number(was.total))
+    expect(now.invoiceLines.reduce((n, l) => n + Number(l.hours), 0)).toBe(plan.billed)
+    expect(now.invoiceLines.reduce((n, l) => n + l.amountCents, 0)).toBe(Math.round(Number(now.total) * 100))
   })
 })
