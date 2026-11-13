@@ -2,6 +2,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { format, fromMinor } from '@/lib/money'
+import { reportingRatesFor, spendInReporting } from '@/lib/money/reporting-currency'
 import { possessive } from '@/lib/requisition-approval'
 import { BY_REGION_HREF } from '@/lib/nav-table'
 import { regionsView, type RegionsData } from '@/app/api/program/regions/read'
@@ -288,6 +289,105 @@ export function receiptPhrase(item: Pick<GreetingItem, 'says'>, over: string | n
   return `${m[1]}, ${over} over the signed hours${m[2] ? ` (${m[2]})` : ''}`
 }
 
+/** One site's held invoice receipts and what they bill past the signed hours, from By region's rows. */
+export interface HeldAtSite {
+  /** The site's name as By region says it: "Dayton, Ohio". */
+  plant: string
+  held: number
+  /** Per currency, never added across currencies. */
+  over: SpendLine[]
+  /**
+   * The same money as one figure in the company's reporting currency, by
+   * money's own rollup; set only where the held money is in two or more
+   * currencies and every one has a rate. Used to compare, never said.
+   */
+  inReporting?: SpendLine | null
+}
+
+/** The sites holding receipts, and the held money as one figure where it is in several currencies. */
+export interface HeldSites {
+  sites: HeldAtSite[]
+  /**
+   * Every held receipt's money over as one figure, money's `spendInReporting`
+   * at the rates By region converts spend with, and whether they are the
+   * sample's. Null where the money is in one currency, or a rate is missing.
+   */
+  inOne: { total: SpendLine; sample: boolean } | null
+}
+
+/**
+ * Each site holding an invoice receipt, from By region's own rows (one row
+ * per hiring manager at a site, so a site with two is added up here). The
+ * money is By region's `heldOver`, never worked out a second way.
+ */
+export function heldBySite(rows: readonly ManagerRow[]): HeldAtSite[] {
+  const at = new Map<string, HeldAtSite>()
+  for (const r of rows) {
+    const held = r.receipts?.held ?? 0
+    if (held === 0) continue
+    const site = at.get(r.plant) ?? { plant: r.plant, held: 0, over: [] }
+    site.held += held
+    for (const s of r.heldOver ?? []) {
+      const had = site.over.find((x) => x.currency === s.currency)
+      if (had) had.minor += s.minor
+      else site.over.push({ ...s })
+    }
+    at.set(r.plant, site)
+  }
+  const one = (s: HeldAtSite) => (s.over.length === 1 ? s.over[0].minor : 0)
+  return [...at.values()].sort((a, b) => one(b) - one(a) || b.held - a.held || a.plant.localeCompare(b.plant))
+}
+
+/**
+ * The site whose held receipts bill the most past the signed hours. In one
+ * currency, compared in it. In several, compared only through each site's
+ * `inReporting` (money's rollup, whose rates the sentence names), and null
+ * where any site has none: a missing rate is never guessed. Null where
+ * fewer than two sites hold one, and on a tie, which would be a guess.
+ */
+export function largestHeld(sites: readonly HeldAtSite[]): HeldAtSite | null {
+  if (sites.length < 2) return null
+  const currencies = new Set(sites.flatMap((s) => s.over.map((o) => o.currency)))
+  const one = currencies.size === 1 && sites.every((s) => s.over.length === 1)
+  if (!one && sites.some((s) => !s.inReporting)) return null
+  const value = (s: HeldAtSite) => (one ? s.over[0].minor : s.inReporting!.minor)
+  const top = [...sites].sort((a, b) => value(b) - value(a))
+  return value(top[0]) > value(top[1]) ? top[0] : null
+}
+
+/** "$540", or "$900 and £108": the money over, each currency in its own. */
+function overWords(over: readonly SpendLine[]): string {
+  return listed(over.map((s) => heldOverSays([s])))
+}
+
+/**
+ * A held-receipts phrase as the greeting and the answers say it. One
+ * receipt: By region's own phrase, the money over beside the hours.
+ * Several, in one currency: how many, where, the money over and how much
+ * of it the site holding the most bills ("six invoice receipts are held at
+ * Dayton, Fresno and 2 more sites, $1,080 over the signed hours, $540 of
+ * it at Dayton"). Several currencies with every rate: the money over as
+ * one figure with the rates named, and the site holding the most in its
+ * own money ("about $17,400 over the signed hours at sample rates, the
+ * most at Dayton ($6,600)"). A missing rate: each currency in its own
+ * money, and no site named.
+ */
+export function heldPhrase(item: Pick<GreetingItem, 'says' | 'count'>, over: readonly SpendLine[] | undefined, held: HeldSites | null = null): string {
+  if (item.count <= 1) return receiptPhrase(item, heldOverSays(over ?? []) || null)
+  const where = item.says.replace(/\bare held, at /, 'are held at ')
+  if (!over || over.length === 0) return where
+  const top = held ? largestHeld(held.sites) : null
+  if (over.length === 1) {
+    return `${where}, ${overWords(over)} over the signed hours${top ? `, ${heldOverSays(top.over)} of it at ${town(top.plant)}` : ''}`
+  }
+  if (held?.inOne) {
+    const rates = held.inOne.sample ? 'at sample rates' : 'at the rates you set'
+    const total = format(fromMinor(held.inOne.total.minor, held.inOne.total.currency), { compact: true })
+    return `${where}, about ${total} over the signed hours ${rates}${top ? `, the most at ${town(top.plant)} (${overWords(top.over)})` : ''}`
+  }
+  return `${where}, ${overWords(over)} over the signed hours`
+}
+
 /** The short name of a plant inside a sentence: "Campinas", not "Campinas, Brazil". */
 function town(plant: string): string {
   return plant.split(',')[0].trim()
@@ -329,6 +429,11 @@ function lead(n: number, parts: readonly string[], after: readonly string[] = []
 
 const heldOf = (data: RegionsData, kind: GreetingItem['kind']) => (data.greeting.held ?? []).filter((i) => i.kind === kind)
 
+/** The sites holding receipts where this read carries its sites (a region, a site); null at the program level. */
+function sitesOf(data: RegionsData): HeldSites | null {
+  return data.region ? { sites: heldBySite(data.region.managers), inOne: null } : null
+}
+
 /** "Fernanda Albuquerque has 2 weeks to sign in Campinas", or the weeks at a plant with nobody named. */
 function weeksAt(m: ManagerRow): string {
   return m.managerId
@@ -350,11 +455,13 @@ function weeksAt(m: ManagerRow): string {
  *                   the plant nearest the time limit (else the one with the
  *                   most), with the rest as a count. Then the nearest person.
  */
-export function seatLine(data: RegionsData, reach: MapReach, opts: { line?: ProgramLine | null } = {}): SeatLine {
-  const held = heldOf(data, 'receipt')
-  // The money over is said beside the one held receipt By region names.
-  const over = held.length === 1 && held[0].count === 1 ? heldOverSays(data.total.heldOver) || null : null
-  const receipts = held.map((i) => receiptPhrase(i, over))
+export function seatLine(
+  data: RegionsData, reach: MapReach,
+  opts: { line?: ProgramLine | null; sites?: HeldSites | null } = {},
+): SeatLine {
+  // The money over is said beside what By region names: the one held
+  // receipt, or several with their count and the site holding the most.
+  const receipts = heldOf(data, 'receipt').map((i) => heldPhrase(i, data.total.heldOver, opts.sites ?? sitesOf(data)))
   const starts = heldOf(data, 'start').map((i) => i.says)
   const weeks = heldOf(data, 'weeks')[0] ?? null
   const nearest = data.limitSays ? null : data.total.nearestLimit
@@ -439,7 +546,7 @@ function cannotStart(item: Pick<GreetingItem, 'says' | 'person'>): string {
  */
 export function mapNeeds(
   data: RegionsData, reach: MapReach, greeting: boolean, boundary?: string,
-  opts: { line?: ProgramLine | null } = {},
+  opts: { line?: ProgramLine | null; sites?: HeldSites | null } = {},
 ): Answer {
   const where = scopeOf(data)
   const close = reach === 'PROGRAM'
@@ -578,16 +685,31 @@ export function mapLimit(data: RegionsData, mode: 'NEAR' | 'PAST', people: reado
   }
 }
 
-/** By region's own sentences for what is held: a receipt, a start. */
-function heldItems(data: RegionsData): { receipts: string[]; starts: string[] } {
+/**
+ * By region's own sentences for what is held: each receipt with the money
+ * over the signed hours (several with their count and the site holding
+ * the most), each start. A greeting written without its things as data
+ * falls back to its sentences.
+ */
+function heldItems(data: RegionsData, sites: HeldSites | null): { receipts: string[]; starts: string[] } {
+  if (data.greeting.held) {
+    return {
+      receipts: heldOf(data, 'receipt').map((i) => heldPhrase(i, data.total.heldOver, sites ?? sitesOf(data))),
+      starts: heldOf(data, 'start').map((i) => i.says),
+    }
+  }
   const items = data.greeting.items
   const receipts = items.filter((i) => /\binvoice receipts?\b/.test(i))
   const starts = items.filter((i) => !/\binvoice receipts?\b/.test(i) && /\bstarts?\b/.test(i))
   return { receipts, starts }
 }
 
-/** Which invoice receipts are held, and how many are ready to pay. */
-export function mapHeldReceipts(data: RegionsData): Answer {
+/**
+ * Which invoice receipts are held, and how many are ready to pay. Where
+ * several are held and the sites are read, each site is a row beside the
+ * chat: how many it holds and the money over, the largest first.
+ */
+export function mapHeldReceipts(data: RegionsData, sites: HeldSites | null = null): Answer {
   const where = scopeOf(data)
   const r = data.total.receipts
   if (!r) return { kind: 'TEXT', says: data.receiptsSays ?? 'Invoice receipts are not counted on your page.', links: [openLink(data)] }
@@ -596,17 +718,27 @@ export function mapHeldReceipts(data: RegionsData): Answer {
     const readyNone = r.ready === 0 ? '' : ` ${upper(word(r.ready))} ${r.ready === 1 ? 'is' : 'are'} ready to pay.`
     return { kind: 'TEXT', says: `No invoice receipt is held in ${where}.${readyNone}`, links: [openLink(data)] }
   }
-  const { receipts } = heldItems(data)
+  const { receipts } = heldItems(data, sites)
   const says = receipts.length
     ? `${receipts.map((s) => upper(s)).join('. ')}.${ready}`
     : `${upper(count(r.held, 'invoice receipt'))} ${r.held === 1 ? 'is' : 'are'} held in ${where}.${ready}`
-  return { kind: 'TEXT', says, links: [openLink(data)] }
+  const rows = r.held > 1 ? (sites ?? sitesOf(data))?.sites ?? [] : []
+  if (rows.length < 2) return { kind: 'TEXT', says, links: [openLink(data)] }
+  return {
+    kind: 'LIST', says,
+    table: {
+      caption: `Invoice receipts held, by site, ${where}`,
+      head: ['Site', 'Held', 'Over the signed hours'],
+      rows: rows.map((s) => ({ cells: [s.plant, String(s.held), overWords(s.over) || '—'] })),
+    },
+    links: [openLink(data)],
+  }
 }
 
 /** What is held and why: By region's own sentences for each held receipt and start. */
-export function mapHeld(data: RegionsData): Answer {
+export function mapHeld(data: RegionsData, sites: HeldSites | null = null): Answer {
   const where = scopeOf(data)
-  const { receipts, starts } = heldItems(data)
+  const { receipts, starts } = heldItems(data, sites)
   const lines = [...receipts, ...starts]
   const unread = data.total.receipts === null && data.receiptsSays ? ` ${data.receiptsSays}` : ''
   if (lines.length === 0) {
@@ -723,6 +855,40 @@ export async function mapView(
   return view.error ? null : view.data
 }
 
+/**
+ * The sites holding receipts, for a line that says several held at once.
+ * A region or a site read carries its sites already. A program read
+ * carries regions only, so each region holding a receipt is read once
+ * more through By region, narrowed to it, and its sites are taken from
+ * that answer. Nothing is read where one receipt or none is held, and
+ * null where any read fails: then no site is named the largest.
+ */
+export async function heldSitesFor(caller: CallerContext, data: RegionsData, trail: string): Promise<HeldSites | null> {
+  if ((data.total.receipts?.held ?? 0) < 2) return null
+  let sites: HeldAtSite[]
+  if (data.region) sites = heldBySite(data.region.managers)
+  else {
+    const holding = data.regions.filter((r) => (r.receipts?.held ?? 0) > 0)
+    const reads = await Promise.all(holding.map((r) => mapView(caller, { region: r.label, trail })))
+    if (reads.some((v) => !v?.region)) return null
+    sites = heldBySite(reads.flatMap((v) => v!.region!.managers))
+  }
+  const over = data.total.heldOver ?? []
+  if (over.length < 2) return { sites, inOne: null }
+  // Several currencies: compared through money's rollup at the rates By
+  // region converts spend with, and the sentence names them.
+  const now = new Date()
+  const rates = await reportingRatesFor(data.client.id, now)
+  const one = (lines: readonly SpendLine[]): SpendLine | null => {
+    const r = spendInReporting([...lines], rates.reportingCurrency, rates, now)
+    return r.total ? { currency: r.reportingCurrency, minor: r.total.minor } : null
+  }
+  const all = spendInReporting([...over], rates.reportingCurrency, rates, now)
+  for (const s of sites) s.inReporting = one(s.over)
+  sites.sort((a, b) => (b.inReporting?.minor ?? -1) - (a.inReporting?.minor ?? -1) || a.plant.localeCompare(b.plant))
+  return { sites, inOne: all.total ? { total: { currency: all.reportingCurrency, minor: all.total.minor }, sample: all.sampleRates } : null }
+}
+
 /** A region a program seat names in its question, so "how does Belgium run" opens Belgium. */
 export function regionNamed(text: string, places: readonly Place[]): string | null {
   const regions = [...new Set(places.map((p) => p.region).filter((r): r is string => !!r))]
@@ -747,8 +913,9 @@ export async function mapAnswer(caller: CallerContext, seat: MapSeat, text: stri
   const data = await mapView(caller, { region, trail })
   if (!data) return { kind: 'TEXT', says: 'By region could not be read just now, so there is no answer. Try again in a minute.' }
 
+  const sites = ask === 'NEEDS' || ask === 'HELD' || ask === 'HELD_RECEIPTS' ? await heldSitesFor(caller, data, trail) : null
   switch (ask) {
-    case 'NEEDS': return mapNeeds(data, seat.reach, false, undefined, { line: seat.line })
+    case 'NEEDS': return mapNeeds(data, seat.reach, false, undefined, { line: seat.line, sites })
     case 'I9': return mapI9(data)
     case 'PLANT_WEEKS': return mapWeeks(data)
     case 'LIMIT':
@@ -761,8 +928,8 @@ export async function mapAnswer(caller: CallerContext, seat: MapSeat, text: stri
       }
       return mapLimit(data, ask === 'PAST' ? 'PAST' : 'NEAR')
     }
-    case 'HELD': return mapHeld(data)
-    case 'HELD_RECEIPTS': return mapHeldReceipts(data)
+    case 'HELD': return mapHeld(data, sites)
+    case 'HELD_RECEIPTS': return mapHeldReceipts(data, sites)
     case 'SPEND': return mapSpend(data)
     case 'COUNTRIES': return mapCountries(data)
   }

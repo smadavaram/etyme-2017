@@ -2,19 +2,32 @@ import { describe, it, expect } from 'vitest'
 import {
   mapReach, mapChips, readMapAsk, answeredByMap, outOfReach, mapNeeds, mapOwed, mapWeeks, mapLimit,
   mapHeld, mapHeldReceipts, mapSpend, mapCountries, mapHelp, REGION_CHIPS, PROGRAM_CHIPS, PLANT_LIMIT_CHIP, NEAR_DAYS,
-  seatLine, siteLine, mapI9, programLine, startSentence, receiptPhrase,
+  seatLine, siteLine, mapI9, programLine, startSentence, receiptPhrase, heldPhrase, heldBySite, largestHeld,
   type Place,
 } from '@/app/api/conversations/twin/regions'
 import { readAsk, VOICE_BANNED, seatSays, queueCards, PAY_OPENS_THE_RECEIPT, RECEIPT_PAY, type QueueItem, type WaitingItem } from '@/app/api/conversations/twin/ask'
 import { openThread } from '@/app/dashboard/conversations/open-thread'
 import type { RegionsData } from '@/app/api/program/regions/read'
-import type { Figures, ManagerRow, RegionRow, GreetingItem } from '@/app/api/program/regions/rollup'
+import { heldOverSays, type Figures, type ManagerRow, type RegionRow, type GreetingItem } from '@/app/api/program/regions/rollup'
+import { billRateMinor } from '@/lib/seed-corvane/plan'
+import { format, fromMinor } from '@/lib/money'
 
 /**
  * Ask Etyme over the program by region (founder, 2026-10-27, the region
  * map). The figures below are shaped like By region's own read; the
- * integration file reads them off the seeded Corvane Packaging.
+ * integration file reads them off the seeded Corvane Packaging. Its money
+ * is the seed's specialist rates at 160 hours a month, read from the plan.
  */
+
+const US_HOUR = billRateMinor('US')
+const NI_HOUR = billRateMinor('NI')
+const month = (people: number, hourMinor: number) => people * 160 * hourMinor
+const US_MONTH = month(59, US_HOUR)
+const NI_MONTH = month(28, NI_HOUR)
+/** Money as By region's cells say it: "$1,132,800". */
+const said$ = (minor: number, currency: string) => format(fromMinor(minor, currency), { compact: true })
+/** What 1.5 hours past the signed 40 bill at the US rate: the held receipt's money over. */
+const OVER_ONE = Math.round(1.5 * US_HOUR)
 
 const fig = (over: Partial<Figures> = {}): Figures => ({
   plants: 0, hiringManagers: 0, contractors: 0, openJobs: 0, weeksToSign: 0,
@@ -59,11 +72,11 @@ const latam = (): RegionsData => {
 }
 
 const cfo = (): RegionsData => {
-  const us = region('United States', { plants: 6, contractors: 59, weeksToSign: 11, receipts: { paid: 0, ready: 1, held: 1 }, spend: [{ currency: 'USD', minor: 26_432_000 }], nearestLimit: { days: 18, personName: 'Dale', plant: 'Fresno, California' } })
-  const ni = region('Northern Ireland', { plants: 4, contractors: 28, weeksToSign: 3, receipts: { paid: 0, ready: 1, held: 0 }, spend: [{ currency: 'GBP', minor: 7_168_000 }], nearestLimit: { days: 14, personName: 'Orla', plant: 'Belfast' } })
+  const us = region('United States', { plants: 6, contractors: 59, weeksToSign: 11, receipts: { paid: 0, ready: 1, held: 1 }, spend: [{ currency: 'USD', minor: US_MONTH }], nearestLimit: { days: 18, personName: 'Dale', plant: 'Fresno, California' } })
+  const ni = region('Northern Ireland', { plants: 4, contractors: 28, weeksToSign: 3, receipts: { paid: 0, ready: 1, held: 0 }, spend: [{ currency: 'GBP', minor: NI_MONTH }], nearestLimit: { days: 14, personName: 'Orla', plant: 'Belfast' } })
   const total = fig({
     plants: 10, contractors: 87, weeksToSign: 14, receipts: { paid: 0, ready: 2, held: 1 },
-    spend: [{ currency: 'GBP', minor: 7_168_000 }, { currency: 'USD', minor: 26_432_000 }], nearestLimit: { days: 14, personName: 'Orla', plant: 'Belfast' },
+    spend: [{ currency: 'GBP', minor: NI_MONTH }, { currency: 'USD', minor: US_MONTH }], nearestLimit: { days: 14, personName: 'Orla', plant: 'Belfast' },
   })
   return data({
     greeting: {
@@ -185,12 +198,13 @@ describe('a region seat reads its region only', () => {
 describe('the answers are By region’s own read', () => {
   it('the CFO’s greeting names the held receipt with the money over the signed hours, the start waiting on an I-9 and the weeks, then the nearest time limit by name, uncounted; the mark is By region’s count', () => {
     const d = cfo()
-    d.total.heldOver = [{ currency: 'USD', minor: 4200 }]
+    d.total.heldOver = [{ currency: 'USD', minor: OVER_ONE }]
     const a = mapNeeds(d, 'PROGRAM', true, undefined, { line: 'FINANCE' }) as Extract<ReturnType<typeof mapNeeds>, { kind: 'NEEDS' }>
     expect(a.kind).toBe('NEEDS')
     expect(a.greeting).toBe(true)
+    expect(heldOverSays(d.total.heldOver)).toBe('$180')
     expect(a.says).toBe(
-      'Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, $42 over the signed hours (41.5 hours billed, 40 hours signed); ' +
+      `Three things need you: Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, ${heldOverSays(d.total.heldOver)} over the signed hours (41.5 hours billed, 40 hours signed); ` +
       'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 sites. Orla in Belfast reaches the time limit in 14 days.')
     expect(a.items).toEqual([])
     expect(mapOwed(d, 'PROGRAM', 'FINANCE')).toBe(d.greeting.total)
@@ -272,6 +286,15 @@ describe('the answers are By region’s own read', () => {
   it('a held receipt with no money worked out keeps By region’s phrase word for word', () => {
     const item = { says: 'Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, 41.5 hours billed, 40 hours signed' }
     expect(receiptPhrase(item, null)).toBe(item.says)
+  })
+
+  it('one held receipt is said with the money over the signed hours in the answers too, word for word as the greeting says it', () => {
+    const d = cfo()
+    d.total.heldOver = [{ currency: 'USD', minor: OVER_ONE }]
+    const phrase = `Hollow Creek Staffing’s invoice receipt for Ray Penn at Dayton is held, ${said$(OVER_ONE, 'USD')} over the signed hours (41.5 hours billed, 40 hours signed)`
+    expect((mapHeld(d) as { says: string }).says).toBe(`${phrase}. Tom Ash’s start at Dayton waits on an I-9 (proof of right to work).`)
+    expect((mapHeldReceipts(d) as { says: string }).says).toBe(`${phrase}. Two others are ready to pay.`)
+    expect(seatLine(d, 'PROGRAM', { line: 'FINANCE' }).says).toContain(phrase)
   })
 
   it('a region seat’s greeting opens By region on its region', () => {
@@ -359,18 +382,20 @@ describe('the answers are By region’s own read', () => {
     const rows = a.table.rows
     expect(rows.at(-1)!.cells[0]).toBe('All regions')
     expect(Number(rows.at(-1)!.cells[1])).toBe(rows.slice(0, -1).reduce((n, r) => n + Number(r.cells[1]), 0))
-    expect(rows[0].cells[2]).toBe('$264,320')
-    expect(rows.at(-1)!.cells[2]).toBe('£71,680 · $264,320')
+    expect(rows[0].cells[2]).toBe(said$(US_MONTH, 'USD'))
+    expect(rows[0].cells[2]).toBe('$1,132,800')
+    expect(rows.at(-1)!.cells[2]).toBe(`${said$(NI_MONTH, 'GBP')} · ${said$(US_MONTH, 'USD')}`)
     expect(a.table.head).toEqual(['Region', 'Contractors', 'Spend this month'])
   })
 
   it('spend in one currency is shown only where money rolled every currency up, with its sentence', () => {
     const d = cfo()
-    d.total.spendOneCurrency = { currency: 'USD', minor: 35_000_000 }
-    d.regions[0].spendOneCurrency = { currency: 'USD', minor: 26_432_000 }
+    const one = US_MONTH + NI_MONTH
+    d.total.spendOneCurrency = { currency: 'USD', minor: one }
+    d.regions[0].spendOneCurrency = { currency: 'USD', minor: US_MONTH }
     const a = mapSpend(d) as { says: string; table: { head: string[] } }
     expect(a.table.head.at(-1)).toBe('In USD')
-    expect(a.says).toContain('In USD, about $350,000. Converted at sample rates, not market rates.')
+    expect(a.says).toContain(`In USD, about ${said$(one, 'USD')}. Converted at sample rates, not market rates.`)
   })
 
   it('how each country runs shows only confirmed lines, and says so when there are none', () => {
@@ -399,6 +424,124 @@ describe('the answers are By region’s own read', () => {
 
   it('the map’s questions are not mistaken for anything the queue acts on', () => {
     for (const q of [...REGION_CHIPS, ...PROGRAM_CHIPS]) expect(readAsk(q).kind, q).not.toBe('DECIDE')
+  })
+})
+
+describe('several invoice receipts held at once', () => {
+  // Dayton holds three receipts over by 1.5 hours each, Fresno one over by
+  // 1 hour, Joliet one by 2 and El Paso one by 1.5: six, at the US rate.
+  const over = (hours: number) => [{ currency: 'USD', minor: Math.round(hours * US_HOUR) }]
+  const usRows = () => [
+    manager('Dayton, Ohio', 'United States', { receipts: { paid: 0, ready: 0, held: 3 }, heldOver: over(4.5) }),
+    manager('Fresno, California', 'United States', { receipts: { paid: 0, ready: 1, held: 1 }, heldOver: over(1) }),
+    manager('Joliet, Illinois', 'United States', { receipts: { paid: 0, ready: 0, held: 1 }, heldOver: over(2) }),
+    manager('El Paso, Texas', 'United States', { receipts: { paid: 0, ready: 0, held: 1 }, heldOver: over(1.5) }),
+  ]
+  const ALL = Math.round(9 * US_HOUR)
+  const six = (): RegionsData => {
+    const d = cfo()
+    const item: GreetingItem = { kind: 'receipt', count: 6, plant: 'Dayton, Fresno and 2 more sites', plants: ['Dayton', 'Fresno', 'Joliet', 'El Paso'], person: null, supplier: null, says: 'six invoice receipts are held, at Dayton, Fresno and 2 more sites' }
+    d.greeting.held = [item, ...d.greeting.held!.slice(1)]
+    d.greeting.items = d.greeting.held.map((i) => i.says)
+    d.total.receipts = { paid: 0, ready: 2, held: 6 }
+    d.total.heldOver = [{ currency: 'USD', minor: ALL }]
+    return d
+  }
+
+  it('the CFO’s greeting says how many invoice receipts are held, where, the money over the signed hours, and how much of it the site holding the most bills', () => {
+    const d = six()
+    const sites = { sites: heldBySite(usRows()), inOne: null }
+    const line = seatLine(d, 'PROGRAM', { line: 'FINANCE', sites })
+    expect(said$(ALL, 'USD')).toBe('$1,080')
+    expect(line.says).toBe(
+      `Three things need you: six invoice receipts are held at Dayton, Fresno and 2 more sites, ${said$(ALL, 'USD')} over the signed hours, ${said$(Math.round(4.5 * US_HOUR), 'USD')} of it at Dayton; ` +
+      'Tom Ash’s start at Dayton waits on an I-9 (proof of right to work); 14 weeks wait to be signed at 9 sites. Orla in Belfast reaches the time limit in 14 days.')
+    expect(line.total).toBe(d.greeting.total)
+    expect((mapNeeds(d, 'PROGRAM', true, undefined, { line: 'FINANCE', sites }) as { says: string }).says).toBe(line.says)
+  })
+
+  it('without the sites read, several held receipts are said with their count and money, and no site is named the largest', () => {
+    const says = seatLine(six(), 'PROGRAM', { line: 'FINANCE' }).says
+    expect(says).toContain(`six invoice receipts are held at Dayton, Fresno and 2 more sites, ${said$(ALL, 'USD')} over the signed hours; `)
+    expect(says).not.toContain('of it at')
+  })
+
+  it('a site with two hiring managers is one site: its held receipts and money are added before the largest is chosen', () => {
+    const rows = [...usRows(), manager('Fresno, California', 'United States', { managerId: 'm-fresno-2', receipts: { paid: 0, ready: 0, held: 2 }, heldOver: over(4) })]
+    const sites = heldBySite(rows)
+    expect(sites.map((s) => [s.plant, s.held, s.over[0].minor])).toEqual([
+      ['Fresno, California', 3, Math.round(5 * US_HOUR)],
+      ['Dayton, Ohio', 3, Math.round(4.5 * US_HOUR)],
+      ['Joliet, Illinois', 1, Math.round(2 * US_HOUR)],
+      ['El Paso, Texas', 1, Math.round(1.5 * US_HOUR)],
+    ])
+    expect(largestHeld(sites)!.plant).toBe('Fresno, California')
+  })
+
+  const BELFAST = Math.round(1.5 * NI_HOUR)
+  const twoCurrencies = () => {
+    const d = six()
+    d.total.heldOver = [{ currency: 'GBP', minor: BELFAST }, { currency: 'USD', minor: ALL }]
+    const belfast = manager('Belfast', 'Northern Ireland', { receipts: { paid: 0, ready: 0, held: 1 }, heldOver: [{ currency: 'GBP', minor: BELFAST }] })
+    return { d, sites: heldBySite([...usRows(), belfast]) }
+  }
+
+  it('held receipts in two currencies with a rate missing are said in each currency’s own money, and no site is named the largest, because a missing rate is never guessed', () => {
+    const { d, sites } = twoCurrencies()
+    expect(largestHeld(sites)).toBeNull()
+    const says = seatLine(d, 'PROGRAM', { line: 'FINANCE', sites: { sites, inOne: null } }).says
+    expect(says).toContain(`, ${said$(BELFAST, 'GBP')} and ${said$(ALL, 'USD')} over the signed hours; `)
+    expect(says).not.toMatch(/of it at|the most at/)
+  })
+
+  it('held receipts in two currencies with every rate are said as one figure with the rates named, and the site holding the most in its own money', () => {
+    const { d, sites } = twoCurrencies()
+    // Money's rollup put each site in dollars; Belfast's pounds are worth less than Dayton's dollars.
+    for (const s of sites) s.inReporting = { currency: 'USD', minor: s.over[0].currency === 'GBP' ? Math.round(s.over[0].minor * 1.27) : s.over[0].minor }
+    const inOne = { total: { currency: 'USD', minor: ALL + Math.round(BELFAST * 1.27) }, sample: true }
+    expect(largestHeld(sites)!.plant).toBe('Dayton, Ohio')
+    const says = seatLine(d, 'PROGRAM', { line: 'FINANCE', sites: { sites, inOne } }).says
+    expect(says).toContain(`six invoice receipts are held at Dayton, Fresno and 2 more sites, about ${said$(inOne.total.minor, 'USD')} over the signed hours at sample rates, the most at Dayton (${said$(Math.round(4.5 * US_HOUR), 'USD')}); `)
+    expect(seatLine(d, 'PROGRAM', { line: 'FINANCE', sites: { sites, inOne: { ...inOne, sample: false } } }).says).toContain(' over the signed hours at the rates you set, the most at Dayton')
+  })
+
+  it('two sites holding the same money name neither as the largest, because the most would be a guess between them', () => {
+    const tie = [
+      manager('Dayton, Ohio', 'United States', { receipts: { paid: 0, ready: 0, held: 1 }, heldOver: over(2) }),
+      manager('Joliet, Illinois', 'United States', { receipts: { paid: 0, ready: 0, held: 1 }, heldOver: over(2) }),
+    ]
+    expect(largestHeld(heldBySite(tie))).toBeNull()
+  })
+
+  it('several held receipts at one site name the site once and say the money over, never “of it” at the same site', () => {
+    const item = { count: 3, says: 'Three invoice receipts are held, at Dayton' }
+    const sites = { sites: heldBySite([usRows()[0]]), inOne: null }
+    expect(heldPhrase(item, over(4.5), sites)).toBe(`Three invoice receipts are held at Dayton, ${said$(Math.round(4.5 * US_HOUR), 'USD')} over the signed hours`)
+  })
+
+  it('what is held and why, and which invoice receipts are held, say the count, the money over and the largest site, with each site a row beside the chat, the largest first', () => {
+    const d = six()
+    const sites = { sites: heldBySite(usRows()), inOne: null }
+    const phrase = `Six invoice receipts are held at Dayton, Fresno and 2 more sites, ${said$(ALL, 'USD')} over the signed hours, ${said$(Math.round(4.5 * US_HOUR), 'USD')} of it at Dayton`
+    expect((mapHeld(d, sites) as { says: string }).says).toBe(`${phrase}. Tom Ash’s start at Dayton waits on an I-9 (proof of right to work).`)
+    const a = mapHeldReceipts(d, sites) as { kind: string; says: string; table: { head: string[]; rows: { cells: string[] }[] } }
+    expect(a.kind).toBe('LIST')
+    expect(a.says).toBe(`${phrase}. Two others are ready to pay.`)
+    expect(a.table.head).toEqual(['Site', 'Held', 'Over the signed hours'])
+    expect(a.table.rows.map((r) => r.cells)).toEqual([
+      ['Dayton, Ohio', '3', said$(Math.round(4.5 * US_HOUR), 'USD')],
+      ['Joliet, Illinois', '1', said$(Math.round(2 * US_HOUR), 'USD')],
+      ['El Paso, Texas', '1', said$(Math.round(1.5 * US_HOUR), 'USD')],
+      ['Fresno, California', '1', said$(Math.round(1 * US_HOUR), 'USD')],
+    ])
+  })
+
+  it('a regional manager’s greeting finds the site holding the most from her own region’s read, with nothing more read', () => {
+    const d = six()
+    d.reader = { reach: 'REGION', label: 'United States' }
+    d.level = 'REGION'
+    d.region = { label: 'United States', leads: [], figures: d.total, managers: usRows(), countries: [] }
+    expect(seatLine(d, 'REGION').says).toContain(`, ${said$(Math.round(4.5 * US_HOUR), 'USD')} of it at Dayton`)
   })
 })
 

@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
 import { pinnedFor } from './pinned'
 import { respond, whereAnswer, menuOf, placeOf, today, greetingModelState, boundarySays, type ModelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, pictureOf, readsPicture, monthOf, type Readers, type Picture, type Answer, type Party, type QueueRead, type RichLine } from './ask'
-import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, REGION_BOUNDARY, type MapSeat } from './regions'
+import { mapSeatOf, mapView, mapNeeds, mapOwed, mapChips, mapAnswer, mapHelp, siteLine, heldSitesFor, REGION_BOUNDARY, type MapSeat } from './regions'
 import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, listThreads, startThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { threadIdOf, THREAD_PARAM, NOT_YOUR_CONVERSATION } from './thread-id'
@@ -807,11 +807,14 @@ async function mapGreeting(caller: Caller, map: MapSeat, take: number | undefine
     const thread = threadFor(caller, take)
     const data = await mapView(caller, { trail: 'Ask Etyme greeting' })
     if (!data) return notReadByRegion(caller)
-    const state = map.reach === 'REGION' ? null : await boundaryOf(caller.company!.id)
+    const [state, sites] = await Promise.all([
+      map.reach === 'REGION' ? null : boundaryOf(caller.company!.id),
+      heldSitesFor(caller, data, 'Ask Etyme greeting'),
+    ])
     const model: ModelState = state ? state.model : 'OFF'
     const boundary = state ? boundarySays(state.model, state.held) : REGION_BOUNDARY
     return NextResponse.json({
-      data: { answer: mapNeeds(data, map.reach, true, boundary, { line: map.line }), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
+      data: { answer: mapNeeds(data, map.reach, true, boundary, { line: map.line, sites }), model, party: 'CLIENT', client: null, chips: mapChips(map.reach), thread: await thread },
     })
   } catch (err) {
     await reportError('Ask Etyme could not greet a seat by region', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
