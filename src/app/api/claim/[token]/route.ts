@@ -4,6 +4,18 @@ import { prisma } from '@/lib/db'
 import { rolesFor } from '@/lib/company-defaults'
 import { companyDomain, mayClaim } from '@/lib/supplier-list'
 import { claimOrJoin } from '@/lib/company-create'
+import { mayClaimRecorded } from '@/lib/counterparty'
+import { recordRefusal } from '@/lib/access-log'
+import { invitedAsOf, claimedAsSays } from './invited-as'
+
+/** What the inviting firm's own register says this company is to it. */
+async function invitedAsFor(invite: { byId: string; companyId: string; company: { kind: string } }) {
+  const rows = await prisma.counterparty.findMany({
+    where: { companyId: invite.byId, otherCompanyId: invite.companyId },
+    select: { relationship: true },
+  })
+  return invitedAsOf({ kind: invite.company.kind, relationships: rows.map((r) => r.relationship) })
+}
 
 /**
  * GET  /api/claim/:token — who is this invitation for
@@ -51,9 +63,15 @@ export async function GET(
 
   // How many roles are already waiting for them. It is the whole reason
   // to bother signing in, so it is the first thing the page can say.
-  const waiting = await prisma.requirementInvitation.count({
-    where: { toCompanyId: invite.companyId, status: { in: ['SENT', 'ACCEPTED'] } },
-  })
+  const [waiting, invitedAs] = await Promise.all([
+    prisma.requirementInvitation.count({
+      where: { toCompanyId: invite.companyId, status: { in: ['SENT', 'ACCEPTED'] } },
+    }),
+    invitedAsFor(invite),
+  ])
+  // A company nobody has said the kind of cannot be taken: it has no
+  // roles to seat anybody in. The page says so and offers no door.
+  const ready = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
 
   return NextResponse.json({
     data: {
@@ -64,9 +82,12 @@ export async function GET(
       alreadyClaimed: invite.company.claimedAt != null || invite.state === 'ACCEPTED',
       rolesWaiting: waiting,
       signedInAs: email,
-      mayClaim: email ? mayClaim(email, invite.email) : null,
-      // A client a supplier invited reads its own line; a supplier does not approve its client.
-      invitedAs: invite.company.kind === 'CLIENT' ? 'CLIENT' : 'SUPPLIER',
+      mayClaim: ready.ok ? (email ? mayClaim(email, invite.email) : null) : false,
+      // Why this link cannot be taken yet, in a sentence, or null.
+      notReady: ready.ok ? null : ready.says,
+      // A client a supplier invited reads its own line; a supplier does not
+      // approve its client. Read from the inviting firm's register first.
+      invitedAs,
     },
   })
 }
@@ -100,6 +121,19 @@ export async function POST(
       { error: { code: 'NOT_FOUND', message: 'That link is not valid any more.' } },
       { status: 404 }
     )
+  }
+
+  // Never seat anybody at a company with no roles, and never read it as
+  // a supplier: the firm that sent the link sets its kind first.
+  const ready = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
+  if (!ready.ok) {
+    const who = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
+    await recordRefusal([{ companyId: invite.companyId }], {
+      ...(who ? { actorPersonId: who.id } : {}),
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a claim link for ${invite.company.name}: ${ready.says}`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_CLASSIFIED', message: ready.says } }, { status: 409 })
   }
 
   if (!mayClaim(email, invite.email)) {
@@ -182,6 +216,13 @@ export async function POST(
 
   const ownerName = kindRoles.find((r) => r.isOwner)?.name
   const owner = roles.find((r) => r.name === ownerName) ?? roles[0]
+  // A company with no roles seats nobody. Said, never a crash.
+  if (!owner) {
+    const says = `${invite.company.name} has no roles yet, so this link cannot seat you there. Ask the firm that sent it to set what kind of company it is, then open the link again.`
+    await recordRefusal([{ companyId: invite.companyId }], { actorPersonId: person.id, action: 'CONTRACT_VIEW', reason: `Refused a claim link: ${says}` })
+    return NextResponse.json({ error: { code: 'NOT_CLASSIFIED', message: says } }, { status: 409 })
+  }
+  const invitedAs = await invitedAsFor(invite)
 
   const domain = companyDomain(email)
 
@@ -212,7 +253,7 @@ export async function POST(
         companyId: invite.companyId,
         roleId: owner.id,
         type: 'EMPLOYEE',
-        grantReason: `Claimed a ${invite.company.kind === 'CLIENT' ? 'client' : 'supplier'} invitation from ${invite.byId}`,
+        grantReason: claimedAsSays(invitedAs, invite.byId),
       },
     }),
     prisma.company.update({

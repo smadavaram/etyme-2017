@@ -31,6 +31,8 @@ interface Claim {
   rolesWaiting: number
   signedInAs: string | null
   mayClaim: boolean | null
+  /** Why this link cannot be taken yet (a company nobody has said the kind of), or null. */
+  notReady?: string | null
   /** A client a supplier invited, or a supplier a client listed. */
   invitedAs?: 'CLIENT' | 'SUPPLIER'
 }
@@ -115,6 +117,12 @@ export default function ClaimPage() {
               )}
             </div>
 
+            {!claim.alreadyClaimed && claim.notReady && (
+              <div className="panel">
+                <p className="text-[13px] text-etyme-attention">{claim.notReady}</p>
+              </div>
+            )}
+
             {claim.alreadyClaimed && (
               <div className="panel">
                 <p className="text-[13px] text-etyme-muted">
@@ -127,7 +135,7 @@ export default function ClaimPage() {
               </div>
             )}
 
-            {!claim.alreadyClaimed && !claim.signedInAs && (
+            {!claim.alreadyClaimed && !claim.notReady && !claim.signedInAs && (
               <div className="space-y-3">
                 <Link
                   href={setPasswordHref(token!) as Route}
@@ -166,7 +174,7 @@ export default function ClaimPage() {
               </div>
             )}
 
-            {!claim.alreadyClaimed && claim.signedInAs && claim.mayClaim === false && (
+            {!claim.alreadyClaimed && !claim.notReady && claim.signedInAs && claim.mayClaim === false && (
               <div className="panel">
                 <p className="text-[13px] text-etyme-attention">
                   You are signed in as {claim.signedInAs}, and this was sent to{' '}
@@ -178,7 +186,7 @@ export default function ClaimPage() {
               </div>
             )}
 
-            {!claim.alreadyClaimed && claim.mayClaim && (
+            {!claim.alreadyClaimed && !claim.notReady && claim.mayClaim && (
               <div className="space-y-3">
                 <button
                   onClick={take}

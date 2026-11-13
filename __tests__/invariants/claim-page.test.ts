@@ -75,8 +75,8 @@ describe('a client its supplier invited claims its own record', () => {
     expect(claimEyebrow('SUPPLIER')).toBe('Supplier account')
   })
 
-  it('the claim read says whether the invited company is a client, from the company’s own kind, and the page never offers a client jobs', () => {
-    expect(ROUTE).toContain("invitedAs: invite.company.kind === 'CLIENT' ? 'CLIENT' : 'SUPPLIER',")
+  it('the claim read says whether the invited company is a client, from the inviting firm’s own row and then the company’s kind, and the page never offers a client jobs', () => {
+    expect(ROUTE).toContain('invitedAsOf({ kind: invite.company.kind, relationships: rows.map((r) => r.relationship) })')
     expect(PAGE).toContain('{claimLine(claim, claim.alreadyClaimed)}')
     expect(PAGE).toContain("claim.invitedAs !== 'CLIENT' && jobsWaiting(")
   })
@@ -93,5 +93,26 @@ describe('a client its supplier invited claims its own record', () => {
     expect(client.some((r) => r.isOwner)).toBe(true)
     expect(client.map((r) => r.name)).not.toContain('Recruiter')
     expect(client.map((r) => r.name)).not.toEqual(rolesFor('VENDOR').map((r) => r.name))
+  })
+})
+
+describe('a claim link for a company recorded by name', () => {
+  it('a company the inviting firm holds as a Customer is invited as a client, whatever its Kind', async () => {
+    const { invitedAsOf } = await import('@/app/api/claim/[token]/invited-as')
+    expect(invitedAsOf({ kind: 'VENDOR', relationships: ['CLIENT'] })).toBe('CLIENT')
+    expect(invitedAsOf({ kind: 'CLIENT', relationships: ['SUPPLIER'] })).toBe('SUPPLIER')
+    expect(invitedAsOf({ kind: 'GSI', relationships: ['CLIENT', 'SUPPLIER'] })).toBe('SUPPLIER')
+    expect(invitedAsOf({ kind: 'CLIENT', relationships: [] })).toBe('CLIENT')
+  })
+
+  it('the page draws no door to take a company nobody has said the kind of, and says why instead', () => {
+    expect(PAGE).toContain('{claim.notReady}</p>')
+    expect(PAGE).toContain('!claim.alreadyClaimed && !claim.notReady && !claim.signedInAs &&')
+    expect(PAGE).toContain('!claim.alreadyClaimed && !claim.notReady && claim.mayClaim &&')
+  })
+
+  it('the answer link never offers to take the account of a company nobody has said the kind of', () => {
+    const answer = readFileSync(join(process.cwd(), 'src/app/api/answer/[token]/route.ts'), 'utf8')
+    expect(answer).toContain('takeAccount: invite.company.claimedAt == null && mayClaimRecorded(invite.company).ok')
   })
 })

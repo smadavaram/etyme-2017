@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { mayClaimRecorded } from '@/lib/counterparty'
 import { prisma } from '@/lib/db'
 import { readCv, cvSentence } from '@/lib/cv-reader'
 import { holdExpiry } from '@/lib/representation'
@@ -39,7 +40,7 @@ async function invited(token: string) {
   return prisma.supplierInvite.findUnique({
     where: { token },
     include: {
-      company: { select: { id: true, name: true, claimedAt: true } },
+      company: { select: { id: true, name: true, claimedAt: true, kind: true } },
       by: { select: { id: true, name: true } },
     },
   })
@@ -361,7 +362,8 @@ export async function POST(
         `${invite.by.name} will see them in their next screening.`,
       // The nudge that is worth making now and never before: they have
       // done the work, so an account is a smaller ask than it was.
-      takeAccount: invite.company.claimedAt == null,
+      // Never for a company nobody has said the kind of: the claim would refuse it.
+      takeAccount: invite.company.claimedAt == null && mayClaimRecorded(invite.company).ok,
     },
   })
 }

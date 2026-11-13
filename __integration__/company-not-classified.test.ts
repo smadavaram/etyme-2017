@@ -431,3 +431,48 @@ describe('the founder’s acceptance walk', () => {
     expect(await prisma.company.count({ where: { kind: 'UNCLASSIFIED', ...notMine() } })).toBe(0)
   })
 })
+
+describe('a claim link never seats anybody at a company nobody has said the kind of', () => {
+  const claim = () => import('@/app/api/claim/[token]/route')
+  const at = (token: string) => ({ params: Promise.resolve({ token }) })
+
+  it('the claim page says what is missing and offers no door, and taking it is refused in a sentence logged first, with nobody seated and no roles made', async () => {
+    as(OWNER)
+    const id = (await record('Harrow Quay Partners')).body.data.company.id
+    const token = `walk-claim-${Date.now()}`
+    await prisma.supplierInvite.create({ data: { companyId: id, byId: brightmoor, email: 'ops@harrowquay-walk.example', token } })
+    const { GET, POST } = await claim()
+    as('ops@harrowquay-walk.example')
+    const page = await json(await GET(req('GET', `/api/claim/${token}`), at(token)))
+    expect(page.status).toBe(200)
+    expect(page.body.data.notReady).toBe('Nobody has said what kind of company Harrow Quay Partners is yet, so this link cannot seat you there. Ask the firm that sent it to set the kind, then open the link again.')
+    expect(page.body.data.mayClaim).toBe(false)
+    const r = await json(await POST(req('POST', `/api/claim/${token}`), at(token)))
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('NOT_CLASSIFIED')
+    expect(r.body.error.message).toBe(page.body.data.notReady)
+    expect(await prisma.context.count({ where: { companyId: id } })).toBe(0)
+    expect(await prisma.role.count({ where: { companyId: id } })).toBe(0)
+    const c = await prisma.company.findUniqueOrThrow({ where: { id }, select: { kind: true, claimedAt: true } })
+    expect(c).toEqual({ kind: 'UNCLASSIFIED', claimedAt: null })
+    expect(await prisma.accessLog.count({ where: { subjectCompanyId: id, allowed: false, reason: { contains: 'claim link' } } })).toBe(1)
+  })
+
+  it('a company set to Vendor and extended to Customer is invited as a client, read from the inviting firm’s own row, and its first seat says so', async () => {
+    as(OWNER)
+    const id = (await record('Larchmere Outfitters')).body.data.company.id
+    expect((await call(kind.PATCH as any, 'PATCH', `/api/companies/${id}/kind`, id, { kind: 'VENDOR' })).status).toBe(200)
+    expect((await call(extend.POST as any, 'POST', `/api/companies/${id}/extend`, id, { as: 'CUSTOMER' })).status).toBe(201)
+    const token = `walk-claim-client-${Date.now()}`
+    await prisma.supplierInvite.create({ data: { companyId: id, byId: brightmoor, email: 'ap@larchmere-walk.example', token } })
+    const { GET, POST } = await claim()
+    as('ap@larchmere-walk.example')
+    const page = await json(await GET(req('GET', `/api/claim/${token}`), at(token)))
+    expect(page.body.data).toMatchObject({ invitedAs: 'CLIENT', notReady: null, mayClaim: true })
+    const r = await json(await POST(req('POST', `/api/claim/${token}`), at(token)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const seat = await prisma.context.findFirstOrThrow({ where: { companyId: id }, select: { grantReason: true, role: { select: { name: true } } } })
+    expect(seat.grantReason).toContain('Claimed a client invitation')
+    expect(seat.role?.name).toBe('Owner')
+  })
+})
