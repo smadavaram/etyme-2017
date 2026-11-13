@@ -90,13 +90,11 @@ export default function LoginPage() {
     if (typed) setEmail(typed)
     setLastDoor(readLastDoor())
     // A directory-only company refused an account button: the sealed proof
-    // that the address just went through that provider is handed to the
-    // doors route once, and taken off the address bar.
-    const proof = code === 'DirectoryOnly' ? params.get('proof') : null
-    if (proof) {
-      params.delete('proof')
-      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
-      fetch('/api/auth/doors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proof }) })
+    // that the address just went through that provider is in an httpOnly
+    // cookie only the doors route reads, never on the address, and the
+    // route takes it once (lib/identity/door-proof, review 2026-11-13).
+    if (code === 'DirectoryOnly') {
+      fetch('/api/auth/doors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proof: true }) })
         .then((r) => readJson(r))
         .then((j) => {
           if (j?.data?.directory) {

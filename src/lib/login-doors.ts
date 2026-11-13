@@ -422,3 +422,24 @@ export const DOOR_ASKS_PER_MINUTE = 30
 export function tooManyDoorAsks(seen: readonly number[], now: number): boolean {
   return seen.filter((t) => now - t < 60_000).length >= DOOR_ASKS_PER_MINUTE
 }
+
+/** Asks a minute across every caller, so a caller who changes its address buys nothing. */
+export const DOOR_ASKS_ALL_PER_MINUTE = 1_200
+
+export function tooManyDoorAsksAll(seen: readonly number[], now: number): boolean {
+  return seen.filter((t) => now - t < 60_000).length >= DOOR_ASKS_ALL_PER_MINUTE
+}
+
+/**
+ * Who is asking, as the platform saw them: the client address the host
+ * set on the request, else x-real-ip, else the last x-forwarded-for entry
+ * (the one the nearest proxy wrote). Never the first entry, which the
+ * caller writes itself (review, 2026-11-13). Pure.
+ */
+export function askerOf(platformIp: string | null | undefined, headers: { get(name: string): string | null }): string {
+  if (platformIp && platformIp.trim()) return platformIp.trim()
+  const real = headers.get('x-real-ip')?.trim()
+  if (real) return real
+  const chain = (headers.get('x-forwarded-for') ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  return chain[chain.length - 1] ?? 'unknown'
+}

@@ -409,7 +409,17 @@ export const authOptions: NextAuthOptions = {
           const proven = v.policy === 'SSO_ONLY' && (door === 'GOOGLE_SOCIAL' || door === 'MICROSOFT_SOCIAL' || door === 'LINKEDIN')
           const { sealDoorProof } = await import('@/lib/identity/door-proof')
           const proof = proven ? sealDoorProof(sessionEmail(user.email)!) : null
-          return proof ? `/login?error=DirectoryOnly&proof=${proof}` : '/login?error=DirectoryOnly'
+          if (proof) {
+            // In an httpOnly cookie for the doors route alone, never on the
+            // address (review, 2026-11-13). Where the cookie cannot be set,
+            // the page says the plain sentence.
+            try {
+              const { cookies } = await import('next/headers')
+              const { doorProofCookie } = await import('@/lib/identity/door-proof')
+              cookies().set(doorProofCookie(proof))
+            } catch { /* outside a request: the plain sentence stands */ }
+          }
+          return '/login?error=DirectoryOnly'
         }
         // LinkedIn is for candidates only (founder, 2026-11-12): anybody who
         // holds a seat at a company, a one-person firm included, is told

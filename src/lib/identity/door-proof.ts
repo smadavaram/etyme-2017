@@ -7,9 +7,12 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
  * flow: "A company on its own directory is always sent there, whichever
  * button its people press").
  *
- * The sign-in callback puts it on the refusal's address
- * (`/login?error=DirectoryOnly&proof=…`), and the sign-in page hands it to
- * POST /api/auth/doors, which opens it and answers with that company's
+ * The sign-in callback puts it in a short-lived httpOnly cookie read only
+ * by POST /api/auth/doors (`DOOR_PROOF_COOKIE`), never on the address: a
+ * proof on the address sat in server and CDN logs, the Referer and the
+ * browser history for ten minutes (review, 2026-11-13). The sign-in page
+ * asks the doors route once, which opens it, deletes the cookie in the
+ * same answer and remembers it as used, and answers with that company's
  * directory. It is sealed with the deployment's own secret (AES-256-GCM,
  * node:crypto, no new dependency), so the address is never readable in
  * the address bar or a log, nobody can mint one for an address that did
@@ -50,4 +53,39 @@ export function openDoorProof(token: unknown, now = Date.now(), secret = secretN
   } catch {
     return null
   }
+}
+
+/** The cookie the proof travels in: httpOnly, sent only to the doors route. */
+export const DOOR_PROOF_COOKIE = 'etyme_door_proof'
+
+/** Where the cookie is read, and nowhere else. */
+export const DOOR_PROOF_PATH = '/api/auth/doors'
+
+/** The cookie's settings, set by the sign-in callback and cleared by the doors route. */
+export function doorProofCookie(value: string, maxAgeSeconds = DOOR_PROOF_MINUTES * 60) {
+  return {
+    name: DOOR_PROOF_COOKIE,
+    value,
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: DOOR_PROOF_PATH,
+    maxAge: maxAgeSeconds,
+  }
+}
+
+const used = new Map<string, number>()
+
+/**
+ * Open a proof once. A second presentation of the same proof on this
+ * instance is answered as if nothing was sent; the cookie is deleted by
+ * the first answer, so a browser never sends it twice. Never throws.
+ */
+export function takeDoorProof(token: unknown, now = Date.now(), secret = secretNow()): string | null {
+  const email = openDoorProof(token, now, secret)
+  if (!email || typeof token !== 'string') return null
+  for (const [t, until] of used) if (until < now) used.delete(t)
+  if (used.has(token)) return null
+  used.set(token, now + DOOR_PROOF_MINUTES * 60_000)
+  return email
 }

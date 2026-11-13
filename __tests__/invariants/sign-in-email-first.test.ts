@@ -198,13 +198,45 @@ describe('an account button a directory-only company refused draws that companyâ
   it('only a Google, Microsoft or LinkedIn sign-in refused by a directory-only company carries a proof', () => {
     const auth = read('src/lib/auth.ts')
     expect(auth).toContain("const proven = v.policy === 'SSO_ONLY' && (door === 'GOOGLE_SOCIAL' || door === 'MICROSOFT_SOCIAL' || door === 'LINKEDIN')")
-    expect(auth).toContain("return proof ? `/login?error=DirectoryOnly&proof=${proof}` : '/login?error=DirectoryOnly'")
+    // In an httpOnly cookie for the doors route, never on the address (review, 2026-11-13).
+    expect(auth).toContain('cookies().set(doorProofCookie(proof))')
+    expect(auth).toContain("return '/login?error=DirectoryOnly'")
+    expect(auth).not.toContain('&proof=')
   })
 
-  it('the doors route names the company only for a proof it opened, and answers a forged one as if nothing was sent', () => {
+  it('the proof travels in an httpOnly cookie sent only to the doors route, never on the sign-in address, so no log, Referer or history holds it', async () => {
+    const { doorProofCookie, DOOR_PROOF_COOKIE, DOOR_PROOF_PATH, DOOR_PROOF_MINUTES } = await import('@/lib/identity/door-proof')
+    expect(doorProofCookie('x')).toMatchObject({ name: DOOR_PROOF_COOKIE, httpOnly: true, sameSite: 'lax', path: DOOR_PROOF_PATH, maxAge: DOOR_PROOF_MINUTES * 60 })
+    expect(DOOR_PROOF_PATH).toBe('/api/auth/doors')
+    expect(page).not.toContain("params.get('proof')")
+    expect(page).toContain("body: JSON.stringify({ proof: true })")
+  })
+
+  it('a proof is taken once: the second presentation reads as nothing, and a forged one never counts as used', async () => {
+    const { sealDoorProof, takeDoorProof } = await import('@/lib/identity/door-proof')
+    const now = 1_800_000_000_000
+    const t = sealDoorProof('helena@northbend.example', now, SECRET)!
+    expect(takeDoorProof(t, now + 1_000, SECRET)).toBe('helena@northbend.example')
+    expect(takeDoorProof(t, now + 2_000, SECRET)).toBeNull()
+    expect(takeDoorProof('not a proof at all, just forty characters long', now, SECRET)).toBeNull()
+  })
+
+  it('the doors route names the company only for a proof it took from its cookie, deletes the cookie in the same answer, and answers a forged one as if nothing was sent', () => {
     const route = read('src/app/api/auth/doors/route.ts')
-    expect(route).toContain('const proven = openDoorProof(body.proof)')
-    expect(route).toContain("if (!proven || !co || facts!.publicAddress) return NextResponse.json({ data: { directory: null } })")
+    expect(route).toContain("const proven = body.proof === true ? takeDoorProof(request.cookies.get(DOOR_PROOF_COOKIE)?.value) : null")
+    expect(route).toContain("res.cookies.set(doorProofCookie('', 0))")
+    expect(route).toContain("if (!proven || !co || facts!.publicAddress) return answer({ directory: null })")
+  })
+
+  it('the sign-in doors limit is keyed on the address the platform saw, never on a header the caller writes first, with one ceiling across every caller', async () => {
+    const { askerOf, tooManyDoorAsksAll, DOOR_ASKS_ALL_PER_MINUTE } = await import('@/lib/login-doors')
+    const h = (m: Record<string, string>) => ({ get: (n: string) => m[n] ?? null })
+    expect(askerOf('203.0.113.9', h({ 'x-forwarded-for': 'spoofed, 198.51.100.4' }))).toBe('203.0.113.9')
+    expect(askerOf(undefined, h({ 'x-real-ip': '198.51.100.7', 'x-forwarded-for': 'spoofed' }))).toBe('198.51.100.7')
+    expect(askerOf(undefined, h({ 'x-forwarded-for': 'spoofed-by-caller, 198.51.100.4' }))).toBe('198.51.100.4')
+    const now = 1_800_000_000_000
+    expect(tooManyDoorAsksAll(Array(DOOR_ASKS_ALL_PER_MINUTE).fill(now - 1_000), now)).toBe(true)
+    expect(tooManyDoorAsksAll(Array(DOOR_ASKS_ALL_PER_MINUTE).fill(now - 61_000), now)).toBe(false)
   })
 
   it('the directory screen shows the address with Change, one sentence, and one filled button to the companyâ€™s own sign-in', () => {
@@ -217,10 +249,6 @@ describe('an account button a directory-only company refused draws that companyâ
     expect(screen.match(/className=\{doorButton\}/g)).toHaveLength(1)
   })
 
-  it('the proof is taken off the address bar before anything else is drawn', () => {
-    expect(page).toContain("params.delete('proof')")
-    expect(page.indexOf('window.history.replaceState')).toBeLessThan(page.indexOf("body: JSON.stringify({ proof })"))
-  })
 })
 
 describe('LinkedIn is for candidates only (founder, 2026-11-12)', () => {
