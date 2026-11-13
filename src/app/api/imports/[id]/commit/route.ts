@@ -6,6 +6,7 @@ import { importRefusal, ownImport } from '../../door'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { isOwnEmployeeRow } from '@/lib/import-mapper'
+import { logAccess } from '@/lib/access-log'
 
 /**
  * POST /api/imports/:id/commit
@@ -16,6 +17,13 @@ import { isOwnEmployeeRow } from '@/lib/import-mapper'
  * seat and no bench listing. Every other row is a record kept to the firm
  * and a bench invitation the person answers (2026-10-27). Nothing an
  * import writes is shown outside the firm: every profile is INTERNAL.
+ *
+ * Somebody whose address already has an account on Etyme, and whom the
+ * firm does not already seat, is only asked onto the bench on their own
+ * record (review, 2026-11-13): no seat, no employee seat for a W2 row, and
+ * no contract naming them until they say yes, the way Add consultant asks
+ * (`askOntoBench`). Their name stays theirs. Looking them up by address is
+ * logged. Whatever the row says about them is not a yes of theirs.
  *
  * BUILD.md: "any row with an endDate inside 8 weeks immediately creates a
  * RolloffEvent". Rows with gaps still commit; the review lists the gaps.
@@ -55,6 +63,11 @@ export async function POST(
   let rolloffCount = 0
   let employees = 0
   let invited = 0
+  let alreadyOnEtyme = 0
+  /** People already on Etyme the import looked up by address, logged after the commit. */
+  const lookedUp: string[] = []
+  /** People this import made, so a second row with the same address is still the firm's own. */
+  const madeHere = new Set<string>()
   let employeeRoleId: string | undefined
   const companyKind = (await prisma.company.findUniqueOrThrow({ where: { id: importRecord.companyId }, select: { kind: true } })).kind
   const fileName = importRecord.fileName ?? 'a file'
@@ -84,6 +97,7 @@ export async function POST(
                 primaryEmail: parsed.email,
               },
             })
+            madeHere.add(person.id)
           }
         } else {
           // No email — create with a placeholder. The import log records this gap.
@@ -93,7 +107,19 @@ export async function POST(
               primaryEmail: `import-${id}-${row.id}@placeholder.etyme.local`,
             },
           })
+          madeHere.add(person.id)
         }
+
+        const existingContext = await tx.context.findFirst({
+          where: {
+            personId: person.id,
+            companyId: importRecord.companyId,
+            revokedAt: null,
+          },
+        })
+        // Somebody already on Etyme whom this firm does not seat: asked, never seated.
+        const theirsToAnswer = !madeHere.has(person.id) && !existingContext
+        if (theirsToAnswer) lookedUp.push(person.id)
 
         // ── Whose person this row is ──────────────────────────────
         //
@@ -109,7 +135,7 @@ export async function POST(
         //     kept to the firm, and a bench listing that is an INVITATION
         //     (`invitation` in lib/bench-consent). Only the person moves it
         //     to granted; the firm sends the ask from Bench.
-        const ownEmployee = isOwnEmployeeRow(parsed, companyKind)
+        const ownEmployee = !theirsToAnswer && isOwnEmployeeRow(parsed, companyKind)
 
         // The record of their skills, never marketed by an import: a
         // profile written here is INTERNAL and stays so until the person
@@ -154,16 +180,16 @@ export async function POST(
               },
             })
           }
-          invited++
+          if (theirsToAnswer) alreadyOnEtyme++
+          else invited++
         }
 
-        const existingContext = await tx.context.findFirst({
-          where: {
-            personId: person.id,
-            companyId: importRecord.companyId,
-            revokedAt: null,
-          },
-        })
+        if (theirsToAnswer) {
+          // No seat and no contract naming them until they say yes.
+          await tx.importRow.update({ where: { id: row.id }, data: { createdId: person.id } })
+          created++
+          continue
+        }
 
         if (!existingContext) {
           await tx.context.create({
@@ -282,7 +308,7 @@ export async function POST(
         data: {
           companyId: importRecord.companyId,
           action: 'IMPORT_COMMITTED',
-          summary: `Imported ${created} people: ${employees} as the firm\u2019s own W2 employees, ${invited} asked to join its bench (${skipped} skipped). ${rolloffCount} ending within eight weeks flagged.`,
+          summary: `Imported ${created} people: ${employees} as the firm\u2019s own W2 employees, ${invited} asked to join its bench, ${alreadyOnEtyme} already on Etyme and waiting on their own yes (${skipped} skipped). ${rolloffCount} ending within eight weeks flagged.`,
           reason: 'A person at the firm pressed Import on the review page',
           payload: {
             importId: id,
@@ -292,12 +318,24 @@ export async function POST(
             rolloffCount,
             employees,
             invited,
+            alreadyOnEtyme,
             totalRows: rows.length,
           },
           reversible: true,
         },
       })
     })
+
+    // Each person already on Etyme was read by their address.
+    for (const subjectId of lookedUp) {
+      logAccess({
+        subjectId,
+        actorPersonId: caller.person.id,
+        actorCompanyId: importRecord.companyId,
+        action: 'MARKETING_REQUEST',
+        reason: `Looked up by email address in an import (${fileName}); asked onto the bench on their own record, no seat and no contract written.`,
+      })
+    }
 
     return NextResponse.json({
       data: {
@@ -308,7 +346,8 @@ export async function POST(
         rolloffCount,
         employees,
         invited,
-        message: committedSentence({ employees, invited, skipped, rolloffCount }),
+        alreadyOnEtyme,
+        message: committedSentence({ employees, invited, alreadyOnEtyme, skipped, rolloffCount }),
       },
     })
   } catch (err: any) {
@@ -336,11 +375,17 @@ async function employeeRole(tx: Prisma.TransactionClient, companyId: string): Pr
 }
 
 /** What the page says once the import is in, in the trade's words. */
-function committedSentence(o: { employees: number; invited: number; skipped: number; rolloffCount: number }): string {
+function committedSentence(o: { employees: number; invited: number; alreadyOnEtyme: number; skipped: number; rolloffCount: number }): string {
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
   const parts: string[] = []
   if (o.employees) parts.push(`${n(o.employees, 'person is', 'people are')} on your payroll as your own employee${o.employees === 1 ? '' : 's'}`)
   if (o.invited) parts.push(`${n(o.invited, 'person is', 'people are')} on your records, waiting to be asked to join your bench from Bench`)
+  if (o.alreadyOnEtyme) {
+    parts.push(
+      `${n(o.alreadyOnEtyme, 'person already has', 'people already have')} an account on Etyme, so ${o.alreadyOnEtyme === 1 ? 'they are' : 'each is'} only asked to join your bench from Bench. ` +
+        `Nobody is put on your staff and no contract is written for them until they say yes`
+    )
+  }
   if (o.skipped) parts.push(`${n(o.skipped, 'row was', 'rows were')} skipped for having no name and no email`)
   if (o.rolloffCount) parts.push(`${n(o.rolloffCount, 'contract ends', 'contracts end')} within eight weeks and ${o.rolloffCount === 1 ? 'is' : 'are'} on Rolloff`)
   return parts.length ? `${parts.join('. ')}.` : 'Nothing was imported.'
