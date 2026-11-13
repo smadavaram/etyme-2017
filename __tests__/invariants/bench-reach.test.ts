@@ -195,9 +195,34 @@ describe('A bench is shared only with a firm the sharer already trades with (202
     }
   })
 
+  it('a bench is never shared with a recorded company given a Kind that still holds no position, and the refusal says to extend it', () => {
+    // A stray agreement makes it read as trading; the register says it holds no position.
+    const v = mayShareBenchTo(
+      { ...ties, trading: new Set(['computer-systems', 'recorded']) },
+      { id: 'recorded', name: 'Harrow Plastics', kind: 'VENDOR' },
+      { positions: [], notClassified: true, recorded: true }
+    )
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('NOT_CLASSIFIED')
+      expect(v.says).toBe(
+        'Harrow Plastics is on your Companies list and is not classified yet, so your bench is not shared with them. ' +
+          'Extend Harrow Plastics to Supplier or Customer on Companies first.'
+      )
+    }
+    // Once it holds a position, the ordinary rule decides.
+    const held = mayShareBenchTo(
+      { ...ties, trading: new Set(['computer-systems', 'recorded']) },
+      { id: 'recorded', name: 'Harrow Plastics', kind: 'VENDOR' },
+      { positions: ['SUPPLIER'], notClassified: false, recorded: true }
+    )
+    expect(held.ok).toBe(true)
+  })
+
   it('a refused share is logged before the refusal is sent, and the share door reads the Kind of the firm it shares to', () => {
     const route = read('app/api/bench/share/route.ts')
-    expect(route).toMatch(/select: \{ id: true, name: true, homeCurrency: true, kind: true \}/)
+    // The Kind, and the two facts the register read needs to know whose record it is.
+    expect(route).toMatch(/select: \{ id: true, name: true, homeCurrency: true, kind: true, claimedAt: true, listedById: true \}/)
     const refused = route.indexOf('if (!reach.ok)')
     const logged = route.indexOf('await recordRefusal(', refused)
     expect(logged).toBeGreaterThan(refused)
@@ -206,7 +231,7 @@ describe('A bench is shared only with a firm the sharer already trades with (202
 
   it('the share door asks this rule before it reads anybody', () => {
     const route = read('app/api/bench/share/route.ts')
-    const rule = route.indexOf('mayShareBenchTo(await tiesOf(companyId), targetCompany)')
+    const rule = route.indexOf('mayShareBenchTo(await tiesOf(companyId), targetCompany, await standingWith(companyId, targetCompany))')
     expect(rule).toBeGreaterThan(-1)
     expect(rule).toBeLessThan(route.indexOf('prisma.benchListing.findMany'))
   })

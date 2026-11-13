@@ -35,6 +35,7 @@
 import { checkStatedTerms, perHour, ENGAGEMENT_TYPES, type EngagementType } from '@/lib/award/hire-terms'
 import { range, compact, amount } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
+import type { HeldWith } from '@/lib/counterparty'
 
 /** How many reach the model, unless somebody says otherwise. */
 export const DEFAULT_SHORTLIST = 15
@@ -1516,7 +1517,8 @@ export interface ShareTies {
  */
 export function mayShareBenchTo(
   ties: ShareTies,
-  to: { id: string; name: string; kind?: string | null }
+  to: { id: string; name: string; kind?: string | null },
+  held?: HeldWith | null,
 ): { ok: true } | { ok: false; code: 'SELF' | 'BLOCKED' | 'NOT_TRADING' | 'NOT_CLASSIFIED'; says: string } {
   if (to.id === ties.self) return { ok: false, code: 'SELF', says: 'Your bench is already yours. Choose a partner firm to share it with.' }
   // A company on the sharer's Companies list that nobody has said the kind
@@ -1532,6 +1534,20 @@ export function mayShareBenchTo(
       says:
         `${to.name} is on your Companies list and is not classified yet, so your bench is not shared with them. ` +
         `Say what kind of company ${to.name} is on Companies first.`,
+    }
+  }
+  // And one given a Kind since, that still holds no position with the
+  // sharer (review, 2026-11-13): the Companies list reads it Not
+  // classified, so this gate does too. Read from the register
+  // (`standingWith` in app/api/companies/positions), never from the Kind,
+  // so a stray agreement never opens the door for it.
+  if (held?.notClassified === true) {
+    return {
+      ok: false,
+      code: 'NOT_CLASSIFIED',
+      says:
+        `${to.name} is on your Companies list and is not classified yet, so your bench is not shared with them. ` +
+        `Extend ${to.name} to Supplier or Customer on Companies first.`,
     }
   }
   if (ties.blocked.has(to.id)) {

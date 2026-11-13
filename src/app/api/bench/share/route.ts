@@ -7,6 +7,7 @@ import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { termsShown, notAtACompany, mayShareBenchTo } from '@/lib/bench-filter'
+import { standingWith } from '@/app/api/companies/positions'
 import { tiesOf } from '@/lib/match-pool'
 import { send } from '@/lib/messages'
 
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
   // Verify target company exists
   const targetCompany = await prisma.company.findUnique({
     where: { id: toCompanyId },
-    select: { id: true, name: true, homeCurrency: true, kind: true },
+    select: { id: true, name: true, homeCurrency: true, kind: true, claimedAt: true, listedById: true },
   })
 
   if (!targetCompany) {
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
   // Only to a firm this one already trades with, one rung at a time
   // (CLAUDE.md, "How bench reaches a job"). Checked before any person is
   // read, so a refused share touches nobody's record.
-  const reach = mayShareBenchTo(await tiesOf(companyId), targetCompany)
+  const reach = mayShareBenchTo(await tiesOf(companyId), targetCompany, await standingWith(companyId, targetCompany))
   if (!reach.ok) {
     // Logged before the refusal goes out: the subject is the firm the
     // bench was to go to, and no person was read.
