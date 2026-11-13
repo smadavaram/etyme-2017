@@ -4,18 +4,29 @@ import { check, type Expense, type Policy } from '@/lib/expense-approval'
 import { remittanceAdvice, type RunLine } from '@/lib/ap-delay'
 import { toExport } from '@/lib/gl'
 import { spreadOn } from '@/lib/money/placement-margin'
+import { billRateMinor, payRateMinor, contractorName, CORVANE_NAME } from '@/lib/seed-corvane/plan'
 
 /**
  * "₫170.00" (the screen walk, 2026-11-03): an amount shown with cents a
  * currency does not have. The one formatter was fixed then; these are the
  * money sentences that still divided every currency by a hundred and
  * printed two decimals, found on 2026-11-08. A yen or a dong has no minor
- * unit, so 3,000,000 dong is 3,000,000, never 30,000.00.
+ * unit, so 3,800,000 dong is 3,800,000, never 38,000.00.
+ *
+ * The dong figures are read from the seed: Corvane Packaging bills a
+ * specialist in Vietnam at the seed's own hourly rate, and the expense
+ * below is four of those hours, a hotel night on the trip.
  */
 
+const VND_HOUR = billRateMinor('VN')
+const VND_PAY = payRateMinor('VN')
+const HOTEL = VND_HOUR * 4
+const dong = (n: number) => n.toLocaleString('en-US')
+const WORKER = contractorName('VN', 0)
+
 const expense = (over: Partial<Expense> = {}): Expense => ({
-  id: 'e1', personName: 'Linh Tran', category: 'Travel', amountCents: 3_000_000, currency: 'VND',
-  spentOn: new Date('2026-11-01T00:00:00Z'), description: 'Taxi', hasReceipt: false, state: 'SUBMITTED',
+  id: 'e1', personName: WORKER, category: 'Travel', amountCents: HOTEL, currency: 'VND',
+  spentOn: new Date('2026-11-01T00:00:00Z'), description: 'Hotel', hasReceipt: false, state: 'SUBMITTED',
   clientApprovedAt: null, agreedAt: null, agreedCents: null, returnedNote: null, ...over,
 })
 const POLICY: Policy = { limitCents: 1_000_000, receiptRequired: false, receiptAboveCents: 500_000, allowed: [] }
@@ -23,8 +34,10 @@ const POLICY: Policy = { limitCents: 1_000_000, receiptRequired: false, receiptA
 describe('every money sentence shows the decimals its currency has', () => {
   it('an expense in dong over its limit names the amounts in whole dong, never with cents', () => {
     const said = check(expense(), POLICY, new Date('2026-11-02T00:00:00Z')).map((c) => c.says ?? '').join(' ')
-    expect(said).toContain('3,000,000')
-    expect(said).not.toMatch(/30,000\.00|\d\.00\b/)
+    expect(HOTEL).toBeGreaterThan(POLICY.limitCents ?? 0)
+    expect(said).toContain(dong(HOTEL))
+    expect(said).not.toContain(dong(HOTEL / 100))
+    expect(said).not.toMatch(/\d\.00\b/)
   })
 
   it('an expense in dollars still reads its cents', () => {
@@ -61,12 +74,12 @@ describe('every money sentence shows the decimals its currency has', () => {
 
   it('a placement billed in dong says its rates in whole dong an hour', () => {
     const s = spreadOn({
-      sell: { id: 's', billRateCents: 500_000, billCurrency: 'VND', state: 'IN_PROGRESS', personId: 'p', personName: 'Linh Tran', clientId: 'c', clientName: 'Corvane Packaging', masterContractId: null },
-      buy: { id: 'b', payRateCents: 400_000, payCurrency: 'VND', contractType: 'W2', state: 'IN_PROGRESS', vendorName: null, masterContractId: null },
+      sell: { id: 's', billRateCents: VND_HOUR, billCurrency: 'VND', state: 'IN_PROGRESS', personId: 'p', personName: WORKER, clientId: 'c', clientName: CORVANE_NAME, masterContractId: null },
+      buy: { id: 'b', payRateCents: VND_PAY, payCurrency: 'VND', contractType: 'W2', state: 'IN_PROGRESS', vendorName: null, masterContractId: null },
     })
-    expect(s.says).toContain('500,000')
-    expect(s.says).toContain('400,000')
-    expect(s.says).not.toContain('5,000')
+    expect(s.says).toContain(dong(VND_HOUR))
+    expect(s.says).toContain(dong(VND_PAY))
+    expect(s.says).not.toContain(dong(VND_HOUR / 100))
   })
 
   it('the statutory and settlement sentences format through the one formatter, never by a hundred', () => {

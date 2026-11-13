@@ -1,36 +1,46 @@
 import { describe, it, expect } from 'vitest'
 import { spendInReporting, rateFor, rateTableFrom, SAMPLE_RATE_TABLE, type ReportingRate, type RateTable } from '@/lib/money/reporting-currency'
+import { corvaneContractors, billRateMinor, CORVANE_COUNTRIES } from '@/lib/seed-corvane/plan'
+import { programMonthlySpend } from '@/lib/program-spend'
+import { minorPerUnit, format, fromMinor } from '@/lib/money'
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
 const r = (from: string, to: string, rate: number, on = '2026-09-01', source: string | null = 'manual'): ReportingRate =>
   ({ from, to, rate, effectiveOn: d(on), source, recordedAt: d(on), setBy: null })
 const own = (rates: ReportingRate[]): RateTable => ({ reportingCurrency: 'USD', rates, sample: false, label: 'Rates you set.' })
 
-// Corvane's eight countries, a month each, in each site's own minor units.
-const EIGHT = [
-  { currency: 'USD', minor: 1_000_000 },     // $10,000.00
-  { currency: 'MXN', minor: 10_000_000 },    // MX$100,000.00
-  { currency: 'BRL', minor: 5_000_000 },     // R$50,000.00
-  { currency: 'COP', minor: 4_000_000_000 }, // 40,000,000.00 pesos
-  { currency: 'VND', minor: 250_000_000 },   // 250,000,000 dong, no minor unit
-  { currency: 'INR', minor: 50_000_000 },    // ₹500,000.00
-  { currency: 'EUR', minor: 2_000_000 },     // €20,000.00
-  { currency: 'GBP', minor: 1_000_000 },     // £10,000.00
-]
+// Corvane's eight countries, a month each, in each site's own minor units,
+// read from the seed: every contractor on site at the seed's bill rate for
+// their country, at 160 hours a month (`programMonthlySpend`). The test
+// pins no figure of its own; the seed's figure is pinned once, in
+// seed-corvane.test.ts.
+const monthByCurrency = new Map<string, number>()
+for (const c of corvaneContractors().onSite) {
+  const cur = CORVANE_COUNTRIES[c.plant.cc].currency
+  monthByCurrency.set(cur, (monthByCurrency.get(cur) ?? 0) + programMonthlySpend([{ rateMinorPerHour: billRateMinor(c.plant.cc) }]).totalMinor)
+}
+const EIGHT = [...monthByCurrency].map(([currency, minor]) => ({ currency, minor }))
+const monthIn = (cur: string) => monthByCurrency.get(cur)!
 const CORVANE_RATES = own([
   r('MXN', 'USD', 0.05), r('BRL', 'USD', 0.2), r('COP', 'USD', 0.00025), r('VND', 'USD', 0.00004),
   r('INR', 'USD', 0.012), r('EUR', 'USD', 1.1), r('GBP', 'USD', 1.25),
 ])
+/** One currency's month in US cents at a rate, worked by hand: whole units times the rate, rounded once. */
+const inCents = (cur: string, rate: number) => Math.round((monthIn(cur) / minorPerUnit(cur)) * rate * 100)
 
 describe('the rollup in one currency', () => {
   it('spend in eight currencies rolls up to one figure in the company’s reporting currency at the rates the company set', () => {
     const out = spendInReporting(EIGHT, 'USD', CORVANE_RATES, d('2026-10-27'))
-    // 10,000 + 5,000 + 10,000 + 10,000 + 10,000 + 6,000 + 22,000 + 12,500
-    expect(out.total).toEqual({ minor: 8_550_000, currency: 'USD' })
+    expect(EIGHT).toHaveLength(8)
+    // Each currency by hand, at the rate the company set, then added.
+    const byHand = monthIn('USD') + CORVANE_RATES.rates.reduce((n, x) => n + inCents(x.from, x.rate), 0)
+    expect(out.total).toEqual({ minor: byHand, currency: 'USD' })
+    // A program of this size is millions a month, never a few thousand.
+    expect(byHand).toBeGreaterThan(100_000_000)
     expect(out.missing).toEqual([])
     expect(out.sampleRates).toBe(false)
-    expect(out.byCurrency.find((l) => l.currency === 'VND')).toMatchObject({ minor: 250_000_000, rate: 0.00004, reportingMinor: 1_000_000 })
-    expect(out.says).toContain('$85,500.00 in USD')
+    expect(out.byCurrency.find((l) => l.currency === 'VND')).toMatchObject({ minor: monthIn('VND'), rate: 0.00004, reportingMinor: inCents('VND', 0.00004) })
+    expect(out.says).toContain(`${format(fromMinor(byHand, 'USD'))} in USD`)
     expect(out.says).toContain('At the rates you set')
     expect(out.says).toContain('VND 0.00004 from 2026-09-01')
   })
@@ -42,8 +52,8 @@ describe('the rollup in one currency', () => {
     expect(out.missing).toEqual(['VND'])
     expect(out.says).toBe('No one figure in USD: there is no rate for VND. Its spend is shown in its own currency; set a rate to USD to add it in.')
     // The dong is still there, in dong; every other currency still converted.
-    expect(out.byCurrency.find((l) => l.currency === 'VND')).toMatchObject({ minor: 250_000_000, rate: null, reportingMinor: null })
-    expect(out.byCurrency.find((l) => l.currency === 'EUR')?.reportingMinor).toBe(2_200_000)
+    expect(out.byCurrency.find((l) => l.currency === 'VND')).toMatchObject({ minor: monthIn('VND'), rate: null, reportingMinor: null })
+    expect(out.byCurrency.find((l) => l.currency === 'EUR')?.reportingMinor).toBe(inCents('EUR', 1.1))
   })
 
   it('a company’s own rates are never mixed with the sample: a currency it has not priced is missing, not filled in', () => {
@@ -97,12 +107,17 @@ describe('the rollup in one currency', () => {
   })
 
   it('a dong total is never multiplied by a hundred on its way into dollars', () => {
-    // 75,000 dong an hour for 40 hours is 3,000,000 dong, at 0.00004 is $120.00.
-    const out = spendInReporting([{ currency: 'VND', minor: 3_000_000 }], 'USD', own([r('VND', 'USD', 0.00004)]))
-    expect(out.total?.minor).toBe(12_000)
-    // And the other way: $120.00 into dong is 3,000,000 dong, not 300,000,000.
-    const back = spendInReporting([{ currency: 'USD', minor: 12_000 }], 'VND', own([r('VND', 'USD', 0.00004)]))
-    expect(back.total).toEqual({ minor: 3_000_000, currency: 'VND' })
+    // A week at the seed's dong rate for a specialist in Vietnam, 40 hours.
+    // At 0.00004 a dong is 0.004 of a cent, so the week in cents is the
+    // dong times four, over a thousand: worked in whole numbers, by hand.
+    const week = billRateMinor('VN') * 40
+    expect(minorPerUnit('VND')).toBe(1)
+    const cents = (week * 4) / 1000
+    const out = spendInReporting([{ currency: 'VND', minor: week }], 'USD', own([r('VND', 'USD', 0.00004)]))
+    expect(out.total?.minor).toBe(cents)
+    // And the other way: those dollars into dong are the week's dong, not a hundred times it.
+    const back = spendInReporting([{ currency: 'USD', minor: cents }], 'VND', own([r('VND', 'USD', 0.00004)]))
+    expect(back.total).toEqual({ minor: week, currency: 'VND' })
   })
 
   it('an amount that is not whole minor units is refused, never rounded in silently', () => {

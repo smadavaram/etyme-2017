@@ -11,29 +11,46 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ByCurrency, inCurrency, hundredthsOfMinor, centsOf } from '../../scripts/simulate/stages/money/book'
+import { billRateMinor, CORVANE_COUNTRIES } from '@/lib/seed-corvane/plan'
+import { minorPerUnit } from '@/lib/money'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 
 describe('a report figure is kept per currency and never added across', () => {
+  // A week of 40 hours at the seed's own bill rates: Dayton in dollars,
+  // Vietnam in dong, Colombia in pesos (`billRateMinor`). Read from the
+  // seed, so the run's figures are the size of the sample program's.
+  const week = (cc: 'US' | 'VN' | 'CO') => {
+    const cur = CORVANE_COUNTRIES[cc].currency
+    return { cur, whole: (billRateMinor(cc) * 40) / minorPerUnit(cur) }
+  }
+
   it('dollars, dong and pesos billed in one run are three figures, dollars first', () => {
+    const us = week('US')
+    const vn = week('VN')
+    const co = week('CO')
     const billed = new ByCurrency()
-    billed.add('USD', centsOf(5200))
-    billed.add('VND', centsOf(924_000_000))
-    billed.add('COP', centsOf(18_400_000))
-    billed.add('usd', centsOf(4000))
+    billed.add(us.cur, centsOf(us.whole))
+    billed.add(vn.cur, centsOf(vn.whole))
+    billed.add(co.cur, centsOf(co.whole))
+    billed.add(us.cur.toLowerCase(), centsOf(us.whole))
     expect(billed.size).toBe(3)
     const says = billed.says()
-    expect(says.startsWith('$9,200.00 (USD); ')).toBe(true)
+    expect(says.startsWith(`${inCurrency(centsOf(us.whole * 2), 'USD')} (USD); `)).toBe(true)
     expect(says).toContain('(COP)')
     expect(says).toContain('(VND)')
-    expect(says).not.toMatch(/924,018|927,|in all/)
+    // Never the dong and the dollars read as one number.
+    expect(says).not.toContain((vn.whole + us.whole * 2).toLocaleString('en-US'))
+    expect(says).not.toMatch(/in all/)
   })
 
   it('a dong figure is whole dong, never divided by a hundred', () => {
-    expect(inCurrency(centsOf(924_000_000), 'VND')).toMatch(/924,000,000/)
-    expect(hundredthsOfMinor(924_000_000, 'VND')).toBe(centsOf(924_000_000))
-    expect(hundredthsOfMinor(520_000, 'USD')).toBe(centsOf(5200))
+    const vn = week('VN')
+    expect(inCurrency(centsOf(vn.whole), 'VND')).toContain(vn.whole.toLocaleString('en-US'))
+    expect(hundredthsOfMinor(billRateMinor('VN') * 40, 'VND')).toBe(centsOf(vn.whole))
+    const us = week('US')
+    expect(hundredthsOfMinor(billRateMinor('US') * 40, 'USD')).toBe(centsOf(us.whole))
   })
 
   it('a figure with no currency on it is said as unnamed, never as dollars', () => {
