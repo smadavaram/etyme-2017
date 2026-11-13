@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as coding } from '@/app/api/invoices/[id]/coding/route'
+import { GET as ownBill } from '@/app/api/invoices/[id]/own-bill/route'
 
 /**
  * A client's codes stay the client's.
@@ -45,6 +46,14 @@ function read(email: string, context: string, query = '') {
   as(email)
   return coding(
     req('GET', `/api/invoices/${w.invoice}/coding${query}`, undefined, { 'x-context-id': context }),
+    { params: Promise.resolve({ id: w.invoice }) },
+  )
+}
+
+function readOwn(email: string, context: string) {
+  as(email)
+  return ownBill(
+    req('GET', `/api/invoices/${w.invoice}/own-bill`, undefined, { 'x-context-id': context }),
     { params: Promise.resolve({ id: w.invoice }) },
   )
 }
@@ -140,5 +149,61 @@ describe("a client's codes stay the client's", () => {
     const r = await json(await read(w.strangerEmail, w.strangerContext))
     expect(r.status).toBe(404)
     expect(r.body.error.message).toBe('Invoice not found')
+  })
+})
+
+describe("the supplier's own two facts on its own bill", () => {
+  it('a supplier opening its own bill still reads what is left on the order after this bill and its own pay-to details', async () => {
+    const r = await json(await readOwn(w.vendorEmail, w.vendorContext))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const inv = await prisma.invoice.findUnique({
+      where: { id: w.invoice },
+      select: { workOrder: { select: { number: true } }, remitTo: { select: { companyId: true, bankName: true, accountLast4: true } } },
+    })
+    expect(r.body.data.workOrder).toBe(inv!.workOrder?.number ?? null)
+    if (inv!.remitTo?.companyId === w.vendorId) {
+      expect(r.body.data.remitTo.bankName).toBe(inv!.remitTo.bankName)
+      expect(r.body.data.remitTo.accountLast4).toBe(inv!.remitTo.accountLast4)
+    }
+
+    // The one figure: what the client that pays reads under Purchase order is what the supplier reads.
+    const payer = await json(await read(w.clientEmail, w.clientContext))
+    expect(payer.status).toBe(200)
+    const theirs = payer.body.data.purchaseOrderBalance
+    const ours = r.body.data.purchaseOrderBalance
+    // The seeded bill has an order and pay-to details, so the sentence is tested, never passed on a blank.
+    expect(ours, 'the seeded bill draws on an order').not.toBeNull()
+    expect(r.body.data.remitTo, 'the seeded supplier has its pay-to details').not.toBeNull()
+    if (theirs === null) expect(ours).toBeNull()
+    else if ('unreadable' in theirs) expect(ours).toEqual({ number: theirs.number, unreadable: theirs.unreadable })
+    else expect(ours).toEqual({ number: theirs.number, remainingCents: theirs.remainingCents, consumedPercent: theirs.consumedPercent, overdrawn: theirs.overdrawn })
+  })
+
+  it('that read carries no cost center, no account and no cost split', async () => {
+    const res = await readOwn(w.vendorEmail, w.vendorContext)
+    const text = await res.text()
+    expect(res.status, text).toBe(200)
+    for (const code of w.codes) expect(text).not.toContain(code)
+    expect(text).not.toMatch(/costCenter|glAccount|"rows"|"share"|codingOwner|taxId|routing/)
+  })
+
+  it('the client that pays reads the coding view as before, and is pointed there from the supplier’s door', async () => {
+    const r = await json(await read(w.clientEmail, w.clientContext))
+    expect(r.status).toBe(200)
+    expect(r.body.data.rows.length).toBeGreaterThan(0)
+    const own = await json(await readOwn(w.clientEmail, w.clientContext))
+    expect(own.status).toBe(403)
+    expect(own.body.error.message).toContain(`${w.number} is yours to pay`)
+  })
+
+  it('a firm that is neither party is answered as if the invoice did not exist, after the refusal is logged', async () => {
+    const since = new Date()
+    const r = await json(await readOwn(w.strangerEmail, w.strangerContext))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('Invoice not found')
+    const logged = await prisma.accessLog.count({
+      where: { subjectCompanyId: w.vendorId, allowed: false, at: { gte: since }, reason: { contains: w.number } },
+    })
+    expect(logged).toBeGreaterThan(0)
   })
 })

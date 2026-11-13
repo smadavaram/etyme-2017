@@ -9,6 +9,7 @@ import { PAYMENT_METHODS, payMethodFor } from '@/lib/money/pay-method'
 import type { PayDeskVerdict } from '@/lib/money/pay-desk'
 import type { ReceiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { withBooks, type Books } from '@/lib/money/books-view'
+import type { OwnBillView } from '@/lib/money/own-bill-read'
 
 /**
  * The money half of one invoice: who it is paid to, how it is coded,
@@ -170,6 +171,46 @@ export function InvoiceMoney({
     return () => { cancelled = true }
   }, [invoice.id, readsCoding, books])
 
+  // The firm that issued the bill reads its own two facts beside it: what
+  // is left on the order after this bill, and its own pay-to details,
+  // through a read that carries nothing of the client's
+  // (GET /api/invoices/:id/own-bill, `lib/money/own-bill-read`).
+  const readsOwnBill = invoice.direction === 'RECEIVABLE'
+  const [ownBill, setOwnBill] = useState<OwnBillView | null>(null)
+  const [ownBillLoading, setOwnBillLoading] = useState(readsOwnBill)
+  useEffect(() => {
+    let cancelled = false
+    if (!readsOwnBill) {
+      setOwnBill(null)
+      setOwnBillLoading(false)
+      return () => { cancelled = true }
+    }
+    ;(async () => {
+      setOwnBillLoading(true)
+      try {
+        const res = await fetch(withBooks(`/api/invoices/${invoice.id}/own-bill`, books))
+        if (!res.ok) throw new Error('not available')
+        const body = await res.json()
+        if (!cancelled) setOwnBill(body.data)
+      } catch {
+        if (!cancelled) setOwnBill(null)
+      } finally {
+        if (!cancelled) setOwnBillLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [invoice.id, readsOwnBill, books])
+
+  // Who it is paid to and against which order: the payer's coding view,
+  // or the issuer's own read. The same block draws either.
+  const orderAndPayTo: {
+    workOrder: string | null
+    purchaseOrderBalance: InvoiceCoding['purchaseOrderBalance']
+    remitTo: { legalName: string; paymentMethod: string; bankName: string | null; accountLast4: string | null } | null
+  } | null =
+    readsCoding ? coding : ownBill
+  const orderAndPayToLoading = readsCoding ? codingLoading : ownBillLoading
+
   const remitMethod = payMethodFor(coding?.remitTo?.paymentMethod)
   const payMethod = methodChosen ?? remitMethod ?? ''
 
@@ -246,22 +287,22 @@ export function InvoiceMoney({
   return (
     <section className="space-y-6">
       {/* Who it is paid to, and against which order. */}
-      {!codingLoading && coding && (
+      {!orderAndPayToLoading && orderAndPayTo && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="eyebrow mb-1">Purchase order</p>
-            {coding.workOrder ? (
+            {orderAndPayTo.workOrder ? (
               <>
-                <p className="text-sm font-mono">{coding.workOrder}</p>
-                {coding.purchaseOrderBalance && 'unreadable' in coding.purchaseOrderBalance && (
-                  <p className="text-[11px] mt-0.5 text-etyme-muted">{coding.purchaseOrderBalance.unreadable}</p>
+                <p className="text-sm font-mono">{orderAndPayTo.workOrder}</p>
+                {orderAndPayTo.purchaseOrderBalance && 'unreadable' in orderAndPayTo.purchaseOrderBalance && (
+                  <p className="text-[11px] mt-0.5 text-etyme-muted">{orderAndPayTo.purchaseOrderBalance.unreadable}</p>
                 )}
-                {coding.purchaseOrderBalance && !('unreadable' in coding.purchaseOrderBalance) && (
+                {orderAndPayTo.purchaseOrderBalance && !('unreadable' in orderAndPayTo.purchaseOrderBalance) && (
                   <p className={`text-[11px] tabular-nums mt-0.5 ${
-                    coding.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'
+                    orderAndPayTo.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'
                   }`}>
-                    {fmtMinor(coding.purchaseOrderBalance.remainingCents)} left after this bill
-                    {' · '}{coding.purchaseOrderBalance.consumedPercent}% drawn
+                    {fmtMinor(orderAndPayTo.purchaseOrderBalance.remainingCents, invoice.currency)} left after this bill
+                    {' · '}{orderAndPayTo.purchaseOrderBalance.consumedPercent}% drawn
                   </p>
                 )}
               </>
@@ -271,13 +312,13 @@ export function InvoiceMoney({
           </div>
           <div>
             <p className="eyebrow mb-1">{payer ? 'Pay to' : 'Paid to'}</p>
-            {coding.remitTo ? (
+            {orderAndPayTo.remitTo ? (
               <>
-                <p className="text-sm">{coding.remitTo.legalName}</p>
+                <p className="text-sm">{orderAndPayTo.remitTo.legalName}</p>
                 <p className="text-[11px] text-etyme-muted mt-0.5">
-                  {coding.remitTo.paymentMethod}
-                  {coding.remitTo.bankName && ` · ${coding.remitTo.bankName}`}
-                  {coding.remitTo.accountLast4 && ` ····${coding.remitTo.accountLast4}`}
+                  {orderAndPayTo.remitTo.paymentMethod}
+                  {orderAndPayTo.remitTo.bankName && ` · ${orderAndPayTo.remitTo.bankName}`}
+                  {orderAndPayTo.remitTo.accountLast4 && ` ····${orderAndPayTo.remitTo.accountLast4}`}
                 </p>
               </>
             ) : (

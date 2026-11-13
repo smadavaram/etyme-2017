@@ -14,12 +14,16 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 describe('what is left on an order is one figure on a bill’s page', () => {
   it('the money section reads what draws on the order through the one door, and adds this bill, as the check does', () => {
-    const coding = read('src/app/api/invoices/[id]/coding/route.ts')
-    expect(coding).toContain("import { drawnOnOrder } from '@/lib/money/order-drawn'")
-    expect(coding).toMatch(/drawnOnOrder\(\{ id: invoice\.workOrder\.id, currency: ccy \}, \{ invoiceId: invoice\.id \}\)/)
-    expect(coding).toMatch(/invoicedCents: drawn\.cents \+ minorFromWhole\(invoice\.total, ccy\)/)
-    // Its own sum of every invoice on the order, drafts included, is gone.
-    expect(coding).not.toMatch(/prisma\.invoice\.aggregate\(/)
+    const door = read('src/lib/money/left-after-this-bill.ts')
+    expect(door).toContain("import { drawnOnOrder } from '@/lib/money/order-drawn'")
+    expect(door).toMatch(/drawnOnOrder\(\{ id: order\.id, currency: ccy \}, \{ invoiceId: invoice\.id \}\)/)
+    expect(door).toMatch(/invoicedCents: drawn\.cents \+ minorFromWhole\(invoice\.total, ccy\)/)
+    // Both sides of one bill read it through that door, and neither sums the order itself.
+    for (const route of ['src/app/api/invoices/[id]/coding/route.ts', 'src/app/api/invoices/[id]/own-bill/route.ts']) {
+      const text = read(route)
+      expect(text, route).toContain('await leftAfterThisBill(invoice)')
+      expect(text, route).not.toMatch(/drawnOnOrder\(|poBalance\(|prisma\.invoice\.aggregate\(/)
+    }
   })
 
   it('the figure is said once, as what is left after this bill, and the check’s panel does not repeat it', () => {
@@ -30,8 +34,7 @@ describe('what is left on an order is one figure on a bill’s page', () => {
   })
 
   it('an order with a bill in another currency gives no figure and says why, because two currencies are never added', () => {
-    const coding = read('src/app/api/invoices/[id]/coding/route.ts')
-    expect(coding).toContain('two currencies are never added')
-    expect(read('src/app/dashboard/invoices/invoice-money.tsx')).toContain("'unreadable' in coding.purchaseOrderBalance")
+    expect(read('src/lib/money/left-after-this-bill.ts')).toContain('two currencies are never added')
+    expect(read('src/app/dashboard/invoices/invoice-money.tsx')).toContain("'unreadable' in orderAndPayTo.purchaseOrderBalance")
   })
 })
