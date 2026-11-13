@@ -66,9 +66,22 @@ export async function GET(request: NextRequest) {
   })
   const counts = new Map(contactCounts.map((c) => [c.atCompanyId, c._count]))
 
+  // The companies this firm recorded and has not classified: no register
+  // row, so no row above, and still somewhere a contact can work
+  // (Contacts' Works at, founder 2026-11-12). Only this firm's own records.
+  const onRegister = new Set(rows.map((r) => r.otherCompanyId))
+  const known = (await prisma.company.findMany({
+    where: { listedById: companyId, claimedAt: null, kind: 'UNCLASSIFIED' },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  }))
+    .filter((c) => !onRegister.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, notClassified: true, contacts: counts.get(c.id) ?? 0 }))
+
   return NextResponse.json({
     data: {
       rows: rows.map((r) => ({ ...r, contacts: counts.get(r.otherCompanyId) ?? 0 })),
+      known,
       relationships: Object.entries(RELATIONSHIPS).map(([key, v]) => ({ key, ...v })),
     },
   })

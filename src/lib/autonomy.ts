@@ -536,6 +536,11 @@ const RULE_ATTRIBUTED = [
   'OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED',
   'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED', 'OWNER_VERIFIED', 'OWNER_PROOF_RECORDED',
   'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
+  // A person said what a company on their own list is to them (founder,
+  // 2026-11-12): extended it to Supplier or Customer, took one of those
+  // off, or said what kind of company a firm they recorded is. Their own
+  // act; the row says the position or the kind, and each can be undone.
+  'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 

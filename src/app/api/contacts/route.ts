@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { problems, alreadyOnFile, KINDS, kindOfRole, writableEmail, type ContactKind } from '@/lib/contacts'
+import { recordRefusal } from '@/lib/access-log'
+import { dealingsOf } from '../companies/dealings'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -168,6 +170,24 @@ export async function POST(request: NextRequest) {
       { error: { code: 'VALIDATION', message: 'Say which company they work at.', field: 'atCompanyId' } },
       { status: 422 }
     )
+  }
+
+  // Only a firm on the caller's own book: one it deals with, or one it
+  // recorded itself (founder, 2026-11-12). A contact is a row in this
+  // firm's own address book; saving one sends nothing to anybody.
+  const onBook =
+    atCompanyId !== companyId &&
+    ((await prisma.company.count({ where: { id: atCompanyId, listedById: companyId, claimedAt: null } })) > 0 ||
+      (await dealingsOf(caller, false)).has(atCompanyId))
+  if (!onBook) {
+    const says = 'That company is not on your Companies list. Add it there first, then add the people you know at it.'
+    await recordRefusal([{ companyId: companyId }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a contact at ${atCompanyId}, which is not on ${caller.company!.name}'s book: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_ON_YOUR_BOOK', message: says, field: 'atCompanyId' } }, { status: 403 })
   }
 
   const found = problems({

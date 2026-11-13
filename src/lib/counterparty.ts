@@ -707,7 +707,7 @@ export function maySetRecordedKind(ask: {
  * A company nobody classified cannot be invited to take its page: a claim
  * would seat somebody at a company with no roles. Pure.
  */
-export function mayInviteRecorded(company: { name: string; kind: string }): { ok: true } | { ok: false; says: string } {
+export function mayInviteRecorded(company: { name: string; kind?: string | null }): { ok: true } | { ok: false; says: string } {
   if (company.kind === 'UNCLASSIFIED') {
     return { ok: false, says: `Say what kind of company ${company.name} is before you invite them.` }
   }
@@ -719,7 +719,7 @@ export function mayInviteRecorded(company: { name: string; kind: string }): { ok
  * seats anybody at a company with no roles and never reads it as a
  * supplier. Pure.
  */
-export function mayClaimRecorded(company: { name: string; kind: string }): { ok: true } | { ok: false; says: string } {
+export function mayClaimRecorded(company: { name: string; kind?: string | null }): { ok: true } | { ok: false; says: string } {
   if (company.kind === 'UNCLASSIFIED') {
     return {
       ok: false,

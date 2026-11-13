@@ -11,6 +11,8 @@ import { clientInviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
+import { mayInviteRecorded } from '@/lib/counterparty'
+import { writeCustomerPosition } from '../companies/positions'
 
 /**
  * GET   /api/clients — who this firm sells to, and which of them are here
@@ -64,8 +66,11 @@ export async function GET(request: NextRequest) {
         client: { select: { id: true, name: true, claimedAt: true, listedById: true } },
       },
     }),
+    // A company recorded and not classified yet is no client until it
+    // holds the Customer position, which the CLIENT row below reads
+    // (founder, 2026-11-12). Every other record keeps reading as before.
     prisma.company.findMany({
-      where: { listedById: companyId, claimedAt: null },
+      where: { listedById: companyId, claimedAt: null, kind: { not: 'UNCLASSIFIED' } },
       select: { id: true, name: true, claimedAt: true, listedById: true },
     }),
     prisma.counterparty.findMany({
@@ -182,7 +187,7 @@ export async function POST(request: NextRequest) {
       claimedAt: null,
       name: { equals: name, mode: 'insensitive' },
     },
-    select: { id: true, name: true, claimedAt: true, listedById: true },
+    select: { id: true, name: true, claimedAt: true, listedById: true, kind: true },
   })
 
   const verdict = mayList({ callerCompanyId: companyId, claimedAtDomain, alreadyListed, name })
@@ -221,42 +226,15 @@ export async function POST(request: NextRequest) {
         claimedAt: null,
         isDemo: caller.company!.isDemo,
       },
-      select: { id: true, name: true, claimedAt: true, listedById: true },
+      select: { id: true, name: true, claimedAt: true, listedById: true, kind: true },
     }))
 
   // The paper stub, so a contract recorded against them tomorrow has an
-  // agreement to hang on. Unsigned, which is the honest state of a
-  // relationship whose paperwork lives in somebody's filing cabinet.
-  const existingMsa = await prisma.masterAgreement.findFirst({
-    where: { vendorId: companyId, clientId: client.id },
-    select: { id: true },
-  })
-  const msa =
-    existingMsa ??
-    (await prisma.masterAgreement.create({
-      data: { vendorId: companyId, clientId: client.id, paymentTerms: 30 },
-      select: { id: true },
-    }))
-
-  // The register row. Partnership died of exactly this omission — a
-  // relationship model no flow ever wrote.
-  await prisma.counterparty.upsert({
-    where: {
-      companyId_otherCompanyId_relationship: {
-        companyId,
-        otherCompanyId: client.id,
-        relationship: 'CLIENT',
-      },
-    },
-    update: {},
-    create: {
-      companyId,
-      otherCompanyId: client.id,
-      relationship: 'CLIENT',
-      status: 'ACTIVE',
-      createdById: caller.person.id,
-    },
-  })
+  // agreement to hang on, unsigned, which is the honest state of a
+  // relationship whose paperwork lives in somebody's filing cabinet; and
+  // the register row (Partnership died of exactly this omission). One
+  // function, the one Extend to Customer writes through.
+  const msa = { id: (await writeCustomerPosition(prisma, { me: companyId, otherId: client.id, byId: caller.person.id })).msaId }
 
   // The person at the client, where one was given, in the firm's own
   // address book — the way the supplier path fills it. While the client is
@@ -293,7 +271,12 @@ export async function POST(request: NextRequest) {
   // of their work together and offers the one thing to do with it. Sent
   // once, when the invitation is made; asking again sends nothing more.
   let invite: { email: string; delivery: { state: string; note: string } | null } | null = null
-  if (contact && body.invite === true) {
+  // A company recorded and not classified yet is never invited: a claim
+  // would seat somebody at a company with no roles (founder, 2026-11-12).
+  const invitable = mayInviteRecorded(client)
+  if (contact && body.invite === true && !invitable.ok) {
+    contactRefused = invitable.says
+  } else if (contact && body.invite === true) {
     const existing = await prisma.supplierInvite.findUnique({
       where: { byId_email: { byId: companyId, email: contact.email } },
       select: { companyId: true, token: true, email: true },
