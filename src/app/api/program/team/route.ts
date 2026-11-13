@@ -179,13 +179,22 @@ export async function GET(request: NextRequest) {
   // matches nothing else — the old "program lead". A desk has no
   // threshold either, and counting one as a lead is what made three desks
   // read as three duplicated leads.
+  // One name per person on this page: wherever somebody holds a seat here,
+  // the name is the seat reader's (`readCompanySeats`' `name`), the one
+  // Users & permissions prints, so a shared sign-in such as timesheets@
+  // reads as its address and a seat typed as the company's own name reads
+  // as the person. Only somebody with no seat left keeps the stored name.
+  const seatName = new Map(seats.map((s) => [s.personId, s.name]))
+  const named = <P extends { id: string; name: string }>(p: P): P => ({ ...p, name: seatName.get(p.id) ?? p.name })
+  const namedOrNull = <P extends { id: string; name: string }>(p: P | null): P | null => (p ? named(p) : null)
+
   const moneyRules = rules.filter((r) => (r.kind ?? 'VALUE') === 'VALUE')
   const catchAll = moneyRules.filter((r) => r.thresholdAmount === null)
   const lead = catchAll[0] ?? null
 
   const desks = resolveDesks(
     orgUnits.map((u) => ({ id: u.id, name: u.name, parentId: u.parentId })),
-    rules.map((r) => ({ id: r.id, kind: r.kind ?? 'VALUE', orgUnitId: r.orgUnitId, approver: r.approver }))
+    rules.map((r) => ({ id: r.id, kind: r.kind ?? 'VALUE', orgUnitId: r.orgUnitId, approver: named(r.approver) }))
   )
 
   // Only the units money is actually charged to. A unit with no cost
@@ -196,7 +205,7 @@ export async function GET(request: NextRequest) {
     data: {
       company: { id: companyId, name: caller.company.name },
       lead: lead
-        ? { ruleId: lead.id, personId: lead.approver.id, name: lead.approver.name }
+        ? { ruleId: lead.id, personId: lead.approver.id, name: named(lead.approver).name }
         : null,
       // What is missing, and what that means for the next requisition —
       // never the name of the thing that is missing on its own. A miss
@@ -239,7 +248,7 @@ export async function GET(request: NextRequest) {
         // desk. Without this the screen cannot tell a threshold from a
         // desk, and showed both as "asked whenever a check routes".
         kind: r.kind ?? 'VALUE',
-        approver: r.approver,
+        approver: named(r.approver),
         department: r.orgUnit,
         // Dollars, matching what the settings route already returns, so
         // two screens do not describe one number in two units.
@@ -250,7 +259,7 @@ export async function GET(request: NextRequest) {
         id: c.id,
         code: c.code,
         name: c.name,
-        owner: c.owner,
+        owner: namedOrNull(c.owner),
         department: c.orgUnit,
         plan: c.headcountPlans[0]
           ? {
@@ -270,6 +279,7 @@ export async function GET(request: NextRequest) {
       peopleSays: peopleWords(countSeats(seats)),
       people: seats.map((s) => ({
         contextId: s.contextId,
+        // The seat reader's name, never the stored one (see `named`).
         person: { id: s.personId, name: s.name, primaryEmail: s.email ?? '' },
         role: s.roleId ? { id: s.roleId, name: s.roleName ?? '' } : null,
         /** INVITED, WITH_ACCESS or PAUSED, the lifecycle's own word for the seat. */
