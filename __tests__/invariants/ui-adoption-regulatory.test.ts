@@ -117,7 +117,10 @@ describe('Compliance overview and Time on site', () => {
 describe('Users & permissions', () => {
   it('Users & permissions counts with the shared stat, grants a desk through the shared form, and draws a refusal alone and a fault with "Try again"', () => {
     const src = page('access')
-    expect(src).toContain('<Stat label="Waiting"')
+    // The figures were rebuilt on 2026-11-12: each says what it counts and
+    // whose move it is (figureWords in lib/access-grant), and each is still
+    // drawn by the shared stat, a link to exactly the rows it counted.
+    expect(src).toContain('<Stat label={f.label} value={f.value} sub={f.says} href={`?show=${f.key}`}')
     expect(src).toContain('<Field label="What can they do?">')
     expect(src).toContain('<Field label="New role">')
     expect(src).toContain('pending={inviting} pendingLabel="Inviting…"')
