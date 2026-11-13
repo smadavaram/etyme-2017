@@ -21,6 +21,8 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 
 import { POST as registerCompany } from '@/app/api/companies/route'
 import { GET as getCounterparties, POST as addCounterparty } from '@/app/api/counterparties/route'
+import { GET as linkAsks, POST as askToLink } from '@/app/api/trade-links/route'
+import { POST as answerLink } from '@/app/api/trade-links/[id]/route'
 import { POST as addContact } from '@/app/api/contacts/route'
 import { GET as listContracts, POST as createContract } from '@/app/api/contracts/route'
 import { GET as listClients, POST as addClient } from '@/app/api/clients/route'
@@ -109,6 +111,19 @@ describe('Chapter 2 — the client exists, on the register, with somebody to cal
     )
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     clientCompanyId = r.body.data.company.id
+  })
+
+  it('Sharath cannot put a firm on Etyme on his register from his side alone, so he asks them to link and Dana says yes', async () => {
+    as(SHARATH)
+    const alone = await json(await addCounterparty(req('POST', '/api/counterparties', { otherCompanyId: clientCompanyId, relationship: 'CLIENT' })))
+    expect(alone.status).toBe(409)
+    const asked = await json(await askToLink(req('POST', '/api/trade-links', { companyId: clientCompanyId, relationship: 'CLIENT' })))
+    expect(asked.status, JSON.stringify(asked.body)).toBe(201)
+    as(DANA)
+    const open = await json(await linkAsks(req('GET', '/api/trade-links')))
+    const mine = open.body.data.received.find((r: any) => r.company.id === soloCompanyId)
+    const yes = await json(await answerLink(req('POST', `/api/trade-links/${mine.id}`, { action: 'accept' }), { params: { id: mine.id } }))
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
   })
 
   it('Sharath puts them on his register as a client', async () => {

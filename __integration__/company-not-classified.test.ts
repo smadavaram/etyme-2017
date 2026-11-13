@@ -334,6 +334,16 @@ describe('a Kind given to a recorded company changes no position and catches no 
     expect((await listed()).find((x) => x.id === id)).toMatchObject({ notClassified: true, positions: [] })
   })
 
+  it('a company added as a supplier is on no client list, so Companies and Clients agree about the same firm', async () => {
+    as(OWNER)
+    const r = await json(await companies.POST(req('POST', '/api/companies', { name: 'Marrowgate Staffing', kind: 'VENDOR', relationship: 'SUPPLIER' })))
+    expect(r.status, JSON.stringify(r.body)).toBeLessThan(300)
+    const id = r.body.data.company.id
+    const cl = await json(await clients.GET(req('GET', '/api/clients')))
+    expect(cl.body.data.clients.map((c: any) => c.id)).not.toContain(id)
+    expect((await listed('')).find((x) => x.id === id)?.positions).toEqual(['SUPPLIER'])
+  })
+
   it('changing the Kind of a recorded company withdraws an invitation already out, in the same change, and says so', async () => {
     as(OWNER)
     const id = (await record('Tolvane Search')).body.data.company.id

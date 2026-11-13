@@ -59,7 +59,13 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
 
-  const [agreements, listed, counterparties, recorded] = await Promise.all([
+  // A client is a Customer position and nothing else: an agreement where
+  // this firm is the vendor, or its own CLIENT register row (founder,
+  // 2026-11-12: "filter by the role on the relevant relationship"). Being
+  // written down by this firm is not one: a company recorded as a supplier
+  // is never a client here because nobody claimed it (review, 2026-11-13),
+  // so Companies and Clients agree about the same firm.
+  const [agreements, counterparties, recorded] = await Promise.all([
     prisma.masterAgreement.findMany({
       where: { vendorId: companyId },
       select: {
@@ -68,29 +74,25 @@ export async function GET(request: NextRequest) {
         client: { select: { id: true, name: true, claimedAt: true, listedById: true } },
       },
     }),
-    // A company recorded and not classified yet is no client until it
-    // holds the Customer position, which the CLIENT row below reads
-    // (founder, 2026-11-12). Every other record keeps reading as before.
-    prisma.company.findMany({
-      where: { listedById: companyId, claimedAt: null, kind: { not: 'UNCLASSIFIED' } },
-      select: { id: true, name: true, claimedAt: true, listedById: true },
-    }),
     prisma.counterparty.findMany({
       where: { companyId, relationship: 'CLIENT' },
       select: {
         otherCompany: { select: { id: true, name: true, claimedAt: true, listedById: true } },
       },
     }),
-    // And one recorded not classified and given a Kind since is still a
-    // client only by its own CLIENT row, never by having been written down.
+    // A company recorded not classified and given a Kind since is a client
+    // only by its own CLIENT row, never by an agreement nobody extended.
     recordedNotClassified(companyId),
   ])
 
+  const clientRows = new Set(counterparties.map((c) => c.otherCompany.id))
   const byId = new Map<string, CompanyStanding & { signedAt: Date | null }>()
   for (const a of agreements) {
+    const stillMine = a.client.claimedAt == null && a.client.listedById === companyId
+    if (stillMine && recorded.has(a.clientId) && !clientRows.has(a.clientId)) continue
     byId.set(a.clientId, { ...a.client, signedAt: a.signedAt })
   }
-  for (const c of [...listed.filter((l) => !recorded.has(l.id)), ...counterparties.map((c) => c.otherCompany)]) {
+  for (const c of counterparties.map((c) => c.otherCompany)) {
     if (!byId.has(c.id)) byId.set(c.id, { ...c, signedAt: null })
   }
 
