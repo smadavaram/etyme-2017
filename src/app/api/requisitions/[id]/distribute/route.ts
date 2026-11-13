@@ -9,6 +9,8 @@ import { siteSuppliers } from '@/lib/sites'
 import { mayFillAtSite } from '@/lib/site-rules'
 import { sendJobTo, type VendorBand } from '../../send'
 import { maySendJob } from '../../who-sends'
+import { recordRefusal } from '@/lib/access-log'
+import { mayBeSentJob } from '@/lib/supplier-list'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -187,11 +189,42 @@ export async function POST(
       { status: 403 }
     )
   }
-  const vendorCompanies = await prisma.company.findMany({
-    where: { id: { in: vendorIds } },
-    select: { id: true, name: true },
-  })
-  const vendorMap = new Map(vendorCompanies.map(c => [c.id, c]))
+  const [vendorCompanies, registerRows] = await Promise.all([
+    prisma.company.findMany({
+      where: { id: { in: vendorIds } },
+      select: { id: true, name: true, kind: true, listedById: true },
+    }),
+    prisma.counterparty.findMany({
+      where: { companyId: requisition.companyId, otherCompanyId: { in: vendorIds } },
+      select: { otherCompanyId: true, relationship: true },
+    }),
+  ])
+  const vendorMap = new Map(vendorCompanies.map(c => [c.id, { id: c.id, name: c.name }]))
+
+  // Never a company on the Companies list that nobody has classified yet
+  // (the neutral Company, 2026-11-12): it is a record, and a job goes to
+  // it only once it is extended to Supplier, which writes the register
+  // row read here. The refusal names it and the step, logged first.
+  for (const c of vendorCompanies) {
+    const may = mayBeSentJob(c, registerRows.filter((r) => r.otherCompanyId === c.id).map((r) => r.relationship))
+    if (!may.ok) {
+      // Another firm's record is never named: it is that firm's list.
+      const says =
+        c.listedById === requisition.companyId
+          ? may.says
+          : `One of the firms you picked is not a supplier of ${requisition.company.name}, so this job request cannot be sent to it. Send it to the suppliers you buy from.`
+      await recordRefusal([{ companyId: c.id }], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused to send ${requisition.title} to ${c.name}: ${says}`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_CLASSIFIED', message: says, field: 'vendors' } },
+        { status: 403 }
+      )
+    }
+  }
 
   // Only the suppliers Procurement cleared. An empty list means it
   // cleared by rule and every approved supplier is eligible; a named

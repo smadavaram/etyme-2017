@@ -15,6 +15,9 @@ import {
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
+import { recordRefusal } from '@/lib/access-log'
+import { mayInviteRecorded } from '@/lib/counterparty'
+import { ownRecordByName } from '@/lib/supplier-list'
 
 /**
  * PATCH /api/supplier-requests/[id]
@@ -367,14 +370,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         })
     const firmId = row.firmCompanyId ?? (found && found.id !== companyId ? found.id : null)
     const claimed = firmId
-      ? await prisma.company.findUnique({ where: { id: firmId }, select: { id: true, name: true, claimedAt: true } })
+      ? await prisma.company.findUnique({ where: { id: firmId }, select: { id: true, name: true, claimedAt: true, kind: true } })
       : null
-    const supplier = claimed ?? (await prisma.company.create({
+    // A company this client already recorded on its Companies list under
+    // the same name, nobody having claimed it (the neutral Company,
+    // 2026-11-12): the approval gives that record its Supplier position,
+    // never a second Vendor copy beside it.
+    const onOurList = claimed
+      ? null
+      : ownRecordByName(
+          row.name,
+          await prisma.company.findMany({
+            where: { listedById: companyId, claimedAt: null, isDemo: caller.company!.isDemo },
+            select: { id: true, name: true, claimedAt: true, kind: true },
+          }),
+        )
+    const supplier = claimed ?? onOurList ?? (await prisma.company.create({
       data: {
         name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',
         outsideAccess: defaultPostureFor('VENDOR'), listedById: companyId, isDemo: caller.company!.isDemo,
       },
-      select: { id: true, name: true, claimedAt: true },
+      select: { id: true, name: true, claimedAt: true, kind: true },
     }))
     // Signed only where the copy both firms signed is on file. A row
     // marked on file before the copy was required reads as unsigned, so
@@ -398,6 +414,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // where there was nobody to tell: no contact address, or a firm that
     // already holds its account on Etyme.
     let claim: { to: string; url: string; state: string; note: string } | null = null
+    let inviteHeld: string | null = null
     if (row.contactEmail) {
       const exists = await prisma.companyContact.findFirst({ where: { companyId, atCompanyId: supplier.id, email: row.contactEmail }, select: { id: true } })
       if (!exists) {
@@ -405,16 +422,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           data: { companyId, atCompanyId: supplier.id, name: row.contactName ?? row.contactEmail.split('@')[0], email: row.contactEmail, kind: 'RECRUITING', createdById: caller.person.id },
         })
       }
-      const invite = await prisma.supplierInvite.upsert({
-        where: { byId_email: { byId: companyId, email: row.contactEmail } },
-        create: { companyId: supplier.id, byId: companyId, email: row.contactEmail, contactName: row.contactName, domain: row.domain, line: null, token: randomBytes(24).toString('base64url') },
-        update: {},
-      })
+      // A company nobody has said the kind of is never invited to take its
+      // page: the claim link would seat somebody at a company with no
+      // roles. The approval stands; the invitation waits on the Kind, and
+      // the refusal is logged before it is said.
+      const mayInvite = mayInviteRecorded(supplier)
+      if (!mayInvite.ok) {
+        await recordRefusal([{ companyId: supplier.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Approved ${supplier.name} as a supplier and held its invitation back: ${mayInvite.says}`,
+        })
+        inviteHeld = mayInvite.says
+      }
+      const invite = mayInvite.ok
+        ? await prisma.supplierInvite.upsert({
+            where: { byId_email: { byId: companyId, email: row.contactEmail } },
+            create: { companyId: supplier.id, byId: companyId, email: row.contactEmail, contactName: row.contactName, domain: row.domain, line: null, token: randomBytes(24).toString('base64url') },
+            update: {},
+          })
+        : null
       // The claim link used to be written here and sent nowhere, so an
       // approved firm opened its apply link and read only that the link
       // had done its job. The firm hears that it is approved, with the
       // link to take its account, the moment Finance says the last yes.
-      if (!supplier.claimedAt && invite.state === 'PENDING') {
+      if (invite && !supplier.claimedAt && invite.state === 'PENDING') {
         const out = await sendClaim({ to: row.contactEmail, contactName: row.contactName, firmName: supplier.name, clientName: desk!.companyName, token: invite.token })
         claim = { to: row.contactEmail, url: claimUrl(invite.token), ...out }
       }
@@ -471,6 +504,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         request: updated,
         supplier: { id: supplier.id, name: supplier.name },
         claim,
+        inviteHeld,
         evidence: {
           recorded,
           undated: undated.map((sk) => sk.says),
@@ -482,7 +516,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             ? claim.state === 'SENT'
               ? ` ${claim.to} has been emailed a link to take ${row.name}’s account.`
               : ` The link for ${claim.to} to take ${row.name}’s account did not go out: ${claim.note}`
-            : '') +
+            : inviteHeld ? ` ${inviteHeld}` : '') +
           (recorded > 0
             ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your team verified ` +
               `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +

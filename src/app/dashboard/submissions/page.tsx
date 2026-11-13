@@ -25,6 +25,7 @@ import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/
 import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING, firmOption } from './words'
 import { jobListWord } from '../requirements/words'
 import { onePerJob } from '@/lib/internal-moves'
+import { offeredToSendOn } from '@/lib/supplier-list'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -787,7 +788,11 @@ function SendOnModal({
         setCompanies(
           all.filter(
             (c: any) =>
-              c.id !== submission.toCompany.id && c.id !== submission.fromCompany.id
+              c.id !== submission.toCompany.id && c.id !== submission.fromCompany.id &&
+              // A company not classified yet is a record, never somewhere a
+              // person is sent on to (the neutral Company, 2026-11-12). The
+              // route leaves them out by default; this holds the line too.
+              offeredToSendOn(c)
           )
         )
       })

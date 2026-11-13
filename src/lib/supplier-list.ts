@@ -31,6 +31,7 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
+import { firmNameKey } from '@/lib/counterparty'
 
 // ── Who may open the supplier register ───────────────────────────────
 //
@@ -380,4 +381,65 @@ export function mayClaim(signedInAs: string, invited: string): boolean {
   const da = companyDomain(a)
   const db = companyDomain(b)
   return da != null && db != null && da === db
+}
+
+// ── A company on a Companies list that nobody has classified yet ─────
+//
+// Founder, 2026-11-12 (the neutral Company): a company recorded by name
+// alone is a record and nothing more. It is never sent a job, never
+// put forward to, never invited, until the firm gives it a position by
+// "Extend" (a register row) and, for an invitation, a Kind. These are
+// the demand side's three doors onto one: the send, the onward
+// submission, and the supplier list's paste. Pure; the routes read the
+// Kind and the register rows and pass them in.
+
+/** The register relationships that make a company somebody a job may go to. */
+export const SENDS_A_JOB_TO = ['SUPPLIER', 'PRIME'] as const
+
+/** The register relationships that make a company somebody a person may be put forward to. */
+export const PUTS_FORWARD_TO = ['CLIENT', 'PRIME', 'MSP'] as const
+
+/**
+ * Whether a job may be sent to this company. A company of any Kind other
+ * than not classified is the existing rules' to decide; one not
+ * classified yet needs a Supplier position on the sender's register.
+ */
+export function mayBeSentJob(
+  company: { name: string; kind?: string | null },
+  relationships: readonly string[],
+): { ok: true } | { ok: false; says: string } {
+  if (company.kind !== 'UNCLASSIFIED') return { ok: true }
+  if (relationships.some((r) => (SENDS_A_JOB_TO as readonly string[]).includes(r))) return { ok: true }
+  return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Supplier first.` }
+}
+
+/**
+ * Whether a person may be put forward to this company. One not classified
+ * yet needs a Customer position (or a prime or MSP row) on the sender's
+ * register, because a submission goes up to whoever buys.
+ */
+export function mayBePutForwardTo(
+  company: { name: string; kind?: string | null },
+  relationships: readonly string[],
+): { ok: true } | { ok: false; says: string } {
+  if (company.kind !== 'UNCLASSIFIED') return { ok: true }
+  if (relationships.some((r) => (PUTS_FORWARD_TO as readonly string[]).includes(r))) return { ok: true }
+  return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Customer first.` }
+}
+
+/**
+ * Which of a firm's own records a pasted or approved supplier is, by name:
+ * a company this firm recorded, nobody has claimed, under the same name
+ * (`firmNameKey`). One record of a firm, never a second Vendor copy beside
+ * the one already on the Companies list. Pure.
+ */
+export function ownRecordByName<T extends { id: string; name: string }>(name: string, mine: readonly T[]): T | null {
+  const key = firmNameKey(name)
+  if (!key) return null
+  return mine.find((c) => firmNameKey(c.name) === key) ?? null
+}
+
+/** Whether a company held in a send-on picker is one a person may be sent on to. Pure. */
+export function offeredToSendOn(c: { notClassified?: boolean | null }): boolean {
+  return c.notClassified !== true
 }

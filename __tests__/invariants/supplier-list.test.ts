@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   readSupplierList, readOne, readNames, companyDomain, nameFromDomain,
   splitLines, listSentence, mayClaim,
+  mayBeSentJob, mayBePutForwardTo, ownRecordByName, offeredToSendOn,
 } from '@/lib/supplier-list'
 
 /**
@@ -186,5 +187,45 @@ describe('who may take possession of a listed supplier', () => {
 
   it('ignores case and stray spaces, because people paste addresses', () => {
     expect(mayClaim('  Ravi@Techpeple.Example ', 'ravi@techpeple.example')).toBe(true)
+  })
+})
+
+describe('a company on the Companies list that nobody has classified yet', () => {
+  const record = { name: 'Corrigan Search Partners', kind: 'UNCLASSIFIED' }
+
+  it('a job is never sent to a company not classified yet until it is extended to Supplier, and the refusal says so', () => {
+    expect(mayBeSentJob(record, [])).toEqual({
+      ok: false,
+      says: 'Corrigan Search Partners is on your Companies list and is not classified yet. Extend it to Supplier first.',
+    })
+    expect(mayBeSentJob(record, ['CLIENT'])).toMatchObject({ ok: false })
+    expect(mayBeSentJob(record, ['SUPPLIER'])).toEqual({ ok: true })
+  })
+
+  it('a company of any other Kind is left to the rules that already decide who may be sent a job', () => {
+    expect(mayBeSentJob({ name: 'Techpeple', kind: 'VENDOR' }, [])).toEqual({ ok: true })
+    expect(mayBeSentJob({ name: 'Teleworld', kind: 'GSI' }, [])).toEqual({ ok: true })
+  })
+
+  it('a person is never put forward to a company not classified yet until it is extended to Customer', () => {
+    expect(mayBePutForwardTo(record, [])).toEqual({
+      ok: false,
+      says: 'Corrigan Search Partners is on your Companies list and is not classified yet. Extend it to Customer first.',
+    })
+    expect(mayBePutForwardTo(record, ['SUPPLIER'])).toMatchObject({ ok: false })
+    expect(mayBePutForwardTo(record, ['CLIENT'])).toEqual({ ok: true })
+  })
+
+  it('a pasted supplier whose name is already a record on the list is that record, whatever the case and spacing', () => {
+    const mine = [{ id: 'a', name: 'Ashgrove Contract Staff' }, { id: 'b', name: 'Corrigan Search Partners' }]
+    expect(ownRecordByName('ASHGROVE  contract staff', mine)?.id).toBe('a')
+    expect(ownRecordByName('Ashgrove Contracting', mine)).toBeNull()
+    expect(ownRecordByName('', mine)).toBeNull()
+  })
+
+  it('the send-on picker never offers a company not classified yet', () => {
+    expect(offeredToSendOn({ notClassified: true })).toBe(false)
+    expect(offeredToSendOn({ notClassified: false })).toBe(true)
+    expect(offeredToSendOn({})).toBe(true)
   })
 })

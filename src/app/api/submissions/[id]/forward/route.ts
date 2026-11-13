@@ -9,6 +9,8 @@ import { whyNotOpen } from '../../words'
 import { landingFor } from './landing'
 import { actingDesk } from '@/lib/program-seat'
 import { sendOnActor } from '../../row-doors'
+import { recordRefusal } from '@/lib/access-log'
+import { mayBePutForwardTo } from '@/lib/supplier-list'
 
 /**
  * POST /api/submissions/:id/forward
@@ -110,13 +112,37 @@ export async function POST(
   if (via === 'ONWARD') {
     const destination = await prisma.company.findUnique({
       where: { id: body.toCompanyId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, kind: true, listedById: true },
     })
     if (!destination) {
       return NextResponse.json(
         { error: { code: 'NOWHERE_TO_SEND', message: 'No company by that id.' } },
         { status: 404 }
       )
+    }
+
+    // Never a company nobody has classified yet (the neutral Company,
+    // 2026-11-12): a person goes up only to a firm extended to Customer
+    // on this firm's register. Another firm's record is never named.
+    if (destination.kind === 'UNCLASSIFIED') {
+      const rows = await prisma.counterparty.findMany({
+        where: { companyId: desk!.companyId, otherCompanyId: destination.id },
+        select: { relationship: true },
+      })
+      const may = mayBePutForwardTo(destination, rows.map((r) => r.relationship))
+      if (!may.ok) {
+        const says =
+          destination.listedById === desk!.companyId
+            ? may.says
+            : 'That company is not on your Companies list. Add it there first.'
+        await recordRefusal([{ companyId: destination.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: desk!.companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Refused to send ${submission.person.name} on to ${destination.name}: ${says}`,
+        })
+        return NextResponse.json({ error: { code: 'NOT_CLASSIFIED', message: says, field: 'toCompanyId' } }, { status: 403 })
+      }
     }
     toName = destination.name
 

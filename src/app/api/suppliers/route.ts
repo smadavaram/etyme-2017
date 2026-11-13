@@ -7,7 +7,7 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
-  readSupplierList, nameFromDomain, type SupplierRow,
+  readSupplierList, nameFromDomain, ownRecordByName, type SupplierRow,
   CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER,
 } from '@/lib/supplier-list'
 import { suppliersOwing } from '@/lib/supplier-desks'
@@ -16,6 +16,8 @@ import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 import { actingDesk } from '@/lib/program-seat'
+import { recordRefusal } from '@/lib/access-log'
+import { mayInviteRecorded } from '@/lib/counterparty'
 
 /**
  * GET  /api/suppliers        — who this client buys from, and where each stands
@@ -94,7 +96,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.counterparty.findMany({
       where: { companyId, relationship: 'SUPPLIER' },
-      select: { otherCompanyId: true, tier: true },
+      select: { otherCompanyId: true, tier: true, otherCompany: { select: { id: true, name: true, claimedAt: true } } },
     }),
     // Who has people here now, and when we last dealt with each: the
     // contracts this client pays, by supplier.
@@ -195,6 +197,29 @@ export async function GET(request: NextRequest) {
     byCompany.set(i.companyId, row)
   }
 
+  // ── A firm on the register as a supplier is a supplier ─────────────
+  //
+  // A company recorded by name and then extended to Supplier (founder,
+  // 2026-11-12, "Classify later = extend") has its register row and
+  // nothing else yet: no agreement, no invitation, no contract. It is a
+  // supplier from that row on, so it is on this list and in the job
+  // picker that reads it. A company not classified yet has no row, so it
+  // is never here.
+  for (const s of standings) {
+    if (byCompany.has(s.otherCompanyId) || s.otherCompanyId === companyId) continue
+    byCompany.set(s.otherCompanyId, {
+      companyId: s.otherCompanyId,
+      tier: s.tier ?? null,
+      name: s.otherCompany.name,
+      joined: s.otherCompany.claimedAt != null,
+      agreement: false,
+      signedAt: null,
+      contacts: [],
+      invitedAt: null,
+      where: '',
+    })
+  }
+
   // ── What each firm owes on this client's own orders ────────────────
   //
   // Read through `lib/document-requirements` — the one door — rather than
@@ -292,6 +317,7 @@ export async function POST(request: NextRequest) {
   }
 
   const made: any[] = []
+  const refused: { companyId: string; name: string; email: string; says: string }[] = []
 
   for (const row of usable) {
     const name = row.company ?? nameFromDomain(row.domain!)
@@ -319,7 +345,7 @@ export async function POST(request: NextRequest) {
             claimedAt: { not: null },
             isDemo: caller.company!.isDemo,
           },
-          select: { id: true, name: true, claimedAt: true },
+          select: { id: true, name: true, claimedAt: true, kind: true },
         })
       : null
 
@@ -328,10 +354,36 @@ export async function POST(request: NextRequest) {
         ? null
         : await prisma.supplierInvite.findFirst({
             where: { byId: companyId, domain: row.domain },
-            select: { company: { select: { id: true, name: true, claimedAt: true } } },
+            select: { company: { select: { id: true, name: true, claimedAt: true, kind: true } } },
           })
 
-    const existing = claimed ?? listedBefore?.company ?? null
+    // 2b. A company this client already recorded under the same name on
+    //     its Companies list, nobody having claimed it (the neutral
+    //     Company, 2026-11-12). One record of a firm, never a second
+    //     Vendor copy beside the one already there.
+    const recordedByName =
+      claimed || listedBefore?.company
+        ? null
+        : ownRecordByName(name, await ownRecords(companyId, caller.company!.isDemo))
+
+    const existing = claimed ?? listedBefore?.company ?? recordedByName ?? null
+
+    // A company nobody has said the kind of is never invited: the claim
+    // link would seat somebody at a company with no roles. Nothing is
+    // written for this row; the refusal is logged before it is said.
+    if (existing) {
+      const may = mayInviteRecorded(existing)
+      if (!may.ok) {
+        await recordRefusal([{ companyId: existing.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Refused to list and invite ${existing.name} as a supplier: ${may.says}`,
+        })
+        refused.push({ companyId: existing.id, name: existing.name, email: row.email, says: may.says })
+        continue
+      }
+    }
 
     const supplier =
       existing ??
@@ -480,11 +532,33 @@ export async function POST(request: NextRequest) {
 
   const firms = new Set(made.map((m) => m.companyId)).size
 
+  if (made.length === 0 && refused.length > 0) {
+    return NextResponse.json(
+      { error: { code: 'NOT_CLASSIFIED', message: [...new Set(refused.map((r) => r.says))].join(' '), refused } },
+      { status: 409 }
+    )
+  }
+
   return NextResponse.json({
     data: {
       added: made,
-      summary: `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a job now — they will find out when one arrives.`,
+      refused,
+      summary:
+        `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a job now — they will find out when one arrives.` +
+        (refused.length > 0 ? ` ${[...new Set(refused.map((r) => r.says))].join(' ')}` : ''),
     },
+  })
+}
+
+/**
+ * The companies this firm recorded itself and nobody has claimed: the
+ * records a pasted name may already be. Read once per row; a paste is a
+ * few dozen rows at most.
+ */
+async function ownRecords(companyId: string, isDemo: boolean) {
+  return prisma.company.findMany({
+    where: { listedById: companyId, claimedAt: null, isDemo },
+    select: { id: true, name: true, claimedAt: true, kind: true },
   })
 }
 
