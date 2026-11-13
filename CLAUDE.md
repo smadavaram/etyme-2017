@@ -660,8 +660,10 @@ Two distinct populations, two auth paths, two notification channels.
 company admin. The OAuth tenant is the authority — replaces the 2017
 `EXCLUDED_DOMAINS` check.
 
-**LinkedIn** is a profile field (URL), not an auth provider. Candidates paste it;
-we do not use LinkedIn OAuth.
+**LinkedIn** is a sign-in door for candidates only, since 2026-11-12 (see "The
+sign-in page leads with the account buttons"). The button says "Candidates
+only". A seat at a company never signs in with it. The profile URL stays a
+field. No other LinkedIn data is used.
 
 ---
 
@@ -8162,3 +8164,108 @@ and "Sign up is as prominent as sign in" of the same day.
   filled buttons and a six-field sign-up; five photographs did.
 - Built by the architect to the drawing, after the first-day fixes
   report back; photographs to the founder before any deploy.
+
+## The home page leads to Start free — the founder's brief, 2026-11-12
+
+The founder gave a full brief for the home page. It is saved word for
+word in the session's notes and built in 53f7aaf9d and 0575cc87c, not
+deployed yet. His reason: the page had a strong story and no way to act.
+
+- **One call on the page: Start free.** It is in the header, in the hero
+  and at the end. It opens sign-up. The second button, "See it work",
+  scrolls to the demo.
+- **The page, in order.** The category line, the question, his locked
+  line ("Not clever automation. Intelligent control…"), one line on who
+  it is for, one complement line. Then the Ask Etyme demo from the seed
+  (Northbend Athletic, labeled "Demo — not a customer"). Then the CFO
+  view (Corvane Packaging), closed behind a button. Then "Every
+  contractor. Every supplier. One record." with three proof lines. Then
+  what is in it, price and security, and the last Start free with
+  "Prefer to talk first? Email support@etyme.com".
+- **The demo's Send button sends nothing.** It shows a demo line and a
+  Back button.
+- **The price lines are the founder's own words**: "Free for the first
+  five firms. No card, no contract — we set it up with you." and "The
+  first five pay nothing and keep their terms when pricing starts." No
+  agent adds a number to them.
+- **Never on the page:** a company-size range, "design partner", an
+  invented customer, logo or figure, or any hint that Etyme pays
+  invoices on its own.
+- **One line differs from the brief, on purpose.** The brief's
+  complement line names two enterprise vendors. The founder's standing
+  rule (2026-09-28) is that no page names one. So the page says "Sits
+  alongside your HR and finance systems. No rip-and-replace." The
+  founder turns the named line on with two words: "name them".
+- **What this replaces, said once.** The map as the home page's picture
+  (2026-10-27) is now the closed CFO view. The header gains the Start
+  free button beside Sign in (the 2026-10-19 header was the logo and
+  Sign in). The page is about 390 words; the hundred-word cap of
+  2026-10-14 no longer applies to it. The other public pages keep their
+  shapes.
+- **One lesson.** A value exported from a file marked for the browser
+  and read by a server page prints as "[object Object]". The hero's
+  button was drawn as plain text on a phone that way. Button shapes a
+  server page reads now live in a file with no browser marker, and a
+  test says so.
+
+## A company can be recorded without classifying it — the founder, 2026-11-12
+
+The founder's brief, saved word for word in the session's notes. He
+wants to load the firms and people he already knows into Tapin as plain
+Company and Contact records, and classify them later. Add a company
+forced him to call each one a supplier or a client on day one. His
+ruling: *"do not load them mislabelled as Vendor/supplier. Fix the
+product first."*
+
+His rules:
+- **Add a company gains a first choice: "Company — not classified
+  yet."** Only the name is required. "What are they to you?" is not
+  asked, and nothing is stored as supplier by default.
+- **Kind and position are two facts.** Kind is what a company is.
+  Position is where it sits to us: Customer above us, Supplier below
+  us. Position is set by the contract or relationship record, never by
+  Kind.
+- **One company can hold both positions at once**, under two
+  relationships. Removing one leaves the other.
+- **"Extend to Supplier" and "Extend to Customer"** add the position
+  in one step, on the row and in the detail view. Extending never reads
+  or changes the Kind, and it is recorded with who and when.
+- **A company with no position appears only on the Companies list, with
+  a "Not classified" badge, and in the Contacts "Works at" choice.** It
+  is in no supplier or client list or count, not in the send-a-job
+  picker, and in no supplier or client workflow.
+- **"Saving a company never emails them."** The form says so. Nothing
+  is sent or notified by recording a company, adding a contact or
+  extending.
+- **Existing companies are untouched.** No migration changes a kind or
+  a relationship.
+
+The coordinator's calls, each reversible by the founder in a sentence:
+1. No new table. A recorded company is the firm's own unclaimed record
+   with one new Kind value, "not classified". Its position is a row on
+   the existing register.
+2. Extend to Customer writes the Customer position and an unsigned
+   agreement record. The company reads as a Customer with "no agreement
+   signed yet" until it is signed.
+3. Extend to Supplier does not start supplier qualification. That still
+   starts from Suppliers.
+4. A position cannot be removed while real work hangs off it: an
+   order, a placement, a bill, a signed agreement, an open invitation.
+   The refusal says which.
+5. The same name twice on one firm's list is refused, with a link to
+   the first.
+6. A firm already on Etyme is not copied. The reply offers "Ask them to
+   link", and only that press contacts them.
+7. A recorded company cannot be named on a contract or an order until
+   it holds that position. The refusal names the step.
+8. A recorded company cannot be invited to take its page until its
+   Kind is set. Nobody is ever seated at a company with no roles.
+9. The Kind of a firm's own unclaimed record can be set later from its
+   drawer. Only a firm's own Owner sets the Kind of a firm on Etyme.
+10. A seated person adding a company is not registering one. So a
+    partner invited on a public address can add a company; before, the
+    form refused them.
+
+Built by the architect in two stages (rules and routes, then screens),
+with one test that walks his six acceptance lines and the three layer
+additions. The record of what shipped goes under this line.
