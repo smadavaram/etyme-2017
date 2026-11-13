@@ -32,7 +32,7 @@ describe('where a company starts', () => {
   })
 
   it('closes a delivery firm to all but named people', () => {
-    // Infosys. Thirty thousand engineers, a contractor desk of nine.
+    // A large integrator: thirty thousand engineers, and nine people who buy contractors.
     expect(defaultPostureFor('GSI')).toBe('NAMED_ONLY')
   })
 
