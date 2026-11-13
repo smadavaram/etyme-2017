@@ -5,6 +5,10 @@ import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { reportError } from '@/lib/alerts'
 import { placeOf, approvedAtWords } from '@/lib/job-site'
 import { siteSuppliers } from '@/lib/sites'
+import { recordRefusal } from '@/lib/access-log'
+import { mayBeSentJob } from '@/lib/supplier-list'
+import { isMine } from '@/lib/counterparty'
+import { positionsFor } from '@/app/api/companies/positions'
 import type { Participant } from '@/lib/threads'
 import { jobApart, jobsSentNotice, jobSentThreadLine, toldPerFirm, SEATS_TOLD_PER_FIRM, JOB_BATCH_MS, type JobSentFacts } from './words'
 
@@ -350,20 +354,76 @@ export async function sendTickedOnClearing(input: {
   })
   if (targets.length === 0) return []
 
-  const firms = await prisma.company.findMany({ where: { id: { in: [...targets, ...left] } }, select: { id: true, name: true } })
-  const vendorMap = new Map(firms.map((f) => [f.id, f]))
+  const firms = await prisma.company.findMany({
+    where: { id: { in: [...targets, ...left] } },
+    select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
+  })
+  const vendorMap = new Map(firms.map((f) => [f.id, { id: f.id, name: f.name }]))
+
+  // ── The register, read on the day it is sent ───────────────────────
+  //
+  // The same check distribute runs (`mayBeSentJob` over `positionsFor`):
+  // a tick made on the raise is not a position, so a company whose
+  // Supplier position was taken off while the job waited for its last
+  // approval is left out, never sent the job (review, 2026-11-13). Only
+  // the client's own records and companies of Kind not classified are
+  // read; every other firm reads as before. Each skip is logged before
+  // the send, and the send's own log line says who was left off and why.
+  const onFile = firms.filter((f) => targets.includes(f.id))
+  const [registerRows, heldBy] = await Promise.all([
+    prisma.counterparty.findMany({
+      where: { companyId: job.companyId, otherCompanyId: { in: onFile.map((f) => f.id) } },
+      select: { otherCompanyId: true, relationship: true },
+    }),
+    positionsFor(job.companyId, onFile.filter((c) => isMine(c, job.companyId) || c.kind === 'UNCLASSIFIED')),
+  ])
+  const unlisted: string[] = []
+  for (const c of onFile) {
+    const may = mayBeSentJob(
+      c,
+      registerRows.filter((r) => r.otherCompanyId === c.id).map((r) => r.relationship),
+      heldBy.get(c.id) ?? null,
+    )
+    if (may.ok) continue
+    unlisted.push(c.id)
+    await recordRefusal([{ companyId: c.id }], {
+      actorPersonId: input.caller.person.id,
+      actorCompanyId: job.companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Left ${c.name} off ${job.title} when ${input.when}: ${may.says}`,
+    })
+  }
+  const sendTo = targets.filter((id) => !unlisted.includes(id))
+
   const leftNames = left.map((id) => vendorMap.get(id)?.name ?? id)
+  const unlistedNames = unlisted.map((id) => vendorMap.get(id)?.name ?? id)
   const who = job.sendToSetBy?.name ?? 'the hiring manager'
   const at = job.site ? ` ${approvedAtWords(job.site)}` : ''
+  const leftSaid =
+    (leftNames.length > 0 ? `. Left out, no longer cleared for it: ${leftNames.join(', ')}` : '') +
+    (unlistedNames.length > 0 ? `. Left out, no longer a supplier on your list: ${unlistedNames.join(', ')}` : '')
+
+  if (sendTo.length === 0) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: job.companyId,
+        action: 'REQUISITION_DISTRIBUTED',
+        summary: `${job.title} sent to no supplier`,
+        reason: `Not sent when ${input.when}: nobody ${who} ticked${at} may be sent it${leftSaid}`,
+        payload: { requirementId: job.id, leftOut: [...left, ...unlisted] },
+        reversible: true,
+      },
+    })
+    return []
+  }
+
   return sendJobTo({
     requisition: { ...job, site: job.site ? { name: job.site.name } : null },
-    vendors: targets.map((companyId) => ({ companyId })),
+    vendors: sendTo.map((companyId) => ({ companyId })),
     vendorMap,
     expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     caller: input.caller,
-    reason: (names) =>
-      `Sent when ${input.when}, to the suppliers ${who} ticked${at}: ${names.join(', ') || 'nobody'}` +
-      (leftNames.length > 0 ? `. Left out, no longer cleared for it: ${leftNames.join(', ')}` : ''),
+    reason: (names) => `Sent when ${input.when}, to the suppliers ${who} ticked${at}: ${names.join(', ') || 'nobody'}` + leftSaid,
   })
 }
 

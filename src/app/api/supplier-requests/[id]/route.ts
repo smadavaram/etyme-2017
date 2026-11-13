@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { findFirm } from '@/lib/company-create'
+import { findFirm, workTogether } from '@/lib/company-create'
 import { domainOfEmail } from '@/lib/company-domains'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
@@ -18,6 +18,7 @@ import { actingDesk } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 import { mayInviteRecorded } from '@/lib/counterparty'
 import { ownRecordByName } from '@/lib/supplier-list'
+import { askFirmToLink, approvedAskSays } from './link-ask'
 
 /**
  * PATCH /api/supplier-requests/[id]
@@ -372,6 +373,52 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const claimed = firmId
       ? await prisma.company.findUnique({ where: { id: firmId }, select: { id: true, name: true, claimedAt: true, kind: true } })
       : null
+    // ── A firm on Etyme is never tied to the client from its side alone ─
+    //
+    // Review, 2026-11-13. Finding the firm is not the firm agreeing: a
+    // typed domain or a match names it, and nobody there said yes. So the
+    // approval attaches straight to a firm already on Etyme only where
+    // the two already work together, or where the firm itself took part:
+    // somebody signed in and seated at it answered this request's link
+    // (`answeredBy`, written by the link). Otherwise the approval still
+    // stands on the client's side, nothing is founded a second time, and
+    // nothing is written on the firm: no agreement, no register row, no
+    // contact, no invitation and nothing on its compliance record. It is
+    // asked to link, the ask Companies makes, and is a supplier on its yes.
+    const answered = ((row.application ?? {}) as Record<string, any>).answeredBy as { firmId?: string } | null | undefined
+    if (
+      claimed && claimed.claimedAt != null && claimed.id !== companyId &&
+      answered?.firmId !== claimed.id &&
+      !(await workTogether(companyId, claimed.id))
+    ) {
+      const client = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true, kind: true } })
+      const ask = await askFirmToLink({
+        client, firm: { id: claimed.id, name: claimed.name, kind: claimed.kind as string },
+        askedBy: { id: caller.person.id, name: caller.person.name }, firmName: row.name,
+      })
+      const says = approvedAskSays(row.name, ask)
+      const updated = await prisma.supplierRequest.update({
+        where: { id },
+        data: { state: 'APPROVED', stage: 'DONE', decidedById: caller.person.id, decidedAt: now, decisionNote: note || null, supplierCompanyId: claimed.id, decisions: [...decisions, decision] as unknown as object },
+      })
+      void notify({
+        personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+        title: `${row.name} is approved`, body: says, data: { href: '/dashboard/suppliers' },
+      })
+      await prisma.automationLog.create({
+        data: {
+          companyId, action: 'SUPPLIER_APPROVED',
+          summary: `${row.name} approved by ${caller.person.name}; it is on Etyme already, so it was asked to link and becomes a supplier on its yes.`,
+          reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
+          payload: { requestId: id, linkAsk: ask.state, ...(ask.state === 'ASKED' ? { tradeLinkRequestId: ask.id } : {}), decisions: [...decisions, decision] as unknown as object },
+          reversible: true,
+        },
+      })
+      // The request as approved, without the firm's id: the client knows
+      // the firm by the name it typed until the firm says yes.
+      const { supplierCompanyId: _s, firmCompanyId: _f, ...request } = updated
+      return NextResponse.json({ data: { request, supplier: null, linkAsk: ask.state, claim: null, inviteHeld: null, says } })
+    }
     // A company this client already recorded on its Companies list under
     // the same name, nobody having claimed it (the neutral Company,
     // 2026-11-12): the approval gives that record its Supplier position,

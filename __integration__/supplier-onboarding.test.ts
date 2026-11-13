@@ -772,29 +772,80 @@ describe('a vendor and its own sub-vendor', () => {
 })
 
 describe('a firm already on Etyme, approved by a client', () => {
-  it('a supplier that signed up and is then approved by a client is one company, not two', async () => {
+  /** A firm that signed up on its own, with its domain verified and its owner seated. */
+  const signedUp = async (name: string, slug: string, domain: string, owner: string) => {
     const { createCompany } = await import('@/lib/company-create')
-    const owner = await prisma.person.upsert({ where: { primaryEmail: 'nadia@pellucidstaffing.com' }, update: {}, create: { primaryEmail: 'nadia@pellucidstaffing.com', name: 'Nadia Pell' } })
+    const person = await prisma.person.upsert({ where: { primaryEmail: owner }, update: {}, create: { primaryEmail: owner, name: owner.split('@')[0] } })
     const made = await createCompany({
-      name: 'Pellucid Staffing', kind: 'VENDOR', slug: 'pellucid-staffing-walk', domain: 'pellucidstaffing.com',
-      byPersonId: owner.id, seatAsOwner: true, claimDomain: true, startsSetup: true,
+      name, kind: 'VENDOR', slug, domain, byPersonId: person.id, seatAsOwner: true, claimDomain: true, startsSetup: true,
     })
-    await prisma.company.update({ where: { id: made.company.id }, data: { claimedAt: new Date() } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { isDemo: true } })
+    await prisma.company.update({ where: { id: made.company.id }, data: { claimedAt: new Date(), isDemo: client.isDemo } })
+    return made.company.id
+  }
+  /** Recommended by the hiring manager, then walked to Finance with every item settled. */
+  const toFinance = async (name: string, contactEmail: string) => {
     as(HIRING)
     const r = await json(await recommend(req('POST', '/api/supplier-requests', {
-      name: 'Pellucid Staffing', contactEmail: 'ops@pellucidstaffing.com', skills: 'Merchandisers', reason: 'Signed up on Etyme last week.',
+      name, contactEmail, skills: 'Merchandisers', reason: 'Signed up on Etyme last week.',
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    const id = r.body.data.request.id
-    // Walked to Finance with every item settled, so the approval path is what is under test.
+    const id = r.body.data.request.id as string
     const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id } })
     const settled = (row.checklist as any[]).map((i) => ({ ...i, state: 'WAIVED', note: 'Walked in the test.' }))
     await prisma.supplierRequest.update({ where: { id }, data: { stage: 'FINANCE', state: 'IN_REVIEW', checklist: settled } })
+    return { id, token: row.token }
+  }
+  const northbend = async () => (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+
+  // Brought up to the rule on 2026-11-13: this sentence used to approve a
+  // firm that had never answered its link, and attached to it on the
+  // client's word alone. The firm now takes part by answering its link
+  // signed in at the firm, and is then attached at the last yes.
+  it('a supplier that signed up and answered the client\u2019s link signed in at its own firm is one company, not two, and is on the list at the last yes', async () => {
+    const firm = await signedUp('Pellucid Staffing', 'pellucid-staffing-walk', 'pellucidstaffing.com', 'nadia@pellucidstaffing.com')
+    const w = await toFinance('Pellucid Staffing', 'ops@pellucidstaffing.com')
+    as('nadia@pellucidstaffing.com')
+    const answered = await viaToken(applyPost, 'POST', w.token, { experience: 'Merchandising teams in three states.' })
+    expect(answered.status, JSON.stringify(answered.body)).toBe(201)
     as(AP)
-    const yes = await call(review, 'PATCH', `/api/supplier-requests/${id}`, id, { action: 'approve', note: 'One firm.' })
+    const yes = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'approve', note: 'One firm.' })
     expect(yes.status, JSON.stringify(yes.body)).toBe(200)
-    expect(yes.body.data.supplier.id).toBe(made.company.id)
+    expect(yes.body.data.supplier.id).toBe(firm)
     expect(await prisma.company.count({ where: { name: 'Pellucid Staffing' } })).toBe(1)
+    expect(await prisma.counterparty.count({ where: { companyId: await northbend(), otherCompanyId: firm, relationship: 'SUPPLIER' } })).toBe(1)
+  })
+
+  it('a firm on Etyme a client approves without the firm taking part is asked to link, nothing is written on it, and it is a supplier on its yes', async () => {
+    const owner = 'ilse@quillmarkstaffing.com'
+    const firm = await signedUp('Quillmark Staffing', 'quillmark-staffing-walk', 'quillmarkstaffing.com', owner)
+    const w = await toFinance('Quillmark Staffing', 'ops@quillmarkstaffing.com')
+    const client = await northbend()
+    as(AP)
+    const yes = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'approve', note: 'Asked, not tied.' })
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    expect(yes.body.data.request.state).toBe('APPROVED')
+    expect(yes.body.data.supplier).toBeNull()
+    expect(yes.body.data.says).toBe('Quillmark Staffing is approved. It is on Etyme already, so it was asked to link, and it becomes your supplier on its yes.')
+    expect(JSON.stringify(yes.body)).not.toContain(firm)
+    expect(await prisma.company.count({ where: { name: 'Quillmark Staffing' } })).toBe(1)
+    expect(await prisma.masterAgreement.count({ where: { vendorId: firm, clientId: client } })).toBe(0)
+    expect(await prisma.counterparty.count({ where: { OR: [{ companyId: client, otherCompanyId: firm }, { companyId: firm, otherCompanyId: client }] } })).toBe(0)
+    expect(await prisma.companyContact.count({ where: { companyId: client, atCompanyId: firm } })).toBe(0)
+    expect(await prisma.supplierInvite.count({ where: { byId: client, companyId: firm } })).toBe(0)
+    expect(await prisma.verification.count({ where: { companyId: firm } })).toBe(0)
+    const ask = await prisma.tradeLinkRequest.findFirstOrThrow({ where: { fromCompanyId: client, toCompanyId: firm } })
+    expect(ask.relationship).toBe('SUPPLIER')
+
+    // The firm says yes from its own Companies, and it is on the client's supplier list.
+    const { POST: answer } = await import('@/app/api/trade-links/[id]/route')
+    as(owner)
+    const said = await call(answer, 'POST', `/api/trade-links/${ask.id}`, ask.id, { action: 'accept' })
+    expect(said.status, JSON.stringify(said.body)).toBe(200)
+    expect(await prisma.counterparty.count({ where: { companyId: client, otherCompanyId: firm, relationship: 'SUPPLIER' } })).toBe(1)
+    as(PROGRAMME)
+    const list = await json(await suppliers(req('GET', '/api/suppliers')))
+    expect(list.body.data.suppliers.map((s: any) => s.companyId)).toContain(firm)
   })
 })
 

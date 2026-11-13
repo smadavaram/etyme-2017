@@ -8,8 +8,10 @@ import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
   readSupplierList, nameFromDomain, ownRecordByName, type SupplierRow,
-  CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER,
+  CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER, onEtymeAskToLinkSays,
 } from '@/lib/supplier-list'
+import { workTogether } from '@/lib/company-create'
+import { positionsFor } from '@/app/api/companies/positions'
 import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
       where: { byId: companyId, state: { not: 'REVOKED' } },
       include: {
         company: {
-          select: { id: true, name: true, domain: true, claimedAt: true, listedById: true },
+          select: { id: true, name: true, domain: true, claimedAt: true, listedById: true, kind: true },
         },
       },
       orderBy: { sentAt: 'desc' },
@@ -179,7 +181,23 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // An invitation is not a position. The same invite table carries the
+  // clients a firm invited (`/api/clients`), so a company this firm holds
+  // only as a Customer is never read as a pending supplier: a company is
+  // on this list by its Supplier position, an agreement, a contract or a
+  // supplier request that makes it one, never by an invitation alone (the
+  // mirror of the Clients list's rule, review 2026-11-13).
+  const invitedHeld = await positionsFor(
+    companyId,
+    [...new Map(invites.filter((i) => !byCompany.has(i.companyId)).map((i) => [i.company.id, i.company])).values()],
+  )
+  const customerOnly = (id: string) => {
+    const p = invitedHeld.get(id)?.positions ?? []
+    return p.includes('CUSTOMER') && !p.includes('SUPPLIER') && !p.includes('PRIME')
+  }
+
   for (const i of invites) {
+    if (!byCompany.has(i.companyId) && customerOnly(i.companyId)) continue
     const row = byCompany.get(i.companyId) ?? {
       companyId: i.companyId,
       tier: tierOf.get(i.companyId) ?? null,
@@ -317,7 +335,17 @@ export async function POST(request: NextRequest) {
   }
 
   const made: any[] = []
-  const refused: { companyId: string; name: string; email: string; says: string }[] = []
+  // A refused row. `companyId` only where the company is the caller's own
+  // record; a firm on Etyme that does not work with the caller is said by
+  // what the caller typed (`askToLink`), never by its id or stored name.
+  const refused: {
+    companyId?: string
+    name: string
+    email: string
+    says: string
+    code: 'NOT_CLASSIFIED' | 'ALREADY_ON_ETYME' | 'OWN_COMPANY'
+    askToLink?: { name: string; domain: string | null }
+  }[] = []
 
   for (const row of usable) {
     const name = row.company ?? nameFromDomain(row.domain!)
@@ -368,6 +396,38 @@ export async function POST(request: NextRequest) {
 
     const existing = claimed ?? listedBefore?.company ?? recordedByName ?? null
 
+    // A firm on Etyme is never tied to the caller from the caller's side
+    // alone (review, 2026-11-13). Where the domain or an earlier invite
+    // finds a firm that holds its own account and the two do not already
+    // work together, nothing is written for this row: no agreement, no
+    // register row, no contact, no invitation and no email. The refusal
+    // echoes only what was typed, is logged before the reply, and the
+    // page offers the ask to link with those same typed facts.
+    if (existing && existing.claimedAt != null) {
+      if (existing.id === companyId) {
+        const says = 'That domain is your own company, so it is not one of your suppliers.'
+        await recordRefusal([{ companyId }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Refused to list the caller's own company as its supplier: ${says}`,
+        })
+        refused.push({ name, email: row.email, says, code: 'OWN_COMPANY' })
+        continue
+      }
+      if (!(await workTogether(companyId, existing.id))) {
+        const says = onEtymeAskToLinkSays('supplier')
+        await recordRefusal([{ companyId: existing.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Refused to list ${existing.name} as a supplier from a pasted row, a firm on Etyme that does not work with the caller: ${says}`,
+        })
+        refused.push({ name, email: row.email, says, code: 'ALREADY_ON_ETYME', askToLink: { name, domain: row.domain ?? null } })
+        continue
+      }
+    }
+
     // A company nobody has said the kind of is never invited: the claim
     // link would seat somebody at a company with no roles. Nothing is
     // written for this row; the refusal is logged before it is said.
@@ -380,7 +440,7 @@ export async function POST(request: NextRequest) {
           action: 'CONTRACT_VIEW',
           reason: `Refused to list and invite ${existing.name} as a supplier: ${may.says}`,
         })
-        refused.push({ companyId: existing.id, name: existing.name, email: row.email, says: may.says })
+        refused.push({ companyId: existing.id, name: existing.name, email: row.email, says: may.says, code: 'NOT_CLASSIFIED' })
         continue
       }
     }
@@ -534,7 +594,7 @@ export async function POST(request: NextRequest) {
 
   if (made.length === 0 && refused.length > 0) {
     return NextResponse.json(
-      { error: { code: 'NOT_CLASSIFIED', message: [...new Set(refused.map((r) => r.says))].join(' '), refused } },
+      { error: { code: refused[0].code, message: [...new Set(refused.map((r) => r.says))].join(' '), refused } },
       { status: 409 }
     )
   }

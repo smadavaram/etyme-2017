@@ -97,6 +97,20 @@ export const CANNOT_SEE_SUPPLIERS =
 export const ADDS_SUPPLIERS = 'vendors.manage' as const
 
 /** What is missing and who to ask. Never a permission code. */
+/**
+ * A firm already on Etyme that does not work with the caller, found from
+ * what the caller typed. Said with no id, name or address of it, in the
+ * words Add a company uses, so the two doors say one thing: a firm on
+ * Etyme is never tied to you from your side alone (review, 2026-11-13).
+ * The only way on is the ask to link and their yes.
+ */
+export function onEtymeAskToLinkSays(as: string): string {
+  return (
+    `That company is on Etyme already, so no copy of it was made. Ask them to link, as your ${as}: ` +
+    `they are asked, and nothing is on either list until they say yes.`
+  )
+}
+
 export const CANNOT_ADD_SUPPLIER =
   'Adding suppliers from a list belongs to whoever manages the approved suppliers — Procurement, ' +
   'a supplier manager or the program manager. To bring in a new firm, recommend it from the ' +

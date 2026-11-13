@@ -365,11 +365,22 @@ describe('asking to add the firm behind a suggestion', () => {
     expect((await call({ action: 'approve' })).status).toBe(200)
     await walk(PROCUREMENT)
     await walk(HR)
-    await walk(AP)
+    const last = await walk(AP)
 
     // Orchid joined as itself — no second company made from its name.
     expect(await prisma.company.count({ where: { name: 'Orchid Systems' } })).toBe(1)
-    expect(await prisma.masterAgreement.count({ where: { vendorId: s.orchid, clientId: s.northbend } })).toBe(1)
+    // Brought up to the rule on 2026-11-13: Orchid is on Etyme and never
+    // answered the link, so the last yes asks it to link rather than
+    // writing an agreement on it from Northbend's side alone. Its yes puts
+    // it on Northbend's list.
+    expect(last.body.data.linkAsk).toBe('ASKED')
+    expect(await prisma.masterAgreement.count({ where: { vendorId: s.orchid, clientId: s.northbend } })).toBe(0)
+    const ask = await prisma.tradeLinkRequest.findFirstOrThrow({ where: { fromCompanyId: s.northbend, toCompanyId: s.orchid, answeredAt: null } })
+    const { POST: answerAsk } = await import('@/app/api/trade-links/[id]/route')
+    as(`world-orchid${D}`)
+    const yes = await json(await answerAsk(req('POST', `/api/trade-links/${ask.id}`, { action: 'accept' }), withId(ask.id)))
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    expect(await prisma.counterparty.count({ where: { companyId: s.northbend, otherCompanyId: s.orchid, relationship: 'SUPPLIER' } })).toBe(1)
 
     const m = rowFor(await matchesAs(HIRING, s.job), 'Mateo Villanueva')
     expect(m).toMatchObject({ reach: 'PANEL', firm: { name: 'Orchid Systems' } })

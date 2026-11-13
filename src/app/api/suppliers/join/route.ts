@@ -6,6 +6,34 @@ import { hasPermission } from '@/lib/permissions'
 import { canJoin, buttonSays, type Side } from '@/lib/join-companies'
 import { CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
 import { actingDesk } from '@/lib/program-seat'
+import { workTogether } from '@/lib/company-create'
+import { recordRefusal } from '@/lib/access-log'
+
+/** A firm on Etyme this company does not work with: never read or joined from its side alone. */
+const NOT_LINKED_JOIN =
+  'That company is on Etyme and does not work with you yet, so nothing was joined. ' +
+  'Ask them to link from Add company: nothing is on either list until they say yes.'
+const NOT_YOUR_RECORD = 'One of those records is not on your list, so it is not yours to join.'
+
+/**
+ * Whether one side of a join is this company's to read and move: a firm
+ * it holds a seat at, its own record nobody has claimed, or a firm on
+ * Etyme it already works with (`workTogether`). A typed domain on an
+ * invitation is not a tie (review, 2026-11-13): folding a record into a
+ * stranger would write the agreement onto it from one side alone.
+ */
+async function sideIsMine(id: string, companyId: string, mySeats: Set<string>): Promise<'OK' | 'NOT_LINKED' | 'NOT_YOURS'> {
+  if (mySeats.has(id) || id === companyId) return 'OK'
+  const co = await prisma.company.findUnique({ where: { id }, select: { claimedAt: true, listedById: true } })
+  if (!co) return 'NOT_YOURS'
+  if (co.claimedAt == null) {
+    if (co.listedById === companyId) return 'OK'
+    // A record from before `listedById` was written: this company's where it invited it.
+    if (co.listedById == null && (await prisma.supplierInvite.findFirst({ where: { byId: companyId, companyId: id }, select: { id: true } }))) return 'OK'
+    return 'NOT_YOURS'
+  }
+  return (await workTogether(companyId, id)) ? 'OK' : 'NOT_LINKED'
+}
 
 /**
  * GET  /api/suppliers/join — pairs that look like one firm twice
@@ -103,15 +131,21 @@ export async function GET(request: NextRequest) {
       })
     : []
 
-  for (const c of claimedElsewhere) {
-    if (c.domain) byDomain.get(c.domain)?.add(c.id)
-  }
-
   const seats = await prisma.context.findMany({
     where: { personId: caller.person.id, revokedAt: null },
     select: { companyId: true },
   })
   const mySeats = new Set(seats.map((s) => s.companyId).filter((id): id is string => id != null))
+
+  // Only a firm on Etyme this company already works with, or holds a seat
+  // at, is offered as the other half of a pair. A firm found only by the
+  // domain typed on an invitation is never read here: its counts are its
+  // own business (review, 2026-11-13).
+  for (const c of claimedElsewhere) {
+    if (!c.domain) continue
+    if (!mySeats.has(c.id) && !(await workTogether(companyId, c.id))) continue
+    byDomain.get(c.domain)?.add(c.id)
+  }
 
   const pairs: any[] = []
 
@@ -194,6 +228,24 @@ export async function POST(request: NextRequest) {
     select: { companyId: true },
   })
   const mySeats = new Set(seats.map((s) => s.companyId).filter((id): id is string => id != null))
+
+  // Both records must be this company's to move, before anything about
+  // either is read. The refusal names neither and is logged first.
+  for (const id of [keepId, foldId]) {
+    const mine = await sideIsMine(id, desk!.companyId, mySeats)
+    if (mine === 'OK') continue
+    const says = mine === 'NOT_LINKED' ? NOT_LINKED_JOIN : NOT_YOUR_RECORD
+    await recordRefusal([{ companyId: id }], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: desk!.companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused to join supplier records: ${says}`,
+    })
+    return NextResponse.json(
+      { error: { code: mine === 'NOT_LINKED' ? 'ALREADY_ON_ETYME' : 'NOT_YOURS', message: says } },
+      { status: mine === 'NOT_LINKED' ? 409 : 403 }
+    )
+  }
 
   const [keep, fold] = await Promise.all([
     sideOf(keepId, mySeats),
