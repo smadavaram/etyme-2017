@@ -354,7 +354,9 @@ describe('signing somebody in is not the same as working out what they may do', 
 
 describe('writing a contract is the company that bills it, holding the permission', () => {
   const CONTRACTS = read('src/app/api/contracts/route.ts')
-  const EXTEND = read('src/app/api/contracts/[id]/extend/route.ts')
+  // The party and permission checks moved into the route's own gate, which
+  // the Extend button reads too (ca8c6f101); both files are the route.
+  const EXTEND = read('src/app/api/contracts/[id]/extend/route.ts') + read('src/app/api/contracts/[id]/extend/gate.ts')
   const ROLLOFF = read('src/app/api/contracts/[id]/rolloff/route.ts')
 
   it('refuses a caller writing a contract for a company that is not theirs', () => {

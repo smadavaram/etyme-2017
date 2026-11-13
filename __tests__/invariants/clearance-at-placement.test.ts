@@ -216,7 +216,8 @@ describe('the start says who may change a placement, what the I-9 was completed 
 
   it('a role that does not start placements is told "Starting a placement is done by", never "activated is done by"', () => {
     expect(route).toContain("activate: 'Starting a placement'")
-    expect(route).toMatch(/askTheDesk\(\{ doing: DOING\[action\]/)
+    // refusalFor is askTheDesk for a seat, and says so where a public address is why (48b53e2db).
+    expect(route).toMatch(/(askTheDesk\(|refusalFor\(caller, )\{ doing: DOING\[action\]/)
   })
 
   it('the start reads the I-9’s edition and the documents behind it, the two columns the placement page reads', () => {

@@ -122,7 +122,8 @@ describe('The home page is six short sections in one column, at every width', ()
     expect(hero).toMatch(/\{START_FREE\.t\}<\/a>\s*<p[^>]*>\{UNDER_START\}<\/p>\s*<\/div>\s*<SeeItWork \/>/)
     expect(OWN).not.toContain('<PhoneButton')
     for (const b of ['FILLED', 'OUTLINE']) {
-      expect(PARTS).toMatch(new RegExp(`export const ${b} =\\s*\`inline-flex min-h-11 `))
+      // The shapes live in a file with no client marker, so the server page can read them (0575cc87c).
+      expect(read('src/lib/public-site/home-buttons.ts')).toMatch(new RegExp(`export const ${b} =\\s*\`inline-flex min-h-11 `))
     }
     // The header's Start free is the header's 44-pixel tap target.
     expect(read('src/lib/public-site/frame.tsx')).toMatch(/className=\{`\$\{TAP\} ml-1 whitespace-nowrap bg-etyme-action/)
