@@ -952,8 +952,8 @@ describe('Users & permissions at phone width', () => {
     expect(b).toBeGreaterThan(a)
     return page.slice(a, b)
   }
-  const everyoneRow = between('<div key={p.contextId} className="p-4">', '{acting?.contextId === p.contextId')
-  const waitingRow = between('<div key={w.contextId} className="p-4">', '{acting?.contextId === w.contextId')
+  const everyoneRow = between('<div key={p.contextId} id={personAnchor(p.contextId)}', '{acting?.contextId === p.contextId')
+  const waitingRow = between('<div key={w.contextId} id={personAnchor(w.contextId)}', '{acting?.contextId === w.contextId')
   const rowActs = between('function RowActs(', 'function CopyInvitation(')
   const classes = (s: string) => [...s.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2])
 
@@ -1375,5 +1375,43 @@ describe('renaming the person on a seat', () => {
     const at = seatRoute.indexOf("if (out.kind === 'WRONG_NAME')")
     expect(at).toBeGreaterThan(-1)
     expect(seatRoute.slice(at, seatRoute.indexOf('status: 422', at))).toContain("await recordRefusal([target.personId]")
+  })
+})
+
+describe('a link from Team structure lands on the row it names', () => {
+  // Imported here rather than at the top so the block reads on its own.
+  const focus = () => import('@/app/dashboard/access/focus')
+  const page = () => readFileSync(join(__dirname, '../../src/app/dashboard/access/page.tsx'), 'utf8')
+
+  it('reads the person and the team a link names from the address', async () => {
+    const { focusFromQuery } = await focus()
+    expect(focusFromQuery('?person=ctx_123')).toEqual({ person: 'ctx_123', unit: null })
+    expect(focusFromQuery('?unit=u-9')).toEqual({ person: null, unit: 'u-9' })
+    expect(focusFromQuery('')).toEqual({ person: null, unit: null })
+  })
+
+  it('ignores a value that is not a plain id rather than putting it into the page', async () => {
+    const { focusFromQuery } = await focus()
+    expect(focusFromQuery('?person=%22%3E%3Cscript%3E')).toEqual({ person: null, unit: null })
+    expect(focusFromQuery(`?unit=${'a'.repeat(65)}`).unit).toBeNull()
+  })
+
+  it('gives every person row an anchor, marks the one a link named and scrolls to it once the register is drawn', async () => {
+    const { personAnchor } = await focus()
+    expect(personAnchor('ctx_1')).toBe('access-person-ctx_1')
+    const src = page()
+    expect(src.match(/id=\{personAnchor\(/g)?.length).toBe(2)
+    expect(src).toMatch(/focus\.person === w\.contextId/)
+    expect(src).toMatch(/focus\.person === p\.contextId/)
+    expect(src).toMatch(/scrollIntoView/)
+  })
+
+  it('lands a team’s Give access link on Give access, with a sentence saying what to choose there', async () => {
+    const { UNIT_LANDED_SAYS } = await focus()
+    expect(UNIT_LANDED_SAYS).toMatch(/Give access/)
+    expect(UNIT_LANDED_SAYS.split(/\s+/).length).toBeLessThanOrEqual(25)
+    const src = page()
+    expect(src).toMatch(/id=\{GIVE_ACCESS_ANCHOR\}/)
+    expect(src).toMatch(/focus\.unit && <p[^>]*>\{UNIT_LANDED_SAYS\}/)
   })
 })

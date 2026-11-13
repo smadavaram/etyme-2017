@@ -8,6 +8,7 @@ import {
 import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
 import { GiveAccess } from '@/components/settings/give-access'
+import { focusFromQuery, personAnchor, GIVE_ACCESS_ANCHOR, UNIT_LANDED_SAYS, FOCUS_RING, type AccessFocus } from './focus'
 import {
   ACT_LABEL, ASKS, WITHDRAW_LABEL, RENAME_LABEL, lifecycleBody, nameWithAddress, daysUntilEndDay, tomorrowField,
   type LifecycleAction, type RowOffer,
@@ -611,6 +612,20 @@ export default function AccessPage() {
     window.addEventListener('popstate', read)
     return () => window.removeEventListener('popstate', read)
   }, [])
+  // Where a link from Team structure landed: a person's row, or Give
+  // access for a team. Read once; scrolled to once the register is drawn.
+  const [focus, setFocus] = useState<AccessFocus>({ person: null, unit: null })
+  const scrolled = useRef(false)
+  useEffect(() => { setFocus(focusFromQuery(window.location.search)) }, [])
+  useEffect(() => {
+    if (!data || scrolled.current) return
+    const target = focus.person ? personAnchor(focus.person) : focus.unit ? GIVE_ACCESS_ANCHOR : null
+    if (!target) return
+    const el = document.getElementById(target)
+    if (!el) return
+    scrolled.current = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [data, focus])
   function chooseShow(k: FigureKey | null) {
     const u = new URL(window.location.href)
     if (k) u.searchParams.set('show', k)
@@ -788,7 +803,7 @@ export default function AccessPage() {
   ]
 
   const waitingRow = (w: Waiting) => (
-    <div key={w.contextId} className="p-4">
+    <div key={w.contextId} id={personAnchor(w.contextId)} className={`p-4${focus.person === w.contextId ? ` ${FOCUS_RING}` : ''}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex-1 min-w-[12rem]">
           <div className="text-etyme-ink break-words">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}{w.shared && <SharedChip open={sharedOpen === w.contextId} onToggle={() => setSharedOpen(sharedOpen === w.contextId ? null : w.contextId)} />}</div>
@@ -860,7 +875,7 @@ export default function AccessPage() {
   )
 
   const personRow = (p: Person) => (
-    <div key={p.contextId} className="p-4">
+    <div key={p.contextId} id={personAnchor(p.contextId)} className={`p-4${focus.person === p.contextId ? ` ${FOCUS_RING}` : ''}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex-1 min-w-[12rem]">
           <div className="text-etyme-ink break-words">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}{p.shared && <SharedChip open={sharedOpen === p.contextId} onToggle={() => setSharedOpen(sharedOpen === p.contextId ? null : p.contextId)} />}</div>
@@ -1155,7 +1170,10 @@ export default function AccessPage() {
           whole company (the founder, 2026-11-08). The component draws
           the form only where this seat may grant, and the list for any
           seat that may read it. */}
-      <div className="mt-8"><GiveAccess /></div>
+      <div id={GIVE_ACCESS_ANCHOR} className={`mt-8${focus.unit ? ` ${FOCUS_RING} p-2` : ''}`}>
+        {focus.unit && <p className="text-sm text-etyme-muted mb-3 break-words">{UNIT_LANDED_SAYS}</p>}
+        <GiveAccess />
+      </div>
     </div>
   )
 }
