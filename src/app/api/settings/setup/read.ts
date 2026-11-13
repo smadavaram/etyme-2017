@@ -76,6 +76,17 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     ? await prisma.company.findUnique({ where: { id: remit.verifiedByCompanyId }, select: { name: true } })
     : null
 
+  // A record another firm made of this company, before somebody here
+  // claimed it, may carry what that firm typed about it: the domain it
+  // noted (kept in `website`) and the kind of company it guessed. That is
+  // the other firm's note, never this company's answer, so here it is
+  // offered only where this company saved it itself, which the setup
+  // records as an answer row (review, 2026-11-13).
+  const recordedByAnother = (await prisma.automationLog.count({
+    where: { action: 'COMPANY_CREATED', companyId: { not: companyId }, payload: { path: ['otherCompanyId'], equals: companyId } },
+  })) > 0
+  const ownAnswer = (field: string) => !recordedByAnother || answers.some((a) => a.field === field)
+
   const domainFill = fromWorkEmail(reader.email)
   const sources: Record<string, string> = {}
   for (const a of answers) {
@@ -131,9 +142,9 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         legalName: c.legalName ?? '',
         signedUpAs: c.name,
         dba: c.dba ?? '',
-        entityType: c.entityType ?? '',
+        entityType: ownAnswer('entityType') ? c.entityType ?? '' : '',
         establishedYear: c.establishedYear ? String(c.establishedYear) : '',
-        website: c.website ?? '',
+        website: ownAnswer('website') ? c.website ?? '' : '',
         phone: c.phone ?? '',
         taxId: c.taxId ?? '',
         currency: c.currency,

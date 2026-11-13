@@ -131,8 +131,13 @@ export async function POST(request: NextRequest) {
   // Another firm's record of a company nobody has claimed is that firm's,
   // not ours to give a position to: a register row is what lets a contract
   // name a firm (founder, 2026-11-12). Refused in a sentence, logged first.
+  //
+  // Any company nobody has claimed and the caller did not record itself,
+  // whoever recorded it (nobody included), unless the two already work
+  // together: the same set Extend refuses (`mayExtend`), so the two doors
+  // agree (review, 2026-11-13).
   const other = await prisma.company.findUnique({ where: { id: otherCompanyId }, select: { name: true, claimedAt: true, listedById: true } })
-  if (!other || (other.claimedAt == null && other.listedById != null && other.listedById !== companyId)) {
+  if (!other || (other.claimedAt == null && other.listedById !== companyId && !(await workTogether(companyId, otherCompanyId)))) {
     const says = 'That company is not on your Companies list. Add it there first.'
     await recordRefusal([{ companyId: otherCompanyId }], {
       actorPersonId: caller.isService ? undefined : caller.person.id,

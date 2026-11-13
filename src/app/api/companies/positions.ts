@@ -29,8 +29,12 @@ export interface PositionsRead {
    * rows, and a Kind is never a position.
    */
   recorded: boolean
-  /** The agreement behind Customer: signed, unsigned, or none on file. */
-  customerAgreement: 'SIGNED' | 'UNSIGNED' | null
+  /**
+   * The agreement behind Customer: signed, unsigned, or NONE where the
+   * Customer position is the caller's own row and no agreement is on file
+   * (a firm on Etyme extended to Customer). Null where it is not a Customer.
+   */
+  customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
 }
 
 /** The positions each of these companies holds with `me`. Two reads, whatever the count. */
@@ -68,9 +72,9 @@ export async function positionsFor(
       mine,
       notClassified: isNotClassified({ mine, positions }),
       recorded,
-      customerAgreement: !positions.includes('CUSTOMER') || asClient.length === 0
+      customerAgreement: !positions.includes('CUSTOMER')
         ? null
-        : asClient.some((m) => m.signedAt != null) ? 'SIGNED' : 'UNSIGNED',
+        : asClient.length === 0 ? 'NONE' : asClient.some((m) => m.signedAt != null) ? 'SIGNED' : 'UNSIGNED',
     })
   }
   return out
@@ -95,23 +99,36 @@ export async function standingWith(
 }
 
 /**
- * The Customer position: the CLIENT register row and the unsigned
- * agreement record beside it, the same record a client listed from
- * /api/clients gets. One function, so the two doors cannot write two
- * shapes. Returns the agreement and whether this call made it.
+ * The Customer position: the CLIENT register row, and for a company the
+ * caller recorded itself the unsigned agreement record beside it, the
+ * same record a client listed from /api/clients gets. One function, so
+ * the doors cannot write two shapes. Returns the agreement where there is
+ * one and whether this call made it.
+ *
+ * For a firm on Etyme (`claimedAt` set) only the caller's own row is
+ * written, never an agreement. An agreement names both firms and sits on
+ * the other firm's book too, and an agreement on file is what makes a
+ * firm one of a client's approved suppliers (`approvedFrom` in
+ * lib/site-rules, read through `approvedSuppliersOf` in lib/sites). So
+ * one firm writing it alone would make itself the other firm's approved
+ * supplier without that firm's yes (review, 2026-11-13). The position then
+ * reads "no agreement on file", and the agreement is recorded through
+ * Contracts, Agreements, as today.
  */
 export async function writeCustomerPosition(
   db: Db,
   input: { me: string; otherId: string; byId: string | null },
-): Promise<{ msaId: string; madeAgreement: boolean }> {
+): Promise<{ msaId: string | null; madeAgreement: boolean }> {
+  const other = await db.company.findUnique({ where: { id: input.otherId }, select: { claimedAt: true } })
+  const onEtyme = other?.claimedAt != null
   const existing = await db.masterAgreement.findFirst({ where: { vendorId: input.me, clientId: input.otherId }, select: { id: true } })
-  const msa = existing ?? (await db.masterAgreement.create({ data: { vendorId: input.me, clientId: input.otherId, paymentTerms: 30 }, select: { id: true } }))
+  const msa = existing ?? (onEtyme ? null : await db.masterAgreement.create({ data: { vendorId: input.me, clientId: input.otherId, paymentTerms: 30 }, select: { id: true } }))
   await db.counterparty.upsert({
     where: { companyId_otherCompanyId_relationship: { companyId: input.me, otherCompanyId: input.otherId, relationship: 'CLIENT' } },
     update: {},
     create: { companyId: input.me, otherCompanyId: input.otherId, relationship: 'CLIENT', status: 'ACTIVE', createdById: input.byId },
   })
-  return { msaId: msa.id, madeAgreement: !existing }
+  return { msaId: msa?.id ?? null, madeAgreement: !existing && msa != null }
 }
 
 /** The Supplier position: the SUPPLIER register row, what Add a company writes today. */

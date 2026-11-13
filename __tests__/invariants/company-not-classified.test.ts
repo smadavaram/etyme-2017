@@ -217,9 +217,20 @@ describe('extending a company', () => {
     expect(!v.ok && v.says).toContain('Ask them to link')
   })
 
-  it('another firm’s record is not yours to extend', () => {
+  it('another firm’s record is not yours to extend, and the sentence never names it', () => {
     const v = ask('CUSTOMER', { other: { ...rivermark, listedById: 'brightmoor' } })
-    expect(!v.ok && v.says).toBe('Rivermark Partners is not on your Companies list. Add it there first, then extend it.')
+    expect(!v.ok && v.says).toBe('That company is not on your Companies list. Add it there first, then extend it.')
+  })
+
+  it('asking a firm on Etyme to link never says its Etyme address', () => {
+    const v = ask('SUPPLIER', { other: { ...rivermark, claimedAt: new Date(), listedById: null, slug: 'rivermark' } })
+    expect(!v.ok && v.says).not.toContain('etyme.com')
+    expect(!v.ok && v.says).toBe('Rivermark Partners is already on Etyme, so no copy of them was made. Ask them to link, as your supplier: once they say yes, each of you has the other on your companies.')
+  })
+
+  it('extending a firm on Etyme you work with to Customer says no agreement is on file and where to record one', () => {
+    const v = ask('CUSTOMER', { other: { ...rivermark, claimedAt: new Date(), listedById: null }, worksTogether: true })
+    expect(v.ok && v.says).toBe('Rivermark Partners is your customer now, with no agreement on file. Record it under Contracts, Agreements. What kind of company it is did not change.')
   })
 
   it('only the seats that may add a company may extend one, and anything but Supplier or Customer is refused in a sentence', () => {

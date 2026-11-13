@@ -382,44 +382,36 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return { company, roles, person, context, seatedAs: made.seatedAs }
-    }, { timeout: 20_000 })
-
-    // ── The register, where the caller said what this firm is to them ──
-    //
-    // The dashboard's Add company modal reuses this route, and until now
-    // it created a standalone company with no relationship to anybody —
-    // a logo in a list. Where the caller is signed in with a company and
-    // said what the new firm is to them (CLIENT, SUPPLIER, PRIME, MSP),
-    // the register row is written here, in the same request, because a
-    // relationship recorded later is a relationship usually not recorded.
-    // Required, not optional, where the caller is seated: `mayAddCompany`
-    // refused above without it, because a company on the register with
-    // no relationship on it is a name nothing can point at.
-    const relationship = String(body?.relationship ?? '')
-    if (['CLIENT', 'SUPPLIER', 'PRIME', 'MSP'].includes(relationship)) {
-      const caller = seatedCaller
-      const ownCompanyId = caller?.company?.id
-      if (ownCompanyId && ownCompanyId !== result.company.id) {
-        await prisma.counterparty.upsert({
-          where: {
-            companyId_otherCompanyId_relationship: {
-              companyId: ownCompanyId,
-              otherCompanyId: result.company.id,
-              relationship,
-            },
-          },
+      // ── The register, where the caller said what this firm is to them ──
+      //
+      // The dashboard's Add company modal reuses this route, and until now
+      // it created a standalone company with no relationship to anybody —
+      // a logo in a list. Where the caller is signed in with a company and
+      // said what the new firm is to them (CLIENT, SUPPLIER, PRIME, MSP),
+      // the register row is written here, in the same transaction as the
+      // company, so a company added with a relationship can never be left
+      // holding no position (review, 2026-11-13). Required, not optional,
+      // where the caller is seated: `mayAddCompany` refused above without
+      // it, because a company on the register with no relationship on it
+      // is a name nothing can point at.
+      const relationship = String(body?.relationship ?? '')
+      const ownCompanyId = seatedCaller?.company?.id
+      if (['CLIENT', 'SUPPLIER', 'PRIME', 'MSP'].includes(relationship) && ownCompanyId && ownCompanyId !== company.id) {
+        await tx.counterparty.upsert({
+          where: { companyId_otherCompanyId_relationship: { companyId: ownCompanyId, otherCompanyId: company.id, relationship } },
           update: {},
           create: {
             companyId: ownCompanyId,
-            otherCompanyId: result.company.id,
+            otherCompanyId: company.id,
             relationship,
             status: body?.prospect === true ? 'PROSPECT' : 'ACTIVE',
-            createdById: caller.person.id,
+            createdById: seatedCaller!.person.id,
           },
         })
       }
-    }
+
+      return { company, roles, person, context, seatedAs: made.seatedAs }
+    }, { timeout: 20_000 })
 
     return NextResponse.json({
       data: {

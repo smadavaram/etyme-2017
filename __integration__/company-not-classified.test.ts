@@ -241,7 +241,7 @@ describe('the Kind and the position never set each other', () => {
     expect((await prisma.company.findUniqueOrThrow({ where: { id } })).kind).toBe('GSI')
   })
 
-  it('a company that is already on Etyme and does not work with you can only be extended by asking them to link', async () => {
+  it('a company that is already on Etyme, is not on your list and does not work with you is answered as an id that does not exist', async () => {
     const isDemo = (await prisma.company.findUniqueOrThrow({ where: { id: brightmoor }, select: { isDemo: true } })).isDemo
     const stranger = await prisma.company.create({
       data: { name: 'Kestrel Health Systems', slug: 'kestrel-health-walk', kind: 'CLIENT', currency: 'USD', claimedAt: new Date(), isDemo },
@@ -249,8 +249,9 @@ describe('the Kind and the position never set each other', () => {
     })
     expect(await workTogether(brightmoor, stranger.id)).toBe(false)
     const r = await call(extend.POST as any, 'POST', `/api/companies/${stranger.id}/extend`, stranger.id, { as: 'SUPPLIER' })
-    expect(r.status).toBe(409)
-    expect(r.body.error.message).toContain('Ask them to link')
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('That company is not on your Companies list.')
+    expect(JSON.stringify(r.body)).not.toContain('Kestrel')
   })
 })
 

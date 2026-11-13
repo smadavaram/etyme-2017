@@ -6,6 +6,7 @@ import { recordRefusal } from '@/lib/access-log'
 import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
 import { maySetRecordedKind } from '@/lib/counterparty'
+import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
 
 /**
  * PATCH /api/companies/:id/kind — { kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' }
@@ -39,12 +40,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       actorPersonId: caller.isService ? undefined : caller.person.id,
       actorCompanyId: me.id,
       action: 'CONTRACT_VIEW',
-      reason: `Refused setting the kind of ${other?.name ?? params.id} from ${me.name}'s list: ${says}`,
+      reason: `Refused setting the kind of ${other?.id ?? params.id} from ${me.name}'s list: ${says}`,
     })
     return NextResponse.json({ error: { code, message: says, ...(field ? { field } : {}) } }, { status })
   }
 
-  if (!other || other.isDemo !== (me.isDemo === true)) return refuse(404, 'NOT_FOUND', 'That company is not on your Companies list.')
+  // A company the caller neither recorded, nor holds on its register, nor
+  // works with is answered exactly as an id that does not exist (review,
+  // 2026-11-13): never its name, and never that it is on Etyme.
+  if (!other || other.isDemo !== (me.isDemo === true) || !(await dealsWith(me.id, other))) return refuse(404, 'NOT_FOUND', NOT_ON_YOUR_LIST)
 
   const verdict = maySetRecordedKind({
     to: body?.kind,

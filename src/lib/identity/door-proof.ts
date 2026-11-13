@@ -12,7 +12,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
  * proof on the address sat in server and CDN logs, the Referer and the
  * browser history for ten minutes (review, 2026-11-13). The sign-in page
  * asks the doors route once, which opens it, deletes the cookie in the
- * same answer and remembers it as used, and answers with that company's
+ * same answer and remembers it as used on that instance (best effort; see
+ * `takeDoorProof`), and answers with that company's
  * directory. It is sealed with the deployment's own secret (AES-256-GCM,
  * node:crypto, no new dependency), so the address is never readable in
  * the address bar or a log, nobody can mint one for an address that did
@@ -77,9 +78,13 @@ export function doorProofCookie(value: string, maxAgeSeconds = DOOR_PROOF_MINUTE
 const used = new Map<string, number>()
 
 /**
- * Open a proof once. A second presentation of the same proof on this
- * instance is answered as if nothing was sent; the cookie is deleted by
- * the first answer, so a browser never sends it twice. Never throws.
+ * Open a proof once, as far as one server instance can tell. The record
+ * of proofs already used is held in this instance's memory, so on a host
+ * running many instances a second presentation that lands on another
+ * instance is opened again: single use is best effort, not a guarantee.
+ * What bounds it is the rest: the cookie is httpOnly, deleted by the
+ * first answer, sealed to one address and good for ten minutes, so a
+ * browser never sends it twice. Never throws.
  */
 export function takeDoorProof(token: unknown, now = Date.now(), secret = secretNow()): string | null {
   const email = openDoorProof(token, now, secret)

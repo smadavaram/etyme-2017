@@ -17,6 +17,8 @@ import type { reviewOf } from '@/lib/extract'
 import { readImportContent } from './read'
 import { consultantRowPlan } from './consultant-row'
 import { hasOwnAccount } from '@/lib/consultant-portfolio/firm-view'
+import { recordRefusal } from '@/lib/access-log'
+import { orderSellerCandidates, orderSellerFor } from './order-seller'
 
 /**
  * GET  /api/imports/sheets — what this person may load
@@ -246,7 +248,7 @@ export async function POST(request: NextRequest) {
 
   // ── Commit ──────────────────────────────────────────────────────────
   const good = parsed.filter((r) => r.ok)
-  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller), caller.company.name)
+  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller), caller.company.name, caller.isService ? undefined : caller.person.id)
 
   await prisma.automationLog.create({
     data: {
@@ -314,7 +316,18 @@ async function keysAlreadyHere(spec: EntitySpec, companyId: string): Promise<Set
       return lower(rows.map((r) => r.name))
     }
     case 'CONSULTANTS': {
-      const rows = await prisma.person.findMany({ select: { primaryEmail: true } })
+      // Only the people this firm already holds: its seats and its bench
+      // listings. Reading every address on Etyme let a preview say
+      // whether a stranger's email is somebody's here (review, 2026-11-13).
+      const rows = await prisma.person.findMany({
+        where: {
+          OR: [
+            { contexts: { some: { companyId } } },
+            { consultant: { listings: { some: { companyId } } } },
+          ],
+        },
+        select: { primaryEmail: true },
+      })
       return lower(rows.map((r) => r.primaryEmail))
     }
     case 'PURCHASE_ORDERS': {
@@ -346,11 +359,23 @@ interface WriteResult {
  * report of the two that were not — rolling everything back over two bad
  * rows means the file gets loaded by hand instead.
  */
-async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[], byId: string | null, firmName: string): Promise<WriteResult> {
+async function writeRows(
+  spec: EntitySpec,
+  companyId: string,
+  rows: RowResult[],
+  byId: string | null,
+  firmName: string,
+  actorPersonId?: string,
+): Promise<WriteResult> {
   let created = 0
   let updated = 0
   const failures: { row: number; reason: string }[] = []
   const kept: { row: number; says: string }[] = []
+  // Who an order may go to, read once for the whole sheet (./order-seller).
+  const orderSellers = spec.key === 'PURCHASE_ORDERS' ? await orderSellerCandidates(companyId) : null
+  const buyer = spec.key === 'PURCHASE_ORDERS'
+    ? await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true, claimedAt: true } })
+    : null
 
   for (const r of rows) {
     try {
@@ -472,14 +497,22 @@ async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[],
         }
 
         case 'PURCHASE_ORDERS': {
-          const supplier = await prisma.company.findFirst({
-            where: { name: { equals: String(v.supplierName), mode: 'insensitive' } },
-            select: { id: true },
-          })
-          if (!supplier) {
-            failures.push({ row: r.rowNumber, reason: `No company here called "${v.supplierName}"` })
+          // Only a firm this buyer may write an order to, read the way
+          // POST /api/purchase-orders reads it; a refused row writes
+          // nothing, is logged before the summary goes out, and says why
+          // in a sentence that names nobody the buyer does not deal with.
+          const verdict = await orderSellerFor(buyer!, String(v.supplierName), orderSellers!)
+          if (!verdict.ok) {
+            await recordRefusal([{ companyId: verdict.subjectId }], {
+              actorPersonId,
+              actorCompanyId: companyId,
+              action: 'CONTRACT_VIEW',
+              reason: `Refused row ${r.rowNumber} of a purchase-order sheet: ${verdict.says}`,
+            })
+            failures.push({ row: r.rowNumber, reason: verdict.says })
             continue
           }
+          const supplier = verdict.seller
           const existing = await prisma.workOrder.findFirst({
             where: { issuedById: companyId, number: String(v.number) },
           })

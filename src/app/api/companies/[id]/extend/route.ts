@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
+import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
 import { mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
 import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition } from '../../positions'
 
@@ -35,9 +36,13 @@ async function open(request: NextRequest, id: string) {
     return { error: NextResponse.json({ error: { code: 'NO_COMPANY', message: 'A company’s positions belong to a company, and you are not signed in at one.' } }, { status: 403 }) }
   }
   const other = await prisma.company.findUnique({ where: { id }, select: OTHER })
-  // A sandbox never reaches a real book, nor a real book a sandbox.
-  if (!other || other.isDemo !== (caller.company.isDemo === true)) {
-    return { error: await refuse(caller, id, 404, 'NOT_FOUND', 'That company is not on your Companies list.') }
+  // A sandbox never reaches a real book, nor a real book a sandbox. And a
+  // company the caller neither recorded, nor holds on its own register,
+  // nor works with is answered exactly as an id that does not exist, so
+  // this door never says a stranger's name or that it is on Etyme
+  // (review, 2026-11-13).
+  if (!other || other.isDemo !== (caller.company.isDemo === true) || !(await dealsWith(caller.company.id, other))) {
+    return { error: await refuse(caller, id, 404, 'NOT_FOUND', NOT_ON_YOUR_LIST) }
   }
   return { caller, other }
 }
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   // Only a company on the caller's own list, or one it works with.
   const worksTogether = read.mine || read.positions.length > 0 || (await workTogether(me, other.id))
   if (!worksTogether) {
-    return refuse(caller, other.id, 404, 'NOT_FOUND', 'That company is not on your Companies list.')
+    return refuse(caller, other.id, 404, 'NOT_FOUND', NOT_ON_YOUR_LIST)
   }
   // What the drawer may press, asked of the rules POST, DELETE and the
   // kind route ask, so a button is drawn only where its route takes it

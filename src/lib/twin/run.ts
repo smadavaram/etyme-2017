@@ -405,10 +405,21 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
   return { companyId, warnings: warnings.length, receipts: verdicts.length, outcomes, teamsDigest }
 }
 
-/** The client programs the nightly run reads: real or demo, never a census sandbox. */
+/**
+ * Firms that are really here, as the nightly run reads them: never a
+ * record another firm made of a company nobody has claimed (`listedById`
+ * set, `claimedAt` empty). Such a record has no seats and nobody to tell,
+ * and once its recorder gave it a Kind it took a place in the run's
+ * window that a real firm should have (review, 2026-11-13). Every seeded
+ * firm is listed by nobody, and every firm that signed up is claimed, so
+ * both stay in.
+ */
+export const REALLY_HERE = { NOT: { claimedAt: null, listedById: { not: null } } } as const
+
+/** The client programs the nightly run reads: real or demo, never a census sandbox, never another firm's record. */
 export async function programsToRun(take = 200): Promise<string[]> {
   const rows = await prisma.company.findMany({
-    where: { kind: 'CLIENT', isCensusSandbox: false },
+    where: { kind: 'CLIENT', isCensusSandbox: false, ...REALLY_HERE },
     select: { id: true },
     orderBy: { id: 'asc' },
     take,
@@ -419,16 +430,17 @@ export async function programsToRun(take = 200): Promise<string[]> {
 /**
  * The supplier firms the supplier's twin reads (2026-10-18): staffing
  * vendors, integrators and one-person corporations, real or the seeded
- * world, never a census sandbox (a client's real rows held for a census)
- * and never a visitor's own demo sandbox (`isDemo`), which nobody watches
- * and which is removed after thirty days unused.
+ * world, never a census sandbox (a client's real rows held for a census),
+ * never a visitor's own demo sandbox (`isDemo`), which nobody watches
+ * and which is removed after thirty days unused, and never another firm's
+ * record (`REALLY_HERE`).
  *
  * Read by the nightly run (cron/twin): money's bill run, then the
  * supplier's own acts (lib/twin/supplier-run, 2026-10-29).
  */
 export async function suppliersToRun(take = 500): Promise<string[]> {
   const rows = await prisma.company.findMany({
-    where: { kind: { in: ['VENDOR', 'GSI', 'CONSULTANT_CORP'] }, isCensusSandbox: false, isDemo: false },
+    where: { kind: { in: ['VENDOR', 'GSI', 'CONSULTANT_CORP'] }, isCensusSandbox: false, isDemo: false, ...REALLY_HERE },
     select: { id: true },
     orderBy: { id: 'asc' },
     take,

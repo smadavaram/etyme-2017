@@ -600,7 +600,7 @@ export function mayExtend(ask: {
   if (ask.other.claimedAt == null && ask.other.listedById !== ask.me.id && !ask.worksTogether) {
     return {
       ok: false, status: 403, code: 'NOT_YOURS',
-      says: `${ask.other.name} is not on your Companies list. Add it there first, then extend it.`,
+      says: 'That company is not on your Companies list. Add it there first, then extend it.',
     }
   }
   const relationship = EXTEND_AS[as]
@@ -611,17 +611,23 @@ export function mayExtend(ask: {
     ok: true, as, relationship, already: false,
     says:
       as === 'CUSTOMER'
-        ? `${ask.other.name} is your customer now, with no agreement signed yet. What kind of company it is did not change.`
+        ? ask.other.claimedAt != null
+          // A firm on Etyme: only your own row is written, never an
+          // agreement on their book (`writeCustomerPosition`).
+          ? `${ask.other.name} is your customer now, with no agreement on file. Record it under Contracts, Agreements. What kind of company it is did not change.`
+          : `${ask.other.name} is your customer now, with no agreement signed yet. What kind of company it is did not change.`
         : `${ask.other.name} is your supplier now. What kind of company it is did not change. To qualify them, start from Suppliers.`,
   }
 }
 
-// The same sentence lib/off-system writes, kept here so this file stays
-// free of a runtime import from it (off-system reads this file's types).
-function alreadyOnEtymeSays(them: { name: string; slug?: string | null }, as: string): string {
-  const where = them.slug ? `, at ${them.slug}.etyme.com` : ''
+// Said only to a caller that already holds this firm on its own register
+// (the extend route answers every other caller as it answers an unknown
+// id), so the name is the one on the caller's own list. No Etyme address:
+// where the firm is found on Etyme is not the caller's to learn from
+// here (review, 2026-11-13).
+function alreadyOnEtymeSays(them: { name: string }, as: string): string {
   return (
-    `${them.name} is already on Etyme${where}, so no copy of them was made. ` +
+    `${them.name} is already on Etyme, so no copy of them was made. ` +
     `Ask them to link, as your ${as}: once they say yes, each of you has the other on your companies.`
   )
 }

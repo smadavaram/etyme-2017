@@ -52,7 +52,7 @@ interface Company {
   notClassified: boolean
   /** This firm recorded it and nobody there has claimed it. */
   mine: boolean
-  customerAgreement: 'SIGNED' | 'UNSIGNED' | null
+  customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
   /** What this reader may press on the row, as the routes would answer. */
   may: { extendToSupplier: boolean; extendToCustomer: boolean; setKind: boolean }
 }
@@ -88,7 +88,7 @@ function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassifie
     <span className="inline-flex flex-wrap gap-1">
       {row.positions.map((p) => (
         <Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>
-          {POSITION_WORDS[p]}{p === 'CUSTOMER' && row.customerAgreement === 'UNSIGNED' ? ' · no agreement signed yet' : ''}
+          {POSITION_WORDS[p]}{p === 'CUSTOMER' && row.customerAgreement === 'UNSIGNED' ? ' · no agreement signed yet' : p === 'CUSTOMER' && row.customerAgreement === 'NONE' ? ' · no agreement on file' : ''}
         </Chip>
       ))}
     </span>
@@ -721,7 +721,7 @@ interface DrawerRead {
   positions: Position[]
   mine: boolean
   notClassified: boolean
-  customerAgreement: 'SIGNED' | 'UNSIGNED' | null
+  customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
   history: { action: string; summary: string; reason: string; at: string; byName: string | null; position: string | null; reversible: boolean }[]
   may: {
     extend: { SUPPLIER: boolean; CUSTOMER: boolean }
@@ -812,6 +812,7 @@ function PositionsPanel({ company, onChanged }: { company: Company; onChanged: (
                     {POSITION_WORDS[p]}
                     {p === 'CUSTOMER' && read.customerAgreement === 'UNSIGNED' && <span className="text-etyme-muted"> · no agreement signed yet</span>}
                     {p === 'CUSTOMER' && read.customerAgreement === 'SIGNED' && <span className="text-etyme-muted"> · agreement signed</span>}
+                    {p === 'CUSTOMER' && read.customerAgreement === 'NONE' && <span className="text-etyme-muted"> · no agreement on file</span>}
                   </span>
                   {r?.ok && (
                     <button type="button" className="btn-secondary text-[13px]" disabled={busy}

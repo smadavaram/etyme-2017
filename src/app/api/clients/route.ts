@@ -169,12 +169,11 @@ export async function POST(request: NextRequest) {
     isDemo: caller.company!.isDemo,
   })
   // Already working together: the register row points at the real firm.
+  // Through the one door Extend to Customer writes through: for a firm on
+  // Etyme that is the caller's own row and never an agreement on their
+  // book (review, 2026-11-13).
   if (firm && firm.id !== companyId && (await workTogether(companyId, firm.id))) {
-    await prisma.counterparty.upsert({
-      where: { companyId_otherCompanyId_relationship: { companyId, otherCompanyId: firm.id, relationship: 'CLIENT' } },
-      update: {},
-      create: { companyId, otherCompanyId: firm.id, relationship: 'CLIENT', status: 'ACTIVE', createdById: caller.person.id },
-    })
+    await writeCustomerPosition(prisma, { me: companyId, otherId: firm.id, byId: caller.person.id })
     return NextResponse.json({
       data: {
         client: { id: firm.id, name: firm.name },
