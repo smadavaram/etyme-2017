@@ -216,3 +216,73 @@ export const ACT_LABEL: Record<LifecycleAction, string> = { suspend: 'Pause', re
 
 /** The label on a waiting row's one press. */
 export const WITHDRAW_LABEL = 'Withdraw invitation'
+
+// ── Rename (founder, 2026-11-12) ────────────────────────────────────────
+//
+// A seat bootstrapped from its address reads "Timesheets" or "Hradmin" as
+// a person, and the Owner had no way to give it a name. Rename is one act
+// beside Pause and End: the Owner, or an Admin, names the person on a
+// seat. These verdicts are pure, so the button is drawn only where the
+// route will take it, and the route refuses in the same sentences.
+
+/** The press's label on the page. */
+export const RENAME_LABEL = 'Rename'
+
+/** What the route reads about the seat being renamed, and who is renaming it. */
+export interface RenameFacts {
+  /** The reader may change access here (team.manage, which the route asks for). */
+  mayManage: boolean
+  actorIsOwner: boolean
+  targetIsOwner: boolean
+  /** The person also holds a live seat at another company. */
+  seatElsewhere: boolean
+  /** A one-person firm, and this is its only person. */
+  onlyPersonOfOneFirm: boolean
+}
+
+export const RENAME_SAYS = {
+  OWNER: 'Only an Owner renames an Owner.',
+  ELSEWHERE: 'They also have a seat at another company, so they change their own name under Your data.',
+  ONE_FIRM: 'This is the firm’s only person, so they change their own name under Your data.',
+  EMPTY: 'Type the name of the person who uses this seat.',
+  COMPANY: 'That is the company’s name. Type the name of the person who uses this seat.',
+  ROLE: 'That is a role, not a name. Type the name of the person who uses this seat.',
+  TOO_LONG: 'That name is too long. Type at most 120 characters.',
+} as const
+
+/** Whether this reader may rename this seat's person at all. Pure. */
+export function renameVerdict(f: RenameFacts): Verdict {
+  if (!f.mayManage) return { allowed: false, reason: 'Only an Owner or an Admin renames a seat.', consequences: [] }
+  if (f.targetIsOwner && !f.actorIsOwner) return { allowed: false, reason: RENAME_SAYS.OWNER, consequences: [] }
+  if (f.seatElsewhere) return { allowed: false, reason: RENAME_SAYS.ELSEWHERE, consequences: [] }
+  if (f.onlyPersonOfOneFirm) return { allowed: false, reason: RENAME_SAYS.ONE_FIRM, consequences: [] }
+  return {
+    allowed: true,
+    reason: 'A seat at this company only.',
+    consequences: ['The name changes on every screen at this company. The old name is kept in the log, so it can be put back.'],
+  }
+}
+
+const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
+
+/**
+ * What is wrong with a typed name, or null where it is a name. Refused:
+ * empty, the company's own name, and a name that is only a role word
+ * ("HR", "AP & Payroll", "Timesheets" for a shared mailbox's role is
+ * caught by the role list the route passes). Pure.
+ */
+export function renameNameSays(typed: unknown, companyName: string | null, roleWords: readonly string[]): string | null {
+  const name = typeof typed === 'string' ? typed.trim().replace(/\s+/g, ' ') : ''
+  if (!name) return RENAME_SAYS.EMPTY
+  if (name.length > 120) return RENAME_SAYS.TOO_LONG
+  if (companyName && squash(name) === squash(companyName)) return RENAME_SAYS.COMPANY
+  const words = new Set([...roleWords, ...ROLE_WORDS].map(squash).filter(Boolean))
+  if (words.has(squash(name))) return RENAME_SAYS.ROLE
+  return null
+}
+
+/** Role words that are never a person's name, beside the company's own role names. */
+const ROLE_WORDS = [
+  'owner', 'admin', 'administrator', 'member', 'hr', 'hradmin', 'payroll', 'timesheets', 'finance', 'accounts',
+  'billing', 'support', 'recruiter', 'ap', 'ar', 'team', 'office', 'manager', 'accountant',
+]

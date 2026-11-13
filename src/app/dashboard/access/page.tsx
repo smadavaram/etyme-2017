@@ -54,6 +54,8 @@ interface Waiting {
   /** The figure this seat is counted under, and whether it is a decision. */
   figure?: FigureKey | null
   decision?: boolean
+  /** A shared sign-in such as timesheets@: several people may use the address. */
+  shared?: boolean
 }
 interface Person {
   contextId: string
@@ -78,6 +80,8 @@ interface Person {
   decision?: boolean
   /** What the review found on this seat, in words. */
   findings?: { words: string; detail: string }[]
+  /** A shared sign-in such as timesheets@: several people may use the address. */
+  shared?: boolean
 }
 interface Finding {
   contextId: string
@@ -93,6 +97,24 @@ interface Finding {
 
 /** Said beside a consultant's seat, which is listed and never counted. */
 const CONSULTANT_NOTE = 'consultant on your books, not counted'
+
+/** The chip beside a shared sign-in, and what it says on hover and on a tap. */
+const SHARED_LABEL = 'Shared sign-in'
+const SHARED_SAYS = 'Several people may use this address, so the log cannot say which of them did something. Give each person a seat of their own, or rename this one if it is one person.'
+
+/**
+ * The quiet chip on a shared sign-in. A tap says the sentence under the
+ * row, because a phone has no hover. Nothing else on the row changes; the
+ * seat is listed and counted as before.
+ */
+function SharedChip({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={open} aria-label={SHARED_SAYS}
+      className="ml-2 align-middle rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action">
+      <Chip tone="passive" title={SHARED_SAYS}>{SHARED_LABEL}</Chip>
+    </button>
+  )
+}
 
 /** Under the consultants' own heading. */
 const CONSULTANTS_LINE = 'People placed through the company, not its staff. They are listed so their seats can be acted on, and are not counted in the figures above.'
@@ -571,6 +593,8 @@ export default function AccessPage() {
   // The row whose level chip was tapped: its why is said under the row,
   // so a phone, which has no hover, reads it too.
   const [levelOpen, setLevelOpen] = useState<string | null>(null)
+  // The shared sign-in whose chip was tapped: its sentence under the name.
+  const [sharedOpen, setSharedOpen] = useState<string | null>(null)
   // Which figure filters the lists, kept in the address as ?show=<figure>
   // so a reload, a shared link and the back button keep it.
   const [show, setShow] = useState<FigureKey | null>(null)
@@ -758,7 +782,8 @@ export default function AccessPage() {
     <div key={w.contextId} className="p-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex-1 min-w-[12rem]">
-          <div className="text-etyme-ink">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
+          <div className="text-etyme-ink break-words">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}{w.shared && <SharedChip open={sharedOpen === w.contextId} onToggle={() => setSharedOpen(sharedOpen === w.contextId ? null : w.contextId)} />}</div>
+          {w.shared && sharedOpen === w.contextId && <div className="text-xs text-etyme-muted mt-0.5 break-words">{SHARED_SAYS}</div>}
           <Address email={w.person.primaryEmail} />
           <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
           <MailSaid mail={w.mail} />
@@ -829,7 +854,8 @@ export default function AccessPage() {
     <div key={p.contextId} className="p-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex-1 min-w-[12rem]">
-          <div className="text-etyme-ink">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
+          <div className="text-etyme-ink break-words">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}{p.shared && <SharedChip open={sharedOpen === p.contextId} onToggle={() => setSharedOpen(sharedOpen === p.contextId ? null : p.contextId)} />}</div>
+          {p.shared && sharedOpen === p.contextId && <div className="text-xs text-etyme-muted mt-0.5 break-words">{SHARED_SAYS}</div>}
           <Address email={p.person.primaryEmail} />
           <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
             {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}

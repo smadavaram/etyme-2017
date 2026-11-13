@@ -21,7 +21,7 @@ import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act
 import { offersFor } from './row-acts'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
-import { readCompanySeats, peopleOf, countSeats, peopleWords, type SeatState } from '@/lib/company-seats'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, type SeatState } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 
 /**
@@ -165,14 +165,19 @@ export async function GET(request: NextRequest) {
     email && email.trim() && !isSamplePerson(email) ? email : null
   // The person's name as the one reader says it: never the company's own
   // name (a seat named "Tapin" at Tapin reads as the name in its address).
-  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: seatOf.get(c.id)?.name ?? c.person.name, primaryEmail: emailOf(c.person.primaryEmail) })
+  // A shared sign-in such as timesheets@ reads as its address (the one
+  // rule, personNameFor in lib/company-seats); never the raw Person.name.
+  const nameOf = (c: (typeof contexts)[number]) => seatOf.get(c.id)?.name ?? personNameFor(c.person.name, c.person.primaryEmail, caller.company!.name)
+  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: nameOf(c), primaryEmail: emailOf(c.person.primaryEmail) })
+  // Whether several people may use the address, from the one seat reader.
+  const sharedOf = (id: string) => seatOf.get(id)?.shared ?? false
   const emailByContext = new Map(contexts.map(c => [c.id, emailOf(c.person.primaryEmail)]))
 
   const review = reviewAccess(
     withAccess
       .map(c => ({
         contextId: c.id,
-        personName: seatOf.get(c.id)?.name ?? c.person.name,
+        personName: nameOf(c),
         roleName: c.role!.name,
         permissions: c.role!.permissions,
         grantedAt: c.grantedAt,
@@ -303,6 +308,7 @@ export async function GET(request: NextRequest) {
           // A consultant on the firm's books: listed so a seat can be acted
           // on, and never counted among the company's people.
           consultant: isConsultant(c.id),
+          shared: sharedOf(c.id),
           figure: figureOf(c.id),
           decision: decisions.has(c.id),
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
@@ -320,6 +326,7 @@ export async function GET(request: NextRequest) {
         // "Member · give them a role" for the seat everybody arrives on.
         line: deskLine(c.role!.name),
         consultant: isConsultant(c.id),
+        shared: sharedOf(c.id),
         figure: figureOf(c.id),
         decision: decisions.has(c.id),
         // What the review found on this seat, in words, said on the row

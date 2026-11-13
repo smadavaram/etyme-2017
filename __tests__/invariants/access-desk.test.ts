@@ -875,7 +875,8 @@ describe('Users & permissions counts people the way Settings and Team structure 
     const { seatsFrom } = await import('@/lib/company-seats')
     const [s] = seatsFrom([row({ person: { name: 'Tapin', primaryEmail: 'sharath@tapin.example', credentials: [{ id: 'k' }] } })], 'Tapin')
     expect(s.name).toBe('Sharath')
-    expect(route).toContain('name: seatOf.get(c.id)?.name ?? c.person.name')
+    // A seat no reader mapped falls back to the same rule, never the raw Person.name.
+    expect(route).toContain('seatOf.get(c.id)?.name ?? personNameFor(c.person.name, c.person.primaryEmail, caller.company!.name)')
   })
 
   it('the role pickers count a role’s permissions the way Settings → Roles does, so the Owner reads everything', async () => {
@@ -1247,5 +1248,107 @@ describe('the figures on Users and permissions say what they count and filter to
     expect(route).toContain('const counts = countSeats(peopleOf(seats))')
     expect(route).toContain('waitingForRole: counts.waitingForRole')
     expect(route).toContain('peopleSays')
+  })
+})
+
+/**
+ * Tapin, 2026-11-12: timesheets@ was seated as AP & Payroll and read as a
+ * person called "Timesheets". A shared sign-in is shown by its address,
+ * with a quiet chip saying why, and is listed and counted as before.
+ */
+describe('a shared sign-in on Users and permissions', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const route = read('src/app/api/access/route.ts')
+  type Row = Parameters<typeof import('@/lib/company-seats').seatsFrom>[0][number]
+  const row = (name: string, email: string): Row => ({
+    id: `c-${email}`, personId: email, type: 'EMPLOYEE', roleId: 'r', orgUnitId: null,
+    grantedAt: new Date('2026-10-01'), invitedAt: null, lastUsedAt: null, suspendedAt: null, revokedAt: null,
+    role: { name: 'AP & Payroll' }, person: { name, primaryEmail: email, credentials: [{ id: 'k' }] },
+  })
+
+  it('a mailbox such as timesheets at the company’s own address is shown by its sign-in address with the label Shared sign-in', async () => {
+    const { seatsFrom } = await import('@/lib/company-seats')
+    const [s] = seatsFrom([row('Timesheets', 'timesheets@tapin.example')], 'Tapin')
+    expect(s.shared).toBe(true)
+    expect(s.name).toBe('timesheets@tapin.example')
+    expect(route).toContain('shared: sharedOf(c.id)')
+    expect(route).toContain("const sharedOf = (id: string) => seatOf.get(id)?.shared ?? false")
+    expect(page).toContain("const SHARED_LABEL = 'Shared sign-in'")
+  })
+
+  it('the chip says on hover and on a tap that several people may use the address and what to do', () => {
+    expect(page).toContain('Several people may use this address, so the log cannot say which of them did something. Give each person a seat of their own, or rename this one if it is one person.')
+    expect(page).toContain('title={SHARED_SAYS}')
+    expect(page).toContain('{p.shared && sharedOpen === p.contextId && <div')
+    expect(page).toContain('{w.shared && sharedOpen === w.contextId && <div')
+  })
+
+  it('oliver at the company is shown as Oliver and not as a shared sign-in', async () => {
+    const { seatsFrom } = await import('@/lib/company-seats')
+    const [s] = seatsFrom([row('Oliver', 'oliver@tapin.example')], 'Tapin')
+    expect(s.shared).toBe(false)
+    expect(s.name).toBe('Oliver')
+  })
+
+  it('a shared sign-in is never left off the list and is counted like any other seat', async () => {
+    const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
+    const seats = seatsFrom([row('Timesheets', 'timesheets@tapin.example'), row('Oliver', 'oliver@tapin.example')], 'Tapin')
+    expect(peopleOf(seats)).toHaveLength(2)
+    expect(countSeats(peopleOf(seats)).withAccess).toBe(2)
+  })
+
+  it('the row’s name is the one seat reader’s, never the raw Person.name', () => {
+    expect(route).toContain('seatOf.get(c.id)?.name ?? personNameFor(c.person.name, c.person.primaryEmail, caller.company!.name)')
+    expect(route).not.toContain('seatOf.get(c.id)?.name ?? c.person.name')
+  })
+
+  it('the shared sample seat never appears at a real company', async () => {
+    const { seatsFrom, peopleOf } = await import('@/lib/company-seats')
+    const { SAMPLE_PERSON_EMAIL } = await import('@/lib/sample-seat')
+    const seats = seatsFrom([row('Sample', SAMPLE_PERSON_EMAIL), row('Oliver', 'oliver@tapin.example')], 'Tapin')
+    expect(peopleOf(seats).map((s) => s.email)).toEqual(['oliver@tapin.example'])
+    expect(route).toContain('const listed = contexts.filter(c => !isSample(c.id))')
+  })
+})
+
+describe('renaming the person on a seat', () => {
+  const facts = (over: Partial<import('@/app/api/access/row-acts').RenameFacts> = {}) => ({
+    mayManage: true, actorIsOwner: true, targetIsOwner: false, seatElsewhere: false, onlyPersonOfOneFirm: false, ...over,
+  })
+
+  it('the Owner or an Admin may rename a seat at their own company', async () => {
+    const { renameVerdict } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts()).allowed).toBe(true)
+    expect(renameVerdict(facts({ actorIsOwner: false })).allowed).toBe(true)
+  })
+
+  it('an Admin never renames an Owner', async () => {
+    const { renameVerdict } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts({ actorIsOwner: false, targetIsOwner: true }))).toMatchObject({ allowed: false, reason: 'Only an Owner renames an Owner.' })
+    expect(renameVerdict(facts({ targetIsOwner: true })).allowed).toBe(true)
+  })
+
+  it('a person who also holds a live seat at another company changes their own name under Your data', async () => {
+    const { renameVerdict } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts({ seatElsewhere: true })).reason).toBe('They also have a seat at another company, so they change their own name under Your data.')
+  })
+
+  it('a one-person firm’s only person is never renamed from this page', async () => {
+    const { renameVerdict } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts({ onlyPersonOfOneFirm: true })).allowed).toBe(false)
+  })
+
+  it('a reader who cannot change access is offered no rename', async () => {
+    const { renameVerdict } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts({ mayManage: false })).allowed).toBe(false)
+  })
+
+  it('an empty name, the company’s own name and a name that is only a role word are refused in a sentence', async () => {
+    const { renameNameSays, RENAME_SAYS } = await import('@/app/api/access/row-acts')
+    expect(renameNameSays('   ', 'Tapin', [])).toBe(RENAME_SAYS.EMPTY)
+    expect(renameNameSays('TAPIN', 'Tapin', [])).toBe(RENAME_SAYS.COMPANY)
+    expect(renameNameSays('AP & Payroll', 'Tapin', ['AP & Payroll'])).toBe(RENAME_SAYS.ROLE)
+    expect(renameNameSays('Timesheets', 'Tapin', [])).toBe(RENAME_SAYS.ROLE)
+    expect(renameNameSays('Rosa Delgado', 'Tapin', ['AP & Payroll'])).toBeNull()
   })
 })
