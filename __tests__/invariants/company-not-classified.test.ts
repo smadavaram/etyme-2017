@@ -322,6 +322,42 @@ describe('a company not classified yet is never named on a contract or an order'
   })
 })
 
+describe('a position is read from the register, never from the Kind a recorded company was given', () => {
+  const recordedVendor = { ...rivermark, kind: 'VENDOR' }
+  const heldNothing = { positions: [], notClassified: true, recorded: true }
+
+  it('a company recorded as not classified and then given a Kind reads no position from an agreement nobody extended', () => {
+    expect(positionsOf({ kind: 'VENDOR', stored: [], derived: [{ relationship: 'CLIENT' }], recordedUnclassified: true })).toEqual([])
+    expect(positionsOf({ kind: 'VENDOR', stored: [{ relationship: 'SUPPLIER' }], derived: [{ relationship: 'CLIENT' }], recordedUnclassified: true })).toEqual(['SUPPLIER'])
+  })
+
+  it('a recorded company given the Kind Vendor and no position is still refused as a client or a supplier on a contract line', () => {
+    const v = (as: 'client' | 'supplier', held: any) =>
+      mayNameCounterparty({ callerCompanyId: 'tapin', other: recordedVendor, relationshipExists: false, as, held })
+    expect(v('client', heldNothing).says).toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Customer first.')
+    expect(v('supplier', heldNothing).says).toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Supplier first.')
+    expect(v('client', { positions: ['SUPPLIER'], notClassified: false, recorded: true }).says)
+      .toBe('Rivermark Partners is on your Companies list but is not your client yet. Extend it to Customer first.')
+    expect(v('supplier', { positions: ['SUPPLIER'], notClassified: false, recorded: true }).ok).toBe(true)
+  })
+
+  it('a recorded company given a Kind and no position cannot be named on an order either way', async () => {
+    const { mayWriteOrder } = await import('@/lib/off-system')
+    const tapinCo = { id: 'tapin', name: 'Tapin', claimedAt: new Date() }
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer: recordedVendor, seller: tapinCo, buyerHeld: heldNothing }).ok).toBe(false)
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer: tapinCo, seller: recordedVendor, sellerStanding: 'SUPPLIER', sellerHeld: heldNothing }).says)
+      .toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Supplier first.')
+  })
+
+  it('a record of your own given a Kind the old way, with no position at all, reads as not classified at every gate, and one holding a position reads as before', async () => {
+    const { lacksPosition } = await import('@/lib/counterparty')
+    expect(lacksPosition({ positions: [], notClassified: true, recorded: false }, 'VENDOR', ['SUPPLIER'])).toBe(true)
+    expect(lacksPosition({ positions: ['SUPPLIER'], notClassified: false, recorded: false }, 'VENDOR', ['CUSTOMER'])).toBe(false)
+    expect(lacksPosition(null, 'CLIENT', ['CUSTOMER'])).toBe(false)
+    expect(lacksPosition(null, 'UNCLASSIFIED', ['CUSTOMER'])).toBe(true)
+  })
+})
+
 describe('the Companies and Contacts screens draw the two facts apart', () => {
   const page = read('src/app/dashboard/companies/page.tsx')
   const contactsPage = read('src/app/dashboard/contacts/page.tsx')

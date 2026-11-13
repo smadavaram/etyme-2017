@@ -154,7 +154,7 @@ describe('a staffing firm arrives before its clients do', () => {
       )
     )
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toContain('already on Etyme')
+    expect(r.body.error.message).toContain('on Etyme already, so no copy of it was made')
     expect(r.body.error.message).toContain('Ask them to link')
   })
 

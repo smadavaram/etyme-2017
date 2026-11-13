@@ -429,11 +429,49 @@ export function positionsOf(input: {
   kind: string
   stored: readonly { relationship: string }[]
   derived: readonly { relationship: string }[]
+  /**
+   * The reader recorded this company as not classified yet, whatever Kind
+   * it has been given since (`recordedNotClassified`). Such a record reads
+   * only its own register rows too: setting its Kind never turns a stray
+   * agreement into a position (review, 2026-11-13).
+   */
+  recordedUnclassified?: boolean
 }): Position[] {
-  const rows = input.kind === 'UNCLASSIFIED' ? input.stored : [...input.stored, ...input.derived]
+  const rows = input.kind === 'UNCLASSIFIED' || input.recordedUnclassified ? input.stored : [...input.stored, ...input.derived]
   const held = new Set<Position>()
   for (const r of rows) if (r.relationship in POSITION_OF) held.add(POSITION_OF[r.relationship as Relationship])
   return ORDER.filter((p) => held.has(p))
+}
+
+/** Where a company sits with the reader, as a gate reads it (`standingWith` in app/api/companies/positions). */
+export interface HeldWith {
+  positions: readonly Position[]
+  /** The reader's own record, holding no position: the Companies badge. */
+  notClassified: boolean
+  /** Recorded by the reader as not classified yet, whatever Kind since. */
+  recorded: boolean
+}
+
+/**
+ * Whether a gate must refuse because the company holds none of the
+ * positions `need` asks for, decided from the register and never from the
+ * Kind. Pure.
+ *
+ *   - Kind not classified, or recorded here as not classified whatever
+ *     Kind it has been given since: it needs one of `need` on the reader's
+ *     own register.
+ *   - Any other record of the reader's own that holds no position at all:
+ *     the Companies list reads it Not classified, so every gate does.
+ *   - Anything else (`read` null): the existing rules decide.
+ */
+export function lacksPosition(
+  read: HeldWith | null,
+  kind: string | null | undefined,
+  need: readonly Position[],
+): boolean {
+  const held = read?.positions ?? []
+  if (kind === 'UNCLASSIFIED' || read?.recorded) return !held.some((p) => need.includes(p))
+  return read?.notClassified === true
 }
 
 /** The reader recorded this company and nobody has claimed it. Pure. */

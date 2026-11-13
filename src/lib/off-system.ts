@@ -36,7 +36,8 @@
  * decides.
  */
 
-import type { SupplierStanding, Position } from '@/lib/counterparty'
+import type { SupplierStanding, Position, HeldWith } from '@/lib/counterparty'
+import { lacksPosition } from '@/lib/counterparty'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
 export interface CompanyStanding {
@@ -205,15 +206,30 @@ export function mayWriteOrder(input: {
    * never named as the client on an order (founder, 2026-11-12).
    */
   buyerPositions?: readonly Position[]
+  /**
+   * Where the buyer, or the seller, sits with the caller, read by
+   * `standingWith` in app/api/companies/positions. Passed for every record
+   * of the caller's own, whatever its Kind: a record given a Kind and no
+   * position is still not classified (review, 2026-11-13).
+   */
+  buyerHeld?: HeldWith | null
+  sellerHeld?: HeldWith | null
 }): Verdict & { recordedById: string; onBehalf: boolean } {
   const { callerCompanyId: me, buyer, seller } = input
 
   // A company not classified yet is on the caller's Companies list and
   // nothing more: named on an order only once it holds the position.
-  if (me === seller.id && buyer.kind === 'UNCLASSIFIED' && !(input.buyerPositions ?? []).includes('CUSTOMER')) {
+  const buyerRead = input.buyerHeld ?? (input.buyerPositions ? { positions: input.buyerPositions, notClassified: false, recorded: false } : null)
+  if (me === seller.id && lacksPosition(buyerRead, buyer.kind, ['CUSTOMER'])) {
     return {
       ok: false, recordedById: me, onBehalf: false,
       says: `${buyer.name} is on your Companies list and is not classified yet. Extend it to Customer first.`,
+    }
+  }
+  if (me === buyer.id && input.sellerHeld && lacksPosition(input.sellerHeld, seller.kind, ['SUPPLIER', 'PRIME'])) {
+    return {
+      ok: false, recordedById: me, onBehalf: false,
+      says: `${seller.name} is on your Companies list and is not classified yet. Extend it to Supplier first.`,
     }
   }
   if (me === buyer.id && seller.kind === 'UNCLASSIFIED' && input.sellerStanding !== 'SUPPLIER') {
@@ -324,6 +340,12 @@ export function mayNameCounterparty(input: {
    * classified yet; a caller that does not pass it names none of those.
    */
   positions?: readonly Position[]
+  /**
+   * Where the other firm sits with the caller (`standingWith`), passed for
+   * every record of the caller's own whatever its Kind, so a record given
+   * a Kind and no position is still refused (review, 2026-11-13).
+   */
+  held?: HeldWith | null
 }): Verdict {
   const { callerCompanyId: me, other } = input
 
@@ -334,20 +356,20 @@ export function mayNameCounterparty(input: {
   // A company recorded and not classified yet holds a position only by
   // its own register row (founder, 2026-11-12): never named as a client or
   // a supplier on a contract or an order before it is extended to one.
-  if (other.kind === 'UNCLASSIFIED') {
-    const need: Position[] = input.as === 'client' ? ['CUSTOMER'] : ['SUPPLIER', 'PRIME']
-    const held = input.positions ?? []
+  // Decided from the register, never from the Kind.
+  const need: Position[] = input.as === 'client' ? ['CUSTOMER'] : ['SUPPLIER', 'PRIME']
+  const read = input.held ?? (input.positions ? { positions: input.positions, notClassified: false, recorded: false } : null)
+  if (lacksPosition(read, other.kind, need)) {
+    const held = read?.positions ?? []
     const step = input.as === 'client' ? 'Customer' : 'Supplier'
-    if (!held.some((p) => need.includes(p))) {
-      if (other.listedById != null && other.listedById !== me && !input.relationshipExists) {
-        return { ok: false, says: `${other.name} is not on your Companies list. Add it there first, then extend it to ${step}.` }
-      }
-      return {
-        ok: false,
-        says: held.length === 0
-          ? `${other.name} is on your Companies list and is not classified yet. Extend it to ${step} first.`
-          : `${other.name} is on your Companies list but is not your ${input.as} yet. Extend it to ${step} first.`,
-      }
+    if (other.listedById != null && other.listedById !== me && !input.relationshipExists) {
+      return { ok: false, says: `${other.name} is not on your Companies list. Add it there first, then extend it to ${step}.` }
+    }
+    return {
+      ok: false,
+      says: held.length === 0
+        ? `${other.name} is on your Companies list and is not classified yet. Extend it to ${step} first.`
+        : `${other.name} is on your Companies list but is not your ${input.as} yet. Extend it to ${step} first.`,
     }
   }
 

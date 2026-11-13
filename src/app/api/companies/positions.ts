@@ -1,6 +1,8 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { register, positionsOf, isMine, isNotClassified, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
+import { register, positionsOf, isMine, isNotClassified, lacksPosition, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
+
+export { lacksPosition }
 
 /**
  * Where a company sits with one firm, read and written in one place
@@ -21,6 +23,12 @@ export interface PositionsRead {
   /** The caller recorded this company and nobody has claimed it. */
   mine: boolean
   notClassified: boolean
+  /**
+   * The reader recorded this company as not classified yet, whatever Kind
+   * it has been given since: it holds a position only by its own register
+   * rows, and a Kind is never a position.
+   */
+  recorded: boolean
   /** The agreement behind Customer: signed, unsigned, or none on file. */
   customerAgreement: 'SIGNED' | 'UNSIGNED' | null
 }
@@ -34,12 +42,13 @@ export async function positionsFor(
   const out = new Map<string, PositionsRead>()
   if (companies.length === 0) return out
   const ids = companies.map((c) => c.id)
-  const [stored, msas] = await Promise.all([
+  const [stored, msas, recordedSet] = await Promise.all([
     db.counterparty.findMany({ where: { companyId: me, otherCompanyId: { in: ids } }, select: { otherCompanyId: true, relationship: true, status: true } }),
     db.masterAgreement.findMany({
       where: { OR: [{ vendorId: me, clientId: { in: ids } }, { clientId: me, vendorId: { in: ids } }] },
       select: { vendorId: true, clientId: true, signedAt: true },
     }),
+    recordedNotClassified(me, db),
   ])
   const derived = register(
     me,
@@ -48,19 +57,41 @@ export async function positionsFor(
   )
   for (const c of companies) {
     const own = stored.filter((s) => s.otherCompanyId === c.id)
-    const positions = positionsOf({ kind: c.kind, stored: own, derived: derived.filter((r) => r.otherCompanyId === c.id) })
-    const asClient = msas.filter((m) => m.vendorId === me && m.clientId === c.id)
     const mine = isMine(c, me)
+    // Only while it is still the caller's own unclaimed record: once its
+    // real owner has claimed it, it reads like any firm on Etyme.
+    const recorded = mine && recordedSet.has(c.id)
+    const positions = positionsOf({ kind: c.kind, stored: own, derived: derived.filter((r) => r.otherCompanyId === c.id), recordedUnclassified: recorded })
+    const asClient = msas.filter((m) => m.vendorId === me && m.clientId === c.id)
     out.set(c.id, {
       positions,
       mine,
       notClassified: isNotClassified({ mine, positions }),
+      recorded,
       customerAgreement: !positions.includes('CUSTOMER') || asClient.length === 0
         ? null
         : asClient.some((m) => m.signedAt != null) ? 'SIGNED' : 'UNSIGNED',
     })
   }
   return out
+}
+
+/**
+ * Where one company sits with `me`, for a gate that decides whether it may
+ * be named, sent a job, put forward to or shared a bench with. Null where
+ * the company is not the caller's own unclaimed record and is not of Kind
+ * not classified: the existing rules decide those, and nothing is read.
+ * One read, so every gate and the Companies badge agree (review,
+ * 2026-11-13: a gate keyed on the Kind let a recorded company given a
+ * Kind through while the screen said Not classified).
+ */
+export async function standingWith(
+  me: string,
+  company: { id: string; kind: string; claimedAt: Date | null; listedById: string | null },
+  db: Db = prisma,
+): Promise<PositionsRead | null> {
+  if (!isMine(company, me) && company.kind !== 'UNCLASSIFIED') return null
+  return (await positionsFor(me, [company], db)).get(company.id) ?? null
 }
 
 /**

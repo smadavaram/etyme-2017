@@ -54,9 +54,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   })
   if (!verdict.ok) return refuse(verdict.status, verdict.code, verdict.says, verdict.field)
 
+  let message = verdict.says
   if (!verdict.already) {
     const to = verdict.to as CompanyKind
     await prisma.$transaction(async (tx) => {
+      // An invitation already out was sent under the old kind, and the kind
+      // is what the claim seats somebody into (`mayClaimRecorded`). So it is
+      // withdrawn in the same change and the reply says so: nobody becomes
+      // the Owner of a company whose kind they were never told (review,
+      // 2026-11-13).
+      const open = await tx.supplierInvite.findMany({ where: { companyId: other.id, state: 'PENDING' }, select: { id: true, email: true } })
+      if (open.length > 0) {
+        await tx.supplierInvite.updateMany({ where: { id: { in: open.map((i) => i.id) } }, data: { state: 'REVOKED' } })
+        const who = open.map((i) => i.email).join(', ')
+        message += ` The open invitation to ${who} was withdrawn, so nobody takes it under the old kind. Invite them again to send the new one.`
+      }
       await tx.company.update({ where: { id: other.id }, data: { kind: to, outsideAccess: defaultPostureFor(to) } })
       // Nobody is seated there (the rule said so), so its roles are the
       // new kind's from scratch: never an older kind's set left behind.
@@ -69,13 +81,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         data: {
           companyId: me.id,
           action: 'COMPANY_KIND_SET',
-          summary: `${caller.person.name} set what kind of company ${other.name} is. ${verdict.says}`,
-          reason: verdict.says,
-          payload: { otherCompanyId: other.id, from: other.kind, to: verdict.to, byName: caller.person.name, personId: caller.person.id, position: null },
+          summary: `${caller.person.name} set what kind of company ${other.name} is. ${message}`,
+          reason: message,
+          payload: {
+            otherCompanyId: other.id, from: other.kind, to: verdict.to, byName: caller.person.name, personId: caller.person.id, position: null,
+            invitationsWithdrawn: open.map((i) => i.id),
+          },
           reversible: true,
         },
       })
     })
   }
-  return NextResponse.json({ data: { companyId: other.id, kind: verdict.to, changed: !verdict.already, message: verdict.says } })
+  return NextResponse.json({ data: { companyId: other.id, kind: verdict.to, changed: !verdict.already, message } })
 }

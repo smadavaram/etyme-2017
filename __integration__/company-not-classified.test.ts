@@ -30,6 +30,7 @@ const clients = await import('@/app/api/clients/route')
 const pickable = await import('@/app/api/companies/suppliers/route')
 const { suppliersOf } = await import('@/lib/suppliers-of')
 const { workTogether } = await import('@/lib/company-create')
+const { standingWith, positionsFor } = await import('@/app/api/companies/positions')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
@@ -315,6 +316,33 @@ describe('a firm on Etyme is never tied to you from your side alone', () => {
     expect(r.body.error).not.toHaveProperty('address')
     expect(r.body.error).not.toHaveProperty('company')
     expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: stranger } })).toBe(before + 1)
+  })
+})
+
+describe('a Kind given to a recorded company changes no position and catches no invitation in flight', () => {
+  it('a recorded company given a Kind reads no position from an agreement nobody extended, and every gate reads it as not classified', async () => {
+    as(OWNER)
+    const id = (await record('Brennock Advisory')).body.data.company.id
+    // An agreement written some other way between the two firms.
+    await prisma.masterAgreement.create({ data: { vendorId: brightmoor, clientId: id, paymentTerms: 30 } })
+    const r = await call(kind.PATCH as any, 'PATCH', `/api/companies/${id}/kind`, id, { kind: 'CLIENT' })
+    expect(r.status).toBe(200)
+    const c = await prisma.company.findUniqueOrThrow({ where: { id }, select: { id: true, kind: true, claimedAt: true, listedById: true } })
+    const read = (await positionsFor(brightmoor, [c])).get(id)!
+    expect(read).toMatchObject({ positions: [], notClassified: true, recorded: true })
+    expect(await standingWith(brightmoor, c)).toMatchObject({ notClassified: true, recorded: true })
+    expect((await listed()).find((x) => x.id === id)).toMatchObject({ notClassified: true, positions: [] })
+  })
+
+  it('changing the Kind of a recorded company withdraws an invitation already out, in the same change, and says so', async () => {
+    as(OWNER)
+    const id = (await record('Tolvane Search')).body.data.company.id
+    await prisma.supplierInvite.create({ data: { companyId: id, byId: brightmoor, email: 'ines@tolvane.example', token: `tolvane-${Date.now()}` } })
+    const r = await call(kind.PATCH as any, 'PATCH', `/api/companies/${id}/kind`, id, { kind: 'VENDOR' })
+    expect(r.status).toBe(200)
+    expect(r.body.data.message).toContain('The open invitation to ines@tolvane.example was withdrawn, so nobody takes it under the old kind.')
+    expect(await prisma.supplierInvite.count({ where: { companyId: id, state: 'PENDING' } })).toBe(0)
+    expect(await prisma.supplierInvite.count({ where: { companyId: id, state: 'REVOKED' } })).toBe(1)
   })
 })
 
