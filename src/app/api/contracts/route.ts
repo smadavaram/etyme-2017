@@ -24,7 +24,7 @@ import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { recordRefusal } from '@/lib/access-log'
-import { positionsFor } from '@/app/api/companies/positions'
+import { standingWith, lacksPosition } from '@/app/api/companies/positions'
 import { chooseHeader } from '@/lib/award'
 import { mayPinToOrder, mayPinBuyLine } from '@/lib/money/order-first-line'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
@@ -175,17 +175,19 @@ export async function POST(request: NextRequest) {
   if (supplier && supplier.id === companyId) {
     return errResponse(`${caller.company?.name ?? 'Your company'} cannot buy from itself. Choose "nobody" where you pay them yourself.`, 'boughtFromId')
   }
-  // A supplier recorded on the Companies list and not classified yet is
-  // bought from only once it is extended to Supplier (founder, 2026-11-12).
-  // Checked for that kind alone: every other supplier is read as before.
-  if (supplier && supplier.kind === 'UNCLASSIFIED') {
-    const positions = (await positionsFor(String(companyId), [supplier])).get(supplier.id)?.positions ?? []
+  // A supplier recorded on the Companies list and holding no Supplier
+  // position is bought from only once it is extended to Supplier (founder,
+  // 2026-11-12). Decided from the register, never from the Kind: a record
+  // given a Kind and no position is still not a supplier (review,
+  // 2026-11-13). Every other supplier is read as before.
+  const supplierHeld = supplier ? await standingWith(String(companyId), supplier) : null
+  if (supplier && lacksPosition(supplierHeld, supplier.kind, ['SUPPLIER', 'PRIME'])) {
     const buying = mayNameCounterparty({
       callerCompanyId: String(companyId),
       other: supplier,
-      relationshipExists: positions.length > 0,
+      relationshipExists: (supplierHeld?.positions.length ?? 0) > 0,
       as: 'supplier',
-      positions,
+      held: supplierHeld,
     })
     if (!buying.ok) {
       await recordRefusal([{ companyId: supplier.id }], {
@@ -388,11 +390,10 @@ export async function POST(request: NextRequest) {
     other: clientCompany,
     relationshipExists,
     as: 'client',
-    // A client recorded on the Companies list and not classified yet is a
-    // client only by the caller's own Customer row (founder, 2026-11-12).
-    positions: clientCompany.kind === 'UNCLASSIFIED'
-      ? (await positionsFor(companyId, [clientCompany])).get(clientCompany.id)?.positions ?? []
-      : undefined,
+    // A client recorded on the Companies list is a client only by the
+    // caller's own Customer row (founder, 2026-11-12), read from the
+    // register whatever Kind the record was given since.
+    held: await standingWith(companyId, clientCompany),
   })
   if (!naming.ok) {
     await recordRefusal([{ companyId: clientCompany.id }], {

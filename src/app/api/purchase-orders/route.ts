@@ -14,7 +14,7 @@ import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
 import { recordRefusal } from '@/lib/access-log'
-import { positionsFor } from '@/app/api/companies/positions'
+import { standingWith } from '@/app/api/companies/positions'
 import { orderIsTheirsSays, RAISES_AN_ORDER } from '@/lib/money/order-raiser'
 import { suppliersOf } from '@/lib/suppliers-of'
 import { supplierStanding } from '@/lib/counterparty'
@@ -445,16 +445,18 @@ export async function POST(request: NextRequest) {
   // the picker lists (`lib/suppliers-of`), so a firm offered on the
   // screen is a firm the order may go to, and no other.
   //
-  // A buyer recorded on the caller's Companies list and not classified
-  // yet is a client only by the caller's own Customer row (founder,
-  // 2026-11-12), so its positions are read from that list and passed in.
+  // A buyer recorded on the caller's Companies list is a client only by
+  // the caller's own Customer row, and a seller recorded there a supplier
+  // only by its Supplier row (founder, 2026-11-12). Both are read from the
+  // register, never from the Kind the record was given (review,
+  // 2026-11-13), and passed in.
   const allowed = mayWriteOrder({
     callerCompanyId: companyId,
     buyer,
     seller,
     ...(recordingForBuyer
-      ? { buyerPositions: buyer.kind === 'UNCLASSIFIED' ? (await positionsFor(companyId, [buyer])).get(buyer.id)?.positions ?? [] : undefined }
-      : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId) }),
+      ? { buyerHeld: await standingWith(companyId, buyer) }
+      : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId), sellerHeld: await standingWith(companyId, seller) }),
   })
   if (!allowed.ok) {
     // Written before the refusal is sent (CLAUDE.md, 2026-10-08).
