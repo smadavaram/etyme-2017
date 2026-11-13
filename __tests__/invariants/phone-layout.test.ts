@@ -59,6 +59,10 @@ const DELIBERATE: Record<string, string> = {
     'decision, never used), one number each, two across at 390, as the ' +
     'program page does (founder, 2026-11-12: one per row pushed the list ' +
     'below the fold). The invitation form above them stacks on a phone.',
+  'src/app/dashboard/companies/page.tsx':
+    'Companies\' four counts by position (total, customers, suppliers, not ' +
+    'classified), one number each, two across at 390 as Users & ' +
+    'permissions does; every form and the drawer on the page stack on a phone.',
   'src/app/dashboard/program/page.tsx':
     'Six numbers with one figure each. Two across at 390 is still ' +
     'readable; one across is a page of scrolling before the first list.',
