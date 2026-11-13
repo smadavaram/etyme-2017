@@ -73,11 +73,13 @@ export default function LandingPage() {
           <p className="mt-4 text-[17px] leading-snug text-etyme-ink">{HOME_SUBHEAD}</p>
           <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{HOME_FIT}</p>
           <p className="mt-1 text-[15px] leading-snug text-etyme-muted">{COMPLEMENT_LINE}</p>
-          <div data-hero-calls="" className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-start">
-            <div className="flex min-w-0 flex-col gap-1.5 sm:max-w-[22rem]">
-              <a href={START_FREE.href} className={`${FILLED} sm:self-start`}>{START_FREE.t}</a>
-              <p className="text-[14px] leading-snug text-etyme-muted">{UNDER_START}</p>
-            </div>
+          {/* On a phone: Start free, its line, then See it work, each full width.
+              From sm the two buttons sit side by side with a small gap, and
+              the line moves under them, so its length never pushes See it
+              work away from Start free. */}
+          <div data-hero-calls="" className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2.5 sm:gap-y-1.5">
+            <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
+            <p className="text-[14px] leading-snug text-etyme-muted sm:order-last sm:basis-full">{UNDER_START}</p>
             <SeeItWork />
           </div>
         </section>

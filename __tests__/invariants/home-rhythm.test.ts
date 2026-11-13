@@ -116,10 +116,13 @@ describe('The home page is six short sections in one column, at every width', ()
     expect(DEMO).toContain('<div className="min-w-0 bg-etyme-surface p-3.5">')
   })
 
-  it('shows Start free with the brief’s line directly under it, and See it work beside it, stacked full width on a phone and side by side from sm; every button at least 44 pixels high', () => {
+  it('shows Start free with the brief’s line under it and See it work right beside Start free from sm, the line moving under both buttons; on a phone the three stack full width; every button at least 44 pixels high', () => {
     const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('</section>', OWN.indexOf('id="top"')))
-    expect(hero).toContain('className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-start"')
-    expect(hero).toMatch(/\{START_FREE\.t\}<\/a>\s*<p[^>]*>\{UNDER_START\}<\/p>\s*<\/div>\s*<SeeItWork \/>/)
+    expect(hero).toContain('className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2.5 sm:gap-y-1.5"')
+    expect(hero).toMatch(/className=\{FILLED\}>\{START_FREE\.t\}<\/a>\s*<p className="[^"]*sm:order-last sm:basis-full">\{UNDER_START\}<\/p>\s*<SeeItWork \/>/)
+    // No column wraps Start free and its line any more: that column was as wide
+    // as the line, and it pushed See it work far to the right at desktop width.
+    expect(hero).not.toMatch(/sm:max-w-\[22rem\]/)
     expect(OWN).not.toContain('<PhoneButton')
     for (const b of ['FILLED', 'OUTLINE']) {
       // The shapes live in a file with no client marker, so the server page can read them (0575cc87c).
