@@ -211,6 +211,14 @@ describe('the screen, as walk 10 found it', () => {
     expect(reachWithTeam(['COMPANY'], 'cv_unit_region_us')).toEqual({ scope: 'COMPANY', orgUnitId: '' })
     expect(reachWithTeam(['COMPANY', 'UNIT'], null)).toEqual({ scope: 'COMPANY', orgUnitId: '' })
   })
+
+  it('Give access reads the team from the address through the page’s own reader, so a value that is not a plain id chooses no team', () => {
+    const giveAccess = readScreen('src/components/settings/give-access.tsx', 'utf8')
+    expect(giveAccess).toContain("import { focusFromQuery } from '@/app/dashboard/access/focus'")
+    expect(giveAccess).toContain('const { unit } = focusFromQuery(')
+    expect(focusFromQuery('?unit=cv_unit_region_us').unit).toBe('cv_unit_region_us')
+    expect(focusFromQuery('?unit=%22%3E%3Cscript%3E').unit).toBeNull()
+  })
 })
 
 /**
@@ -220,7 +228,8 @@ describe('the screen, as walk 10 found it', () => {
  * Tapin's Owner: six people and no teams opened as a chart of one box with
  * every role cut ("Account Man…"), and "Import" meant two different things.
  */
-import { drawsAsList, listPeople, noTeamsSays, roleInWords, PERSON_LINK, LIST_SHOWS } from '@/lib/team-structure/screen'
+import { drawsAsList, listPeople, noTeamsSays, roleInWords, PERSON_LINK, personLink, LIST_SHOWS } from '@/lib/team-structure/screen'
+import { focusFromQuery } from '@/app/dashboard/access/focus'
 import {
   importRecordsLoads, importRecordsSubtitle, splitSources, tileStatus, READ_TEAMS_LABEL, READ_TEAMS_SAYS,
   IMPORT_RECORDS_SAYS, IMPORT_RECORDS_POINTS, IMPORT_RECORDS_HREF, TEAM_STRUCTURE_HREF, NOT_AVAILABLE_YET, WAITING_ON_ETYME,
@@ -260,9 +269,19 @@ describe('a company with no teams opens as a plain list of its people', () => {
     expect(page).toMatch(/\{p\.email && <span className="block break-all/)
   })
 
-  it('a person’s name on the team structure opens Users and permissions', () => {
+  it('a person’s name on the team structure opens Users and permissions at that person’s row', () => {
     expect(PERSON_LINK).toBe('/dashboard/access')
-    expect(page).toMatch(/<a href=\{PERSON_LINK\}[^>]*>\{p\.name\}<\/a>/)
+    expect(personLink('ctx_tapin-hr')).toBe('/dashboard/access?person=ctx_tapin-hr')
+    expect(focusFromQuery(personLink('ctx_tapin-hr').split('?')[1]).person).toBe('ctx_tapin-hr')
+    expect(page).toMatch(/<a href=\{personLink\(p\.contextId\)\}[^>]*>\{p\.name\}<\/a>/)
+    expect(page).toMatch(/<a href=\{personLink\(m\.contextId\)\}/)
+    expect(page).not.toMatch(/href=\{PERSON_LINK\}/)
+  })
+
+  it('Change role and Change the lead’s role land on that person’s row in Users and permissions, never on the plain page', () => {
+    expect(page).toContain("item('Change the lead’s role…', () => { window.location.href = personLink(b.lead!.contextId) })")
+    expect(page).toContain("item('Change role…', () => { window.location.href = personLink(menu.contextId) })")
+    expect(page).not.toContain("window.location.href = '/dashboard/access'")
   })
 
   it('the right-click and press-and-hold menu still work on a person in the list', () => {

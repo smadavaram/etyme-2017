@@ -12,7 +12,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { mayOpen } from '@/lib/nav-table'
 import { IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL, READ_TEAMS_LABEL, READ_TEAMS_SAYS } from '@/lib/team-structure/directory/words'
 import { googleOutcomeSays, entraOutcomeSays } from '@/lib/team-structure/directory/outcome'
-import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, PERSON_LINK, roleInWords } from '@/lib/team-structure/screen'
+import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, personLink, roleInWords } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -277,7 +277,7 @@ export default function TeamStructurePage() {
           (fault 18: "Account Man…"); a person's name opens Users &
           permissions. */}
       {m.for === 'person'
-        ? <a href={PERSON_LINK} draggable={false} onClick={(e) => e.stopPropagation()} className="min-w-0 break-words text-etyme-ink hover:underline [-webkit-touch-callout:none]">{label}</a>
+        ? <a href={personLink(m.contextId)} draggable={false} onClick={(e) => e.stopPropagation()} className="min-w-0 break-words text-etyme-ink hover:underline [-webkit-touch-callout:none]">{label}</a>
         : <span className="min-w-0 break-words">{label}</span>}
       <span className="max-w-[50%] shrink-0 break-words text-right text-[11px] text-etyme-faint">{aside}</span>
     </div>
@@ -487,7 +487,7 @@ export default function TeamStructurePage() {
                   className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
                 >
                   <span className="min-w-0">
-                    <a href={PERSON_LINK} className="break-words text-[14px] font-medium text-etyme-ink hover:underline [-webkit-touch-callout:none]">{p.name}</a>
+                    <a href={personLink(p.contextId)} className="break-words text-[14px] font-medium text-etyme-ink hover:underline [-webkit-touch-callout:none]">{p.name}</a>
                     {p.email && <span className="block break-all text-[12px] text-etyme-muted">{p.email}</span>}
                   </span>
                   <span className="break-words text-[13px] text-etyme-muted sm:text-right">{roleInWords(p.role)}</span>
@@ -758,7 +758,7 @@ function ContextMenu(props: {
       hr('h1'),
       b && item('Rename…', () => props.onFocus('ts-name')),
       b && item('Name the lead…', () => props.onFocus('ts-lead')),
-      b?.lead && item('Change the lead’s role…', () => { window.location.href = '/dashboard/access' }),
+      b?.lead && item('Change the lead’s role…', () => { window.location.href = personLink(b.lead!.contextId) }),
       ...(b ? KINDS_OFFERED.filter((k) => k !== b.kind).map((k) => item(`Make it a ${kindWord(k).toLowerCase()}`, () => props.onAct('KIND', { unitId: b.id, kind: k }, () => b.id))) : []),
       hr('h2'),
       b && props.kidsOf(b.id).length > 0 && item(`${props.folded.has(b.id) ? 'Open' : 'Fold'} the boxes under it`, () => props.onFold(b.id)),
@@ -771,7 +771,7 @@ function ContextMenu(props: {
     head = menu.name
     items = [
       menu.box && offersMakeLead(props.boxes.get(menu.box)?.lead, menu.contextId) && item('Make team lead', () => props.onAct('LEAD', { unitId: menu.box, contextId: menu.contextId }, () => menu.box)),
-      item('Change role…', () => { window.location.href = '/dashboard/access' }),
+      item('Change role…', () => { window.location.href = personLink(menu.contextId) }),
       item('Move to another team…', () => props.onChoose({ kind: 'person', contextId: menu.contextId, name: menu.name, from: menu.box })),
       menu.box && hr('h1'),
       menu.box && item('Take off this team', () => props.onAct('MOVE_PERSON', { contextId: menu.contextId, unitId: null }, () => menu.box), { bad: true }),

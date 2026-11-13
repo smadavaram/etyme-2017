@@ -68,5 +68,14 @@ export function roleInWords(role: string | null | undefined): string {
 /** Where a person's name on Team structure opens: their row on Users & permissions. */
 export const PERSON_LINK = '/dashboard/access'
 
+/**
+ * The address of one person's row on Users & permissions: the page reads
+ * `?person=<contextId>` and lands on the row, marked. Where the row is not
+ * on that reader's page, it opens as the plain page.
+ */
+export function personLink(contextId: string): string {
+  return `${PERSON_LINK}?person=${encodeURIComponent(contextId)}`
+}
+
 /** How many rows the plain list shows before "Show everyone". */
 export const LIST_SHOWS = 50

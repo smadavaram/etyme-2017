@@ -6,6 +6,7 @@ import { formatDay } from '@/lib/format-date'
 import { FormMessage } from '@/components/ui/form'
 import { Panel, Lbl } from './panel-bits'
 import { giveAccessBody, fieldsDrawn, type GiveAccessValues } from '@/lib/permission-grants/form'
+import { focusFromQuery } from '@/app/dashboard/access/focus'
 
 /**
  * "Give access", on Users & permissions (founder, 2026-11-08: "Owner
@@ -75,7 +76,9 @@ export function GiveAccess() {
   }
   useEffect(() => { void load() }, [])
   useEffect(() => {
-    const unit = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('unit') : null
+    // The page's own reader of the address, so a value that is not a plain
+    // id is ignored here exactly as it is for the scroll and the mark.
+    const { unit } = focusFromQuery(typeof window !== 'undefined' ? window.location.search : '')
     if (unit) setPresetUnit(unit)
   }, [])
   useEffect(() => {
