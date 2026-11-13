@@ -106,13 +106,14 @@ describe('a sub-vendor records its agreement with a prime', () => {
     expect(r.body.error.message).toContain('already on file')
   })
 
-  it('an agreement with a firm on Etyme is recorded only where the two already trade, and the refusal says so', async () => {
+  it('an agreement with a firm on Etyme is recorded only where the two already trade, and a firm you neither trade with nor list is never named', async () => {
     as(TP)
     const r = await json(await recordAgreement(req('POST', '/api/contracts/agreements', {
       otherCompanyId: co.auralis, callerSells: true, paymentTerms: 30,
     })))
-    expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('do not trade here yet')
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toContain('Pick the firm the agreement is with')
+    expect(JSON.stringify(r.body)).not.toContain('Auralis')
     expect(await prisma.masterAgreement.count({ where: { OR: [{ vendorId: co.auralis }, { clientId: co.auralis }] } })).toBe(0)
   })
 })

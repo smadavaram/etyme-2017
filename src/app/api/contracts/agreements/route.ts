@@ -112,37 +112,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: notAtACompany('An agreement') } }, { status: 403 })
   }
 
-  // Whether the two already trade, either way round: an agreement, the
-  // register, an order, a contract, or a job one sent the other.
-  const relationshipExists = other
-    ? Boolean(
-        (await prisma.masterAgreement.findFirst({
-          where: { OR: [{ vendorId: me, clientId: other.id }, { vendorId: other.id, clientId: me }] },
-          select: { id: true },
-        })) ??
-          (await prisma.counterparty.findFirst({
-            where: { OR: [{ companyId: me, otherCompanyId: other.id }, { companyId: other.id, otherCompanyId: me }] },
-            select: { id: true },
-          })) ??
-          (await prisma.workOrder.findFirst({
-            where: { OR: [{ issuedById: me, issuedToId: other.id }, { issuedById: other.id, issuedToId: me }] },
-            select: { id: true },
-          })) ??
-          (await prisma.sellContract.findFirst({
-            where: { OR: [{ companyId: me, clientCompanyId: other.id }, { companyId: other.id, clientCompanyId: me }] },
-            select: { id: true },
-          })) ??
-          (await prisma.requirementInvitation.findFirst({
-            where: {
-              OR: [
-                { toCompanyId: me, requirement: { companyId: other.id } },
-                { toCompanyId: other.id, requirement: { companyId: me } },
-              ],
-            },
-            select: { id: true },
-          }))
-      )
+  // Whether the two already trade, read from both firms by the one shared
+  // reader: an agreement, an order, a contract, a job one sent the other,
+  // or the other firm's own register naming the caller. A register row the
+  // caller wrote itself never counts, so a firm on Etyme is never tied to
+  // the caller from the caller's side alone (review, 2026-11-13).
+  const relationshipExists = other ? await workTogether(me, other.id) : false
+  // Whether the caller keeps the firm on its own list: decides only whether
+  // a refusal may say its name.
+  const onMyList = other
+    ? Boolean(await prisma.counterparty.findFirst({ where: { companyId: me, otherCompanyId: other.id }, select: { id: true } }))
     : false
+  // Where the caller sells to a firm on Etyme, the agreement puts the caller
+  // on that firm's approved suppliers (`approvedSuppliersOf` in lib/sites),
+  // so the buying side has to show on theirs: an agreement naming them the
+  // client, their own register naming the caller as a supplier or a prime
+  // (the two words their approved list reads, `approvedSuppliersOf`), an
+  // order they issued to the caller, or a job they sent the caller. A sell line is not read: it can
+  // be written from the seller's side.
+  const buysFromCaller =
+    other && other.claimedAt != null && body.callerSells && relationshipExists
+      ? Boolean(
+          (await prisma.masterAgreement.findFirst({ where: { vendorId: me, clientId: other.id }, select: { id: true } })) ??
+            (await prisma.counterparty.findFirst({
+              where: { companyId: other.id, otherCompanyId: me, relationship: { in: ['SUPPLIER', 'PRIME'] } },
+              select: { id: true },
+            })) ??
+            (await prisma.workOrder.findFirst({ where: { issuedById: other.id, issuedToId: me }, select: { id: true } })) ??
+            (await prisma.requirementInvitation.findFirst({
+              where: { toCompanyId: me, requirement: { companyId: other.id } },
+              select: { id: true },
+            }))
+        )
+      : false
 
   const vendorId = body.callerSells ? me : otherId
   const clientId = body.callerSells ? otherId : me
@@ -162,8 +164,7 @@ export async function POST(request: NextRequest) {
   // lies between the two (`workTogether`, never a row the caller wrote
   // alone), and a record of the caller's own only by the position it holds
   // on the caller's register (`standingWith`), never by its Kind.
-  const theirRecord = other != null && other.claimedAt == null && other.listedById != null && other.listedById !== me
-  const worksTogether = theirRecord ? await workTogether(me, other.id) : false
+  const worksTogether = relationshipExists
   const held = other ? await standingWith(me, other) : null
 
   const verdict = mayRecordAgreement({
@@ -171,6 +172,8 @@ export async function POST(request: NextRequest) {
     other,
     callerSells: body.callerSells,
     relationshipExists,
+    onMyList,
+    buysFromCaller,
     worksTogether,
     held,
     existing: live

@@ -19,8 +19,11 @@
  *   buys, because either may be the one holding the paper. Both read the
  *   same row.
  * - **A firm on Etyme is named only where the two already trade**: an
- *   order, a contract, an agreement, a job sent, or the firm's own
- *   register. Otherwise any firm could put its name to an agreement with
+ *   order, a contract, an agreement, a job sent, or the other firm's own
+ *   register (`workTogether`), never a row the caller wrote alone. Where
+ *   the caller sells, the other firm must already buy from it, because
+ *   the agreement puts the caller on that firm's approved suppliers.
+ *   Otherwise any firm could put its name to an agreement with
  *   any real tenant (`mayNameCounterparty` in `lib/off-system`, the same
  *   rule said for agreements). A firm not on Etyme is the caller's own
  *   record and may be named.
@@ -207,8 +210,30 @@ export function mayRecordAgreement(input: {
   other: { id: string; name: string; claimedAt: Date | null; listedById?: string | null; kind?: string | null } | null
   /** True where the caller sells to the other firm; false where it buys from them. */
   callerSells: boolean
-  /** Whether the two already trade: an order, a contract, an agreement, a job sent, or the register. */
+  /**
+   * Whether the two already trade, read by `workTogether(caller, other)`
+   * in lib/company-create: an order, a contract, an agreement, a job sent,
+   * or the other firm's own register naming the caller. Never a register
+   * row the caller wrote alone.
+   */
   relationshipExists: boolean
+  /**
+   * Whether the caller's own register names the other firm. Decides only
+   * whether a refusal may name a firm on Etyme: one the caller neither
+   * works with nor keeps on its list is answered as an id nobody has.
+   * Left out, it is read as yes, the reading every caller had before.
+   */
+  onMyList?: boolean
+  /**
+   * For a firm on Etyme where the caller sells: whether something on the
+   * other firm's side already shows it buying from the caller (an
+   * agreement naming it the client, its own register naming the caller as
+   * a supplier or a prime, an order it issued to the caller, a job it sent the
+   * caller). An agreement where the caller sells puts the caller on that
+   * firm's approved suppliers, so it is never written from the caller's
+   * side alone (review, 2026-11-13). Left out, it is read as no.
+   */
+  buysFromCaller?: boolean
   /**
    * `workTogether(caller, other)` in lib/company-create: real work between
    * the two, never a register row the caller wrote alone. Read for a
@@ -239,13 +264,30 @@ export function mayRecordAgreement(input: {
     return { ok: false, field: 'otherCompanyId', unknown: true, says: AGREEMENT_UNKNOWN_FIRM_SAYS }
   }
   if (other.claimedAt != null && !input.relationshipExists) {
+    // A firm the caller neither works with nor keeps on its list: its name
+    // is not the caller's to learn from an id.
+    if (input.onMyList === false) {
+      return { ok: false, field: 'otherCompanyId', unknown: true, says: AGREEMENT_UNKNOWN_FIRM_SAYS }
+    }
     return {
       ok: false,
       field: 'otherCompanyId',
       says:
         `${other.name} is on Etyme and the two of you do not trade here yet, so an agreement in their name ` +
-        `would be one nobody at ${other.name} knows about. Start from a job they sent you, an order, or ` +
-        `ask them to add you, then record it.`,
+        `would be one nobody at ${other.name} knows about. Ask them to link with you from Companies, ` +
+        `then record it.`,
+    }
+  }
+  // Selling to a firm on Etyme makes the caller one of its approved
+  // suppliers (`approvedSuppliersOf` in lib/sites reads every agreement
+  // naming it the client). So the buying side has to show on theirs.
+  if (other.claimedAt != null && input.callerSells && !input.buysFromCaller) {
+    return {
+      ok: false,
+      field: 'otherCompanyId',
+      says:
+        `Nothing on Etyme shows ${other.name} buying from you yet, so you cannot record yourself as their supplier. ` +
+        `Ask them to link with you as their supplier from Companies, then record it.`,
     }
   }
   // A company on the caller's Companies list is a client only by its

@@ -95,7 +95,7 @@ describe('an agreement on a company somebody recorded', () => {
     const onEtyme = { id: 'cs', name: 'Computer Systems', claimedAt: at, listedById: null, kind: 'VENDOR' }
     const v = mayRecordAgreement({ caller: me, other: onEtyme, callerSells: true, relationshipExists: false, held: null, existing: null })
     expect(!v.ok && v.says).toContain('do not trade here yet')
-    const trading = mayRecordAgreement({ caller: me, other: onEtyme, callerSells: true, relationshipExists: true, held: null, existing: null })
+    const trading = mayRecordAgreement({ caller: me, other: onEtyme, callerSells: true, relationshipExists: true, buysFromCaller: true, held: null, existing: null })
     expect(trading.ok).toBe(true)
   })
 })

@@ -139,7 +139,7 @@ describe('recording an agreement', () => {
   const prime = { id: 'prime', name: 'Computer Systems', claimedAt: new Date('2026-01-01') }
 
   it('a sub-vendor records its agreement with a prime from Companies, and both firms read it', () => {
-    const v = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, existing: null })
+    const v = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, buysFromCaller: true, existing: null })
     expect(v.ok).toBe(true)
     if (v.ok) {
       // The sub sells to the prime: the sub is the vendor on the row the prime also reads.
@@ -153,7 +153,7 @@ describe('recording an agreement', () => {
   })
 
   it('an agreement with a firm on Etyme is recorded only where the two already trade, and the refusal says so', () => {
-    const v = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: false, existing: null })
+    const v = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: false, onMyList: true, existing: null })
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.says).toContain('do not trade here yet')
     const shell = mayRecordAgreement({ caller: sub, other: { ...prime, claimedAt: null }, callerSells: true, relationshipExists: false, existing: null })
@@ -163,11 +163,11 @@ describe('recording an agreement', () => {
 
   it('a second agreement between the same two firms is refused and names the one on file; an unsigned placeholder is filled in instead', () => {
     expect(isPlaceholder(stub)).toBe(true)
-    const fill = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, existing: stub })
+    const fill = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, buysFromCaller: true, existing: stub })
     expect(fill.ok && fill.fillId).toBe('ma1')
     const signed = { ...stub, signatures: 1 }
     expect(isPlaceholder(signed)).toBe(false)
-    const second = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, existing: signed })
+    const second = mayRecordAgreement({ caller: sub, other: prime, callerSells: true, relationshipExists: true, buysFromCaller: true, existing: signed })
     expect(second.ok).toBe(false)
     if (!second.ok) expect(second.says).toContain('already on file, since 2026-09-01')
     expect(isPlaceholder({ ...stub, paymentTerms: 45 })).toBe(false)
