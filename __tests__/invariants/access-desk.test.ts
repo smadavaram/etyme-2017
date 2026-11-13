@@ -1351,4 +1351,29 @@ describe('renaming the person on a seat', () => {
     expect(renameNameSays('Timesheets', 'Tapin', [])).toBe(RENAME_SAYS.ROLE)
     expect(renameNameSays('Rosa Delgado', 'Tapin', ['AP & Payroll'])).toBeNull()
   })
+
+  it('a person with a page of their own as a worker, or work with their name on it, changes their own name', async () => {
+    const { renameVerdict, RENAME_SAYS } = await import('@/app/api/access/row-acts')
+    expect(renameVerdict(facts({ ownRecord: true }))).toMatchObject({ allowed: false, reason: RENAME_SAYS.OWN_RECORD })
+  })
+
+  it('a seat of the person’s own with no company counts as a seat elsewhere, and the list and the route read one rule', () => {
+    const helper = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/rename.ts'), 'utf8')
+    expect(helper).toContain('OR: [{ companyId: null }, { companyId: { not: companyId } }]')
+    expect(helper).toContain('{ consultant: { isNot: null } }')
+    expect(helper).toContain('{ sellContracts: { some: {} } }')
+    const seatRoute = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/route.ts'), 'utf8')
+    expect(seatRoute).toContain("import { renameSeat } from './rename'")
+    expect(read('src/app/api/access/route.ts')).toContain("import { knownBeyond } from './[contextId]/rename'")
+  })
+
+  it('a rename is written with the old name beside the new one, and a refused one is logged before the reply', () => {
+    const helper = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/rename.ts'), 'utf8')
+    expect(helper).toContain("action: 'PERSON_RENAMED'")
+    expect(helper).toContain('from: before, to: name')
+    const seatRoute = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/route.ts'), 'utf8')
+    const at = seatRoute.indexOf("if (out.kind === 'WRONG_NAME')")
+    expect(at).toBeGreaterThan(-1)
+    expect(seatRoute.slice(at, seatRoute.indexOf('status: 422', at))).toContain("await recordRefusal([target.personId]")
+  })
 })

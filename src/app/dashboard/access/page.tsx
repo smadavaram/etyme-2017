@@ -9,7 +9,7 @@ import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
 import { GiveAccess } from '@/components/settings/give-access'
 import {
-  ACT_LABEL, ASKS, WITHDRAW_LABEL, lifecycleBody, nameWithAddress, daysUntilEndDay, tomorrowField,
+  ACT_LABEL, ASKS, WITHDRAW_LABEL, RENAME_LABEL, lifecycleBody, nameWithAddress, daysUntilEndDay, tomorrowField,
   type LifecycleAction, type RowOffer,
 } from '@/app/api/access/row-acts'
 
@@ -193,7 +193,7 @@ function levelWords(p: Person): string {
 }
 
 /** What a row can be asked to do on this page: the three lifecycle acts, and withdrawing an invitation. */
-type RowAction = LifecycleAction | 'withdraw'
+type RowAction = LifecycleAction | 'withdraw' | 'rename'
 
 /**
  * Can they see it?
@@ -434,6 +434,7 @@ function RowActs({ contextId, acts, open, onOpen, keptEnd }: {
   if (acts.pause) offered.push('suspend')
   if (acts.reinstate) offered.push('reinstate')
   if (acts.end || (acts.endInstead && keptEnd)) offered.push('revoke')
+  if (acts.rename) offered.push('rename')
   if (offered.length === 0) return null
   return (
     <>
@@ -443,7 +444,7 @@ function RowActs({ contextId, acts, open, onOpen, keptEnd }: {
           type="button"
           onClick={() => onOpen(contextId, open === a ? null : a)}
           className={`px-3 py-1.5 border border-etyme-rule rounded text-[13px] hover:bg-etyme-action/5 ${a === 'revoke' || a === 'withdraw' ? 'text-etyme-danger' : 'text-etyme-action'}`}>
-          {open === a ? 'Cancel' : a === 'withdraw' ? WITHDRAW_LABEL : ACT_LABEL[a]}
+          {open === a ? 'Cancel' : a === 'withdraw' ? WITHDRAW_LABEL : a === 'rename' ? RENAME_LABEL : ACT_LABEL[a]}
         </button>
       ))}
     </>
@@ -538,7 +539,13 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
       {action === 'withdraw' && (
         <p className="text-[13px] text-etyme-ink break-words">Withdraw the invitation to {who}?</p>
       )}
-      {action !== 'withdraw' && ASKS[action].includes('reason') && (
+      {action === 'rename' && (
+        <Field label={`The name of the person who uses ${email ?? 'this seat'}`}
+          help="It changes on every screen here. The old name is kept in the log, so it can be put back.">
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Their name" placeholder="Rosa Delgado" />
+        </Field>
+      )}
+      {action !== 'withdraw' && action !== 'rename' && ASKS[action].includes('reason') && (
         <Field
           label={action === 'suspend' ? `Why is ${who} being paused?` : `Why is ${who}’s access ending?`}
           help={action === 'suspend' ? 'They are told this, and somebody will ask later.' : 'It goes on the record with your name.'}>
@@ -548,7 +555,7 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
       )}
       {action === 'reinstate' && <p className="text-[13px] text-etyme-ink break-words">Put {who} back with the role they had.</p>}
       <SubmitButton type="button" onClick={onSubmit} pending={pending} pendingLabel="Saving…" className="self-start">
-        {action === 'reinstate' ? `Reinstate ${name}` : action === 'suspend' ? `Pause ${name}` : action === 'withdraw' ? 'Withdraw it' : `End ${name}’s access`}
+        {action === 'rename' ? 'Save the name' : action === 'reinstate' ? `Reinstate ${name}` : action === 'suspend' ? `Pause ${name}` : action === 'withdraw' ? 'Withdraw it' : `End ${name}’s access`}
       </SubmitButton>
     </div>
   )
@@ -730,7 +737,9 @@ export default function AccessPage() {
     try {
       const r = action === 'withdraw'
         ? await sendAndRead(`/api/access/${contextId}`, 'DELETE')
-        : await postAndRead(`/api/access/${contextId}`, lifecycleBody(action, { reason: actReason }))
+        : action === 'rename'
+          ? await postAndRead(`/api/access/${contextId}`, { action: 'rename', name: actReason })
+          : await postAndRead(`/api/access/${contextId}`, lifecycleBody(action, { reason: actReason }))
       setSaid({ contextId, text: r.text, tone: r.ok ? 'ok' : 'error', href: r.href })
       // Refused because they have history: the sentence says to end their
       // access, and End access stays on the row to do it.

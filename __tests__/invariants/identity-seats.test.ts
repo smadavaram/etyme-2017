@@ -61,9 +61,11 @@ const prisma: any = {
     update: vi.fn(async () => { timeline.push('context.update'); return {} }),
     count: vi.fn(async () => liveSeatsLeft),
   },
-  automationLog: { create: vi.fn(async () => ({})) },
+  automationLog: { create: vi.fn(async () => ({})), findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null), count: vi.fn(async () => 0) },
   notification: { create: vi.fn(async () => ({})) },
   $transaction: vi.fn(async (fn: (tx: any) => unknown) => fn(prisma)),
+  // The invitation's one-company-at-a-time lock (security review, 2026-11-12).
+  $executeRaw: vi.fn(async () => 0),
 }
 
 function seatRow(id: string, personId: string, permissions: string[], signedIn: boolean) {

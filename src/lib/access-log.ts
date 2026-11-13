@@ -200,6 +200,7 @@ export type AccessAction =
   | 'ACCESS_SUSPEND'            // somebody asked to pause a person's seat; written only when refused
   | 'ACCESS_REINSTATE'          // somebody asked to put a paused seat back; written only when refused
   | 'ACCESS_REVOKE'             // somebody asked to end a person's seat; written only when refused
+  | 'PERSON_RENAME'             // somebody asked to rename the person on a seat; written only when refused
   | 'DESK_CHANGE'               // somebody asked to give or change a person's role; written only when refused
   | 'DIRECTORY_READ'            // the company's Google Workspace directory was read, read only, to propose team structure
 

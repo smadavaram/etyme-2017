@@ -18,7 +18,8 @@ import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
-import { offersFor } from './row-acts'
+import { offersFor, renameVerdict } from './row-acts'
+import { knownBeyond } from './[contextId]/rename'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
 import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, type SeatState } from '@/lib/company-seats'
@@ -231,7 +232,20 @@ export async function GET(request: NextRequest) {
     { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
     hasPermission(caller.permissions, 'team.manage'),
   )
-  const actsOf = (id: string) => offers.get(id)!
+  // Rename, on the same verdict the route gives (row-acts `renameVerdict`),
+  // so the button is drawn only where the route will take it.
+  const elsewhere = await knownBeyond(contexts.map(c => c.personId), caller.company.id)
+  const oneFirm = caller.company.kind === 'CONSULTANT_CORP' && contexts.length <= 1
+  const mayRename = (c: (typeof contexts)[number]) => renameVerdict({
+    mayManage: hasPermission(caller.permissions, 'team.manage'),
+    actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+    targetIsOwner: c.role?.name === OWNER_DESK,
+    seatElsewhere: elsewhere.get(c.personId) === 'SEAT',
+    ownRecord: elsewhere.get(c.personId) === 'WORK',
+    onlyPersonOfOneFirm: oneFirm,
+  }).allowed
+  const byId = new Map(contexts.map(c => [c.id, c]))
+  const actsOf = (id: string) => ({ ...offers.get(id)!, rename: byId.has(id) && !isSample(id) && mayRename(byId.get(id)!) })
 
   // The invitation form's words, from the company's own sign-in policy,
   // read by the one policy function. Sent only to a reader who may invite:

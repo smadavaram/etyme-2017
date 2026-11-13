@@ -45,6 +45,8 @@ export interface RowOffer {
   pauseSays: string[]
   endSays: string[]
   withdrawSays: string[]
+  /** Rename, where the route would take it (`renameVerdict`); added by the register. */
+  rename?: boolean
 }
 
 const NOTHING = (state: AccessState): RowOffer => ({
@@ -236,6 +238,8 @@ export interface RenameFacts {
   targetIsOwner: boolean
   /** The person also holds a live seat at another company. */
   seatElsewhere: boolean
+  /** The person has a page of their own as a worker, or work with their name on it. */
+  ownRecord?: boolean
   /** A one-person firm, and this is its only person. */
   onlyPersonOfOneFirm: boolean
 }
@@ -243,6 +247,7 @@ export interface RenameFacts {
 export const RENAME_SAYS = {
   OWNER: 'Only an Owner renames an Owner.',
   ELSEWHERE: 'They also have a seat at another company, so they change their own name under Your data.',
+  OWN_RECORD: 'Their name is on their own work record, so they change it themselves under Your data.',
   ONE_FIRM: 'This is the firm’s only person, so they change their own name under Your data.',
   EMPTY: 'Type the name of the person who uses this seat.',
   COMPANY: 'That is the company’s name. Type the name of the person who uses this seat.',
@@ -255,6 +260,7 @@ export function renameVerdict(f: RenameFacts): Verdict {
   if (!f.mayManage) return { allowed: false, reason: 'Only an Owner or an Admin renames a seat.', consequences: [] }
   if (f.targetIsOwner && !f.actorIsOwner) return { allowed: false, reason: RENAME_SAYS.OWNER, consequences: [] }
   if (f.seatElsewhere) return { allowed: false, reason: RENAME_SAYS.ELSEWHERE, consequences: [] }
+  if (f.ownRecord) return { allowed: false, reason: RENAME_SAYS.OWN_RECORD, consequences: [] }
   if (f.onlyPersonOfOneFirm) return { allowed: false, reason: RENAME_SAYS.ONE_FIRM, consequences: [] }
   return {
     allowed: true,

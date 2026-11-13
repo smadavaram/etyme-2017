@@ -19,6 +19,7 @@ import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { recordRefusal } from '@/lib/access-log'
 import { withdrawVerdict } from '../row-acts'
+import { renameSeat } from './rename'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -64,7 +65,7 @@ export async function POST(
       await recordRefusal([askedAbout.personId], {
         actorPersonId: caller.person.id,
         actorCompanyId: caller.company?.id,
-        action: action === 'suspend' ? 'ACCESS_SUSPEND' : action === 'reinstate' ? 'ACCESS_REINSTATE' : 'ACCESS_REVOKE',
+        action: action === 'suspend' ? 'ACCESS_SUSPEND' : action === 'reinstate' ? 'ACCESS_REINSTATE' : action === 'rename' ? 'PERSON_RENAME' : 'ACCESS_REVOKE',
         reason: message,
       })
     }
@@ -80,9 +81,35 @@ export async function POST(
     }))
   }
 
+  // Rename: the Owner, or an Admin, names the person on a seat (founder,
+  // 2026-11-12). The rules and the write are in ./rename, refused in one
+  // sentence each and logged before the reply.
+  if (action === 'rename') {
+    const all = await loadAll(caller.company.id)
+    const live = all.filter((r) => !r.revokedAt)
+    const target = live.find((r) => r.contextId === contextId)
+    if (!target) return refuse(404, 'NOT_FOUND', 'Nobody here with that seat')
+    const out = await renameSeat({
+      contextId,
+      personId: target.personId,
+      typed: body.name,
+      company: { id: caller.company.id, name: caller.company.name, kind: caller.company.kind },
+      actor: { personId: caller.person.id, name: caller.person.name },
+      actorIsOwner: live.some((r) => r.personId === caller.person.id && r.isOwner === true && !r.suspendedAt),
+      targetIsOwner: target.isOwner === true,
+      liveSeats: live.length,
+    })
+    if (out.kind === 'REFUSED') return refuse(409, 'REFUSED', out.message)
+    if (out.kind === 'WRONG_NAME') {
+      await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'PERSON_RENAME', reason: out.message })
+      return NextResponse.json({ error: { code: 'VALIDATION', message: out.message, field: 'name' } }, { status: 422 })
+    }
+    return NextResponse.json({ data: { message: `Renamed. This seat reads ${out.name} from now on.`, name: out.name } })
+  }
+
   if (!['suspend', 'reinstate', 'revoke'].includes(action)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: "action is 'suspend', 'reinstate' or 'revoke'", field: 'action' } },
+      { error: { code: 'VALIDATION', message: "action is 'suspend', 'reinstate', 'revoke' or 'rename'", field: 'action' } },
       { status: 422 }
     )
   }
