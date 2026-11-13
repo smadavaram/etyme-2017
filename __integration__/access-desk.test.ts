@@ -471,7 +471,7 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     as(OWNER)
     const r = await json(await copied(req('POST', `/api/access/${it_.vik}/copied`), seatParams(it_.vik)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    const row = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'PERSON_INVITED', summary: { contains: 'copied the invitation' } }, orderBy: { at: 'desc' } })
+    const row = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'INVITATION_COPIED', summary: { contains: 'copied the invitation' } }, orderBy: { at: 'desc' } })
     expect(row?.summary).toMatch(/copied the invitation for vik@partner-works-fixture\.com$/)
     expect(JSON.stringify(row)).not.toMatch(/\/reset\//)
   })

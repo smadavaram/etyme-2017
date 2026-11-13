@@ -28,6 +28,7 @@ const contacts = await import('@/app/api/contacts/route')
 const counterparties = await import('@/app/api/counterparties/route')
 const clients = await import('@/app/api/clients/route')
 const pickable = await import('@/app/api/companies/suppliers/route')
+const suppliersPage = await import('@/app/api/suppliers/route')
 const { suppliersOf } = await import('@/lib/suppliers-of')
 const { workTogether } = await import('@/lib/company-create')
 const { standingWith, positionsFor } = await import('@/app/api/companies/positions')
@@ -435,7 +436,11 @@ describe('the founder’s acceptance walk', () => {
     expect(await clientIds()).not.toContain(id)
   })
 
-  it.todo('4b. a company extended to Supplier is listed on the Suppliers page and in the send-a-job picker that reads /api/suppliers (waits on etyme-demand: that route lists agreements, invitations and contracts, not the SUPPLIER register row)')
+  it('4b. a company extended to Supplier is listed on the Suppliers page, which reads /api/suppliers', async () => {
+    const list = await json(await suppliersPage.GET(req('GET', '/api/suppliers')))
+    expect(list.status).toBe(200)
+    expect((list.body.data.suppliers as any[]).map((s) => s.companyId)).toContain(id)
+  })
 
   it('layer: a company of any Kind placed in the Customer layer and back keeps its Kind and reads not classified again', async () => {
     const vendor = (await record('Ashgrove Services')).body.data.company.id
