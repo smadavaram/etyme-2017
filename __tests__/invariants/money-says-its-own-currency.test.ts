@@ -128,7 +128,7 @@ describe('a payroll export in rupees says rupees', () => {
   const line = (over: Partial<Line> = {}): Line => ({
     payrollId: 'E1', personName: 'Ravi Kumar', contractType: 'W2', periodStart: new Date('2026-11-01'), periodEnd: new Date('2026-11-14'),
     hours: 80, overtimeHours: 0, rateCents: 150_000, regularCents: 12_000_000, overtimeCents: 0, totalCents: 12_000_000,
-    uncoveredPremiumCents: 0, currency: 'INR', costCode: null, orderNumber: null, notes: [], ...over,
+    uncoveredPremiumCents: 0, currency: 'INR', orderNumber: null, notes: [], ...over,
   } as Line)
 
   it('the generic payroll file names the rupee currency beside whole rupee amounts', () => {

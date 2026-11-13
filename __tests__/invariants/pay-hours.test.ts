@@ -302,7 +302,7 @@ describe('the payroll file takes the same cut, on a line that keeps the week’s
     weeks: [{ weekOf: '2026-07-05', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours, employerAcceptedAt: new Date('2026-07-11T00:00:00Z'),
     payRateCents: 6_600, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false, rule: 'US_FLSA',
-    assertion: nonexempt.assertion, currency: 'USD', costCode: null, orderNumber: null, employerName: 'Brightmoor',
+    assertion: nonexempt.assertion, currency: 'USD', orderNumber: null, employerName: 'Brightmoor',
   })
 
   it('puts 37 ordinary hours and 5 overtime on the file where 42 of 45 were accepted', () => {
