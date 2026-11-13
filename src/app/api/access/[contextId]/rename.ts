@@ -8,10 +8,10 @@ import { renameNameSays, renameVerdict } from '../row-acts'
  * the seat.
  *
  * A name is the person's own wherever their record reaches past this
- * company, so the company renames only a person it alone knows: no live
- * seat anywhere else (another company's, or the person's own with no
- * company), no page of their own as a worker, and no work with their name
- * on it. Anybody else changes their own name under Your data.
+ * company, so the company renames only a person it alone knows: no seat
+ * anywhere else, live or ended (another company's, or the person's own with
+ * no company), no page of their own as a worker, and no work, paper, check
+ * or filing with their name on it (`knownBeyond`). Anybody else changes their own name under Your data.
  *
  * The write and its log row are here, not in the seat route, so the route's
  * first automation-log row stays the pause, put-back or end it always was.
@@ -20,20 +20,25 @@ import { renameNameSays, renameVerdict } from '../row-acts'
 /** Why a person's name is not this company's to change: a seat elsewhere, or their own work record. */
 export type Beyond = 'SEAT' | 'WORK'
 
-/** The people in `personIds` whose record reaches past this company, and how. */
+/**
+ * The people in `personIds` whose record reaches past this company, and how.
+ *
+ * `Person.name` is one row read by every company, so "beyond" is read wide
+ * on purpose (review, 2026-11-13): a live seat anywhere else is SEAT; a seat
+ * elsewhere that was ended, or any record that is the person's own (their
+ * page as a worker, which carries every bench listing; work with their name
+ * on it, interviews riding on a submission; papers and checks about them; a
+ * visa; a week or an expense they filed; a resume; a firm representing them;
+ * a bar naming them; a course) is WORK. A seat made at this company for a
+ * shared mailbox has none of these, so it is still this company's to name.
+ */
 export async function knownBeyond(personIds: readonly string[], companyId: string): Promise<Map<string, Beyond>> {
   const out = new Map<string, Beyond>()
   if (personIds.length === 0) return out
   const ids = [...new Set(personIds)]
-  const [seats, people] = await Promise.all([
-    prisma.context.findMany({
-      where: {
-        personId: { in: ids },
-        revokedAt: null,
-        OR: [{ companyId: null }, { companyId: { not: companyId } }],
-      },
-      select: { personId: true },
-    }),
+  const elsewhere = { personId: { in: ids }, OR: [{ companyId: null }, { companyId: { not: companyId } }] }
+  const [seats, people, papers] = await Promise.all([
+    prisma.context.findMany({ where: elsewhere, select: { personId: true, revokedAt: true } }),
     prisma.person.findMany({
       where: {
         id: { in: ids },
@@ -42,13 +47,29 @@ export async function knownBeyond(personIds: readonly string[], companyId: strin
           { sellContracts: { some: {} } },
           { submissions: { some: {} } },
           { buyCandidacies: { some: {} } },
+          { verifications: { some: {} } },
+          { visas: { some: {} } },
+          { timesheets: { some: {} } },
+          { expenses: { some: {} } },
+          { resumes: { some: {} } },
+          { representations: { some: {} } },
+          { doNotSubmit: { some: {} } },
+          { enrollments: { some: {} } },
+          { packetsAbout: { some: {} } },
+          { documentSharesAbout: { some: {} } },
         ],
       },
       select: { id: true },
     }),
+    prisma.docInstance.findMany({
+      where: { subjectType: 'PERSON', subjectId: { in: ids } },
+      select: { subjectId: true },
+    }),
   ])
   for (const p of people) out.set(p.id, 'WORK')
-  for (const s of seats) out.set(s.personId, 'SEAT')
+  for (const d of papers) out.set(d.subjectId, 'WORK')
+  for (const s of seats) if (s.revokedAt !== null && !out.has(s.personId)) out.set(s.personId, 'WORK')
+  for (const s of seats) if (s.revokedAt === null) out.set(s.personId, 'SEAT')
   return out
 }
 

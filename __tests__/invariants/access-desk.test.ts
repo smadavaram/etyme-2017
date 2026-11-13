@@ -1367,6 +1367,21 @@ describe('renaming the person on a seat', () => {
     expect(read('src/app/api/access/route.ts')).toContain("import { knownBeyond } from './[contextId]/rename'")
   })
 
+  it('a person whose papers, checks, visa, weeks, expenses, resume, bench listings or courses are on the record is never renamed by a company, because the name is one row every company reads', () => {
+    const helper = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/rename.ts'), 'utf8')
+    for (const t of ['verifications', 'visas', 'timesheets', 'expenses', 'resumes', 'representations', 'doNotSubmit', 'enrollments', 'packetsAbout', 'documentSharesAbout']) {
+      expect(helper).toContain(`{ ${t}: { some: {} } }`)
+    }
+    expect(helper).toContain("where: { subjectType: 'PERSON', subjectId: { in: ids } }")
+  })
+
+  it('a seat at another company that was ended still keeps the name out of this company’s hands', () => {
+    const helper = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/rename.ts'), 'utf8')
+    const seatsQuery = helper.slice(helper.indexOf('prisma.context.findMany'), helper.indexOf('prisma.person.findMany'))
+    expect(seatsQuery).not.toContain('revokedAt: null')
+    expect(helper).toContain("if (s.revokedAt !== null && !out.has(s.personId)) out.set(s.personId, 'WORK')")
+  })
+
   it('a rename is written with the old name beside the new one, and a refused one is logged before the reply', () => {
     const helper = readFileSync(join(process.cwd(), 'src/app/api/access/[contextId]/rename.ts'), 'utf8')
     expect(helper).toContain("action: 'PERSON_RENAMED'")
