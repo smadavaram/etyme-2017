@@ -13,6 +13,8 @@ import { linesForReader } from '@/lib/money/order-lines-read'
 import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
+import { recordRefusal } from '@/lib/access-log'
+import { positionsFor } from '@/app/api/companies/positions'
 import { orderIsTheirsSays, RAISES_AN_ORDER } from '@/lib/money/order-raiser'
 import { suppliersOf } from '@/lib/suppliers-of'
 import { supplierStanding } from '@/lib/counterparty'
@@ -403,11 +405,11 @@ export async function POST(request: NextRequest) {
   const [buyer, seller] = await Promise.all([
     prisma.company.findUnique({
       where: { id: issuedById },
-      select: { id: true, name: true, claimedAt: true, listedById: true },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
     }),
     prisma.company.findUnique({
       where: { id: issuedToId },
-      select: { id: true, name: true, claimedAt: true, listedById: true },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
     }),
   ])
 
@@ -442,13 +444,26 @@ export async function POST(request: NextRequest) {
   // buyer's suppliers and not one it blocked — read from the same book
   // the picker lists (`lib/suppliers-of`), so a firm offered on the
   // screen is a firm the order may go to, and no other.
+  //
+  // A buyer recorded on the caller's Companies list and not classified
+  // yet is a client only by the caller's own Customer row (founder,
+  // 2026-11-12), so its positions are read from that list and passed in.
   const allowed = mayWriteOrder({
     callerCompanyId: companyId,
     buyer,
     seller,
-    ...(recordingForBuyer ? {} : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId) }),
+    ...(recordingForBuyer
+      ? { buyerPositions: buyer.kind === 'UNCLASSIFIED' ? (await positionsFor(companyId, [buyer])).get(buyer.id)?.positions ?? [] : undefined }
+      : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId) }),
   })
   if (!allowed.ok) {
+    // Written before the refusal is sent (CLAUDE.md, 2026-10-08).
+    await recordRefusal([{ companyId: recordingForBuyer ? buyer.id : seller.id }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused an order between ${buyer.name} and ${seller.name}: ${allowed.says}`,
+    })
     // A seller recording the order of a buyer that is on Etyme: the order
     // is the buyer's to raise, and the refusal names who at the buyer may
     // — read off the buyer's own roles, never "their MSP or AP clerk",

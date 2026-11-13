@@ -283,6 +283,7 @@ describe('another firm’s record is never given a position from outside', () =>
 describe('the founder’s acceptance walk', () => {
   const suppliersRoute = import('@/app/api/suppliers/route')
   const purchaseOrders = import('@/app/api/purchase-orders/route')
+  const contractsRoute = import('@/app/api/contracts/route')
   let id = ''
   let kindsBefore = new Map<string, string>()
   let registerBefore = 0
@@ -402,7 +403,37 @@ describe('the founder’s acceptance walk', () => {
     expect(await prisma.workOrder.count({ where: { issuedToId: fresh } })).toBe(0)
   })
 
-  it.todo('a company not classified yet cannot be named as the client on an order a supplier records or on a contract line (waits on etyme-money: /api/purchase-orders and /api/contracts must read the company’s kind and pass its positions to mayWriteOrder and mayNameCounterparty)')
+  it('a company not classified yet cannot be named as the client on an order a supplier records, and the refusal is in the access log before it is sent', async () => {
+    const fresh = (await record('Ostrava Clinic Group')).body.data.company.id
+    const before = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: fresh } })
+    const r = await json(await (await purchaseOrders).POST(req('POST', '/api/purchase-orders', { number: 'OCG-1', amount: 1000, startDate: '2026-12-01', issuedById: fresh, issuedToId: brightmoor })))
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('Ostrava Clinic Group is on your Companies list and is not classified yet. Extend it to Customer first.')
+    expect(await prisma.workOrder.count({ where: { issuedById: fresh } })).toBe(0)
+    expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: fresh } })).toBe(before + 1)
+  })
+
+  it('once it is extended to Customer, the supplier records the order its client handed it', async () => {
+    const fresh = (await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, name: 'Ostrava Clinic Group' }, select: { id: true } })).id
+    await call(extend.POST as any, 'POST', `/api/companies/${fresh}/extend`, fresh, { as: 'CUSTOMER' })
+    const r = await json(await (await purchaseOrders).POST(req('POST', '/api/purchase-orders', { number: 'OCG-2', amount: 1000, startDate: '2026-12-01', issuedById: fresh, issuedToId: brightmoor })))
+    expect(r.status).toBe(201)
+    expect(await prisma.workOrder.count({ where: { issuedById: fresh } })).toBe(1)
+  })
+
+  it('a company not classified yet cannot be named as the client on a contract line, nor as the supplier a buy line pays', async () => {
+    const fresh = (await record('Vesna Medical Partners')).body.data.company.id
+    const partner = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: PARTNER }, select: { id: true } })).id
+    const asClient = await json(await (await contractsRoute).POST(req('POST', '/api/contracts', { personId: partner, companyId: brightmoor, clientCompanyId: fresh, billRate: 100, startDate: '2026-12-01' })))
+    expect(asClient.status).toBe(403)
+    expect(asClient.body.error).toMatchObject({ field: 'clientCompanyId', message: 'Vesna Medical Partners is on your Companies list and is not classified yet. Extend it to Customer first.' })
+    const client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const asSupplier = await json(await (await contractsRoute).POST(req('POST', '/api/contracts', { personId: partner, companyId: brightmoor, clientCompanyId: client, billRate: 100, payRate: 80, engagementType: 'OTHER_EMPLOYER', boughtFromId: fresh, startDate: '2026-12-01' })))
+    expect(asSupplier.status).toBe(403)
+    expect(asSupplier.body.error).toMatchObject({ field: 'boughtFromId', message: 'Vesna Medical Partners is on your Companies list and is not classified yet. Extend it to Supplier first.' })
+    expect(await prisma.sellContract.count({ where: { clientCompanyId: fresh } })).toBe(0)
+    expect(await prisma.buyContract.count({ where: { vendorCompanyId: fresh } })).toBe(0)
+  })
 
   it('the same name twice, with punctuation, is refused and links the one already there', async () => {
     const r = await record('Lindqvist-Talent Partners.')

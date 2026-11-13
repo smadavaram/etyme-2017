@@ -23,6 +23,8 @@ import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
+import { recordRefusal } from '@/lib/access-log'
+import { positionsFor } from '@/app/api/companies/positions'
 import { chooseHeader } from '@/lib/award'
 import { mayPinToOrder, mayPinBuyLine } from '@/lib/money/order-first-line'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
@@ -165,13 +167,38 @@ export async function POST(request: NextRequest) {
 
   const supplierId = boughtFromId ?? vendorCompanyId ?? null
   const supplier = supplierId
-    ? await prisma.company.findUnique({ where: { id: String(supplierId) }, select: { id: true, name: true } })
+    ? await prisma.company.findUnique({ where: { id: String(supplierId) }, select: { id: true, name: true, kind: true, claimedAt: true, listedById: true } })
     : null
   if (supplierId && !supplier) {
     return errResponse('No firm of that id to buy from. Pick the supplier from your register, or "nobody" where you pay them yourself.', 'boughtFromId')
   }
   if (supplier && supplier.id === companyId) {
     return errResponse(`${caller.company?.name ?? 'Your company'} cannot buy from itself. Choose "nobody" where you pay them yourself.`, 'boughtFromId')
+  }
+  // A supplier recorded on the Companies list and not classified yet is
+  // bought from only once it is extended to Supplier (founder, 2026-11-12).
+  // Checked for that kind alone: every other supplier is read as before.
+  if (supplier && supplier.kind === 'UNCLASSIFIED') {
+    const positions = (await positionsFor(String(companyId), [supplier])).get(supplier.id)?.positions ?? []
+    const buying = mayNameCounterparty({
+      callerCompanyId: String(companyId),
+      other: supplier,
+      relationshipExists: positions.length > 0,
+      as: 'supplier',
+      positions,
+    })
+    if (!buying.ok) {
+      await recordRefusal([{ companyId: supplier.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: String(companyId),
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${supplier.name} as the supplier on a buy line: ${buying.says}`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: buying.says, field: 'boughtFromId' } },
+        { status: 403 }
+      )
+    }
   }
   const line = recordedLine({
     engagementType,
@@ -300,7 +327,7 @@ export async function POST(request: NextRequest) {
   // left looking finished.
   const clientCompany = await prisma.company.findUnique({
     where: { id: clientCompanyId },
-    select: { id: true, name: true, claimedAt: true, listedById: true },
+    select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
   })
 
   if (!clientCompany) {
@@ -361,8 +388,19 @@ export async function POST(request: NextRequest) {
     other: clientCompany,
     relationshipExists,
     as: 'client',
+    // A client recorded on the Companies list and not classified yet is a
+    // client only by the caller's own Customer row (founder, 2026-11-12).
+    positions: clientCompany.kind === 'UNCLASSIFIED'
+      ? (await positionsFor(companyId, [clientCompany])).get(clientCompany.id)?.positions ?? []
+      : undefined,
   })
   if (!naming.ok) {
+    await recordRefusal([{ companyId: clientCompany.id }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused naming ${clientCompany.name} as the client on a line: ${naming.says}`,
+    })
     return NextResponse.json(
       { error: { code: 'NOT_YOURS', message: naming.says, field: 'clientCompanyId' } },
       { status: 403 }
