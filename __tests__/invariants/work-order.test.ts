@@ -143,7 +143,7 @@ describe('a firm that is on the register without being on the system', () => {
     expect(verdict.reuse?.id).toBe('co-shell')
   })
 
-  it('a firm cannot name a company that is already here as its client without them', () => {
+  it('a firm cannot name a company that is already here as its client without them, and is told what it is told for an id that is not there', () => {
     const verdict = mayNameCounterparty({
       callerCompanyId: SUPPLIER,
       other: tenant(CLIENT, 'Northbend Athletic'),
@@ -151,8 +151,8 @@ describe('a firm that is on the register without being on the system', () => {
       as: 'client',
     })
     expect(verdict.ok).toBe(false)
-    expect(verdict.says).toContain('has nothing on file with you')
-    expect(verdict.says).toContain('ask them to add you')
+    expect(verdict.says).toBe('We could not find that client. Add them from Companies first; they do not need to be on Etyme.')
+    expect(verdict.says).not.toContain('Northbend')
   })
 
   it('a firm may name a company that is already here where the two already work together', () => {
@@ -176,14 +176,14 @@ describe('a firm that is on the register without being on the system', () => {
     expect(verdict.says).toContain('is not on Etyme')
   })
 
-  it('a firm cannot name, as its own client, a company another firm put on its register, unless the two already work together', () => {
+  it('a firm cannot name, as its own client, a company another firm put on its register, unless the two already work together, and the refusal names nobody', () => {
     const theirs = shell('co-shell', 'Halvard Industries', 'co-tapin')
     const refused = mayNameCounterparty({ callerCompanyId: SUPPLIER, other: theirs, relationshipExists: false, as: 'client' })
     expect(refused.ok).toBe(false)
-    expect(refused.says).toBe(
-      "Halvard Industries is on another firm's register, not yours, and has nothing on file with you. " +
-        'Put them on your own register as your client — that makes your own record of them.'
-    )
+    // The caller sent an id: the sentence never echoes the stored name, and
+    // never says another firm holds a record of the company.
+    expect(refused.says).toBe('We could not find that client. Add them from Companies first; they do not need to be on Etyme.')
+    expect(refused.says).not.toContain('Halvard')
     expect(mayNameCounterparty({ callerCompanyId: SUPPLIER, other: theirs, relationshipExists: true, as: 'client' }).ok).toBe(true)
     expect(mayNameCounterparty({ callerCompanyId: 'co-tapin', other: theirs, relationshipExists: false, as: 'client' }).ok).toBe(true)
   })

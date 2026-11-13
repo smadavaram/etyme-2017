@@ -167,6 +167,24 @@ export function mayList(input: {
 // ═════════════════════════════════════════════════════════════════════
 
 /**
+ * What a firm is told when it names, by id, a company it has nothing to
+ * do with: the same sentence as an id that does not exist. Echoing the
+ * stored name would tell the caller that another firm holds a record of
+ * that company, or that a firm by that id is on Etyme, and the caller
+ * never typed either (review, 2026-11-13). The step is the same either
+ * way: add them from Companies, which asks a firm on Etyme to link and
+ * makes the caller its own record of one that is not.
+ */
+export function notYoursToNameSays(as: 'client' | 'supplier'): string {
+  return `We could not find that ${as}. Add them from Companies first; they do not need to be on Etyme.`
+}
+
+/** A company another firm recorded and nobody has claimed: that firm's record, not the caller's. */
+function anotherFirmsRecord(c: CompanyStanding, me: string): boolean {
+  return isShell(c) && c.listedById != null && c.listedById !== me
+}
+
+/**
  * May this firm write this order?
  *
  * A work order has a buyer and a seller. The buyer ordinarily raises it
@@ -258,6 +276,9 @@ export function mayWriteOrder(input: {
           `${buyer.name} has blocked ${seller.name}, so no new purchase order can go to them. ` +
           `Lift the block on the suppliers page first if that is what you mean to do.`,
       }
+    }
+    if (input.sellerStanding === 'NONE' && anotherFirmsRecord(seller, me)) {
+      return { ok: false, recordedById: me, onBehalf: false, says: notYoursToNameSays('supplier') }
     }
     if (input.sellerStanding === 'NONE') {
       return {
@@ -363,7 +384,7 @@ export function mayNameCounterparty(input: {
     const held = read?.positions ?? []
     const step = input.as === 'client' ? 'Customer' : 'Supplier'
     if (other.listedById != null && other.listedById !== me && !input.relationshipExists) {
-      return { ok: false, says: `${other.name} is not on your Companies list. Add it there first, then extend it to ${step}.` }
+      return { ok: false, says: notYoursToNameSays(input.as) }
     }
     return {
       ok: false,
@@ -386,25 +407,16 @@ export function mayNameCounterparty(input: {
         says: `${other.name} is not on Etyme. This is your own record of them until they join.`,
       }
     }
-    return {
-      ok: false,
-      says:
-        `${other.name} is on another firm's register, not yours, and has nothing on file with you. ` +
-        `Put them on your own register as your ${input.as} — that makes your own record of them.`,
-    }
+    return { ok: false, says: notYoursToNameSays(input.as) }
   }
 
   if (input.relationshipExists) {
     return { ok: true, says: `${other.name} is on Etyme and already works with you.` }
   }
 
-  return {
-    ok: false,
-    says:
-      `${other.name} is on Etyme and has nothing on file with you. A firm cannot name ` +
-      `another as its ${input.as} without them — ask them to add you, or invite them to ` +
-      `the deal, and it is theirs to accept.`,
-  }
+  // A firm on Etyme with nothing between the two: named back by nothing,
+  // the same as an id that is not there. Companies asks them to link.
+  return { ok: false, says: notYoursToNameSays(input.as) }
 }
 
 // ═════════════════════════════════════════════════════════════════════

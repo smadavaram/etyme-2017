@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
+import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { defaultPostureFor } from '@/lib/walls'
 import { mayList, shellNotice, recordClientContact, type CompanyStanding } from '@/lib/off-system'
 import { clientInviteLetter } from '@/lib/reaching-out'
@@ -203,9 +204,7 @@ export async function POST(request: NextRequest) {
       // A firm on Etyme that does not work with the caller: said with no
       // id, name or address of it, and logged before the reply (review,
       // 2026-11-13). The page asks to link with the facts it typed.
-      const says =
-        'That company is on Etyme already, so no copy of it was made. Ask them to link, as your customer: ' +
-        'they are asked, and nothing is on either list until they say yes.'
+      const says = onEtymeAskToLinkSays('customer')
       await recordRefusal([{ companyId: claimedAtDomain.id }], {
         actorPersonId: caller.isService ? undefined : caller.person.id,
         actorCompanyId: companyId,

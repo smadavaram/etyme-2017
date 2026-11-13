@@ -210,8 +210,7 @@ describe('a staffing firm arrives before its clients do', () => {
       )
     )
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('has nothing on file with you')
-    expect(r.body.error.message).toContain('ask them to add you')
+    expect(r.body.error.message).toBe('We could not find that client. Add them from Companies first; they do not need to be on Etyme.')
   })
 
   it('a contract naming a company id that does not exist is refused in a sentence, not a foreign key', async () => {
@@ -254,7 +253,7 @@ describe('a staffing firm arrives before its clients do', () => {
     const refused = await json(await writeContract(contract()))
     expect(refused.status).toBe(403)
     expect(refused.body.error.code).toBe('NOT_YOURS')
-    expect(refused.body.error.message).toContain("is on another firm's register, not yours")
+    expect(refused.body.error.message).toBe('We could not find that client. Add them from Companies first; they do not need to be on Etyme.')
     expect(await prisma.sellContract.count({ where: { companyId: co.auralis } })).toBe(0)
 
     // Once Auralis has Halvard on its own register, the two work together

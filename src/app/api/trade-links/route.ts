@@ -3,10 +3,10 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
-import { notify } from '@/lib/notify'
 import { findFirm, workTogether } from '@/lib/company-create'
 import { formatDay } from '@/lib/format-date'
-import { mayAskToLink, askerReads, readerReads, mirrorOf, wordFor } from '@/lib/trade-link'
+import { mayAskToLink, askerReads, mirrorOf, wordFor } from '@/lib/trade-link'
+import { ANSWERS_A_LINK, askToLink, openAskBetween } from './ask'
 import type { Relationship } from '@/lib/counterparty'
 
 /**
@@ -21,17 +21,6 @@ import type { Relationship } from '@/lib/counterparty'
  * Asking and answering are for whoever keeps the firm's list of companies
  * (`vendors.manage`), the same permission "Add company" asks for.
  */
-
-const ASKS = 'vendors.manage'
-
-/** Who at a firm hears an ask: whoever may answer it. */
-async function answerersAt(companyId: string): Promise<string[]> {
-  const seats = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, roleId: { not: null } },
-    select: { personId: true, role: { select: { permissions: true } } },
-  })
-  return [...new Set(seats.filter((s) => hasPermission((s.role?.permissions ?? []) as string[], ASKS)).map((s) => s.personId))]
-}
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -105,37 +94,25 @@ export async function POST(request: NextRequest) {
         isDemo: me.isDemo === true,
       }).then((f) => (f ? { id: f.id, name: f.name, kind: f.kind as string } : null))
 
-  const open = other
-    ? await prisma.tradeLinkRequest.findFirst({
-        where: {
-          answeredAt: null,
-          OR: [{ fromCompanyId: me.id, toCompanyId: other.id }, { fromCompanyId: other.id, toCompanyId: me.id }],
-        },
-        select: { fromCompanyId: true },
-      })
-    : null
+  const open = other ? await openAskBetween(me.id, other.id) : null
 
   const verdict = mayAskToLink({
     asker: { id: me.id, kind: me.kind, name: me.name },
     other,
     relationship,
-    mayManage: hasPermission(caller.permissions, ASKS),
+    mayManage: hasPermission(caller.permissions, ANSWERS_A_LINK),
     linked: other ? await workTogether(me.id, other.id) : false,
     open,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.says } }, { status: verdict.status })
 
-  const row = await prisma.tradeLinkRequest.create({
-    data: { fromCompanyId: me.id, toCompanyId: other!.id, relationship, askedById: caller.person.id, note },
-    select: { id: true },
+  const row = await askToLink({
+    asker: { id: me.id, name: me.name, kind: me.kind },
+    other: other!,
+    relationship: relationship as Relationship,
+    askedBy: { id: caller.person.id, name: caller.person.name },
+    note,
   })
   const sides = { asker: { name: me.name, kind: me.kind }, other: { name: other!.name, kind: other!.kind }, relationship: relationship as Relationship }
-  const words = readerReads({ ...sides, askedBy: caller.person.name })
-  for (const personId of await answerersAt(other!.id)) {
-    void notify({
-      personId, companyId: other!.id, type: 'SYSTEM', channel: 'EMAIL', entityId: row.id,
-      title: words.title, body: words.body, data: { href: '/dashboard/companies', tradeLinkId: row.id },
-    })
-  }
   return NextResponse.json({ data: { id: row.id, says: askerReads(sides) } }, { status: 201 })
 }

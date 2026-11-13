@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { mirrorOf, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
+import { approvalBehind } from '../ask'
 
 /**
  * POST /api/trade-links/:id   { action: "accept" | "not-now" }
@@ -15,7 +16,12 @@ import type { Relationship } from '@/lib/counterparty'
  * own register in one transaction — the asker's in the asker's words, the
  * answerer's as its mirror — the same `Counterparty` rows every picker
  * and `workTogether` already read, so agreements and orders can name the
- * other firm at once. Nothing else is written: no agreement, no terms.
+ * other firm at once. Nothing else is written: no agreement, no terms —
+ * except where the ask came from the asker's own supplier approval
+ * (`approvalBehind`). Then the yes is the last piece of what the
+ * approval writes for a firm it attaches directly: the asker's row at
+ * approved standing, and the agreement stub between the two (signed only
+ * where the copy both signed was on file), never under a prime.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { caller, error } = await getCallerContext(request)
@@ -52,11 +58,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const theirs = row.relationship as Relationship
   const mine = mirrorOf(theirs, row.fromCompany.kind)
   if (action === 'accept') {
+    // The client's four steps already approved this firm; its yes is
+    // what was missing. Read only for an ask to be the asker's supplier.
+    const approved = theirs === 'SUPPLIER' ? await approvalBehind(row.fromCompanyId, me.id) : null
+    const held = approved
+      ? await prisma.counterparty.findUnique({
+          where: { companyId_otherCompanyId_relationship: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs } },
+          select: { tier: true },
+        })
+      : null
+    // A standing somebody already set is never lowered or overwritten.
+    const tier = approved && !held?.tier ? { tier: 'APPROVED' } : {}
+    const agreement = approved && !approved.underPrime
+      ? await prisma.masterAgreement.findFirst({ where: { vendorId: me.id, clientId: row.fromCompanyId }, select: { id: true } })
+      : null
     await prisma.$transaction([
+      ...(approved && !approved.underPrime && !agreement
+        ? [prisma.masterAgreement.create({
+            data: { vendorId: me.id, clientId: row.fromCompanyId, paymentTerms: 30, ...(approved.agreementSigned ? { signedAt: now } : {}) },
+          })]
+        : []),
       prisma.counterparty.upsert({
         where: { companyId_otherCompanyId_relationship: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs } },
-        update: { status: 'ACTIVE' },
-        create: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs, status: 'ACTIVE', createdById: row.askedById },
+        update: { status: 'ACTIVE', ...tier },
+        create: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs, status: 'ACTIVE', createdById: row.askedById, ...tier },
       }),
       prisma.counterparty.upsert({
         where: { companyId_otherCompanyId_relationship: { companyId: me.id, otherCompanyId: row.fromCompanyId, relationship: mine } },

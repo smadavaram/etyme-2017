@@ -12,6 +12,7 @@ import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notedDomain } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
+import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { positionsFor } from './positions'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { roleCanDo } from '@/lib/company-roles'
@@ -216,7 +217,7 @@ export async function POST(request: NextRequest) {
       // Already on Etyme: today's reply, and nothing written. Nothing is
       // sent unless the person presses "Ask them to link".
       if (!(await workTogether(mine.id, firm.id))) {
-        const says = foundElsewhere('partner')
+        const says = onEtymeAskToLinkSays('partner')
         await refusedFound(seatedCaller, firm.id, says)
         return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
       }
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
     }
     if (firm) {
       if (!(await workTogether(mine.id, firm.id))) {
-        const says = foundElsewhere(asWord)
+        const says = onEtymeAskToLinkSays(asWord)
         await refusedFound(seatedCaller, firm.id, says)
         return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as } }, { status: 409 })
       }
@@ -786,19 +787,6 @@ async function recordCompany(
 }
 
 /** A refused add, written to the access log before the refusal is sent. */
-/**
- * A firm already on Etyme that does not work with the caller, said with no
- * id, name or Etyme address of it: findFirm matched what the person typed,
- * and naming the firm back is for the trade-link ask alone (review,
- * 2026-11-13). The page sends the same typed facts to /api/trade-links.
- */
-function foundElsewhere(as: string): string {
-  return (
-    `That company is on Etyme already, so no copy of it was made. Ask them to link, as your ${as}: ` +
-    `they are asked, and nothing is on either list until they say yes.`
-  )
-}
-
 /** A refusal while adding a company, written to the access log before the reply. */
 async function refusedFound(caller: import('@/lib/api-context').CallerContext, otherId: string, says: string): Promise<void> {
   await recordRefusal([{ companyId: otherId }], {
