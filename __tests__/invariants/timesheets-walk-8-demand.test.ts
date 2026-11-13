@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CORVANE_JOBS, CORVANE_JOB_SKILLS } from '@/lib/seed-corvane/plan'
 import { rateCell, valueCell, timesheetCsv, TIMESHEET_CSV_HEADER } from '@/app/dashboard/timesheets/cells'
 import { totalsRowOf, listTotals, approvedValueSays, paidValueSays } from '@/app/dashboard/timesheets/totals'
 import { ACCEPT_FEWER_FIELDS, acceptFewerBody, checkAcceptedHours } from '@/app/api/timesheets/accept-fewer'
@@ -72,10 +73,13 @@ describe('the Timesheets page says every amount in its line’s own money', () =
   })
 })
 
+// A Corvane job, read from the seed (its specialist roles, 2026-11-13).
+const SEED_JOB = CORVANE_JOBS[0]
+
 describe('the list’s export carries every column and the currency', () => {
   const vietnam = {
     person: { name: 'Trần Quang Huy' },
-    sellContract: { clientCompany: { name: 'Corvane Packaging' }, engagement: { title: 'Line operator' } },
+    sellContract: { clientCompany: { name: 'Corvane Packaging' }, engagement: { title: SEED_JOB } },
     periodStart: '2026-11-01T00:00:00.000Z', periodEnd: '2026-11-07T00:00:00.000Z',
     totalHours: 40, status: 'APPROVED',
     rate: { cents: 75_000, currency: 'VND' },
@@ -103,7 +107,7 @@ describe('the list’s export carries every column and the currency', () => {
     const [head, ...rows] = csv.split('\n').map((l) => l.split(',').map((v) => JSON.parse(v)))
     expect(head).toEqual([...TIMESHEET_CSV_HEADER.slice(0, 7), 'Bill rate', ...TIMESHEET_CSV_HEADER.slice(8)])
     expect(head).toEqual(['Consultant', 'Client', 'Engagement', 'Period Start', 'Period End', 'Hours', 'Hours filed', 'Bill rate', 'Value', 'Currency', 'Status'])
-    expect(rows[0]).toEqual(['Trần Quang Huy', 'Corvane Packaging', 'Line operator', '2026-11-01', '2026-11-07', '40.0', '40.0', '75000', '3000000', 'VND', 'Approved'])
+    expect(rows[0]).toEqual(['Trần Quang Huy', 'Corvane Packaging', SEED_JOB, '2026-11-01', '2026-11-07', '40.0', '40.0', '75000', '3000000', 'VND', 'Approved'])
     expect(rows[1]).toEqual(['Elise Claes', 'Corvane Packaging', '', '2026-11-01', '2026-11-07', '40.0', '40.0', '31.00', '1240.00', 'EUR', 'Approved'])
     expect(rows[2]).toEqual(['Helena Marsh', 'Northbend Athletic', '', '2026-11-01', '2026-11-07', '38.0', '40.0', '118.00', '4484.00', 'USD', 'Approved'])
   })
@@ -262,15 +266,15 @@ describe('a week is valued on what its payer accepted, by money’s one rule', (
 
 describe('the job request’s Edit form and page', () => {
   const opened: EditTyped = {
-    title: 'Line operator', skills: 'Forklift, Lean', location: 'Dayton', headcount: '2',
+    title: SEED_JOB, skills: CORVANE_JOB_SKILLS[SEED_JOB].join(', '), location: 'Dayton', headcount: '2',
     billMin: '30', billMax: '40', months: '6', hoursPerWeek: '40', neededBy: '2026-12-01',
     description: 'Second shift.', justification: 'Holiday volume.', panel: ['Marcus Hollins'],
-    workMode: 'HYBRID', sponsorship: 'YES', sponsorshipPolicy: '', requiredQualification: 'Forklift license',
+    workMode: 'HYBRID', sponsorship: 'YES', sponsorshipPolicy: '', requiredQualification: 'PLC certification',
   }
 
   it('saving the job’s Edit form writes only the fields changed', () => {
-    expect(editBody(opened, { ...opened, title: 'Line operator, second shift' }, { otherBasis: null }))
-      .toEqual({ action: 'edit', title: 'Line operator, second shift' })
+    expect(editBody(opened, { ...opened, title: `${SEED_JOB}, second shift` }, { otherBasis: null }))
+      .toEqual({ action: 'edit', title: `${SEED_JOB}, second shift` })
   })
 
   it('a place and a way of working nobody touched are never sent, so a site’s name is not written over the job’s own words', () => {
@@ -291,10 +295,10 @@ describe('the job request’s Edit form and page', () => {
   })
 
   it('the route writes only the fields that changed, and the work columns only where the way of working changed', () => {
-    const after = { title: 'Line operator', location: 'Dayton', workMode: 'ONSITE', sponsorship: 'YES' }
+    const after = { title: SEED_JOB, location: 'Dayton', workMode: 'ONSITE', sponsorship: 'YES' }
     const columns = { workMode: 'ONSITE' as const }
     expect(writtenOn(after, [], columns)).toEqual({})
-    expect(writtenOn(after, [{ field: 'title', from: 'Old', to: 'Line operator' }], columns)).toEqual({ title: 'Line operator' })
+    expect(writtenOn(after, [{ field: 'title', from: 'Old', to: SEED_JOB }], columns)).toEqual({ title: SEED_JOB })
     expect(writtenOn(after, [{ field: 'workMode', from: 'HYBRID', to: 'ONSITE' }], columns)).toEqual({ workMode: 'ONSITE' })
   })
 

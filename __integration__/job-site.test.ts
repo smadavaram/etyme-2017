@@ -7,7 +7,7 @@ import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route
 import { POST as approve } from '@/app/api/requisitions/[id]/approve/route'
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
 import { UNDER_WAY } from './hire-terms-walk'
-import { corvaneSeatEmail } from '@/lib/seed-corvane'
+import { corvaneSeatEmail, CORVANE_JOBS, CORVANE_JOB_SKILLS } from '@/lib/seed-corvane'
 
 /**
  * What the site changes when Marcus Hollins posts a job (founder,
@@ -133,7 +133,7 @@ describe('who a job at a site goes to', () => {
     const marcus = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARCUS } })
     const older = await prisma.requirement.create({
       data: {
-        companyId: corvaneId, title: 'Maintenance technician', skills: ['Maintenance'], location: 'Dayton plant',
+        companyId: corvaneId, title: CORVANE_JOBS[1], skills: [...CORVANE_JOB_SKILLS[CORVANE_JOBS[1]]], location: 'Dayton plant',
         status: 'OPEN', approvalState: 'APPROVED', headcount: 1, raisedById: marcus.id, ownerId: marcus.id,
       },
     })

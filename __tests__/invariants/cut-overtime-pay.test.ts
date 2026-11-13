@@ -194,7 +194,7 @@ describe('one rule, read once, for every reader of pay', () => {
       weeks: [{ weekOf: '2026-07-05', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
       submittedHours: 45, acceptedHours: 41, employerAcceptedAt: new Date('2026-07-11T00:00:00Z'),
       payRateCents: 6_600, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false, rule: 'US_FLSA',
-      assertion: lineOf(untouched).assertion, currency: 'USD', costCode: null, orderNumber: null, employerName: 'Brightmoor',
+      assertion: lineOf(untouched).assertion, currency: 'USD', orderNumber: null, employerName: 'Brightmoor',
       cutOvertime,
     })
     const byDefault = buildExport('ADP', [row('ABOVE_THE_LINE')]).lines[0]

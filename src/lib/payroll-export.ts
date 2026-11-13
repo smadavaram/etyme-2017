@@ -110,8 +110,9 @@ export interface Line {
    */
   uncoveredPremiumCents: number
   currency: string
-  /** Where the cost lands in the client's books. */
-  costCode: string | null
+  // No cost code. The client's cost centers and internal orders are
+  // the client's; this run is the employer's, and its file goes to the
+  // employer's payroll provider. A supplier never reads a client's codes.
   /** The order this bills under, for reconciliation. */
   orderNumber: string | null
   /** Things true of these figures that the figures cannot say themselves. */
@@ -248,7 +249,6 @@ export interface SheetToPay {
   /** What the employer asserted about exemption. Null means nobody has said. */
   assertion: ExemptAssertion | null
   currency: string
-  costCode: string | null
   orderNumber: string | null
   employerName?: string | null
   clientName?: string | null
@@ -503,7 +503,6 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
         totalCents: b.regularCents + overtimeCents,
         uncoveredPremiumCents: b.uncovered,
         currency: s.currency,
-        costCode: s.costCode,
         orderNumber: s.orderNumber,
         notes,
       })
@@ -658,13 +657,19 @@ export function toCsv(e: Export): string {
   // because that is how both providers price them. A file that put
   // forty-five hours in "Reg Hours" paid the premium to nobody and left
   // the employer owing it.
+  //
+  // ADP's Dept and Paychex's Cost Center stay in the header, empty: they
+  // are the provider's own template and hold the employer's own
+  // department, which Etyme does not keep. They never carry the client's
+  // cost center or internal order. Those are the client's, and this file
+  // is the employer's. The generic file has no cost column at all.
   const rows: string[][] =
     e.provider === 'ADP'
       ? [
           ['Co Code', 'File #', 'Name', 'Reg Hours', 'O/T Hours', 'Rate', 'Period Start', 'Period End', 'Dept'],
           ...e.lines.map((l) => [
             '', l.payrollId ?? '', l.personName, String(l.hours), String(l.overtimeHours),
-            fileAmount(l.rateCents, l.currency), iso(l.periodStart), iso(l.periodEnd), l.costCode ?? '',
+            fileAmount(l.rateCents, l.currency), iso(l.periodStart), iso(l.periodEnd), '',
           ]),
         ]
       : e.provider === 'PAYCHEX'
@@ -673,23 +678,23 @@ export function toCsv(e: Export): string {
             ...e.lines.flatMap((l) => [
               [
                 l.payrollId ?? '', l.personName, 'REG', String(l.hours),
-                fileAmount(l.rateCents, l.currency), fileAmount(l.regularCents, l.currency), iso(l.periodEnd), l.costCode ?? '',
+                fileAmount(l.rateCents, l.currency), fileAmount(l.regularCents, l.currency), iso(l.periodEnd), '',
               ],
               ...(l.overtimeHours > 0
                 ? [[
                     l.payrollId ?? '', l.personName, 'OT', String(l.overtimeHours),
-                    fileAmount(l.rateCents, l.currency), fileAmount(l.overtimeCents, l.currency), iso(l.periodEnd), l.costCode ?? '',
+                    fileAmount(l.rateCents, l.currency), fileAmount(l.overtimeCents, l.currency), iso(l.periodEnd), '',
                   ]]
                 : []),
             ]),
           ]
         : [
-            ['payroll_id', 'name', 'contract_type', 'period_start', 'period_end', 'hours', 'overtime_hours', 'rate', 'regular_amount', 'overtime_amount', 'currency', 'cost_code', 'order'],
+            ['payroll_id', 'name', 'contract_type', 'period_start', 'period_end', 'hours', 'overtime_hours', 'rate', 'regular_amount', 'overtime_amount', 'currency', 'order'],
             ...e.lines.map((l) => [
               l.payrollId ?? '', l.personName, l.contractType, iso(l.periodStart), iso(l.periodEnd),
               String(l.hours), String(l.overtimeHours), fileAmount(l.rateCents, l.currency),
               fileAmount(l.regularCents, l.currency), fileAmount(l.overtimeCents, l.currency),
-              l.currency, l.costCode ?? '', l.orderNumber ?? '',
+              l.currency, l.orderNumber ?? '',
             ]),
           ]
 

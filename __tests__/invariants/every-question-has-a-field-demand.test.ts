@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CORVANE_JOBS, CORVANE_JOB_SKILLS, jobBand } from '@/lib/seed-corvane/plan'
 import { awardBody, AWARD_FIELDS_NOT_SENT } from '@/app/dashboard/submissions/award-body'
 import { reasonAsked, unanswered, ANSWERED_IN } from '@/lib/award/reason-asked'
 import { startOf } from '@/lib/award/hire-terms'
@@ -91,10 +92,17 @@ const raiseReads = (() => {
   return new Set(block.split('\n').map((l) => l.replace(/\/\/.*$/, '')).join(' ').split(',')
     .map((x) => x.trim().split(':')[0].trim()).filter((x) => /^[a-zA-Z]+$/.test(x)))
 })()
+// The job is the seed's own: a Corvane specialist role at Dayton, its
+// skills and its band in dollars (2026-11-13), never typed in here.
+const SEED_JOB = CORVANE_JOBS.find((j) => j === 'Automation technician') ?? CORVANE_JOBS[0]
+const SEED_BAND = jobBand('US')!
+const dollars = (minor: number) => String(minor / 100)
+/** Two people for six months at the top of the band, 160 hours a month, in whole dollars. */
+const SEED_BUDGET_MINOR = 2 * 6 * 160 * SEED_BAND.billMax
 const JOB: JobTyped = {
-  title: 'Line operator', skills: 'Forklift, Packaging', siteId: 'site_dayton', location: '',
-  sendTo: ['brightmoor', 'veritan'], headcount: '2', budget: '48000', hoursPerWeek: '40',
-  billMin: '28', billMax: '34', months: '6', neededBy: '2026-11-16', description: 'Second shift.',
+  title: SEED_JOB, skills: CORVANE_JOB_SKILLS[SEED_JOB].join(', '), siteId: 'site_dayton', location: '',
+  sendTo: ['brightmoor', 'veritan'], headcount: '2', budget: dollars(SEED_BUDGET_MINOR), hoursPerWeek: '40',
+  billMin: dollars(SEED_BAND.billMin), billMax: dollars(SEED_BAND.billMax), months: '6', neededBy: '2026-11-16', description: 'Second shift.',
   justification: 'Backfill for the Q4 line.', costCenterId: 'cc_ops', ownerId: 'p_marcus', panel: ['Marcus Hollins', ' Dana Whitfield ', 'Marcus Hollins'],
   workMode: 'HYBRID', sponsorship: 'NO', sponsorshipPolicy: ' We do not sponsor work visas for this role ',
   requiredQualification: ' Bachelor’s in mechanical engineering ',
@@ -185,7 +193,7 @@ describe('every question the raise asks, the job request form has a field for, a
   })
 
   it('every rate typed in dollars on the job form reaches the raise in cents through the one reader', () => {
-    expect(jobBody(JOB)).toMatchObject({ budget: 4_800_000, billMin: 2_800, billMax: 3_400, headcount: 2, hoursPerWeek: 40, months: 6 })
+    expect(jobBody(JOB)).toMatchObject({ budget: SEED_BUDGET_MINOR, billMin: SEED_BAND.billMin, billMax: SEED_BAND.billMax, headcount: 2, hoursPerWeek: 40, months: 6 })
   })
 })
 

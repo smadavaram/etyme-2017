@@ -486,7 +486,33 @@ function andList(xs: readonly string[]): string {
   return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 }
 
-/** Held over the hours, in each currency's own money: "$42". */
+/**
+ * What a held receipt bills past its signed hours, from its matched
+ * lines: every line with signed hours is counted in the hours the sentence
+ * says, and every line billing past them adds its hours over at its own
+ * rate. Not only the first line: one supplier's weekly invoice carries
+ * several contractors' weeks, and the money held is all of them. Null
+ * where no line bills past its signed hours. Pure.
+ */
+export function heldOverOf(
+  lines: readonly { hoursBilled: number; hoursSigned: number | null; rateCents: number }[],
+): { hoursBilled: number; hoursSigned: number; minor: number } | null {
+  const signed = lines.filter((l): l is typeof l & { hoursSigned: number } => l.hoursSigned !== null)
+  const overs = signed.filter((l) => l.hoursBilled > l.hoursSigned)
+  if (overs.length === 0) return null
+  return {
+    hoursBilled: signed.reduce((n, l) => n + l.hoursBilled, 0),
+    hoursSigned: signed.reduce((n, l) => n + l.hoursSigned, 0),
+    minor: overs.reduce((n, l) => n + Math.round((l.hoursBilled - l.hoursSigned) * l.rateCents), 0),
+  }
+}
+
+/**
+ * Held over the hours, in each currency's own money: the receipt's hours
+ * past the signed hours at the line's rate ("$180" for one held receipt
+ * at Dayton on the seed as it stood on 2026-11-13; the tests read the
+ * figure from the seed, never from here).
+ */
 export function heldOverSays(over: readonly SpendLine[] = []): string {
   return over.map((s) => compact(s.minor, s.currency)).join(' · ')
 }
@@ -509,7 +535,7 @@ export interface CardWords { value: string; sub: string; attention: boolean }
 
 /**
  * The invoice receipts card. Where one is held, the headline is what is
- * held and by how much ("1 held · $42"), with how many clear the check
+ * held and by how much ("1 held · $180", as `heldOverSays` writes it), with how many clear the check
  * under it; otherwise how many clear it. Never a zero in the attention
  * color.
  */

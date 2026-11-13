@@ -7,7 +7,7 @@ import { GET as decisions } from '@/app/api/decisions/route'
 import { regionsView } from '@/app/api/program/regions/read'
 import { getCallerContext } from '@/lib/api-context'
 import { corvaneMap } from '@/lib/public-site/corvane-map'
-import { receiptsCell, receiptsCard, papersCard, spendCell } from '@/app/api/program/regions/rollup'
+import { receiptsCell, receiptsCard, papersCard, spendCell, heldOverSays } from '@/app/api/program/regions/rollup'
 import { corvaneSeatEmail, corvaneContractors, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_COUNTRIES, CORVANE_RECEIPTS, billRateMinor } from '@/lib/seed-corvane'
 
 /**
@@ -33,6 +33,30 @@ async function read(who: string, query = '') {
 const plantsIn = (key: string) => CORVANE_PLANTS.filter((p) => p.region === key)
 const sum = (ps: readonly { [k: string]: any }[], k: string) => ps.reduce((n, p) => n + p[k], 0)
 const { onSite } = corvaneContractors()
+
+// The invoice receipts, read off the seed's own plan and never typed in:
+// the held ones, the clean ones, each region's count, and what the held
+// ones bill past the signed hours in each currency, at the plant's rate.
+const plantOf = (key: string) => CORVANE_PLANTS.find((p) => p.key === key)!
+const regionOf = (plantKey: string) => CORVANE_REGIONS.find((r) => r.key === plantOf(plantKey).region)!.label
+const heldReceipts = CORVANE_RECEIPTS.filter((r) => r.held)
+const cleanReceipts = CORVANE_RECEIPTS.filter((r) => !r.held)
+const receiptsIn = (label: string) => ({
+  paid: 0,
+  ready: cleanReceipts.filter((r) => regionOf(r.plant) === label).length,
+  held: heldReceipts.filter((r) => regionOf(r.plant) === label).length,
+})
+const heldOverOnSeed = () => {
+  const by = new Map<string, number>()
+  for (const r of heldReceipts) {
+    const p = plantOf(r.plant)
+    const currency = CORVANE_COUNTRIES[p.cc].currency
+    by.set(currency, (by.get(currency) ?? 0) + Math.round((r.billed - r.accepted) * billRateMinor(p.cc)))
+  }
+  return [...by].map(([currency, minor]) => ({ currency, minor })).sort((a, b) => a.currency.localeCompare(b.currency))
+}
+const hoursSaid = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace(/0$/, '')} hours`
+const heldCities = [...new Set(heldReceipts.map((r) => plantOf(r.plant).city))].sort()
 
 beforeAll(async () => {
   await freshWorld()
@@ -81,24 +105,24 @@ describe('the head of operations and the CFO read one row per region', () => {
     expect(total.openJobs).toBe(sum(CORVANE_PLANTS, 'openJobs'))
   })
 
-  it('the first line names the held receipt at Dayton, the start on hold at Dayton and the weeks waiting', async () => {
+  it('the first line names the receipts the seed holds, the start on hold at Dayton and the weeks waiting', async () => {
     const { body } = await read(cfo)
     const says: string = body.data.greeting.says
     expect(says.startsWith('Three things need you: ')).toBe(true)
-    expect(says).toMatch(/invoice receipt for .+ at Dayton is held, 41\.5 hours billed, 40 hours signed/)
+    if (heldReceipts.length === 1) {
+      const r = heldReceipts[0]
+      expect(says).toContain(`at ${plantOf(r.plant).city} is held, ${hoursSaid(r.billed)} billed, ${hoursSaid(r.accepted)} signed`)
+    } else {
+      expect(says).toMatch(new RegExp(`invoice receipts are held, at `))
+    }
     expect(says).toMatch(/start at Dayton waits on an I-9/)
     expect(says).toContain(`${sum(CORVANE_PLANTS, 'weeksToSign')} weeks wait to be signed at ${CORVANE_PLANTS.filter((p) => p.weeksToSign > 0).length} sites`)
   })
 
-  it('the Dayton receipt is held, every other seeded receipt is ready to pay, and none is paid yet', async () => {
+  it('the receipts the seed holds are held, every other seeded receipt is ready to pay, each region counts its own, and none is paid yet', async () => {
     const { body } = await read(cfo)
-    const clean = CORVANE_RECEIPTS.filter((r) => !r.held).length
-    expect(body.data.total.receipts).toEqual({ paid: 0, ready: clean, held: 1 })
-    const us = body.data.regions.find((r: any) => r.label === 'United States')
-    expect(us.receipts).toEqual({ paid: 0, ready: 1, held: 1 })
-    for (const r of body.data.regions.filter((x: any) => x.label !== 'United States')) {
-      expect(r.receipts, r.label).toEqual({ paid: 0, ready: 1, held: 0 })
-    }
+    expect(body.data.total.receipts).toEqual({ paid: 0, ready: cleanReceipts.length, held: heldReceipts.length })
+    for (const r of body.data.regions) expect(r.receipts, r.label).toEqual(receiptsIn(r.label))
   })
 
   it('the Dayton start is on hold for papers, and no other region has a start on hold', async () => {
@@ -189,7 +213,7 @@ describe('a regional manager reads one region', () => {
       expect(said, p.manager).not.toContain(p.manager)
     }
     for (const c of onSite.filter((c) => c.plant.region === 'us')) expect(said, c.name).not.toContain(c.name)
-    expect(body.data.total.receipts).toEqual({ paid: 0, ready: 1, held: 0 })
+    expect(body.data.total.receipts).toEqual(receiptsIn('Latin America'))
   })
 
   it('Valeria Montes is refused the United States in a sentence, and Marcus Hollins’ list', async () => {
@@ -289,12 +313,13 @@ describe('the owed mark asks for the count alone', () => {
     expect(await prisma.accessLog.count({ where: { actorPersonId: caller!.person.id } })).toBe(before)
   })
 
-  it('the first line’s things come as data: the held Dayton receipt with its supplier, the Dayton start with its person', async () => {
+  it('the first line’s things come as data: the held receipts with the sites the seed holds them at, the Dayton start with its person', async () => {
     const { body } = await read(cfo)
     const held = body.data.greeting.held
     expect(held.map((i: any) => i.kind)).toEqual(['receipt', 'start', 'weeks'])
-    expect(held[0]).toMatchObject({ kind: 'receipt', count: 1, plant: 'Dayton' })
-    expect(held[0].supplier).toBeTruthy()
+    expect(held[0]).toMatchObject({ kind: 'receipt', count: heldReceipts.length })
+    expect([...held[0].plants].sort()).toEqual(heldCities)
+    if (heldReceipts.length === 1) expect(held[0].supplier).toBeTruthy()
     expect(held[1]).toMatchObject({ kind: 'start', count: 1, plant: 'Dayton' })
     expect(held[1].person).toBeTruthy()
     expect(held[2]).toMatchObject({ kind: 'weeks', count: sum(CORVANE_PLANTS, 'weeksToSign') })
@@ -305,18 +330,24 @@ describe('By region reads the way the home page’s map reads (the release walk,
   const map = corvaneMap()
   const cfoMap = map.views.find((v) => v.key === 'cfo')!
 
-  it('the United States row reads “1 held · 1 to pay”, every other region “1 to pay”, and no row says “paid”', async () => {
+  it('each region’s row reads the receipts the seed holds there and the ones to pay, and no row says “paid”', async () => {
     const { body } = await read(cfo)
     for (const r of body.data.regions) {
-      expect(receiptsCell(r.receipts), r.label).toBe(r.label === 'United States' ? '1 held · 1 to pay' : '1 to pay')
+      const { held, ready } = receiptsIn(r.label)
+      expect(receiptsCell(r.receipts), r.label).toBe([held ? `${held} held` : null, ready ? `${ready} to pay` : null].filter(Boolean).join(' · ') || 'none')
     }
   })
 
-  it('the CFO’s invoice receipts card reads “1 held · $42” over “6 of 7 clear the check”, the dollars over from the receipt’s hours at the line’s rate', async () => {
+  it('the CFO’s invoice receipts card reads how many the seed holds and the money they bill past the signed hours at each plant’s rate, over how many clear the check', async () => {
     const { body } = await read(cfo)
-    expect(receiptsCard(body.data.total)).toEqual({ value: '1 held · $42', sub: '6 of 7 clear the check', attention: true })
+    const all = CORVANE_RECEIPTS.length
+    expect(receiptsCard(body.data.total)).toEqual({
+      value: `${heldReceipts.length} held · ${heldOverSays(heldOverOnSeed())}`,
+      sub: `${cleanReceipts.length} of ${all} clear the check`,
+      attention: true,
+    })
     const held = body.data.greeting.held.find((i: any) => i.kind === 'receipt')
-    expect(held.says).toMatch(/41\.5 hours billed, 40 hours signed$/)
+    if (heldReceipts.length === 1) expect(held.says).toMatch(new RegExp(`${hoursSaid(heldReceipts[0].billed)} billed, ${hoursSaid(heldReceipts[0].accepted)} signed$`))
   })
 
   it('the CFO’s starts card reads “1 start waiting on an I-9”', async () => {
@@ -386,7 +417,7 @@ describe('one count: By region’s first line, the owed mark and the greeting', 
     }
   })
 
-  it('opening Latin America does not change what the CFO’s first line names: the Dayton receipt, the Dayton start and the weeks', async () => {
+  it('opening Latin America does not change what the CFO’s first line names: the held receipts, the Dayton start and the weeks', async () => {
     const all = await read(cfo)
     const latam = await read(cfo, '?region=Latin%20America')
     expect(latam.body.data.greeting.says).toBe(all.body.data.greeting.says)

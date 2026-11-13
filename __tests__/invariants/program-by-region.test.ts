@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   cells, regionRows, managerRows, contractorRows, greeting, greetingTotal, sumFigures, spendOf, countryCodeFor, waitingOn,
   receiptsCell, receiptsCard, papersCell, papersCard, spendCell, spendNote, shortPaper,
-  NO_REGION, NO_MANAGER, type Facts, type Site, type OnSite,
+  heldOverSays, heldOverOf, NO_REGION, NO_MANAGER, type Facts, type Site, type OnSite,
 } from '@/app/api/program/regions/rollup'
+import { billRateMinor, CORVANE_JOBS } from '@/lib/seed-corvane/plan'
 
 /**
  * The program by region, as arithmetic (founder, 2026-10-27, the region
@@ -14,12 +15,20 @@ import {
 const site = (id: string, name: string, region: string | null, country = 'US', state: string | null = null): Site =>
   ({ id, name, city: name.split(',')[0], state, country, region })
 
+// The rates and jobs are the seed's own (Corvane's specialist rates,
+// 2026-11-13), so the fixture reads like the sample company it stands for.
+const US_RATE = billRateMinor('US')
+const MX_RATE = billRateMinor('MX')
+const [JOB_US, JOB_MX, JOB_NONE] = CORVANE_JOBS
+/** Dayton's held receipt: 41.5 hours billed against 40 signed, at the US rate. */
+const OVER_MINOR = Math.round(1.5 * US_RATE)
+
 const marcus = { id: 'p-marcus', name: 'Marcus Hollins' }
 const ana = { id: 'p-ana', name: 'Ana Lucía Garza' }
 
 const person = (n: number, over: Partial<OnSite> = {}): OnSite => ({
   contractId: `c${n}`, personId: `w${n}`, personName: `Worker ${n}`, manager: marcus, siteId: 'dayton',
-  rateMinor: 2800, currency: 'USD', supplier: 'Ridgeline Staffing', job: 'Line operator', monthsHere: 3, daysLeft: 200,
+  rateMinor: US_RATE, currency: 'USD', supplier: 'Ridgeline Staffing', job: JOB_US, monthsHere: 3, daysLeft: 200,
   ...over,
 })
 
@@ -34,15 +43,15 @@ function world(): Facts {
     leads: new Map([['Latin America', ['Valeria Montes']]]),
     onSite: [
       person(1), person(2, { daysLeft: 41 }),
-      person(3, { siteId: 'monterrey', manager: ana, currency: 'MXN', rateMinor: 9500, daysLeft: 52 }),
-      person(4, { siteId: 'monterrey', manager: ana, currency: 'MXN', rateMinor: 9500 }),
+      person(3, { siteId: 'monterrey', manager: ana, currency: 'MXN', rateMinor: MX_RATE, daysLeft: 52 }),
+      person(4, { siteId: 'monterrey', manager: ana, currency: 'MXN', rateMinor: MX_RATE }),
       person(5, { siteId: 'monterrey', manager: ana, currency: 'MXN', rateMinor: null }),
     ],
     held: [{ contractId: 'c9', personId: 'w9', personName: 'Tanya Ruiz', manager: marcus, siteId: 'dayton', waitingOn: 'an I-9 (proof of right to work)' }],
     open: [
-      { id: 'j1', title: 'Line operator', manager: marcus, siteId: 'dayton', region: 'United States' },
-      { id: 'j2', title: 'Packing lead', manager: ana, siteId: 'monterrey', region: 'Latin America' },
-      { id: 'j3', title: 'Forklift driver', manager: { id: null, name: '' }, siteId: null, region: null },
+      { id: 'j1', title: JOB_US, manager: marcus, siteId: 'dayton', region: 'United States' },
+      { id: 'j2', title: JOB_MX, manager: ana, siteId: 'monterrey', region: 'Latin America' },
+      { id: 'j3', title: JOB_NONE, manager: { id: null, name: '' }, siteId: null, region: null },
     ],
     weeks: [
       { id: 't1', personId: 'w1', personName: 'Worker 1', manager: marcus, siteId: 'dayton' },
@@ -51,7 +60,7 @@ function world(): Facts {
     ],
     asked: [{ personId: 'w3', manager: ana, siteId: 'monterrey' }],
     receipts: [
-      { id: 'i1', number: 'RS-1', supplier: 'Ridgeline Staffing', personName: 'Worker 1', manager: marcus, siteId: 'dayton', state: 'HELD', heldSays: '41.5 hours billed, 40 hours signed', overMinor: 4200, currency: 'USD' },
+      { id: 'i1', number: 'RS-1', supplier: 'Ridgeline Staffing', personName: 'Worker 1', manager: marcus, siteId: 'dayton', state: 'HELD', heldSays: '41.5 hours billed, 40 hours signed', overMinor: OVER_MINOR, currency: 'USD' },
       { id: 'i2', number: 'RS-2', supplier: 'Ridgeline Staffing', personName: 'Worker 2', manager: marcus, siteId: 'dayton', state: 'READY', heldSays: null },
       { id: 'i3', number: 'GT-1', supplier: 'Grupo Talenta Norte', personName: 'Worker 3', manager: ana, siteId: 'monterrey', state: 'PAID', heldSays: null },
     ],
@@ -112,8 +121,8 @@ describe('spend is never added across currencies', () => {
   it('a month is kept per currency, in each currency’s own minor units', () => {
     const total = sumFigures(regionRows(world()), true)
     expect(total.spend).toEqual([
-      { currency: 'MXN', minor: 9500 * 160 * 2 },
-      { currency: 'USD', minor: 2800 * 160 * 2 },
+      { currency: 'MXN', minor: MX_RATE * 160 * 2 },
+      { currency: 'USD', minor: US_RATE * 160 * 2 },
     ])
     expect(total.spendOneCurrency).toBeNull()
   })
@@ -241,7 +250,21 @@ describe('By region reads the way the home page’s map reads', () => {
 
   it('the invoice receipts card leads on what is held and by how much, with how many clear the check under it', () => {
     const total = sumFigures(regionRows(noPaid()), true)
-    expect(receiptsCard(total)).toEqual({ value: '1 held · $42', sub: '2 of 3 clear the check', attention: true })
+    expect(receiptsCard(total)).toEqual({
+      value: `1 held · ${heldOverSays([{ currency: 'USD', minor: OVER_MINOR }])}`, sub: '2 of 3 clear the check', attention: true,
+    })
+  })
+
+  it('a held receipt carrying several contractors’ weeks is held for every line billing past its signed hours, each at its own rate, not only the first', () => {
+    const over = heldOverOf([
+      { hoursBilled: 52, hoursSigned: 40, rateCents: US_RATE },
+      { hoursBilled: 50.5, hoursSigned: 40, rateCents: US_RATE },
+      { hoursBilled: 40, hoursSigned: 40, rateCents: US_RATE },
+      { hoursBilled: 8, hoursSigned: null, rateCents: US_RATE },
+    ])
+    expect(over).toEqual({ hoursBilled: 142.5, hoursSigned: 120, minor: Math.round(22.5 * US_RATE) })
+    expect(heldOverOf([{ hoursBilled: 40, hoursSigned: 40, rateCents: US_RATE }])).toBeNull()
+    expect(heldOverOf([])).toBeNull()
   })
 
   it('with nothing held the card says how many clear the check, and is not in the attention color', () => {

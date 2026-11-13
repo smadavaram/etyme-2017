@@ -23,7 +23,7 @@ import {
   countryCodeFor, waitingOn, regionOfSite, currenciesSays, greetingTotal, spendNote,
   NO_REGION,
   type Facts, type Manager, type OnSite, type Site, type Receipt, type Figures, type RegionRow,
-  type ManagerRow, type ContractorRow, type Greeting,
+  type ManagerRow, type ContractorRow, type Greeting, heldOverOf,
 } from './rollup'
 
 /**
@@ -498,9 +498,11 @@ async function readFacts(
       const line = r.invoiceLines.find((l) => l.sellContract?.clientCompanyId === client.id) ?? r.invoiceLines[0]
       const match = matches.get(r.id) ?? null
       const gate = r.status === 'PAID' ? null : payGate({ number: r.number, status: r.status }, match)
-      const over = match?.lines.find((l) => l.hoursSigned !== null && l.hoursBilled > l.hoursSigned)
-      // What the hours past the signed ones bill, at the line's own rate.
-      const overMinor = gate && !gate.ok && over ? Math.round((over.hoursBilled - over.hoursSigned!) * over.rateCents) : null
+      // Every line that bills past its signed hours, not only the first
+      // (`heldOverOf`): one supplier's weekly invoice carries several
+      // contractors' weeks.
+      const over = gate && !gate.ok ? heldOverOf(match?.lines ?? []) : null
+      const overMinor = over ? over.minor : null
       if (line?.personId) receiptPeople.push(line.personId)
       return {
         id: r.id, number: r.number,
@@ -509,7 +511,7 @@ async function readFacts(
         ...(line?.personId ? placed(line.personId, line.sellContract?.workLocationId ?? null) : { siteId: null, manager: managerOf(null) }),
         state: r.status === 'PAID' ? 'PAID' : gate?.ok ? 'READY' : 'HELD',
         heldSays: gate && !gate.ok
-          ? over ? `${hours(over.hoursBilled)} billed, ${hours(over.hoursSigned!)} signed` : null
+          ? over ? `${hours(over.hoursBilled)} billed, ${hours(over.hoursSigned)} signed` : null
           : null,
         overMinor, currency: r.currency,
       }

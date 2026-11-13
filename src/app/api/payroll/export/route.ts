@@ -106,8 +106,11 @@ export async function GET(request: NextRequest) {
           workLocation: { select: { country: true } },
           company: { select: { name: true } },
           clientCompany: { select: { name: true } },
-          costCenter: { select: { code: true } },
-          internalOrder: { select: { code: true } },
+          // No cost center and no internal order. Those codes are the
+          // client's own, and this file goes to the employer's payroll
+          // provider: the employer is a supplier or a firm between, and
+          // a client's codes are never handed to either (CLAUDE.md,
+          // "Money"; the schema's note above InternalOrder).
           workOrder: { select: { number: true } },
           // ── What we actually pay, and who we pay it to ────────────
           //
@@ -394,10 +397,6 @@ export async function GET(request: NextRequest) {
       rule: (row?.wageRule as WageRuleName) ?? 'US_FLSA',
       assertion,
       currency: buy?.payCurrency ?? s.sellContract.billCurrency,
-      // Either cost object. A project pot and a standing department are
-      // both real and the client's ledger cares which.
-      costCode:
-        s.sellContract.internalOrder?.code ?? s.sellContract.costCenter?.code ?? null,
       orderNumber: s.sellContract.workOrder?.number ?? null,
       employerName: s.sellContract.company?.name ?? null,
       clientName: s.sellContract.clientCompany?.name ?? null,
