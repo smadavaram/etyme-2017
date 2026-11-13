@@ -21,6 +21,7 @@ import {
   rolesFor, packFor, countryFromDomain, primaryLocationName, payRhythmForPack, type CompanyKind,
 } from '@/lib/company-defaults'
 import { holidaysFor } from '@/lib/holidays'
+import { mayClaimRecorded } from '@/lib/counterparty'
 import { isPlatformDomain, isConsumerDomain, domainOfEmail } from '@/lib/company-domains'
 import { defaultPostureFor } from '@/lib/walls'
 import { writeFromRules } from '@/lib/site-voice'
@@ -563,10 +564,16 @@ export async function claimOrJoin(token: string, seat: SignedInSeat, db: PrismaC
       // Which world the record is in, read so the fold never crosses it. A
       // selection, spelled through READ so no line here reads as a sandbox
       // flag set on a company (sandbox-expiry.test.ts holds that).
-      company: { select: { id: true, name: true, claimedAt: true, isDemo: READ } },
+      company: { select: { id: true, name: true, kind: true, claimedAt: true, isDemo: READ } },
     },
   })
   if (!invite || invite.state === 'REVOKED' || invite.company.claimedAt) return { kind: 'CLAIM' }
+
+  // A record nobody has said the kind of is never folded into a firm and
+  // never claimed (2026-11-13): the claim route refuses it first, and any
+  // other caller is refused here in the same sentence.
+  const classified = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
+  if (!classified.ok) return { kind: 'REFUSED', says: classified.says }
 
   // The sign-in policy (founder, 2026-11-11): a claim link is a door like
   // any other, and a directory-only company's address, or a directory-only
@@ -732,7 +739,9 @@ export async function workTogether(aId: string, bId: string, db: Db = prisma): P
 async function honorNamedClientsAt(companyId: string, name: string, db: Db): Promise<number> {
   const wanted = name.trim()
   if (!wanted) return 0
-  if ((await db.company.count({ where: { name: { equals: wanted, mode: 'insensitive' } } })) !== 1) return 0
+  // A firm's record nobody has classified yet is not a company on Etyme,
+  // so it never makes two of one name (the rule honorNamedClients keeps).
+  if ((await db.company.count({ where: { name: { equals: wanted, mode: 'insensitive' }, kind: { not: 'UNCLASSIFIED' } } })) !== 1) return 0
   const named = await db.doNotSubmit.findMany({
     where: { companyId: null, companyName: { equals: wanted, mode: 'insensitive' } },
     select: { id: true, personId: true },

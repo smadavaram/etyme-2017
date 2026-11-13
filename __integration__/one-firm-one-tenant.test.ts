@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { createCompany, findFirm, claimOrJoin } from '@/lib/company-create'
+import { signUpClaim } from '@/lib/password-door'
 
 import { POST as addCompany, GET as listCompanies } from '@/app/api/companies/route'
 import { GET as linkAsks, POST as askToLink } from '@/app/api/trade-links/route'
@@ -156,6 +157,50 @@ describe('one firm, one tenant', () => {
     expect(await prisma.company.findUnique({ where: { id: shellId } })).not.toBeNull()
     expect(await prisma.masterAgreement.count({ where: { vendorId: shellId } })).toBe(1)
     expect((await prisma.supplierInvite.findUniqueOrThrow({ where: { token } })).state).toBe('PENDING')
+  })
+
+  it('a claim link to a company nobody has said the kind of is never folded into a firm, and says to ask the firm that sent it', async () => {
+    const { shellId, token } = await approvalShell('world-teleworld', 'unsorted@quarrybrook.example')
+    await prisma.company.update({ where: { id: shellId }, data: { kind: 'UNCLASSIFIED' } })
+
+    const r = await claimOrJoin(token, { personId: who.quarryOwner, email: QUARRY_OWNER })
+    expect(r.kind).toBe('REFUSED')
+    if (r.kind === 'REFUSED') expect(r.says).toContain('Nobody has said what kind of company Quarrybrook Staffing is yet')
+    expect(await prisma.company.findUnique({ where: { id: shellId } })).not.toBeNull()
+    expect((await prisma.supplierInvite.findUniqueOrThrow({ where: { token } })).state).toBe('PENDING')
+    // Off Teleworld's list again, so the later sentences read its list as before.
+    await prisma.counterparty.deleteMany({ where: { otherCompanyId: shellId } })
+    await prisma.companyContact.deleteMany({ where: { atCompanyId: shellId } })
+    await prisma.company.update({ where: { id: shellId }, data: { listedById: null } })
+  })
+
+  it('nobody is asked to set a password for a claim link to a company nobody has said the kind of', async () => {
+    // A .test address: the password door turns every demo address away first.
+    const email = 'first.hire@quarrybrook.test'
+    const { shellId, token } = await approvalShell('world-corning', email)
+    await prisma.company.update({ where: { id: shellId }, data: { kind: 'UNCLASSIFIED' } })
+
+    const r = await signUpClaim({ token, email, password: 'a long walk to the quarry gate', personName: 'First Hire' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.status).toBe(409)
+      expect(r.field).toBe('token')
+      expect(r.says).toContain('Ask the firm that sent it to set the kind')
+    }
+    expect(await prisma.person.findUnique({ where: { primaryEmail: email } })).toBeNull()
+    await prisma.counterparty.deleteMany({ where: { otherCompanyId: shellId } })
+    await prisma.companyContact.deleteMany({ where: { atCompanyId: shellId } })
+    await prisma.company.update({ where: { id: shellId }, data: { listedById: null } })
+  })
+
+  it('a worker’s typed “never send me to” is honored when the real company joins, though a firm recorded one of that name not classified yet', async () => {
+    const worker = await prisma.person.create({ data: { name: 'Odalys Fenwick', primaryEmail: 'odalys.fenwick@worker.example' } })
+    await prisma.doNotSubmit.create({ data: { personId: worker.id, companyName: 'Harrowgate Mills' } })
+    await prisma.company.create({ data: { name: 'Harrowgate Mills', slug: 'harrowgate-mills-recorded', kind: 'UNCLASSIFIED', currency: 'USD', listedById: co['world-nike'] } })
+
+    const made = await createCompany({ name: 'Harrowgate Mills', kind: 'CLIENT', slug: 'harrowgate-mills', domain: null, byPersonId: worker.id, seatAsOwner: false, claimDomain: false, startsSetup: false })
+    const row = await prisma.doNotSubmit.findFirstOrThrow({ where: { personId: worker.id } })
+    expect(row.companyId).toBe(made.company.id)
   })
 
   it('a claim link taken by somebody who runs no firm on that domain is an ordinary claim', async () => {

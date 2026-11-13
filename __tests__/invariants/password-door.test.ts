@@ -472,3 +472,31 @@ describe('round two of the sign-up walk, said as the walk found it', () => {
     expect(page).toContain('<Link href="/terms"')
   })
 })
+
+
+describe('a claim link to a company nobody has said the kind of', () => {
+  it('the password door refuses it before any email or password is asked about, in the claim route’s own sentence', () => {
+    const src = read('src/lib/password-door.ts')
+    expect(src).toContain("select: { id: true, name: true, kind: true, claimedAt: true }")
+    const claim = src.slice(src.indexOf('export async function signUpClaim'))
+    const refusal = claim.indexOf("const classified = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })")
+    expect(refusal).toBeGreaterThan(0)
+    expect(claim).toContain("if (!classified.ok) return refuse(classified.says, 'token', 409)")
+    expect(refusal).toBeLessThan(claim.indexOf('if (!mayClaim(email, invite.email))'))
+    expect(refusal).toBeLessThan(claim.indexOf('weakPasswordReason('))
+  })
+
+  it('claimOrJoin never folds such a record into a firm, and refuses in the same sentence', () => {
+    const src = read('src/lib/company-create.ts')
+    const fn = src.slice(src.indexOf('export async function claimOrJoin'))
+    expect(fn).toContain("company: { select: { id: true, name: true, kind: true, claimedAt: true, isDemo: READ } }")
+    expect(fn).toContain("if (!classified.ok) return { kind: 'REFUSED', says: classified.says }")
+    expect(fn.indexOf('mayClaimRecorded(')).toBeLessThan(fn.indexOf('db.$transaction('))
+  })
+
+  it('a firm’s record not classified yet never counts as a second company of the same name when the real one joins', () => {
+    const src = read('src/lib/company-create.ts')
+    const fn = src.slice(src.indexOf('async function honorNamedClientsAt'))
+    expect(fn).toContain("kind: { not: 'UNCLASSIFIED' }")
+  })
+})

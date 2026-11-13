@@ -55,6 +55,7 @@ import { knownCountry, knownCurrency, joinedSentence } from '@/lib/setup-steps'
 import { seatAsMember } from '@/lib/seat-member'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { mayClaim } from '@/lib/supplier-list'
+import { mayClaimRecorded } from '@/lib/counterparty'
 import { reservedDomain } from '@/lib/demo-company'
 import { possessive } from '@/lib/requisition-approval'
 import { sealBlob, openBlob, deploymentSecret } from '@/lib/identity/oidc'
@@ -459,7 +460,7 @@ export async function signUpProbe(rawEmail: unknown): Promise<{ joins: null | { 
 async function openInvite(token: string) {
   const invite = await prisma.supplierInvite.findUnique({
     where: { token },
-    select: { token: true, email: true, state: true, company: { select: { id: true, name: true, claimedAt: true } } },
+    select: { token: true, email: true, state: true, company: { select: { id: true, name: true, kind: true, claimedAt: true } } },
   })
   if (!invite || invite.state !== 'PENDING' || invite.company.claimedAt) return null
   return invite
@@ -590,6 +591,11 @@ export async function signUpClaim(input: { token: unknown; email: unknown; passw
   if (!personName) return refuse('Type your name.', 'personName')
   const invite = await openInvite(String(input.token ?? ''))
   if (!invite) return refuse('This invitation is not open any more. Ask whoever sent it for a new one.', 'token', 410)
+  // A company nobody has said the kind of seats nobody through its claim
+  // link, so nobody is made to set a password and confirm an email for a
+  // seat the claim route would then refuse (the same sentence it sends).
+  const classified = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
+  if (!classified.ok) return refuse(classified.says, 'token', 409)
   if (!mayClaim(email, invite.email)) {
     return refuse(`This invitation was sent to ${invite.email}. Use that address, or another address at the same company.`, 'email')
   }
