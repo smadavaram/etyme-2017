@@ -425,7 +425,7 @@ Full text → 40, 11, 56.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 27, 28, 35, 52.
+Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -470,6 +470,9 @@ Full text → 44, 45, 38, 30, 39, 60, 27, 28, 35, 52.
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
   and no reply tells you about a firm you do not work with.
+  Answering a client's application link without signing in is not the
+  firm taking part: one of its own signed-in people says yes to "Ask
+  them to link".
 - **Sites.** Say "site", never "plant". A hiring manager may take names
   off a site's supplier list, never add one. A supplier not approved at
   a site is refused in a sentence naming Procurement. A supplier or a
