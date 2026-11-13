@@ -429,7 +429,8 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
   })
 
   it('a person waiting for access is listed with their sign-in email under their name', () => {
-    const waiting = page.slice(page.indexOf('Waiting for access'), page.indexOf('Worth a look'))
+    // The waiting row is drawn by one function, read wherever it is listed.
+    const waiting = page.slice(page.indexOf('const waitingRow = (w: Waiting) => ('), page.indexOf('const personRow = (p: Person) => ('))
     expect(waiting).toContain('<Address email={w.person.primaryEmail} />')
   })
 
@@ -524,9 +525,9 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
 
   // ── Fault 9: the invitation form ──
 
-  it('the invitation panel is drawn before the four figures, so it is first on a phone', () => {
+  it('the invitation panel is drawn before the figures, so it is first on a phone', () => {
     expect(page.indexOf('<Panel title="Invite a teammate"')).toBeGreaterThan(-1)
-    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeLessThan(page.indexOf('<Stat label="With access"'))
+    expect(page.indexOf('<Panel title="Invite a teammate"')).toBeLessThan(page.indexOf('<Stat label={f.label}'))
   })
 
   it('Invite is never greyed out without a sentence saying why', () => {
@@ -846,11 +847,13 @@ describe('Users & permissions counts people the way Settings and Team structure 
     expect(c).toEqual({ withAccess: 1, invited: 0, waitingForRole: 0, paused: 1 })
   })
 
-  it('each figure on the page says what it counts', () => {
-    expect(page).toContain('<Stat label="With access" value={s.withAccess} sub="signed in, not paused" />')
-    expect(page).toContain('<Stat label="Invited" value={s.invited} sub="not signed in yet"')
-    expect(page).toContain('<Stat label="Paused" value={s.paused} sub="cannot sign in now" />')
-    expect(page).not.toContain('<Stat label="Waiting"')
+  // Brought up to the founder's words of 2026-11-12: each figure's line is
+  // now figureWords' sentence, what it counts and whose move it is, in
+  // place of the hand-typed sub-lines this sentence used to pin.
+  it('each figure on the page says what it counts, in the one function’s words', () => {
+    expect(page).toContain('<Stat label={f.label} value={f.value} sub={f.says} href={`?show=${f.key}`}')
+    expect(route).toContain('figures: figuresFor(counts, decisions.size, parts)')
+    expect(page).not.toContain('sub="signed in, not paused"')
   })
 
   it('a consultant seat is listed and marked, and never counted among the company’s people', async () => {
@@ -1137,5 +1140,112 @@ describe('the level beside a role, said in words', () => {
     expect(page).toContain('<details className="sm:hidden">')
     expect(page).toContain('What do these levels mean?')
     expect(page).toContain('<div className="hidden sm:block">{list}</div>')
+  })
+})
+
+/**
+ * The founder at Tapin, 2026-11-12: every figure at the top says what it
+ * counts and whose move it is, and is a door to exactly the rows it
+ * counted. Consultants are under their own heading and never counted.
+ */
+describe('the figures on Users and permissions say what they count and filter to what they counted', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const route = read('src/app/api/access/route.ts')
+  const NONE = { noRole: 0, ended: 0, neverUsed: 0, notUsedLately: 0, endingSoon: 0 }
+
+  it('each figure says what it counts and what the person should do', async () => {
+    const { figureWords } = await import('@/lib/access-grant')
+    expect(figureWords('invited', 3)!.says).toBe('3 invited, never signed in. Send the invitation again or withdraw it.')
+    expect(figureWords('paused', 1)!.says).toBe('1 paused, cannot sign in. Reinstate or end the seat.')
+    expect(figureWords('waiting-for-role', 2)!.says).toBe('2 signed in with no role. Give each a role.')
+    expect(figureWords('with-access', 4)!.says).toBe('4 can sign in and work. Nothing to do.')
+  })
+
+  it('a figure of zero is not drawn, except With access', async () => {
+    const { figureWords, figuresFor } = await import('@/lib/access-grant')
+    expect(figureWords('invited', 0)).toBeNull()
+    expect(figureWords('paused', 0)).toBeNull()
+    expect(figureWords('decision', 0, NONE)).toBeNull()
+    expect(figureWords('with-access', 0)!.label).toBe('With access')
+    expect(figuresFor({ withAccess: 4, invited: 3, waitingForRole: 0, paused: 0 }, 0, NONE).map((f) => f.label)).toEqual(['With access', 'Invited'])
+  })
+
+  it('Needs a decision names its parts in its line, each with its count, and reads the day constants the review uses', async () => {
+    const { figureWords, DORMANT_DAYS, IDLE_DAYS, EXPIRING_DAYS } = await import('@/lib/access-grant')
+    const f = figureWords('decision', 5, { noRole: 2, neverUsed: 1, notUsedLately: 1, endingSoon: 1, ended: 0 })!
+    expect(f.says).toBe(`5 to decide: 2 with no role yet, 1 never used in ${DORMANT_DAYS} days, 1 not used in ${IDLE_DAYS} days and 1 ending within ${EXPIRING_DAYS} days. Give a role, renew it or end it.`)
+    expect(f.says).not.toContain('ended')
+  })
+
+  it('the parts of Needs a decision add up to its number, a Member also on the review counted once', async () => {
+    const { decisionParts, decisionSeats } = await import('@/lib/access-grant')
+    const review = [{ contextId: 'a', finding: 'DORMANT' as const }, { contextId: 'b', finding: 'EXPIRING' as const }]
+    const withAccess = [{ contextId: 'a', roleName: 'Member' }, { contextId: 'c', roleName: 'Member' }, { contextId: 'd', roleName: 'Recruiter' }]
+    const p = decisionParts(review, withAccess)
+    expect(p).toEqual({ noRole: 1, ended: 0, neverUsed: 1, notUsedLately: 0, endingSoon: 1 })
+    expect(p.noRole + p.neverUsed + p.endingSoon).toBe(decisionSeats(review, withAccess).size)
+  })
+
+  it('a figure is a link that filters the lists below, the filter kept in the address as a query word', async () => {
+    const { figureFromQuery } = await import('@/lib/access-grant')
+    expect(figureFromQuery('invited')).toBe('invited')
+    expect(figureFromQuery('everyone')).toBeNull()
+    expect(page).toContain("new URLSearchParams(window.location.search).get('show')")
+    expect(page).toContain('window.history.pushState(null')
+    expect(page).toContain("window.addEventListener('popstate', read)")
+  })
+
+  it('a filtered list says what it shows and offers everyone again, directly under the figures', async () => {
+    const { figureWords } = await import('@/lib/access-grant')
+    expect(figureWords('invited', 3)!.showing).toBe('3 invited')
+    expect(page).toContain('Showing {activeFigure.showing}')
+    expect(page).toContain('Show everyone</a>')
+    expect(page.indexOf('Showing {activeFigure.showing}')).toBeLessThan(page.indexOf('<h2 className="font-serif text-lg text-etyme-ink mb-3">Waiting for access</h2>'))
+  })
+
+  it('the number on a figure is the number of rows its filter shows, because both read the same seat states and decision set', () => {
+    expect(route).toContain('figure: figureOf(c.id)')
+    expect(route).toContain('decision: decisions.has(c.id)')
+    expect(route).toContain('const decisions = decisionSeats(ownReview, ownWithAccess)')
+    expect(page).toContain("!active || (active === 'decision' ? r.decision === true : r.figure === active)")
+  })
+
+  it('the rows a figure filters are read from the seat states the counts are, so an invited seat never signed in is counted once, as invited, and never as a decision', async () => {
+    const { seatsFrom, peopleOf, countSeats } = await import('@/lib/company-seats')
+    const row = (signedIn: boolean, id: string) => ({
+      id, personId: id, type: 'EMPLOYEE', roleId: 'r-admin', orgUnitId: null,
+      grantedAt: new Date('2026-11-01'), invitedAt: signedIn ? null : new Date('2026-11-10'),
+      lastUsedAt: null, suspendedAt: null, revokedAt: null, role: { name: 'Admin' },
+      person: { name: 'Partner', primaryEmail: `${id}@gmail.com`, credentials: signedIn ? [{ id: 'k' }] : [] },
+    })
+    const c = countSeats(peopleOf(seatsFrom([row(true, 'o'), row(false, 'x'), row(false, 'y'), row(false, 'z')], 'Tapin')))
+    expect(c.invited).toBe(3)
+    // The review reads only seats with access, so an invited seat is never one of the decisions.
+    expect(route).toContain('const ownWithAccess = withAccess.filter(c => !isConsultant(c.id))')
+  })
+
+  it('consultants are under their own heading, say why they are not counted, and are never in the figures', () => {
+    expect(page).toContain('Consultants on your books')
+    expect(page).toContain('They are listed so their seats can be acted on, and are not counted in the figures above.')
+    expect(page).toContain("data.people.filter((p: Person) => !p.consultant && counted(p))")
+    expect(route).toContain('const ownReview = review.filter(r => !isConsultant(r.contextId))')
+  })
+
+  it('the Worth a look chip says never used, not dormant', async () => {
+    const { FINDING_WORDS } = await import('@/lib/access-grant')
+    expect(FINDING_WORDS.DORMANT).toBe('never used')
+    expect(page).not.toContain('{r.finding.toLowerCase()}')
+    expect(page).toContain('{r.findingWords ?? r.finding}')
+  })
+
+  it('a decision row says its own finding while Needs a decision filters the list', () => {
+    expect(route).toContain('findings: findingsOf(c.id)')
+    expect(page).toContain("show === 'decision' && p.findings && p.findings.length > 0")
+  })
+
+  it('the figures count the same people as the headline above them, from the one reader', () => {
+    expect(route).toContain('const counts = countSeats(peopleOf(seats))')
+    expect(route).toContain('waitingForRole: counts.waitingForRole')
+    expect(route).toContain('peopleSays')
   })
 })

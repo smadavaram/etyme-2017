@@ -3,7 +3,7 @@
 import { readJson, statusMeans } from '@/lib/read-response'
 import {
   desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, capRefusalSays, parseAddresses, MAX_ADDRESSES_AT_ONCE,
-  COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, type InviteForm, type InviteMail, type GrantSensitivity,
+  COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, figureFromQuery, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
 } from '@/lib/access-grant'
 import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
@@ -51,6 +51,9 @@ interface Waiting {
   copyText?: string | null
   /** A consultant on the firm's books: listed, never counted among its people. */
   consultant?: boolean
+  /** The figure this seat is counted under, and whether it is a decision. */
+  figure?: FigureKey | null
+  decision?: boolean
 }
 interface Person {
   contextId: string
@@ -70,6 +73,11 @@ interface Person {
   acts?: RowOffer
   /** A consultant on the firm's books: listed, never counted among its people. */
   consultant?: boolean
+  /** The figure this seat is counted under, and whether it is a decision. */
+  figure?: FigureKey | null
+  decision?: boolean
+  /** What the review found on this seat, in words. */
+  findings?: { words: string; detail: string }[]
 }
 interface Finding {
   contextId: string
@@ -77,12 +85,17 @@ interface Finding {
   personEmail?: string | null
   roleName: string
   finding: string
+  /** The finding in words: "never used", never "dormant". */
+  findingWords?: string
   detail: string
   suggestion: string | null
 }
 
 /** Said beside a consultant's seat, which is listed and never counted. */
 const CONSULTANT_NOTE = 'consultant on your books, not counted'
+
+/** Under the consultants' own heading. */
+const CONSULTANTS_LINE = 'People placed through the company, not its staff. They are listed so their seats can be acted on, and are not counted in the figures above.'
 
 /**
  * The line under the heading: how people join, read off what the doors do
@@ -558,6 +571,22 @@ export default function AccessPage() {
   // The row whose level chip was tapped: its why is said under the row,
   // so a phone, which has no hover, reads it too.
   const [levelOpen, setLevelOpen] = useState<string | null>(null)
+  // Which figure filters the lists, kept in the address as ?show=<figure>
+  // so a reload, a shared link and the back button keep it.
+  const [show, setShow] = useState<FigureKey | null>(null)
+  useEffect(() => {
+    const read = () => setShow(figureFromQuery(new URLSearchParams(window.location.search).get('show')))
+    read()
+    window.addEventListener('popstate', read)
+    return () => window.removeEventListener('popstate', read)
+  }, [])
+  function chooseShow(k: FigureKey | null) {
+    const u = new URL(window.location.href)
+    if (k) u.searchParams.set('show', k)
+    else u.searchParams.delete('show')
+    window.history.pushState(null, '', u.toString())
+    setShow(k)
+  }
 
   // Bring the team in by name: the account manager, HR, the contract
   // desk, finance. Each is emailed and seated with their role before
@@ -712,6 +741,181 @@ export default function AccessPage() {
   // Owner is offered only to an Owner; the route refuses the same.
   const pickable = desksOffered(roles, data.actorIsOwner === true)
 
+  // Which figure filters the lists, where one is drawn: a shared link to
+  // a figure that has since gone to zero shows everybody.
+  const activeFigure: FigureWords | null = (show && (s.figures as FigureWords[]).find((f) => f.key === show)) || null
+  const active: FigureKey | null = activeFigure?.key ?? null
+  const counted = (r: { figure?: FigureKey | null; decision?: boolean }) =>
+    !active || (active === 'decision' ? r.decision === true : r.figure === active)
+  const ownWaiting: Waiting[] = data.waitingForAccess.filter((w: Waiting) => !w.consultant && counted(w))
+  const ownPeople: Person[] = data.people.filter((p: Person) => !p.consultant && counted(p))
+  const consultantRows: { kind: 'waiting' | 'person'; row: Waiting | Person }[] = [
+    ...data.waitingForAccess.filter((w: Waiting) => w.consultant).map((row: Waiting) => ({ kind: 'waiting' as const, row })),
+    ...data.people.filter((p: Person) => p.consultant).map((row: Person) => ({ kind: 'person' as const, row })),
+  ]
+
+  const waitingRow = (w: Waiting) => (
+    <div key={w.contextId} className="p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex-1 min-w-[12rem]">
+          <div className="text-etyme-ink">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
+          <Address email={w.person.primaryEmail} />
+          <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
+          <MailSaid mail={w.mail} />
+        </div>
+        {/* The row's buttons: a line of their own under the name on a
+            phone, wrapping, and beside it from sm up. */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {data.canGrant === false ? (
+            <span className="w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words">{data.whyNotGrant}</span>
+          ) : (
+            <button
+              onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
+              className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+              {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
+            </button>
+          )}
+          <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
+            open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
+        </div>
+      </div>
+      {(w.acts?.resend || (w.acts?.copy && w.copyText)) && (
+        <div className="mt-2 flex flex-wrap gap-2 items-start">
+          {w.acts?.copy && w.copyText && <CopyInvitation contextId={w.contextId} text={w.copyText} />}
+          {w.acts?.resend && <SendAgain contextId={w.contextId} onSent={(r) => sentAgain(w.contextId, r)} />}
+        </div>
+      )}
+
+      {acting?.contextId === w.contextId && (
+        <ActForm action={acting.action} acts={w.acts} name={w.person.name} email={w.person.primaryEmail}
+          reason={actReason} setReason={setActReason} pending={actPending}
+          onSubmit={() => act(w.contextId, acting.action)} />
+      )}
+
+      {granting === w.contextId && (
+        <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
+          <Field label="What can they do?">
+            <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
+              <option value="">— pick a role —</option>
+              {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </Field>
+          {/* etyme-market, 2026-09-17. A cross-domain line in
+              etyme-regulatory's file, on the precedent of c126c1c4
+              and f901e914: the placeholder below named a real
+              company on a live screen, and a trademark inside our
+              own product is a claim that they use it. Replaced from
+              the sheet in docs/demo-names.md. Nothing else in this
+              file was touched — who may grant what, and for how
+              long, is etyme-regulatory's and is unchanged. */}
+          <Field label="Why do they need it?" help="Whoever reviews this in six months is probably not you.">
+            <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+              placeholder="Joining the Talvern Medical delivery team" />
+          </Field>
+          <Field label="Ends on" help="Leave it empty for the usual length. Renewing takes a click." error={endsOnError}>
+            <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
+              type="date" min={tomorrowField()} className="w-48 tabular-nums" />
+          </Field>
+          <SubmitButton type="button" onClick={() => grant(w.contextId)} className="self-start">
+            Grant it
+          </SubmitButton>
+        </div>
+      )}
+      {said?.contextId === w.contextId && <RowSaid said={said} />}
+    </div>
+  )
+
+  const personRow = (p: Person) => (
+    <div key={p.contextId} className="p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex-1 min-w-[12rem]">
+          <div className="text-etyme-ink">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
+          <Address email={p.person.primaryEmail} />
+          <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+            {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}
+          </div>
+          {show === 'decision' && p.findings && p.findings.length > 0 && (
+        <div className="text-xs text-etyme-attention mt-0.5 break-words">
+          {p.findings.map((f) => `${f.words[0].toUpperCase()}${f.words.slice(1)}: ${f.detail}`).join(' · ')}
+        </div>
+      )}
+      {p.acts?.state === 'SUSPENDED' && (
+            <div className="text-xs text-etyme-attention mt-0.5">
+              Paused{p.pausedReason ? `: ${p.pausedReason}` : ''}
+            </div>
+          )}
+        </div>
+        {/* The end day and the sensitivity: under the name on a phone,
+            their own fixed columns only from sm up. */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="text-xs text-etyme-muted sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
+          <div className="sm:w-28 sm:text-right">
+            <button type="button" onClick={() => setLevelOpen(levelOpen === p.contextId ? null : p.contextId)}
+              aria-expanded={levelOpen === p.contextId} aria-label={p.level?.why ?? levelWords(p)}
+              className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action">
+              <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'} title={p.level?.why}>
+                {levelWords(p)}
+              </Chip>
+            </button>
+          </div>
+        </div>
+        {/* Change desk, on every row. A desk given on arrival is
+            rarely the right one, and an owner with no way to
+            change it has a seat nobody can use. Hidden from a
+            reader the route would refuse, with the reason said
+            once above in "Waiting for access". */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {data.canGrant !== false && (
+            <button
+              onClick={() => {
+                setGranting(granting === p.contextId ? null : p.contextId)
+                setForm({ roleId: '', endsOn: '', reason: '' })
+                setActing(null)
+              }}
+              className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5">
+              {granting === p.contextId ? 'Cancel' : 'Change role'}
+            </button>
+          )}
+          <RowActs contextId={p.contextId} acts={p.acts} keptEnd={keptEnd.has(p.contextId)}
+            open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
+        </div>
+      </div>
+
+      {levelOpen === p.contextId && p.level?.why && (
+        <p className="text-xs text-etyme-muted mt-2 break-words">{p.level.why}</p>
+      )}
+
+      {acting?.contextId === p.contextId && (
+        <ActForm action={acting.action} acts={p.acts} name={p.person.name} email={p.person.primaryEmail}
+          reason={actReason} setReason={setActReason} pending={actPending}
+          onSubmit={() => act(p.contextId, acting.action)} />
+      )}
+
+      {granting === p.contextId && (
+        <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
+          <Field label="New role">
+            <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
+              <option value="">— pick a role —</option>
+              {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Why?" help="Whoever reviews this in six months is probably not you.">
+            <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+              placeholder="Runs the client's bills from this month" />
+          </Field>
+          <Field label="Ends on" help="Leave it empty for the usual length." error={endsOnError}>
+            <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
+              type="date" min={tomorrowField()} className="w-48 tabular-nums" />
+          </Field>
+          <SubmitButton type="button" onClick={() => grant(p.contextId)} className="self-start">
+            Change role
+          </SubmitButton>
+        </div>
+      )}
+      {said?.contextId === p.contextId && <RowSaid said={said} />}
+    </div>
+  )
+
   return (
     <div className="max-w-3xl">
       <PageHead
@@ -815,96 +1019,46 @@ export default function AccessPage() {
       {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
       {/* The headline and the figures come from the one reader of seats
           (lib/company-seats), so Settings and Team structure say the same
-          numbers for this company, and each figure says what it counts. */}
+          numbers for this company. Each figure says what it counts and
+          whose move it is (figureWords), and is a door to exactly the rows
+          it counted: the filter lives in the address, so a reload and a
+          shared link keep it. A figure of zero is not drawn, except With
+          access. */}
       {s.peopleSays && <p className="text-sm text-etyme-ink mb-3 break-words">{s.peopleSays}</p>}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <Stat label="With access" value={s.withAccess} sub="signed in, not paused" />
-        <Stat label="Invited" value={s.invited} sub="not signed in yet" tone={s.invited > 0 ? 'attention' : 'default'} />
-        <Stat label="Paused" value={s.paused} sub="cannot sign in now" />
-        <Stat label="Needs a decision" value={s.needsAttention} sub="no role yet, ended or never used" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
+        {(s.figures as FigureWords[]).map((f) => (
+          <div key={f.key} onClick={(e) => { e.preventDefault(); chooseShow(active === f.key ? null : f.key) }}>
+            <Stat label={f.label} value={f.value} sub={f.says} href={`?show=${f.key}`}
+              tone={f.key === active ? 'attention' : 'default'} />
+          </div>
+        ))}
       </div>
+      {/* Directly under the figures, so a phone sees it after the press. */}
+      {activeFigure ? (
+        <p className="text-sm text-etyme-ink mb-8 break-words">
+          Showing {activeFigure.showing}{' · '}
+          <a href="?" onClick={(e) => { e.preventDefault(); chooseShow(null) }} className="text-etyme-action underline">Show everyone</a>
+        </p>
+      ) : <div className="mb-5" />}
 
-      {data.waitingForAccess.length > 0 && (
+      {/* A seat that was ended leaves the register, so its sentence is said here. */}
+      {said && !data.people.some((p: Person) => p.contextId === said.contextId)
+        && !data.waitingForAccess.some((w: Waiting) => w.contextId === said.contextId)
+        && <div className="mb-3"><RowSaid said={said} /></div>}
+
+      {ownWaiting.length > 0 && (
         <section className="mb-8">
           <h2 className="font-serif text-lg text-etyme-ink mb-3">Waiting for access</h2>
           <div className="bg-etyme-surface border border-etyme-attention/30 rounded-lg divide-y divide-etyme-rule">
-            {data.waitingForAccess.map((w: Waiting) => (
-              <div key={w.contextId} className="p-4">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="flex-1 min-w-[12rem]">
-                    <div className="text-etyme-ink">{w.person.name}{w.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
-                    <Address email={w.person.primaryEmail} />
-                    <div className="text-xs text-etyme-muted">{w.said} · {until(w.expiresAt)}</div>
-                    <MailSaid mail={w.mail} />
-                  </div>
-                  {/* The row's buttons: a line of their own under the name on a
-                      phone, wrapping, and beside it from sm up. */}
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    {data.canGrant === false ? (
-                      <span className="w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words">{data.whyNotGrant}</span>
-                    ) : (
-                      <button
-                        onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
-                        className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-                        {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
-                      </button>
-                    )}
-                    <RowActs contextId={w.contextId} acts={w.acts} keptEnd={keptEnd.has(w.contextId)}
-                      open={acting?.contextId === w.contextId ? acting.action : null} onOpen={openAct} />
-                  </div>
-                </div>
-                {(w.acts?.resend || (w.acts?.copy && w.copyText)) && (
-                  <div className="mt-2 flex flex-wrap gap-2 items-start">
-                    {w.acts?.copy && w.copyText && <CopyInvitation contextId={w.contextId} text={w.copyText} />}
-                    {w.acts?.resend && <SendAgain contextId={w.contextId} onSent={(r) => sentAgain(w.contextId, r)} />}
-                  </div>
-                )}
-
-                {acting?.contextId === w.contextId && (
-                  <ActForm action={acting.action} acts={w.acts} name={w.person.name} email={w.person.primaryEmail}
-                    reason={actReason} setReason={setActReason} pending={actPending}
-                    onSubmit={() => act(w.contextId, acting.action)} />
-                )}
-
-                {granting === w.contextId && (
-                  <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-                    <Field label="What can they do?">
-                      <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
-                        <option value="">— pick a role —</option>
-                        {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </Select>
-                    </Field>
-                    {/* etyme-market, 2026-09-17. A cross-domain line in
-                        etyme-regulatory's file, on the precedent of c126c1c4
-                        and f901e914: the placeholder below named a real
-                        company on a live screen, and a trademark inside our
-                        own product is a claim that they use it. Replaced from
-                        the sheet in docs/demo-names.md. Nothing else in this
-                        file was touched — who may grant what, and for how
-                        long, is etyme-regulatory's and is unchanged. */}
-                    <Field label="Why do they need it?" help="Whoever reviews this in six months is probably not you.">
-                      <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-                        placeholder="Joining the Talvern Medical delivery team" />
-                    </Field>
-                    <Field label="Ends on" help="Leave it empty for the usual length. Renewing takes a click." error={endsOnError}>
-                      <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
-                        type="date" min={tomorrowField()} className="w-48 tabular-nums" />
-                    </Field>
-                    <SubmitButton type="button" onClick={() => grant(w.contextId)} className="self-start">
-                      Grant it
-                    </SubmitButton>
-                  </div>
-                )}
-                {said?.contextId === w.contextId && <RowSaid said={said} />}
-              </div>
-            ))}
+            {ownWaiting.map(waitingRow)}
           </div>
         </section>
       )}
 
       {/* Only what needs a decision. A review listing everybody is a review
-          nobody reads. */}
-      {data.review.length > 0 && (
+          nobody reads. While a figure filters the list, each decision row
+          says its own finding instead. */}
+      {!activeFigure && data.review.length > 0 && (
         <section className="mb-8">
           <h2 className="font-serif text-lg text-etyme-ink mb-3">Worth a look</h2>
           <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
@@ -919,7 +1073,7 @@ export default function AccessPage() {
                     <Address email={r.personEmail} />
                   </span>
                   <Chip tone={r.finding === 'EXPIRED' || r.finding === 'DORMANT' ? 'attention' : 'passive'}>
-                    {r.finding.toLowerCase()}
+                    {r.findingWords ?? r.finding}
                   </Chip>
                 </div>
                 <p className="text-sm text-etyme-muted mt-0.5">{r.detail}</p>
@@ -936,104 +1090,31 @@ export default function AccessPage() {
         whyNot={data.whyNotExplain}
       />
 
-      <section>
-        <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>
-        <LevelLegend />
-        {/* A seat that was ended leaves the register, so its sentence is said here. */}
-        {said && !data.people.some((p: Person) => p.contextId === said.contextId)
-          && !data.waitingForAccess.some((w: Waiting) => w.contextId === said.contextId)
-          && <div className="mb-3"><RowSaid said={said} /></div>}
-        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-          {data.people.length === 0 && (
-            <EmptyState compact says="Nobody has access yet." />
-          )}
-          {data.people.map((p: Person) => (
-            <div key={p.contextId} className="p-4">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <div className="flex-1 min-w-[12rem]">
-                  <div className="text-etyme-ink">{p.person.name}{p.consultant ? <span className="text-xs text-etyme-muted">{' · '}{CONSULTANT_NOTE}</span> : null}</div>
-                  <Address email={p.person.primaryEmail} />
-                  <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
-                    {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}
-                  </div>
-                  {p.acts?.state === 'SUSPENDED' && (
-                    <div className="text-xs text-etyme-attention mt-0.5">
-                      Paused{p.pausedReason ? `: ${p.pausedReason}` : ''}
-                    </div>
-                  )}
-                </div>
-                {/* The end day and the sensitivity: under the name on a phone,
-                    their own fixed columns only from sm up. */}
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  <div className="text-xs text-etyme-muted sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
-                  <div className="sm:w-28 sm:text-right">
-                    <button type="button" onClick={() => setLevelOpen(levelOpen === p.contextId ? null : p.contextId)}
-                      aria-expanded={levelOpen === p.contextId} aria-label={p.level?.why ?? levelWords(p)}
-                      className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action">
-                      <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'} title={p.level?.why}>
-                        {levelWords(p)}
-                      </Chip>
-                    </button>
-                  </div>
-                </div>
-                {/* Change desk, on every row. A desk given on arrival is
-                    rarely the right one, and an owner with no way to
-                    change it has a seat nobody can use. Hidden from a
-                    reader the route would refuse, with the reason said
-                    once above in "Waiting for access". */}
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  {data.canGrant !== false && (
-                    <button
-                      onClick={() => {
-                        setGranting(granting === p.contextId ? null : p.contextId)
-                        setForm({ roleId: '', endsOn: '', reason: '' })
-                        setActing(null)
-                      }}
-                      className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5">
-                      {granting === p.contextId ? 'Cancel' : 'Change role'}
-                    </button>
-                  )}
-                  <RowActs contextId={p.contextId} acts={p.acts} keptEnd={keptEnd.has(p.contextId)}
-                    open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
-                </div>
-              </div>
+      {(!activeFigure || ownPeople.length > 0) && (
+        <section>
+          <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>
+          <LevelLegend />
+          <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {ownPeople.length === 0 && (
+              <EmptyState compact says="Nobody has access yet." />
+            )}
+            {ownPeople.map(personRow)}
+          </div>
+        </section>
+      )}
 
-              {levelOpen === p.contextId && p.level?.why && (
-                <p className="text-xs text-etyme-muted mt-2 break-words">{p.level.why}</p>
-              )}
-
-              {acting?.contextId === p.contextId && (
-                <ActForm action={acting.action} acts={p.acts} name={p.person.name} email={p.person.primaryEmail}
-                  reason={actReason} setReason={setActReason} pending={actPending}
-                  onSubmit={() => act(p.contextId, acting.action)} />
-              )}
-
-              {granting === p.contextId && (
-                <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-                  <Field label="New role">
-                    <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
-                      <option value="">— pick a role —</option>
-                      {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </Select>
-                  </Field>
-                  <Field label="Why?" help="Whoever reviews this in six months is probably not you.">
-                    <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-                      placeholder="Runs the client's bills from this month" />
-                  </Field>
-                  <Field label="Ends on" help="Leave it empty for the usual length." error={endsOnError}>
-                    <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
-                      type="date" min={tomorrowField()} className="w-48 tabular-nums" />
-                  </Field>
-                  <SubmitButton type="button" onClick={() => grant(p.contextId)} className="self-start">
-                    Change role
-                  </SubmitButton>
-                </div>
-              )}
-              {said?.contextId === p.contextId && <RowSaid said={said} />}
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* People placed through the company, not its staff: listed so their
+          seats can be acted on, under a heading of their own, and never
+          counted in the figures above. */}
+      {!activeFigure && consultantRows.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-serif text-lg text-etyme-ink mb-1">Consultants on your books</h2>
+          <p className="text-[13px] text-etyme-muted mb-3 break-words">{CONSULTANTS_LINE}</p>
+          <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {consultantRows.map((r) => r.kind === 'waiting' ? waitingRow(r.row as Waiting) : personRow(r.row as Person))}
+          </div>
+        </section>
+      )}
 
       {/* One more thing than a role allows, by team, by role or for the
           whole company (the founder, 2026-11-08). The component draws

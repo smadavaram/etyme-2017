@@ -10,6 +10,7 @@ import {
   assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
+  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, type FigureKey,
 } from '@/lib/access-grant'
 import { companyPolicy } from '@/lib/identity/read'
 import { isSamplePerson } from '@/lib/sample-seat'
@@ -20,7 +21,7 @@ import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act
 import { offersFor } from './row-acts'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
-import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, type SeatState } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 
 /**
@@ -181,6 +182,25 @@ export async function GET(request: NextRequest) {
     now
   )
 
+  // ── The figures, and the rows each one counts (founder, 2026-11-12) ──
+  // A figure is a door to exactly the rows it counted, so each row carries
+  // the figure its seat is counted under, read from the same seat states
+  // the figures are, and whether it is one of the decisions. A consultant
+  // is never counted, so the decisions are read over the company's own
+  // people only, and the figure and its filter are the same set.
+  const FIGURE_OF: Record<SeatState, FigureKey> = {
+    WITH_ACCESS: 'with-access', INVITED: 'invited', WAITING_FOR_ROLE: 'waiting-for-role', PAUSED: 'paused',
+  }
+  const figureOf = (id: string): FigureKey | null => {
+    const seat = seatOf.get(id)
+    return seat ? FIGURE_OF[seat.state] : null
+  }
+  const ownReview = review.filter(r => !isConsultant(r.contextId))
+  const ownWithAccess = withAccess.filter(c => !isConsultant(c.id)).map(c => ({ contextId: c.id, roleName: c.role!.name }))
+  const decisions = decisionSeats(ownReview, ownWithAccess)
+  const parts = decisionParts(ownReview, ownWithAccess)
+  const findingsOf = (id: string) => review.filter(r => r.contextId === id).map(r => ({ words: FINDING_WORDS[r.finding], detail: r.detail }))
+
   // Whether the reader holds Owner, so the desk picker offers Owner only
   // to an Owner. The route refuses the same thing on POST.
   const mine = contexts.find(c => c.id === caller.context.id)
@@ -283,6 +303,8 @@ export async function GET(request: NextRequest) {
           // A consultant on the firm's books: listed so a seat can be acted
           // on, and never counted among the company's people.
           consultant: isConsultant(c.id),
+          figure: figureOf(c.id),
+          decision: decisions.has(c.id),
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
           // A seat may be given an end day before they come in.
           expiresAt: c.expiresAt?.toISOString() ?? null,
@@ -298,6 +320,11 @@ export async function GET(request: NextRequest) {
         // "Member · give them a role" for the seat everybody arrives on.
         line: deskLine(c.role!.name),
         consultant: isConsultant(c.id),
+        figure: figureOf(c.id),
+        decision: decisions.has(c.id),
+        // What the review found on this seat, in words, said on the row
+        // while "Needs a decision" filters the list.
+        findings: findingsOf(c.id),
         sensitivity: sensitivityOf(c.role!.permissions),
         // The level in words and why, read off the role's own permissions
         // (founder, 2026-11-12: the role and the level are one system).
@@ -312,7 +339,7 @@ export async function GET(request: NextRequest) {
       })),
       // Only what needs a decision. A review that lists everybody is a
       // review nobody reads.
-      review: review.map(r => ({ ...r, personEmail: emailByContext.get(r.contextId) ?? null })),
+      review: review.map(r => ({ ...r, findingWords: FINDING_WORDS[r.finding], personEmail: emailByContext.get(r.contextId) ?? null })),
       // What this reader may actually do here, so the screen does not
       // offer a form the route will refuse. Reading opened up on
       // governance.read; granting and inviting did not move.
@@ -359,15 +386,18 @@ export async function GET(request: NextRequest) {
         // role yet", and "Needs a decision" counts them.
         withAccess: counts.withAccess,
         invited: counts.invited,
+        waitingForRole: counts.waitingForRole,
         paused: counts.paused,
         // The rows under "Waiting for access": invited, or in with no role.
         waiting: waiting.length,
         // Every review finding plus every Member waiting for a desk: a
         // Member reads "give them a role" on the list, so it is counted.
-        needsAttention: needsDecisionCount(
-          review,
-          withAccess.map(c => ({ contextId: c.id, roleName: c.role!.name })),
-        ),
+        // The company's own people only: a consultant is never counted.
+        needsAttention: needsDecisionCount(ownReview, ownWithAccess),
+        // Each figure with the line under it, zeros left out except With
+        // access (lib/access-grant `figureWords`). A figure's number is
+        // the number of rows whose `figure` (or `decision`) it names.
+        figures: figuresFor(counts, decisions.size, parts),
         expired: review.filter(r => r.finding === 'EXPIRED').length,
         dormant: review.filter(r => r.finding === 'DORMANT').length,
       },

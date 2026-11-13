@@ -308,11 +308,20 @@ export interface AccessReviewItem {
 }
 
 /** Held this long with no use at all, and it was never needed. */
-const DORMANT_DAYS = 60
+export const DORMANT_DAYS = 60
 /** Used once, but not since. */
-const IDLE_DAYS = 120
+export const IDLE_DAYS = 120
 /** Close enough to expiry to warn somebody. */
-const EXPIRING_DAYS = 14
+export const EXPIRING_DAYS = 14
+
+/** A finding as a person reads it, never the enum ("dormant" was a system word). */
+export const FINDING_WORDS: Record<AccessFinding, string> = {
+  EXPIRED: 'ended',
+  DORMANT: 'never used',
+  IDLE: 'not used in a long while',
+  EXPIRING: 'ending soon',
+  HEALTHY: 'in use',
+}
 
 const days = (a: Date, b: Date) => Math.floor((a.getTime() - b.getTime()) / 86_400_000)
 
@@ -411,9 +420,131 @@ export function needsDecisionCount(
   review: { contextId: string }[],
   withAccess: { contextId: string; roleName: string }[],
 ): number {
+  return decisionSeats(review, withAccess).size
+}
+
+/**
+ * The seats "Needs a decision" counts, so the figure and the rows its
+ * filter shows are one set and cannot disagree. Pure.
+ */
+export function decisionSeats(
+  review: { contextId: string }[],
+  withAccess: { contextId: string; roleName: string }[],
+): Set<string> {
   const seats = new Set(review.map((r) => r.contextId))
   for (const s of withAccess) if (s.roleName === MEMBER_DESK) seats.add(s.contextId)
-  return seats.size
+  return seats
+}
+
+// ── The figures at the top of Users & permissions ──────────────────────
+//
+// The founder, 2026-11-12: every figure says what it counts and whose move
+// it is, in one line under the number, and a figure is a door to exactly
+// the rows it counted. One pure function says them, reading the same day
+// constants the review uses, so the words cannot say 60 where the rule
+// reads 90.
+
+/** Which rows a figure counts, as the query word in the page's address (`?show=invited`). */
+export type FigureKey = 'with-access' | 'invited' | 'waiting-for-role' | 'paused' | 'decision'
+export const FIGURE_KEYS: readonly FigureKey[] = ['with-access', 'invited', 'waiting-for-role', 'paused', 'decision']
+
+/** The parts of "Needs a decision", each seat once. */
+export interface DecisionParts { noRole: number; ended: number; neverUsed: number; notUsedLately: number; endingSoon: number }
+
+/**
+ * How the decision seats split: each review finding once (a seat has one
+ * finding), and a Member seat counted as "no role yet" only where the
+ * review has not already counted it, so the parts add up to the figure.
+ * Pure.
+ */
+export function decisionParts(
+  review: { contextId: string; finding: AccessFinding }[],
+  withAccess: { contextId: string; roleName: string }[],
+): DecisionParts {
+  const p: DecisionParts = { noRole: 0, ended: 0, neverUsed: 0, notUsedLately: 0, endingSoon: 0 }
+  const inReview = new Set<string>()
+  for (const r of review) {
+    if (inReview.has(r.contextId)) continue
+    inReview.add(r.contextId)
+    if (r.finding === 'EXPIRED') p.ended++
+    else if (r.finding === 'DORMANT') p.neverUsed++
+    else if (r.finding === 'IDLE') p.notUsedLately++
+    else if (r.finding === 'EXPIRING') p.endingSoon++
+  }
+  const members = new Set<string>()
+  for (const s of withAccess) if (s.roleName === MEMBER_DESK && !inReview.has(s.contextId)) members.add(s.contextId)
+  p.noRole = members.size
+  return p
+}
+
+/** "a, b and c". */
+function andList(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+export interface FigureWords {
+  key: FigureKey
+  label: string
+  value: number
+  /** The line under the number: what it counts, then whose move it is. */
+  says: string
+  /** Above the list while the figure filters it: "3 invited". */
+  showing: string
+}
+
+/**
+ * One figure's words, or null for a figure of zero, which is not drawn,
+ * except "With access", the baseline. Pure.
+ */
+export function figureWords(key: FigureKey, n: number, parts?: DecisionParts): FigureWords | null {
+  if (n <= 0 && key !== 'with-access') return null
+  const one = n === 1
+  switch (key) {
+    case 'with-access':
+      return {
+        key, label: 'With access', value: n,
+        says: n === 0 ? 'Nobody can sign in and work yet. Invite somebody above.' : `${n} can sign in and work. Nothing to do.`,
+        showing: `${n} with access`,
+      }
+    case 'invited':
+      return { key, label: 'Invited', value: n, says: `${n} invited, never signed in. Send the invitation again or withdraw it.`, showing: `${n} invited` }
+    case 'waiting-for-role':
+      return { key, label: 'Waiting for a role', value: n, says: `${n} signed in with no role. Give ${one ? 'them' : 'each'} a role.`, showing: `${n} waiting for a role` }
+    case 'paused':
+      return { key, label: 'Paused', value: n, says: `${n} paused, cannot sign in. Reinstate or end ${one ? 'the seat' : 'each seat'}.`, showing: `${n} paused` }
+    case 'decision': {
+      const p = parts ?? { noRole: 0, ended: 0, neverUsed: 0, notUsedLately: 0, endingSoon: 0 }
+      const named: string[] = []
+      if (p.noRole) named.push(`${p.noRole} with no role yet`)
+      if (p.neverUsed) named.push(`${p.neverUsed} never used in ${DORMANT_DAYS} days`)
+      if (p.notUsedLately) named.push(`${p.notUsedLately} not used in ${IDLE_DAYS} days`)
+      if (p.endingSoon) named.push(`${p.endingSoon} ending within ${EXPIRING_DAYS} days`)
+      if (p.ended) named.push(`${p.ended} ended`)
+      const what = named.length ? `: ${andList(named)}` : ''
+      return {
+        key, label: 'Needs a decision', value: n,
+        says: `${n} to decide${what}. Give a role, renew it or end it.`,
+        showing: `${n} that ${one ? 'needs' : 'need'} a decision`,
+      }
+    }
+  }
+}
+
+/** The figures to draw, in order, zeros left out except With access. Pure. */
+export function figuresFor(c: { withAccess: number; invited: number; waitingForRole: number; paused: number }, decisions: number, parts: DecisionParts): FigureWords[] {
+  return [
+    figureWords('with-access', c.withAccess),
+    figureWords('invited', c.invited),
+    figureWords('waiting-for-role', c.waitingForRole),
+    figureWords('paused', c.paused),
+    figureWords('decision', decisions, parts),
+  ].filter((f): f is FigureWords => f !== null)
+}
+
+/** The query word read back, or null for none or a word no figure has. */
+export function figureFromQuery(raw: string | null | undefined): FigureKey | null {
+  return raw && (FIGURE_KEYS as readonly string[]).includes(raw) ? raw as FigureKey : null
 }
 
 /**
