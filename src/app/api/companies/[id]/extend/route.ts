@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const extend = (as: ExtendAs) => {
     const v = mayExtend({
       as, me: meAt, permissions: caller.permissions, worksTogether, positions: read.positions,
-      other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById, slug: other.slug },
+      other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById },
     })
     return v.ok && !v.already
   }
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     me: { id: me.id, name: me.name },
     permissions: caller.permissions,
     // No Kind is handed to the rule, on purpose.
-    other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById, slug: other.slug },
+    other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById },
     worksTogether: await workTogether(me.id, other.id),
     positions: before.positions,
   })

@@ -243,7 +243,10 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
   // A firm already on Etyme: no copy, one click to ask them to link
   // (lib/trade-link, 2026-10-27). A company asked about as not classified
   // yet carries no relationship, so the person says which before asking.
-  const [linkable, setLinkable] = useState<{ companyId: string; relationship: string | null } | null>(null)
+  // The ask names the firm by what the person typed (name, domain,
+  // address): the route found it and gives back no id of a firm the
+  // caller does not work with (review, 2026-11-13).
+  const [linkable, setLinkable] = useState<{ name: string; domain?: string; address?: string; relationship: string | null } | null>(null)
   const [linkAs, setLinkAs] = useState('SUPPLIER')
 
   // The Etyme address box is theirs, never guessed from the name: the
@@ -257,7 +260,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
     try {
       const res = await fetch('/api/trade-links', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: linkable.companyId, relationship: linkable.relationship ?? linkAs }),
+        body: JSON.stringify({ name: linkable.name, domain: linkable.domain, address: linkable.address, relationship: linkable.relationship ?? linkAs }),
       })
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) { setError(body.error?.message ?? 'The ask could not be sent.'); setLinkable(null); return }
@@ -321,8 +324,14 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
           return
         }
         setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
-        setLinkable((e.code === 'ALREADY_ON_ETYME' || e.code === 'ALREADY_HERE') && e.companyId
-          ? { companyId: e.companyId, relationship: e.relationship ?? (recording ? null : form.relationship) }
+        setLinkable(e.code === 'ALREADY_ON_ETYME' || e.code === 'ALREADY_HERE'
+          ? {
+              name: form.name.trim(),
+              // A client form may have found the firm by its contact's email domain.
+              domain: form.domain.trim() || (isClient && form.email.includes('@') ? form.email.trim().split('@')[1] : '') || undefined,
+              address: form.slug.trim() || undefined,
+              relationship: e.relationship ?? (recording ? null : form.relationship),
+            }
           : null)
         return
       }

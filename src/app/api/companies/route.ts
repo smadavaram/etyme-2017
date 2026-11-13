@@ -8,7 +8,6 @@ import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scop
 import { dealingsOf } from './dealings'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany, findFirm, workTogether } from '@/lib/company-create'
-import { alreadyOnEtyme } from '@/lib/off-system'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS, mayExtend, maySetRecordedKind } from '@/lib/counterparty'
@@ -195,6 +194,7 @@ export async function POST(request: NextRequest) {
     })
     const twin = sameNameAmong(String(name ?? ''), ownRecords)
     if (twin) {
+      await refusedFound(seatedCaller, twin.id, `${twin.name} is on the caller's own Companies list already`)
       return NextResponse.json(
         { error: { code: 'SAME_NAME_ON_YOUR_LIST', field: 'name', message: sameNameRefused(twin), companyId: twin.id, company: twin.name } },
         { status: 409 }
@@ -216,10 +216,9 @@ export async function POST(request: NextRequest) {
       // Already on Etyme: today's reply, and nothing written. Nothing is
       // sent unless the person presses "Ask them to link".
       if (!(await workTogether(mine.id, firm.id))) {
-        return NextResponse.json(
-          { error: { code: 'ALREADY_ON_ETYME', message: alreadyOnEtyme(firm, 'partner'), companyId: firm.id, company: firm.name, address: firm.slug, relationship: null } },
-          { status: 409 }
-        )
+        const says = foundElsewhere('partner')
+        await refusedFound(seatedCaller, firm.id, says)
+        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
       }
       return NextResponse.json({
         data: {
@@ -232,10 +231,9 @@ export async function POST(request: NextRequest) {
     }
     if (firm) {
       if (!(await workTogether(mine.id, firm.id))) {
-        return NextResponse.json(
-          { error: { code: 'ALREADY_ON_ETYME', message: alreadyOnEtyme(firm, asWord), companyId: firm.id, company: firm.name, address: firm.slug, relationship: as } },
-          { status: 409 }
-        )
+        const says = foundElsewhere(asWord)
+        await refusedFound(seatedCaller, firm.id, says)
+        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as } }, { status: 409 })
       }
       await prisma.counterparty.upsert({
         where: { companyId_otherCompanyId_relationship: { companyId: mine.id, otherCompanyId: firm.id, relationship: as } },
@@ -256,21 +254,16 @@ export async function POST(request: NextRequest) {
     if (!body?.domain && !body?.address) {
       const namesake = await prisma.company.findFirst({
         where: { claimedAt: { not: null }, isDemo: mine.isDemo === true, name: { equals: name.trim(), mode: 'insensitive' }, id: { not: mine.id } },
-        select: { name: true, slug: true },
+        select: { id: true, name: true },
       })
       if (namesake) {
-        return NextResponse.json(
-          {
-            error: {
-              code: 'SAME_NAME',
-              field: 'domain',
-              message:
-                `A company called ${namesake.name} is on Etyme already, at ${namesake.slug}.etyme.com. If that is them, ` +
-                `type their Etyme address and ask them to link, as your ${asWord}. If it is a different company, give their domain so the two are told apart.`,
-            },
-          },
-          { status: 409 }
-        )
+        // The name the person typed, and nothing more: no address, no id
+        // of a firm the caller does not work with (review, 2026-11-13).
+        const says =
+          `A company called ${namesake.name} is on Etyme already. If that is them, give their domain or their ` +
+          `Etyme address and ask them to link, as your ${asWord}. If it is a different company, give their domain so the two are told apart.`
+        await refusedFound(seatedCaller, namesake.id, says)
+        return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
       }
     }
   }
@@ -785,6 +778,29 @@ async function recordCompany(
 }
 
 /** A refused add, written to the access log before the refusal is sent. */
+/**
+ * A firm already on Etyme that does not work with the caller, said with no
+ * id, name or Etyme address of it: findFirm matched what the person typed,
+ * and naming the firm back is for the trade-link ask alone (review,
+ * 2026-11-13). The page sends the same typed facts to /api/trade-links.
+ */
+function foundElsewhere(as: string): string {
+  return (
+    `That company is on Etyme already, so no copy of it was made. Ask them to link, as your ${as}: ` +
+    `they are asked, and nothing is on either list until they say yes.`
+  )
+}
+
+/** A refusal while adding a company, written to the access log before the reply. */
+async function refusedFound(caller: import('@/lib/api-context').CallerContext, otherId: string, says: string): Promise<void> {
+  await recordRefusal([{ companyId: otherId }], {
+    actorPersonId: caller.isService ? undefined : caller.person.id,
+    actorCompanyId: caller.company!.id,
+    action: 'CONTRACT_VIEW',
+    reason: `Refused adding a company: ${says}`,
+  })
+}
+
 async function refusedAdd(caller: import('@/lib/api-context').CallerContext, doing: string): Promise<void> {
   await recordRefusal([{ companyId: caller.company!.id }], {
     actorPersonId: caller.isService ? undefined : caller.person.id,

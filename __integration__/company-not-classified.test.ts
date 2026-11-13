@@ -274,6 +274,50 @@ describe('another firm’s record is never given a position from outside', () =>
   })
 })
 
+describe('a firm on Etyme is never tied to you from your side alone', () => {
+  let stranger = ''
+  beforeAll(async () => {
+    as(OWNER)
+    const isDemo = (await prisma.company.findUniqueOrThrow({ where: { id: brightmoor }, select: { isDemo: true } })).isDemo
+    stranger = (await prisma.company.create({
+      data: { name: 'Corriban Logistics', slug: 'corriban-walk', kind: 'CLIENT', currency: 'USD', claimedAt: new Date(), isDemo },
+      select: { id: true },
+    })).id
+  })
+
+  it('a register row for a firm on Etyme that does not work with you is refused in a sentence logged first, and nothing is written', async () => {
+    const before = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: stranger } })
+    const r = await call(counterparties.POST as any, 'POST', '/api/counterparties', '', { otherCompanyId: stranger, relationship: 'CLIENT' })
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe('That company is on Etyme and does not work with you yet. Ask them to link from Add company: nothing is on either list until they say yes.')
+    expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: stranger } })).toBe(before + 1)
+    expect(await prisma.counterparty.count({ where: { companyId: brightmoor, otherCompanyId: stranger } })).toBe(0)
+  })
+
+  it('a row a firm wrote on its own register never counts as working together, so Extend still asks them to link and writes no agreement', async () => {
+    await prisma.counterparty.create({ data: { companyId: brightmoor, otherCompanyId: stranger, relationship: 'SUPPLIER', status: 'ACTIVE' } })
+    expect(await workTogether(brightmoor, stranger)).toBe(false)
+    const r = await call(extend.POST as any, 'POST', `/api/companies/${stranger}/extend`, stranger, { as: 'CUSTOMER' })
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('ALREADY_ON_ETYME')
+    expect(r.body.error.message).not.toContain('corriban-walk')
+    expect(await prisma.masterAgreement.count({ where: { vendorId: brightmoor, clientId: stranger } })).toBe(0)
+    await prisma.counterparty.deleteMany({ where: { companyId: brightmoor, otherCompanyId: stranger } })
+  })
+
+  it('a firm on Etyme found while adding a company is said with no id, name or Etyme address of it, and the refusal is logged before it is sent', async () => {
+    const before = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: stranger } })
+    const r = await record('Corriban Logistics', { address: 'corriban-walk' })
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('ALREADY_ON_ETYME')
+    expect(r.body.error.message).toBe('That company is on Etyme already, so no copy of it was made. Ask them to link, as your partner: they are asked, and nothing is on either list until they say yes.')
+    expect(r.body.error).not.toHaveProperty('companyId')
+    expect(r.body.error).not.toHaveProperty('address')
+    expect(r.body.error).not.toHaveProperty('company')
+    expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: stranger } })).toBe(before + 1)
+  })
+})
+
 /**
  * The founder's acceptance walk (brief of 2026-11-12, tests 1 to 6 and the
  * three layer additions), as the Owner of a supplier with a Gmail partner

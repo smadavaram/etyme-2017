@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
 import { readAccountManager, nameAccountManager } from './account-manager'
+import { workTogether } from '@/lib/company-create'
 
 /**
  * GET  /api/counterparties — the register: who we work with, and as what
@@ -140,6 +141,20 @@ export async function POST(request: NextRequest) {
       reason: `Refused a register row for ${other?.name ?? otherCompanyId}, another firm's record: ${says}`,
     })
     return NextResponse.json({ error: { code: 'NOT_YOURS', message: says, field: 'otherCompanyId' } }, { status: 403 })
+  }
+  // A firm on Etyme is put on one's register only where the two already
+  // work together, the same rule Extend keeps (`mayExtend`): otherwise one
+  // firm could tie itself to a stranger by writing its own row (review,
+  // 2026-11-13). The sentence names nobody; the ask to link is the door.
+  if (other.claimedAt != null && !(await workTogether(companyId, otherCompanyId))) {
+    const says = 'That company is on Etyme and does not work with you yet. Ask them to link from Add company: nothing is on either list until they say yes.'
+    await recordRefusal([{ companyId: otherCompanyId }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a register row for ${other.name}, a firm on Etyme that does not work with the caller: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, field: 'otherCompanyId' } }, { status: 409 })
   }
 
   const row = await prisma.counterparty.upsert({

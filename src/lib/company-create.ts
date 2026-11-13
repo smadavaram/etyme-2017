@@ -707,17 +707,24 @@ async function companyForeignKeys(db: Db): Promise<{ table: string; column: stri
 
 /**
  * Whether two firms already work together on Etyme: an agreement, a row on
- * either's register, an order either way, a contract, or a job one sent
- * the other. The same five facts `POST /api/contracts` reads before it lets
- * a firm name another as its client, so linking a register row to a firm
- * on Etyme never opens a door the contract route keeps shut.
+ * the other firm's register naming the asker, an order either way, a
+ * contract, or a job one sent the other. The same facts `POST
+ * /api/contracts` reads before it lets a firm name another as its client,
+ * so linking a register row to a firm on Etyme never opens a door the
+ * contract route keeps shut.
+ *
+ * `aId` is the firm asking. A row on its own register does not count: that
+ * row is one side's own writing, and a firm that could tie itself to a
+ * stranger by writing its own row would never need the stranger's yes
+ * (review, 2026-11-13). A row the other firm wrote naming the asker is the
+ * other firm's act, and does; a trade-link yes writes both.
  */
 export async function workTogether(aId: string, bId: string, db: Db = prisma): Promise<boolean> {
   if (aId === bId) return false
   const either = <T extends string>(x: T, y: T) => [{ [x]: aId, [y]: bId }, { [x]: bId, [y]: aId }]
   const hit =
     (await db.masterAgreement.findFirst({ where: { OR: either('vendorId', 'clientId') }, select: { id: true } })) ??
-    (await db.counterparty.findFirst({ where: { OR: either('companyId', 'otherCompanyId') }, select: { id: true } })) ??
+    (await db.counterparty.findFirst({ where: { companyId: bId, otherCompanyId: aId }, select: { id: true } })) ??
     (await db.workOrder.findFirst({ where: { OR: either('issuedById', 'issuedToId') }, select: { id: true } })) ??
     (await db.sellContract.findFirst({ where: { OR: either('companyId', 'clientCompanyId') }, select: { id: true } })) ??
     (await db.requirementInvitation.findFirst({

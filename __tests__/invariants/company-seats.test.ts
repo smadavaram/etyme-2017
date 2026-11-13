@@ -140,7 +140,7 @@ describe('one reader counts a company’s people the same way on every screen', 
   })
 
   it('Team structure names a seat with the one reader’s words, so a shared sign-in reads as its address there too', () => {
-    expect(read('src/lib/team-structure/read.ts')).toContain('person: { name: c.name }')
+    expect(read('src/lib/team-structure/read.ts')).toContain('person: { name: c.name, email: c.email }')
   })
 
   it('the setup checklist counts teammates beside the person who set the company up, invited ones included, and a one-person firm reads nought, never minus one', () => {

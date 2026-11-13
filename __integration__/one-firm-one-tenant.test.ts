@@ -218,8 +218,13 @@ describe('one firm, one tenant', () => {
     const refused = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME', address: 'quarrybrook' })
     expect(refused.status).toBe(409)
     expect(refused.body.error.code).toBe('ALREADY_ON_ETYME')
-    expect(refused.body.error.message).toContain('Quarrybrook Staffing is already on Etyme, at quarrybrook.etyme.com')
+    // Said with no id, name or Etyme address of a firm Teleworld does not work with (review, 2026-11-13).
+    expect(refused.body.error.message).toContain('That company is on Etyme already, so no copy of it was made')
     expect(refused.body.error.message).toContain('Ask them to link, as your prime')
+    expect(refused.body.error.message).not.toContain('quarrybrook.etyme.com')
+    expect(refused.body.error.companyId).toBeUndefined()
+    expect(refused.body.error.address).toBeUndefined()
+    expect(await prisma.accessLog.count({ where: { actorCompanyId: co['world-teleworld'], subjectCompanyId: co.quarrybrook, allowed: false } })).toBeGreaterThan(0)
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
     // A name and nothing else, and a firm on Etyme holds it: asked, never guessed.
@@ -412,7 +417,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     const add = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME', address: 'quarrybrook' })
     expect(add.status).toBe(409)
     expect(add.body.error.message).toContain('Ask them to link, as your prime')
-    const asked = await call(askToLink, 'POST', '/api/trade-links', undefined, { companyId: add.body.error.companyId, relationship: add.body.error.relationship })
+    const asked = await call(askToLink, 'POST', '/api/trade-links', undefined, { name: 'Quarrybrook Staffing', address: 'quarrybrook', relationship: add.body.error.relationship })
     expect(asked.status, JSON.stringify(asked.body)).toBe(201)
     expect(asked.body.data.says).toContain('Nothing is on either register until they say yes')
 
