@@ -369,6 +369,20 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
   const page = read('src/app/dashboard/companies/page.tsx')
   const contactsPage = read('src/app/dashboard/contacts/page.tsx')
 
+  it('a refused Extend is said beside its button in the error tone until it is closed, never as a success toast, and offers Ask them to link where the firm is on Etyme', () => {
+    const buttons = page.slice(page.indexOf('function ExtendButtons('), page.indexOf("function ExtendButtons(") + 4000)
+    expect(buttons).toContain('<FormMessage tone="error">{refused.says}</FormMessage>')
+    expect(buttons).toContain("if (r.ok) {")
+    expect(buttons).toContain('Ask them to link')
+    expect(buttons).toContain("fetch('/api/trade-links'")
+    expect(buttons).not.toContain('onDone(r.says, r.ok)')
+  })
+
+  it('the ask to link from Add company names the firm by what was typed, never by an id the route handed back', () => {
+    expect(page).toContain('body: JSON.stringify({ name: linkable.name, domain: linkable.domain, address: linkable.address,')
+    expect(page).not.toContain('linkable.companyId')
+  })
+
   it('Add a company offers "Company — not classified yet" first, and it is the choice already made', () => {
     const select = page.slice(page.indexOf('<label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>'))
     const options = [...select.matchAll(/<option value="([A-Z_]+)"/g)].map((m) => m[1])

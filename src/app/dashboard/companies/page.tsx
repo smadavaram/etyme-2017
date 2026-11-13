@@ -109,11 +109,41 @@ async function extendCompany(id: string, as: 'SUPPLIER' | 'CUSTOMER'): Promise<{
   }
 }
 
-/** The two Extend buttons, drawn only where the route would take the press. */
+/**
+ * The two Extend buttons, drawn only where the route would take the press.
+ * A success goes to the page's toast; a refusal stays beside the button,
+ * in the error tone, until it is closed, and a firm on Etyme the reader
+ * does not work with is offered "Ask them to link" there (review,
+ * 2026-11-13: a refusal read as a success for four seconds and was gone).
+ */
 function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDone: (says: string, ok: boolean) => void; withLines?: boolean }) {
   const [busy, setBusy] = useState(false)
+  const [refused, setRefused] = useState<{ as: 'SUPPLIER' | 'CUSTOMER'; says: string; askToLink: boolean } | null>(null)
+  const [asked, setAsked] = useState<string | null>(null)
   const offered = (['SUPPLIER', 'CUSTOMER'] as const).filter((as) => (as === 'SUPPLIER' ? row.may.extendToSupplier : row.may.extendToCustomer))
   if (offered.length === 0) return null
+
+  async function askToLink(as: 'SUPPLIER' | 'CUSTOMER') {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/trade-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: row.id, relationship: as === 'CUSTOMER' ? 'CLIENT' : 'SUPPLIER' }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        setRefused({ as, says: refusalSentence(body.error?.message, { what: 'Asking a firm to link' }) || 'The ask could not be sent. Try again in a minute.', askToLink: false })
+        return
+      }
+      setRefused(null)
+      setAsked(body.data?.says ?? 'Asked. Nothing is on either list until they say yes.')
+    } catch {
+      setRefused({ as, says: 'Network error. Please try again.', askToLink: false })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
       {offered.map((as) => (
@@ -125,16 +155,38 @@ function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDon
             title={extendLine(row.name, as)}
             onClick={async () => {
               setBusy(true)
+              setAsked(null)
               const r = await extendCompany(row.id, as)
               setBusy(false)
-              onDone(r.says, r.ok)
+              if (r.ok) {
+                setRefused(null)
+                onDone(r.says, true)
+              } else {
+                setRefused({ as, says: r.says, askToLink: r.askToLink })
+              }
             }}
           >
             {busy ? 'Extending…' : as === 'SUPPLIER' ? 'Extend to Supplier' : 'Extend to Customer'}
           </button>
           {withLines && <p className="mt-1 text-[12px] text-etyme-muted">{extendLine(row.name, as)}</p>}
+          {refused?.as === as && (
+            <div className="mt-1 max-w-xs space-y-1">
+              <FormMessage tone="error">{refused.says}</FormMessage>
+              <div className="flex flex-wrap items-center gap-2">
+                {refused.askToLink && (
+                  <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => askToLink(as)}>
+                    Ask them to link
+                  </button>
+                )}
+                <button type="button" className="text-[12px] text-etyme-muted underline" onClick={() => setRefused(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
+      {asked && <div className="max-w-xs"><FormMessage tone="ok">{asked}</FormMessage></div>}
     </div>
   )
 }
