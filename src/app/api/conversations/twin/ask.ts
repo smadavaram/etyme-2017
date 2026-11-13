@@ -53,7 +53,7 @@ import {
   readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, asksFirmWide, ACCESS_LINK, GIVE_ACCESS_ACT,
   type GiveAccessAsked, type GrantOffer, type GrantBody, type RoleHolders, type GrantHeld,
 } from './access'
-import { getNavForKind, menuFor, ASK_ETYME_HREF, type NavSection, type NavItem, type CompanyKind, type MenuGroup } from '@/lib/nav-table'
+import { getNavForKind, menuFor, ASK_ETYME_HREF, ACTIVITY_LOG_LABEL, IMPORT_RECORDS_LABEL, SETTINGS_GROUPS, type NavSection, type NavItem, type CompanyKind, type MenuGroup } from '@/lib/nav-table'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -262,6 +262,12 @@ const NAV_TOPICS: readonly NavTopic[] = [
   // Ask Etyme is the switch at the top of the left column, never a menu
   // link (founder, 2026-11-08, "One app, two tabs"): answered as that.
   { re: /\bask etyme\b|\bthe chat\b/, subject: 'Ask Etyme', plural: false, pages: [] },
+  // Settings reads People, Company and Records (2026-11-12): the log of
+  // what Etyme did, and the records import, by the words the menu prints.
+  { re: /\b(activity|audit|automation) log\b|\bwhat (did )?etyme do\b|\bautomation\b/, subject: 'The activity log', plural: false, pages: [ACTIVITY_LOG_LABEL] },
+  { re: /\bimport(s|ing)?\b|\bupload (a |my |our )?(file|sheet|spreadsheet|list)\b/, subject: 'Import records', plural: false, pages: [IMPORT_RECORDS_LABEL] },
+  // Reading teams from a directory is on Team structure, never on the records import.
+  { re: /\bteam structure\b|\borg (chart|structure)\b|\bteams? from (the |our |my )?directory\b|\bread teams\b|\bwho leads\b/, subject: 'Team structure', plural: false, pages: ['Team structure'] },
   // The master data sits under Network on every firm's menu (founder,
   // 2026-11-04): the people a firm keeps and the firms it trades with.
   { re: /\bmaster data\b/, subject: 'Your master data', plural: false, pages: ['Candidates', 'Companies', 'Suppliers'] },
@@ -399,7 +405,10 @@ function whereInColumn(column: readonly MenuGroup[], items: readonly NavItem[]):
     const tabs = l.items.filter((i) => i.href !== l.first)
     if (tabs.length === 0) return `under ${name}`
     const said = `${andNames(tabs.map((i) => i.label))} tab${tabs.length === 1 ? '' : 's'}`
-    return tabs.length < l.items.length ? `under ${name}, and on its ${said}` : `under ${name}, on the ${said}`
+    // Settings reads People, Company and Records: a tab in one of them is said with it.
+    const group = tabs.every((i) => i.group === tabs[0].group) ? tabs[0].group : undefined
+    const within = group && (SETTINGS_GROUPS as readonly string[]).includes(group) && tabs.length === l.items.length ? `${name}, ${group}` : name
+    return tabs.length < l.items.length ? `under ${name}, and on its ${said}` : `under ${within}, on the ${said}`
   }).join(', and ')
 }
 

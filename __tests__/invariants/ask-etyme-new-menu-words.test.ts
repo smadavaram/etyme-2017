@@ -122,3 +122,38 @@ describe('where a page is, in the words of the Dashboard column (founder, 2026-1
     }
   })
 })
+
+describe('Settings reads People, Company and Records, and Ask Etyme says the same words', () => {
+  it('a supplier asks “Where is the activity log?” and is sent to Activity log under Settings, Records', () => {
+    const a = where('Where is the activity log?', SUPPLIER)
+    expect(a.says).toBe('The activity log is under Settings, Records, on the Activity log tab.')
+    expect(hrefs(a)).toEqual(['/dashboard/automation'])
+  })
+
+  it('“Where is the audit log?” and “Where is automation?” are the activity log too', () => {
+    expect(hrefs(where('Where is the audit log?', SUPPLIER))).toEqual(['/dashboard/automation'])
+    expect(hrefs(where('Where is automation?', SUPPLIER))).toEqual(['/dashboard/automation'])
+  })
+
+  it('a client, whose menu has no activity log, is told so and is never sent to one', () => {
+    const a = where('Where is the activity log?', CLIENT)
+    expect(a.says).toMatch(/^None of your pages shows the activity log\./)
+    expect(a.links ?? []).toEqual([])
+  })
+
+  it('“Where do I import records?” says Import records, never Import alone', () => {
+    const a = where('Where do I import records?', SUPPLIER)
+    expect(a.says).toBe('Import records is under Settings, Company, on the Import records tab.')
+    expect(hrefs(a)).toEqual(['/dashboard/data'])
+  })
+
+  it('“Where can I read teams from our directory?” is sent to Team structure, not the records import', () => {
+    const a = where('Where can I read teams from our directory?', SUPPLIER)
+    expect(a.says).toMatch(/^Team structure is under Settings, (People|Company|Records), on the Team structure tab\.$/)
+    expect(hrefs(a)).toEqual(['/dashboard/settings/team-structure'])
+  })
+
+  it('“Where is my team?” still opens Users & permissions', () => {
+    expect(hrefs(where('Where is my team?', SUPPLIER))).toEqual(['/dashboard/access'])
+  })
+})
