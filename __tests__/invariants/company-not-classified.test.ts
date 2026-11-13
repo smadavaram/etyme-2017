@@ -295,6 +295,31 @@ describe('a company not classified yet is never named on a contract or an order'
   it('a company recorded the old way, classified, reads exactly as it did', () => {
     expect(mayNameCounterparty({ callerCompanyId: 'tapin', other: { ...rivermark, kind: 'CLIENT' }, relationshipExists: false, as: 'client' }).ok).toBe(true)
   })
+  it('an order recorded for a client not classified yet is refused until it is extended to Customer', async () => {
+    const { mayWriteOrder } = await import('@/lib/off-system')
+    const buyer = { ...rivermark, kind: 'UNCLASSIFIED' }
+    const seller = { id: 'tapin', name: 'Tapin', claimedAt: new Date() }
+    const refused = mayWriteOrder({ callerCompanyId: 'tapin', buyer, seller })
+    expect(refused.ok).toBe(false)
+    expect(refused.says).toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Customer first.')
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer, seller, buyerPositions: ['SUPPLIER'] }).ok).toBe(false)
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer, seller, buyerPositions: ['CUSTOMER'] }).ok).toBe(true)
+  })
+
+  it('an order raised to a supplier not classified yet is refused until it is extended to Supplier', async () => {
+    const { mayWriteOrder } = await import('@/lib/off-system')
+    const seller = { ...rivermark, kind: 'UNCLASSIFIED' }
+    const buyer = { id: 'tapin', name: 'Tapin', claimedAt: new Date() }
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer, seller, sellerStanding: 'NONE' }).says)
+      .toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Supplier first.')
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer, seller, sellerStanding: 'SUPPLIER' }).ok).toBe(true)
+  })
+
+  it('an order to or from a classified company recorded the old way reads exactly as it did', async () => {
+    const { mayWriteOrder } = await import('@/lib/off-system')
+    const seller = { id: 'tapin', name: 'Tapin', claimedAt: new Date() }
+    expect(mayWriteOrder({ callerCompanyId: 'tapin', buyer: { ...rivermark, kind: 'CLIENT' }, seller }).ok).toBe(true)
+  })
 })
 
 describe('the Companies and Contacts screens draw the two facts apart', () => {

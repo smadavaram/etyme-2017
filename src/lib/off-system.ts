@@ -197,8 +197,31 @@ export function mayWriteOrder(input: {
    * named in the matrix as owed rather than read as a yes.
    */
   sellerStanding?: SupplierStanding
+  /**
+   * What the buyer is to the caller on the caller's own register
+   * (`positionsOf`), where the caller is the seller recording the order
+   * its client handed it. Read only for a buyer of kind UNCLASSIFIED: a
+   * company the caller recorded and has not extended to Customer is
+   * never named as the client on an order (founder, 2026-11-12).
+   */
+  buyerPositions?: readonly Position[]
 }): Verdict & { recordedById: string; onBehalf: boolean } {
   const { callerCompanyId: me, buyer, seller } = input
+
+  // A company not classified yet is on the caller's Companies list and
+  // nothing more: named on an order only once it holds the position.
+  if (me === seller.id && buyer.kind === 'UNCLASSIFIED' && !(input.buyerPositions ?? []).includes('CUSTOMER')) {
+    return {
+      ok: false, recordedById: me, onBehalf: false,
+      says: `${buyer.name} is on your Companies list and is not classified yet. Extend it to Customer first.`,
+    }
+  }
+  if (me === buyer.id && seller.kind === 'UNCLASSIFIED' && input.sellerStanding !== 'SUPPLIER') {
+    return {
+      ok: false, recordedById: me, onBehalf: false,
+      says: `${seller.name} is on your Companies list and is not classified yet. Extend it to Supplier first.`,
+    }
+  }
 
   if (buyer.id === seller.id) {
     return {
