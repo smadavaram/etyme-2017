@@ -474,6 +474,18 @@ export function lacksPosition(
   return read?.notClassified === true
 }
 
+/**
+ * The domain somebody typed for a company they are recording, as a note:
+ * lower case, with no scheme, no "www.", no path. Null where it does not
+ * read as a domain, so nothing odd is kept. Pure.
+ */
+export function notedDomain(typed: unknown): string | null {
+  if (typeof typed !== 'string') return null
+  const bare = typed.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#\s]/)[0]
+  if (!bare || bare.length > 120) return null
+  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(bare) ? bare : null
+}
+
 /** The reader recorded this company and nobody has claimed it. Pure. */
 export function isMine(company: { claimedAt: Date | string | null; listedById: string | null }, me: string): boolean {
   return company.claimedAt == null && company.listedById === me

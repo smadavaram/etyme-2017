@@ -85,7 +85,7 @@ describe('a company not classified yet is a record, never a reader', () => {
 import {
   mayAddCompany, mayRecordCompany, positionsOf, isNotClassified, isMine, mayExtend, mayRemovePosition,
   maySetRecordedKind, mayInviteRecorded, mayClaimRecorded, sameNameAmong, sameNameRefused, firmNameKey,
-  NEVER_EMAILS, type PositionWork,
+  NEVER_EMAILS, notedDomain, type PositionWork,
 } from '@/lib/counterparty'
 import { mayNameCounterparty } from '@/lib/off-system'
 
@@ -125,6 +125,30 @@ describe('recording a company with no position', () => {
     expect(hit?.id).toBe('rm')
     expect(sameNameRefused(hit!)).toBe('Rivermark Partners, LLC is on your Companies list already. Open it there rather than record it twice.')
     expect(sameNameAmong('Rivermark Capital', mine)).toBeNull()
+  })
+})
+
+describe('the domain typed for a recorded company is a note, never a claim', () => {
+  it('a typed domain is kept bare and in lower case, with no scheme, no www and no path', () => {
+    expect(notedDomain('https://www.Rivermark.example/about?x=1')).toBe('rivermark.example')
+    expect(notedDomain('  talent.rivermark.example  ')).toBe('talent.rivermark.example')
+  })
+
+  it('something that does not read as a domain is not kept', () => {
+    for (const typed of ['', '   ', 'rivermark', 'not a domain', 'dana@rivermark.example', '-bad.example', null, undefined, 42]) {
+      expect(notedDomain(typed)).toBeNull()
+    }
+  })
+
+  it('the record writes the note to the typed-website column and never to the domain a company is joined by', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/companies/route.ts'), 'utf8')
+    const record = route.slice(route.indexOf('async function recordCompany('))
+    expect(record).toContain('const noted = notedDomain(body?.domain)')
+    expect(record).toContain('website: noted')
+    expect(record).toMatch(/domain: null,/)
+    expect(record).toContain('claimDomain: false')
+    // And the list shows it only on the reader's own unclaimed record.
+    expect(route).toContain('notedDomain: !c.domain && caller.company && isMine(c, caller.company.id) ? c.website : null')
   })
 })
 

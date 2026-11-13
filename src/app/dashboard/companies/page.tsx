@@ -32,6 +32,8 @@ interface Company {
   entityType: string | null
   domain: string | null
   domainVerified: boolean
+  /** The domain you typed for your own record of a company nobody has claimed. A note, never a claim. */
+  notedDomain?: string | null
   currency: string
   siteLiveAt: string | null
   networkVerifiedAt: string | null
@@ -593,7 +595,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               and it is off until somebody ticks it. */}
           <p className="text-sm text-etyme-ink">
             {NEVER_EMAILS}
-            {isClient && form.invite && ' The invitation you ticked is sent to them as its own email.'}
+            {isClient && form.invite && ' The one exception is the invitation you ticked above. Untick it and nothing is sent.'}
           </p>
 
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
@@ -1048,7 +1050,10 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Domain</p>
-              <p className="text-sm">{company.domain ?? 'Not set'}</p>
+              <p className="text-sm break-words">{company.domain ?? company.notedDomain ?? 'Not set'}</p>
+              {!company.domain && company.notedDomain && (
+                <p className="text-xs text-etyme-muted mt-1">As you typed it. Nobody has checked it.</p>
+              )}
               {company.domain && (
                 <span className={`chip mt-1 ${company.domainVerified ? 'chip--verified' : 'chip--attention'}`}>
                   {company.domainVerified ? 'Verified' : 'Unverified'}
@@ -1349,13 +1354,13 @@ export default function CompaniesPage() {
       key: 'domain',
       label: 'Domain',
       render: (row) => (
-        row.domain ? (
-          <span className="text-sm text-etyme-ink">{row.domain}</span>
+        row.domain ?? row.notedDomain ? (
+          <span className="text-sm text-etyme-ink">{row.domain ?? row.notedDomain}</span>
         ) : (
           <span className="text-etyme-faint">—</span>
         )
       ),
-      sortValue: (row) => row.domain ?? '',
+      sortValue: (row) => row.domain ?? row.notedDomain ?? '',
       hideOnMobile: true,
     },
     {
@@ -1382,7 +1387,7 @@ export default function CompaniesPage() {
   const searchFilter = (row: Company, q: string) =>
     row.name.toLowerCase().includes(q) ||
     row.slug.toLowerCase().includes(q) ||
-    (row.domain ?? '').toLowerCase().includes(q) ||
+    (row.domain ?? row.notedDomain ?? '').toLowerCase().includes(q) ||
     (row.entityType ?? '').toLowerCase().includes(q) ||
     kindOnList(row.kind).toLowerCase().includes(q) ||
     (row.notClassified && NOT_CLASSIFIED.toLowerCase().includes(q)) ||

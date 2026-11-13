@@ -10,7 +10,7 @@ import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany, findFirm, workTogether } from '@/lib/company-create'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
-import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS, mayExtend, maySetRecordedKind } from '@/lib/counterparty'
+import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notedDomain } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
 import { positionsFor } from './positions'
 import { speaksForItself } from '@/lib/public-site/speaks'
@@ -576,6 +576,7 @@ export async function GET(request: NextRequest) {
       entityType: true,
       domain: true,
       domainVerified: true,
+      website: true,
       currency: true,
       siteLiveAt: true,
       networkVerifiedAt: true,
@@ -609,6 +610,10 @@ export async function GET(request: NextRequest) {
         entityType: c.entityType,
         domain: c.domain,
         domainVerified: c.domainVerified,
+        // The domain the reader typed for its own record of a company
+        // nobody has claimed: a note, never a claim, and never read off
+        // a company that is somebody else's.
+        notedDomain: !c.domain && caller.company && isMine(c, caller.company.id) ? c.website : null,
         currency: c.currency,
         siteLiveAt: c.siteLiveAt?.toISOString() ?? null,
         networkVerifiedAt: c.networkVerifiedAt?.toISOString() ?? null,
@@ -698,9 +703,14 @@ function readerFor(caller: import('@/lib/api-context').CallerContext): Reader {
  * Record a company not classified yet on the caller's own list: a Company
  * of kind UNCLASSIFIED, listed by the caller, with no register row, no
  * agreement, no roles, no seat, no domain claim and nothing on a page.
- * Nothing is emailed and no notice is written (founder, 2026-11-12). A
- * typed domain was used above to look the firm up on Etyme and is not
- * kept: no column holds one firm's private note of another's domain.
+ * Nothing is emailed and no notice is written (founder, 2026-11-12).
+ *
+ * A typed domain was used above to look the firm up on Etyme. It is kept
+ * on the record as the recorder's own note of it (`website`, the column
+ * for what somebody typed), because the founder's brief counts the domain
+ * as part of a record's identity: name, domain, contacts. It is never
+ * written to `domain`: that column is the claim a company's own people
+ * join by, and a note one firm typed about another must never be one.
  */
 async function recordCompany(
   caller: import('@/lib/api-context').CallerContext,
@@ -716,6 +726,7 @@ async function recordCompany(
       { status: 422 }
     )
   }
+  const noted = notedDomain(body?.domain)
   try {
     const slug = await uniqueSlug(baseSlug || 'company')
     const made = await prisma.$transaction(async (tx) => {
@@ -737,7 +748,12 @@ async function recordCompany(
         tx
       )
       const entityType = typeof body?.entityType === 'string' && body.entityType.trim() ? body.entityType.trim().slice(0, 60) : null
-      if (entityType) await tx.company.update({ where: { id: created.company.id }, data: { entityType } })
+      if (entityType || noted) {
+        await tx.company.update({
+          where: { id: created.company.id },
+          data: { ...(entityType ? { entityType } : {}), ...(noted ? { website: noted } : {}) },
+        })
+      }
       await tx.automationLog.create({
         data: {
           companyId: mine.id,
@@ -753,7 +769,7 @@ async function recordCompany(
     return NextResponse.json(
       {
         data: {
-          company: { id: made.id, name: made.name, slug: made.slug, kind: made.kind, domain: null, siteLiveAt: null, networkVerifiedAt: null },
+          company: { id: made.id, name: made.name, slug: made.slug, kind: made.kind, domain: null, notedDomain: noted, siteLiveAt: null, networkVerifiedAt: null },
           positions: [],
           notClassified: true,
           mine: true,

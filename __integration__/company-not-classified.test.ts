@@ -74,6 +74,16 @@ describe('recording a company with only its name', () => {
     expect(await prisma.masterAgreement.count({ where: { OR: [{ vendorId: id }, { clientId: id }] } })).toBe(0)
   })
 
+  it('the domain typed for a recorded company is kept as your own note and shown on your list, and it is never a claim on that domain', async () => {
+    const c = await prisma.company.findUniqueOrThrow({ where: { id }, select: { domain: true, domainVerified: true, website: true } })
+    expect(c).toEqual({ domain: null, domainVerified: false, website: 'rivermark.example' })
+    expect((await listed()).find((x) => x.id === id)).toMatchObject({ domain: null, notedDomain: 'rivermark.example' })
+    // Another firm reading the directory is never shown the note.
+    as(`world-techpeple${D}`)
+    expect(JSON.stringify((await json(await companies.GET(req('GET', '/api/companies?records=1')))).body)).not.toContain('rivermark.example')
+    as(OWNER)
+  })
+
   it('recording a company that is not on Etyme seats nobody and claims no domain', async () => {
     expect(await prisma.role.count({ where: { companyId: id } })).toBe(0)
     expect(await prisma.context.count({ where: { companyId: id } })).toBe(0)
