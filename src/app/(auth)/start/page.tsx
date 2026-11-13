@@ -12,6 +12,7 @@ import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, noPayrollLi
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
 import { AnotherAccount } from '../another-account'
+import { KIND_MISSING, NAME_MISSING } from './missing'
 
 /**
  * Getting in, and setting up. Five steps, then it stops.
@@ -72,6 +73,8 @@ export default function StartPage() {
   const [state, setState] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The type whose "Set up my company" was pressed with no name typed.
+  const [missingFor, setMissingFor] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [joined, setJoined] = useState<any>(null)
   // Step 2's answers, each pre-filled with its guess.
@@ -290,9 +293,16 @@ export default function StartPage() {
                   Your company&rsquo;s name
                   <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
                 </label>
-                <button onClick={() => enter({ type: t.key, name })} disabled={busy || !name.trim()} className={`mt-3 ${secondary}`}>
+                {/* Pressable with the name empty, and it says what is missing (fault list, 2026-11-13). */}
+                <button onClick={() => {
+                  if (!name.trim()) { setMissingFor(t.key); return }
+                  setMissingFor(null)
+                  enter({ type: t.key, name })
+                }} disabled={busy} className={`mt-3 ${secondary}`}>
                   Set up my company
                 </button>
+                {missingFor === t.key && <p role="alert" className="mt-2 text-sm text-etyme-attention">{NAME_MISSING}</p>}
+                {missingFor !== t.key && error && <p className="mt-2 text-sm text-etyme-attention">{error}</p>}
               </div>
             ))}
           </>
@@ -388,8 +398,12 @@ export default function StartPage() {
             </p>
 
             {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
-            <button onClick={() => enter({ type, name, country, currency, ...(state.action === 'SUGGEST' ? { joinExisting: false } : {}) })}
-              disabled={busy || !type} className={`mt-6 ${primary}`}>
+            <button onClick={() => {
+              // Pressable before a kind is chosen, and it says what is missing.
+              if (!type) { setError(KIND_MISSING); return }
+              enter({ type, name, country, currency, ...(state.action === 'SUGGEST' ? { joinExisting: false } : {}) })
+            }}
+              disabled={busy} className={`mt-6 ${primary}`}>
               {busy ? 'Setting up…' : 'Continue'}
             </button>
             {/* Before the company exists nothing decides how others join it, so the line promises nothing a door may refuse. */}
