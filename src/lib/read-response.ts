@@ -57,12 +57,17 @@ export function statusMeans(status: number): string {
  * ownership ask saw the page replaced by a refusal instead of their own
  * answer (the Owner walk).
  */
-export type ReplyError = Error & { status: number; code?: string }
+/**
+ * `field` names the form field the refusal is about, where the route
+ * said one (`error.field`), so a form can put the sentence beside it.
+ */
+export type ReplyError = Error & { status: number; code?: string; field?: string }
 
-function replyError(message: string, status: number, code?: unknown): ReplyError {
+function replyError(message: string, status: number, code?: unknown, field?: unknown): ReplyError {
   const e = new Error(message) as ReplyError
   e.status = status
   if (typeof code === 'string' && code) e.code = code
+  if (typeof field === 'string' && field) e.field = field
   return e
 }
 
@@ -95,7 +100,7 @@ export async function readJson<T = any>(res: Response): Promise<T> {
   }
 
   if (!res.ok) {
-    throw replyError(body?.error?.message ?? statusMeans(res.status), res.status, body?.error?.code)
+    throw replyError(body?.error?.message ?? statusMeans(res.status), res.status, body?.error?.code, body?.error?.field)
   }
 
   if (body === null) {

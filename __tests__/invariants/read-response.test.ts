@@ -91,6 +91,18 @@ describe('a refusal carries its status and the route’s code, so a page can dra
     expect(e.code).toBeUndefined()
   })
 
+  it('a refusal about one field names that field, so a form can put the sentence beside it', async () => {
+    const r = res(400, JSON.stringify({ error: { message: 'Enter your company’s name.', code: 'BAD_REQUEST', field: 'companyName' } }))
+    const e = await readJson(r).catch((x) => x)
+    expect(e.message).toBe('Enter your company’s name.')
+    expect(e.field).toBe('companyName')
+  })
+
+  it('a refusal that names no field carries none, and a field that is not text is dropped', async () => {
+    expect((await readJson(res(400, JSON.stringify({ error: { message: 'No.' } }))).catch((x) => x)).field).toBeUndefined()
+    expect((await readJson(res(400, JSON.stringify({ error: { message: 'No.', field: 7 } }))).catch((x) => x)).field).toBeUndefined()
+  })
+
   it('isRefusal is true for a 403 and false for a fault or an empty reply', async () => {
     const { isRefusal } = await import('@/lib/read-response')
     expect(isRefusal(await readJson(res(403)).catch((x) => x))).toBe(true)
