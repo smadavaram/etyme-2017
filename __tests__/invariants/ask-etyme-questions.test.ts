@@ -781,7 +781,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
 
   it('a client’s Owner asks “Where are payments in?” and is told no page of hers shows them, because a client bills nobody', async () => {
     const a = await where('CLIENT_OWNER', 'Where are payments in?')
-    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payments in. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables and Settings.' })
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payments in. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables, Reports and Settings.' })
   })
 
   it('a supplier’s Owner asks “Where do I run payroll?” and reads Payroll under Accounting', async () => {
@@ -794,7 +794,7 @@ describe('where a page is, asked by a supplier’s Owner, a client’s hiring ma
 
   it('a client’s Owner asks “Where do I run payroll?” and is told no page of hers shows it', async () => {
     const a = await where('CLIENT_OWNER', 'Where do I run payroll?')
-    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables and Settings.' })
+    expect(a).toEqual({ kind: 'TEXT', says: 'None of your pages shows payroll. You can open Today, Candidates, Suppliers, Jobs, Submissions, Contracts, Timesheets, Expenses, Payables, Reports and Settings.' })
   })
 
   it('take me there after such an answer opens the page', async () => {
