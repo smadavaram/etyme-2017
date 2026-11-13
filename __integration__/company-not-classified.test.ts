@@ -262,3 +262,14 @@ describe('nothing leaves and nothing else moves', () => {
     expect(seededKinds.find((k) => k.kind === 'UNCLASSIFIED')).toBeUndefined()
   })
 })
+
+describe('another firm’s record is never given a position from outside', () => {
+  it('a register row for a company another firm recorded is refused in a sentence, so nothing can name it on a contract', async () => {
+    const mine = await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, kind: 'UNCLASSIFIED' }, select: { id: true } })
+    as(`world-nike${D}`)
+    const r = await call(counterparties.POST as any, 'POST', '/api/counterparties', '', { otherCompanyId: mine.id, relationship: 'SUPPLIER' })
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('That company is not on your Companies list. Add it there first.')
+    as(OWNER)
+  })
+})

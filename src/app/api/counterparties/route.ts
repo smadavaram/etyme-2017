@@ -3,6 +3,7 @@ import { isTier, tierWord } from '@/lib/supplier-tier'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { recordRefusal } from '@/lib/access-log'
 import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
 import { readAccountManager, nameAccountManager } from './account-manager'
 
@@ -123,6 +124,21 @@ export async function POST(request: NextRequest) {
       { error: { code: 'VALIDATION', message: 'A firm cannot be its own counterparty.' } },
       { status: 422 }
     )
+  }
+
+  // Another firm's record of a company nobody has claimed is that firm's,
+  // not ours to give a position to: a register row is what lets a contract
+  // name a firm (founder, 2026-11-12). Refused in a sentence, logged first.
+  const other = await prisma.company.findUnique({ where: { id: otherCompanyId }, select: { name: true, claimedAt: true, listedById: true } })
+  if (!other || (other.claimedAt == null && other.listedById != null && other.listedById !== companyId)) {
+    const says = 'That company is not on your Companies list. Add it there first.'
+    await recordRefusal([{ companyId: otherCompanyId }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a register row for ${other?.name ?? otherCompanyId}, another firm's record: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_YOURS', message: says, field: 'otherCompanyId' } }, { status: 403 })
   }
 
   const row = await prisma.counterparty.upsert({
