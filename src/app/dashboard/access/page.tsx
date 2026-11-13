@@ -3,7 +3,7 @@
 import { readJson, statusMeans } from '@/lib/read-response'
 import {
   desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, capRefusalSays, parseAddresses, MAX_ADDRESSES_AT_ONCE,
-  COPY_LABEL, SEND_AGAIN_LABEL, type InviteForm, type InviteMail,
+  COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, type InviteForm, type InviteMail, type GrantSensitivity,
 } from '@/lib/access-grant'
 import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
@@ -60,6 +60,8 @@ interface Person {
   /** The role, or "Member · give them a role". */
   line: string
   sensitivity: string
+  /** The level in words, and the sentence that says why (`levelOf`). */
+  level?: { key: string; label: string; why: string }
   expiresAt: string | null
   lastUsedAt: string | null
   reason: string | null
@@ -121,6 +123,38 @@ function Address({ email }: { email: string | null | undefined }) {
   return (
     <div className="text-xs text-etyme-muted truncate select-all" title={email}>{email}</div>
   )
+}
+
+/**
+ * What the levels mean, one short line each, read from `levelLegend` in
+ * lib/access-grant: the same lists the level is computed from and the
+ * permission words Give access prints, so it cannot drift (founder,
+ * 2026-11-12). Open from sm up; folded behind one line on a phone.
+ */
+function LevelLegend() {
+  const lines = levelLegend()
+  const list = (
+    <ul className="text-[13px] text-etyme-muted space-y-0.5">
+      {lines.map((l) => (
+        <li key={l.key} className="break-words"><span className="text-etyme-ink">{l.label}</span>: {l.says}</li>
+      ))}
+    </ul>
+  )
+  return (
+    <div className="mb-3">
+      <p className="hidden sm:block text-[13px] text-etyme-muted mb-1">The level beside a role is read off what the role can do.</p>
+      <div className="hidden sm:block">{list}</div>
+      <details className="sm:hidden">
+        <summary className="text-[13px] text-etyme-action cursor-pointer">What do these levels mean?</summary>
+        <div className="mt-1">{list}</div>
+      </details>
+    </div>
+  )
+}
+
+/** The level on a row, never the raw enum: "Critical", "High", "Standard", "Read only" or "No role yet". */
+function levelWords(p: Person): string {
+  return p.level?.label ?? LEVEL_LABEL[p.sensitivity as GrantSensitivity] ?? p.sensitivity
 }
 
 /** What a row can be asked to do on this page: the three lifecycle acts, and withdrawing an invitation. */
@@ -521,6 +555,9 @@ export default function AccessPage() {
   // The route's own sentence under the row it was about. Kept outside
   // the data, so it stays on the page after the register is read again.
   const [said, setSaid] = useState<Said | null>(null)
+  // The row whose level chip was tapped: its why is said under the row,
+  // so a phone, which has no hover, reads it too.
+  const [levelOpen, setLevelOpen] = useState<string | null>(null)
 
   // Bring the team in by name: the account manager, HR, the contract
   // desk, finance. Each is emailed and seated with their role before
@@ -901,6 +938,7 @@ export default function AccessPage() {
 
       <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>
+        <LevelLegend />
         {/* A seat that was ended leaves the register, so its sentence is said here. */}
         {said && !data.people.some((p: Person) => p.contextId === said.contextId)
           && !data.waitingForAccess.some((w: Waiting) => w.contextId === said.contextId)
@@ -928,10 +966,14 @@ export default function AccessPage() {
                     their own fixed columns only from sm up. */}
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   <div className="text-xs text-etyme-muted sm:w-36 sm:text-right">{until(p.expiresAt)}</div>
-                  <div className="sm:w-24 sm:text-right">
-                    <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
-                      {p.sensitivity.toLowerCase().replace('_', ' ')}
-                    </Chip>
+                  <div className="sm:w-28 sm:text-right">
+                    <button type="button" onClick={() => setLevelOpen(levelOpen === p.contextId ? null : p.contextId)}
+                      aria-expanded={levelOpen === p.contextId} aria-label={p.level?.why ?? levelWords(p)}
+                      className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action">
+                      <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'} title={p.level?.why}>
+                        {levelWords(p)}
+                      </Chip>
+                    </button>
                   </div>
                 </div>
                 {/* Change desk, on every row. A desk given on arrival is
@@ -955,6 +997,10 @@ export default function AccessPage() {
                     open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
                 </div>
               </div>
+
+              {levelOpen === p.contextId && p.level?.why && (
+                <p className="text-xs text-etyme-muted mt-2 break-words">{p.level.why}</p>
+              )}
 
               {acting?.contextId === p.contextId && (
                 <ActForm action={acting.action} acts={p.acts} name={p.person.name} email={p.person.primaryEmail}

@@ -7,7 +7,7 @@ import { notify } from '@/lib/notify'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import { recordRefusal } from '@/lib/access-log'
 import {
-  assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
+  assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
 } from '@/lib/access-grant'
@@ -299,6 +299,9 @@ export async function GET(request: NextRequest) {
         line: deskLine(c.role!.name),
         consultant: isConsultant(c.id),
         sensitivity: sensitivityOf(c.role!.permissions),
+        // The level in words and why, read off the role's own permissions
+        // (founder, 2026-11-12: the role and the level are one system).
+        level: levelOf(c.role!.name, c.role!.permissions),
         grantedAt: c.grantedAt.toISOString(),
         expiresAt: c.expiresAt?.toISOString() ?? null,
         lastUsedAt: c.lastUsedAt?.toISOString() ?? null,

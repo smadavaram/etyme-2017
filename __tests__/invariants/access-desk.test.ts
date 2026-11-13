@@ -1057,3 +1057,85 @@ describe('one moment, said one way', () => {
     expect(invite).not.toMatch(/Email sent/)
   })
 })
+
+/**
+ * The founder at Tapin, 2026-11-12: each row showed a role and beside it
+ * "high" or "critical" in lower case, with nothing saying what either
+ * meant. They are one system: the level is read off what the role can do,
+ * said in words, with why on the chip and one legend above the list.
+ */
+describe('the level beside a role, said in words', () => {
+  const page = read('src/app/dashboard/access/page.tsx')
+  const route = read('src/app/api/access/route.ts')
+
+  it('the legend on Users and permissions is built from the same lists that decide a role’s level', async () => {
+    const { levelLegend, CRITICAL_PERMISSIONS, HIGH_PERMISSIONS } = await import('@/lib/access-grant')
+    const { GRANT_LABELS } = await import('@/lib/permission-grants/words')
+    const lines = Object.fromEntries(levelLegend().map((l) => [l.key, l.says]))
+    for (const p of HIGH_PERMISSIONS) {
+      const words = (GRANT_LABELS as Record<string, string>)[p]
+      if (words) expect(lines.HIGH).toContain(words)
+    }
+    for (const p of CRITICAL_PERMISSIONS) {
+      const words = (GRANT_LABELS as Record<string, string>)[p]
+      if (words) expect(lines.CRITICAL).toContain(words)
+    }
+    expect(page).toContain('const lines = levelLegend()')
+  })
+
+  it('the legend says what Critical, High, Standard and Read only mean, Critical first', async () => {
+    const { levelLegend } = await import('@/lib/access-grant')
+    expect(levelLegend().map((l) => l.label)).toEqual(['Critical', 'High', 'Standard', 'Read only', 'No role yet'])
+    expect(levelLegend()[0].says).toContain('so it can change who has access')
+  })
+
+  it('a role that can change who has access reads as Critical, and the chip says why in a sentence', async () => {
+    const { levelOf } = await import('@/lib/access-grant')
+    const l = levelOf('Admin', ['settings.manage', 'team.manage'])
+    expect(l.label).toBe('Critical')
+    expect(l.why).toBe('Critical because this role can change company settings, so it can change who has access.')
+  })
+
+  it('a role holding everything reads Critical and says so in words, never as an asterisk', async () => {
+    const { levelOf } = await import('@/lib/access-grant')
+    const l = levelOf('Owner', ['*'])
+    expect(l.label).toBe('Critical')
+    expect(l.why).toContain('do everything here')
+    expect(l.why).not.toContain('*')
+  })
+
+  it('paying and sending bills are High, not Critical, and the chip says what the role can do', async () => {
+    const { levelOf } = await import('@/lib/access-grant')
+    expect(levelOf('AP & Payroll', ['payments.record', 'timesheets.read'])).toMatchObject({ label: 'High', why: 'High because this role can record money received.' })
+    expect(levelOf('Accounts Receivable', ['invoices.issue']).why).toContain('send a bill to a customer')
+  })
+
+  it('a role that can only look reads as Read only, and an everyday role as Standard', async () => {
+    const { levelOf } = await import('@/lib/access-grant')
+    expect(levelOf('Viewer', ['invoices.read', 'timesheets.read']).label).toBe('Read only')
+    expect(levelOf('Recruiter', ['submissions.create', 'consultants.read']).label).toBe('Standard')
+  })
+
+  it('a seat on the Member role reads No role yet, never Standard or Read only', async () => {
+    const { levelOf } = await import('@/lib/access-grant')
+    expect(levelOf('Member', [])).toMatchObject({ key: 'NO_ROLE', label: 'No role yet' })
+  })
+
+  it('the level is written in words, never as an enum lower-cased with its underscore taken out', () => {
+    expect(page).not.toContain("p.sensitivity.toLowerCase().replace('_', ' ')")
+    expect(page).toContain('{levelWords(p)}')
+    expect(route).toContain('level: levelOf(c.role!.name, c.role!.permissions)')
+  })
+
+  it('the level chip says why on hover and on a tap, so a phone reads it too', () => {
+    expect(page).toContain('title={p.level?.why}')
+    expect(page).toContain('onClick={() => setLevelOpen(levelOpen === p.contextId ? null : p.contextId)}')
+    expect(page).toContain('{levelOpen === p.contextId && p.level?.why && (')
+  })
+
+  it('the legend folds behind “What do these levels mean?” on a phone and is open from sm up', () => {
+    expect(page).toContain('<details className="sm:hidden">')
+    expect(page).toContain('What do these levels mean?')
+    expect(page).toContain('<div className="hidden sm:block">{list}</div>')
+  })
+})

@@ -32,25 +32,103 @@ import { formatDay } from '@/lib/format-date'
 import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy, type EffectiveMode } from '@/lib/identity/policy'
 import { momentFor } from '@/lib/when'
 import { clause } from '@/lib/owner-rules'
+import { GRANT_LABELS } from '@/lib/permission-grants/words'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
 /**
- * Permissions that decide who else gets in, or that move money. These are
- * the ones worth reaffirming often.
+ * Permissions that decide who else gets in. A role holding any is Critical.
+ * Exported so the legend on Users & permissions is read from the same list
+ * the level is computed from, and cannot drift (founder, 2026-11-12: "two
+ * unexplained systems on one row"). Names no permission catalog holds are
+ * kept for a role written before the catalog narrowed; they match nothing
+ * and are never said.
  */
-const CRITICAL = ['*', 'settings.manage', 'roles.manage', 'company.manage']
-const HIGH = [
+export const CRITICAL_PERMISSIONS: readonly string[] = ['*', 'settings.manage', 'roles.manage', 'company.manage']
+/** Permissions that move money, set rates, or end or extend a placement. A role holding any, and none of the above, is High. */
+export const HIGH_PERMISSIONS: readonly string[] = [
   'invoices.approve', 'invoices.issue', 'payments.record',
   'rates.write', 'assignments.write', 'assignments.terminate',
   'governance.write', 'compliance.write',
 ]
+const CRITICAL = CRITICAL_PERMISSIONS
+const HIGH = HIGH_PERMISSIONS
 
 export function sensitivityOf(permissions: string[]): GrantSensitivity {
   if (permissions.some(p => CRITICAL.includes(p))) return 'CRITICAL'
   if (permissions.some(p => HIGH.includes(p))) return 'HIGH'
   if (permissions.every(p => p.endsWith('.read'))) return 'READ_ONLY'
   return 'STANDARD'
+}
+
+// ── The level, said in words ───────────────────────────────────────────
+//
+// The founder, on Users & permissions at Tapin: each row showed a role
+// ("AP & Payroll") and beside it "high" or "critical" in lower case, with
+// nothing saying what either meant or how they relate. They are one
+// system: the level is read off what the role can do. So the level is
+// said in words, the chip says why in a sentence, and one legend says what
+// each level means, every line built from the two lists above and the
+// permission words Give access prints (`GRANT_LABELS`).
+
+/** The level as a person reads it. Never the enum. */
+export const LEVEL_LABEL: Record<GrantSensitivity, string> = {
+  CRITICAL: 'Critical', HIGH: 'High', STANDARD: 'Standard', READ_ONLY: 'Read only',
+}
+/** The chip on a seat that holds the Member role: it holds nothing yet. */
+export const NO_ROLE_LABEL = 'No role yet'
+
+/** What one permission lets somebody do, in Give access's words; '*' is everything. Null for a name the catalog does not hold. */
+function permissionSays(p: string): string | null {
+  if (p === '*') return 'do everything here'
+  return (GRANT_LABELS as Record<string, string>)[p] ?? null
+}
+
+/** "a, b or c". */
+function orList(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`
+}
+
+const said = (list: readonly string[]) => list.map(permissionSays).filter((w): w is string => Boolean(w))
+
+/**
+ * The legend above "Everyone with access", one short line per level,
+ * Critical first. Read from `CRITICAL_PERMISSIONS` and `HIGH_PERMISSIONS`
+ * through Give access's words, so a permission moved between the lists
+ * moves its words here in the same edit. Pure.
+ */
+export function levelLegend(): { key: GrantSensitivity | 'NO_ROLE'; label: string; says: string }[] {
+  return [
+    { key: 'CRITICAL', label: LEVEL_LABEL.CRITICAL, says: `A role that can ${orList(said(CRITICAL_PERMISSIONS))}, so it can change who has access.` },
+    { key: 'HIGH', label: LEVEL_LABEL.HIGH, says: `A role that can ${orList(said(HIGH_PERMISSIONS))}.` },
+    { key: 'STANDARD', label: LEVEL_LABEL.STANDARD, says: 'A role for everyday work that can do none of that.' },
+    { key: 'READ_ONLY', label: LEVEL_LABEL.READ_ONLY, says: 'A role that can look and change nothing.' },
+    { key: 'NO_ROLE', label: NO_ROLE_LABEL, says: 'Signed in with no role: they see their own pages and what is sent to them, until somebody gives them one.' },
+  ]
+}
+
+/**
+ * A seat's level and the sentence that says why, from its role's
+ * permissions: "Critical because this role can change company settings, so
+ * it can change who has access." The Member role, which holds nothing,
+ * reads "No role yet", never Standard or Read only. Pure.
+ */
+export function levelOf(roleName: string | null, permissions: readonly string[]): { key: GrantSensitivity | 'NO_ROLE'; label: string; why: string } {
+  if (!roleName || roleName === 'Member') {
+    return { key: 'NO_ROLE', label: NO_ROLE_LABEL, why: `${NO_ROLE_LABEL}: they see their own pages and what is sent to them, until somebody gives them a role.` }
+  }
+  const key = sensitivityOf([...permissions])
+  if (key === 'CRITICAL') {
+    const by = said(permissions.filter((p) => CRITICAL.includes(p)))
+    return { key, label: LEVEL_LABEL.CRITICAL, why: `Critical because this role can ${by[0] ?? 'change company settings'}, so it can change who has access.` }
+  }
+  if (key === 'HIGH') {
+    const by = said(permissions.filter((p) => HIGH.includes(p)))
+    return { key, label: LEVEL_LABEL.HIGH, why: `High because this role can ${orList(by.length ? by : ['move money or set rates'])}.` }
+  }
+  if (key === 'READ_ONLY') return { key, label: LEVEL_LABEL.READ_ONLY, why: 'Read only because this role can look and change nothing.' }
+  return { key, label: LEVEL_LABEL.STANDARD, why: 'Standard because this role does everyday work and cannot change who has access, move money or set rates.' }
 }
 
 /**
