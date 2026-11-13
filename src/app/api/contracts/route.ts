@@ -22,7 +22,9 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
-import { mayNameCounterparty } from '@/lib/off-system'
+import { mayNameCounterparty, isShell } from '@/lib/off-system'
+import { workTogether } from '@/lib/company-create'
+import { clientBuysFrom, mayBuyFromFirm, sellLineTie, buyLineTie } from '@/lib/money/line-ties'
 import { recordRefusal } from '@/lib/access-log'
 import { standingWith, lacksPosition } from '@/app/api/companies/positions'
 import { chooseHeader } from '@/lib/award'
@@ -202,6 +204,33 @@ export async function POST(request: NextRequest) {
       )
     }
   }
+  // A firm on Etyme named as the supplier of a buy line is named only
+  // where the two already work together (`workTogether`, never a register
+  // row this firm wrote itself) or a buy line between them is already on
+  // file (review, 2026-11-13). Otherwise it reads as an id that is not
+  // there, the same as an unknown firm. A record of this firm's own that is
+  // not on Etyme yet was decided above, and the person's own company is
+  // their own pay route, not a supplier.
+  if (
+    supplier &&
+    !isShell(supplier) &&
+    !lacksPosition(supplierHeld, supplier.kind, ['SUPPLIER', 'PRIME']) &&
+    supplier.id !== person.consultant?.ownCompany?.id
+  ) {
+    const tie = buyLineTie({ allowed: await mayBuyFromFirm(String(companyId), supplier.id) })
+    if (!tie.ok) {
+      await recordRefusal([{ companyId: supplier.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: String(companyId),
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${supplier.name} as the supplier on a buy line: the two do not work together on Etyme`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: tie.says, field: 'boughtFromId' } },
+        { status: 403 }
+      )
+    }
+  }
   const line = recordedLine({
     engagementType,
     contractType,
@@ -352,7 +381,34 @@ export async function POST(request: NextRequest) {
   // between us — an agreement, an order, a contract, our own register, or
   // a job they sent us. Answering "yes" for every shell would let any
   // firm write its contracts onto another firm's client.
-  const relationshipExists = Boolean(
+  // A client on Etyme is read from its own side (review, 2026-11-13): the
+  // two work together by the shared reader, which never counts a register
+  // row this firm wrote itself, and something the client wrote or answered
+  // says it buys from this firm (`clientBuysFrom`). A sell line puts the
+  // seller on the client's supplier list, so it is never written from the
+  // seller's side alone. A record not on Etyme is read as before.
+  if (!isShell(clientCompany) && clientCompany.id !== companyId) {
+    const together = await workTogether(companyId, clientCompany.id)
+    const tie = sellLineTie({
+      clientName: clientCompany.name,
+      together,
+      buys: together && (await clientBuysFrom(companyId, clientCompany.id)),
+    })
+    if (!tie.ok) {
+      await recordRefusal([{ companyId: clientCompany.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: companyId,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${clientCompany.name} as the client on a line: ${tie.says}`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: tie.says, field: 'clientCompanyId' } },
+        { status: 403 }
+      )
+    }
+  }
+
+  const relationshipExists = !isShell(clientCompany) || Boolean(
     (await prisma.masterAgreement.findFirst({
       where: { vendorId: companyId, clientId: clientCompanyId },
       select: { id: true },
