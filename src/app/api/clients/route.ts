@@ -12,6 +12,7 @@ import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 import { mayInviteRecorded } from '@/lib/counterparty'
+import { recordedNotClassified } from '../companies/positions'
 import { writeCustomerPosition } from '../companies/positions'
 
 /**
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
 
-  const [agreements, listed, counterparties] = await Promise.all([
+  const [agreements, listed, counterparties, recorded] = await Promise.all([
     prisma.masterAgreement.findMany({
       where: { vendorId: companyId },
       select: {
@@ -79,13 +80,16 @@ export async function GET(request: NextRequest) {
         otherCompany: { select: { id: true, name: true, claimedAt: true, listedById: true } },
       },
     }),
+    // And one recorded not classified and given a Kind since is still a
+    // client only by its own CLIENT row, never by having been written down.
+    recordedNotClassified(companyId),
   ])
 
   const byId = new Map<string, CompanyStanding & { signedAt: Date | null }>()
   for (const a of agreements) {
     byId.set(a.clientId, { ...a.client, signedAt: a.signedAt })
   }
-  for (const c of [...listed, ...counterparties.map((c) => c.otherCompany)]) {
+  for (const c of [...listed.filter((l) => !recorded.has(l.id)), ...counterparties.map((c) => c.otherCompany)]) {
     if (!byId.has(c.id)) byId.set(c.id, { ...c, signedAt: null })
   }
 

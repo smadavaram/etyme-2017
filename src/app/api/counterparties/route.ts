@@ -72,7 +72,8 @@ export async function GET(request: NextRequest) {
   // (Contacts' Works at, founder 2026-11-12). Only this firm's own records.
   const onRegister = new Set(rows.map((r) => r.otherCompanyId))
   const known = (await prisma.company.findMany({
-    where: { listedById: companyId, claimedAt: null, kind: 'UNCLASSIFIED' },
+    // Whatever Kind it has been given since: a Kind is not a position.
+    where: { listedById: companyId, claimedAt: null },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   }))

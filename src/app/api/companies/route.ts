@@ -556,7 +556,10 @@ export async function GET(request: NextRequest) {
   const ids = verdict.reach === 'ALL' ? null : await dealingsOf(caller, verdict.includesOwn)
   if (ids && withRecords && caller.company) {
     for (const r of await prisma.company.findMany({
-      where: { listedById: caller.company.id, claimedAt: null, kind: 'UNCLASSIFIED' },
+      // Every company this firm recorded and nobody has claimed, whatever
+      // Kind it has been given since: setting the Kind gives no position,
+      // so the record stays on the list that way too.
+      where: { listedById: caller.company.id, claimedAt: null },
       select: { id: true },
     })) ids.add(r.id)
   }

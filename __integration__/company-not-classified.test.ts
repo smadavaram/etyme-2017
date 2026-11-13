@@ -273,3 +273,161 @@ describe('another firm’s record is never given a position from outside', () =>
     as(OWNER)
   })
 })
+
+/**
+ * The founder's acceptance walk (brief of 2026-11-12, tests 1 to 6 and the
+ * three layer additions), as the Owner of a supplier with a Gmail partner
+ * seated, the way Tapin runs. Brightmoor Staffing stands in for Tapin,
+ * which the seeded world does not hold.
+ */
+describe('the founder’s acceptance walk', () => {
+  const suppliersRoute = import('@/app/api/suppliers/route')
+  const purchaseOrders = import('@/app/api/purchase-orders/route')
+  let id = ''
+  let kindsBefore = new Map<string, string>()
+  let registerBefore = 0
+  const notMine = () => ({ OR: [{ listedById: null }, { listedById: { not: brightmoor } }] })
+  const row = async (cid: string) => (await listed()).find((c) => c.id === cid)
+  const supplierPage = async () => JSON.stringify((await json(await (await suppliersRoute).GET(req('GET', '/api/suppliers')))).body)
+  const clientIds = async () => (await json(await clients.GET(req('GET', '/api/clients')))).body.data.clients.map((c: any) => c.id)
+
+  beforeAll(async () => {
+    as(OWNER)
+    kindsBefore = new Map((await prisma.company.findMany({ where: notMine(), select: { id: true, kind: true } })).map((c) => [c.id, c.kind]))
+    registerBefore = await prisma.counterparty.count({ where: { companyId: { not: brightmoor } } })
+  })
+
+  it('1. a company created with only a name and Kind not classified yet saves, with no relationship', async () => {
+    const r = await record('Lindqvist Talent Partners')
+    expect(r.status).toBe(201)
+    id = r.body.data.company.id
+    expect(r.body.data.positions).toEqual([])
+    expect(await prisma.counterparty.count({ where: { otherCompanyId: id } })).toBe(0)
+    expect((await row(id))).toMatchObject({ notClassified: true, kind: 'UNCLASSIFIED', may: { extendToSupplier: true, extendToCustomer: true, setKind: true } })
+  })
+
+  it('2. a contact added with Works at that company saves, and shows under Contacts and on the company', async () => {
+    const r = await call(contacts.POST as any, 'POST', '/api/contacts', '', { name: 'Petra Lindqvist', phone: '(303) 555-0142', atCompanyId: id })
+    expect(r.status).toBe(201)
+    expect(JSON.stringify((await call(contacts.GET as any, 'GET', '/api/contacts', '')).body)).toContain('Petra Lindqvist')
+    const onIt = await json(await contacts.GET(req('GET', `/api/contacts?at=${id}`)))
+    expect(onIt.body.data.contacts.map((c: any) => c.name)).toEqual(['Petra Lindqvist'])
+    const reg = await call(counterparties.GET as any, 'GET', '/api/counterparties', '')
+    expect(reg.body.data.known.find((k: any) => k.id === id)?.contacts).toBe(1)
+  })
+
+  it('3. it is in no Suppliers list, no client list or count, and no send-a-job picker', async () => {
+    expect(await supplierPage()).not.toContain(id)
+    expect(JSON.stringify((await json(await pickable.GET(req('GET', '/api/companies/suppliers')))).body)).not.toContain(id)
+    expect(await clientIds()).not.toContain(id)
+    expect((await suppliersOf(brightmoor)).ids.has(id)).toBe(false)
+    expect((await listed('')).map((c) => c.id)).not.toContain(id)
+    const r = await row(id)
+    expect(r.positions).toEqual([])
+  })
+
+  it('4. set to Vendor and extended to Supplier, it is a supplier everywhere the register is read and its Kind is Vendor', async () => {
+    expect((await call(kind.PATCH as any, 'PATCH', `/api/companies/${id}/kind`, id, { kind: 'VENDOR' })).status).toBe(200)
+    // Setting the Kind gave no position.
+    expect((await row(id))).toMatchObject({ kind: 'VENDOR', positions: [], notClassified: true })
+    const r = await call(extend.POST as any, 'POST', `/api/companies/${id}/extend`, id, { as: 'SUPPLIER' })
+    expect(r.status).toBe(201)
+    expect((await suppliersOf(brightmoor)).ids.has(id)).toBe(true)
+    expect(JSON.stringify((await json(await pickable.GET(req('GET', '/api/companies/suppliers')))).body)).toContain(id)
+    expect((await row(id))).toMatchObject({ kind: 'VENDOR', positions: ['SUPPLIER'], notClassified: false, may: { extendToSupplier: false, extendToCustomer: true } })
+    expect(await clientIds()).not.toContain(id)
+  })
+
+  it.todo('4b. a company extended to Supplier is listed on the Suppliers page and in the send-a-job picker that reads /api/suppliers (waits on etyme-demand: that route lists agreements, invitations and contracts, not the SUPPLIER register row)')
+
+  it('layer: a company of any Kind placed in the Customer layer and back keeps its Kind and reads not classified again', async () => {
+    const vendor = (await record('Ashgrove Services')).body.data.company.id
+    await call(kind.PATCH as any, 'PATCH', `/api/companies/${vendor}/kind`, vendor, { kind: 'VENDOR' })
+    const up = await call(extend.POST as any, 'POST', `/api/companies/${vendor}/extend`, vendor, { as: 'CUSTOMER' })
+    expect(up.body.data).toMatchObject({ kind: 'VENDOR', positions: ['CUSTOMER'], customerAgreement: 'UNSIGNED' })
+    expect(await clientIds()).toContain(vendor)
+    const down = await json(await extend.DELETE(req('DELETE', `/api/companies/${vendor}/extend?as=CUSTOMER`), { params: { id: vendor } }))
+    expect(down.body.data).toMatchObject({ kind: 'VENDOR', positions: [], notClassified: true })
+    expect(await clientIds()).not.toContain(vendor)
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: vendor } })).kind).toBe('VENDOR')
+  })
+
+  it('layer: one company is a Customer and a Supplier at once, shows in both, and removing one leaves the other untouched', async () => {
+    await call(extend.POST as any, 'POST', `/api/companies/${id}/extend`, id, { as: 'CUSTOMER' })
+    const both = await row(id)
+    expect(both.positions).toEqual(['CUSTOMER', 'SUPPLIER'])
+    expect(await clientIds()).toContain(id)
+    expect((await suppliersOf(brightmoor)).ids.has(id)).toBe(true)
+    const out = await json(await extend.DELETE(req('DELETE', `/api/companies/${id}/extend?as=CUSTOMER`), { params: { id } }))
+    expect(out.body.data.positions).toEqual(['SUPPLIER'])
+    expect(await clientIds()).not.toContain(id)
+    expect((await suppliersOf(brightmoor)).ids.has(id)).toBe(true)
+    expect((await prisma.company.findUniqueOrThrow({ where: { id } })).kind).toBe('VENDOR')
+  })
+
+  it('layer: a GSI extended to Customer and then to Supplier holds both, and its Kind is GSI throughout', async () => {
+    const gsi = (await record('Corbel Integration Group')).body.data.company.id
+    await call(kind.PATCH as any, 'PATCH', `/api/companies/${gsi}/kind`, gsi, { kind: 'GSI' })
+    const a = await call(extend.POST as any, 'POST', `/api/companies/${gsi}/extend`, gsi, { as: 'CUSTOMER' })
+    expect(a.body.data.kind).toBe('GSI')
+    const b = await call(extend.POST as any, 'POST', `/api/companies/${gsi}/extend`, gsi, { as: 'SUPPLIER' })
+    expect([a.status, b.status]).toEqual([201, 201])
+    expect(b.body.data).toMatchObject({ kind: 'GSI', positions: ['CUSTOMER', 'SUPPLIER'] })
+    expect((await row(gsi))).toMatchObject({ kind: 'GSI', positions: ['CUSTOMER', 'SUPPLIER'] })
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: gsi } })).kind).toBe('GSI')
+  })
+
+  it('the drawer offers Remove only where the route would take it, and says why where work hangs off a position', async () => {
+    const d = await call(extend.GET as any, 'GET', `/api/companies/${id}/extend`, id)
+    expect(d.body.data.may.remove.SUPPLIER).toEqual({ ok: true, says: expect.any(String) })
+    expect(d.body.data.may.extend).toEqual({ SUPPLIER: false, CUSTOMER: true })
+    expect(d.body.data.history.map((h: any) => h.action)).toEqual(expect.arrayContaining(['COMPANY_CREATED', 'COMPANY_KIND_SET', 'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED']))
+    // Rivermark, above, holds Customer with an order hanging off it.
+    const rm = (await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, name: 'Rivermark Partners' }, select: { id: true } })).id
+    const held = await call(extend.GET as any, 'GET', `/api/companies/${rm}/extend`, rm)
+    expect(held.body.data.may.remove.CUSTOMER).toEqual({ ok: false, says: 'Rivermark Partners stays your customer while 1 order hangs off it. End or move that work first.' })
+  })
+
+  it('a seat that does not manage who the firm trades with is drawn no Extend, no Remove and no Change', async () => {
+    as(RECRUITER)
+    const r = (await listed()).find((c) => c.id === id)
+    expect(r?.may).toEqual({ extendToSupplier: false, extendToCustomer: false, setKind: false })
+    as(OWNER)
+  })
+
+  it('a company not classified yet cannot be named on an order it would receive', async () => {
+    const fresh = (await record('Marlow Field Services')).body.data.company.id
+    const r = await json(await (await purchaseOrders).POST(req('POST', '/api/purchase-orders', { number: 'MFS-1', amount: 1000, startDate: '2026-12-01', issuedToId: fresh })))
+    expect(r.status).toBe(403)
+    expect(await prisma.workOrder.count({ where: { issuedToId: fresh } })).toBe(0)
+  })
+
+  it.todo('a company not classified yet cannot be named as the client on an order a supplier records or on a contract line (waits on etyme-money: /api/purchase-orders and /api/contracts must read the company’s kind and pass its positions to mayWriteOrder and mayNameCounterparty)')
+
+  it('the same name twice, with punctuation, is refused and links the one already there', async () => {
+    const r = await record('Lindqvist-Talent Partners.')
+    expect(r.status).toBe(409)
+    expect(r.body.error).toMatchObject({ code: 'SAME_NAME_ON_YOUR_LIST', companyId: id })
+  })
+
+  it('another company reads none of it: not the record, its positions, its history nor its contacts', async () => {
+    as(`world-nike${D}`)
+    expect((await listed()).map((c) => c.id)).not.toContain(id)
+    expect((await call(extend.GET as any, 'GET', `/api/companies/${id}/extend`, id)).status).toBe(404)
+    expect(JSON.stringify((await call(contacts.GET as any, 'GET', '/api/contacts', '')).body)).not.toContain('Petra Lindqvist')
+    as(OWNER)
+  })
+
+  it('5. nothing was emailed and no notification was written at any step', async () => {
+    expect(sent).toEqual([])
+    expect(await prisma.notification.count()).toBe(notices)
+  })
+
+  it('6. companies that existed before keep their Kind and other firms’ register rows are untouched; nothing was migrated', async () => {
+    const after = new Map((await prisma.company.findMany({ where: { id: { in: [...kindsBefore.keys()] } }, select: { id: true, kind: true } })).map((c) => [c.id, c.kind]))
+    // Two firms the walk above created outside Brightmoor's list (a stranger and Kestrel) were made before this block.
+    for (const [cid, k] of kindsBefore) expect(after.get(cid)).toBe(k)
+    expect(await prisma.counterparty.count({ where: { companyId: { not: brightmoor } } })).toBe(registerBefore)
+    expect(await prisma.company.count({ where: { kind: 'UNCLASSIFIED', ...notMine() } })).toBe(0)
+  })
+})

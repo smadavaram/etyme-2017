@@ -182,3 +182,23 @@ export async function historyOf(me: string, otherId: string, db: Db = prisma): P
     }
   })
 }
+
+/**
+ * The companies `me` recorded as not classified yet, whatever Kind they
+ * have been given since: read off the COMPANY_CREATED row the record wrote.
+ * A list that once read every shell a firm listed as its client reads
+ * these only through their own register rows (founder, 2026-11-12: a
+ * position is never decided from the Kind, nor from who wrote the record).
+ */
+export async function recordedNotClassified(me: string, db: Db = prisma): Promise<Set<string>> {
+  const rows = await db.automationLog.findMany({
+    where: { companyId: me, action: 'COMPANY_CREATED', payload: { path: ['kind'], equals: 'UNCLASSIFIED' } },
+    select: { payload: true },
+  })
+  const out = new Set<string>()
+  for (const r of rows) {
+    const id = (r.payload as { otherCompanyId?: unknown } | null)?.otherCompanyId
+    if (typeof id === 'string') out.add(id)
+  }
+  return out
+}
