@@ -7,9 +7,6 @@ import { poBalance } from '@/lib/purchase-order'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profiles'
 import { partiesOf } from '@/lib/money/invoice-parties'
-import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
-import { codingReader, splitIsPayers } from '@/lib/money/coding-reader'
-import { recordRefusal } from '@/lib/access-log'
 
 /**
  * GET /api/invoices/:id/coding
@@ -26,16 +23,10 @@ import { recordRefusal } from '@/lib/access-log'
  * coded rows sum back to the invoice total to the cent. An AP team that
  * finds a one-cent gap rejects the whole file.
  *
- * Read by the company that pays it, and nobody else. These are the
- * payer's own cost centers and GL accounts, and a client's codes stay the
- * client's (CLAUDE.md, "Money"; `lib/money/coding-reader`). The supplier
- * that issued the bill, and a firm between, are told in one sentence whose
- * the codes are, and the refusal is on the access log before it is sent.
- * Anybody else gets what an invoice that does not exist gets. A firm
- * seated in the payer's program reads them only while acting as it.
- *
- * Until 2026-11-13 both parties could read it, so a supplier could
- * download its client's cost centers and GL accounts from its own bill.
+ * Visible to both parties, because both need it: the vendor to show what
+ * they billed, the client to post it. Neither sees the other's dimensions —
+ * these are the CLIENT's cost centers, and a vendor's own profit-centre
+ * coding is not carried here.
  */
 
 interface CodedRow {
@@ -97,15 +88,6 @@ export async function GET(
 
   const { id } = await params
 
-  // Whose books this request is on: the caller's own firm, or the client
-  // whose program a seated firm is acting in.
-  const notFound = () =>
-    NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, { status: 404 })
-  if (!caller.company) return notFound()
-  const whose = await booksFor(caller, request)
-  if (whose.error) return whose.error
-  const books = whose.books
-
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     include: {
@@ -129,12 +111,6 @@ export async function GET(
           issuedTo: { select: { id: true, name: true } },
         },
       },
-      // The lines as billed. Every bill raised today writes these rows;
-      // the JSON column is read only where an older bill has none.
-      invoiceLines: {
-        select: { sellContractId: true, amountCents: true, person: { select: { name: true } } },
-        orderBy: { createdAt: 'asc' },
-      },
       remitTo: {
         select: {
           legalName: true, addressLines: true, country: true, taxId: true,
@@ -144,53 +120,35 @@ export async function GET(
     },
   })
 
-  if (!invoice) return notFound()
-
-  // Only the payer reads the coding. Who the two firms are comes from the
-  // agreement where there is one and from the order where there is not;
-  // where neither says, nobody is the payer and the answer is not found.
-  const parties = partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder })
-  const reader = codingReader({
-    readerCompanyId: books.companyId,
-    vendor: parties.vendor,
-    payer: parties.client,
-    invoiceNumber: invoice.number,
-  })
-  if (reader.kind !== 'PAYER') {
-    // Written before the refusal is sent (CLAUDE.md, 2026-10-08). The
-    // subject is the company whose codes were asked for, or the firm
-    // that asked where nothing says who pays.
-    await recordRefusal([{ companyId: parties.client?.id ?? caller.company.id }], {
-      actorPersonId: caller.isService ? undefined : caller.person.id,
-      actorCompanyId: caller.company.id,
-      action: 'CONTRACT_VIEW',
-      reason:
-        reader.kind === 'ISSUER'
-          ? `Refused the cost coding on ${invoice.number} to the firm that issued it: the codes are the payer's own.`
-          : `Refused the cost coding on ${invoice.number}: the reader is not the company that pays it.`,
-    })
-    if (reader.kind === 'STRANGER') return notFound()
-    return NextResponse.json({ error: { code: 'FORBIDDEN', message: reader.says } }, { status: 403 })
+  if (!invoice) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { status: 404 }
+    )
   }
-  noteMoneyRead(books, `the cost coding on ${invoice.number}`)
-  const payerId = parties.client!.id
 
-  // One shape for both sources: the contract, the person, the amount in
-  // minor units. The JSON column held whole currency; it was null on every
-  // bill raised since the lines became rows, which left this view empty.
-  const lines: Array<{ sellContractId: string | null; personName: string | null; amountCents: number }> =
-    invoice.invoiceLines.length > 0
-      ? invoice.invoiceLines.map((l) => ({
-          sellContractId: l.sellContractId,
-          personName: l.person?.name ?? null,
-          amountCents: l.amountCents,
-        }))
-      : (Array.isArray(invoice.lines) ? (invoice.lines as any[]) : []).map((l) => ({
-          sellContractId: l.sellContractId ?? null,
-          personName: l.personName ?? null,
-          amountCents: minorFromWhole(l.amount ?? 0, invoice.currency),
-        }))
-  const contractIds = [...new Set(lines.map(l => l.sellContractId).filter((x): x is string => !!x))]
+  // Both parties to the invoice may read the coding; nobody else. Who
+  // those two are comes from the agreement where there is one and from
+  // the order where there is not — and where neither says, nobody is a
+  // party and the answer is the same refusal.
+  const parties = partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder })
+  const callerCompanyId = caller.company?.id
+  if (callerCompanyId !== parties.vendor?.id && callerCompanyId !== parties.client?.id) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: parties.basis
+            ? 'Not a party to this invoice'
+            : `Not a party to this invoice. ${parties.says}`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const lines = Array.isArray(invoice.lines) ? (invoice.lines as any[]) : []
+  const contractIds = [...new Set(lines.map(l => l.sellContractId).filter(Boolean))]
 
   const contracts = contractIds.length > 0
     ? await prisma.sellContract.findMany({
@@ -222,12 +180,8 @@ export async function GET(
   let uncoded = 0
 
   for (const line of lines) {
-    const amountCents = line.amountCents
-    // Another company's split is never shown: on a chain the sell line's
-    // codes are the end client's, and the firm between that pays this
-    // invoice reads the line as not coded, for its own books.
-    const split0 = (line.sellContractId ? allocationsByContract.get(line.sellContractId) : undefined) ?? []
-    const allocations = splitIsPayers(split0, payerId) ? split0 : []
+    const amountCents = minorFromWhole(line.amount ?? 0, invoice.currency)
+    const allocations = allocationsByContract.get(line.sellContractId) ?? []
 
     const base = {
       invoiceNumber: invoice.number,

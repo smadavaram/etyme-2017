@@ -53,7 +53,7 @@ const sheet = (over: Partial<SheetToPay> = {}): SheetToPay => ({
   rule: 'US_FLSA',
   assertion: null,
   currency: 'USD',
- 
+  costCode: null,
   orderNumber: null,
   ...over,
 })

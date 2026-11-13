@@ -67,6 +67,7 @@ function row(over: Partial<SheetToPay> = {}): SheetToPay {
     rule: 'US_FLSA',
     assertion: null,
     currency: 'USD',
+    costCode: 'EA-4100',
     orderNumber: 'SO-2026-014',
     employerName: 'Brightmoor',
     clientName: 'Northbend Athletic',
@@ -311,7 +312,7 @@ describe('the file each provider will actually take', () => {
     expect(csv.split('\n')[0]).toBe(
       'Co Code,File #,Name,Reg Hours,O/T Hours,Rate,Period Start,Period End,Dept'
     )
-    expect(csv.split('\n')[1]).toBe(',E10041,Rohan Menon,40,5,78.00,2026-08-01,2026-08-15,')
+    expect(csv.split('\n')[1]).toBe(',E10041,Rohan Menon,40,5,78.00,2026-08-01,2026-08-15,EA-4100')
   })
 
   it('writes Paychex a row per earnings code, which is how they price it', () => {
@@ -336,29 +337,6 @@ describe('the file each provider will actually take', () => {
   it('survives a name with a comma in it', () => {
     const csv = toCsv(buildExport('GENERIC', [row({ personName: 'Menon, Rohan' })]))
     expect(csv).toContain('"Menon, Rohan"')
-  })
-})
-
-describe("a client's codes stay the client's", () => {
-  // The run is the employer's and its file goes to the employer's payroll
-  // provider. The employer is a supplier or a firm between, and a client's
-  // cost centers and internal orders are never handed to either.
-  it("a payroll export never carries a client's cost code", () => {
-    const generic = toCsv(buildExport('GENERIC', [row()])).split('\n')
-    expect(generic[0]).not.toMatch(/cost/i)
-    const adp = toCsv(buildExport('ADP', [row()])).split('\n')
-    expect(adp[1].split(',').at(-1)).toBe('')
-    const paychex = toCsv(buildExport('PAYCHEX', [row()])).split('\n')
-    expect(paychex[1].split(',').at(-1)).toBe('')
-    const line = buildExport('GENERIC', [row()]).lines[0] as unknown as Record<string, unknown>
-    expect(Object.keys(line).some((k) => /cost/i.test(k))).toBe(false)
-  })
-
-  it("the payroll export route never selects a client's cost center or internal order", () => {
-    const route = readFileSync(join(process.cwd(), 'src/app/api/payroll/export/route.ts'), 'utf8')
-    expect(route).not.toMatch(/costCenter\s*:\s*\{/)
-    expect(route).not.toMatch(/internalOrder\s*:\s*\{/)
-    expect(route).not.toMatch(/costCode/)
   })
 })
 

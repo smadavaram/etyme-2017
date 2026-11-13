@@ -142,7 +142,7 @@ const sheet = (weeks: SheetToPay['weeks'], over: Partial<SheetToPay> = {}): Shee
   rule: 'US_FLSA',
   assertion: null,
   currency: 'USD',
- 
+  costCode: null,
   orderNumber: null,
   ...over,
 })

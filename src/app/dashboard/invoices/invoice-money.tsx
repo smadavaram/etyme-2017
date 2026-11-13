@@ -141,23 +141,14 @@ export function InvoiceMoney({
   const [status, setStatus] = useState(invoice.status)
   const per = minorPerUnit(invoice.currency)
 
-  // The PO, remit-to and cost-center split, for the company that pays it
-  // only. The cost centers and accounts are the payer's own: the supplier
-  // that issued the bill is never shown them, nor an export of them, so
-  // its side does not ask (`lib/money/coding-reader`). Hidden rather than
-  // errored wherever the route returns nothing.
-  const readsCoding = invoice.direction === 'PAYABLE'
+  // The PO, remit-to and cost-center split. Hidden rather than errored
+  // where the caller is not a party to the invoice.
   useEffect(() => {
     let cancelled = false
-    if (!readsCoding) {
-      setCoding(null)
-      setCodingLoading(false)
-      return () => { cancelled = true }
-    }
     ;(async () => {
       setCodingLoading(true)
       try {
-        const res = await fetch(withBooks(`/api/invoices/${invoice.id}/coding`, books))
+        const res = await fetch(`/api/invoices/${invoice.id}/coding`)
         if (!res.ok) throw new Error('not available')
         const body = await res.json()
         if (!cancelled) setCoding(body.data)
@@ -168,7 +159,7 @@ export function InvoiceMoney({
       }
     })()
     return () => { cancelled = true }
-  }, [invoice.id, readsCoding, books])
+  }, [invoice.id])
 
   const remitMethod = payMethodFor(coding?.remitTo?.paymentMethod)
   const payMethod = methodChosen ?? remitMethod ?? ''
@@ -288,7 +279,7 @@ export function InvoiceMoney({
       )}
 
       {/* Cost coding */}
-      {readsCoding && coding && coding.rows.length > 0 && (
+      {coding && coding.rows.length > 0 && (
         <div>
           <div className="flex items-baseline justify-between mb-2">
             <p className="eyebrow">Cost coding</p>

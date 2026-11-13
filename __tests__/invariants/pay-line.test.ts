@@ -184,7 +184,7 @@ describe('the payroll file pays the law’s forty', () => {
     weeks: [{ weekOf: '2026-08-02', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours: null, employerAcceptedAt: new Date('2026-08-10T00:00:00Z'),
     payRateCents: 6_600, contractPremiumBps: null, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false,
-    rule: 'US_FLSA', assertion: nonexempt, currency: 'USD', orderNumber: null, ...over,
+    rule: 'US_FLSA', assertion: nonexempt, currency: 'USD', costCode: null, orderNumber: null, ...over,
   })
 
   it('pays a nonexempt worker’s forty-five-hour week five hours of overtime at time and a half where neither contract set a line', () => {
