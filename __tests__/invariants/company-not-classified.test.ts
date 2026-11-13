@@ -296,3 +296,84 @@ describe('a company not classified yet is never named on a contract or an order'
     expect(mayNameCounterparty({ callerCompanyId: 'tapin', other: { ...rivermark, kind: 'CLIENT' }, relationshipExists: false, as: 'client' }).ok).toBe(true)
   })
 })
+
+describe('the Companies and Contacts screens draw the two facts apart', () => {
+  const page = read('src/app/dashboard/companies/page.tsx')
+  const contactsPage = read('src/app/dashboard/contacts/page.tsx')
+
+  it('Add a company offers "Company — not classified yet" first, and it is the choice already made', () => {
+    const select = page.slice(page.indexOf('<label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>'))
+    const options = [...select.matchAll(/<option value="([A-Z_]+)"/g)].map((m) => m[1])
+    expect(options[0]).toBe('UNCLASSIFIED')
+    expect(page).toContain("kind: 'UNCLASSIFIED' as Company['kind']")
+    expect(page).toContain('{NOT_CLASSIFIED_KIND_LABEL}')
+  })
+
+  it('with a company not classified yet, "What are they to you?" is not asked and no relationship is sent', () => {
+    expect(page).toMatch(/\{!recording && \(\s*<div>\s*<label[^>]*>What are they to you\? \*<\/label>/)
+    expect(page).toContain('...(recording ? {} : { relationship: form.relationship })')
+  })
+
+  it('the Add a company form always says that saving a company never emails them', () => {
+    expect(page).toContain('{NEVER_EMAILS}')
+    // Not inside any condition: the line sits on its own paragraph.
+    expect(page).toMatch(/<p className="text-sm text-etyme-ink">\s*\{NEVER_EMAILS\}/)
+  })
+
+  it('the same name twice is said beside the name with a way to open the one already there', () => {
+    expect(page).toContain("e.code === 'SAME_NAME_ON_YOUR_LIST'")
+    expect(page).toContain('onOpenExisting(twin.id)')
+  })
+
+  it('the Companies page reads the list with the recorded companies, and no picker reads it that way', () => {
+    expect(page).toContain("fetch('/api/companies?records=1')")
+  })
+
+  it('every count, tile and filter on the Companies page is by position and never by Kind', () => {
+    expect(page).not.toMatch(/c\.kind === '(VENDOR|CLIENT|MSP|GSI)'/)
+    expect(page).toMatch(/holds\(c, 'SUPPLIER'\)/)
+    expect(page).toMatch(/holds\(c, 'CUSTOMER'\)/)
+    expect(page).toContain("{ key: 'NOT_CLASSIFIED', label: NOT_CLASSIFIED, count: notClassifiedCount }")
+  })
+
+  it('the Kind column says what a company is in words that are never a position', () => {
+    const kinds = page.slice(page.indexOf('function kindOnList'), page.indexOf('function extendLine'))
+    expect(kinds).not.toMatch(/return '(Supplier|Customer)'/)
+    expect(kinds).toContain("case 'UNCLASSIFIED'")
+  })
+
+  it('Extend to Supplier and Extend to Customer are drawn only where the route would take the press, each with its line', () => {
+    expect(page).toContain('row.may.extendToSupplier')
+    expect(page).toContain('read.may.extend[as]')
+    expect(page).toContain('Puts ${name} under Suppliers. It does not email them and does not change what kind of company they are.')
+  })
+
+  it('a position that real work hangs off is said in the route’s sentence, and Remove is drawn only where it would be taken', () => {
+    expect(page).toContain('{r?.ok && (')
+    expect(page).toContain('{r && !r.ok && <p')
+  })
+
+  it('the drawer shows the history of the company on this firm’s list with who and when, and its contacts with Add a contact', () => {
+    expect(page).toContain('<p className="eyebrow mb-2">History</p>')
+    expect(page).toContain('dayOfMomentFor(new Date(h.at), readerZone())')
+    expect(page).toContain('Add a contact</button>')
+    expect(page).toContain('`/api/contacts?at=${encodeURIComponent(company.id)}`')
+  })
+
+  it('Contacts’ Works at lists every firm on the register once and the companies recorded and not classified yet', async () => {
+    const { worksAtChoices } = await import('@/lib/contacts')
+    const choices = worksAtChoices({
+      rows: [
+        { otherCompanyId: 'b', otherCompanyName: 'Brightmoor Staffing' },
+        { otherCompanyId: 'b', otherCompanyName: 'Brightmoor Staffing' },
+      ],
+      known: [{ id: 'r', name: 'Rivermark Partners' }],
+    })
+    expect(choices).toEqual([
+      { id: 'b', name: 'Brightmoor Staffing' },
+      { id: 'r', name: 'Rivermark Partners (not classified)' },
+    ])
+    expect(worksAtChoices(null)).toEqual([])
+    expect(contactsPage).toContain('companies={worksAtChoices(reg)}')
+  })
+})

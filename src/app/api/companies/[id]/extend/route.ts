@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
-import { mayExtend, mayRemovePosition, readExtendAs, POSITION_WORDS } from '@/lib/counterparty'
+import { mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
 import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf } from '../../positions'
 
 /**
@@ -24,7 +24,7 @@ import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosit
 
 type Params = { params: { id: string } }
 
-const OTHER = { id: true, name: true, slug: true, kind: true, claimedAt: true, listedById: true, isDemo: true } as const
+const OTHER = { id: true, name: true, slug: true, kind: true, claimedAt: true, listedById: true, isDemo: true, _count: { select: { contexts: true } } } as const
 
 async function open(request: NextRequest, id: string) {
   const { caller, error } = await getCallerContext(request)
@@ -63,15 +63,51 @@ export async function GET(request: NextRequest, { params }: Params) {
   const me = caller.company!.id
   const read = await readOne(me, other)
   // Only a company on the caller's own list, or one it works with.
-  if (!read.mine && read.positions.length === 0 && !(await workTogether(me, other.id))) {
+  const worksTogether = read.mine || read.positions.length > 0 || (await workTogether(me, other.id))
+  if (!worksTogether) {
     return refuse(caller, other.id, 404, 'NOT_FOUND', 'That company is not on your Companies list.')
   }
+  // What the drawer may press, asked of the rules POST, DELETE and the
+  // kind route ask, so a button is drawn only where its route takes it
+  // and a removal it would refuse is said in its own sentence instead.
+  const meAt = { id: me, name: caller.company!.name }
+  const extend = (as: ExtendAs) => {
+    const v = mayExtend({
+      as, me: meAt, permissions: caller.permissions, worksTogether, positions: read.positions,
+      other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById, slug: other.slug },
+    })
+    return v.ok && !v.already
+  }
+  const remove: Partial<Record<ExtendAs, { ok: boolean; says: string }>> = {}
+  for (const as of ['CUSTOMER', 'SUPPLIER'] as const) {
+    if (!read.positions.includes(as)) continue
+    const v = mayRemovePosition({
+      as, me: meAt, permissions: caller.permissions, positions: read.positions,
+      other: { id: other.id, name: other.name },
+      work: await workOnPosition(me, other.id, as),
+    })
+    remove[as] = { ok: v.ok, says: v.says }
+  }
+  const kindVerdict = maySetRecordedKind({
+    to: other.kind === 'VENDOR' ? 'CLIENT' : 'VENDOR',
+    me: meAt,
+    permissions: caller.permissions,
+    other: { id: other.id, name: other.name, kind: other.kind, claimedAt: other.claimedAt, listedById: other.listedById, seats: other._count.contexts },
+  })
   return NextResponse.json({
     data: {
       companyId: other.id,
       kind: other.kind,
       ...read,
       history: await historyOf(me, other.id),
+      may: {
+        extend: { SUPPLIER: extend('SUPPLIER'), CUSTOMER: extend('CUSTOMER') },
+        remove,
+        setKind: kindVerdict.ok,
+        // Said only where the reader cannot set it, so the drawer says why.
+        setKindSays: kindVerdict.ok ? null : kindVerdict.says,
+        kinds: [...KINDS_TO_SET],
+      },
     },
   })
 }

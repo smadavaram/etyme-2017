@@ -7,7 +7,9 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { Chip, Field, FilterChips, FormMessage, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, type Position } from '@/lib/counterparty'
+import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
+import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -26,7 +28,7 @@ interface Company {
   id: string
   name: string
   slug: string
-  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
   entityType: string | null
   domain: string | null
   domainVerified: boolean
@@ -38,6 +40,103 @@ interface Company {
   onEtyme: boolean
   /** Its Etyme address opens its public page. */
   hasPage: boolean
+  /**
+   * Where it sits with this firm, read off this firm's own register: a
+   * Customer above us, a Supplier below us, a Prime or an MSP. Never read
+   * from the Kind (founder, 2026-11-12: two facts, never one).
+   */
+  positions: Position[]
+  /** On this firm's Companies list, holding no position with it. */
+  notClassified: boolean
+  /** This firm recorded it and nobody there has claimed it. */
+  mine: boolean
+  customerAgreement: 'SIGNED' | 'UNSIGNED' | null
+  /** What this reader may press on the row, as the routes would answer. */
+  may: { extendToSupplier: boolean; extendToCustomer: boolean; setKind: boolean }
+}
+
+/**
+ * The Kind in its own words, which are never a position's words: a
+ * Vendor may be a Customer of ours, and a Client may supply us. So the
+ * Kind column never says "Supplier" or "Customer".
+ */
+function kindOnList(kind: Company['kind']): string {
+  switch (kind) {
+    case 'VENDOR': return 'Vendor'
+    case 'CLIENT': return 'Client'
+    case 'MSP': return 'MSP'
+    case 'GSI': return 'GSI'
+    case 'CONSULTANT_CORP': return kindWord('CONSULTANT_CORP')
+    case 'UNCLASSIFIED': return kindWord('UNCLASSIFIED')
+  }
+}
+
+/** What extending does, said once beside each button. */
+function extendLine(name: string, as: 'SUPPLIER' | 'CUSTOMER'): string {
+  return as === 'SUPPLIER'
+    ? `Puts ${name} under Suppliers. It does not email them and does not change what kind of company they are.`
+    : `Puts ${name} under Customers, with no agreement signed yet. It does not email them and does not change what kind of company they are.`
+}
+
+/** The positions as chips, or the Not classified badge. Nothing for a firm that is neither. */
+function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassified' | 'customerAgreement'> }) {
+  if (row.notClassified) return <Chip tone="attention">{NOT_CLASSIFIED}</Chip>
+  if (row.positions.length === 0) return <span className="text-etyme-faint">—</span>
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {row.positions.map((p) => (
+        <Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>
+          {POSITION_WORDS[p]}{p === 'CUSTOMER' && row.customerAgreement === 'UNSIGNED' ? ' · no agreement signed yet' : ''}
+        </Chip>
+      ))}
+    </span>
+  )
+}
+
+/** Extend one company, one press; the route's sentence is handed back. */
+async function extendCompany(id: string, as: 'SUPPLIER' | 'CUSTOMER'): Promise<{ ok: boolean; says: string; askToLink: boolean }> {
+  try {
+    const res = await fetch(`/api/companies/${encodeURIComponent(id)}/extend`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ as }),
+    })
+    const body = await res.json().catch(() => ({}) as any)
+    if (!res.ok) {
+      return { ok: false, says: refusalSentence(body.error?.message, { what: 'Extending a company' }) || 'That did not go through. Try again in a minute.', askToLink: body.error?.code === 'ALREADY_ON_ETYME' }
+    }
+    return { ok: true, says: body.data?.message ?? 'Done.', askToLink: false }
+  } catch {
+    return { ok: false, says: 'Network error. Please try again.', askToLink: false }
+  }
+}
+
+/** The two Extend buttons, drawn only where the route would take the press. */
+function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDone: (says: string, ok: boolean) => void; withLines?: boolean }) {
+  const [busy, setBusy] = useState(false)
+  const offered = (['SUPPLIER', 'CUSTOMER'] as const).filter((as) => (as === 'SUPPLIER' ? row.may.extendToSupplier : row.may.extendToCustomer))
+  if (offered.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+      {offered.map((as) => (
+        <div key={as}>
+          <button
+            type="button"
+            className="btn-secondary text-[13px]"
+            disabled={busy}
+            title={extendLine(row.name, as)}
+            onClick={async () => {
+              setBusy(true)
+              const r = await extendCompany(row.id, as)
+              setBusy(false)
+              onDone(r.says, r.ok)
+            }}
+          >
+            {busy ? 'Extending…' : as === 'SUPPLIER' ? 'Extend to Supplier' : 'Extend to Customer'}
+          </button>
+          {withLines && <p className="mt-1 text-[12px] text-etyme-muted">{extendLine(row.name, as)}</p>}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 /**
@@ -62,7 +161,7 @@ interface Location {
   isPrimary: boolean
 }
 
-type KindFilter = 'ALL' | 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
+type PositionFilter = 'ALL' | Position | 'NOT_CLASSIFIED'
 
 // ── Kind chip mapping ─────────────────────────────────────
 
@@ -73,6 +172,7 @@ function kindTone(kind: Company['kind']): ChipTone {
     case 'MSP': return 'attention'
     case 'GSI': return 'passive'
     case 'CONSULTANT_CORP': return 'passive'
+    case 'UNCLASSIFIED': return 'passive'
   }
 }
 
@@ -104,15 +204,20 @@ function Toast({ message, onDismiss }: { message: string; onDismiss: () => void 
 
 // ── Add Company Modal ─────────────────────────────────────
 
-function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreated: (msg: string) => void }) {
+function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
+  onClose: () => void
+  onCreated: (msg: string) => void
+  /** Open a company already on this firm's list, by its id. */
+  onOpenExisting: (companyId: string) => void
+}) {
   const [form, setForm] = useState({
     name: '',
-    kind: 'VENDOR' as Company['kind'],
-    // What they are to us. Required: the route refuses a company with
-    // no relationship on it, because a name on the register that
-    // nothing can point at is the "logo in a list" this page used to
-    // produce — and because adding one is recording a counterparty, not
-    // founding a firm.
+    // "Company — not classified yet" is the first choice and the default
+    // (founder, 2026-11-12): a firm you know is recorded by its name, and
+    // nothing has to be said about what it is to you until work starts.
+    kind: 'UNCLASSIFIED' as Company['kind'],
+    // What they are to us. Asked only once a Kind is chosen; a company
+    // not classified yet stores no relationship, never a supplier.
     relationship: 'SUPPLIER',
     entityType: '',
     domain: '',
@@ -126,14 +231,20 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
     // record is the supplier's own until the client wants it.
     invite: false,
   })
+  const recording = form.kind === 'UNCLASSIFIED'
   // A client a supplier writes down is a client, whatever the Kind box
   // said, and it is not given an Etyme address until somebody there joins.
-  const isClient = form.relationship === 'CLIENT'
+  const isClient = !recording && form.relationship === 'CLIENT'
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The same name on this firm's own list: said beside the name, with the
+  // one already there to open (founder, 2026-11-12).
+  const [twin, setTwin] = useState<{ id: string; says: string } | null>(null)
   // A firm already on Etyme: no copy, one click to ask them to link
-  // (lib/trade-link, 2026-10-27).
-  const [linkable, setLinkable] = useState<{ companyId: string; relationship: string } | null>(null)
+  // (lib/trade-link, 2026-10-27). A company asked about as not classified
+  // yet carries no relationship, so the person says which before asking.
+  const [linkable, setLinkable] = useState<{ companyId: string; relationship: string | null } | null>(null)
+  const [linkAs, setLinkAs] = useState('SUPPLIER')
 
   // The Etyme address box is theirs, never guessed from the name: the
   // route uses it to find a firm already on Etyme (findFirm), and a guess
@@ -146,7 +257,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
     try {
       const res = await fetch('/api/trade-links', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(linkable),
+        body: JSON.stringify({ companyId: linkable.companyId, relationship: linkable.relationship ?? linkAs }),
       })
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) { setError(body.error?.message ?? 'The ask could not be sent.'); setLinkable(null); return }
@@ -162,8 +273,14 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLinkable(null)
-    setSubmitting(true)
+    setTwin(null)
     setError(null)
+    // Said here rather than by a greyed button or a browser bubble.
+    if (form.name.trim().length < 2) {
+      setError('Give the company’s name, at least two letters.')
+      return
+    }
+    setSubmitting(true)
 
     try {
       const res = isClient
@@ -185,7 +302,9 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
             body: JSON.stringify({
               name: form.name,
               kind: form.kind,
-              relationship: form.relationship,
+              // Nothing is sent for a company not classified yet.
+              ...(recording ? {} : { relationship: form.relationship }),
+              entityType: form.entityType.trim() || undefined,
               domain: form.domain.trim() || undefined,
               address: form.slug.trim() || undefined,
             }),
@@ -196,17 +315,21 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
         // from the error handler itself and the message below never
         // ran.
         const body = await res.json().catch(() => ({}) as any)
-        setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
         const e = body.error ?? {}
+        if (e.code === 'SAME_NAME_ON_YOUR_LIST' && e.companyId) {
+          setTwin({ id: e.companyId, says: e.message })
+          return
+        }
+        setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
         setLinkable((e.code === 'ALREADY_ON_ETYME' || e.code === 'ALREADY_HERE') && e.companyId
-          ? { companyId: e.companyId, relationship: e.relationship ?? form.relationship }
+          ? { companyId: e.companyId, relationship: e.relationship ?? (recording ? null : form.relationship) }
           : null)
         return
       }
 
       const body = await res.json()
-      if (isClient) {
-        onCreated(body.data?.message ?? `${form.name} is on your register.`)
+      if (isClient || recording) {
+        onCreated(body.data?.message ?? `${form.name} is on your Companies list.`)
         onClose()
         return
       }
@@ -225,10 +348,10 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+      <div className="card w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Add company</h2>
-          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+          <button onClick={onClose} aria-label="Close" className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -239,25 +362,41 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
             {error}
             {linkable && (
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {linkable.relationship == null && (
+                  <Select aria-label="Ask them to link as" value={linkAs} onChange={(e) => setLinkAs(e.target.value)} className="w-auto">
+                    <option value="SUPPLIER">as your supplier</option>
+                    <option value="CLIENT">as your customer</option>
+                  </Select>
+                )}
                 <button type="button" className="btn-primary" disabled={submitting} onClick={askToLink}>Ask them to link</button>
               </div>
             )}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-1">Company name *</label>
             <input
               type="text"
               required
+              aria-required="true"
+              aria-invalid={twin ? true : undefined}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setTwin(null); setForm({ ...form, name: e.target.value }) }}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Techpeple Inc."
             />
+            {twin && (
+              <p className="mt-1 text-[12px] text-etyme-attention">
+                {twin.says}{' '}
+                <button type="button" className="underline text-etyme-action" onClick={() => { onOpenExisting(twin.id); onClose() }}>
+                  Open it
+                </button>
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -270,6 +409,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
+                <option value="UNCLASSIFIED">{NOT_CLASSIFIED_KIND_LABEL}</option>
                 <option value="VENDOR">Vendor</option>
                 <option value="CLIENT">Client</option>
                 <option value="MSP">MSP</option>
@@ -278,6 +418,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               </select>
             </div>
             )}
+            {!recording && (
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
               <select
@@ -292,6 +433,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="MSP">An MSP — they run the program we work in</option>
               </select>
             </div>
+            )}
             {!isClient && (
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
@@ -306,6 +448,12 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
             )}
           </div>
+
+          {recording && (
+            <p className="text-xs text-etyme-muted">
+              Only the name is needed. Extend it to Supplier or Customer from its row when you start working together.
+            </p>
+          )}
 
           {isClient && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -379,12 +527,20 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          {/* Always, whatever is chosen above (founder, 2026-11-12). The
+              invitation box above is the one thing that writes to anybody,
+              and it is off until somebody ticks it. */}
+          <p className="text-sm text-etyme-ink">
+            {NEVER_EMAILS}
+            {isClient && form.invite && ' The invitation you ticked is sent to them as its own email.'}
+          </p>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Add company'}
+              {submitting ? 'Saving…' : 'Add company'}
             </button>
           </div>
         </form>
@@ -497,7 +653,268 @@ function AccountManagerPanel({ clientId }: { clientId: string }) {
   )
 }
 
-function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
+interface DrawerRead {
+  kind: Company['kind']
+  positions: Position[]
+  mine: boolean
+  notClassified: boolean
+  customerAgreement: 'SIGNED' | 'UNSIGNED' | null
+  history: { action: string; summary: string; reason: string; at: string; byName: string | null; position: string | null; reversible: boolean }[]
+  may: {
+    extend: { SUPPLIER: boolean; CUSTOMER: boolean }
+    remove: Partial<Record<'SUPPLIER' | 'CUSTOMER', { ok: boolean; says: string }>>
+    setKind: boolean
+    setKindSays: string | null
+    kinds: string[]
+  }
+}
+
+/**
+ * Where this company sits with the reader, its Kind, and what was done to
+ * it here, read from GET /api/companies/:id/extend. Every button is one the
+ * route takes; a removal it would refuse is said in its own sentence.
+ */
+function PositionsPanel({ company, onChanged }: { company: Company; onChanged: (says: string) => void }) {
+  const [read, setRead] = useState<DrawerRead | null>(null)
+  const [unread, setUnread] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+  const [kindChoice, setKindChoice] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/companies/${encodeURIComponent(company.id)}/extend`)
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setUnread(refusalSentence(body.error?.message) || 'Where this company sits with you could not be read.'); return }
+      setRead(body.data)
+      setUnread(null)
+    } catch {
+      setUnread('Network error. Close and open the company again.')
+    }
+  }, [company.id])
+  useEffect(() => { void load() }, [load])
+
+  async function act(init: { url: string; method: string; body?: unknown }) {
+    setBusy(true)
+    setMessage(null)
+    try {
+      const res = await fetch(init.url, {
+        method: init.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        setMessage({ tone: 'error', says: refusalSentence(body.error?.message) || 'That did not go through. Try again in a minute.' })
+        return
+      }
+      const says = body.data?.message ?? 'Done.'
+      setMessage({ tone: 'ok', says })
+      await load()
+      onChanged(says)
+    } catch {
+      setMessage({ tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (unread) return <p className="text-sm text-etyme-muted">{unread}</p>
+  if (!read) return <LoadingState compact says="Opening where this company sits with you…" />
+
+  const base = `/api/companies/${encodeURIComponent(company.id)}`
+  const removable = (['CUSTOMER', 'SUPPLIER'] as const).filter((p) => read.positions.includes(p))
+  const others = read.positions.filter((p) => p === 'PRIME' || p === 'MSP')
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="eyebrow mb-2">Positions</p>
+        {read.notClassified && (
+          <p className="text-sm text-etyme-ink mb-2">
+            <Chip tone="attention">{NOT_CLASSIFIED}</Chip>{' '}
+            On your Companies list, and not your supplier or your customer yet.
+          </p>
+        )}
+        {read.positions.length === 0 && !read.notClassified && (
+          <p className="text-sm text-etyme-muted mb-2">No position with you on your register.</p>
+        )}
+        <ul className="space-y-2">
+          {removable.map((p) => {
+            const r = read.may.remove[p]
+            return (
+              <li key={p} className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm text-etyme-ink">
+                    {POSITION_WORDS[p]}
+                    {p === 'CUSTOMER' && read.customerAgreement === 'UNSIGNED' && <span className="text-etyme-muted"> · no agreement signed yet</span>}
+                    {p === 'CUSTOMER' && read.customerAgreement === 'SIGNED' && <span className="text-etyme-muted"> · agreement signed</span>}
+                  </span>
+                  {r?.ok && (
+                    <button type="button" className="btn-secondary text-[13px]" disabled={busy}
+                      onClick={() => act({ url: `${base}/extend?as=${p}`, method: 'DELETE' })}>
+                      Remove {POSITION_WORDS[p]}
+                    </button>
+                  )}
+                </div>
+                {r && !r.ok && <p className="mt-1 text-[12px] text-etyme-muted">{r.says}</p>}
+              </li>
+            )
+          })}
+          {others.map((p) => (
+            <li key={p} className="bg-etyme-canvas rounded-lg px-3 py-2.5 text-sm text-etyme-ink">{POSITION_WORDS[p]}</li>
+          ))}
+        </ul>
+        {(read.may.extend.SUPPLIER || read.may.extend.CUSTOMER) && (
+          <div className="mt-3 space-y-3">
+            {(['SUPPLIER', 'CUSTOMER'] as const).filter((as) => read.may.extend[as]).map((as) => (
+              <div key={as}>
+                <button type="button" className="btn-secondary text-[13px]" disabled={busy}
+                  onClick={() => act({ url: `${base}/extend`, method: 'POST', body: { as } })}>
+                  {as === 'SUPPLIER' ? 'Extend to Supplier' : 'Extend to Customer'}
+                </button>
+                <p className="mt-1 text-[12px] text-etyme-muted">{extendLine(company.name, as)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {message && <div className="mt-2"><FormMessage tone={message.tone}>{message.says}</FormMessage></div>}
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">Kind</p>
+        <Chip tone={kindTone(read.kind)}>{kindOnList(read.kind)}</Chip>
+        <p className="mt-1 text-[12px] text-etyme-muted">What kind of company it is. It never decides whether it is your supplier or your customer.</p>
+        {read.may.setKind ? (
+          <form
+            className="mt-2 flex flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!kindChoice) { setMessage({ tone: 'error', says: `Choose what kind of company ${company.name} is first.` }); return }
+              void act({ url: `${base}/kind`, method: 'PATCH', body: { kind: kindChoice } })
+            }}
+          >
+            <Field label="Change the kind">
+              <Select value={kindChoice} onChange={(e) => setKindChoice(e.target.value)}>
+                <option value="">Choose…</option>
+                {read.may.kinds.map((k) => (
+                  <option key={k} value={k}>{kindOnList(k as Company['kind'])}</option>
+                ))}
+              </Select>
+            </Field>
+            <SubmitButton pending={busy} pendingLabel="Saving…">Change</SubmitButton>
+          </form>
+        ) : (
+          read.mine && read.may.setKindSays && <p className="mt-1 text-[12px] text-etyme-muted">{read.may.setKindSays}</p>
+        )}
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">History</p>
+        {read.history.length === 0 ? (
+          <p className="text-sm text-etyme-muted">Nothing done to this company on your list yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {read.history.map((h, i) => (
+              <li key={`${h.at}:${i}`} className="text-[13px]">
+                <p className="text-etyme-ink">{h.summary}</p>
+                <p className="text-[12px] text-etyme-faint">
+                  {[h.byName, dayOfMomentFor(new Date(h.at), readerZone()), h.reversible ? 'Can be undone' : 'Cannot be undone'].filter(Boolean).join(' · ')}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The people this firm knows at one company, and Add a contact. A row in
+ * this firm's own address book: saving one sends nothing to anybody.
+ */
+function CompanyContacts({ company }: { company: Company }) {
+  const [people, setPeople] = useState<{ id: string; name: string; email: string | null; phone: string | null; title: string | null }[] | null>(null)
+  const [unread, setUnread] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ name: '', email: '', phone: '', title: '' })
+  const [pending, setPending] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/contacts?at=${encodeURIComponent(company.id)}`)
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setUnread(refusalSentence(body.error?.message) || 'The contacts here could not be read.'); return }
+      setPeople(body.data?.contacts ?? [])
+    } catch {
+      setUnread('Network error. Close and open the company again.')
+    }
+  }, [company.id])
+  useEffect(() => { void load() }, [load])
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setMessage(null)
+    if (form.name.trim().length < 2) { setMessage({ tone: 'error', says: 'A name, so somebody knows who they are calling.' }); return }
+    if (!form.email.trim() && !form.phone.trim()) { setMessage({ tone: 'error', says: NO_WAY_TO_REACH }); return }
+    setPending(true)
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, atCompanyId: company.id, kind: 'OTHER' }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setMessage({ tone: 'error', says: refusalSentence(body.error?.message) || 'The contact was not saved. Try again.' }); return }
+      setMessage({ tone: 'ok', says: `${form.name.trim()} is saved under Contacts. Nothing was sent to them.` })
+      setForm({ name: '', email: '', phone: '', title: '' })
+      setAdding(false)
+      await load()
+    } catch {
+      setMessage({ tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (unread) return <p className="text-sm text-etyme-muted">{unread}</p>
+  if (!people) return <LoadingState compact says="Opening contacts…" />
+  return (
+    <div>
+      <p className="eyebrow mb-2">Contacts <span className="text-etyme-faint">({people.length})</span></p>
+      {people.length === 0 && !adding && <p className="text-sm text-etyme-muted">Nobody here on your contacts yet.</p>}
+      <ul className="space-y-1.5">
+        {people.map((p) => (
+          <li key={p.id} className="text-[13px]">
+            <span className="text-etyme-ink">{p.name}</span>
+            <span className="text-etyme-faint">{[p.title, p.email, p.phone].filter(Boolean).length > 0 ? ` · ${[p.title, p.email, p.phone].filter(Boolean).join(' · ')}` : ''}</span>
+          </li>
+        ))}
+      </ul>
+      {adding ? (
+        <form onSubmit={save} noValidate className="mt-3 space-y-3">
+          <Field label="Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Dana Whitfield" /></Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+            <Field label="Phone"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          </div>
+          <Field label="Title"><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
+          <p className="text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough. Saving a contact sends them nothing.</p>
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton pending={pending} pendingLabel="Saving…">Save contact</SubmitButton>
+            <button type="button" className="btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="btn-secondary text-[13px] mt-3" onClick={() => { setMessage(null); setAdding(true) }}>Add a contact</button>
+      )}
+      {message && <div className="mt-2"><FormMessage tone={message.tone}>{message.says}</FormMessage></div>}
+    </div>
+  )
+}
+
+function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onClose: () => void; onChanged: (says: string) => void }) {
   const [locations, setLocations] = useState<Location[]>([])
   const [loadingLocations, setLoadingLocations] = useState(true)
   const [trustSignals, setTrustSignals] = useState<TrustSignals | null>(null)
@@ -559,13 +976,12 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Kind chip */}
-          <div>
-            <p className="eyebrow mb-2">Type</p>
-            <Chip tone={kindTone(company.kind)}>{kindWord(company.kind)}</Chip>
-          </div>
+          {/* Two facts, never one: where it sits with you, and what it is. */}
+          <PositionsPanel company={company} onChanged={onChanged} />
 
           <AccountManagerPanel clientId={company.id} />
+
+          <CompanyContacts company={company} />
 
           {/* Details grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -740,7 +1156,7 @@ export default function CompaniesPage() {
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Company | null>(null)
-  const [kindFilter, setKindFilter] = useState<KindFilter>('ALL')
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
   const [toast, setToast] = useState<string | null>(null)
   // A refusal is the page: its sentence alone, with no tiles or chips
   // around it (sign-up walk, round five, problem 10). And nothing is
@@ -760,7 +1176,10 @@ export default function CompaniesPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/companies')
+      // ?records=1: the companies this firm recorded and has not
+      // classified are on this list, and on no picker that reads the
+      // route without it (founder, 2026-11-12).
+      const res = await fetch('/api/companies?records=1')
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}))
         setRefused(refusalSentence(body.error?.message) || 'Companies is not part of your seat. Ask your company’s owner if you need it.')
@@ -790,17 +1209,27 @@ export default function CompaniesPage() {
     fetchCompanies()
   }, [fetchCompanies])
 
-  // ── Filtered by kind ──────────────────────────────
-  const filtered = useMemo(() => {
-    if (kindFilter === 'ALL') return companies
-    return companies.filter((c) => c.kind === kindFilter)
-  }, [companies, kindFilter])
+  // ── Filtered by position, never by Kind ───────────
+  //
+  // Founder, 2026-11-12: a company is a Customer or a Supplier because of
+  // the relationship with it, whatever kind of company it is. So a Vendor
+  // extended to Customer counts under Customers, and a company of any
+  // Kind extended to Supplier counts under Suppliers.
+  const holds = (c: Company, f: PositionFilter) =>
+    f === 'ALL' ? true : f === 'NOT_CLASSIFIED' ? c.notClassified : c.positions.includes(f)
+  const filtered = useMemo(() => companies.filter((c) => holds(c, positionFilter)), [companies, positionFilter])
 
-  // ── Stats ─────────────────────────────────────────
-  const vendorCount = companies.filter((c) => c.kind === 'VENDOR').length
-  const clientCount = companies.filter((c) => c.kind === 'CLIENT').length
-  const mspCount = companies.filter((c) => c.kind === 'MSP').length
-  const gsiCount = companies.filter((c) => c.kind === 'GSI').length
+  // ── Stats, by position ────────────────────────────
+  const customerCount = companies.filter((c) => holds(c, 'CUSTOMER')).length
+  const supplierCount = companies.filter((c) => holds(c, 'SUPPLIER')).length
+  const primeCount = companies.filter((c) => holds(c, 'PRIME')).length
+  const mspCount = companies.filter((c) => holds(c, 'MSP')).length
+  const notClassifiedCount = companies.filter((c) => c.notClassified).length
+
+  function afterAct(says: string) {
+    setToast(says)
+    void fetchCompanies()
+  }
 
   // ── Column definitions ────────────────────────────
   const columns: Column<Company>[] = [
@@ -831,12 +1260,20 @@ export default function CompaniesPage() {
       hideOnMobile: true,
     },
     {
+      key: 'positions',
+      label: 'To you',
+      render: (row) => <PositionChips row={row} />,
+      sortValue: (row) => (row.notClassified ? NOT_CLASSIFIED : row.positions.map((p) => POSITION_WORDS[p]).join(' ')),
+      exportValue: (row) => (row.notClassified ? NOT_CLASSIFIED : row.positions.map((p) => POSITION_WORDS[p]).join(', ')),
+    },
+    {
       key: 'kind',
       label: 'Kind',
       render: (row) => (
-        <Chip tone={kindTone(row.kind)}>{kindWord(row.kind)}</Chip>
+        <Chip tone={kindTone(row.kind)}>{kindOnList(row.kind)}</Chip>
       ),
-      sortValue: (row) => kindWord(row.kind),
+      sortValue: (row) => kindOnList(row.kind),
+      exportValue: (row) => kindOnList(row.kind),
     },
     {
       key: 'entityType',
@@ -871,6 +1308,13 @@ export default function CompaniesPage() {
       sortValue: (row) => new Date(row.createdAt).getTime(),
       hideOnMobile: true,
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (row) => <ExtendButtons row={row} onDone={afterAct} />,
+      exportValue: () => null,
+    },
   ]
 
   // ── Search filter ─────────────────────────────────
@@ -879,18 +1323,22 @@ export default function CompaniesPage() {
     row.slug.toLowerCase().includes(q) ||
     (row.domain ?? '').toLowerCase().includes(q) ||
     (row.entityType ?? '').toLowerCase().includes(q) ||
-    kindWord(row.kind).toLowerCase().includes(q)
+    kindOnList(row.kind).toLowerCase().includes(q) ||
+    (row.notClassified && NOT_CLASSIFIED.toLowerCase().includes(q)) ||
+    row.positions.some((p) => POSITION_WORDS[p].toLowerCase().includes(q))
 
   // ── Filter tabs ───────────────────────────────────
-  const filterTabs: { key: KindFilter; label: string; count: number }[] = [
+  const filterTabs: { key: PositionFilter; label: string; count: number }[] = [
     { key: 'ALL', label: 'All', count: companies.length },
-    // The same nouns the Kind column prints (sign-up walk, round six,
-    // problem 16), from the one place that names kinds: lib/parties.
-    { key: 'VENDOR', label: kindWord('VENDOR'), count: vendorCount },
-    { key: 'CLIENT', label: kindWord('CLIENT'), count: clientCount },
-    { key: 'MSP', label: kindWord('MSP'), count: mspCount },
-    { key: 'GSI', label: kindWord('GSI'), count: gsiCount },
+    // Where each sits with you, read off your register, never its Kind.
+    { key: 'CUSTOMER', label: 'Customers', count: customerCount },
+    { key: 'SUPPLIER', label: 'Suppliers', count: supplierCount },
+    // A filter with nothing behind it is not offered.
+    ...(primeCount > 0 ? [{ key: 'PRIME' as const, label: 'Primes', count: primeCount }] : []),
+    ...(mspCount > 0 ? [{ key: 'MSP' as const, label: 'MSPs', count: mspCount }] : []),
+    { key: 'NOT_CLASSIFIED', label: NOT_CLASSIFIED, count: notClassifiedCount },
   ]
+  const filterWord = filterTabs.find((t) => t.key === positionFilter)?.label ?? ''
 
   function handleCreated(msg: string) {
     setToast(msg)
@@ -918,13 +1366,12 @@ export default function CompaniesPage() {
 
       <LinkAsks onAnswered={handleCreated} />
 
-      {/* Stats row */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Stat label="Total" value={companies.length} sub="companies" />
-        <Stat label="Suppliers" value={vendorCount} sub="staffing" />
-        <Stat label="Clients" value={clientCount} sub="enterprise" />
-        <Stat label="MSPs" value={mspCount} sub="managed" />
-        <Stat label="Integrators" value={gsiCount} sub="integrators" />
+      {/* Stats row, by position: what each is to you, never its Kind. */}
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Total" value={companies.length} sub="on your list" />
+        <Stat label="Customers" value={customerCount} sub="above you" />
+        <Stat label="Suppliers" value={supplierCount} sub="below you" />
+        <Stat label="Not classified" value={notClassifiedCount} sub="no position yet" />
       </div>
 
       {/* Data table with kind filter tabs */}
@@ -937,12 +1384,32 @@ export default function CompaniesPage() {
         searchFilter={searchFilter}
         searchPlaceholder="Search by name, Etyme address, or domain…"
         emptyMessage="No companies yet."
-        emptyDetail="A firm appears here once you trade with it: on your register, a contract or an invitation."
+        emptyDetail="A firm appears here once you trade with it, or once you add it with Add company. Saving a company never emails them."
         onRowClick={(row) => setSelected(row)}
+        card={(row) => (
+          <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold text-etyme-ink break-words">{row.name}</p>
+                {addressLine(row) && <p className="text-[12px] text-etyme-faint">{addressLine(row)}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <PositionChips row={row} />
+                <Chip tone={kindTone(row.kind)}>{kindOnList(row.kind)}</Chip>
+              </div>
+            </div>
+            {(row.may.extendToSupplier || row.may.extendToCustomer) && (
+              <div className="mt-3">
+                <ExtendButtons row={row} onDone={afterAct} />
+                <p className="mt-1 text-[12px] text-etyme-muted">Extending does not email them and does not change what kind of company they are.</p>
+              </div>
+            )}
+          </div>
+        )}
         exportName="companies"
         defaultPageSize={20}
         filters={
-          <FilterChips label="Kind of company" options={filterTabs} value={kindFilter} onChange={setKindFilter} />
+          <FilterChips label="What they are to you" options={filterTabs} value={positionFilter} onChange={setPositionFilter} />
         }
       />
 
@@ -950,13 +1417,19 @@ export default function CompaniesPage() {
       {!loading && filtered.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
           {filtered.length} compan{filtered.length !== 1 ? 'ies' : 'y'}
-          {kindFilter !== 'ALL' && ` (${kindFilter.toLowerCase()})`}
+          {positionFilter !== 'ALL' && ` (${filterWord.toLowerCase()})`}
         </p>
       )}
 
       {/* Modals */}
-      {showAdd && <AddCompanyModal onClose={() => setShowAdd(false)} onCreated={handleCreated} />}
-      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} />}
+      {showAdd && (
+        <AddCompanyModal
+          onClose={() => setShowAdd(false)}
+          onCreated={handleCreated}
+          onOpenExisting={(id) => { const c = companies.find((x) => x.id === id); if (c) setSelected(c) }}
+        />
+      )}
+      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} onChanged={(says) => { setToast(says); void fetchCompanies() }} />}
 
       {/* Toast */}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}

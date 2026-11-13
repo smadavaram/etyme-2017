@@ -357,3 +357,16 @@ export function kindOfRole(
   if (seated) return seated
   return kindOfTitle(r)
 }
+
+/**
+ * The companies a contact may work at: every firm on this company's
+ * register, once each however many relationships it holds, and every
+ * company this firm recorded and has not classified yet (founder,
+ * 2026-11-12), marked so. Sorted by name.
+ */
+export function worksAtChoices(reg: { rows?: { otherCompanyId: string; otherCompanyName: string }[]; known?: { id: string; name: string }[] } | null): { id: string; name: string }[] {
+  const seen = new Map<string, { id: string; name: string }>()
+  for (const r of reg?.rows ?? []) if (!seen.has(r.otherCompanyId)) seen.set(r.otherCompanyId, { id: r.otherCompanyId, name: r.otherCompanyName })
+  for (const k of reg?.known ?? []) if (!seen.has(k.id)) seen.set(k.id, { id: k.id, name: `${k.name} (not classified)` })
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+}

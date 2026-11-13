@@ -11,7 +11,7 @@ import { createCompany, findFirm, workTogether } from '@/lib/company-create'
 import { alreadyOnEtyme } from '@/lib/off-system'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
-import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS } from '@/lib/counterparty'
+import { mayAddCompany, sameNameAmong, sameNameRefused, NEVER_EMAILS, mayExtend, maySetRecordedKind } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
 import { positionsFor } from './positions'
 import { speaksForItself } from '@/lib/public-site/speaks'
@@ -591,6 +591,9 @@ export async function GET(request: NextRequest) {
   })
   // Where each sits with the reader, read off the reader's own register.
   const at = caller.company ? await positionsFor(caller.company.id, companies) : new Map()
+  // What the reader may press on each row, asked of the same rules the
+  // routes ask, so the page never draws a button its route refuses.
+  const may = caller.company ? await rowActs(caller, companies, at) : new Map<string, RowActs>()
 
   return NextResponse.json({
     data: {
@@ -626,9 +629,61 @@ export async function GET(request: NextRequest) {
         notClassified: at.get(c.id)?.notClassified ?? false,
         mine: at.get(c.id)?.mine ?? false,
         customerAgreement: at.get(c.id)?.customerAgreement ?? null,
+        may: may.get(c.id) ?? NOTHING_TO_PRESS,
       })),
     },
   })
+}
+
+/** What a reader may press on one row of the Companies list. */
+interface RowActs {
+  /** Extend to Supplier: the route would take it and the company is not one yet. */
+  extendToSupplier: boolean
+  /** Extend to Customer: the same, for Customer. */
+  extendToCustomer: boolean
+  /** Set the Kind of a company the reader recorded and nobody claimed. */
+  setKind: boolean
+}
+const NOTHING_TO_PRESS: RowActs = { extendToSupplier: false, extendToCustomer: false, setKind: false }
+
+/**
+ * The buttons each row may draw, read through `mayExtend` and
+ * `maySetRecordedKind`, the rules the extend and kind routes ask. Whether
+ * two firms work together is read only for a row that holds no position
+ * with the reader and is not the reader's own record, because a position
+ * already is working together.
+ */
+async function rowActs(
+  caller: import('@/lib/api-context').CallerContext,
+  companies: readonly { id: string; name: string; slug: string; kind: string; claimedAt: Date | null; listedById: string | null; _count: { contexts: number } }[],
+  at: Map<string, { positions: import('@/lib/counterparty').Position[]; mine: boolean }>,
+): Promise<Map<string, RowActs>> {
+  const me = caller.company!
+  const out = new Map<string, RowActs>()
+  for (const c of companies) {
+    if (c.id === me.id) { out.set(c.id, NOTHING_TO_PRESS); continue }
+    const read = at.get(c.id) ?? { positions: [], mine: false }
+    const worksTogether = read.positions.length > 0 || read.mine ? true : await workTogether(me.id, c.id)
+    const ask = (as: 'SUPPLIER' | 'CUSTOMER') => {
+      const v = mayExtend({
+        as,
+        me: { id: me.id, name: me.name },
+        permissions: caller.permissions,
+        other: { id: c.id, name: c.name, claimedAt: c.claimedAt, listedById: c.listedById, slug: c.slug },
+        worksTogether,
+        positions: read.positions,
+      })
+      return v.ok && !v.already
+    }
+    const kindVerdict = maySetRecordedKind({
+      to: c.kind === 'VENDOR' ? 'CLIENT' : 'VENDOR',
+      me: { id: me.id, name: me.name },
+      permissions: caller.permissions,
+      other: { id: c.id, name: c.name, kind: c.kind, claimedAt: c.claimedAt, listedById: c.listedById, seats: c._count.contexts },
+    })
+    out.set(c.id, { extendToSupplier: ask('SUPPLIER'), extendToCustomer: ask('CUSTOMER'), setKind: kindVerdict.ok })
+  }
+  return out
 }
 
 /** Which kind of reader is asking, in `lib/directory-scope`'s words. */

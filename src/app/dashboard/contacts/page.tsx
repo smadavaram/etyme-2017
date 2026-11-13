@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
+import { worksAtChoices } from '@/lib/contacts'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalSentence } from '@/lib/refusal-words'
@@ -241,7 +242,7 @@ export default function ContactsPage() {
 
       {adding && contacts && (
         <AddContactModal
-          companies={(reg?.rows ?? []).map((r: any) => ({ id: r.otherCompanyId, name: r.otherCompanyName }))}
+          companies={worksAtChoices(reg)}
           kinds={contacts.kinds}
           onClose={() => setAdding(false)}
           onCreated={() => {
