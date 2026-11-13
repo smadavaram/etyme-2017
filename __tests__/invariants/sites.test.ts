@@ -148,6 +148,23 @@ describe('Sites on the menu', () => {
   })
 })
 
+describe('a site is made primary and removed on Sites itself', () => {
+  const page = src('src/app/dashboard/settings/sites/page.tsx')
+  it('Sites offers Make primary and Remove this site, calling the routes that take them, since the Locations tab is gone', () => {
+    expect(page).toContain("JSON.stringify({ id: site.id, isPrimary: true })")
+    expect(page).toContain("/api/settings/locations?id=${encodeURIComponent(site.id)}`, { method: 'DELETE' }")
+    expect(page).toContain('Make primary')
+    expect(page).toContain('Remove this site')
+  })
+  it('Remove is drawn only where the route would take it, asks once on the page and never in a browser dialog, and a refusal is the route\u2019s sentence', () => {
+    expect(page).toContain('!site.isPrimary && site.contractors === 0 && !removing')
+    expect(page).toContain('so this site is not removed. Move them to another site first.')
+    expect(page).toContain('To remove it, make another site primary first.')
+    expect(page).toContain('<FormMessage tone="error">{siteRefusal}</FormMessage>')
+    expect(page).not.toMatch(/\b(confirm|alert|prompt)\(/)
+  })
+})
+
 describe('Corvane’s sites, as drawn', () => {
   it('Corvane’s Dayton site names three suppliers and not Lakemont', () => {
     const dayton = CORVANE_PLANTS.find((p) => p.key === 'dayton')!

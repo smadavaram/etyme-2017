@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { Check, ErrorState, Field, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
+import { Check, ErrorState, Field, FormMessage, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
 import { sourceWords, savedByWords, managerFromWords, managerLoadWords, siteShort, type SiteManager, type SiteSource } from '@/lib/site-rules'
 
 /**
@@ -271,6 +271,30 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
     } catch (e: any) { setRefusal(e.message) } finally { setBusy(false) }
   }
 
+  // Make primary and Remove, which the Locations tab carried until it
+  // folded into Sites (review, 2026-11-13). Remove asks once on the page,
+  // never in a browser dialog, and every refusal is the route's sentence.
+  const [removing, setRemoving] = useState(false)
+  const [siteRefusal, setSiteRefusal] = useState<string | null>(null)
+  async function makePrimary() {
+    setBusy(true); setSaid(null); setSiteRefusal(null)
+    try {
+      await readJson(await fetch('/api/settings/locations', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: site.id, isPrimary: true }),
+      }))
+      setSaid(`${site.name} is your primary site now. A new job opens here unless somebody picks another.`)
+      onSaved()
+    } catch (e: any) { setSiteRefusal(e.message) } finally { setBusy(false) }
+  }
+  async function remove() {
+    setBusy(true); setSaid(null); setSiteRefusal(null)
+    try {
+      await readJson(await fetch(`/api/settings/locations?id=${encodeURIComponent(site.id)}`, { method: 'DELETE' }))
+      onSaved()
+      onBack()
+    } catch (e: any) { setSiteRefusal(e.message); setRemoving(false) } finally { setBusy(false) }
+  }
+
   const saved = savedByWords(site.recordedBy, site.recordedAt)
   return (
     <div className="mx-auto max-w-[860px] space-y-6 px-4 py-6">
@@ -354,6 +378,35 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
         </div>
       )}
       {saved && <p className="text-[12px] text-etyme-faint">{saved}</p>}
+
+      {read.mayEdit && (
+        <section className="space-y-2 border-t border-etyme-rule pt-4">
+          <h2 className="font-serif text-[18px] text-etyme-ink">This site</h2>
+          {site.isPrimary ? (
+            <p className="text-[13px] text-etyme-muted">This is your primary site. A new job opens here unless somebody picks another. To remove it, make another site primary first.</p>
+          ) : read.region ? (
+            <p className="text-[13px] text-etyme-muted">Your primary site is set by whoever reads every region.</p>
+          ) : (
+            <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={makePrimary}>Make primary</button>
+          )}
+          {!site.isPrimary && site.contractors > 0 && (
+            <p className="text-[13px] text-etyme-muted">{plural(site.contractors, 'contractor')} {site.contractors === 1 ? 'works' : 'work'} here, so this site is not removed. Move them to another site first.</p>
+          )}
+          {!site.isPrimary && site.contractors === 0 && !removing && (
+            <button type="button" className="text-[13px] text-etyme-danger underline" disabled={busy} onClick={() => setRemoving(true)}>Remove this site</button>
+          )}
+          {removing && (
+            <div className="space-y-2 rounded-lg border border-etyme-rule bg-etyme-raised p-3">
+              <p className="text-[13px] text-etyme-ink">Remove {site.name}? Its address and supplier names go. Jobs already posted here keep their words.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={remove}>{busy ? 'Removing…' : 'Yes, remove it'}</button>
+                <button type="button" className="btn-secondary text-[13px]" onClick={() => setRemoving(false)}>Keep it</button>
+              </div>
+            </div>
+          )}
+          {siteRefusal && <FormMessage tone="error">{siteRefusal}</FormMessage>}
+        </section>
+      )}
     </div>
   )
 }
