@@ -29,11 +29,13 @@ import { checkSubdomain, RESERVED_SUBDOMAINS } from '@/lib/domains-owned'
 import { reservedAddress } from '@/lib/demo-session'
 
 export * from '@/lib/password-words'
-import { SUPERSEDED, ADDRESS_MAX, addressFromName } from '@/lib/password-words'
+import { SUPERSEDED, ADDRESS_MAX, addressFromName, MIN_PASSWORD } from '@/lib/password-words'
 
 // ── Passwords ─────────────────────────────────────────────────────────
 
-export const MIN_PASSWORD = 12
+// MIN_PASSWORD lives in lib/password-words, the file a browser page may
+// read: this file loads argon2 and node:crypto, which no browser bundle
+// can hold (the release build of 2026-11-13 failed on exactly that).
 
 /** Words a password may not contain, whatever is around them. */
 const OBVIOUS = ['password', 'passw0rd', 'qwerty', '123456', 'letmein', 'etyme', 'welcome']

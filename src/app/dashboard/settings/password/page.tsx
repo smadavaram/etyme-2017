@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { getCsrfToken } from 'next-auth/react'
 import { PageHead, Panel, Field, Input, SubmitButton, FormMessage, LoadingState } from '@/components/ui'
 import { readJson } from '@/lib/read-response'
-import { MIN_PASSWORD } from '@/lib/password'
+import { MIN_PASSWORD } from '@/lib/password-words'
 import { passwordLineLabel, PASSWORD_HREF } from '@/components/shell/password-line'
 
 /**

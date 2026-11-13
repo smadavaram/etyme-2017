@@ -24,7 +24,7 @@
  * human is how you email somebody at an address they left.
  */
 
-import { reservedAddress } from '@/lib/demo-session'
+import { reservedAddress } from '@/lib/reserved-address'
 import { NO_WAY_TO_REACH, reachable } from '@/lib/contact-reach'
 
 export { NO_WAY_TO_REACH } from '@/lib/contact-reach'

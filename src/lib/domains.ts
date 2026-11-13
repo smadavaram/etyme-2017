@@ -684,7 +684,7 @@ export const DOMAINS: Domain[] = [
       'lib/company-seats', 'lib/join-words',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
-      'lib/demo-seed-consultant', 'lib/demo-session',
+      'lib/demo-seed-consultant', 'lib/demo-session', 'lib/reserved-address',
       // Which desks the demo door can open at a seeded firm, and the
       // sentence it says when the one asked for is not held.
       'lib/demo-desks',

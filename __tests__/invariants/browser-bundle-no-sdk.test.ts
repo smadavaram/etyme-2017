@@ -98,3 +98,51 @@ describe('no page the browser loads imports the AI SDK, directly or through a li
     expect(pathToSdk(join(SRC, 'lib/consultant-portfolio.ts'))).not.toBeNull()
   })
 })
+
+/**
+ * The release build broke again on 2026-11-13: the Change password page,
+ * drawn in the browser, read one number (the fewest characters a password
+ * may have) from `lib/password`, which loads argon2 and `node:crypto`.
+ * The unit suite and the type check were both green; only the build saw
+ * it. Same walk as above, for the modules only a server can load: the
+ * password hasher and anything named with the `node:` scheme.
+ */
+const SERVER_ONLY = (spec: string) => spec === 'argon2' || spec.startsWith('node:')
+
+/** The chain from `start` to a module only a server can load, or null. Inline `type` imports are erased and skipped. */
+function pathToServerOnly(start: string): string[] | null {
+  const seen = new Set<string>()
+  const queue: { file: string; trail: string[] }[] = [{ file: start, trail: [start] }]
+  while (queue.length) {
+    const { file, trail } = queue.shift()!
+    if (seen.has(file)) continue
+    seen.add(file)
+    for (const spec of specifiers(readFileSync(file, 'utf8'))) {
+      if (SERVER_ONLY(spec)) return [...trail, spec]
+      const next = resolveModule(spec, file)
+      if (next && !seen.has(next)) queue.push({ file: next, trail: [...trail, next] })
+    }
+  }
+  return null
+}
+
+describe('no page the browser loads imports a module only a server can load', () => {
+  it('no browser page reaches the password hasher or a node: module through any chain of imports', () => {
+    const leaks: string[] = []
+    for (const f of CLIENT_FILES) {
+      const chain = pathToServerOnly(f)
+      if (chain) leaks.push(chain.map((p) => (SERVER_ONLY(p) ? p : relative(SRC, p))).join(' → '))
+    }
+    expect(leaks, `these put a server-only module in a browser bundle:\n  ${leaks.join('\n  ')}`).toEqual([])
+  })
+
+  it('the Change password page reads the fewest characters from the file a browser may read', () => {
+    const page = readFileSync(join(SRC, 'app/dashboard/settings/password/page.tsx'), 'utf8')
+    expect(page).toContain("import { MIN_PASSWORD } from '@/lib/password-words'")
+    expect(pathToServerOnly(join(SRC, 'app/dashboard/settings/password/page.tsx'))).toBeNull()
+  })
+
+  it('the walker does find the hasher where it is', () => {
+    expect(pathToServerOnly(join(SRC, 'lib/password.ts'))).not.toBeNull()
+  })
+})

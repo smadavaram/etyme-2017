@@ -12,6 +12,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { reservedAddress, RESERVED_SUFFIXES } from '@/lib/reserved-address'
 
 export const DEMO_COOKIE = 'etyme_demo'
 
@@ -82,21 +83,11 @@ export function read(value: string | undefined | null): string | null {
   return reservedAddress(email) ? email : null
 }
 
-/**
- * Whether this address is at a domain nobody can register.
- *
- * Checked on the last label so that `somebody@example.com` — a real,
- * buyable domain whose name merely contains the word — is refused. It
- * ends in `.com`.
- */
-export function reservedAddress(email: string): boolean {
-  const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase()
-  if (!email.includes('@') || domain.length === 0) return false
-  return RESERVED_SUFFIXES.some((suffix) => domain.endsWith(suffix))
-}
-
-/** The suffixes a signed demo cookie may name. None of them can be bought. */
-export const RESERVED_SUFFIXES = ['.invalid', '.example', '.local'] as const
+// Whether an address is at a domain nobody can register, and the
+// suffixes that make it so, live in lib/reserved-address: a file with no
+// import, because browser pages read them and this file loads
+// `node:crypto`. Re-exported here so every older import stands.
+export { reservedAddress, RESERVED_SUFFIXES }
 
 /** The address a demo person is given. */
 export function addressFor(handle: string): string {

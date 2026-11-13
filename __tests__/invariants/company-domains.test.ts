@@ -235,8 +235,9 @@ describe("Etyme's own domain is nobody's (founder, 2026-10-15 and 2026-10-16)", 
 
   it('the one way to make a company drops etyme.com before it is stored or claimed', () => {
     const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/lib/company-create.ts'), 'utf8')
-    expect(src).toContain('const domain = isPlatformDomain(input.domain) ? null : input.domain')
-    expect(src).toContain('if (input.claimDomain && domain) {')
+    // A company recorded on another firm's list keeps no domain either (2026-11-13), so the line drops both.
+    expect(src).toMatch(/const domain = (recordOnly \|\| )?isPlatformDomain\(input\.domain\) \? null : input\.domain/)
+    expect(src).toMatch(/if \(input\.claimDomain && domain( && !recordOnly)?\) \{/)
     expect(src).not.toContain('domain: input.domain,')
   })
 

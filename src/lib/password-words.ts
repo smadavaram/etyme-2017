@@ -9,6 +9,13 @@ import { countryFromDomain } from '@/lib/company-defaults'
 import { COUNTRIES, currencyFor, countryGuessSentence } from '@/lib/setup-steps'
 import { isConsumerDomain } from '@/lib/company-domains'
 
+/**
+ * The fewest characters a password may have. Here, and not in
+ * lib/password, because a browser page shows it beside the field and
+ * lib/password loads argon2, which only a server can.
+ */
+export const MIN_PASSWORD = 12
+
 
 /** Without an email sender nobody can prove a mailbox, so these doors say so before any form. */
 export const SIGNUP_SHUT = 'Sign-up is off on this deployment until an email sender is set up.'
