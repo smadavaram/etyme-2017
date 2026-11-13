@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   regionScopeFrom, regionDoor, regionRefusal, regionContracts, regionRequirements, REGION_UNIT_KIND, SITE_UNIT_KIND,
 } from '@/lib/region-scope'
-import { getNavForKind, landingFor, BY_REGION_HREF, ASK_ETYME_HREF, openBecause } from '@/lib/nav-table'
+import { getNavForKind, menuFor, landingFor, BY_REGION_HREF, ASK_ETYME_HREF, openBecause } from '@/lib/nav-table'
 import { rolesFor } from '@/lib/company-defaults'
 
 /**
@@ -94,11 +94,16 @@ describe('the region door', () => {
 describe('By region on the menu', () => {
   const clientPerms = rolesFor('CLIENT').find((r) => r.name === 'Program Manager')!.permissions
 
-  it('a client’s Today carries a By region tab beside the program page', () => {
+  // Reports joined the client's Today on 2026-11-12, when the client's
+  // Reports page was built and its hold lifted: it sits in Today's section,
+  // the way a supplier's does, and the menu prints it under Accounting.
+  it('a client’s Today carries a By region tab beside the program page, and Reports, which the menu prints under Accounting', () => {
     const today = getNavForKind('CLIENT', false, { permissions: clientPerms }).find((s) => s.label === 'Today')!
-    expect(today.items.map((i) => i.label)).toEqual(['Today', 'By region'])
+    expect(today.items.map((i) => i.label)).toEqual(['Today', 'By region', 'Reports'])
     expect(today.items[1].href).toBe(BY_REGION_HREF)
     expect(openBecause(BY_REGION_HREF)).toBeTruthy()
+    const accounting = menuFor('CLIENT', false, { permissions: clientPerms }).find((g) => g.heading === 'Accounting')!
+    expect(accounting.links.map((l) => l.label)).toContain('Reports')
   })
 
   it('a region seat’s menu is Ask Etyme first, then Today and By region, the pages whose routes narrow to a region, and nothing that reads every region', () => {
