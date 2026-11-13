@@ -30,6 +30,7 @@ import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
 import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
+import { logPaymentRefused, refusalWhy } from '@/lib/money/payment-refused'
 import type { TwinKindName } from '@/lib/autonomy'
 import { SUPPLIER_ACT_PERFORMERS } from '@/lib/twin/supplier-performers'
 import { bankHoldTitle } from '@/lib/twin/rules/invoice'
@@ -244,7 +245,19 @@ const payInvoiceReceipt: Performer = {
     }
     const g = await mayPayInvoiceReceipt(c.entity.id)
     if (!g) return 'That invoice receipt is not on the record.'
-    if (!g.ok) return g.says
+    if (!g.ok) {
+      // A person's yes the rules refused is kept before the refusal is
+      // said, the way the payment routes keep theirs (lib/money/payment-
+      // refused); a document's own state, and the twin only asking, are not.
+      const why = refusalWhy(g.code)
+      if (why && c.approverPersonId) {
+        await logPaymentRefused({
+          companyId: c.companyId, byPersonId: c.approverPersonId, door: 'INVOICE_PAY', why,
+          says: g.says, invoiceId: c.entity.id,
+        })
+      }
+      return g.says
+    }
     if (c.approverPersonId && !answerOf(c).reference) return NEEDS_BANK_REFERENCE
     return null
   },

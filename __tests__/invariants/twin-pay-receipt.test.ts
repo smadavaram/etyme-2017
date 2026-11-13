@@ -248,6 +248,31 @@ describe('paying an invoice receipt from Ask Etyme', () => {
     expect(h.payCalls).toEqual([])
   })
 
+  it('a yes the rules refuse is kept as a refused payment before the person reads the sentence, the way the payment routes keep theirs', async () => {
+    await runTwin(CLIENT)
+    const [q] = asked('invoice_receipt.pay')
+    const before = (T().automationLog ?? []).filter((r) => r.action === 'PAYMENT_REFUSED').length
+    h.gate = { ok: false, code: 'BANK_NOT_CHECKED', says: 'Pinnacle Resourcing’s bank details are not checked yet. The AP clerk checks them, then pays.' }
+    const out = await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'WEB', decider: AP_CLERK, answer: { reference: 'ACH 7781' } })
+    expect(out).toMatchObject({ ok: false, says: 'Pinnacle Resourcing’s bank details are not checked yet. The AP clerk checks them, then pays.' })
+    const rows = (T().automationLog ?? []).filter((r) => r.action === 'PAYMENT_REFUSED')
+    expect(rows).toHaveLength(before + 1)
+    expect(rows[rows.length - 1]).toMatchObject({ companyId: CLIENT, reversible: false, payload: expect.objectContaining({ door: 'INVOICE_PAY', why: 'BANK_NOT_CHECKED', byPersonId: 'pat', invoiceId: RECEIPT }) })
+    expect(h.payCalls).toEqual([])
+  })
+
+  it('a receipt on hold, refused on its own state, writes no refused payment, and neither does the twin only asking', async () => {
+    h.gate = { ok: false, code: 'MATCH_FAILED', says: 'PR-2026-0451 did not pass the three-way check.' }
+    await runTwin(CLIENT)
+    expect((T().automationLog ?? []).filter((r) => r.action === 'PAYMENT_REFUSED')).toEqual([])
+    h.gate = { ok: true }
+    await runTwin(CLIENT)
+    const [q] = asked('invoice_receipt.pay')
+    h.gate = { ok: false, code: 'HELD', says: 'PR-2026-0451 is on hold by Northbend Athletic. Lift the hold where it was put, then pay it.' }
+    await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'WEB', decider: AP_CLERK, answer: { reference: 'ACH 7781' } })
+    expect((T().automationLog ?? []).filter((r) => r.action === 'PAYMENT_REFUSED')).toEqual([])
+  })
+
   it('an invoice this company is not the one paying is never put up to be paid', async () => {
     h.direction = 'RECEIVABLE'
     await runTwin(CLIENT)
