@@ -521,7 +521,11 @@ const PRICE_UNITS: { pattern: RegExp; says: string }[] = [
   { pattern: /\b\d+(?:\.\d+)?\s*%\s*(?:of\s+)?(?:spend|margin|bill rate|markup|invoice value)\b/i,
     says: 'a percentage of spend' },
   { pattern: /\bstarting at\b/i, says: 'an opening price' },
-  { pattern: /\bpricing (?:starts|plans|tiers)\b/i, says: 'a price list' },
+  // "Pricing starts at" is a price list; "keep their terms when pricing
+  // starts" (the founder's own line on the home page, 2026-11-13) says
+  // when a price will exist, not what it is, so a bare "pricing starts"
+  // at the end of a clause is not caught.
+  { pattern: /\bpricing (?:starts (?:at|from)|plans|tiers)\b/i, says: 'a price list' },
   { pattern: /\b(?:contact us for|request) (?:a )?(?:pricing|a quote)\b/i,
     says: 'a quote, which is a price with the number hidden' },
 ]
@@ -628,7 +632,11 @@ const VERBS = [
   // "Seen enough? Set up your company." — the sign-up band the founder
   // approved on 2026-10-14. An imperative, and the sentence's one verb.
   'set', 'sets',
-  'sign', 'signs', 'sit', 'sits', 'spend', 'spends', 'stay', 'stays', 'stop', 'stops',
+  'sign', 'signs', 'sit', 'sits', 'spend', 'spends',
+  // "Start free with your own contractors." — the home page's last call,
+  // the founder's brief of 2026-11-13. An imperative, and its one verb.
+  'start', 'starts',
+  'stay', 'stays', 'stop', 'stops',
   // "Supply people to a program instead?" — the supplier's door on the
   // home page, 2026-09-27. The trade's own verb for what a supplier does.
   'supply', 'supplies',

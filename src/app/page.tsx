@@ -1,96 +1,39 @@
 import type { Metadata } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
-import { CountedLink } from '@/lib/public-site/counted-link'
-import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
-import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
-import { SEE_IT } from '@/lib/public-site/funnel'
-import { corvaneMap, seatOf, seatHrefs } from '@/lib/public-site/corvane-map'
-import { CorvaneMapView } from '@/lib/public-site/corvane-map-view'
-import { corvaneIsSeeded } from '@/lib/public-site/corvane-seeded'
-import { TalkToAPerson } from '@/lib/public-site/talk'
-import { WhyBelow } from '@/lib/public-site/why-below'
+import { CategoryLine, SkeletonFooter } from '@/lib/public-site/skeleton'
+import { homeDemo } from '@/lib/public-site/home-demo'
+import { homeCfoLines } from '@/lib/public-site/home-cfo'
+import { SeeItWork, HomeDemoBlock, CfoView, FILLED } from '@/lib/public-site/home-parts'
+import {
+  HOME_HEADLINE, HOME_SUBHEAD, HOME_FIT, COMPLEMENT_LINE, START_FREE, UNDER_START,
+  PROOF_HEADING, PROOF_CARDS, STRIP, PRICE_LINE, SECURITY_LINE, SECURITY_LINK,
+  FINAL_HEADING, FINAL_LINE, FALLBACK_LEAD, FALLBACK_ADDRESS, FALLBACK_TAIL, HOME_HEADER_BUTTON,
+} from '@/lib/public-site/home-words'
 
 /**
- * The front door.
+ * The front door, rebuilt for conversion to the founder's brief of
+ * 2026-11-13: "The current page has a strong story but no way to act."
  *
- * ── The home page is the product, and the slop is gone ──────────────
+ * In order, and nothing else:
  *
- * The founder approved this page on 2026-10-14 ("Build it", on the
- * drawing he corrected three times). Three sections and about a hundred
- * and ten words, and the test for every word: which buyer asked for it,
- * and can the reader check it by clicking something on this page.
+ *   header      the wordmark, a plain Sign in, and one button, Start free
+ *   #top        the category, the question, the locked positioning line,
+ *               who it is for, what it sits beside, Start free with the
+ *               line under it, and See it work
+ *   #demo       Ask Etyme at Northbend Athletic, a demo company: the
+ *               question, the answer, three contractors, the card that
+ *               would send the job (`lib/public-site/home-demo`, the
+ *               Northbend story's first step, read against the seed)
+ *   #cfo        Corvane Packaging's CFO view, closed behind one button
+ *   #record     one heading and three proof cards
+ *   the strip, price and security, then #start, the last call
+ *   then the one-row footer every public page shares
  *
- *   hero        the category line and the question, word for word, and
- *               since the founder's drawing of 2026-10-19 one line under
- *               them: most companies cannot answer it without three weeks
- *               and a spreadsheet nobody trusts. Since the same day the
- *               category sits above the headline as the hero's eyebrow
- *               (founder: "the category be on top over hero text"), set in
- *               sentence case with no period, 13px and muted, one line
- *               at 375 (founder, the same day, on the capitals). Since
- *               2026-10-20 it is `CategoryLine`, which every step page
- *               and door draws too, from the one constant `CATEGORY`
- *   #demo       the product shown working, in one compact panel
- *               (`lib/public-site/story-panel`, since the founder's
- *               "Build it" later on 2026-10-14): Ask Etyme answers, a
- *               decision card presses itself, the table changes, across
- *               four chips — Job, Submissions, Timesheets, Invoices — with
- *               every name and figure the seeded demo's, and one button
- *               to the full demo. Since 2026-10-19 the bar names the
- *               person in front of each step (Marcus Oyelaran, Helena
- *               Marsh, Renata Kowal) and the line under it says they are
- *               three people at a demo company on one morning. On a
- *               phone the panel's button is also drawn straight under the
- *               hero (`LiveDemo`), so the first screen has one button
- *   #map        the map, since the founder's "Build it" of 2026-10-27 ("This
- *               is the vision of Etyme"): Corvane Packaging, a demo company,
- *               every contractor, supplier and site in eight countries on one
- *               record, read from four roles — CFO, Head of operations,
- *               Regional manager, Hiring manager — each a tab at its own
- *               address (`/?seat=operations`), read on the server so an
- *               advertisement can open one. Every name and figure is read
- *               from the seed (`lib/public-site/corvane-map`). The hero's
- *               line under the question became the drawing's lede the same
- *               day; the Northbend panel follows the map unchanged
- *   #why        under the panel, since the same "Build it": two drawings —
- *               a start refused on the I-9, and a receipt held over the
- *               signed hours — each a named person from the seed, then
- *               four lines: In it, Price, Security, Talk to a person
- *               (`lib/public-site/why-below`). "Talk to a person" also
- *               sits beside the demo button in the hero and beside Sign up
- *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
- *               and every party's door on one small line, Clients first
- *   then one line for security, and the footer
- *
- * Cut, and where each went (CLAUDE.md, the same section): the problem
- * band (the demo answers the four questions on its first screen); the
- * platform band and its cards (the chips); specialist teams around the
- * world and what is set once (the documentation); the roles band and the
- * Platform, Solutions and How It Works items in this page's header (six
- * audiences on one page speak to none); the three screenshots and their
- * captions (the live product); the security band's four cards (one line
- * and the link); the audit form and the close; the trust card. And on
- * the same day, later: the audit call itself, from the band and the
- * header (the founder: "Does anyone need the audit form? I think it's
- * useless."). Ask Etyme and Teams are not
- * sold here: Ask Etyme is the demo's first screen, and Teams waits for a
- * real card tapped in a real tenant.
- *
- * ── Rules that still bind ────────────────────────────────────────────
- *
- * Category first, never one module, never AI, never a supply claim, no
- * named company but the demo's own, labeled as a sample beside it, no
- * size of buyer, no claim a reader cannot check, plain words, written to
- * the client. `lib/positioning` holds each and `positioning.test.ts`
- * reads this file against them.
- *
- * ── The pieces every other page shares ───────────────────────────────
- *
- * The panel, the sign-up band, the security line and the
- * footer live in `lib/public-site/skeleton`, since 2026-10-14, because
- * the eight product pages and the four party doors draw the same ones
- * (the founder: "make sure even the sub pages and doors follow the same
- * structure"). This page adds only its category and its question.
+ * Every word is a constant in `lib/public-site/home-words`, which
+ * `home-page.test.ts` and `positioning.test.ts` read. The map with its
+ * four role tabs, the panel that played by itself, the two drawings and
+ * the four lines of 2026-10-27 left this page with it; an old role tab's
+ * address (`/?seat=operations`) still answers with this page.
  */
 
 /**
@@ -103,69 +46,86 @@ export const metadata: Metadata = {
   title: { absolute: 'Etyme | Enterprise contingent workforce management' },
 }
 
-/** The map's four seats, worked out once from the seed: plain data, the same on every request. */
-const MAP = corvaneMap()
-const SEAT_HREFS = seatHrefs()
+/** The demo and the CFO view, worked out once from the seed: plain data, the same on every request. */
+const DEMO = homeDemo()
+const CFO = homeCfoLines()
 
-/** What Next hands the page: the address's query, of which `seat` is read. */
-interface HomeParams { searchParams?: { seat?: string | string[] } }
+/** With no script the CFO view is shown open and its button is not drawn. */
+const NO_SCRIPT_CFO = '#cfo-view{display:block!important}[data-cfo-toggle]{display:none!important}'
 
-/**
- * The page's demo button: in the hero beside "Talk to a person", as the
- * founder's drawing of 2026-10-27 has it, and again in the panel's footer
- * from md up.
- */
-function OpenTheDemo() {
-  return (
-    <CountedLink href={SEE_IT.href} event="demo_cta_clicked" className={PRIMARY_BUTTON}>
-      {OPEN_DEMO}
-    </CountedLink>
-  )
-}
+const SECTION_HEADING = 'text-balance font-serif text-[26px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[30px]'
+const TEXT_LINK = 'text-etyme-action-press underline-offset-4 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40'
 
-export default async function LandingPage({ searchParams }: HomeParams) {
-  const seat = seatOf(searchParams?.seat)
-  // One read: is Corvane on this deployment? Where it is not, the map draws
-  // no link to a demo door that would answer 404 (release walk, 2026-10-27).
-  const doorsOpen = await corvaneIsSeeded()
+export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
-      <SiteHeader />
+      <SiteHeader button={HOME_HEADER_BUTTON} />
+      <noscript><style>{NO_SCRIPT_CFO}</style></noscript>
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* ── Hero: the category on top, then the question, word for word ── */}
-        <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
+        {/* ── Hero ── */}
+        <section id="top" className="max-w-[760px] pb-8 pt-10 md:pt-14">
           <CategoryLine />
           <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.06] tracking-[-0.02em] text-etyme-ink md:text-[52px]">
-            Know what every contractor costs, across every supplier.
+            {HOME_HEADLINE}
           </h1>
-          <p className="mt-3 text-[16px] leading-snug text-etyme-muted">
-            Every contractor, every supplier, every site and every country, on one record. Read it as the CFO, a regional manager or a site’s hiring manager.
-          </p>
-          {/* ── The two calls, as drawn: the demo, and a person ── */}
-          <div data-hero-calls="" className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-            <OpenTheDemo />
-            <TalkToAPerson />
+          <p className="mt-4 text-[17px] leading-snug text-etyme-ink">{HOME_SUBHEAD}</p>
+          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{HOME_FIT}</p>
+          <p className="mt-1 text-[15px] leading-snug text-etyme-muted">{COMPLEMENT_LINE}</p>
+          <div data-hero-calls="" className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-start">
+            <div className="flex min-w-0 flex-col gap-1.5 sm:max-w-[22rem]">
+              <a href={START_FREE.href} className={`${FILLED} sm:self-start`}>{START_FREE.t}</a>
+              <p className="text-[14px] leading-snug text-etyme-muted">{UNDER_START}</p>
+            </div>
+            <SeeItWork />
           </div>
         </section>
 
-        {/* ── The map: one record, read from four roles ─────────── */}
-        <section id="map" aria-label="One record, read from four roles" className="scroll-mt-20 pb-8">
-          <CorvaneMapView map={MAP} seat={seat} hrefs={SEAT_HREFS} doorsOpen={doorsOpen} />
-          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{MAP.under}</p>
+        {/* ── Ask Etyme, at a demo company ── */}
+        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a demo company" className="max-w-[760px] scroll-mt-20 pb-8 focus:outline-none">
+          <HomeDemoBlock demo={DEMO} />
         </section>
 
-        {/* ── The product, live and read-only, at the overview ──── */}
-        <LiveDemo phoneButton={false}><OpenTheDemo /></LiveDemo>
+        {/* ── The CFO view, closed ── */}
+        <section id="cfo" aria-label="The CFO view, at a sample company" className="max-w-[760px] pb-10">
+          <CfoView lines={CFO} />
+        </section>
 
-        {/* ── Why, in two drawings and four lines ───────────────── */}
-        <WhyBelow />
+        {/* ── One record, three proofs ── */}
+        <section id="record" className="pb-8">
+          <h2 className={SECTION_HEADING}>{PROOF_HEADING}</h2>
+          <ul className="mt-4 grid gap-3 md:grid-cols-3">
+            {PROOF_CARDS.map((c) => (
+              <li key={c} className="min-w-0 rounded-lg border border-etyme-rule bg-etyme-surface p-5 text-[15px] leading-snug text-etyme-ink">
+                {c}
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        {/* ── Sign-up, with a person beside it ──────────────────── */}
-        <SignUpBand talk />
+        {/* ── The strip, then price and security ── */}
+        <section id="strip" aria-label="What is in it, the price and security" className="max-w-[760px] pb-8">
+          <p className="text-[15px] leading-snug text-etyme-ink">{STRIP}</p>
+          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{PRICE_LINE}</p>
+          <p id="security" className="mt-1 text-[15px] leading-snug text-etyme-muted">
+            {SECURITY_LINE}{' '}
+            <a href={SECURITY_LINK.href} className={TEXT_LINK}>{SECURITY_LINK.t}</a>
+          </p>
+        </section>
 
-        {/* ── Security: one line and the link ───────────────────── */}
-        <SecurityLine />
+        {/* ── The last call ── */}
+        <section id="start" className="mb-10 grid gap-4 rounded-lg border border-etyme-rule bg-etyme-surface p-6 md:p-7">
+          <h2 className={SECTION_HEADING}>{FINAL_HEADING}</h2>
+          <p className="text-[15px] leading-snug text-etyme-muted">{FINAL_LINE}</p>
+          <div>
+            <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
+          </div>
+          <p className="text-[14px] leading-snug text-etyme-muted">
+            {FALLBACK_LEAD}{' '}
+            <a href={`mailto:${FALLBACK_ADDRESS}`} className={TEXT_LINK}>{FALLBACK_ADDRESS}</a>{' '}
+            {FALLBACK_TAIL}
+          </p>
+        </section>
       </main>
 
       <SkeletonFooter />

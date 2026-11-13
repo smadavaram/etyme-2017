@@ -16,6 +16,7 @@
  * page links to the audit.
  */
 
+import { START_FREE, HOME_HEADER_BUTTON, SEE_IT_WORK, DEMO_NOT_NOW, DEMO_BACK, CFO_SHOW, CFO_HIDE, SECURITY_LINK } from '@/lib/public-site/home-words'
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -95,11 +96,16 @@ describe('One ladder, named once', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain("b.id === 'ask'")
   })
 
-  it('no public page links to the audit, and the header is the logo and Sign in', () => {
+  it('no public page links to the audit, and the header is the logo and Sign in, with Start free on the home page alone', () => {
     // The header: two things at every width since 2026-10-19, when the
     // menu icon and its sheet left (founder: "Even the menu has very
-    // [little] value, it can be on the footer"). No filled button, no menu.
-    const header = FRAME.slice(FRAME.indexOf('export function SiteHeader'), FRAME.indexOf('</header>'))
+    // [little] value, it can be on the footer"). No menu, and no filled
+    // button but the one a page passes: since the founder's brief of
+    // 2026-11-13 the home page passes Start free, and no other page does.
+    const whole = FRAME.slice(FRAME.indexOf('export function SiteHeader'), FRAME.indexOf('</header>'))
+    const header = whole.replace(/\{button && \([\s\S]*?\n {10}\)\}/, '')
+    expect(whole).toContain('{button && (')
+    expect(header).not.toContain('{button.t}')
     expect(header).toContain('<EtymeLogo')
     expect(header).toContain('href={HEADER.signIn.href}')
     expect(HEADER).toEqual({ signIn: { t: 'Sign in', href: '/login' } })
@@ -141,7 +147,7 @@ describe('One ladder, named once', () => {
     expect(read('src/app/demo/page.tsx')).not.toMatch(/GET_THE_AUDIT|\/census/)
   })
 
-  it('every public page ends in the same ways forward: see it, ask a person', () => {
+  it('every public page ends in the same ways forward: see it, ask a person; the home page in its own last call, Start free or an email to a person', () => {
     // The frame draws the close before the footer, with no switch to
     // leave it off, and every documentation and company page is drawn in
     // the frame.
@@ -166,7 +172,10 @@ describe('One ladder, named once', () => {
       expect(read(f), f).not.toContain('<CloseBand')
       expect(read(f), f).toContain('<SignUpBand')
     }
-    expect(HOME).toContain('href={SEE_IT.href}')
+    // The home page ends since the founder's brief of 2026-11-13 in its
+    // own last call: Start free to the sign-up, and a person by email.
+    expect(HOME).toContain('<a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>')
+    expect(HOME).toContain('href={`mailto:${FALLBACK_ADDRESS}`}')
     expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
     // And the component draws the two rungs, in order, from the funnel.
     const see = CLOSE.indexOf('{`${SEE_IT.t} →`}')
@@ -193,7 +202,7 @@ describe('One ladder, named once', () => {
 
 describe('No button promises what the site cannot give', () => {
 
-  it('no button promises an account the site cannot open', () => {
+  it('no button promises an account the site cannot open, and the ones that may — Sign up, each door’s own, and the home page’s Start free — all open the sign-up door', () => {
     // Until 2026-10-08 the only way in was the demo, so no button anywhere
     // could promise a start, a trial, a sign-up or an account. The password
     // door opened that day, so one button may: the home page's "Sign up",
@@ -208,6 +217,9 @@ describe('No button promises what the site cannot give', () => {
       // demo under the frame, which every door and tab draws too since
       // 2026-10-20, in place of its own label of 2026-10-19.
       OPEN_DEMO,
+      // The home page's own buttons, constants since 2026-11-13, but Start
+      // free, which goes to the sign-up door and is set aside below.
+      SEE_IT_WORK.t, DEMO_NOT_NOW, DEMO_BACK, CFO_SHOW, CFO_HIDE, SECURITY_LINK.t, 'Send',
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('See it working, no account')
@@ -217,7 +229,12 @@ describe('No button promises what the site cannot give', () => {
     // The ones that may, and the door they open, which is real: the
     // client's "Sign up" and each door's own sign-up, a tab's own included
     // (the Solopreneur tab's, 2026-10-16), every one to /signup.
-    for (const s of [CLIENT_SIGN_UP, ...PARTY_PAGES.flatMap((p) => [p.signUp, ...(p.tabs ?? []).flatMap((t) => (t.signUp ? [t.signUp] : []))])]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
+    // Since the founder's brief of 2026-11-13 the home page's Start free
+    // is one of them: in the header, the hero and the last call, to /signup,
+    // the page "Create your account" opens.
+    expect(promisesAnAccount([START_FREE.t])).toHaveLength(1)
+    expect(HOME_HEADER_BUTTON).toBe(START_FREE)
+    for (const s of [CLIENT_SIGN_UP, START_FREE, ...PARTY_PAGES.flatMap((p) => [p.signUp, ...(p.tabs ?? []).flatMap((t) => (t.signUp ? [t.signUp] : []))])]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)
   })

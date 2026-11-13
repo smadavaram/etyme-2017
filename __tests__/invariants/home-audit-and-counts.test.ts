@@ -79,12 +79,15 @@ describe('The public site counts its own clicks, first-party and with nothing pe
     expect(helper).not.toMatch(/document\.cookie|localStorage/)
   })
 
-  it('counts the demo buttons and a seat taken from a demo link, and no audit button is left to count', () => {
+  it('counts the demo buttons and a seat taken from a demo link, and no audit button is left to count; the home page’s own demo counts and posts nothing', () => {
     // The audit buttons left the band and the header on 2026-10-14; the
     // three audit events stay in the list because rows already written
-    // carry them, and nothing on the site sends them now.
+    // carry them, and nothing on the site sends them now. The home page
+    // since 2026-11-13 draws its demo in the page and has no demo
+    // button, so it counts nothing (its Send and Not now post nothing).
     const page = read('src/app/page.tsx')
-    expect(page).toContain('event="demo_cta_clicked"')
+    expect(page).not.toContain('CountedLink')
+    expect(read('src/lib/public-site/home-parts.tsx')).not.toMatch(/count\(|fetch\(|sendBeacon/)
     expect(read('src/lib/public-site/close-band.tsx')).toContain('event="demo_cta_clicked"')
     for (const f of ['src/lib/public-site/skeleton.tsx', 'src/lib/public-site/frame.tsx', 'src/lib/public-site/close-band.tsx', 'src/app/page.tsx']) {
       expect(read(f), f).not.toMatch(/audit_cta_clicked|audit_form_/)

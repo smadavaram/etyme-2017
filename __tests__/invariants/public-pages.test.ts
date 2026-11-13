@@ -39,6 +39,7 @@ import { FOOTER, FOOTER as SITE_FOOTER, HEADER, everyFrameLink, frameCopy } from
 import { STEPS } from '@/lib/public-site/steps'
 import { demoRequest } from '@/lib/public-site/demo-link'
 import { TOPICS } from '@/lib/public-site/docs/topics'
+import { copyOfHome } from '@/lib/public-site/home-copy'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -51,6 +52,8 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
  * same crude reader the home page's own test uses.
  */
 function copyOf(route: string): Copy | null {
+  // The home page's words are data since the founder's brief of 2026-11-13.
+  if (route === '/') return copyOfHome()
   const m = MODULES.find((x) => x.route === route)
   if (m) return copyOfModule(m)
   const c = COMPANY_PAGES.find((x) => x.route === route)
@@ -599,10 +602,11 @@ describe('One header and footer on every new page', () => {
       'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Demo', 'Documentation', 'About', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
     ])
     for (const h of ['/demo', '/docs', '/about', '/contact']) expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
-    // The home page draws the same header, rather than a copy of it, with
-    // no variant for the home page (2026-10-14).
+    // The home page draws the same header, rather than a copy of it
+    // (2026-10-14), with one setting since the founder's brief of
+    // 2026-11-13: its one button, Start free.
     const home = read('src/app/page.tsx')
-    expect(home).toContain('<SiteHeader />')
+    expect(home).toContain('<SiteHeader button={HOME_HEADER_BUTTON} />')
     expect(home).not.toContain('const NAV_MENUS')
     const frame = read('src/lib/public-site/frame.tsx')
     expect(frame).not.toContain('onHome')
@@ -625,15 +629,21 @@ describe('One header and footer on every new page', () => {
     expect(read('src/app/page.tsx')).not.toContain('const DESKS')
   })
 
-  it('the right of every header is Sign in, and no filled button and no menu', () => {
+  it('the right of every header is Sign in, with no menu, and a filled button only where a page passes one: the home page alone, with Start free', () => {
     // The audit was the filled button from 2026-10-09 and the example
     // program before it. From 2026-10-14 the header carried Sign in and a
-    // menu icon; since 2026-10-19 it carries Sign in alone.
+    // menu icon; since 2026-10-19 it carries Sign in alone, and since the
+    // founder's brief of 2026-11-13 the home page adds Start free.
     const frame = read('src/lib/public-site/frame.tsx')
     const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</header>'))
     expect(right).toContain('href={HEADER.signIn.href}')
-    expect(right).not.toContain('bg-etyme-action')
+    // The filled button is drawn only from the `button` a page passes.
+    expect(right.slice(0, right.indexOf('{button && ('))).not.toContain('bg-etyme-action')
     expect(right).not.toMatch(/<summary|aria-label=\{HEADER\.menu\}/)
+    const passing = [...walk(join(ROOT, 'src/app')), ...readdirSync(join(ROOT, 'src/lib/public-site')).filter((f) => f.endsWith('.tsx')).map((f) => `src/lib/public-site/${f}`)]
+      .filter((f) => /<SiteHeader button=/.test(read(f)))
+    expect(passing).toEqual(['src/app/page.tsx'])
+    expect(read('src/app/page.tsx')).toContain('<SiteHeader button={HOME_HEADER_BUTTON} />')
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {

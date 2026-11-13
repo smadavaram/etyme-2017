@@ -15,6 +15,10 @@ import { CloseBand } from './close-band'
  * gone; the footer's one row carries the demo, the documentation, About
  * and the rest, and the four steps are the documentation's own spine.
  *
+ * One exception, the home page alone (founder's brief, 2026-11-13): it
+ * passes `button`, and its header carries Start free beside Sign in.
+ * Every other page passes none and its header is exactly as it was.
+ *
  * Links are plain anchors on purpose: every page here is a
  * server-rendered document that works with JavaScript off.
  */
@@ -36,7 +40,7 @@ const TAP = 'inline-flex h-11 items-center justify-center rounded-lg'
  * under it rather than behind it. A change to its padding or to `TAP`
  * changes the figure.
  */
-export function SiteHeader() {
+export function SiteHeader({ button }: { button?: { t: string; href: string } } = {}) {
   return (
     <header
       className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas/95 backdrop-blur
@@ -55,6 +59,16 @@ export function SiteHeader() {
           >
             {HEADER.signIn.t}
           </a>
+          {button && (
+            <a
+              href={button.href}
+              data-header-button=""
+              className={`${TAP} ml-1 whitespace-nowrap bg-etyme-action px-4 text-sm font-semibold text-white shadow-sm
+                         transition-opacity hover:opacity-90 ${FOCUS}`}
+            >
+              {button.t}
+            </a>
+          )}
         </div>
       </nav>
     </header>

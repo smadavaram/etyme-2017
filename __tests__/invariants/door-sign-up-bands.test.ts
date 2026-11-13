@@ -26,10 +26,11 @@ const band = (href: string) => { const v = view(href); return bandWords(v.band, 
 const words = (href: string) => { const v = view(href); const c = copyOfPartyPage(v, v.tab?.key); return [...c.hero, ...c.body] }
 
 describe('the sign-up band on each party door', () => {
-  it('the home page’s band still says "Seen enough? Set up your company.", because the home page speaks to the client', () => {
+  it('the client’s band still says "Seen enough? Set up your company.", and the home page closes on its own last call, Start free, since the founder’s brief of 2026-11-13', () => {
     expect(BAND.heading).toBe('Seen enough? Set up your company.')
     expect(BAND.line).toBe('Your suppliers and contractors go where the sample ones are. Free while we are testing.')
-    expect(read('src/app/page.tsx')).toContain('<SignUpBand talk />')
+    expect(read('src/app/page.tsx')).not.toContain('<SignUpBand')
+    expect(read('src/app/page.tsx')).toContain('{FINAL_HEADING}')
     expect(bandWords()).toEqual(BAND)
   })
 
