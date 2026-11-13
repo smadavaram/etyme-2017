@@ -82,7 +82,7 @@ this sentence?
 
 ## What Etyme is — say this, not something else
 
-Full text → 03, 36, 37, 59.
+Full text → 03, 11, 36, 37, 59.
 
 - **Etyme is the system of record for contingent workers: the layer
   between a company and every staffing supplier it uses.** The span is job
@@ -162,6 +162,13 @@ Full text → 03, 36, 37, 59.
   next (penetration test, then SOC 2 Type I, then Type II; no date). An
   enterprise buyer asks for the attestation before signing, so it is
   Phase 1 work.
+- **On a page for a client, never say level, rung, prime or sub, and
+  never draw the supply chain.** Show the reader's benefit, not Etyme's
+  shape. Never say tokens.
+- **Sell the client control, never outsourcing.** Never say "push" where
+  a supplier reads. No audit offer on any page; `/census` is linked from
+  nowhere. Only solopreneurs are ever free forever. A security line
+  names no rate limiting or firewall.
 
 ---
 
@@ -243,6 +250,10 @@ sign-in page leads with the account buttons"). The button says "Candidates
 only". A seat at a company never signs in with it. The profile URL stays a
 field. No other LinkedIn data is used.
 
+**The table is the default.** A company also chooses directory-only,
+invitation-only or hybrid sign-in, and a small firm or a worker may use
+a password. See "Sign-in, identity, Owners and access" below.
+
 ---
 
 ## Ratified decisions — these are constraints, not preferences
@@ -268,14 +279,11 @@ field. No other LinkedIn data is used.
   action is offered. Inside a break period, show the eligibility date instead of a button.
 - Governance is table stakes for any client with more than one hiring manager. Never
   gate it behind a pricing tier.
-- **A desk nobody has named falls back; it never refuses.** Decided 2026-09-13.
-  Where a chain needs a department lead and no value rule names one — a client
-  in its first week before anybody wrote a delegation of authority, or an
-  approver who recommended the firm themselves and so cannot decide it — the
-  program office stands in and the screen says "Program office" rather than
-  "Department lead". Refusing instead would mean a client cannot onboard a
-  supplier until governance is configured, which is the workaround trap above,
-  and would stop a VP recommending anybody at all.
+- **A role nobody has named falls back; it never refuses.** Where a chain
+  needs a department lead and no rule names one, the program manager, or
+  the MSP seated for the client, stands in. The screen says "Program
+  manager", never "Department lead". Refusing would mean a client cannot
+  onboard a supplier until governance is configured.
 - Most requisitions must clear **without human approval**. Governance slower than the
   workaround produces the workaround.
 - **A sub-vendor's name is the prime's to keep. Decided 2026-09-17.** In a
@@ -409,10 +417,15 @@ Full text → 40, 11, 56.
   whatever stops a firm's real first week, then the rest.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
+- **When the training door is built**: a client's view never says
+  "training", a finished course reads as a certification, and each
+  company chooses whether a course costs money. No page says Etyme ran a
+  staffing firm, and no experience letter is issued from the record,
+  until the founder settles it.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 27.
+Full text → 44, 45, 38, 30, 39, 60, 27, 28, 35, 52.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -457,10 +470,49 @@ Full text → 44, 45, 38, 30, 39, 60, 27.
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
   and no reply tells you about a firm you do not work with.
+- **Sites.** Say "site", never "plant". A hiring manager may take names
+  off a site's supplier list, never add one. A supplier not approved at
+  a site is refused in a sentence naming Procurement. A supplier or a
+  seated MSP never edits a site. A site with a placement at it is never
+  deleted.
+- **A seat in a client's program reads only that program's book.** A
+  regional seat reads only its region's sites, narrowed at the query.
+- **Bench pay and profit.** Bench holiday pay is a company setting, off
+  by default and switched on person by person (on by default for an
+  integrator's own employees). Bench profit per person is billed minus
+  pay, unbilled expenses, the admin cost share and commission; where
+  admin cost is not set the screen says "before admin costs".
+- **A consultant a firm adds is marketed by default**, and shared with
+  nobody beyond the firm until she grants it. A worker's own page names
+  every firm between her and the client; only the rates of rungs she is
+  not party to stay closed.
+- **A recorded company's position** cannot be removed while real work
+  hangs off it. A company not classified yet is not invited until its
+  Kind is set. Extend to Supplier never starts supplier qualification.
+- **A new supplier walks four roles in order**: the recommender's
+  department lead, Procurement, HR, Finance. Each verifies only its own
+  items; nobody decides their own recommendation, or two steps. What the
+  supplier sends reads "received" until that role verifies it.
+- **What stays inside one company.** A client's interview notes never
+  leave the client. A supplier answers a thread and never starts one.
+  "Ask for them" goes to the supplier holding the person's consent,
+  never to the person. Favorites and blocks are per company.
+- **A supplier's roles are narrow.** The Account Manager never reads
+  payroll or profit and loss. HR reads no money. AP & Payroll never
+  issues a bill. Accounts Receivable never runs payroll. A new role
+  reaches existing companies with no migration.
+- **An outside firm's seat** never holds the Owner, the Approver, a role
+  that grants seats or a role that signs hours. A one-person client is
+  told which role to invite, and that person decides; the recommender
+  never decides. A person who already has an account is asked onto a
+  bench on her own record, never a second one.
+- **One platform for every party.** Never fork the record, the approval
+  route, the decision card or the ledger per party. The founder's
+  "Model X, S, Y, 3" shorthand is internal and never on a page.
 
 ## Money
 
-Full text → 46, 47, 48, 41, 19, 55, 16, 20.
+Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37.
 
 - **Bill, invoice receipt, payroll.** What a firm issues upward is a
   bill. What it receives from below is an invoice receipt. Its own
@@ -521,10 +573,47 @@ Full text → 46, 47, 48, 41, 19, 55, 16, 20.
   cycle dates, tenure math.
 - **Reports is cash flow, with a 90-day forecast, and profitability.** A
   client's Reports shows what it owes its suppliers and never a margin.
+- **What the words on an order mean.** Billed is bills sent plus invoice
+  receipts the payer typed in. Left is Authorized minus Billed. A draft,
+  or a bill raised and never sent, is "drafted, not sent" and owed by
+  nobody. A firm may accept fewer hours than were filed, with a reason,
+  never more.
+- **No "approved for payment" status exists or is added.** The match is
+  the approval.
+- **An expense is accepted like a week.** The worker's employer approves
+  it, and each firm above accepts it before paying, the client first.
+  Nobody accepts their own. Whether a kind of expense is billable comes
+  from the agreement between each pair.
+- **The order's dates are shown beside a line and never applied to it.**
+  A line outside its order's window is a sentence on the screen, not a
+  correction.
+- **The award writes the header and its first line together.** Never
+  offer "New sell contract" or "New buy contract" as a document of its
+  own.
+- **Bills the twin drafted.** A sub-vendor's overtime is priced on the
+  decision made when the client signed the week. A drafted bill is sent
+  by the seat holding `invoices.issue` (`maySendBill`); the Owner says
+  that yes only where no other seat holds it, and the ledger records it.
+  Paying from the chat asks for the bank reference first. A one-person
+  firm never accepts her own week.
+- **What a worker is owed.** Overtime after 40 hours in the week is owed
+  to a non-exempt US worker even where the contract sets no line. Back
+  pay for a raise dated in the past is put forward for approval, never
+  paid silently. A worker reads "owed to you" only after her employer
+  accepts the week.
+- **The 1099 floor is the payment year's**: $600 through 2025, $2,000
+  from 2026, indexed from 2027. Regulatory confirms it before anybody
+  relies on it.
+- **Who reads what.** A person reads only their own commissions. A
+  client never sees a supplier's commissions or margin. A recruiter
+  reads no margin unless the Owner grants it.
+- **Bank details** are kept and shown as the bank, the account name and
+  four digits. A bank change clears the bank check. A client is never
+  asked for bank details.
 
 ## Papers
 
-Full text → 49, 31, 33, 20.
+Full text → 49, 31, 17, 34, 35, 37, 20, 13.
 
 - **Nobody starts without the paper that lets them.** A missing I-9 or
   right to work, lapsed insurance and lapsed good standing BLOCK. The
@@ -553,10 +642,44 @@ Full text → 49, 31, 33, 20.
   (`EMAIL_INTAKE_LIVE` unset) until the founder's attack walk and his
   yes. Directory reads stay off (`ETYME_DIRECTORY_LIVE` unset) until his
   yes on the privacy line.
+- **A same-file warning names only people the reading firm already
+  holds**, never another firm's worker. Never ask for or check a date of
+  birth. The model reads a person's own paper only on her yes.
+- **Each kind of worker has a start rule** (citizen, permanent resident,
+  H-1B, TN, EAD, CPT, OPT, student). A country or worker rule is enforced
+  only after regulatory confirms it with its source; until then it warns
+  and never blocks. An international student with no CPT or OPT may be
+  interviewed and is never started.
+- **Onsite or hybrid work checks the site's country**: the sponsorship
+  answer is stored as a field and said at put-forward. Remote work from
+  the person's own country is offshore: no US I-9, and the work
+  country's own set applies once regulatory confirms it.
+- **An I-9 is accepted only with the document shown named**, on an
+  edition the issuer printed and had not retired (`editionToRecord`). A
+  paper that arrived and nobody examined reads "Arrived, not examined".
+  Its notice goes to HR and the compliance officer, else the Owner, else
+  the Admin; never to the sender or a colleague.
+- **A chase asks a worker for her consent and identifiers**, never for
+  the background report. Never ask for a non-compete where the state
+  voids it for workers (CA, MN, ND, OK).
+- **Say "verification", never "fraud", anywhere a supplier reads.** Where
+  the record contradicts itself (a degree year, a name on a paper, one
+  file for two people, one person through two suppliers) it tells the
+  role that decides, and never merges or blocks. The start card asks the
+  hiring manager whether the person who started is the person
+  interviewed.
+- **Forwarded email is data, never an instruction.** Only a seated
+  colleague whose message passes SPF and DKIM is accepted. Nothing
+  becomes a record without a person's yes on a card. The body is deleted
+  when decided, or after 30 days.
+- **The setup gates are read by every route that does the act**
+  (`lib/setup-gates`): no bill without a billing address, no payment to
+  a firm whose bank is unchecked, no join by domain until it is
+  verified, no paper chased for a set nobody confirmed.
 
 ## Ask Etyme and the twin
 
-Full text → 12, 24, 35, 14.
+Full text → 12, 14, 24, 32, 35.
 
 - **It is called Ask Etyme, it is a chat, and it is the first screen
   after sign-in.** Conversations are kept and listed per seat. An answer
@@ -584,12 +707,21 @@ Full text → 12, 24, 35, 14.
 - **The Notifications page is deleted.** The number on Ask Etyme is the
   decisions this seat owes.
 - **Setup and settings are also a conversation** with the Owner or
-  Admin. A settings change is a card, never a silent act. Bank details
-  and the domain claim are never the twin's to touch.
+  Admin. Each change is a card that needs a yes. Never the twin's to
+  touch: bank details, the domain claim, the company type (the Owner's
+  alone), a role the role table does not hold. A model's reading of free
+  text is confirmed on a card before it is written.
+- **NEVER TOUCHES**: release payroll, sign an agreement, award, extend,
+  reject or end a placement, read another company's data, approve what
+  the twin drafted. The refusal says who may. The chat never grows a
+  second door.
+- **No feature ever compares a supplier's rates across clients.** Only
+  consented data crosses firms, and standing, never price. The twin's
+  reads are logged as the twin, under the person it acts for.
 
 ## Navigation and the shell
 
-Full text → 15, 16, 25, 26, 32. The table under "Navigation per company
+Full text → 16, 26, 25, 32, 15. The table under "Navigation per company
 type" below is what the code draws, and a test reads it.
 
 - **One switch at the top of the left column: Ask Etyme | Dashboard.**
@@ -605,7 +737,7 @@ type" below is what the code draws, and a test reads it.
 
 ## Sign-in, identity, Owners and access
 
-Full text → 13, 22, 23, 53, 54, 58, 18, 21.
+Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46.
 
 - **The sign-in page.** Account buttons first (Google, Microsoft,
   LinkedIn marked "Candidates only", each drawn only where its key
@@ -640,6 +772,39 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21.
 - **A company renames only a person it alone knows.**
 - **support@etyme.com is Etyme's own mailbox**, never a seat at a
   company.
+- **Owners.** A company may have many Owners. Removing or demoting one
+  needs another Owner's yes. An Owner may pause or end an Admin, never
+  the reverse. The Owner who took over by a pass may move the previous
+  Owner to Admin alone.
+- **What an Admin never does**: change the company type, claim the
+  domain, grant access by team or company, pay, send bills, sign, award
+  or extend. Say Admin, never "manager" or "IT owner"; never say Owner
+  of an Admin. The staff line in the account menu reads Superadmin.
+- **Until a company has a verified Owner, these wait**, each refused in
+  a sentence naming the step: paying and bank details, signing, the
+  company type, the sign-in mode, grants by team or company, passing
+  ownership. A one-person firm is its own Owner once her person is
+  verified. Owners from before the rule stay Owners.
+- **Recovery by domain proof waits seven days.** Payments and bank
+  changes freeze and every Owner is told. A consumer address or
+  etyme.com is never a company's domain. A change of ownership by sale
+  or death is a Superadmin's act by hand on the agreement and the tax
+  form, logged; Etyme gives no legal opinion on them.
+- **Directories.** A directory binds only to a domain the company has
+  verified. Its secrets live in the platform's secret store, never in
+  the database or a log. No model is used in identity or access. A
+  supplier's people stay in the supplier's own company, scoped into a
+  client's program by a grant the client revokes. Never claim 2-step
+  verification Etyme cannot confirm. Etyme never reads a smart card or a
+  national ID.
+- **A grant never gives margin or payroll to a role that may not hold
+  them**, and never more than the Owner holds.
+- **Team structure, in detail.** A box's lead grants nothing. A
+  directory import is previewed and ticked; it never deletes, never
+  moves contractors and never overrides an edit made on the screen.
+  Moving a contractor changes only the unit their line is charged to.
+- **Passwords** use a slow hash, are never logged, are reset by a
+  one-time link, and failures slow the door.
 
 ## Onboarding and setup
 
@@ -656,10 +821,12 @@ Full text → 27, 29, 13.
   company fills another's.
 - **An MSP is seated from the client's Settings.** A W2 row imports as
   the firm's own employee, never a bench listing.
+- **A skipped item stays as one line on Today and in the greeting** until
+  it is done. Nothing nags daily.
 
 ## Tapin
 
-Full text → 28, 12, 22.
+Full text → 28, 22, 23.
 
 - **The founder's bench business runs on Etyme as a supplier like any
   other, named Tapin** (`tapin.etyme.com`), never `etyme`. It gets no
@@ -670,6 +837,10 @@ Full text → 28, 12, 22.
   the Gmail addresses they were invited on.
 - **Tapin gets agents, not a website.** The generated company page at
   `/site/<slug>` is the website.
+- **A company page shows only people who said yes to being shown**, and
+  never a name or a rate. "Join the bench" is the person's own yes, given
+  from the invitation letter. Nobody gets a seat or a second record
+  before that yes. No separate marketing site, blog or careers portal.
 
 ## How this project tests and ships
 
@@ -702,7 +873,9 @@ Full text → 33, 34, 17, 20, 52, 57, 41.
   imports a server-only file, and a test walks for it. A relayed claim
   is re-derived before it steers work. A DNS change is checked against
   the old zone, mail first; a domain with mailboxes and no MX is an
-  outage, said first and alone.
+  outage, said first and alone. Seeded companies hold only reserved
+  domains (.example, .invalid, .local), never a real verified one,
+  because joining by domain beats creating.
 - **The hardest things**: cycle generation; field-level permissions
   (every read path filters by context from the first commit);
   cross-vendor identity resolution (deterministic on consented
@@ -710,7 +883,7 @@ Full text → 33, 34, 17, 20, 52, 57, 41.
 
 ## Design system
 
-Full text → 43.
+Full text → 42, 43.
 
 - **The brand kit (`brand-kit/`) decides color, type, corners, shadows,
   motion, icons and the logo.** The prototypes in `prototypes/` decide
@@ -729,41 +902,18 @@ Full text → 43.
   with the same filter questions on every list.
 - **A chart's colors are computed, never chosen** (`lib/chart-colors`).
 
----
-
 ### Navigation per company type
 
-**Since 2026-11-08 ("One app, two tabs"), the top of the left column is
-one switch, Ask Etyme | Dashboard, with the seat's number on Ask Etyme.**
-In Ask Etyme the column holds New conversation, search, Pinned and the
-conversations; in Dashboard it holds the role's menu, below. A firm's
-menu reads the founder's sketch: Today · Network (Candidates, Companies)
-· Jobs · Submissions · HR (Contracts, Timesheets, Expenses) · Accounting
-(Receivables, Payables, Payroll, Reports) · Settings ("Money is
-Accounting", 2026-11-08: Receivables is the Bills page and Payables the
-Invoice receipts page; the pages keep the trade's words, and only the
-menu names the two ledgers). Reports is cash flow and profitability
-(founder, 2026-11-08): Profitability is a page of the Reports link at
-its own address, and Reports is offered only where the seat may open
-Receivables' AR, Payables or Profitability. A client reads Accounting
-with Payables and Reports since 2026-11-12, its Reports being what it
-owes its suppliers, paid and due, and the forecast of it, never a
-margin and never Profitability. A group
-is a heading and never a link, and a link is drawn only where the role
-may open one of its pages. Ask Etyme is not on the menu: the switch is
-Ask Etyme. In the table, "Network: Candidates, Companies" is the heading
-Network over two links.
-
-The tabs behind each link have not moved (founder, 2026-10-19 for the
-tabs; 2026-11-03 for the words; 2026-11-04 for Network, the Paperwork
-tab and the order: see "Master data sits under Network", "Paperwork is
-a tab of Contracts", "The process order, in the founder's words" and
-"Network sits above Jobs"). A menu entry is a noun on the person's own
-work; every other page is a tab inside one of them. Submissions is who
-was put forward to a job, Contracts is the line from the award on, and
-Network holds the two lists a firm keeps: Candidates, the people it
-keeps, and the firms it trades with (Companies, or a client's
-Suppliers).
+Full text → 16, 26, 25, 32. The top of the left column is one switch, Ask
+Etyme | Dashboard, with the seat's number on Ask Etyme. In Ask Etyme the
+column holds New conversation, search, Pinned and the conversations. In
+Dashboard it holds the role's menu, below. A group (Network, HR,
+Accounting) is a heading and never a link: in the table, "Network:
+Candidates, Companies" is the heading Network over two links. Receivables
+is the Bills page and Payables is the Invoice receipts page; the pages
+keep the trade's words, and only the menu names the two ledgers. Reports
+is cash flow and profitability, and a client's Reports never shows a
+margin.
 
 | Party | The links | Folded inside them, as tabs |
 |---|---|---|
@@ -774,220 +924,84 @@ Suppliers).
 | One-person firm | Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
 | Worker | You: Your work, Your page, Who has you, Your data, Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
 
-Each link opens the first of its pages the reader may open, and on any
-of them the shell draws the tab row under the page header, the noun's
-own page first (`components/shell/section-pills`). Nothing behind the
-menu is deleted: every page keeps its address, and search and the +
-button still find it. Network, Contracts and Settings are the links whose
-tab rows are grouped (Settings: People · Company · Records): each group's name, then its pages ("Candidates:
-Bench · Bench pay · … | Companies: Suppliers · Contacts"; "Contracts:
-Sell contracts · Buy contracts · POs | Paperwork: Missing paperwork ·
-Document requests · …"), the group's name being the link to its own
-register where one is named after it, so Bench, Contacts or Document
-requests is one click from the link. Settings keeps Papers you require
-(the setup checklist's item), the DNR list and the activity log.
-The tab row's groups are not the menu's headings: the eyebrow over a
-page still reads the noun it is a tab of (Network over Bench, Timesheets
-over Expenses, Today over Profitability), because the tabs did not move. The money is three links in the founder's order:
-Bills (what the firm issues upward, with AR, where payments in are
-recorded), Invoice receipts (what it receives from below: AP, where
-payments out are recorded; there is no separate payments page, so each
-is the AR or AP page in its own words), and Payroll (its own employees,
-with Commissions). Nothing on a menu is hidden by a firm's posture: a
-bench vendor reads the supplier's whole menu. Sites stay under
-Settings; the worker's "You" is the one list.
-`__tests__/invariants/sidebar-nav.test.ts` reads this table — the links
-and headings the Dashboard column prints (`menuFor` in lib/nav-table)
-and every page named in the third column — and fails when the code and
-it disagree, so a link renamed in one and not the other breaks the
-build rather than the founder's walk.
-
-**A one-person corporation reads its own short menu. Decided
-2026-09-21.** A `CONSULTANT_CORP` had no row here and fell through to
-Vendor, so an ICU travel nurse paid corp-to-corp through her own LLC was
-handed a staffing agency's forty-nine links — Leads, Bench, Consultants,
-Bench check-ins, Training, Rolloff, Payroll commissions, Profitability —
-for a firm whose only consultant is herself. She is the person **and**
-the firm, so she gets the firm's week (her contracts, the order behind
-one, her hours, what she billed and what came back) and her own record,
-because a solo corporation's owner is always somebody the work is about.
-Since 2026-10-19 her own pages sit inside her seven links (Your work,
-Paperwork, Settings) rather than in a "You" list appended after them.
-Nothing about
-a bench, a pipeline or a recruiter's commission: a screen offering to
-add another consultant is a screen asking her about herself in the third
-person.
-
-**And her two hats are named apart on her one menu.** Every other party
-reads "Paperwork" as a tab of its Settings, where it is plainly the
-firm's own documents. She is the firm *and* the worker, so her Paperwork
-link opens two tabs side by side, **"Company paperwork"** for the firm's
-and **"Your paperwork"** for her own, which is the rule her other pages
-already follow: your work, your page, your data.
-Two entries reading the same word on one menu is the duplicate class the
-founder has reported three times, and a heading cannot disambiguate it
-for somebody who is both things at once.
-
-**A person who is also a worker wears two hats, one at a time.** Since
-2026-11-03 (see "One person, two hats, switched in the account menu"):
-the account menu at the top right lists every firm seat the person
-holds and "You" where the work makes them a worker; the left menu
-shows one hat's links and nothing else, the firm's in the firm hat and
-the worker's own pages in the You hat. A link into a worker's own page
-opens the You hat. The hat is a view, never a permission: every route
-still answers the seat it always answered. The paragraphs below are the
-history it replaces.
-
-**Until 2026-11-03: a person who is also a worker kept their firm's
-links and gained "You" at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
-demo door and saying "Candidate Karthik is all buggy". He is a systems
-integrator's own W2 — the case "Who sells and who buys" added the same day
-— so his only context is EMPLOYEE at Teleworld and the shell read identity
-off the seat's type: he was served Teleworld's whole integrator menu, and
-the four pages that are actually his appeared nowhere at all. The demo door
-dropped him on `/dashboard/my-work` and nothing in his own navigation
-pointed back to it.
-
-Appended, never substituted. He is Teleworld staff with a real seat **and**
-the person the work is about, and giving him the consultant menu instead
-would be the same bug facing the other way. Whether somebody is a worker is
-read off the work — a placement, a submission, a contract that pays them
-(`ownPage` in `lib/consultant-portfolio`) — and never off a context type,
-because every staffer of every firm holds an EMPLOYEE context and a
-client's bookkeeper is not a contractor. Somebody whose seat already **is**
-the consultant seat reads the Consultant row and nothing changes for them.
-
-**Corrected 2026-10-08, by the sign-up walk: the firm's sections are a
-desk's, and a seat with no desk reads Today and You.** Round five seated a
-Member with no desk at a populated client and typed every URL: the
-firm's money and people came back. Round four had tested the same seat
-at an empty company, where every page is empty whatever the rules say.
-Two things followed, both in `lib/nav-table` and one door in
-`lib/api-context` (`lib/deskless-door`):
-- **"No desk" means "holds nothing beyond own-work reads"**
-  (`assignments.read`, `timesheets.read`), not "holds no permission". A
-  desk is any permission that acts on the firm's book or reads across
-  it. Karthik's two reads were meant to open his own placements and
-  weeks; they opened the firm's submissions with rates, a commercial
-  thread and colleagues' placements.
-- **One door, not a gate per route.** Every dashboard route passes
-  through the shared caller check, which refuses a desk-less seat on
-  anything its menu does not show it, in a sentence, the refused read
-  logged before the refusal goes out. The allowlist is derived from the
-  menu table, so it cannot drift. A route that scopes itself to the
-  caller's own rows declares that and is let through.
-  `__tests__/invariants/every-route-has-a-door.test.ts` fails on any API
-  route that goes through none of the shared door, the cron check or the
-  staff check and is not on the named list of public token routes.
-So Karthik's menu is now Ask Etyme, with his conversations inside it,
-and You (Notifications went on 2026-10-13, and Conversations folded into
-Ask Etyme on 2026-10-19). He lands in Ask Etyme like every seat ("Ask
-Etyme is the app"); his own work is one click behind it. The paragraph
-above still holds for a worker who holds a role at the firm: a delivery
-manager who is also on a placement keeps the firm's links and gains You. **For the
-founder to confirm:** this narrows what a firm's own W2 sees by default;
-if an integrator wants its engineers to read the firm's lists, that is a
-desk the firm gives them, not the default.
-
-**A menu entry the route will refuse is a menu entry that lies.** The same
-rule as the buttons, one layer up: a nav item names the permission the page
-behind it actually asks for, read off that route's own GET handler, and a
-seat that holds none of them is not shown the link. A link with no
-permission beside it opens a page that refuses nobody — it scopes itself to
-the caller's company and shows what that company has. The + button and ⌘K
-are filtered from the same answer, so the three doors into a page cannot
-disagree. Where a route's gate refuses the very desk the page is named for
-— `/api/ar` and `/api/ap` ask for `margin.read` and the Accounts Receivable
-desk does not hold it — the link stays unfiltered and the gate is the bug,
-because hiding a desk from itself is worse than a refusal.
+- **`__tests__/invariants/sidebar-nav.test.ts` reads this table**: the
+  links and headings the Dashboard column prints (`menuFor` in
+  `lib/nav-table`) and every page named in the third column. It fails
+  when the code and the table disagree, so a link renamed in one and not
+  the other breaks the build.
+- **Each link opens the first of its pages the reader may open.** The
+  shell draws the tab row under the page header
+  (`components/shell/section-pills`). Network, Contracts and Settings
+  draw grouped tab rows (Settings: People · Company · Records). Every
+  page keeps its address, and search and the + button still find it.
+- **The eyebrow over a page reads the noun it is a tab of.** The tab
+  row's groups are not the menu's headings.
+- **Nothing on a menu is hidden by a firm's posture.** A bench vendor
+  reads the supplier's whole menu.
+- **A one-person firm reads her own short menu.** She is the person and
+  the firm. Her Paperwork link opens two tabs, "Company paperwork" and
+  "Your paperwork". No bench, pipeline or commission page is offered to
+  a firm whose only consultant is herself.
+- **A person who is also a worker wears two hats, one at a time.** The
+  account menu lists every firm seat the person holds, and "You" where
+  the work makes them a worker. The left menu shows one hat's links and
+  nothing else. A link into a worker's own page opens the You hat.
+  Whether somebody is a worker is read off the work (`ownPage` in
+  `lib/consultant-portfolio`), never off a seat type. The hat is a view,
+  never a permission.
+- **A seat that holds only own-work reads** (`assignments.read`,
+  `timesheets.read`) sees Ask Etyme and its own pages. The shared caller
+  check refuses everything else in a sentence, logged first
+  (`lib/deskless-door`). `every-route-has-a-door.test.ts` fails on an
+  API route that goes through no door.
+- **A menu entry the route will refuse is a menu entry that lies.** A
+  link names the permission its page's own route asks for. The + button
+  and search are filtered from the same answer.
 
 **Eyebrow labels are company-type-specific.** A page's eyebrow names the
-link it sits under on the reader's own menu, and since 2026-10-19 that is
-one of the nine: a tab is headed by its noun, so Interviews reads
-"Candidates" and Payroll reads "Bills". A client company (Northbend
-Athletic, Talvern Medical) sees the same data under its own links — its
-suppliers' invoices read "Invoice receipts" where a supplier's own bills
-read "Bills". The eyebrow, nav link and page subtitle adapt to the
-viewer's company type; the underlying data and pages are shared, the
-framing is not. `lib/page-framing` derives every eyebrow from the same
-nav table the sidebar draws, so a supplier's contracts read "Companies"
-and a client's read "Contractors", and
-`__tests__/invariants/page-framing.test.ts` fails on an eyebrow that names a
-link the reader's menu does not have. Since 2026-09-21 the framing also
-takes the seat: a program office at a client's desk reads the client's words
-over the client's book, with one clause saying whose book it is.
+link it sits under on the reader's own menu. `lib/page-framing` derives
+every eyebrow from the table the menu draws, and `page-framing.test.ts`
+fails on an eyebrow naming a link the reader's menu does not have. A
+seat in a client's program reads the client's words over the client's
+book, with one clause saying whose book it is.
 
 ---
 
 ## Zero training — it behaves the way the trade already works
 
-**Decided 2026-09-10.** The people using this are HR and contracting
-professionals. They will not be trained on it, and nothing may assume
-they were. Gmail and Airbnb are the reference: a first-time user does the
-right thing because the product is shaped like the thing they already
-know how to do.
+Full text → 42. The people using this are HR and contracting
+professionals. They will not be trained, and nothing may assume they
+were.
 
-What that means, concretely — and every one of these was learned by
-getting it wrong first:
-
-- **Their words, not the system's.** A nav entry, a column, a chip or a
-  filter says what a recruiter or a programme manager would say —
-  Requirements, Submissions, AR, AP, POs, Contracts. Never an internal
-  state name. The 2017 timeline filter was the cycle engine's own enum
-  (`TimesheetSubmit`, `SalaryCalculation`); the rebuild's nav read as
-  "out of context for Indian English speakers". Both were the same
-  mistake: exposing how it is built instead of what it is for.
+- **Their words, not the system's.** A link, a column, a chip or a
+  filter says what a recruiter or a program manager says. Never an
+  internal state name.
 - **Three words, not nineteen states.** Group internal states into the
-  handful of milestones a person actually acts on — hours, pay, bill;
-  draft, awaiting, open, filled, cancelled. Every internal transition
-  does not deserve its own name on a screen.
+  few milestones a person acts on.
 - **One door, then the right seat.** Never ask a visitor to classify
-  themselves on a distinction the product exists to say is not a property
-  of a firm. Demand and supply are positions on a deal.
-- **Default aggressively, configure rarely.** Ship the one sane default
-  (Friday weeks, the 15th and month-end, forward weekend shift). Add a
-  setting the first time a paying client needs a different answer, not
-  because a legacy client theoretically could. A knob per client is how
-  the 2017 engine reached four thousand commits.
-- **Never hand them a form whose answer is thrown away.** The seat
-  picker was one for a week. If a choice is offered, the choice is
-  honoured.
-- **American English, on every screen.** Decided 2026-09-13. The
-  customers are US enterprises: program, program office, cost center,
-  authorization, color. A buyer who reads "Programme team" registers
-  foreign before they register what it does.
-  `__tests__/invariants/american-english.test.ts` fails on a British
-  spelling anywhere under `src/`. Machine names that were British before
-  the decision — the demo desk key `programme`, the seeded
-  `world-nike-programme@` email, `seed-programmes.ts` — stay, because an
-  address is not a word anybody reads. This file keeps its own spelling.
-- **Every list, two ways.** Decided 2026-09-13. A list is a table when
-  there are two hundred rows and a feed when there are eight, and the
-  reader chooses — every list offers both, from one description of its
-  rows (`components/list-surface`), and remembers the choice.
-  `__tests__/invariants/list-surface.test.ts` fails on a page that draws
-  a bare table.
-- **A chart's colors are computed, not chosen.** Decided 2026-09-13.
-  One palette, in `lib/chart-colors`, with the validator run quoted
-  beside each set: a severity ramp for ordered bands (one hue, light to
-  dark, so worse reads as darker), a fixed series order for identity
-  (never cycled, never recolored by rank), and reserved status colors
-  that are never "series four". Stacked fills are separated by a 2px
-  gap in the surface, never a border; a count sits in the legend, never
-  inside a segment where a narrow band clips it; and where nothing
-  varies — eight bars all of length one — the list is the honest form
-  and no bar is drawn.
-  `__tests__/invariants/chart-colors.test.ts` recomputes the lightness
-  and contrast rather than pinning hex, and fails on any screen that
-  reaches outside the palette.
+  themselves.
+- **Default aggressively, configure rarely.** Ship one sane default: a
+  Sunday-to-Saturday week, pay every other week, pay and bill dates on
+  the nearest working day. Add a setting the first time a paying client
+  needs a different answer.
+- **Never hand them a form whose answer is thrown away.**
+- **American English on every screen**: program, cost center,
+  authorization, color (`american-english.test.ts`). Machine names
+  written before the rule stay.
 - **Explain in a sentence, not a code.** A refusal says what is missing
-  and what to do — "Priya cannot start without an I-9. Get it on file,
-  then activate." — never `DOCUMENTS_BLOCK`. The code is for the
-  machine; the sentence is the product.
+  and what to do: "Priya cannot start without an I-9. Get it on file,
+  then activate." Never a code, and never a greyed button without words.
+- **Fill from the work, not from data entry.** A list that is empty on
+  the seeded world is a bug.
+- **Every figure on a screen has a test sentence on the seeded world.**
+- **The role that acts is the role that hears**, by email as well as in
+  the app.
+- **A form with a compliance consequence is a workflow.** It walks roles
+  in order, each verifying only its own items, and nobody decides their
+  own or twice.
 
 The test for any screen: would somebody who has done this job for ten
-years, and never seen Etyme, do the right thing on the first try? If the
-honest answer needs the word "once they understand", it is not done.
+years, and never seen Etyme, do the right thing on the first try?
 
 ---
 
