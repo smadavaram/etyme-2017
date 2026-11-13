@@ -181,6 +181,15 @@ describe('5 · clients a worker will not be sent to', () => {
     expect(honor).toContain('data: { companyId, companyName: null }')
     expect(read('src/app/dashboard/my-benches/page.tsx')).toContain(' · not on Etyme yet')
   })
+
+  it('a name she types is matched only to companies somebody has said the kind of, never to a firm\'s record not classified yet', () => {
+    const route = read('src/app/api/me/benches/route.ts')
+    expect(route).toContain("where: { name: { equals: name, mode: 'insensitive' }, kind: { not: 'UNCLASSIFIED' } },")
+    const lib = read('src/lib/consultant-portfolio.ts')
+    const honor = lib.slice(lib.indexOf('export async function honorNamedClients'))
+    expect(honor).toContain("if (!joining || joining.kind === 'UNCLASSIFIED') return 0")
+    expect(honor).toContain("kind: { not: 'UNCLASSIFIED' }")
+  })
 })
 
 describe('6 · Your paperwork has an add button', () => {

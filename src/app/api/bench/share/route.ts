@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { recordAccess } from '@/lib/access-log'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { termsShown, notAtACompany, mayShareBenchTo } from '@/lib/bench-filter'
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   // Verify target company exists
   const targetCompany = await prisma.company.findUnique({
     where: { id: toCompanyId },
-    select: { id: true, name: true, homeCurrency: true },
+    select: { id: true, name: true, homeCurrency: true, kind: true },
   })
 
   if (!targetCompany) {
@@ -94,6 +94,15 @@ export async function POST(request: NextRequest) {
   // read, so a refused share touches nobody's record.
   const reach = mayShareBenchTo(await tiesOf(companyId), targetCompany)
   if (!reach.ok) {
+    // Logged before the refusal goes out: the subject is the firm the
+    // bench was to go to, and no person was read.
+    await recordRefusal([{ companyId: targetCompany.id }], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'MARKETING_REQUEST',
+      allowed: false,
+      reason: `Refused: ${reach.says}`,
+    })
     return NextResponse.json(
       { error: { code: reach.code, message: reach.says, field: 'toCompanyId' } },
       { status: 403 }

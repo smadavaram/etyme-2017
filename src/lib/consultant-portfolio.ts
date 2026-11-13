@@ -1121,7 +1121,14 @@ export async function honorNamedClients(companyId: string, name: string): Promis
   const { prisma } = await import('@/lib/db')
   const wanted = name.trim()
   if (!wanted) return 0
-  const sameName = await prisma.company.count({ where: { name: { equals: wanted, mode: 'insensitive' } } })
+  // A company not classified yet is one firm's record, never a company
+  // joining: it neither takes a worker's typed name nor counts against
+  // the company of that name that truly joins (2026-11-13).
+  const joining = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
+  if (!joining || joining.kind === 'UNCLASSIFIED') return 0
+  const sameName = await prisma.company.count({
+    where: { name: { equals: wanted, mode: 'insensitive' }, kind: { not: 'UNCLASSIFIED' } },
+  })
   if (sameName !== 1) return 0
   const named = await prisma.doNotSubmit.findMany({
     where: { companyId: null, companyName: { equals: wanted, mode: 'insensitive' } },

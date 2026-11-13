@@ -265,6 +265,28 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(there).toBeNull()
   })
 
+  it('Techpeple cannot share its bench with a company it extended to Customer but has not classified, the refusal is logged first, and nobody is listed there', async () => {
+    const seeded = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
+      where: { companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING' },
+      select: { id: true, consultantId: true },
+    })
+    const recorded = await prisma.company.create({
+      data: { name: 'Harrow Plastics', slug: 'reach-harrow-recorded', kind: 'UNCLASSIFIED', currency: 'USD', listedById: co['world-techpeple'] },
+    })
+    // Extended to Customer: a register row, the Kind unchanged.
+    await prisma.counterparty.create({ data: { companyId: co['world-techpeple'], otherCompanyId: recorded.id, relationship: 'CUSTOMER' } })
+    as(SUB)
+    const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [seeded.id], toCompanyId: recorded.id })))
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NOT_CLASSIFIED')
+    expect(r.body.error.message).toBe(
+      'Harrow Plastics is on your Companies list and is not classified yet, so your bench is not shared with them. Say what kind of company Harrow Plastics is on Companies first.'
+    )
+    const log = await prisma.accessLog.findFirst({ where: { subjectCompanyId: recorded.id, action: 'MARKETING_REQUEST', allowed: false } })
+    expect(log).toBeTruthy()
+    expect(await prisma.benchListing.count({ where: { companyId: recorded.id } })).toBe(0)
+  })
+
   it('Techpeple cannot pass on somebody who took its listing back', async () => {
     as(SUB)
     const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [it_.listing], toCompanyId: co['world-computer-systems'] })))

@@ -370,8 +370,13 @@ export async function PATCH(request: NextRequest) {
         { status: 422 }
       )
     }
+    // Never a company one firm recorded and nobody has said the kind of
+    // (2026-11-13): that record is only a name on that firm's Companies
+    // list. Matching it would tell her somebody on Etyme recorded the name,
+    // and would tie her wish to a record no agency submits to, instead of
+    // the company the day it truly joins.
     const firms = await prisma.company.findMany({
-      where: { name: { equals: name, mode: 'insensitive' } },
+      where: { name: { equals: name, mode: 'insensitive' }, kind: { not: 'UNCLASSIFIED' } },
       select: { id: true, name: true },
       take: 5,
     })

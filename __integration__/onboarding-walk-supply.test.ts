@@ -141,6 +141,23 @@ describe('a worker names a client she will not be sent to', () => {
     expect(await honorNamedClients(a.id, 'Halvard Freight')).toBe(0)
     expect(await prisma.doNotSubmit.findFirst({ where: { personId: mayaId, companyName: 'Halvard Freight', companyId: null } })).toBeTruthy()
   })
+
+  it('a company another firm recorded and nobody has said the kind of is never matched to the name she types, and never stops the real one from being honored', async () => {
+    const { honorNamedClients } = await import('@/lib/consultant-portfolio')
+    as(MAYA)
+    const recorded = await prisma.company.create({ data: { name: 'Ostrander Mills', slug: 'walk-ostrander-rec', kind: 'UNCLASSIFIED', currency: 'USD' } })
+    const r = await json(await myBenchesPATCH(req('PATCH', '/api/me/benches', { doNotSubmitName: 'Ostrander Mills' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    // Said as not on Etyme yet: nothing tells her that some firm recorded the name.
+    expect(r.body.data).toMatchObject({ saved: true, kept: true })
+    expect(await prisma.doNotSubmit.findFirst({ where: { personId: mayaId, companyId: recorded.id } })).toBeNull()
+    // The record itself never takes her typed name.
+    expect(await honorNamedClients(recorded.id, 'Ostrander Mills')).toBe(0)
+    // The company that truly joins is the one company of that name, so it is honored.
+    const real = await prisma.company.create({ data: { name: 'Ostrander Mills', slug: 'walk-ostrander', kind: 'CLIENT', currency: 'USD' } })
+    expect(await honorNamedClients(real.id, 'Ostrander Mills')).toBe(1)
+    expect(await prisma.doNotSubmit.findUnique({ where: { personId_companyId: { personId: mayaId, companyId: real.id } } })).toBeTruthy()
+  })
 })
 
 describe('a roll-off with no project line', () => {

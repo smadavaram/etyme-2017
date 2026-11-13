@@ -28,8 +28,11 @@ import {
  * no industry column. Where it cannot be worked out, nothing is said —
  * which is better than a wrong sector on somebody's portfolio.
  */
-function sectorOf(clientName: string | null, kind: string | null): string | null {
+export function sectorOf(clientName: string | null, kind: string | null): string | null {
   if (!clientName) return null
+  // A company nobody has said the kind of (2026-11-13) has no sector to
+  // guess, and "Enterprise" would be a guess.
+  if (kind === 'UNCLASSIFIED') return null
   // Deliberately coarse. Anything more specific starts identifying the
   // client, which is the thing this exists to avoid.
   if (kind === 'MSP') return 'Managed program'

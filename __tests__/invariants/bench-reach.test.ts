@@ -179,6 +179,31 @@ describe('A bench is shared only with a firm the sharer already trades with (202
     if (!v.ok) expect(v.code).toBe('BLOCKED')
   })
 
+  it('a bench is never shared with a company not classified yet, even one extended to Customer or Supplier', () => {
+    // Extending writes a register row and never the Kind, so the tie is there.
+    const v = mayShareBenchTo(
+      { ...ties, trading: new Set(['computer-systems', 'recorded']) },
+      { id: 'recorded', name: 'Harrow Plastics', kind: 'UNCLASSIFIED' }
+    )
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('NOT_CLASSIFIED')
+      expect(v.says).toBe(
+        'Harrow Plastics is on your Companies list and is not classified yet, so your bench is not shared with them. ' +
+          'Say what kind of company Harrow Plastics is on Companies first.'
+      )
+    }
+  })
+
+  it('a refused share is logged before the refusal is sent, and the share door reads the Kind of the firm it shares to', () => {
+    const route = read('app/api/bench/share/route.ts')
+    expect(route).toMatch(/select: \{ id: true, name: true, homeCurrency: true, kind: true \}/)
+    const refused = route.indexOf('if (!reach.ok)')
+    const logged = route.indexOf('await recordRefusal(', refused)
+    expect(logged).toBeGreaterThan(refused)
+    expect(logged).toBeLessThan(route.indexOf('code: reach.code', refused))
+  })
+
   it('the share door asks this rule before it reads anybody', () => {
     const route = read('app/api/bench/share/route.ts')
     const rule = route.indexOf('mayShareBenchTo(await tiesOf(companyId), targetCompany)')

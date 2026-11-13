@@ -1516,9 +1516,24 @@ export interface ShareTies {
  */
 export function mayShareBenchTo(
   ties: ShareTies,
-  to: { id: string; name: string }
-): { ok: true } | { ok: false; code: 'SELF' | 'BLOCKED' | 'NOT_TRADING'; says: string } {
+  to: { id: string; name: string; kind?: string | null }
+): { ok: true } | { ok: false; code: 'SELF' | 'BLOCKED' | 'NOT_TRADING' | 'NOT_CLASSIFIED'; says: string } {
   if (to.id === ties.self) return { ok: false, code: 'SELF', says: 'Your bench is already yours. Choose a partner firm to share it with.' }
+  // A company on the sharer's Companies list that nobody has said the kind
+  // of (2026-11-13) has no roles and no seats: nobody there could read a
+  // listing, and the people shared would be told they went to a company
+  // that is only a name on a list. Extending it to Supplier or Customer
+  // writes a register row and never changes the Kind, so the tie alone
+  // must not open the door.
+  if (to.kind === 'UNCLASSIFIED') {
+    return {
+      ok: false,
+      code: 'NOT_CLASSIFIED',
+      says:
+        `${to.name} is on your Companies list and is not classified yet, so your bench is not shared with them. ` +
+        `Say what kind of company ${to.name} is on Companies first.`,
+    }
+  }
   if (ties.blocked.has(to.id)) {
     return { ok: false, code: 'BLOCKED', says: `You blocked ${to.name}, so your bench is not shared with them.` }
   }

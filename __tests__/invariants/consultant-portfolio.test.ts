@@ -11,7 +11,7 @@ import {
   type PortfolioInput,
   type Engagement,
 } from '@/lib/consultant-portfolio'
-import { suggestAddress } from '@/lib/portfolio-data'
+import { suggestAddress, sectorOf } from '@/lib/portfolio-data'
 
 /**
  * Every agency a consultant works through has a page. The person doing the
@@ -306,5 +306,13 @@ describe('writing the words when there is no model', () => {
   it('writes a fresh headline rather than echoing the one already there', async () => {
     const w = await writeBioBest(input({ headline: 'Revenue systems specialist' }), NOW)
     expect(w.headline).not.toBe('Revenue systems specialist')
+  })
+})
+
+describe('the sector a past client is said as', () => {
+  it('a past client nobody has said the kind of is given no sector, never a guessed one', () => {
+    expect(sectorOf('Harrow Plastics', 'UNCLASSIFIED')).toBeNull()
+    expect(sectorOf('Northbend Athletic', 'CLIENT')).toBe('Enterprise')
+    expect(sectorOf('Brightmoor Staffing', 'VENDOR')).toBe('Staffing firm')
   })
 })
