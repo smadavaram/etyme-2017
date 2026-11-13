@@ -349,6 +349,13 @@ describe('a position is read from the register, never from the Kind a recorded c
       .toBe('Rivermark Partners is on your Companies list and is not classified yet. Extend it to Supplier first.')
   })
 
+  it('a position an agreement gives is never offered for removal, because taking off a row would leave it in place', () => {
+    const v = mayRemovePosition({ as: 'SUPPLIER', me: tapin, permissions: owner, other: { id: 'rm', name: 'Rivermark Partners' }, positions: ['SUPPLIER'], work: none, heldByAgreement: true })
+    expect(v.ok).toBe(false)
+    expect(!v.ok && v.code).toBe('HELD_BY_AGREEMENT')
+    expect(v.says).toBe('Rivermark Partners is your supplier through the agreement between you, not by a choice made here, so it cannot be taken off. The agreement stays as it is.')
+  })
+
   it('a record of your own given a Kind the old way, with no position at all, reads as not classified at every gate, and one holding a position reads as before', async () => {
     const { lacksPosition } = await import('@/lib/counterparty')
     expect(lacksPosition({ positions: [], notClassified: true, recorded: false }, 'VENDOR', ['SUPPLIER'])).toBe(true)

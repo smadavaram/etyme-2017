@@ -5,7 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
 import { mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
-import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf } from '../../positions'
+import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition } from '../../positions'
 
 /**
  * GET    /api/companies/:id/extend — where this company sits with you, and its history on your list
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       as, me: meAt, permissions: caller.permissions, positions: read.positions,
       other: { id: other.id, name: other.name },
       work: await workOnPosition(me, other.id, as),
+      heldByAgreement: await agreementKeepsPosition(me, other, as),
     })
     remove[as] = { ok: v.ok, says: v.says }
   }
@@ -170,6 +171,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     other: { id: other.id, name: other.name },
     positions: before.positions,
     work: as ? await workOnPosition(me.id, other.id, as) : { orders: 0, lines: 0, bills: 0, signedAgreement: false, submissions: 0, openInvitations: 0, supplierRequests: 0 },
+    heldByAgreement: as ? await agreementKeepsPosition(me.id, other, as) : false,
   })
   if (!verdict.ok) return refuse(caller, other.id, verdict.status, verdict.code, verdict.says, verdict.field)
 

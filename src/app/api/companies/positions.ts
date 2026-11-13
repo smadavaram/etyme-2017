@@ -178,6 +178,37 @@ export async function removePosition(db: Db, input: { me: string; otherId: strin
   return { agreementRemoved: gone.count > 0 }
 }
 
+/**
+ * Whether `as` would still be held after `removePosition`: an agreement
+ * gives it and removing the row would leave that agreement. Read with the
+ * same rule `positionsFor` reads by (a record of the caller's own,
+ * recorded as not classified, reads its rows only, so nothing holds it),
+ * and the same stub test `removePosition` deletes by.
+ */
+export async function agreementKeepsPosition(
+  me: string,
+  other: { id: string; kind: string; claimedAt: Date | null; listedById: string | null },
+  as: ExtendAs,
+  db: Db = prisma,
+): Promise<boolean> {
+  const read = (await positionsFor(me, [other], db)).get(other.id)
+  if (!read || read.recorded || other.kind === 'UNCLASSIFIED') return false
+  if (as === 'SUPPLIER') {
+    return (await db.masterAgreement.count({ where: { vendorId: other.id, clientId: me } })) > 0
+  }
+  const kept = await db.masterAgreement.count({
+    where: {
+      vendorId: me, clientId: other.id,
+      OR: [
+        { signedAt: { not: null } },
+        { engagements: { some: {} } }, { sellContracts: { some: {} } }, { workOrders: { some: {} } },
+        { requirements: { some: {} } }, { signatures: { some: {} } },
+      ],
+    },
+  })
+  return kept > 0
+}
+
 /** The automation-log names a change to a company on one firm's list is written under. */
 const HISTORY_ACTIONS = ['COMPANY_CREATED', 'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET']
 

@@ -657,6 +657,14 @@ export function mayRemovePosition(ask: {
   other: { id: string; name: string }
   positions: readonly Position[]
   work: PositionWork
+  /**
+   * The position would still be held after its register row is taken off,
+   * because an agreement between the two firms gives it and removing the
+   * row leaves that agreement (`agreementKeepsPosition`). Then there is
+   * nothing a press could take off, so no button and a sentence instead
+   * (review, 2026-11-13: the press said it worked and the chip stayed).
+   */
+  heldByAgreement?: boolean
 }): PositionVerdict & { notClassifiedAfter?: boolean } {
   if (!hasPermission(ask.permissions, 'vendors.manage')) {
     return {
@@ -669,6 +677,12 @@ export function mayRemovePosition(ask: {
   const word = positionWord(as)
   if (!ask.positions.includes(as)) {
     return { ok: false, status: 404, code: 'NOT_HELD', says: `${ask.other.name} is not your ${word}, so there is nothing to remove.` }
+  }
+  if (ask.heldByAgreement) {
+    return {
+      ok: false, status: 409, code: 'HELD_BY_AGREEMENT',
+      says: `${ask.other.name} is your ${word} through the agreement between you, not by a choice made here, so it cannot be taken off. The agreement stays as it is.`,
+    }
   }
   const hangs = workSaid(ask.work)
   if (hangs.length > 0) {

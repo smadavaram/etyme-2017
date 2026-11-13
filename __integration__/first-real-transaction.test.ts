@@ -122,7 +122,7 @@ describe('Chapter 2 — the client exists, on the register, with somebody to cal
     as(DANA)
     const open = await json(await linkAsks(req('GET', '/api/trade-links')))
     const mine = open.body.data.received.find((r: any) => r.company.id === soloCompanyId)
-    const yes = await json(await answerLink(req('POST', `/api/trade-links/${mine.id}`, { action: 'accept' }), { params: { id: mine.id } }))
+    const yes = await json(await answerLink(req('POST', `/api/trade-links/${mine.id}`, { action: 'accept' }), { params: Promise.resolve({ id: mine.id }) }))
     expect(yes.status, JSON.stringify(yes.body)).toBe(200)
   })
 

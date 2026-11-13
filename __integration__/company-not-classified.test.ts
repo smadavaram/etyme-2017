@@ -344,6 +344,20 @@ describe('a Kind given to a recorded company changes no position and catches no 
     expect((await listed('')).find((x) => x.id === id)?.positions).toEqual(['SUPPLIER'])
   })
 
+  it('a Supplier given by an agreement, not by a row added here, is drawn no Remove and a press is refused in a sentence, so nothing claims to work', async () => {
+    as(OWNER)
+    const isDemo = (await prisma.company.findUniqueOrThrow({ where: { id: brightmoor }, select: { isDemo: true } })).isDemo
+    const shell = await prisma.company.create({ data: { name: 'Dunmore Contract Labs', slug: `dunmore-walk-${Date.now()}`, kind: 'VENDOR', currency: 'USD', listedById: brightmoor, isDemo }, select: { id: true } })
+    await prisma.masterAgreement.create({ data: { vendorId: shell.id, clientId: brightmoor, paymentTerms: 30 } })
+    const g = await call(extend.GET as any, 'GET', `/api/companies/${shell.id}/extend`, shell.id)
+    expect(g.body.data.positions).toContain('SUPPLIER')
+    expect(g.body.data.may.remove.SUPPLIER).toEqual({ ok: false, says: 'Dunmore Contract Labs is your supplier through the agreement between you, not by a choice made here, so it cannot be taken off. The agreement stays as it is.' })
+    const d = await call(extend.DELETE as any, 'DELETE', `/api/companies/${shell.id}/extend?as=SUPPLIER`, shell.id)
+    expect(d.status).toBe(409)
+    expect(d.body.error.code).toBe('HELD_BY_AGREEMENT')
+    expect(await prisma.automationLog.count({ where: { companyId: brightmoor, action: 'COMPANY_POSITION_REMOVED', payload: { path: ['otherCompanyId'], equals: shell.id } } })).toBe(0)
+  })
+
   it('changing the Kind of a recorded company withdraws an invitation already out, in the same change, and says so', async () => {
     as(OWNER)
     const id = (await record('Tolvane Search')).body.data.company.id
