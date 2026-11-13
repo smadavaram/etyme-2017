@@ -26,9 +26,12 @@ import { gridsWithoutBreakpoint } from '@/lib/positioning'
  * those pages share (`lib/public-site/skeleton`).
  *
  * Since the founder's brief of 2026-11-13 the home page is six short
- * sections of its own — the hero, the Ask Etyme demo, the CFO view, one
- * record in three proofs, the strip, the last call — drawn by the page
- * and `lib/public-site/home-parts`, which are read here.
+ * sections of its own, drawn by the page and `lib/public-site/home-parts`,
+ * which are read here. The same day they took the structure of the
+ * reference page the brief names: the hero in two columns from 900 wide
+ * with the "At a glance" panel on the right, the Ask Etyme demo, the CFO
+ * view as a card, "Held until it agrees" with the strip on ink, price and
+ * security as two cards from 760 wide, and the last call on ink.
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
@@ -45,10 +48,10 @@ const sections = [...PAGE.matchAll(/<section[\s\S]*?>/g)].map((m) => m[0])
 
 describe('The home page is six short sections in one column, at every width', () => {
 
-  it('is one column with a 16px gutter on a phone, and every section sits inside it, in the brief’s order: the hero, the demo, the CFO view, the record, the strip, the last call', () => {
+  it('is one column with a 16px gutter on a phone, and every section sits inside it, in the reference page’s order: the hero, the demo, the CFO view, the proof with its strip, price and security, the last call', () => {
     const main = OWN.slice(OWN.indexOf('<main'), OWN.indexOf('</main>'))
     expect(OWN).toContain('<main className="mx-auto max-w-6xl px-4 sm:px-6">')
-    expect(sections.map((s) => s.match(/id="([\w-]+)"/)![1])).toEqual(['top', 'demo', 'cfo', 'record', 'strip', 'start'])
+    expect(sections.map((s) => s.match(/id="([\w-]+)"/)![1])).toEqual(['top', 'demo', 'cfo', 'proof', 'pricing', 'start'])
     for (const s of sections) expect(main).toContain(s)
     expect(OWN).not.toMatch(/<LiveDemo|<WhyBelow|<SignUpBand|CorvaneMapView/)
     // Nothing is wider than the screen: the page clips any stray overflow
@@ -63,12 +66,15 @@ describe('The home page is six short sections in one column, at every width', ()
     expect(PAGE).not.toMatch(/\bsnap-(?:y|mandatory|proximity|start)\b/)
   })
 
-  it('stacks every split on a phone: the three proof cards side by side only from md, the hero’s buttons side by side only from sm', () => {
+  it('stacks every split on a phone: the hero’s two columns only from 900 wide, the three proof cards side by side only from md, price and security only from 760 wide', () => {
     expect(gridsWithoutBreakpoint(PAGE)).toEqual([])
     expect(gridsWithoutBreakpoint(DEMO)).toEqual([])
     // The three proof cards stack on a phone and sit three across from md.
     expect(OWN).toContain('mt-4 grid gap-3 md:grid-cols-3')
-    expect(PAGE).toContain('flex flex-col gap-2.5 sm:flex-row sm:flex-wrap')
+    expect(OWN).toContain('min-[900px]:grid-cols-[1.15fr_0.85fr]')
+    expect(OWN).toContain('min-[760px]:grid-cols-2')
+    // On a phone the glance panel comes after the left column, in the source's order.
+    expect(OWN.indexOf('{HOME_HEADLINE}')).toBeLessThan(OWN.indexOf('aria-label={GLANCE_TITLE}'))
   })
 
   it('puts the four chips in one row on a phone that scrolls sideways with no scrollbar, and scrolls the row, never the page, to the step playing', () => {
@@ -116,15 +122,11 @@ describe('The home page is six short sections in one column, at every width', ()
     expect(DEMO).toContain('<div className="min-w-0 bg-etyme-surface p-3.5">')
   })
 
-  it('shows Start free with the brief’s line under it and See it work right beside Start free from sm, the line moving under both buttons; on a phone the three stack full width; every button at least 44 pixels high', () => {
+  it('shows Start free and See it work side by side, wrapping on a narrow phone, with the brief’s line under both; every button at least 44 pixels high', () => {
     const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('</section>', OWN.indexOf('id="top"')))
-    expect(hero).toContain('className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2.5 sm:gap-y-1.5"')
-    expect(hero).toMatch(/className=\{FILLED\}>\{START_FREE\.t\}<\/a>\s*<p className="[^"]*sm:order-last sm:basis-full">\{UNDER_START\}<\/p>\s*<SeeItWork \/>/)
-    // No column wraps Start free and its line any more: that column was as wide
-    // as the line, and it pushed See it work far to the right at desktop width.
-    expect(hero).not.toMatch(/sm:max-w-\[22rem\]/)
+    expect(hero).toMatch(/<div data-hero-calls="" className="mt-7 flex flex-wrap gap-3">\s*<a href=\{START_FREE\.href\} className=\{FILLED\}>\{START_FREE\.t\}<\/a>\s*<SeeItWork \/>\s*<\/div>\s*<p className="[^"]*">\{UNDER_START\}<\/p>/)
     expect(OWN).not.toContain('<PhoneButton')
-    for (const b of ['FILLED', 'OUTLINE']) {
+    for (const b of ['FILLED', 'OUTLINE', 'FILLED_ON_INK', 'OUTLINE_ON_INK']) {
       // The shapes live in a file with no client marker, so the server page can read them (0575cc87c).
       expect(read('src/lib/public-site/home-buttons.ts')).toMatch(new RegExp(`export const ${b} =\\s*\`inline-flex min-h-11 `))
     }
@@ -143,7 +145,8 @@ describe('The home page is six short sections in one column, at every width', ()
     expect(PAGE).not.toMatch(/export const dynamic/)
     expect(PAGE).not.toMatch(/\bawait /)
     expect(OWN).toContain('const DEMO = homeDemo()')
-    expect(OWN).toContain('const CFO = homeCfoLines()')
+    expect(OWN).toContain('const CFO = homeCfo()')
+    expect(OWN).toContain('const HELD = homeGlanceHeld()')
   })
 
   it('draws every color from the site’s tokens, so the page and the panel follow one theme', () => {

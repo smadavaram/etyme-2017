@@ -61,7 +61,7 @@ import {
 } from '@/lib/public-site/corvane-map'
 import { CorvaneMapView, DEMO_BEING_SET_UP } from '@/lib/public-site/corvane-map-view'
 import { demoRequest } from '@/lib/public-site/demo-link'
-import { homeCfoLines } from '@/lib/public-site/home-cfo'
+import { homeCfo, homeCfoCopy, homeGlanceHeld } from '@/lib/public-site/home-cfo'
 import { CFO_LABEL } from '@/lib/public-site/home-words'
 
 const ROOT = process.cwd()
@@ -279,7 +279,8 @@ describe('Every figure on the map is the Corvane seed’s', () => {
         expect(src.includes(figure), `${figure} is typed into ${where}`).toBe(false)
       }
     }
-    expect(page).toContain('homeCfoLines()')
+    expect(page).toContain('homeCfo()')
+    expect(page).toContain('homeGlanceHeld()')
   })
 })
 
@@ -349,22 +350,35 @@ describe('The map’s four roles are tabs at their own addresses', () => {
 
 describe('The home page’s CFO view is the Corvane seed’s, in short lines', () => {
 
-  it('reads 359 contractors, 25 suppliers, 31 sites and 8 countries; $704,227.20 this month at sample rates; one receipt held $42 over the signed hours at Dayton; one start waiting on an I-9 at Dayton; Aoife Kelly in Belfast 14 days from the time limit', () => {
+  it('reads 359 contractors, 25 suppliers, 31 sites in 8 countries and $704,227.20 this month at sample rates as four tiles; then Dayton, one receipt held $42 over the signed hours; Dayton, one start waiting on an I-9; Belfast, Aoife Kelly 14 days from the time limit', () => {
     const nearest = [...onSite].sort((a, b) => toLimit(a) - toLimit(b))[0]
     const heldOver = (heldReceipt.billed - heldReceipt.accepted) * CORVANE_COUNTRIES[heldPlant.cc].rate
-    expect(homeCfoLines().map((l) => l.t)).toEqual([
-      `${onSite.length} contractors · ${new Set(onSite.map((c) => c.supplier)).size} suppliers · ${CORVANE_PLANTS.length} sites · ${new Set(CORVANE_PLANTS.map((p) => p.cc)).size} countries`,
-      `Spend this month: ${usd(dollarsFor(onSite))} at sample rates`,
-      `One invoice receipt held: $${heldOver} over the signed hours (${heldPlant.city})`,
-      `One start waiting on an I-9 (${onHold.plant.city})`,
-      `${nearest.name}, ${nearest.plant.city}, reaches the time limit in ${toLimit(nearest)} days`,
+    const cfo = homeCfo()
+    expect(cfo.tiles).toEqual([
+      { b: String(onSite.length), s: 'contractors' },
+      { b: String(new Set(onSite.map((c) => c.supplier)).size), s: 'suppliers' },
+      { b: String(CORVANE_PLANTS.length), s: `sites · ${new Set(CORVANE_PLANTS.map((p) => p.cc)).size} countries` },
+      { b: usd(dollarsFor(onSite)), s: 'spend this month, at sample rates' },
+    ])
+    expect(cfo.lines.map((l) => `${l.lead} ${l.t}`)).toEqual([
+      `${heldPlant.city}: one invoice receipt held, $${heldOver} over the signed hours.`,
+      `${onHold.plant.city}: one start waiting on an I-9.`,
+      `${nearest.plant.city}: ${nearest.name} reaches the time limit in ${toLimit(nearest)} days.`,
     ])
     // The brief's figures, every one the seed's: none differed.
-    expect(homeCfoLines().map((l) => l.t).join(' · ')).toBe(
-      '359 contractors · 25 suppliers · 31 sites · 8 countries · Spend this month: $704,227.20 at sample rates · ' +
-      'One invoice receipt held: $42 over the signed hours (Dayton) · One start waiting on an I-9 (Dayton) · ' +
-      'Aoife Kelly, Belfast, reaches the time limit in 14 days',
+    expect(homeCfoCopy(cfo).join(' · ')).toBe(
+      '359 contractors · 25 suppliers · 31 sites · 8 countries · $704,227.20 spend this month, at sample rates · ' +
+      'Dayton: one invoice receipt held, $42 over the signed hours. · Dayton: one start waiting on an I-9. · ' +
+      'Belfast: Aoife Kelly reaches the time limit in 14 days.',
     )
+  })
+
+  it('the hero’s “At a glance” $42 is the same held receipt’s difference, worked out from the seed, and is left off rather than guessed where the seed holds no single held receipt', () => {
+    expect(CORVANE_RECEIPTS.filter((r) => r.held)).toHaveLength(1)
+    const heldOver = (heldReceipt.billed - heldReceipt.accepted) * CORVANE_COUNTRIES[heldPlant.cc].rate
+    expect(homeGlanceHeld()).toBe(`$${heldOver}`)
+    expect(homeGlanceHeld()).toBe('$42')
+    expect(read('src/app/page.tsx')).toContain('{HELD && (')
   })
 
   it('says Corvane Packaging is a sample company, not a customer, and that its figures use sample rates, under the lines', () => {
@@ -373,7 +387,7 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
   })
 
   it('names no real company, does not lead with AI, and says neither desk nor program office', () => {
-    const lines = [...homeCfoLines().map((l) => l.t), CFO_LABEL]
+    const lines = [...homeCfoCopy(), CFO_LABEL]
     expect(namedCompanies(lines.join(' '))).toEqual([])
     for (const w of lines) {
       expect(w, w).not.toMatch(/\b(program(?:me)?\s+offices?|desks?)\b/i)

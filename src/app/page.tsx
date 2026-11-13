@@ -2,38 +2,52 @@ import type { Metadata } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
 import { CategoryLine, SkeletonFooter } from '@/lib/public-site/skeleton'
 import { homeDemo } from '@/lib/public-site/home-demo'
-import { homeCfoLines } from '@/lib/public-site/home-cfo'
+import { homeCfo, homeGlanceHeld } from '@/lib/public-site/home-cfo'
 import { SeeItWork, HomeDemoBlock, CfoView } from '@/lib/public-site/home-parts'
-import { FILLED } from '@/lib/public-site/home-buttons'
+import { FILLED, FILLED_ON_INK, OUTLINE_ON_INK } from '@/lib/public-site/home-buttons'
 import {
-  HOME_HEADLINE, HOME_SUBHEAD, HOME_FIT, COMPLEMENT_LINE, START_FREE, UNDER_START,
-  PROOF_HEADING, PROOF_CARDS, STRIP, PRICE_LINE, SECURITY_LINE, SECURITY_LINK,
-  FINAL_HEADING, FINAL_LINE, FALLBACK_LEAD, FALLBACK_ADDRESS, FALLBACK_TAIL, HOME_HEADER_BUTTON,
+  HOME_HEADLINE, HOME_SUBHEAD, RECORD_LINE, HOME_FIT_LEAD, HOME_FIT_REST, COMPLEMENT_LINE, START_FREE, UNDER_START,
+  HOME_NAV, GLANCE_TITLE, GLANCE_HELD, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE,
+  PROOF_HEADING, PROOF_LABELS, PROOF_CARDS, STRIP,
+  PRICE_TITLE, PRICE_LINE, PRICE_MORE, SECURITY_TITLE, SECURITY_LINE, SECURITY_LINK, SECURITY_MORE,
+  FINAL_HEADING, FINAL_LINE, SEE_IT_AGAIN, FALLBACK_LEAD, FALLBACK_ADDRESS, FALLBACK_TAIL, SAMPLE_NOTE, HOME_HEADER_BUTTON,
 } from '@/lib/public-site/home-words'
 
 /**
  * The front door, rebuilt for conversion to the founder's brief of
- * 2026-11-13: "The current page has a strong story but no way to act."
+ * 2026-11-13 ("The current page has a strong story but no way to act"),
+ * and brought the same day to the structure of the reference page that
+ * brief names ("match its structure and copy"), section by section:
  *
- * In order, and nothing else:
- *
- *   header      the wordmark, a plain Sign in, and one button, Start free
- *   #top        the category, the question, the locked positioning line,
- *               who it is for, what it sits beside, Start free with the
- *               line under it, and See it work
- *   #demo       Ask Etyme at Northbend Athletic, a demo company: the
- *               question, the answer, three contractors, the card that
- *               would send the job (`lib/public-site/home-demo`, the
- *               Northbend story's first step, read against the seed)
- *   #cfo        Corvane Packaging's CFO view, closed behind one button
- *   #record     one heading and three proof cards
- *   the strip, price and security, then #start, the last call
+ *   header      the wordmark; from 760 wide four in-page links (Demo, CFO
+ *               view, How it holds, Price & security); Sign in; Start free
+ *   #top        two columns from 900 wide: the category, the question, the
+ *               locked line, "Every contractor. Every supplier. One
+ *               record.", two ticked lines, Start free and See it work, the
+ *               line under them; beside them "At a glance", the held $42
+ *               and Lucía Fernández's 14 of 18 months, both the seed's
+ *   #demo       Ask Etyme at Northbend Athletic, a demo company
+ *               (`lib/public-site/home-demo`, the Northbend story's first
+ *               step, read against the seed)
+ *   #cfo        Corvane Packaging's CFO view, a card closed behind one button
+ *   #proof      "Held until it agrees", three cards, the strip on ink
+ *   #pricing    price and security, two cards
+ *   #start      the last call on ink, and the sample note
  *   then the one-row footer every public page shares
  *
+ * Four things differ from the reference on purpose:
+ *   - Etyme's own branding, not the reference's: the brand kit's colors,
+ *     type and corners and the real logo (CLAUDE.md "Design system"; the
+ *     founder, 2026-11-12: "Stick to the branding we had"). Its dark green
+ *     panels are the kit's ink; never the logo's vivid green on a control.
+ *   - The complement line names no vendor (`COMPLEMENT_LINE`).
+ *   - Start free opens the sign-up that exists, never a mail link, and
+ *     Sign in stays in the header.
+ *   - The footer is the one row every public page draws; the reference's
+ *     footer note is the last line of the last section (`SAMPLE_NOTE`).
+ *
  * Every word is a constant in `lib/public-site/home-words`, which
- * `home-page.test.ts` and `positioning.test.ts` read. The map with its
- * four role tabs, the panel that played by itself, the two drawings and
- * the four lines of 2026-10-27 left this page with it; an old role tab's
+ * `home-page.test.ts` and `positioning.test.ts` read. An old role tab's
  * address (`/?seat=operations`) still answers with this page.
  */
 
@@ -47,88 +61,143 @@ export const metadata: Metadata = {
   title: { absolute: 'Etyme | Enterprise contingent workforce management' },
 }
 
-/** The demo and the CFO view, worked out once from the seed: plain data, the same on every request. */
+/** The demo, the CFO view and the glance's held figure, worked out once from the seed: plain data, the same on every request. */
 const DEMO = homeDemo()
-const CFO = homeCfoLines()
+const CFO = homeCfo()
+const HELD = homeGlanceHeld()
 
 /** With no script the CFO view is shown open and its button is not drawn. */
 const NO_SCRIPT_CFO = '#cfo-view{display:block!important}[data-cfo-toggle]{display:none!important}'
 
-const SECTION_HEADING = 'text-balance font-serif text-[26px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[30px]'
-const TEXT_LINK = 'text-etyme-action-press underline-offset-4 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40'
+const SECTION_HEADING = 'text-balance font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[32px]'
+const TEXT_LINK = 'text-etyme-action-press underline underline-offset-4 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40'
+const CARD = 'min-w-0 rounded-lg border border-etyme-rule bg-etyme-raised p-5'
+const SMALL_HEAD = 'text-[12px] font-semibold uppercase tracking-[0.07em] text-etyme-faint'
+
+function Tick() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mt-0.5 shrink-0 text-etyme-action">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
-      <SiteHeader button={HOME_HEADER_BUTTON} />
+      <SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />
       <noscript><style>{NO_SCRIPT_CFO}</style></noscript>
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* ── Hero ── */}
-        <section id="top" className="max-w-[760px] pb-8 pt-10 md:pt-14">
-          <CategoryLine />
-          <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.06] tracking-[-0.02em] text-etyme-ink md:text-[52px]">
-            {HOME_HEADLINE}
-          </h1>
-          <p className="mt-4 text-[17px] leading-snug text-etyme-ink">{HOME_SUBHEAD}</p>
-          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{HOME_FIT}</p>
-          <p className="mt-1 text-[15px] leading-snug text-etyme-muted">{COMPLEMENT_LINE}</p>
-          {/* On a phone: Start free, its line, then See it work, each full width.
-              From sm the two buttons sit side by side with a small gap, and
-              the line moves under them, so its length never pushes See it
-              work away from Start free. */}
-          <div data-hero-calls="" className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2.5 sm:gap-y-1.5">
-            <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
-            <p className="text-[14px] leading-snug text-etyme-muted sm:order-last sm:basis-full">{UNDER_START}</p>
-            <SeeItWork />
+        {/* ── Hero: two columns from 900 wide; on a phone the glance sits under the left column ── */}
+        <section id="top" className="grid gap-8 pb-10 pt-10 min-[900px]:grid-cols-[1.15fr_0.85fr] min-[900px]:items-start min-[900px]:gap-12 md:pt-16">
+          <div className="min-w-0">
+            <CategoryLine />
+            <h1 className="text-balance font-serif text-[36px] font-normal leading-[1.05] tracking-[-0.02em] text-etyme-ink md:text-[54px]">
+              {HOME_HEADLINE}
+            </h1>
+            <p className="mt-5 max-w-[36em] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">{HOME_SUBHEAD}</p>
+            <p className="mt-5 font-serif text-[19px] leading-snug text-etyme-ink md:text-[20px]">{RECORD_LINE}</p>
+            <ul className="mt-5 grid gap-2.5 text-[15px] leading-snug text-etyme-muted">
+              <li className="flex gap-2.5"><Tick /><span><strong className="font-semibold text-etyme-ink">{HOME_FIT_LEAD}</strong> {HOME_FIT_REST}</span></li>
+              <li className="flex gap-2.5"><Tick /><span>{COMPLEMENT_LINE}</span></li>
+            </ul>
+            {/* Start free and See it work side by side, the line under both. */}
+            <div data-hero-calls="" className="mt-7 flex flex-wrap gap-3">
+              <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
+              <SeeItWork />
+            </div>
+            <p className="mt-3.5 text-[14px] leading-snug text-etyme-muted">{UNDER_START}</p>
           </div>
+
+          {/* At a glance: both figures are the seed's — the held receipt's
+              difference at Corvane and the watched contractor's months
+              against Northbend's limit. A figure the seed cannot support is left off. */}
+          <aside aria-label={GLANCE_TITLE} className="min-w-0 rounded-lg bg-etyme-ink p-5 text-etyme-canvas shadow-sm sm:p-6">
+            <h2 className="text-[12px] font-semibold uppercase tracking-[0.07em] text-etyme-canvas/75">{GLANCE_TITLE}</h2>
+            <dl className="mt-4 grid gap-4 min-[340px]:grid-cols-2">
+              {HELD && (
+                <div className="min-w-0">
+                  <dt className="sr-only">{GLANCE_HELD}</dt>
+                  <dd className="font-serif text-[28px] leading-none tabular-nums">{HELD}</dd>
+                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{GLANCE_HELD}</dd>
+                </div>
+              )}
+              {DEMO.watch && (
+                <div className="min-w-0">
+                  <dt className="sr-only">{GLANCE_MONTHS}</dt>
+                  <dd className="font-serif text-[28px] leading-none tabular-nums">{DEMO.watch.months} / {DEMO.watch.limit}</dd>
+                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{GLANCE_MONTHS}</dd>
+                </div>
+              )}
+            </dl>
+            <ul className="mt-5 grid gap-3 border-t border-etyme-canvas/20 pt-4 text-[14px] leading-relaxed">
+              {GLANCE_LINES.map((l) => (
+                <li key={l} className="flex gap-2.5">
+                  <span aria-hidden="true" className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-etyme-attention" />
+                  <span>{l}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-[12.5px] leading-snug text-etyme-canvas/70">{GLANCE_NOTE}</p>
+          </aside>
         </section>
 
         {/* ── Ask Etyme, at a demo company ── */}
-        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a demo company" className="max-w-[760px] scroll-mt-20 pb-8 focus:outline-none">
+        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a demo company" className="scroll-mt-20 pb-4 focus:outline-none">
           <HomeDemoBlock demo={DEMO} />
         </section>
 
         {/* ── The CFO view, closed ── */}
-        <section id="cfo" aria-label="The CFO view, at a sample company" className="max-w-[760px] pb-10">
-          <CfoView lines={CFO} />
+        <section id="cfo" aria-label="The CFO view, at a sample company" className="scroll-mt-20 pb-10">
+          <CfoView cfo={CFO} />
         </section>
 
-        {/* ── One record, three proofs ── */}
-        <section id="record" className="pb-8">
+        {/* ── Held until it agrees: three proofs, then the strip on ink ── */}
+        <section id="proof" className="scroll-mt-20 pb-10">
           <h2 className={SECTION_HEADING}>{PROOF_HEADING}</h2>
           <ul className="mt-4 grid gap-3 md:grid-cols-3">
-            {PROOF_CARDS.map((c) => (
-              <li key={c} className="min-w-0 rounded-lg border border-etyme-rule bg-etyme-surface p-5 text-[15px] leading-snug text-etyme-ink">
-                {c}
+            {PROOF_CARDS.map((c, i) => (
+              <li key={c} className={CARD}>
+                <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.06em] text-etyme-action-press">{PROOF_LABELS[i]}</p>
+                <p className="mt-2.5 text-[15px] font-semibold leading-snug text-etyme-ink">{c}</p>
               </li>
             ))}
           </ul>
+          <p className="mt-4 rounded-lg bg-etyme-ink p-5 text-[15px] leading-relaxed text-etyme-canvas">{STRIP}</p>
         </section>
 
-        {/* ── The strip, then price and security ── */}
-        <section id="strip" aria-label="What is in it, the price and security" className="max-w-[760px] pb-8">
-          <p className="text-[15px] leading-snug text-etyme-ink">{STRIP}</p>
-          <p className="mt-3 text-[15px] leading-snug text-etyme-muted">{PRICE_LINE}</p>
-          <p id="security" className="mt-1 text-[15px] leading-snug text-etyme-muted">
-            {SECURITY_LINE}{' '}
-            <a href={SECURITY_LINK.href} className={TEXT_LINK}>{SECURITY_LINK.t}</a>
-          </p>
-        </section>
-
-        {/* ── The last call ── */}
-        <section id="start" className="mb-10 grid gap-4 rounded-lg border border-etyme-rule bg-etyme-surface p-6 md:p-7">
-          <h2 className={SECTION_HEADING}>{FINAL_HEADING}</h2>
-          <p className="text-[15px] leading-snug text-etyme-muted">{FINAL_LINE}</p>
-          <div>
-            <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
+        {/* ── Price and security: two cards side by side from 760 wide ── */}
+        <section id="pricing" aria-label="Price and security" className="grid scroll-mt-20 gap-3 pb-10 min-[760px]:grid-cols-2">
+          <div className={CARD}>
+            <h2 className={SMALL_HEAD}>{PRICE_TITLE}</h2>
+            <p className="mt-2.5 text-[15.5px] font-semibold leading-snug text-etyme-ink">{PRICE_LINE}</p>
+            <p className="mt-2 text-[14.5px] leading-snug text-etyme-muted">{PRICE_MORE}</p>
           </div>
-          <p className="text-[14px] leading-snug text-etyme-muted">
+          <div id="security" className={CARD}>
+            <h2 className={SMALL_HEAD}>{SECURITY_TITLE}</h2>
+            <p className="mt-2.5 text-[15.5px] font-semibold leading-snug text-etyme-ink">{SECURITY_LINE}</p>
+            <p className="mt-2 text-[14.5px] leading-snug text-etyme-muted">
+              <a href={SECURITY_LINK.href} className={TEXT_LINK}>{SECURITY_LINK.t}</a>. {SECURITY_MORE}
+            </p>
+          </div>
+        </section>
+
+        {/* ── The last call, on ink ── */}
+        <section id="start" className="mb-6 rounded-lg bg-etyme-ink p-6 text-etyme-canvas md:p-10">
+          <h2 className="max-w-[14em] text-balance font-serif text-[30px] font-normal leading-tight tracking-[-0.02em] md:text-[34px]">{FINAL_HEADING}</h2>
+          <p className="mt-3 max-w-[36em] text-[16px] leading-relaxed text-etyme-canvas/90">{FINAL_LINE}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href={START_FREE.href} className={FILLED_ON_INK}>{START_FREE.t}</a>
+            <SeeItWork className={OUTLINE_ON_INK} label={SEE_IT_AGAIN} />
+          </div>
+          <p className="mt-5 text-[14.5px] leading-snug text-etyme-canvas/85">
             {FALLBACK_LEAD}{' '}
-            <a href={`mailto:${FALLBACK_ADDRESS}`} className={TEXT_LINK}>{FALLBACK_ADDRESS}</a>{' '}
+            <a href={`mailto:${FALLBACK_ADDRESS}`} className="inline-block py-2 font-semibold underline underline-offset-[3px] rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-canvas/60">{FALLBACK_ADDRESS}</a>{' '}
             {FALLBACK_TAIL}
           </p>
         </section>
+        <p className="mb-8 text-[13px] leading-snug text-etyme-muted">{SAMPLE_NOTE}</p>
       </main>
 
       <SkeletonFooter />

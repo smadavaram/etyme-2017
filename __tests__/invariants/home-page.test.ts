@@ -22,11 +22,12 @@ import { homeDemo, homeDemoCopy } from '@/lib/public-site/home-demo'
 import { homeLines } from '@/lib/public-site/home-copy'
 import { signUpWith } from '@/lib/login-doors'
 import { HomeDemoBlock, CfoView, SeeItWork } from '@/lib/public-site/home-parts'
-import { homeCfoLines } from '@/lib/public-site/home-cfo'
+import { homeCfo, homeCfoCopy, homeGlanceHeld } from '@/lib/public-site/home-cfo'
 import {
   HOME_EYEBROW, HOME_HEADLINE, HOME_SUBHEAD, COMPLEMENT_LINE, START_FREE, UNDER_START, SEE_IT_WORK,
-  DEMO_LABEL, DEMO_SENT, DEMO_BACK, CFO_SHOW, CFO_HIDE, CFO_LABEL, PROOF_HEADING, PROOF_CARDS, STRIP,
+  DEMO_LABEL, DEMO_SENT, DEMO_SAVED, DEMO_BACK, CFO_SHOW, CFO_HIDE, CFO_LABEL, PROOF_HEADING, PROOF_CARDS, STRIP,
   PRICE_LINE, SECURITY_LINE, SECURITY_LINK, FINAL_HEADING, FINAL_LINE, FALLBACK_LINE, HOME_HEADER_BUTTON,
+  RECORD_LINE, HOME_NAV, HOME_FIT, PROOF_LABELS, SECURITY_MORE, SAMPLE_NOTE, GLANCE_LINES, DEMO_HEAD, DEMO_YES,
 } from '@/lib/public-site/home-words'
 
 const ROOT = process.cwd()
@@ -35,7 +36,7 @@ const PAGE = read('src/app/page.tsx')
 const PARTS = read('src/lib/public-site/home-parts.tsx')
 const WORDS = read('src/lib/public-site/home-words.ts')
 /** Every word the page shows between the header and the footer, the header's own Sign in and Start free beside it. */
-const ALL = ['Sign in', START_FREE.t, ...homeLines()].join(' ')
+const ALL = ['Sign in', START_FREE.t, ...HOME_NAV.map((l) => l.t), ...homeLines()].join(' ')
 /** The page's code, without its comments, which record history rather than say anything to a reader. */
 const code = (src: string) => src.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '')
 
@@ -51,10 +52,16 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(UNDER_START).toBe('Free for the first five firms. No card, no contract — we set it up with you.')
   })
 
-  it('the demo, the CFO label, the proof heading, the three proof cards and the strip are the brief’s, punctuation included', () => {
+  it('the demo, the CFO label, the brief’s section line, the three proof cards and the strip are the brief’s, punctuation included; the proof cards are the brief’s even where the reference page shortens them', () => {
     expect(DEMO_LABEL).toBe('Demo — not a customer')
     expect(CFO_LABEL).toBe('Corvane Packaging is a sample company, not a customer. Figures use sample rates.')
-    expect(PROOF_HEADING).toBe('Every contractor. Every supplier. One record.')
+    // The reference page draws the brief's section line in the hero, and
+    // heads the proof cards "Held until it agrees".
+    expect(RECORD_LINE).toBe('Every contractor. Every supplier. One record.')
+    expect(PAGE).toContain('{RECORD_LINE}</p>')
+    expect(PAGE.indexOf('{RECORD_LINE}')).toBeLessThan(PAGE.indexOf('id="demo"'))
+    expect(PROOF_HEADING).toBe('Held until it agrees')
+    expect(PROOF_LABELS).toEqual(['01 — Held', '02 — Signed', '03 — Papers'])
     expect(PROOF_CARDS).toEqual([
       '$42 held — an invoice receipt over the signed hours, held until the hours agree.',
       'Nothing is paid on hours nobody signed — the order, the signed week and the invoice must agree.',
@@ -67,6 +74,9 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(PRICE_LINE).toBe('Price: free while we test. Founding firms keep their terms.')
     expect(SECURITY_LINE).toBe('Security: no SOC 2 yet; it is next.')
     expect(SECURITY_LINK.href).toBe('/security')
+    // The page links the position; it never says "ask and we will send it".
+    expect(ALL).not.toMatch(/ask and we will send/i)
+    expect(SECURITY_MORE).toBe('Signs in with your work account.')
     expect(existsSync(join(ROOT, 'src/app/(site)/security/page.tsx'))).toBe(true)
     expect(FINAL_HEADING).toBe('Start free with your own contractors.')
     expect(FINAL_LINE).toBe('Etyme is free while we test it with our first firms. The first five pay nothing and keep their terms when pricing starts.')
@@ -105,8 +115,11 @@ describe('Start free leads somewhere real', () => {
 
   it('is a link drawn as the filled button, in the header, the hero and the last call, and nowhere a form or a mail', () => {
     expect(HOME_HEADER_BUTTON).toBe(START_FREE)
-    expect(PAGE).toContain('<SiteHeader button={HOME_HEADER_BUTTON} />')
-    expect(PAGE.match(/<a href=\{START_FREE\.href\} className=\{[^>]*FILLED[^>]*>\{START_FREE\.t\}<\/a>/g)).toHaveLength(2)
+    expect(PAGE).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
+    // The hero's is the violet filled button; the last call's is the filled button on ink.
+    expect(PAGE).toContain('<a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>')
+    expect(PAGE).toContain('<a href={START_FREE.href} className={FILLED_ON_INK}>{START_FREE.t}</a>')
+    expect(PAGE.match(/<a href=\{START_FREE\.href\}/g)).toHaveLength(2)
     expect(START_FREE.href).not.toMatch(/^mailto:/)
     expect(PAGE).not.toMatch(/<form\b/)
   })
@@ -117,15 +130,21 @@ describe('Start free leads somewhere real', () => {
     // the hero's Start free lost its shape on a phone (2026-11-13).
     const buttons = readFileSync(join(ROOT, 'src/lib/public-site/home-buttons.ts'), 'utf8')
     expect(buttons).not.toMatch(/^'use client'/m)
-    expect(PAGE).toMatch(/import \{ FILLED \} from '@\/lib\/public-site\/home-buttons'/)
+    expect(PAGE).toMatch(/import \{ FILLED, FILLED_ON_INK, OUTLINE_ON_INK \} from '@\/lib\/public-site\/home-buttons'/)
     expect(PAGE).not.toMatch(/import \{[^}]*\b(FILLED|OUTLINE)\b[^}]*\} from '@\/lib\/public-site\/home-parts'/)
     const parts = readFileSync(join(ROOT, 'src/lib/public-site/home-parts.tsx'), 'utf8')
-    expect(parts).not.toMatch(/export const (FILLED|OUTLINE)\b/)
+    expect(parts).not.toMatch(/export const (FILLED|OUTLINE|FILLED_ON_INK|OUTLINE_ON_INK)\b/)
   })
 
-  it('the header on the home page is the wordmark, a plain Sign in link and Start free; every other page’s header is unchanged', () => {
+  it('the header on the home page is the wordmark, from 760 wide four in-page links to its sections, a plain Sign in link and Start free; on a phone the links are not drawn; every other page’s header is unchanged', () => {
     const frame = read('src/lib/public-site/frame.tsx')
-    expect(frame).toContain("export function SiteHeader({ button }: { button?: { t: string; href: string } } = {})")
+    expect(frame).toContain("export function SiteHeader({ button, links }: { button?: { t: string; href: string }; links?: readonly { t: string; href: string }[] } = {})")
+    expect(HOME_NAV).toEqual([
+      { t: 'Demo', href: '#demo' }, { t: 'CFO view', href: '#cfo' },
+      { t: 'How it holds', href: '#proof' }, { t: 'Price & security', href: '#pricing' },
+    ])
+    for (const l of HOME_NAV) expect(PAGE, l.href).toContain(`id="${l.href.slice(1)}"`)
+    expect(frame).toContain('className="ml-auto hidden items-center gap-x-1 min-[760px]:flex"')
     expect(frame).toMatch(/\{button && \(\s*<a\s+href=\{button\.href\}/)
     // The shared pages call it with no button.
     for (const f of ['src/lib/public-site/sub-page.tsx', 'src/lib/public-site/module-page.tsx']) expect(read(f), f).toContain('<SiteHeader />')
@@ -137,6 +156,10 @@ describe('See it work takes the reader to the demo', () => {
   it('is an outline button to the demo that works with no script, scrolls smoothly with script unless the reader asked for less motion, and moves keyboard focus to the demo', () => {
     const html = renderToStaticMarkup(createElement(SeeItWork))
     expect(html).toContain(`href="${SEE_IT_WORK.href}"`)
+    // The arrow is drawn beside the words and hidden from a screen reader.
+    expect(html).toContain('See it work<span aria-hidden="true">\u00a0↓</span>')
+    // The last call's "See it work again" is the same act on the ink panel.
+    expect(PAGE).toContain('<SeeItWork className={OUTLINE_ON_INK} label={SEE_IT_AGAIN} />')
     expect(html).toContain('border border-etyme-rule')
     expect(html).not.toContain('bg-etyme-action')
     expect(PARTS).toContain("target.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })")
@@ -154,14 +177,25 @@ describe('The Ask Etyme demo is the seed’s and sends nothing', () => {
     expect(d.question).toBe('What am I paying across every supplier this month?')
     expect(d.answer).toBe(step.chat[1].text)
     expect(d.answer).toBe('$135,200 a month: 7 contractors through 4 suppliers, at current rates. Lucía Fernández has 14 months here across two suppliers. The limit is 18.')
+    expect(d.answerLead).toBe('$135,200 a month:')
+    expect(`${d.answerLead} ${d.answerRest}`).toBe(d.answer)
+    // The story's cells, the months said with their unit under "Time here".
+    expect(d.head).toEqual(['Contractor', 'Supplier', 'Rate / hr', 'Time here'])
+    expect(d.head).toBe(DEMO_HEAD)
     expect(d.rows).toEqual([
-      ['Helena Marsh', 'Computer Systems Inc', '$145', '6'],
-      ['Omar Haddad', 'Brightmoor Staffing', '$132', '1'],
-      ['Lucía Fernández', 'Pinnacle Resourcing', '$98', '14 of 18 · 2 suppliers'],
+      ['Helena Marsh', 'Computer Systems Inc', '$145', '6 months'],
+      ['Omar Haddad', 'Brightmoor Staffing', '$132', '1 month'],
+      ['Lucía Fernández', 'Pinnacle Resourcing', '$98', '14 of 18 months · 2 suppliers'],
     ])
-    expect(d.card.ask).toBe('Send the HCM integration lead job to your 3 approved suppliers? It is within budget, so it needs no approval.')
-    expect(d.card.job).toBe('HCM integration lead · 12 months · Tualatin, OR')
-    expect(d.card.detail).toContain('$120–140 an hour')
+    expect(d.rows.map((r) => r.slice(0, 3))).toEqual(step.table.rows.map((r) => r.slice(0, 3)))
+    // Lucía carries the Watch limit tag: the story's attention cell.
+    expect(d.watchRows).toEqual([2])
+    expect(d.watch).toEqual({ months: 14, limit: 18 })
+    expect(d.card.job).toBe('HCM integration lead')
+    expect(d.card.detail).toBe('12 months · Tualatin, OR · $120–140/hr · Ready to send to suppliers')
+    expect(step.chat[2].card!.t).toBe('HCM integration lead · 12 months · Tualatin, OR')
+    expect(step.chat[2].card!.s).toContain('$120–140 an hour')
+    expect(d.card.yes).toBe(DEMO_YES)
     // Nothing is typed into the page or the demo's code: it reads the story.
     for (const figure of ['135,200', 'Lucía', 'Helena', 'Tualatin', '$145', '$120']) {
       expect(code(PAGE).includes(figure), figure).toBe(false)
@@ -171,11 +205,17 @@ describe('The Ask Etyme demo is the seed’s and sends nothing', () => {
   })
 
   it('is labeled Northbend Athletic, Demo — not a customer, and draws the question, the answer, the three contractors and the card', () => {
-    const html = renderToStaticMarkup(createElement(HomeDemoBlock, { demo: homeDemo() }))
+    const d = homeDemo()
+    const html = renderToStaticMarkup(createElement(HomeDemoBlock, { demo: d }))
     expect(html).toContain('Northbend Athletic')
     expect(html).toContain(DEMO_LABEL)
-    for (const w of homeDemoCopy()) expect(html, w).toContain(w.replace(/&/g, '&amp;'))
+    for (const w of homeDemoCopy().filter((x) => x !== d.answer)) expect(html, w).toContain(w.replace(/&/g, '&amp;'))
+    expect(html).toContain(`<strong class="font-semibold">${d.answerLead}</strong> ${d.answerRest}`)
+    expect(html).toContain(`“${d.question}”`)
     expect(html).toContain('w-full table-fixed')
+    // On a phone each row is a short block, never a sideways scroll.
+    expect(html).toContain('max-sm:block')
+    expect(html).toContain('<thead class="max-sm:hidden">')
   })
 
   it('the demo’s buttons post nothing: Send and Not now are plain buttons with no form, no request and no count, and show the demo line in their place with a way back', () => {
@@ -192,39 +232,49 @@ describe('The Ask Etyme demo is the seed’s and sends nothing', () => {
       expect(code(src)).not.toMatch(/fetch\(|sendBeacon|XMLHttpRequest|count\(|\/api\/|useRouter|router\.push/)
     }
     // Send and Not now each show the demo line in place of the buttons, and Back brings them back.
-    expect(PARTS).toContain("onClick={() => setSaid(true)}>{demo.card.yes}</button>")
-    expect(PARTS).toContain("onClick={() => setSaid(true)}>{DEMO_NOT_NOW}</button>")
-    expect(PARTS).toContain("onClick={() => setSaid(false)}>{DEMO_BACK}</button>")
-    expect(DEMO_SENT).toBe('This is a demo, so nothing was sent. Start free to send a real job to your own suppliers.')
+    expect(PARTS).toContain("onClick={() => setSaid(DEMO_SENT)}>{demo.card.yes}</button>")
+    expect(PARTS).toContain("onClick={() => setSaid(DEMO_SAVED)}>{DEMO_NOT_NOW}</button>")
+    expect(PARTS).toContain("onClick={() => setSaid(null)}>{DEMO_BACK}</button>")
+    expect(DEMO_YES).toBe('Send to suppliers')
+    expect(DEMO_SENT).toBe('Ready to send — in this demo, nothing is sent. In Etyme, you approve before anything goes to suppliers.')
+    expect(DEMO_SAVED).toBe('Saved as draft. Nothing was sent.')
     expect(DEMO_BACK).toBe('Back')
   })
 })
 
 describe('The CFO view is closed until asked for, and readable with no script', () => {
 
-  it('is one button whose words change, See the CFO view and Hide the CFO view, with aria-expanded, closed by default', () => {
-    const html = renderToStaticMarkup(createElement(CfoView, { lines: homeCfoLines() }))
+  it('is a card headed “Corvane Packaging — the CFO view” with one button whose words change, See the CFO view and Hide the CFO view, with aria-expanded, closed by default', () => {
+    const html = renderToStaticMarkup(createElement(CfoView, { cfo: homeCfo() }))
+    expect(html).toContain('Corvane Packaging — the CFO view')
+    expect(html).toContain('Corvane is a sample company, not a customer.')
     expect(html).toContain('aria-expanded="false"')
     expect(html).toContain('aria-controls="cfo-view"')
     expect(html).toContain(`>${CFO_SHOW}</button>`)
     expect(PARTS).toContain('{open ? CFO_HIDE : CFO_SHOW}')
     expect(CFO_HIDE).toBe('Hide the CFO view')
     expect(html).toMatch(/id="cfo-view" class="hidden /)
+    expect(PAGE).toContain('<CfoView cfo={CFO} />')
   })
 
   it('its lines and its label are in the HTML the server sends either way, and with no script the page shows them open and hides the button', () => {
-    const html = renderToStaticMarkup(createElement(CfoView, { lines: homeCfoLines() }))
-    for (const l of homeCfoLines()) expect(html, l.t).toContain(l.t)
+    const cfo = homeCfo()
+    const html = renderToStaticMarkup(createElement(CfoView, { cfo }))
+    for (const t of cfo.tiles) { expect(html, t.b).toContain(t.b); expect(html, t.s).toContain(t.s) }
+    for (const l of cfo.lines) expect(html, l.t).toContain(l.t)
     expect(html).toContain(CFO_LABEL)
     expect(PAGE).toContain("const NO_SCRIPT_CFO = '#cfo-view{display:block!important}[data-cfo-toggle]{display:none!important}'")
     expect(PAGE).toContain('<noscript><style>{NO_SCRIPT_CFO}</style></noscript>')
   })
 
-  it('shows its figures as short lines, never a table', () => {
-    const html = renderToStaticMarkup(createElement(CfoView, { lines: homeCfoLines() }))
+  it('shows four figures as tiles and three short lines, never a table', () => {
+    const cfo = homeCfo()
+    const html = renderToStaticMarkup(createElement(CfoView, { cfo }))
     expect(html).not.toContain('<table')
-    expect(html.match(/<li /g)).toHaveLength(homeCfoLines().length)
-    for (const l of homeCfoLines()) expect(l.t.split(/\s+/).length, l.t).toBeLessThanOrEqual(12)
+    expect(cfo.tiles).toHaveLength(4)
+    expect(cfo.lines).toHaveLength(3)
+    expect(html.match(/<li /g)).toHaveLength(cfo.tiles.length + cfo.lines.length)
+    for (const l of homeCfoCopy(cfo)) expect(l.split(/\s+/).length, l).toBeLessThanOrEqual(12)
   })
 })
 
@@ -245,7 +295,8 @@ describe('The home page never says what it must not', () => {
     expect(namedCompanies(ALL)).toEqual([])
     expect(incumbentComparison(ALL)).toEqual([])
     // The two companies it names are both labeled samples, beside the name.
-    expect(ALL).toContain('Northbend Athletic Demo — not a customer')
+    expect(ALL).toContain('Demo — not a customer Northbend Athletic')
+    expect(SAMPLE_NOTE).toBe('Demo and sample companies are labeled as such. They are not customers.')
     expect(CFO_LABEL.startsWith('Corvane Packaging is a sample company, not a customer.')).toBe(true)
   })
 
@@ -261,13 +312,17 @@ describe('The home page never says what it must not', () => {
 
   it('claims no certification Etyme does not hold: SOC 2 is named only to say it is not held yet', () => {
     const named = ALL.split(/(?<=[.;])\s+/).filter((x) => /SOC ?2|ISO ?27001|HIPAA|FedRAMP|GDPR[- ]compliant|certified/i.test(x))
-    expect(named).toEqual(['Security: no SOC 2 yet;'])
+    // The card's small heading "Security" runs into its line when the words are joined.
+    expect(named.map((x) => x.replace(/^Security (?=Security:)/, ''))).toEqual(['Security: no SOC 2 yet;'])
   })
 
-  it('never says money is paid automatically: an invoice receipt is held or cleared, never paid on its own', () => {
-    expect(ALL).not.toMatch(/\b(?:paid|pays?|paying) (?:automatically|itself|themselves|on (?:its|their) own|by itself)\b/i)
-    expect(ALL).not.toMatch(/\bauto[- ]?(?:pay|payment|matically pa)/i)
-    expect(ALL).not.toMatch(/\bautomatic(?:ally)? (?:pay|payment|paid)/i)
+  it('never says money is paid automatically, except to say that nothing is: an invoice receipt is held or cleared, never paid on its own', () => {
+    // The glance's line says the opposite, in so many words, and is the one place the phrase may stand.
+    expect(GLANCE_LINES[0]).toContain('A person clears it — nothing is paid automatically.')
+    const said = ALL.replace(/\bnothing is paid automatically\b/g, '')
+    expect(said).not.toMatch(/\b(?:paid|pays?|paying) (?:automatically|itself|themselves|on (?:its|their) own|by itself)\b/i)
+    expect(said).not.toMatch(/\bauto[- ]?(?:pay|payment|matically pa)/i)
+    expect(said).not.toMatch(/\bautomatic(?:ally)? (?:pay|payment|paid)/i)
     expect(PROOF_CARDS[1]).toContain('Nothing is paid on hours nobody signed')
   })
 })

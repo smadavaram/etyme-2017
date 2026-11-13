@@ -103,8 +103,11 @@ describe('One ladder, named once', () => {
     // button but the one a page passes: since the founder's brief of
     // 2026-11-13 the home page passes Start free, and no other page does.
     const whole = FRAME.slice(FRAME.indexOf('export function SiteHeader'), FRAME.indexOf('</header>'))
-    const header = whole.replace(/\{button && \([\s\S]*?\n {10}\)\}/, '')
+    // The home page's Start free and its four in-page links (2026-11-13)
+    // are drawn only from what it passes; read the header without them.
+    const header = whole.replace(/\{button && \([\s\S]*?\n {10}\)\}/, '').replace(/\{links && \([\s\S]*?\n {8}\)\}/, '')
     expect(whole).toContain('{button && (')
+    expect(whole).toContain('{links && (')
     expect(header).not.toContain('{button.t}')
     expect(header).toContain('<EtymeLogo')
     expect(header).toContain('href={HEADER.signIn.href}')

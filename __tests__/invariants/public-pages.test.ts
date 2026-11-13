@@ -606,7 +606,7 @@ describe('One header and footer on every new page', () => {
     // (2026-10-14), with one setting since the founder's brief of
     // 2026-11-13: its one button, Start free.
     const home = read('src/app/page.tsx')
-    expect(home).toContain('<SiteHeader button={HOME_HEADER_BUTTON} />')
+    expect(home).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
     expect(home).not.toContain('const NAV_MENUS')
     const frame = read('src/lib/public-site/frame.tsx')
     expect(frame).not.toContain('onHome')
@@ -643,7 +643,9 @@ describe('One header and footer on every new page', () => {
     const passing = [...walk(join(ROOT, 'src/app')), ...readdirSync(join(ROOT, 'src/lib/public-site')).filter((f) => f.endsWith('.tsx')).map((f) => `src/lib/public-site/${f}`)]
       .filter((f) => /<SiteHeader button=/.test(read(f)))
     expect(passing).toEqual(['src/app/page.tsx'])
-    expect(read('src/app/page.tsx')).toContain('<SiteHeader button={HOME_HEADER_BUTTON} />')
+    // And the four in-page links, the same page alone, since his reference page the same day.
+    expect(passing.filter((f) => /<SiteHeader[^>]*\blinks=/.test(read(f)))).toEqual(['src/app/page.tsx'])
+    expect(read('src/app/page.tsx')).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {

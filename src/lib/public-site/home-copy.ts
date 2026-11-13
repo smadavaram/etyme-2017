@@ -1,28 +1,37 @@
 /**
  * Every word the home page shows between its header and its footer, as
- * the guards read it: the page's own lines (`./home-words`), the demo's
- * (`./home-demo`, the seed's) and the CFO view's (`./home-cfo`, the
- * seed's), the CFO view counted although it opens closed, because its
- * lines are in the HTML the server sends.
+ * the guards read it: the page's own lines (`./home-words`), the glance's
+ * two figures, the demo's (`./home-demo`, the seed's) and the CFO view's
+ * (`./home-cfo`, the seed's), the CFO view counted although it opens
+ * closed, because its lines are in the HTML the server sends.
  *
  * Server and test only: the CFO lines read the seed.
  */
 
 import type { Copy } from '@/lib/positioning'
-import { homeCopy, HOME_HERO_LINES, DEMO_COMPANY } from './home-words'
-import { homeDemoCopy } from './home-demo'
-import { homeCfoLines } from './home-cfo'
+import { homeCopy, HOME_HERO_LINES, CFO_LABEL, GLANCE_TITLE } from './home-words'
+import { homeDemo, homeDemoCopy } from './home-demo'
+import { homeCfoCopy, homeGlanceHeld } from './home-cfo'
+
+/** The glance's two figures, as the hero draws them: "$42" and "14 / 18". */
+export function glanceFigures(): string[] {
+  const w = homeDemo().watch
+  return [homeGlanceHeld(), w ? `${w.months} / ${w.limit}` : null].filter((x): x is string => x !== null)
+}
 
 export function copyOfHome(): Copy {
   const own = homeCopy()
-  const demoAt = own.indexOf(DEMO_COMPANY)
+  const labelAt = own.indexOf(CFO_LABEL)
+  // The glance's figures sit under its title, before their own captions.
+  const glanceAt = own.indexOf(GLANCE_TITLE) + 1
   return {
-    hero: own.slice(0, HOME_HERO_LINES),
+    hero: [...own.slice(0, glanceAt), ...glanceFigures(), ...own.slice(glanceAt, HOME_HERO_LINES)],
     body: [
-      ...own.slice(HOME_HERO_LINES, demoAt + 2),
       ...homeDemoCopy(),
-      ...homeCfoLines().map((l) => l.t),
-      ...own.slice(demoAt + 2),
+      // The page's own words from the CFO card's heading, the CFO figures before its label.
+      ...own.slice(HOME_HERO_LINES, labelAt),
+      ...homeCfoCopy(),
+      ...own.slice(labelAt),
     ],
   }
 }

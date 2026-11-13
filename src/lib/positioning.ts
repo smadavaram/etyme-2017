@@ -612,6 +612,9 @@ const VERBS = [
   // tap." — two of the four step pages the founder approved on
   // 2026-10-15. The trade's own verbs: who applied, approve a timesheet.
   'applied', 'apply', 'applies', 'approve', 'approves', 'approved',
+  // "Held until it agrees", the proof heading on the founder's reference
+  // page for the home page (2026-11-13).
+  'held', 'agree', 'agrees',
   'arrive', 'arrives', 'ask', 'asks', 'block', 'blocks',
   'buy', 'buys', 'call', 'calls', 'change', 'changes', 'charge', 'charges', 'check', 'checks',
   'come', 'comes',

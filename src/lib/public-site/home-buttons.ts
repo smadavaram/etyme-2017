@@ -17,3 +17,14 @@ export const FILLED =
 /** The outline button beside it, at least 44 pixels high. */
 export const OUTLINE =
   `inline-flex min-h-11 items-center justify-center rounded-lg border border-etyme-rule bg-etyme-surface px-5 py-2.5 text-center text-[15px] font-semibold text-etyme-ink transition-colors hover:border-etyme-action ${FOCUS}`
+
+/**
+ * On the ink panels (the glance, the strip, the last call). The reference
+ * draws them on its own dark green; ours are the brand kit's ink, and the
+ * filled button on them is the kit's raised white with ink text, so a
+ * dark panel never carries a second violet button beside the header's.
+ */
+export const FILLED_ON_INK =
+  `inline-flex min-h-11 items-center justify-center rounded-lg bg-etyme-raised px-5 py-2.5 text-center text-[15px] font-semibold text-etyme-ink transition-opacity hover:opacity-90 ${FOCUS} focus-visible:ring-offset-etyme-ink`
+export const OUTLINE_ON_INK =
+  `inline-flex min-h-11 items-center justify-center rounded-lg border border-etyme-canvas/60 px-5 py-2.5 text-center text-[15px] font-semibold text-etyme-canvas transition-colors hover:border-etyme-canvas ${FOCUS} focus-visible:ring-offset-etyme-ink`
