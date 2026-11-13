@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await prisma.automationLog.create({
     data: {
       companyId: seat.company.id,
-      action: 'PERSON_INVITED',
+      action: 'INVITATION_COPIED',
       summary: `${caller.person.name} copied the invitation for ${seat.person.primaryEmail}`,
       reason: 'Copied from Users & permissions, to send it by hand. The copy holds no one-time link.',
       payload: { contextId: seat.id, email: seat.person.primaryEmail, act: 'COPIED' },

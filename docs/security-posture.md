@@ -309,7 +309,7 @@ systems drop and the half an investigation needs.
 
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
-**Coverage, stated honestly.** 66 route files write an access-log row
+**Coverage, stated honestly.** 67 route files write an access-log row
 through `src/lib/access-log.ts`, out of 379 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
@@ -491,14 +491,14 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-10-22:
+Recomputed from the module on 2026-11-13:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **229** |
+| Actions named in the automation log | **232** |
 | Unprompted — the system did it and nobody asked | **38** |
-| Enforcement — the system decided what a person was allowed to do | **13** |
-| Attributed — a person did it and the row is the record | **178** |
+| Enforcement — the system decided what a person was allowed to do | **14** |
+| Attributed — a person did it and the row is the record | **180** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
@@ -893,7 +893,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 66 route files of 379 (section 4).
+- Access logging covers 67 route files of 379 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their

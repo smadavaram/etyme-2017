@@ -496,7 +496,7 @@ const RULE_ATTRIBUTED = [
   'DUNNING_SENT', 'EXPENSE_APPROVED', 'EXPENSE_REJECTED',
   'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
   'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
-  'INVITATION_ACCEPTED', 'INVITATION_DECLINED', 'INVITATION_WITHDRAWN',
+  'INVITATION_ACCEPTED', 'INVITATION_COPIED', 'INVITATION_DECLINED', 'INVITATION_SENT_AGAIN', 'INVITATION_WITHDRAWN',
   'INVOICE_GENERATED', 'INVOICE_HELD', 'INVOICE_HOLD_LIFTED', 'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
   'INVOICE_SUBMITTED', 'LEADS_READ', 'LEAD_KEPT_APART_BY_PERSON',
   'LEAD_MERGED_BY_PERSON', 'LEGAL_HOLD_LIFTED', 'LEGAL_HOLD_PLACED',
@@ -776,25 +776,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     basis: 'RULE',
     says:
       'A paper that has run out, or soon will, was not asked for tonight, because the company has not yet said what it requires of that party under Setup → Papers you require. The company was told why. A paper that has run out still stops a start; only the letter waits, and confirming the set brings it back.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-
-  // ── Invitations and payments, 2026-11-12 ──────────────────────────
-  //
-  // Sending an invitation again and copying one are a person's own act,
-  // with no rung, under names of their own. Until regulatory switches the
-  // resend and copied routes onto these names they write PERSON_INVITED
-  // with payload.act 'SENT_AGAIN' or 'COPIED', and these wait here.
-  INVITATION_SENT_AGAIN: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'An Owner or Admin sent an invitation again to the same seat. The row says whether the email left and, where it did not, why.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  INVITATION_COPIED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'An Owner or Admin copied an invitation to send it themselves. What was copied takes nobody into the seat: the person still signs in with their own address.',
     willBeWrittenBy: 'etyme-regulatory',
   },
 

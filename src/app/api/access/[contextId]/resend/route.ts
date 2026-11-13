@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await prisma.automationLog.create({
       data: {
         companyId: seat.company.id,
-        action: 'PERSON_INVITED',
+        action: 'INVITATION_SENT_AGAIN',
         summary: `${caller.person.name} sent the invitation to ${email} again`,
         reason: 'Asked for on the waiting row. The same seat; nothing was duplicated.',
         payload: { contextId: seat.id, email, act: 'SENT_AGAIN', mail: sent.mail.state },
