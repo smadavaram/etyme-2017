@@ -12,7 +12,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { mayOpen } from '@/lib/nav-table'
 import { IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL, READ_TEAMS_LABEL, READ_TEAMS_SAYS } from '@/lib/team-structure/directory/words'
 import { googleOutcomeSays, entraOutcomeSays } from '@/lib/team-structure/directory/outcome'
-import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, personLink, roleInWords } from '@/lib/team-structure/screen'
+import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, offersMove, personLink, roleInWords } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -772,15 +772,15 @@ function ContextMenu(props: {
     items = [
       menu.box && offersMakeLead(props.boxes.get(menu.box)?.lead, menu.contextId) && item('Make team lead', () => props.onAct('LEAD', { unitId: menu.box, contextId: menu.contextId }, () => menu.box)),
       item('Change role…', () => { window.location.href = personLink(menu.contextId) }),
-      item('Move to another team…', () => props.onChoose({ kind: 'person', contextId: menu.contextId, name: menu.name, from: menu.box })),
+      offersMove(props.tree.boxes, menu.box) && item('Move to another team…', () => props.onChoose({ kind: 'person', contextId: menu.contextId, name: menu.name, from: menu.box })),
       menu.box && hr('h1'),
       menu.box && item('Take off this team', () => props.onAct('MOVE_PERSON', { contextId: menu.contextId, unitId: null }, () => menu.box), { bad: true }),
     ].filter(Boolean) as ReactNode[]
   } else {
     head = menu.name
-    items = [
-      item('Charge to another box…', () => props.onChoose({ kind: 'contractor', sellContractId: menu.sellContractId, name: menu.name, from: menu.box })),
-    ]
+    items = offersMove(props.tree.boxes, menu.box, 'contractor')
+      ? [item('Charge to another box…', () => props.onChoose({ kind: 'contractor', sellContractId: menu.sellContractId, name: menu.name, from: menu.box }))]
+      : [<p key="none" className="px-2.5 py-1.5 text-[13px] text-etyme-muted">Add a team first, then charge them to it.</p>]
   }
   return (
     <div ref={ref} role="menu" onKeyDown={keys} style={{ left: menu.x, top: menu.y }} className="fixed z-50 flex min-w-[220px] flex-col rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
@@ -822,8 +822,9 @@ function Chooser(props: {
             {options.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.kindWord}</option>)}
           </Select>
         </Field>
+        {!to && <p className="text-[12px] text-etyme-muted">Choose where they go first.</p>}
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" disabled={!to || props.busy} onClick={() => void go()}>{person ? 'Move' : 'Charge there'}</button>
+          <button className="btn-primary" disabled={!to || props.busy} onClick={() => void go()}>{props.busy ? 'Saving…' : person ? 'Move' : 'Charge there'}</button>
           <button className="btn-secondary" onClick={props.onClose}>Cancel</button>
         </div>
       </div>

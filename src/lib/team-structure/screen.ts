@@ -20,6 +20,17 @@ export function offersMakeLead(lead: { contextId: string } | null | undefined, c
 }
 
 /**
+ * Whether "Move to another team…" (or "Charge to another box…") has
+ * anywhere to go: another box, or, for a person on a team, "on no team".
+ * A company with no teams has nowhere, so the menu leaves it out rather
+ * than open a chooser with nothing in it (review, 2026-11-13). Pure.
+ */
+export function offersMove(boxes: readonly { id: string }[], from: string | null, kind: 'person' | 'contractor' = 'person'): boolean {
+  if (boxes.some((b) => b.id !== from)) return true
+  return kind === 'person' && from !== null
+}
+
+/**
  * Whether the right-click menu stays open on a scroll or a mouse-down
  * outside it. A held press on a phone scrolls as it lifts and sends a
  * mouse-down after it; neither is somebody leaving the menu.

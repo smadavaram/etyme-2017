@@ -17,7 +17,7 @@ import {
   type UnitRow,
 } from '@/lib/team-structure/tree'
 import { ACTS, ACT_FIELDS, actBody, readAct } from '@/lib/team-structure/acts'
-import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead } from '@/lib/team-structure/screen'
+import { centeredScroll, foldedAtOpen, holdStopsHere, menuStaysOpen, offersMakeLead, offersMove } from '@/lib/team-structure/screen'
 import { reachWithTeam } from '@/components/settings/give-access'
 
 /**
@@ -197,6 +197,18 @@ describe('the screen, as walk 10 found it', () => {
     expect(offersMakeLead({ contextId: 'c_marcus' }, 'c_marcus')).toBe(false)
     expect(offersMakeLead({ contextId: 'c_marcus' }, 'c_keisha')).toBe(true)
     expect(offersMakeLead(null, 'c_keisha')).toBe(true)
+  })
+
+  it('a company with no teams is never offered "Move to another team", because there is nowhere to move a person to', () => {
+    expect(offersMove([], null)).toBe(false)
+    expect(offersMove([], null, 'contractor')).toBe(false)
+    expect(offersMove([{ id: 'ops' }], null)).toBe(true)
+    // On the only team: "on no team" is still somewhere to go.
+    expect(offersMove([{ id: 'ops' }], 'ops')).toBe(true)
+    expect(offersMove([{ id: 'ops' }], 'ops', 'contractor')).toBe(false)
+    const page = readScreen('src/app/dashboard/settings/team-structure/page.tsx', 'utf8')
+    expect(page).toContain("offersMove(props.tree.boxes, menu.box) && item('Move to another team…'")
+    expect(page).toContain('Choose where they go first.')
   })
 
   it('a menu opened by a held press on a phone stays open through the scroll and the mouse-down the phone sends after it', () => {
