@@ -6,7 +6,8 @@ import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { mirrorOf, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
-import { approvalBehind } from '../ask'
+import { recordRefusal } from '@/lib/access-log'
+import { standingBehind } from '../ask'
 
 /**
  * POST /api/trade-links/:id   { action: "accept" | "not-now" }
@@ -16,12 +17,13 @@ import { approvalBehind } from '../ask'
  * own register in one transaction — the asker's in the asker's words, the
  * answerer's as its mirror — the same `Counterparty` rows every picker
  * and `workTogether` already read, so agreements and orders can name the
- * other firm at once. Nothing else is written: no agreement, no terms —
- * except where the ask came from the asker's own supplier approval
- * (`approvalBehind`). Then the yes is the last piece of what the
- * approval writes for a firm it attaches directly: the asker's row at
- * approved standing, and the agreement stub between the two (signed only
- * where the copy both signed was on file), never under a prime.
+ * other firm at once. Nothing else is written: no agreement, no terms,
+ * no signature (review, 2026-11-13). An agreement is recorded under
+ * Agreements with its terms in front of both firms, never as a side
+ * effect of a yes to link. The one thing the yes may carry is the asker's
+ * own judgment on its own row: where the asker's supplier walk approved
+ * this firm and this ask is the one it led to (`standingBehind`), the
+ * asker's row reads approved. A standing somebody already set is kept.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { caller, error } = await getCallerContext(request)
@@ -38,15 +40,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const row = await prisma.tradeLinkRequest.findUnique({
     where: { id },
     select: {
-      id: true, relationship: true, answeredAt: true, askedById: true, fromCompanyId: true, toCompanyId: true,
+      id: true, relationship: true, answeredAt: true, askedById: true, fromCompanyId: true, toCompanyId: true, createdAt: true,
       fromCompany: { select: { name: true, kind: true } },
     },
   })
   const me = caller.company
   if (!row || !me || row.toCompanyId !== me.id) {
+    await recordRefusal([me ? { companyId: me.id } : caller.person.id], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: me?.id,
+      action: 'CONTRACT_VIEW',
+      reason: 'Refused to answer an ask to link: no such ask was made of this company.',
+    })
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such ask was made of this company.' } }, { status: 404 })
   }
   if (!hasPermission(caller.permissions, 'vendors.manage')) {
+    await recordRefusal([{ companyId: me.id }], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: me.id,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused to answer ${row.fromCompany.name}'s ask to link: the caller does not keep the list of companies.`,
+    })
     return NextResponse.json(
       { error: { code: 'NOT_YOURS_TO_ANSWER', message: 'Answering a link is for whoever keeps your list of companies: the owner, or a role that manages suppliers.' } },
       { status: 403 }
@@ -58,26 +72,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const theirs = row.relationship as Relationship
   const mine = mirrorOf(theirs, row.fromCompany.kind)
   if (action === 'accept') {
-    // The client's four steps already approved this firm; its yes is
-    // what was missing. Read only for an ask to be the asker's supplier.
-    const approved = theirs === 'SUPPLIER' ? await approvalBehind(row.fromCompanyId, me.id) : null
-    const held = approved
+    // The asker's own walk approved this firm, and this is the ask it led
+    // to: the asker's own row reads approved. Only for an ask to be the
+    // asker's supplier, and never over a standing somebody already set.
+    const standing = theirs === 'SUPPLIER' ? await standingBehind(row) : null
+    const held = standing
       ? await prisma.counterparty.findUnique({
           where: { companyId_otherCompanyId_relationship: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs } },
           select: { tier: true },
         })
       : null
-    // A standing somebody already set is never lowered or overwritten.
-    const tier = approved && !held?.tier ? { tier: 'APPROVED' } : {}
-    const agreement = approved && !approved.underPrime
-      ? await prisma.masterAgreement.findFirst({ where: { vendorId: me.id, clientId: row.fromCompanyId }, select: { id: true } })
-      : null
+    const tier = standing && !held?.tier ? { tier: standing } : {}
     await prisma.$transaction([
-      ...(approved && !approved.underPrime && !agreement
-        ? [prisma.masterAgreement.create({
-            data: { vendorId: me.id, clientId: row.fromCompanyId, paymentTerms: 30, ...(approved.agreementSigned ? { signedAt: now } : {}) },
-          })]
-        : []),
       prisma.counterparty.upsert({
         where: { companyId_otherCompanyId_relationship: { companyId: row.fromCompanyId, otherCompanyId: me.id, relationship: theirs } },
         update: { status: 'ACTIVE', ...tier },

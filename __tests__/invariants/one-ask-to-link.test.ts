@@ -39,6 +39,25 @@ describe('a firm already on Etyme is answered the same way at every door that ad
   })
 })
 
+describe('a yes to link is a yes to link and nothing more', () => {
+  it('the answer to an ask to link never writes an agreement, signed or not', () => {
+    const route = src('src/app/api/trade-links/[id]/route.ts')
+    expect(route).not.toContain('masterAgreement')
+    expect(route).not.toContain('signedAt')
+  })
+
+  it('what stands behind an ask never reads the client’s own checklist for a signature', () => {
+    const ask = src('src/app/api/trade-links/ask.ts')
+    expect(ask).not.toContain('signedOnFile')
+    expect(ask).not.toContain('checklist')
+  })
+
+  it('every refusal to answer an ask is written to the access log before it is sent', () => {
+    const route = src('src/app/api/trade-links/[id]/route.ts')
+    expect(route).toContain('await recordRefusal(')
+  })
+})
+
 describe('a company named by id that you have nothing to do with', () => {
   const said = 'We could not find that client. Add them from Companies first; they do not need to be on Etyme.'
 

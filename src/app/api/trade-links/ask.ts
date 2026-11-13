@@ -2,7 +2,6 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { readerReads } from '@/lib/trade-link'
-import { signedOnFile, type ChecklistItem } from '@/lib/supplier-onboarding'
 import type { Relationship } from '@/lib/counterparty'
 
 /**
@@ -80,29 +79,42 @@ export async function askToLink(input: {
 }
 
 /**
- * The approval behind an ask, where there is one: the asker's own supplier
- * request, approved by its four steps, for the firm now saying yes. The
- * approval route records the firm on the request for exactly this case
- * (`supplierCompanyId`) and writes nothing on the firm until its yes.
- * Read on the yes so the firm arrives at the standing the client's own
- * people already gave it, not as a supplier nobody rated.
+ * The standing behind an ask, where there is one: the asker's own supplier
+ * walk approved this firm, and this ask is the one that approval led to.
+ * Read on the firm's yes so the firm lands on the asker's own list at the
+ * standing the asker's own people gave it. It is the asker's judgment, on
+ * the asker's own register row, and asserts nothing about the firm.
+ *
+ * What it never gives (review, 2026-11-13): an agreement, and least of
+ * all a signed one. A yes to link is not a signature, and a file the
+ * asker's own people attached is not the firm's paper, so nothing here
+ * reads it. And an old
+ * approval does not ride on every later ask: it stands behind an ask only
+ * where the ask was made after the approval and is the first ask from the
+ * asker to the firm since then.
  */
-export async function approvalBehind(askerId: string, answererId: string): Promise<{
-  /** A sub-vendor under a prime keeps its paper with the prime: no agreement with the client. */
-  underPrime: boolean
-  /** The signed agreement, both firms' copy, was on file when the request was approved. */
-  agreementSigned: boolean
-} | null> {
+export async function standingBehind(ask: {
+  fromCompanyId: string
+  toCompanyId: string
+  createdAt: Date
+}): Promise<'APPROVED' | null> {
   const req = await prisma.supplierRequest.findFirst({
-    where: { companyId: askerId, supplierCompanyId: answererId, state: 'APPROVED' },
+    where: {
+      companyId: ask.fromCompanyId,
+      supplierCompanyId: ask.toCompanyId,
+      state: 'APPROVED',
+      decidedAt: { not: null, lte: ask.createdAt },
+    },
     orderBy: { decidedAt: 'desc' },
-    select: { comesInAs: true, checklist: true },
+    select: { decidedAt: true },
   })
-  if (!req) return null
-  const items = (Array.isArray(req.checklist) ? req.checklist : []) as unknown as ChecklistItem[]
-  const agreement = items.find((i) => i.key === 'AGREEMENT')
-  return {
-    underPrime: req.comesInAs === 'SUB_UNDER_PRIME',
-    agreementSigned: signedOnFile(agreement),
-  }
+  if (!req?.decidedAt) return null
+  const earlier = await prisma.tradeLinkRequest.count({
+    where: {
+      fromCompanyId: ask.fromCompanyId,
+      toCompanyId: ask.toCompanyId,
+      createdAt: { gte: req.decidedAt, lt: ask.createdAt },
+    },
+  })
+  return earlier === 0 ? 'APPROVED' : null
 }
