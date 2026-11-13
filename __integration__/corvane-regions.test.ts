@@ -6,8 +6,10 @@ import { GET as timesheets } from '@/app/api/timesheets/route'
 import { GET as me } from '@/app/api/me/route'
 import { POST as demo } from '@/app/api/demo/route'
 import {
-  seedCorvane, corvaneSteps, corvaneSeatEmail, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE,
+  seedCorvane, corvaneSteps, corvaneSeatEmail, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE, CORVANE_COUNTRIES, CORVANE_TIME_LIMIT_MONTHS,
+  billRateMinor,
 } from '@/lib/seed-corvane'
+import { limitReachedOn } from '@/lib/tenure-days'
 import { regionScopeFor, regionContracts, regionRequirements } from '@/lib/region-scope'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
@@ -51,9 +53,26 @@ describe('Corvane Packaging, as the drawing has it', () => {
 
   it('bills in the site’s own currency, never converted', async () => {
     const vn = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('binh-duong') })
-    expect({ rate: vn.billRate, currency: vn.billCurrency }).toEqual({ rate: 75000, currency: 'VND' })
+    // The dong has no minor unit, so its rate is stored as whole dong.
+    expect({ rate: vn.billRate, currency: vn.billCurrency }).toEqual({ rate: billRateMinor('VN'), currency: 'VND' })
+    expect(vn.billRate).toBe(CORVANE_COUNTRIES.VN.rate)
     const be = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('ghent') })
-    expect({ rate: be.billRate, currency: be.billCurrency }).toEqual({ rate: 3100, currency: 'EUR' })
+    expect({ rate: be.billRate, currency: be.billCurrency }).toEqual({ rate: CORVANE_COUNTRIES.BE.rate * 100, currency: 'EUR' })
+  })
+
+  it('Aoife Kelly’s time at Belfast is two lines through two suppliers with no day between them, and the time limit read across both falls where one unbroken stretch would', async () => {
+    const lines = await prisma.sellContract.findMany({
+      where: { ...atSite('belfast'), person: { name: 'Aoife Kelly' } },
+      orderBy: { startDate: 'asc' },
+      select: { startDate: true, endDate: true, state: true, company: { select: { name: true } } },
+    })
+    expect(lines.map((l) => [l.company.name, l.state])).toEqual([['Lagan Recruitment', 'ENDED'], ['Mourne Industrial Staff', 'IN_PROGRESS']])
+    expect(lines[1].startDate.getTime() - lines[0].endDate!.getTime()).toBe(86_400_000)
+    const across = limitReachedOn(lines, CORVANE_TIME_LIMIT_MONTHS)!
+    expect(across.getTime()).toBe(limitReachedOn([{ startDate: lines[0].startDate, endDate: null }], CORVANE_TIME_LIMIT_MONTHS)!.getTime())
+    // Read one supplier at a time, the limit is months away: only the count across both is the truth.
+    const currentAlone = limitReachedOn([lines[1]], CORVANE_TIME_LIMIT_MONTHS)
+    expect(currentAlone === null || currentAlone.getTime() - across.getTime() > 150 * 86_400_000).toBe(true)
   })
 
   it('Dayton holds one invoice receipt billed over the accepted hours, and one start with no I-9', async () => {

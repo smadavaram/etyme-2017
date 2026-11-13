@@ -18,9 +18,9 @@ describe('a currency with no minor unit', () => {
     const week = sum([rate, rate, rate], 'VND')
     expect(week.minor).toBe(225_000)
     expect(toDecimal(week)).toBe(225_000)
-    // The seeded Vietnamese rate is the drawing's 75,000 dong, not 7,500,000.
+    // The seeded Vietnamese rate is its whole dong, never a hundred times it.
     expect(CORVANE_COUNTRIES.VN.currency).toBe('VND')
-    expect(billRateMinor('VN')).toBe(75_000)
+    expect(billRateMinor('VN')).toBe(CORVANE_COUNTRIES.VN.rate)
   })
 
   it('a bill in dong is formatted without decimals and matches its lines', () => {
@@ -28,10 +28,10 @@ describe('a currency with no minor unit', () => {
     const linesMinor = lines.reduce((n, l) => n + l, 0)
     // What the database keeps on Invoice.total: whole dong.
     const total = wholeFromMinor(linesMinor, 'VND')
-    expect(total).toBe(5_812_500)
+    expect(total).toBe(77.5 * CORVANE_COUNTRIES.VN.rate)
     expect(minorFromWhole(total, 'VND')).toBe(linesMinor)
-    expect(decimalToCents({ toString: () => '5812500.00' }, 'VND')).toBe(linesMinor)
-    expect(format(fromMinor(linesMinor, 'VND'))).toBe('₫5,812,500')
+    expect(decimalToCents({ toString: () => `${total}.00` }, 'VND')).toBe(linesMinor)
+    expect(format(fromMinor(linesMinor, 'VND'))).toBe(`₫${total.toLocaleString('en-US')}`)
     expect(format(fromMinor(linesMinor, 'VND'))).not.toMatch(/\.\d/)
   })
 
@@ -46,8 +46,8 @@ describe('a currency with no minor unit', () => {
 
   it('every other currency on the region map keeps two decimals', () => {
     for (const c of ['USD', 'MXN', 'BRL', 'COP', 'INR', 'EUR', 'GBP']) expect(minorPerUnit(c)).toBe(100)
-    expect(billRateMinor('US')).toBe(2_800)
-    expect(billRateMinor('CO')).toBe(3_200_000)
+    expect(billRateMinor('US')).toBe(CORVANE_COUNTRIES.US.rate * 100)
+    expect(billRateMinor('CO')).toBe(CORVANE_COUNTRIES.CO.rate * 100)
   })
 
   it('an invoice total in whole currency is read as minor units by its currency, never by a hundred', () => {
