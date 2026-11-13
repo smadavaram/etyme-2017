@@ -1,11 +1,16 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { newChecklist, type Decision } from '@/lib/supplier-onboarding'
+import { NO_COMPANY_BY_THAT_ID } from '@/lib/supplier-list'
 
 /**
  * A firm on Etyme is never tied to you from your side alone (review,
  * 2026-11-13), read from the demand side: pasting a supplier list, a job
- * ticked before its last approval, and the supplier list itself. The one
- * sender is faked and counted, so "emails nobody" is a count.
+ * ticked before its last approval, the supplier list itself, a job sent
+ * down by id, a person sent up, and Finance's bank check. The one sender
+ * is faked and counted, so "emails nobody" is a count. A firm on Etyme
+ * with no dealing is answered as if it were not there, nothing is written
+ * on it, it is told nothing, and the refusal is logged before the reply.
  */
 
 const sent: string[] = []
@@ -23,12 +28,28 @@ const suppliers = await import('@/app/api/suppliers/route')
 const join = await import('@/app/api/suppliers/join/route')
 const { sendTickedOnClearing } = await import('@/app/api/requisitions/send')
 const { createCompany } = await import('@/lib/company-create')
+const distribute = await import('@/app/api/requisitions/[id]/distribute/route')
+const forward = await import('@/app/api/submissions/[id]/forward/route')
+const review = await import('@/app/api/supplier-requests/[id]/route')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
+const HIRING = `world-nike-hiring${D}`
+const LEAD = `world-nike-vp${D}`
+const AP = `world-nike-ap${D}`
+const HR = `world-nike-hr${D}`
+const PROCUREMENT = `world-nike-procurement${D}`
 
 let brightmoor = ''
 let isDemo = false
+let techpeple = ''
+let stranger = ''
+let jobId = ''
+
+const send = async (vendors: { companyId: string }[]) =>
+  json(await distribute.POST(req('POST', `/api/requisitions/${jobId}/distribute`, { vendors }), { params: Promise.resolve({ id: jobId }) } as any))
+
+const refusalsAbout = (companyId: string) => prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: companyId } })
 
 /** A firm that signed up on its own: its domain verified, its owner seated, nothing to do with Brightmoor. */
 const firmOnEtyme = async (name: string, slug: string, domain: string) => {
@@ -47,6 +68,17 @@ beforeAll(async () => {
   const b = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true, isDemo: true } })
   brightmoor = b.id
   isDemo = b.isDemo
+  techpeple = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  // A firm that signed up on its own and has never dealt with Brightmoor or Northbend.
+  stranger = (await prisma.company.create({
+    data: { name: 'Hollowell Talent', slug: `hollowell-talent-${Date.now()}`, kind: 'VENDOR', currency: 'USD', claimedAt: new Date(), isDemo } as any,
+    select: { id: true },
+  })).id
+  await prisma.remitTo.create({ data: { companyId: stranger, legalName: 'Hollowell Talent LLC', addressLines: ['9 Quay St'], country: 'US', bankName: 'Quay Federal', accountLast4: '3392', isDefault: true } })
+  jobId = (await prisma.requirement.create({
+    data: { companyId: brightmoor, title: 'Payroll analyst (no-tie walk)', status: 'OPEN', approvalState: 'AUTO_APPROVED' },
+    select: { id: true },
+  })).id
   as(OWNER)
 }, 600_000)
 
@@ -190,5 +222,121 @@ describe('joining two records of one supplier', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(403)
     expect(r.body.error.message).toBe('One of those records is not on your list, so it is not yours to join.')
     expect((await prisma.company.findUniqueOrThrow({ where: { id: theirs.id } })).name).toBe('Fallowmere Staffing')
+  })
+})
+
+describe('a firm on Etyme is never tied to you from your side alone, on the demand side', () => {
+  it('a job cannot be sent by id to a firm on Etyme the sender does not deal with: refused as not a supplier, logged first, and no invitation is written', async () => {
+    as(OWNER)
+    const before = await refusalsAbout(stranger)
+    const r = await send([{ companyId: stranger }])
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toBe(
+      'One of the firms you picked is not a supplier of Brightmoor Staffing, so this job request cannot be sent to it. ' +
+        'Send it to the suppliers you buy from, or add the firm as a supplier of your own first.',
+    )
+    expect(JSON.stringify(r.body)).not.toContain('Hollowell')
+    expect(await refusalsAbout(stranger)).toBe(before + 1)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: stranger } })).toBe(0)
+    expect(await prisma.notification.count({ where: { companyId: stranger } })).toBe(0)
+  })
+
+  it('an id that is not there is answered in the same words as a firm the sender does not deal with', async () => {
+    as(OWNER)
+    const r = await send([{ companyId: 'no-such-company-id' }])
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toMatch(/^One of the firms you picked is not a supplier of Brightmoor Staffing/)
+  })
+
+  it('a job the sender sent a firm on its own earlier is not a dealing, so the next job to that firm is refused too', async () => {
+    as(OWNER)
+    // An invitation written from Brightmoor's side alone, as one could be before this rule.
+    const earlier = await prisma.requirement.create({
+      data: { companyId: brightmoor, title: 'Earlier job (no-tie walk)', status: 'OPEN', approvalState: 'AUTO_APPROVED' },
+      select: { id: true },
+    })
+    await prisma.requirementInvitation.create({
+      data: { requirementId: earlier.id, fromCompanyId: brightmoor, toCompanyId: stranger, expiresAt: new Date(Date.now() + 14 * 86_400_000) },
+    })
+    const r = await send([{ companyId: stranger }])
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: stranger, requirementId: jobId } })).toBe(0)
+    await prisma.requirement.delete({ where: { id: earlier.id } })
+  })
+
+  it('a job still goes to a firm the sender already buys from', async () => {
+    as(OWNER)
+    // A firm Brightmoor buys from on the seeded world: an agreement where it is the client.
+    const buys = await prisma.masterAgreement.findFirstOrThrow({ where: { clientId: brightmoor }, select: { vendorId: true } })
+    const r = await send([{ companyId: buys.vendorId }])
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: buys.vendorId, requirementId: jobId } })).toBe(1)
+  })
+
+  it('a job cannot be sent to a firm on the seeded world the sender has never traded with', async () => {
+    // Techpeple has never traded with Brightmoor on the seeded world.
+    as(OWNER)
+    const r = await send([{ companyId: techpeple }])
+    expect(r.status).toBe(403)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: techpeple, requirementId: jobId } })).toBe(0)
+  })
+
+  it('a person cannot be sent on to a firm on Etyme the sender does not deal with: answered as no company by that id, logged first, and nothing lands on that firm’s books', async () => {
+    as(OWNER)
+    const person = await prisma.person.create({ data: { name: 'Wren Castellane', primaryEmail: 'wren.castellane.walk@example.invalid' } })
+    const sub = await prisma.submission.create({
+      data: { requirementId: jobId, personId: person.id, fromCompanyId: techpeple, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
+      select: { id: true },
+    })
+    const before = await refusalsAbout(stranger)
+    const r = await json(
+      await forward.POST(req('POST', `/api/submissions/${sub.id}/forward`, { via: 'ONWARD', toCompanyId: stranger, rate: 11000 }), { params: Promise.resolve({ id: sub.id }) } as any),
+    )
+    expect(r.status, JSON.stringify(r.body)).toBe(404)
+    expect(r.body.error.message).toBe(NO_COMPANY_BY_THAT_ID)
+    expect(await refusalsAbout(stranger)).toBe(before + 1)
+    expect(await prisma.requirement.count({ where: { companyId: stranger } })).toBe(0)
+    expect(await prisma.submission.count({ where: { toCompanyId: stranger } })).toBe(0)
+    expect(await prisma.notification.count({ where: { companyId: stranger } })).toBe(0)
+    // And an id that is not there reads the same.
+    const none = await json(
+      await forward.POST(req('POST', `/api/submissions/${sub.id}/forward`, { via: 'ONWARD', toCompanyId: 'no-such-company-id', rate: 11000 }), { params: Promise.resolve({ id: sub.id }) } as any),
+    )
+    expect(none.status).toBe(404)
+    expect(none.body.error.message).toBe(NO_COMPANY_BY_THAT_ID)
+  })
+
+  it('Finance’s bank check on a firm a match named, that has not taken part, neither reads nor marks its own payment details', async () => {
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const people = await prisma.person.findMany({ where: { primaryEmail: { in: [HIRING, LEAD, PROCUREMENT, HR] } }, select: { id: true, primaryEmail: true, name: true } })
+    const by = (e: string) => people.find((p) => p.primaryEmail === e)!
+    const at = new Date().toISOString()
+    const decisions: Decision[] = (['LEAD', 'PROCUREMENT', 'HR'] as const).map((stage, i) => {
+      const p = by([LEAD, PROCUREMENT, HR][i])
+      return { stage, outcome: 'APPROVED', byId: p.id, byName: p.name, at, note: null }
+    })
+    const checklist = newChecklist().map((i) =>
+      i.desk === 'FINANCE' ? { ...i, state: 'PROVIDED' as const, fileName: i.key === 'BANK' ? 'Harbor Trust ····6610' : 'w9.pdf' } : { ...i, state: 'HELD' as const, at },
+    )
+    const row = await prisma.supplierRequest.create({
+      data: {
+        companyId: client.id, name: 'Hollowell Talent', reason: 'A match suggested them.', recommendedById: by(HIRING).id, state: 'IN_REVIEW', stage: 'FINANCE',
+        decisions: decisions as unknown as object, checklist: checklist as unknown as object, token: `no-tie-${Date.now()}`, firmCompanyId: stranger,
+      },
+      select: { id: true },
+    })
+    as(AP)
+    const r = await json(
+      await review.PATCH(req('PATCH', `/api/supplier-requests/${row.id}`, { action: 'mark', key: 'BANK', state: 'HELD' }), { params: Promise.resolve({ id: row.id }) } as any),
+    )
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.says).toContain(
+      'Checked against what Hollowell Talent sent through its link. Its own payment details on Etyme are not read or marked until Hollowell Talent links with you.',
+    )
+    // Nothing from the firm's own record reaches the client.
+    expect(JSON.stringify(r.body)).not.toContain('Quay Federal')
+    expect(JSON.stringify(r.body)).not.toContain('3392')
+    const remit = await prisma.remitTo.findFirstOrThrow({ where: { companyId: stranger } })
+    expect(remit).toMatchObject({ verifiedAt: null, verifiedById: null, verifiedByCompanyId: null })
   })
 })

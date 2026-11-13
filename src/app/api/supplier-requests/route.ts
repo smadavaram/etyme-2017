@@ -7,10 +7,11 @@ import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf } from
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import { hasPermission } from '@/lib/permissions'
 import {
-  mayRecommend, mayActAt, newChecklist, papersChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, stageWordOf,
+  mayRecommend, mayActAt, newChecklist, heldUntilLinked, papersChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, stageWordOf,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
+import { firmTookPart } from './[id]/took-part'
 
 /**
  * GET  /api/supplier-requests   — firms in the pipeline, where each is, and what this caller may do
@@ -60,9 +61,16 @@ export async function GET(request: NextRequest) {
         // into JSON on the day of the mark is a sentence that cannot
         // learn. It is also what makes the note survive a reload — a
         // banner the desk scrolled past is a refusal nobody saw.
+        // Approved for a firm on Etyme that has not said yes to linking:
+        // nothing is on its record yet, so the list says the items are
+        // held with the request, and the press to ask it is offered.
+        const awaitsLink = r.state === 'APPROVED' && !!r.supplierCompanyId &&
+          !(await firmTookPart(companyId, r.supplierCompanyId, r.application))
         const checklist = raw.map((i) => ({
           ...i,
-          evidence: evidenceNoteFor(i, r.supplierCompanyId ?? r.id),
+          evidence: awaitsLink
+            ? heldUntilLinked(evidenceNoteFor(i, r.id), i, r.name)
+            : evidenceNoteFor(i, r.supplierCompanyId ?? r.id),
         }))
         const decisions = (r.decisions as unknown as Decision[]) ?? []
         const stage = r.stage as Stage
@@ -86,6 +94,7 @@ export async function GET(request: NextRequest) {
           decidedBy: r.decidedById ? nameOf.get(r.decidedById) ?? null : null,
           decisionNote: r.decisionNote, createdAt: r.createdAt.toISOString(),
           mine: r.recommendedById === caller.person.id,
+          awaitsLink,
           mayAct: verdict.ok, whyNot: verdict.ok ? null : verdict.message,
           readiness: readiness(r.name, checklist, stage),
           // The link is a bearer credential: whoever holds it can

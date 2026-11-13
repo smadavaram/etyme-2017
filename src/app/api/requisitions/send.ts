@@ -6,7 +6,8 @@ import { reportError } from '@/lib/alerts'
 import { placeOf, approvedAtWords } from '@/lib/job-site'
 import { siteSuppliers } from '@/lib/sites'
 import { recordRefusal } from '@/lib/access-log'
-import { mayBeSentJob } from '@/lib/supplier-list'
+import { mayBeSentJob, notYourSupplierSays, SENDS_A_JOB_TO } from '@/lib/supplier-list'
+import { dealsWith } from '@/app/api/suppliers/direct'
 import { isMine } from '@/lib/counterparty'
 import { positionsFor } from '@/app/api/companies/positions'
 import type { Participant } from '@/lib/threads'
@@ -377,8 +378,23 @@ export async function sendTickedOnClearing(input: {
     }),
     positionsFor(job.companyId, onFile.filter((c) => isMine(c, job.companyId) || c.kind === 'UNCLASSIFIED')),
   ])
+  // And never a firm the client does not deal with: a tick is not a
+  // dealing, so a firm named on the raise that the client has no supplier
+  // row, agreement, order, contract or job with is left off, as the
+  // distribute door refuses it (`dealsWith`, review 2026-11-13).
+  const dealt = await dealsWith(job.companyId, onFile.filter((c) => !isMine(c, job.companyId)).map((c) => c.id), SENDS_A_JOB_TO)
   const unlisted: string[] = []
   for (const c of onFile) {
+    if (!isMine(c, job.companyId) && !dealt.has(c.id)) {
+      unlisted.push(c.id)
+      await recordRefusal([{ companyId: c.id }], {
+        actorPersonId: input.caller.person.id,
+        actorCompanyId: job.companyId,
+        action: 'CONTRACT_VIEW',
+        reason: `Left ${c.name} off ${job.title} when ${input.when}: ${notYourSupplierSays(1, job.company.name)}`,
+      })
+      continue
+    }
     const may = mayBeSentJob(
       c,
       registerRows.filter((r) => r.otherCompanyId === c.id).map((r) => r.relationship),

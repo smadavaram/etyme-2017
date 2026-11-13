@@ -4,13 +4,13 @@ import { prisma } from '@/lib/db'
 import { descendants } from '@/lib/org-tree'
 import { mayDistribute } from '@/lib/requisition-approval'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
-import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
+import { reachedOnlyThrough, dealsWith } from '@/app/api/suppliers/direct'
 import { siteSuppliers } from '@/lib/sites'
 import { mayFillAtSite } from '@/lib/site-rules'
 import { sendJobTo, type VendorBand } from '../../send'
 import { maySendJob } from '../../who-sends'
 import { recordRefusal } from '@/lib/access-log'
-import { mayBeSentJob } from '@/lib/supplier-list'
+import { mayBeSentJob, notYourSupplierSays, SENDS_A_JOB_TO } from '@/lib/supplier-list'
 import { isMine } from '@/lib/counterparty'
 import { positionsFor } from '@/app/api/companies/positions'
 
@@ -179,15 +179,7 @@ export async function POST(
   const strangers = vendorIds.filter(v => belowAPrime.has(v))
   if (strangers.length > 0) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_YOUR_SUPPLIER',
-          message:
-            `${strangers.length === 1 ? 'One of the firms you picked is' : `${strangers.length} of the firms you picked are`} ` +
-            `not a supplier of ${requisition.company.name}, so this job request cannot be sent to ${strangers.length === 1 ? 'it' : 'them'}. ` +
-            'Send it to the suppliers you buy from, or add the firm as a supplier of your own first.',
-        },
-      },
+      { error: { code: 'NOT_YOUR_SUPPLIER', message: notYourSupplierSays(strangers.length, requisition.company.name) } },
       { status: 403 }
     )
   }
@@ -202,6 +194,47 @@ export async function POST(
     }),
   ])
   const vendorMap = new Map(vendorCompanies.map(c => [c.id, { id: c.id, name: c.name }]))
+
+  // ── Only a firm the raising company already deals with ─────────────
+  //
+  // Review, 2026-11-13: a job sent here writes an invitation with a rate
+  // band on the other firm's books and tells its people, and an
+  // invitation is one of the facts that make two firms "work together".
+  // So a firm named by id that the raising company does not deal with
+  // (`dealsWith`: its own register as a supplier or prime, an agreement,
+  // the firm's register naming it, an order, a contract, or a job either
+  // way) is refused, and refused exactly as an id that is not there: the
+  // same sentence, naming nobody, so the answer confirms nothing about a
+  // firm the caller does not know. A firm the raising company recorded
+  // itself is its own list's to decide (`mayBeSentJob`, below).
+  const dealt = await dealsWith(
+    requisition.companyId,
+    vendorCompanies.filter((c) => !isMine(c, requisition.companyId)).map((c) => c.id),
+    SENDS_A_JOB_TO,
+  )
+  const notDealt = vendorCompanies.filter((c) => !isMine(c, requisition.companyId) && !dealt.has(c.id))
+  const unknown = vendorIds.filter((v) => !vendorMap.has(v))
+  if (notDealt.length > 0 || unknown.length > 0) {
+    const n = notDealt.length + unknown.length
+    const says = notYourSupplierSays(n, requisition.company.name)
+    if (unknown.length > 0) {
+      await recordRefusal([{ companyId: requisition.companyId }], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused to send ${requisition.title} to ${unknown.length === 1 ? 'a company id' : `${unknown.length} company ids`} not on Etyme: ${says}`,
+      })
+    }
+    if (notDealt.length > 0) {
+      await recordRefusal(notDealt.map((c) => ({ companyId: c.id })), {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused to send ${requisition.title} to ${notDealt.map((c) => c.name).join(', ')}, ${notDealt.length === 1 ? 'a firm' : 'firms'} ${requisition.company.name} does not deal with: ${says}`,
+      })
+    }
+    return NextResponse.json({ error: { code: 'NOT_YOUR_SUPPLIER', message: says, field: 'vendors' } }, { status: 403 })
+  }
 
   // Never a company on the Companies list that holds no position (the
   // neutral Company, 2026-11-12): it is a record, and a job goes to it
@@ -287,14 +320,6 @@ export async function POST(
         )
       }
     }
-  }
-
-  const missing = vendorIds.filter(vid => !vendorMap.has(vid))
-  if (missing.length > 0) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: `Unknown companies: ${missing.join(', ')}` } },
-      { status: 404 }
-    )
   }
 
   // A fortnight unless somebody says otherwise, and never a date that has

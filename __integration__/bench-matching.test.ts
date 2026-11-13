@@ -327,7 +327,7 @@ describe('asking to add the firm behind a suggestion', () => {
     expect(r.body.error.message).toContain('the hiring manager or the program manager')
   })
 
-  it('once the firm is approved, the suggestion is an ordinary match and the person can be asked for', async () => {
+  it('once the firm is approved and says yes to the ask the approver pressed, the suggestion is an ordinary match and the person can be asked for', async () => {
     const call = async (body: unknown) => json(await review(req('PATCH', `/api/supplier-requests/${s.request}`, body), withId(s.request)))
     // Each desk verifies the items that are its own, and no other's, then
     // says yes — the walk every firm takes, unchanged for one that came
@@ -370,10 +370,15 @@ describe('asking to add the firm behind a suggestion', () => {
     // Orchid joined as itself — no second company made from its name.
     expect(await prisma.company.count({ where: { name: 'Orchid Systems' } })).toBe(1)
     // Brought up to the rule on 2026-11-13: Orchid is on Etyme and never
-    // answered the link, so the last yes asks it to link rather than
-    // writing an agreement on it from Northbend's side alone. Its yes puts
-    // it on Northbend's list.
-    expect(last.body.data.linkAsk).toBe('ASKED')
+    // answered the link, so the last yes writes nothing on it and sends it
+    // nothing; it offers the press. Only the press asks it to link, and
+    // its yes puts it on Northbend's list.
+    expect(last.body.data.linkAsk).toBe('OFFERED')
+    expect(await prisma.tradeLinkRequest.count({ where: { fromCompanyId: s.northbend, toCompanyId: s.orchid } })).toBe(0)
+    as(AP)
+    const press = await call({ action: 'ask_to_link' })
+    expect(press.status, JSON.stringify(press.body)).toBe(200)
+    expect(press.body.data.linkAsk).toBe('ASKED')
     expect(await prisma.masterAgreement.count({ where: { vendorId: s.orchid, clientId: s.northbend } })).toBe(0)
     const ask = await prisma.tradeLinkRequest.findFirstOrThrow({ where: { fromCompanyId: s.northbend, toCompanyId: s.orchid, answeredAt: null } })
     const { POST: answerAsk } = await import('@/app/api/trade-links/[id]/route')

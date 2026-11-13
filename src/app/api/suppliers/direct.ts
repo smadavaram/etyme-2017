@@ -59,3 +59,58 @@ export async function reachedOnlyThrough(companyId: string): Promise<Set<string>
   ])
   return new Set(below.map((b) => b.companyId).filter((id) => !own.has(id)))
 }
+
+/**
+ * Which of these firms this company already deals with, read from facts
+ * the other firm took part in: a row on this company's own register at
+ * one of `positions`, an agreement between the two, the other firm's
+ * register naming this one, an order or a contract line between them, or
+ * a job the other firm sent this one.
+ *
+ * Why not `workTogether` as it stands: it counts a job sent either way,
+ * and a job this company sent is a row this company wrote alone. Counted,
+ * one send to a stranger made the stranger "worked with" for every later
+ * gate (review, 2026-11-13). So here only the other firm's own job counts;
+ * the rest are `workTogether`'s clauses read the same way.
+ *
+ * Why the own register row counts: every door that writes this company's
+ * own row for a firm on Etyme checks first (the paste door and Extend
+ * read `workTogether`, a supplier approval needs the firm's own part in
+ * it, a trade-link yes writes both rows), so the row is history this
+ * company earned. A firm it recorded itself that the firm later claimed
+ * keeps that row, and keeps being its supplier.
+ *
+ * Read by every demand door that writes on another firm's books or sends
+ * it something: a job sent down (distribute, the send on approval), a
+ * person sent up (send on), and an approval that would tie a firm to a
+ * client. A firm in none of these is answered as if it were not there.
+ */
+export async function dealsWith(me: string, firmIds: readonly string[], positions: readonly string[]): Promise<Set<string>> {
+  const ids = [...new Set(firmIds)].filter((id) => id !== me)
+  if (ids.length === 0) return new Set()
+  const pair = <T extends string>(x: T, y: T) => [{ [x]: me, [y]: { in: ids } }, { [x]: { in: ids }, [y]: me }]
+  const [own, theirs, agreements, orders, lines, jobs] = await Promise.all([
+    prisma.counterparty.findMany({
+      where: { companyId: me, otherCompanyId: { in: ids }, relationship: { in: [...positions] } },
+      select: { otherCompanyId: true },
+    }),
+    prisma.counterparty.findMany({ where: { companyId: { in: ids }, otherCompanyId: me }, select: { companyId: true } }),
+    prisma.masterAgreement.findMany({ where: { OR: pair('vendorId', 'clientId') }, select: { vendorId: true, clientId: true } }),
+    prisma.workOrder.findMany({ where: { OR: pair('issuedById', 'issuedToId') }, select: { issuedById: true, issuedToId: true } }),
+    prisma.sellContract.findMany({ where: { OR: pair('companyId', 'clientCompanyId') }, select: { companyId: true, clientCompanyId: true } }),
+    // Only a job the other firm sent this one: never this company's own send.
+    prisma.requirementInvitation.findMany({
+      where: { toCompanyId: me, requirement: { companyId: { in: ids } } },
+      select: { requirement: { select: { companyId: true } } },
+    }),
+  ])
+  const out = new Set<string>()
+  const add = (id: string | null | undefined) => { if (id && id !== me && ids.includes(id)) out.add(id) }
+  for (const r of own) add(r.otherCompanyId)
+  for (const r of theirs) add(r.companyId)
+  for (const a of agreements) { add(a.vendorId); add(a.clientId) }
+  for (const o of orders) { add(o.issuedById); add(o.issuedToId) }
+  for (const l of lines) { add(l.companyId); add(l.clientCompanyId) }
+  for (const j of jobs) add(j.requirement.companyId)
+  return out
+}

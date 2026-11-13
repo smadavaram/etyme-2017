@@ -385,7 +385,9 @@ describe('Finance’s check of the bank goes on the supplier’s payment details
       data: {
         companyId: client.id, name, reason: 'Already supplies us elsewhere.', recommendedById: by(HIRING).id, state: 'IN_REVIEW', stage: 'FINANCE',
         decisions: decisions as unknown as object, checklist: checklist as unknown as object, token: `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`, firmCompanyId: firm.id,
-        application: { bank: { bankName: 'Chase', accountName: `${name} LLC`, last4 } },
+        // The firm answered its link from a seat that keeps its list of
+        // companies: it took part, so Finance's check reads its own rows.
+        application: { bank: { bankName: 'Chase', accountName: `${name} LLC`, last4 }, answeredBy: { firmId: firm.id, at: new Date().toISOString() } },
       },
       select: { id: true, token: true },
     })
@@ -816,7 +818,7 @@ describe('a firm already on Etyme, approved by a client', () => {
     expect(await prisma.counterparty.count({ where: { companyId: await northbend(), otherCompanyId: firm, relationship: 'SUPPLIER' } })).toBe(1)
   })
 
-  it('a firm on Etyme a client approves without the firm taking part is asked to link, nothing is written on it, and it is a supplier on its yes', async () => {
+  it('a firm on Etyme a client approves without the firm taking part is sent nothing, nothing is written on it, the approver presses Ask them to link, and it is a supplier on its yes', async () => {
     const owner = 'ilse@quillmarkstaffing.com'
     const firm = await signedUp('Quillmark Staffing', 'quillmark-staffing-walk', 'quillmarkstaffing.com', owner)
     const w = await toFinance('Quillmark Staffing', 'ops@quillmarkstaffing.com')
@@ -826,7 +828,19 @@ describe('a firm already on Etyme, approved by a client', () => {
     expect(yes.status, JSON.stringify(yes.body)).toBe(200)
     expect(yes.body.data.request.state).toBe('APPROVED')
     expect(yes.body.data.supplier).toBeNull()
-    expect(yes.body.data.says).toBe('Quillmark Staffing is approved. It is on Etyme already, so it was asked to link, and it becomes your supplier on its yes.')
+    expect(yes.body.data.says).toBe('Quillmark Staffing is approved. It is on Etyme already, so it becomes your supplier once it says yes to linking with you. Nothing has been sent to it: press Ask them to link to ask.')
+    expect(yes.body.data.askToLink).toEqual({ requestId: w.id, name: 'Quillmark Staffing' })
+    // The approval contacts nobody: no ask, and nobody at the firm is told.
+    expect(await prisma.tradeLinkRequest.count({ where: { fromCompanyId: client, toCompanyId: firm } })).toBe(0)
+    expect(await prisma.notification.count({ where: { companyId: firm } })).toBe(0)
+    // The list keeps the press, and says the verified items wait for the yes.
+    as(AP)
+    const listed = (await json(await listRequests(req('GET', '/api/supplier-requests')))).body.data.requests.find((r: any) => r.id === w.id)
+    expect(listed.awaitsLink).toBe(true)
+    // Only the press asks.
+    const press = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'ask_to_link' })
+    expect(press.status, JSON.stringify(press.body)).toBe(200)
+    expect(press.body.data.says).toBe('Quillmark Staffing is asked to link. It becomes your supplier on its yes.')
     expect(JSON.stringify(yes.body)).not.toContain(firm)
     expect(await prisma.company.count({ where: { name: 'Quillmark Staffing' } })).toBe(1)
     expect(await prisma.masterAgreement.count({ where: { vendorId: firm, clientId: client } })).toBe(0)

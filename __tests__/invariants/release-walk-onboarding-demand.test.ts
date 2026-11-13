@@ -102,11 +102,16 @@ describe('the apply form, filled once', () => {
     expect(page).toContain('Send these to ${data.client}')
   })
 
-  it('the apply form opens with the firm’s name and the skills the client typed, and shows nothing sent to another client to a visitor not signed in at the firm', () => {
+  it('the apply form opens with the skills the client typed, and shows a visitor not signed in at the firm nothing from the firm’s own record and nothing sent to another client', () => {
     const p = applyPrefill({ application: null, recommendedSkills: ['Machinists', 'CNC'], firm, earlier, signedInAtFirm: false, fileKeys: ['TAX_FORM'] })
-    expect(p.legalName).toBe('Quarrybrook Staffing LLC')
-    expect(p.address).toBe('12 Mill St, Dayton, OH')
-    expect(p.website).toBe('https://quarrybrook.example')
+    expect(p.legalName).toBe('')
+    expect(p.address).toBe('')
+    expect(p.website).toBe('')
+    // Signed in at the firm, its own record fills the form.
+    const at = applyPrefill({ application: null, recommendedSkills: [], firm, earlier: [], signedInAtFirm: true, fileKeys: [] })
+    expect(at.legalName).toBe('Quarrybrook Staffing LLC')
+    expect(at.address).toBe('12 Mill St, Dayton, OH')
+    expect(at.website).toBe('https://quarrybrook.example')
     expect(p.skills).toBe('Machinists, CNC')
     expect(p.sentBefore).toEqual([])
     expect(p.references).toEqual([])

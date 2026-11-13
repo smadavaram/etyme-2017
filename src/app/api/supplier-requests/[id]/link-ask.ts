@@ -36,6 +36,29 @@ export type ApprovalAsk =
   | { state: 'ASKED'; id: string }
   | { state: 'ALREADY_ASKED' }
   | { state: 'THEY_ASKED' }
+  /** Nothing was sent: the approver is offered the press (founder, 2026-11-12: only the press contacts a firm). */
+  | { state: 'OFFERED' }
+
+/**
+ * What stands between the two firms at the last yes, sending nothing: an
+ * open ask either way, or the press offered. The approval never contacts
+ * the firm by itself (founder, 2026-11-12: "only that press contacts
+ * them"; review, 2026-11-13).
+ */
+export async function askStanding(clientId: string, firmId: string): Promise<ApprovalAsk> {
+  const open = await prisma.tradeLinkRequest.findFirst({
+    where: {
+      answeredAt: null,
+      OR: [
+        { fromCompanyId: clientId, toCompanyId: firmId },
+        { fromCompanyId: firmId, toCompanyId: clientId },
+      ],
+    },
+    select: { fromCompanyId: true },
+  })
+  if (!open) return { state: 'OFFERED' }
+  return open.fromCompanyId === clientId ? { state: 'ALREADY_ASKED' } : { state: 'THEY_ASKED' }
+}
 
 /**
  * Ask the firm to link as the client's supplier, where nobody asked
@@ -101,5 +124,7 @@ export function approvedAskSays(firmName: string, ask: ApprovalAsk): string {
       return `${firmName} is approved. It is on Etyme already and was asked to link before; it becomes your supplier on its yes.`
     case 'THEY_ASKED':
       return `${firmName} is approved. It is on Etyme already and has asked to link with you: say yes to its ask under Companies and it is your supplier.`
+    case 'OFFERED':
+      return `${firmName} is approved. It is on Etyme already, so it becomes your supplier once it says yes to linking with you. Nothing has been sent to it: press Ask them to link to ask.`
   }
 }

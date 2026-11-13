@@ -212,10 +212,15 @@ export function applyPrefill(input: {
   // field it answered there (second onboarding walk: website, address and
   // experience were dropped while bank and references carried).
   const said = (k: 'legalName' | 'address' | 'website' | 'experience') => earlier.find((e) => (e[k] ?? '').trim() !== '')?.[k]
+  // The firm's own record (its legal name, address, website and stored
+  // name) is read only for a person signed in at the firm: the client's
+  // own people hold this link too, and a typed domain finds a firm that
+  // has not dealt with them (review, 2026-11-13).
+  const own = input.signedInAtFirm ? input.firm : null
   return {
-    legalName: pick(a.legalName, input.firm?.legalName, said('legalName'), input.firm?.name),
-    address: pick(a.address, input.firm?.address, said('address')),
-    website: pick(a.website, input.firm?.website, said('website')),
+    legalName: pick(a.legalName, own?.legalName, said('legalName'), own?.name),
+    address: pick(a.address, own?.address, said('address')),
+    website: pick(a.website, own?.website, said('website')),
     experience: pick(a.experience, said('experience')),
     skills: pick(Array.isArray(a.skills) ? a.skills.join(', ') : null, input.recommendedSkills.join(', ')),
     bank: bankFrom ? { bankName: bankFrom.bankName ?? '', accountName: bankFrom.accountName ?? '', last4: bankFrom.last4 ?? '' } : null,

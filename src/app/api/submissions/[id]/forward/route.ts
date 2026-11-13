@@ -10,7 +10,9 @@ import { landingFor } from './landing'
 import { actingDesk } from '@/lib/program-seat'
 import { sendOnActor } from '../../row-doors'
 import { recordRefusal } from '@/lib/access-log'
-import { mayBePutForwardTo, readsNotClassified } from '@/lib/supplier-list'
+import { mayBePutForwardTo, readsNotClassified, NO_COMPANY_BY_THAT_ID, PUTS_FORWARD_TO } from '@/lib/supplier-list'
+import { dealsWith } from '@/app/api/suppliers/direct'
+import { isMine } from '@/lib/counterparty'
 import { standingWith } from '@/app/api/companies/positions'
 
 /**
@@ -116,10 +118,45 @@ export async function POST(
       select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
     })
     if (!destination) {
+      // Logged as the refusal of a firm with no dealing is, so the two
+      // read alike in the log as on the screen.
+      await recordRefusal([{ companyId: desk!.companyId }], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: desk!.companyId,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused to send ${submission.person.name} on to a company id that is not on Etyme: ${NO_COMPANY_BY_THAT_ID}`,
+      })
       return NextResponse.json(
-        { error: { code: 'NOWHERE_TO_SEND', message: 'No company by that id.' } },
+        { error: { code: 'NOWHERE_TO_SEND', message: NO_COMPANY_BY_THAT_ID } },
         { status: 404 }
       )
+    }
+
+    // ── Only up to a firm this firm deals with ─────────────────────────
+    //
+    // Review, 2026-11-13: sending on writes on the destination's books (a
+    // submission, and where it sent nothing a copy of the role, open and
+    // approved) and tells its people the candidate's name. So a person
+    // goes up only to a firm that sent this firm the job, or that this
+    // firm deals with (`dealsWith`: its own register as a client, prime or
+    // MSP, an agreement, the firm's register naming it, an order, a
+    // contract, or a job either way). Any other firm on Etyme is answered
+    // exactly as an id that is not there, logged before the reply. A
+    // company this firm recorded itself is its own list's to decide, below.
+    if (!isMine(destination, desk!.companyId)) {
+      const dealt = await dealsWith(desk!.companyId, [destination.id], PUTS_FORWARD_TO)
+      if (!dealt.has(destination.id)) {
+        await recordRefusal([{ companyId: destination.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: desk!.companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Refused to send ${submission.person.name} on to ${destination.name}, a firm ${desk!.companyName} does not deal with: answered as no company by that id.`,
+        })
+        return NextResponse.json(
+          { error: { code: 'NOWHERE_TO_SEND', message: NO_COMPANY_BY_THAT_ID } },
+          { status: 404 }
+        )
+      }
     }
 
     // Never a company holding no position with this firm (the neutral

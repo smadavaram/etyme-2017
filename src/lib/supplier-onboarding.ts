@@ -346,6 +346,23 @@ export function evidenceNoteFor(
 }
 
 /**
+ * What a verified item says while the firm it is for has not yet said
+ * yes to linking with the client (review, 2026-11-13). Nothing is on the
+ * firm's compliance record until then, so an item that would go there
+ * says it is held with the request instead. An item no desk here renders,
+ * or one waiting on dates, keeps its own sentence. Pure.
+ */
+export function heldUntilLinked(note: EvidenceNote | null, item: Pick<ChecklistItem, 'state' | 'label'>, firm: string): EvidenceNote | null {
+  if (item.state !== 'HELD') return note
+  if (note && !note.onRecord) return note
+  return {
+    onRecord: false,
+    renders: note?.renders ?? null,
+    says: `${item.label} is verified and held with this request. It goes on ${firm}'s compliance record once ${firm} says yes to linking with you.`,
+  }
+}
+
+/**
  * A stored checklist, read back against the definition the code ships.
  *
  * ── Why a row cannot be trusted about what it asks ───────────────────
@@ -1069,11 +1086,28 @@ export function bankCheckOnMark(input: {
   remits: RemitOnFile[]
   /** What the firm sent through its link, "Bank ····1234" (`provideItems`). */
   sent?: string | null
+  /**
+   * The firm is on Etyme and has not taken part with this client yet: it
+   * did not answer the link from a seat that keeps its list of companies,
+   * and the two do not deal with each other. Nothing is read from or
+   * written on its own payment details until it does (review,
+   * 2026-11-13); the check rests on what it sent through the link.
+   */
+  notLinked?: boolean
 }): { remitToId: string | null; clear: boolean; says: string | null } {
   if (input.state === 'WAIVED') {
     return { remitToId: null, clear: false, says: `A waived bank item checks nothing: ${input.firm}'s payment details stay unchecked.` }
   }
   if (input.state !== 'HELD') return { remitToId: null, clear: input.state === 'MISSING', says: null }
+  if (input.notLinked) {
+    return {
+      remitToId: null,
+      clear: false,
+      says:
+        `Checked against what ${input.firm} sent through its link. ` +
+        `Its own payment details on Etyme are not read or marked until ${input.firm} links with you.`,
+    }
+  }
   const withBank = input.remits.filter((r) => r.bankName && r.accountLast4)
   if (!withBank.length) {
     return {

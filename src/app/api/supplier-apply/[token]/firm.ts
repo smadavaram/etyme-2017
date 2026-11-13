@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
 import { getSessionEmail } from '@/lib/api-context'
 import { findFirm } from '@/lib/company-create'
 import { domainOfEmail, isConsumerDomain, isPlatformDomain } from '@/lib/company-domains'
@@ -103,6 +104,26 @@ export async function signedInAt(firmId: string | null, email: string | null): P
       select: { id: true },
     })
     return !!seat
+  } catch {
+    return false
+  }
+}
+
+/**
+ * True where whoever is signed in holds a seat at this firm that may
+ * answer an ask to link (`vendors.manage`, the trade-link rule). Only
+ * that seat answering the link counts as the firm taking part (review,
+ * 2026-11-13): a recruiter or a member signing in is the firm's person,
+ * not the firm's yes. Never throws.
+ */
+export async function answersForFirm(firmId: string | null, email: string | null): Promise<boolean> {
+  if (!firmId || !email) return false
+  try {
+    const seats = await prisma.context.findMany({
+      where: { companyId: firmId, revokedAt: null, roleId: { not: null }, person: { primaryEmail: email } },
+      select: { role: { select: { permissions: true } } },
+    })
+    return seats.some((s) => hasPermission((s.role?.permissions ?? []) as string[], 'vendors.manage'))
   } catch {
     return false
   }

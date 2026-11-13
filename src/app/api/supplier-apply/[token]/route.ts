@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
 import { applyPrefill, approvedSays, claimUrl, sentSays, type EarlierApplication } from '@/lib/supplier-link'
-import { earlierApplications, firmOnRecord, paperIdOf, sessionEmail, signedInAt } from './firm'
+import { answersForFirm, earlierApplications, firmOnRecord, paperIdOf, sessionEmail, signedInAt } from './firm'
 import { bankChange } from '@/lib/money/remit-change'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
@@ -234,7 +234,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // domain proves nothing, so neither counts. Kept once said, so a later
   // answer from the link without signing in does not take it back.
   const who = await whoApplies(row)
-  const answeredBy = who.firm && who.atFirm
+  // And only a seat that may answer an ask to link (`answersForFirm`):
+  // any other seat at the firm is its person, not its yes.
+  const answeredBy = who.firm && who.atFirm && (await answersForFirm(who.firm.id, await sessionEmail()))
     ? { firmId: who.firm.id, at: now.toISOString() }
     : (prior.answeredBy ?? null)
   const application = {

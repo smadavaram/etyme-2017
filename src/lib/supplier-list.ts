@@ -447,6 +447,28 @@ export function mayBeSentJob(
 }
 
 /**
+ * The one refusal for a job sent to a firm the sender may not send it to:
+ * a firm it does not deal with, a firm it reaches only through a prime,
+ * or an id that is not there. One sentence for all three, so the answer
+ * never tells the caller which it was. Names nobody. Pure.
+ */
+export function notYourSupplierSays(count: number, sender: string): string {
+  const one = count <= 1
+  return (
+    `${one ? 'One of the firms you picked is' : `${count} of the firms you picked are`} not a supplier of ${sender}, ` +
+    `so this job request cannot be sent to ${one ? 'it' : 'them'}. ` +
+    'Send it to the suppliers you buy from, or add the firm as a supplier of your own first.'
+  )
+}
+
+/**
+ * The one refusal for a person sent on to a company the sender has no
+ * dealing with: the same words as an id that is not there, with the next
+ * step. Names nobody. Pure.
+ */
+export const NO_COMPANY_BY_THAT_ID = 'No company by that id. Send this person on to a company you already work with.'
+
+/**
  * Whether a person may be put forward to this company. One not classified
  * yet needs a Customer position (or a prime or MSP row) on the sender's
  * register, because a submission goes up to whoever buys.
