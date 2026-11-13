@@ -118,6 +118,13 @@ describe('the money screens read who is actually here', () => {
         currency: 'USD', claimedAt: null, listedById: id.supplier,
       },
     })
+    // A client a supplier writes down holds its Customer position on the
+    // supplier's own register, as every door that makes one writes it
+    // (Clients, Add a company). Without it the record reads Not classified
+    // and no order names it (the neutral Company, 2026-11-13).
+    await prisma.counterparty.create({
+      data: { companyId: id.supplier, otherCompanyId: shell.id, relationship: 'CLIENT', status: 'ACTIVE' },
+    })
     as(`world-computer-systems${D}`)
     const { status, body } = await json(
       await raiseOrder(

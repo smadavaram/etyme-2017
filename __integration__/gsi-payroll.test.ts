@@ -74,11 +74,20 @@ describe('each integrator has a delivery team on its own payroll', () => {
 })
 
 describe('an employee on a payroll is not a consultant on a bench', () => {
-  it('gives none of the eight a consultant profile', async () => {
-    const profiles = await prisma.consultantProfile.count({
+  it('gives an employee a record of their own only to name what they work in, never a profile that is for sale', async () => {
+    // Since 2026-11-12 the seed writes the skills of the project each is
+    // on to their own record, so matching can weigh them when they come
+    // off it. That record is theirs: it carries no headline a firm wrote
+    // to sell them and no listing hangs off it.
+    const profiles = await prisma.consultantProfile.findMany({
       where: { person: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } },
+      select: { headline: true, skills: true, _count: { select: { listings: true } } },
     })
-    expect(profiles).toBe(0)
+    for (const p of profiles) {
+      expect(p.skills.length).toBeGreaterThan(0)
+      expect(p.headline).toBeNull()
+      expect(p._count.listings).toBe(0)
+    }
   })
 
   it('gives none of the eight a bench listing at any firm', async () => {

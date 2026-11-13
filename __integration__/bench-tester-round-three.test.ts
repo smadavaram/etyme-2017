@@ -108,7 +108,19 @@ describe('What we need', () => {
 })
 
 describe('Teleworld’s Our bench', () => {
+  it('reads Felix Brenner’s skills from his own record, plainly, now that the seed writes them there', async () => {
+    as(INGRID)
+    const r = await json(await ourBench(req('GET', '/api/bench/ours')))
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
+    const felix = r.body.data.rows.find((x: any) => x.name === 'Felix Brenner')
+    expect(felix?.skillsSay).toBe('ERP finance, General ledger, Retail')
+  })
+
   it('reads Felix Brenner’s skills from the job he is on, said as the job’s, where his own record names none', async () => {
+    // The seed has named his skills on his own record since 2026-11-12, so
+    // this takes them off first: the case is an employee who never said any.
+    const felixPerson = await prisma.person.findFirstOrThrow({ where: { name: 'Felix Brenner' }, select: { id: true } })
+    await prisma.consultantProfile.updateMany({ where: { personId: felixPerson.id }, data: { skills: [] } })
     as(INGRID)
     const r = await json(await ourBench(req('GET', '/api/bench/ours')))
     expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)

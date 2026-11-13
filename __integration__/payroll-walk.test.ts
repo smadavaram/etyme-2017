@@ -269,13 +269,28 @@ describe('1099 and corp-to-corp payments count in the year they were paid', () =
     expect(p.receiptsWaitingSays).toMatch(/\$4,160\.00/)
   })
 
+  it('a paid date that has not happened yet is refused in a sentence, and the invoice receipt stays unpaid', async () => {
+    const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
+    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Consultis' } } })
+    as(BRIGHTMOOR)
+    const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id, paidAt: `${year + 1}-01-06T00:00:00Z` })))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.message).toBe('The paid date has not happened yet. Enter the day the money left.')
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id: bill.id } })).paidAt).toBeNull()
+  })
+
   it('a corp-to-corp supplier’s invoice paid in January counts toward the next year, and never this one', async () => {
     const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
     const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Consultis' } } })
     as(BRIGHTMOOR)
-    const paidAt = `${year + 1}-01-06T00:00:00Z`
-    const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id, paidAt })))
+    // Paid through the route today: it counts in this year.
+    const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Consultis')?.grossCents).toBe(bill.totalCents)
+    // The route refuses a day that has not happened (above), so the row is
+    // dated as the same payment made next January would be stored, and the
+    // year it counts in is read from that day and nothing else.
+    await prisma.vendorBill.update({ where: { id: bill.id }, data: { paidAt: new Date(`${year + 1}-01-06T00:00:00Z`) } })
 
     expect((await pack(year)).summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
     const next = await pack(year + 1)
