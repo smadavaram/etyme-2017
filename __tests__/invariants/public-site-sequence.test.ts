@@ -579,7 +579,7 @@ describe('Every documentation page says its contents once, and in short lines', 
 // Accounting"): a firm reads Today · Network (Candidates, Companies) ·
 // Jobs · Submissions · HR (Contracts, Timesheets, Expenses) · Accounting
 // (Receivables, Payables, Payroll, Reports) · Settings, and a client
-// Accounting with Payables only. The documentation names those links,
+// Accounting with Payables and Reports (since 2026-11-12). The documentation names those links,
 // so it is read against the menu the app draws (`menuFor`), not a list
 // typed here.
 describe('The documentation names the menu the app draws', () => {
@@ -600,15 +600,16 @@ describe('The documentation names the menu the app draws', () => {
     for (const n of named) expect(onAMenu.has(n), `the documentation names “${n}”, which no menu draws`).toBe(true)
   })
 
-  it('the documentation names the money as the menu does: Accounting, with Receivables, Payables and Payroll, and a client sees Payables only', () => {
+  it('the documentation names the money as the menu does: Accounting, with Receivables, Payables and Payroll, and a client sees Payables and Reports', () => {
     const t = timeAndMoney()
     expect(t).toMatch(/a firm’s bills are under Accounting, in Receivables/)
     expect(t).toMatch(/in Payables/)
     expect(t).toMatch(/in Payroll/)
-    expect(t).toMatch(/A client has only Payables/)
+    expect(t).toMatch(/A client has Payables and Reports/)
+    expect(t).not.toMatch(/A client has only Payables/)
     // And that is what the client's menu draws under Accounting.
     const clientMoney = menuFor('CLIENT', false).find((g) => g.heading === 'Accounting')!
-    expect(clientMoney.links.map((l) => l.label)).toEqual(['Payables'])
+    expect(clientMoney.links.map((l) => l.label)).toEqual(['Payables', 'Reports'])
   })
 
   it('no documentation line still says a link is under Bills, Invoice receipts, Payroll or Contracts, the menu of 2026-11-04', () => {

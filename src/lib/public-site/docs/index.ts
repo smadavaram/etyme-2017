@@ -154,8 +154,8 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     'A supplier sends its invoice only for weeks the client approved, and only for the hours accepted.',
     // The menu's money since 2026-11-08 ("Money is Accounting"): the menu
     // names the two ledgers; inside the pages a firm still issues a bill
-    // and receives an invoice receipt. A client reads Payables only.
-    'On the menu, a firm’s bills are under Accounting, in Receivables. A client has only Payables.',
+    // and receives an invoice receipt. A client reads Payables and Reports.
+    'On the menu, a firm’s bills are under Accounting, in Receivables. A client has Payables and Reports.',
     // Etyme never moves money (the founder, 2026-11-12): an approved run
     // leaves as a file for the payer's own system, which pays it.
     'A supplier is approved on its matched invoice, in Payables; employees in Payroll. Your own system pays them.',
