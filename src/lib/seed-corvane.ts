@@ -588,8 +588,19 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
   const dated = new Set((await db.cycle.findMany({
     where: { sellContractId: { in: lines.map((l) => l.sellId) } }, select: { sellContractId: true }, distinct: ['sellContractId'],
   })).map((c) => c.sellContractId))
+  // A placement that has ended has nothing due, as in every other program's
+  // seed: the earlier stretch of a person who moved supplier (Aoife Kelly at
+  // Belfast) is history for the time limit and carries no dates. A world
+  // seeded before this rule loses those dates here, once.
+  const ended = lines.filter((l) => l.state === 'ENDED')
+  if (ended.length) {
+    await db.cycle.deleteMany({
+      where: { completedAt: null, OR: [{ sellContractId: { in: ended.map((l) => l.sellId) } }, { buyContractId: { in: ended.map((l) => `cv_buy_${l.buyKey}`) } }] },
+    })
+  }
   const cycles: Awaited<ReturnType<typeof planCyclesFor>>['rows'] = []
-  for (const { w, start, end, sellId, buyKey } of lines) {
+  for (const { w, start, end, sellId, buyKey, state } of lines) {
+    if (state === 'ENDED') continue
     if (dated.has(sellId)) continue
     const planned = await planCyclesFor(db, {
       sell: { id: sellId, startDate: start, endDate: end, workOrder: null },
