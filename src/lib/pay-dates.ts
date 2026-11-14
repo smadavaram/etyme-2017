@@ -533,3 +533,71 @@ export function firstPeriodSays(p: PayPeriodOn): string {
   return `The first period is ${formatRange(p.start, p.end)}. ` +
     `Its pay is worked out ${day(p.calcOn)} and paid ${day(p.payOn)}.${moved}`
 }
+
+// ── Who sets the first day, its history, and the warning before a change ──
+//
+// The skeptic's walk, 2026-11-14. The route takes any seat that may change
+// payroll settings (`settings.manage`), which by default is the Owner and
+// an Admin, so the words say both. A change, and a change refused to a
+// seat that may not, are each one row on the activity log, with the old
+// day and the new day. Whether it should be the Owner alone is the
+// founder's to say; the gate is unchanged.
+
+/** Who may set the first day, said on the screen. True to the route's gate. */
+export const FIRST_PERIOD_WHO = 'The Owner or an Admin sets it.'
+
+/** A first day as a person reads it in a sentence: "Dec 6, 2026", or null where none is set. */
+function firstDayWords(key: string | null): string | null {
+  if (!key) return null
+  return dayMs(key) === null ? `"${key.slice(0, 40)}"` : formatDay(key)
+}
+
+/**
+ * What the activity log says about a change of the first day:
+ * "Asha Rao changed the first pay period's first day from Dec 6, 2026 to
+ * Dec 13, 2026." Setting it the first time and clearing it are said as
+ * such, never as a change from or to nothing.
+ */
+export function firstDayChangedSays(who: string, from: string | null, to: string | null): string {
+  const a = firstDayWords(from)
+  const b = firstDayWords(to)
+  if (!a) return `${who} set the first pay period’s first day to ${b}.`
+  if (!b) return `${who} cleared the first pay period’s first day, which was ${a}.`
+  return `${who} changed the first pay period’s first day from ${a} to ${b}.`
+}
+
+/** The same change, asked for by a seat that may not make it. */
+export function firstDayRefusedSays(who: string, from: string | null, to: string | null): string {
+  const a = firstDayWords(from) ?? 'not set'
+  const b = firstDayWords(to) ?? 'cleared'
+  return `${who} was refused changing the first pay period’s first day from ${a} to ${b}.`
+}
+
+/** The reason beside a change, on the activity log. */
+export const FIRST_DAY_CHANGED_REASON =
+  'Pay already recorded stays as it is. Pay periods are counted from the new first day.'
+
+/** What the asked-for first day is, as a "YYYY-MM-DD" key or the text sent, or null for cleared. */
+export function askedFirstDay(value: unknown): string | null {
+  if (value === null || value === '' || value === undefined) return null
+  if (value instanceof Date) return dayKeyOf(value)
+  return String(value).trim() || null
+}
+
+/**
+ * The one sentence said before a changed first day is saved, where the
+ * company has run payroll: "Pay already recorded stays as it is, and pay
+ * periods from here on are counted from Dec 13, 2026."
+ */
+export function firstDayChangeWarning(to: string): string {
+  return `Pay already recorded stays as it is, and pay periods from here on are counted from ${formatDay(to)}.`
+}
+
+/**
+ * Whether Save asks first: the first day moves to another Sunday, and the
+ * company has run payroll. Clearing the day lists pay by calendar month
+ * again and is not asked about.
+ */
+export function asksBeforeFirstDayChange(saved: string | null, draft: string | null, payrollRun: boolean): boolean {
+  return payrollRun && !!draft && draft !== saved
+}

@@ -6,8 +6,8 @@ import { DEFAULT_CYCLE_SHIFT, SHIFT_WORDS } from '@/lib/cycle-shift'
 import {
   PAY_PERIODS, PAY_PERIOD_WORDS, STATE_PAY_NOTE, SUGGESTED_DAYS_OF_MONTH,
   checkPaySettings, dayOfMonthWords, offsetWords, payPreview, payrollBody,
-  checkFirstPeriodStart, firstPeriodSays,
-  FIRST_PERIOD_LABEL, FIRST_PERIOD_HELP, FIRST_PERIOD_UNSET,
+  checkFirstPeriodStart, firstPeriodSays, firstDayChangeWarning, asksBeforeFirstDayChange,
+  FIRST_PERIOD_LABEL, FIRST_PERIOD_HELP, FIRST_PERIOD_UNSET, FIRST_PERIOD_WHO,
   type PayPeriod, type PayRhythm, type PayPeriodOn,
 } from '@/lib/pay-dates'
 import { Empty, Lbl, Panel, setLine } from './panel-bits'
@@ -25,12 +25,17 @@ import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui
 // asked of a weekly or two-week company only. Once saved, the line under
 // it says the first period and its pay day as the route works them out
 // (`firstPeriod`, from payPeriodAt), never a figure computed here.
+//
+// Where the company has run payroll (`payrollRun`, from the same route),
+// moving the first day asks first, in one sentence, with Save and Cancel.
 
 interface PayAnswers extends PayRhythm {
   setAt: string | null
   setByName: string | null
   /** The saved first period, worked out by the route. Null until a Sunday is saved. */
   firstPeriod: PayPeriodOn | null
+  /** Whether this company has run payroll, so a moved first day is asked about first. */
+  payrollRun?: boolean
 }
 
 /**
@@ -44,6 +49,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   const [err, setErr] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [asking, setAsking] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -56,8 +62,13 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   }, [])
   useEffect(() => { load() }, [load])
 
-  async function save() {
+  async function save(confirmed = false) {
     if (!draft) return
+    if (!confirmed && asksBeforeFirstDayChange(saved?.payFirstPeriodStart ?? null, draft.payFirstPeriodStart ?? null, !!saved?.payrollRun)) {
+      setAsking(true)
+      return
+    }
+    setAsking(false)
     setBusy(true)
     setErr(null)
     setNote(null)
@@ -144,7 +155,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
             className="sm:col-span-2"
             help={
               <>
-                {FIRST_PERIOD_HELP}{' '}
+                {FIRST_PERIOD_HELP} {FIRST_PERIOD_WHO}{' '}
                 {firstSaved ? firstPeriodSays(firstSaved) : !draft.payFirstPeriodStart ? FIRST_PERIOD_UNSET : null}
               </>
             }
@@ -196,8 +207,25 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
           {note && <FormMessage tone="ok">{note}</FormMessage>}
         </div>
       )}
-      {canEdit && (
-        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok}>
+      {canEdit && asking && draft.payFirstPeriodStart && (
+        <div role="alertdialog" aria-label="Change the first pay day" className="mb-3 rounded-md border border-etyme-attention bg-etyme-surface p-3">
+          <p className="text-[13px] text-etyme-ink mb-3">{firstDayChangeWarning(draft.payFirstPeriodStart)}</p>
+          <div className="flex gap-2">
+            <SubmitButton type="button" onClick={() => save(true)} pending={busy} pendingLabel="Saving…">
+              Save
+            </SubmitButton>
+            <button
+              type="button"
+              onClick={() => setAsking(false)}
+              className="px-3 py-1.5 rounded-pill text-[13px] border border-etyme-rule bg-etyme-surface text-etyme-ink"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {canEdit && !asking && (
+        <SubmitButton type="button" onClick={() => save()} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok}>
           Save payroll
         </SubmitButton>
       )}

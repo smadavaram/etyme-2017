@@ -21,6 +21,7 @@
 import { prisma } from '@/lib/db'
 import {
   checkPaySettings, rhythmFrom, payPeriodHolding,
+  firstDayChangedSays, firstDayRefusedSays, askedFirstDay, FIRST_DAY_CHANGED_REASON,
   type PayChanges, type PayRhythm, type PayPeriodOn,
 } from '@/lib/pay-dates'
 import { policyFrom } from '@/lib/cycle-shift'
@@ -48,6 +49,12 @@ export {
   FIRST_PERIOD_LABEL,
   FIRST_PERIOD_HELP,
   FIRST_PERIOD_UNSET,
+  FIRST_PERIOD_WHO,
+  firstDayChangedSays,
+  firstDayRefusedSays,
+  firstDayChangeWarning,
+  asksBeforeFirstDayChange,
+  FIRST_DAY_CHANGED_REASON,
 } from '@/lib/pay-dates'
 export type { PayPeriod, PayRhythm, PayChanges, PayCheck, PayDates, PayPeriodOn, DayOffRule } from '@/lib/pay-dates'
 
@@ -95,33 +102,96 @@ export async function paySettingsFor(companyId: string): Promise<PaySettings> {
 /**
  * Change the answers, recording who and when. Refuses in a sentence, and
  * writes nothing on a refusal.
+ *
+ * A first day that moves writes one row on the activity log, in the same
+ * transaction, with the old day and the new day and who changed it: pay
+ * dates are money, and the company row keeps only the last setter.
  */
 export async function setPaySettings(
   companyId: string,
-  byId: string,
+  by: { id: string; name: string },
   changes: PayChanges,
 ): Promise<{ ok: true; settings: PaySettings; changed: string[] } | { ok: false; field: string; message: string }> {
+  const byId = by.id
   const current = await paySettingsFor(companyId)
   const check = checkPaySettings(changes, current)
   if (!check.ok) return check
   if (check.changed.length === 0) return { ok: false, field: '', message: 'Nothing to change.' }
   const r = check.rhythm
-  const row = await prisma.company.update({
-    where: { id: companyId },
-    data: {
-      payPeriod: r.payPeriod,
-      payCalcOffsetDays: r.payCalcOffsetDays,
-      payDayOffsetDays: r.payDayOffsetDays,
-      payDaysOfMonth: r.payDaysOfMonth,
-      payCalcDaysBefore: r.payCalcDaysBefore,
-      // A calendar day, written as its own midnight UTC so no zone moves it.
-      payFirstPeriodStart: r.payFirstPeriodStart ? new Date(`${r.payFirstPeriodStart}T00:00:00.000Z`) : null,
-      paySettingsSetAt: new Date(),
-      paySettingsSetById: byId,
-    },
-    select: SELECT,
+  const from = current.payFirstPeriodStart ?? null
+  const to = r.payFirstPeriodStart ?? null
+  return prisma.$transaction(async (tx) => {
+    if (from !== to) {
+      await tx.automationLog.create({
+        data: {
+          companyId,
+          action: 'PAY_FIRST_DAY_CHANGED',
+          summary: firstDayChangedSays(by.name, from, to),
+          reason: FIRST_DAY_CHANGED_REASON,
+          payload: { from, to, by: byId },
+          // Setting the old day again in Settings puts every period back.
+          reversible: true,
+        },
+      })
+    }
+    const row = await tx.company.update({
+      where: { id: companyId },
+      data: {
+        payPeriod: r.payPeriod,
+        payCalcOffsetDays: r.payCalcOffsetDays,
+        payDayOffsetDays: r.payDayOffsetDays,
+        payDaysOfMonth: r.payDaysOfMonth,
+        payCalcDaysBefore: r.payCalcDaysBefore,
+        // A calendar day, written as its own midnight UTC so no zone moves it.
+        payFirstPeriodStart: r.payFirstPeriodStart ? new Date(`${r.payFirstPeriodStart}T00:00:00.000Z`) : null,
+        paySettingsSetAt: new Date(),
+        paySettingsSetById: byId,
+      },
+      select: SELECT,
+    })
+    return { ok: true as const, settings: paySettingsFrom(row), changed: check.changed }
   })
-  return { ok: true, settings: paySettingsFrom(row), changed: check.changed }
+}
+
+/**
+ * A change of the first day asked for by a seat that may not change
+ * payroll: one row on the activity log, with the day as it stands and the
+ * day asked for, written before the refusal is sent. Nothing else asked
+ * for is recorded here, and nothing is changed. Never throws: a row that
+ * cannot be written does not turn a refusal into a failure.
+ */
+export async function recordFirstDayRefused(
+  companyId: string,
+  by: { id: string; name: string },
+  asked: unknown,
+  refusal: string,
+): Promise<boolean> {
+  if (asked === undefined) return false
+  try {
+    const from = (await paySettingsFor(companyId)).payFirstPeriodStart ?? null
+    const to = askedFirstDay(asked)
+    if (from === to) return false
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'PAY_FIRST_DAY_CHANGE_REFUSED',
+        summary: firstDayRefusedSays(by.name, from, to),
+        reason: refusal,
+        payload: { from, asked: to, by: by.id },
+        // Nothing happened, so there is nothing to put back.
+        reversible: false,
+      },
+    })
+    return true
+  } catch (e) {
+    console.error('[payroll-settings] a refused change of the first pay day was not logged', e)
+    return false
+  }
+}
+
+/** Whether this company has run payroll at all: a calculate or a pay run on the log. */
+export async function hasRunPayroll(companyId: string): Promise<boolean> {
+  return (await prisma.automationLog.count({ where: { companyId, action: 'PAYROLL_RUN' } })) > 0
 }
 
 /**

@@ -418,6 +418,14 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says: 'Somebody tried to take a day off a calendar that is not theirs to change, and was refused. Removing a day moves a pay day back onto a weekend as surely as adding one moves it off, so the refusal is recorded rather than only said.',
   },
+  // A seat that may not change payroll asked to move the first pay
+  // period's first day (lib/payroll-settings `recordFirstDayRefused`,
+  // 2026-11-14). The row says the day as it stands and the day asked for.
+  PAY_FIRST_DAY_CHANGE_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody who may not change payroll tried to move the first day of the first pay period, and was refused. Every pay day after it is counted from that day, so the refusal is recorded rather than only said.',
+  },
   COLLEAGUE_JOINED: {
     outcome: 'PERMIT',
     basis: 'RULE',
@@ -541,6 +549,10 @@ const RULE_ATTRIBUTED = [
   // off, or said what kind of company a firm they recorded is. Their own
   // act; the row says the position or the kind, and each can be undone.
   'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET',
+  // The Owner or an Admin moved the first day of the first pay period
+  // (2026-11-14). Their own act; the row says the old day and the new
+  // day, and setting the old day again puts the periods back.
+  'PAY_FIRST_DAY_CHANGED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
