@@ -82,7 +82,11 @@ const STATUS: Record<Row['status'], { text: string; cls: string }> = {
 
 const day = (iso: string | null) => (iso ? plainDate(iso) : null)
 
-export function OurBench({ firmName }: { firmName: string }) {
+export function OurBench({ firmName, drawsSignIn = false }: {
+  firmName: string
+  /** Whether this seat may give somebody a way to sign in (`drawsSignInLine`); the line's route is not called otherwise. */
+  drawsSignIn?: boolean
+}) {
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -150,7 +154,7 @@ export function OurBench({ firmName }: { firmName: string }) {
         <div>
           <p className="text-[13px] font-medium text-etyme-ink">{r.name}</p>
           <p className="text-[11px] text-etyme-muted">{r.skillsSay}</p>
-          <SignInLink personId={r.personId} className="mt-1" />
+          {drawsSignIn && <SignInLink personId={r.personId} className="mt-1" />}
         </div>
       ),
       sortValue: (r) => r.name,

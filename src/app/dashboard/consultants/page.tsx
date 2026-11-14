@@ -21,6 +21,10 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
 import { useFirmCurrency } from './firm-currency'
+import { InviteCandidatesDialog } from './invite-candidates'
+import { resendListingId } from '@/lib/consultant-portfolio/bench-invites'
+import { nudgeBody } from '@/lib/consultant-portfolio/forms'
+import { readJson } from '@/lib/read-response'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -69,6 +73,8 @@ interface Consultant {
   listed?: boolean
   /** The résumé's education lines, read only; null where the résumé was never read for them. */
   education?: EducationShown[] | null
+  /** This firm's live listing for them, where there is one: the one Resend sends again. */
+  listings?: { id: string; consent?: string | null }[]
 }
 
 /** The firm's bench as Today and Ask Etyme count it (`benchAt`), and who was asked and has not answered. */
@@ -1002,6 +1008,10 @@ export default function ConsultantsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  /** Invite candidates: several addresses, one press. */
+  const [showInvite, setShowInvite] = useState(false)
+  /** The row whose Resend is out, and what the send said, under the table. */
+  const [resending, setResending] = useState<string | null>(null)
   /** What adding somebody did, said once it is done. */
   const [added, setAdded] = useState<string | null>(null)
   const [selected, setSelected] = useState<Consultant | null>(null)
@@ -1056,14 +1066,35 @@ export default function ConsultantsPage() {
   /** Who may add, said where somebody without the role followed a link to the form. */
   const [addRefused, setAddRefused] = useState<string | null>(null)
 
-  // Open the add modal when navigated with ?new=1, or say who adds.
+  // Open the add modal when navigated with ?new=1, Invite candidates with
+  // ?invite=1, or say who adds: both ask what Add consultant asks.
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
-      if (mayAdd) setShowAdd(true)
+    const asked = searchParams.get('new') === '1' ? 'add' : searchParams.get('invite') === '1' ? 'invite' : null
+    if (asked) {
+      if (mayAdd) (asked === 'add' ? setShowAdd : setShowInvite)(true)
       else setAddRefused(whoAddsSays({ kind: session.company?.kind ?? null, companyName: session.company?.name ?? null }))
       router.replace('/dashboard/consultants', { scroll: false })
     }
   }, [searchParams, router, mayAdd, session.company?.kind, session.company?.name])
+
+  // Resend, on a row that reads "Asked, not answered": the one door the
+  // Bench tab's Resend uses (POST /api/bench/listings/:id/nudge). Only
+  // the route's sentence is shown, never the link it carries.
+  async function resend(row: Consultant, listingId: string) {
+    setResending(listingId)
+    try {
+      const body = await readJson<{ data: { says?: string } }>(await fetch(`/api/bench/listings/${listingId}/nudge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nudgeBody(false)),
+      }))
+      setAdded(body.data?.says ?? `Sent to ${row.name}.`)
+    } catch (e: any) {
+      setAdded(e?.message ?? 'The invitation was not sent again. Try again.')
+    } finally {
+      setResending(null)
+    }
+  }
 
   const fetchConsultants = useCallback(async () => {
     setLoading(true)
@@ -1255,6 +1286,21 @@ export default function ConsultantsPage() {
       sortValue: (row) => (row.standing ? STANDING_WORD[row.standing] : ''),
     },
     {
+      // Asked, not answered: send the invitation again, from the row.
+      key: 'resend',
+      label: '',
+      render: (row) => {
+        const listingId = resendListingId(row, mayAdd)
+        return listingId ? (
+          <button onClick={(e) => { e.stopPropagation(); void resend(row, listingId) }} disabled={resending === listingId}
+            className="text-[11px] text-etyme-action hover:underline disabled:opacity-40 whitespace-nowrap">
+            {resending === listingId ? 'Sending…' : 'Resend'}
+          </button>
+        ) : null
+      },
+      sortable: false,
+    },
+    {
       key: 'tier',
       label: 'Tier',
       // A tier markets nobody until the person says yes, so it is shown
@@ -1312,9 +1358,14 @@ export default function ConsultantsPage() {
           )}
         </div>
         {mayAdd && (
-          <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-            Add consultant
-          </button>
+          <div className="flex gap-2 self-start md:mt-3 md:shrink-0">
+            <button onClick={() => setShowInvite(true)} className="btn-secondary">
+              Invite candidates
+            </button>
+            <button onClick={() => setShowAdd(true)} className="btn-primary">
+              Add consultant
+            </button>
+          </div>
         )}
       </div>
 
@@ -1399,6 +1450,7 @@ export default function ConsultantsPage() {
       )}
 
       {/* Modals */}
+      {showInvite && mayAdd && <InviteCandidatesDialog onClose={() => setShowInvite(false)} onDone={() => { void fetchConsultants() }} />}
       {showAdd && mayAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
       {selected && (
         <ConsultantDrawer

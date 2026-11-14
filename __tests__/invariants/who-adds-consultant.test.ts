@@ -60,15 +60,16 @@ beforeEach(() => {
 })
 
 describe('Add consultant is offered only to the seats its route takes', () => {
-  it('the button, the link and the route all read the one permission the route asks for', () => {
+  it('the buttons, the links and the route all read the one permission the route asks for, for Add consultant and Invite candidates alike', () => {
     expect(ADDS_CONSULTANTS).toBe('consultants.write')
     const route = read('src/app/api/consultants/route.ts')
     expect(route).toMatch(/if \(!mayAddConsultant\(caller\.permissions\)\)/)
     const page = read('src/app/dashboard/consultants/page.tsx')
     expect(page).toMatch(/const mayAdd = mayAddConsultant\(session\.permissions\)/)
-    expect(page).toMatch(/\{mayAdd && \(\s*<button onClick=\{\(\) => setShowAdd\(true\)\}/)
+    expect(page).toMatch(/\{mayAdd && \(\s*<div[^>]*>\s*<button onClick=\{\(\) => setShowInvite\(true\)\}[\s\S]{0,200}<button onClick=\{\(\) => setShowAdd\(true\)\}/)
     expect(page).toMatch(/\{showAdd && mayAdd && <AddConsultantModal/)
-    expect(page).toMatch(/if \(mayAdd\) setShowAdd\(true\)\s*else setAddRefused\(whoAddsSays\(/)
+    expect(page).toMatch(/\{showInvite && mayAdd && <InviteCandidatesDialog/)
+    expect(page).toMatch(/if \(mayAdd\) \(asked === 'add' \? setShowAdd : setShowInvite\)\(true\)\s*else setAddRefused\(whoAddsSays\(/)
   })
 
   it('a delivery manager is not offered Add consultant', () => {

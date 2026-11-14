@@ -154,8 +154,10 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     expect(EMPTY_STATE).toContain('Your paperwork')
   })
 
-  it('says once that Etyme places nobody', () => {
-    expect(EMPTY_STATE).toContain('Etyme places nobody.')
+  it('says once that only a firm she said yes to can put her forward, and never that Etyme places nobody', () => {
+    expect(EMPTY_STATE).toContain('Only a firm you have said yes to can put you forward.')
+    expect(EMPTY_STATE.split('can put you forward').length - 1).toBe(1)
+    expect(EMPTY_STATE).not.toMatch(/places nobody/i)
   })
 
   it('somebody paid through their own company is given a link to sign up as a solopreneur, the one door that exists', () => {
@@ -170,9 +172,9 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     expect(EMPTY_STATE).not.toMatch(/your vendor/i)
   })
 
-  it('the empty state offers no button that Etyme cannot honor, because Etyme places nobody', () => {
-    // Every one of these would be a promise nobody here can keep: Etyme
-    // runs no bench, submits nobody and forwards no name.
+  it('the empty state offers no button that Etyme cannot honor, because only a firm she said yes to puts her forward', () => {
+    // Every one of these would be a promise nobody here can keep: only a
+    // firm holding her yes submits her or forwards her name.
     for (const lie of [
       /submit yourself/i,
       /find (a|me|your) (role|job|placement)/i,

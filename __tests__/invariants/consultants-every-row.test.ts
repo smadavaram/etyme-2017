@@ -53,8 +53,8 @@ describe('the sign-in line is drawn for a person the firm lists but has not plac
     expect(page).toMatch(/<SignInLink personId=\{consultant\.personId\}/)
   })
 
-  it('on Bench, somebody asked and not answered gets the sign-in line beside Resend and Copy link', () => {
-    expect(bench).toMatch(/\{a\.consent === 'INVITED' && <SignInLink personId=\{a\.personId\}/)
+  it('on Bench, somebody asked and not answered gets the sign-in line beside Resend and Copy link, for a seat that may give one', () => {
+    expect(bench).toMatch(/\{a\.consent === 'INVITED' && drawsSignInLine\(session\.permissions\) && <SignInLink personId=\{a\.personId\}/)
     expect(bench).toMatch(/personId: r\.personId, name: r\.name, consent: r\.consent/)
   })
 })

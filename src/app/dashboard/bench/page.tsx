@@ -9,6 +9,7 @@ import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
+import { drawsSignInLine } from '@/lib/consultant-portfolio/bench-invites'
 import { WhatWeNeed, WhatPartnersNeed } from './what-we-need'
 import { BenchProfit } from './bench-profit'
 import { mayReadBenchProfit, type HolidayAnswerRow } from '@/lib/bench-profit'
@@ -1243,7 +1244,7 @@ export default function BenchPage() {
               {/* How they get into Etyme where no letter can leave: the route
                   draws it only for somebody with no way to sign in, and only
                   for a seat that may invite (the third screen walk, S1). */}
-              {a.consent === 'INVITED' && <SignInLink personId={a.personId} className="basis-full" />}
+              {a.consent === 'INVITED' && drawsSignInLine(session.permissions) && <SignInLink personId={a.personId} className="basis-full" />}
             </div>
           ))}
         </section>
@@ -1758,5 +1759,5 @@ function OurBenchGate({ firmName, permissions, roleName }: { firmName: string; p
   const manager = hasPermission(permissions, 'assignments.write')
   const hr = roleName === 'HR' || roleName === 'HR Partner'
   if (!manager && !hr) return null
-  return <OurBench firmName={firmName} />
+  return <OurBench firmName={firmName} drawsSignIn={drawsSignInLine(permissions)} />
 }
