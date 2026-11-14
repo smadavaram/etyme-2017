@@ -69,9 +69,9 @@ describe('who an Owner ask is addressed to', () => {
 })
 
 describe('the person asked reads the ask first, by name, in the trade’s words', () => {
-  it('Dev Patel reads “Camille Ostrander asks you to take over as Owner of Northbend Athletic. After your yes you are an Owner and Camille Ostrander stays an Owner.”', () => {
+  it('Dev Patel reads “Camille Ostrander asks you to become an Owner of Northbend Athletic. After your yes you are an Owner and Camille Ostrander stays an Owner.”', () => {
     const lead = ownerAskLead(ownerAskItems([pass('OWNER')], seats, 'p-dev', CO))
-    expect(lead?.says).toBe('Camille Ostrander asks you to take over as Owner of Northbend Athletic. After your yes you are an Owner and Camille Ostrander stays an Owner. Answer below, or on Owners.')
+    expect(lead?.says).toBe('Camille Ostrander asks you to become an Owner of Northbend Athletic. After your yes you are an Owner and Camille Ostrander stays an Owner. Answer below, or on Owners.')
   })
 
   it('what the asker becomes is read from the ask’s own fields: an Admin, or leaving', () => {
@@ -96,14 +96,14 @@ describe('the person asked reads the ask first, by name, in the trade’s words'
     const merged = withOwnerAsks(q, ownerAskItems([pass()], seats, 'p-dev', CO))!
     expect(merged.total).toBe(2)
     expect(merged.items[0].type).toBe(OWNER_ASK)
-    expect(namedNeedsSays(merged, [])!.says).toMatch(/^Two things need you: Camille Ostrander asks you to take over as Owner of Northbend Athletic;/)
+    expect(namedNeedsSays(merged, [])!.says).toMatch(/^Two things need you: Camille Ostrander asks you to become an Owner of Northbend Athletic;/)
   })
 
   it('the greeting leads with the Owner ask as its recommendation', async () => {
     const lead = ownerAskLead(ownerAskItems([pass()], seats, 'p-dev', CO))
     const a = await today(emptyRead(), { now: NOW, greeting: true, owners: { ask: lead } })
     if (a.kind !== 'NEEDS') throw new Error(a.kind)
-    expect(a.recommend?.says).toMatch(/^Camille Ostrander asks you to take over as Owner of Northbend Athletic\./)
+    expect(a.recommend?.says).toMatch(/^Camille Ostrander asks you to become an Owner of Northbend Athletic\./)
   })
 })
 
@@ -118,7 +118,7 @@ describe('the card: Yes and Not now, the why on tap, the Owners route’s own ye
 
   it('the card says what the yes does, and why this person is asked is one tap away with the reason and the day it lapses', () => {
     const c = card()
-    expect(c.title).toBe('Camille Ostrander asks you to take over as Owner of Northbend Athletic.')
+    expect(c.title).toBe('Camille Ostrander asks you to become an Owner of Northbend Athletic.')
     expect(c.fact).toBe('After your yes you are an Owner and Camille Ostrander stays an Owner.')
     expect(c.why).toMatch(/^Only the person taking over says yes, so nobody becomes an Owner by surprise\. Camille Ostrander’s reason: “Dev runs the business day to day\.” It waits until Nov 19, 2026; with no answer it lapses and nothing changes\.$/)
   })
@@ -220,7 +220,7 @@ describe('a seat with no role asked to take over (the Owner walk, 2026-11-12)', 
 
   it('a Member asked to take over reads the ask first with Yes and No', () => {
     const a = workerToday(MEMBER, { greeting: true, owners: owners() })
-    expect(a.recommend?.says).toMatch(/^Camille Ostrander asks you to take over as Owner of Northbend Athletic\./)
+    expect(a.recommend?.says).toMatch(/^Camille Ostrander asks you to become an Owner of Northbend Athletic\./)
     expect(a.says).toBe('One thing needs you: the Owner ask below. Checked just now.')
     const card = a.queue![0]
     expect(card.act).toMatchObject({ label: 'Yes', url: '/api/settings/owners/ask-pass', body: { decision: 'yes' } })

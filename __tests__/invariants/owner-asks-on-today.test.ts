@@ -67,10 +67,24 @@ describe('an Owner ask is a row of the decision queue', () => {
   it('the row says who asks and what the yes does, in the words Ask Etyme’s card says', () => {
     const row = ownerAskRow(pass, passFacts, 'p-dev', NOW)
     const [card] = ownerAskItems([asConversation], seats, 'p-dev', CO)
-    expect(row.title).toBe('Camille Ostrander asks you to take over as Owner of Tapin')
+    expect(row.title).toBe('Camille Ostrander asks you to become an Owner of Tapin')
     expect(row.title).toBe(card.title)
     expect(row.subtitle).toBe(card.subtitle)
     expect(row.reason).toBe(card.reason)
+  })
+
+  it('an ask that adds an Owner reads "asks you to become an Owner", because the asker stays an Owner', () => {
+    expect(ownerAskRow(pass, passFacts, 'p-dev', NOW).title).not.toMatch(/take over/)
+    expect(ownerAskRow(pass, passFacts, 'p-dev', NOW).subtitle).toMatch(/Camille Ostrander stays an Owner/)
+  })
+
+  it('an ask where the asker moves to Admin or leaves still reads "asks you to take over as Owner"', () => {
+    for (const after of ['ADMIN', 'LEAVE'] as const) {
+      const row = ownerAskRow(pass, { ...passFacts, askerAfter: after }, 'p-dev', NOW)
+      const [card] = ownerAskItems([{ ...asConversation, askerAfter: after }], seats, 'p-dev', CO)
+      expect(row.title).toBe('Camille Ostrander asks you to take over as Owner of Tapin')
+      expect(card.title).toBe(row.title)
+    }
   })
 
   it('the headline on Today names whose Owner ask it is', () => {

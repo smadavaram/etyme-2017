@@ -80,12 +80,18 @@ function either(names: readonly string[]): string {
 
 /**
  * The ask as the person who may say yes reads it: who asks, what, and at
- * which company, in one sentence. "Camille Ostrander asks you to take over
- * as Owner of Northbend Athletic."
+ * which company, in one sentence. "Camille Ostrander asks you to become an
+ * Owner of Northbend Athletic." (or "to take over as Owner" where she steps down).
  */
 export function askTitle(a: OwnerAsk, subject: Pick<Seat, 'name' | 'personId'>, me: string, company: string): string {
   const you = subject.personId === me
-  if (a.kind === 'PASS') return `${a.askerName} asks you to take over as Owner of ${company}`
+  if (a.kind === 'PASS') {
+    // "Take over" only where the asker steps down; an add leaves her an Owner.
+    const stepsDown = a.askerAfter === 'ADMIN' || a.askerAfter === 'LEAVE'
+    return stepsDown
+      ? `${a.askerName} asks you to take over as Owner of ${company}`
+      : `${a.askerName} asks you to become an Owner of ${company}`
+  }
   if (a.kind === 'REMOVE') {
     return you
       ? `${a.askerName} asks to remove you as an Owner of ${company}`
@@ -174,7 +180,7 @@ export function withOwnerAsks(q: QueueRead | null, asks: readonly QueueItem[]): 
  * The greeting's lead where an Owner ask is addressed to this reader: the
  * first ask in full, in the trade's words, and how many more wait. Its
  * card, with Yes and Not now, is in the queue under the headline.
- * "Camille Ostrander asks you to take over as Owner of Northbend Athletic.
+ * "Camille Ostrander asks you to become an Owner of Northbend Athletic.
  * After your yes you are an Owner and Camille Ostrander stays an Owner."
  */
 export function ownerAskLead(items: readonly QueueItem[]): RichLine | null {
