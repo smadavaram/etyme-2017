@@ -533,7 +533,7 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
 
 ## Money
 
-Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64.
+Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70.
 
 - **Bill, invoice receipt, payroll.** What a firm issues upward is a
   bill. What it receives from below is an invoice receipt. Its own
@@ -623,6 +623,12 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64.
   that yes only where no other seat holds it, and the ledger records it.
   Paying from the chat asks for the bank reference first. A one-person
   firm never accepts her own week.
+- **HR decides overtime rates in Settings** (founder, 2026-11-14).
+  What a client is billed for hours over the weekly line is set per
+  client: the same rate by default, one and a half times where the
+  client pays it. What a worker is paid for them follows the country of
+  work, set per country. The two never decide each other. A week over
+  the line is never paid at the usual rate by silence.
 - **What a worker is owed.** Overtime after 40 hours in the week is owed
   to a non-exempt US worker even where the contract sets no line. Back
   pay for a raise dated in the past is put forward for approval, never
