@@ -80,6 +80,8 @@ interface OwedWeek {
   // Only on a week still waiting.
   sheetId?: string
   waitingOn?: string
+  /** What she can open from the row, in order (`waitingWeek`'s links). */
+  links?: Array<{ href: string; says: string }>
 }
 interface OwedPart {
   from: string
@@ -113,7 +115,7 @@ interface Timesheet {
   /** "Approved by email: Marcus Oyelaran, Sep 2 — evidence attached", where the client approved that way. */
   approvedBy?: string | null
   /** The week's own page, where she asks for approval by email or attaches it. Null on a week not sent. */
-  door?: { href: string; says: string } | null
+  door?: { href: string; says: string; also?: { href: string; says: string } } | null
   /** Its one state, the same one the tiles count (`weekState`). */
   state?: { word: string; tone: 'verified' | 'attention' | 'action' | 'passive' }
 }
@@ -1017,11 +1019,16 @@ function YourPay({ owed }: { owed: Owed }) {
                   <div className="text-xs text-etyme-muted">paid by {w.payer}</div>
                   <p className="text-[13px] text-etyme-ink mt-1 leading-relaxed">{w.says}</p>
                   {waiting && w.sheetId && (
-                    // The week's own page: ask the client's approver by
-                    // email, or attach the approval the client already sent.
-                    <a href={`/dashboard/weeks/${w.sheetId}`} className="text-[13px] text-etyme-action hover:underline mt-1 inline-block">
-                      {w.stage === 'WAITING_FOR_CLIENT' ? 'Ask the client to approve by email' : 'Open this week'}
-                    </a>
+                    // The week's own page, one link a line so each wraps on
+                    // a phone: for a client not on Etyme, attach what it
+                    // approved first, then ask it by email (`clientWaitingLinks`).
+                    <div className="mt-1 flex flex-col items-start gap-1">
+                      {(w.links ?? [{ href: `/dashboard/weeks/${w.sheetId}`, says: w.stage === 'WAITING_FOR_CLIENT' ? 'Ask the client to approve by email' : 'Open this week' }]).map((l) => (
+                        <a key={l.href} href={l.href} className="text-[13px] text-etyme-action hover:underline break-words max-w-full">
+                          {l.says}
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <div className="shrink-0 sm:w-48 space-y-0.5 text-[13px] tabular-nums">
@@ -1314,14 +1321,21 @@ export default function MyWorkPage() {
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Your hours</h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.timesheets.slice(0, 8).map((t: Timesheet) => (
-            <div key={t.id} className="p-3 px-4 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
+            // On a phone the week and its links take the whole line, and
+            // the hours and the state go under them, so nothing is squeezed.
+            <div key={t.id} className="p-3 px-4 flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-1">
+              <div className="flex-1 min-w-0 basis-full sm:basis-0">
                 <div className="text-sm text-etyme-ink">{t.period}</div>
                 {/* Who approved it, where the client approved by email —
                     never that the client signed in Etyme. */}
                 {t.approvedBy && <div className="text-xs text-etyme-muted">{t.approvedBy}</div>}
                 {t.door && (
-                  <a href={t.door.href} className="text-xs text-etyme-action hover:underline">{t.door.says}</a>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <a href={t.door.href} className="text-xs text-etyme-action hover:underline break-words max-w-full">{t.door.says}</a>
+                    {t.door.also && (
+                      <a href={t.door.also.href} className="text-xs text-etyme-action hover:underline break-words max-w-full">{t.door.also.says}</a>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="text-sm text-etyme-muted tabular-nums w-16 text-right">{t.hours}h</div>
