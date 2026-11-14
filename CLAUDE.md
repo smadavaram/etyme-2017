@@ -872,7 +872,9 @@ Full text → 28, 22, 23, 68.
 - **One payroll person may attach the client's approval and accept the
   same week** (founder, 2026-11-14). No public page says "Etyme runs no
   bench and places nobody" until he says what it should say about Tapin.
-  A candidate's timesheet by email stays closed until his two yeses.
+- **A timesheet never comes by email** (founder, 2026-11-14). A
+  candidate files her week, with the timesheet her client approved, on
+  her own page or in Ask Etyme. The email door stays closed.
 
 ## How this project tests and ships
 

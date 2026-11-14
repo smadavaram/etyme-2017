@@ -59,6 +59,18 @@ answered four questions. His words, as typed:
   the product nothing moves: Tapin gets no access another supplier
   lacks.
 
+**Decided the same day: a timesheet never comes by email.** Told that
+his second answer meant email reaching Etyme, and that the door is
+closed by his own rule, he answered: *"You are right timesheets by email
+is unnecessary - they should come through Etyme or ask Etyme
+harnessed"*. So the email door stays closed and nothing about it is
+asked again. A candidate files her week, with the timesheet her client
+approved, on her own page or in Ask Etyme. Where the candidate does send
+her firm the approved timesheet some other way, the firm's payroll
+person attaches it for her, as he may. Of the first bullet above, only
+this remains to build: filing the week and attaching the client's
+approval as one step, from her page and from Ask Etyme.
+
 **The week, said honestly to him.** Shipped: the twenty-two first-day
 faults, the Owner rules, the neutral Company, sign-in and sign-up to his
 drawing, the home page on realistic numbers, a client's codes kept the
