@@ -75,6 +75,8 @@ interface OwedWeek {
   dueOn?: string | null
   overdue?: boolean
   paidOn?: string | null
+  /** Held by Payroll until the overtime answer is recorded: no figure, no pay day. */
+  held?: boolean
   /** Where its days are paid on more than one pay day, each part on its own. */
   parts?: OwedPart[] | null
   // Only on a week still waiting.
@@ -967,7 +969,9 @@ function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: str
 const STAGE: Record<WeekStage, (w: OwedWeek) => { word: string; tone: 'attention' | 'verified' | 'action' | 'passive' }> = {
   WAITING_FOR_CLIENT: (w) => ({ word: `Waiting for ${w.waitingOn ?? 'the client'}`, tone: 'passive' }),
   WAITING_FOR_EMPLOYER: (w) => ({ word: `Waiting for ${w.waitingOn ?? w.payer}`, tone: 'action' }),
-  OWED: (w) => (w.overdue ? { word: 'Past its pay day', tone: 'attention' } : { word: 'Owed to you', tone: 'attention' }),
+  // A week Payroll holds until her overtime answer is recorded is not owed at any figure yet.
+  OWED: (w) => (w.held ? { word: 'On hold', tone: 'passive' }
+    : w.overdue ? { word: 'Past its pay day', tone: 'attention' } : { word: 'Owed to you', tone: 'attention' }),
   PAID: () => ({ word: 'Paid', tone: 'verified' }),
 }
 

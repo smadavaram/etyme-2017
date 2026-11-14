@@ -29,6 +29,7 @@ import { nextOpen } from '@/lib/money/next-cycle'
 import { periodFor, hoursInPeriod, type AcceptedCut, type Terms, type Period } from '@/lib/periods'
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
 import { weekStart, weekEnd } from '@/lib/overtime'
+import { heldWeekSays } from '@/lib/consultant-portfolio/held-weeks'
 import { amount, compact } from '@/lib/money-display'
 import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
 import { canReadBillRate } from '@/lib/permissions'
@@ -2054,6 +2055,14 @@ export interface OwedPayLine {
    * absent, the week is one part, due after its last day, as before.
    */
   terms?: Terms
+  /**
+   * The weeks Payroll holds off pay because nobody has recorded whether
+   * she is paid overtime (`heldWeeksFor` in lib/consultant-portfolio/
+   * held-weeks, which asks money's `heldForExemption`), and the weekly
+   * line the answer decides. A held week is never priced here: no
+   * amount, no pay day, and it is in no "owed to you" total.
+   */
+  held?: { weeks: ReadonlyArray<{ weekOf: string; workedHours: number }>; line: number }
 }
 
 // ── Her pay day, by her employer's own pay periods ──────────────────
@@ -2195,6 +2204,8 @@ export interface OwedWeek {
   parts: OwedPart[] | null
   /** The week in plain words. Never a rate, never a code. */
   says: string
+  /** True where Payroll holds the week until the overtime answer is recorded. Never priced. */
+  held?: boolean
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -2475,6 +2486,22 @@ export function owedByWeek(
           says:
             `${Employer} has accepted this week more than once, and nothing says which acceptance stands, ` +
             `so its payroll pays it once all but one are withdrawn. This page shows no figure for it until then.`,
+        }
+      }
+
+      // Held by Payroll until somebody records whether she is paid
+      // overtime: no figure and no pay day, because neither is known.
+      const heldWeek = line.held?.weeks.find((h) => h.weekOf === weekOf)
+      if (heldWeek && line.held) {
+        const already = paidCents > 0
+          ? (w.paidOn ? ` ${Employer} paid part of it on ${day(w.paidOn)}.` : ` ${Employer} has paid part of it.`)
+          : ''
+        return {
+          weekOf, stage: 'OWED', currency: line.currency, priced: false, held: true,
+          hours: null, ordinaryHours: null, overtimeHours: null, premiumCents: null,
+          owedCents: null, stillOwedCents: null, unpaidHours: null, unpaidOvertimeHours: null,
+          paidCents, paidHours, filedHours, dueOn: null, overdue: false, paidOn: w.paidOn, parts: null,
+          says: heldWeekSays(Employer, heldWeek.workedHours, line.held.line) + already,
         }
       }
 

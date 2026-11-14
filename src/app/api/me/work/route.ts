@@ -22,7 +22,8 @@ import { amount } from '@/lib/money-display'
 import { daysFor } from '@/lib/contract-links'
 import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import { payLineOn } from '@/lib/money/pay-line'
+import { payLineOn, judgedLine } from '@/lib/money/pay-line'
+import { heldWeeksFor, heldWeeksNote } from '@/lib/consultant-portfolio/held-weeks'
 import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { hoursInMonth } from '@/lib/periods'
 import { paidByPayroll, workerPaidAs, ownCompanyBillsSays, isWorkersOwnPayLine } from '@/lib/money/paid-through'
@@ -619,6 +620,8 @@ export async function GET(request: NextRequest) {
 
     const accepted = sentWeeks.filter(acceptedBy)
     const weeks: (OwedWeek & { payer: string; label: string })[] = []
+    // Weeks Payroll holds, by the employer holding them.
+    const heldBy: { employer: string; line: number; days: string[] }[] = []
     let unknownRate = 0
     // Of those, the weeks on her own firm's contract: the rate is hers to
     // record, so the note says so rather than sending her to an agency.
@@ -680,15 +683,28 @@ export async function GET(request: NextRequest) {
               periodEnd: t.periodEnd,
             }
           })
+        // The weekly line payroll judges pay on: the buy line's, else
+        // the placement's, else the law's forty for a nonexempt US
+        // worker (lib/money/pay-line) — the same call the run makes.
+        const payLine = payLineOn(bc, sell, { name: caller.person.name, payCurrency: pay.payCurrency }, row)
+        // The weeks Payroll holds until somebody records whether she is
+        // paid overtime, read by Payroll's own reader on Payroll's inputs
+        // (found on a phone, 2026-11-14: a held 46-hour week read $2,070.00
+        // owed here, which Payroll then paid as $2,205.00).
+        const heldWeeks = heldWeeksFor({
+          line: payLine,
+          sheets,
+          cutOvertime: wage.cutOvertime,
+          paidHours: (sheetId, day) => book?.paid.get(paidKey(bc.id, personId, sheetId, day)) ?? 0,
+        })
+        const heldLine = judgedLine(payLine)
         const priced = owedByWeek(
           sheets,
           {
             contractRateCents: pay.payRate,
             periods: periodsOf(bc.id),
-            // The weekly line payroll judges pay on: the buy line's, else
-            // the placement's, else the law's forty for a nonexempt US
-            // worker (lib/money/pay-line) — the same call the run makes.
-            afterHours: payLineOn(bc, sell, { name: caller.person.name, payCurrency: pay.payCurrency }, row).afterHours,
+            afterHours: payLine.afterHours,
+            held: heldWeeks.length > 0 && heldLine != null ? { weeks: heldWeeks, line: heldLine } : undefined,
             method: methodFor(bc).method,
             wage,
             currency: pay.payCurrency,
@@ -709,6 +725,9 @@ export async function GET(request: NextRequest) {
           },
           now
         )
+        if (heldWeeks.length > 0 && heldLine != null) {
+          heldBy.push({ employer: bc.company?.name ?? sell.company.name, line: heldLine, days: heldWeeks.map((h) => h.weekOf) })
+        }
         for (const w of priced) {
           weeks.push({ ...w, payer: bc.company?.name ?? sell.company.name, label: `Week of ${shortDay(w.weekOf, now)}` })
           pricedWeeks.push(w)
@@ -732,7 +751,11 @@ export async function GET(request: NextRequest) {
       .map((w) => w.dueOn!)
       .sort()[0] ?? null
     const paidHours = r2(weeks.reduce((n, w) => n + w.paidHours, 0))
-    const notPriced = weeks.filter((w) => !w.priced).length
+    // A held week says why on its own line, never as "no figure here".
+    const notPriced = weeks.filter((w) => !w.priced && !w.held).length
+    const heldNotes = heldBy
+      .map((h) => heldWeeksNote(h.employer, [...h.days].sort().map((d) => shortDay(d, now)), h.line))
+      .filter((x): x is string => x !== null)
     // A run from before 2026-09-29 recorded no hours, so what it paid
     // cannot be taken off. Said, rather than showing its hours as owed.
     const unrecorded = [...paidBy.values()].some((b) => b.unrecorded.size > 0)
@@ -743,7 +766,9 @@ export async function GET(request: NextRequest) {
       cents > 0
         ? `${amount(cents, currency ?? undefined)} is owed to you, for ${hoursWord(hours)} ${byWhom} accepted and has not paid yet` +
           (overtimeHours > 0 ? `, ${r2(overtimeHours)} of them overtime` : '') + '.'
-        : 'Nothing is owed to you right now.'
+        : heldNotes.length > 0
+          ? heldNotes.shift()!
+          : 'Nothing is owed to you right now.'
     const notes: string[] = []
     if (overdueCents > 0) {
       notes.push(
@@ -753,6 +778,7 @@ export async function GET(request: NextRequest) {
       )
     }
     if (nextDue) notes.push(`The next pay day for it is ${shortDay(nextDue, now)}.`)
+    notes.push(...heldNotes)
     const weeksWord = (n: number) => `${n} more week${n === 1 ? ' is' : 's are'} accepted`
     if (unknownOwnRate > 0) {
       notes.push(`${weeksWord(unknownOwnRate)}. Your rate on that contract is not recorded, so there is no figure for ${unknownOwnRate === 1 ? 'it' : 'them'}.`)

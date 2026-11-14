@@ -524,7 +524,8 @@ describe("the worker's page prices her pay with payroll's own functions", () => 
   })
 
   it('the weekly line on her page is the one payroll judges pay on, the law\u2019s forty included, never a line of its own', () => {
-    expect(route).toContain('afterHours: payLineOn(bc, sell,')
+    expect(route).toContain('const payLine = payLineOn(bc, sell,')
+    expect(route).toContain('afterHours: payLine.afterHours')
     expect(route).not.toMatch(/afterHours:\s*bc\.overtimeAfterHours/)
     expect(route).not.toMatch(/\b40\b/)
   })
