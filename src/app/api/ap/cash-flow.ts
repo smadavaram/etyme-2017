@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { fromPrismaDecimal } from '@/lib/money'
+import { amount } from '@/lib/money-display'
 import { permissionScope } from '@/lib/permission-grants'
 import { paidRunHours } from '@/lib/payroll-paid'
 import { payablesOf } from '@/lib/money/what-we-owe'
@@ -119,6 +120,9 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
   }
 
   const actuals = cashFlow(input, period, grain, now)
+  // Accepted pay with no pay date is still owed: named, never left out in silence.
+  const undatedPay = payrollRows ? payrollUndatedSays(payrollRows) : null
+  if (undatedPay) actuals.says.push(undatedPay)
   const forecast = cashForecast(
     await forecastInputs({
       companyId, companyName: reading.companyName, client, sentBills,
@@ -149,12 +153,30 @@ async function payrollPage(request: NextRequest): Promise<any[] | null> {
   return body?.data?.payItems ?? []
 }
 
+const owedPay = (p: any) =>
+  (p.payStatus === 'PENDING' || p.payStatus === 'CALCULATED') && typeof p.grossPay === 'number' && p.grossPay > 0
+
 function payrollDue(items: any[]): Flow[] {
   return items
-    .filter((p) => (p.payStatus === 'PENDING' || p.payStatus === 'CALCULATED') && typeof p.grossPay === 'number' && p.grossPay > 0)
+    .filter((p) => owedPay(p) && p.nextPayDate)
     .map((p) => ({
       currency: typeof p.payCurrency === 'string' ? p.payCurrency : null,
       at: p.nextPayDate ? new Date(p.nextPayDate) : null,
       minor: p.grossPay,
     }))
+}
+
+/**
+ * Payroll owed with no pay date, said by name. An open-ended placement has
+ * no pay dates, so her accepted wages fell into no period and the column
+ * read $0.00 while she was owed (walk, 2026-11-14). Each is the period the
+ * Payroll page shows for her, never a total of periods it does not show.
+ */
+export function payrollUndatedSays(items: any[]): string | null {
+  const undated = items.filter((p) => owedPay(p) && !p.nextPayDate)
+  if (undated.length === 0) return null
+  const each = undated.map((p) =>
+    `${p.person?.name ?? 'A worker'}, ${amount(p.grossPay, typeof p.payCurrency === 'string' ? p.payCurrency : undefined)}` +
+    (p.payPeriod?.label ? ` for ${p.payPeriod.label}` : ''))
+  return `Payroll due leaves out accepted pay that has no pay date set: ${each.join('; ')}.`
 }

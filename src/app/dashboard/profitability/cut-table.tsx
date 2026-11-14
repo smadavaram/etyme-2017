@@ -13,7 +13,7 @@ import { CUTS, CUT_HEADING, type Cut, type CutLine, type CutOption, type Period 
 /**
  * The founder's Profitability table ("One app, two tabs", 2026-11-08):
  * cut by Consultant, Office or Client, for this month or the quarter,
- * Billed · Paid · Margin · Margin %, under "Margin before admin cost and
+ * Billed · Cost · Margin · Margin %, under "Margin before admin cost and
  * commission". Every figure is the route's (`by=cut`), which adds up the
  * margin service's own figures; this screen computes nothing.
  *
@@ -77,7 +77,7 @@ export function CutTable() {
       </span>
     ), exportValue: (l) => l.label },
     { key: 'billedCents', label: 'Billed', align: 'right', render: (l) => money(l.billedCents, l), exportValue: (l) => l.billedCents == null ? null : l.billedCents / 100 },
-    { key: 'paidCents', label: 'Paid', align: 'right', render: (l) => money(l.paidCents, l), exportValue: (l) => l.paidCents == null ? null : l.paidCents / 100 },
+    { key: 'paidCents', label: 'Cost', align: 'right', render: (l) => money(l.paidCents, l), exportValue: (l) => l.paidCents == null ? null : l.paidCents / 100 },
     { key: 'marginCents', label: 'Margin', align: 'right', render: (l) => (
       <span className={l.marginCents != null && l.marginCents < 0 ? 'text-etyme-attention' : ''}>{money(l.marginCents, l)}</span>
     ), exportValue: (l) => l.marginCents == null ? null : l.marginCents / 100 },
@@ -134,14 +134,14 @@ export function CutTable() {
             />
             {total && (
               <p className="text-[13px] tabular-nums text-etyme-ink">
-                Your firm: {money(total.billedCents, total)} billed, {money(total.paidCents, total)} paid,{' '}
+                Your firm: {money(total.billedCents, total)} billed, {money(total.paidCents, total)} cost,{' '}
                 {money(total.marginCents, total)} margin{total.marginPct == null ? '' : ` (${total.marginPct}%)`}.
               </p>
             )}
             <p className="text-[12.5px] text-etyme-muted">{data.says}</p>
             <p className="text-[12.5px] text-etyme-muted">
-              Billed is the weeks both sides signed, at your rate. Paid is what those weeks cost you: pay,
-              overtime and, for your own employees, the employer’s taxes. {data.adminCostSays} {data.commissionSays}
+              Billed is the weeks both sides signed, at your rate. Cost is the pay, overtime and, for your
+              own employees, the employer’s taxes on those weeks. It is not money paid out. {data.adminCostSays} {data.commissionSays}
             </p>
           </>
         )}

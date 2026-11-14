@@ -111,6 +111,66 @@ export function periodPayStatus(
   return 'PENDING'
 }
 
+/**
+ * The status of a period that has no pay day of its own, read off what
+ * the runs recorded: processed only where a run paid every hour in it,
+ * worked out where a calculate run covered it, else pending.
+ *
+ * Found on a walk on 2026-11-14: an open-ended placement has no pay days,
+ * and its months read "Processed" before anybody had paid her. Nothing
+ * saying it was paid must never read as paid.
+ */
+export function periodStatusFromRuns(args: {
+  /** Every day the period pays, by `paidKey`, with its hours. */
+  days: ReadonlyArray<{ key: string; hours: number }>
+  /** Hours already paid, by `paidKey` (`paidBook`). */
+  paid: ReadonlyMap<string, number>
+  /** Whether a calculate run worked this person's period out. */
+  workedOut: boolean
+}): 'PROCESSED' | 'CALCULATED' | 'PENDING' {
+  const allPaid =
+    args.days.length > 0 && args.days.every((d) => (args.paid.get(d.key) ?? 0) + 0.005 >= d.hours)
+  if (allPaid) return 'PROCESSED'
+  return args.workedOut ? 'CALCULATED' : 'PENDING'
+}
+
+/**
+ * A week filed inside the pay period and not accepted yet, said on the
+ * payroll row. It is not paid in this period, and the row says so rather
+ * than reading as the whole period.
+ */
+export function notAcceptedSays(w: {
+  personName: string
+  /** The week as a person reads it, "Nov 1 – Nov 7, 2026". */
+  week: string
+  hours: number
+  clientApproved: boolean
+  clientName: string | null
+  employerName: string | null
+}): string {
+  const hours = Math.round(w.hours * 100) / 100
+  const employer = w.employerName ?? 'your firm'
+  const until = w.clientApproved
+    ? `${employer} accepts it`
+    : `${w.clientName ?? 'the client'} approves it and ${employer} accepts it`
+  return `${w.personName}'s week of ${w.week}, ${hours} hours, is not in this pay until ${until}.`
+}
+
+/**
+ * The pay file for the period shown: the month chosen, first day to last,
+ * or the export route's own last thirty days on the view of every period.
+ */
+export function payFileHref(month: string): string {
+  const params = new URLSearchParams({ provider: 'GENERIC', format: 'csv' })
+  if (/^\d{4}-\d{2}$/.test(month)) {
+    const [y, m] = month.split('-').map(Number)
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    params.set('from', `${month}-01`)
+    params.set('to', `${month}-${String(last).padStart(2, '0')}`)
+  }
+  return `/api/payroll/export?${params}`
+}
+
 export interface Named {
   id: string
   name: string

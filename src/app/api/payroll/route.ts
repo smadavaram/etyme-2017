@@ -18,8 +18,11 @@ import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
-import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor } from '@/lib/money/payroll-rows'
-import { plainDate } from '@/lib/plain-date'
+import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor, periodStatusFromRuns, notAcceptedSays } from '@/lib/money/payroll-rows'
+import { plainDate, daySpan } from '@/lib/plain-date'
+import { paidBook, paidKey, PAYROLL_RUN } from '@/lib/payroll-paid'
+import { workedOutKeys, isWorkedOut } from '@/lib/money/payroll-worked-out'
+import { paySettingsFor, PAY_PERIOD_WORDS } from '@/lib/payroll-settings'
 
 /**
  * GET /api/payroll
@@ -199,6 +202,45 @@ export async function GET(request: NextRequest) {
   for (const r of rateHistory) {
     rateRows.set(r.contractId, [...(rateRows.get(r.contractId) ?? []), r])
   }
+
+  // What the runs recorded, for a period with no pay day of its own: an
+  // open-ended placement has none, and its months read "Processed" before
+  // anybody paid her (walk, 2026-11-14). The paid book says what a run
+  // paid; the calculate runs say what was worked out (lib/payroll-paid).
+  const book = await paidBook(companyId, buyContracts.map((b) => b.id))
+  const workedOut = workedOutKeys(
+    (
+      await prisma.automationLog.findMany({
+        where: { companyId, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'calculate' } },
+        select: { payload: true },
+      })
+    ).map((r) => r.payload as { contracts?: any[] } | null)
+  )
+
+  // Weeks filed and not accepted yet. They are not paid, and the row
+  // names each one inside its period rather than reading as complete.
+  const sourceIds = [
+    ...new Set(
+      buyContracts.flatMap((bc) => [
+        ...bc.sellLinks.map((l) => l.sellContractId),
+        ...(bc.supplierSellContract ? [bc.supplierSellContract.id] : []),
+      ])
+    ),
+  ]
+  const notAcceptedSheets = sourceIds.length
+    ? await prisma.timesheet.findMany({
+        where: {
+          sellContractId: { in: sourceIds },
+          status: { in: ['SUBMITTED', 'APPROVED'] },
+          submittedAt: { not: null },
+          assertions: { none: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } },
+        },
+        select: {
+          id: true, personId: true, sellContractId: true, periodStart: true, periodEnd: true,
+          totalHours: true, days: true, clientApprovedAt: true,
+        },
+      })
+    : []
 
   // Payroll pays our own employees and nobody else. A worker bought from
   // a supplier, through their own company or as a 1099 individual is paid
@@ -507,6 +549,35 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Each week filed inside the period and not accepted yet: left out
+      // of gross pay, as before, and now named in one sentence.
+      const notAcceptedSaid: string[] = []
+      if (payPeriod) {
+        for (const ts of notAcceptedSheets.filter((t) => t.personId === cand.personId)) {
+          const src = sources.find((s) => s.sellContractId === ts.sellContractId)
+          if (!src) continue
+          const all = (ts.days as Record<string, number>) ?? {}
+          const filed = !src.supplier && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+          const share = hoursInPeriod(
+            { id: ts.id, periodStart: ts.periodStart, periodEnd: ts.periodEnd, days: filed, totalHours: Number(ts.totalHours) },
+            payPeriod,
+            terms.straddle
+          )
+          if (!share || share.hours <= 0) continue
+          const clientCo = src.supplier ? client : (src.sellContract.endClientCompany ?? src.sellContract.clientCompany ?? client)
+          notAcceptedSaid.push(
+            notAcceptedSays({
+              personName: cand.person.name,
+              week: daySpan(ts.periodStart.toISOString(), ts.periodEnd.toISOString()),
+              hours: share.hours,
+              clientApproved: ts.clientApprovedAt != null,
+              clientName: clientCo?.name ?? null,
+              employerName: bc.company?.name ?? null,
+            })
+          )
+        }
+      }
+
       // Rounded once for the row.
       const premiumCents = Math.round(premiumExact)
       const grossPay =
@@ -532,8 +603,25 @@ export async function GET(request: NextRequest) {
         payStatus = 'PENDING'
       } else if (nextSalaryCycle && !nextSalaryCycle.completedAt) {
         payStatus = 'CALCULATED'
-      } else {
+      } else if (book.unrecorded.has(bc.id)) {
+        // A run before 2026-09-29 paid this line without saying which
+        // hours; the run route refuses it, and the row keeps its old word.
         payStatus = 'PROCESSED'
+      } else {
+        // No pay day for this period: what the runs recorded decides, and
+        // a period nobody paid is pending, never processed.
+        payStatus = periodStatusFromRuns({
+          days: shares.flatMap((x, i) =>
+            priced[i].days.map((d) => ({ key: paidKey(bc.id, cand.personId, x.ts.id, d.day), hours: d.hours }))
+          ),
+          paid: book.paid,
+          workedOut: payPeriod
+            ? isWorkedOut(workedOut, {
+                buyContractId: bc.id, buyContractCandidateId: cand.id,
+                start: payPeriod.start.toISOString(), end: payPeriod.end.toISOString(),
+              })
+            : false,
+        })
       }
 
       return {
@@ -582,6 +670,9 @@ export async function GET(request: NextRequest) {
         payLine: lineSaid.length ? lineSaid.join(' ') : null,
         // Where fewer hours were accepted than filed, which were paid.
         accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
+        // Each week filed in the period and not accepted yet, which gross
+        // pay leaves out: the person, the week, the hours, who must act.
+        notAccepted: notAcceptedSaid.length ? notAcceptedSaid.join(' ') : null,
         // Each week worked over the line and accepted at or under it:
         // "38 of 45 hours accepted; paid at straight time because the
         // accepted week is not over 40."
@@ -661,8 +752,18 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // The pay period the company set, said beside the month this page
+  // lists. The picker is still by calendar month; the setting is read,
+  // not applied, until the founder gives the first period (walk, 2026-11-14).
+  const settings = await paySettingsFor(companyId)
+  const companyName = caller.company?.id === companyId ? caller.company.name : 'Your company'
+  const periodSays =
+    `${companyName} pays ${PAY_PERIOD_WORDS[settings.payPeriod].toLowerCase()}, ` +
+    'as set in Settings, but this page lists pay by calendar month.'
+
   return NextResponse.json({
     data: {
+      periodSays,
       payItems: items,
       /** The column's name, from the service every screen reads it from. */
       spreadLabel: readsMargin ? AGREED_SPREAD : null,

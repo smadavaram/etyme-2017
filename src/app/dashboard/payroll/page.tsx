@@ -11,6 +11,7 @@ import { compact as formatRate, amount } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
+import { payFileHref } from '@/lib/money/payroll-rows'
 
 /**
  * Payroll working surface — what the buy lines pay out.
@@ -88,6 +89,10 @@ interface PayItem {
   payLine?: string | null
   /** Where fewer hours were accepted than filed, which hours are paid. */
   accepted?: string | null
+  /** Each week filed in the period and not accepted yet, left out of gross pay. */
+  notAccepted?: string | null
+  /** The period this row pays, as the route cut it. */
+  payPeriod?: { start: string; end: string; label: string } | null
   /**
    * Each week worked over the line and accepted at or under it, paid at
    * straight time — "38 of 45 hours accepted; paid at straight time
@@ -169,6 +174,12 @@ function utcDay(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
+/** The clients on a pay row, as the Client column shows them. */
+function clientsOf(row: PayItem): string {
+  const clients = [...new Set(row.timesheets.map((ts) => ts.clientCompany?.name).filter(Boolean))]
+  return clients.length > 0 ? clients.join(', ') : (row.client?.name ?? '')
+}
+
 /** An amount in its own currency and its own decimals, through the one formatter. */
 function formatCents(cents: number, currency?: string | null): string {
   return amount(cents, currency || 'USD')
@@ -232,6 +243,8 @@ export default function PayrollPage() {
   // Workers paid on an invoice receipt, not by payroll: one plain line each.
   const [paidElsewhere, setPaidElsewhere] = useState<Array<{ buyContractId: string; person: { id: string; name: string }; says: string }>>([])
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
+  // The pay period the company set, in the route's one sentence.
+  const [periodSays, setPeriodSays] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
@@ -286,6 +299,7 @@ export default function PayrollPage() {
       setSpreadLabel(body.data?.spreadLabel ?? null)
       setPaidElsewhere(body.data?.paidElsewhere ?? [])
       setSummary(body.data?.summary ?? null)
+      setPeriodSays(body.data?.periodSays ?? null)
     } catch (err: any) {
       setError(err.message)
       setPayItems([])
@@ -388,6 +402,7 @@ export default function PayrollPage() {
         </div>
       ),
       sortValue: (row) => row.person.name,
+      exportValue: (row) => row.person.name,
       width: 'min-w-[180px]',
     },
     {
@@ -399,6 +414,7 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.contractType,
+      exportValue: (row) => contractTypeLabel(row.contractType),
     },
     {
       key: 'client',
@@ -419,6 +435,7 @@ export default function PayrollPage() {
         const names = row.timesheets.map((ts) => ts.clientCompany?.name).filter(Boolean)
         return names[0] ?? row.client?.name ?? ''
       },
+      exportValue: (row) => clientsOf(row),
       hideOnMobile: true,
     },
     {
@@ -435,6 +452,7 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.payRate,
+      exportValue: (row) => `${formatCents(row.payRate, row.payCurrency)}/hr`,
       align: 'right' as const,
     },
     {
@@ -456,9 +474,16 @@ export default function PayrollPage() {
               {row.straightTime}
             </span>
           )}
+          {/* A week filed and not accepted yet: not in this pay, said. */}
+          {row.notAccepted && (
+            <span className="block max-w-[260px] text-left text-[11px] text-etyme-attention ml-auto">
+              {row.notAccepted}
+            </span>
+          )}
         </span>
       ),
       sortValue: (row) => row.totalApprovedHours,
+      exportValue: (row) => row.totalApprovedHours,
       align: 'right' as const,
     },
     {
@@ -491,12 +516,15 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.grossPay,
+      exportValue: (row) => formatCents(row.grossPay, row.payCurrency),
       align: 'right' as const,
     },
     {
       key: 'carry',
       label: 'Carry',
       render: (row) => <CarryCell sellContractId={row.sellContractId} />,
+      // Read on demand, one contract at a time, so the file carries none.
+      exportValue: () => null,
       align: 'right' as const,
     },
     ...(spreadLabel ? [{
@@ -528,6 +556,7 @@ export default function PayrollPage() {
         )
       },
       sortValue: (row: PayItem) => row.agreed?.pct ?? -1,
+      exportValue: (row: PayItem) => (row.agreed?.pct == null ? null : `${row.agreed.pct.toFixed(1)}%`),
       align: 'right' as const,
       hideOnMobile: true,
     }] : []),
@@ -540,6 +569,7 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.payStatus,
+      exportValue: (row) => row.payStatus.replace('_', ' '),
     },
     {
       key: 'nextPay',
@@ -559,6 +589,7 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.nextPayDate ? new Date(row.nextPayDate).getTime() : 0,
+      exportValue: (row) => (row.nextPayDate ? utcDay(row.nextPayDate) : null),
       align: 'right' as const,
       hideOnMobile: true,
     },
@@ -615,6 +646,12 @@ export default function PayrollPage() {
             ))}
           </select>
 
+          {/* The pay file for the period shown, from the tested export
+              route: names, hours, rates and gross pay in dollars. */}
+          <a href={payFileHref(selectedPeriod)} className="btn-secondary" download>
+            Download pay file
+          </a>
+
           {stats.pending > 0 && (
             <button
               onClick={() => handleRunPayroll('calculate')}
@@ -635,6 +672,8 @@ export default function PayrollPage() {
           )}
         </>}
       />
+
+      {periodSays && <p className="mb-4 text-[12.5px] text-etyme-muted">{periodSays}</p>}
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
