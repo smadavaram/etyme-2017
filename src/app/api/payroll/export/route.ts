@@ -9,11 +9,13 @@ import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
 import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { payLineFor, payLineSays, weeklyWorked, judgedLine } from '@/lib/money/pay-line'
 import { acceptanceForPay, payBands, payCut, paidDayMaps, straightTimeSays } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { clientsDecisions } from '@/lib/money/client-overtime'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
+import { companyPayPeriods } from '@/lib/money/company-pay-periods'
+import { MONTH_HAS_NO_PAY_FILE } from '@/lib/money/pay-periods'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -54,6 +56,22 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
   const url = new URL(request.url)
+
+  // ── A company that pays by its own periods gets its file there ─────
+  //
+  // Walk, 2026-11-14: the calendar month offered this file, which has no
+  // "Paid already" column and does not read the paid book. November's
+  // file carried days a period run had just paid, so a provider handed it
+  // would pay them twice. A company that pays every week or every other
+  // week from a first day its Owner set takes its pay file from the
+  // period (GET /api/payroll?period=&format=csv), which is paid-aware.
+  // The reading view, without the file, stays.
+  if (url.searchParams.get('format') === 'csv' && (await companyPayPeriods(companyId)).byPeriod) {
+    return NextResponse.json(
+      { error: { code: 'PAY_BY_PERIOD', field: 'period', message: MONTH_HAS_NO_PAY_FILE } },
+      { status: 409 }
+    )
+  }
 
   const provider = (['ADP', 'PAYCHEX', 'GENERIC'].includes(url.searchParams.get('provider') ?? '')
     ? url.searchParams.get('provider')
@@ -260,7 +278,14 @@ export async function GET(request: NextRequest) {
       },
     })
     const drawnBy = payLine.source === 'BUY' ? policyOf(buy!) : policyOf(s.sellContract)
-    const payPolicy = { ...drawnBy, afterHours: payLine.afterHours }
+    // Where nobody has said whether the person is exempt, the week is
+    // judged on the line a person not exempt would be (lib/money/pay-line,
+    // `judgedLine`): a week over it then reaches the wage rules, which
+    // leave it off the file in their own sentence rather than paying it
+    // at straight time. 46 hours at $96 is $4,704 if not exempt and
+    // $4,416 at straight time; neither is paid until somebody says.
+    const lineAt = judgedLine(payLine)
+    const payPolicy = { ...drawnBy, afterHours: lineAt }
 
     const split = splitWeeks((s.days as Record<string, number>) ?? {}, payPolicy, {
       leaveDays: (s.leaveDays as Record<string, number>) ?? {},
@@ -276,8 +301,8 @@ export async function GET(request: NextRequest) {
     // the hours worked — and goes on the file with its sentence as a note.
     const acceptance = acceptanceForPay(s.assertions, s, companyId)
     const cutRule = cutOvertimeFor(buy).rule
-    const bands = payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, payLine.afterHours)
-    const wholeCut = acceptance === 'MANY' ? null : payCut(bands, acceptance, payLine.afterHours, cutRule)
+    const bands = payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, lineAt)
+    const wholeCut = acceptance === 'MANY' ? null : payCut(bands, acceptance, lineAt, cutRule)
     // The week judged whole, then only its days inside the window paid.
     const cut = wholeCut ? cutInWindow(wholeCut, bands, fromDay, toDay) : null
     const paidMaps = cut ? paidDayMaps(cut) : { days: {}, leaveDays: {} }
@@ -360,7 +385,7 @@ export async function GET(request: NextRequest) {
           client: { treatment: w.treatment, appliedBps: w.appliedBps },
           ...weekRate(w.weekOf, regularHours + leaveHours),
           worked: workedWeeks.get(w.weekOf) ?? null,
-          straightTime: c?.underTheLine ? straightTimeSays(c, payLine.afterHours, s.person.name) : null,
+          straightTime: c?.underTheLine ? straightTimeSays(c, lineAt, s.person.name) : null,
         }
       }),
       // Already the hours accepted where the days were cut above.

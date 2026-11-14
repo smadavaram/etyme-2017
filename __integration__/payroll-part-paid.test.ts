@@ -142,19 +142,23 @@ for (const S of SUNDAYS) {
       expect(mine.partPaid).toBe('Paid already: $800.00 for 40 hours. Still to pay: $800.00 for 40 hours.')
     })
 
-    it('a period part paid offers its pay file, once nobody else with hours in it waits to be worked out', async () => {
+    it('a period part paid whose late week nobody worked out offers no pay file and names her, then offers it once Calculate covers the new week', async () => {
+      // Walk, 2026-11-14: her second week was accepted after the first was
+      // paid, and the period still read worked out. It is pending again.
+      const first = await page(before)
+      expect(rowOf(first, rhea).payStatus).toBe('PENDING')
+      expect(first.payFileWaits).toContain(`Pay for ${rhea.name}`)
       // Another family's people may share this period, cut from another
-      // first day; they are worked out here, and she is left as she is.
-      const others = (await page(before)).payItems
-        .filter((p: any) => p.payStatus === 'PENDING' && p.totalApprovedHours > 0 && p.buyContractId !== rhea.buyId && !(p.paidSoFar?.hours > 0))
+      // first day; they are worked out here with her.
+      const others = first.payItems
+        .filter((p: any) => p.payStatus === 'PENDING' && p.totalApprovedHours > 0 && p.buyContractId !== rhea.buyId)
         .map((p: any) => p.buyContractId)
-      if (others.length) {
-        as(BRIGHTMOOR)
-        const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: others, action: 'calculate', period: { start: before, end: plus(before, 13) } })))
-        expect(r.status, JSON.stringify(r.body)).toBe(200)
-      }
+      as(BRIGHTMOOR)
+      const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [rhea.buyId, ...others], action: 'calculate', period: { start: before, end: plus(before, 13) } })))
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
       const data = await page(before)
       expect(rowOf(data, rhea).partPaid).toBeTruthy()
+      expect(rowOf(data, rhea).payStatus).toBe('CALCULATED')
       expect(data.payFileWaits).toBeNull()
     })
 

@@ -268,9 +268,13 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-07' })
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
     const july = expected('2026-07-01', '2026-07-31')
-    expect(row.totalHours).toBe(189)
-    expect(row.grossPay).toBe(july.cents)
-    expect(row.grossPay).toBe(189 * 7_000)
+    // The 45-hour week of 6 July is held: nobody has said yet whether
+    // Priya is exempt, and straight time on it would be a guess
+    // (2026-11-14). July pays the other 144 hours, every one at $70.
+    expect(row.totalHours).toBe(189 - 45)
+    expect(row.grossPay).toBe(july.cents - 45 * 7_000)
+    expect(row.grossPay).toBe(144 * 7_000)
+    expect(row.exemptHeld).toContain('45 hours, is held off this pay.')
   })
 
   it("leaves the Monday and Tuesday of the week of the rise to June's run, and pays the Wednesday to Friday at $70", async () => {
@@ -289,7 +293,9 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
   it('shows the payroll screen the same July figure the run pays, and the $70 rate she is on now', async () => {
     const r = await call(owner, payroll, 'GET', `/api/payroll?period=2026-07&companyId=${firmId}`)
     const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
-    expect(item.grossPay).toBe(expected('2026-07-01', '2026-07-31').cents)
+    // Less the 45-hour week held until somebody says whether she is exempt.
+    expect(item.grossPay).toBe(expected('2026-07-01', '2026-07-31').cents - 45 * 7_000)
+    expect(item.heldHours).toBe(45)
     expect(item.payRate).toBe(7_000)
   })
 

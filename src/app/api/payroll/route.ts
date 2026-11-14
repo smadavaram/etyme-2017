@@ -12,7 +12,7 @@ import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { payLineOn, payLineSays, weeklyWorked, heldForExemption, withoutHeldWeeks, heldSays, owedSinceRecordedSays } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
@@ -21,11 +21,11 @@ import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor, periodStatusFromRuns, notAcceptedSays } from '@/lib/money/payroll-rows'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { paidBook, paidKey, PAYROLL_RUN } from '@/lib/payroll-paid'
-import { workedOutKeys, isWorkedOut } from '@/lib/money/payroll-worked-out'
+import { workedOutKeys, isWorkedOut, payCovers, coversLeft } from '@/lib/money/payroll-worked-out'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
-  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, noHolidaysSays, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
@@ -259,6 +259,8 @@ export async function GET(request: NextRequest) {
     (
       await prisma.automationLog.findMany({
         where: { companyId, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'calculate' } },
+        // Oldest first, so the latest calculation of a period is the one that counts.
+        orderBy: { at: 'asc' },
         select: { payload: true },
       })
     ).map((r) => r.payload as { contracts?: any[] } | null)
@@ -414,13 +416,27 @@ export async function GET(request: NextRequest) {
                   all, mine: filedDays, leaveDays, afterHours: line.afterHours, accepted: acceptance,
                   cutOvertime: cutOvertimeFor(bc).rule,
                 })
-            const mineDays = pay?.days ?? {}
+            // A week over the line for a person nobody has said is exempt
+            // or not is held off pay, never paid at straight time on a
+            // guess (lib/money/pay-line, `heldForExemption`).
+            // A week an earlier run paid in full is not held: it was paid,
+            // at straight time, and the row says so in the line's sentence.
+            const held = (pay
+              ? heldForExemption({ line, days: filedDays, leaveDays, accepted: pay.accepted, cutOvertime: cutOvertimeFor(bc).rule })
+              : []
+            ).filter((w) => !Object.entries(pay?.days ?? {}).every(([day, h]) =>
+              weekStart(day.slice(0, 10)) !== w.weekOf ||
+                (book.paid.get(paidKey(bc.id, cand.personId, ts.id, day.slice(0, 10))) ?? 0) + 0.005 >= Number(h)))
+            const kept = withoutHeldWeeks(pay?.days ?? {}, held)
+            const mineDays = kept.days
             const mineHours = Object.keys(all).length > 0
-              ? (pay ? pay.cut.paid : 0)
+              ? (pay ? Math.round((pay.cut.paid - kept.hoursHeld) * 100) / 100 : 0)
               : acceptance === 'MANY' ? 0 : Number(acceptance?.hours ?? ts.totalHours)
             return {
             id: ts.id,
             line,
+            held,
+            heldDays: held.length > 0 ? Object.fromEntries(Object.entries(pay?.days ?? {}).filter(([d]) => !(d in kept.days))) : {},
             filed: filedDays,
             accepted: pay?.accepted ?? null,
             cut: pay?.cut ?? null,
@@ -448,7 +464,7 @@ export async function GET(request: NextRequest) {
         for (const ts of linkedTimesheets) {
           if (ts.many) continue
           const dayKeys = Object.keys(ts.days ?? {})
-          if (dayKeys.length === 0) {
+          if (dayKeys.length === 0 && Object.keys(ts.heldDays).length === 0) {
             // A week filed as a total: unpaid while no run paid any day of it.
             const anyPaid = [...book.paid.keys()].some((k) => k.startsWith(`${bc.id}|${cand.personId}|${ts.id}|`))
             if (ts.totalHours > 0 && !anyPaid) unpaidDays.add(weekStart(ts.rawStart.toISOString().slice(0, 10)))
@@ -459,6 +475,9 @@ export async function GET(request: NextRequest) {
             const key = day.slice(0, 10)
             if (hours > 0 && (book.paid.get(paidKey(bc.id, cand.personId, ts.id, key)) ?? 0) + 0.005 < hours) unpaidDays.add(key)
           }
+          // A held week is accepted and not paid: its period is offered, so
+          // the row that says why it is held can be found.
+          for (const day of Object.keys(ts.heldDays)) unpaidDays.add(day.slice(0, 10))
         }
       }
 
@@ -522,7 +541,7 @@ export async function GET(request: NextRequest) {
         : []
 
       // The working of the cut stays here; the row carries its sentence.
-      const filteredTimesheets = shares.map(({ ts: { cut: _cut, filed: _filed, line: _line, ...ts }, share }) => ({
+      const filteredTimesheets = shares.map(({ ts: { cut: _cut, filed: _filed, line: _line, held: _held, heldDays: _heldDays, ...ts }, share }) => ({
         ...ts,
         totalHours: share!.hours,
         partPeriod: share!.partial,
@@ -568,6 +587,11 @@ export async function GET(request: NextRequest) {
       // Each day's premium, by the key the paid book keeps, so what is
       // still to pay is the run's own subtraction (lib/money/period-pay-left).
       const premiumDays: PremiumDay[] = []
+      // The straight hours priced on a day in this period, by the same key.
+      const pricedOnDay = (key: string) =>
+        shares.reduce((n, x, i) => n + priced[i].days
+          .filter((d) => paidKey(bc.id, cand.personId, x.ts.id, d.day) === key)
+          .reduce((m, d) => m + d.hours, 0), 0)
       shares.forEach((x, i) => {
         const weeks = sheetOvertime({
           days: x.ts.filed,
@@ -661,6 +685,39 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Each week held because nobody has said whether the person is
+      // exempt, inside this period: left out of gross pay and the file,
+      // and said on the row with the step that releases it.
+      const heldInPeriod = payPeriod
+        ? linkedTimesheets.flatMap((t) => t.held.filter((w) =>
+            Object.keys(t.heldDays).some((d) => {
+              const at = new Date(`${d.slice(0, 10)}T00:00:00.000Z`).getTime()
+              return weekStart(d.slice(0, 10)) === w.weekOf && at >= payPeriod.start.getTime() && at <= payPeriod.end.getTime()
+            })))
+        : []
+      const heldHours = Math.round(heldInPeriod.reduce((n, w) => n + w.workedHours, 0) * 100) / 100
+      const exemptHeld = heldSays(cand.person.name, heldInPeriod)
+
+      // A week a run paid at straight time before the person was recorded
+      // as not exempt: its straight time is paid, its premium is not. The
+      // premium is still to pay, said first, and paid only once Calculate
+      // covers it (lib/money/pay-line, `owedSinceRecordedSays`).
+      const owedByWeek = new Map<string, number>()
+      for (const p of premiumDays) {
+        const priorStraight = book.paid.get(p.key) ?? 0
+        const dayHours = pricedOnDay(p.key)
+        if (dayHours <= 0 || priorStraight + 0.005 < dayHours) continue
+        const unpaid = Math.round((p.hours - (book.premiumHours.get(p.key) ?? 0)) * 100) / 100
+        if (unpaid <= 0 || p.hours <= 0) continue
+        const w = weekStart(p.key.split('|')[3] ?? '')
+        owedByWeek.set(w, (owedByWeek.get(w) ?? 0) + (p.premiumCents * unpaid) / p.hours)
+      }
+      const owedSinceRecorded = owedSinceRecordedSays(
+        cand.person.name,
+        [...owedByWeek.entries()].map(([weekOf, c]) => ({ weekOf, premiumCents: Math.round(c) })),
+        (c) => amountOf(c, cand.payCurrency),
+      )
+
       // Rounded once for the row.
       const premiumCents = Math.round(premiumExact)
       const grossPay =
@@ -684,7 +741,14 @@ export async function GET(request: NextRequest) {
       // A company period is not the line's own: the line's pay dates were
       // cut on the rhythm it was written with, so they say nothing about
       // this period, and what the runs recorded for it decides.
-      const own = payPeriod && !companyHeld
+      //
+      // And on a company that pays by its own periods, a calendar month or
+      // the view of every period is never judged on the line's pay dates
+      // either: a period run pays days, not the line's cycles, so a month
+      // whose days a period run paid read "Pending" (walk, 2026-11-14).
+      // What the runs paid decides there too.
+      const byLineDates = !companyHeld && !co.byPeriod
+      const own = payPeriod && byLineDates
         ? periodPayStatus(bc.buyCycles, payPeriod, (d) => periodFor(d, terms), cand.startDate)
         : null
       let payStatus: string
@@ -692,9 +756,9 @@ export async function GET(request: NextRequest) {
         payStatus = 'NO_HOURS'
       } else if (own) {
         payStatus = own
-      } else if (!companyHeld && nextCalcCycle && !nextCalcCycle.completedAt) {
+      } else if (byLineDates && nextCalcCycle && !nextCalcCycle.completedAt) {
         payStatus = 'PENDING'
-      } else if (!companyHeld && nextSalaryCycle && !nextSalaryCycle.completedAt) {
+      } else if (byLineDates && nextSalaryCycle && !nextSalaryCycle.completedAt) {
         payStatus = 'CALCULATED'
       } else if (book.unrecorded.has(bc.id)) {
         // A run before 2026-09-29 paid this line without saying which
@@ -708,11 +772,22 @@ export async function GET(request: NextRequest) {
             priced[i].days.map((d) => ({ key: paidKey(bc.id, cand.personId, x.ts.id, d.day), hours: d.hours }))
           ),
           paid: book.paid,
+          // Overtime still owed on days whose straight time a run paid.
+          premiumOwed: owedByWeek.size > 0,
+          // Worked out only while what is still to pay is what the latest
+          // calculation covered: a week accepted after Calculate sends the
+          // period back to Calculate (lib/money/payroll-worked-out).
           workedOut: payPeriod
             ? isWorkedOut(workedOut, {
                 buyContractId: bc.id, buyContractCandidateId: cand.id,
                 start: payPeriod.start.toISOString(), end: payPeriod.end.toISOString(),
-              })
+              }, payCovers(coversLeft(
+                shares.flatMap((x, i) =>
+                  priced[i].days.map((d) => ({ key: paidKey(bc.id, cand.personId, x.ts.id, d.day), hours: d.hours }))
+                ),
+                premiumDays,
+                book,
+              )))
             : false,
         })
       }
@@ -723,7 +798,7 @@ export async function GET(request: NextRequest) {
         // Whether this row is on the run at all; read and dropped below.
         onRun: onPayrollFor(
           { state: bc.state, startDate: cand.startDate, endDate: cand.endDate ?? bc.endDate },
-          { period: payPeriod, asked: Boolean(period), hours: totalApprovedHours, settled: own === 'PROCESSED' }
+          { period: payPeriod, asked: Boolean(period), hours: totalApprovedHours + heldHours, settled: own === 'PROCESSED' }
         ),
         // The client the work is for, with or without hours this period.
         client,
@@ -770,6 +845,15 @@ export async function GET(request: NextRequest) {
         // "38 of 45 hours accepted; paid at straight time because the
         // accepted week is not over 40."
         straightTime: straightSaid.length ? straightSaid.join(' ') : null,
+        // Each week held off pay because nobody has said whether the person
+        // is exempt from overtime, the hours held, and the sentence; with
+        // what is recorded, so the row offers the step that releases it.
+        exemptHeld,
+        heldHours,
+        exemptStatus: (row?.status as 'EXEMPT' | 'NONEXEMPT' | undefined) ?? null,
+        // A week paid at straight time before "not exempt" was recorded,
+        // and the overtime still owed on it.
+        owedSinceRecorded,
         payStatus,
         // What earlier runs paid in this period, null where nothing was;
         // what a run would pay now; and, where both, one sentence.
@@ -863,7 +947,11 @@ export async function GET(request: NextRequest) {
   // Pay never goes out before it is worked out: while anybody on the
   // period is not worked out, the file is refused in the sentence the
   // screen shows in the button's place (`payFileWaits`).
-  const fileWaits = shownPeriod ? payFileWaits(onRun) : null
+  //
+  // On a company that pays by its own periods, a calendar month or the
+  // view of every period offers no pay file at all: a month's file could
+  // hand a provider hours a period run already paid (walk, 2026-11-14).
+  const fileWaits = shownPeriod ? payFileWaits(onRun) : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : null
   if (url.searchParams.get('format') === 'csv') {
     if (!shownPeriod) {
       return NextResponse.json(

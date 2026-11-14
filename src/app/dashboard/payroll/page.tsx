@@ -12,6 +12,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
 import { payFileHref } from '@/lib/money/payroll-rows'
+import { hasPermission } from '@/lib/permissions'
+import { EXEMPTION_CHOICES, exemptBody, exemptSavedSays, type ExemptChoice } from '@/lib/money/exempt-form'
 import { formatMonth } from '@/lib/format-date'
 
 /**
@@ -106,6 +108,18 @@ interface PayItem {
    * because the accepted week is not over 40."
    */
   straightTime?: string | null
+  /**
+   * Each week held off this pay because nobody has said whether the
+   * person is exempt from overtime, in a sentence; the hours held; and
+   * what is recorded (null where nothing is).
+   */
+  exemptHeld?: string | null
+  heldHours?: number
+  exemptStatus?: 'EXEMPT' | 'NONEXEMPT' | null
+  /** A week paid at straight time before "not exempt" was recorded, and the overtime still owed. */
+  owedSinceRecorded?: string | null
+  /** What earlier runs paid in the period; null where nothing was. */
+  paidSoFar?: { hours: number; grossCents: number } | null
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
@@ -274,7 +288,10 @@ export default function PayrollPage() {
   const [error, setError] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
-  const { company, loading: sessionLoading } = useSession()
+  const { company, loading: sessionLoading, permissions } = useSession()
+  // Recording whether somebody is exempt is the payroll run's own
+  // permission, as its route asks; a seat without it reads the sentence only.
+  const mayRecordExempt = hasPermission(permissions, 'payroll.run')
   // The section this page sits under on the reader's own menu, and
   // nothing while that is not known yet — never a word typed by hand.
   const eyebrow = usePageSection('/dashboard/payroll')
@@ -536,6 +553,14 @@ export default function PayrollPage() {
               {row.straightTime}
             </span>
           )}
+          {/* A week held because nobody has said whether the person is
+              exempt: not in this pay, said, with the answer on the row. */}
+          {row.exemptHeld && (
+            <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
+              {row.exemptHeld}
+              {mayRecordExempt && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
+            </span>
+          )}
           {/* A week filed and not accepted yet: not in this pay, said. */}
           {row.notAccepted && (
             <span className="block max-w-[260px] text-left text-[11px] text-etyme-attention ml-auto">
@@ -568,6 +593,13 @@ export default function PayrollPage() {
                 : 'Overtime premium not priced'}
             </span>
           )}
+          {/* Overtime still owed on a week paid at straight time before
+              "not exempt" was recorded: said first, never paid silently. */}
+          {row.owedSinceRecorded && (
+            <span className="block max-w-[260px] text-left text-[11px] font-normal text-etyme-attention ml-auto">
+              {row.owedSinceRecorded}
+            </span>
+          )}
           {/* Part of the period paid already: what, and what is left. */}
           {row.partPaid && (
             <span className="block max-w-[260px] text-left text-[11px] font-normal text-etyme-attention ml-auto">
@@ -586,6 +618,23 @@ export default function PayrollPage() {
       sortValue: (row) => row.grossPay,
       exportValue: (row) => formatCents(row.grossPay, row.payCurrency),
       align: 'right' as const,
+    },
+    {
+      // What earlier runs paid on these days. On the table export too, so
+      // a file made from this table never reads paid hours as owed.
+      key: 'paidAlready',
+      label: 'Paid already',
+      render: (row) => (
+        <span className="tabular-nums text-[12px] text-etyme-muted">
+          {row.paidSoFar && row.paidSoFar.grossCents > 0
+            ? `${formatCents(row.paidSoFar.grossCents, row.payCurrency)} for ${row.paidSoFar.hours} hours`
+            : '—'}
+        </span>
+      ),
+      sortValue: (row) => row.paidSoFar?.grossCents ?? 0,
+      exportValue: (row) => (row.paidSoFar && row.paidSoFar.grossCents > 0 ? formatCents(row.paidSoFar.grossCents, row.payCurrency) : null),
+      align: 'right' as const,
+      hideOnMobile: true,
     },
     {
       key: 'carry',
@@ -1120,5 +1169,76 @@ function Statutory() {
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * The answer that releases a held week: is this person exempt from
+ * overtime? Posts to POST /api/contracts/[id]/exempt, the one door that
+ * records it (lib/money/exempt-form). "Not exempt" is one press.
+ * "Exempt" names the exemption and takes a note, which the route needs
+ * where the pay cannot meet the exemption's salary test.
+ */
+function ExemptAnswer({ row, onSaved }: { row: PayItem; onSaved: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [basis, setBasis] = useState('')
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+  const [refused, setRefused] = useState<string | null>(null)
+
+  async function save(choice: ExemptChoice) {
+    setSaving(true)
+    setRefused(null)
+    try {
+      const res = await fetch(`/api/contracts/${row.buyContractId}/exempt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exemptBody(row.person.id, choice, { basis, note })),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRefused(body.error?.message ?? 'That was not recorded. Try again.')
+        return
+      }
+      setSaid(exemptSavedSays(row.person.name, choice))
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (said) return <span className="mt-1 block text-etyme-verified">{said}</span>
+  return (
+    <span className="mt-1 block">
+      <span className="flex flex-wrap gap-2">
+        <button type="button" className="btn-secondary !px-2 !py-1 !text-[11.5px]" disabled={saving} onClick={() => save('NONEXEMPT')}>
+          Not exempt
+        </button>
+        <button type="button" className="btn-secondary !px-2 !py-1 !text-[11.5px]" disabled={saving} onClick={() => setOpen((o) => !o)}>
+          Exempt…
+        </button>
+      </span>
+      {open && (
+        <span className="mt-2 block space-y-1 text-etyme-ink">
+          <label className="block">
+            <span className="block text-[11px] text-etyme-muted">Which exemption</span>
+            <select aria-label="Which exemption" className="input !py-1 !text-[12px]" value={basis} onChange={(e) => setBasis(e.target.value)}>
+              <option value="">Pick one</option>
+              {EXEMPTION_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-[11px] text-etyme-muted">Why, in a sentence</span>
+            <textarea aria-label="Why, in a sentence" className="input !py-1 !text-[12px]" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <button type="button" className="btn-primary !px-2 !py-1 !text-[11.5px]" disabled={saving || !basis} onClick={() => save('EXEMPT')}>
+            Record as exempt
+          </button>
+          {!basis && <span className="block text-[11px] text-etyme-muted">Pick an exemption to record it.</span>}
+        </span>
+      )}
+      {refused && <span className="mt-1 block text-etyme-danger">{refused}</span>}
+    </span>
   )
 }

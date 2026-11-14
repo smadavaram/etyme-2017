@@ -366,9 +366,14 @@ export function overtimeSaysFor(weeks: SheetWeek[], only?: Set<string> | null): 
     )
   }
   for (const w of touched.filter((x) => !x.terms.priced)) {
+    // The wage rules' sentence can end by saying the week is left off the
+    // payroll file. A week said here is on the run at straight time, so
+    // that clause would be untrue beside it, and is cut, as pay-line cuts it.
+    const why = w.terms.says ?? 'nobody can say what they are owed.'
+    const cut = why.indexOf(' The week is left off')
     parts.push(
       `${w.overHours} hours over the line in the week of ${plainDate(w.weekOf)} are paid at straight time here and ` +
-        `their premium is not priced: ${w.terms.says ?? 'nobody can say what they are owed.'}`
+        `their premium is not priced: ${cut > 0 ? why.slice(0, cut) : why}`
     )
   }
   return parts.length ? parts.join(' ') : null

@@ -127,10 +127,16 @@ export function periodStatusFromRuns(args: {
   paid: ReadonlyMap<string, number>
   /** Whether a calculate run worked this person's period out. */
   workedOut: boolean
+  /**
+   * True where overtime is still owed on days whose straight time a run
+   * paid: a week paid at straight time before the person was recorded as
+   * not exempt. Such a period is not processed until the premium is paid.
+   */
+  premiumOwed?: boolean
 }): 'PROCESSED' | 'CALCULATED' | 'PENDING' {
   const allPaid =
     args.days.length > 0 && args.days.every((d) => (args.paid.get(d.key) ?? 0) + 0.005 >= d.hours)
-  if (allPaid) return 'PROCESSED'
+  if (allPaid && !args.premiumOwed) return 'PROCESSED'
   return args.workedOut ? 'CALCULATED' : 'PENDING'
 }
 

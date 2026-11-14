@@ -33,10 +33,13 @@
  *     company, a sole trader, a sub-vendor's employee — whose overtime
  *     duty, if any, is whoever signs their paycheck;
  *   - an exempt worker, who keeps the contract's terms, as before;
- *   - a worker nobody has classified, who keeps straight time, as before
- *     — picking "nonexempt" to fill the gap would be a guess — and whose
- *     week over forty says, in the existing sentence, that nobody has
- *     said whether they are exempt;
+ *   - a worker nobody has classified. Picking "nonexempt" to fill the gap
+ *     would be a guess, and so would straight time: 46 hours at $96 is
+ *     $4,416 at straight time and $4,704 if not exempt, $288 apart. So a
+ *     week over the line is held off pay until somebody records the
+ *     answer (`heldForExemption`, 2026-11-14), and then paid once, with
+ *     the premium where one is owed. A week at or under the line is paid
+ *     as it always was: no answer changes it;
  *   - work outside the US: the employer's record names another country's
  *     rules, or the work site, the paying entity or the pay currency is
  *     outside the US. Then the US forty is not applied and the week over
@@ -53,6 +56,9 @@
 
 import { saysCannotClassify, wageRuleLabel, type WageRuleName } from '@/lib/worker-classification'
 import { weekStart } from '@/lib/overtime'
+import { payBands, payCut } from '@/lib/money/pay-hours'
+import type { AcceptedCut } from '@/lib/periods'
+import type { CutOvertime } from '@/lib/cut-overtime-choice'
 
 /** 29 U.S.C. §207(a)(1): hours over forty in a workweek. */
 export const US_WEEKLY_LINE = 40
@@ -113,6 +119,12 @@ export interface PayLine {
   outside: string[]
   /** The wage rule the employer recorded, where it recorded one. */
   wageRule: string | null
+  /**
+   * True where this firm pays the person a wage and nobody has recorded
+   * whether they are exempt from overtime. A week over the line is then
+   * held off pay (`heldForExemption`). Absent reads as false.
+   */
+  exemptUnrecorded?: boolean
 }
 
 const NOT_A_WAGE_TYPES = new Set(['C2C', 'CORP_TO_CORP', 'IND_1099', '1099', 'C1099'])
@@ -162,7 +174,7 @@ export function payLineFor(i: PayLineInput): PayLine {
   const type = String(i.contractType).toUpperCase()
   if (!i.weAreTheEmployer || NOT_A_WAGE_TYPES.has(type)) return asDrawn('NOT_OUR_WAGE')
 
-  if (i.exemptStatus == null) return asDrawn('UNRECORDED')
+  if (i.exemptStatus == null) return { ...asDrawn('UNRECORDED'), exemptUnrecorded: true }
   if (i.exemptStatus !== 'NONEXEMPT') return asDrawn('EXEMPT')
 
   // Nonexempt. Whose law?
@@ -309,4 +321,121 @@ export function payLineOn(
       siteCountry: sell?.workLocation?.country ?? null,
     },
   })
+}
+
+// ── A week held until somebody says whether the person is exempt ──────
+//
+// The skeptic's figures, 2026-11-14, worked by hand:
+//   46 hours at $96: not exempt 40 x 96 + 6 x 144 = $4,704; exempt or at
+//   straight time 46 x 96 = $4,416. Paid at straight time, $288 short.
+//   46 hours at $45: not exempt 1,800 + 6 x 67.50 = $2,205; straight
+//   time $2,070. $135 short.
+// Straight time was the figure paid while nobody had said. A plausible
+// wrong figure is worse than a blank, so the week is held off the run,
+// the pay file and the period total, and the row says why in words.
+
+/** One week held off pay because nobody has said whether the person is exempt. */
+export interface HeldWeek {
+  /** The Sunday the week began, ISO. */
+  weekOf: string
+  /** Hours worked that week, as accepted. Paid leave is not worked. */
+  workedHours: number
+  /** Of them, hours over the line a person not exempt is judged on. */
+  overHours: number
+}
+
+/**
+ * The line a week would be judged on if the person is not exempt: the
+ * contract's own where it is at or under forty, else the law's forty.
+ */
+function lineIfNotExempt(line: PayLine): number {
+  return line.drawn != null && line.drawn <= US_WEEKLY_LINE ? line.drawn : US_WEEKLY_LINE
+}
+
+/**
+ * The weekly line a reader judges the week on, so a week over it can be
+ * held: the line a person not exempt is judged on, where nobody has said
+ * whether they are exempt and nothing says the work is outside the US;
+ * else the pay line's own. The payroll file judges on this, and the wage
+ * rules then leave a held week off the file in their own sentence.
+ */
+export function judgedLine(line: PayLine): number | null {
+  if (line.exemptUnrecorded && line.outside.length === 0) return lineIfNotExempt(line)
+  return line.afterHours
+}
+
+/**
+ * Every week of a sheet held off pay because nobody has recorded whether
+ * the person is exempt. Empty where the answer is recorded, where the
+ * wage is not this firm's, where anything says the work is outside the
+ * US, or where no week as accepted goes over the line. Judged on the
+ * hours the employer accepted, cut under the pay line's own rule, so a
+ * week accepted at 40 of 46 is not held: it is straight time either way.
+ */
+export function heldForExemption(i: {
+  line: PayLine
+  /** The days as filed on this pay line. */
+  days: Record<string, number> | null | undefined
+  leaveDays?: Record<string, number> | null
+  /** What the employer accepted on these days (`paySheet`'s `accepted`). Null pays every hour filed. */
+  accepted: AcceptedCut | null
+  cutOvertime: CutOvertime
+}): HeldWeek[] {
+  if (!i.line.exemptUnrecorded || i.line.outside.length > 0) return []
+  if (!i.days || Object.keys(i.days).length === 0) return []
+  const at = lineIfNotExempt(i.line)
+  const cut = payCut(payBands(i.days, i.leaveDays ?? null, at), i.accepted, at, i.cutOvertime)
+  return cut.weeks
+    .filter((w) => w.over > 0)
+    .map((w) => ({ weekOf: w.weekOf, workedHours: Math.round((w.regular + w.over) * 100) / 100, overHours: w.over }))
+    .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+}
+
+/** The days to pay with the held weeks taken out, and how many hours that took out. */
+export function withoutHeldWeeks(
+  days: Record<string, number>,
+  held: readonly HeldWeek[]
+): { days: Record<string, number>; hoursHeld: number } {
+  if (held.length === 0) return { days, hoursHeld: 0 }
+  const weeks = new Set(held.map((h) => h.weekOf))
+  const out: Record<string, number> = {}
+  let hoursHeld = 0
+  for (const [k, h] of Object.entries(days)) {
+    if (weeks.has(weekStart(k.slice(0, 10)))) hoursHeld += Number(h) || 0
+    else out[k] = h
+  }
+  return { days: out, hoursHeld: Math.round(hoursHeld * 100) / 100 }
+}
+
+/**
+ * What a payroll person reads on the row for each held week, and the step
+ * that releases it. Null where nothing is held.
+ */
+export function heldSays(personName: string, held: readonly HeldWeek[]): string | null {
+  if (held.length === 0) return null
+  const weeks = held.map((h) => `${personName}'s week of ${longDay(h.weekOf)}, ${hrs(h.workedHours)}, is held off this pay.`)
+  return (
+    `${weeks.join(' ')} Nobody has recorded whether ${personName} is exempt from overtime. ` +
+    `Whoever runs payroll records it on this row. The week is then paid once, with any overtime owed.`
+  )
+}
+
+/**
+ * A week paid at straight time before the person was recorded as not
+ * exempt, and the overtime premium still owed on it. The run pays it
+ * once Calculate covers it; the row says so first, never silently.
+ */
+export function owedSinceRecordedSays(
+  personName: string,
+  weeks: ReadonlyArray<{ weekOf: string; premiumCents: number }>,
+  money: (cents: number) => string
+): string | null {
+  const owed = weeks.filter((w) => w.premiumCents > 0).sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+  if (owed.length === 0) return null
+  return owed
+    .map((w) =>
+      `${personName}'s week of ${longDay(w.weekOf)} was paid at straight time before the answer on overtime was recorded. ` +
+      `${money(w.premiumCents)} of overtime is still owed.`
+    )
+    .join(' ') + ' Calculate, then pay it with this period.'
 }

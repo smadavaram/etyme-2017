@@ -54,8 +54,14 @@ describe('the pay file is offered only once the period is worked out', () => {
     expect(payFileWaits([row('Ines Varga', 'CALCULATED'), row('Tomas Ruiz', 'PROCESSED')])).toBeNull()
   })
 
-  it('a period part paid keeps its pay file, which carries what is still to pay with what was paid already', () => {
-    expect(payFileWaits([row('Rhea Lindqvist', 'PENDING', { paidSoFar: { hours: 40, grossCents: 80_000 } })])).toBeNull()
+  it('a period part paid keeps its pay file once what is still to pay is worked out, and not before', () => {
+    // Walk, 2026-11-14: week two accepted after week one was paid, and
+    // nobody worked it out. The row is pending again, and the file waits.
+    const part = { paidSoFar: { hours: 40, grossCents: 80_000 }, toPay: { hours: 40, grossCents: 80_000, overtimeHours: 0, premiumCents: 0, rates: null, rateCents: 2_000 } }
+    expect(payFileWaits([row('Rhea Lindqvist', 'CALCULATED', part)])).toBeNull()
+    expect(payFileWaits([row('Rhea Lindqvist', 'PENDING', part)])).toBe(
+      'Pay for Rhea Lindqvist is not worked out yet, so there is no pay file yet. Press Calculate first.',
+    )
   })
 
   it('a person with no hours in the period does not hold back the pay file', () => {
@@ -67,7 +73,7 @@ describe('the pay file is offered only once the period is worked out', () => {
     expect(page).toContain('{!nothingToPay && payFileWaits && (')
     expect(page).toContain('{!nothingToPay && !payFileWaits && (')
     const route = readFileSync(join(process.cwd(), 'src/app/api/payroll/route.ts'), 'utf8')
-    expect(route).toContain('const fileWaits = shownPeriod ? payFileWaits(onRun) : null')
+    expect(route).toContain('const fileWaits = shownPeriod ? payFileWaits(onRun) : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : null')
     expect(route).toContain("{ error: { code: 'NOT_WORKED_OUT', field: 'period', message: fileWaits } }")
     expect(route).toContain('payFileWaits: fileWaits')
   })

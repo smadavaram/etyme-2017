@@ -12,11 +12,10 @@ import { refusalSentence, seatedWhoMay, notYourButton } from '@/lib/refusal-word
 import { seatedRoles } from './[id]/activate/gate'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { generateCycles } from '@/lib/cycle-generator'
-import { policyFrom } from '@/lib/cycle-shift'
-import { cyclesFor } from '@/lib/cycle-kinds'
 import { loadContractHolidays } from '@/lib/holidays'
-import { getTemplatePack } from '@/lib/template-packs'
+import { writeCyclesFor, chosenPayroll } from '@/lib/contract-cycles'
+import { firstDayNeededSays } from '@/lib/money/pay-periods'
+import { paidByPayroll } from '@/lib/money/paid-through'
 import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -327,6 +326,10 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, name: true, templatePack: true,
       cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
+      // The company's own payroll choice: a W-2 line's pay days count from
+      // its first pay period (lib/money/pay-periods, `firstDayNeededSays`).
+      payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true, payDaysOfMonth: true,
+      payCalcDaysBefore: true, payFirstPeriodStart: true, paySettingsSetAt: true,
     },
   })
 
@@ -336,6 +339,16 @@ export async function POST(request: NextRequest) {
       { status: 404 }
     )
   }
+
+  // A W-2 line on a company that pays every week or every other week is
+  // given that company's pay days, counted from its first pay period. With
+  // no first day there are none to give, so the line is refused with the
+  // Owner's step rather than written with dates nobody chose.
+  const firstDayNeeded = firstDayNeededSays({
+    payroll: Boolean(pay) && paidByPayroll({ contractType: pay!.contractType, vendorCompanyId: pay!.vendorCompanyId }),
+    chosen: chosenPayroll(company),
+  })
+  if (firstDayNeeded) return errResponse(firstDayNeeded, 'startDate')
 
   // ── The client on the other side of it ─────────────────────────────
   //
@@ -750,65 +763,37 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Generate sell-side cycles from template pack
+      // ── Its due dates, by the one door every placement uses ─────────
+      //
+      // This wrote its own cycles from the template pack alone, so a W-2
+      // line on a company that chose to pay every other week from a first
+      // day its Owner set got the pack's pay days, not the company's: its
+      // worker's page and the forecast disagreed with Payroll (walk,
+      // 2026-11-14). It writes through `writeCyclesFor` now, as the award
+      // and the terms do, so on a company that chose its payroll the buy
+      // line's pay days are that company's own, counted from its first
+      // pay period. A company with no calendar still gets none, and
+      // Settings says so with the step (`noCalendarSays`). No end date,
+      // no cycles, which is the rule there too.
       let sellCyclesCreated = 0
+      let buyCyclesCreated = 0
       if (company.templatePack && end) {
-        const pack = getTemplatePack(company.templatePack)
-        if (pack) {
-          // Only what this contract needs, on the side it belongs to.
-          //
-          // Every cycle used to land on the sell contract — including the
-          // salary and vendor-bill cycles that describe money going out.
-          // The payroll screen reads those off the buy contract, where
-          // they belong, so its list was always empty and nothing said so.
-          // And the pack's day fields were dropped here on the way in,
-          // which is why a pack asking for Monday got Friday.
-          const bc = buyContract
-          const split = cyclesFor(
-            bc ? { contractType: bc.contractType, vendorCompanyId: bc.vendorCompanyId } : null,
-            pack.cycleDefinitions
-          )
-          // Both calendars, unioned. A pay day on the client's holiday is
-          // as wrong as one on ours.
-          const holidays = await loadContractHolidays(
-            company.id, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
-          )
-
-          // Which way this firm's dates move off a day nobody works. Its
-          // own answer, not the client's: these are the hours it collects,
-          // the invoices it raises and the payroll it runs.
-          //
-          // And no reminder dated before today. A recorded placement is
-          // often work already under way, so its start is in the past; a
-          // reminder for a day already gone is overdue the moment it is
-          // written. Bounded by the due date, as the award is, so a week
-          // that ended yesterday and is due tomorrow keeps its reminder.
-          const options = { policy: policyFrom(company), noneDueBefore: recordingFloor(new Date()) }
-
-          const generatedCycles = generateCycles(start, end, split.sell, holidays, new Map(), options)
-
-          if (bc && split.buy.length > 0) {
-            const buyCycles = generateCycles(start, end, split.buy, holidays, new Map(), options)
-            if (buyCycles.length > 0) {
-              await tx.cycle.createMany({
-                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn, periodStart: c.periodStart, periodEnd: c.periodEnd })),
-              })
-            }
-          }
-
-          if (generatedCycles.length > 0) {
-            await tx.cycle.createMany({
-              data: generatedCycles.map((c) => ({
-                sellContractId: sellContract.id,
-                kind: c.kind,
-                dueOn: c.dueOn,
-                periodStart: c.periodStart,
-                periodEnd: c.periodEnd,
-              })),
-            })
-            sellCyclesCreated = generatedCycles.length
-          }
-        }
+        const holidays = await loadContractHolidays(
+          company.id, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+        )
+        const written = await writeCyclesFor(tx, {
+          sell: { id: sellContract.id, startDate: start, endDate: end },
+          buy: buyContract
+            ? { id: buyContract.id, contractType: buyContract.contractType, vendorCompanyId: buyContract.vendorCompanyId }
+            : null,
+          packId: company.templatePack,
+          holidays,
+          // A recorded placement is often work already under way: no
+          // reminder for a day already gone.
+          noneDueBefore: recordingFloor(new Date()),
+        })
+        sellCyclesCreated = written.sell
+        buyCyclesCreated = written.buy
       }
 
       // If endDate is within 8 weeks, create RolloffEvent
@@ -837,7 +822,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'CONTRACT_CREATED',
-          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(pay!.payRateCents, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
+          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(pay!.payRateCents, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated, and ${buyCyclesCreated} pay and supplier dates on the buy line.`,
           reason: past ? `Contract created via API. ${past.says} Reason given: ${limitReason}` : 'Contract created via API',
           payload: {
             workOrderId: header?.id ?? null,

@@ -209,6 +209,30 @@ export function calendarMonthSays(companyName: string, r: PayRhythm): string {
   return `${pays}, so this page lists pay by calendar month.`
 }
 
+/**
+ * Whether a new payroll line may be recorded on this company's pay
+ * calendar, and the sentence where it may not (walk, 2026-11-14).
+ *
+ * A W-2 line's pay days count from the company's first pay period. A
+ * company that chose to pay every week or every other week and has not
+ * set that first day has no pay days to give the line, and a date counted
+ * from the line's own start would disagree with the Payroll page. So the
+ * line is refused with the Owner's step. A company that never chose its
+ * payroll keeps the template pack's dates, as before, and a line paid on
+ * an invoice receipt has no pay days at all.
+ */
+export function firstDayNeededSays(args: {
+  /** True where this firm pays the person through payroll (`paidByPayroll`). */
+  payroll: boolean
+  /** The company's own payroll choice; null where it never chose one. */
+  chosen: PayRhythm | null
+}): string | null {
+  if (!args.payroll || !args.chosen) return null
+  if (args.chosen.payPeriod !== 'WEEKLY' && args.chosen.payPeriod !== 'BIWEEKLY') return null
+  if (paysByPeriod(args.chosen)) return null
+  return `Pay days for a W-2 line count from your first pay period, and that day is not set yet. ${WHERE_FIRST_DAY_IS_SET}`
+}
+
 /** A period that holds nothing to pay. */
 export function nothingToPaySays(p: PayPeriodOn): string {
   return `Nothing is owed for ${periodLabel(p)}. No accepted hours fall in it, so there is nothing to work out or pay.`
@@ -217,13 +241,19 @@ export function nothingToPaySays(p: PayPeriodOn): string {
 /**
  * Pay never goes out before it is worked out. The pay file for a period
  * is refused, and its button replaced by this sentence, while anybody with
- * hours in it still to pay has not been worked out (status pending). A
- * person part paid keeps the file: it carries what is still to pay, with
- * what was paid already. Null where the file may be offered.
+ * hours in it still to pay has not been worked out (status pending).
+ *
+ * A person part paid used to keep the file whatever its status. Walk,
+ * 2026-11-14: week two was accepted after week one was paid, nobody
+ * worked it out, and the file was offered. Now a part-paid person holds
+ * the file back too while what is still to pay is not worked out; once it
+ * is, the file carries what is still to pay, with what was paid already.
+ * Null where the file may be offered.
  */
 export function payFileWaits(rows: readonly PayFileRow[]): string | null {
   const waiting = rows.filter((r) =>
-    r.totalApprovedHours > 0 && r.payStatus === 'PENDING' && !((r.paidSoFar?.hours ?? 0) > 0))
+    r.totalApprovedHours > 0 && r.payStatus === 'PENDING' &&
+    (r.toPay == null || r.toPay.hours > 0 || r.toPay.grossCents > 0))
   if (waiting.length === 0) return null
   const names = waiting.map((r) => r.person.name)
   const who = names.length === 1 ? names[0]
@@ -231,6 +261,14 @@ export function payFileWaits(rows: readonly PayFileRow[]): string | null {
     : `${names[0]}, ${names[1]} and ${names.length - 2} more`
   return `Pay for ${who} is not worked out yet, so there is no pay file yet. Press Calculate first.`
 }
+
+/**
+ * On a company that pays by its own periods, said in the pay file
+ * button's place on a calendar month or the view of every period. A
+ * month's file could hand a provider hours a period run already paid.
+ */
+export const MONTH_HAS_NO_PAY_FILE =
+  'A pay file comes from one of your pay periods, so no hour is paid twice. Pick a pay period above.'
 
 /** Said once beside "Download pay file". */
 export const PAY_FILE_NOTE =

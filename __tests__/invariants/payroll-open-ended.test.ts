@@ -81,7 +81,7 @@ describe('the payroll page gives a pay file that reads like the screen', () => {
     const end = page.indexOf('// ── Search filter')
     const block = page.slice(start, end)
     const keys = [...block.matchAll(/^\s{4,6}key: '([a-zA-Z]+)',/gm)].map((m) => m[1])
-    expect(keys).toEqual(['person', 'contractType', 'client', 'payRate', 'hours', 'grossPay', 'carry', 'agreed', 'payStatus', 'nextPay'])
+    expect(keys).toEqual(['person', 'contractType', 'client', 'payRate', 'hours', 'grossPay', 'paidAlready', 'carry', 'agreed', 'payStatus', 'nextPay'])
     const parts = block.split(/^\s{4,6}key: '/m).slice(1)
     for (const [i, part] of parts.entries()) expect(part, `the ${keys[i]} column`).toContain('exportValue:')
     expect(block).toContain('exportValue: (row) => formatCents(row.grossPay, row.payCurrency)')

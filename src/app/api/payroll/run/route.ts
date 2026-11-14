@@ -11,7 +11,7 @@ import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { payLineOn, payLineSays, weeklyWorked, heldForExemption, withoutHeldWeeks, heldSays, type HeldWeek } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { payDaysToMark, companyPayDaysToMark } from '@/lib/money/pay-day-period'
@@ -21,7 +21,7 @@ import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
 import { daySpan, plainDate } from '@/lib/plain-date'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
-import { workedOutKeys, isWorkedOut, notWorkedOutSays, type NotWorkedOut } from '@/lib/money/payroll-worked-out'
+import { workedOutKeys, isWorkedOut, notWorkedOutSays, payCovers, type NotWorkedOut } from '@/lib/money/payroll-worked-out'
 import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
 
 /**
@@ -229,6 +229,8 @@ export async function POST(request: NextRequest) {
           (
             await prisma.automationLog.findMany({
               where: { companyId, action: 'PAYROLL_RUN', payload: { path: ['action'], equals: 'calculate' } },
+              // Oldest first, so the latest calculation of a period is the one that counts.
+              orderBy: { at: 'asc' },
               select: { payload: true },
             })
           ).map((r) => r.payload as { contracts?: any[] } | null)
@@ -272,9 +274,13 @@ export async function POST(request: NextRequest) {
         accepted: string | null
         /** Each week worked over the line and accepted at or under it, paid at straight time, in a sentence. */
         straightTime: string | null
+        /** Each week held off this run because nobody has said whether the person is exempt, in a sentence. */
+        exemptHeld?: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
+        /** What this press covered (`payCovers`), so a later payment can tell whether it changed. */
+        covers?: string
       }> = []
 
       for (const bc of contracts) {
@@ -334,6 +340,13 @@ export async function POST(request: NextRequest) {
                     all, mine: filed, leaveDays, afterHours: line.afterHours, accepted: acceptance,
                     cutOvertime: cutOvertimeFor(bc).rule,
                   })
+              // A week over the line for a person nobody has said is
+              // exempt or not is held off this run, never paid at straight
+              // time on a guess (lib/money/pay-line, `heldForExemption`).
+              const held = pay
+                ? heldForExemption({ line, days: filed, leaveDays, accepted: pay.accepted, cutOvertime: cutOvertimeFor(bc).rule })
+                : []
+              const kept = withoutHeldWeeks(pay?.days ?? {}, held)
               return {
                 id: ts.id,
                 line,
@@ -342,13 +355,15 @@ export async function POST(request: NextRequest) {
                 periodEnd: ts.periodEnd,
                 /** As filed, narrowed to this line — what overtime is judged on. */
                 filed,
-                /** As accepted — what is paid. Empty where nothing may be paid on a guess. */
-                days: pay?.days ?? {},
+                /** As accepted — what is paid. Empty where nothing may be paid on a guess; a held week is left out. */
+                days: kept.days,
+                held,
+                heldDays: Object.keys(pay?.days ?? {}).filter((d) => !(d in kept.days)),
                 accepted: pay?.accepted ?? null,
                 cut: pay?.cut ?? null,
                 many: acceptance === 'MANY',
                 totalHours: Object.keys(filed).length > 0
-                  ? (pay ? pay.cut.paid : 0)
+                  ? (pay ? Math.round((pay.cut.paid - kept.hoursHeld) * 100) / 100 : 0)
                   : acceptance && acceptance !== 'MANY' ? acceptance.hours : acceptance === 'MANY' ? 0 : Number(ts.totalHours),
               }
             })
@@ -392,17 +407,6 @@ export async function POST(request: NextRequest) {
             })
             continue
           }
-          if (
-            payPeriod && workedOut &&
-            !isWorkedOut(workedOut, {
-              buyContractId: bc.id, buyContractCandidateId: cand.id,
-              start: payPeriod.start.toISOString(), end: payPeriod.end.toISOString(),
-            })
-          ) {
-            notWorkedOut.push({ personName: cand.person.name, periodLabel: payPeriod.label })
-            continue
-          }
-          if (payPeriod) windows.push({ period: payPeriod, terms, startedOn: cand.startDate ?? null })
 
           // Each day in the period, at the rate in force that day, less
           // anything an earlier run already paid.
@@ -416,8 +420,17 @@ export async function POST(request: NextRequest) {
           // at straight time, said in its own sentence.
           const straightSaid: string[] = []
           const wageLine = wageLineFor(bc, cand.person.name, row)
+          // Each week held in this period, said on the run's row.
+          const heldHere: HeldWeek[] = []
           if (payPeriod) {
             for (const t of mine) {
+              for (const w of t.held) {
+                const inside = t.heldDays.some((d) => {
+                  const at = new Date(`${d.slice(0, 10)}T00:00:00.000Z`).getTime()
+                  return weekStart(d.slice(0, 10)) === w.weekOf && at >= payPeriod.start.getTime() && at <= payPeriod.end.getTime()
+                })
+                if (inside && !heldHere.some((h) => h.weekOf === w.weekOf)) heldHere.push(w)
+              }
               // More than one acceptance standing on the week: nothing
               // says which governs, so it is not paid on a guess.
               if (t.many) {
@@ -517,6 +530,26 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // What this press covers: every day still to pay, with its hours
+          // and overtime hours. A calculation writes it; a payment pays
+          // only while it is still exactly what the latest calculation
+          // covered, so a week accepted after Calculate goes back to it
+          // (lib/money/payroll-worked-out, walk 2026-11-14).
+          const covers = payCovers(lines)
+          // Nothing left to pay is not a figure that changed: a second press
+          // on a period already paid pays nothing, as before.
+          if (
+            payPeriod && workedOut &&
+            !isWorkedOut(workedOut, {
+              buyContractId: bc.id, buyContractCandidateId: cand.id,
+              start: payPeriod.start.toISOString(), end: payPeriod.end.toISOString(),
+            }, covers === '' ? undefined : covers)
+          ) {
+            notWorkedOut.push({ personName: cand.person.name, periodLabel: payPeriod.label })
+            continue
+          }
+          if (payPeriod) windows.push({ period: payPeriod, terms, startedOn: cand.startDate ?? null })
+
           const byRate = new Map<number, number>()
           for (const l of lines) byRate.set(l.rateCents, (byRate.get(l.rateCents) ?? 0) + l.hours)
           // Straight time rounded once per rate, as before; the premium
@@ -548,8 +581,10 @@ export async function POST(request: NextRequest) {
             payLine: lineSaid.length ? lineSaid.join(' ') : null,
             accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
             straightTime: straightSaid.length ? straightSaid.join(' ') : null,
+            exemptHeld: heldSays(cand.person.name, heldHere),
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
+            covers,
           })
         }
 
@@ -616,6 +651,7 @@ export async function POST(request: NextRequest) {
               grossPay: p.grossPay,
               currency: p.currency,
               refused: p.refused,
+              covers: p.covers ?? null,
               // `premiumsPriced` says this run priced overtime, so a day
               // with no premium on it had none owed — not "unknown".
               ...(action === 'process' && !p.refused ? { paid: p.paid, premiumsPriced: true } : {}),
