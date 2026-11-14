@@ -183,6 +183,13 @@ export interface SentWeek {
    * 2026-10-26: "$1,440 owed" for a 40-hour week of which 24 were paid).
    */
   partPaid?: { hours: number; on: string | null } | null
+  /**
+   * Where the week waits for a client not on Etyme: nobody there can sign
+   * it here, so the chat says what her own page says (`clientOffEtymeAfterSays`
+   * in lib/consultant-portfolio) and offers her page's links, the attach
+   * link first (`clientWaitingLinks`). Absent for a client on Etyme.
+   */
+  offEtyme?: { says: string; links: Array<{ href: string; says: string }> } | null
 }
 
 /** Something asked of her on her paperwork page. */
@@ -600,6 +607,8 @@ export function weekStandsSays(w: SentWeek, ownFirm?: string | null): string {
     case 'NOT_SENT':
       return `${which} is saved and not sent.`
     case 'WAITING_FOR_CLIENT':
+      // A client not on Etyme signs nothing here: her page's own words, never "to sign".
+      if (w.offEtyme) return `${which}: ${w.offEtyme.says}`
       return `${which} is waiting for ${w.waitingOn ?? w.client ?? 'the client'} to sign.`
     case 'WAITING_FOR_EMPLOYER': {
       const signed = w.approvedBy ? `${w.approvedBy.replace(/\.$/, '')}.` : `${which} is signed${w.client ? ` by ${w.client}` : ''}.`
@@ -638,7 +647,7 @@ export function stageWord(w: SentWeek, ownFirm?: string | null): string {
   if (ownFirm && w.stage === 'WAITING_FOR_EMPLOYER' && (w.waitingOn ?? w.employer) === ownFirm) return 'Signed by every firm above you'
   switch (w.stage) {
     case 'NOT_SENT': return 'Not sent'
-    case 'WAITING_FOR_CLIENT': return `Waiting for ${w.waitingOn ?? w.client ?? 'the client'} to sign`
+    case 'WAITING_FOR_CLIENT': return `Waiting for ${w.waitingOn ?? w.client ?? 'the client'} to ${w.offEtyme ? 'approve' : 'sign'}`
     case 'WAITING_FOR_EMPLOYER': return `Signed; waiting for ${w.waitingOn ?? w.employer ?? 'your employer'}`
     case 'OWED': {
       const part = partPaidWord(w)
@@ -784,6 +793,10 @@ const cap1 = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x)
 export function latestWeekLine(f: Pick<WorkerFacts, 'sent'> & Partial<Pick<WorkerFacts, 'ownFirm'>>): RichLine | null {
   const latest = newest(f.sent.filter((w) => w.stage !== 'NOT_SENT'))[0]
   if (!latest) return null
+  // A week waiting for a client not on Etyme offers her page's links, the attach link first.
+  if (latest.stage === 'WAITING_FOR_CLIENT' && latest.offEtyme?.links.length) {
+    return { says: weekStandsSays(latest, f.ownFirm), links: latest.offEtyme.links.map((l) => ({ text: l.says, href: l.href })) }
+  }
   return { says: weekStandsSays(latest, f.ownFirm), links: [{ text: `Your week of ${weekWords(latest.periodStart, latest.periodEnd)}`, href: `/dashboard/weeks/${latest.id}` }] }
 }
 
@@ -1092,7 +1105,11 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
           head: ['Week', 'Hours', 'Where it is'],
           rows: ws.map((w) => ({ cells: [weekWords(w.periodStart, w.periodEnd), r2(w.hours).toLocaleString('en-US'), stageWord(w, f.ownFirm)], href: `/dashboard/weeks/${w.id}` })),
         },
-        links: [{ label: 'Open Your work', href: YOUR_WORK }],
+        links: [
+          // The newest week waiting for a client not on Etyme: the way to attach, as her page offers it.
+          ...(ws[0].stage === 'WAITING_FOR_CLIENT' ? (ws[0].offEtyme?.links ?? []).map((l) => ({ label: l.says, href: l.href })) : []),
+          { label: 'Open Your work', href: YOUR_WORK },
+        ],
       }, 'weeks')
     }
 

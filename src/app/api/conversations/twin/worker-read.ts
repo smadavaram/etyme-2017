@@ -327,6 +327,10 @@ export async function workerFacts(
       paidOn: stage === 'PAID' ? priced?.paidOn ?? null : null,
       // Part of an owed week already paid on an earlier pay day: said beside what is owed.
       partPaid: money && typeof priced.paidHours === 'number' && priced.paidHours > 0 ? { hours: Number(priced.paidHours), on: priced.paidOn ?? null } : null,
+      // A client not on Etyme: the waiting row's own words and links, carried as her page reads them.
+      offEtyme: stage === 'WAITING_FOR_CLIENT' && waiting?.clientOffEtyme === true && typeof waiting.says === 'string'
+        ? { says: waiting.says, links: Array.isArray(waiting.links) ? waiting.links.filter((l: any) => typeof l?.href === 'string' && typeof l?.says === 'string') : [] }
+        : null,
     })
   }
 
