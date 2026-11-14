@@ -25,7 +25,7 @@ import {
   payPeriodHolding, PAY_PERIOD_WORDS,
   type DayOffRule, type PayPeriodOn, type PayRhythm,
 } from '@/lib/pay-dates'
-import { formatDay, formatRange } from '@/lib/format-date'
+import { formatDay, formatDayLong, formatRange } from '@/lib/format-date'
 import { decimalsFor, wholeFromMinor } from '@/lib/money'
 import type { Straddle, Terms } from '@/lib/periods'
 
@@ -431,14 +431,9 @@ export function heldWeeksCell(weeks: ReadonlyArray<{ weekOf: string; hours: numb
   if (!weeks || weeks.length === 0) return ''
   return [...weeks]
     .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
-    .map((w) => `Week of ${formatLongDay(w.weekOf)}, ${Math.round(w.hours * 100) / 100} hours, overtime answer not recorded`)
+    .map((w) => `Week of ${formatDayLong(w.weekOf.slice(0, 10))}, ${Math.round(w.hours * 100) / 100} hours, overtime answer not recorded`)
     .join('; ')
 }
-
-const formatLongDay = (iso: string) =>
-  new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
-  })
 
 /**
  * One sentence above the Payroll table: who has a week held, by name where
