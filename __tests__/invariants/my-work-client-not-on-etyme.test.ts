@@ -129,9 +129,22 @@ describe('her list of weeks', () => {
   })
 
   it('once a link has gone to the client’s approver, the second link names who it went to', () => {
-    const door = weekDoor({ ...base, client, email: { clientName: 'Halden Health', refused: null, linkWaiting: { to: 'Dana Whitfield', on: 'Nov 14' } } })
+    const door = weekDoor({ ...base, client, email: { clientName: 'Halden Health', refused: null, linkWaiting: { to: 'Dana Whitfield', on: 'Nov 14' }, emailLeaves: true } })
     expect(door?.says).toBe('Attach the timesheet Halden Health approved')
     expect(door?.also).toEqual({ href: '/dashboard/weeks/ts1?mode=LINK', says: 'Link sent to Dana Whitfield, Nov 14' })
+  })
+
+  it('where no email can leave this deployment, a week for a client not on Etyme never says a link was sent and still offers to ask by email', () => {
+    const door = weekDoor({ ...base, client, email: { clientName: 'Halden Health', refused: null, linkWaiting: { to: 'Dana Whitfield', on: 'Nov 14' }, emailLeaves: false } })
+    expect(door?.says).toBe('Attach the timesheet Halden Health approved')
+    expect(door?.also).toEqual({ href: '/dashboard/weeks/ts1?mode=LINK', says: 'Ask Halden Health to approve by email' })
+  })
+
+  it('the worker’s list reads whether email can leave from mailLeaves, the one answer, in its route and never on the page', () => {
+    const route = src('app/api/me/work/route.ts')
+    expect(route).toContain("import { mailLeaves } from '@/lib/notify/mail-leaves'")
+    expect(route).toContain('emailLeaves: mailLeaves()')
+    expect(src('lib/consultant-portfolio.ts')).not.toContain('mail-leaves')
   })
 
   it('a week a client not on Etyme cannot approve this way is never said to be signed in Etyme', () => {

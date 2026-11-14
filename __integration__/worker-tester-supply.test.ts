@@ -34,8 +34,10 @@ async function file(week: any, hours: Record<string, number>) {
     contractId: (await page()).filing[0].contractId, periodStart: week.periodStart, hours,
   })))
   expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  last.message = r.body.data.message
   return r.body.data.timesheetId as string
 }
+const last = { message: '' }
 
 const row = (d: any, id: string) => d.timesheets.find((t: any) => t.id === id)
 
@@ -55,6 +57,8 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     const before = await page()
     const week = before.filing[0].weeks.find((w: any) => w.days.length >= 1)
     const id = await file(week, { [week.days[0]]: 8 })
+    // Northbend Athletic is on Etyme, so the sentence after filing reads as it always did.
+    expect(last.message).toMatch(/^Sent 8 hours for .+ for approval\.$/)
 
     as(NORTHBEND_HIRING)
     const signed = await json(await approveWeek(req('POST', `/api/timesheets/${id}/approve`, {}), { params: Promise.resolve({ id }) }))

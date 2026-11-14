@@ -6,7 +6,7 @@ import { withoutOwnFirmAcceptance, firmsAcceptingOnlyFor } from '@/lib/money/own
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
-  weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork, notAWorker,
+  weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork, notAWorker, clientOffEtymeAfterSays,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -28,6 +28,7 @@ import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands, releaseFrom } from '@/lib/internal-moves'
 import { approvalWordsFor, readWeekApprovals, readWeekApprovalsFor, readerOf } from '@/lib/week-approval'
 import { requirementsFor } from '@/lib/document-requirements'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { credentialKeys } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
 import { papersRunningOut, mightRunOut, type HeldOnFile, type RequiredOfHer } from '@/app/dashboard/my-work/paperwork-rows'
@@ -897,6 +898,7 @@ export async function GET(request: NextRequest) {
       clientName: r.seen.week.clientName,
       refused: r.seen.act.ok ? r.seen.act.refused : r.seen.act.says,
       linkWaiting: link ? { to: link.approverName, on: link.sentAt } : null,
+      emailLeaves: mailLeaves(),
     })
   }
 
@@ -1088,7 +1090,14 @@ export async function POST(request: NextRequest) {
 
   const mine = await prisma.sellContract.findMany({
     where: { personId },
-    select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true,
+      // The client's claim, read as GET reads it, so the sentence after
+      // filing says the same about a client not on Etyme as the page does.
+      company: { select: { id: true, name: true, claimedAt: true } },
+      clientCompany: { select: { id: true, name: true, claimedAt: true } },
+      endClientCompany: { select: { id: true, name: true, claimedAt: true } },
+    },
   })
   const rungs = mine.map((c) => ({
     id: c.id,
@@ -1217,13 +1226,36 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // A client not on Etyme was sent nothing: the week is filed, and she
+  // attaches the timesheet it approved. Decided by the week's own signers
+  // (`weekSigners`, through isShell), the same reading as her page.
+  const lineOf = placementLines(
+    mine.map((c, i) => ({
+      ...rungs[i],
+      companyName: c.company.name,
+      clientName: c.clientCompany.name,
+      endClientName: c.endClientCompany?.name ?? null,
+    })),
+    () => null
+  ).find((l) => l.rungs.some((r) => r.id === contractId))
+  const topOf = lineOf ? mine.find((c) => c.id === lineOf.rungs[lineOf.rungs.length - 1].id) : undefined
+  const clientOf = topOf ? topOf.endClientCompany ?? topOf.clientCompany ?? topOf.company : null
+  const clientSigner = lineOf && clientOf
+    ? weekSigners(
+        { rungs: lineOf.rungs.map((r) => ({ companyId: r.companyId, companyName: r.companyName })) },
+        { id: clientOf.id, name: clientOf.name, claimedAt: clientOf.claimedAt }
+      )[0]
+    : undefined
+
   return NextResponse.json(
     {
       data: {
         timesheetId,
         status: 'SUBMITTED',
         anomaly: createdBody.data.timesheet.anomalyReason ?? null,
-        message: `Sent ${check.totalHours} hours for ${week.label} ${again ? 'again, corrected, ' : ''}for approval.`,
+        message: clientSigner?.offEtyme
+          ? clientOffEtymeAfterSays(clientSigner.name, shortDay(today, now))
+          : `Sent ${check.totalHours} hours for ${week.label} ${again ? 'again, corrected, ' : ''}for approval.`,
       },
     },
     { status: 201 }

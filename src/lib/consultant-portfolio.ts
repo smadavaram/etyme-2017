@@ -2819,6 +2819,13 @@ export function weekDoor(t: {
     refused: string | null
     /** A link that has gone and is still waiting for an answer. */
     linkWaiting: { to: string; on: string } | null
+    /**
+     * Whether an email can leave this deployment (`mailLeaves`, read by the
+     * route and handed here). Where it cannot, a link row is not a link
+     * sent, and a client not on Etyme keeps "Ask <client> to approve by
+     * email". Left out, it is read as cannot.
+     */
+    emailLeaves?: boolean
   }
   /**
    * The client's signature off her placement (`weekSigners`), where it was
@@ -2833,7 +2840,7 @@ export function weekDoor(t: {
     // week's page is read there, never as "<client> signs this week in Etyme".
     if (t.email?.refused) return { href, says: 'See what this week needs' }
     const [attach, ask] = clientWaitingLinks({ id: t.id, clientName: t.client.name, offEtyme: true })
-    const link = t.email?.linkWaiting
+    const link = t.email?.emailLeaves ? t.email.linkWaiting : null
     return { ...attach, also: link ? { href: ask.href, says: `Link sent to ${link.to}, ${link.on}` } : ask }
   }
   if (t.status === 'SUBMITTED' && !t.clientApproved) {

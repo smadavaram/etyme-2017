@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
-import { clientOffEtymeBeforeSays, clientWaitingLinks } from '@/lib/consultant-portfolio'
+import { clientOffEtymeBeforeSays, clientOffEtymeAfterSays, clientWaitingLinks, shortDay } from '@/lib/consultant-portfolio'
 
 import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
+import { POST as sendLink } from '@/app/api/week-approvals/route'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * The founder, 2026-11-14: the client approves the hours in its own
@@ -27,7 +29,7 @@ async function page() {
   return r.body.data
 }
 
-const the = { sheetId: '' }
+const the = { sheetId: '', filedSays: '' }
 
 describe('a worker whose client is not on Etyme, on her own page', () => {
   beforeAll(async () => {
@@ -56,6 +58,7 @@ describe('a worker whose client is not on Etyme, on her own page', () => {
     const r = await json(await fileWeek(req('POST', '/api/me/work', { contractId: filing.contractId, periodStart: week.periodStart, hours })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     the.sheetId = r.body.data.timesheetId
+    the.filedSays = r.body.data.message
 
     const d = await page()
     const row = d.owed.weeks.find((w: any) => w.sheetId === the.sheetId)
@@ -66,6 +69,12 @@ describe('a worker whose client is not on Etyme, on her own page', () => {
     expect(row.says).not.toMatch(/Sent to|Waiting for them to sign/)
     expect(d.owed.waiting.says).toContain('waiting for Northbend Athletic to approve.')
     expect(d.owed.waiting.says).not.toContain('to sign')
+  })
+
+  it('the sentence the moment she files says the week is filed and that she attaches the timesheet Northbend Athletic approved, never that it was sent', async () => {
+    const now = new Date()
+    expect(the.filedSays).toBe(clientOffEtymeAfterSays(CLIENT, shortDay(now.toISOString().slice(0, 10), now)))
+    expect(the.filedSays).not.toMatch(/^Sent /)
   })
 
   it('the week offers attaching Northbend Athletic’s timesheet first and asking by email second, on the owed row and in her hours', async () => {
@@ -81,5 +90,19 @@ describe('a worker whose client is not on Etyme, on her own page', () => {
     expect(listed.door.says).toBe(links[0].says)
     expect(listed.door.also.href).toBe(links[1].href)
     expect(listed.door.says).not.toContain('signs this week in Etyme')
+  })
+
+  it('where no email can leave this deployment, asking Northbend Athletic by email never makes her row say a link was sent', async () => {
+    expect(mailLeaves(), 'this walk runs where no email can leave').toBe(false)
+    as(ROSA)
+    const asked = await json(await sendLink(req('POST', '/api/week-approvals', {
+      how: 'LINK', timesheetId: the.sheetId, approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.example',
+    })))
+    expect(asked.status, JSON.stringify(asked.body)).toBe(201)
+
+    const d = await page()
+    const listed = d.timesheets.find((t: any) => t.id === the.sheetId)
+    expect(listed.door.also.says).toBe(`Ask ${CLIENT} to approve by email`)
+    expect(listed.door.also.says).not.toMatch(/^Link sent/)
   })
 })
