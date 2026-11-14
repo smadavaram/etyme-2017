@@ -268,14 +268,16 @@ for (const S of SUNDAYS) {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-disposition')).toBe(`attachment; filename="payroll-${S}-to-${plus(S, 13)}.csv"`)
       const [head, ...body] = (await res.text()).trim().split('\n')
-      expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Paid already,Currency,Period start,Period end,Pay day,Status')
+      expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Paid already,Currency,Period start,Period end,Pay day,Status,Held off this pay')
       const hers = body.filter((x) => x.startsWith(`${l.name},`))
       expect(hers).toEqual([
-        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},"Worked out, not paid"`,
+        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},"Worked out, not paid",`,
       ])
       // Every person with hours on the page is on the file, at what the page
       // says is still to pay and what was paid already.
-      const onPage = data.payItems.filter((p: any) => p.totalApprovedHours > 0)
+      // A person whose only week is held is on the file too, so the
+      // provider is told the week is owed.
+      const onPage = data.payItems.filter((p: any) => p.totalApprovedHours > 0 || p.heldHours > 0)
       expect(body).toHaveLength(onPage.length)
       for (const p of onPage) {
         const line = body.find((x) => x.startsWith(`${p.person.name},`) || x.startsWith(`"${p.person.name}",`))!

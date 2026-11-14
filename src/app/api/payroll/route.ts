@@ -25,7 +25,7 @@ import { workedOutKeys, isWorkedOut, payCovers, coversLeft } from '@/lib/money/p
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
-  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, statusWithHeld, payStatusSays, heldAboveTableSays, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
@@ -863,7 +863,13 @@ export async function GET(request: NextRequest) {
         // A week paid at straight time before "not exempt" was recorded,
         // and the overtime still owed on it.
         owedSinceRecorded,
-        payStatus,
+        // A period whose every other hour is paid reads HELD while a week
+        // is held, never PROCESSED; the chip says ", week held" in every
+        // state (lib/money/pay-periods, `statusWithHeld`, `payStatusSays`).
+        payStatus: statusWithHeld(payStatus, heldHours),
+        statusSays: payStatusSays(statusWithHeld(payStatus, heldHours), heldHours),
+        // Each held week and its hours, for the pay file's own column.
+        heldWeeks: heldInPeriod.map((w) => ({ weekOf: w.weekOf, hours: w.workedHours })),
         // What earlier runs paid in this period, null where nothing was;
         // what a run would pay now; and, where both, one sentence.
         paidSoFar: left.paid,
@@ -919,7 +925,7 @@ export async function GET(request: NextRequest) {
       })
     ),
     byStatus: Object.fromEntries(
-      ['PENDING', 'CALCULATED', 'PROCESSED', 'NO_HOURS'].map((s) => [
+      ['PENDING', 'CALCULATED', 'PROCESSED', 'HELD', 'NO_HOURS'].map((s) => [
         s,
         filtered.filter((p) => p.payStatus === s).length,
       ])
@@ -1032,6 +1038,10 @@ export async function GET(request: NextRequest) {
       runsHere: co.byPeriod ? Boolean(shownPeriod) && !nothingToPay : true,
       nothingToPay,
       payFileNote: PAY_FILE_NOTE,
+      // Above the table, before the run: who has a week held, and that the
+      // answer is recorded on the row. Read off every row on this view,
+      // whatever status the table is filtered to.
+      heldSays: heldAboveTableSays(onRun),
       // In the pay file button's place, while the period is not worked out.
       payFileWaits: fileWaits,
       // Beside the company's periods, where its holiday calendar is empty.

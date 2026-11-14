@@ -253,7 +253,7 @@ export async function forecastInputs(a: ForecastReadIn): Promise<ForecastInputs>
 
     for (const cand of bc.candidates) {
       const row = byPayroll ? (a.payrollRows ?? []).find((p) => p.buyContractCandidateId === cand.id) : null
-      const shown = row?.payPeriod?.end && ['PENDING', 'CALCULATED', 'PROCESSED'].includes(row.payStatus)
+      const shown = row?.payPeriod?.end && ['PENDING', 'CALCULATED', 'PROCESSED', 'HELD'].includes(row.payStatus)
         ? after(new Date(row.payPeriod.end))
         : row?.payPeriod?.start ? new Date(row.payPeriod.start) : null
       const line: RunningLine = {

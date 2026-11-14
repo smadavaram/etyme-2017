@@ -128,6 +128,37 @@ describe('a 46-hour week for a W-2 employee nobody has said is exempt is held, t
     expect(r.body.data.skipped.find((x: any) => x.personName === 'Omar Haddock')).toBeTruthy()
   })
 
+  it('after Process pays the 40-hour week, the row reads "Processed, week held", never "Processed" alone, and the page says above the table who has a week held', async () => {
+    const paid = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [omar.buyId], action: 'process', period: '2026-06' })
+    expect(paid.status, JSON.stringify(paid.body)).toBe(200)
+    expect(paid.body.data.details.find((x: any) => x.buyContractId === omar.buyId).grossPay).toBe(384_000) // 40 x 96
+    const r = await call(owner, payroll, 'GET', `/api/payroll?period=2026-06&companyId=${firmId}`)
+    const mine = r.body.data.payItems.find((x: any) => x.buyContractId === omar.buyId)
+    expect(mine.payStatus).toBe('HELD')
+    expect(mine.statusSays).toBe('Processed, week held')
+    expect(mine.exemptHeld).toContain('is held off this pay')
+    expect(mine.heldWeeks).toEqual([{ weekOf: '2026-06-07', hours: 46 }])
+    // The held week stays off the totals: 40 hours and $3,840.
+    expect(mine.totalApprovedHours).toBe(40)
+    expect(mine.grossPay).toBe(384_000)
+    expect(r.body.data.heldSays).toContain('Omar Haddock')
+    expect(r.body.data.heldSays).toContain('until you record on')
+    expect(r.body.data.summary.byStatus.HELD).toBeGreaterThanOrEqual(1)
+  })
+
+  it('the month’s pay file lists the 40-hour week as paid, with the held 46-hour week named on her line, and never "Paid" alone', async () => {
+    as(owner.email)
+    const res = await payroll(req('GET', `/api/payroll?period=2026-06&format=csv&companyId=${firmId}`, undefined, { 'x-context-id': owner.id }))
+    expect(res.status).toBe(200)
+    const [head, ...lines] = (await res.text()).trim().split('\n')
+    expect(head.endsWith(',Status,Held off this pay')).toBe(true)
+    const hers = lines.filter((x) => x.startsWith('Omar Haddock,'))
+    expect(hers).toHaveLength(1)
+    // Nothing left to pay, $3,840 paid already, and the held week named.
+    expect(hers[0]).toContain(',0,96.00,0,0.00,0.00,3840.00,USD,')
+    expect(hers[0].endsWith(',"Paid, week held","Week of June 7, 2026, 46 hours, overtime answer not recorded"')).toBe(true)
+  })
+
   it('once "not exempt" is recorded, the week is back: 86 hours, 80 x 96 + 6 x 144 = $8,544, and Calculate is asked for again', async () => {
     const said = await call(owner, recordExempt, 'POST', `/api/contracts/${omar.buyId}/exempt`, { personId: omar.personId, status: 'NONEXEMPT' }, { id: omar.buyId })
     expect(said.status, JSON.stringify(said.body)).toBe(201)
@@ -141,11 +172,13 @@ describe('a 46-hour week for a W-2 employee nobody has said is exempt is held, t
   })
 
   it('the 46-hour week alone is $4,704 on the run once worked out and paid, and a second payment pays nothing', async () => {
+    // The 40-hour week was paid ($3,840) before the answer was recorded, so
+    // this run pays the 46-hour week alone: 40 x 96 + 6 x 144 = $4,704.
     expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [omar.buyId], action: 'calculate', period: '2026-06' })).status).toBe(200)
     const paid = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [omar.buyId], action: 'process', period: '2026-06' })
     expect(paid.status, JSON.stringify(paid.body)).toBe(200)
     const mine = paid.body.data.details.find((x: any) => x.buyContractId === omar.buyId)
-    expect(mine.grossPay).toBe(854_400) // 384,000 for the 40-hour week + 470,400 for the 46-hour week
+    expect(mine.grossPay).toBe(470_400) // 384,000 + 86,400; the 40-hour week's 384,000 was paid already
     expect(mine.premiumCents).toBe(28_800)
     const again = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [omar.buyId], action: 'process', period: '2026-06' })
     expect(again.body.data.details.find((x: any) => x.buyContractId === omar.buyId).grossPay).toBe(0)

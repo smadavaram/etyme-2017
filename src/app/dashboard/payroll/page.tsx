@@ -121,6 +121,8 @@ interface PayItem {
   /** What earlier runs paid in the period; null where nothing was. */
   paidSoFar?: { hours: number; grossCents: number } | null
   payStatus: string
+  /** The status in words: "Processed, week held" while a week is held, never "Processed" alone. */
+  statusSays?: string
   nextPayDate: string | null
   nextCalcDate: string | null
   /** Pay dates before today still open. */
@@ -158,7 +160,7 @@ interface PayrollSummary {
   byStatus: Record<string, number>
 }
 
-type StatusFilter = 'ALL' | 'PENDING' | 'CALCULATED' | 'PROCESSED' | 'NO_HOURS'
+type StatusFilter = 'ALL' | 'PENDING' | 'CALCULATED' | 'PROCESSED' | 'HELD' | 'NO_HOURS'
 
 // ── Status styling ───────────────────────────────────
 
@@ -167,6 +169,7 @@ function statusChipClass(status: string): string {
     PENDING:     'chip--attention',
     CALCULATED:  'chip--action',
     PROCESSED:   'chip--verified',
+    HELD:        'chip--attention',
     NO_HOURS:    'chip--passive',
   }
   return map[status] ?? 'chip--passive'
@@ -310,6 +313,8 @@ export default function PayrollPage() {
   const [payFileNote, setPayFileNote] = useState<string | null>(null)
   // Why the pay file is not offered yet: the period is not worked out.
   const [payFileWaits, setPayFileWaits] = useState<string | null>(null)
+  // Who has a week held off this pay, above the table, before the run.
+  const [heldSays, setHeldSays] = useState<string | null>(null)
   // Where the company's holiday calendar is empty, one sentence saying so.
   const [noHolidays, setNoHolidays] = useState<string | null>(null)
   // The current period is chosen once for the reader; after that the
@@ -364,6 +369,7 @@ export default function PayrollPage() {
       setNothingToPay(body.data?.nothingToPay ?? null)
       setPayFileNote(body.data?.payFileNote ?? null)
       setPayFileWaits(body.data?.payFileWaits ?? null)
+      setHeldSays(body.data?.heldSays ?? null)
       setNoHolidays(body.data?.noHolidays ?? null)
       if (!periodChosen) {
         setPeriodChosen(true)
@@ -459,6 +465,7 @@ export default function PayrollPage() {
     pending: summary?.byStatus?.PENDING ?? 0,
     calculated: summary?.byStatus?.CALCULATED ?? 0,
     processed: summary?.byStatus?.PROCESSED ?? 0,
+    held: summary?.byStatus?.HELD ?? 0,
   }
 
   // ── Filtered items ────────────────────────────────
@@ -682,11 +689,11 @@ export default function PayrollPage() {
       label: 'Status',
       render: (row) => (
         <span className={`chip ${statusChipClass(row.payStatus)}`}>
-          {row.payStatus.replace('_', ' ')}
+          {row.statusSays ?? row.payStatus.replace('_', ' ')}
         </span>
       ),
       sortValue: (row) => row.payStatus,
-      exportValue: (row) => row.payStatus.replace('_', ' '),
+      exportValue: (row) => row.statusSays ?? row.payStatus.replace('_', ' '),
     },
     {
       key: 'nextPay',
@@ -728,6 +735,7 @@ export default function PayrollPage() {
     { key: 'PENDING', label: 'Pending', count: stats.pending },
     { key: 'CALCULATED', label: 'Calculated', count: stats.calculated },
     { key: 'PROCESSED', label: 'Processed', count: stats.processed },
+    { key: 'HELD', label: 'Processed, week held', count: stats.held },
     { key: 'NO_HOURS', label: 'No hours' },
   ]
 
@@ -820,6 +828,9 @@ export default function PayrollPage() {
           the payroll provider does. Said once, beside the pay file. */}
       {payFileNote && !nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-muted">{payFileNote}</p>}
       {nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-ink">{nothingToPay}</p>}
+      {/* A held week is found before the run, not after it: who has one,
+          and that the answer is recorded on the row. */}
+      {heldSays && <p className="mb-2 text-[12.5px] text-etyme-attention">{heldSays}</p>}
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

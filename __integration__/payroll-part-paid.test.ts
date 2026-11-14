@@ -168,7 +168,7 @@ for (const S of SUNDAYS) {
       expect(res.status).toBe(200)
       const want = await payPeriodAt(firmId, before)
       const hers = (await res.text()).trim().split('\n').filter((x) => x.startsWith(`${rhea.name},`))
-      expect(hers).toEqual([`${rhea.name},40,20.00,0,0.00,800.00,800.00,USD,${before},${plus(before, 13)},${want!.payOn},Part paid`])
+      expect(hers).toEqual([`${rhea.name},40,20.00,0,0.00,800.00,800.00,USD,${before},${plus(before, 13)},${want!.payOn},Part paid,`])
     })
 
     it('the next run pays only the week still to pay', async () => {

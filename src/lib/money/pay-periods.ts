@@ -348,6 +348,12 @@ export interface PayFileRow {
   payPeriod?: { start: string; end: string } | null
   /** The row's own next pay day, read where the file is for a calendar month. */
   nextPayDate?: string | null
+  /**
+   * Each week held off this pay because nobody has said whether the person
+   * is exempt from overtime: the Sunday it began and its hours. Its pay is
+   * on no total; the file names it on the person's line.
+   */
+  heldWeeks?: ReadonlyArray<{ weekOf: string; hours: number }> | null
   /** What a run would pay now (lib/money/period-pay-left). */
   toPay?: {
     hours: number
@@ -366,13 +372,84 @@ export interface PayFileRow {
  */
 export const PAY_FILE_COLUMNS = Object.freeze([
   'Name', 'Hours', 'Pay rate', 'Overtime hours', 'Overtime premium', 'Gross pay', 'Paid already', 'Currency',
-  'Period start', 'Period end', 'Pay day', 'Status',
+  'Period start', 'Period end', 'Pay day', 'Status', 'Held off this pay',
 ] as const)
 
 const STATUS_WORDS: Record<string, string> = {
   PENDING: 'Not worked out yet',
   CALCULATED: 'Worked out, not paid',
   PROCESSED: 'Paid',
+  HELD: 'Paid',
+}
+
+// ── A week held off pay, on the status and the file ────────────────────
+//
+// Found by hand, 2026-11-14: after Process, a person whose 46-hour week was
+// held (nobody had said whether she is exempt) read "Processed" on her row,
+// and the pay file listed her as "Paid" with nothing about the week. A clerk
+// reading the status, or a provider paying from the file, was not told a
+// week was missing. Now the status says a week is held for as long as one
+// is, and the file names the week and its hours on her line.
+
+/**
+ * The row's status where a week is held: a period whose every other hour
+ * is paid reads HELD, never PROCESSED. Pending and calculated stay as they
+ * are, so Calculate and Process are still offered for the other hours.
+ */
+export function statusWithHeld(status: string, heldHours: number): string {
+  return heldHours > 0 && status === 'PROCESSED' ? 'HELD' : status
+}
+
+const SCREEN_STATUS: Record<string, string> = {
+  PENDING: 'Pending',
+  CALCULATED: 'Calculated',
+  PROCESSED: 'Processed',
+  HELD: 'Processed',
+  NO_HOURS: 'No hours',
+}
+
+/**
+ * The status as the row's chip reads it: "Pending", "Calculated",
+ * "Processed", and ", week held" after it while any week is held.
+ */
+export function payStatusSays(status: string, heldHours: number): string {
+  const base = SCREEN_STATUS[status] ?? status
+  return heldHours > 0 || status === 'HELD' ? `${base}, week held` : base
+}
+
+/**
+ * The file's "Held off this pay" cell: each held week, its Sunday and its
+ * hours, "Week of November 8, 2026, 46 hours, overtime answer not
+ * recorded". Empty where nothing is held.
+ */
+export function heldWeeksCell(weeks: ReadonlyArray<{ weekOf: string; hours: number }> | null | undefined): string {
+  if (!weeks || weeks.length === 0) return ''
+  return [...weeks]
+    .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+    .map((w) => `Week of ${formatLongDay(w.weekOf)}, ${Math.round(w.hours * 100) / 100} hours, overtime answer not recorded`)
+    .join('; ')
+}
+
+const formatLongDay = (iso: string) =>
+  new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  })
+
+/**
+ * One sentence above the Payroll table: who has a week held, by name where
+ * three or fewer, and that the answer is recorded on the row. Null where
+ * nobody has a week held.
+ */
+export function heldAboveTableSays(rows: ReadonlyArray<{ person: { name: string }; heldHours?: number | null }>): string | null {
+  const names = [...new Set(rows.filter((r) => (r.heldHours ?? 0) > 0).map((r) => r.person.name))]
+  if (names.length === 0) return null
+  if (names.length === 1) {
+    return `${names[0]} has a week held off this pay until you record on the row whether the person is exempt from overtime.`
+  }
+  const who = names.length > 3
+    ? `${names.length} people`
+    : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names[0]}, ${names[1]} and ${names[2]}`
+  return `${who} have a week held off this pay until you record on each row whether the person is exempt from overtime.`
 }
 
 const major = (minor: number, ccy: string) => wholeFromMinor(minor, ccy).toFixed(decimalsFor(ccy))
@@ -391,7 +468,10 @@ const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): string {
   const lines = [PAY_FILE_COLUMNS.join(',')]
   for (const r of rows) {
-    if (!(r.totalApprovedHours > 0)) continue
+    // A person whose only week is held is still on the file, so the
+    // provider sees the week is owed and not yet paid.
+    const held = heldWeeksCell(r.heldWeeks)
+    if (!(r.totalApprovedHours > 0) && !held) continue
     const ccy = r.payCurrency || 'USD'
     const left = r.toPay ?? {
       hours: r.totalApprovedHours, grossCents: r.grossPay, overtimeHours: r.overtimeHours ?? 0,
@@ -401,7 +481,9 @@ export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): 
       ? left.rates.map((x) => `${major(x.rateCents, ccy)} for ${x.hours} hours`).join('; ')
       : major(left.rateCents ?? r.payRate, ccy)
     const paid = r.paidSoFar?.grossCents ?? 0
-    const status = paid > 0 && left.grossCents > 0 ? 'Part paid' : (STATUS_WORDS[r.payStatus] ?? r.payStatus)
+    const base = paid > 0 && left.grossCents > 0 ? 'Part paid' : (STATUS_WORDS[r.payStatus] ?? r.payStatus)
+    // Never "Paid" alone while a week is held.
+    const status = held ? `${base}, week held` : base
     lines.push([
       cell(r.person.name),
       String(left.hours),
@@ -417,6 +499,7 @@ export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): 
       p ? p.end : (r.payPeriod?.end ?? '').slice(0, 10),
       p ? p.payOn : (r.nextPayDate ?? '').slice(0, 10),
       cell(status),
+      cell(held),
     ].join(','))
   }
   return lines.join('\n') + '\n'

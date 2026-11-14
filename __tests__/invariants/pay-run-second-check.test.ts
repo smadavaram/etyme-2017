@@ -132,14 +132,14 @@ describe('a company that pays by the month gets a month’s pay file that never 
 
   it('the second June file lists 40 hours and $3,840.00 still to pay, with $3,840.00 paid already, never 80 hours as new', () => {
     const [, line] = payFileCsv([row], null).trim().split('\n')
-    expect(line).toBe('Omar Haddock,40,96.00,0,0.00,3840.00,3840.00,USD,2026-06-01,2026-06-30,2026-07-09,Part paid')
+    expect(line).toBe('Omar Haddock,40,96.00,0,0.00,3840.00,3840.00,USD,2026-06-01,2026-06-30,2026-07-09,Part paid,')
   })
 
   it('once both weeks are paid, the June file pays nothing and says $7,680.00 was paid already', () => {
     const paid = { ...row, payStatus: 'PROCESSED', paidSoFar: { hours: 80, grossCents: 768_000 },
       toPay: { hours: 0, grossCents: 0, overtimeHours: 0, premiumCents: 0, rates: null, rateCents: 9_600 } }
     const [, line] = payFileCsv([paid], null).trim().split('\n')
-    expect(line).toBe('Omar Haddock,0,96.00,0,0.00,0.00,7680.00,USD,2026-06-01,2026-06-30,2026-07-09,Paid')
+    expect(line).toBe('Omar Haddock,0,96.00,0,0.00,0.00,7680.00,USD,2026-06-01,2026-06-30,2026-07-09,Paid,')
   })
 
   it('the button asks the Payroll page for the month, and the file is named by it', () => {

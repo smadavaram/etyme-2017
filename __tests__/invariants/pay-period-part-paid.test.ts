@@ -72,7 +72,7 @@ for (const S of SUNDAYS) {
         paidSoFar: left.paid, toPay: left.toPay,
       }
       const [, line] = payFileCsv([row], p).trim().split('\n')
-      expect(line).toBe(`Ines Varga,40,27.50,0,0.00,1100.00,800.00,USD,${p.start},${p.end},${p.payOn},Part paid`)
+      expect(line).toBe(`Ines Varga,40,27.50,0,0.00,1100.00,800.00,USD,${p.start},${p.end},${p.payOn},Part paid,`)
     })
 
     it('a period paid in full is on the pay file with nothing left to pay, so a provider paying from it pays nobody twice', () => {
@@ -83,7 +83,7 @@ for (const S of SUNDAYS) {
         payCurrency: 'USD', payStatus: 'PROCESSED', paidSoFar: all.paid, toPay: all.toPay,
       }
       const [, line] = payFileCsv([row], p).trim().split('\n')
-      expect(line).toBe(`Ines Varga,0,27.50,0,0.00,0.00,1900.00,USD,${p.start},${p.end},${p.payOn},Paid`)
+      expect(line).toBe(`Ines Varga,0,27.50,0,0.00,0.00,1900.00,USD,${p.start},${p.end},${p.payOn},Paid,`)
     })
 
     it('cash flow counts only what is still to pay on a row, never the week paid already', () => {
