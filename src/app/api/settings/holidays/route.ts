@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { holidaysFor } from '@/lib/holidays'
+import { holidaysFrom } from '@/lib/pay-dates'
 
 /**
  * POST   /api/settings/holidays        — add a day, or seed a country's year
@@ -60,7 +61,11 @@ export async function POST(request: NextRequest) {
       )
     }
     const country = String(body.country ?? 'US').toUpperCase()
-    const days = holidaysFor(country, year)
+    const all = holidaysFor(country, year)
+    // `from` (YYYY-MM-DD) adds only the days on or after it: the rest of
+    // this year, so a November firm gets Christmas without typing it.
+    const from = typeof body.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.from) ? body.from : null
+    const days = all ? holidaysFrom(all, from) : null
     if (!days) {
       return NextResponse.json(
         {
@@ -93,9 +98,11 @@ export async function POST(request: NextRequest) {
           added: result.count,
           skipped: days.length - result.count,
           message:
-            result.count === 0
-              ? `${year} was already set up.`
-              : `Added ${result.count} public holiday(s) for ${year}.`,
+            days.length === 0
+              ? `No public holidays are left in ${year}.`
+              : result.count === 0
+                ? `${from ? `The rest of ${year}` : year} was already set up.`
+                : `Added ${result.count} public ${result.count === 1 ? 'holiday' : 'holidays'} for ${from ? `the rest of ${year}` : year}.`,
         },
       },
       { status: 201 }

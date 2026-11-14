@@ -22,7 +22,7 @@ import { prisma } from '@/lib/db'
 import {
   checkPaySettings, rhythmFrom, payPeriodHolding,
   firstDayChangedSays, firstDayRefusedSays, askedFirstDay, FIRST_DAY_CHANGED_REASON,
-  type PayChanges, type PayRhythm, type PayPeriodOn,
+  type PayChanges, type PayRhythm, type PayPeriodOn, type DayOffRule,
 } from '@/lib/pay-dates'
 import { policyFrom } from '@/lib/cycle-shift'
 import { loadCompanyHolidays } from '@/lib/holidays'
@@ -221,4 +221,29 @@ export async function payPeriodAt(companyId: string, day: Date | string): Promis
   const holidays = await loadCompanyHolidays(companyId, y, y + 1)
   const policy = policyFrom(row)
   return payPeriodHolding(day, rhythm, { holidays, direction: policy.pay, daysOff: policy.daysOff })
+}
+
+/**
+ * The company's own rule for a pay date on a day nobody works, for the
+ * years given: its holiday calendar as "YYYY-MM-DD" keys, its pay
+ * direction and its days off. The same rule `payPeriodAt` applies, handed
+ * to the settings screen so it can say a typed Sunday's first period and
+ * its pay day before Save (the Tapin walk, 2026-11-14), and its name, for
+ * the sentence said where the calendar is empty.
+ */
+export async function dayOffRuleFor(
+  companyId: string,
+  fromYear: number,
+  toYear: number
+): Promise<{ companyName: string; rule: { holidays: string[]; direction: DayOffRule['direction']; daysOff?: readonly number[] } }> {
+  const row = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { name: true, cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true },
+  })
+  const holidays = await loadCompanyHolidays(companyId, fromYear, toYear)
+  const policy = policyFrom(row)
+  return {
+    companyName: row?.name ?? 'This company',
+    rule: { holidays: [...holidays].sort(), direction: policy.pay, ...(policy.daysOff ? { daysOff: policy.daysOff } : {}) },
+  }
 }

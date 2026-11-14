@@ -3,9 +3,10 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import {
-  paySettingsFor, setPaySettings, payPeriodAt, recordFirstDayRefused, hasRunPayroll,
+  paySettingsFor, setPaySettings, payPeriodAt, recordFirstDayRefused, hasRunPayroll, dayOffRuleFor,
   PAY_CHANGE_FIELDS, type PaySettings,
 } from '@/lib/payroll-settings'
+import { noHolidaysSays } from '@/lib/money/pay-periods'
 
 /**
  * GET   /api/settings/payroll — how often this company pays, and when pay is worked out and paid
@@ -58,7 +59,17 @@ async function withName(companyId: string, s: PaySettings) {
     ? await prisma.person.findUnique({ where: { id: s.setById }, select: { name: true } })
     : null
   const firstPeriod = s.payFirstPeriodStart ? await payPeriodAt(companyId, s.payFirstPeriodStart) : null
-  return { ...s, setByName: by?.name ?? null, firstPeriod, payrollRun: await hasRunPayroll(companyId) }
+  // The company's own day-off rule, so the screen says a typed Sunday's
+  // period and pay day before Save, and this period's, by the same
+  // arithmetic (payPeriodHolding). Holidays from last year to two ahead.
+  const y = new Date().getUTCFullYear()
+  const { companyName, rule } = await dayOffRuleFor(companyId, y - 1, y + 2)
+  return {
+    ...s, setByName: by?.name ?? null, firstPeriod, payrollRun: await hasRunPayroll(companyId),
+    dayOffRule: rule,
+    // The Payroll page's own sentence where the calendar is empty (money's noHolidaysSays).
+    noHolidays: noHolidaysSays(companyName, rule),
+  }
 }
 
 export async function GET(request: NextRequest) {

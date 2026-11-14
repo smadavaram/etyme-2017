@@ -12,6 +12,8 @@ import { changeCompanyKind, isOwnerSeat } from './kind'
 import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, NO_SEATS, type SeatCounts } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
+import { packFor } from '@/lib/company-defaults'
+import { noCalendarSays, FALLBACK_PACK_ID } from './no-calendar'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
       where: { id: companyId },
       select: {
         id: true, name: true, slug: true, domain: true, domainVerified: true,
-        kind: true, supplierPosture: true, currency: true, templatePack: true,
+        kind: true, supplierPosture: true, currency: true, templatePack: true, country: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
@@ -132,6 +134,16 @@ export async function GET(request: NextRequest) {
     isOwnerSeat(caller.context.id, companyId),
   ])
   const pack = company?.templatePack ? getTemplatePack(company.templatePack) : null
+  // No calendar of its own: what is true, and the step (./no-calendar).
+  const offered = company && !pack ? getTemplatePack(packFor(company.kind as any, company.country ?? null)) : null
+  const noCalendar = company && !pack
+    ? noCalendarSays({
+        companyName: company.name,
+        fallbackLabel: getTemplatePack(FALLBACK_PACK_ID)?.label ?? FALLBACK_PACK_ID,
+        offer: offered ? { id: offered.id, label: offered.label } : null,
+        canEdit: hasPermission(caller.permissions, 'settings.manage'),
+      })
+    : null
 
   return NextResponse.json({
     data: {
@@ -205,6 +217,7 @@ export async function GET(request: NextRequest) {
         })),
         contractTypes: pack.contractTypes?.map((t) => ({ code: t.code, label: t.label })) ?? [],
       },
+      noCalendar,
       availablePacks: Object.values(TEMPLATE_PACKS).map((p) => ({ id: p.id, label: p.label })),
       // Which way this company's dates move off a weekend or a holiday.
       // Sent with the words beside it so the screen does not have to know

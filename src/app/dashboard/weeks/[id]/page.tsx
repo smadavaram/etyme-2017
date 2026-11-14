@@ -42,7 +42,15 @@ interface Approval {
   sentAt: string
   sendBack: string | null
   evidence: { kind: string; fileName: string; sizeBytes: number; href: string } | null
+  /** The client's reason and overtime answer, on an approval attached while it was not on Etyme. */
+  clientSays: string | null
   contracts: Contract[]
+}
+/** What attaching asks for besides the approval, on a long week at a client not on Etyme (`offEtymeAsks`). */
+interface Asks {
+  says: string
+  reasonLabel: string
+  overtime: { hours: number; afterHours: number; asks: string; choices: { value: string; label: string }[] } | null
 }
 interface Signature { role: string; firm: string; signedBy: string | null; on: string; auto: boolean; reason: string | null; says: string }
 interface Seen {
@@ -51,7 +59,9 @@ interface Seen {
   emailLeaves: boolean
   signatures: Signature[]
   approvals: Approval[]
-  act: { ok: true; as: string; contracts: Contract[]; refused: string | null } | { ok: false; says: string }
+  act:
+    | { ok: true; as: string; contracts: Contract[]; refused: string | null; linkRefused: string | null; asks: Asks | null }
+    | { ok: false; says: string }
 }
 
 const STATE_WORDS: Record<string, { label: string; chip: string }> = {
@@ -71,8 +81,10 @@ export default function WeekPage() {
   // The tab the address names, else the one the client's standing says (./first-tab).
   const asked = useSearchParams()?.get('mode') ?? null
   const [chosenMode, setMode] = useState<'LINK' | 'EVIDENCE' | null>(null)
+  // A long week at a client not on Etyme is approved only by attaching its approval.
+  const asks = seen?.act.ok ? seen.act.asks : null
   const mode = chosenMode ?? firstTab(asked, seen?.week.clientOffPlatform ?? false)
-  const [form, setForm] = useState({ approverName: '', approverEmail: '', kind: 'EMAIL', approvedOn: '', pastedText: '' })
+  const [form, setForm] = useState({ approverName: '', approverEmail: '', kind: 'EMAIL', approvedOn: '', pastedText: '', clientReason: '', overtime: '' })
   const [file, setFile] = useState<File | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [said, setSaid] = useState<string | null>(null)
@@ -92,6 +104,8 @@ export default function WeekPage() {
       const body = await readJson(await fetch(`/api/week-approvals?timesheetId=${encodeURIComponent(id)}`))
       setSeen(body.data)
       if (body.data.act.ok) setPicked(new Set(body.data.act.contracts.map((c: Contract) => c.id)))
+      // Such a week goes only by its attached approval, whatever the address asked for.
+      if (body.data.act.ok && body.data.act.asks) setMode('EVIDENCE')
     } catch (err: any) {
       setError(err.message)
     }
@@ -125,6 +139,8 @@ export default function WeekPage() {
         if (form.approvedOn) fd.set('approvedOn', form.approvedOn)
         if (file) fd.set('file', file)
         if (form.pastedText.trim()) fd.set('pastedText', form.pastedText)
+        if (asks) fd.set('clientReason', form.clientReason)
+        if (asks?.overtime && form.overtime) fd.set('overtime', form.overtime)
         if (!all) for (const c of picked) fd.append('contracts', c)
         res = await fetch('/api/week-approvals', { method: 'POST', body: fd })
       }
@@ -189,6 +205,7 @@ export default function WeekPage() {
                   ? `attached by ${a.sentBy} on ${a.sentAt}`
                   : linkLine(seen.emailLeaves || a.state === 'APPROVED' || a.state === 'SENT_BACK', a.sentBy, a.sentAt)}
               </p>
+              {a.clientSays && <p className="text-etyme-ink">{a.clientSays}</p>}
               {a.sendBack && <p className="text-etyme-attention">Sent back: {a.sendBack}</p>}
               {a.evidence && (
                 <p>
@@ -216,6 +233,9 @@ export default function WeekPage() {
             <p className="text-[13px] text-etyme-muted">{seen.act.refused}</p>
           ) : (
             <>
+              {asks ? (
+                <p className="text-[13px] text-etyme-attention">{asks.says}</p>
+              ) : (
               <div className="flex gap-2">
                 <button className={mode === 'LINK' ? 'filter-tab filter-tab--active' : 'filter-tab filter-tab--inactive'} onClick={() => setMode('LINK')}>
                   Approve by email
@@ -224,6 +244,7 @@ export default function WeekPage() {
                   Attach evidence
                 </button>
               </div>
+              )}
               <p className="text-[13px] text-etyme-muted">
                 {mode === 'LINK' && !seen.emailLeaves
                   ? 'Email is not set up here, so no link can be sent yet. Attach the approval instead.'
@@ -250,6 +271,23 @@ export default function WeekPage() {
                   </div>
                   <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
                   <textarea value={form.pastedText} onChange={(e) => setForm({ ...form, pastedText: e.target.value })} rows={3} placeholder="Or paste the approval email here" className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                  {asks && (
+                    <label className="block space-y-1 text-[13px]">
+                      <span className="lbl">{asks.reasonLabel}</span>
+                      <textarea name="clientReason" value={form.clientReason} onChange={(e) => setForm({ ...form, clientReason: e.target.value })} rows={2} className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                    </label>
+                  )}
+                  {asks?.overtime && (
+                    <fieldset className="space-y-1 text-[13px]">
+                      <legend className="lbl">{asks.overtime.asks}</legend>
+                      {asks.overtime.choices.map((o) => (
+                        <label key={o.value} className="flex items-center gap-2">
+                          <input type="radio" name="overtime" value={o.value} checked={form.overtime === o.value} onChange={() => setForm({ ...form, overtime: o.value })} />
+                          {o.label}
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
                 </div>
               )}
               <div className="space-y-1">

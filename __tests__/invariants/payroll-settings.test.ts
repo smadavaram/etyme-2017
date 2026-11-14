@@ -128,7 +128,9 @@ describe('payroll is the company’s choice', () => {
     expect(page).toContain("fetch('/api/settings/week'")
     expect(page).toContain("fetch('/api/settings/payroll'")
     expect(page).toContain('{STATE_PAY_NOTE}')
-    expect(page).toContain('payPreview(')
+    // The company's own current period once its Sunday is set, else the
+    // example payPreview gives (payrollLineSays, the Tapin walk 2026-11-14).
+    expect(page).toContain('payrollLineSays(')
     // Above the weekend-and-holiday section, in that order.
     const tab = page.slice(page.indexOf('function CyclesTab'))
     const at = (s: string) => tab.indexOf(s)

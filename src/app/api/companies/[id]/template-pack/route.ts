@@ -148,7 +148,8 @@ export async function POST(
           skillCategories: pack.skillSeeds.length,
           totalSkills: pack.skillSeeds.reduce((n, s) => n + s.skills.length, 0),
         },
-        message: `Applied ${pack.label} template pack with ${pack.contractTypes.length} contract types, ${pack.cycleDefinitions.length} cycles, and ${result.docTemplates.length} document templates`,
+        // Said to the Owner on Settings, Cycles (2026-11-14), so in a payroll person's words.
+        message: `"${pack.label}" is now ${company.name}’s calendar. Contracts made from now on take their due dates from it.`,
       },
     })
   } catch (err: any) {

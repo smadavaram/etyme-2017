@@ -37,7 +37,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { configuredSenders } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { weekFlag } from '@/lib/timesheet-flag'
-import { lineFor, splitWeeks, weeksAwaitingDecision, type Decision, type Treatment } from '@/lib/overtime'
+import { lineFor, splitWeeks, weeksAwaitingDecision, priceChoice, treatmentSays, type Decision, type Treatment } from '@/lib/overtime'
 import { laddersAbove } from '@/app/api/timesheets/ladder'
 import {
   topDown, signersOf, tellNext, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays, workerToldSays,
@@ -336,9 +336,33 @@ export function periodWords(start: Date, end: Date, now: Date): string {
  * And a week whose employer is its own client has nobody outside to ask.
  */
 export function needsSigningInEtyme(c: WeekChain): string | null {
+  return notByEmail(c)?.says ?? null
+}
+
+/** Why a week cannot be approved by email, with what stands behind the sentence. */
+interface NotByEmail {
+  kind: 'OWN_CLIENT' | 'FLAGGED' | 'OVERTIME'
+  says: string
+  /** The flag's own sentence, where the week is flagged. */
+  flag: string | null
+  /** Hours over the line nobody has decided yet, week by week, on the client's own rung. */
+  pending: { weekOf: string; hours: number }[]
+  /** The line and the multiplier the client's own rung offers. */
+  afterHours: number | null
+  multiplierBps: number
+  topId: string
+}
+
+function notByEmail(c: WeekChain): NotByEmail | null {
   const w = c.week
+  const top = c.rungs.get(c.ladder[0].sellContractId)!
+  const policy = lineFor(top, { hoursPerWeek: w.hoursPerWeek }, { stillToSign: true, decided: false })
+  const base = { afterHours: policy.afterHours, multiplierBps: policy.multiplierBps, topId: top.id }
   if (c.employerId === c.clientId) {
-    return `${c.clientName} employs ${w.personName} and is also the client on this week, so it approves the week in Etyme.`
+    return {
+      ...base, kind: 'OWN_CLIENT', flag: null, pending: [],
+      says: `${c.clientName} employs ${w.personName} and is also the client on this week, so it approves the week in Etyme.`,
+    }
   }
   const flag = weekFlag({
     hours: w.totalHours,
@@ -348,11 +372,6 @@ export function needsSigningInEtyme(c: WeekChain): string | null {
     anomalyScore: w.anomalyScore,
     anomalyReason: w.anomalyReason,
   })
-  if (flag) {
-    return `${flag} A week like this is signed in Etyme by somebody at ${c.clientName}, with the reason it is right, so it cannot be approved by email.`
-  }
-  const top = c.rungs.get(c.ladder[0].sellContractId)!
-  const policy = lineFor(top, { hoursPerWeek: w.hoursPerWeek }, { stillToSign: true, decided: false })
   const decisions: Decision[] = w.decisions
     .filter((d) => d.sellContractId === top.id)
     .map((d) => ({
@@ -363,13 +382,153 @@ export function needsSigningInEtyme(c: WeekChain): string | null {
       accrualBps: d.accrualBps,
     }))
   const pending = weeksAwaitingDecision(splitWeeks(w.days, policy, { leaveDays: w.leaveDays, decisions }))
+    .map((x) => ({ weekOf: x.weekOf, hours: x.pendingHours }))
+  if (flag) {
+    return {
+      ...base, kind: 'FLAGGED', flag, pending,
+      says: `${flag} A week like this is signed in Etyme by somebody at ${c.clientName}, with the reason it is right, so it cannot be approved by email.`,
+    }
+  }
   if (pending.length > 0) {
-    return (
-      `${w.personName} worked past the ${policy.afterHours}-hour line this week, and what the extra hours are worth ` +
-      `is decided when the week is signed. Somebody at ${c.clientName} signs it in Etyme, so it cannot be approved by email.`
-    )
+    return {
+      ...base, kind: 'OVERTIME', flag: null, pending,
+      says:
+        `${w.personName} worked past the ${policy.afterHours}-hour line this week, and what the extra hours are worth ` +
+        `is decided when the week is signed. Somebody at ${c.clientName} signs it in Etyme, so it cannot be approved by email.`,
+    }
   }
   return null
+}
+
+// ── A long week at a client that is not on Etyme (2026-11-14) ─────────
+//
+// Tapin's walk: every client of the founder's firm is a client not on
+// Etyme, and a week over the job's hours could never be approved, because
+// nobody at the client can sign in. The standing rule is warn, capture a
+// reason, proceed (Addendum E). So where the client is not on Etyme, and
+// only there, the client's approval may be attached for such a week when
+// the person attaching it gives two more things, both written on the
+// approval: the client's reason the week is right, and how the client
+// approved the hours over the line (the usual rate, or a premium: the two
+// answers whoever signs a week in Etyme is offered). Nothing is defaulted.
+// A client on Etyme, or an employer that is its own client, still signs
+// in Etyme, exactly as before.
+
+/** The two answers on hours over the line an attached approval may carry. */
+export const OFF_ETYME_OVERTIME = ['SAME_RATE', 'PREMIUM'] as const
+export type OffEtymeOvertime = (typeof OFF_ETYME_OVERTIME)[number]
+
+/** What the attach form asks for, besides the approval itself. */
+export interface OffEtymeAsks {
+  /** The sentence over the questions. */
+  says: string
+  /** The label of the box for the client's reason. */
+  reasonLabel: string
+  /** The question on the hours over the line, and its two answers. Null where no hour is over it. */
+  overtime: { hours: number; afterHours: number; asks: string; choices: { value: OffEtymeOvertime; label: string }[] } | null
+}
+
+const hoursWords = (n: number) => `${Math.round(n * 100) / 100} ${Math.round(n * 100) / 100 === 1 ? 'hour' : 'hours'}`
+const premiumWords = (bps: number) => treatmentSays('PREMIUM', bps).replace(/^Paid at /, '')
+
+/**
+ * What a person attaching the client's approval is asked for on a week
+ * only a person in Etyme could otherwise sign. Null where nothing more is
+ * asked: the week can go by email as it is, or the client is on Etyme, or
+ * the employer is the client. Pure.
+ */
+export function offEtymeAsks(c: WeekChain): OffEtymeAsks | null {
+  const why = notByEmail(c)
+  if (!why || why.kind === 'OWN_CLIENT' || !c.clientOffPlatform) return null
+  const hours = why.pending.reduce((n, x) => n + x.hours, 0)
+  const after = why.afterHours ?? 40
+  const client = c.clientName
+  return {
+    says:
+      `${why.flag ? `${why.flag} ` : ''}${client} is not on Etyme, so attach its approval with its reason` +
+      `${hours > 0 ? ' and its answer on the extra hours' : ''}.`,
+    reasonLabel: `Why the week is right, in the words of ${client}`,
+    overtime: hours > 0
+      ? {
+          hours,
+          afterHours: after,
+          asks: `How ${client} approved the ${hoursWords(hours)} over ${after}`,
+          choices: [
+            { value: 'SAME_RATE', label: 'At the usual rate' },
+            { value: 'PREMIUM', label: `At a premium, ${premiumWords(why.multiplierBps)}` },
+          ],
+        }
+      : null,
+  }
+}
+
+/** What an attached approval adds for a long week at a client not on Etyme, checked. */
+export interface OffEtymeSignOff {
+  reason: string
+  /** The sentence written on the approval after its usual words. */
+  says: string
+  /** One decision per week with hours over the line, priced as the client approved them. */
+  decisions: { weekOf: string; overtimeHours: number; treatment: Treatment; appliedBps: number }[]
+  afterHours: number
+  multiplierBps: number
+  topId: string
+}
+
+/**
+ * The client's reason and its answer on the extra hours, or the refusal in
+ * a sentence. Null where the week asks for neither (`offEtymeAsks`). Pure.
+ */
+export function checkOffEtymeSignOff(
+  c: WeekChain,
+  input: { clientReason?: unknown; overtime?: unknown; approverName: string }
+): { ok: true; signOff: OffEtymeSignOff } | Refused | null {
+  const why = notByEmail(c)
+  const asks = offEtymeAsks(c)
+  if (!why || !asks) return null
+  const client = c.clientName
+  const reason = typeof input.clientReason === 'string' ? input.clientReason.trim().slice(0, 1000) : ''
+  if (!reason) {
+    return refuse(422, 'VALIDATION', `Give the reason ${client} gave for this week, in its own words. It goes on the approval.`, 'clientReason')
+  }
+  const choice = OFF_ETYME_OVERTIME.find((x) => x === input.overtime) ?? null
+  if (asks.overtime && !choice) {
+    return refuse(
+      422, 'VALIDATION',
+      `Say how ${client} approved the ${hoursWords(asks.overtime.hours)} over ${asks.overtime.afterHours}: at the usual rate, or at a premium.`,
+      'overtime'
+    )
+  }
+  const policy = { afterHours: why.afterHours, multiplierBps: why.multiplierBps }
+  const priced = choice ? priceChoice({ treatment: choice }, policy) : null
+  const decisions = priced && priced.ok && choice
+    ? why.pending.map((p) => ({ weekOf: p.weekOf, overtimeHours: p.hours, treatment: choice as Treatment, appliedBps: priced.appliedBps }))
+    : []
+  const overtimeSays = asks.overtime && choice
+    ? ` ${input.approverName} approved the ${hoursWords(asks.overtime.hours)} over ${asks.overtime.afterHours} ` +
+      `${choice === 'SAME_RATE' ? 'at the usual rate' : `at ${premiumWords(why.multiplierBps)}`}.`
+    : ''
+  return {
+    ok: true,
+    signOff: {
+      reason,
+      says: `Reason given by ${client}: “${reason.replace(/[.\s]+$/, '')}”.${overtimeSays}`,
+      decisions,
+      afterHours: asks.overtime?.afterHours ?? why.afterHours ?? 40,
+      multiplierBps: why.multiplierBps,
+      topId: why.topId,
+    },
+  }
+}
+
+/**
+ * What the client said on an attached approval, read back off its
+ * signature: the note is the approval's words, then this. Null where the
+ * signature carries nothing more.
+ */
+export function clientSaysOn(note: string | null | undefined, words: string | null): string | null {
+  if (!note || !words) return null
+  const lead = `${words}. `
+  return note.startsWith(lead) && note.length > lead.length ? note.slice(lead.length) : null
 }
 
 /** Whether the week is still waiting for the client, in a sentence where it is not. */
@@ -820,6 +979,10 @@ export interface EvidenceUpload {
   file?: { name: string; size: number; type: string; bytes: Buffer } | null
   pastedText?: unknown
   contracts?: string[] | null
+  /** On a long week at a client not on Etyme: the client's reason, in its words (`offEtymeAsks`). */
+  clientReason?: unknown
+  /** And how the client approved the hours over the line: SAME_RATE or PREMIUM. */
+  overtime?: unknown
 }
 
 export async function attachEvidence(
@@ -839,7 +1002,9 @@ export async function attachEvidence(
   const waiting = notWaiting(c)
   if (waiting) return refuse(409, 'NOT_WAITING', waiting)
   const inEtyme = needsSigningInEtyme(c)
-  if (inEtyme) return refuse(409, 'SIGN_IN_ETYME', inEtyme)
+  // Where the client is not on Etyme, a week only a person in Etyme could
+  // sign may be attached with the client's reason and its overtime answer.
+  if (inEtyme && !offEtymeAsks(c)) return refuse(409, 'SIGN_IN_ETYME', inEtyme)
 
   const ev = checkEvidence(
     {
@@ -853,6 +1018,9 @@ export async function attachEvidence(
     c.clientName
   )
   if (!ev.ok) return refuse(422, 'VALIDATION', ev.says, ev.field)
+  const offEtyme = checkOffEtymeSignOff(c, { clientReason: input.clientReason, overtime: input.overtime, approverName: ev.approverName })
+  if (offEtyme && !offEtyme.ok) return offEtyme
+  const signOff = offEtyme?.ok ? offEtyme.signOff : null
   const atClient = await approverAtClient(r, c, ev.approverEmail, 'APPROVAL_EVIDENCE_ATTACH')
   if (!atClient.ok) return atClient
   const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
@@ -886,7 +1054,9 @@ export async function attachEvidence(
   })
   const signed = await signForClient(c, row.id, signedAt, words, {
     by: `${r.personName} attached ${EVIDENCE_KINDS[ev.kind as EvidenceKind].toLowerCase()} (${ev.says.replace(/\.$/, '')})` +
-      `${offPlatformBecause(c, atClient.offPlatform, ev.approverEmail).replace(/\.$/, '')}`,
+      `${offPlatformBecause(c, atClient.offPlatform, ev.approverEmail).replace(/\.$/, '')}` +
+      `${signOff ? `. ${signOff.says.replace(/\.$/, '')}` : ''}`,
+    signOff: signOff ? { ...signOff, decidedById: r.personId, approverName: ev.approverName } : undefined,
   })
   if (!signed.ok) {
     // Nothing was signed, so the evidence stands for nothing: take it back.
@@ -894,7 +1064,10 @@ export async function attachEvidence(
     return signed
   }
   await tellAfterApproval(c, { words, senderId: r.personId === c.week.personId ? null : r.personId, how: 'EVIDENCE', standsFor: signed.standsFor })
-  return { ok: true, id: row.id, words, says: `${words}. ${signed.standsFor ? signed.standsFor.says : nextSays(c)}` }
+  return {
+    ok: true, id: row.id, words,
+    says: `${words}. ${signOff ? `${signOff.says} ` : ''}${signed.standsFor ? signed.standsFor.says : nextSays(c)}`,
+  }
 }
 
 // ── Writing the client's signature ────────────────────────────────────
@@ -921,6 +1094,8 @@ async function signForClient(
     outcome?: LinkOutcome
     /** Whether the client was off the platform at the moment it approved, where that differs from the row. */
     clientOffPlatform?: boolean
+    /** A long week at a client not on Etyme: the client's reason and its overtime answer (`checkOffEtymeSignOff`). */
+    signOff?: OffEtymeSignOff & { decidedById: string; approverName: string }
   }
 ): Promise<{ ok: true; standsFor: SoleFirm | null } | Refused> {
   const client = signaturesWritten(c.signers)[0]
@@ -960,10 +1135,35 @@ async function signForClient(
         data: {
           timesheetId: c.week.id, companyId: client.companyId, role: 'CLIENT_APPROVAL',
           hours: c.week.totalHours, rateCents: clientRateCents, state: 'LIVE', at,
-          byId: null, auto: false, note: words,
+          byId: null, auto: false, note: how.signOff ? `${words}. ${how.signOff.says}` : words,
         },
         select: { id: true },
       })
+
+      // The client's answer on the hours over the line, on its own rung,
+      // as its attached approval gives it: the same row signing in Etyme
+      // writes, so every firm below prices from the client's decision. Who
+      // recorded it is the person who attached the approval; the reason
+      // names the person at the client who gave it.
+      for (const d of how.signOff?.decisions ?? []) {
+        const weekOf = new Date(`${d.weekOf}T00:00:00.000Z`)
+        const data = {
+          treatment: d.treatment, overtimeHours: d.overtimeHours,
+          afterHours: how.signOff!.afterHours, multiplierBps: how.signOff!.multiplierBps,
+          appliedBps: d.appliedBps, accrualBps: 10_000,
+          decidedById: how.signOff!.decidedById, decidedByCompanyId: client.companyId, decidedAt: at,
+          reason: `${how.signOff!.approverName} at ${c.clientName} approved it by email: ${how.signOff!.reason}`,
+        }
+        await tx.overtimeDecision.upsert({
+          where: { timesheetId_sellContractId_weekOf: { timesheetId: c.week.id, sellContractId: how.signOff!.topId, weekOf } },
+          create: {
+            timesheetId: c.week.id, sellContractId: how.signOff!.topId, weekOf,
+            workAssertionId: how.signOff!.decisions.length === 1 ? assertion.id : null,
+            ...data,
+          },
+          update: data,
+        })
+      }
       const linked = await tx.weekApproval.updateMany({
         where: { id: weekApprovalId, assertionId: null, ...(how.outcome ? { usedAt: null } : {}) },
         data: {
@@ -1375,6 +1575,12 @@ export interface ApprovalSeen {
   sentAt: string
   sendBack: string | null
   evidence: { kind: string; fileName: string; sizeBytes: number; href: string } | null
+  /**
+   * What the client said on an approval attached for a long week while it
+   * was not on Etyme: its reason, and how it approved the extra hours.
+   * Read by every firm the approval applies to. Null on any other approval.
+   */
+  clientSays: string | null
   /** Only the reader's own contracts in its scope — never another rung's. */
   contracts: { id: string; label: string }[]
 }
@@ -1465,8 +1671,15 @@ export interface WeekSeen {
   /** Who signed the week, top first, as this reader may read it. */
   signatures: SignatureSeen[]
   approvals: ApprovalSeen[]
-  /** Whether this reader may send a link or attach evidence, and on which contracts. */
-  act: { ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null } | { ok: false; says: string }
+  /**
+   * Whether this reader may send a link or attach evidence, and on which
+   * contracts. `asks` is what attaching asks for besides the approval on a
+   * long week at a client not on Etyme (`offEtymeAsks`); there `linkRefused`
+   * says why the link cannot be sent, and attaching is still open.
+   */
+  act:
+    | { ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null; linkRefused: string | null; asks: OffEtymeAsks | null }
+    | { ok: false; says: string }
 }
 
 /** Whether a reader is on this week at all: the worker, or a firm on the chain. */
@@ -1592,7 +1805,7 @@ function approvalRowsFor(ids: readonly string[]) {
     prisma.workAssertion.findMany({
       where: { timesheetId: { in: wanted }, state: 'LIVE' },
       orderBy: { at: 'asc' },
-      select: { timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
+      select: { id: true, timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
     }),
   ])
 }
@@ -1614,6 +1827,7 @@ async function weekSeen(
     await writeReadLog(r, c, v)
     if (!v.ok) continue
     const approvedAt = a.how === 'EVIDENCE' ? a.approvedOn : a.usedAt
+    const signature = a.assertionId ? live.find((x) => x.id === a.assertionId) : undefined
     const state = a.assertionId
       ? 'APPROVED'
       : a.outcome === 'SENT_BACK'
@@ -1630,6 +1844,14 @@ async function weekSeen(
             approverName: a.approverName, approverEmail: a.approverEmail, clientName: c.clientName,
             clientOffPlatform: a.clientOffPlatform, on: approvedAt, how: a.how as 'LINK' | 'EVIDENCE', now,
           })
+        : null,
+      // Only an approval attached while the client was not on Etyme carries
+      // more than its words; those words do not move with the day read.
+      clientSays: state === 'APPROVED' && approvedAt && a.how === 'EVIDENCE' && a.clientOffPlatform
+        ? clientSaysOn(signature?.note, approvalWords({
+            approverName: a.approverName, approverEmail: a.approverEmail, clientName: c.clientName,
+            clientOffPlatform: true, on: approvedAt, how: 'EVIDENCE', now,
+          }))
         : null,
       approverName: a.approverName,
       approverEmail: a.approverEmail,
@@ -1672,12 +1894,15 @@ async function weekSeen(
   }
 
   const who = actorVerdict(r, c)
+  const asks = offEtymeAsks(c)
   const act: WeekSeen['act'] = who.ok
     ? {
         ok: true,
         as: who.as,
         contracts: c.ladder.map((x) => ({ id: x.sellContractId, label: labelFor(r, c, x.sellContractId), mine: labelFor(r, c, x.sellContractId) !== 'Another contract on this placement' })),
-        refused: notWaiting(c) ?? needsSigningInEtyme(c),
+        refused: notWaiting(c) ?? (asks ? null : needsSigningInEtyme(c)),
+        linkRefused: asks ? needsSigningInEtyme(c) : null,
+        asks: notWaiting(c) ? null : asks,
       }
     : { ok: false, says: who.says }
 

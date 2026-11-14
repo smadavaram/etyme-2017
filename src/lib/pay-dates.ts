@@ -371,12 +371,17 @@ export function payPreview(s: PayRhythm, today: Date): string {
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-/** What the setting is called on the screen. */
-export const FIRST_PERIOD_LABEL = 'First pay period starts on'
+/**
+ * What the setting is called on the screen. Not "first pay period
+ * starts on": periods run back from it as well as forward, so the day is
+ * no first (the Tapin walk, 2026-11-14). It is the Sunday the company's
+ * periods are counted from.
+ */
+export const FIRST_PERIOD_LABEL = 'The Sunday your pay periods are counted from'
 
 /** The one line under the field, saying what it does. */
 export const FIRST_PERIOD_HELP =
-  'Pay periods are whole weeks, Sunday to Saturday, counted forward and back from this Sunday.'
+  'Pick any Sunday a pay period starts on. Periods run Sunday to Saturday, before and after it.'
 
 /** Said where a weekly or two-week company has not set the day. */
 export const FIRST_PERIOD_UNSET =
@@ -526,13 +531,39 @@ export function payPeriodHolding(day: Date | string, s: PayRhythm, rule: DayOffR
  * says from which day.
  */
 export function firstPeriodSays(p: PayPeriodOn): string {
+  return periodSays('The first period', p)
+}
+
+/** "<lead> is Dec 6 – Dec 19, 2026. Its pay is worked out … and paid …", with a moved pay day said. */
+function periodSays(lead: string, p: PayPeriodOn): string {
   const day = (k: string) => formatDay(k, { weekday: true })
   const moved = p.payOn !== p.payOnUnmoved
     ? ` The pay day moved from ${day(p.payOnUnmoved)}, a day off or a holiday.`
     : ''
-  return `The first period is ${formatRange(p.start, p.end)}. ` +
+  return `${lead} is ${formatRange(p.start, p.end)}. ` +
     `Its pay is worked out ${day(p.calcOn)} and paid ${day(p.payOn)}.${moved}`
 }
+
+/**
+ * The line under the payroll choices (the Tapin walk, 2026-11-14). Where a
+ * weekly or two-week company has said which Sunday its periods are
+ * counted from, the company's own period holding today, with its two
+ * days: "This pay period is Nov 8 – Nov 21, 2026. Its pay is worked out
+ * …". Anywhere else the example `payPreview` gives, which no set day can
+ * contradict.
+ */
+export function payrollLineSays(s: PayRhythm, today: Date, rule: DayOffRule = {}): string {
+  const now = payPeriodHolding(new Date(utcDay(today)), s, rule)
+  return now ? periodSays('This pay period', now) : payPreview(s, today)
+}
+
+// ── The confirmation before a moved day is saved ───────────────────────
+
+/** The heading of the box that asks before a moved day is saved: the second press, said as one. */
+export const FIRST_DAY_CONFIRM_TITLE = 'One more press: save the new Sunday?'
+
+/** The second press itself. Never a bare "Save" beside the one above it. */
+export const FIRST_DAY_CONFIRM_BUTTON = 'Yes, count pay periods from the new Sunday'
 
 // ── Who sets the first day, its history, and the warning before a change ──
 //
@@ -600,4 +631,34 @@ export function firstDayChangeWarning(to: string): string {
  */
 export function asksBeforeFirstDayChange(saved: string | null, draft: string | null, payrollRun: boolean): boolean {
   return payrollRun && !!draft && draft !== saved
+}
+
+// ── The holiday calendar's one-press sets (2026-11-14) ─────────────────
+//
+// The Tapin walk: in November the one-press set offered next year only,
+// so Christmas Day of this year had to be typed, and a pay day on it was
+// not moved. The rest of this year is offered too. Here because a pay day
+// is what the calendar moves; the days themselves are lib/holidays.
+
+/** One one-press set: a country's public holidays for a year, from a day on. */
+export interface HolidaySeedOffer {
+  year: number
+  /** "YYYY-MM-DD": only days on or after it are added. Null for the whole year. */
+  from: string | null
+  label: string
+}
+
+/** The sets offered on `today`: the rest of this year, then all of next year. */
+export function holidaySeedOffers(today: Date, countryWord = 'US'): HolidaySeedOffer[] {
+  const year = today.getUTCFullYear()
+  return [
+    { year, from: keyOfMs(utcDay(today)), label: `Add ${countryWord} holidays for the rest of ${year}` },
+    { year: year + 1, from: null, label: `Add ${countryWord} holidays for ${year + 1}` },
+  ]
+}
+
+/** The days of a set on or after `from`, or every day where `from` is null or not a day. */
+export function holidaysFrom<T extends { date: string }>(days: readonly T[], from: string | null): T[] {
+  if (!from || dayMs(from) === null) return [...days]
+  return days.filter((d) => d.date >= from)
 }

@@ -10,6 +10,7 @@ import { KIND_CHOICES, choiceOf } from '@/lib/company-kind'
 
 import { useEffect, useState, useCallback } from 'react'
 import { plainDate } from '@/lib/plain-date'
+import { holidaySeedOffers } from '@/lib/pay-dates'
 import { BenchPaySection } from './bench-pay/bench-pay'
 import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 // The week and payroll panels are one component each, drawn here and on
@@ -119,6 +120,8 @@ interface Settings {
   holidays: Holiday[]
   costCenters: CostCenter[]
   templatePack: Pack | null
+  /** Where the company has no calendar of its own: what is true, and the one it may set (api/settings/no-calendar). */
+  noCalendar?: { says: string[]; offer: { id: string; label: string } | null } | null
   cycleShift: CycleShift
   canEdit: boolean
   /** The type is the Owner's to change, and nobody else's (lib/company-kind). */
@@ -675,7 +678,8 @@ function RolesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
 function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
-  const nextYear = new Date().getFullYear() + 1
+  // The rest of this year, then next year (lib/pay-dates, holidaySeedOffers).
+  const offers = holidaySeedOffers(new Date())
 
   return (
     <Panel
@@ -683,13 +687,18 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
       subtitle="Cycle dates shift off weekends and off these days. An empty calendar means due dates land on public holidays and nobody notices until a billing run fires on Christmas Day."
       action={
         data.canEdit ? (
-          <button
-            onClick={() => send('/api/settings/holidays', 'POST', { seedYear: nextYear, country: 'US' })}
-            disabled={busy}
-            className="px-3 py-1.5 rounded border border-etyme-rule text-[12px] text-etyme-ink disabled:opacity-50"
-          >
-            Add US holidays for {nextYear}
-          </button>
+          <span className="flex flex-wrap gap-2">
+            {offers.map((o) => (
+              <button
+                key={o.year}
+                onClick={() => send('/api/settings/holidays', 'POST', { seedYear: o.year, country: 'US', ...(o.from ? { from: o.from } : {}) })}
+                disabled={busy}
+                className="px-3 py-1.5 rounded border border-etyme-rule text-[12px] text-etyme-ink disabled:opacity-50"
+              >
+                {o.label}
+              </button>
+            ))}
+          </span>
         ) : null
       }
     >
@@ -825,10 +834,20 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
       subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when bills generate, and when payroll runs — every date a contract produces comes from here."
     >
       {!pack ? (
-        <Empty>
-          No template pack. Contracts will generate no due dates at all, so nothing will ever be
-          owed or chased. This should not happen — tell somebody.
-        </Empty>
+        <div className="space-y-2">
+          {(data.noCalendar?.says ?? []).map((line) => (
+            <p key={line} className="text-[13px] text-etyme-ink">{line}</p>
+          ))}
+          {data.noCalendar?.offer && (
+            <button
+              onClick={() => send(`/api/companies/${data.company.id}/template-pack`, 'POST', { pack: data.noCalendar!.offer!.id })}
+              disabled={busy}
+              className="mt-1 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            >
+              Use the “{data.noCalendar.offer.label}” calendar
+            </button>
+          )}
+        </div>
       ) : (
         <>
           <p className="text-[14px] text-etyme-ink mb-3">

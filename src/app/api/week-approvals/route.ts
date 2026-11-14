@@ -25,6 +25,9 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
  * carries a file: `timesheetId`, `how=EVIDENCE`, `approverName`,
  * `approverEmail`, `kind` (EMAIL · PDF · EXPORT), `approvedOn`
  * (YYYY-MM-DD), `file` or `pastedText`, and `contracts` once per contract.
+ * On a long week at a client that is not on Etyme it also takes
+ * `clientReason` (the client's reason, in its words) and `overtime`
+ * (SAME_RATE · PREMIUM, as the client approved the extra hours).
  */
 
 const no = (r: Refused) =>
@@ -69,6 +72,9 @@ export async function POST(request: NextRequest) {
       file: file ? { name: file.name, size: file.size, type: file.type, bytes: Buffer.from(await file.arrayBuffer()) } : null,
       pastedText: form.get('pastedText'),
       contracts: contracts.length ? contracts : null,
+      // Asked only on a long week at a client not on Etyme (`offEtymeAsks`).
+      clientReason: form.get('clientReason'),
+      overtime: form.get('overtime'),
     })
     if (!out.ok) return no(out)
     return NextResponse.json({ data: { id: out.id, words: out.words, says: out.says } }, { status: 201 })

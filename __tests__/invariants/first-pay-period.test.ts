@@ -220,13 +220,15 @@ describe('the settings screen and the payroll route ask for the same answers', (
     expect(ROUTE).toContain('PAY_CHANGE_FIELDS.map((f) => [f, body?.[f]])')
   })
 
-  it('the screen draws "First pay period starts on" as a date box for a weekly or two-week company, with the one line saying what it does', () => {
-    expect(FIRST_PERIOD_LABEL).toBe('First pay period starts on')
+  it('the screen draws "The Sunday your pay periods are counted from" as a date box for a weekly or two-week company, with the one line saying what it does', () => {
+    // Renamed on the Tapin walk, 2026-11-14: periods run back from it as well.
+    expect(FIRST_PERIOD_LABEL).toBe('The Sunday your pay periods are counted from')
     const weekBranch = PANEL.slice(PANEL.indexOf('{byWeek ? ('), PANEL.indexOf(') : (', PANEL.indexOf('{byWeek ? (')))
     expect(weekBranch).toContain('label={FIRST_PERIOD_LABEL}')
     expect(weekBranch).toContain('type="date"')
     expect(weekBranch).toContain('{FIRST_PERIOD_HELP}')
-    expect(weekBranch).toContain('firstPeriodSays(firstSaved)')
+    // The saved first period, or a typed Sunday's before Save.
+    expect(weekBranch).toContain('firstPeriodSays(firstShown)')
     expect(weekBranch).toContain('FIRST_PERIOD_UNSET')
     expect(FIRST_PERIOD_UNSET).toBe('Until this is set, the Payroll page lists pay by calendar month.')
   })
