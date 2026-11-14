@@ -236,6 +236,38 @@ describe('Add a company with a relationship', () => {
   })
 })
 
+describe('a job sent is read from the side that sent it', () => {
+  const invite = (jobOwner: string, to: string, title: string) =>
+    prisma.requirement
+      .create({ data: { companyId: jobOwner, title, status: 'OPEN', approvalState: 'AUTO_APPROVED' }, select: { id: true } })
+      .then((job) =>
+        prisma.requirementInvitation.create({
+          data: { requirementId: job.id, fromCompanyId: jobOwner, toCompanyId: to, expiresAt: new Date(Date.now() + 14 * 86_400_000) },
+        }),
+      )
+
+  it('a job you sent a firm on your own is never read as working together; a job that firm sent you is', async () => {
+    const sentTo = await claimedFirm('Wexley Field Staffing', 'wexley-field-walk')
+    await invite(brightmoor, sentTo, 'A job Brightmoor sent on its own (tie walk)')
+    expect(await workTogether(brightmoor, sentTo)).toBe(false)
+    // The same invitation read from the firm that received it is the other firm's act.
+    expect(await workTogether(sentTo, brightmoor)).toBe(true)
+
+    const sentUs = await claimedFirm('Ottery Mills', 'ottery-mills-walk', 'CLIENT')
+    await invite(sentUs, brightmoor, 'A job Ottery Mills sent Brightmoor (tie walk)')
+    expect(await workTogether(brightmoor, sentUs)).toBe(true)
+  })
+
+  it('a firm you only sent a job to is not on your list to extend', async () => {
+    as(OWNER)
+    const sentTo = await claimedFirm('Penhallow Talent', 'penhallow-talent-walk')
+    await invite(brightmoor, sentTo, 'A job Brightmoor sent Penhallow on its own (tie walk)')
+    const r = await call(extend.POST as any, 'POST', `/api/companies/${sentTo}/extend`, sentTo, { as: 'SUPPLIER' })
+    expect(r.status).not.toBe(201)
+    expect(await prisma.counterparty.count({ where: { companyId: brightmoor, otherCompanyId: sentTo } })).toBe(0)
+  })
+})
+
 describe('nothing leaves', () => {
   it('none of these doors sends an email', () => {
     expect(sent).toEqual([])

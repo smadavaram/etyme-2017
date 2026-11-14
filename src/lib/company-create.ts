@@ -708,16 +708,20 @@ async function companyForeignKeys(db: Db): Promise<{ table: string; column: stri
 /**
  * Whether two firms already work together on Etyme: an agreement, a row on
  * the other firm's register naming the asker, an order either way, a
- * contract, or a job one sent the other. The same facts `POST
+ * contract, or a job the other firm sent the asker. The same facts `POST
  * /api/contracts` reads before it lets a firm name another as its client,
  * so linking a register row to a firm on Etyme never opens a door the
  * contract route keeps shut.
  *
- * `aId` is the firm asking. A row on its own register does not count: that
- * row is one side's own writing, and a firm that could tie itself to a
- * stranger by writing its own row would never need the stranger's yes
- * (review, 2026-11-13). A row the other firm wrote naming the asker is the
- * other firm's act, and does; a trade-link yes writes both.
+ * `aId` is the firm asking. Two things the asker wrote alone never count
+ * (review, 2026-11-13: a firm on Etyme is never tied to you from your side
+ * alone). A row on its own register is one side's own writing. A job the
+ * asker sent is too: an invitation is written by the sender only, so one
+ * send to a stranger would make the stranger "worked with" for the paste
+ * door, Extend and order naming. A row the other firm wrote naming the
+ * asker, or a job the other firm sent it, is the other firm's act and
+ * does; a trade-link yes writes both rows. Demand's `dealsWith`
+ * (api/suppliers/direct) reads the invitation the same way.
  */
 export async function workTogether(aId: string, bId: string, db: Db = prisma): Promise<boolean> {
   if (aId === bId) return false
@@ -727,10 +731,8 @@ export async function workTogether(aId: string, bId: string, db: Db = prisma): P
     (await db.counterparty.findFirst({ where: { companyId: bId, otherCompanyId: aId }, select: { id: true } })) ??
     (await db.workOrder.findFirst({ where: { OR: either('issuedById', 'issuedToId') }, select: { id: true } })) ??
     (await db.sellContract.findFirst({ where: { OR: either('companyId', 'clientCompanyId') }, select: { id: true } })) ??
-    (await db.requirementInvitation.findFirst({
-      where: { OR: [{ toCompanyId: aId, requirement: { companyId: bId } }, { toCompanyId: bId, requirement: { companyId: aId } }] },
-      select: { id: true },
-    }))
+    // Only a job the other firm sent the asker: never the asker's own send.
+    (await db.requirementInvitation.findFirst({ where: { toCompanyId: aId, requirement: { companyId: bId } }, select: { id: true } }))
   return hit !== null
 }
 
