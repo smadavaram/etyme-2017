@@ -24,10 +24,10 @@ export function viewAfterRefusedRead<V extends AnyView>(prev: V): V | { company:
  * Admin does it alone (movesAloneAfterPass in lib/owner-rules), so nothing
  * is asked and the form does not say it is.
  */
-export function moveFormSays(input: { alone: boolean; subjectName: string | null; companyName: string }): { line: string; button: string; pending: string } {
+export function moveFormSays(input: { alone: boolean; subjectName: string | null; companyName: string; emailLeaves: boolean }): { line: string; button: string; pending: string } {
   if (input.alone && input.subjectName) {
     return {
-      line: `${input.subjectName} passed ${input.companyName}’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and ${input.subjectName} is told by email.`,
+      line: `${input.subjectName} passed ${input.companyName}’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and ${input.subjectName} is told ${input.emailLeaves ? 'by email' : 'in Ask Etyme'}.`,
       button: 'Move them to Admin',
       pending: 'Moving…',
     }
@@ -37,4 +37,14 @@ export function moveFormSays(input: { alone: boolean; subjectName: string | null
     button: 'Ask for their yes',
     pending: 'Asking…',
   }
+}
+
+/**
+ * How the person asked to take over hears of it. Email is promised only
+ * where it can leave this deployment (`mailLeaves`, read by the route that
+ * feeds the page, because a browser page never reads the environment);
+ * otherwise Ask Etyme alone (walk, 2026-11-14).
+ */
+export function passFormSays(emailLeaves: boolean): string {
+  return `They say yes on a card in Ask Etyme${emailLeaves ? ' and by email' : ''}. Nothing changes until then. Both changes then happen together.`
 }

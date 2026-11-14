@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePageSection } from '@/components/page-section'
 import { Chip, ErrorState, Field, FormMessage, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { readJson, isRefusal } from '@/lib/read-response'
-import { viewAfterRefusedRead, moveFormSays } from './view'
+import { viewAfterRefusedRead, moveFormSays, passFormSays } from './view'
 
 /**
  * Settings → Owners (founder, 2026-11-11, drawn and built): who owns the
@@ -34,6 +34,8 @@ type Read = {
   roles: { id: string; name: string }[]
   iAmOwner: boolean
   narrowAdminOffered: boolean
+  /** Whether an email can leave this deployment (`mailLeaves`, read by the route). */
+  emailLeaves?: boolean
   asks: Ask[]
 }
 
@@ -125,6 +127,7 @@ export default function OwnersPage() {
     alone: !!chosenOwner?.aloneToAdmin && ownerAct === 'demote' && !!adminRole && chosenRoleId === adminRole.id,
     subjectName: chosenOwner?.name ?? null,
     companyName: r.company,
+    emailLeaves: r.emailLeaves === true,
   })
 
   return (
@@ -171,7 +174,7 @@ export default function OwnersPage() {
                 ))}
               </fieldset>
               <Field label="Why"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} /></Field>
-              <p className="text-[12.5px] text-etyme-muted">They say yes on a card in Ask Etyme and by email. Nothing changes until then. Both changes then happen together.</p>
+              <p className="text-[12.5px] text-etyme-muted">{passFormSays(r.emailLeaves === true)}</p>
               <div className="flex gap-2">
                 <SubmitButton type="button" pending={busy === 'pass'} pendingLabel="Asking…" onClick={() => post('pass', '/api/settings/owners', { action: 'pass', contextId: who, after: flow.after, reason })}>Ask them</SubmitButton>
                 <SubmitButton type="button" tone="secondary" onClick={() => setFlow(null)}>Cancel</SubmitButton>

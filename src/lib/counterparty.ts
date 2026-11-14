@@ -722,7 +722,12 @@ export function mayRemovePosition(ask: {
 /** The Kinds a person may set on a company they recorded. */
 export const KINDS_TO_SET = ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const
 export type KindToSet = (typeof KINDS_TO_SET)[number]
-const KIND_SET_WORDS: Record<KindToSet, string> = { VENDOR: 'a supplier', CLIENT: 'a client', MSP: 'an MSP', GSI: 'an integrator' }
+/**
+ * The Kind in the words the Companies list prints for it (Vendor, Client,
+ * MSP, GSI), never a position's words: a Kind never says who is a
+ * supplier or a customer (walk, 2026-11-14).
+ */
+const KIND_SET_WORDS: Record<KindToSet, string> = { VENDOR: 'a vendor', CLIENT: 'a client', MSP: 'an MSP', GSI: 'a GSI' }
 
 export type KindSetVerdict =
   | { ok: true; to: KindToSet; already: boolean; says: string }
@@ -742,6 +747,8 @@ export function maySetRecordedKind(ask: {
   me: { id: string; name: string }
   permissions: readonly string[]
   other: { id: string; name: string; kind: string; claimedAt: Date | string | null; listedById: string | null; seats: number }
+  /** The positions the company holds with the caller (`standingWith`). None: the sentence says it is still not classified. */
+  positions?: readonly Position[]
 }): KindSetVerdict {
   if (!hasPermission(ask.permissions, 'vendors.manage')) {
     return {
@@ -766,10 +773,13 @@ export function maySetRecordedKind(ask: {
     }
   }
   const k = to as KindToSet
-  if (ask.other.kind === k) return { ok: true, to: k, already: true, says: `${ask.other.name} is already ${KIND_SET_WORDS[k]}. Nothing changed.` }
+  const still = (ask.positions ?? []).length === 0
+    ? ` It is still not classified: extend it to Supplier or Customer from its row.`
+    : ''
+  if (ask.other.kind === k) return { ok: true, to: k, already: true, says: `${ask.other.name} is already recorded as ${KIND_SET_WORDS[k]}. Nothing changed.${still}` }
   return {
     ok: true, to: k, already: false,
-    says: `${ask.other.name} is ${KIND_SET_WORDS[k]} now. What it is to you did not change.`,
+    says: `${ask.other.name} is recorded as ${KIND_SET_WORDS[k]}.${still}`,
   }
 }
 

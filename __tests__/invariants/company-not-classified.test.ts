@@ -281,7 +281,26 @@ describe('saying what kind of company a recorded firm is', () => {
   it('a company recorded here and still unclaimed can have its type set to Vendor, and setting it gives no position', () => {
     const v = set('VENDOR')
     expect(v.ok && v.to).toBe('VENDOR')
-    expect(v.ok && v.says).toBe('Rivermark Partners is a supplier now. What it is to you did not change.')
+    expect(v.ok && v.says).toBe('Rivermark Partners is recorded as a vendor. It is still not classified: extend it to Supplier or Customer from its row.')
+  })
+
+  it('setting the kind never says the company is a supplier or a client, only the kind it is recorded as', () => {
+    for (const to of ['VENDOR', 'CLIENT', 'MSP', 'GSI']) {
+      for (const positions of [[], ['SUPPLIER'], ['CUSTOMER']] as const) {
+        for (const kind of ['UNCLASSIFIED', to]) {
+          const v = maySetRecordedKind({ to, me: tapin, permissions: owner, other: { ...rivermark, kind, seats: 0 }, positions })
+          expect(v.ok && v.says).toMatch(/is (already )?recorded as /)
+          expect(v.ok && v.says).not.toMatch(/is (already )?an? (supplier|client)\b|supplier now|client now/)
+        }
+      }
+    }
+  })
+
+  it('a company that already holds a position is never told it is still not classified when its kind is set', () => {
+    const v = maySetRecordedKind({ to: 'CLIENT', me: tapin, permissions: owner, other: { ...rivermark, kind: 'UNCLASSIFIED', seats: 0 }, positions: ['SUPPLIER'] })
+    expect(v.ok && v.says).toBe('Rivermark Partners is recorded as a client.')
+    const again = maySetRecordedKind({ to: 'CLIENT', me: tapin, permissions: owner, other: { ...rivermark, kind: 'CLIENT', seats: 0 }, positions: [] })
+    expect(again.ok && again.says).toBe('Rivermark Partners is already recorded as a client. Nothing changed. It is still not classified: extend it to Supplier or Customer from its row.')
   })
 
   it('a firm on Etyme never has its Kind set by anybody but its own Owner', () => {

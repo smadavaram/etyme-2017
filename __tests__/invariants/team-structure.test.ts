@@ -380,3 +380,58 @@ describe('two verbs for two doors, each pointing at the other', () => {
     expect(page).toMatch(/<a href=\{TEAMS_LINK_HREF\}/)
   })
 })
+
+/**
+ * ── The company box and the box menu, as the 2026-11-14 walk found them ──
+ *
+ * Once a team existed, the people on no team were drawn in ink on the ink
+ * company box and could not be read; and a box menu low in the window ran
+ * below it, so Move under, Give access and Delete could not be reached.
+ */
+import { menuPlace, MENU_MARGIN, nameTones, ROOT_BOX } from '@/lib/team-structure/screen'
+
+describe('the company box and its menu can be read and reached', () => {
+  const page = readScreen('src/app/dashboard/settings/team-structure/page.tsx', 'utf8')
+  const color = (cls: string) => cls.replace(/^(hover:)?(text|bg|border)-/, '').replace(/\/\d+$/, '')
+
+  it('a name drawn in the company box never shares the company box’s background color', () => {
+    const bg = color(ROOT_BOX.bg)
+    const tone = nameTones(true)
+    for (const cls of [tone.link, tone.label, tone.aside, tone.more.split(' ')[0]]) expect(color(cls)).not.toBe(bg)
+    // The page draws the company box from ROOT_BOX and its names on the root tone.
+    expect(page).toContain('${ROOT_BOX.border} ${ROOT_BOX.bg} ${ROOT_BOX.text}')
+    expect(page).toContain("{ for: 'person', contextId: p.contextId, box: b?.id ?? null, name: p.name }, !b)")
+    expect(page).not.toMatch(/className="min-w-0 break-words text-etyme-ink/)
+  })
+
+  it('a name on a team box keeps the dark ink it always had', () => {
+    expect(nameTones(false).link).toBe('text-etyme-ink')
+  })
+
+  it('a box menu opened low in a 900 px window is moved up so its last item, Delete, is inside the window', () => {
+    const at = menuPlace({ x: 600, y: 600 }, { width: 240, height: 412 }, { width: 1400, height: 900 })
+    expect(at.top + 412).toBeLessThanOrEqual(900 - MENU_MARGIN)
+    expect(at.top).toBe(900 - 412 - MENU_MARGIN)
+    expect(at.left).toBe(600)
+  })
+
+  it('a menu opened near the right edge is moved left so it is whole inside the window', () => {
+    const at = menuPlace({ x: 1350, y: 100 }, { width: 240, height: 200 }, { width: 1400, height: 900 })
+    expect(at.left + 240).toBeLessThanOrEqual(1400 - MENU_MARGIN)
+    expect(at.top).toBe(100)
+  })
+
+  it('a menu taller than a short window starts at the top margin and scrolls inside itself', () => {
+    const at = menuPlace({ x: 100, y: 300 }, { width: 240, height: 412 }, { width: 1400, height: 360 })
+    expect(at.top).toBe(MENU_MARGIN)
+    expect(at.maxHeight).toBe(360 - 2 * MENU_MARGIN)
+    expect(page).toMatch(/role="menu"[^>]*maxHeight: place\.maxHeight/)
+    expect(page).toMatch(/role="menu"[^>]*overflow-y-auto/)
+  })
+
+  it('the menu is placed from its measured height, never a guessed one, and scrolling inside it does not close it', () => {
+    expect(page).not.toMatch(/innerHeight : 800\) - 320/)
+    expect(page).toContain('menuPlace({ x: menu.x, y: menu.y }, { width: r.width, height: el.scrollHeight }')
+    expect(page).toContain(`e.target.closest('[role="menu"]')`)
+  })
+})

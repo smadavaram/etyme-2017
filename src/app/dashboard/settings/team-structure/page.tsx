@@ -12,7 +12,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { mayOpen } from '@/lib/nav-table'
 import { IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL, READ_TEAMS_LABEL, READ_TEAMS_SAYS } from '@/lib/team-structure/directory/words'
 import { googleOutcomeSays, entraOutcomeSays } from '@/lib/team-structure/directory/outcome'
-import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuStaysOpen, noTeamsSays, offersMakeLead, offersMove, personLink, roleInWords } from '@/lib/team-structure/screen'
+import { centeredScroll, drawsAsList, foldedAtOpen, holdStopsHere, LIST_SHOWS, listPeople, menuPlace, menuStaysOpen, nameTones, noTeamsSays, offersMakeLead, offersMove, personLink, roleInWords, ROOT_BOX } from '@/lib/team-structure/screen'
 import { clockFor, dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
@@ -190,7 +190,12 @@ export default function TeamStructurePage() {
   useEffect(() => {
     // A held press on a phone scrolls a little as it lifts; that is not
     // somebody leaving the menu.
-    const close = () => setMenu((m) => (m && menuStaysOpen(m, Date.now(), 'scroll') ? m : null))
+    // A scroll inside the menu itself (its backstop on a short window) is
+    // somebody reading the menu, not leaving it.
+    const close = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest('[role="menu"]')) return
+      setMenu((m) => (m && menuStaysOpen(m, Date.now(), 'scroll') ? m : null))
+    }
     window.addEventListener('scroll', close, true)
     return () => window.removeEventListener('scroll', close, true)
   }, [])
@@ -232,7 +237,9 @@ export default function TeamStructurePage() {
 
   // ── The menu, by right-click or a press held on a phone ──
   const openMenu = (m: MenuFor, x: number, y: number, touch = false) => {
-    setMenu({ ...m, at: Date.now(), touch, x: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 240), y: Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 320) })
+    // Placed where it was opened; the menu moves itself whole into the
+    // window once its height is measured (`menuPlace`).
+    setMenu({ ...m, at: Date.now(), touch, x, y })
   }
   const onContext = (m: MenuFor) => (e: ReactMouseEvent) => {
     e.preventDefault()
@@ -262,7 +269,9 @@ export default function TeamStructurePage() {
   const chosen = sel === ROOT ? null : boxes.get(sel) ?? null
 
   // ── A box, and the tree under it ──
-  const nameRow = (key: string, label: string, aside: string, d: Drag, m: MenuFor) => (
+  const nameRow = (key: string, label: string, aside: string, d: Drag, m: MenuFor, onRoot = false) => {
+    const tone = nameTones(onRoot)
+    return (
     <div
       key={key}
       draggable
@@ -271,23 +280,24 @@ export default function TeamStructurePage() {
       onContextMenu={onContext(m)}
       onTouchStart={onTouchStart(m)}
       onTouchEnd={onTouchEnd}
-      className="-mx-1 flex cursor-grab justify-between gap-2 rounded-box px-1 text-[12px] leading-snug hover:bg-etyme-sunk"
+      className={`-mx-1 flex cursor-grab justify-between gap-2 rounded-box px-1 text-[12px] leading-snug ${tone.hover}`}
     >
       {/* A name and a role wrap to a second line and are never cut
           (fault 18: "Account Man…"); a person's name opens Users &
           permissions. */}
       {m.for === 'person'
-        ? <a href={personLink(m.contextId)} draggable={false} onClick={(e) => e.stopPropagation()} className="min-w-0 break-words text-etyme-ink hover:underline [-webkit-touch-callout:none]">{label}</a>
-        : <span className="min-w-0 break-words">{label}</span>}
-      <span className="max-w-[50%] shrink-0 break-words text-right text-[11px] text-etyme-faint">{aside}</span>
+        ? <a href={personLink(m.contextId)} draggable={false} onClick={(e) => e.stopPropagation()} className={`min-w-0 break-words ${tone.link} hover:underline [-webkit-touch-callout:none]`}>{label}</a>
+        : <span className={`min-w-0 break-words ${tone.label}`}>{label}</span>}
+      <span className={`max-w-[50%] shrink-0 break-words text-right text-[11px] ${tone.aside}`}>{aside}</span>
     </div>
-  )
+    )
+  }
 
   const names = (b: BoxRead | null): ReactNode => {
     const id = b?.id ?? ROOT
     const people: SeatName[] = b ? b.people : tree.unplaced
     const rows = [
-      ...people.map((p) => ({ key: `p-${p.contextId}`, node: nameRow(`p-${p.contextId}`, p.name, p.role ?? '', { kind: 'person', contextId: p.contextId, from: b?.id ?? null }, { for: 'person', contextId: p.contextId, box: b?.id ?? null, name: p.name }) })),
+      ...people.map((p) => ({ key: `p-${p.contextId}`, node: nameRow(`p-${p.contextId}`, p.name, p.role ?? '', { kind: 'person', contextId: p.contextId, from: b?.id ?? null }, { for: 'person', contextId: p.contextId, box: b?.id ?? null, name: p.name }, !b) })),
       ...(b?.contractors ?? []).map((c) => ({
         key: `c-${c.sellContractId}`,
         node: nameRow(`c-${c.sellContractId}`, c.name, c.onSite ? (c.job ?? 'Contractor') : 'Starting', { kind: 'contractor', sellContractId: c.sellContractId, from: b!.id }, { for: 'contractor', sellContractId: c.sellContractId, box: b!.id, name: c.name }),
@@ -296,18 +306,19 @@ export default function TeamStructurePage() {
     if (!rows.length) return null
     const { shown, more } = namesShown(rows, allNames.has(id))
     const extra = (b?.morePeople ?? 0) + (b?.moreContractors ?? 0)
+    const tone = nameTones(!b)
     return (
-      <div className="mt-1.5 flex flex-col gap-px border-t border-etyme-rule pt-1.5">
+      <div className={`mt-1.5 flex flex-col gap-px border-t ${tone.rule} pt-1.5`}>
         {shown.map((r) => r.node)}
         {(more > 0 || allNames.has(id)) && (
           <button
-            className="-mx-1 rounded-box px-1 text-left text-[12px] text-etyme-action-press hover:bg-etyme-sunk"
+            className={`-mx-1 rounded-box px-1 text-left text-[12px] ${tone.more}`}
             onClick={(e) => { e.stopPropagation(); const s = new Set(allNames); s.has(id) ? s.delete(id) : s.add(id); setAllNames(s) }}
           >
             {more > 0 ? `and ${more} more` : 'Show fewer'}
           </button>
         )}
-        {extra > 0 && <span className="text-[11px] text-etyme-faint">{plural(extra, 'more name')} on the full lists</span>}
+        {extra > 0 && <span className={`text-[11px] ${tone.aside}`}>{plural(extra, 'more name')} on the full lists</span>}
       </div>
     )
   }
@@ -343,7 +354,7 @@ export default function TeamStructurePage() {
         onTouchEnd={onTouchEnd}
         className={[
           'relative flex w-full flex-col gap-0.5 rounded-lg border px-3 py-2 text-left sm:w-[176px]',
-          isRoot ? 'cursor-pointer border-etyme-ink bg-etyme-ink text-etyme-canvas sm:w-[210px]' : 'cursor-grab border-etyme-rule bg-etyme-raised hover:border-etyme-faint',
+          isRoot ? `cursor-pointer ${ROOT_BOX.border} ${ROOT_BOX.bg} ${ROOT_BOX.text} sm:w-[210px]` : 'cursor-grab border-etyme-rule bg-etyme-raised hover:border-etyme-faint',
           b?.kind === 'DEPARTMENT' ? 'border-t-[3px] border-t-etyme-action' : '',
           b?.kind === 'REGION' ? 'border-t-[3px] border-t-etyme-verified' : '',
           isSel ? 'border-etyme-action ring-[3px] ring-etyme-action-wash' : '',
@@ -723,6 +734,15 @@ function ContextMenu(props: {
 }) {
   const { menu } = props
   const ref = useRef<HTMLDivElement>(null)
+  // Measured, then placed whole inside the window, before the browser
+  // paints it (a layout effect), so it never shows below the fold.
+  const [place, setPlace] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPlace(menuPlace({ x: menu.x, y: menu.y }, { width: r.width, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }))
+  }, [menu.x, menu.y, menu.at])
   useEffect(() => {
     ref.current?.querySelector('button')?.focus()
     // The mouse-down a phone sends after a held press is not a press outside.
@@ -783,7 +803,7 @@ function ContextMenu(props: {
       : [<p key="none" className="px-2.5 py-1.5 text-[13px] text-etyme-muted">Add a team first, then charge them to it.</p>]
   }
   return (
-    <div ref={ref} role="menu" onKeyDown={keys} style={{ left: menu.x, top: menu.y }} className="fixed z-50 flex min-w-[220px] flex-col rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
+    <div ref={ref} role="menu" onKeyDown={keys} style={place ? { left: place.left, top: place.top, maxHeight: place.maxHeight } : { left: menu.x, top: menu.y }} className="fixed z-50 flex min-w-[220px] flex-col overflow-y-auto overscroll-contain rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
       <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-etyme-muted">{head}</p>
       {items}
     </div>

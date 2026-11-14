@@ -7,6 +7,7 @@ import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
 import { maySetRecordedKind } from '@/lib/counterparty'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
+import { standingWith } from '../../positions'
 
 /**
  * PATCH /api/companies/:id/kind — { kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' }
@@ -50,11 +51,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // 2026-11-13): never its name, and never that it is on Etyme.
   if (!other || other.isDemo !== (me.isDemo === true) || !(await dealsWith(me.id, other))) return refuse(404, 'NOT_FOUND', NOT_ON_YOUR_LIST)
 
+  // The sentence says "still not classified" only where it is (walk, 2026-11-14).
+  const held = await standingWith(me.id, other)
   const verdict = maySetRecordedKind({
     to: body?.kind,
     me: { id: me.id, name: me.name },
     permissions: caller.permissions,
     other: { id: other.id, name: other.name, kind: other.kind, claimedAt: other.claimedAt, listedById: other.listedById, seats: other._count.contexts },
+    positions: held?.positions ?? [],
   })
   if (!verdict.ok) return refuse(verdict.status, verdict.code, verdict.says, verdict.field)
 

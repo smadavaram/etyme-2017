@@ -1590,8 +1590,14 @@ export function getNavForKind(
   )
 
   if (seat.permissions == null) return withTerms
-  return withTerms
-    .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
+  const reached = withTerms.map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
+  // Reports is drawn only where the seat reads one of the pages it adds
+  // up, the rule the menu link already keeps (`readsMoney` in menuOf):
+  // a client's hiring manager was drawn a Reports tab under Today that
+  // its page then refused (walk, 2026-11-14).
+  const readsMoney = reached.some((s) => s.items.some((i) => REPORTS_READERS.includes(i.href)))
+  return reached
+    .map((s) => (readsMoney ? s : { ...s, items: s.items.filter((i) => i.href !== REPORTS_HREF) }))
     .filter((s) => s.items.length > 0)
 }
 

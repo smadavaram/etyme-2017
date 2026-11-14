@@ -124,18 +124,24 @@ export function groupRow(group: TabGroup): { head: NavItem | null; name: string;
     : { head: null, name: group.name, pages: [...group.tabs] }
 }
 
+/**
+ * The grouped row wraps, never scrolls: thirteen Settings tabs are wider
+ * than any window, and a hidden scrollbar left Records unreachable at
+ * 1400 wide and the open page's own tab off a phone (walk, 2026-11-14).
+ * A group that does not fit moves to the next line; on a phone each group
+ * takes its own line.
+ */
+export const GROUPED_ROW_CLASS = 'mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-2 pb-1'
+export const GROUP_CLASS = 'flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto'
+
 function GroupedTabRow({ label, groups, current }: { label: string; groups: readonly TabGroup[]; current: string | null }) {
   return (
-    <nav
-      aria-label={`${label} pages`}
-      className="-mx-4 sm:-mx-6 md:mx-0 mb-5 flex items-center gap-1.5 overflow-x-auto px-4 sm:px-6 md:px-0 pb-1
-                 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <nav aria-label={`${label} pages`} className={GROUPED_ROW_CLASS}>
       {groups.map((g, at) => {
         const row = groupRow(g)
         return (
-          <div key={g.name || at} role="group" aria-label={g.name} className="flex shrink-0 items-center gap-1.5">
-            {at > 0 && <span aria-hidden="true" className="mx-1.5 h-5 w-px shrink-0 bg-etyme-rule" />}
+          <div key={g.name || at} role="group" aria-label={g.name} className={GROUP_CLASS}>
+            {at > 0 && <span aria-hidden="true" className="mx-1.5 hidden h-5 w-px shrink-0 bg-etyme-rule sm:block" />}
             {row.head ? (
               <Pill item={row.head} on={row.head.href === current} strong />
             ) : (

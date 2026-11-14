@@ -12,6 +12,7 @@ import { ADMIN_PERMISSIONS, isNarrowedAdmin } from '@/lib/company-defaults'
 import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { ownersDoor, refused } from './seats'
 import { passedToSeatBy, landMoveAfterPass } from './act'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * GET  /api/settings/owners — the Owners, the seats that could take over,
@@ -79,6 +80,8 @@ export async function GET(request: NextRequest) {
       // (coordinator's call, 2026-11-12): offered to an Owner only where
       // the Admin role still holds money or contract acts.
       narrowAdminOffered: iAmOwner && !!adminRole && !isNarrowedAdmin(adminRole.permissions),
+      // The page promises email only where it can leave (walk, 2026-11-14).
+      emailLeaves: mailLeaves(),
       asks: asks
         .filter((a) => !lapsed(a.expiresAt, now))
         .map((a) => {

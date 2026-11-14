@@ -73,12 +73,25 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
     vi.unstubAllGlobals()
   })
 
-  it('a client listed with no address refuses every approver, and says to record the person there first', async () => {
+  it('a client listed with no address refuses every approver, and a supplier’s seat is told to add the approver under Contacts', async () => {
     as(OWNER)
     const r = await send(it_.week1, 'Dana Whitfield', DANA)
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('APPROVER_NOT_AT_CLIENT')
-    expect(r.body.error.message).toMatch(/^Larkspur Freight is not on Etyme and no address is recorded for it/)
+    expect(r.body.error.message).toBe('Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. Add that person under Contacts, working at Larkspur Freight, and try again.')
+  })
+
+  it('a worker attaching her client’s approval, where the client is not on Etyme and no contact is on record, is told to ask her firm to add the approver under Contacts', async () => {
+    as('ines.carvalho@seed.etyme.invalid')
+    const fd = new FormData()
+    for (const [k, v] of Object.entries({ timesheetId: it_.week1, how: 'EVIDENCE', approverName: 'Dana Whitfield', approverEmail: DANA, kind: 'EMAIL', pastedText: 'Approved. Dana' })) fd.append(k, v)
+    const { NextRequest } = await import('next/server')
+    const r = await json(await sendOrAttach(new NextRequest('http://localhost:3000/api/week-approvals', { method: 'POST', body: fd })))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.code).toBe('APPROVER_NOT_AT_CLIENT')
+    // The firm named is the one that recorded the client, never a guess.
+    expect(r.body.error.message).toBe('Larkspur Freight is not on Etyme, and Brightmoor Staffing has recorded nobody there who approves hours. Ask Brightmoor Staffing to add the approver under Contacts, then try again.')
+    expect(await prisma.weekApproval.count({ where: { timesheetId: it_.week1 } })).toBe(0)
   })
 
   it('the supplier records the person at its client after listing it, and cannot record one of its own people instead', async () => {

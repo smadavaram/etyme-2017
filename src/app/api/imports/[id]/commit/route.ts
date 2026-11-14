@@ -5,7 +5,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { importRefusal, ownImport } from '../../door'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
-import { isOwnEmployeeRow, rateCents } from '@/lib/import-mapper'
+import { contractTypeOf, isOwnEmployeeRow, rateCents } from '@/lib/import-mapper'
 import { logAccess } from '@/lib/access-log'
 
 /**
@@ -239,7 +239,9 @@ export async function POST(
             buyContract = await tx.buyContract.create({
               data: {
                 companyId: importRecord.companyId,
-                contractType: parsed.contractType ?? 'W2',
+                // Read through the one map, so a row parsed before it
+                // ("1099" as typed) still lands on a value the column holds.
+                contractType: contractTypeOf(parsed.contractType) ?? 'W2',
                 state: isEnded ? 'ENDED' : 'IN_PROGRESS',
                 startDate: contractStart,
                 endDate: contractEnd,

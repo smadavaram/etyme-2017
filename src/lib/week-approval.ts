@@ -644,7 +644,17 @@ async function approverAtClient(
   action: 'APPROVAL_LINK_SEND' | 'APPROVAL_EVIDENCE_ATTACH'
 ): Promise<{ ok: true; offPlatform: boolean } | Refused> {
   const client = await clientOfRecord(c)
-  const v = approverIsKnownAtClient({ approverEmail, client })
+  // Who is asking, so a refusal says what this reader does next: the
+  // week's own person asks the firm that recorded the client; a supplier's
+  // seat adds the approver under Contacts itself (walk, 2026-11-14). The
+  // firm is the one that recorded the client, never the reader's company.
+  const asks = client.offPlatform
+    ? {
+        as: (r.personId === c.week.personId ? 'WORKER' : 'SUPPLIER_DESK') as 'WORKER' | 'SUPPLIER_DESK',
+        firmName: (await prisma.company.findUnique({ where: { id: c.clientId }, select: { listedBy: { select: { name: true } } } }))?.listedBy?.name ?? null,
+      }
+    : undefined
+  const v = approverIsKnownAtClient({ approverEmail, client, asks })
   // The flag is whether the yes rests on the supplier's record of the
   // client rather than the client's own: demand's reasons say which.
   if (v.ok) return { ok: true, offPlatform: restsOnSupplierRecord(v.how) }

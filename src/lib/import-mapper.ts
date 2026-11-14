@@ -252,10 +252,11 @@ export function parseValue(field: string, raw: string): { value: any; issue: str
     }
 
     case 'contractType': {
-      const upper = trimmed.toUpperCase().replace(/[\s-]+/g, '_')
-      const valid = ['W2', 'C2C', '1099', 'C2H_W2', 'CDD', 'FIXED_TERM', 'LIMITED_COMPANY', 'UMBRELLA', 'PAYE']
-      if (valid.includes(upper)) return { value: upper, issue: null }
-      return { value: trimmed, issue: `Unknown contract type: "${trimmed}". Expected: ${valid.join(', ')}` }
+      // Only a value the buy line's column holds is kept: "1099" was
+      // passed through as typed and the commit failed (walk, 2026-11-14).
+      const known = contractTypeOf(trimmed)
+      if (known) return { value: known, issue: null }
+      return { value: null, issue: `"${trimmed}" is not a contract type here, so this row comes in as W2. Use W2, 1099, C2C, contract to hire, CDD or fixed term.` }
     }
 
     case 'workAuth': {
@@ -268,6 +269,29 @@ export function parseValue(field: string, raw: string): { value: any; issue: str
     default:
       return { value: trimmed, issue: null }
   }
+}
+
+/** The values the buy line's contract type column holds (`ContractType`). */
+export const CONTRACT_TYPES = ['W2', 'C2C', 'IND_1099', 'C2H_W2', 'CDD', 'FIXED_TERM'] as const
+export type ImportContractType = (typeof CONTRACT_TYPES)[number]
+
+/** The words a sheet uses for each, after upper-casing and joining with "_". */
+const CONTRACT_TYPE_WORDS: Readonly<Record<string, ImportContractType>> = {
+  W2: 'W2', W_2: 'W2',
+  '1099': 'IND_1099', IND_1099: 'IND_1099', '1099_CONTRACTOR': 'IND_1099', INDEPENDENT_CONTRACTOR: 'IND_1099',
+  C2C: 'C2C', CORP_TO_CORP: 'C2C',
+  C2H: 'C2H_W2', C2H_W2: 'C2H_W2', CONTRACT_TO_HIRE: 'C2H_W2',
+  CDD: 'CDD', FIXED_TERM: 'FIXED_TERM',
+}
+
+/**
+ * A sheet's word for a contract type, as the value the column holds, or
+ * null where the word is not one Etyme knows. Pure.
+ */
+export function contractTypeOf(value: unknown): ImportContractType | null {
+  if (typeof value !== 'string') return null
+  const key = value.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  return CONTRACT_TYPE_WORDS[key] ?? null
 }
 
 /**
@@ -339,7 +363,7 @@ export function fieldWords(field: string): string {
 }
 
 const CONTRACT_WORDS: Record<string, string> = {
-  W2: 'W2', C2C: 'Corp-to-corp', '1099': '1099', C2H_W2: 'Contract to hire (W2)', CDD: 'CDD',
+  W2: 'W2', C2C: 'Corp-to-corp', IND_1099: '1099', '1099': '1099', C2H_W2: 'Contract to hire (W2)', CDD: 'CDD',
   FIXED_TERM: 'Fixed term', LIMITED_COMPANY: 'Limited company', UMBRELLA: 'Umbrella', PAYE: 'PAYE',
 }
 

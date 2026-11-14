@@ -1149,6 +1149,19 @@ describe('a menu offers only what this seat can actually open', () => {
     }
   })
 
+  it('a client’s hiring manager, who reads no invoice receipts, is not drawn a Reports tab under Today, and the AP clerk and the Owner still are', () => {
+    const tabsOf = (name: string) => {
+      const r = rolesFor('CLIENT').find((x) => x.name === name || (name === 'Owner' && x.isOwner))!
+      const sections = getNavForKind('CLIENT', false, { permissions: r.permissions })
+      return { today: sections.find((s) => s.label === 'Today')?.items.map((i) => i.href) ?? [], permissions: r.permissions }
+    }
+    const manager = tabsOf('Hiring Manager')
+    // The Reports page's own reader: Payables or Receivables (reports/page.tsx).
+    expect(mayOpen('/dashboard/ap', manager.permissions) || mayOpen('/dashboard/ar', manager.permissions)).toBe(false)
+    expect(manager.today).not.toContain('/dashboard/reports')
+    for (const name of ['AP Clerk', 'Owner']) expect(tabsOf(name).today, name).toContain('/dashboard/reports')
+  })
+
   it('reads the + button and the search box off the same answer as the menu', () => {
     const HEADER_SRC = readFileSync(join(process.cwd(), 'src/components/shell/header.tsx'), 'utf8')
     expect(HEADER_SRC).toContain('mayOpen(i.href, permissions)')
@@ -1925,6 +1938,21 @@ describe('Settings reads People, Company and Records, and each label says what i
     ])
     // A group with one pill still reads as a group: its name is drawn over it.
     expect(groupRow(groups[0])).toEqual({ head: null, name: 'Company', pages: groups[0].tabs })
+  })
+
+  it('the grouped tab row wraps onto more lines instead of running past the right edge, so every Settings tab is inside the window at 1400 and at 390 wide', async () => {
+    const { GROUPED_ROW_CLASS, GROUP_CLASS } = await import('@/components/shell/section-pills')
+    // Wraps, and never scrolls sideways behind a hidden scrollbar.
+    expect(GROUPED_ROW_CLASS.split(' ')).toContain('flex-wrap')
+    expect(GROUPED_ROW_CLASS).not.toMatch(/overflow-x-auto|scrollbar-width:none|webkit-scrollbar/)
+    // A group wraps inside itself, and takes its own line on a phone.
+    expect(GROUP_CLASS.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'w-full', 'sm:w-auto']))
+    expect(GROUP_CLASS.split(' ')).not.toContain('shrink-0')
+    const src = readFileSync('src/components/shell/section-pills.tsx', 'utf8')
+    const grouped = src.slice(src.indexOf('function GroupedTabRow'), src.indexOf('function Pill('))
+    expect(grouped).toContain('className={GROUPED_ROW_CLASS}')
+    expect(grouped).toContain('className={GROUP_CLASS}')
+    expect(grouped).not.toMatch(/overflow-x-auto|scrollbar-width:none/)
   })
 
   it('a supplier’s Settings tab reads Activity log where it read Automation, and still opens /dashboard/automation', () => {

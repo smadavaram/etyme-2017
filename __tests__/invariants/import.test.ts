@@ -123,9 +123,30 @@ describe('Import Mapper (BUILD.md §4.A)', () => {
       expect(parseValue('contractType', 'c2c')).toEqual({ value: 'C2C', issue: null })
     })
 
-    it('flags unknown contract types with an issue', () => {
+    it('a contract type the sheet writes as "1099", "Corp to corp" or "Contract to hire" is kept as the value the buy line holds', async () => {
+      const { CONTRACT_TYPES } = await import('@/lib/import-mapper')
+      expect(parseValue('contractType', '1099')).toEqual({ value: 'IND_1099', issue: null })
+      expect(parseValue('contractType', 'Corp to corp')).toEqual({ value: 'C2C', issue: null })
+      expect(parseValue('contractType', 'contract-to-hire')).toEqual({ value: 'C2H_W2', issue: null })
+      for (const word of ['w2', '1099', 'c2c', 'C2H', 'CDD', 'fixed term']) {
+        expect(CONTRACT_TYPES as readonly string[]).toContain(parseValue('contractType', word).value)
+      }
+    })
+
+    it('a contract type Etyme does not know is said on that row at review, and is never passed on to the record', () => {
       const result = parseValue('contractType', 'freelance')
-      expect(result.issue).toContain('Unknown contract type')
+      expect(result.value).toBeNull()
+      expect(result.issue).toBe('"freelance" is not a contract type here, so this row comes in as W2. Use W2, 1099, C2C, contract to hire, CDD or fixed term.')
+    })
+
+    it('the import writes the buy line’s contract type only through the one map, so a row parsed as "1099" can never crash the commit', async () => {
+      const { contractTypeOf } = await import('@/lib/import-mapper')
+      expect(contractTypeOf('1099')).toBe('IND_1099')
+      expect(contractTypeOf('UMBRELLA')).toBeNull()
+      const { readFileSync } = await import('node:fs')
+      const commit = readFileSync('src/app/api/imports/[id]/commit/route.ts', 'utf8')
+      expect(commit).toContain("contractType: contractTypeOf(parsed.contractType) ?? 'W2',")
+      expect(commit).not.toContain("contractType: parsed.contractType ?? 'W2'")
     })
 
     it('normalizes known work authorizations', () => {

@@ -132,15 +132,30 @@ describe('after a person answers an ownership ask, their answer stays on the scr
 describe('the move form says when the new Owner moves the previous one alone (Owner walk, 2026-11-12)', () => {
   it('after a pass, moving the Owner who passed it to Admin says nobody else is asked, and the button says what it does', async () => {
     const { moveFormSays } = await import('@/app/dashboard/settings/owners/view')
-    const says = moveFormSays({ alone: true, subjectName: 'Madhavi', companyName: 'Tapin' })
+    const says = moveFormSays({ alone: true, subjectName: 'Madhavi', companyName: 'Tapin', emailLeaves: true })
     expect(says.line).toBe('Madhavi passed Tapin’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and Madhavi is told by email.')
     expect(says.button).toBe('Move them to Admin')
     expect(says.line).not.toMatch(/needs the yes/)
   })
 
+  it('where no email can leave, the Owners screen says the person is told and answers in Ask Etyme, and never promises an email', async () => {
+    const { moveFormSays, passFormSays } = await import('@/app/dashboard/settings/owners/view')
+    const move = moveFormSays({ alone: true, subjectName: 'Madhavi', companyName: 'Tapin', emailLeaves: false })
+    expect(move.line).toBe('Madhavi passed Tapin’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and Madhavi is told in Ask Etyme.')
+    expect(passFormSays(false)).toBe('They say yes on a card in Ask Etyme. Nothing changes until then. Both changes then happen together.')
+    expect(passFormSays(true)).toBe('They say yes on a card in Ask Etyme and by email. Nothing changes until then. Both changes then happen together.')
+    // The page reads the answer from its own route, never the environment.
+    const page = readFileSync('src/app/dashboard/settings/owners/page.tsx', 'utf8')
+    expect(page).not.toMatch(/by email\./)
+    expect(page).not.toContain('mail-leaves')
+    expect(page).toContain('{passFormSays(r.emailLeaves === true)}')
+    expect(page).toContain('emailLeaves: r.emailLeaves === true,')
+    expect(readFileSync('src/app/api/settings/owners/route.ts', 'utf8')).toContain('emailLeaves: mailLeaves(),')
+  })
+
   it('every other removal or move still says it needs the yes of an Owner who did not ask', async () => {
     const { moveFormSays } = await import('@/app/dashboard/settings/owners/view')
-    const says = moveFormSays({ alone: false, subjectName: 'Madhavi', companyName: 'Tapin' })
+    const says = moveFormSays({ alone: false, subjectName: 'Madhavi', companyName: 'Tapin', emailLeaves: true })
     expect(says.line).toMatch(/^This needs the yes of an Owner who did not ask\./)
     expect(says.button).toBe('Ask for their yes')
   })
