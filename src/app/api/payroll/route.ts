@@ -25,7 +25,7 @@ import { workedOutKeys, isWorkedOut, payCovers, coversLeft } from '@/lib/money/p
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
-  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
@@ -70,6 +70,15 @@ export async function GET(request: NextRequest) {
   // the company's own pay period holding it; or nothing.
   const period = url.searchParams.get('period')
   const dayAsked = isDayKey(period) ? period : null
+  // A calendar month, "2026-06". Anything else asked for is refused in a
+  // sentence rather than read as a date nobody gave (period=all was a 500).
+  const monthAsked = typeof period === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(period) ? period : null
+  if (period && !dayAsked && !monthAsked) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', field: 'period', message: 'Pick a month or one of your pay periods.' } },
+      { status: 422 }
+    )
+  }
   const companyName = caller.company?.id === companyId ? caller.company.name : 'Your company'
 
   // ── The company's own pay periods (2026-11-14) ─────────────────────
@@ -951,11 +960,23 @@ export async function GET(request: NextRequest) {
   // On a company that pays by its own periods, a calendar month or the
   // view of every period offers no pay file at all: a month's file could
   // hand a provider hours a period run already paid (walk, 2026-11-14).
-  const fileWaits = shownPeriod ? payFileWaits(onRun) : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : null
-  if (url.searchParams.get('format') === 'csv') {
-    if (!shownPeriod) {
+  //
+  // On a company that pays by the month, the month's file comes from here
+  // too, from the same rows (found by hand, 2026-11-14). It came from the
+  // older export, which never read the paid book: after a late week was
+  // worked out and paid, the second download listed the first, paid week
+  // again as unpaid, and a provider paying from it paid that week twice.
+  // Now its hours and gross pay are what is still to pay, with "Paid
+  // already" beside them, as on a period's file. The view of every period
+  // offers no file: a file is one month's.
+  const monthFile = !co.byPeriod && Boolean(monthAsked)
+  const fileWaits = shownPeriod || monthFile
+    ? payFileWaits(onRun)
+    : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : PICK_A_MONTH_FOR_PAY_FILE
+  if (url.searchParams.get('format')?.toLowerCase() === 'csv') {
+    if (!shownPeriod && !monthFile) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION', field: 'period', message: 'Pick one of your pay periods to download its pay file.' } },
+        { error: { code: 'VALIDATION', field: 'period', message: fileWaits ?? PICK_A_MONTH_FOR_PAY_FILE } },
         { status: 422 }
       )
     }
@@ -968,7 +989,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(payFileCsv(items, shownPeriod), {
       headers: {
         'content-type': 'text/csv; charset=utf-8',
-        'content-disposition': `attachment; filename="${payFileName(shownPeriod)}"`,
+        'content-disposition': `attachment; filename="${shownPeriod ? payFileName(shownPeriod) : monthPayFileName(monthAsked!)}"`,
       },
     })
   }

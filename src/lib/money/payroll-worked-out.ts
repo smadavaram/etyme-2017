@@ -30,7 +30,10 @@
  * is exactly what it covered. A late week, a cut changed after the
  * calculation, or a new day sends the period back to Calculate. Two
  * weeks of 40 hours at one rate are told apart, because the days differ.
- * A row written before this carries no `covers`, and counts as before.
+ * A row written before this carries no `covers`. It cannot show what it
+ * covered, so where what is still to pay is known it does not count, and
+ * the period goes back to Calculate once (found by hand, 2026-11-14). A
+ * period already paid in full reads "Paid" whatever its calculations say.
  *
  * Pure: no database.
  */
@@ -155,8 +158,11 @@ export function isWorkedOut(
   if (!hit) return false
   if (covers === undefined || !(keys instanceof Map)) return true
   const said = (keys as ReadonlyMap<string, string | null>).get(hit)
-  // A calculation written before it said what it covered counts as before.
-  if (said == null) return true
+  // A calculation written before it said what it covered cannot show it
+  // covered what is still to pay, so it does not count: Calculate again.
+  // Found by hand, 2026-11-14: such a row stayed "Calculated" after a late
+  // week was accepted, and Process paid the late week unworked.
+  if (said == null) return false
   return said === covers
 }
 

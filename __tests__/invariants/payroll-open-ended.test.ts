@@ -62,13 +62,13 @@ describe('a week filed and not accepted is named on the payroll row', () => {
 describe('the payroll page gives a pay file that reads like the screen', () => {
   const page = readFileSync(join(process.cwd(), 'src/app/dashboard/payroll/page.tsx'), 'utf8')
 
-  it('the pay file for a month asks for that month’s first and last day, in the generic layout, as a file', () => {
-    expect(payFileHref('2026-09')).toBe('/api/payroll/export?provider=GENERIC&format=csv&from=2026-09-01&to=2026-09-30')
-    expect(payFileHref('2028-02')).toBe('/api/payroll/export?provider=GENERIC&format=csv&from=2028-02-01&to=2028-02-29')
+  it('the pay file for a month asks the payroll page for that month, which takes off what was paid already', () => {
+    expect(payFileHref('2026-09')).toBe('/api/payroll?period=2026-09&format=csv')
+    expect(payFileHref('2028-02')).toBe('/api/payroll?period=2028-02&format=csv')
   })
 
-  it('the view of every period downloads the pay file for the export’s own last thirty days', () => {
-    expect(payFileHref('')).toBe('/api/payroll/export?provider=GENERIC&format=csv')
+  it('the view of every period names no month, and the payroll page refuses it in a sentence', () => {
+    expect(payFileHref('')).toBe('/api/payroll?format=csv')
   })
 
   it('the page has a "Download pay file" button for the period shown', () => {

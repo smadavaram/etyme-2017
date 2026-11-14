@@ -208,7 +208,7 @@ describe('a week signed at a premium, as far as the invoice', () => {
     expect(today.billingThisMonth.overtimeNotPaid.totals.find((t) => t.currency === 'USD')!.amountMinor).toBeGreaterThanOrEqual(33_000)
   })
 
-  it('the payroll run that works out Omar Haddad’s week says the same line, and still pays him straight time', async () => {
+  it('the payroll run holds Omar Haddad’s 45-hour week off pay until his exemption is recorded, and pays none of it at straight time', async () => {
     const buy = await prisma.buyContract.findFirstOrThrow({
       where: { companyId: it_.contract.companyId, candidates: { some: { personId: it_.sheet.personId } }, vendorCompanyId: null },
       select: { id: true },
@@ -229,10 +229,15 @@ describe('a week signed at a premium, as far as the invoice', () => {
       period: { start: it_.sheet.periodStart.toISOString().slice(0, 10), end: it_.sheet.periodEnd.toISOString().slice(0, 10) },
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.overtimeNotPaid.says).toBe(OMAR_SAYS)
-    expect(r.body.data.message).toContain(OMAR_SAYS)
+    // Since 2026-11-14 a week over 40 hours for a person nobody has said is
+    // exempt is held, never paid at straight time on a guess (lib/money/
+    // pay-line, `heldForExemption`). So the run pays none of it, and the
+    // billed-not-paid line is not said of a week the run did not pay.
     const row = r.body.data.details.find((x: any) => x.buyContractId === buy.id)
+    expect(row.exemptHeld).toContain('45 hours, is held off this pay.')
     expect(row.premiumCents).toBe(0)
+    expect(row.totalHours).toBe(0)
+    expect(r.body.data.overtimeNotPaid).toBeNull()
   })
 
   it('once Brightmoor records whether Omar Haddad is exempt, his week leaves the line', async () => {

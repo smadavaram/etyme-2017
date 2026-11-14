@@ -73,7 +73,7 @@ describe('the pay file is offered only once the period is worked out', () => {
     expect(page).toContain('{!nothingToPay && payFileWaits && (')
     expect(page).toContain('{!nothingToPay && !payFileWaits && (')
     const route = readFileSync(join(process.cwd(), 'src/app/api/payroll/route.ts'), 'utf8')
-    expect(route).toContain('const fileWaits = shownPeriod ? payFileWaits(onRun) : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : null')
+    expect(route).toContain('const fileWaits = shownPeriod || monthFile\n    ? payFileWaits(onRun)')
     expect(route).toContain("{ error: { code: 'NOT_WORKED_OUT', field: 'period', message: fileWaits } }")
     expect(route).toContain('payFileWaits: fileWaits')
   })

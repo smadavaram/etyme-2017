@@ -9,7 +9,7 @@ import {
   paperSetHref,
   paperSetQuery,
   paperSetSays,
-  paperStanding,
+  paperChip,
   type PaperSetTarget,
 } from '@/lib/money/paper-set'
 
@@ -38,6 +38,10 @@ interface Item {
   waivedSays: string | null
   waiverRefused: boolean
   from: 'DEFAULT' | 'ORDER' | 'LINE'
+  /** False where the start never checks this row: a client's own paper from the default set. */
+  checkedAtStart?: boolean
+  /** The route's words where "Required" would promise a check the start does not make. */
+  standingSays?: string | null
 }
 
 const OWED_BY_WORD: Record<string, string> = {
@@ -46,14 +50,6 @@ const OWED_BY_WORD: Record<string, string> = {
   CUSTOMER: 'the customer',
   US: 'us',
 }
-
-const TONE = {
-  'Waiver refused': 'danger',
-  Waived: 'passive',
-  'Stops work': 'danger',
-  Required: 'attention',
-  Optional: 'passive',
-} as const
 
 export function PaperSet({
   target,
@@ -125,7 +121,9 @@ export function PaperSet({
               {items.length > 0 && (
                 <ul className="mt-1.5 space-y-1.5">
                   {items.map((i) => {
-                    const standing = paperStanding(i)
+                    // The route's own words where it sends them, in a
+                    // passive tone (lib/money/paper-set, `paperChip`).
+                    const chip = paperChip(i)
                     const owed = i.owedByName ?? OWED_BY_WORD[i.owedBy] ?? null
                     return (
                       <li key={i.key} className="flex items-baseline justify-between gap-3">
@@ -136,7 +134,7 @@ export function PaperSet({
                             <span className="block text-[11px] text-etyme-muted">{i.waivedSays}</span>
                           )}
                         </span>
-                        <Chip tone={TONE[standing]}>{standing}</Chip>
+                        <Chip tone={chip.tone}>{chip.word}</Chip>
                       </li>
                     )
                   })}

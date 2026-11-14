@@ -218,9 +218,14 @@ describe('a period worked out stays worked out only while what is still to pay i
     expect(isWorkedOut(keys, ask, payCovers(cut))).toBe(false)
   })
 
-  it('a calculation written before it said what it covered counts as it did before', () => {
+  it('a calculation written before it said what it covered no longer counts once what is still to pay is known: Calculate again', () => {
+    // Found by hand, 2026-11-14: such a row stayed "Calculated" after a
+    // late 40-hour week at $45 was accepted, and Process paid $1,800 unworked.
     const keys = workedOutKeys([{ contracts: [{ buyContractId: 'bc1', buyContractCandidateId: 'c1', payPeriod: period }] }])
-    expect(isWorkedOut(keys, ask, payCovers(week2))).toBe(true)
+    expect(isWorkedOut(keys, ask, payCovers(week2))).toBe(false)
+    expect(isWorkedOut(keys, ask, payCovers(week1))).toBe(false)
+    // Asked with nothing left to compare, it is still on the record.
+    expect(isWorkedOut(keys, ask)).toBe(true)
   })
 
   it('the screen reads what is still to pay as the run does: each day less what was paid, each premium less the premium paid', () => {
@@ -259,15 +264,15 @@ describe('a period worked out stays worked out only while what is still to pay i
 describe('a calendar month or every period never hands out a pay file on a company that pays by its own periods', () => {
   it('the month view says to pick a pay period in the pay file button’s place', () => {
     expect(MONTH_HAS_NO_PAY_FILE).toBe('A pay file comes from one of your pay periods, so no hour is paid twice. Pick a pay period above.')
-    expect(src('src/app/api/payroll/route.ts')).toContain(
-      'const fileWaits = shownPeriod ? payFileWaits(onRun) : co.byPeriod ? MONTH_HAS_NO_PAY_FILE : null'
-    )
+    expect(src('src/app/api/payroll/route.ts')).toContain('const monthFile = !co.byPeriod && Boolean(monthAsked)')
+    expect(src('src/app/api/payroll/route.ts')).toContain(': co.byPeriod ? MONTH_HAS_NO_PAY_FILE : PICK_A_MONTH_FOR_PAY_FILE')
   })
 
-  it('the older month file refuses a company that pays by its own periods, in the same sentence', () => {
+  it('the older export gives no file to any company, in any spelling of csv, and a company paying by periods reads the same sentence', () => {
     const route = src('src/app/api/payroll/export/route.ts')
-    expect(route).toContain("url.searchParams.get('format') === 'csv' && (await companyPayPeriods(companyId)).byPeriod")
-    expect(route).toContain('message: MONTH_HAS_NO_PAY_FILE')
+    expect(route).toContain("const format = url.searchParams.get('format')?.toLowerCase() ?? null")
+    expect(route).toContain("message: byPeriod ? MONTH_HAS_NO_PAY_FILE : EXPORT_IS_NOT_A_PAY_FILE")
+    expect(route).not.toContain('toCsv(')
   })
 
   it('a month on such a company is judged on what the runs paid, never on the line’s own pay dates', () => {

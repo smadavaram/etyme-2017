@@ -249,10 +249,10 @@ describe('the pay file for one period carries the row’s own figures', () => {
     expect(lines.join('\n')).not.toContain('Nobody This Period')
   })
 
-  it('the pay file is named by the period it pays, and the button for a pay period asks the payroll page for it', () => {
+  it('the pay file is named by the period it pays, and the button for a pay period or a month asks the payroll page for it', () => {
     expect(payFileName(p)).toBe('payroll-2026-12-06-to-2026-12-19.csv')
     expect(payFileHref('2026-12-06')).toBe('/api/payroll?period=2026-12-06&format=csv')
-    expect(payFileHref('2026-12')).toBe('/api/payroll/export?provider=GENERIC&format=csv&from=2026-12-01&to=2026-12-31')
+    expect(payFileHref('2026-12')).toBe('/api/payroll?period=2026-12&format=csv')
     expect(isDayKey('2026-12-06')).toBe(true)
     expect(isDayKey('2026-02-30')).toBe(false)
     expect(isDayKey('2026-12')).toBe(false)

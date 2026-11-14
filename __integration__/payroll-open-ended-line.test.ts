@@ -3,7 +3,6 @@ import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as payroll } from '@/app/api/payroll/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
-import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { GET as ap } from '@/app/api/ap/route'
 import { GET as myWork } from '@/app/api/me/work/route'
 
@@ -138,19 +137,11 @@ describe('a placement with no end date and accepted hours nobody has paid is owe
     expect(r.body.data.owed.says).toContain('$3,600.00 is owed to you, for 80 hours Brightmoor Staffing accepted and has not paid yet.')
   })
 
-  it('the pay file names the person, her hours, her rate and her gross pay for the period', async () => {
+  it('the pay file is not offered while her September pay is not worked out, and says to press Calculate', async () => {
     as(BRIGHTMOOR)
-    const res = await payrollExport(req('GET', '/api/payroll/export?provider=GENERIC&format=csv&from=2026-09-01&to=2026-09-30'))
-    expect(res.status).toBe(200)
-    const csv = await res.text()
-    const [head, ...lines] = csv.split('\n')
-    const cols = head.split(',')
-    const hers = lines.map((l) => l.split(',')).filter((c) => c[cols.indexOf('name')] === 'Nadia Okonjo')
-    expect(hers.length).toBeGreaterThan(0)
-    const sum = (k: string) => hers.reduce((n, c) => n + Number(c[cols.indexOf(k)]), 0)
-    expect(sum('hours')).toBe(80)
-    expect(new Set(hers.map((c) => c[cols.indexOf('rate')]))).toEqual(new Set(['45.00']))
-    expect(sum('regular_amount') + sum('overtime_amount')).toBe(3600)
+    const r = await json(await payroll(req('GET', '/api/payroll?period=2026-09&format=csv')))
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.message).toContain('Press Calculate first.')
   })
 })
 
@@ -160,6 +151,22 @@ describe('with no pay dates written, the payroll person can still work her pay o
     const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-09' })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect((await row()).mine.payStatus).toBe('CALCULATED')
+  })
+
+  it('once worked out, the September pay file names her 80 hours at $45, $3,600.00 to pay and nothing paid already', async () => {
+    as(BRIGHTMOOR)
+    const res = await payroll(req('GET', '/api/payroll?period=2026-09&format=csv'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-disposition')).toContain('payroll-2026-09.csv')
+    const [head, ...lines] = (await res.text()).trim().split('\n')
+    const cols = head.split(',')
+    const hers = lines.map((l) => l.split(',')).filter((c) => c[cols.indexOf('Name')] === 'Nadia Okonjo')
+    expect(hers).toHaveLength(1)
+    // 80 x $45 = $3,600.
+    expect(hers[0][cols.indexOf('Hours')]).toBe('80')
+    expect(hers[0][cols.indexOf('Pay rate')]).toBe('45.00')
+    expect(hers[0][cols.indexOf('Gross pay')]).toBe('3600.00')
+    expect(hers[0][cols.indexOf('Paid already')]).toBe('0.00')
   })
 
   it('marking the period paid moves her row to processed, and only then', async () => {

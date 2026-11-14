@@ -777,9 +777,9 @@ export default function PayrollPage() {
             </optgroup>
           </select>
 
-          {/* The pay file for the period shown: on one of the company's own
-              periods, the rows on this page; on a month, the export route's
-              file. Names, hours, rates and gross pay in dollars. */}
+          {/* The pay file for the period shown, a pay period or a month:
+              the rows on this page, with what was paid already taken off.
+              Names, hours, rates and gross pay in dollars. */}
           {/* Pay never goes out before it is worked out: on a period not
               worked out, the route's sentence stands in the button's place. */}
           {!nothingToPay && payFileWaits && (

@@ -27,6 +27,7 @@ import {
 } from '@/lib/pay-dates'
 import { formatDay, formatRange } from '@/lib/format-date'
 import { decimalsFor, wholeFromMinor } from '@/lib/money'
+import type { Straddle, Terms } from '@/lib/periods'
 
 export type { PayPeriodOn, DayOffRule, PayRhythm }
 
@@ -136,6 +137,58 @@ export function periodsPayingBetween(from: string, to: string, r: PayRhythm, rul
     p = periodAfter(p, r, rule)
   }
   return out
+}
+
+// ── The worker's own page, on the company's periods ──────────────────
+
+/**
+ * A pay line's periods and pay days, as the company's own payroll counts
+ * them, for a reader that asks the line's period engine (`periodFor` in
+ * lib/periods) and the line's pay days.
+ *
+ * Found by hand, 2026-11-14: a W-2 line carries the shipped monthly
+ * rhythm, so the worker's page put the weeks of Dec 6 and Dec 13 in
+ * December and read "pay day, Jan 8". The company pays every other week
+ * from Sunday Dec 6, so Payroll and the forecast read Dec 24. Writing
+ * "every other week" on the line is not the answer: a line's fortnights
+ * count from the Sunday before the person's own start, which is a week
+ * off the company's for half its people, and a line awarded carries no
+ * rhythm at all.
+ *
+ * So the reader is given the company's periods instead: fortnights (or
+ * weeks) counted from the company's first Sunday, which `periodFor`
+ * cuts exactly as `payPeriodHolding` does, and every pay day from `from`
+ * to `to`, moved by the one rule. An open-ended line has no pay cycles
+ * written, and still reads its pay day here. Null where the company
+ * lists pay by calendar month: the line's own answer stands.
+ */
+export interface WorkerPayCalendar {
+  terms: Terms
+  payDates: Array<{ kind: 'SALARY_PAY'; dueOn: Date; completedAt: null }>
+}
+
+export function workerPayCalendar(
+  r: PayRhythm,
+  rule: DayOffRule,
+  straddle: Straddle,
+  window: { from: string; to: string },
+): WorkerPayCalendar | null {
+  if (!paysByPeriod(r) || !r.payFirstPeriodStart) return null
+  return {
+    terms: {
+      frequency: r.payPeriod === 'WEEKLY' ? 'WEEKLY' : 'BIWEEKLY',
+      anchor: 'CONTRACT',
+      straddle,
+      // The company's first Sunday, never the person's start: the periods
+      // are the company's, and a person's start never cuts one.
+      startedOn: new Date(`${r.payFirstPeriodStart}T00:00:00.000Z`),
+    },
+    payDates: periodsPayingBetween(window.from, window.to, r, rule).map((p) => ({
+      kind: 'SALARY_PAY' as const,
+      dueOn: new Date(`${p.payOn}T00:00:00.000Z`),
+      completedAt: null,
+    })),
+  }
 }
 
 // ── Words ──────────────────────────────────────────────────────────────
@@ -291,6 +344,10 @@ export interface PayFileRow {
   payStatus: string
   /** What earlier runs paid in the period; null where nothing was. */
   paidSoFar?: { hours: number; grossCents: number } | null
+  /** The row's own pay period, read where the file is for a calendar month. */
+  payPeriod?: { start: string; end: string } | null
+  /** The row's own next pay day, read where the file is for a calendar month. */
+  nextPayDate?: string | null
   /** What a run would pay now (lib/money/period-pay-left). */
   toPay?: {
     hours: number
@@ -328,9 +385,10 @@ const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
  * pay; "Paid already" is what earlier runs paid in the period; a person
  * part paid reads "Part paid", and one paid in full reads "Paid" with
  * nothing left to pay. The figures are the row's; nothing here prices an
- * hour.
+ * hour. With no company period (a calendar month, on a company that pays
+ * by the month), each line carries its row's own period and pay day.
  */
-export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn): string {
+export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): string {
   const lines = [PAY_FILE_COLUMNS.join(',')]
   for (const r of rows) {
     if (!(r.totalApprovedHours > 0)) continue
@@ -353,14 +411,34 @@ export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn): string 
       major(left.grossCents, ccy),
       major(paid, ccy),
       ccy,
-      p.start,
-      p.end,
-      p.payOn,
+      // A company period's own days; on a calendar month, each row's own
+      // pay period and pay day, as the screen shows them.
+      p ? p.start : (r.payPeriod?.start ?? '').slice(0, 10),
+      p ? p.end : (r.payPeriod?.end ?? '').slice(0, 10),
+      p ? p.payOn : (r.nextPayDate ?? '').slice(0, 10),
       cell(status),
     ].join(','))
   }
   return lines.join('\n') + '\n'
 }
+
+/** "payroll-2026-06.csv", the pay file for a calendar month. */
+export function monthPayFileName(month: string): string {
+  return `payroll-${month}.csv`
+}
+
+/**
+ * On a company that pays by the month, said in the pay file button's
+ * place on the view of every period: the file is a month's.
+ */
+export const PICK_A_MONTH_FOR_PAY_FILE = 'A pay file comes from one month, so no hour is paid twice. Pick a month above.'
+
+/**
+ * Said where the older export is asked for a file. It lists accepted
+ * hours whether or not a run paid them, so it is no longer a pay file.
+ */
+export const EXPORT_IS_NOT_A_PAY_FILE =
+  'This list shows accepted hours whether or not they were paid. Download the pay file from the Payroll page instead.'
 
 /** "payroll-2026-12-06-to-2026-12-19.csv" */
 export function payFileName(p: PayPeriodOn): string {

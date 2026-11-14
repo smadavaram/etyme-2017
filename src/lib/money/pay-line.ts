@@ -247,7 +247,18 @@ export function payLineSays(
         `set it later. So hours over ${US_WEEKLY_LINE} are paid as overtime.`
       )
     case 'UNRECORDED': {
-      if (line.outside.length > 0) return null
+      // Nobody has said whether the person is exempt, and something says
+      // the work is outside the US. The week is not held, because the US
+      // forty is not applied, and the row says so rather than nothing
+      // (found by hand, 2026-11-14: 46 hours at $96 paid $4,416 silently).
+      if (line.outside.length > 0) {
+        const weeks = over.map(([w, h]) => `${hrs(h)} in the week of ${longDay(w)}`).join(', ')
+        return (
+          `${name} worked ${weeks}. The US ${US_WEEKLY_LINE}-hour overtime line is not applied, because ` +
+          `${line.outside.join(' and ')}. Nobody has recorded whether ${name} is exempt, or which ` +
+          `country's overtime rules apply. Neither contract sets an overtime line, so every hour is paid at straight time.`
+        )
+      }
       return over
         .map(([weekOf, h]) => {
           // The existing sentence, up to the part about the payroll file:

@@ -75,6 +75,29 @@ export function paperStanding(item: {
 }
 
 /**
+ * One row's chip: its word and its tone, in the order the document-set
+ * page draws them. Where the route sends `standingSays` (a client's own
+ * paper from the default set, which the start never checks), the chip
+ * reads the route's words in a passive tone, never "Required" (walk tpc,
+ * 2026-11-14: the placement's list read "Required" for the client's
+ * master agreement and NDA, and the document-set page did not).
+ */
+export function paperChip(item: {
+  waived: boolean
+  waiverRefused: boolean
+  blocks: boolean
+  required: boolean
+  standingSays?: string | null
+}): { word: string; tone: 'danger' | 'passive' | 'attention' } {
+  if (item.waiverRefused) return { word: 'Waiver refused', tone: 'danger' }
+  if (item.waived) return { word: 'Waived', tone: 'passive' }
+  if (item.blocks) return { word: 'Stops work', tone: 'danger' }
+  if (item.standingSays) return { word: item.standingSays, tone: 'passive' }
+  if (item.required) return { word: 'Required', tone: 'attention' }
+  return { word: 'Optional', tone: 'passive' }
+}
+
+/**
  * The line over the list.
  *
  * An order's own set is only the rows its buyer wrote; every line under

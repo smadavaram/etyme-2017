@@ -163,23 +163,20 @@ export function notAcceptedSays(w: {
 }
 
 /**
- * The pay file for the period shown: the month chosen, first day to last,
- * or the export route's own last thirty days on the view of every period.
+ * The pay file for the period shown: one of the company's own pay
+ * periods, by its first day, or a calendar month. Both are the Payroll
+ * page's own rows (GET /api/payroll?format=csv), which take off what
+ * earlier runs paid, so no hour is handed to a provider twice. The
+ * older export (/api/payroll/export) never read what was paid and gives
+ * no file now (found by hand, 2026-11-14). The view of every period has
+ * no file: the route refuses it in a sentence and the page shows that
+ * sentence in the button's place.
  */
 export function payFileHref(month: string): string {
-  // One of the company's own pay periods, by its first day: the file is
-  // the Payroll page's own rows for that period (lib/money/pay-periods).
-  if (/^\d{4}-\d{2}-\d{2}$/.test(month)) {
-    return `/api/payroll?${new URLSearchParams({ period: month, format: 'csv' })}`
-  }
-  const params = new URLSearchParams({ provider: 'GENERIC', format: 'csv' })
-  if (/^\d{4}-\d{2}$/.test(month)) {
-    const [y, m] = month.split('-').map(Number)
-    const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
-    params.set('from', `${month}-01`)
-    params.set('to', `${month}-${String(last).padStart(2, '0')}`)
-  }
-  return `/api/payroll/export?${params}`
+  const params = new URLSearchParams()
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(month)) params.set('period', month)
+  params.set('format', 'csv')
+  return `/api/payroll?${params}`
 }
 
 export interface Named {

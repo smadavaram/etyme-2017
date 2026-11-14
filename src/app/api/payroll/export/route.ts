@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { buildExport, toCsv, missingIds, overlapsWindow, cutInWindow, type Provider, type SheetToPay } from '@/lib/payroll-export'
+import { buildExport, missingIds, overlapsWindow, cutInWindow, type Provider, type SheetToPay } from '@/lib/payroll-export'
 import { policyOf, splitWeeks, weekStart, type Decision } from '@/lib/overtime'
 import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
@@ -15,7 +15,7 @@ import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { clientsDecisions } from '@/lib/money/client-overtime'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
-import { MONTH_HAS_NO_PAY_FILE } from '@/lib/money/pay-periods'
+import { MONTH_HAS_NO_PAY_FILE, EXPORT_IS_NOT_A_PAY_FILE } from '@/lib/money/pay-periods'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -28,9 +28,9 @@ import { MONTH_HAS_NO_PAY_FILE } from '@/lib/money/pay-periods'
  * cannot work out: the hours, whose signature stands behind them, at
  * what rate, against which order.
  *
- * Add `?format=csv` for the file itself. Without it, the JSON — so a
- * screen can show what is about to go and who is being left out before
- * anybody downloads anything.
+ * The JSON only, for reading: who is on it and who is left out. It
+ * lists accepted hours whether or not a run paid them, so it gives no
+ * file (2026-11-14). The pay file is the Payroll page's.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -66,9 +66,25 @@ export async function GET(request: NextRequest) {
   // week from a first day its Owner set takes its pay file from the
   // period (GET /api/payroll?period=&format=csv), which is paid-aware.
   // The reading view, without the file, stays.
-  if (url.searchParams.get('format') === 'csv' && (await companyPayPeriods(companyId)).byPeriod) {
+  //
+  // And on every company, found by hand the same day: a company that pays
+  // by the month downloaded this file, paid, accepted a late week, paid
+  // again and downloaded again. The second file listed the first, paid
+  // week as unpaid. This route never reads the paid book, so it gives no
+  // file at all, in any spelling of "csv". The pay file is the Payroll
+  // page's (GET /api/payroll?period=&format=csv), which takes off what was
+  // paid. This list stays, for reading, and says what it is.
+  const format = url.searchParams.get('format')?.toLowerCase() ?? null
+  if (format === 'csv') {
+    const byPeriod = (await companyPayPeriods(companyId)).byPeriod
     return NextResponse.json(
-      { error: { code: 'PAY_BY_PERIOD', field: 'period', message: MONTH_HAS_NO_PAY_FILE } },
+      {
+        error: {
+          code: byPeriod ? 'PAY_BY_PERIOD' : 'NOT_A_PAY_FILE',
+          field: 'period',
+          message: byPeriod ? MONTH_HAS_NO_PAY_FILE : EXPORT_IS_NOT_A_PAY_FILE,
+        },
+      },
       { status: 409 }
     )
   }
@@ -430,15 +446,6 @@ export async function GET(request: NextRequest) {
 
   const built = buildExport(provider, rows)
 
-  if (url.searchParams.get('format') === 'csv') {
-    return new NextResponse(toCsv(built), {
-      headers: {
-        'content-type': 'text/csv; charset=utf-8',
-        'content-disposition': `attachment; filename="payroll-${provider.toLowerCase()}-${to.toISOString().slice(0, 10)}.csv"`,
-      },
-    })
-  }
-
   return NextResponse.json({
     data: {
       ...built,
@@ -446,8 +453,9 @@ export async function GET(request: NextRequest) {
       to: to.toISOString(),
       // Said before the file is built rather than after it is rejected.
       missingPayrollIds: missingIds(built),
-      note:
-        'Etyme does not run payroll. This is what is owed, for your provider to process.',
+      // It lists accepted hours whether or not a run paid them, so it is
+      // read, never paid from.
+      note: `Etyme does not run payroll. ${EXPORT_IS_NOT_A_PAY_FILE}`,
     },
   })
 }
