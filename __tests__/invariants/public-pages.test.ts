@@ -567,10 +567,11 @@ describe('Security, About and Contact say only what can be checked', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain('<Ask source="HOME_PAGE" />')
   })
 
-  it('about is five lines: what we build, what we never do, the two ways, the price, and where we are', () => {
+  it('about is five lines: what we build, what every supplier gets alike, the two ways, the price, and where we are', () => {
     const lines = ABOUT.blocks.flatMap((b) => b.lines ?? [])
-    expect(lines.map((l) => l.lead)).toEqual(['What we build.', 'What we never do.', 'Two ways to use it.', 'Price.', 'Where we are.'])
-    expect(all(copyOfCompanyPage(ABOUT))).toContain('Etyme never supplies workers and never runs a bench.')
+    expect(lines.map((l) => l.lead)).toEqual(['What we build.', 'The same for every supplier.', 'Two ways to use it.', 'Price.', 'Where we are.'])
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.')
+    expect(all(copyOfCompanyPage(ABOUT))).not.toContain('never runs a bench')
   })
 
   it('about offers to run the program once, quietly, in the founder’s two labels', () => {
@@ -887,14 +888,17 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
   })
 
-  it('no door or tab claims Etyme places anybody; the founder’s doors of 2026-10-16 no longer say it never does, and About still says it', () => {
+  it('no door or tab claims Etyme places anybody, and no door, tab or About says it never does', () => {
     for (const p of everyDoorView()) expect(check(copyOfPartyPage(p, p.tab?.key)).filter((f) => f.rule === 'neutrality'), p.href).toEqual([])
     // The sentence "Etyme never places anybody." was a line on the
     // suppliers' and the workers' doors from 2026-10-15. The founder's
     // drawing of 2026-10-16 has no line for it and his words are used as
-    // drawn, so it left both; reported to him. About keeps the commitment.
+    // drawn, so it left both. About kept it until 2026-11-14, when the
+    // founder's own bench firm made it a sentence nobody can check
+    // (docs/decisions/69); now no page says it or its opposite.
     for (const p of everyDoorView()) expect(all(copyOfPartyPage(p, p.tab?.key)), p.href).not.toContain('Etyme never places anybody')
-    expect(all(copyOfCompanyPage(ABOUT))).toContain('Etyme never supplies workers and never runs a bench.')
+    for (const p of everyDoorView()) expect(check(copyOfPartyPage(p, p.tab?.key)).filter((f) => f.rule === 'claims-no-stake'), p.href).toEqual([])
+    expect(check(copyOfCompanyPage(ABOUT)).filter((f) => f.rule === 'claims-no-stake')).toEqual([])
   })
 
   it('the MSPs’ door plays a sample MSP, Aptiva Workforce, in Cavanaugh Glassworks’ program, and says under the panel whose seat it is', () => {

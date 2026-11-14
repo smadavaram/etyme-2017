@@ -98,7 +98,15 @@ export const ABOUT: CompanyPage = {
         // which a buyer of travel nurses must not read. "A system" says the
         // same thing.
         { lead: 'What we build.', t: 'A system a company uses to manage contractors from all its suppliers: jobs, submissions, timesheets and invoices.' },
-        { lead: 'What we never do.', t: 'Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.' },
+        // Until 2026-11-14 this line said Etyme never supplies workers and
+        // never runs a bench. The founder's bench firm runs on Etyme as a
+        // supplier like any other (docs/decisions/69), so that is no longer
+        // a sentence a reader can check, and no page says it or its
+        // opposite. What stays is what the product does for every supplier
+        // alike, each half shown elsewhere on this site: rates closed at
+        // every level (the documentation's who-does-what) and every look
+        // logged (Security).
+        { lead: 'The same for every supplier.', t: 'A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.' },
         { lead: 'Two ways to use it.', t: `Your team runs it: Etyme as ${TWO_WAYS[0].label}. Or Etyme runs it for you: Etyme as ${TWO_WAYS[1].label}.` },
         // The second half brought back by the founder, 2026-10-15: how Etyme
         // is paid when it runs the program, said once on the site (CLAUDE.md,

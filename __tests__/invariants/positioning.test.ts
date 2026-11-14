@@ -50,7 +50,7 @@ import {
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
   sizesTheBuyer, unverifiableClaims, vendorManagementSystem, promisesAnAccount,
-  incumbentComparison,
+  incumbentComparison, claimsNoStake,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -329,6 +329,94 @@ describe('Neutrality is absolute and the page must not blur it', () => {
   })
 })
 
+// ── And no page claims the opposite (the founder, 2026-11-14) ─────────
+//
+// The founder's own bench firm runs on Etyme as a supplier like any
+// other and is how Etyme goes to market (docs/decisions/69). No page
+// says so, and no page says the opposite: that Etyme runs no bench,
+// supplies no workers, places nobody or has no reason to favor a
+// supplier. A reader could not check it. The pages say what the product
+// does for every supplier alike.
+
+/** A source file's words, with string concatenations and line breaks joined. */
+function sourceWords(path: string): string {
+  return readFileSync(join(process.cwd(), path), 'utf8')
+    .replace(/['`]\s*\+\s*\n\s*['`]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+describe('No page says Etyme runs no bench, supplies no workers, places nobody or has no reason to favor a supplier', () => {
+
+  it('refuses a page that says Etyme runs no bench, supplies no workers, places nobody or has no reason to favor a supplier', () => {
+    for (const claim of [
+      'Etyme never supplies workers and never runs a bench.',
+      'So it has no reason to favor any supplier.',
+      'It runs no bench and places nobody.',
+      'We do not place contractors.',
+      'Etyme runs no bench, so we are not a competitor of your suppliers.',
+    ]) {
+      const f = check(copy(['Contingent workforce management'], [claim]))
+      expect(f.map((x) => x.rule), claim).toContain('claims-no-stake')
+      expect(f.find((x) => x.rule === 'claims-no-stake')!.severity, claim).toBe('WRONG')
+    }
+  })
+
+  it('says why in a sentence: a reader cannot check it, so say what the product does for every supplier alike', () => {
+    const f = check(copy(['Contingent workforce management'], ['Etyme places nobody.']))
+    const says = f.find((x) => x.rule === 'claims-no-stake')!.says
+    expect(says).toContain('A reader cannot check that on the site')
+    expect(says).toContain('what the product does for every supplier alike')
+  })
+
+  it('leaves alone a sentence about an MSP, a supplier or a page rather than about Etyme', () => {
+    expect(claimsNoStake('Runs the client’s program from a seat it is given. Never supplies a worker.')).toEqual([])
+    expect(claimsNoStake('A supplier whose insurance has lapsed places nobody.')).toEqual([])
+    expect(claimsNoStake('A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.')).toEqual([])
+  })
+
+  it('still refuses a page that says Etyme supplies people, so neither claim can be made', () => {
+    const f = check(copy(['Contingent workforce management'], ['Etyme places contractors from our bench.']))
+    expect(f.map((x) => x.rule)).toContain('neutrality')
+  })
+
+  it('no public page says Etyme runs no bench, supplies no workers, places nobody or has no reason to favor a supplier', () => {
+    for (const [route, text] of everyPublicPage()) expect(claimsNoStake(text), route).toEqual([])
+    for (const v of everyDoorView()) {
+      expect(check(copyOfPartyPage(v, v.tab?.key)).map((f) => f.rule), v.href).not.toContain('claims-no-stake')
+    }
+    expect(check(live).map((f) => f.rule)).not.toContain('claims-no-stake')
+  })
+
+  it('About no longer says Etyme never supplies workers, and says instead that rates stay closed between suppliers and every look is logged', () => {
+    expect(ABOUT_PAGE).not.toContain('Etyme never supplies workers and never runs a bench')
+    expect(ABOUT_PAGE).not.toContain('no reason to favor any supplier')
+    expect(ABOUT_PAGE).toContain('The same for every supplier. A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.')
+    expect(claimsNoStake(ABOUT_PAGE)).toEqual([])
+  })
+
+  it('the pages other owners keep say it in no more places than on 2026-11-14, and that list may only shrink', () => {
+    // These pages are read by a client and are not the market's to edit:
+    // the census document, the census agreement and the legal notices are
+    // regulatory's, the demo's seats are the platform's. Each count is
+    // what was found the day the rule turned over and was handed to the
+    // owner. A count may fall to zero; it may never rise, and a file not
+    // listed may never start.
+    const STILL_SAYING_IT: Record<string, number> = {
+      'src/app/legal/census-document.tsx': 1,
+      'src/lib/legal.ts': 3,
+      'src/lib/legal/privacy-text.ts': 1,
+      'src/lib/legal/terms-text.ts': 0,
+      'src/lib/legal/dpa-text.ts': 0,
+      'docs/security-posture.md': 1,
+      'src/app/demo/seats.ts': 1,
+    }
+    for (const [path, most] of Object.entries(STILL_SAYING_IT)) {
+      const found = claimsNoStake(sourceWords(path))
+      expect(found.length, `${path}: ${found.join(' | ')}`).toBeLessThanOrEqual(most)
+    }
+  })
+})
+
 describe('A real company on a public page is caught by its name', () => {
 
   it('catches the three companies that were live on the page this morning', () => {
@@ -562,13 +650,13 @@ describe('Below the hero, the page says what the business is', () => {
   it('writes to the client before it writes to anybody who supplies the client', () => {
     // On the home page the client's sign-up comes first and its door
     // leads the line of doors; the supplier's door comes after. On About,
-    // what the client gets comes before what Etyme never does to a supplier.
+    // what the client gets comes before what every supplier gets alike.
     // Since 2026-11-13 the client's Start free comes first and last, and
     // the doors are the footer's, Clients leading.
     expect(at('start')).toBeGreaterThan(at('demo'))
     expect(SKELETON.indexOf("{ t: 'Clients', href: '/' }")).toBeGreaterThan(0)
     expect(SKELETON.indexOf("{ t: 'Clients', href: '/' }")).toBeLessThan(SKELETON.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }"))
-    expect(ABOUT_PAGE.indexOf('What we build.')).toBeLessThan(ABOUT_PAGE.indexOf('What we never do.'))
+    expect(ABOUT_PAGE.indexOf('What we build.')).toBeLessThan(ABOUT_PAGE.indexOf('The same for every supplier.'))
   })
 
   it('never gives the supply side a column beside the client on the front door', () => {
@@ -582,9 +670,10 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('tells a supplier why it is safe here in a plain line, never a rhetorical question', () => {
     // Subtle is not absent. The network only works because suppliers are
-    // on it. About says in one line that Etyme has no reason to favor any
-    // supplier, because it supplies nobody.
-    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.')
+    // on it. Since 2026-11-14 About says what the product does for every
+    // supplier alike, and no longer that Etyme supplies nobody
+    // (docs/decisions/69).
+    expect(ABOUT_PAGE).toContain('The same for every supplier. A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.')
     expect(ABOUT_PAGE).not.toMatch(/supplier\?/)
     // The home page asks the client four questions since 2026-10-09; none
     // of them is a question put to a supplier.
@@ -665,8 +754,8 @@ describe('Below the hero, the page says what the business is', () => {
     expect(priceClaims(ABOUT_PAGE)).toEqual([])
   })
 
-  it('says what is settled about Etyme on About: it supplies nobody, it is free while testing, and where it is', () => {
-    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench')
+  it('says what is settled about Etyme on About: what every supplier gets alike, that it is free while testing, and where it is', () => {
+    expect(ABOUT_PAGE).toContain('A supplier’s rates are never shown to another supplier.')
     expect(ABOUT_PAGE).toContain('Free while we test')
     expect(ABOUT_PAGE).toContain('Durham, NC 27713')
     // The footer every public page draws, the home page's included, links
@@ -1072,11 +1161,14 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(ABOUT_PAGE.indexOf('Your team runs it')).toBeLessThan(ABOUT_PAGE.indexOf('Or Etyme runs it for you'))
   })
 
-  it('says what Etyme never does, whichever way it is used', () => {
-    // Neutrality is absolute, and About says it in its second line, right
-    // before the two ways a reader may weigh handing Etyme the program.
-    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.')
-    expect(ABOUT_PAGE.indexOf('What we never do.')).toBeLessThan(ABOUT_PAGE.indexOf('Two ways to use it.'))
+  it('says what every supplier gets alike, whichever way it is used, and never that Etyme runs no bench', () => {
+    // About says it in its second line, right before the two ways a
+    // reader may weigh handing Etyme the program. Until 2026-11-14 the
+    // line said Etyme never supplies workers; see docs/decisions/69.
+    expect(ABOUT_PAGE).toContain('Every look at a person’s record is logged.')
+    expect(ABOUT_PAGE.indexOf('The same for every supplier.')).toBeLessThan(ABOUT_PAGE.indexOf('Two ways to use it.'))
+    expect(ABOUT_PAGE).not.toMatch(/never supplies workers|never runs a bench|no reason to favor/)
+    expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('claims-no-stake')
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
     expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('neutrality')
   })
@@ -1715,13 +1807,14 @@ describe('The footer is where a company keeps its papers', () => {
     expect(HOME_FOOTER_JSX).toContain('new Date().getFullYear()')
   })
 
-  it('keeps the neutrality commitment on About, now that the founder’s doors of 2026-10-16 carry no line for it', () => {
+  it('no door says Etyme places people, and About says what every supplier gets alike rather than that Etyme runs no bench', () => {
     // On the supplier's and the worker's own doors from 2026-10-15 until
     // the founder's drawing of 2026-10-16, which has no line for it; his
     // words are used as drawn and the gap is reported to him. No door
     // claims the opposite (public-pages.test.ts reads every tab).
     expect(SUPPLIER_DOOR_SRC).not.toMatch(/Etyme (?:places|supplies) (?:people|workers|anybody)/)
-    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench.')
+    expect(SUPPLIER_DOOR_SRC).not.toMatch(/Etyme (?:never|does not) (?:places|supplies|runs)/)
+    expect(ABOUT_PAGE).toContain('A supplier’s rates are never shown to another supplier.')
   })
 
 })

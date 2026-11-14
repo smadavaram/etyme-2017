@@ -82,9 +82,10 @@ const VERTICAL = [
 ]
 
 /**
- * Claims that break neutrality. Etyme never runs a bench and never
- * places anybody — the moment it competes with its own suppliers the
- * network stops growing.
+ * Claims that break neutrality: a page that sells people. The page sells
+ * the record, and the moment it reads as competing with its own suppliers
+ * the network stops growing. Since 2026-11-14 the opposite claim is
+ * refused too (`claimsNoStake` below): no page says Etyme runs no bench.
  *
  * ── Widened 2026-09-20, when Etyme began offering to run the program ──
  *
@@ -364,13 +365,84 @@ export function check(copy: Copy): Finding[] {
       severity: 'WRONG',
       found: claims.join(', '),
       says:
-        `"${claims[0]}" says Etyme supplies people. It never runs a bench and never ` +
-        'places anybody — the moment it competes with its own suppliers the network ' +
-        'stops growing.',
+        `"${claims[0]}" says Etyme supplies people. The page sells the record between ` +
+        'a client and its suppliers; a page that sells people reads as competing with ' +
+        'the suppliers on it, and the network stops growing.',
+    })
+  }
+
+  // ── And no page claims the opposite (the founder, 2026-11-14) ─────────
+  const denials = claimsNoStake(all)
+  if (denials.length > 0) {
+    findings.push({
+      rule: 'claims-no-stake',
+      severity: 'WRONG',
+      found: denials.join(' | '),
+      says: CLAIMS_NO_STAKE_SAYS,
     })
   }
 
   return findings
+}
+
+// ── No page says Etyme runs no bench (the founder, 2026-11-14) ────────
+//
+// Until this day every public page was held to say, in one line, that
+// Etyme never supplies workers and never runs a bench, so it has no
+// reason to favor any supplier. The founder's own bench firm runs on
+// Etyme as a supplier like any other and is how Etyme goes to market
+// (docs/decisions/69). The sentence is no longer one a reader can check,
+// and every public sentence must be. So the rule turned over: no page
+// says Etyme sells people (the neutrality rule above), and no page says
+// the opposite either. The pages say what the product does for every
+// supplier alike and nothing on this point.
+//
+// A sentence is caught when it denies a bench, a supply of people, a
+// placement or an interest in a supplier, and Etyme, "we" or "it" is in
+// the same sentence. "Never supplies a worker." in the documentation's
+// row for an MSP has no subject and describes the position, so it is
+// left to the founder with the phrase "vendor-neutral MSP".
+
+const DENIES_A_STAKE: RegExp[] = [
+  /\bruns? no bench\b/i,
+  /\bnever runs? a bench\b/i,
+  /\b(?:has|have|holds?) no bench of (?:its|our) own\b/i,
+  /\bsuppl(?:y|ies) no (?:workers?|people|one|consultants?|contractors?|talent)\b/i,
+  /\bnever suppl(?:y|ies) (?:workers?|a worker|people|anybody|anyone|consultants?|contractors?|talent)\b/i,
+  /\bplaces? (?:nobody|no one|no-one)\b/i,
+  /\bnever places? (?:anybody|anyone|people|workers?|consultants?|contractors?)\b/i,
+  /\b(?:does|do) not (?:place|supply|staff)\b/i,
+  /\b(?:doesn|don)[’']t (?:place|supply|staff)\b/i,
+  /\bno (?:reason|interest|incentive) (?:to|in) favou?r(?:ing)?\b/i,
+  /\bnot a competitor of (?:your|its|their) suppliers\b/i,
+  /\bnever competes? with (?:your|its|their) suppliers\b/i,
+  /\b(?:is|are) not a (?:staffing (?:agency|firm|supplier)|supplier)\b/i,
+]
+
+const ETYME_AS_SUBJECT = /\b(?:etyme|etyme[’']s|we|it|us)\b/i
+
+export const CLAIMS_NO_STAKE_SAYS =
+  'The sentence says Etyme runs no bench, supplies no workers, places nobody or has ' +
+  'no reason to favor a supplier. A reader cannot check that on the site, and every ' +
+  'public sentence must be one a reader can check. Say what the product does for every supplier alike, ' +
+  'and nothing on this point (docs/decisions/69).'
+
+/**
+ * Every sentence that says Etyme has no stake in supplying people.
+ *
+ * Empty is the only acceptable answer on a public page. Each hit is the
+ * sentence as written, so it can be searched for.
+ */
+export function claimsNoStake(text: string): string[] {
+  const out: string[] = []
+  for (const raw of text.split(/(?<=[.!?])\s+/)) {
+    const s = raw.trim()
+    const at = DENIES_A_STAKE.map((p) => s.search(p)).filter((i) => i >= 0)
+    if (at.length === 0) continue
+    const subject = s.slice(0, Math.min(...at) + 1).search(ETYME_AS_SUBJECT)
+    if (subject >= 0) out.push(s)
+  }
+  return out
 }
 
 export interface Verdict {

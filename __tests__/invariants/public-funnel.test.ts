@@ -297,9 +297,10 @@ describe('The close band and the header are held to the same rules as every page
   const said = [...closeBandCopy(), ...WAYS_FORWARD.map((w) => w.d), ...frameCopy()]
   const text = said.join(' ')
 
-  it('the close band names the category, places nobody and does not lead with AI', () => {
+  it('the close band names the category, sells nobody’s people, says nothing about a bench either way, and does not lead with AI', () => {
     const rules = check({ hero: [CLOSE_BAND.heading, CLOSE_BAND.cards.see], body: said }).map((f) => f.rule)
     expect(rules).not.toContain('neutrality')
+    expect(rules).not.toContain('claims-no-stake')
     expect(rules).not.toContain('never-lead-with-ai')
     expect(rules).not.toContain('horizontal-not-vertical')
     expect(rules).not.toContain('names-a-real-company')
