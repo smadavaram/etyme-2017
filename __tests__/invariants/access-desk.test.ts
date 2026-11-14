@@ -1441,3 +1441,36 @@ describe('a link from Team structure lands on the row it names', () => {
     expect(src).toMatch(/focus\.unit && <p[^>]*>\{UNIT_LANDED_SAYS\}/)
   })
 })
+
+describe('pausing somebody on a deployment where no email can leave (walk fdc item 11)', () => {
+  it('after Pause, the reply never says the person was told where no email can leave, and says to tell them yourself', async () => {
+    const { pausedReply } = await import('@/app/api/access/[contextId]/pause-words')
+    const said = pausedReply('Rosa Delgado', false)
+    expect(said).not.toMatch(/told why|been told|are told/i)
+    expect(said).toBe('Rosa Delgado is paused. No email can be sent from here yet, so tell them yourself. Lifting it puts them back with the same role.')
+  })
+
+  it('the pause form never promises they are told where no email can leave, before the press', async () => {
+    const { pauseReasonHelp } = await import('@/app/api/access/[contextId]/pause-words')
+    expect(pauseReasonHelp(false)).not.toMatch(/are told|been told/i)
+    expect(pauseReasonHelp(false)).toBe('No email can be sent from here yet, so tell them yourself. Somebody will ask later.')
+  })
+
+  it('where email leaves, the reply and the form still say they are told', async () => {
+    const { pausedReply, pauseReasonHelp } = await import('@/app/api/access/[contextId]/pause-words')
+    expect(pausedReply('Rosa Delgado', true)).toBe('Rosa Delgado is paused. They have been told why, and lifting it puts them back with the same role.')
+    expect(pauseReasonHelp(true)).toBe('They are told this, and somebody will ask later.')
+  })
+
+  it('the pause route and the pause form both read the one answer on whether email leaves', () => {
+    const route = read('src/app/api/access/[contextId]/route.ts')
+    const list = read('src/app/api/access/route.ts')
+    const pg = read('src/app/dashboard/access/page.tsx')
+    expect(route).toContain('pausedReply(person.person.name, mailLeaves())')
+    expect(route).not.toContain('They have been told why')
+    expect(list).toContain('mailLeaves: mailLeaves(),')
+    expect(pg).toContain('pauseReasonHelp(mailLeaves)')
+    expect(pg).not.toContain("'They are told this")
+    expect(pg).not.toMatch(/from '@\/lib\/notify\/mail-leaves'/)
+  })
+})

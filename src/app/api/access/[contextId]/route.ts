@@ -20,6 +20,8 @@ import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { recordRefusal } from '@/lib/access-log'
 import { withdrawHistorySays, withdrawVerdict } from '../row-acts'
 import { renameSeat } from './rename'
+import { pausedReply } from './pause-words'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -313,7 +315,7 @@ export async function POST(
       sessionsEnded,
       message:
         action === 'suspend'
-          ? `${person.person.name} is paused. They have been told why, and lifting it puts them back with the same role.`
+          ? pausedReply(person.person.name, mailLeaves())
           : action === 'reinstate'
             ? `${person.person.name} is back, with the role they had.`
             : `${person.person.name} cannot sign in here again. Everything they did stays on the record with their name on it.`,

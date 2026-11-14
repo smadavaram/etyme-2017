@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import { recordRefusal } from '@/lib/access-log'
 import {
@@ -372,6 +373,8 @@ export async function GET(request: NextRequest) {
       // governance.read; granting and inviting did not move.
       canGrant: hasPermission(caller.permissions, 'settings.manage'),
       actorIsOwner,
+      // Whether a paused person can be emailed: the pause form says so before the press.
+      mailLeaves: mailLeaves(),
       canInvite: mayInvite,
       // Absent for a reader who cannot invite (see above).
       ...(inviteForm ? { invite: inviteForm } : {}),

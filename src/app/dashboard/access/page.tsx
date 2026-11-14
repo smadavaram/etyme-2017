@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson, statusMeans } from '@/lib/read-response'
+import { pauseReasonHelp } from '@/app/api/access/[contextId]/pause-words'
 import {
   desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, capRefusalSays, parseAddresses, MAX_ADDRESSES_AT_ONCE,
   COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, figureFromQuery, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
@@ -515,7 +516,7 @@ function SendAgain({ contextId, onSent }: { contextId: string; onSent: (r: Read)
 /** One address's line after inviting several at once: what happened, and Copy and Send again where they apply. */
 interface BatchLine { email: string; ok: boolean; says: string; contextId?: string; mail?: InviteMail | null; copyText?: string | null }
 
-function ActForm({ action, acts, name, email, reason, setReason, pending, onSubmit }: {
+function ActForm({ action, acts, name, email, reason, setReason, pending, onSubmit, mailLeaves }: {
   action: RowAction
   acts: RowOffer | undefined
   name: string
@@ -525,6 +526,8 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
   setReason: (v: string) => void
   pending: boolean
   onSubmit: () => void
+  /** From GET /api/access: whether a paused person can be emailed here. */
+  mailLeaves: boolean
 }) {
   const who = nameWithAddress(name, email)
   const says = action === 'suspend' ? acts?.pauseSays ?? []
@@ -549,7 +552,7 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
       {action !== 'withdraw' && action !== 'rename' && ASKS[action].includes('reason') && (
         <Field
           label={action === 'suspend' ? `Why is ${who} being paused?` : `Why is access ending for ${who}?`}
-          help={action === 'suspend' ? 'They are told this, and somebody will ask later.' : 'It goes on the record with your name.'}>
+          help={action === 'suspend' ? pauseReasonHelp(mailLeaves) : 'It goes on the record with your name.'}>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason"
             placeholder={action === 'suspend' ? 'On leave until March' : 'Left the company on Friday'} />
         </Field>
@@ -838,7 +841,7 @@ export default function AccessPage() {
       {acting?.contextId === w.contextId && (
         <ActForm action={acting.action} acts={w.acts} name={w.person.name} email={w.person.primaryEmail}
           reason={actReason} setReason={setActReason} pending={actPending}
-          onSubmit={() => act(w.contextId, acting.action)} />
+          onSubmit={() => act(w.contextId, acting.action)} mailLeaves={data.mailLeaves === true} />
       )}
 
       {granting === w.contextId && (
@@ -938,7 +941,7 @@ export default function AccessPage() {
       {acting?.contextId === p.contextId && (
         <ActForm action={acting.action} acts={p.acts} name={p.person.name} email={p.person.primaryEmail}
           reason={actReason} setReason={setActReason} pending={actPending}
-          onSubmit={() => act(p.contextId, acting.action)} />
+          onSubmit={() => act(p.contextId, acting.action)} mailLeaves={data.mailLeaves === true} />
       )}
 
       {granting === p.contextId && (
