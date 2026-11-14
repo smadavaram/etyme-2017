@@ -19,7 +19,7 @@ import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { hasPermission } from '@/lib/permissions'
 import {
-  describeLine, pairLine, masterContractLine, orderNoun, sideOf,
+  describeLine, pairLine, paidBy, masterContractLine, orderNoun, sideOf,
   MASTER_CONTRACT_WORD,
   type OrderParties,
 } from '@/lib/order-naming'
@@ -27,6 +27,7 @@ import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
+import { agreedTermsFrom, withAgreed, stillAgreed, type AgreedTerms } from '@/lib/money/agreed-terms'
 import { reasonAsked } from '@/lib/award/reason-asked'
 import { activateBody } from './activate-body'
 import { ActivatePanel } from './activate-panel'
@@ -104,6 +105,12 @@ interface Contract {
   document: Document | null
   /** The line on the other side of the trade that pairs with this one. */
   pairedWith: { id: string; counterpartName: string | null } | null
+  /**
+   * How the buy line engages the person: this line's own type on a buy
+   * line, the paired buy line's on a sell line. A 1099 or her own
+   * company's line is paid on her invoice, never by payroll.
+   */
+  buyContractType: string | null
   /** The roll-up the company tagged it to. Null is a complete line. */
   masterContract: { id: string; code: string; name: string; status: string } | null
   /** The buyer on this line — the client on a sell line, this firm on a buy line. Whose paper rules they are. */
@@ -193,6 +200,7 @@ function lineOf(row: Contract, viewerId: string | null) {
       // On a buy line, the firm we pay. Null where we employ them, and
       // then payroll pays the line and no order is raised at all.
       paidToName: row.side === 'buy' ? row.counterpartyName : null,
+      contractType: row.side === 'buy' ? row.buyContractType : null,
     },
   })
 }
@@ -208,7 +216,9 @@ function DocumentChip({ row, viewerId }: { row: Contract; viewerId: string | nul
   if (!row.document) {
     return (
       <span className="text-[12px] text-etyme-faint">
-        {row.side === 'buy' && !row.counterpartyName ? 'No order — payroll' : 'Not yet on an order'}
+        {row.side === 'buy' && paidBy({ side: 'BUY', personName: row.personName, paidToName: row.counterpartyName, contractType: row.buyContractType }) === 'PAYROLL'
+          ? 'No order — payroll'
+          : 'Not yet on an order'}
       </span>
     )
   }
@@ -235,6 +245,7 @@ function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null })
     side: row.side === 'sell' ? 'SELL' : 'BUY',
     counterpartName: row.pairedWith?.counterpartName ?? null,
     paidToName: row.side === 'buy' ? row.counterpartyName : null,
+    contractType: row.buyContractType,
   })
   return (
     <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
@@ -282,7 +293,12 @@ interface ClientCompanyOption {
 interface ConsultantOption {
   personId: string
   name: string
+  /** What she agreed to when she said yes to this firm's bench, if anything. */
+  agreed: AgreedTerms | null
 }
+
+/** The currencies the form's pay box takes. */
+const PAY_BOX_CURRENCIES = ['USD', 'CAD', 'GBP', 'EUR'] as const
 
 function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
   const [form, setForm] = useState({
@@ -338,18 +354,25 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
         // returned a bare companyId, so the old read was null for every
         // firm and the form refused to record anything (Tapin walk,
         // 2026-10-29). `callerCompanyIdFromMe` says which field.
+        let homeCurrency: string | null = null
         if (meRes.ok) {
           const meBody = await meRes.json()
           setCompanyId(callerCompanyIdFromMe(meBody))
+          homeCurrency = meBody?.data?.activeContext?.company?.homeCurrency ?? meBody?.data?.contexts?.[0]?.company?.homeCurrency ?? null
         }
 
-        // Get consultants for dropdown
+        // Get consultants for dropdown, each with the pay terms she agreed
+        // to on this firm's bench, which start the form (Tapin walk).
         if (consultantsRes.ok) {
           const body = await consultantsRes.json()
-          const mapped = (body.data?.consultants ?? []).map((c: any) => ({
-            personId: c.personId,
-            name: c.person?.name ?? c.name ?? 'Unknown',
-          }))
+          const mapped = (body.data?.consultants ?? []).map((c: any) => {
+            const name = c.person?.name ?? c.name ?? 'Unknown'
+            return {
+              personId: c.personId,
+              name,
+              agreed: agreedTermsFrom(c.listings, name, homeCurrency, PAY_BOX_CURRENCIES),
+            }
+          })
           setConsultants(mapped)
         }
 
@@ -479,7 +502,12 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
               <select
                 required
                 value={form.personId}
-                onChange={(e) => setForm({ ...form, personId: e.target.value })}
+                onChange={(e) => setForm(withAgreed(
+                  form,
+                  e.target.value,
+                  consultants.find((c) => c.personId === form.personId)?.agreed ?? null,
+                  consultants.find((c) => c.personId === e.target.value)?.agreed ?? null,
+                ))}
                 className={selectClass}
               >
                 <option value="">Select consultant…</option>
@@ -634,6 +662,15 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
                 </select>
               </div>
             </div>
+
+            {/* Where "engaged as" and the pay rate came from, while they
+                still hold what her bench terms filled (Tapin walk). */}
+            {(() => {
+              const agreed = consultants.find((c) => c.personId === form.personId)?.agreed ?? null
+              return agreed && !form.boughtFromId && stillAgreed(form, agreed)
+                ? <p className="text-[12px] text-etyme-muted -mt-2">{agreed.says}</p>
+                : null
+            })()}
 
             {/* Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -979,6 +1016,7 @@ function ContractDetailDrawer({
                       side: contract.side === 'sell' ? 'SELL' : 'BUY',
                       counterpartName: contract.pairedWith.counterpartName,
                       paidToName: contract.side === 'buy' ? contract.counterpartyName : null,
+                      contractType: contract.buyContractType,
                     })
                   : 'No line on the other side of this one yet, so this placement has no margin of its own.'}
               </p>
@@ -1318,6 +1356,8 @@ export default function ContractsPage() {
   // Said once over the list where a pay figure was withheld from this
   // reader, so a blank column reads as a rule rather than a gap.
   const [payWithheldSays, setPayWithheldSays] = useState<string | null>(null)
+  // The route's sentence for a seat that is not offered Record a placement.
+  const [recordSays, setRecordSays] = useState<string | null>(null)
   // Whose lines the route answered with. 'own' where it narrowed this
   // seat to the lines that name its holder: the page says so, and never
   // reads the narrowed list as the firm's empty book (round five, #9).
@@ -1381,6 +1421,7 @@ export default function ContractsPage() {
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
       setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
+      setRecordSays(typeof body.data?.recordSays === 'string' ? body.data.recordSays : null)
 
       setContracts(rowsOfSide(rawContracts.map((c: any) => {
         // Resolve the display name: end client if set, otherwise paying customer
@@ -1406,6 +1447,7 @@ export default function ContractsPage() {
           personName: c.person?.name ?? 'Unknown',
           document: c.workOrder ?? null,
           pairedWith: c.pairedWith ?? null,
+          buyContractType: (tab === 'buy' ? c.contractType : c.pairedWith?.contractType) ?? null,
           masterContract: c.masterContract ?? null,
           lineBuyerId: tab === 'sell' ? (c.clientCompany?.id ?? null) : (c.companyId ?? null),
           counterpartyName: tab === 'sell'
@@ -1673,6 +1715,11 @@ export default function ContractsPage() {
               <button onClick={() => setShowCreate(true)} className="btn-primary">
                 + {framing.create}
               </button>
+            )}
+            {/* No button for this seat: the absence has words, naming
+                only roles the firm has seated (Tapin walk, 2026-11-14). */}
+            {framing?.create && !mayRecord && recordSays && (
+              <p className="text-[12px] text-etyme-muted max-w-xs">{recordSays}</p>
             )}
           </>}
         />

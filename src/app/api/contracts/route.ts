@@ -5,10 +5,11 @@ import type { Prisma } from '@prisma/client'
 import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, desksHolding } from '@/lib/permissions'
 import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
 import { listScope } from '@/lib/money/own-scope'
-import { refusalSentence } from '@/lib/refusal-words'
+import { refusalSentence, seatedWhoMay, notYourButton } from '@/lib/refusal-words'
+import { seatedRoles } from './[id]/activate/gate'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -1002,6 +1003,17 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Where this seat is not offered "Record a placement", the page says
+  // who records one here, naming only roles the firm has seated, else the
+  // Owner or an Admin (Tapin walk, 2026-11-14). Who may is not changed.
+  const recordSays =
+    !isConsultant && !reading?.seated && caller.company && !hasPermission(caller.permissions, 'assignments.write')
+      ? notYourButton(
+          'recording a placement',
+          seatedWhoMay(desksHolding('assignments.write', caller.company.kind), (await seatedRoles(caller.company.id)) ?? [])
+        )
+      : null
+
   if (side === 'buy') {
     // Scoped to the caller's company — a missing ?companyId= used to mean
     // "every buy contract in the database".
@@ -1139,6 +1151,7 @@ export async function GET(request: NextRequest) {
         // Said once, where any figure on the page was withheld, so a blank
         // pay column reads as a rule rather than a missing number.
         payWithheldSays: lines.some((l) => l.pay.withheld) ? PAY_WITHHELD_SAYS : null,
+        recordSays,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
         // Whose lines these are: 'own' where the seat reads only the
         // lines that name it, so the page never draws a narrowed list as
@@ -1293,6 +1306,9 @@ export async function GET(request: NextRequest) {
               // Null where we employ the person: payroll pays that line,
               // and there is no firm below us to name.
               counterpartName: c.buyLinks[0].buyContract.vendorCompany?.name ?? null,
+              // How the buy line engages the person, so a 1099 or her own
+              // company's line never reads "paired with payroll".
+              contractType: c.buyLinks[0].buyContract.contractType,
             }
           : null,
         state: c.state,
@@ -1312,6 +1328,7 @@ export async function GET(request: NextRequest) {
         rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
       })),
       billWithheldSays: billWithheld ? BILL_WITHHELD_SAYS : null,
+      recordSays,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       // 'own' where this seat reads only the lines naming it — the page
       // says so rather than "No contracts yet" (round five, problem 9).

@@ -117,7 +117,7 @@ describe('a seat that does not start placements, and the sentence after a start 
     expect(who.length).toBeGreaterThan(0)
     expect(who).not.toContain('Owner')
     const route = readFileSync(join(process.cwd(), 'src/app/api/contracts/[id]/activate/route.ts'), 'utf8')
-    expect(route).toContain("const who = whoMay('activate', caller.company?.kind)")
+    expect(route).toContain("const who = whoMay('activate', caller.company?.kind, await seatedRoles(caller.company?.id))")
     expect(route).toMatch(/may: false, code: refused\.error\.code, says: refused\.error\.message, who,/)
   })
 

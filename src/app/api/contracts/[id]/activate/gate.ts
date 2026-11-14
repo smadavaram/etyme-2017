@@ -15,6 +15,8 @@ import { contractSide, type ContractSide } from '@/lib/resolve-client-company'
 import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
 import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { partiesSay } from './words'
+import { seatedWhoMay } from '@/lib/refusal-words'
+import { prisma } from '@/lib/db'
 
 export const VALID_ACTIONS = ['verify', 'activate', 'pause', 'resume', 'complete', 'cancel'] as const
 export type Action = typeof VALID_ACTIONS[number]
@@ -115,7 +117,26 @@ export function gateRefusal(
  * names ("Resource Manager", "Contract Manager"), read off the shipped
  * role set the refusal's own sentence reads. The placement page names
  * them in "…then HR activates".
+ *
+ * Given the roles the company has seated, only those are named, else the
+ * Owner and an Admin (Tapin walk, 2026-11-14: HR read "the resource
+ * manager or contract manager activates" at a firm seating neither).
+ * Who may do the act is not changed: only whom the sentence names.
  */
-export function whoMay(action: Action, kind: string | null | undefined): string[] {
-  return desksHolding(NEEDS[action], kind)
+export function whoMay(action: Action, kind: string | null | undefined, seated?: readonly string[] | null): string[] {
+  const desks = desksHolding(NEEDS[action], kind)
+  return seated ? seatedWhoMay(desks, seated) : desks
+}
+
+/**
+ * The role names of the company's live seats: not ended, not paused.
+ * Null where there is no company to ask, so `whoMay` reads as before.
+ */
+export async function seatedRoles(companyId: string | null | undefined): Promise<string[] | null> {
+  if (!companyId) return null
+  const seats = await prisma.context.findMany({
+    where: { companyId, revokedAt: null, suspendedAt: null, roleId: { not: null } },
+    select: { role: { select: { name: true } } },
+  })
+  return Array.from(new Set(seats.map((s) => s.role?.name).filter((n): n is string => !!n)))
 }

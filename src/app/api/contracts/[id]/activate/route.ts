@@ -8,7 +8,7 @@ import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
 import { siteSay, startSays } from './words'
 import { startPapers } from './papers'
-import { gateRefusal, whoMay, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
+import { gateRefusal, whoMay, seatedRoles, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
 import { startWarningVerdict, startIdentityWarning, type StartWarning } from '@/lib/money/start-warnings'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 
@@ -94,7 +94,7 @@ export async function GET(
   }
   // Who starts a placement at the caller's kind of firm, said beside every
   // answer, so the placement page can name them ("…then HR activates").
-  const who = whoMay('activate', caller.company?.kind)
+  const who = whoMay('activate', caller.company?.kind, await seatedRoles(caller.company?.id))
   if (refused) {
     // `code` beside `may`: the panel draws the sentence only for a seat
     // whose role does not start placements (FORBIDDEN). A placement in a
