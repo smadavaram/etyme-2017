@@ -75,7 +75,7 @@ describe('the pay file names a held week and its hours on the person’s line', 
   })
 
   it('on a month’s file, the same line carries the row’s own period and pay day and names the held week the same way', () => {
-    const row = { ...omar, payPeriod: { start: '2026-12-01T00:00:00.000Z', end: '2026-12-31T00:00:00.000Z' }, nextPayDate: '2027-01-08T00:00:00.000Z' }
+    const row = { ...omar, payPeriod: { start: '2026-12-01T00:00:00.000Z', end: '2026-12-31T00:00:00.000Z' }, periodPayDay: '2027-01-08' }
     const [, line] = payFileCsv([row], null).trim().split('\n')
     expect(line).toBe(
       'Omar Haddad,0,96.00,0,0.00,0.00,3840.00,USD,2026-12-01,2026-12-31,2027-01-08' +

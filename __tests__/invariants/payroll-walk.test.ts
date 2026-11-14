@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { onPayrollFor, payrollClientFor, periodPayStatus } from '@/lib/money/payroll-rows'
+import { onPayrollFor, payrollClientFor, periodPayStatus, periodPayDay } from '@/lib/money/payroll-rows'
 import { depositPayDays, depositDeadline } from '@/lib/payroll-export'
 import { generateCycles, localKey } from '@/lib/cycle-generator'
 import { periodFor, type Terms } from '@/lib/periods'
@@ -90,6 +90,52 @@ describe('the month’s own pay day decides its status', () => {
 
   it('a month with no pay day of its own on the line says nothing, so the screen keeps its older reading', () => {
     expect(periodPayStatus(pay, month('2026-12-01'), of, D('2026-06-01'))).toBeNull()
+  })
+})
+
+describe('the month’s pay day on the pay file is the one that pays that month, never the next one from today', () => {
+  // A line started Jun 1, paid on the 7th of each month for the month before,
+  // moved off weekends: Jul 7 (Tue), Aug 7 (Fri), Sep 8 (Tue, Sep 7 is Labor
+  // Day), Oct 7 (Wed), Nov 6 (Fri, Nov 7 is a Saturday), Dec 7 (Mon). June's
+  // Jul 7 is paid and done; the rest are open.
+  const pays = [
+    { id: 'jul', kind: 'SALARY_PAY', dueOn: D('2026-07-07'), completedAt: D('2026-07-06') },
+    { id: 'aug', kind: 'SALARY_PAY', dueOn: D('2026-08-07'), completedAt: null },
+    { id: 'sep', kind: 'SALARY_PAY', dueOn: D('2026-09-08'), completedAt: null },
+    { id: 'oct', kind: 'SALARY_PAY', dueOn: D('2026-10-07'), completedAt: null },
+    { id: 'nov', kind: 'SALARY_PAY', dueOn: D('2026-11-06'), completedAt: null },
+    { id: 'dec', kind: 'SALARY_PAY', dueOn: D('2026-12-07'), completedAt: null },
+    { id: 'c-jul', kind: 'SALARY_CALCULATE', dueOn: D('2026-07-02'), completedAt: D('2026-07-02') },
+  ]
+  const of = (d: Date) => periodFor(d, MONTHLY)
+
+  it('June’s pay day is Jul 7, which pays Jun 7 to Jul 7, 24 days of June and 7 of July, and is done; never Dec 7', () => {
+    expect(periodPayDay(pays, month('2026-06-01'), of, D('2026-06-01'))).toBe('2026-07-07')
+    expect(periodPayStatus(pays, month('2026-06-01'), of, D('2026-06-01'))).toBe('PROCESSED')
+  })
+
+  it('July’s pay day is Aug 7, which pays Jul 8 to Aug 7, 24 days of July and 7 of August', () => {
+    expect(periodPayDay(pays, month('2026-07-01'), of, D('2026-06-01'))).toBe('2026-08-07')
+  })
+
+  it('a pay day is not read off a calculate date, and a calculate date alone gives a month no pay day', () => {
+    const calcOnly = [{ id: 'c', kind: 'SALARY_CALCULATE', dueOn: D('2026-07-02'), completedAt: null }]
+    expect(periodPayDay(calcOnly, month('2026-06-01'), of, D('2026-06-01'))).toBeNull()
+  })
+
+  it('a month before the line’s first pay day, or a line with no pay days written, has no pay day, so the cell is blank', () => {
+    expect(periodPayDay(pays, month('2026-05-01'), of, D('2026-06-01'))).toBeNull()
+    expect(periodPayDay([], month('2026-06-01'), of, D('2026-06-01'))).toBeNull()
+  })
+
+  it('a month paid on two pay days names both, earliest first: Jun 19 pays Jun 6 to 19, Jul 3 pays Jun 20 to Jul 3, both June', () => {
+    const twice = [
+      { id: 'a', kind: 'SALARY_PAY', dueOn: D('2026-06-19'), completedAt: null },
+      { id: 'b', kind: 'SALARY_PAY', dueOn: D('2026-07-03'), completedAt: null },
+      { id: 'c', kind: 'SALARY_PAY', dueOn: D('2026-07-17'), completedAt: null },
+    ]
+    expect(periodPayDay(twice, month('2026-06-01'), of, D('2026-06-01'))).toBe('2026-06-19; 2026-07-03')
+    expect(periodPayDay(twice, month('2026-07-01'), of, D('2026-06-01'))).toBe('2026-07-17')
   })
 })
 

@@ -346,8 +346,13 @@ export interface PayFileRow {
   paidSoFar?: { hours: number; grossCents: number } | null
   /** The row's own pay period, read where the file is for a calendar month. */
   payPeriod?: { start: string; end: string } | null
-  /** The row's own next pay day, read where the file is for a calendar month. */
-  nextPayDate?: string | null
+  /**
+   * The pay day of the row's own pay period, read where the file is for a
+   * calendar month (`periodPayDay` in lib/money/payroll-rows); null where
+   * the line has none. Never the row's next pay day from today, which
+   * belongs to whatever month comes next.
+   */
+  periodPayDay?: string | null
   /**
    * Each week held off this pay because nobody has said whether the person
    * is exempt from overtime: the Sunday it began and its hours. Its pay is
@@ -463,7 +468,8 @@ const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
  * part paid reads "Part paid", and one paid in full reads "Paid" with
  * nothing left to pay. The figures are the row's; nothing here prices an
  * hour. With no company period (a calendar month, on a company that pays
- * by the month), each line carries its row's own period and pay day.
+ * by the month), each line carries its row's own period and that period's
+ * own pay day, blank where the line has none.
  */
 export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): string {
   const lines = [PAY_FILE_COLUMNS.join(',')]
@@ -494,10 +500,10 @@ export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn | null): 
       major(paid, ccy),
       ccy,
       // A company period's own days; on a calendar month, each row's own
-      // pay period and pay day, as the screen shows them.
+      // pay period and that period's own pay day, blank where it has none.
       p ? p.start : (r.payPeriod?.start ?? '').slice(0, 10),
       p ? p.end : (r.payPeriod?.end ?? '').slice(0, 10),
-      p ? p.payOn : (r.nextPayDate ?? '').slice(0, 10),
+      p ? p.payOn : cell(r.periodPayDay ?? ''),
       cell(status),
       cell(held),
     ].join(','))

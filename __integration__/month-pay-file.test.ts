@@ -118,6 +118,8 @@ describe('a company that pays by the month downloads a June file that never list
     const col = await juneLine('Omar Haddock')
     expect([col('Hours'), col('Pay rate'), col('Gross pay'), col('Paid already'), col('Period start'), col('Period end')])
       .toEqual(['40', '96.00', '3840.00', '0.00', '2026-06-01', '2026-06-30'])
+    // Omar's line has no pay days written, so June has none: blank, never a guess.
+    expect(col('Pay day')).toBe('')
     const paid = await run(omar, 'process')
     expect(paid.body.data.details.find((x: any) => x.buyContractId === omar.buyId).grossPay).toBe(384_000)
   })
@@ -163,6 +165,45 @@ describe('a company that pays by the month downloads a June file that never list
     const paid = await run(lena, 'process')
     // Both weeks, 80 x $96 = $7,680, paid once.
     expect(paid.body.data.details.find((x: any) => x.buyContractId === lena.buyId).grossPay).toBe(768_000)
+  })
+
+  it('a line paid on the 7th reads June’s own pay day, Jul 7, on the June file worked out, paid, and part paid; never its next pay day, Dec 7', async () => {
+    // Pay days written on the line, each the 7th for the month before,
+    // moved off weekends and Labor Day: Jul 7, Aug 7, Sep 8, Oct 7, Nov 6,
+    // Dec 7. Jul 7 pays Jun 7 to Jul 7, 24 days of June and 7 of July.
+    const rae = await line('Rae Okafor', 'rae@month-pay-file.etyme.invalid')
+    const days = ['2026-07-07', '2026-08-07', '2026-09-08', '2026-10-07', '2026-11-06', '2026-12-07']
+    // And a work-out day before each: Jul 2, Aug 4, Sep 3, Oct 2, Nov 3, Dec 2.
+    const calcs = ['2026-07-02', '2026-08-04', '2026-09-03', '2026-10-02', '2026-11-03', '2026-12-02']
+    await prisma.cycle.createMany({
+      data: [
+        ...days.map((x) => ({ buyContractId: rae.buyId, kind: 'SALARY_PAY', dueOn: d(x) })),
+        ...calcs.map((x) => ({ buyContractId: rae.buyId, kind: 'SALARY_CALCULATE', dueOn: d(x) })),
+      ],
+    })
+    await week(rae, '2026-06-08')
+    expect((await run(rae, 'calculate')).status).toBe(200)
+    let col = await juneLine('Rae Okafor')
+    expect([col('Hours'), col('Gross pay'), col('Period start'), col('Period end'), col('Pay day')])
+      .toEqual(['40', '3840.00', '2026-06-01', '2026-06-30', '2026-07-07'])
+
+    const paid = await run(rae, 'process')
+    expect(paid.status, JSON.stringify(paid.body)).toBe(200)
+    // The run settled June's own pay day and no other.
+    const marked = await prisma.cycle.findMany({ where: { buyContractId: rae.buyId, kind: 'SALARY_PAY', completedAt: { not: null } }, select: { dueOn: true } })
+    expect(marked.map((c) => iso(c.dueOn))).toEqual(['2026-07-07'])
+    col = await juneLine('Rae Okafor')
+    // 40 x $96 = $3,840.00 paid already, nothing left; Jul 7 is done and the
+    // row's next open pay day from today is another month's.
+    expect([col('Hours'), col('Gross pay'), col('Paid already'), col('Status'), col('Pay day')])
+      .toEqual(['0', '0.00', '3840.00', 'Paid', '2026-07-07'])
+
+    // A late week of Jun 14, worked out: part paid, still June's own Jul 7.
+    await week(rae, '2026-06-15')
+    expect((await run(rae, 'calculate')).status).toBe(200)
+    col = await juneLine('Rae Okafor')
+    expect([col('Hours'), col('Gross pay'), col('Paid already'), col('Status'), col('Pay day')])
+      .toEqual(['40', '3840.00', '3840.00', 'Part paid', '2026-07-07'])
   })
 
   it('the view of every period offers no file and says to pick a month; period=all is a sentence, not a failure', async () => {

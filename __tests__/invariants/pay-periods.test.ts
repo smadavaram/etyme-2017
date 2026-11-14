@@ -244,6 +244,25 @@ describe('the pay file for one period carries the row’s own figures', () => {
     expect(lines[1]).toBe('"Lee, Ana",42,40.00,2,40.00,1720.00,0.00,USD,2026-12-06,2026-12-19,2026-12-24,"Worked out, not paid",')
   })
 
+  it('on a month’s file, the pay day is the month’s own: June paid Jul 7 reads 2026-07-07 beside 2026-06-01 to 2026-06-30, never the row’s next pay day 2026-12-07', () => {
+    const june = { start: '2026-06-01T00:00:00.000Z', end: '2026-06-30T00:00:00.000Z' }
+    const month: PayFileRow[] = [
+      {
+        person: { name: 'Rae Okafor' }, totalApprovedHours: 40, payRate: 9_600, grossPay: 384_000, payCurrency: 'USD',
+        payStatus: 'PROCESSED', payPeriod: june, periodPayDay: '2026-07-07',
+        paidSoFar: { hours: 40, grossCents: 384_000 },
+        toPay: { hours: 0, grossCents: 0, overtimeHours: 0, premiumCents: 0, rates: null, rateCents: 9_600 },
+        nextPayDate: '2026-12-07T00:00:00.000Z',
+      } as PayFileRow,
+      // No pay days written on the line: the cell is blank, never a guess.
+      { person: { name: 'Omar Haddock' }, totalApprovedHours: 40, payRate: 9_600, grossPay: 384_000, payCurrency: 'USD', payStatus: 'CALCULATED', payPeriod: june, periodPayDay: null },
+    ]
+    const [, rae, omar] = payFileCsv(month, null).trim().split('\n')
+    // 40 x $96 = $3,840.00 paid already, nothing left.
+    expect(rae).toBe('Rae Okafor,0,96.00,0,0.00,0.00,3840.00,USD,2026-06-01,2026-06-30,2026-07-07,Paid,')
+    expect(omar).toBe('Omar Haddock,40,96.00,0,0.00,3840.00,0.00,USD,2026-06-01,2026-06-30,,"Worked out, not paid",')
+  })
+
   it('a person with no hours in the period is not on the pay file', () => {
     expect(lines).toHaveLength(2)
     expect(lines.join('\n')).not.toContain('Nobody This Period')

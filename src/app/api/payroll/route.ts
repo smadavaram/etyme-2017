@@ -18,7 +18,7 @@ import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
-import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor, periodStatusFromRuns, notAcceptedSays } from '@/lib/money/payroll-rows'
+import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, periodPayDay, payrollClientFor, periodStatusFromRuns, notAcceptedSays } from '@/lib/money/payroll-rows'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { paidBook, paidKey, PAYROLL_RUN } from '@/lib/payroll-paid'
 import { workedOutKeys, isWorkedOut, payCovers, coversLeft } from '@/lib/money/payroll-worked-out'
@@ -878,6 +878,12 @@ export async function GET(request: NextRequest) {
         // On a company period, its own work-out day and pay day, moved off
         // a day nobody works by the one rule every pay date follows.
         nextPayDate: companyHeld ? `${companyHeld.payOn}T00:00:00.000Z` : comingPay?.dueOn.toISOString() ?? null,
+        // The pay day of this row's own period, for the month's pay file:
+        // never the next pay day from today, which pays another month
+        // (found by hand, 2026-11-14: June's file read 2026-12-07, not Jul 7).
+        periodPayDay: payPeriod && byLineDates
+          ? periodPayDay(bc.buyCycles, payPeriod, (d) => periodFor(d, terms), cand.startDate)
+          : companyHeld ? companyHeld.payOn : null,
         nextCalcDate: companyHeld ? `${companyHeld.calcOn}T00:00:00.000Z` : comingCalc?.dueOn.toISOString() ?? null,
         // Pay dates before today still open: how many, and the oldest.
         payDatesOverdue: companyHeld

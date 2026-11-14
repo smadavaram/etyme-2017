@@ -112,6 +112,35 @@ export function periodPayStatus(
 }
 
 /**
+ * The pay day of one period, read off that period's own pay days by the
+ * rule `periodPayStatus` reads its status by, so the day and the status
+ * on a row never disagree. YYYY-MM-DD; two pay days for one period are
+ * both said, earliest first, "2026-07-03; 2026-07-17". Null where the
+ * line has no pay day for the period: the file leaves the cell blank
+ * rather than name a day that pays another period.
+ *
+ * Found by hand, 2026-11-14: the month's pay file copied the row's next
+ * open pay day from today, so the June file, paid on Jul 7, read Pay day
+ * 2026-12-07.
+ */
+export function periodPayDay(
+  cycles: readonly PayCycle[],
+  period: Period,
+  periodOf: (d: Date) => Period,
+  startedOn?: Date | null
+): string | null {
+  const key = (p: Period) => p.start.toISOString().slice(0, 10)
+  const want = key(period)
+  const all = cycles.filter((c) => c.kind === 'SALARY_PAY')
+  const days = [...new Set(
+    all
+      .filter((c) => key(periodPaidBy(c, all, periodOf, startedOn)) === want)
+      .map((c) => dayOf(c.dueOn).toISOString().slice(0, 10))
+  )].sort()
+  return days.length ? days.join('; ') : null
+}
+
+/**
  * The status of a period that has no pay day of its own, read off what
  * the runs recorded: processed only where a run paid every hour in it,
  * worked out where a calculate run covered it, else pending.

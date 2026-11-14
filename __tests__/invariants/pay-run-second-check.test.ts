@@ -121,13 +121,14 @@ describe('the worker’s own page can read her pay day by the company’s own pa
 
 describe('a company that pays by the month gets a month’s pay file that never repeats a paid week', () => {
   // Week of Jun 7, 40 x $96 = $3,840, paid. Week of Jun 14, 40 x $96 = $3,840, worked out, not paid.
-  const row: PayFileRow & { payPeriod: { start: string; end: string }; nextPayDate: string } = {
+  const row: PayFileRow & { payPeriod: { start: string; end: string }; periodPayDay: string } = {
     person: { name: 'Omar Haddock' }, totalApprovedHours: 80, payRate: 9_600, grossPay: 768_000, payCurrency: 'USD',
     payStatus: 'CALCULATED',
     paidSoFar: { hours: 40, grossCents: 384_000 },
     toPay: { hours: 40, grossCents: 384_000, overtimeHours: 0, premiumCents: 0, rates: null, rateCents: 9_600 },
     payPeriod: { start: '2026-06-01T00:00:00.000Z', end: '2026-06-30T00:00:00.000Z' },
-    nextPayDate: '2026-07-09T00:00:00.000Z',
+    // June's own pay day, the one that pays June (lib/money/payroll-rows, `periodPayDay`).
+    periodPayDay: '2026-07-09',
   }
 
   it('the second June file lists 40 hours and $3,840.00 still to pay, with $3,840.00 paid already, never 80 hours as new', () => {
