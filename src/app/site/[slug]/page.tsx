@@ -367,34 +367,9 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
         </>
       )}
 
-      {/* For a consultant deciding whether to join their bench. The BRD's
-          thesis is that a recruiter becomes somebody who develops people,
-          and this is the only visible evidence of whether they do. */}
-      {site.training.length > 0 && (
-        <>
-          <Rule />
-          <section>
-            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
-              {site.headings.training ?? 'Training they run'}
-            </h2>
-            <p className="text-[13px] text-etyme-muted mt-1 max-w-lg">
-              Open to consultants on their bench.
-            </p>
-            <div className="mt-5 space-y-2">
-              {site.training.map((t) => (
-                <div key={t.title} className="flex items-baseline justify-between gap-4 max-w-lg">
-                  <span className="text-[15px] text-etyme-ink">{t.title}</span>
-                  <span className="text-[12px] text-etyme-muted tabular-nums shrink-0">
-                    {[t.hours ? `${t.hours}h` : null, t.free ? 'free' : null]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+      {/* No training section, for any firm. A client can open this page,
+          and a firm's public page never says it trains people (the
+          founder, 2026-11-14, record 69). */}
 
       {/* One door for a candidate, a staffing or bench firm's page only:
           the bench's own ask, answered from the letter it sends. */}

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
-import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
+import { writeFromRules, DEFAULT_HEADINGS, saysItTrains, type SiteVoice } from '@/lib/site-voice'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { offersJoinBench } from '@/lib/public-site/join-bench'
 import {
@@ -60,13 +60,6 @@ export interface ComingFree {
   provenAt: string | null
 }
 
-export interface Training {
-  title: string
-  category: string | null
-  hours: number | null
-  free: boolean
-}
-
 export interface PublicSite {
   name: string
   slug: string
@@ -95,8 +88,6 @@ export interface PublicSite {
   /** Supplier page: who is about to come free. */
   comingFree: ComingFree[]
   comingFreeSummary: string | null
-  /** Supplier page: what a consultant joining them gets. */
-  training: Training[]
   /** "Join the bench": a staffing or bench firm's page only, never a client's. */
   joinBench: boolean
   /** The ask box for a client, landing in the firm's own Ask Etyme. */
@@ -212,7 +203,10 @@ function voiceFor(
 
   // A blank stored line is nothing stored: the page never opens on an
   // empty sentence because somebody cleared a field.
-  const said = (v: string | null) => (v && v.trim().length > 0 ? v : null)
+  // A stored line that says the firm trains people is not printed either:
+  // an older page was written with "courses open to consultants on their
+  // bench" (record 69).
+  const said = (v: string | null) => (v && v.trim().length > 0 && !saysItTrains(v) ? v : null)
   return {
     tagline: said(company.siteTagline) ?? fallback.tagline,
     intro: said(company.siteIntro) ?? fallback.intro,
@@ -427,12 +421,13 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       ),
       comingFree: [],
       comingFreeSummary: null,
-      training: [],
     }
   }
 
   // ── Talking to candidates, clients and peer firms ───────────────────
-  const [rollingOff, courses, benchListings] = await Promise.all([
+  // A firm's courses are never read here: its public page never says it
+  // trains people, because a client can open it (record 69).
+  const [rollingOff, benchListings] = await Promise.all([
     prisma.sellContract.findMany({
       where: {
         companyId: company.id,
@@ -463,14 +458,6 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
         },
         rolloff: { select: { outcome: true, claimedById: true } },
       },
-    }),
-    // Training a candidate can see before deciding to join. Already opt-in
-    // per course, which is the right default for anything public.
-    prisma.course.findMany({
-      where: { companyId: company.id, isPublic: true },
-      orderBy: { createdAt: 'desc' },
-      take: 12,
-      select: { title: true, category: true, duration: true, price: true },
     }),
     // People on this firm's bench who said yes to being shown beyond it.
     // Free now unless a running contract says otherwise, checked below.
@@ -564,17 +551,11 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       clients: base.track.clients,
       openPositions: 0,
       comingFree: comingFree.length,
-      trainingCourses: courses.length,
+      trainingCourses: 0,
     }),
     openPositions: [],
     reputation: null,
     comingFree,
     comingFreeSummary,
-    training: courses.map((c) => ({
-      title: c.title,
-      category: c.category,
-      hours: c.duration,
-      free: c.price === null || c.price === 0,
-    })),
   }
 }

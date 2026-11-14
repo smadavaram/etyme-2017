@@ -400,15 +400,22 @@ describe('No page says Etyme runs no bench, supplies no workers, places nobody o
     // regulatory's, the demo's seats are the platform's. Each count is
     // what was found the day the rule turned over and was handed to the
     // owner. A count may fall to zero; it may never rise, and a file not
-    // listed may never start.
+    // listed may never start. Brought down the same day, after the census
+    // texts, the security posture, the demo, a worker's own page and Ask
+    // Etyme's reply to a worker stopped saying it: one place is left, the
+    // privacy notice's "Etyme is not a staffing agency", which is
+    // regulatory's and counsel's to word.
     const STILL_SAYING_IT: Record<string, number> = {
-      'src/app/legal/census-document.tsx': 1,
-      'src/lib/legal.ts': 3,
+      'src/app/legal/census-document.tsx': 0,
+      'src/lib/legal.ts': 0,
       'src/lib/legal/privacy-text.ts': 1,
       'src/lib/legal/terms-text.ts': 0,
       'src/lib/legal/dpa-text.ts': 0,
-      'docs/security-posture.md': 1,
-      'src/app/demo/seats.ts': 1,
+      'docs/security-posture.md': 0,
+      'src/app/demo/seats.ts': 0,
+      'src/app/demo/page.tsx': 0,
+      'src/app/dashboard/my-work/page.tsx': 0,
+      'src/app/api/conversations/twin/worker.ts': 0,
     }
     for (const [path, most] of Object.entries(STILL_SAYING_IT)) {
       const found = claimsNoStake(sourceWords(path))

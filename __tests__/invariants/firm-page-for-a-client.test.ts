@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   notices: [] as Row[],
   leads: [] as Row[],
   noticeCount: 0,
+  courses: [] as Row[],
 }))
 
 vi.mock('@/lib/alerts', () => ({ reportError: vi.fn() }))
@@ -42,7 +43,7 @@ vi.mock('@/lib/db', () => {
     },
     consultantProfile: { findMany: async () => [] },
     verification: { findMany: async () => [] },
-    course: { findMany: async () => [] },
+    course: { findMany: async () => h.courses },
     requirement: { findMany: async () => [] },
     submission: { findMany: async () => [] },
     invoice: { findMany: async () => [] },
@@ -69,7 +70,7 @@ import { NOBODY_READS } from '@/lib/public-site/firm-page'
 import {
   check, copyFrom, britishSpellings, wordsNobodyUses, unverifiableClaims, readsAsAimedAtSuppliers, longSentences,
 } from '@/lib/positioning'
-import { writeFromRules, DEFAULT_HEADINGS, keepsTheHouseWords, type SiteFacts } from '@/lib/site-voice'
+import { writeFromRules, DEFAULT_HEADINGS, keepsTheHouseWords, saysItTrains, type SiteFacts } from '@/lib/site-voice'
 
 const NOW = new Date()
 const days = (n: number) => new Date(NOW.getTime() + n * 86_400_000)
@@ -106,6 +107,7 @@ beforeEach(() => {
   h.notices = []
   h.leads = []
   h.noticeCount = 0
+  h.courses = []
 })
 
 describe('a bench firm’s page, read by a client', () => {
@@ -346,5 +348,53 @@ describe('the words on a firm’s public page (the second Tapin walk, 2026-10-31
     expect(FIRM_ASK_COPY.failed).toBe('That did not send. Try again in a minute.')
     expect(FIRM_ASK_COPY.failed).not.toMatch(/\bus\b|Etyme/)
     expect(read('src/app/site/ask.tsx')).toContain("firm ? FIRM_ASK_COPY.failed : 'That did not send. Try again, or write to us directly.'")
+  })
+})
+
+describe('a firm’s public page never says it trains people (the founder, 2026-11-14, record 69)', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+  const course = { title: 'Spark for data engineers', category: 'Data', duration: 12, price: 0, isPublic: true }
+
+  it('a firm that runs public courses shows a client no course, no training section and no word about training', async () => {
+    h.courses = [course]
+    const site = (await publicSite('tapin'))!
+    const said = JSON.stringify(site)
+    expect(said).not.toContain('Spark for data engineers')
+    expect(saysItTrains(`${site.tagline} ${site.intro}`)).toBe(false)
+    expect('training' in site).toBe(false)
+  })
+
+  it('the firm’s page has no training section for any firm', () => {
+    const page = read('src/app/site/[slug]/page.tsx')
+    expect(page).not.toContain('site.training')
+    expect(page).not.toContain('Training they run')
+    expect(page).not.toContain('Open to consultants on their bench')
+    expect(Object.keys(DEFAULT_HEADINGS)).not.toContain('training')
+  })
+
+  it('the intro written from a firm’s own numbers never counts its courses', () => {
+    const base: SiteFacts = {
+      name: 'Tapin', kind: 'VENDOR', posture: 'BENCH', skills: ['Spark'], locations: [], placements: 0, activeNow: 0,
+      clients: 0, openPositions: 0, comingFree: 0, trainingCourses: 3,
+    }
+    for (const f of [base, { ...base, placements: 4, clients: 2 }, { ...base, comingFree: 1 }]) {
+      const v = writeFromRules(f)
+      expect(saysItTrains(`${v.tagline} ${v.intro}`), v.intro).toBe(false)
+    }
+  })
+
+  it('a written page that says the firm trains people is not used, and the model is never told about courses', () => {
+    const clean = { tagline: 'Data engineers in San Antonio, TX.', intro: 'Four placements across two companies.' }
+    expect(keepsTheHouseWords(clean)).toBe(true)
+    expect(keepsTheHouseWords({ ...clean, intro: 'We train every consultant on Spark.' })).toBe(false)
+    expect(keepsTheHouseWords({ ...clean, intro: '3 courses open to consultants on their bench.' })).toBe(false)
+    expect(read('src/lib/site-voice.ts')).not.toContain('Training courses they run: ${f.trainingCourses}')
+  })
+
+  it('an intro saved before the rule that names the firm’s courses is not printed, and the page writes its own', async () => {
+    h.company = tapin({ siteTagline: 'Data engineers in San Antonio, TX.', siteIntro: '2 courses open to consultants on their bench.' })
+    const site = (await publicSite('tapin'))!
+    expect(site.intro).not.toContain('courses')
+    expect(site.tagline).toBe('Data engineers in San Antonio, TX.')
   })
 })

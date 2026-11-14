@@ -39,6 +39,11 @@ export interface SiteFacts {
   clients: number
   openPositions: number
   comingFree: number
+  /**
+   * Kept so callers need not change, and never said. A firm's public page
+   * never says it trains people (the founder, 2026-11-14, record 69):
+   * a client can open the page.
+   */
   trainingCourses: number
 }
 
@@ -61,7 +66,6 @@ export const DEFAULT_HEADINGS: Record<string, string> = {
   reputation: 'What they are like to work with',
   comingFree: 'Coming free',
   skills: 'What they place',
-  training: 'Training they run',
   credentials: 'What they hold',
 }
 
@@ -125,8 +129,6 @@ export function writeFromRules(f: SiteFacts): SiteVoice {
       sentences.push(
         `${f.comingFree} consultant${f.comingFree === 1 ? '' : 's'} coming free in the next three months.`
       )
-    } else if (f.trainingCourses > 0) {
-      sentences.push(`${f.trainingCourses} course${f.trainingCourses === 1 ? '' : 's'} open to consultants on their bench.`)
     }
     if (sentences.length === 0) {
       // A new company with nothing yet. Saying so beats an empty flourish.
@@ -190,7 +192,6 @@ Working right now: ${f.activeNow}
 Organizations worked with: ${f.clients}
 Positions open to any supplier: ${f.openPositions}
 Consultants coming free within three months: ${f.comingFree}
-Training courses they run: ${f.trainingCourses}
 
 Section keys you may rename: ${Object.keys(DEFAULT_HEADINGS).join(', ')}
 Current names: ${JSON.stringify(DEFAULT_HEADINGS)}`
@@ -252,7 +253,16 @@ function pickKnown(h: Record<string, string> | undefined): Record<string, string
  */
 export function keepsTheHouseWords(v: { tagline: string; intro: string; headings?: Record<string, string> }): boolean {
   const said = [v.tagline, v.intro, ...Object.values(v.headings ?? {})].filter((x) => typeof x === 'string').join(' ')
-  return britishSpellings(said).length === 0 && wordsNobodyUses(said).length === 0
+  return britishSpellings(said).length === 0 && wordsNobodyUses(said).length === 0 && !saysItTrains(said)
+}
+
+/**
+ * Whether a line says the firm trains people: a course, training, upskilling.
+ * A firm's public page never does, because a client can open it (the
+ * founder, 2026-11-14, record 69). Pure.
+ */
+export function saysItTrains(text: string): boolean {
+  return /\b(train(s|ed|ing|er|ers)?|courses?|upskill(s|ed|ing)?|bootcamps?)\b/i.test(text)
 }
 
 export function parseVoice(text: string): { tagline: string; intro: string; headings?: Record<string, string> } | null {
