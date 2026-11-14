@@ -1023,7 +1023,8 @@ export default function TimesheetsPage() {
       key: 'status',
       label: 'Status',
       render: (row) => (
-        <div className="flex items-center gap-2">
+        // Wraps, so on a phone's card every button stays on the card (walk fdh, item 12).
+        <div className="flex flex-wrap items-center gap-2">
           {/* A week this side has signed reads as signed, whatever the
               row's status says — the status waits on both firms. */}
           <span className={`chip ${statusWords(row).signed ? 'chip--verified' : statusChipClass(row.status)}`}>

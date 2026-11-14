@@ -30,6 +30,7 @@ export type DecisionType =
   | 'START_HELD'
   | 'NO_AGREEMENT'
   | 'PAPER_TO_CHECK'
+  | 'OWNER_ASK'
 
 export type TypeFilter = 'all' | DecisionType
 
@@ -71,6 +72,8 @@ export const CHIP_PAGES: Readonly<Record<DecisionType, readonly string[]>> = {
   NO_AGREEMENT: [],
   // A paper a worker sent, waiting on this seat to check it: offered where one is waiting.
   PAPER_TO_CHECK: [],
+  // An ask about the company's Owners, waiting on this person's yes: offered where one is waiting.
+  OWNER_ASK: [],
 }
 
 const LABELS: ReadonlyArray<[DecisionType, string]> = [
@@ -89,6 +92,7 @@ const LABELS: ReadonlyArray<[DecisionType, string]> = [
   ['START_HELD', 'Starts held'],
   ['NO_AGREEMENT', 'No agreement'],
   ['PAPER_TO_CHECK', 'Papers to check'],
+  ['OWNER_ASK', 'Owner asks'],
 ]
 
 export interface ChipReader {

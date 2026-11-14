@@ -504,6 +504,41 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     expect(shown.statusSays).toContain('Nobody has papered it')
     expect(shown.findings.map((f: any) => f.code)).toContain('MSA_NO_TERM')
   })
+  it('a company from before the Owner rule reads no wait on signing, so its screen draws Record the signature', async () => {
+    as(PINNACLE)
+    const r = await json(await listAgreements(req('GET', '/api/program/agreements')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.signWaits).toBeNull()
+  })
+
+  it('a company waiting for a verified Owner reads that signing waits, with the Prove ownership link, and the sign route refuses with the same link', async () => {
+    const before = await prisma.company.findUniqueOrThrow({
+      where: { id: co['world-pinnacle'] }, select: { ownerProofRequiredAt: true, ownerVerifiedAt: true },
+    })
+    const unsigned = await prisma.masterAgreement.create({
+      data: { vendorId: co['world-pinnacle'], clientId: co['world-nike'], status: 'DRAFT', signedAt: null },
+    })
+    await prisma.company.update({ where: { id: co['world-pinnacle'] }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
+    try {
+      as(PINNACLE)
+      const r = await json(await listAgreements(req('GET', '/api/program/agreements')))
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
+      const waits = r.body.data.signWaits
+      expect(waits.says).toMatch(/waits until .* a verified Owner/)
+      expect(waits.linkSays).toBe('Prove ownership')
+
+      const refused = await call(sign, 'POST', `/api/program/agreements/${unsigned.id}/sign`, unsigned.id, {
+        party: 'VENDOR', signerName: 'Dana Whitfield', signerTitle: 'VP, Procurement', method: 'WET_INK',
+      })
+      expect(refused.status).toBe(403)
+      expect(refused.body.error.code).toBe('OWNER_NOT_VERIFIED')
+      // The screen's line and the route's refusal point at the same step.
+      expect(refused.body.error.href).toBe(waits.href)
+      expect(refused.body.error.message).toBe(waits.says)
+    } finally {
+      await prisma.company.update({ where: { id: co['world-pinnacle'] }, data: before })
+    }
+  })
 })
 
 

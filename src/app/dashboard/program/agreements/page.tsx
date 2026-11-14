@@ -8,6 +8,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { PageHead, Stat, FilterChips, RefusedState } from '@/components/ui'
 import { readJson, statusMeans } from '@/lib/read-response'
 import { refusalFor } from '../own-refusal'
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import {
   DO_THIS,
   FILTERS,
@@ -105,6 +107,8 @@ interface Agreement extends StandingInput {
 }
 
 interface Payload {
+  /** Recording a signature waits on a verified Owner: the gate's sentence and its link, else null. */
+  signWaits?: OwnerLine | null
   agreements: Agreement[]
   summary: {
     total: number
@@ -150,16 +154,19 @@ async function ask<T>(url: string, init?: RequestInit): Promise<T> {
     const body = await res.text().catch(() => '')
     let says = statusMeans(res.status)
     let code: string | undefined
+    let href: string | undefined
     try {
       const parsed = JSON.parse(body)
       says = parsed?.error?.message ?? says
       code = parsed?.error?.code
+      href = parsed?.error?.href
     } catch {
       // No body, or an HTML error page. The status sentence stands.
     }
-    const trouble = new Error(says) as Error & { denied?: boolean; code?: string }
+    const trouble = new Error(says) as Error & { denied?: boolean; code?: string; href?: string }
     trouble.denied = true
     trouble.code = code
+    trouble.href = href
     throw trouble
   }
   const body = await readJson<{ data: T }>(res)
@@ -410,6 +417,7 @@ export default function AgreementsPage() {
       {open && all.find((r) => r.id === open) && (
         <Detail
           agreement={all.find((r) => r.id === open)!}
+          signWaits={data?.signWaits ?? null}
           onClose={() => setOpen(null)}
           onChanged={(m) => {
             say(m)
@@ -493,11 +501,13 @@ function QueueRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
 
 function Detail({
   agreement,
+  signWaits,
   onClose,
   onChanged,
   onFailed,
 }: {
   agreement: Agreement
+  signWaits: OwnerLine | null
   onClose: () => void
   onChanged: (says: string) => void
   onFailed: (says: string) => void
@@ -539,6 +549,7 @@ function Detail({
       <Signing
         agreement={agreement}
         editable={mine}
+        signWaits={signWaits}
         onChanged={onChanged}
         onFailed={onFailed}
       />
@@ -669,11 +680,14 @@ function Detail({
 function Signing({
   agreement,
   editable,
+  signWaits,
   onChanged,
   onFailed,
 }: {
   agreement: Agreement
   editable: boolean
+  /** Signing waits on a verified Owner: drawn in place of the button its route refuses. */
+  signWaits: OwnerLine | null
   onChanged: (says: string) => void
   onFailed: (says: string) => void
 }) {
@@ -720,7 +734,8 @@ function Signing({
                     Nothing on file says the {partyWord(party).toLowerCase()} signed this
                     agreement.
                   </p>
-                  {editable && signingParty !== party && (
+                  {editable && signWaits && <OwnerGateLine line={signWaits} className="mt-3 text-[12px]" />}
+                  {editable && !signWaits && signingParty !== party && (
                     <button
                       onClick={() => setSigningParty(party)}
                       className="mt-3 rounded border border-etyme-rule px-3 py-1.5 text-xs text-etyme-muted hover:border-etyme-muted hover:text-etyme-ink"
@@ -728,7 +743,7 @@ function Signing({
                       Record the {partyWord(party).toLowerCase()}’s signature
                     </button>
                   )}
-                  {editable && signingParty === party && (
+                  {editable && !signWaits && signingParty === party && (
                     <SignForm
                       agreementId={agreement.id}
                       party={party}
@@ -774,7 +789,7 @@ function SignForm({
   const [when, setWhen] = useState('')
   const [method, setMethod] = useState('WET_INK')
   const [busy, setBusy] = useState(false)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<OwnerLine | null>(null)
 
   async function save() {
     setBusy(true)
@@ -793,7 +808,8 @@ function SignForm({
       })
       onDone(body.says)
     } catch (e: any) {
-      setRefusal(e.message)
+      // The refusal keeps the route's link: a gated company's is "Prove ownership".
+      setRefusal(refusalLine({ message: e.message, code: e.code, href: e.href }))
       onFailed(e.message)
     } finally {
       setBusy(false)
@@ -827,7 +843,7 @@ function SignForm({
           ))}
         </select>
       </label>
-      {refusal && <p className="text-[12px] text-etyme-attention">{refusal}</p>}
+      {refusal && <OwnerGateLine line={refusal} className="text-[12px] !text-etyme-attention" />}
       <div className="flex gap-2">
         <button
           onClick={save}

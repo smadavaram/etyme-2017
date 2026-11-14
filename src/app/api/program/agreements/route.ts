@@ -28,6 +28,7 @@ import {
   type ContractInput,
 } from './verdict'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 
 /**
  * GET /api/program/agreements
@@ -368,8 +369,15 @@ export async function GET(request: NextRequest) {
   })
   const anyBillWithheld = billLines.some((l) => !mayReadBillRate(billViewer, l))
 
+  // Whether recording a signature waits on a verified Owner, read through
+  // the one gate the sign route reads, so the screen draws the sentence
+  // and its Prove ownership link in place of a button the route refuses.
+  const signGate = await needsVerifiedOwnerAt(companyId, 'SIGN')
+  const signWaits = signGate.ok ? null : { says: signGate.says, href: signGate.href, linkSays: 'Prove ownership' }
+
   return NextResponse.json({
     data: {
+      signWaits,
       payWithheldSays: anyWithheld ? PAY_WITHHELD_SAYS : null,
       billWithheldSays: anyBillWithheld ? BILL_WITHHELD_SAYS : null,
       marginWithheldSays: rows.some((r) => r.contracts.some((c) => c.marginWithheld))

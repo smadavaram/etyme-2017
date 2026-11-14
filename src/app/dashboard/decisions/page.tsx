@@ -53,6 +53,8 @@ interface Decision {
    */
   upToCents?: number
   currency?: string
+  /** An Owner ask: the one route its Yes and No go through, POST { decision: 'yes' | 'no' }. */
+  answerUrl?: string
   createdAt: string
 }
 
@@ -99,6 +101,7 @@ function typeLabel(type: string): string {
     TWIN_QUESTION:      'Ask Etyme',
     START_HELD:         'Start held',
     NO_AGREEMENT:       'No agreement',
+    OWNER_ASK:          'Owner ask',
   }
   return map[type] ?? type
 }
@@ -312,6 +315,33 @@ export default function DecisionsPage() {
     setSendingBack({ expenseId: entityId, title })
   }
 
+  // ── An Owner ask: Yes or No through its own route ──────
+  //
+  // The row carries the one route the answer goes through
+  // (POST /api/settings/owners/:id), the same one Ask Etyme's card
+  // presses; the toast is the route's own sentence.
+  async function answerOwnerAsk(d: Decision, decision: 'yes' | 'no', e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!d.answerUrl) return
+    setActing(d.entityId)
+    try {
+      const res = await fetch(d.answerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision }),
+      })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(out.error?.message ?? 'Your answer was not recorded. Try again.')
+      showToast(out.data?.message ?? (decision === 'yes' ? 'Answered yes.' : 'Answered no. Nothing changed.'))
+      setDecisions(prev => prev.filter(x => !(x.type === 'OWNER_ASK' && x.entityId === d.entityId)))
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
   // ── Filtered list ─────────────────────────────────
   const filtered = typeFilter === 'all'
     ? decisions
@@ -484,6 +514,27 @@ export default function DecisionsPage() {
                                    text-etyme-ink hover:bg-etyme-canvas transition-colors disabled:opacity-50"
                       >
                         Send back
+                      </button>
+                    </>
+                  )}
+                  {d.type === 'OWNER_ASK' && d.answerUrl && (
+                    <>
+                      <button
+                        onClick={(e) => answerOwnerAsk(d, 'yes', e)}
+                        disabled={acting === d.entityId}
+                        className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                                   bg-etyme-verified text-white hover:bg-etyme-verified/90
+                                   transition-colors disabled:opacity-50"
+                      >
+                        {acting === d.entityId ? '…' : 'Yes'}
+                      </button>
+                      <button
+                        onClick={(e) => answerOwnerAsk(d, 'no', e)}
+                        disabled={acting === d.entityId}
+                        className="px-3 py-1.5 text-[11px] font-medium rounded-md border border-etyme-rule
+                                   text-etyme-ink hover:bg-etyme-canvas transition-colors disabled:opacity-50"
+                      >
+                        No
                       </button>
                     </>
                   )}

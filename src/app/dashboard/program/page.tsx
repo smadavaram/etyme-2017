@@ -179,6 +179,8 @@ interface Decision {
   flag?: string | null
   /** What the headline calls this row: "Ingrid Sørensen's start". */
   named?: Named | null
+  /** An Owner ask: the one route its Yes and No go through, POST { decision: 'yes' | 'no' }. */
+  answerUrl?: string
 }
 
 interface TenureRow {
@@ -223,6 +225,7 @@ const KIND_WORD: Record<string, string> = {
   TWIN_QUESTION: 'Ask Etyme',
   START_HELD: 'Start held',
   NO_AGREEMENT: 'No agreement',
+  OWNER_ASK: 'Owner ask',
 }
 
 /** Rows that say what is wrong and what to do, drawn in the attention color. */
@@ -441,6 +444,27 @@ function ProgramToday() {
   }
 
   /**
+   * Yes or No on an Owner ask, through the one route the row carries
+   * (POST /api/settings/owners/:id), the same one Ask Etyme's card
+   * presses. The toast is the route's own sentence.
+   */
+  async function answerOwnerAsk(d: Decision, decision: 'yes' | 'no') {
+    if (!d.answerUrl) return
+    setBusy(d.entityId)
+    try {
+      const res = await fetch(d.answerUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(out.error?.message ?? 'Your answer was not recorded. Try again.')
+      say(out.data?.message ?? (decision === 'yes' ? 'Answered yes.' : 'Answered no. Nothing changed.'))
+      setDecisions((cur) => (cur ?? []).filter((x) => !(x.type === 'OWNER_ASK' && x.entityId === d.entityId)))
+    } catch (err: any) {
+      say(err.message, 'error')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /**
    * Approve from the Approvals tab. The row leaves the list only once the
    * week or claim is signed: a refusal or a question keeps it there (the
    * screen walk found a refused week dropped off the list until a reload).
@@ -584,6 +608,7 @@ function ProgramToday() {
           tenureSays={tenureSays}
           busy={busy}
           onApprove={approve}
+          onAnswer={answerOwnerAsk}
           onExtend={handleExtend}
           onRolloff={handleRolloff}
           mayRollOff={mayRollOff}
@@ -655,7 +680,7 @@ function plural(n: number, one: string, many = `${one}s`): string {
  * everything else opens where the decision is made. Under the queue,
  * what was done today, so a clear desk is not an empty page.
  */
-function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, onApprove, onExtend, onRolloff, mayRollOff, onApprovals }: {
+function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, onApprove, onAnswer, onExtend, onRolloff, mayRollOff, onApprovals }: {
   data: ProgramData
   onApprovals: () => void
   queue: Decision[]
@@ -667,6 +692,8 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
   tenureSays: string | null
   busy: string | null
   onApprove: (d: Decision, note?: string) => void
+  /** Yes or No on an Owner ask, through the route the row carries. */
+  onAnswer: (d: Decision, decision: 'yes' | 'no') => void
   /** Said once an extension is made, with the route's own sentence. */
   onExtend: (message: string) => void
   onRolloff: (contractId: string) => void
@@ -767,6 +794,18 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
                         className="px-3 py-1.5 bg-etyme-attention text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
                         Approve anyway
                       </button>
+                    )}
+                    {d.type === 'OWNER_ASK' && d.answerUrl && (
+                      <>
+                        <button onClick={() => onAnswer(d, 'yes')} disabled={busy === d.entityId}
+                          className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                          {busy === d.entityId ? 'Recording…' : 'Yes'}
+                        </button>
+                        <button onClick={() => onAnswer(d, 'no')} disabled={busy === d.entityId}
+                          className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas disabled:opacity-50">
+                          No
+                        </button>
+                      </>
                     )}
                     {/* The row's own address, query and all — "Look" on a
                         week opens that week (`?id=`), not the list. */}
