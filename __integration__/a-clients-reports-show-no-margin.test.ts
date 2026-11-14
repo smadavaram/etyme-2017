@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as ap } from '@/app/api/ap/route'
+import { GET as profitability } from '@/app/api/profitability/route'
+import { mayReadCut } from '@/lib/money/profit-cut'
 
 /**
  * A client's Reports, read as the client on the seeded world.
@@ -17,6 +19,7 @@ import { GET as ap } from '@/app/api/ap/route'
 
 const D = '@demo.etyme.local'
 const NIKE_AP = `world-nike-ap${D}`
+const NIKE_OWNER = `world-nike${D}`
 
 let body: any
 let northbend: { id: string }
@@ -77,5 +80,31 @@ describe('a client’s Reports reads its own book and no margin', () => {
     expect(text).not.toMatch(/margin/i)
     expect(text).not.toMatch(/payRate|"pay rate"|grossPay|payroll(Due|Paid)?"\s*:/i)
     expect(text).not.toMatch(/"(billed|received|billsDue|toBill|running)"\s*:/)
+  })
+})
+
+describe('a client never reads the profit page', () => {
+  const VIEWS = ['book', 'order', 'contract', 'candidate', 'customer', 'cut']
+
+  it('a client’s Owner is refused the profit page in a sentence, and never told there are no placements', async () => {
+    as(NIKE_OWNER)
+    const before = await prisma.accessLog.count({ where: { subjectCompanyId: northbend.id, allowed: false } })
+    for (const by of VIEWS) {
+      const res = await json(await profitability(req('GET', `/api/profitability?by=${by}`)))
+      expect(res.status, by).toBe(403)
+      expect(res.body.error.message).toBe(mayReadCut({ kind: 'CLIENT' }))
+      expect(JSON.stringify(res.body)).not.toMatch(/No placements/i)
+      expect(res.body.data).toBeUndefined()
+    }
+    const after = await prisma.accessLog.count({ where: { subjectCompanyId: northbend.id, allowed: false } })
+    expect(after - before).toBe(VIEWS.length)
+  })
+
+  it('a client’s AP clerk is not told the Owner reads it', async () => {
+    as(NIKE_AP)
+    const res = await json(await profitability(req('GET', '/api/profitability?by=order')))
+    expect(res.status).toBe(403)
+    expect(res.body.error.message).toBe(mayReadCut({ kind: 'CLIENT' }))
+    expect(res.body.error.message).not.toMatch(/Owner/)
   })
 })

@@ -3,6 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { accessActor, recordRefusal } from '@/lib/access-log'
 import {
   total, forCandidate, forCustomer, health, belowFloor, MIXED_CURRENCIES_SAYS,
 } from '@/lib/profitability'
@@ -77,6 +78,19 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Profitability')
   if (notStaff) return notStaff
+
+  // A client never reads a margin, in any view (walk fde, item 8). Asked
+  // before the permission, so a client's Owner is not answered with an
+  // empty book and a client's AP clerk is not told the Owner reads it.
+  const clientRefused = mayReadCut({ kind: caller.company?.kind })
+  if (clientRefused) {
+    await recordRefusal([{ companyId: caller.company!.id }], {
+      ...accessActor(caller),
+      action: 'CONTRACT_VIEW',
+      reason: `Refused profitability: ${clientRefused}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: clientRefused } }, { status: 403 })
+  }
 
   // The door is yes or no, as every route's is; how far the yes reaches is
   // `reach`, read just below and applied at the query.

@@ -141,10 +141,30 @@ describe('who reads it', () => {
     expect(mayReadCut({ kind: 'CLIENT' })).toContain('a client never reads it')
   })
 
-  it('a supplier reads its own cut, and the route still asks for the margin permission first', () => {
+  it('a supplier reads its own cut, and the route still asks for the margin permission before any view', () => {
     expect(mayReadCut({ kind: 'VENDOR' })).toBeNull()
+    expect(mayReadCut({ kind: 'INTEGRATOR' })).toBeNull()
+    expect(mayReadCut({ kind: 'MSP' })).toBeNull()
     const route = readFileSync(join(process.cwd(), 'src/app/api/profitability/route.ts'), 'utf8')
     expect(route.indexOf("'margin.read'")).toBeLessThan(route.indexOf("by === 'cut'"))
+  })
+
+  it('a client is refused every view of the profit page before the permission is asked, and the refusal is written first', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/profitability/route.ts'), 'utf8')
+    const gate = route.indexOf('mayReadCut({ kind: caller.company?.kind })')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(route.indexOf("'margin.read'"))
+    expect(gate).toBeLessThan(route.indexOf("params.get('by')"))
+    const refusal = route.slice(gate, route.indexOf("'margin.read'"))
+    expect(refusal.indexOf('await recordRefusal(')).toBeGreaterThan(-1)
+    expect(refusal.indexOf('await recordRefusal(')).toBeLessThan(refusal.indexOf('status: 403'))
+  })
+
+  it('a client’s profit page draws the refusal and asks the route for nothing, so it never says there are no placements', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/profitability/page.tsx'), 'utf8')
+    expect(page).toContain('mayReadCut({ kind: company.kind })')
+    expect(page).toMatch(/if \(!hasCompany \|\| isClient\) return\s+load\(\)/)
+    expect(page.indexOf('mayReadCut({ kind: company.kind })')).toBeLessThan(page.indexOf('No placements on the record yet'))
   })
 })
 

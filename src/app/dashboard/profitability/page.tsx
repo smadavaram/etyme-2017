@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { mayReadCut } from '@/lib/money/profit-cut'
 import { Chip, EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -120,12 +121,23 @@ export default function ProfitabilityPage() {
     }
   }, [by, scope])
 
-  useEffect(() => { load() }, [load])
+  // A client never reads a margin (walk fde, item 8): its page asks for
+  // nothing, so an empty book can never be read as its own.
+  const isClient = company?.kind === 'CLIENT'
+  const hasCompany = !!company
+  useEffect(() => {
+    if (!hasCompany || isClient) return
+    load()
+  }, [load, hasCompany, isClient])
 
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
     return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
+  }
+  const notForClient = mayReadCut({ kind: company.kind })
+  if (notForClient) {
+    return <RefusedState says={notForClient} />
   }
   // Refused: the sentence and nothing else — no tab, no figure.
   const refused = refusedRead(refusedSaid, { what: 'Profitability', kind: company.kind, company: company.name })
