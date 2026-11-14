@@ -803,7 +803,7 @@ function ContextMenu(props: {
       : [<p key="none" className="px-2.5 py-1.5 text-[13px] text-etyme-muted">Add a team first, then charge them to it.</p>]
   }
   return (
-    <div ref={ref} role="menu" onKeyDown={keys} style={place ? { left: place.left, top: place.top, maxHeight: place.maxHeight } : { left: menu.x, top: menu.y }} className="fixed z-50 flex min-w-[220px] flex-col overflow-y-auto overscroll-contain rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
+    <div ref={ref} role="menu" onKeyDown={keys} style={place ? { left: place.left, top: place.top, maxHeight: place.maxHeight } : { left: menu.x, top: menu.y }} className="fixed !m-0 z-50 flex min-w-[220px] flex-col overflow-y-auto overscroll-contain rounded-lg border border-etyme-rule bg-etyme-raised p-1.5 shadow-float">
       <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-etyme-muted">{head}</p>
       {items}
     </div>
@@ -831,7 +831,7 @@ function Chooser(props: {
     props.onClose()
   }
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) props.onClose() }}>
+    <div className="fixed !m-0 inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) props.onClose() }}>
       <div role="dialog" aria-modal="true" aria-label={person ? `Move ${choose.name}` : `Charge ${choose.name} to another box`} className="flex w-full max-w-[420px] flex-col gap-3 rounded-r-lg border border-etyme-rule bg-etyme-surface p-5 shadow-float">
         <h2 className="headline-serif text-[19px] text-etyme-ink">{person ? `Move ${choose.name} to another team` : `Charge ${choose.name} to another box`}</h2>
         {!person && <p className="text-[13px] text-etyme-muted">Only the box their line is charged to changes. Their supplier, rate and dates stay as they are.</p>}

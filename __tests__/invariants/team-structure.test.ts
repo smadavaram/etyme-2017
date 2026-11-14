@@ -434,4 +434,13 @@ describe('the company box and its menu can be read and reached', () => {
     expect(page).toContain('menuPlace({ x: menu.x, y: menu.y }, { width: r.width, height: el.scrollHeight }')
     expect(page).toContain(`e.target.closest('[role="menu"]')`)
   })
+
+  it('the box menu, the chooser and the import dialog take no margin from the page’s spacing, so a low box’s menu ends 8 pixels above the window’s bottom', () => {
+    // The page's space-y-5 gives every child after the first a 20 px top
+    // margin, and that moves a fixed pop-up too (walk, 2026-11-14: 14 px past).
+    const dialog = readScreen('src/app/dashboard/settings/team-structure/import-dialog.tsx', 'utf8')
+    const fixed = [page, dialog].flatMap((src) => src.match(/className="fixed [^"]*"/g) ?? [])
+    expect(fixed.length).toBe(3)
+    for (const cls of fixed) expect(cls.split(/[ "]/)).toContain('!m-0')
+  })
 })

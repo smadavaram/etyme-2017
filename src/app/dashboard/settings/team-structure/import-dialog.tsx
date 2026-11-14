@@ -152,7 +152,7 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
   const count = preview ? preview.changes.filter((c) => c.tickable && ticked.has(c.key)).length : 0
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="fixed !m-0 inset-0 z-[60] flex items-center justify-center bg-etyme-ink/35 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div role="dialog" aria-modal="true" aria-label={preview ? 'Changes from your directory' : READ_TEAMS_LABEL} className="flex max-h-[88vh] w-full max-w-[640px] flex-col gap-3.5 overflow-auto rounded-r-lg border border-etyme-rule bg-etyme-surface p-5 shadow-float">
         {!preview ? (
           <>
