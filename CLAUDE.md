@@ -868,7 +868,7 @@ Full text → 28, 22, 23.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
@@ -888,9 +888,12 @@ Full text → 33, 34, 17, 20, 52, 57, 41, 65.
   reviewers' blockers fixed, the release check green, and the walk
   saying ships.
 - **The work is bound by the usage allowance, not by the number of
-  agents.** One run per owner. The coordinator schedules its own wake
-  while a deploy is not out. A builder's claim is checked by a reader
-  who did not build it.
+  agents.** One run per owner, four agents at once. The coordinator
+  schedules its own wake while a deploy is not out. A builder's claim is
+  checked by a reader who did not build it.
+- **No screen says an email went, or will go, unless email can leave**
+  (`mailLeaves` in `lib/notify/mail-leaves`). Two screens that call one
+  route are fixed together.
 - **Never**: load or simulation on production; a secret, password or
   sign-in code in chat; the coordinator holding the cron secret; a
   one-time link or token shown, copied or logged.
