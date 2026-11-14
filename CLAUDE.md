@@ -854,7 +854,7 @@ Full text → 27, 29, 13.
 
 ## Tapin
 
-Full text → 28, 22, 23, 68.
+Full text → 28, 22, 23, 68, 69.
 
 - **The founder's bench business runs on Etyme as a supplier like any
   other, named Tapin** (`tapin.etyme.com`), never `etyme`. It gets no
@@ -870,8 +870,12 @@ Full text → 28, 22, 23, 68.
   from the invitation letter. Nobody gets a seat or a second record
   before that yes. No separate marketing site, blog or careers portal.
 - **One payroll person may attach the client's approval and accept the
-  same week** (founder, 2026-11-14). No public page says "Etyme runs no
-  bench and places nobody" until he says what it should say about Tapin.
+  same week** (founder, 2026-11-14).
+- **Tapin is the way to market: a bench in data engineering** (founder,
+  2026-11-14). Nothing a client reads says Tapin trains, places or is
+  the founder's, and no page claims the opposite: none says Etyme runs
+  no bench or places nobody. Candidates come in by backchannel and
+  referral through Tapin's recruiters, each by her own yes.
 - **A timesheet never comes by email** (founder, 2026-11-14). A
   candidate files her week, with the timesheet her client approved, on
   her own page or in Ask Etyme. The email door stays closed.
