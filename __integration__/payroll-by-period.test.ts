@@ -153,7 +153,7 @@ for (const S of SUNDAYS) {
       const today = new Date().toISOString().slice(0, 10)
       expect(periods[0].start <= today && periods[0].end >= today).toBe(true)
       for (const p of periods) {
-        expect(p.words).toMatch(/^\w{3} \d{1,2}(, \d{4})? – \w{3} \d{1,2}, \d{4} · paid \w{3}, \w{3} \d{1,2}, \d{4}$/)
+        expect(p.words).toMatch(/^\w{3} \d{1,2}(, \d{4})? – \w{3} \d{1,2}, \d{4} · paid \w{3}, \w{3} \d{1,2}, \d{4}( · accepted hours not paid)?$/)
         expect(Math.abs(((+d(p.start) - +d(S)) / DAY) % 14)).toBe(0)
       }
     })
@@ -246,17 +246,19 @@ for (const S of SUNDAYS) {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-disposition')).toBe(`attachment; filename="payroll-${S}-to-${plus(S, 13)}.csv"`)
       const [head, ...body] = (await res.text()).trim().split('\n')
-      expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Currency,Period start,Period end,Pay day,Status')
+      expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Paid already,Currency,Period start,Period end,Pay day,Status')
       const hers = body.filter((x) => x.startsWith(`${l.name},`))
       expect(hers).toEqual([
-        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},Not worked out yet`,
+        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},Not worked out yet`,
       ])
-      // Every person with hours on the page is on the file, at the page's gross.
+      // Every person with hours on the page is on the file, at what the page
+      // says is still to pay and what was paid already.
       const onPage = data.payItems.filter((p: any) => p.totalApprovedHours > 0)
       expect(body).toHaveLength(onPage.length)
       for (const p of onPage) {
         const line = body.find((x) => x.startsWith(`${p.person.name},`) || x.startsWith(`"${p.person.name}",`))!
-        expect(line, p.person.name).toContain(`,${(p.grossPay / 100).toFixed(2)},${p.payCurrency},`)
+        const paid = ((p.paidSoFar?.grossCents ?? 0) / 100).toFixed(2)
+        expect(line, p.person.name).toContain(`,${(p.toPay.grossCents / 100).toFixed(2)},${paid},${p.payCurrency},`)
       }
     })
 

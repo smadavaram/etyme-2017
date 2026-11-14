@@ -14,7 +14,9 @@ import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
-import { payDaysToMark } from '@/lib/money/pay-day-period'
+import { payDaysToMark, companyPayDaysToMark } from '@/lib/money/pay-day-period'
+import { companyPayPeriods } from '@/lib/money/company-pay-periods'
+import { periodHolding } from '@/lib/money/pay-periods'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
 import { daySpan, plainDate } from '@/lib/plain-date'
@@ -201,6 +203,22 @@ export async function POST(request: NextRequest) {
   })
   // And what earlier runs already paid, so no hour is paid twice.
   const book = await paidBook(companyId, contracts.map((c) => c.id))
+
+  // A run for one of the company's own weekly or two-week periods settles
+  // the pay days the company's periods give, not the line's own rhythm: a
+  // line's pay days are counted from the company's first period
+  // (lib/cycle-generator), and read back the same way here.
+  const co = asked && 'start' in asked ? await companyPayPeriods(companyId) : null
+  const askedKey = asked && 'start' in asked ? asked.start.toISOString().slice(0, 10) : null
+  const askedIsOwn = Boolean(
+    co?.byPeriod && askedKey && asked && 'start' in asked &&
+      periodHolding(askedKey, co.rhythm, co.rule)?.start === askedKey &&
+      periodHolding(askedKey, co.rhythm, co.rule)?.end === asked.end.toISOString().slice(0, 10)
+  )
+  const companyPeriodOf = (x: Date): Period => {
+    const p = periodHolding(x.toISOString().slice(0, 10), co!.rhythm, co!.rule)!
+    return { start: new Date(`${p.start}T00:00:00.000Z`), end: new Date(`${p.end}T00:00:00.000Z`), label: daySpan(p.start, p.end) }
+  }
 
   // Pay never goes out before it is worked out (the founder, 2026-10-07,
   // reaffirmed 2026-10-20). What the `calculate` runs worked out, read
@@ -547,11 +565,16 @@ export async function POST(request: NextRequest) {
         if (windows.length > 0) {
           const cycles = await tx.cycle.findMany({
             where: { buyContractId: bc.id, kind: cycleKind },
-            select: { id: true, dueOn: true, completedAt: true },
+            select: { id: true, dueOn: true, completedAt: true, periodEnd: true },
           })
           const ids = new Set<string>()
           for (const w of windows) {
-            for (const c of payDaysToMark(cycles, [w.period], (x) => periodFor(x, w.terms), w.startedOn)) ids.add(c.id)
+            // On one of the company's own periods, the pay day whose period
+            // ends inside it (lib/money/pay-day-period).
+            const marks = askedIsOwn
+              ? companyPayDaysToMark(cycles, w.period, companyPeriodOf, w.startedOn)
+              : payDaysToMark(cycles, [w.period], (x: Date) => periodFor(x, w.terms), w.startedOn)
+            for (const c of marks) ids.add(c.id)
           }
           if (ids.size > 0) {
             const updated = await tx.cycle.updateMany({

@@ -25,9 +25,10 @@ import { workedOutKeys, isWorkedOut } from '@/lib/money/payroll-worked-out'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
-  nothingToPaySays, isDayKey, payFileCsv, payFileName, PAY_FILE_NOTE, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
+import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
 
 /**
  * GET /api/payroll
@@ -309,6 +310,11 @@ export async function GET(request: NextRequest) {
       }))
     )
 
+  // Days holding accepted hours nobody has paid, on a company that pays by
+  // its own periods: every period holding one is offered on the picker,
+  // however far back (lib/money/pay-periods, `pickerPeriods`).
+  const unpaidDays = new Set<string>()
+
   const payItems = buyContracts.filter((bc) => paidByPayroll(bc)).flatMap((bc) => {
     // Whether anything is still open decides the status, as it always
     // did. What the screen calls "next" is the earliest open date from
@@ -438,6 +444,24 @@ export async function GET(request: NextRequest) {
           })
       )
 
+      if (co.byPeriod) {
+        for (const ts of linkedTimesheets) {
+          if (ts.many) continue
+          const dayKeys = Object.keys(ts.days ?? {})
+          if (dayKeys.length === 0) {
+            // A week filed as a total: unpaid while no run paid any day of it.
+            const anyPaid = [...book.paid.keys()].some((k) => k.startsWith(`${bc.id}|${cand.personId}|${ts.id}|`))
+            if (ts.totalHours > 0 && !anyPaid) unpaidDays.add(weekStart(ts.rawStart.toISOString().slice(0, 10)))
+            continue
+          }
+          for (const day of dayKeys) {
+            const hours = Number((ts.days as Record<string, number>)[day] ?? 0)
+            const key = day.slice(0, 10)
+            if (hours > 0 && (book.paid.get(paidKey(bc.id, cand.personId, ts.id, key)) ?? 0) + 0.005 < hours) unpaidDays.add(key)
+          }
+        }
+      }
+
       // ── The pay period the contract says it is ────────────────────
       //
       // This matched the period string against the start of a timesheet:
@@ -541,6 +565,9 @@ export async function GET(request: NextRequest) {
       let overtimeHours = 0
       const said: string[] = []
       const lineSaid: string[] = []
+      // Each day's premium, by the key the paid book keeps, so what is
+      // still to pay is the run's own subtraction (lib/money/period-pay-left).
+      const premiumDays: PremiumDay[] = []
       shares.forEach((x, i) => {
         const weeks = sheetOvertime({
           days: x.ts.filed,
@@ -553,9 +580,10 @@ export async function GET(request: NextRequest) {
           line: wageLine,
         })
         const inPeriod = new Set(priced[i].days.map((d) => d.day))
-        for (const p of premiumByDay(weeks, inPeriod).values()) {
+        for (const [day, p] of premiumByDay(weeks, inPeriod)) {
           premiumExact += p.premiumCents
           overtimeHours += p.hours
+          premiumDays.push({ key: paidKey(bc.id, cand.personId, x.ts.id, day), hours: p.hours, premiumCents: p.premiumCents })
         }
         const note = overtimeSaysFor(weeks, inPeriod)
         if (note) said.push(note)
@@ -637,6 +665,12 @@ export async function GET(request: NextRequest) {
       const premiumCents = Math.round(premiumExact)
       const grossPay =
         [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0) + premiumCents
+      // What earlier runs paid in this period and what is still to pay, so
+      // a week paid already is never shown, filed or counted as due again.
+      const pricedDays: PricedDay[] = shares.flatMap((x, i) =>
+        priced[i].days.map((d) => ({ key: paidKey(bc.id, cand.personId, x.ts.id, d.day), hours: d.hours, rateCents: d.rateCents }))
+      )
+      const left = payLeftInPeriod(pricedDays, premiumDays, book)
       // The rate a reader sees on the row: the one in force at the end of
       // the period, which is the one the next hour will be paid at.
       const rateNow = payPeriod
@@ -737,6 +771,11 @@ export async function GET(request: NextRequest) {
         // accepted week is not over 40."
         straightTime: straightSaid.length ? straightSaid.join(' ') : null,
         payStatus,
+        // What earlier runs paid in this period, null where nothing was;
+        // what a run would pay now; and, where both, one sentence.
+        paidSoFar: left.paid,
+        toPay: left.toPay,
+        partPaid: partPaidSays(left, (c) => amountOf(c, cand.payCurrency)),
         // On a company period, its own work-out day and pay day, moved off
         // a day nobody works by the one rule every pay date follows.
         nextPayDate: companyHeld ? `${companyHeld.payOn}T00:00:00.000Z` : comingPay?.dueOn.toISOString() ?? null,
@@ -838,12 +877,19 @@ export async function GET(request: NextRequest) {
 
   // The company's own periods for the picker: the current one first, the
   // next, then the earlier ones. Null where pay is listed by month.
+  // Then every earlier period that still holds accepted hours nobody paid.
   const around = co.byPeriod ? periodsAround(todayKey, co.rhythm, co.rule, { earlier: 6, later: 1 }) : null
   const said = (p: PayPeriodOn) => ({ ...p, label: periodLabel(p), words: periodWords(p) })
   const payPeriods = around
     ? {
         current: around[0].start,
-        periods: around.map(said),
+        periods: pickerPeriods(around, unpaidDays, co.rhythm, co.rule).map((p) => ({
+          ...said(p),
+          // Said only where its pay day has passed: the current period's
+          // hours are unpaid because its pay day has not come yet.
+          unpaid: p.unpaid && p.payOn < todayKey,
+          words: p.unpaid && p.payOn < todayKey ? unpaidPeriodWords(p) : periodWords(p),
+        })),
         shown: shownPeriod ? said(shownPeriod) : null,
       }
     : null

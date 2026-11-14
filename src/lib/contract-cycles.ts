@@ -17,7 +17,7 @@
  */
 
 import type { Prisma } from '@prisma/client'
-import { generateCycles, generatePayCycles, type CycleDefinition } from '@/lib/cycle-generator'
+import { generateCycles, generatePayCycles, companyFirstSunday, type CycleDefinition } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
 import { policyFrom, type CycleShiftPolicy } from '@/lib/cycle-shift'
 import { getTemplatePack } from '@/lib/template-packs'
@@ -303,8 +303,40 @@ export async function writeCyclesFor(db: CycleWriter, input: PlanInput): Promise
  * of the answer. It only reads: the company that holds the pair, for its
  * weekend rule and its payroll.
  */
+/**
+ * Whether a payroll line's stored pay days were counted from its own
+ * start rather than from the company's first pay period. Such a line was
+ * written before the Owner set the first day; it keeps its weeks on an
+ * extension, so no pay day already written moves, and realigning it is
+ * the founder's to decide.
+ *
+ * Read off the periods the stored pay days cover: where the company's own
+ * series explains every one of them, the line is on the company's weeks;
+ * where only the line's own series does, it keeps them. A line with no
+ * stored period is on the company's weeks. Where neither series explains
+ * them, the line keeps its own, which is how it was written before.
+ * Pure: it asks the generator both questions and compares.
+ */
+export function lineKeepsItsWeeks(
+  stored: ReadonlyArray<{ periodStart: Date | null }>,
+  start: Date,
+  end: Date,
+  rhythm: PayRhythm,
+): boolean {
+  if (companyFirstSunday(rhythm) === null) return false
+  const key = (d: Date) => d.toISOString().slice(0, 10)
+  const starts = [...new Set(stored.filter((c) => c.periodStart).map((c) => key(c.periodStart!)))]
+  if (starts.length === 0) return false
+  const last = new Date(Math.max(end.getTime(), ...stored.filter((c) => c.periodStart).map((c) => c.periodStart!.getTime())))
+  const series = (o: { countWeeksFrom?: 'LINE' }) =>
+    new Set(generatePayCycles(start, last, rhythm, [], new Map(), o).filter((c) => c.kind === 'SALARY_PAY').map((c) => key(c.periodStart)))
+  const company = series({})
+  if (starts.every((k) => company.has(k))) return false
+  return true
+}
+
 export async function planCyclesFor(
-  db: Pick<Prisma.TransactionClient, 'sellContract'>,
+  db: Pick<Prisma.TransactionClient, 'sellContract'> & Partial<Pick<Prisma.TransactionClient, 'cycle'>>,
   input: PlanInput
 ): Promise<Planned> {
   const { sell, buy } = input
@@ -338,7 +370,7 @@ export async function planCyclesFor(
                 select: {
                   cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
                   payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true,
-                  payDaysOfMonth: true, payCalcDaysBefore: true,
+                  payDaysOfMonth: true, payCalcDaysBefore: true, payFirstPeriodStart: true,
                   paySettingsSetAt: true, paySettingsSetById: true,
                 },
               },
@@ -351,10 +383,25 @@ export async function planCyclesFor(
   // company that chose its payroll: the pack's (or the demo's) pay lines
   // step aside and the company's dates are written instead.
   const ownPayroll = payroll !== null && buy !== null && buy.vendorCompanyId === null
+  // A line whose pay days were written before the Owner set the first
+  // pay period keeps the weeks it has, so an extension moves no pay day
+  // already written (`lineKeepsItsWeeks`).
+  const keepsItsWeeks = ownPayroll && companyFirstSunday(payroll!) !== null && db.cycle
+    ? lineKeepsItsWeeks(
+        await db.cycle.findMany({
+          where: { buyContractId: buy!.id, kind: 'SALARY_PAY' },
+          select: { periodStart: true },
+        }),
+        dates.startDate,
+        dates.endDate,
+        payroll!,
+      )
+    : false
   const options = {
     policy,
     onlyPeriodsAfter: input.onlyPeriodsAfter ?? null,
     noneDueBefore: input.noneDueBefore ?? null,
+    ...(keepsItsWeeks ? { countWeeksFrom: 'LINE' as const } : {}),
   }
 
   const sellCycles = generateCycles(dates.startDate, dates.endDate, split.sell, holidays, existing, options)

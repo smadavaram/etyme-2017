@@ -543,6 +543,18 @@ export interface GenerateOptions {
    * twice for one fortnight. A caller may pass both.
    */
   noneDueBefore?: Date | null
+  /**
+   * Where a weekly or two-week line counts its pay periods from.
+   *
+   * Omitted, from the company's first pay period where its Owner set one
+   * (`PayRhythm.payFirstPeriodStart`), so a line's pay days are the days
+   * the Payroll page pays on; else from the Sunday on or before the line's
+   * start. `'LINE'` keeps the Sunday on or before the start even where the
+   * company set a first day: an extension of a line written before the
+   * first day was set keeps the weeks it already has (`lineKeepsItsWeeks`
+   * in lib/contract-cycles), and no pay day already written moves.
+   */
+  countWeeksFrom?: 'LINE'
 }
 
 /**
@@ -681,6 +693,20 @@ function emitSeries(
 // ── Pay dates from the company's own payroll ───────────────────────────
 
 const DAY_MS = 86_400_000
+
+/**
+ * The company's first pay period's Sunday, as a UTC midnight, where the
+ * company pays every week or every other week and its Owner set it. Null
+ * otherwise: nothing is guessed.
+ */
+export function companyFirstSunday(rhythm: PayRhythm): number | null {
+  if (rhythm.payPeriod !== 'WEEKLY' && rhythm.payPeriod !== 'BIWEEKLY') return null
+  const v = rhythm.payFirstPeriodStart
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(String(v).slice(0, 10))) return null
+  const t = Date.parse(`${String(v).slice(0, 10)}T00:00:00.000Z`)
+  if (Number.isNaN(t) || new Date(t).getUTCDay() !== 0) return null
+  return t
+}
 const utcMidnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 
 /**
@@ -696,9 +722,11 @@ const utcMidnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCM
  * ── Every week and every other week ──────────────────────────────────
  *
  * Periods are Sunday-to-Saturday weeks — one, or two for every other
- * week — counted from the Sunday on or before the contract start, the
- * same periods `periodFor` in `lib/periods` pays and the payroll export
- * reads. Pay is worked out and paid the company's offsets after each
+ * week — counted from the company's first pay period where its Owner set
+ * one (2026-11-14), so a line starting mid-period has its first pay day
+ * on the day the Payroll page pays that period; else from the Sunday on
+ * or before the contract start, the same periods `periodFor` in
+ * `lib/periods` pays and the payroll export reads. Pay is worked out and paid the company's offsets after each
  * period's Saturday (`payDatesFor`).
  *
  * A period is kept while its Friday is inside the contract, for the
@@ -739,7 +767,14 @@ export function generatePayCycles(
 
   if (rhythm.payPeriod === 'WEEKLY' || rhythm.payPeriod === 'BIWEEKLY') {
     const step = rhythm.payPeriod === 'WEEKLY' ? 7 : 14
-    const anchor = from.getTime() - from.getUTCDay() * DAY_MS // the Sunday on or before the start
+    // The company's own periods where its Owner set the first day (the
+    // founder, 2026-11-14): the period holding the line's start, counted
+    // forward or back from that Sunday. Else the Sunday on or before it.
+    const first = options.countWeeksFrom === 'LINE' ? null : companyFirstSunday(rhythm)
+    const stepMs = step * DAY_MS
+    const anchor = first !== null
+      ? first + Math.floor((from.getTime() - first) / stepMs) * stepMs
+      : from.getTime() - from.getUTCDay() * DAY_MS // the Sunday on or before the start
     for (let k = 1; ; k++) {
       const saturday = new Date(anchor + (k * step - 1) * DAY_MS)
       const friday = new Date(saturday.getTime() - DAY_MS)

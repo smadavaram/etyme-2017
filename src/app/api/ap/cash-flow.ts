@@ -13,6 +13,7 @@ import {
 } from '@/lib/money/cash-flow'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import { periodsPayingBetween } from '@/lib/money/pay-periods'
+import { owedOnRow } from '@/lib/money/period-pay-left'
 import { cashForecast } from '@/lib/money/cash-forecast'
 import { loadBook, loadUnplacedPayments } from '../ar/book'
 import { GET as payrollRoute } from '../payroll/route'
@@ -186,15 +187,17 @@ async function payrollDueByPeriod(
       out.push({
         currency: typeof r.payCurrency === 'string' ? r.payCurrency : null,
         at: new Date(`${p.payOn}T00:00:00.000Z`),
-        minor: r.grossPay,
+        minor: owedOnRow(r),
       })
     }
   }
   return out
 }
 
+// What is still to pay on the row, never the whole period where part of
+// it was paid already (lib/money/period-pay-left).
 const owedPay = (p: any) =>
-  (p.payStatus === 'PENDING' || p.payStatus === 'CALCULATED') && typeof p.grossPay === 'number' && p.grossPay > 0
+  (p.payStatus === 'PENDING' || p.payStatus === 'CALCULATED') && typeof p.grossPay === 'number' && owedOnRow(p) > 0
 
 function payrollDue(items: any[]): Flow[] {
   return items
@@ -202,7 +205,7 @@ function payrollDue(items: any[]): Flow[] {
     .map((p) => ({
       currency: typeof p.payCurrency === 'string' ? p.payCurrency : null,
       at: p.nextPayDate ? new Date(p.nextPayDate) : null,
-      minor: p.grossPay,
+      minor: owedOnRow(p),
     }))
 }
 
@@ -216,7 +219,7 @@ export function payrollUndatedSays(items: any[]): string | null {
   const undated = items.filter((p) => owedPay(p) && !p.nextPayDate)
   if (undated.length === 0) return null
   const each = undated.map((p) =>
-    `${p.person?.name ?? 'A worker'}, ${amount(p.grossPay, typeof p.payCurrency === 'string' ? p.payCurrency : undefined)}` +
+    `${p.person?.name ?? 'A worker'}, ${amount(owedOnRow(p), typeof p.payCurrency === 'string' ? p.payCurrency : undefined)}` +
     (p.payPeriod?.label ? ` for ${p.payPeriod.label}` : ''))
   return `Payroll due leaves out accepted pay that has no pay date set: ${each.join('; ')}.`
 }

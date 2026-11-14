@@ -88,6 +88,38 @@ export function periodsAround(
 }
 
 /**
+ * The periods on the picker: the ones around today (`periodsAround`),
+ * then every other period that still holds accepted hours nobody paid,
+ * newest first, however far back. Without them a week accepted late, or
+ * a placement recorded with back hours, sat in a period nobody could
+ * open to work out or pay (found by hand, 2026-11-14). `held` is any day
+ * inside each such period; `unpaid` marks every period that holds one.
+ */
+export function pickerPeriods(
+  around: readonly PayPeriodOn[],
+  held: Iterable<string>,
+  r: PayRhythm,
+  rule: DayOffRule = {},
+): Array<PayPeriodOn & { unpaid: boolean }> {
+  const byStart = new Map<string, PayPeriodOn>()
+  for (const day of held) {
+    const p = payPeriodHolding(day, r, rule)
+    if (p && !byStart.has(p.start)) byStart.set(p.start, p)
+  }
+  const shown = new Set(around.map((p) => p.start))
+  const more = [...byStart.values()].filter((p) => !shown.has(p.start)).sort((a, b) => (a.start < b.start ? 1 : -1))
+  return [
+    ...around.map((p) => ({ ...p, unpaid: byStart.has(p.start) })),
+    ...more.map((p) => ({ ...p, unpaid: true })),
+  ]
+}
+
+/** A period on the picker that holds accepted hours nobody paid. */
+export function unpaidPeriodWords(p: PayPeriodOn): string {
+  return `${periodWords(p)} · accepted hours not paid`
+}
+
+/**
  * Every period whose pay day, after the move, falls from `from` to `to`
  * inclusive, oldest first. What cash flow asks: the pay due inside its
  * window, each on its own period's pay day.
@@ -174,10 +206,26 @@ export interface PayFileRow {
   grossPay: number
   payCurrency: string
   payStatus: string
+  /** What earlier runs paid in the period; null where nothing was. */
+  paidSoFar?: { hours: number; grossCents: number } | null
+  /** What a run would pay now (lib/money/period-pay-left). */
+  toPay?: {
+    hours: number
+    grossCents: number
+    overtimeHours: number
+    premiumCents: number
+    rates: ReadonlyArray<{ rateCents: number; hours: number }> | null
+    rateCents: number | null
+  } | null
 }
 
+/**
+ * The file's columns. Hours, overtime and gross pay are what is still to
+ * pay, so a provider paying from the file never pays a week twice; what
+ * earlier runs paid in the period is its own column beside them.
+ */
 export const PAY_FILE_COLUMNS = Object.freeze([
-  'Name', 'Hours', 'Pay rate', 'Overtime hours', 'Overtime premium', 'Gross pay', 'Currency',
+  'Name', 'Hours', 'Pay rate', 'Overtime hours', 'Overtime premium', 'Gross pay', 'Paid already', 'Currency',
   'Period start', 'Period end', 'Pay day', 'Status',
 ] as const)
 
@@ -193,29 +241,39 @@ const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 /**
  * The pay file for one period, from the Payroll page's own rows: one line
  * a person, in whole currency, never cents. A person with no hours in the
- * period is not on it. The figures are the row's figures; nothing here
- * prices an hour.
+ * period is not on it. Hours, overtime and gross pay are what is still to
+ * pay; "Paid already" is what earlier runs paid in the period; a person
+ * part paid reads "Part paid", and one paid in full reads "Paid" with
+ * nothing left to pay. The figures are the row's; nothing here prices an
+ * hour.
  */
 export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn): string {
   const lines = [PAY_FILE_COLUMNS.join(',')]
   for (const r of rows) {
     if (!(r.totalApprovedHours > 0)) continue
     const ccy = r.payCurrency || 'USD'
-    const rate = r.rates && r.rates.length > 1
-      ? r.rates.map((x) => `${major(x.rateCents, ccy)} for ${x.hours} hours`).join('; ')
-      : major(r.payRate, ccy)
+    const left = r.toPay ?? {
+      hours: r.totalApprovedHours, grossCents: r.grossPay, overtimeHours: r.overtimeHours ?? 0,
+      premiumCents: r.premiumCents ?? 0, rates: r.rates ?? null, rateCents: null,
+    }
+    const rate = left.rates && left.rates.length > 1
+      ? left.rates.map((x) => `${major(x.rateCents, ccy)} for ${x.hours} hours`).join('; ')
+      : major(left.rateCents ?? r.payRate, ccy)
+    const paid = r.paidSoFar?.grossCents ?? 0
+    const status = paid > 0 && left.grossCents > 0 ? 'Part paid' : (STATUS_WORDS[r.payStatus] ?? r.payStatus)
     lines.push([
       cell(r.person.name),
-      String(r.totalApprovedHours),
+      String(left.hours),
       cell(rate),
-      String(r.overtimeHours ?? 0),
-      major(r.premiumCents ?? 0, ccy),
-      major(r.grossPay, ccy),
+      String(left.overtimeHours ?? 0),
+      major(left.premiumCents ?? 0, ccy),
+      major(left.grossCents, ccy),
+      major(paid, ccy),
       ccy,
       p.start,
       p.end,
       p.payOn,
-      cell(STATUS_WORDS[r.payStatus] ?? r.payStatus),
+      cell(status),
     ].join(','))
   }
   return lines.join('\n') + '\n'

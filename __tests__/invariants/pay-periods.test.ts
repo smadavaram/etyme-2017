@@ -239,9 +239,9 @@ describe('the pay file for one period carries the row’s own figures', () => {
 
   it('the pay file’s figures are the row’s figures: name, hours, rate and gross pay in dollars, with the period’s two dates and pay day', () => {
     expect(head).toBe(PAY_FILE_COLUMNS.join(','))
-    expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Currency,Period start,Period end,Pay day,Status')
-    expect(lines[0]).toBe('Marisol Quintero,80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,USD,2026-12-06,2026-12-19,2026-12-24,Not worked out yet')
-    expect(lines[1]).toBe('"Lee, Ana",42,40.00,2,40.00,1720.00,USD,2026-12-06,2026-12-19,2026-12-24,"Worked out, not paid"')
+    expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Paid already,Currency,Period start,Period end,Pay day,Status')
+    expect(lines[0]).toBe('Marisol Quintero,80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,2026-12-06,2026-12-19,2026-12-24,Not worked out yet')
+    expect(lines[1]).toBe('"Lee, Ana",42,40.00,2,40.00,1720.00,0.00,USD,2026-12-06,2026-12-19,2026-12-24,"Worked out, not paid"')
   })
 
   it('a person with no hours in the period is not on the pay file', () => {

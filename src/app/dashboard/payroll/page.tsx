@@ -92,6 +92,12 @@ interface PayItem {
   accepted?: string | null
   /** Each week filed in the period and not accepted yet, left out of gross pay. */
   notAccepted?: string | null
+  /**
+   * Where earlier runs paid part of the period: "Paid already: $800.00 for
+   * 40 hours. Still to pay: $1,100.00 for 40 hours." Gross pay is the
+   * whole period; the pay file and cash flow carry only what is still to pay.
+   */
+  partPaid?: string | null
   /** The period this row pays, as the route cut it. */
   payPeriod?: { start: string; end: string; label: string } | null
   /**
@@ -554,6 +560,12 @@ export default function PayrollPage() {
               {(row.premiumCents ?? 0) > 0
                 ? `Includes ${formatCents(row.premiumCents ?? 0, row.payCurrency)} overtime premium on ${row.overtimeHours} hours`
                 : 'Overtime premium not priced'}
+            </span>
+          )}
+          {/* Part of the period paid already: what, and what is left. */}
+          {row.partPaid && (
+            <span className="block max-w-[260px] text-left text-[11px] font-normal text-etyme-attention ml-auto">
+              {row.partPaid}
             </span>
           )}
           {/* The law's forty where no contract drew a line, or why it
