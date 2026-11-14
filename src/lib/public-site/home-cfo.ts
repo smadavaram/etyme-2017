@@ -77,7 +77,7 @@ export function homeCfo(): HomeCfo {
   const heldLines: CfoLine[] = held
     ? [{
         t: `${spelled(held.count)} supplier ${held.count === 1 ? 'invoice' : 'invoices'} held, ${usd(held.total)} over the signed hours. ` +
-          `The largest: ${held.largest.city}, ${held.largest.amount} on one supplier invoice.`,
+          `The largest: ${held.largest.city}, ${held.largest.amount} over on one supplier invoice.`,
         att: true,
       }]
     : []
@@ -100,8 +100,9 @@ export function homeCfo(): HomeCfo {
 }
 
 /**
- * What the hero's glance and the first proof card say is held: the
- * month's total over the signed hours, in dollars at the sample rates,
+ * What the hero's glance and the first proof card carry: the month's
+ * total billed over the signed hours on the held invoices (never called
+ * the money held: each invoice is held whole), in dollars at the sample rates,
  * and on how many supplier invoices. Null where the seed holds none or a
  * currency has no sample rate; the glance then draws no figure rather
  * than a wrong one.

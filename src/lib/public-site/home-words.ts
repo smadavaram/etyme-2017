@@ -74,9 +74,15 @@ export const HOME_NAV: readonly { t: string; href: string }[] = [
  * so these lines say "supplier invoice".
  */
 export const GLANCE_TITLE = 'At a glance — held, not hidden'
-/** The held figure's caption: "held this month on 7 supplier invoices over signed hours". */
+/**
+ * The held figure's caption: "billed over the signed hours on 7 held
+ * supplier invoices this month". The figure above it is the overage, never
+ * the money held: each held invoice is held whole (`mayPayInvoiceReceipt`
+ * blocks the receipt), so the money held is several times the overage, and
+ * calling the overage "held" would understate it (reader, 2026-11-14).
+ */
 export function glanceHeld(invoices: number): string {
-  return `held this month on ${invoices} supplier ${invoices === 1 ? 'invoice' : 'invoices'} over signed hours`
+  return `billed over the signed hours on ${invoices} held supplier ${invoices === 1 ? 'invoice' : 'invoices'} this month`
 }
 export const GLANCE_MONTHS = 'months — one worker, two suppliers, one limit'
 export const GLANCE_LINES: readonly string[] = [
@@ -169,13 +175,18 @@ export const PROOF_CARDS_AFTER: readonly string[] = [
 /** The first card where the seed gives no held figure: the rule, with no number. */
 export const PROOF_HELD_NONE = 'A supplier invoice over the signed hours is held until the hours agree.'
 
-/** What the glance and the first proof card say is held: the amount, already formatted, and on how many supplier invoices. */
+/** What the glance and the first proof card carry: the amount billed over the signed hours, already formatted, and how many supplier invoices are held. */
 export interface HomeHeld { amount: string; invoices: number }
 
-/** The three proof cards, the first carrying the month's held total from the seed. */
+/**
+ * The three proof cards, the first carrying the month's held count and
+ * their overage from the seed. What is called held is the invoices; the
+ * amount is said as billed over the signed hours, because each invoice is
+ * held whole and the overage is only part of it.
+ */
 export function proofCards(held: HomeHeld | null): string[] {
   const first = held
-    ? `${held.amount} held this month — ${held.invoices} supplier ${held.invoices === 1 ? 'invoice' : 'invoices'} over the signed hours, held until the hours agree.`
+    ? `${held.invoices} supplier ${held.invoices === 1 ? 'invoice' : 'invoices'} held this month — ${held.amount} billed over the signed hours, each held until the hours agree.`
     : PROOF_HELD_NONE
   return [first, ...PROOF_CARDS_AFTER]
 }
@@ -252,5 +263,10 @@ export function homeCopy(held: HomeHeld | null): string[] {
  * CFO view says the year and the largest held supplier invoice. No line
  * was added that is not a figure from the seed or the words around one;
  * the page measures 577.
+ *
+ * Raised on 2026-11-14 to 582, when a reader found the overage called
+ * "held": the glance, the first proof card and the CFO view's largest now
+ * say the amount as billed over the signed hours, and the invoices as
+ * what is held. Five words, each one a correction, none new matter.
  */
-export const MOST_HOME_WORDS = 577
+export const MOST_HOME_WORDS = 582

@@ -24,8 +24,8 @@ import {
  *   #top        two columns from 900 wide: the category, the question, the
  *               locked line, "Every contractor. Every supplier. One
  *               record.", two ticked lines, Start free and See it work, the
- *               line under them; beside them "At a glance", what is held
- *               this month on how many supplier invoices, and Aoife Kelly's
+ *               line under them; beside them "At a glance", what is billed
+ *               over the signed hours on the held supplier invoices, and Aoife Kelly's
  *               17 of 18 months, both the seed's
  *   #demo       Ask Etyme at Corvane Packaging, a sample company
  *               (`lib/public-site/home-demo`, read from corvaneDemoFacts

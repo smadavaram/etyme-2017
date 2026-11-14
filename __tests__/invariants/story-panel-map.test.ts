@@ -384,7 +384,7 @@ describe('The map’s four roles are tabs at their own addresses', () => {
 
 describe('The home page’s CFO view is the Corvane seed’s, in short lines', () => {
 
-  it('reads 359 contractors, 25 suppliers, 31 sites in 8 countries and the month’s spend at sample rates as four tiles; then about $43.4 million a year; the held supplier invoices, their total over the signed hours and the largest, Dayton’s, on one supplier invoice; Dayton, one start waiting on an I-9; Belfast, Aoife Kelly 14 days from the time limit', () => {
+  it('reads 359 contractors, 25 suppliers, 31 sites in 8 countries and the month’s spend at sample rates as four tiles; then about $43.4 million a year; the held supplier invoices, their total over the signed hours and the largest, Dayton’s, over on one supplier invoice; Dayton, one start waiting on an I-9; Belfast, Aoife Kelly 14 days from the time limit', () => {
     const nearest = nearestAll()
     const month = dollarsFor(onSite)
     const cfo = homeCfo()
@@ -406,7 +406,7 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
     expect(cfo.lines.map((l) => (l.lead ? `${l.lead} ${l.t}` : l.t))).toEqual([
       `About ${yearInMillions(month)} a year at sample rates.`,
       `${spelled} supplier invoices held, ${usd(heldUsd)} over the signed hours. ` +
-        `The largest: ${plantOf(largest.plant).city}, ${own(fromDecimalMinor(overUnits(largest), currencyAt(largest.plant)), currencyAt(largest.plant))} on one supplier invoice.`,
+        `The largest: ${plantOf(largest.plant).city}, ${own(fromDecimalMinor(overUnits(largest), currencyAt(largest.plant)), currencyAt(largest.plant))} over on one supplier invoice.`,
       `${onHold.plant.city}: one start waiting on an I-9.`,
       `${nearest.plant.city}: ${nearest.name} reaches the time limit in ${toLimit(nearest)} days.`,
     ])
@@ -418,12 +418,29 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
   it('the hero’s “At a glance” held figure and the first proof card are the CFO view’s held total, on as many supplier invoices as the seed holds, worked out from the seed', () => {
     const g = homeGlanceHeld()!
     expect(g).toEqual({ amount: usd(heldUsd), invoices: held.length })
-    expect(glanceHeld(g.invoices)).toBe(`held this month on ${held.length} supplier invoices over signed hours`)
-    expect(proofCards(g)[0]).toBe(`${usd(heldUsd)} held this month — ${held.length} supplier invoices over the signed hours, held until the hours agree.`)
+    expect(glanceHeld(g.invoices)).toBe(`billed over the signed hours on ${held.length} held supplier invoices this month`)
+    expect(proofCards(g)[0]).toBe(`${held.length} supplier invoices held this month — ${usd(heldUsd)} billed over the signed hours, each held until the hours agree.`)
     expect(homeCfoCopy().some((l) => l.includes(`${usd(heldUsd)} over the signed hours`))).toBe(true)
     // Where the seed holds none, the page draws no figure rather than a wrong one.
     expect(read('src/app/page.tsx')).toContain('{HELD && (')
     expect(read('src/app/page.tsx')).toContain('{proofCards(HELD).map(')
+  })
+
+  it('what the page calls held is the supplier invoices, and the dollar figure beside them is called billed over the signed hours, never held, because each invoice is held whole and is worth several times its overage', () => {
+    // Each held invoice receipt is held whole: everything it bills, worked out here from the seed's lines at the sample rates.
+    const wholeUnits = (r: (typeof held)[number]) => r.lines.reduce((n, l) => n + l.billed, 0) * CORVANE_COUNTRIES[plantOf(r.plant).cc].rate
+    const wholeUsd = spendInReporting(held.map((r) => ({ currency: currencyAt(r.plant), minor: fromDecimalMinor(wholeUnits(r), currencyAt(r.plant)) })), 'USD', SAMPLE_RATE_TABLE).total!.minor
+    expect(wholeUsd / heldUsd).toBeGreaterThan(3)
+    // So no line puts the overage beside the word held as if it were the money held.
+    const g = homeGlanceHeld()!
+    const lines = [glanceHeld(g.invoices), ...proofCards(g), ...homeCfoCopy()]
+    for (const l of lines) {
+      expect(l, l).not.toContain(`${g.amount} held`)
+      expect(l, l).not.toMatch(/held this month on/)
+    }
+    expect(lines.filter((l) => l.includes(g.amount)).every((l) => /\$[\d,.]+ (billed )?over the signed hours/.test(l))).toBe(true)
+    // The largest is said as its overage too: "over on one supplier invoice".
+    expect(homeCfoCopy().some((l) => / over on one supplier invoice\.$/.test(l))).toBe(true)
   })
 
   it('says Corvane Packaging is a sample company, not a customer, and that its figures use sample rates, under the lines', () => {

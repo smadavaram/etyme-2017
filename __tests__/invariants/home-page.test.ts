@@ -53,7 +53,7 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(UNDER_START).toBe('Free for the first five firms. No card, no contract — we set it up with you.')
   })
 
-  it('the demo, the CFO label, the brief’s section line, the three proof cards and the strip are the brief’s, punctuation included; the first proof card carries the month’s held total from the seed in the brief’s shape', () => {
+  it('the demo, the CFO label, the brief’s section line, the three proof cards and the strip are the brief’s, punctuation included; the first proof card carries the month’s held invoices and what they bill over the signed hours from the seed in the brief’s shape', () => {
     expect(DEMO_LABEL).toBe('Demo — not a customer')
     expect(CFO_LABEL).toBe('Corvane Packaging is a sample company, not a customer. Figures use sample rates.')
     // The reference page draws the brief's section line in the hero, and
@@ -65,7 +65,7 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(PROOF_LABELS).toEqual(['01 — Held', '02 — Signed', '03 — Papers'])
     const held = homeGlanceHeld()!
     expect(proofCards(held)).toEqual([
-      `${held.amount} held this month — ${held.invoices} supplier invoices over the signed hours, held until the hours agree.`,
+      `${held.invoices} supplier invoices held this month — ${held.amount} billed over the signed hours, each held until the hours agree.`,
       ...PROOF_CARDS_AFTER,
     ])
     // With no held figure the card says the rule and no number.
@@ -338,7 +338,7 @@ describe('The home page never says what it must not', () => {
   it('never says money is paid automatically, except to say that nothing is: an invoice receipt is held or cleared, never paid on its own', () => {
     // The glance's line says the opposite, in so many words, and is the one place the phrase may stand.
     expect(GLANCE_LINES[0]).toBe('A supplier invoice is held until the signed hours and the invoice agree. A person clears it — nothing is paid automatically.')
-    expect(glanceHeld(7)).toBe('held this month on 7 supplier invoices over signed hours')
+    expect(glanceHeld(7)).toBe('billed over the signed hours on 7 held supplier invoices this month')
     const said = ALL.replace(/\bnothing is paid automatically\b/g, '')
     expect(said).not.toMatch(/\b(?:paid|pays?|paying) (?:automatically|itself|themselves|on (?:its|their) own|by itself)\b/i)
     expect(said).not.toMatch(/\bauto[- ]?(?:pay|payment|matically pa)/i)
