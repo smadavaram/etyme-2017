@@ -409,7 +409,7 @@ The founder cannot read code. This is the compensating discipline.
 
 ## Who pays, and the order of work
 
-Full text → 40, 11, 56.
+Full text → 40, 11, 56, 68.
 
 - **The client is the customer.** Suppliers come because their client is
   there. Free while testing.
@@ -424,6 +424,10 @@ Full text → 40, 11, 56.
   proven, or named as waiting on the founder; the release check is green;
   the walk on screens says ships. The order is the two trust flows, then
   whatever stops a firm's real first week, then the rest.
+- **Tapin's first payroll cycle comes first** (founder, 2026-11-14):
+  invite candidates, they onboard themselves, a contract starts on the
+  fewest papers the rules allow, payroll runs in the next cycle. The
+  coding block and the party pages wait behind it.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
@@ -850,7 +854,7 @@ Full text → 27, 29, 13.
 
 ## Tapin
 
-Full text → 28, 22, 23.
+Full text → 28, 22, 23, 68.
 
 - **The founder's bench business runs on Etyme as a supplier like any
   other, named Tapin** (`tapin.etyme.com`), never `etyme`. It gets no
@@ -865,6 +869,10 @@ Full text → 28, 22, 23.
   never a name or a rate. "Join the bench" is the person's own yes, given
   from the invitation letter. Nobody gets a seat or a second record
   before that yes. No separate marketing site, blog or careers portal.
+- **One payroll person may attach the client's approval and accept the
+  same week** (founder, 2026-11-14). No public page says "Etyme runs no
+  bench and places nobody" until he says what it should say about Tapin.
+  A candidate's timesheet by email stays closed until his two yeses.
 
 ## How this project tests and ships
 
