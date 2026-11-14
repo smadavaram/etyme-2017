@@ -287,9 +287,17 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       where: { companyId: company.id },
       select: { endClientCompanyId: true, clientCompanyId: true },
     }),
+    // Only people who said yes, and yes to being shown beyond this firm:
+    // an INVITED listing is somebody asked, not somebody who agreed.
     prisma.consultantProfile.findMany({
-      where: { listings: { some: { companyId: company.id, revokedAt: null } } },
-      select: { skills: true },
+      where: { listings: { some: { companyId: company.id, state: 'GRANTED', revokedAt: null, showInMatches: true } } },
+      select: {
+        skills: true,
+        listings: {
+          where: { companyId: company.id },
+          select: { state: true, revokedAt: true, staysUntil: true, showInMatches: true, showBeforeFree: true },
+        },
+      },
     }),
     prisma.verification.findMany({
       where: {
@@ -318,7 +326,10 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     },
     skills: (() => {
       const counts = new Map<string, number>()
-      for (const p of profiles) for (const s of p.skills) counts.set(s, (counts.get(s) ?? 0) + 1)
+      // The same yes the "coming free" list reads, so a stay that ran out
+      // takes her skills off the page too. A count names nobody.
+      const shown = profiles.filter((p) => p.listings.some((l) => mayShowPublicly(l, now, false)))
+      for (const p of shown) for (const s of p.skills) counts.set(s, (counts.get(s) ?? 0) + 1)
       return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
         .map(([skill, count]) => ({ skill, count }))
     })(),
