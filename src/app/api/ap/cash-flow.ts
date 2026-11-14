@@ -8,9 +8,11 @@ import { payablesOf } from '@/lib/money/what-we-owe'
 import { owedOn } from '@/lib/money/supplier-invoices'
 import { noteMoneyRead, type Books } from '@/lib/money/seated-books'
 import {
-  cashFlow, isCashPeriod, isGrain,
-  type CashInputs, type Flow, type OpenDoc,
+  cashFlow, isCashPeriod, isGrain, windowFor,
+  type CashInputs, type CashPeriod, type Flow, type OpenDoc,
 } from '@/lib/money/cash-flow'
+import { companyPayPeriods } from '@/lib/money/company-pay-periods'
+import { periodsPayingBetween } from '@/lib/money/pay-periods'
 import { cashForecast } from '@/lib/money/cash-forecast'
 import { loadBook, loadUnplacedPayments } from '../ar/book'
 import { GET as payrollRoute } from '../payroll/route'
@@ -36,7 +38,11 @@ import { forecastInputs } from './cash-forecast'
  *     the two halves Accounts payable and the invoice list read, owed by
  *     `owedOn`, the same open test;
  *   · payroll due — the Payroll page's own answer, asked in-process under
- *     this seat, each row not yet processed at its next pay date;
+ *     this seat, each row not yet processed at its next pay date. For a
+ *     company that pays by its own weekly or two-week periods, the page
+ *     is asked for each period whose pay day falls in the window, and
+ *     accepted pay nobody has paid is due on that period's pay day
+ *     (`payrollDueByPeriod`);
  *   · payroll paid — `paidRunHours` in lib/payroll-paid, what processed
  *     runs paid, which is what the payroll export and the W-2 read.
  *
@@ -112,7 +118,10 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
     if ((await permissionScope(reading.caller, 'payroll.read')).scope === 'COMPANY') {
       payrollRows = await payrollPage(request)
       if (payrollRows) {
-        input.payrollDue = payrollDue(payrollRows)
+        const own = await companyPayPeriods(companyId)
+        input.payrollDue = own.byPeriod
+          ? await payrollDueByPeriod(request, own, period, now)
+          : payrollDue(payrollRows)
         const runs = await paidRunHours(companyId)
         input.payrollPaid = runs.runs.map((r) => ({ currency: r.currency, at: r.paidAt, minor: r.paidCents }))
       }
@@ -143,14 +152,45 @@ export async function cashFlowAnswer(request: NextRequest, reading: Books): Prom
  * placing it. Null where the page could not be read, so payroll is blank
  * rather than nought.
  */
-async function payrollPage(request: NextRequest): Promise<any[] | null> {
+async function payrollPage(request: NextRequest, periodStart?: string): Promise<any[] | null> {
   const url = new URL(request.url)
   url.pathname = '/api/payroll'
-  url.search = ''
+  url.search = periodStart ? `?period=${periodStart}` : ''
   const res = await payrollRoute(new NextRequest(url, { headers: request.headers }))
   if (!res.ok) return null
   const body = await res.json().catch(() => null)
   return body?.data?.payItems ?? []
+}
+
+/**
+ * Payroll due for a company that pays by its own periods: each period
+ * whose pay day falls in the window, read from the Payroll page for that
+ * period, each row not yet paid due on the period's own pay day. One
+ * figure, worked out once, by the page the payroll person runs it from.
+ * Null where any period could not be read: blank, never a part.
+ */
+async function payrollDueByPeriod(
+  request: NextRequest,
+  own: Awaited<ReturnType<typeof companyPayPeriods>>,
+  period: CashPeriod,
+  now: Date,
+): Promise<Flow[] | null> {
+  const w = windowFor(period, now)
+  const key = (d: Date) => d.toISOString().slice(0, 10)
+  const out: Flow[] = []
+  for (const p of periodsPayingBetween(key(w.start), key(w.end), own.rhythm, own.rule)) {
+    const rows = await payrollPage(request, p.start)
+    if (!rows) return null
+    for (const r of rows) {
+      if (!owedPay(r)) continue
+      out.push({
+        currency: typeof r.payCurrency === 'string' ? r.payCurrency : null,
+        at: new Date(`${p.payOn}T00:00:00.000Z`),
+        minor: r.grossPay,
+      })
+    }
+  }
+  return out
 }
 
 const owedPay = (p: any) =>

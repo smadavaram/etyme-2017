@@ -7,7 +7,7 @@ import { spreadOn, blendedSpread } from '@/lib/money/placement-margin'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
-import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
+import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods'
 import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
@@ -22,7 +22,12 @@ import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, peri
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { paidBook, paidKey, PAYROLL_RUN } from '@/lib/payroll-paid'
 import { workedOutKeys, isWorkedOut } from '@/lib/money/payroll-worked-out'
-import { paySettingsFor, PAY_PERIOD_WORDS } from '@/lib/payroll-settings'
+import { companyPayPeriods } from '@/lib/money/company-pay-periods'
+import {
+  periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
+  nothingToPaySays, isDayKey, payFileCsv, payFileName, PAY_FILE_NOTE, type PayPeriodOn,
+} from '@/lib/money/pay-periods'
+import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 
 /**
  * GET /api/payroll
@@ -60,7 +65,46 @@ export async function GET(request: NextRequest) {
   )
   if (notYours) return notYours
   const status = url.searchParams.get('status')
-  const period = url.searchParams.get('period') // YYYY-MM
+  // A calendar month, "2026-12"; or a day, "2026-12-06", which asks for
+  // the company's own pay period holding it; or nothing.
+  const period = url.searchParams.get('period')
+  const dayAsked = isDayKey(period) ? period : null
+  const companyName = caller.company?.id === companyId ? caller.company.name : 'Your company'
+
+  // ── The company's own pay periods (2026-11-14) ─────────────────────
+  //
+  // The founder, for Tapin: "W2 first, outside payroll provider,
+  // biweekly". A company paying every week or every other week, whose
+  // Owner said which Sunday the first period starts on, has its pay
+  // listed by its own periods (lib/money/pay-periods). Every line is cut
+  // to the company's period, whatever rhythm the line was written with:
+  // payroll is run by the company's period, and a line's own pay dates
+  // are neither read for it nor rewritten.
+  const thisYear = new Date().getUTCFullYear()
+  const askedYear = dayAsked ? Number(dayAsked.slice(0, 4)) : thisYear
+  const co = await companyPayPeriods(companyId, {
+    fromYear: Math.min(thisYear, askedYear) - 3,
+    toYear: Math.max(thisYear, askedYear) + 3,
+  })
+  if (dayAsked && !co.byPeriod) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          field: 'period',
+          message: `${calendarMonthSays(companyName, co.rhythm)} Pick a calendar month instead.`,
+        },
+      },
+      { status: 422 }
+    )
+  }
+  const shownPeriod: PayPeriodOn | null = dayAsked ? periodHolding(dayAsked, co.rhythm, co.rule) : null
+  const asPeriod = (p: PayPeriodOn): Period => ({
+    start: new Date(`${p.start}T00:00:00.000Z`),
+    end: new Date(`${p.end}T00:00:00.000Z`),
+    label: periodLabel(p),
+  })
+  const todayKey = todayUtc().toISOString().slice(0, 10)
 
   // Every buy contract that is working, and every one that stopped and
   // may still have a period on this run. This read working contracts
@@ -68,7 +112,9 @@ export async function GET(request: NextRequest) {
   // it worked — Karthik Menon read as nobody on Teleworld's payroll for
   // the three months he was paid for. Which stopped ones are actually
   // shown is `onPayrollFor`'s answer, below (lib/money/payroll-rows).
-  const since = stoppedSince(period)
+  const since = shownPeriod
+    ? new Date(Date.parse(`${shownPeriod.start}T00:00:00.000Z`) - 31 * 86_400_000)
+    : stoppedSince(period)
   const buyContracts = await prisma.buyContract.findMany({
     where: {
       companyId,
@@ -420,14 +466,23 @@ export async function GET(request: NextRequest) {
 
       // The period asked for, or the one containing the most recent work.
       // Never "all of it".
-      const anchorDate = period
-        ? new Date(`${period}-01T00:00:00Z`)
-        : linkedTimesheets.reduce<Date | null>(
-            (latest, ts) => (!latest || ts.rawEnd > latest ? ts.rawEnd : latest),
-            null
-          )
+      const anchorDate = dayAsked
+        ? null
+        : period
+          ? new Date(`${period}-01T00:00:00Z`)
+          : linkedTimesheets.reduce<Date | null>(
+              (latest, ts) => (!latest || ts.rawEnd > latest ? ts.rawEnd : latest),
+              null
+            )
 
-      const payPeriod = anchorDate ? periodFor(anchorDate, terms) : null
+      // The company's own period: the one asked for, or on the view of
+      // every period, the one holding the most recent week's Sunday. A
+      // calendar month asked for stays a calendar month.
+      const companyHeld: PayPeriodOn | null = shownPeriod
+        ?? (co.byPeriod && !period && anchorDate
+          ? periodHolding(weekStart(anchorDate.toISOString().slice(0, 10)), co.rhythm, co.rule)
+          : null)
+      const payPeriod = companyHeld ? asPeriod(companyHeld) : anchorDate ? periodFor(anchorDate, terms) : null
 
       const shares = payPeriod
         ? linkedTimesheets
@@ -591,7 +646,11 @@ export async function GET(request: NextRequest) {
       // The period's own pay day decides, where the line has one: a month
       // the run has settled is processed, whatever older date was never
       // marked (lib/money/payroll-rows).
-      const own = payPeriod
+      //
+      // A company period is not the line's own: the line's pay dates were
+      // cut on the rhythm it was written with, so they say nothing about
+      // this period, and what the runs recorded for it decides.
+      const own = payPeriod && !companyHeld
         ? periodPayStatus(bc.buyCycles, payPeriod, (d) => periodFor(d, terms), cand.startDate)
         : null
       let payStatus: string
@@ -599,9 +658,9 @@ export async function GET(request: NextRequest) {
         payStatus = 'NO_HOURS'
       } else if (own) {
         payStatus = own
-      } else if (nextCalcCycle && !nextCalcCycle.completedAt) {
+      } else if (!companyHeld && nextCalcCycle && !nextCalcCycle.completedAt) {
         payStatus = 'PENDING'
-      } else if (nextSalaryCycle && !nextSalaryCycle.completedAt) {
+      } else if (!companyHeld && nextSalaryCycle && !nextSalaryCycle.completedAt) {
         payStatus = 'CALCULATED'
       } else if (book.unrecorded.has(bc.id)) {
         // A run before 2026-09-29 paid this line without saying which
@@ -678,13 +737,19 @@ export async function GET(request: NextRequest) {
         // accepted week is not over 40."
         straightTime: straightSaid.length ? straightSaid.join(' ') : null,
         payStatus,
-        nextPayDate: comingPay?.dueOn.toISOString() ?? null,
-        nextCalcDate: comingCalc?.dueOn.toISOString() ?? null,
+        // On a company period, its own work-out day and pay day, moved off
+        // a day nobody works by the one rule every pay date follows.
+        nextPayDate: companyHeld ? `${companyHeld.payOn}T00:00:00.000Z` : comingPay?.dueOn.toISOString() ?? null,
+        nextCalcDate: companyHeld ? `${companyHeld.calcOn}T00:00:00.000Z` : comingCalc?.dueOn.toISOString() ?? null,
         // Pay dates before today still open: how many, and the oldest.
-        payDatesOverdue: {
-          count: overduePay.count,
-          earliest: overduePay.earliest?.toISOString() ?? null,
-        },
+        payDatesOverdue: companyHeld
+          ? companyHeld.payOn < todayKey && (payStatus === 'PENDING' || payStatus === 'CALCULATED')
+            ? { count: 1, earliest: `${companyHeld.payOn}T00:00:00.000Z` }
+            : { count: 0, earliest: null }
+          : {
+              count: overduePay.count,
+              earliest: overduePay.earliest?.toISOString() ?? null,
+            },
       }
     })
   })
@@ -752,18 +817,56 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  // The pay period the company set, said beside the month this page
-  // lists. The picker is still by calendar month; the setting is read,
-  // not applied, until the founder gives the first period (walk, 2026-11-14).
-  const settings = await paySettingsFor(companyId)
-  const companyName = caller.company?.id === companyId ? caller.company.name : 'Your company'
-  const periodSays =
-    `${companyName} pays ${PAY_PERIOD_WORDS[settings.payPeriod].toLowerCase()}, ` +
-    'as set in Settings, but this page lists pay by calendar month.'
+  // ── The pay file for one of the company's periods ───────────────────
+  //
+  // Built from these rows and nothing else, so every figure on the file is
+  // the figure on the screen (lib/money/pay-periods, `payFileCsv`).
+  if (url.searchParams.get('format') === 'csv') {
+    if (!shownPeriod) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', field: 'period', message: 'Pick one of your pay periods to download its pay file.' } },
+        { status: 422 }
+      )
+    }
+    return new NextResponse(payFileCsv(items, shownPeriod), {
+      headers: {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': `attachment; filename="${payFileName(shownPeriod)}"`,
+      },
+    })
+  }
+
+  // The company's own periods for the picker: the current one first, the
+  // next, then the earlier ones. Null where pay is listed by month.
+  const around = co.byPeriod ? periodsAround(todayKey, co.rhythm, co.rule, { earlier: 6, later: 1 }) : null
+  const said = (p: PayPeriodOn) => ({ ...p, label: periodLabel(p), words: periodWords(p) })
+  const payPeriods = around
+    ? {
+        current: around[0].start,
+        periods: around.map(said),
+        shown: shownPeriod ? said(shownPeriod) : null,
+      }
+    : null
+
+  // The sentence over the rows: the period shown and its pay day; or, on a
+  // month, why the page lists by month, and where the Owner sets the day.
+  const periodSays = shownPeriod
+    ? periodShownSays(companyName, co.rhythm, shownPeriod)
+    : co.byPeriod
+      ? `${companyName} pays ${PAY_PERIOD_WORDS[co.rhythm.payPeriod].toLowerCase()}, so pay is worked out and paid ` +
+        'by pay period. Pick one above to run it; a calendar month is shown here for reading only.'
+      : calendarMonthSays(companyName, co.rhythm)
+  const nothingToPay = shownPeriod && !onRun.some((p) => p.totalApprovedHours > 0) ? nothingToPaySays(shownPeriod) : null
 
   return NextResponse.json({
     data: {
       periodSays,
+      payPeriods,
+      // Whether Calculate and Process may be offered on this view: on a
+      // company that pays by its own periods, only on one of them.
+      runsHere: co.byPeriod ? Boolean(shownPeriod) && !nothingToPay : true,
+      nothingToPay,
+      payFileNote: PAY_FILE_NOTE,
       payItems: items,
       /** The column's name, from the service every screen reads it from. */
       spreadLabel: readsMargin ? AGREED_SPREAD : null,

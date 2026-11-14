@@ -161,6 +161,11 @@ export function notAcceptedSays(w: {
  * or the export route's own last thirty days on the view of every period.
  */
 export function payFileHref(month: string): string {
+  // One of the company's own pay periods, by its first day: the file is
+  // the Payroll page's own rows for that period (lib/money/pay-periods).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(month)) {
+    return `/api/payroll?${new URLSearchParams({ period: month, format: 'csv' })}`
+  }
   const params = new URLSearchParams({ provider: 'GENERIC', format: 'csv' })
   if (/^\d{4}-\d{2}$/.test(month)) {
     const [y, m] = month.split('-').map(Number)

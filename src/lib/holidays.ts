@@ -66,12 +66,18 @@ export function holidayKeysFrom(
     const dateStr = h.date.toISOString().slice(0, 10)
     set.add(dateStr)
 
-    // For recurring holidays, expand into each year in the range
+    // For recurring holidays, expand into each year in the range. A stored
+    // holiday is its own midnight UTC, so its month and day are read in
+    // UTC and the key is built from them. Read in the server's own zone,
+    // Christmas came out as December 24 on a server anywhere but UTC, and
+    // a pay day on it was not moved.
     if (h.isRecurring) {
-      const month = h.date.getMonth()
-      const day = h.date.getDate()
+      const month = h.date.getUTCMonth()
+      const day = h.date.getUTCDate()
       for (let y = startYear; y <= endYear; y++) {
-        const expanded = new Date(y, month, day)
+        // February 29 recurs only in a year that has one.
+        const expanded = new Date(Date.UTC(y, month, day))
+        if (expanded.getUTCMonth() !== month) continue
         set.add(expanded.toISOString().slice(0, 10))
       }
     }

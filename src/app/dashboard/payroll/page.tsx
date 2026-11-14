@@ -12,6 +12,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
 import { payFileHref } from '@/lib/money/payroll-rows'
+import { formatMonth } from '@/lib/format-date'
 
 /**
  * Payroll working surface — what the buy lines pay out.
@@ -104,6 +105,24 @@ interface PayItem {
   nextCalcDate: string | null
   /** Pay dates before today still open. */
   payDatesOverdue?: { count: number; earliest: string | null }
+}
+
+/** One of the company's own pay periods, as the route lists them for the picker. */
+interface PayPeriodChoice {
+  start: string
+  end: string
+  calcOn: string
+  payOn: string
+  label: string
+  /** "Dec 6 – Dec 19, 2026 · paid Thu, Dec 24, 2026" */
+  words: string
+}
+
+interface PayPeriods {
+  /** The first day of the period holding today. */
+  current: string
+  periods: PayPeriodChoice[]
+  shown: PayPeriodChoice | null
 }
 
 interface PayrollSummary {
@@ -257,6 +276,18 @@ export default function PayrollPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  // The company's own pay periods, where it pays every week or every
+  // other week and its Owner set the first day; null where it lists pay
+  // by calendar month.
+  const [payPeriods, setPayPeriods] = useState<PayPeriods | null>(null)
+  // Whether this view may run pay: on a company with its own periods,
+  // only one of them, and only where it holds something to pay.
+  const [runsHere, setRunsHere] = useState(true)
+  const [nothingToPay, setNothingToPay] = useState<string | null>(null)
+  const [payFileNote, setPayFileNote] = useState<string | null>(null)
+  // The current period is chosen once for the reader; after that the
+  // picker is theirs.
+  const [periodChosen, setPeriodChosen] = useState(false)
 
   // Resolve the user's company from /api/me
   useEffect(() => {
@@ -300,6 +331,16 @@ export default function PayrollPage() {
       setPaidElsewhere(body.data?.paidElsewhere ?? [])
       setSummary(body.data?.summary ?? null)
       setPeriodSays(body.data?.periodSays ?? null)
+      const periods: PayPeriods | null = body.data?.payPeriods ?? null
+      setPayPeriods(periods)
+      setRunsHere(body.data?.runsHere !== false)
+      setNothingToPay(body.data?.nothingToPay ?? null)
+      setPayFileNote(body.data?.payFileNote ?? null)
+      if (!periodChosen) {
+        setPeriodChosen(true)
+        // A company that pays by its own periods opens on the current one.
+        if (periods && !selectedPeriod) setSelectedPeriod(periods.current)
+      }
     } catch (err: any) {
       setError(err.message)
       setPayItems([])
@@ -307,6 +348,8 @@ export default function PayrollPage() {
     } finally {
       setLoading(false)
     }
+    // `periodChosen` is read once, on the first answer, and never refetches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, statusFilter, selectedPeriod])
 
   useEffect(() => {
@@ -330,7 +373,11 @@ export default function PayrollPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           buyContractIds: eligible.map((p) => p.buyContractId),
-          period: selectedPeriod || undefined,
+          // One of the company's own periods goes as its first and last
+          // day; a calendar month as the month.
+          period: payPeriods?.shown && payPeriods.shown.start === selectedPeriod
+            ? { start: payPeriods.shown.start, end: payPeriods.shown.end }
+            : selectedPeriod || undefined,
           action,
         }),
       })
@@ -354,7 +401,9 @@ export default function PayrollPage() {
     const months: string[] = []
     const now = new Date()
     for (let i = -2; i <= 1; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+      // Built in UTC: a local midnight read back in UTC was the month
+      // before anywhere east of Greenwich.
+      const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() + i, 1))
       months.push(
         d.toISOString().slice(0, 7)
       )
@@ -362,10 +411,11 @@ export default function PayrollPage() {
     return months
   })()
 
-  function periodLabel(ym: string): string {
-    const [y, m] = ym.split('-')
-    const d = new Date(parseInt(y), parseInt(m) - 1)
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+  function periodLabel(key: string): string {
+    // One of the company's own periods, by its first day.
+    const own = payPeriods?.periods.find((p) => p.start === key) ?? (payPeriods?.shown?.start === key ? payPeriods.shown : null)
+    if (own) return own.label
+    return formatMonth(`${key}-01`)
   }
 
   // ── Stats ─────────────────────────────────────────
@@ -635,24 +685,41 @@ export default function PayrollPage() {
         actions={<>
           {/* Period selector + run action */}
           <select
+            aria-label="Pay period"
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
             className="px-3 py-2 text-[13px] border border-etyme-rule rounded-lg bg-white
                        text-etyme-ink focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
           >
-            <option value="">All periods</option>
-            {periodOptions.map((ym) => (
-              <option key={ym} value={ym}>{periodLabel(ym)}</option>
-            ))}
+            {/* The company's own periods first, the current one at the top;
+                the calendar month stays as a second choice. */}
+            {payPeriods && (
+              <optgroup label="Pay periods">
+                {payPeriods.periods.map((p) => (
+                  <option key={p.start} value={p.start}>
+                    {p.words}{p.start === payPeriods.current ? ' (current)' : ''}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Calendar month">
+              <option value="">All periods</option>
+              {periodOptions.map((ym) => (
+                <option key={ym} value={ym}>{periodLabel(ym)}</option>
+              ))}
+            </optgroup>
           </select>
 
-          {/* The pay file for the period shown, from the tested export
-              route: names, hours, rates and gross pay in dollars. */}
-          <a href={payFileHref(selectedPeriod)} className="btn-secondary" download>
-            Download pay file
-          </a>
+          {/* The pay file for the period shown: on one of the company's own
+              periods, the rows on this page; on a month, the export route's
+              file. Names, hours, rates and gross pay in dollars. */}
+          {!nothingToPay && (
+            <a href={payFileHref(selectedPeriod)} className="btn-secondary" download>
+              Download pay file
+            </a>
+          )}
 
-          {stats.pending > 0 && (
+          {runsHere && stats.pending > 0 && (
             <button
               onClick={() => handleRunPayroll('calculate')}
               disabled={processing}
@@ -661,7 +728,7 @@ export default function PayrollPage() {
               {processing ? 'Running…' : `Calculate (${stats.pending})`}
             </button>
           )}
-          {stats.calculated > 0 && (
+          {runsHere && stats.calculated > 0 && (
             <button
               onClick={() => handleRunPayroll('process')}
               disabled={processing}
@@ -673,7 +740,11 @@ export default function PayrollPage() {
         </>}
       />
 
-      {periodSays && <p className="mb-4 text-[12.5px] text-etyme-muted">{periodSays}</p>}
+      {periodSays && <p className="mb-2 text-[12.5px] text-etyme-muted">{periodSays}</p>}
+      {/* Etyme moves no money and holds no W-4, bank account or tax number:
+          the payroll provider does. Said once, beside the pay file. */}
+      {payFileNote && !nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-muted">{payFileNote}</p>}
+      {nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-ink">{nothingToPay}</p>}
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

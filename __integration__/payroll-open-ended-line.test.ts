@@ -115,9 +115,11 @@ describe('a placement with no end date and accepted hours nobody has paid is owe
     expect(mine.totalApprovedHours).toBe(80)
   })
 
-  it('says which pay period the company set and that the page lists pay by calendar month', async () => {
+  it('says which pay period the company set, that the page lists pay by calendar month, and where the Owner sets the first day', async () => {
     const { data } = await row()
-    expect(data.periodSays).toMatch(/^Brightmoor Staffing pays (every other week|every week|twice a month|once a month), as set in Settings, but this page lists pay by calendar month\.$/)
+    expect(data.periodSays).toMatch(
+      /^Brightmoor Staffing pays (every other week|every week), but this page lists pay by calendar month until the first pay period's first day is set\. The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on"\.$|^Brightmoor Staffing pays (twice a month|once a month), so this page lists pay by calendar month\.$/
+    )
   })
 
   it('reads as owed on the Owner’s cash flow, by name and amount, rather than as nought', async () => {

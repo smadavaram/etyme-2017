@@ -1,0 +1,227 @@
+/**
+ * The company's own weekly or two-week pay periods, as a payroll person
+ * lists them: the one holding a day, the ones around it, the ones whose
+ * pay day falls in a window, and the pay file for one period.
+ *
+ * The founder, 2026-11-14, for Tapin: "W2 first, outside payroll
+ * provider, biweekly". The Owner gives the Sunday the first period starts
+ * on (Settings, Cycles, Payroll). From it the periods run forward and back
+ * without end, each whole weeks from a Sunday to a Saturday.
+ *
+ * ── One period function, not two ─────────────────────────────────────
+ *
+ * Which period holds a day, and its work-out day and pay day, is
+ * `payPeriodHolding` in lib/pay-dates. Its pay day is the period's
+ * Saturday plus the company's offset, then moved off a day nobody works
+ * by `shiftToWorkingDay` in lib/cycle-shift: the one rule the cycle
+ * generator applies to every pay date. This file only walks that function
+ * from period to period; it never counts a period itself.
+ *
+ * Pure: no database, so the Payroll page may read it. The company's
+ * rhythm and day-off rule are read by lib/money/company-pay-periods.
+ */
+
+import {
+  payPeriodHolding, PAY_PERIOD_WORDS,
+  type DayOffRule, type PayPeriodOn, type PayRhythm,
+} from '@/lib/pay-dates'
+import { formatDay, formatRange } from '@/lib/format-date'
+import { decimalsFor, wholeFromMinor } from '@/lib/money'
+
+export type { PayPeriodOn, DayOffRule, PayRhythm }
+
+const DAY = 86_400_000
+
+/** "2026-12-06" ± n days, as a calendar day in UTC. */
+function plus(key: string, days: number): string {
+  return new Date(Date.parse(`${key}T00:00:00.000Z`) + days * DAY).toISOString().slice(0, 10)
+}
+
+/** A calendar day "YYYY-MM-DD": what the picker sends for a pay period. */
+export function isDayKey(v: unknown): v is string {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false
+  const t = Date.parse(`${v}T00:00:00.000Z`)
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === v
+}
+
+/**
+ * Whether this company's pay is listed by its own periods: it pays every
+ * week or every other week and has said which Sunday the first one starts
+ * on. Anything else keeps the calendar month.
+ */
+export function paysByPeriod(r: PayRhythm): boolean {
+  return payPeriodHolding('2000-01-02', r) !== null
+}
+
+/** The period that holds this day, with its pay day moved by the one rule. Null where the company lists by month. */
+export function periodHolding(day: Date | string, r: PayRhythm, rule: DayOffRule = {}): PayPeriodOn | null {
+  return payPeriodHolding(day, r, rule)
+}
+
+/** The period after this one, or before it. */
+export function periodAfter(p: PayPeriodOn, r: PayRhythm, rule: DayOffRule = {}): PayPeriodOn {
+  return payPeriodHolding(plus(p.end, 1), r, rule)!
+}
+export function periodBefore(p: PayPeriodOn, r: PayRhythm, rule: DayOffRule = {}): PayPeriodOn {
+  return payPeriodHolding(plus(p.start, -1), r, rule)!
+}
+
+/**
+ * The periods a payroll person picks from on a day: the one holding the
+ * day first, then the next, then the earlier ones, newest first. Null
+ * where the company lists pay by calendar month.
+ */
+export function periodsAround(
+  day: Date | string,
+  r: PayRhythm,
+  rule: DayOffRule = {},
+  { earlier = 6, later = 1 }: { earlier?: number; later?: number } = {},
+): PayPeriodOn[] | null {
+  const current = payPeriodHolding(day, r, rule)
+  if (!current) return null
+  const out = [current]
+  let next = current
+  for (let i = 0; i < later; i++) out.push((next = periodAfter(next, r, rule)))
+  let back = current
+  for (let i = 0; i < earlier; i++) out.push((back = periodBefore(back, r, rule)))
+  return out
+}
+
+/**
+ * Every period whose pay day, after the move, falls from `from` to `to`
+ * inclusive, oldest first. What cash flow asks: the pay due inside its
+ * window, each on its own period's pay day.
+ */
+export function periodsPayingBetween(from: string, to: string, r: PayRhythm, rule: DayOffRule = {}): PayPeriodOn[] {
+  if (!isDayKey(from) || !isDayKey(to) || to < from) return []
+  // A pay day is never more than the offset (at most 30 days) and a move
+  // after the period's Saturday, so start a little over five weeks back.
+  let p = payPeriodHolding(plus(from, -45), r, rule)
+  if (!p) return []
+  const out: PayPeriodOn[] = []
+  while (p.start <= to) {
+    if (p.payOn >= from && p.payOn <= to) out.push(p)
+    p = periodAfter(p, r, rule)
+  }
+  return out
+}
+
+// ── Words ──────────────────────────────────────────────────────────────
+
+const day = (k: string) => formatDay(k, { weekday: true })
+
+/** A period on the picker: "Dec 6 – Dec 19, 2026 · paid Thu, Dec 24, 2026". */
+export function periodWords(p: PayPeriodOn): string {
+  return `${formatRange(p.start, p.end)} · paid ${day(p.payOn)}`
+}
+
+/** The period as the run and the row name it: "Dec 6 – Dec 19, 2026". */
+export function periodLabel(p: PayPeriodOn): string {
+  return formatRange(p.start, p.end)
+}
+
+/**
+ * The sentence over the rows, for a period the company counts itself:
+ * "Tapin pays every other week. This period is Dec 6 – Dec 19, 2026. Its
+ * pay is worked out Wed, Dec 23, 2026 and paid Thu, Dec 24, 2026." Where
+ * the pay day moved off a day off or a holiday, one more sentence says so.
+ */
+export function periodShownSays(companyName: string, r: PayRhythm, p: PayPeriodOn): string {
+  const moved = p.payOn !== p.payOnUnmoved ? ` It moved from ${day(p.payOnUnmoved)}, a day off or a holiday.` : ''
+  return `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}. ` +
+    `This period is ${periodLabel(p)}. Its pay is worked out ${day(p.calcOn)} and paid ${day(p.payOn)}.${moved}`
+}
+
+/** Where the Owner sets the first day, said once on the Payroll page. */
+export const WHERE_FIRST_DAY_IS_SET =
+  'The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on".'
+
+/**
+ * The sentence over a calendar month. A weekly or two-week company that
+ * has not set its first day is told where to set it; a company that pays
+ * by the month is told nothing more.
+ */
+export function calendarMonthSays(companyName: string, r: PayRhythm): string {
+  const pays = `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}`
+  if (r.payPeriod === 'WEEKLY' || r.payPeriod === 'BIWEEKLY') {
+    return `${pays}, but this page lists pay by calendar month until the first pay period's first day is set. ` +
+      WHERE_FIRST_DAY_IS_SET
+  }
+  return `${pays}, so this page lists pay by calendar month.`
+}
+
+/** A period that holds nothing to pay. */
+export function nothingToPaySays(p: PayPeriodOn): string {
+  return `Nothing is owed for ${periodLabel(p)}. No accepted hours fall in it, so there is nothing to work out or pay.`
+}
+
+/** Said once beside "Download pay file". */
+export const PAY_FILE_NOTE =
+  'Your payroll provider collects each person’s W-4, bank details and tax number. This file carries hours and gross pay.'
+
+// ── The pay file for one period ────────────────────────────────────────
+
+/** What the file reads from one row of the Payroll page. */
+export interface PayFileRow {
+  person: { name: string }
+  totalApprovedHours: number
+  /** The rate in force at the end of the period, in minor units. */
+  payRate: number
+  /** Each rate and its hours, where the rate changed inside the period. */
+  rates?: ReadonlyArray<{ rateCents: number; hours: number }> | null
+  overtimeHours?: number
+  premiumCents?: number
+  grossPay: number
+  payCurrency: string
+  payStatus: string
+}
+
+export const PAY_FILE_COLUMNS = Object.freeze([
+  'Name', 'Hours', 'Pay rate', 'Overtime hours', 'Overtime premium', 'Gross pay', 'Currency',
+  'Period start', 'Period end', 'Pay day', 'Status',
+] as const)
+
+const STATUS_WORDS: Record<string, string> = {
+  PENDING: 'Not worked out yet',
+  CALCULATED: 'Worked out, not paid',
+  PROCESSED: 'Paid',
+}
+
+const major = (minor: number, ccy: string) => wholeFromMinor(minor, ccy).toFixed(decimalsFor(ccy))
+const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+
+/**
+ * The pay file for one period, from the Payroll page's own rows: one line
+ * a person, in whole currency, never cents. A person with no hours in the
+ * period is not on it. The figures are the row's figures; nothing here
+ * prices an hour.
+ */
+export function payFileCsv(rows: readonly PayFileRow[], p: PayPeriodOn): string {
+  const lines = [PAY_FILE_COLUMNS.join(',')]
+  for (const r of rows) {
+    if (!(r.totalApprovedHours > 0)) continue
+    const ccy = r.payCurrency || 'USD'
+    const rate = r.rates && r.rates.length > 1
+      ? r.rates.map((x) => `${major(x.rateCents, ccy)} for ${x.hours} hours`).join('; ')
+      : major(r.payRate, ccy)
+    lines.push([
+      cell(r.person.name),
+      String(r.totalApprovedHours),
+      cell(rate),
+      String(r.overtimeHours ?? 0),
+      major(r.premiumCents ?? 0, ccy),
+      major(r.grossPay, ccy),
+      ccy,
+      p.start,
+      p.end,
+      p.payOn,
+      cell(STATUS_WORDS[r.payStatus] ?? r.payStatus),
+    ].join(','))
+  }
+  return lines.join('\n') + '\n'
+}
+
+/** "payroll-2026-12-06-to-2026-12-19.csv" */
+export function payFileName(p: PayPeriodOn): string {
+  return `payroll-${p.start}-to-${p.end}.csv`
+}
