@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as listClient, PATCH as recordContact } from '@/app/api/clients/route'
 import { GET as readApprovals, POST as sendOrAttach } from '@/app/api/week-approvals/route'
-import { GET as readPayroll } from '@/app/api/settings/payroll/route'
+import { GET as readPayroll, PATCH as changePayroll } from '@/app/api/settings/payroll/route'
 import { POST as addHolidays } from '@/app/api/settings/holidays/route'
 import { GET as readSettings } from '@/app/api/settings/route'
 import { POST as applyPack } from '@/app/api/companies/[id]/template-pack/route'
@@ -55,6 +55,7 @@ describe('a 46-hour week at a client that is not on Etyme', () => {
       select: { id: true },
     })
     it_.line = line.id
+    it_.worker = worker.id
     const t = await prisma.timesheet.create({
       data: {
         sellContractId: line.id, personId: worker.id,
@@ -153,12 +154,67 @@ describe('the payroll settings and the holiday calendar of a company in November
     as(OWNER)
     const r = await json(await addHolidays(req('POST', '/api/settings/holidays', { seedYear: 2026, country: 'US', from: '2026-11-14' })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.message).toMatch(/^Added \d+ public holidays? for the rest of 2026\.$/)
+    expect(r.body.data.message).toMatch(/^Added Thanksgiving Day, Nov 26, and Christmas Day, Dec 25\./)
     const days = (await prisma.holiday.findMany({ where: { companyId: it_.brightmoor }, select: { date: true } })).map((h) => h.date.toISOString().slice(0, 10))
     expect(days).toContain('2026-12-25')
     expect(days.every((d) => d >= '2026-11-14')).toBe(true)
     const after = await json(await readPayroll(req('GET', '/api/settings/payroll')))
     expect(after.body.data.noHolidays).toBeNull()
+  })
+
+  it('pressing the button again adds nothing and says every holiday for the rest of 2026 is already on the calendar', async () => {
+    as(OWNER)
+    const r = await json(await addHolidays(req('POST', '/api/settings/holidays', { seedYear: 2026, country: 'US', from: '2026-11-14' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.added).toBe(0)
+    expect(r.body.data.message).toBe('Nothing was added. Every public holiday for the rest of 2026 is already on your calendar.')
+  })
+
+  it('a pay day already written for Paloma Ruiz on Christmas Day is said when Christmas Day is added, keeps its date, and the Owner is told to record holidays before placements', async () => {
+    as(OWNER)
+    await prisma.holiday.deleteMany({ where: { companyId: it_.brightmoor, date: new Date('2026-12-25T00:00:00.000Z') } })
+    const buy = await prisma.buyContract.create({
+      data: {
+        companyId: it_.brightmoor, startDate: new Date('2026-09-06T00:00:00.000Z'),
+        candidates: { create: { personId: it_.worker, payRate: 4500, startDate: new Date('2026-09-06T00:00:00.000Z') } },
+      },
+      select: { id: true },
+    })
+    const christmas = new Date('2026-12-25T00:00:00.000Z')
+    const cycle = await prisma.cycle.create({ data: { buyContractId: buy.id, kind: 'SALARY_PAY', dueOn: christmas }, select: { id: true } })
+    const r = await json(await addHolidays(req('POST', '/api/settings/holidays', { seedYear: 2026, country: 'US', from: '2026-11-14' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.message).toContain('Added Christmas Day, Dec 25. Thanksgiving Day, Nov 26 was already on your calendar.')
+    expect(r.body.data.message).toContain('Pay days already written for ')
+    expect(r.body.data.message).toContain('Paloma Ruiz')
+    expect(r.body.data.message).toContain('fall on Christmas Day, Dec 25, and keep their dates.')
+    expect(r.body.data.message).toMatch(/Record holidays before you record a placement, and its pay days move off them\.$/)
+    // Said, never moved: the date written stays Christmas Day.
+    expect((await prisma.cycle.findUniqueOrThrow({ where: { id: cycle.id } })).dueOn.toISOString()).toBe(christmas.toISOString())
+    await prisma.buyContract.delete({ where: { id: buy.id } })
+  })
+
+  it('with no calendar and no first pay Sunday, Settings says a W-2 placement cannot be recorded by hand until the Sunday is set; once it is set, saving says Payroll uses the periods now and Settings says Payroll still lists the W-2 worker', async () => {
+    as(OWNER)
+    await prisma.company.update({
+      where: { id: it_.brightmoor },
+      data: { templatePack: null, payPeriod: 'BIWEEKLY', payFirstPeriodStart: null, paySettingsSetAt: new Date() },
+    })
+    const waits = await json(await readSettings(req('GET', '/api/settings')))
+    expect(waits.status, JSON.stringify(waits.body)).toBe(200)
+    expect(waits.body.data.noCalendar.says[4]).toBe('A W-2 placement cannot be recorded by hand until "The Sunday your pay periods are counted from" is set.')
+
+    const saved = await json(await changePayroll(req('PATCH', '/api/settings/payroll', { payFirstPeriodStart: '2026-10-11' })))
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200)
+    expect(saved.body.data.message).toBe(
+      'Saved. The Payroll page and each worker’s own page use these pay periods now. ' +
+      'Pay days already written on a placement’s “What is due” list keep their dates.'
+    )
+    const set = await json(await readSettings(req('GET', '/api/settings')))
+    expect(set.body.data.noCalendar.says.slice(3, 5)).toEqual([
+      'So no timesheet is due on it, and no bill date is set.',
+      'The Payroll page still lists a W-2 worker on it in your own pay periods.',
+    ])
   })
 
   it('Settings, Cycles tells a firm with no calendar of its own what is true and offers the Owner the one sign-up would choose, and pressing it sets it', async () => {

@@ -928,7 +928,7 @@ function WeekendShiftPanel({ data, send, busy }: { data: Settings; send: SendFn;
         })}
       </div>
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-1">
-        Cycle dates already generated keep their dates. A change here applies from the next contract.
+        Dates already written on a placement’s “What is due” list keep their dates. Placements recorded from now on take the new rule.
       </p>
     </Panel>
   )

@@ -14,6 +14,10 @@ import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
 import { packFor } from '@/lib/company-defaults'
 import { noCalendarSays, FALLBACK_PACK_ID } from './no-calendar'
+import { shiftSavedSays } from './payroll/saved-says'
+import { paysByPeriod, firstDayNeededSays } from '@/lib/money/pay-periods'
+import { rhythmFrom } from '@/lib/pay-dates'
+import { chosenPayroll } from '@/lib/contract-cycles'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -87,6 +91,9 @@ export async function GET(request: NextRequest) {
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
         kindSetById: true, kindSetAt: true, ownerProofRequiredAt: true, ownerVerifiedAt: true,
+        // Where its payroll stands, for the no-calendar sentence.
+        payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true, payDaysOfMonth: true,
+        payCalcDaysBefore: true, payFirstPeriodStart: true, paySettingsSetAt: true,
       },
     }),
     prisma.role.findMany({
@@ -142,6 +149,11 @@ export async function GET(request: NextRequest) {
         fallbackLabel: getTemplatePack(FALLBACK_PACK_ID)?.label ?? FALLBACK_PACK_ID,
         offer: offered ? { id: offered.id, label: offered.label } : null,
         canEdit: hasPermission(caller.permissions, 'settings.manage'),
+        payroll: paysByPeriod(rhythmFrom(company))
+          ? 'BY_PERIOD'
+          : firstDayNeededSays({ payroll: true, chosen: chosenPayroll(company) })
+            ? 'FIRST_DAY_NEEDED'
+            : 'NONE',
       })
     : null
 
@@ -417,6 +429,9 @@ export async function PATCH(request: NextRequest) {
       id: true, name: true, currency: true, teamsWebhookUrl: true,
       outsideAccess: true, accountWalls: true,
       cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
+      // Whether Payroll reads pay periods live, for the saved sentence.
+      payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true, payDaysOfMonth: true,
+      payCalcDaysBefore: true, payFirstPeriodStart: true,
     },
   })
 
@@ -443,7 +458,7 @@ export async function PATCH(request: NextRequest) {
         changed.includes('teamsWebhookUrl') && updated.teamsWebhookUrl
           ? 'Saved. Notifications for this company will now post to Teams.'
           : changed.some((c) => c.startsWith('cycleShift'))
-            ? 'Saved. Cycle dates already generated keep their dates; this applies from the next contract.'
+            ? shiftSavedSays({ payChanged: changed.includes('cycleShiftPay'), byPeriod: paysByPeriod(rhythmFrom(updated)) })
             : 'Saved.',
     },
   })

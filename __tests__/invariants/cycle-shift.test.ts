@@ -147,7 +147,7 @@ describe('every existing company keeps being paid on the day it was being paid',
   it('the settings screen asks the question in the company’s own words and says the change is not backdated', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/page.tsx'), 'utf8')
     expect(page).toContain('weekend')
-    expect(page).toMatch(/already generated keep their dates/i)
+    expect(page).toMatch(/already written on a placement’s “What is due” list keep their dates/i)
   })
 
   it('the settings route refuses a direction it does not recognize instead of writing it', () => {

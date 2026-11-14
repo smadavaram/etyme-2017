@@ -7,6 +7,7 @@ import {
   PAY_CHANGE_FIELDS, type PaySettings,
 } from '@/lib/payroll-settings'
 import { noHolidaysSays } from '@/lib/money/pay-periods'
+import { paySavedSays } from './saved-says'
 
 /**
  * GET   /api/settings/payroll — how often this company pays, and when pay is worked out and paid
@@ -107,7 +108,8 @@ export async function PATCH(request: NextRequest) {
     data: {
       settings: await withName(companyId, result.settings),
       changed: result.changed,
-      message: 'Saved. Pay dates already set keep their dates; this applies from the next contract.',
+      // What is true now: live periods move at once, written dates stay (./saved-says).
+      message: paySavedSays(result.settings),
     },
   })
 }

@@ -14,13 +14,31 @@
  *     into a contract (POST /api/submissions/[id]/convert) fall back to
  *     nothing, so a line made there gets no due dates.
  *
+ * And a W-2 line on such a placement, since a756434be (read off
+ * POST /api/contracts and the Payroll route, 2026-11-14):
+ *
+ *   - where the company pays by its own periods (its first Sunday set),
+ *     the line still has no dates written, but the Payroll page and the
+ *     worker's own page read the company's periods live, so its hours are
+ *     listed in them;
+ *   - where it chose to pay every week or every other week and has not
+ *     set the first Sunday, "Record a placement" refuses a W-2 line with
+ *     the Owner's step (`firstDayNeededSays`); a converted submission is
+ *     not refused, and gets no pay date;
+ *   - otherwise no pay date is set, as before.
+ *
  * And the step: the Owner or an Admin sets a calendar here, through the
  * door sign-up uses (POST /api/companies/[id]/template-pack), with the
  * pack sign-up would have chosen for the company (`packFor`). Pure.
  */
 
+import { FIRST_PERIOD_LABEL } from '@/lib/pay-dates'
+
 /** The pack the award, extension and bench doors use where a company has none. */
 export const FALLBACK_PACK_ID = 'US_IT'
+
+/** Where the company's payroll stands, for the W-2 sentence. */
+export type NoCalendarPayroll = 'BY_PERIOD' | 'FIRST_DAY_NEEDED' | 'NONE'
 
 export interface NoCalendar {
   /** The sentences, in order. */
@@ -34,13 +52,23 @@ export function noCalendarSays(i: {
   fallbackLabel: string
   offer: { id: string; label: string } | null
   canEdit: boolean
+  /** Where the company's payroll stands. Absent reads as NONE. */
+  payroll?: NoCalendarPayroll
 }): NoCalendar {
   const says = [
     `${i.companyName} has no calendar of due dates of its own yet.`,
     `A contract from an award, an extension or the bench uses the "${i.fallbackLabel}" calendar instead.`,
     'A placement recorded by hand, or a submission turned into a contract, gets no due dates.',
-    'So no timesheet is due on it, and no bill or pay date is set.',
   ]
+  if (i.payroll === 'BY_PERIOD') {
+    says.push('So no timesheet is due on it, and no bill date is set.')
+    says.push('The Payroll page still lists a W-2 worker on it in your own pay periods.')
+  } else if (i.payroll === 'FIRST_DAY_NEEDED') {
+    says.push('So no timesheet is due on it, and no bill or pay date is set.')
+    says.push(`A W-2 placement cannot be recorded by hand until "${FIRST_PERIOD_LABEL}" is set.`)
+  } else {
+    says.push('So no timesheet is due on it, and no bill or pay date is set.')
+  }
   if (i.canEdit && i.offer) {
     says.push(`Set the "${i.offer.label}" calendar below. Contracts made after that take their dates from it.`)
   } else {
