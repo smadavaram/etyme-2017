@@ -42,6 +42,20 @@ export const ALREADY_CONFIRMED = 'Your email is already confirmed. Sign in.'
 export const SUPERSEDED = 'A newer link replaced this one. Use the newest link you were given.'
 
 /**
+ * `?name=` on the candidate sign-up: the name the firm gave when it
+ * asked her onto its bench, handed over by the link after her yes so
+ * she does not type it twice. Only a prefill: the box stays hers to
+ * change. Anything that does not read as a name is dropped, never shown.
+ */
+export function nameFromLink(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  const name = raw.replace(/\s+/g, ' ').trim()
+  if (name.length < 2 || name.length > 120) return ''
+  if (/[<>@/\\]|https?:/i.test(name)) return ''
+  return name
+}
+
+/**
  * The opening of the email to somebody a firm put on the record, who
  * never set a password, when they sign up. Names the firm, because "a
  * company" tells a person nothing about why the mail came (sign-up walk,

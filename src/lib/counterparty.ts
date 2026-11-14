@@ -413,6 +413,20 @@ export const NEVER_EMAILS = 'Saving a company never emails them.'
 /** The first Kind on the form. */
 export const NOT_CLASSIFIED_KIND_LABEL = 'Company — not classified yet'
 
+/**
+ * The answer "What are they to you?" starts on, once a Kind is chosen.
+ * A client is a customer and an MSP is an MSP; anything else starts as a
+ * supplier, as the form did before. Only where the box starts: the
+ * person sees it and may change it, and the position is still the one
+ * they save (three walkers saved a client as a supplier, 2026-11-14).
+ */
+export function relationshipForKind(kind: string | null | undefined): Relationship {
+  const k = String(kind ?? '').toUpperCase()
+  if (k === 'CLIENT') return 'CLIENT'
+  if (k === 'MSP') return 'MSP'
+  return 'SUPPLIER'
+}
+
 const ORDER: Position[] = ['CUSTOMER', 'SUPPLIER', 'PRIME', 'MSP']
 
 /**

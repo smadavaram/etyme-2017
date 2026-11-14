@@ -1,5 +1,5 @@
 import { doorOpen, mailLeaves } from '@/lib/password-door'
-import { SIGNUP_SHUT, safeNext, claimTokenIn } from '@/lib/password'
+import { SIGNUP_SHUT, safeNext, claimTokenIn, nameFromLink } from '@/lib/password'
 import { NO_EMAIL_HERE } from '@/lib/password-words'
 import { DoorFrame } from '../door-frame'
 import { SignUpForm } from './form'
@@ -17,7 +17,7 @@ import { COMPANY_TYPES } from '@/lib/onboarding'
  */
 export const dynamic = 'force-dynamic'
 
-export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string; as?: string; email?: string } }) {
+export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string; as?: string; email?: string; name?: string } }) {
   if (!doorOpen()) {
     return (
       <DoorFrame>
@@ -41,7 +41,10 @@ export default function SignUpPage({ searchParams }: { searchParams: { claim?: s
   const email = typeof searchParams?.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(searchParams.email.trim())
     ? searchParams.email.trim().toLowerCase().slice(0, 200)
     : ''
+  // `?name=` pre-fills her name the same way: the name the firm gave on
+  // the bench invitation, still hers to change (Tapin walk, 2026-11-14).
+  const name = tab === 'candidate' ? nameFromLink(searchParams?.name) : ''
   // Where no email can leave this deployment, sign-up still works and the
   // confirmation link waits with staff; the page says so before the form.
-  return <SignUpForm claimToken={claimToken} initialType={type} initialTab={tab} initialEmail={email} noEmailHere={mailLeaves() ? null : NO_EMAIL_HERE} />
+  return <SignUpForm claimToken={claimToken} initialType={type} initialTab={tab} initialEmail={email} initialName={name} noEmailHere={mailLeaves() ? null : NO_EMAIL_HERE} />
 }

@@ -163,3 +163,41 @@ export function ownerOnlyAsked(): string {
 export function ownerOnlyNoLonger(): string {
   return 'Somebody else at your firm sends bills now, so they answer this. Ask Etyme acts on your authority, so you answer its bills only while nobody else sends them.'
 }
+
+// ── Who may do it, among the roles this company has seated ─────────────
+//
+// Tapin walk, 2026-11-14: a supplier seating only Owner, HR, Account
+// Manager and AP & Payroll told HR "the resource manager or contract
+// manager activates", two roles nobody there holds. The shipped role set
+// says who may; the seats say who is there to ask. Who may do the act is
+// not changed here: only which of them the sentence names.
+
+/**
+ * The roles to name for an act: those of `desks` (who may, from the
+ * role set, e.g. `desksHolding`) that somebody at the company holds,
+ * else the Owner and an Admin, who hold every act a role may hold.
+ * `seated` is the role names of the company's live seats.
+ */
+export function seatedWhoMay(desks: readonly string[], seated: readonly string[]): string[] {
+  const there = new Set(seated.map((r) => r.trim().toLowerCase()))
+  const named = desks.filter((d) => !['owner', 'admin'].includes(d.toLowerCase()) && there.has(d.toLowerCase()))
+  return named.length ? named : ['Owner', 'Admin']
+}
+
+/** "the Owner or an Admin" · "the Contract Manager" · "the HR or Finance". */
+export function whoMaySays(names: readonly string[]): string {
+  const said = names.slice(0, 3).map((n) => (n === 'Admin' ? 'an Admin' : n))
+  const list = said.length <= 1 ? (said[0] ?? 'an Admin') : `${said.slice(0, -1).join(', ')} or ${said[said.length - 1]}`
+  return `the ${list}`.replace(/^the an /, 'an ')
+}
+
+/**
+ * The one sentence where a button is not drawn for this seat, so the
+ * absence has words: "Recording a placement is for the Owner or an
+ * Admin here. Ask one of them." `doing` is the act as a gerund phrase.
+ */
+export function notYourButton(doing: string, names: readonly string[]): string {
+  const act = doing.trim().replace(/\.$/, '')
+  const ask = names.length === 1 && names[0] !== 'Admin' ? 'Ask them.' : 'Ask one of them.'
+  return `${act.charAt(0).toUpperCase()}${act.slice(1)} is for ${whoMaySays(names)} here. ${ask}`
+}

@@ -43,11 +43,13 @@ function aboutAddress(says: string): boolean {
   return /\.etyme\.com|Etyme address/i.test(says)
 }
 
-export function SignUpForm({ claimToken, initialType = null, initialTab = 'company', initialEmail = '', noEmailHere = null }: {
+export function SignUpForm({ claimToken, initialType = null, initialTab = 'company', initialEmail = '', initialName = '', noEmailHere = null }: {
   claimToken: string | null
   initialType?: string | null
   /** `?email=`, handed over by a link that already knows the address. */
   initialEmail?: string
+  /** `?name=`, the name the firm gave on a bench invitation. Editable. */
+  initialName?: string
   /** Said above the form where no email can leave this deployment. */
   noEmailHere?: string | null
   /** `?as=candidate` opens on a candidate: the contractors' door lands here. */
@@ -58,7 +60,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   const [email, setEmail] = useState(initialEmail)
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-  const [personName, setPersonName] = useState('')
+  const [personName, setPersonName] = useState(initialName)
   const [type, setType] = useState(initialType ?? '')
   const [address, setAddress] = useState('')
   // The Etyme address is a guess from the company's name until the person

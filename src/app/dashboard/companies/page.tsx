@@ -7,7 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, type Position } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
@@ -468,7 +468,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
               <select
                 value={form.kind}
-                onChange={(e) => setForm({ ...form, kind: e.target.value as Company['kind'] })}
+                onChange={(e) => setForm({ ...form, kind: e.target.value as Company['kind'], relationship: relationshipForKind(e.target.value) })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >

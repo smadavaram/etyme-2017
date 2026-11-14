@@ -542,7 +542,7 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
       'you on its bench; say no, or incorporate and sell yourself.',
     about:
       'Nobody employs you, nobody lists you, and you have incorporated nothing. No submission ' +
-      'anywhere carries your name. Etyme places nobody, so nothing happens until you act.',
+      'anywhere carries your name. Nothing happens until you act.',
   },
   {
     slug: 'colleen-byrne',

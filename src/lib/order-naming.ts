@@ -177,6 +177,8 @@ function formatMinor(minor: number, currency: string): string {
 // beside the order. It is a line on the order.
 
 /** Which side of the trade a line is on. */
+import { paidByPayroll } from '@/lib/money/paid-through'
+
 export type LineSide = 'SELL' | 'BUY'
 
 /** How a buy line is settled. */
@@ -201,7 +203,32 @@ export interface LineSubject {
   siteName?: string | null
   /** On a buy line, the firm we pay. Null where we employ the person. */
   paidToName?: string | null
+  /**
+   * On a buy line, how the firm engages the person: the line's own
+   * contract type. A 1099 or a corp-to-corp line with no firm named is
+   * paid on her own invoice, never by payroll (`lib/money/paid-through`).
+   * Left out, the line reads as before.
+   */
+  contractType?: string | null
 }
+
+/**
+ * How a line with no firm below is paid, where its type says it is not
+ * employment. Null for an employee, and for a line whose type was not
+ * given, which reads as before.
+ */
+function ownInvoice(contractType: string | null | undefined): 'IND_1099' | 'C2C' | null {
+  const t = String(contractType ?? '').toUpperCase()
+  if (!t || paidByPayroll({ contractType: t })) return null
+  return t === 'C2C' || t === 'IND_1099' ? t : null
+}
+
+const OWN_INVOICE_WORDS = {
+  IND_1099: 'their own invoice, as an independent contractor',
+  C2C: 'their own company\u2019s invoice',
+} as const
+
+const NOT_EMPLOYED = 'They are not your employee.'
 
 /**
  * The line itself, named by the person and the site.
@@ -252,12 +279,14 @@ export function lineDoes(line: LineSubject, side: OrderSide): string {
   if (line.paidToName) {
     return `You pay from this line — ${line.paidToName}'s invoice, received and matched.`
   }
+  const own = ownInvoice(line.contractType)
+  if (own) return `You pay from this line — ${OWN_INVOICE_WORDS[own]}. ${NOT_EMPLOYED}`
   return 'You pay from this line — payroll, because you employ them.'
 }
 
-/** How a buy line is settled, from whether there is a firm below us. */
+/** How a buy line is settled: a firm below us, or her own invoice, or payroll. */
 export function paidBy(line: LineSubject): PaidBy {
-  return line.paidToName ? 'INVOICE_RECEIPT' : 'PAYROLL'
+  return line.paidToName || ownInvoice(line.contractType) ? 'INVOICE_RECEIPT' : 'PAYROLL'
 }
 
 export interface LineDescription {
@@ -300,15 +329,18 @@ export function describeLine(input: {
   const name = lineName(line)
 
   if (!order) {
+    const own = line.side === 'BUY' && !line.paidToName ? ownInvoice(line.contractType) : null
     const heading =
-      line.side === 'BUY' && !line.paidToName
+      line.side === 'BUY' && !line.paidToName && !own
         ? 'No order, and none is due.'
         : 'Not yet on an order.'
     const says =
       line.side === 'BUY'
         ? line.paidToName
           ? `Not yet on an order. The order you raise to ${line.paidToName} attaches here.`
-          : 'No order, and none is due — you do not raise one to your own employee. Payroll pays this line.'
+          : own
+            ? `Not yet on an order. They are paid on ${OWN_INVOICE_WORDS[own]}, not by payroll. ${NOT_EMPLOYED}`
+            : 'No order, and none is due — you do not raise one to your own employee. Payroll pays this line.'
         : "Not yet on an order. The client's paper, when it arrives, attaches here."
     return { onOrder: false, Noun: null, reference: null, heading, name, does, says }
   }
@@ -378,12 +410,20 @@ export function pairLine(input: {
   side: LineSide
   counterpartName: string | null
   paidToName?: string | null
+  /**
+   * The buy line's contract type: this line's own on a buy line, the
+   * paired buy line's on a sell line. Left out, the line reads as before.
+   */
+  contractType?: string | null
 }): string {
+  const own = ownInvoice(input.contractType)
   if (input.side === 'SELL') {
     if (input.counterpartName) return `Paired with what you pay ${input.counterpartName}.`
+    if (own) return `Paired with what you pay them on ${OWN_INVOICE_WORDS[own]}. ${NOT_EMPLOYED}`
     return 'Paired with payroll, because you employ them.'
   }
-  return input.paidToName
-    ? `Funds the line you bill ${input.counterpartName ?? 'the client'} from.`
+  if (input.paidToName) return `Funds the line you bill ${input.counterpartName ?? 'the client'} from.`
+  return own
+    ? `Funds the line you bill ${input.counterpartName ?? 'the client'} from, and is paid on ${OWN_INVOICE_WORDS[own]}.`
     : `Funds the line you bill ${input.counterpartName ?? 'the client'} from, and is paid by payroll.`
 }
