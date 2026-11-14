@@ -282,7 +282,9 @@ describe('a week her employer accepted falls due on her own pay schedule', () =>
     expect(w.says).toBe('40 hours, none of them overtime. It is due on your pay day, Sep 25.')
   })
 
-  it('a pay day that came before the employer accepted the week is never the day it falls due', () => {
+  it('a week accepted after its pay day still fell due on that pay day and reads as late: the week of Sep 14, accepted Sep 26, fell due Sep 25, never Oct 9', () => {
+    // Payroll pays a late week in its own period, whose pay day has passed,
+    // and calls it overdue; her page names the same day (found by hand, 2026-11-14).
     const [w] = owedByWeek(
       [sheet(WEEK_OF_14, { acceptedAt: d('2026-09-26') })],
       line({ payDates: FRIDAYS() }),
@@ -290,7 +292,10 @@ describe('a week her employer accepted falls due on her own pay schedule', () =>
       d('2026-09-28')
     )
 
-    expect(w.dueOn).toBe('2026-10-09')
+    expect(w.dueOn).toBe('2026-09-25')
+    expect(w.overdue).toBe(true)
+    expect(w.stillOwedCents).toBe(280_000)
+    expect(w.says).toContain('It fell due on your pay day of Sep 25 and has not been paid.')
   })
 
   it('a pay day payroll ran without paying the week is still the day it fell due, and the week reads as late', () => {

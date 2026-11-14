@@ -78,7 +78,7 @@ describe('a week crossing two months is paid as the payroll run pays it', () => 
     expect(w.says).toContain('Jul 1 – Jul 3: 24 hours, $2,136.00, paid on Aug 10.')
   })
 
-  it('each part of a crossing week falls due on the first pay day after its own month ends and after the week was accepted', () => {
+  it('each part of a crossing week falls due on the pay day of its own month, the first pay day after that month ends', () => {
     const [w] = owedByWeek([CROSSING], line(monthly('SPLIT')), nothingPaid, d('2026-07-08'))
     const [june, july] = w.parts!
     expect(june.dueOn).toBe('2026-07-10')

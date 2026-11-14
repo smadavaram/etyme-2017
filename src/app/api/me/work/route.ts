@@ -386,7 +386,7 @@ export async function GET(request: NextRequest) {
           sellLinks: { select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true } },
           // Her pay days, which a week she is owed falls due on — the same
           // dates the payroll screen calls "next pay".
-          buyCycles: { where: { kind: 'SALARY_PAY' }, select: { kind: true, dueOn: true, completedAt: true } },
+          buyCycles: { where: { kind: 'SALARY_PAY' }, select: { kind: true, dueOn: true, completedAt: true, periodEnd: true } },
         },
       },
     },

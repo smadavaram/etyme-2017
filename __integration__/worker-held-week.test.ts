@@ -186,4 +186,37 @@ describe('her page and the Payroll page read one held week the same way', () => 
       await prisma.exemptAssertion.deleteMany({ where: { buyContractId: buyId, personId } })
     }
   })
+
+  it('both weeks accepted late, on Nov 14, still read Oct 30 and overdue on her page, the day Payroll names overdue, never Nov 27', async () => {
+    const late = d('2026-11-14')
+    const early = d('2026-10-26')
+    const sheets = await prisma.timesheet.findMany({ where: { personId }, select: { id: true } })
+    const ids = sheets.map((s) => s.id)
+    await prisma.timesheet.updateMany({ where: { id: { in: ids } }, data: { approvedAt: late, clientApprovedAt: late, employerAcceptedAt: late } })
+    await prisma.workAssertion.updateMany({ where: { timesheetId: { in: ids }, role: 'EMPLOYER_ACCEPTANCE' }, data: { at: late } })
+    await prisma.exemptAssertion.create({
+      data: {
+        buyContractId: buyId, personId, assertedByCompanyId: firmId, status: 'NONEXEMPT', wageRule: 'US_FLSA',
+        screenOutcome: 'CANNOT_BE_EXEMPT', screenRulesOut: [], screenSays: 'Paid by the hour.',
+      },
+    })
+    try {
+      const row = await payrollRow()
+      // Payroll: the period Oct 11 – Oct 24 is paid Fri Oct 30, and it has passed unpaid.
+      expect(String(row.nextPayDate).slice(0, 10)).toBe('2026-10-30')
+      expect(row.payDatesOverdue.count).toBe(1)
+      expect(String(row.payDatesOverdue.earliest).slice(0, 10)).toBe('2026-10-30')
+      const { owed, oct11, oct18 } = await herPage()
+      // 40 x $45 = $1,800.00 and 40 x $45 + 6 x $67.50 = $2,205.00, both due Oct 30.
+      expect([oct11.owedCents, oct11.dueOn, oct11.overdue]).toEqual([180_000, '2026-10-30', true])
+      expect([oct18.owedCents, oct18.dueOn, oct18.overdue]).toEqual([220_500, '2026-10-30', true])
+      expect(oct11.says).toBe('40 hours, none of them overtime. It fell due on your pay day of Oct 30 and has not been paid.')
+      expect(owed.says).toContain('All of it is past its pay day.')
+      expect(owed.says).not.toContain('Nov 27')
+    } finally {
+      await prisma.exemptAssertion.deleteMany({ where: { buyContractId: buyId, personId } })
+      await prisma.timesheet.updateMany({ where: { id: { in: ids } }, data: { approvedAt: early, clientApprovedAt: early, employerAcceptedAt: early } })
+      await prisma.workAssertion.updateMany({ where: { timesheetId: { in: ids }, role: 'EMPLOYER_ACCEPTANCE' }, data: { at: early } })
+    }
+  })
 })

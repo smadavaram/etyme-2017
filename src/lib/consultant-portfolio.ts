@@ -21,7 +21,7 @@
  * off and stays off until they turn it on.
  */
 
-import { paidOnDay } from '@/lib/money/pay-day-period'
+import { paidOnDay, periodPaidBy } from '@/lib/money/pay-day-period'
 import { modelFor } from '@/lib/model-ids'
 import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
@@ -2023,6 +2023,8 @@ export interface PayDate {
   kind: string
   dueOn: Date
   completedAt: Date | null
+  /** The last day of the period this pay day pays, where the cycle row wrote it (`Cycle.periodEnd`). */
+  periodEnd?: Date | null
 }
 
 /** The pay line the weeks are paid from — the worker's own, never a rung above. */
@@ -2039,9 +2041,9 @@ export interface OwedPayLine {
   /**
    * The line's pay days: its SALARY_PAY cycles, the same dates the payroll
    * screen reads "next pay" from (`nextOpen` in lib/money/next-cycle). A
-   * week falls due on the first one on or after both its last day and the
-   * day the employer accepted it, whether or not payroll has run that day
-   * — never a date worked out here.
+   * week falls due on the pay day of the period it was worked in, as the
+   * Payroll page names it, however late the employer accepted it, and
+   * whether or not payroll has run that day — never a date worked out here.
    */
   payDates: PayDate[]
   /**
@@ -2560,23 +2562,41 @@ export function owedByWeek(
       //
       // Each part of the week on its own pay day, where the line's terms
       // put its days in more than one pay period — the way the payroll run
-      // pays them. A part falls due on the first pay day on the line after
-      // both its own pay period ends and the employer accepted it; a pay
-      // day before the acceptance was never this week's, and a pay day
-      // payroll ran without paying it still counts — the run that left it
-      // out does not move the day it fell due — so every pay day on the
-      // line is read, run or not. Without terms, the week is one part and
-      // falls due after its last day, as it always did.
-      const dueFor = (from: string): string | null => {
-        const next = nextOpen(
-          line.payDates.map((p) => ({ ...p, completedAt: null })),
-          'SALARY_PAY',
-          new Date(`${from}T00:00:00Z`)
-        )
+      // pays them. A part falls due on the pay day of the pay period it
+      // was worked in, read by the rule the Payroll page reads that
+      // period's pay day by (`periodPaidBy` in lib/money/pay-day-period,
+      // as `periodPayDay` reads it), so her page and Payroll name one day.
+      // A late acceptance never moves it: a week of Oct 18 accepted on
+      // Nov 14 fell due on its period's pay day, Oct 30, and is overdue,
+      // as Payroll says (found by hand, 2026-11-14: her page read Nov 27,
+      // the next pay day after the acceptance). A pay day payroll ran
+      // without paying it still counts, so every pay day on the line is
+      // read, run or not. Where no pay day on the line pays the period,
+      // the first one on or after the period's last day; without terms,
+      // the week is one part, due on the first pay day on or after its
+      // last day worked.
+      const openDates = line.payDates
+        .filter((p) => p.kind === 'SALARY_PAY')
+        .map((p, i) => ({ id: `pay-${i}`, dueOn: p.dueOn, completedAt: null, periodEnd: p.periodEnd ?? null }))
+      const firstFrom = (from: string): string | null => {
+        const next = nextOpen(openDates.map((p) => ({ ...p, kind: 'SALARY_PAY' })), 'SALARY_PAY', new Date(`${from}T00:00:00Z`))
         return next ? isoDay(next.dueOn) : null
       }
-      const fromOf = (pt: PartTally | null) =>
-        later(pt?.period ? isoDay(pt.period.end) : w.lastDay, w.acceptedOn) ?? weekOf
+      const dueOfPart = (pt: PartTally | null): string | null => {
+        const period = pt?.period ?? null
+        if (!period || !line.terms) return firstFrom(w.lastDay ?? weekOf)
+        // Only a pay day whose row names its own period is placed by it; a
+        // row with no period, and every day on the company's calendar, is
+        // the first pay day after the period ends, which is how both are
+        // written. Nothing is placed by guessing from the gaps between days.
+        const terms = line.terms
+        const want = isoDay(period.start)
+        const paying = openDates
+          .filter((c) => c.periodEnd && isoDay(periodPaidBy(c, openDates, (x) => periodFor(x, terms), terms.startedOn).start) === want)
+          .map((c) => isoDay(c.dueOn))
+          .sort()
+        return paying[0] ?? firstFrom(isoDay(period.end))
+      }
 
       const partsList = [...w.parts.values()].filter((pt) => pt.hours > 0).sort((a, b) => a.firstDay!.localeCompare(b.firstDay!))
       let split: OwedPart[] | null = null
@@ -2589,7 +2609,7 @@ export function owedByWeek(
           const paid = Math.round(pt.paidCents)
           const still = Math.max(0, owed - paid)
           const partStage: OwedStage = still === 0 && paid > 0 ? 'PAID' : 'OWED'
-          const due = still > 0 ? dueFor(fromOf(pt)) : null
+          const due = still > 0 ? dueOfPart(pt) : null
           return {
             from: pt.firstDay!, to: pt.lastDay!,
             label: pt.firstDay === pt.lastDay ? day(pt.firstDay!) : `${day(pt.firstDay!)} – ${day(pt.lastDay!)}`,
@@ -2627,7 +2647,7 @@ export function owedByWeek(
         if (paidCents > 0) {
           parts.push(w.paidOn ? `${Employer} paid part of it on ${day(w.paidOn)}.` : `${Employer} has paid part of it.`)
         }
-        dueOn = dueFor(fromOf(partsList[0] ?? null))
+        dueOn = dueOfPart(partsList[0] ?? null)
         if (dueOn) {
           overdue = dueOn < todayIso
           parts.push(

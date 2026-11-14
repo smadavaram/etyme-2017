@@ -144,12 +144,14 @@ describe('a week Payroll holds for the overtime answer is never priced on her pa
     expect(week.overtimeHours).toBe(0)
   })
 
-  it('once recorded, a week accepted on Nov 14 after its period paid on Oct 30 reads the next pay day after the acceptance, Nov 27, by the rule that a pay day before the acceptance was never this week’s', () => {
-    // Oct 30 is before the acceptance on Nov 14, Nov 13 is too; Nov 27 is the first pay day on or after it.
+  it('once recorded, a week accepted on Nov 14 after its period paid on Oct 30 reads Oct 30, overdue, the day Payroll names, never Nov 27', () => {
+    // The week of Oct 18 ends Sat Oct 24; the first pay day on or after it is Fri Oct 30.
+    // Accepting it on Nov 14 does not move that day.
     const { week } = herWeek('NONEXEMPT', sheet(LONG_WEEK))
-    expect(week.dueOn).toBe('2026-11-27')
-    expect(week.overdue).toBe(false)
-    expect(week.says).toContain('It is due on your pay day, Nov 27.')
+    expect(week.dueOn).toBe('2026-10-30')
+    expect(week.overdue).toBe(true)
+    expect(week.says).toContain('It fell due on your pay day of Oct 30 and has not been paid.')
+    expect(week.says).not.toContain('Nov 27')
   })
 })
 
@@ -172,8 +174,8 @@ describe('what was right before stays right', () => {
     expect(week.says).toContain('You filed 46 hours and Brightmoor Staffing accepted 40.')
   })
 
-  it('a 1099 line is never held: the wage is not the firm’s to judge, and 46 x $45 = $2,070.00', () => {
-    const { held, week } = herWeek(null, sheet(LONG_WEEK), { contractType: '1099' })
+  it('the held-week reader never holds a line that is not a W-2: fed one directly, it prices 46 x $45 = $2,070.00 (her page never feeds it a 1099 line; see worker-late-week-pay-day)', () => {
+    const { held, week } = herWeek(null, sheet(LONG_WEEK), { contractType: 'IND_1099' })
     expect(held).toEqual([])
     expect(week.held).toBeUndefined()
     expect(week.owedCents).toBe(207_000)
