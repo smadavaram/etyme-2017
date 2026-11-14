@@ -533,7 +533,7 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
 
 ## Money
 
-Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70.
+Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71.
 
 - **Bill, invoice receipt, payroll.** What a firm issues upward is a
   bill. What it receives from below is an invoice receipt. Its own
@@ -629,6 +629,11 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70.
   client pays it. What a worker is paid for them follows the country of
   work, set per country. The two never decide each other. A week over
   the line is never paid at the usual rate by silence.
+- **A long week waits for the answer** (2026-11-14). A W-2 week over
+  40 hours, for a person nobody has said is exempt, is held off the
+  run, the pay file and her own page until payroll records it, then paid
+  once. Her page and Payroll name one pay day, the period's own. A pay
+  file carries what is still to pay beside what was paid already.
 - **What a worker is owed.** Overtime after 40 hours in the week is owed
   to a non-exempt US worker even where the contract sets no line. Back
   pay for a raise dated in the past is put forward for approval, never
@@ -864,7 +869,7 @@ Full text → 27, 29, 13.
 
 ## Tapin
 
-Full text → 28, 22, 23, 68, 69.
+Full text → 28, 22, 23, 68, 69, 71.
 
 - **Tapin is Etyme's own agency, run on Etyme** ("Etyme for Etyme
   first"). Etyme has run an agency since 2021 to prove the model; Tapin
@@ -899,7 +904,7 @@ Full text → 28, 22, 23, 68, 69.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
