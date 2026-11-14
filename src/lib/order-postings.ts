@@ -1047,7 +1047,9 @@ export function sameBooks(onBooks: readonly PostingFacts[], planned: readonly Pl
  * would do, short only of a missing exchange rate, which a real run finds
  * and leaves alone with the reason.
  */
-export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: boolean } = {}): Promise<Rebuilt> {
+export async function rebuildPostings(
+  opts: { companyIds?: string[]; dryRun?: boolean; assertionIds?: readonly string[] } = {}
+): Promise<Rebuilt> {
   const dryRun = opts.dryRun === true
   const out: Rebuilt = {
     dryRun, weeks: 0, checked: 0, rebuilt: 0, unchanged: 0, written: 0, removed: 0, leftAlone: [], postsNothing: [],
@@ -1055,7 +1057,10 @@ export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: bo
   }
 
   let where: Prisma.WorkAssertionWhereInput = { state: 'LIVE' }
-  if (opts.companyIds) {
+  if (opts.assertionIds) {
+    // Only these signatures, in these books: what one pay answer changed.
+    where = { state: 'LIVE', id: { in: [...opts.assertionIds] } }
+  } else if (opts.companyIds) {
     // Every line these firms sell, and every rung below them: the hours a
     // middle firm's books depend on are filed on its supplier's line.
     const own = await prisma.sellContract.findMany({
@@ -1205,11 +1210,61 @@ export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: bo
     out.rebuilt += rebuilt.length
   }
 
-  // Postings under signatures that no longer stand.
+  // Postings under signatures that no longer stand. Not on a rebuild of
+  // named signatures, which reads only those.
+  if (opts.assertionIds) return out
   const swept = await removeWithdrawnPostings({ companyIds: opts.companyIds, dryRun })
   out.withdrawnRemoved = swept.removed
   out.leftAlone.push(...swept.leftAlone)
   return out
+}
+
+/**
+ * Re-derive one person's pay postings on one pay line, in the employer's
+ * books, after something that prices them changed: the answer on whether
+ * the person is exempt, or a run paying an overtime premium.
+ *
+ * A week is posted when it is accepted, priced on what was known then. A
+ * 46-hour week at $45 accepted before anybody said whether the person was
+ * exempt posts 46 x $45 = $2,070 of pay and no premium. Once "not exempt"
+ * is recorded, payroll pays 40 x $45 + 6 x $67.50 = $2,205, and the books,
+ * Profitability and the W-2 read $135 short (walk, 2026-11-14). This
+ * restates those weeks' postings so the $135 is posted, once.
+ *
+ * It refuses what `rebuildPostings` refuses: a posting on a settled order,
+ * or one already reversed, is left alone with the reason, for a person to
+ * correct. `timesheetIds` narrows it to the weeks a run just paid.
+ */
+export async function repostPayFor(args: {
+  companyId: string
+  buyContractId: string
+  personId: string
+  timesheetIds?: readonly string[]
+}): Promise<Rebuilt> {
+  const line = await prisma.buyContract.findUnique({
+    where: { id: args.buyContractId },
+    select: { supplierSellContractId: true, sellLinks: { select: { sellContractId: true } } },
+  })
+  const sells = [
+    ...(line?.sellLinks.map((l) => l.sellContractId) ?? []),
+    ...(line?.supplierSellContractId ? [line.supplierSellContractId] : []),
+  ]
+  const sigs = sells.length
+    ? await prisma.workAssertion.findMany({
+        where: {
+          state: 'LIVE',
+          role: 'EMPLOYER_ACCEPTANCE',
+          companyId: args.companyId,
+          timesheet: {
+            personId: args.personId,
+            sellContractId: { in: sells },
+            ...(args.timesheetIds ? { id: { in: [...args.timesheetIds] } } : {}),
+          },
+        },
+        select: { id: true },
+      })
+    : []
+  return rebuildPostings({ companyIds: [args.companyId], assertionIds: sigs.map((x) => x.id) })
 }
 
 /**

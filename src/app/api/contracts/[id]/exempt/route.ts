@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
+import { repostPayFor } from '@/lib/order-postings'
 import {
   checkAssertion,
   screenExemption,
@@ -273,6 +274,24 @@ export async function POST(
       select: { id: true, status: true, basis: true, reviewBy: true },
     })
 
+    // The answer decides whether the hours over the line carry a premium,
+    // and the weeks already accepted were posted without knowing it. They
+    // are posted again so the books hold what payroll pays: a 46-hour week
+    // at $45 is $2,070 of pay and, not exempt, a $135 premium beside it.
+    // A failure here never undoes the answer; what could not be restated
+    // is said on the reply.
+    let books: { restated: number; leftAlone: string[] } | null = null
+    try {
+      const done = await repostPayFor({ companyId: contract.companyId, buyContractId: id, personId })
+      books = { restated: done.rebuilt, leftAlone: [...new Set(done.leftAlone.map((l) => l.says))] }
+    } catch (err) {
+      reportError('Posting the weeks again after an exempt answer failed:', err)
+      books = {
+        restated: 0,
+        leftAlone: [`${candidate.person.name}'s weeks already accepted could not be posted again, so the books may not show the overtime premium yet.`],
+      }
+    }
+
     return NextResponse.json(
       {
         data: {
@@ -285,6 +304,7 @@ export async function POST(
           says: verdict.says,
           reasons: verdict.reasons,
           screen: { outcome: screen.outcome, rulesOut: screen.rulesOut, says: screen.says },
+          books,
         },
       },
       { status: 201 }

@@ -181,6 +181,8 @@ export async function paidRunHours(companyId: string): Promise<{
     buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date
     /** What the run paid for the day, straight time and premium, in minor units; null where it did not record a rate. */
     paidCents: number | null
+    /** Of it, the overtime premium, exact. What dates the week's PREMIUM posting. */
+    premiumCents: number
     currency: string | null
   }>
   unrecorded: Set<string>
@@ -192,7 +194,7 @@ export async function paidRunHours(companyId: string): Promise<{
   })
   const runs: Array<{
     buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date
-    paidCents: number | null; currency: string | null
+    paidCents: number | null; premiumCents: number; currency: string | null
   }> = []
   const unrecorded = new Set<string>()
   for (const run of rows) {
@@ -210,6 +212,7 @@ export async function paidRunHours(companyId: string): Promise<{
         runs.push({
           buyContractId: c.buyContractId, personId: l.personId, timesheetId: l.timesheetId, hours, paidAt: run.at,
           paidCents: typeof l.rateCents === 'number' ? hours * l.rateCents + (Number(l.premiumCents) || 0) : null,
+          premiumCents: Number(l.premiumCents) || 0,
           currency: typeof c.currency === 'string' ? c.currency : null,
         })
       }

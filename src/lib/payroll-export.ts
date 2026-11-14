@@ -849,6 +849,11 @@ export const WAGES_YEAR_PAID = 'Wages count in the year they were paid.'
 /** A pay posting with what is needed to find the day it was paid. */
 export interface DatablePosting extends PayPosting {
   id: string
+  /**
+   * PAY, or PREMIUM: the overtime premium on the same week, which is
+   * wages too and goes on the W-2 beside the straight time. Omitted, PAY.
+   */
+  kind?: string
   source: string
   sourceId: string
   buyContractId: string | null
@@ -865,6 +870,11 @@ export interface RunPaidHours {
   timesheetId: string
   hours: number
   paidAt: Date
+  /**
+   * The overtime premium the run paid on these hours, exact, before the
+   * run rounded its row. What dates a PREMIUM posting. Omitted, none.
+   */
+  premiumCents?: number
 }
 
 export interface PostingAside {
@@ -911,6 +921,9 @@ export function offCyclePaidOn(sourceId: string): Date | null {
  *   paid are in no year: returned as `unpaid`. A contract behind a run
  *   that recorded no lines has no knowable paid day: returned as
  *   `undated`, never placed in a year on a guess.
+ * - A W-2 week's overtime premium (a PREMIUM posting) is wages too. It is
+ *   dated by the runs that paid premium on that week, split by the cents
+ *   each paid; a premium no run has paid yet is `unpaid`.
  * - An off-cycle payment is dated by its own pay day.
  * - Anything else on a W-2 line keeps its posting date.
  * - 1099 and corp-to-corp postings are dropped here. Those are paid on
@@ -945,6 +958,41 @@ export function datePaidWages(
     }
     if (p.source !== 'TIMESHEET' || !p.timesheetId || !p.buyContractId) {
       out.push(strip(p))
+      continue
+    }
+
+    // The premium on a week is dated by the runs that paid premium on it,
+    // by the cents each paid, never by its straight hours: a week paid at
+    // straight time in one run and its premium in a later one has two
+    // pay days, and the premium belongs to the second (the $288 case).
+    if (p.kind === 'PREMIUM') {
+      const byDay = new Map<string, number>()
+      for (const r of runs) {
+        if (r.buyContractId !== p.buyContractId || r.personId !== p.personId || r.timesheetId !== p.timesheetId) continue
+        if (!((r.premiumCents ?? 0) > 0)) continue
+        const k = r.paidAt.toISOString().slice(0, 10)
+        byDay.set(k, (byDay.get(k) ?? 0) + (r.premiumCents ?? 0))
+      }
+      if (byDay.size === 0) {
+        if (unrecordedContracts.has(p.buyContractId)) undated.push(aside(p, p.amountCents))
+        else unpaid.push(aside(p, p.amountCents))
+        continue
+      }
+      const sign = p.amountCents < 0 ? -1 : 1
+      const whole = Math.abs(p.amountCents)
+      const paid = [...byDay.values()].reduce((n, c) => n + c, 0)
+      // A run's premium is exact and the posting is rounded once: half a
+      // cent apart is the same premium, paid in full.
+      const covered = paid + 0.5 >= whole
+      const base = Math.max(whole, paid)
+      const days = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      let given = 0
+      days.forEach(([day, c], i) => {
+        const share = i === days.length - 1 && covered ? whole - given : Math.round((whole * c) / base)
+        given += share
+        out.push({ ...strip(p), amountCents: sign * share, postedAt: new Date(`${day}T00:00:00Z`) })
+      })
+      if (given < whole) unpaid.push(aside(p, sign * (whole - given)))
       continue
     }
 

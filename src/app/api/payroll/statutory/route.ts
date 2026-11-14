@@ -84,7 +84,8 @@ export async function GET(request: NextRequest) {
   const from = new Date(Date.UTC(year, 0, 1))
   const to = new Date(Date.UTC(year + 1, 0, 1))
 
-  // Wages come from PAY postings and from nowhere else. A rate card says
+  // Wages come from PAY postings, and the PREMIUM posted beside them on a
+  // week over the line, and from nowhere else. A rate card says
   // what somebody should have earned; a posting says what they did, and
   // those differ every time a timesheet is reversed, a rate amendment
   // lands late, or an off-cycle payment is made.
@@ -98,13 +99,16 @@ export async function GET(request: NextRequest) {
   const rows = await prisma.orderPosting.findMany({
     where: {
       companyId,
-      kind: 'PAY',
+      // Straight time and the overtime premium on it: both are wages. A
+      // premium read as no wage left a not-exempt worker's W-2 short by
+      // it (walk, 2026-11-14: $4,005 paid, $3,870 posted, $135 apart).
+      kind: { in: ['PAY', 'PREMIUM'] },
       postedAt: { gte: readFrom, lt: to },
       reversalOfId: null,
       personId: { not: null },
     },
     select: {
-      id: true, source: true, sourceId: true, buyContractId: true,
+      id: true, kind: true, source: true, sourceId: true, buyContractId: true,
       // The amount in the currency it was paid in. `amountCents` is the
       // order's currency, and labeling it with the pay currency put a
       // dollar figure under a rupee sign wherever the two differed.
@@ -119,7 +123,7 @@ export async function GET(request: NextRequest) {
   // reversing row. The row it cancelled is dropped here, so a corrected
   // month does not appear twice on somebody's W-2.
   const reversed = await prisma.orderPosting.findMany({
-    where: { companyId, kind: 'PAY', reversalOfId: { not: null } },
+    where: { companyId, kind: { in: ['PAY', 'PREMIUM'] }, reversalOfId: { not: null } },
     select: { reversalOfId: true },
   })
   const cancelled = new Set(reversed.map((r) => r.reversalOfId))
@@ -154,6 +158,7 @@ export async function GET(request: NextRequest) {
 
   const datable: DatablePosting[] = live.map((r) => ({
     id: r.id,
+    kind: r.kind,
     personId: r.person!.id,
     personName: r.person!.name,
     hasTaxId: false,

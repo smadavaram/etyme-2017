@@ -23,6 +23,7 @@ import { daySpan, plainDate } from '@/lib/plain-date'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { workedOutKeys, isWorkedOut, notWorkedOutSays, payCovers, type NotWorkedOut } from '@/lib/money/payroll-worked-out'
 import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
+import { repostPayFor } from '@/lib/order-postings'
 
 /**
  * POST /api/payroll/run
@@ -673,6 +674,34 @@ export async function POST(request: NextRequest) {
     const grossSays = totals(result.map((p) => ({ minor: p.grossPay, currency: p.currency })))
     const refused = result.filter((p) => p.refused)
 
+    // Every premium this run paid has its posting, once. A week accepted
+    // before the exempt answer was posted at straight time; where nothing
+    // restated it since, its premium is posted now, so the books and the
+    // W-2 hold what the run paid (lib/order-postings, `repostPayFor`).
+    const books = { restated: 0, leftAlone: [] as string[] }
+    if (action === 'process') {
+      const premiumWeeks = new Map<string, { buyContractId: string; personId: string; timesheetIds: Set<string> }>()
+      for (const p of result) {
+        for (const l of p.paid) {
+          if (!((l.premiumCents ?? 0) > 0)) continue
+          const k = `${p.buyContractId}|${l.personId}`
+          const e = premiumWeeks.get(k) ?? { buyContractId: p.buyContractId, personId: l.personId, timesheetIds: new Set<string>() }
+          e.timesheetIds.add(l.timesheetId)
+          premiumWeeks.set(k, e)
+        }
+      }
+      for (const w of premiumWeeks.values()) {
+        try {
+          const done = await repostPayFor({ companyId, buyContractId: w.buyContractId, personId: w.personId, timesheetIds: [...w.timesheetIds] })
+          books.restated += done.rebuilt
+          for (const l of done.leftAlone) if (!books.leftAlone.includes(l.says)) books.leftAlone.push(l.says)
+        } catch (err) {
+          // The pay went out; a posting that could not follow it is reported, never a failed run.
+          reportError('Posting the overtime premium a run paid failed:', err)
+        }
+      }
+    }
+
     // Overtime the clients were billed on these weeks that the workers are
     // not paid, because nobody recorded whether they are exempt. The pay
     // rule is not moved here; the gap is said, with the amount.
@@ -693,6 +722,9 @@ export async function POST(request: NextRequest) {
         totalHours: result.reduce((s, p) => s + p.totalHours, 0),
         details: result.map(({ paid, ...rest }) => rest),
         overtimeNotPaid,
+        // Weeks whose postings were restated so the premium this run paid
+        // is in the books, and any that could not be, each with why.
+        books,
         message:
           `Payroll ${action} complete: ${result.length} contracts, ${grossSays} gross` +
           (refused.length > 0 ? `. ${refused.length} left out, each with a reason on the row.` : '') +
