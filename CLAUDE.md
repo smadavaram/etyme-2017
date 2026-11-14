@@ -878,6 +878,10 @@ Full text → 28, 22, 23, 68, 69.
   before that yes. No separate marketing site, blog or careers portal.
 - **One payroll person may attach the client's approval and accept the
   same week** (founder, 2026-11-14).
+- **Tapin's first people are W2, paid every two weeks through an
+  outside payroll provider** (founder, 2026-11-14). The provider holds
+  each person's W-4, bank details and tax number; Etyme gives it hours
+  and gross pay as a file and holds none of the three.
 - **Tapin is the way to market: a bench in data engineering** (founder,
   2026-11-14). Nothing a client reads says Tapin trains, places or is
   the founder's, and no page claims the opposite: none says Etyme runs

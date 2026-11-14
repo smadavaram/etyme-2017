@@ -71,6 +71,25 @@ person attaches it for her, as he may. Of the first bullet above, only
 this remains to build: filing the week and attaching the client's
 approval as one step, from her page and from Ask Etyme.
 
+**The walk of that cycle, and three answers, the same day.** Two walkers
+played the firm on the deployed build. Inviting, self-onboarding, a W2
+start on the I-9 alone, the week with the client's approval attached,
+and the bill all worked. Payroll did not: an open-ended placement read
+"Processed" though nobody had paid it, there was no pay file, and the
+page listed calendar months. Asked how Tapin's people are engaged, who
+runs the pay and how often, he answered: *"W2 first, outside payroll
+provider, biweekly"*. So:
+- **Tapin's first people are W2 employees.** A 1099 contractor and a
+  person paid through her own company wait; today the product cannot
+  start a 1099 contractor, and that is not fixed in this round.
+- **An outside payroll provider runs the pay.** It collects each
+  person's W-4, bank details and tax number. Etyme gives it hours and
+  gross pay as a file, and holds none of those three.
+- **Tapin pays every two weeks.** The Payroll page must list pay by the
+  company's own two-week period, from a first day the Owner sets, and
+  not by calendar month. No date is guessed: the Owner gives the first
+  period's first day, and the pay day follows the company's setting.
+
 **The week, said honestly to him.** Shipped: the twenty-two first-day
 faults, the Owner rules, the neutral Company, sign-in and sign-up to his
 drawing, the home page on realistic numbers, a client's codes kept the

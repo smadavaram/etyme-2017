@@ -83,5 +83,5 @@ built, every release check, every walk and every deploy.
 | 65 | "Deploy when green", and how the work is paced — the founder, 2026-11-13 | 427 | [65-deploy-when-green-and-how-the-work-is-paced.md](65-deploy-when-green-and-how-the-work-is-paced.md) |
 | 66 | The founder's first day as Tapin's Owner: twenty-two faults, fixed — 2026-11-12 to 13 | 517 | [66-the-founders-first-day-as-tapins-owner-twenty-two-faults.md](66-the-founders-first-day-as-tapins-owner-twenty-two-faults.md) |
 | 67 | The first deploy of the wave shipped — 2026-11-14 | 818 | [67-the-first-deploy-of-the-wave-shipped-2026-11-14.md](67-the-first-deploy-of-the-wave-shipped-2026-11-14.md) |
-| 68 | Tapin's first payroll cycle comes first — the founder, 2026-11-14 | 825 | [68-tapins-first-payroll-cycle-comes-first-the-founder-2026-11-14.md](68-tapins-first-payroll-cycle-comes-first-the-founder-2026-11-14.md) |
+| 68 | Tapin's first payroll cycle comes first — the founder, 2026-11-14 | 1,031 | [68-tapins-first-payroll-cycle-comes-first-the-founder-2026-11-14.md](68-tapins-first-payroll-cycle-comes-first-the-founder-2026-11-14.md) |
 | 69 | Tapin is the way to market: a data engineering bench — the founder, 2026-11-14 | 899 | [69-tapin-is-the-way-to-market-a-data-engineering-bench-the-founder-2026-11-14.md](69-tapin-is-the-way-to-market-a-data-engineering-bench-the-founder-2026-11-14.md) |
