@@ -5,6 +5,7 @@ import { overtimeOptions, type OvertimeSide } from './overtime-words'
 import { amount, compact } from '@/lib/money-display'
 import { says as overtimeTerms } from '@/lib/overtime'
 import { formatDayLong } from '@/lib/format-date'
+import { decideOvertimeBody, flagReasonAsked, refusalOpens } from './decide-overtime-body'
 
 /**
  * The question asked before anybody signs a week that went over.
@@ -92,6 +93,8 @@ export function DecideOvertime({
   lead,
   terms,
   note,
+  flag = null,
+  flagAsksReason = true,
   acceptedHours = null,
   side = 'PAYS',
   timeOffAllowed = false,
@@ -112,6 +115,15 @@ export function DecideOvertime({
    * question opened on top of it, and the signature carried nothing.
    */
   note?: string | null
+  /**
+   * What is wrong with the week, where it is flagged (over the role's
+   * hours, past the contract's last day). With no `note`, the dialog
+   * draws its own reason box and sends what is typed as the note (walk
+   * tpd, trace 7d: the route asked for a reason this dialog had no box for).
+   */
+  flag?: string | null
+  /** False where this signature is not asked for the reason (a firm below the client). */
+  flagAsksReason?: boolean
   /**
    * The hours accepted, where the signer accepted fewer than were filed
    * and the week then went over the line (walk 8): sent again with the
@@ -141,6 +153,12 @@ export function DecideOvertime({
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The reason box for a flagged week: drawn from the start where the row
+  // says so, or opened by the route's own refusal where it knew more.
+  const [flagSays, setFlagSays] = useState<string | null>(() => flagReasonAsked({ flag, flagAsksReason, note }))
+  const [flagReason, setFlagReason] = useState('')
+  // Weeks the route asked a reason for that this screen did not foresee.
+  const [reasonAsked, setReasonAsked] = useState<Set<string>>(() => new Set())
 
   const set = (weekOf: string, patch: Partial<Answer>) =>
     setAnswers((prev) => ({ ...prev, [weekOf]: { ...prev[weekOf], ...patch } }))
@@ -149,14 +167,17 @@ export function DecideOvertime({
   const needsReason = (w: PendingWeek) => {
     const a = answers[w.weekOf]
     if (!a?.treatment) return false
+    if (reasonAsked.has(w.weekOf)) return true
     if (a.treatment === 'TIME_OFF') return true
     return a.treatment === 'PREMIUM' && a.multiplierBps !== contractBps
   }
 
-  const complete = weeks.every((w) => {
-    const a = answers[w.weekOf]
-    return !!a?.treatment && (!needsReason(w) || a.reason.trim().length > 0)
-  })
+  const complete =
+    (!flagSays || flagReason.trim().length > 0) &&
+    weeks.every((w) => {
+      const a = answers[w.weekOf]
+      return !!a?.treatment && (!needsReason(w) || a.reason.trim().length > 0)
+    })
 
   async function submit() {
     setSaving(true)
@@ -165,20 +186,21 @@ export function DecideOvertime({
       const res = await fetch(`/api/timesheets/${timesheetId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(note ? { note } : {}),
-          ...(acceptedHours ? { acceptedHours } : {}),
-          overtime: weeks.map((w) => ({
-            weekOf: w.weekOf,
-            treatment: answers[w.weekOf].treatment,
-            multiplierBps:
-              answers[w.weekOf].treatment === 'PREMIUM' ? answers[w.weekOf].multiplierBps : undefined,
-            reason: answers[w.weekOf].reason.trim() || undefined,
-          })),
-        }),
+        body: JSON.stringify(
+          decideOvertimeBody({
+            note,
+            flagReason: flagSays ? flagReason : null,
+            acceptedHours,
+            answers: weeks.map((w) => ({ weekOf: w.weekOf, ...answers[w.weekOf] })),
+          })
+        ),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
+        // A refusal that names a field opens the box that answers it.
+        const opens = refusalOpens(body.error)
+        if (opens?.box === 'flagReason') setFlagSays(opens.says || flag || '')
+        if (opens?.box === 'weekReason') setReasonAsked((prev) => new Set(prev).add(opens.weekOf))
         setError(body.error?.message ?? 'That could not be saved.')
         return
       }
@@ -298,6 +320,24 @@ export function DecideOvertime({
             )
           })}
         </div>
+
+        {flagSays !== null && (
+          <div className="panel mt-4">
+            <p className="text-[13px] text-etyme-attention mb-2">{flagSays}</p>
+            <label className="stat-label block mb-1" htmlFor="overtime-flag-reason">
+              Why this week is right — it goes on your signature
+            </label>
+            <textarea
+              id="overtime-flag-reason"
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. Go-live weekend, agreed with the account manager"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-none
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+            />
+          </div>
+        )}
 
         {error && (
           <p className="mt-4 text-[13px] text-etyme-attention">{error}</p>

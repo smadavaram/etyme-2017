@@ -587,7 +587,7 @@ export default function TimesheetsPage() {
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   // The week that went over the line, and the sentence that asks about it.
-  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string; note?: string | null; acceptedHours?: string | null } | null>(null)
+  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string; note?: string | null; acceptedHours?: string | null; flag?: string | null } | null>(null)
   // The week a firm accepts fewer hours of, from its row or its opened panel.
   const [fewerFor, setFewerFor] = useState<Timesheet | null>(null)
   // A flagged week is signed with a reason or not at all — the rule the
@@ -1051,6 +1051,8 @@ export default function TimesheetsPage() {
                   row,
                   weeks: row.overtime!.weeks,
                   lead: row.overtime!.says ?? 'This week went over the hours on the contract.',
+                  // A flagged week asks its reason in the dialog itself (walk tpd, 7d).
+                  flag: row.flag,
                 })
               }}
               className="chip chip--attention hover:underline whitespace-nowrap"
@@ -1315,6 +1317,8 @@ export default function TimesheetsPage() {
           weeks={deciding.weeks}
           lead={deciding.lead}
           note={deciding.note ?? null}
+          flag={deciding.flag ?? null}
+          flagAsksReason={deciding.row.flagAsksReason !== false}
           acceptedHours={deciding.acceptedHours ?? null}
           terms={{
             afterHours: deciding.row.overtime?.afterHours,
