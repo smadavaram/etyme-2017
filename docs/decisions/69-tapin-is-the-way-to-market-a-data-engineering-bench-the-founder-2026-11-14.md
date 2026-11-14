@@ -7,6 +7,43 @@ engineering. Clients should not know we train and place it should be
 something my bench recruiting division handles through backchannel and
 referrals today but make it easy for them"*.
 
+**Why Tapin exists, in his own words and in order.** Asked the same
+day, *"Did you loose history on why tapin was created?"* The answer was
+yes, in part: each sentence below was said in the session, none was ever
+written in one place, and the rule file kept only "a supplier like any
+other". They are gathered here so it is not lost again.
+- 2026-10-28: *"Should tapin have public interface like website of
+  their own to attract clients and candidates or should build agents
+  first to transact"*. Decided: agents first (record 28).
+- 2026-11-02: *"How does tapin work for me? As a self employed or
+  someone running 100's of bench"*.
+- 2026-11-11: *"sharath@etyme.com is coowner along with
+  smadavaram@gmail.com on a side note - they plan to run tapin - etyme
+  for etyme first"*. And: *"now lets harness tapin for next couple of
+  months"*.
+- 2026-11-12: *"I need to start tapin and Cloudepa this week"*. And:
+  *"Tapin is a makeshift company for Etyme and does not have a
+  domain"*. And, with a past employee asking for proof of previous
+  experience: *"Etyme is running agency already since 2021 to prove our
+  model"*.
+- 2026-11-14: *"We changed rule when tapin discussion started. We wanted
+  tapin both for fixing the app and next marketing or partnering with
+  other recruiters to market."*
+
+So: Etyme has run its own agency since 2021 to prove the model. Tapin is
+that agency's makeshift company on the product, with no domain, run by
+Etyme's own people: first to use the app for a couple of months and fix
+what it finds, then to go to market with it and partner with other
+recruiters. The old rule "Etyme never runs a bench" was written on
+2026-09-20, before any of this, and was answered back to him on
+2026-11-11 as if it still stood. It does not. CLAUDE.md is corrected in
+the same commit as this text.
+
+**Still open from that history.** What Cloudepa is and what it needs to
+start (asked on 2026-11-12, not answered). The past employee's letter of
+experience: it must come from the legal entity that employed the person,
+and the record issues none until the founder settles how (record 56).
+
 **What stands.**
 
 1. **Tapin is how Etyme reaches the market.** It is a bench firm, mainly

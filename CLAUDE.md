@@ -113,11 +113,15 @@ Full text → 03, 11, 36, 37, 59, 62, 63.
   labeled as the demo's. The reader is a technical IT buyer and the goal
   is trust: every public sentence is something the reader can check on
   the site, or a plain description of what the product does.
-- **Neutrality is absolute.** Etyme never runs a bench, never places
-  anybody, is never a prime vendor, never holds the contract for a
-  person, never bills for one and never pays one. It may be a
-  vendor-neutral MSP, offered once and quietly as a second way to use the
-  record. Nothing on any page reads as aimed at a supplier.
+- **The product is even-handed with every supplier** (changed
+  2026-11-14 → 69; it read "Neutrality is absolute"). Etyme's own agency
+  runs on it as Tapin and gets no access another supplier lacks: rates
+  stay closed, every read is logged, nothing ranks a firm by who owns
+  it. No page says Etyme runs no bench or places nobody, and nothing a
+  client reads says that it does. It may be a vendor-neutral MSP,
+  offered once and quietly; whether Tapin may supply such a program is
+  the founder's to say. Nothing on any page reads as aimed at a
+  supplier.
 - **Horizontal, never vertical.** Nothing in the core assumes IT staffing.
 - **Plain English for a global reader.** A short heading, then cards,
   steps, lists and tables. Sentences of about fifteen words, never past
@@ -856,9 +860,12 @@ Full text → 27, 29, 13.
 
 Full text → 28, 22, 23, 68, 69.
 
-- **The founder's bench business runs on Etyme as a supplier like any
-  other, named Tapin** (`tapin.etyme.com`), never `etyme`. It gets no
-  access another supplier lacks. Tapin has no domain and gets none; it
+- **Tapin is Etyme's own agency, run on Etyme** ("Etyme for Etyme
+  first"). Etyme has run an agency since 2021 to prove the model; Tapin
+  is its makeshift company on the product, first to prove and fix the
+  app, then to go to market. On the platform it is a supplier like any
+  other (`tapin.etyme.com`, never `etyme`) and gets no access another
+  supplier lacks. Tapin has no domain and gets none; it
   stays on invitation or hybrid sign-in, and the staff tool is its
   recovery. Its seats: sharath (Owner), hradmin (HR), oliver (Account
   Manager), timesheets (AP & Payroll), and three partners as Admins on
