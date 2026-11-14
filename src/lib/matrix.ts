@@ -500,7 +500,8 @@ export const MATRIX: L1[] = [
             'DONE 2026-11-04 by etyme-market (ceba23d4a): the second step reads Submissions on every public page, so one word means one thing wherever a buyer reads it (src/lib/public-site/steps.ts)',
             'DONE 2026-11-04 by etyme-market (09b5cdc41): the documentation names the menu as it reads today: the people and firms a firm keeps under Network, papers on Contracts’ Paperwork tab, the money under Bills, Invoice receipts and Payroll (src/lib/public-site/docs/topics.ts, src/lib/public-site/docs/index.ts)',
             'BUILT 2026-11-08 by etyme-market (2a56fec20): the documentation names the menu the app draws (Accounting: Receivables, Payables, Payroll; a client Payables only; Network: Candidates, Suppliers; HR: Contracts), read against menuFor',
-            '2026-11-09: every sample amount on the public site\u2019s sample desk carries its currency and is drawn through lib/money-display; no \u201c$\u201d or /100 of its own'],
+            '2026-11-09: every sample amount on the public site\u2019s sample desk carries its currency and is drawn through lib/money-display; no \u201c$\u201d or /100 of its own',
+            'CHANGED 2026-11-13 by etyme-market (57acf335d): the home page reads one sample company, Corvane Packaging, at its own scale: the Ask Etyme demo (monthly spend, 359 through 25 in 8 countries, Aoife Kelly 17 of 18 months and 14 days from the limit, the open Dayton job), the glance (the month\u2019s held total on seven supplier invoices, 17 / 18), the CFO view (the year, the held invoices and the largest), and the first proof card, every figure read from the seed; Northbend stays on every other page'],
           implementedBy: ['src/lib/public-site/steps.ts', 'src/app/site/[slug]/page.tsx', 'src/app/site/ask.tsx', 'src/lib/public-site/firm-page.ts', 'src/lib/site-voice.ts', 'src/app/c/[slug]/page.tsx', 'src/lib/public-site/door-maps.ts', 'src/lib/public-site/door-map-seed.ts', 'src/lib/public-site/door-map-facts.ts', 'src/lib/public-site/corvane-map.ts', 'src/lib/public-site/corvane-map-view.tsx', 'src/lib/public-site/home-words.ts', 'src/lib/public-site/home-demo.ts', 'src/lib/public-site/home-cfo.ts', 'src/lib/public-site/home-copy.ts', 'src/lib/public-site/home-parts.tsx', 'src/lib/public-site/home-buttons.ts', 'src/app/(auth)/door-frame.tsx', 'src/lib/public-site/flow-chart.tsx', 'src/lib/public-site/sub-page.tsx', 'src/lib/public-site/folded.ts', 'src/lib/public-site/parties.ts', 'src/lib/public-site/party-page.tsx', 'src/app/(site)/for/suppliers/page.tsx', 'src/app/(site)/for/program-offices/page.tsx', 'src/app/(site)/for/integrators/page.tsx', 'src/app/(site)/for/contractors/page.tsx',
             'src/lib/positioning.ts', 'src/app/page.tsx', 'src/lib/public-site/close-band.tsx', 'src/lib/public-site/funnel.ts',
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'public/screens',
@@ -526,7 +527,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/ui-adoption-conversation.test.ts', '__tests__/invariants/home-rhythm.test.ts',
             '__tests__/invariants/public-site-sequence.test.ts', '__tests__/invariants/marketing-leads.test.ts',
             '__tests__/invariants/demo-candidate.test.ts', '__tests__/invariants/demo-door.test.ts',
-            '__tests__/invariants/demo-page-says-simulated.test.ts'] },
+            '__tests__/invariants/demo-page-says-simulated.test.ts', '__tests__/invariants/home-demo.test.ts'] },
         { code: 'L3.1.4.2', name: 'A requirement going down a chain', owner: 'Account manager', status: B,
           tasks: [
             'The end client described, not named, where the agreement forbids it',
