@@ -6,6 +6,7 @@ import { speaksForItself } from '@/lib/public-site/speaks'
 import { offersJoinBench } from '@/lib/public-site/join-bench'
 import {
   mayShowPublicly, benchFreeNow, freeSummary, firmContact, offersAsk, type FirmContact,
+  STARTED_STATES, trackRecord,
 } from '@/lib/public-site/firm-page'
 
 /**
@@ -280,12 +281,11 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     })),
   })
 
-  const [placements, activeNow, clientRows, profiles, verifications] = await Promise.all([
-    prisma.sellContract.count({ where: { companyId: company.id } }),
-    prisma.sellContract.count({ where: { companyId: company.id, state: 'IN_PROGRESS' } }),
+  const [sellLines, profiles, verifications] = await Promise.all([
+    // Only lines where work started: a draft is no placement (walk tpf).
     prisma.sellContract.findMany({
-      where: { companyId: company.id },
-      select: { endClientCompanyId: true, clientCompanyId: true },
+      where: { companyId: company.id, state: { in: [...STARTED_STATES] } },
+      select: { state: true, endClientCompanyId: true, clientCompanyId: true },
     }),
     // Only people who said yes, and yes to being shown beyond this firm:
     // an INVITED listing is somebody asked, not somebody who agreed.
@@ -318,12 +318,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     locations: [...new Set(
       company.locations.map((l) => [l.city, l.state ?? l.country].filter(Boolean).join(', ')).filter(Boolean)
     )].slice(0, 6),
-    track: {
-      placements,
-      activeNow,
-      clients: new Set(clientRows.map((r) => r.endClientCompanyId ?? r.clientCompanyId)).size,
-      isNew: placements === 0,
-    },
+    track: trackRecord(sellLines),
     skills: (() => {
       const counts = new Map<string, number>()
       // The same yes the "coming free" list reads, so a stay that ran out

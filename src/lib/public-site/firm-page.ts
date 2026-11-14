@@ -112,6 +112,43 @@ export function freeSummary(rows: Pick<ComingFree, 'daysUntilFree'>[]): string |
   return `${n(soon)} coming free within three months.`
 }
 
+// ── The track record: only work that started ────────────────────────
+
+/**
+ * The sell-line states that mean somebody started work: running, paused
+ * or ended. Never DRAFT, PENDING_VERIFICATION or VERIFIED, which are a
+ * start that has not happened yet. Never CANCELLED either: the schema
+ * says it covers "before start or during", and a public figure takes
+ * the reading that cannot overstate (walk tpf, stop 3).
+ */
+export const STARTED_STATES = ['IN_PROGRESS', 'PAUSED', 'ENDED'] as const
+
+export interface SellLineForTrack {
+  state: string
+  endClientCompanyId: string | null
+  clientCompanyId: string | null
+}
+
+/**
+ * "N placements through Etyme", "N clients", "N working now". A line
+ * that never started is no placement, and a client with only such
+ * lines is no client, so a firm with only drafts reads as new.
+ */
+export function trackRecord(lines: SellLineForTrack[]): {
+  placements: number; activeNow: number; clients: number; isNew: boolean
+} {
+  const started = lines.filter((l) => (STARTED_STATES as readonly string[]).includes(l.state))
+  const clients = new Set(
+    started.map((l) => l.endClientCompanyId ?? l.clientCompanyId).filter((x): x is string => !!x),
+  ).size
+  return {
+    placements: started.length,
+    activeNow: started.filter((l) => l.state === 'IN_PROGRESS').length,
+    clients,
+    isNew: started.length === 0,
+  }
+}
+
 // ── The firm's contact, as the firm set it ──────────────────────────
 
 export type InChargeDuty = 'OWNER' | 'HR' | 'BILLING_CONTACT'
