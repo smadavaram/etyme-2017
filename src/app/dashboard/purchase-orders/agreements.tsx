@@ -6,6 +6,8 @@ import { readJson } from '@/lib/read-response'
 import { firmsToPick, LINK_FIRST_SAYS, LINK_FIRST_HREF } from '@/lib/money/firm-picker'
 import type { OrderTerms } from '@/lib/money/order-terms'
 import { signOfferFor } from '@/lib/money/agreement-record'
+import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
+import { OwnerGateLine } from '@/components/owner-gate-line'
 import { Chip, Field, FormMessage, Input, Lbl, Panel, Select, SubmitButton, ErrorState } from '@/components/ui'
 
 /**
@@ -54,6 +56,9 @@ export function Agreements({ mayRecord, selfCompanyId }: { mayRecord: boolean; s
   const [readSaid, setReadSaid] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
+  // The sign route's own gate, read by the list (GET /api/program/agreements):
+  // at a company waiting for a verified Owner, the sentence and its link.
+  const [signWaits, setSignWaits] = useState<OwnerLine | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -66,6 +71,7 @@ export function Agreements({ mayRecord, selfCompanyId }: { mayRecord: boolean; s
       }
       setReadSaid(null)
       setRows(body.data?.agreements ?? [])
+      setSignWaits(body.data?.signWaits ?? null)
     } catch {
       setReadSaid('Agreements could not be read.')
       setRows([])
@@ -121,6 +127,7 @@ export function Agreements({ mayRecord, selfCompanyId }: { mayRecord: boolean; s
                 <SignRow
                   row={a}
                   holdsTheDesk={mayRecord}
+                  signWaits={signWaits}
                   onSigned={(says) => { setFlash(says); load() }}
                 />
               )}
@@ -279,7 +286,7 @@ const SIDE_WORDS: Record<'VENDOR' | 'CLIENT', string> = {
  * date on the paper and how it was signed, as `AgreementSignature`
  * records each side.
  */
-function SignRow({ row, holdsTheDesk, onSigned }: { row: AgreementRow; holdsTheDesk: boolean; onSigned: (says: string) => void }) {
+function SignRow({ row, holdsTheDesk, signWaits, onSigned }: { row: AgreementRow; holdsTheDesk: boolean; signWaits: OwnerLine | null; onSigned: (says: string) => void }) {
   const offer = signOfferFor({
     role: row.role,
     counterpartyName: row.counterparty.name,
@@ -294,10 +301,14 @@ function SignRow({ row, holdsTheDesk, onSigned }: { row: AgreementRow; holdsTheD
   const [signedAt, setSignedAt] = useState('')
   const [method, setMethod] = useState('WET_INK')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<OwnerLine | null>(null)
 
   if (!offer.offer) {
     return offer.says ? <p className="text-[12px] text-etyme-muted mt-1.5">{offer.says}</p> : null
+  }
+  // Signing waits on a verified Owner: the sentence and its link, in place of the button and the form.
+  if (signWaits) {
+    return <OwnerGateLine line={signWaits} className="mt-2 text-[12px]" />
   }
   const side = party || offer.sides[0]
 
@@ -314,7 +325,8 @@ function SignRow({ row, holdsTheDesk, onSigned }: { row: AgreementRow; holdsTheD
       setOpen(false)
       onSigned(body.data.says)
     } catch (e: any) {
-      setError(e.message)
+      // The refusal keeps the route's link: a gated company's is "Prove ownership".
+      setError(refusalLine({ message: e.message, code: e.code, href: e.href }))
     } finally {
       setBusy(false)
     }
@@ -329,7 +341,13 @@ function SignRow({ row, holdsTheDesk, onSigned }: { row: AgreementRow; holdsTheD
         </button>
       ) : (
         <div className="mt-2">
-          {error && <div className="mb-2"><ErrorState says={error} /></div>}
+          {error && (
+            <div className="mb-2">
+              {error.href
+                ? <OwnerGateLine line={error} className="text-[12px] !text-etyme-attention" />
+                : <ErrorState says={error.says} />}
+            </div>
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             {offer.sides.length > 1 && (
               <Field label="Which side signed">
