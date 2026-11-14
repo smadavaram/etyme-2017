@@ -129,7 +129,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     expect(row.overtimeHours).toBe(5)
     expect(row.premiumCents).toBe(5 * 3_300)
     expect(row.grossPay).toBe(165 * 6_600 + 5 * 3_300)
-    expect(row.payLine).toContain("Neither contract sets an overtime line for Dana Whitfield, so the law's applies")
+    expect(row.payLine).toContain('Dana Whitfield is not exempt and works in the US, so hours over 40 in a week are paid at time and a half.')
   })
 
   it('shows the payroll screen the same premium the run pays, and says the line is the law’s', async () => {
@@ -137,7 +137,8 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
     expect(item.premiumCents).toBe(5 * 3_300)
     expect(item.grossPay).toBe(165 * 6_600 + 5 * 3_300)
-    expect(item.payLine).toContain('owed time and a half for hours over 40 in a week (29 U.S.C. §207(a)(1))')
+    expect(item.payLine).toContain('so hours over 40 in a week are paid at time and a half')
+    expect(item.payLine).not.toContain('U.S.C.')
   })
 
   it('puts the five hours on the payroll file as overtime, with the reason on the line', async () => {
@@ -148,7 +149,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     expect(mine[0].hours).toBe(40)
     expect(mine[0].overtimeHours).toBe(5)
     expect(mine[0].overtimeCents).toBe(Math.round(5 * 6_600 * 1.5))
-    expect(mine[0].notes.join(' ')).toContain("the law's applies")
+    expect(mine[0].notes.join(' ')).toContain('so hours over 40 in a week are paid at time and a half')
   })
 
   it('pays a week accepted at 38 of 45 at straight time on the law’s forty too, because an acceptance under the line is the hours worked', async () => {

@@ -76,7 +76,7 @@ describe('a nonexempt US worker is owed overtime after forty hours even where no
   it('says where the line came from, once a week has gone over forty', () => {
     const says = payLineSays(payLineFor(base), { personName: 'Priya Venkataraman' }, weeklyWorked(FORTY_FIVE))
     expect(says).toBe(
-      "Neither contract sets an overtime line for Priya Venkataraman, so the law's applies: Priya Venkataraman is nonexempt and works in the US, and is owed time and a half for hours over 40 in a week (29 U.S.C. §207(a)(1))."
+      'Priya Venkataraman is not exempt and works in the US, so hours over 40 in a week are paid at time and a half. Neither contract sets its own overtime line.'
     )
     // A week of forty says nothing: nothing went over.
     expect(payLineSays(payLineFor(base), { personName: 'Priya' }, weeklyWorked({ '2026-08-03': 40 }))).toBeNull()
@@ -193,7 +193,7 @@ describe('the payroll file pays the law’s forty', () => {
     expect(e.lines[0].hours).toBe(40)
     expect(e.lines[0].overtimeHours).toBe(5)
     expect(e.lines[0].overtimeCents).toBe(5 * 6_600 * 1.5)
-    expect(e.lines[0].notes.some((n) => n.includes("the law's applies"))).toBe(true)
+    expect(e.lines[0].notes.some((n) => n.includes('so hours over 40 in a week are paid at time and a half'))).toBe(true)
   })
 
   it('carries the reason the US forty was not applied on the line it pays', () => {

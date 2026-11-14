@@ -179,10 +179,10 @@ describe('what a payroll person reads about the period', () => {
 
   it('a two-week company with no first day is told the page lists by calendar month and where the Owner sets the day', () => {
     expect(calendarMonthSays('Tapin', biweekly(null))).toBe(
-      "Tapin pays every other week, but this page lists pay by calendar month until the first pay period's first day is set. " +
+      "Tapin pays every other week, but this page lists pay by calendar month until the Sunday its pay periods count from is set. " +
       WHERE_FIRST_DAY_IS_SET,
     )
-    expect(WHERE_FIRST_DAY_IS_SET).toBe('The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on".')
+    expect(WHERE_FIRST_DAY_IS_SET).toBe('The Owner or an Admin sets it in Settings, under Cycles, then Payroll: "The Sunday your pay periods are counted from".')
   })
 
   it('a company that pays twice a month or once a month keeps the calendar month, with nothing to set', () => {

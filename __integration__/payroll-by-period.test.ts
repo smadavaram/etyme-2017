@@ -340,8 +340,8 @@ describe('one door and one answer for the company’s periods', () => {
     const data = await rows('2026-12')
     expect(data.payPeriods).toBeNull()
     expect(data.periodSays).toBe(
-      "Brightmoor Staffing pays every other week, but this page lists pay by calendar month until the first pay period's first day is set. " +
-      'The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on".',
+      "Brightmoor Staffing pays every other week, but this page lists pay by calendar month until the Sunday its pay periods count from is set. " +
+      'The Owner or an Admin sets it in Settings, under Cycles, then Payroll: "The Sunday your pay periods are counted from".',
     )
     expect(data.runsHere).toBe(true)
     as(BRIGHTMOOR)

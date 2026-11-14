@@ -235,16 +235,16 @@ export function payLineSays(
 
   switch (line.reason) {
     case 'LAW':
+      // The law is 29 U.S.C. §207(a)(1); the clerk reads what it means.
       return (
-        `Neither contract sets an overtime line for ${name}, so the law's applies: ${name} is nonexempt ` +
-        `and works in the US, and is owed time and a half for hours over ${US_WEEKLY_LINE} in a week ` +
-        `(29 U.S.C. §207(a)(1)).`
+        `${name} is not exempt and works in the US, so hours over ${US_WEEKLY_LINE} in a week are paid ` +
+        `at time and a half. Neither contract sets its own overtime line.`
       )
     case 'LINE_ABOVE_LAW':
       return (
-        `${name}'s contract sets overtime after ${line.drawn} hours a week. ${name} is nonexempt and works ` +
-        `in the US, where the law sets it at ${US_WEEKLY_LINE} (29 U.S.C. §207(a)(1)), and a contract cannot ` +
-        `set it later. So hours over ${US_WEEKLY_LINE} are paid as overtime.`
+        `${name}'s contract sets overtime after ${line.drawn} hours a week. ${name} is not exempt and works ` +
+        `in the US, where overtime starts after ${US_WEEKLY_LINE} hours, and a contract cannot set it later. ` +
+        `So hours over ${US_WEEKLY_LINE} are paid as overtime.`
       )
     case 'UNRECORDED': {
       // Nobody has said whether the person is exempt, and something says

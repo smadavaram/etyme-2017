@@ -70,7 +70,7 @@ describe('the pay file names a held week and its hours on the person’s line', 
     const [, line] = payFileCsv([omar], p).trim().split('\n')
     expect(line).toBe(
       'Omar Haddad,0,96.00,0,0.00,0.00,3840.00,USD,2026-12-06,2026-12-19,' + p.payOn +
-        ',"Paid, week held","Week of December 13, 2026, 46 hours, overtime answer not recorded"'
+        ',"Paid, week held","Week of December 13, 2026, 46 hours, exempt or not exempt not recorded"'
     )
   })
 
@@ -79,7 +79,7 @@ describe('the pay file names a held week and its hours on the person’s line', 
     const [, line] = payFileCsv([row], null).trim().split('\n')
     expect(line).toBe(
       'Omar Haddad,0,96.00,0,0.00,0.00,3840.00,USD,2026-12-01,2026-12-31,2027-01-08' +
-        ',"Paid, week held","Week of December 13, 2026, 46 hours, overtime answer not recorded"'
+        ',"Paid, week held","Week of December 13, 2026, 46 hours, exempt or not exempt not recorded"'
     )
   })
 
@@ -91,7 +91,7 @@ describe('the pay file names a held week and its hours on the person’s line', 
     const [, line] = payFileCsv([only], p).trim().split('\n')
     expect(line).toBe(
       'Omar Haddad,0,96.00,0,0.00,0.00,0.00,USD,2026-12-06,2026-12-19,' + p.payOn +
-        ',"Not worked out yet, week held","Week of December 13, 2026, 46 hours, overtime answer not recorded"'
+        ',"Not worked out yet, week held","Week of December 13, 2026, 46 hours, exempt or not exempt not recorded"'
     )
   })
 
@@ -107,7 +107,7 @@ describe('the pay file names a held week and its hours on the person’s line', 
 
   it('two held weeks are named in order, and a line with nothing held leaves the column empty', () => {
     expect(heldWeeksCell([{ weekOf: '2026-12-13', hours: 46 }, { weekOf: '2026-12-06', hours: 43 }])).toBe(
-      'Week of December 6, 2026, 43 hours, overtime answer not recorded; Week of December 13, 2026, 46 hours, overtime answer not recorded'
+      'Week of December 6, 2026, 43 hours, exempt or not exempt not recorded; Week of December 13, 2026, 46 hours, exempt or not exempt not recorded'
     )
     expect(heldWeeksCell([])).toBe('')
     expect(heldWeeksCell(null)).toBe('')

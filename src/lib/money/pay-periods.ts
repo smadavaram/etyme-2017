@@ -22,7 +22,7 @@
  */
 
 import {
-  payPeriodHolding, PAY_PERIOD_WORDS,
+  payPeriodHolding, PAY_PERIOD_WORDS, FIRST_PERIOD_LABEL,
   type DayOffRule, type PayPeriodOn, type PayRhythm,
 } from '@/lib/pay-dates'
 import { formatDay, formatDayLong, formatRange } from '@/lib/format-date'
@@ -246,7 +246,7 @@ export function noHolidaysSays(companyName: string, rule: DayOffRule): string | 
 
 /** Where the Owner sets the first day, said once on the Payroll page. */
 export const WHERE_FIRST_DAY_IS_SET =
-  'The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on".'
+  `The Owner or an Admin sets it in Settings, under Cycles, then Payroll: "${FIRST_PERIOD_LABEL}".`
 
 /**
  * The sentence over a calendar month. A weekly or two-week company that
@@ -256,7 +256,7 @@ export const WHERE_FIRST_DAY_IS_SET =
 export function calendarMonthSays(companyName: string, r: PayRhythm): string {
   const pays = `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}`
   if (r.payPeriod === 'WEEKLY' || r.payPeriod === 'BIWEEKLY') {
-    return `${pays}, but this page lists pay by calendar month until the first pay period's first day is set. ` +
+    return `${pays}, but this page lists pay by calendar month until the Sunday its pay periods count from is set. ` +
       WHERE_FIRST_DAY_IS_SET
   }
   return `${pays}, so this page lists pay by calendar month.`
@@ -283,7 +283,7 @@ export function firstDayNeededSays(args: {
   if (!args.payroll || !args.chosen) return null
   if (args.chosen.payPeriod !== 'WEEKLY' && args.chosen.payPeriod !== 'BIWEEKLY') return null
   if (paysByPeriod(args.chosen)) return null
-  return `Pay days for a W-2 line count from your first pay period, and that day is not set yet. ${WHERE_FIRST_DAY_IS_SET}`
+  return `A W-2 line's pay days count from the Sunday your pay periods start on, and that Sunday is not set yet. ${WHERE_FIRST_DAY_IS_SET}`
 }
 
 /** A period that holds nothing to pay. */
@@ -431,7 +431,7 @@ export function heldWeeksCell(weeks: ReadonlyArray<{ weekOf: string; hours: numb
   if (!weeks || weeks.length === 0) return ''
   return [...weeks]
     .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
-    .map((w) => `Week of ${formatDayLong(w.weekOf.slice(0, 10))}, ${Math.round(w.hours * 100) / 100} hours, overtime answer not recorded`)
+    .map((w) => `Week of ${formatDayLong(w.weekOf.slice(0, 10))}, ${Math.round(w.hours * 100) / 100} hours, exempt or not exempt not recorded`)
     .join('; ')
 }
 

@@ -756,7 +756,7 @@ export default function PayrollPage() {
       <PageHead
         eyebrow={eyebrow}
         title="Payroll"
-        subtitle="Buy-side payment processing. Calculate, approve, and process pay for everybody who worked in the period, including placements that have since ended."
+        subtitle="Pay your W-2 people for hours their client approved. Calculate, approve and pay everybody who worked in the period, including people whose contracts have ended."
         actions={<>
           {/* Period selector + run action */}
           <select

@@ -156,7 +156,7 @@ describe('a 46-hour week for a W-2 employee nobody has said is exempt is held, t
     expect(hers).toHaveLength(1)
     // Nothing left to pay, $3,840 paid already, and the held week named.
     expect(hers[0]).toContain(',0,96.00,0,0.00,0.00,3840.00,USD,')
-    expect(hers[0].endsWith(',"Paid, week held","Week of June 7, 2026, 46 hours, overtime answer not recorded"')).toBe(true)
+    expect(hers[0].endsWith(',"Paid, week held","Week of June 7, 2026, 46 hours, exempt or not exempt not recorded"')).toBe(true)
   })
 
   it('once "not exempt" is recorded, the week is back: 86 hours, 80 x 96 + 6 x 144 = $8,544, and Calculate is asked for again', async () => {

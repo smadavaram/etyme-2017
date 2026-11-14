@@ -292,8 +292,8 @@ describe('a W-2 placement recorded on screen takes the company’s pay days', ()
   it('a company paying every other week with no first day set refuses the W-2 line and names the Owner’s step', () => {
     const said = firstDayNeededSays({ payroll: true, chosen: biweekly({ payFirstPeriodStart: null }) })
     expect(said).toBe(
-      'Pay days for a W-2 line count from your first pay period, and that day is not set yet. ' +
-        'The Owner sets it in Settings, under Cycles, then Payroll: "First pay period starts on".'
+      "A W-2 line's pay days count from the Sunday your pay periods start on, and that Sunday is not set yet. " +
+        'The Owner or an Admin sets it in Settings, under Cycles, then Payroll: "The Sunday your pay periods are counted from".'
     )
     for (const n of words(said!)) expect(n).toBeLessThan(25)
   })
