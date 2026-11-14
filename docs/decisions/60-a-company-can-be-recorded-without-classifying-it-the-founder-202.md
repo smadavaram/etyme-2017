@@ -59,3 +59,61 @@ The coordinator's calls, each reversible by the founder in a sentence:
 Built by the architect in two stages (rules and routes, then screens),
 with one test that walks his six acceptance lines and the three layer
 additions. The record of what shipped goes under this line.
+
+### As shipped — 2026-11-13
+
+**Built 2026-11-13.** One new Kind value, "not classified", and nothing
+else in the schema. What the founder's six acceptance lines read as now:
+1. A company is recorded with only its name. It holds no relationship.
+2. A contact is added with "Works at" that company.
+3. It is on no supplier or client list, count or picker, and no job, person,
+   bench, contract line or order can name it.
+4. Extend to Supplier puts it on Suppliers and in the job picker. Its
+   Kind does not move.
+5. Nothing is emailed and no notice is written at any step.
+6. Companies that existed before are untouched. Nothing was migrated.
+The layer additions hold: any Kind can be a Customer and back; one
+company is Customer and Supplier at once; a GSI extends both ways.
+
+Three reviewers then read the change and found three faults that would
+have shipped. Each is closed and has a test sentence:
+- **A firm on Etyme is never tied to you from your side alone.** A
+  register row you wrote yourself never counts as working together. You
+  ask them to link, and they say yes.
+- **Adding a company never tells you about a firm you do not work
+  with.** The reply says it is on Etyme already and offers "Ask them to
+  link". It carries no id, name or address of that firm.
+- **A position is read from the register, never from the Kind.** A
+  recorded company given a Kind and no position is still "Not
+  classified" at every gate: jobs, people sent on, bench shares,
+  contract lines and orders. One reader (`standingWith`,
+  `lacksPosition`) answers every gate and the badge.
+
+More coordinator's calls, each reversible in a sentence:
+11. The domain typed for a recorded company is kept as your own note
+    and shown on your list ("As you typed it. Nobody has checked it.").
+    It is never a claim on that domain, and no other company reads it.
+12. Changing a recorded company's Kind withdraws an invitation already
+    out, and says so.
+13. A Supplier or Customer position that an agreement gives has no
+    Remove button. The page says the agreement keeps it.
+14. The Clients list reads Customer positions and agreements only. A
+    company added as a supplier is never on it.
+
+Also fixed by the same review: Sites has "Make primary" and "Remove
+this site" again; a refused Extend stays beside its button; the proof
+that an address came through an account button travels in a cookie only
+the sign-in page's route reads, never in the address bar.
+
+- **A job you sent a firm on your own is not working together** (found
+  2026-11-13, 2035a4734). Only a job the other firm sent you counts, the
+  same way a register row counts only when the other firm wrote it.
+- **An import never seats a person who already has a record.** She is
+  asked onto the bench on her own record (7aaf28edb). Open for the
+  founder: whether a person another firm imported, who has never signed
+  in, counts as already here.
+- **Papers a client's roles verified are not yet written onto a firm's
+  own record at its yes to link.** The firm is asked for them again.
+  Whether they may be carried over is regulatory's decision and waits.
+
+The rule that came out of this review is record 61.

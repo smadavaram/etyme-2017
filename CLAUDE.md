@@ -82,7 +82,7 @@ this sentence?
 
 ## What Etyme is — say this, not something else
 
-Full text → 03, 11, 36, 37, 59.
+Full text → 03, 11, 36, 37, 59, 62, 63.
 
 - **Etyme is the system of record for contingent workers: the layer
   between a company and every staffing supplier it uses.** The span is job
@@ -144,6 +144,15 @@ Full text → 03, 11, 36, 37, 59.
   systems. No rip-and-replace." until he says "name them". Never on the
   page: a size range, "design partner", or a hint that Etyme pays
   invoices on its own.
+- **The home page's figures are one sample company at a real buyer's
+  scale** (2026-11-13): Corvane Packaging, about $43 million a year,
+  every figure read from the seed. What is called held is the invoice;
+  the dollar figure beside it is what it bills over the signed hours.
+  The home page alone says "supplier invoice".
+- **Every party's page converts and can be found** (2026-11-13). The
+  home page still speaks to the client. Every other party's page takes
+  its shape and brand, sells that party its own next step, and is
+  reached by a plain address and from a search engine. Not built yet.
 - **Every other public page**: one headline, the compact panel playing
   the four steps with that party's own named person, at most three lines,
   the sign-up band, one security line, and the one-row footer (Clients ·
@@ -472,7 +481,8 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
   and no reply tells you about a firm you do not work with.
   Answering a client's application link without signing in is not the
   firm taking part: one of its own signed-in people says yes to "Ask
-  them to link".
+  them to link". A job you sent a firm on your own never counts as
+  working together.
 - **Sites.** Say "site", never "plant". A hiring manager may take names
   off a site's supplier list, never add one. A supplier not approved at
   a site is refused in a sentence naming Procurement. A supplier or a
@@ -515,7 +525,7 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
 
 ## Money
 
-Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37.
+Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64.
 
 - **Bill, invoice receipt, payroll.** What a firm issues upward is a
   bill. What it receives from below is an invoice receipt. Its own
@@ -561,6 +571,12 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37.
 - **Etyme never moves money.** A payment run is a list. It leaves as a
   file for the client's own system; the confirmation marks receipts
   paid; the supplier is told the day it is paid.
+- **A client's codes are the client's** (2026-11-13). Cost centers, GL
+  accounts, internal orders and project codes are read only by the
+  company that pays, and a firm seated in its program. The coding block
+  is a GL account, a cost object, a company code and an optional profit
+  center. One generic file per payment run, with a column picker; no
+  layout named after a product.
 - **Commission is a row on the line it is earned on**: sales on the sell
   line, recruiting on the buy line, accrued from accepted weeks, paid
   through Payroll → Commissions.
@@ -740,7 +756,7 @@ type" below is what the code draws, and a test reads it.
 
 ## Sign-in, identity, Owners and access
 
-Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46.
+Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66.
 
 - **The sign-in page.** Account buttons first (Google, Microsoft,
   LinkedIn marked "Candidates only", each drawn only where its key
@@ -748,6 +764,11 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46.
   appears only after the email, and only for an account that has one.
   Sign-up is one line under the heading. One filled button on a screen.
   No button is greyed out without words. Etyme's own branding.
+- **People and invitations read the same on every screen**
+  (2026-11-13). A person invited and never signed in is "Invited", not
+  a member, and is withdrawn, not paused. An invitation that could not
+  be emailed says so, with the next step. Every count says what it
+  counts. "Copy invitation" never carries a link that takes the seat.
 - **The page never says whether an address has an account.** The email
   is routing, never proof.
 - **A consumer address is a candidate**, unless it was invited to a
@@ -847,7 +868,7 @@ Full text → 28, 22, 23.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
@@ -866,6 +887,10 @@ Full text → 33, 34, 17, 20, 52, 57, 41.
 - **"Deploy when green"** (founder, 2026-11-13). Green is: the
   reviewers' blockers fixed, the release check green, and the walk
   saying ships.
+- **The work is bound by the usage allowance, not by the number of
+  agents.** One run per owner. The coordinator schedules its own wake
+  while a deploy is not out. A builder's claim is checked by a reader
+  who did not build it.
 - **Never**: load or simulation on production; a secret, password or
   sign-in code in chat; the coordinator holding the cron secret; a
   one-time link or token shown, copied or logged.
