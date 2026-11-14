@@ -158,9 +158,12 @@ describe('the same degree file stays inside the reading firm’s walls', () => {
     expect((await putOwn(degreeForm(SAME_AS_LUCIAS))).status).toBe(201)
     const notices = await hrNotices(since)
     expect(notices.length).toBeGreaterThan(0)
-    for (const n of notices) {
-      expect(n.body).toContain('This file was already filed by Lucía Fernández.')
-      expect(n.body).not.toContain('Helena')
-    }
+    // HR hears of this upload by a notice that names Lucía. The notice for
+    // the upload in the sentence before this one is written without waiting,
+    // so on a busy machine it can land after `since` and be read here too;
+    // it names nobody, which is its own rule. So: this upload's notice names
+    // Lucía, and nothing HR was sent names the other firm's worker.
+    expect(notices.some((n) => n.body.includes('This file was already filed by Lucía Fernández.'))).toBe(true)
+    for (const n of notices) expect(n.body).not.toContain('Helena')
   })
 })
