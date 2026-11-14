@@ -117,7 +117,7 @@ export const AUTHORISATION_KEYS = ['I9_EVERIFY', 'RIGHT_TO_WORK'] as const
  *
  * In the United States the I-9 IS the right-to-work document — the packet
  * lists both because other jurisdictions separate them. Asking for a
- * "proof of right to work" from somebody whose I-9 and E-Verify are on
+ * "proof of right to work" from somebody whose I-9 is on
  * file is asking for the same thing twice under a different name.
  */
 const SATISFIED_BY: Record<string, readonly string[]> = {
@@ -623,6 +623,12 @@ export function contractClearance(input: {
   clientName?: string | null
   on: Date
   /**
+   * The day the sentences are read, where `on` is a start still to come.
+   * "Expires in N days" counts from it, so one date gives one number on
+   * the placement and on Compliance. Omitted, it is `on`.
+   */
+  today?: Date
+  /**
    * The last day of the assignment, where the caller knows it.
    *
    * Only used to say that a license runs out before the work does. Absent
@@ -919,6 +925,7 @@ export function contractClearance(input: {
     certificates: input.supplierCertificates,
     clientName: input.clientName ?? null,
     on: input.on,
+    today: input.today,
     // What this line's own order insists the firm being paid must hold.
     // A waived one is left out rather than passed as required: the point
     // of a waiver is that this client accepted its absence, on the
@@ -1062,14 +1069,18 @@ function forActivation(cover: CoverGate): CoverGate {
 // Found by a tester on 2026-10-03: "cannot start without proof of right
 // to work and I-9 and E-Verify". Two checklist rows and an "and" inside
 // a label, joined by another "and", read as three separate papers. To a
-// person it is one thing — the right to work, shown on an I-9 and
-// checked with E-Verify — so inside a sentence the two rows are said as
-// one phrase. The checklist keeps both rows; only the sentence folds.
+// person it is one thing — the right to work, shown on an I-9 — so
+// inside a sentence the two rows are said as one phrase. The checklist
+// keeps both rows; only the sentence folds.
+//
+// Never "checked with E-Verify" (walk tpa, 2026-11-14): the record holds
+// the form's edition and the document shown, and no E-Verify case, number
+// or result. Nothing is said to be done that the record cannot show.
 const RIGHT_TO_WORK_LABEL = 'Proof of right to work'
-const I9_LABEL = 'I-9 and E-Verify'
+const I9_LABELS = ['I-9', 'I-9 and E-Verify']
 type Named = { key?: string; label: string; said?: string }
 const isRightToWork = (i: Named) => i.key === 'RIGHT_TO_WORK' || (!i.key && i.label === RIGHT_TO_WORK_LABEL)
-const isI9 = (i: Named) => i.key === 'I9_EVERIFY' || (!i.key && i.label === I9_LABEL)
+const isI9 = (i: Named) => i.key === 'I9_EVERIFY' || (!i.key && I9_LABELS.includes(i.label))
 
 /** The phrases a list of items is said with, inside a sentence. Exported for its test. */
 export function sentencePhrases(items: Named[]): string[] {
@@ -1080,11 +1091,11 @@ export function sentencePhrases(items: Named[]): string[] {
     if (isRightToWork(i) || isI9(i)) {
       if (i.said) { out.push(i.said); continue }
       if (both) {
-        if (!folded) out.push('proof of right to work (I-9, checked with E-Verify)')
+        if (!folded) out.push('proof of right to work (I-9)')
         folded = true
         continue
       }
-      out.push(isI9(i) ? 'an I-9 (checked with E-Verify)' : inSentence(i.label))
+      out.push(isI9(i) ? 'an I-9' : inSentence(i.label))
       continue
     }
     // `said` where an item names itself more precisely inside a sentence —
@@ -1134,7 +1145,7 @@ export function papersCounted(n: number): string {
  * The papers a notice asks for, counted in a word and named.
  *
  *   papersAsked([I-9, background check, license])
- *   → { count: 3, counted: 'three papers', named: 'an I-9 (checked with E-Verify), a background check and a professional license' }
+ *   → { count: 3, counted: 'three papers', named: 'an I-9, a background check and a professional license' }
  *
  * `counted` and `named` agree by construction: both are read off the
  * same folded phrases.
@@ -1241,8 +1252,8 @@ function sayIt(
   if (cover.outcome === 'BLOCK') parts.push(cover.says)
   if (outcome === 'BLOCK') {
     // Joined as sentences, never butted together: "cannot start without
-    // an I-9" followed by the cover gate's own sentence read "…(I-9,
-    // checked with E-Verify) Halcyon Talent: certificate of good
+    // an I-9" followed by the cover gate's own sentence read "…(I-9)
+    // Halcyon Talent: certificate of good
     // standing expired" on the simulation of 2026-10-20.
     // Each part ends on its own full stop; nothing else about a part is
     // changed, so a masked name keeps the casing every other reader of the

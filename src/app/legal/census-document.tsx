@@ -263,7 +263,7 @@ export function CensusAgreementDocument({
             <p className={`max-w-[68ch] font-mono text-[11px] leading-relaxed text-etyme-faint ${WRAP}`}>
               Census agreement — a draft, last read against the code on {LAST_VERIFIED}. Etyme is the
               system of record for contingent workers: the layer between a company and every
-              staffing supplier it uses. It runs no bench and places nobody.
+              staffing supplier it uses.
             </p>
           </footer>
         </div>

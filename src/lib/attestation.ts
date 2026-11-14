@@ -379,7 +379,7 @@ export function exposureOf(
 function label(k: CheckKind): string {
   switch (k) {
     case 'RIGHT_TO_WORK': return 'Right to work'
-    case 'I9_EVERIFY': return 'I-9 and E-Verify'
+    case 'I9_EVERIFY': return 'I-9'
     case 'BACKGROUND_CHECK': return 'Background check'
     case 'DRUG_SCREENING': return 'Drug screening'
     case 'EDUCATION_VERIFICATION': return 'Education'

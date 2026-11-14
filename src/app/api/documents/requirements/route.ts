@@ -14,6 +14,7 @@ import {
 } from '@/lib/document-requirements'
 import { labelFor, sayType, type DefinedType } from '@/lib/document-type'
 import { possessive } from '@/lib/requisition-approval'
+import { checkedAtStart, NOT_CHECKED_AT_START } from '@/lib/document-stages/checked-at-start'
 
 /**
  * What this order asks for on paper, and who may change it.
@@ -269,15 +270,20 @@ export async function GET(request: NextRequest) {
  * has defined it — which is a real thing to know about a type, because
  * nothing watches an undefined one for expiry.
  */
-async function inWords(items: { key: string; label: string }[], companyId: string) {
+async function inWords(items: { key: string; label: string; owedBy: string; from: 'DEFAULT' | 'ORDER' | 'LINE' }[], companyId: string) {
   const defined = (await dictionary(companyId)) as DefinedType[]
   return items.map((i) => {
     const said = sayType(i.key, defined)
+    const checked = checkedAtStart(i)
     return {
       ...i,
       label: i.label === i.key ? said.label : i.label,
       /** False where neither this company's dictionary nor ours names it. */
       typeDefined: said.known,
+      /** False where the start never checks this row: a client's own paper from the default set. */
+      checkedAtStart: checked,
+      /** The row's standing in words where "Required" would promise a check the start does not make. */
+      standingSays: checked ? null : NOT_CHECKED_AT_START,
     }
   })
 }

@@ -178,7 +178,7 @@ const START_RULES: Rule[] = [
     when: (c) => authHere(c).keys.includes('I9_EVERIFY') && (c.classification === 'W2' || c.classification === 'C2H_W2'),
     because: 'federal law requires it before any work is done, and it cannot be waived',
     items: [
-      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Nobody may start without it.', required: true, validMonths: null },
+      { key: 'I9_EVERIFY', label: 'I-9', hint: 'Nobody may start without it.', required: true, validMonths: null },
     ],
   },
   {

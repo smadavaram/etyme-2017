@@ -288,7 +288,7 @@ describe('a start refused on two things says both as sentences', () => {
       supplierCertificates: certs, on: ON,
     })
     expect(v.outcome).toBe('BLOCK')
-    expect(v.says).toMatch(/^Samuel Adeyinka cannot start without proof of right to work \(I-9, checked with E-Verify\)\. Halcyon Talent/)
+    expect(v.says).toMatch(/^Samuel Adeyinka cannot start without proof of right to work \(I-9\)\. Halcyon Talent/)
     expect(v.says).toMatch(/Nobody can start through Halcyon Talent/)
     expect(v.says).not.toMatch(/submitted/)
   })
@@ -347,7 +347,7 @@ describe('a notice counts its papers in a word and names every one', () => {
       { key: 'PROFESSIONAL_LICENSE', label: 'Professional license' },
     ])
     expect(p.counted).toBe('three papers')
-    expect(p.named).toBe('an I-9 (checked with E-Verify), a background check and a professional license')
+    expect(p.named).toBe('an I-9, a background check and a professional license')
     expect(`Vertex Global needs ${p.counted} before you start: ${p.named}`).not.toMatch(/\(s\)|\b\d+ (papers?|documents?)\b/)
   })
 
@@ -364,7 +364,7 @@ describe('a notice counts its papers in a word and names every one', () => {
       { key: 'NDA', label: 'Signed non-disclosure agreement' },
     ])
     expect(p.counted).toBe('two papers')
-    expect(p.named).toBe('proof of right to work (I-9, checked with E-Verify) and a signed non-disclosure agreement')
+    expect(p.named).toBe('proof of right to work (I-9) and a signed non-disclosure agreement')
   })
 
   it('a license that names its board keeps the article it was written with', () => {

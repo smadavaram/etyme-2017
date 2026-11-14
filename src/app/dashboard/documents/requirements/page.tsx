@@ -48,6 +48,8 @@ interface Item {
   note: string | null
   /** False where neither the company's dictionary nor ours names the type. */
   typeDefined?: boolean
+  /** The route's words where the start does not check this row. */
+  standingSays?: string | null
 }
 
 interface Answer {
@@ -219,12 +221,14 @@ function Inner() {
           r.waiverRefused ? 'danger'
             : r.waived ? 'passive'
               : r.blocks ? 'danger'
-                : r.required ? 'attention' : 'passive'
+                : r.standingSays ? 'passive'
+                  : r.required ? 'attention' : 'passive'
         }>
           {r.waiverRefused ? 'Waiver refused'
             : r.waived ? 'Waived'
               : r.blocks ? 'Stops work'
-                : r.required ? 'Required' : 'Optional'}
+                : r.standingSays ? r.standingSays
+                  : r.required ? 'Required' : 'Optional'}
         </Chip>
       ),
       sortValue: (r) => (r.blocks ? 0 : r.required ? 1 : 2),

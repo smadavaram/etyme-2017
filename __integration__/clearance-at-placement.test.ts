@@ -151,7 +151,7 @@ describe('asking for the papers when somebody is placed', () => {
     const told = await prisma.notification.findFirstOrThrow({ where: { personId, entityId: packet.id } })
     expect(told.title).not.toMatch(/document\(s\)|\(s\)/)
     expect(told.title).toMatch(/^Halcyon Talent needs (one paper|two papers|three papers|four papers) before you start as Controls engineer/)
-    expect(told.title).toMatch(/proof of right to work \(I-9, checked with E-Verify\)|an I-9/)
+    expect(told.title).toMatch(/proof of right to work \(I-9\)|an I-9/)
     // The job leads the body, so the notice says what it is about wherever it is read.
     expect(told.body).toMatch(/^Controls engineer/)
     expect(told.body).toContain('Cavanaugh Glassworks')

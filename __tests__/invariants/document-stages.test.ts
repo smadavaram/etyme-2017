@@ -262,10 +262,11 @@ describe('a form’s name keeps its capitals in a sentence', () => {
   it('says the whole refusal the way a compliance officer would write it', () => {
     // The sentence the walk actually caught, end to end — and then read
     // as a person would (tester, 2026-10-03): one right to work, shown
-    // on an I-9 and checked with E-Verify, not three papers.
+    // on an I-9, not three papers. Never "checked with E-Verify": no
+    // E-Verify result is recorded (walk tpa, 2026-11-14).
     const items = sentencePhrases([{ label: 'Proof of right to work' }, { label: 'I-9 and E-Verify' }])
     expect(`Ingrid Sørensen cannot start without ${items.join(' and ')}.`).toBe(
-      'Ingrid Sørensen cannot start without proof of right to work (I-9, checked with E-Verify).'
+      'Ingrid Sørensen cannot start without proof of right to work (I-9).'
     )
   })
 })

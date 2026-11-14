@@ -205,8 +205,8 @@ export const COUNSEL_QUESTIONS: CounselQuestion[] = [
       'Does operating this platform make Etyme an employment agency, an employment ' +
       'business, or a staffing supplier in any jurisdiction it operates in?',
     whatTheCodeDoes:
-      'Etyme runs no bench, employs no consultant, and places nobody. Every placement ' +
-      'ends with a supplier holding the paper. The code refuses to produce a single ' +
+      'The product treats every supplier alike, and a supplier\u2019s rates are never shown ' +
+      'to another supplier. Every placement ends with a supplier holding the paper. The code refuses to produce a single ' +
       'cleared-to-place verdict about a person at all: the function that would return ' +
       'one throws instead, deliberately, so that no judgment about a person is ever ' +
       'made by Etyme rather than by whoever is legally accountable for it.',
@@ -594,9 +594,7 @@ export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section
       paragraphs: [
         'Your census names your suppliers and it may name people working for you. We do ' +
           'not write to any of them, do not invite them to this platform on the strength ' +
-          'of it, and do not use what you sent to sell anything to anybody. Etyme runs no ' +
-          'bench and places nobody, so we are not a competitor of your suppliers and have ' +
-          'nothing to gain by going near them.',
+          'of it, and do not use what you sent to sell anything to anybody.',
         'Asking for a census does not add you to a list either. There is no sequence and no ' +
           'campaign: nothing is ever sent to you because time passed.',
         'We write to you at five moments and no others, and every one of them answers ' +
@@ -710,8 +708,7 @@ export const CENSUS_SUMMARY: SummaryLine[] = [
     ask: 'Whether you approach our suppliers',
     answer:
       'We do not write to your suppliers or your contractors, do not invite them here on ' +
-      'the strength of your file, and sell nothing to anybody from it. Etyme runs no bench ' +
-      'and places nobody, so there is nothing to be gained by going near them.',
+      'the strength of your file, and sell nothing to anybody from it.',
     href: '#we-never-approach-your-suppliers-or-your-contractors',
   },
   {

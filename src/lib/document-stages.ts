@@ -584,6 +584,15 @@ export function calendarDaysBetween(to: Date, on: Date): number {
   return Math.round((day(to) - day(on)) / 86_400_000)
 }
 
+/**
+ * How many days from `today` until a paper expires, as every screen says
+ * it: whole calendar days, negative once it has run out. One function, so
+ * the placement and Compliance cannot give two numbers for one date.
+ */
+export function expiresInDays(expiresAt: Date, today: Date): number {
+  return calendarDaysBetween(expiresAt, today)
+}
+
 /** Chase this far ahead. Long enough to renew an insurance certificate. */
 export const WARN_WITHIN_DAYS = 30
 
@@ -646,7 +655,15 @@ export function standingOf(
      */
     expires?: boolean
   },
-  on: Date
+  on: Date,
+  /**
+   * The day the sentence is said, where it is not the day judged. A start
+   * next week is judged on its first day, but "expires in N days" is read
+   * today, so N is counted from today (walk tpa, 2026-11-14: the placement
+   * said 20 days and Compliance said 18 for one certificate). Omitted, it
+   * is `on`, so every caller written before this keeps its answer.
+   */
+  today?: Date
 ): DocStanding {
   const kindExpires = spec.expires ?? spec.validMonths != null
   if (!held) {
@@ -727,6 +744,8 @@ export function standingOf(
   }
 
   const days = calendarDaysBetween(expires, on)
+  // The number a person reads, counted from the day she reads it.
+  const said = expiresInDays(expires, today ?? on)
 
   if (days < 0) {
     return {
@@ -735,7 +754,9 @@ export function standingOf(
       standing: 'EXPIRED',
       daysLeft: days,
       unverified,
-      says: `${spec.label} expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`,
+      says: said >= 0
+        ? `${spec.label} expires in ${said} day${said === 1 ? '' : 's'}, before ${plainDate(on.toISOString())}.`
+        : `${spec.label} expired ${Math.abs(said)} day${Math.abs(said) === 1 ? '' : 's'} ago.`,
     }
   }
   if (days <= WARN_WITHIN_DAYS) {
@@ -745,7 +766,7 @@ export function standingOf(
       standing: 'EXPIRING',
       daysLeft: days,
       unverified,
-      says: `${spec.label} expires in ${days} day${days === 1 ? '' : 's'}. Ask for the renewal now.`,
+      says: `${spec.label} expires in ${said} day${said === 1 ? '' : 's'}. Ask for the renewal now.`,
     }
   }
 
@@ -756,8 +777,8 @@ export function standingOf(
     daysLeft: days,
     unverified,
     says: unverified
-      ? `${spec.label} is valid for ${days} more days. Nobody has confirmed they checked it.`
-      : `${spec.label} is valid for ${days} more days.`,
+      ? `${spec.label} is valid for ${said} more days. Nobody has confirmed they checked it.`
+      : `${spec.label} is valid for ${said} more days.`,
   }
 }
 
@@ -979,6 +1000,8 @@ export function supplierCoverGate(input: {
   /** Who the certificate holder line should name, where it is known. */
   clientName?: string | null
   on: Date
+  /** The day the sentence is read, where `on` is a start still to come. */
+  today?: Date
 }): CoverGate {
   const required = input.requiredTypes ?? []
   const mustNotLapse = new Set<string>([...COVER_THAT_STOPS_WORK, ...required])
@@ -1055,7 +1078,8 @@ export function supplierCoverGate(input: {
           }
         : null,
       { key: kind, label, validMonths: COVER_VALID_MONTHS },
-      input.on
+      input.on,
+      input.today
     )
 
     // The supplier's own record says it has run out. Believe them even

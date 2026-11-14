@@ -125,16 +125,16 @@ describe('the doors that write or extend a line', () => {
 })
 
 describe('words a person reads on the compliance pages', () => {
-  it('reads the right to work as one thing: proof of right to work (I-9, checked with E-Verify)', () => {
+  it('reads the right to work as one thing: proof of right to work (I-9)', () => {
     expect(sentencePhrases([
       { key: 'RIGHT_TO_WORK', label: 'Proof of right to work' },
       { key: 'I9_EVERIFY', label: 'I-9 and E-Verify' },
       { key: 'BACKGROUND_CHECK', label: 'Background check' },
-    ])).toEqual(['proof of right to work (I-9, checked with E-Verify)', 'background check'])
+    ])).toEqual(['proof of right to work (I-9)', 'background check'])
   })
 
-  it('reads an I-9 on its own as an I-9 checked with E-Verify, never "I-9 and E-Verify" inside a sentence', () => {
-    expect(sentencePhrases([{ key: 'I9_EVERIFY', label: 'I-9 and E-Verify' }])).toEqual(['an I-9 (checked with E-Verify)'])
+  it('reads an I-9 on its own as an I-9, never "I-9 and E-Verify" inside a sentence', () => {
+    expect(sentencePhrases([{ key: 'I9_EVERIFY', label: 'I-9 and E-Verify' }])).toEqual(['an I-9'])
   })
 
   it('writes Teleworld Solutions’ with the apostrophe alone, and Pinnacle Resourcing’s with an s', () => {

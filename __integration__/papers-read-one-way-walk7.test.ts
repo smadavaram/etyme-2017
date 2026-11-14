@@ -46,7 +46,7 @@ describe('papers read one way, on the seeded world', () => {
     const r = await json(await packetsGET(req('GET', '/api/packets')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const says = r.body.data.atSuppliers.map((a: any) => a.says)
-    expect(says).toContain('Samuel Adeyinka’s I-9 and E-Verify: arrived at Halcyon Talent, being examined.')
+    expect(says).toContain('Samuel Adeyinka’s I-9: arrived at Halcyon Talent, being examined.')
   })
 
   it('a paper that arrived at a firm below the supplier the client pays is listed without naming that firm', async () => {
