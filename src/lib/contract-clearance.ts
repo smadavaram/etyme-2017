@@ -72,6 +72,7 @@ import {
   type LicenseGate,
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
+import { whoMaySays } from '@/lib/refusal-words'
 import { plainDate } from '@/lib/plain-date'
 import { requirementsFor, requirementsForLines, type LineRequirements } from '@/lib/document-requirements'
 import type { WorkAuthorizationRule } from '@/lib/document-stages/countries'
@@ -1288,13 +1289,14 @@ function sayIt(
  * The fix, said to the person reading it. "Then activate" is said to a
  * seat that may start a placement; a seat that may not (HR, whose route
  * refuses the start) reads who does, by the role names its own firm
- * holds: "Get an I-9 on file; then the contract manager or delivery
- * manager activates." Release walk three, 2026-11-03. Pure.
+ * holds and has seated (`seatedWhoMay`, the caller's to pass): "Get an
+ * I-9 on file; then the Owner or an Admin activates." Release walk
+ * three, 2026-11-03; Tapin walk, 2026-11-14. Pure.
  */
 export function fixForReader(fix: string | null, reader: { mayStart: boolean; startedBy: string[] }): string | null {
   if (!fix || reader.mayStart || reader.startedBy.length === 0) return fix
-  const who = reader.startedBy.map((r) => r.toLowerCase())
-  const named = `the ${who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} or ${who[who.length - 1]}`}`
+  // The roles as the firm names them: "the Owner or an Admin", "the Contract Manager".
+  const named = whoMaySays(reader.startedBy)
   return fix
     .replace(/, then activate\.$/, `; then ${named} activates.`)
     .replace(/, or activate with a reason\.$/, `; or ${named} activates with a reason.`)

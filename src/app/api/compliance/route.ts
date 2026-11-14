@@ -7,6 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/walls'
 import { hasPermission, desksHolding } from '@/lib/permissions'
+import { seatedWhoMay } from '@/lib/refusal-words'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, fixForReader, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
@@ -654,10 +655,20 @@ export async function GET(request: NextRequest) {
   const checksOf = (personId: string) => startPersonRows.filter((v) => v.personId === personId)
   const firmChecksOf = (companyId: string) => startFirmRows.filter((v) => v.companyId === companyId)
 
-  // Who starts a placement here, for a reader whose role does not.
+  // Who starts a placement here, for a reader whose role does not: only
+  // the roles that may and that somebody at this firm holds, else the
+  // Owner or an Admin (Tapin walk, 2026-11-14: HR was sent to a resource
+  // manager and a contract manager the firm had never seated). One read
+  // of the firm's live seats, and only for a reader who may not start.
+  const mayStart = hasPermission(caller.permissions, 'assignments.write')
+  const seatedRoles = mayStart || !caller.company?.id ? [] : await prisma.context.findMany({
+    where: { companyId: caller.company.id, revokedAt: null, suspendedAt: null, roleId: { not: null } },
+    select: { role: { select: { name: true } } },
+    distinct: ['roleId'],
+  }).then((rows) => rows.flatMap((r) => (r.role ? [r.role.name] : [])))
   const reader = {
-    mayStart: hasPermission(caller.permissions, 'assignments.write'),
-    startedBy: desksHolding('assignments.write', caller.company?.kind),
+    mayStart,
+    startedBy: seatedWhoMay(desksHolding('assignments.write', caller.company?.kind), seatedRoles),
   }
   const starts = startLines.map((c) => {
     const firmName = shown(c.companyId, c.company.name)

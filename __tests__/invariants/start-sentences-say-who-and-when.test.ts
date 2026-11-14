@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { startDaySays } from '@/lib/document-stages/start-day'
 import { fixForReader } from '@/lib/contract-clearance'
 import { desksHolding } from '@/lib/permissions'
+import { seatedWhoMay } from '@/lib/refusal-words'
 
 const NOW = new Date('2026-11-03T12:00:00Z')
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
@@ -31,7 +32,26 @@ describe('the start’s fix names who activates, to a reader who may not', () =>
     expect(fix).toMatch(/^Get an I-9 and E-Verify on file; then the .+ activates\.$/)
     expect(fix).not.toContain('then activate.')
     expect(fixForReader('Chase a background check, or activate with a reason.', { mayStart: false, startedBy: ['Contract Manager', 'Delivery Manager'] }))
-      .toBe('Chase a background check; or the contract manager or delivery manager activates with a reason.')
+      .toBe('Chase a background check; or the Contract Manager or Delivery Manager activates with a reason.')
+  })
+
+  it('a firm that has seated none of the roles that start a placement tells HR the Owner or an Admin activates', () => {
+    // Tapin walk, 2026-11-14: Owner, HR, Account Manager, AP & Payroll and partner Admins.
+    const tapin = ['Owner', 'HR', 'Account Manager', 'AP & Payroll', 'Admin']
+    const fix = fixForReader('Get an I-9 on file, then activate.', { mayStart: false, startedBy: seatedWhoMay(startedBy, tapin) })
+    expect(fix).toBe('Get an I-9 on file; then the Owner or an Admin activates.')
+    expect(fix).not.toMatch(/resource manager|contract manager/i)
+  })
+
+  it('where one role that starts a placement is seated, HR is sent to that role and no other', () => {
+    const fix = fixForReader('Get an I-9 on file, then activate.', { mayStart: false, startedBy: seatedWhoMay(['Resource Manager', 'Contract Manager'], ['Owner', 'HR', 'Contract Manager']) })
+    expect(fix).toBe('Get an I-9 on file; then the Contract Manager activates.')
+  })
+
+  it('Compliance names who activates from the roles this firm has seated, read once for the page', () => {
+    const route = read('src/app/api/compliance/route.ts')
+    expect(route).toContain("startedBy: seatedWhoMay(desksHolding('assignments.write', caller.company?.kind), seatedRoles)")
+    expect(route.match(/prisma\.context\.findMany/g)?.length).toBe(1)
   })
 
   it('a seat that may start a placement still reads "then activate"', () => {
