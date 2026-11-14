@@ -125,3 +125,61 @@ describe('whether an approver is known at a client that is not on Etyme', () => 
       .toEqual({ ok: true, how: 'DOMAIN' })
   })
 })
+
+describe('who is told to act when a client not on Etyme has no approver recorded', () => {
+  const NONE = { ...ACME_OFF_PLATFORM, recordedContacts: [] as string[] }
+  const refusal = (asks?: { firmName: string | null; as: 'WORKER' | 'SUPPLIER_DESK' }, approverEmail = 'dana@acme.example', client: typeof ACME_OFF_PLATFORM = NONE) => {
+    const v = approverIsKnownAtClient({ approverEmail, client, asks })
+    if (v.ok) throw new Error('expected a refusal')
+    expect(v.code).toBe('APPROVER_NOT_AT_CLIENT')
+    return v.says
+  }
+
+  it('a worker whose client is not on Etyme is told her firm has recorded nobody there and to ask the firm to add the approver under Contacts', () => {
+    expect(refusal({ firmName: 'Brightwater Staffing', as: 'WORKER' })).toBe(
+      'Acme is not on Etyme, and Brightwater Staffing has recorded nobody there who approves hours. ' +
+      'Ask Brightwater Staffing to add the approver under Contacts, then try again.'
+    )
+  })
+
+  it('a worker whose firm is not known is told to ask the firm she works for', () => {
+    expect(refusal({ firmName: null, as: 'WORKER' })).toContain('Ask the firm you work for to add the approver under Contacts')
+  })
+
+  it('a supplier’s own timesheet seat is told to add the person who approves hours under Contacts, working at the client, and try again', () => {
+    expect(refusal({ firmName: 'Brightwater Staffing', as: 'SUPPLIER_DESK' })).toBe(
+      'Acme is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+      'Add that person under Contacts, working at Acme, and try again.'
+    )
+  })
+
+  it('a caller that does not say who is asking reads the same refusal as before', () => {
+    expect(refusal()).toBe(
+      'Acme is not on Etyme and no address is recorded for it, so nobody there can be named as the approver yet. ' +
+      'The address of the person at Acme who approves the hours has to be on its record first.'
+    )
+  })
+
+  it('a worker giving an address that is not recorded for the client is told to ask her firm to add the approver, and is never shown who was recorded', () => {
+    const says = refusal({ firmName: 'Brightwater Staffing', as: 'WORKER' }, 'dana@acme-billing.example', ACME_OFF_PLATFORM)
+    expect(says).toBe(
+      'dana@acme-billing.example is not an address recorded for Acme, which is not on Etyme. Its addresses end in @acme.example. ' +
+      'Give the address of the person at Acme who approved this week. If they are new, ask Brightwater Staffing to add them under Contacts.'
+    )
+    expect(says.toLowerCase()).not.toContain('dana@acme.example')
+  })
+
+  it('a supplier’s own seat giving an address that is not recorded for the client is told to add the approver under Contacts, working at the client', () => {
+    expect(refusal({ firmName: 'Brightwater Staffing', as: 'SUPPLIER_DESK' }, 'dana@acme-billing.example', ACME_OFF_PLATFORM)).toBe(
+      'dana@acme-billing.example is not an address recorded for Acme, which is not on Etyme. Its addresses end in @acme.example. ' +
+      'Give the address of the person who approved this week, or add them under Contacts, working at Acme, and try again.'
+    )
+  })
+
+  it('saying who is asking moves nothing in the rule: the recorded person is still accepted, and the worker’s own address is still refused', () => {
+    const asks = { firmName: 'Brightwater Staffing', as: 'WORKER' as const }
+    expect(approverIsKnownAtClient({ approverEmail: 'dana@acme.example', client: ACME_OFF_PLATFORM, asks }))
+      .toEqual({ ok: true, how: 'RECORDED_CONTACT' })
+    expect(approverIsKnownAtClient({ approverEmail: 'helena.marsh@gmail.com', client: ACME_OFF_PLATFORM, asks }).ok).toBe(false)
+  })
+})

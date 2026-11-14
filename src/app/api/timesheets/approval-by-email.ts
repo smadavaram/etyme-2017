@@ -350,6 +350,16 @@ export function restsOnSupplierRecord(how: ApproverHow): boolean {
   return (RECORDED_REASONS as readonly ApproverHow[]).includes(how)
 }
 
+/**
+ * Who is asking an approver to be accepted, and the firm that recorded the
+ * client. The worker is told to ask that firm; a supplier's own seat is
+ * told to add the person itself.
+ */
+export interface ApproverAsker {
+  firmName: string | null
+  as: 'WORKER' | 'SUPPLIER_DESK'
+}
+
 export type ApproverVerdict =
   | { ok: true; how: ApproverHow }
   | { ok: false; code: 'APPROVER_NOT_AT_CLIENT'; says: string }
@@ -394,6 +404,12 @@ function cleanDomain(d: string | null | undefined): string | null {
 export function approverIsKnownAtClient(i: {
   approverEmail: string
   client: ClientOfRecord
+  /**
+   * Who is asking, and the firm that recorded the client. Read only while
+   * the client is not on Etyme, so the refusal names who acts next and
+   * where. Left out, the refusal reads as it always has.
+   */
+  asks?: ApproverAsker
 }): ApproverVerdict {
   const email = (i.approverEmail ?? '').trim().toLowerCase()
   const clientName = i.client.name?.trim() || 'the client'
@@ -435,7 +451,26 @@ export function approverIsKnownAtClient(i: {
     const recordedDomains = [...new Set(recorded.map((e) => cleanDomain(domainOfEmail(e))).filter((d): d is string => !!d))]
     if (recordedDomains.some((d) => underDomain(addressDomain, d))) return { ok: true, how: 'RECORDED_DOMAIN' }
 
+    const firm = i.asks?.firmName?.trim() || 'the firm you work for'
     if (!recorded.length) {
+      if (i.asks?.as === 'WORKER') {
+        return {
+          ok: false,
+          code: 'APPROVER_NOT_AT_CLIENT',
+          says:
+            `${clientName} is not on Etyme, and ${firm} has recorded nobody there who approves hours. ` +
+            `Ask ${firm} to add the approver under Contacts, then try again.`,
+        }
+      }
+      if (i.asks?.as === 'SUPPLIER_DESK') {
+        return {
+          ok: false,
+          code: 'APPROVER_NOT_AT_CLIENT',
+          says:
+            `${clientName} is not on Etyme, and nobody there who approves hours is recorded yet. ` +
+            `Add that person under Contacts, working at ${clientName}, and try again.`,
+        }
+      }
       return {
         ok: false,
         code: 'APPROVER_NOT_AT_CLIENT',
@@ -444,13 +479,19 @@ export function approverIsKnownAtClient(i: {
           `The address of the person at ${clientName} who approves the hours has to be on its record first.`,
       }
     }
+    // The domains only, never a recorded address or name: a worker reads
+    // this, and the people her firm recorded at the client are its own.
     const at = recordedDomains.length ? ` Its addresses end in ${recordedDomains.map((d) => '@' + d).join(' or ')}.` : ''
+    const next =
+      i.asks?.as === 'WORKER'
+        ? `Give the address of the person at ${clientName} who approved this week. If they are new, ask ${firm} to add them under Contacts.`
+        : i.asks?.as === 'SUPPLIER_DESK'
+          ? `Give the address of the person who approved this week, or add them under Contacts, working at ${clientName}, and try again.`
+          : `Give the address of the person at ${clientName} who approved this week.`
     return {
       ok: false,
       code: 'APPROVER_NOT_AT_CLIENT',
-      says:
-        `${email} is not an address recorded for ${clientName}, which is not on Etyme.${at} ` +
-        `Give the address of the person at ${clientName} who approved this week.`,
+      says: `${email} is not an address recorded for ${clientName}, which is not on Etyme.${at} ${next}`,
     }
   }
 
