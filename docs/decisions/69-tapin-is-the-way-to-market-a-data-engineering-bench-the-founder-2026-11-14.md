@@ -21,7 +21,8 @@ other". They are gathered here so it is not lost again.
   smadavaram@gmail.com on a side note - they plan to run tapin - etyme
   for etyme first"*. And: *"now lets harness tapin for next couple of
   months"*.
-- 2026-11-12: *"I need to start tapin and Cloudepa this week"*. And:
+- 2026-11-12: *"I need to start tapin and [a second firm] this week"*
+  (the firm is named in the session; see below). And:
   *"Tapin is a makeshift company for Etyme and does not have a
   domain"*. And, with a past employee asking for proof of previous
   experience: *"Etyme is running agency already since 2021 to prove our
@@ -39,10 +40,15 @@ recruiters. The old rule "Etyme never runs a bench" was written on
 2026-11-11 as if it still stood. It does not. CLAUDE.md is corrected in
 the same commit as this text.
 
-**Still open from that history.** What Cloudepa is and what it needs to
-start (asked on 2026-11-12, not answered). The past employee's letter of
-experience: it must come from the legal entity that employed the person,
-and the record issues none until the founder settles how (record 56).
+**Still open from that history.** The second firm he named on
+2026-11-12 is a real company. It asked for its own tenancy on
+2026-10-04, and the demo's bench vendor was renamed for that reason
+(`docs/demo-names.md`); by that rule its name is kept out of this
+repository. It was to start the same week as Tapin, and nothing is set
+up for it: what kind of firm it is, its domain and its people were asked
+and not answered. The past employee's letter of experience: it must come
+from the legal entity that employed the person, and the record issues
+none until the founder settles how (record 56).
 
 **What stands.**
 
