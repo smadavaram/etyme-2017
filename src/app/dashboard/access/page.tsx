@@ -548,7 +548,7 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
       )}
       {action !== 'withdraw' && action !== 'rename' && ASKS[action].includes('reason') && (
         <Field
-          label={action === 'suspend' ? `Why is ${who} being paused?` : `Why is ${who}’s access ending?`}
+          label={action === 'suspend' ? `Why is ${who} being paused?` : `Why is access ending for ${who}?`}
           help={action === 'suspend' ? 'They are told this, and somebody will ask later.' : 'It goes on the record with your name.'}>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason"
             placeholder={action === 'suspend' ? 'On leave until March' : 'Left the company on Friday'} />
@@ -720,7 +720,7 @@ export default function AccessPage() {
   useEffect(() => { load() }, [load])
 
   async function grant(contextId: string) {
-    if (!form.roleId) { setSaid({ contextId, text: 'Pick a role first.', tone: 'error' }); return }
+    if (!form.roleId) { setSaid({ contextId, text: 'Pick a role.', tone: 'error' }); return }
     let days: number | null = null
     if (form.endsOn) {
       const d = daysUntilEndDay(form.endsOn)
@@ -817,7 +817,7 @@ export default function AccessPage() {
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {data.canGrant === false ? (
             <span className="w-full sm:w-auto sm:max-w-[380px] text-xs text-etyme-muted break-words">{data.whyNotGrant}</span>
-          ) : (
+          ) : w.acts?.changeRole === false ? null : (
             <button
               onClick={() => { setGranting(granting === w.contextId ? null : w.contextId); setActing(null) }}
               className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
@@ -915,7 +915,7 @@ export default function AccessPage() {
             reader the route would refuse, with the reason said
             once above in "Waiting for access". */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {data.canGrant !== false && (
+          {data.canGrant !== false && p.acts?.changeRole !== false && (
             <button
               onClick={() => {
                 setGranting(granting === p.contextId ? null : p.contextId)

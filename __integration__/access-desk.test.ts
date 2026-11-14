@@ -343,16 +343,69 @@ describe('Users & permissions names everybody by address and withdraws an invita
     expect(logged, 'the refusal was sent with no row behind it').not.toBeNull()
   })
 
+  it('an Admin is not offered Change role on an Owner’s row, and a direct withdraw of the Owner is refused without saying to end their access', async () => {
+    const owner = await prisma.context.findFirstOrThrow({
+      where: { companyId: it_.firm, role: { name: 'Owner' }, revokedAt: null, person: { primaryEmail: OWNER } },
+      select: { id: true },
+    })
+    as('ines.admin@brightmoor.demo.etyme.local')
+    const reg = await json(await access(req('GET', '/api/access')))
+    expect(reg.status).toBe(200)
+    expect(reg.body.data.people.find((p: any) => p.contextId === owner.id).acts.changeRole).toBe(false)
+    expect(reg.body.data.people.find((p: any) => p.contextId === it_.memberContext).acts.changeRole).toBe(true)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${owner.id}`), seatParams(owner.id)))
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe('They are an Owner. Only an Owner removes an Owner, from Settings → Owners, with another Owner’s yes. An Admin never can.')
+    expect(r.body.error.endInstead).toBeUndefined()
+  })
+
   it('an Owner withdraws another Owner’s invitation while she stays an Owner herself', async () => {
     as(OWNER)
     const r = await json(await withdraw(req('DELETE', `/api/access/${it_.waitingOwner}`), seatParams(it_.waitingOwner)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
   })
 
-  it('a withdrawal refused because the person has history says to end their access instead, and End is kept', async () => {
-    // Somebody with a week on the record, never signed in, invited here.
+  it('an invitation to a person whose work is all at another company is withdrawn, and the reply counts none of that work', async () => {
+    // Somebody with weeks on the record at other companies only, never
+    // signed in, invited here (walk, 2026-11-14: refused with the other
+    // company's 13 timesheets counted and said).
+    const here = it_.firm
+    const notHere = { NOT: { OR: [{ companyId: here }, { clientCompanyId: here }, { endClientCompanyId: here }] } }
     const worker = await prisma.person.findFirstOrThrow({
-      where: { timesheets: { some: {} }, credentials: { none: { lastUsedAt: { not: null } } }, contexts: { none: { companyId: it_.firm } } },
+      where: {
+        timesheets: { some: {}, none: { sellContract: { OR: [{ companyId: here }, { clientCompanyId: here }, { endClientCompanyId: here }] } } },
+        sellContracts: { every: notHere },
+        submissions: { none: { OR: [{ fromCompanyId: here }, { toCompanyId: here }] } },
+        credentials: { none: { lastUsedAt: { not: null } } },
+        contexts: { none: { companyId: here } },
+      },
+      orderBy: { primaryEmail: 'asc' },
+      select: { id: true, primaryEmail: true },
+    })
+    const seat = await prisma.context.create({
+      data: { personId: worker.id, companyId: here, type: 'EMPLOYEE', invitedAt: new Date(), grantReason: 'Invited to the firm' },
+      select: { id: true },
+    })
+    as(OWNER)
+    const r = await json(await withdraw(req('DELETE', `/api/access/${seat.id}`), seatParams(seat.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(JSON.stringify(r.body)).not.toMatch(/timesheet|submission|contract|approval/i)
+    expect(r.body.data.message).toContain('is withdrawn')
+    expect(await prisma.context.count({ where: { id: seat.id } })).toBe(0)
+    // The other company's work stays, and so does the person who did it.
+    expect(await prisma.person.count({ where: { id: worker.id } })).toBe(1)
+  })
+
+  it('a withdrawal refused because the person has history here says to end their access instead, and End is kept', async () => {
+    // Somebody with a week on this company's own record, never signed in, invited here.
+    const here = it_.firm
+    const worker = await prisma.person.findFirstOrThrow({
+      where: {
+        timesheets: { some: { sellContract: { OR: [{ companyId: here }, { clientCompanyId: here }] } } },
+        credentials: { none: { lastUsedAt: { not: null } } },
+        contexts: { none: { companyId: here } },
+      },
+      orderBy: { primaryEmail: 'asc' },
       select: { id: true },
     })
     const seat = await prisma.context.create({
@@ -365,6 +418,8 @@ describe('Users & permissions names everybody by address and withdraws an invita
     expect(r.body.error.code).toBe('HAS_HISTORY')
     expect(r.body.error.endInstead).toBe(true)
     expect(r.body.error.message).toContain('End their access instead')
+    expect(r.body.error.message).toContain('on this company’s record, so the invitation cannot be withdrawn')
+    expect(r.body.error.message).not.toContain('Deleting them')
     expect(await prisma.accessLog.count({ where: { subjectId: worker.id, action: 'INVITATION_WITHDRAW', allowed: false } })).toBeGreaterThan(0)
   })
 

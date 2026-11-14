@@ -457,7 +457,7 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
     expect(nameWithAddress('Meera Iyer', 'meera@brightmoor.demo.etyme.local')).toBe('Meera Iyer (meera@brightmoor.demo.etyme.local)')
     expect(nameWithAddress('Meera Iyer', null)).toBe('Meera Iyer')
     expect(page).toContain('`Why is ${who} being paused?`')
-    expect(page).toContain('`Why is ${who}’s access ending?`')
+    expect(page).toContain('`Why is access ending for ${who}?`')
     expect(page).toContain('Withdraw the invitation to {who}?')
   })
 
@@ -507,7 +507,7 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
 
   it('a withdrawal refused because the person has history keeps End access on the row', () => {
     expect(page).toContain('if (!r.ok && r.endInstead)')
-    expect(seatRoute).toContain("return refuse(409, 'HAS_HISTORY', verdict.reason, { endInstead: true })")
+    expect(seatRoute).toContain("return refuse(409, 'HAS_HISTORY', withdrawHistorySays({ approvals, submissions, contracts, timesheets }) ?? verdict.reason, { endInstead: true })")
   })
 
   it('the withdraw route holds the Owner rule with the reader as actor, and writes each refusal before it is sent', () => {
@@ -646,6 +646,11 @@ describe('an invitation says whether its email left, and why not', () => {
     expect(says).not.toContain('did not go')
   })
 
+  it('a demo address reply gives the same next step as the no-email reply: copy the invitation and send it yourself', () => {
+    const says = inviteSays({ ...base, mail: 'DEMO_SKIPPED' })
+    expect(says).toContain(`This is a demo address, so no email went to it. Press ${COPY_LABEL} on their row and send it to them yourself.`)
+  })
+
   it('a waiting row says "Email sent" with the day and time in the reader’s own zone', () => {
     const line = mailLine({ state: 'SENT', at: '2026-11-12T23:40:00.000Z', why: null }, 'America/Los_Angeles')
     expect(line).toBe('Email sent Thu, Nov 12, 3:40 PM PST.')
@@ -762,7 +767,13 @@ describe('Send the invitation again', () => {
   })
 
   it('the invite form tells the inviter an address is already invited and where to press Send again', () => {
-    expect(alreadyInvitedSays('vik@partner-mail.example')).toBe(`vik@partner-mail.example is already invited here. Press ${SEND_AGAIN_LABEL} on their row to email them once more, or ${COPY_LABEL}.`)
+    expect(alreadyInvitedSays('vik@partner-mail.example', true)).toBe(`vik@partner-mail.example is already invited here. Press ${SEND_AGAIN_LABEL} on their row to email them once more, or ${COPY_LABEL}.`)
+  })
+
+  it('where no email can leave, the already-invited sentence says to try sending again, never to email them once more', () => {
+    const says = alreadyInvitedSays('vik@partner-mail.example', false)
+    expect(says).toBe(`vik@partner-mail.example is already invited here. Press ${SEND_AGAIN_LABEL} on their row to try sending again, or ${COPY_LABEL}.`)
+    expect(says).not.toContain('email them')
   })
 
   it('a seat emailed three times in an hour is refused in one sentence that says when to try again and points to Copy', () => {

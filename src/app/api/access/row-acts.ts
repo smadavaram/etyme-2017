@@ -12,7 +12,7 @@
  * Pure: no database. The route reads the seats and hands them here; the
  * page posts what `lifecycleBody` builds.
  */
-import { rowActs, stateOf, type AccessRow, type Actor, type AccessState, type Verdict } from '@/lib/account-lifecycle'
+import { ownerVerdict, rowActs, stateOf, type AccessRow, type Actor, type AccessState, type Verdict } from '@/lib/account-lifecycle'
 
 export type LifecycleAction = 'suspend' | 'reinstate' | 'revoke'
 
@@ -47,6 +47,17 @@ export interface RowOffer {
   withdrawSays: string[]
   /** Rename, where the route would take it (`renameVerdict`); added by the register. */
   rename?: boolean
+  /** Change role, where the grant route would take it (`mayChangeRole`); added by the register. */
+  changeRole?: boolean
+}
+
+/**
+ * Whether Change role is drawn on a row. The grant route asks for
+ * settings.manage, and it moves an Owner's seat only for an Owner (the
+ * Admin's press was always refused, walk 2026-11-14). Pure.
+ */
+export function mayChangeRole(f: { mayGrant: boolean; targetIsOwner: boolean; actorIsOwner: boolean }): boolean {
+  return f.mayGrant && (!f.targetIsOwner || f.actorIsOwner)
 }
 
 const NOTHING = (state: AccessState): RowOffer => ({
@@ -56,6 +67,36 @@ const NOTHING = (state: AccessState): RowOffer => ({
 /** Who is withdrawing: the Owner rule needs whether they are an Owner, and the self rule who they are. */
 export interface Withdrawer extends Actor {
   personId?: string | null
+}
+
+/**
+ * The headline over the register, with the consultants on the firm's books
+ * after it as a sentence of its own: "11 people: 11 with access. Also
+ * listed: 4 consultants on your books, …" (walk, 2026-11-14: the two ran
+ * together with no stop). Pure.
+ */
+export function peopleHeadline(headline: string, consultantsListed: number): string {
+  if (!consultantsListed) return headline
+  const ended = /[.!?]$/.test(headline) ? headline : `${headline}.`
+  return `${ended} Also listed: ${consultantsListed} ${consultantsListed === 1 ? 'consultant' : 'consultants'} on your books, not counted among your people.`
+}
+
+/**
+ * Why an invitation cannot be withdrawn when the person already has work
+ * on this company's own record, counted here only (walk, 2026-11-14: the
+ * old sentence said "Deleting them" and counted other companies' weeks).
+ * Null where nothing is counted. Pure.
+ */
+export function withdrawHistorySays(f: { approvals: number; submissions: number; contracts: number; timesheets: number }): string | null {
+  const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+  const bits: string[] = []
+  if (f.approvals) bits.push(count(f.approvals, 'approval'))
+  if (f.submissions) bits.push(count(f.submissions, 'submission'))
+  if (f.contracts) bits.push(count(f.contracts, 'contract'))
+  if (f.timesheets) bits.push(count(f.timesheets, 'timesheet'))
+  if (!bits.length) return null
+  const list = bits.length === 1 ? bits[0] : `${bits.slice(0, -1).join(', ')} and ${bits[bits.length - 1]}`
+  return `They have ${list} on this company’s record, so the invitation cannot be withdrawn. End their access instead. The record stays, and they cannot get back in.`
 }
 
 /**
@@ -78,6 +119,12 @@ export function withdrawVerdict(target: AccessRow, all: AccessRow[], actor: With
   }
   if (state === 'REVOKED') {
     return { allowed: false, reason: 'Their access has already ended.', consequences: [] }
+  }
+  // A signed-in Owner is never ended here either, so "End their access
+  // instead" would send an Admin to a door that refuses them (walk,
+  // 2026-11-14). The Owner rule's own sentence, for this reader, is said.
+  if (target.hasSignedIn && target.isOwner) {
+    return ownerVerdict('revoke', target, all, actor)!
   }
   if (target.hasSignedIn) {
     return { allowed: false, reason: 'They have signed in, so there is no invitation left to withdraw. End their access instead.', consequences: [] }

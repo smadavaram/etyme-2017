@@ -18,7 +18,7 @@ import { OWNER_ROLE, clause } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { recordRefusal } from '@/lib/access-log'
-import { withdrawVerdict } from '../row-acts'
+import { withdrawHistorySays, withdrawVerdict } from '../row-acts'
 import { renameSeat } from './rename'
 
 /**
@@ -403,17 +403,29 @@ export async function DELETE(
   }
   const may = withdrawVerdict(target, all, actor)
   if (!may.allowed) {
-    // A person who has signed in is ended, not withdrawn; say so and keep End.
-    return refuse(409, target.hasSignedIn ? 'HAS_HISTORY' : 'REFUSED', may.reason,
-      target.hasSignedIn ? { endInstead: true } : {})
+    // A person who has signed in is ended, not withdrawn; say so and keep
+    // End. Never for an Owner: End refuses an Owner here too.
+    const endInstead = target.hasSignedIn && !target.isOwner
+    return refuse(409, endInstead ? 'HAS_HISTORY' : 'REFUSED', may.reason,
+      endInstead ? { endInstead: true } : {})
   }
 
+  // Only this company's own records are counted and said (walk, 2026-11-14:
+  // a withdrawal was refused with another company's 13 timesheets named).
+  // Work elsewhere is not this firm's to learn of, and it does not stop
+  // this seat going; the person row below still stays while anybody holds it.
+  const here = caller.company.id
   const [approvals, submissions, contracts, timesheets, otherCompanies] = await Promise.all([
-    prisma.requirementApproval.count({ where: { approverId: ctx.personId } }),
-    prisma.submission.count({ where: { personId: ctx.personId } }),
-    prisma.sellContract.count({ where: { personId: ctx.personId } }),
-    prisma.timesheet.count({ where: { personId: ctx.personId } }),
-    prisma.context.count({ where: { personId: ctx.personId, companyId: { not: caller.company.id } } }),
+    prisma.requirementApproval.count({ where: { approverId: ctx.personId, requirement: { companyId: here } } }),
+    prisma.submission.count({ where: { personId: ctx.personId, OR: [{ fromCompanyId: here }, { toCompanyId: here }] } }),
+    prisma.sellContract.count({ where: { personId: ctx.personId, OR: [{ companyId: here }, { clientCompanyId: here }] } }),
+    prisma.timesheet.count({
+      where: {
+        personId: ctx.personId,
+        sellContract: { OR: [{ companyId: here }, { clientCompanyId: here }, { endClientCompanyId: here }] },
+      },
+    }),
+    prisma.context.count({ where: { personId: ctx.personId, companyId: { not: here } } }),
   ])
 
   // A seat at another company does not stop this seat going: the person
@@ -438,7 +450,7 @@ export async function DELETE(
   if (!verdict.allowed) {
     // The sentence already says to end their access; the page keeps End
     // on the row for exactly this answer.
-    return refuse(409, 'HAS_HISTORY', verdict.reason, { endInstead: true })
+    return refuse(409, 'HAS_HISTORY', withdrawHistorySays({ approvals, submissions, contracts, timesheets }) ?? verdict.reason, { endInstead: true })
   }
 
   // Only this company's seat goes. The person row goes with it only where

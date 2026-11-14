@@ -479,6 +479,50 @@ describe('withdrawing an invitation on Users & permissions (founder, 2026-11-12)
     expect(withdrawVerdict(admin, [owner, admin], { isOwner: true }).reason).toBe('They have signed in, so there is no invitation left to withdraw. End their access instead.')
   })
 
+  it('an Admin who tries to withdraw a signed-in Owner is told only an Owner removes an Owner, never to end their access', async () => {
+    const { withdrawVerdict } = await import('@/app/api/access/row-acts')
+    const owner = row('Sharath', true)
+    const admin = row('Vikash', false)
+    const said = withdrawVerdict(owner, [owner, admin], { isOwner: false, personId: admin.personId }).reason
+    expect(said).toBe('They are an Owner. Only an Owner removes an Owner, from Settings → Owners, with another Owner’s yes. An Admin never can.')
+    expect(said).not.toContain('End their access')
+    const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
+    expect(src).toContain('const endInstead = target.hasSignedIn && !target.isOwner')
+  })
+
+  it('an Admin is not shown Change role on an Owner’s row, and an Owner is', async () => {
+    const { mayChangeRole } = await import('@/app/api/access/row-acts')
+    expect(mayChangeRole({ mayGrant: true, targetIsOwner: true, actorIsOwner: false })).toBe(false)
+    expect(mayChangeRole({ mayGrant: true, targetIsOwner: true, actorIsOwner: true })).toBe(true)
+    expect(mayChangeRole({ mayGrant: true, targetIsOwner: false, actorIsOwner: false })).toBe(true)
+    expect(mayChangeRole({ mayGrant: false, targetIsOwner: false, actorIsOwner: true })).toBe(false)
+    const page = readFileSync('src/app/dashboard/access/page.tsx', 'utf8')
+    expect(page).toContain('p.acts?.changeRole !== false')
+    expect(page).toContain('w.acts?.changeRole === false ? null')
+  })
+
+  it('the people line ends its first sentence with a period before it lists the consultants on the books', async () => {
+    const { peopleHeadline } = await import('@/app/api/access/row-acts')
+    expect(peopleHeadline('11 people: 11 with access', 4)).toBe('11 people: 11 with access. Also listed: 4 consultants on your books, not counted among your people.')
+    expect(peopleHeadline('11 people: 11 with access', 0)).toBe('11 people: 11 with access')
+    expect(peopleHeadline('2 people: 2 with access.', 1)).toBe('2 people: 2 with access. Also listed: 1 consultant on your books, not counted among your people.')
+  })
+
+  it('an invitation refused for work on this company’s record says it cannot be withdrawn, counts that work, and never says deleting', async () => {
+    const { withdrawHistorySays } = await import('@/app/api/access/row-acts')
+    const said = withdrawHistorySays({ approvals: 0, submissions: 1, contracts: 1, timesheets: 13 })
+    expect(said).toBe('They have 1 submission, 1 contract and 13 timesheets on this company’s record, so the invitation cannot be withdrawn. End their access instead. The record stays, and they cannot get back in.')
+    expect(said).not.toContain('Deleting')
+    expect(withdrawHistorySays({ approvals: 0, submissions: 0, contracts: 0, timesheets: 0 })).toBeNull()
+    const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
+    expect(src).toContain("prisma.timesheet.count({\n      where: {\n        personId: ctx.personId,\n        sellContract: { OR: [{ companyId: here }")
+  })
+
+  it('pressing Change role with no role picked says "Pick a role."', () => {
+    const page = readFileSync('src/app/dashboard/access/page.tsx', 'utf8')
+    expect(page).toContain("if (!form.roleId) { setSaid({ contextId, text: 'Pick a role.', tone: 'error' }); return }")
+  })
+
   it('a reader who cannot change access is offered no Withdraw either', async () => {
     const { offersFor } = await import('@/app/api/access/row-acts')
     const owner = row('Sharath', true)

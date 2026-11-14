@@ -18,7 +18,7 @@ import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
-import { offersFor, renameVerdict } from './row-acts'
+import { mayChangeRole, offersFor, peopleHeadline, renameVerdict } from './row-acts'
 import { knownBeyond } from './[contextId]/rename'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
@@ -143,9 +143,7 @@ export async function GET(request: NextRequest) {
   const isConsultant = (id: string) => seatOf.get(id)?.isPerson === false
   const counts = countSeats(peopleOf(seats))
   const consultantsListed = seats.filter(s => !s.isPerson && !s.isSample).length
-  const peopleSays = peopleWords(counts) + (consultantsListed
-    ? ` Also listed: ${consultantsListed} ${consultantsListed === 1 ? 'consultant' : 'consultants'} on your books, not counted among your people.`
-    : '')
+  const peopleSays = peopleHeadline(peopleWords(counts), consultantsListed)
 
   // An invitation is not access, whatever desk it carries. A seat with no
   // desk, or whose person has never signed in, waits; the rest have access.
@@ -245,7 +243,15 @@ export async function GET(request: NextRequest) {
     onlyPersonOfOneFirm: oneFirm,
   }).allowed
   const byId = new Map(contexts.map(c => [c.id, c]))
-  const actsOf = (id: string) => ({ ...offers.get(id)!, rename: byId.has(id) && !isSample(id) && mayRename(byId.get(id)!) })
+  const actsOf = (id: string) => ({
+    ...offers.get(id)!,
+    rename: byId.has(id) && !isSample(id) && mayRename(byId.get(id)!),
+    changeRole: mayChangeRole({
+      mayGrant: hasPermission(caller.permissions, 'settings.manage'),
+      targetIsOwner: byId.get(id)?.role?.name === OWNER_DESK,
+      actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+    }),
+  })
 
   // The invitation form's words, from the company's own sign-in policy,
   // read by the one policy function. Sent only to a reader who may invite:

@@ -32,6 +32,7 @@ import { formatDay } from '@/lib/format-date'
 import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPolicy, type EffectiveMode } from '@/lib/identity/policy'
 import { momentFor } from '@/lib/when'
 import { clause } from '@/lib/owner-rules'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { GRANT_LABELS } from '@/lib/permission-grants/words'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
@@ -818,7 +819,7 @@ export function inviteSays(i: {
     return `${head}, and the email to ${i.email} did not go.${why}${seat} Press ${SEND_AGAIN_LABEL} on their row, or ${COPY_LABEL}.`
   }
   if (i.mail === 'DEMO_SKIPPED') {
-    return `${head}.${seat} This is a demo address, so no email went to it.`
+    return `${head}.${seat} This is a demo address, so no email went to it. Press ${COPY_LABEL} on their row and send it to them yourself.`
   }
   // No email can leave this deployment. One sentence for every address.
   return `${head}.${seat} No email can be sent from here yet. Press ${COPY_LABEL} on their row and send it to them yourself; ` +
@@ -981,8 +982,9 @@ export function sentAgainSays(email: string, mail: InviteMailState, why: string 
 }
 
 /** The refusal for an address already waiting on an invitation here. */
-export function alreadyInvitedSays(email: string): string {
-  return `${email} is already invited here. Press ${SEND_AGAIN_LABEL} on their row to email them once more, or ${COPY_LABEL}.`
+export function alreadyInvitedSays(email: string, leaves: boolean = mailLeaves()): string {
+  // Where no email can leave, "email them once more" promises a letter that cannot go.
+  return `${email} is already invited here. Press ${SEND_AGAIN_LABEL} on their row ${leaves ? 'to email them once more' : 'to try sending again'}, or ${COPY_LABEL}.`
 }
 
 // ── What an outside firm's seat may never hold ─────────────────────────
