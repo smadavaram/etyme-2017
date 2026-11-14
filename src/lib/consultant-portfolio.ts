@@ -2056,6 +2056,59 @@ export interface OwedPayLine {
   terms?: Terms
 }
 
+// ── Her pay day, by her employer's own pay periods ──────────────────
+//
+// Found by hand, 2026-11-14: a W-2 line recorded on Wed Dec 9, at a firm
+// paying every other week from Sun Dec 6, read "The next pay day for it is
+// Jan 8, 2027" for the weeks of Dec 6 and Dec 13, where the Payroll page
+// and the forecast said Dec 24. The line carried a monthly rhythm of its
+// own. And an open-ended line, with no pay dates written, read "has not
+// set a pay date" while Payroll showed Dec 24.
+//
+// So where her employer pays by its own weekly or two-week periods, her
+// page reads those periods and their pay days (`workerPayCalendar` in
+// lib/money/pay-periods, money's door), never the line's own. Where it
+// pays by the month, or has not said which Sunday its first period
+// starts on, the calendar is null and the line's own answer stands.
+
+/** What `workerPayCalendar` gives: the company's periods and pay days. */
+export interface CompanyPayCalendar {
+  terms: Terms
+  payDates: PayDate[]
+}
+
+/**
+ * The periods and pay days her page reads for one pay line.
+ *
+ * Only a line payroll pays (`paidByPayroll`): a 1099 or corp-to-corp line
+ * is paid by invoice receipt, and its own answer stands. Pure.
+ */
+export function workerPayDays(
+  own: { terms: Terms; payDates: PayDate[] },
+  company: CompanyPayCalendar | null,
+  payrollPays: boolean
+): { terms: Terms; payDates: PayDate[]; from: 'COMPANY' | 'LINE' } {
+  if (payrollPays && company) return { terms: company.terms, payDates: company.payDates, from: 'COMPANY' }
+  return { ...own, from: 'LINE' }
+}
+
+/**
+ * The days a company's pay calendar is read across for her page: from the
+ * first day of her earliest week, to sixty days past today or past her
+ * latest week, whichever is later. Sixty days holds the pay day after any
+ * week's period, which ends at most two weeks on and pays at most thirty
+ * days after. Null where she has sent no week.
+ */
+export function payCalendarWindow(
+  weeks: ReadonlyArray<{ periodStart: Date; periodEnd: Date }>,
+  today: Date
+): { from: string; to: string } | null {
+  if (weeks.length === 0) return null
+  const first = Math.min(...weeks.map((w) => +w.periodStart))
+  const last = Math.max(+today, ...weeks.map((w) => +w.periodEnd))
+  return { from: isoDay(new Date(first)), to: isoDay(new Date(last + 60 * DAY_MS)) }
+}
+
 /**
  * One part of a week paid on a pay day of its own.
  *

@@ -7,8 +7,11 @@ import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
   weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork, notAWorker, clientOffEtymeAfterSays,
-  type OwedWeek, type WaitingWeek, type WeekSigner,
+  workerPayDays, payCalendarWindow,
+  type OwedWeek, type WaitingWeek, type WeekSigner, type CompanyPayCalendar,
 } from '@/lib/consultant-portfolio'
+import { companyPayPeriods } from '@/lib/money/company-pay-periods'
+import { workerPayCalendar } from '@/lib/money/pay-periods'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { rungVerdict } from '@/app/api/timesheets/filing'
 import { filingLabels } from '@/lib/consultant-portfolio/filing-labels'
@@ -562,6 +565,21 @@ export async function GET(request: NextRequest) {
   // signatures the route will actually ask for.
   const acceptsOnlyForHer = await firmsAcceptingOnlyFor(personId, lines.flatMap((l) => l.rungs.map((r) => r.companyId)))
 
+  // Her pay days, by each employer's own pay periods where it pays by
+  // them (found by hand, 2026-11-14: her page read Jan 8 where Payroll
+  // read Dec 24). One read per paying company, never one per week; each
+  // employer's own, so a person with two reads each firm's pay days. Null
+  // where the firm pays by the month or has not set its first Sunday, and
+  // the line's own pay days stand (`workerPayDays`).
+  const payWindow = payCalendarWindow(sentWeeks, now)
+  const calendarOf = new Map<string, CompanyPayCalendar | null>()
+  for (const pay of payByCompany.values()) {
+    const bc = pay.buyContract
+    if (!payWindow || !paidByPayroll(bc) || calendarOf.has(bc.id)) continue
+    const co = await companyPayPeriods(bc.companyId)
+    calendarOf.set(bc.id, workerPayCalendar(co.rhythm, co.rule, periodTermsFor('BUY', bc).straddle, payWindow))
+  }
+
   const owed = (() => {
     const sellOf = new Map(contracts.map((c) => [c.id, c]))
 
@@ -674,10 +692,15 @@ export async function GET(request: NextRequest) {
             method: methodFor(bc).method,
             wage,
             currency: pay.payCurrency,
-            payDates: bc.buyCycles,
-            // The pay periods and the straddle, through the one door the
-            // payroll run reads them through, from the person's own start.
-            terms: { ...periodTermsFor('BUY', bc), startedOn: pay.startDate },
+            // The pay periods, the straddle and the pay days: her
+            // employer's own periods where it pays by them, else the
+            // line's, through the one door the payroll run reads them
+            // through, from the person's own start.
+            ...workerPayDays(
+              { terms: { ...periodTermsFor('BUY', bc), startedOn: pay.startDate }, payDates: bc.buyCycles },
+              calendarOf.get(bc.id) ?? null,
+              paidByPayroll(bc)
+            ),
           },
           (sheetId, day) => {
             const k = paidKey(bc.id, personId, sheetId, day)
