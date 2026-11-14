@@ -48,6 +48,7 @@ const ROUTE_ASKS: Record<string, readonly string[] | 'worker' | null> = {
   '/dashboard/requirements?new=1': ['requirements.write'],
   '/dashboard/submissions?new=1': ['submissions.create', 'assignments.write'],
   '/dashboard/consultants?new=1': ['consultants.write'],
+  '/dashboard/consultants?invite=1': ['consultants.write'],
   '/dashboard/bench?new=1': ['consultants.write'],
   '/dashboard/contracts?new=1': ['assignments.write'],
   '/dashboard/timesheets?new=1': 'worker',

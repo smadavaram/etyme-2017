@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { paySettingsFor, setPaySettings, type PaySettings } from '@/lib/payroll-settings'
+import { paySettingsFor, setPaySettings, payPeriodAt, PAY_CHANGE_FIELDS, type PaySettings } from '@/lib/payroll-settings'
 
 /**
  * GET   /api/settings/payroll — how often this company pays, and when pay is worked out and paid
@@ -12,6 +12,11 @@ import { paySettingsFor, setPaySettings, type PaySettings } from '@/lib/payroll-
  * company may read it, because a worker may ask when they are paid; only
  * the settings desk may change it. The rules are lib/payroll-settings;
  * this finds the caller's company and says the answer in a sentence.
+ *
+ * The first pay period's Sunday (2026-11-14) is one more answer through
+ * the same door and the same gate. The answer carries `firstPeriod`: the
+ * period that Sunday starts, with its work-out day and pay day as the
+ * product works them out (`payPeriodAt`), or null where none is set.
  */
 
 async function guard(request: NextRequest, doing: string, change = true) {
@@ -43,18 +48,20 @@ async function guard(request: NextRequest, doing: string, change = true) {
   return { caller, error: null }
 }
 
-/** The settings, with the name of whoever last set them, for the screen. */
-async function withName(s: PaySettings) {
+/** The settings, with the name of whoever last set them and the first period, for the screen. */
+async function withName(companyId: string, s: PaySettings) {
   const by = s.setById
     ? await prisma.person.findUnique({ where: { id: s.setById }, select: { name: true } })
     : null
-  return { ...s, setByName: by?.name ?? null }
+  const firstPeriod = s.payFirstPeriodStart ? await payPeriodAt(companyId, s.payFirstPeriodStart) : null
+  return { ...s, setByName: by?.name ?? null, firstPeriod }
 }
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await guard(request, 'Reading this company’s payroll', false)
   if (error) return error
-  return NextResponse.json({ data: await withName(await paySettingsFor(caller!.company!.id)) })
+  const companyId = caller!.company!.id
+  return NextResponse.json({ data: await withName(companyId, await paySettingsFor(companyId)) })
 }
 
 export async function PATCH(request: NextRequest) {
@@ -62,13 +69,11 @@ export async function PATCH(request: NextRequest) {
   if (error) return error
 
   const body = await request.json().catch(() => ({}))
-  const result = await setPaySettings(caller!.company!.id, caller!.person.id, {
-    payPeriod: body.payPeriod,
-    payCalcOffsetDays: body.payCalcOffsetDays,
-    payDayOffsetDays: body.payDayOffsetDays,
-    payDaysOfMonth: body.payDaysOfMonth,
-    payCalcDaysBefore: body.payCalcDaysBefore,
-  })
+  const companyId = caller!.company!.id
+  // Every answer the door takes, by its one list, so the screen that
+  // sends them and this route cannot ask for different fields.
+  const changes = Object.fromEntries(PAY_CHANGE_FIELDS.map((f) => [f, body?.[f]]))
+  const result = await setPaySettings(companyId, caller!.person.id, changes)
   if (!result.ok) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: result.message, field: result.field || undefined } },
@@ -77,7 +82,7 @@ export async function PATCH(request: NextRequest) {
   }
   return NextResponse.json({
     data: {
-      settings: await withName(result.settings),
+      settings: await withName(companyId, result.settings),
       changed: result.changed,
       message: 'Saved. Pay dates already set keep their dates; this applies from the next contract.',
     },

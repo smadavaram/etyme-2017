@@ -142,6 +142,16 @@ const PLUS_MENU: PlusMenuSection[] = [
         writes: ['consultants.write'],
       },
       {
+        // Several at once, each asked onto the bench by her own yes
+        // (Tapin's first week, 2026-11-14). POST /api/consultants/invite
+        // asks what Add consultant asks (`mayAddConsultant`).
+        label: 'Invite candidates',
+        description: 'Email several people at once to join your bench',
+        href: '/dashboard/consultants?invite=1',
+        icon: '✉',
+        writes: ['consultants.write'],
+      },
+      {
         label: 'Add to bench',
         description: 'List a consultant as available',
         href: '/dashboard/bench?new=1',
@@ -379,6 +389,29 @@ export function reachablePagesFor(
   )
 }
 
+/**
+ * What the search box offers for what was typed: the pages on the
+ * reader's own menu, then the + button's own actions for this seat, each
+ * found by any word of its label. "invite" finds Invite candidates, and
+ * only where the + button would offer it, so a search never reaches a
+ * form whose route would refuse the send.
+ */
+export function searchResultsFor(
+  query: string,
+  pages: readonly SearchResult[],
+  plusMenu: readonly PlusMenuSection[],
+  limit = 8
+): SearchResult[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const actions = plusMenu.flatMap((s) => s.items.map((i) => ({ label: i.label, type: 'action', href: i.href })))
+  const seen = new Set<string>()
+  return [...pages, ...actions]
+    .filter((r) => r.label.toLowerCase().includes(q))
+    .filter((r) => (seen.has(r.href) ? false : (seen.add(r.href), true)))
+    .slice(0, limit)
+}
+
 /** First letters of the first two words of a name, e.g. "Anita Desai" → "AD". */
 function initials(name: string | undefined): string {
   if (!name) return '·'
@@ -519,10 +552,7 @@ export function Header({ title }: HeaderProps) {
   )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1
-    ? reachablePages
-        .filter(s => s.label.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 8)
-        .map(s => ({ label: s.label, type: s.type, href: s.href }))
+    ? searchResultsFor(searchQuery, reachablePages, plusMenu)
     : []
 
   const showSearchResults = searchFocused && searchQuery.length >= 1

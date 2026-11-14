@@ -811,6 +811,12 @@ model Company {
   payDaysOfMonth       Int[]     @default([28])
   /// Semimonthly and monthly: how many days before the pay day pay is worked out (28 - 3 = the 25th).
   payCalcDaysBefore    Int       @default(3)
+  /// Every week and every other week: the Sunday the company's first pay
+  /// period starts on, a calendar day. Periods run forward and back from it
+  /// in whole Sunday-to-Saturday weeks. Null: nobody has said it, and no
+  /// period is guessed. The founder, 2026-11-14: "W2 first, outside payroll
+  /// provider, biweekly"; the Owner gives the day.
+  payFirstPeriodStart  DateTime? @db.Date
   /// When somebody last answered the payroll questions. Null: the defaults stand.
   paySettingsSetAt     DateTime?
   /// The person who last answered them.

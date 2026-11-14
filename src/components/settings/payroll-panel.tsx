@@ -5,11 +5,13 @@ import { readJson } from '@/lib/read-response'
 import { DEFAULT_CYCLE_SHIFT, SHIFT_WORDS } from '@/lib/cycle-shift'
 import {
   PAY_PERIODS, PAY_PERIOD_WORDS, STATE_PAY_NOTE, SUGGESTED_DAYS_OF_MONTH,
-  checkPaySettings, dayOfMonthWords, offsetWords, payPreview,
-  type PayPeriod, type PayRhythm,
+  checkPaySettings, dayOfMonthWords, offsetWords, payPreview, payrollBody,
+  checkFirstPeriodStart, firstPeriodSays,
+  FIRST_PERIOD_LABEL, FIRST_PERIOD_HELP, FIRST_PERIOD_UNSET,
+  type PayPeriod, type PayRhythm, type PayPeriodOn,
 } from '@/lib/pay-dates'
 import { Empty, Lbl, Panel, setLine } from './panel-bits'
-import { Field, Select, SubmitButton, FormMessage } from '@/components/ui/form'
+import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui/form'
 
 // ── Payroll ──────────────────────────────────────────
 //
@@ -18,10 +20,17 @@ import { Field, Select, SubmitButton, FormMessage } from '@/components/ui/form'
 // and the refusals are lib/pay-dates, through /api/settings/payroll. The
 // preview is computed here with the same payDatesFor money's generator
 // calls, so what the screen promises is what the dates will be.
+//
+// The first pay period's Sunday (2026-11-14, Tapin pays every two weeks):
+// asked of a weekly or two-week company only. Once saved, the line under
+// it says the first period and its pay day as the route works them out
+// (`firstPeriod`, from payPeriodAt), never a figure computed here.
 
 interface PayAnswers extends PayRhythm {
   setAt: string | null
   setByName: string | null
+  /** The saved first period, worked out by the route. Null until a Sunday is saved. */
+  firstPeriod: PayPeriodOn | null
 }
 
 /**
@@ -56,13 +65,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
       const body = await readJson(await fetch('/api/settings/payroll', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payPeriod: draft.payPeriod,
-          payCalcOffsetDays: draft.payCalcOffsetDays,
-          payDayOffsetDays: draft.payDayOffsetDays,
-          payDaysOfMonth: draft.payDaysOfMonth,
-          payCalcDaysBefore: draft.payCalcDaysBefore,
-        }),
+        body: JSON.stringify(payrollBody(draft)),
       }))
       setNote(body.data?.message ?? 'Saved.')
       await load()
@@ -92,6 +95,9 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   const upTo = (current: number) => Array.from({ length: Math.max(14, current + 1) }, (_, i) => i)
   const days = Array.from({ length: 28 }, (_, i) => i + 1)
   const check = checkPaySettings({}, draft)
+  // Said under the box while it is typed in, by the door's own check.
+  const firstCheck = checkFirstPeriodStart(draft.payFirstPeriodStart ?? null)
+  const firstSaved = saved?.firstPeriod && saved.payFirstPeriodStart === draft.payFirstPeriodStart ? saved.firstPeriod : null
 
   return (
     <Panel
@@ -133,6 +139,25 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
               {upTo(draft.payDayOffsetDays).map((n) => <option key={n} value={n}>{offsetWords(n)}</option>)}
             </Select>
           </Field>
+          <Field
+            label={FIRST_PERIOD_LABEL}
+            className="sm:col-span-2"
+            help={
+              <>
+                {FIRST_PERIOD_HELP}{' '}
+                {firstSaved ? firstPeriodSays(firstSaved) : !draft.payFirstPeriodStart ? FIRST_PERIOD_UNSET : null}
+              </>
+            }
+            error={firstCheck.ok ? undefined : firstCheck.message}
+          >
+            <Input
+              type="date"
+              name="payFirstPeriodStart"
+              value={draft.payFirstPeriodStart ?? ''}
+              disabled={!canEdit || busy}
+              onChange={(e) => setDraft({ ...draft, payFirstPeriodStart: e.target.value || null })}
+            />
+          </Field>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -172,7 +197,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
         </div>
       )}
       {canEdit && (
-        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed}>
+        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok}>
           Save payroll
         </SubmitButton>
       )}

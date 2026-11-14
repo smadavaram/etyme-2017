@@ -588,7 +588,7 @@ export async function GET(
       amount: unknown; currency: string; startDate: Date; endDate: Date | null
       issuedById: string; issuedToId: string; billToId: string | null; payerId: string | null
     } | null,
-    line: { side: 'SELL' | 'BUY'; personName: string; siteName: string | null; paidToName?: string | null },
+    line: { side: 'SELL' | 'BUY'; personName: string; siteName: string | null; paidToName?: string | null; contractType?: string | null },
     place: { position: number | null; of: number | null },
     ceiling: { ledger: OrderLedger | null; mayRead: boolean }
   ) => {
@@ -686,6 +686,9 @@ export async function GET(
           personName: placement.person.name,
           siteName: thisSite,
           paidToName: ourBuy.vendorCompany?.name ?? null,
+          // How the buy line engages her, so a 1099 or her own company's
+          // line never reads "payroll pays this line" (as Contracts reads).
+          contractType: ourBuy.contractType,
         },
         { position: null, of: null },
         { ledger: buyLedger, mayRead: seePay }
@@ -1173,7 +1176,7 @@ export async function GET(
         // trade that funds it. Read off the buy leg, so null for
         // anybody but the supplier, who is the only party to both.
         pair: isSupplier
-          ? pairLine({ side: 'SELL', counterpartName: ourBuy?.vendorCompany?.name ?? null })
+          ? pairLine({ side: 'SELL', counterpartName: ourBuy?.vendorCompany?.name ?? null, contractType: ourBuy?.contractType ?? null })
           : null,
         // The master contract, where this company tags its lines to one.
         // The sentence says what to do where it does not; nothing here
