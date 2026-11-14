@@ -24,11 +24,16 @@
  * firm and site the map names against the seed; and it holds that no
  * figure is typed into the page or the map's code.
  *
+ * Since 2026-11-13 ("make the numbers realistic") Corvane's contractors
+ * are specialists at specialist rates and seven of its invoice receipts
+ * are held, so every figure here is read from the seed rather than
+ * pinned: a figure the seed moves moves here with it.
+ *
  * ── Where the drawing and the seed disagreed, the seed won ────────────
  *
  *   drawing                              seed, and so the map
- *   "6 paid of 7" invoice receipts       submitted, not paid: "6 of 7 clear the
- *                                        three-way check", one held
+ *   "6 paid of 7" invoice receipts       submitted, not paid: the card says how
+ *                                        many clear the three-way check
  *   Dayton rows "This week: signed"      three weeks are filed at Dayton, all
  *                                        waiting; the rest read "nothing to sign"
  *   "₫9,240,000,000" for Vietnam         ₫924,000,000 (77 × ₫75,000 × 160); the
@@ -61,8 +66,9 @@ import {
 } from '@/lib/public-site/corvane-map'
 import { CorvaneMapView, DEMO_BEING_SET_UP } from '@/lib/public-site/corvane-map-view'
 import { demoRequest } from '@/lib/public-site/demo-link'
-import { homeCfo, homeCfoCopy, homeGlanceHeld } from '@/lib/public-site/home-cfo'
-import { CFO_LABEL } from '@/lib/public-site/home-words'
+import { homeCfo, homeCfoCopy, homeGlanceHeld, yearInMillions } from '@/lib/public-site/home-cfo'
+import { CFO_LABEL, glanceHeld, proofCards } from '@/lib/public-site/home-words'
+import { format, fromMinor } from '@/lib/money'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -90,8 +96,21 @@ function dollarsFor(people: typeof onSite): number {
   }))
   return spendInReporting(amounts, 'USD', SAMPLE_RATE_TABLE).total!.minor
 }
-const heldReceipt = CORVANE_RECEIPTS.find((r) => r.held)!
-const heldPlant = CORVANE_PLANTS.find((p) => p.key === heldReceipt.plant)!
+const plantOf = (key: string) => CORVANE_PLANTS.find((p) => p.key === key)!
+const currencyAt = (key: string) => CORVANE_COUNTRIES[plantOf(key).cc].currency
+const held = CORVANE_RECEIPTS.filter((r) => r.held)
+const clean = CORVANE_RECEIPTS.filter((r) => !r.held)
+/** What a receipt bills past the signed hours, line by line, at its site's rate, in whole units of the site's money. */
+const overUnits = (r: (typeof CORVANE_RECEIPTS)[number]) =>
+  r.lines.reduce((n, l) => n + (l.billed - l.accepted), 0) * CORVANE_COUNTRIES[plantOf(r.plant).cc].rate
+/** The held receipts' total over the signed hours, in dollar cents at the sample rates. */
+const heldUsd = spendInReporting(held.map((r) => ({ currency: currencyAt(r.plant), minor: fromDecimalMinor(overUnits(r), currencyAt(r.plant)) })), 'USD', SAMPLE_RATE_TABLE).total!.minor
+function fromDecimalMinor(units: number, currency: string): number {
+  // The dong has no minor unit; every other currency here has two decimals.
+  return currency === 'VND' ? Math.round(units) : Math.round(units * 100)
+}
+const own = (minor: number, currency: string) => format(fromMinor(minor, currency), { compact: true })
+const nearestAll = () => [...onSite].sort((a, b) => toLimit(a) - toLimit(b))[0]
 
 describe('Every figure on the map is the Corvane seed’s', () => {
 
@@ -103,12 +122,21 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     expect(MAP.bar).toBe(`${CORVANE_NAME} · a sample company · 359 contractors · 25 suppliers · 31 sites in 8 countries`)
   })
 
-  it('the CFO’s spend is $704,227.20: every bill rate at 160 hours a month, converted at the sample rates the line under the map names', () => {
+  it('the CFO’s spend is every bill rate at 160 hours a month, converted at the sample rates the line under the map names: about $3.6 million a month for the specialists the seed holds', () => {
     expect(HOURS_PER_MONTH).toBe(160)
-    expect(dollarsFor(onSite)).toBe(70_422_720)
-    expect(stat(view('cfo'), 'Spend this month').value).toBe(usd(70_422_720))
+    // By hand: each country's contractors × its specialist rate × 160 hours, in its own money, then dollars.
+    const byHand = spendInReporting(
+      (Object.keys(CORVANE_COUNTRIES) as (keyof typeof CORVANE_COUNTRIES)[]).map((cc) => ({
+        currency: CORVANE_COUNTRIES[cc].currency,
+        minor: fromDecimalMinor(onSite.filter((c) => c.plant.cc === cc).length * CORVANE_COUNTRIES[cc].rate * HOURS_PER_MONTH, CORVANE_COUNTRIES[cc].currency),
+      })), 'USD', SAMPLE_RATE_TABLE).total!.minor
+    expect(dollarsFor(onSite)).toBe(byHand)
+    // A buyer spending $40–50 million a year reads a month at their own scale.
+    expect(byHand * 12).toBeGreaterThan(4_000_000_000)
+    expect(byHand * 12).toBeLessThan(5_000_000_000)
+    expect(stat(view('cfo'), 'Spend this month').value).toBe(usd(byHand))
     expect(stat(view('cfo'), 'Spend this month').sub).toContain('at sample rates')
-    expect(stat(view('operations'), 'Spend this month').value).toBe(usd(70_422_720))
+    expect(stat(view('operations'), 'Spend this month').value).toBe(usd(byHand))
     expect(MAP.under).toContain('sample exchange rates')
     expect(MAP.under).toContain(`${HOURS_PER_MONTH} hours a month`)
     // Each region's dollars are its own people's, and they add to the whole.
@@ -118,20 +146,23 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     }
   })
 
-  it('the CFO’s headline names the held Dayton receipt at $42 over the 40 signed hours, Maria Lee’s start waiting on an I-9, and Aoife Kelly 14 days from the time limit', () => {
-    expect(heldPlant.city).toBe('Dayton')
-    expect([heldReceipt.billed, heldReceipt.accepted, CORVANE_COUNTRIES[heldPlant.cc].rate]).toEqual([41.5, 40, 28])
-    expect((heldReceipt.billed - heldReceipt.accepted) * CORVANE_COUNTRIES[heldPlant.cc].rate).toBe(42)
+  it('the CFO’s headline says how many invoice receipts are held over the signed hours, Maria Lee’s start waiting on an I-9, and Aoife Kelly 14 days from the time limit, each read from the seed', () => {
+    expect(held.length).toBeGreaterThan(1)
+    for (const r of held) expect(r.billed, r.plant).toBeGreaterThan(r.accepted)
     expect(onHold.name).toBe('Maria Lee')
     expect(onHold.plant.city).toBe('Dayton')
-    const nearest = [...onSite].sort((a, b) => toLimit(a) - toLimit(b))[0]
+    const nearest = nearestAll()
     expect([nearest.name, nearest.plant.city, toLimit(nearest)]).toEqual(['Aoife Kelly', 'Belfast', 14])
+    const spelled = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][held.length]
     expect(view('cfo').headline).toBe(
-      'One invoice receipt in Dayton is held, $42 over the signed hours. One start in Dayton is waiting on an I-9. ' +
-      'Aoife Kelly in Belfast reaches the time limit in 14 days.'
+      `${spelled} invoice receipts are held over the signed hours. One start in ${onHold.plant.city} is waiting on an I-9. ` +
+      `${nearest.name} in ${nearest.plant.city} reaches the time limit in ${toLimit(nearest)} days.`
     )
-    expect(stat(view('cfo'), 'Held over the hours').value).toBe('$42')
-    expect(stat(view('cfo'), 'Invoice receipts').value).toBe(`${CORVANE_RECEIPTS.length - 1} of ${CORVANE_RECEIPTS.length}`)
+    // The held cell says the money over the hours in each currency's own money, the seed's order.
+    const byCurrency = new Map<string, number>()
+    for (const r of held) byCurrency.set(currencyAt(r.plant), (byCurrency.get(currencyAt(r.plant)) ?? 0) + fromDecimalMinor(overUnits(r), currencyAt(r.plant)))
+    expect(stat(view('cfo'), 'Held over the hours').value).toBe([...byCurrency].map(([c, m]) => own(m, c)).join(' · '))
+    expect(stat(view('cfo'), 'Invoice receipts').value).toBe(`${clean.length} of ${CORVANE_RECEIPTS.length}`)
   })
 
   it('no invoice receipt is said to be paid, because the seed submits them and pays none', () => {
@@ -142,17 +173,19 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     expect(read('src/lib/seed-corvane.ts')).toMatch(/paid: 0,[\s\S]*status: 'SUBMITTED'/)
   })
 
-  it('every invoice receipt is on its region’s Money cell, held and clean, so the rows add to 6 of 7: the US reads "1 held · $42" over "1 clears the check"', () => {
+  it('every invoice receipt is on its region’s Money cell, held and clean, so the rows add to the receipts card; the United States reads its held count and dollars over the signed hours, over the one that clears the check', () => {
     const cfo = view('cfo')
     const cells = column(cfo, 'Money')
     const heldN = (c: MapCell) => Number(c.t.match(/^(\d+) held\b/)?.[1] ?? 0)
     const cleanN = (c: MapCell) => Number(`${c.t} ${c.sub ?? ''}`.match(/(\d+) clears? the check/)?.[1] ?? 0)
-    expect(cells.reduce((n, c) => n + heldN(c), 0)).toBe(CORVANE_RECEIPTS.filter((r) => r.held).length)
-    expect(cells.reduce((n, c) => n + cleanN(c), 0)).toBe(CORVANE_RECEIPTS.filter((r) => !r.held).length)
+    expect(cells.reduce((n, c) => n + heldN(c), 0)).toBe(held.length)
+    expect(cells.reduce((n, c) => n + cleanN(c), 0)).toBe(clean.length)
     expect(cells.reduce((n, c) => n + heldN(c) + cleanN(c), 0)).toBe(CORVANE_RECEIPTS.length)
-    expect(stat(cfo, 'Invoice receipts').value).toBe('6 of 7')
-    const us = cells[cfo.rows.findIndex((r) => r[0].t === CORVANE_REGIONS.find((g) => g.key === heldPlant.region)!.label)]
-    expect(us.t).toBe('1 held · $42')
+    expect(stat(cfo, 'Invoice receipts').value).toBe(`${clean.length} of ${CORVANE_RECEIPTS.length}`)
+    const usPlants = CORVANE_PLANTS.filter((p) => p.region === 'us').map((p) => p.key)
+    const usHeld = held.filter((r) => usPlants.includes(r.plant))
+    const us = cells[cfo.rows.findIndex((r) => r[0].t === CORVANE_REGIONS.find((g) => g.key === 'us')!.label)]
+    expect(us.t).toBe(`${usHeld.length} held · ${own(usHeld.reduce((n, r) => n + fromDecimalMinor(overUnits(r), 'USD'), 0), 'USD')}`)
     expect(us.sub).toBe('1 clears the check')
   })
 
@@ -185,8 +218,9 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     expect(column(v, 'Hiring manager').map((c) => c.t)).toEqual(plants.map((p) => p.manager))
     expect(column(v, 'Contractors').map((c) => Number(c.t))).toEqual(plants.map((p) => onSite.filter((c) => c.plant.key === p.key).length))
     expect(column(v, 'Weeks to sign').map((c) => Number(c.t))).toEqual(plants.map((p) => p.weeksToSign))
-    expect(column(v, 'Spend this month')[0].t).toBe('MX$273,600') // Monterrey: 18 × MX$95 × 160
-    expect(18 * CORVANE_COUNTRIES.MX.rate * HOURS_PER_MONTH).toBe(273_600)
+    // Monterrey: its contractors × the Mexico rate × 160 hours, in pesos.
+    const monterrey = onSite.filter((c) => c.plant.key === 'monterrey').length
+    expect(column(v, 'Spend this month')[0].t).toBe(own(fromDecimalMinor(monterrey * CORVANE_COUNTRIES.MX.rate * HOURS_PER_MONTH, 'MXN'), 'MXN'))
     expect(stat(v, 'Contractors on site').value).toBe('68')
     expect(v.headline).toBe('Fernanda Albuquerque has 2 weeks to sign in Campinas, and Juliana Lima there reaches the time limit in 22 days.')
     // Nothing outside the region is on the seat.
@@ -214,8 +248,8 @@ describe('Every figure on the map is the Corvane seed’s', () => {
       first.map((_, i) => (i < CORVANE_PLANTS[0].weeksToSign ? 'waiting for you' : 'nothing to sign')))
     expect(read('src/lib/seed-corvane.ts')).toContain('.slice(0, p.weeksToSign)')
     expect(v.headline).toBe('Keisha Monroe’s week is waiting for you, and 2 more. Maria Lee cannot start without an I-9.')
-    expect(stat(v, 'Spend this month').value).toBe('$62,720')
-    expect(14 * 28 * HOURS_PER_MONTH).toBe(62_720)
+    // Dayton's contractors × the US rate × 160 hours.
+    expect(stat(v, 'Spend this month').value).toBe(usd(dayton.length * CORVANE_COUNTRIES.US.rate * HOURS_PER_MONTH * 100))
     expect(stat(v, 'Your contractors').sub).toBe(`${plantSuppliers(CORVANE_PLANTS[0]).length} suppliers`)
     expect(v.caption).toContain(`${dayton.length - PLANT_ROWS} more contractors below`)
   })
@@ -274,7 +308,7 @@ describe('Every figure on the map is the Corvane seed’s', () => {
     const code = read('src/lib/public-site/corvane-map.ts').replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '')
     const drawn = read('src/lib/public-site/corvane-map-view.tsx')
     const cfo = read('src/lib/public-site/home-cfo.ts').replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '')
-    for (const figure of ['359', '704', '227', '48 weeks', '62,720', '62720', '264', 'Margaret', 'Valeria', 'Marcus', 'Dayton', 'Keisha', 'Maria Lee', 'Aoife', 'Belfast', '$42', '14 days']) {
+    for (const figure of ['359', '3,615', '3615', '17,344', '43.4', '3,660', '268,800', '48 weeks', 'Margaret', 'Valeria', 'Marcus', 'Dayton', 'Keisha', 'Maria Lee', 'Aoife', 'Belfast', '14 days']) {
       for (const [where, src] of [['page.tsx', page], ['corvane-map.ts', code], ['corvane-map-view.tsx', drawn], ['home-cfo.ts', cfo]]) {
         expect(src.includes(figure), `${figure} is typed into ${where}`).toBe(false)
       }
@@ -350,35 +384,46 @@ describe('The map’s four roles are tabs at their own addresses', () => {
 
 describe('The home page’s CFO view is the Corvane seed’s, in short lines', () => {
 
-  it('reads 359 contractors, 25 suppliers, 31 sites in 8 countries and $704,227.20 this month at sample rates as four tiles; then Dayton, one receipt held $42 over the signed hours; Dayton, one start waiting on an I-9; Belfast, Aoife Kelly 14 days from the time limit', () => {
-    const nearest = [...onSite].sort((a, b) => toLimit(a) - toLimit(b))[0]
-    const heldOver = (heldReceipt.billed - heldReceipt.accepted) * CORVANE_COUNTRIES[heldPlant.cc].rate
+  it('reads 359 contractors, 25 suppliers, 31 sites in 8 countries and the month’s spend at sample rates as four tiles; then about $43.4 million a year; the held supplier invoices, their total over the signed hours and the largest, Dayton’s, on one supplier invoice; Dayton, one start waiting on an I-9; Belfast, Aoife Kelly 14 days from the time limit', () => {
+    const nearest = nearestAll()
+    const month = dollarsFor(onSite)
     const cfo = homeCfo()
     expect(cfo.tiles).toEqual([
       { b: String(onSite.length), s: 'contractors' },
       { b: String(new Set(onSite.map((c) => c.supplier)).size), s: 'suppliers' },
       { b: String(CORVANE_PLANTS.length), s: `sites · ${new Set(CORVANE_PLANTS.map((p) => p.cc)).size} countries` },
-      { b: usd(dollarsFor(onSite)), s: 'spend this month, at sample rates' },
+      { b: usd(month), s: 'spend this month, at sample rates' },
     ])
-    expect(cfo.lines.map((l) => `${l.lead} ${l.t}`)).toEqual([
-      `${heldPlant.city}: one invoice receipt held, $${heldOver} over the signed hours.`,
+    // The largest held receipt, by its dollars at the sample rates, worked out here a second way.
+    const inUsd = (r: (typeof held)[number]) =>
+      spendInReporting([{ currency: currencyAt(r.plant), minor: fromDecimalMinor(overUnits(r), currencyAt(r.plant)) }], 'USD', SAMPLE_RATE_TABLE).total!.minor
+    const largest = [...held].sort((a, b) => inUsd(b) - inUsd(a))[0]
+    expect(plantOf(largest.plant).city).toBe('Dayton')
+    // The year is twelve of these months, said to a tenth of a million.
+    expect(yearInMillions(month)).toBe(`$${(Math.round((month * 12) / 1e7) / 10).toFixed(1)} million`)
+    expect(yearInMillions(month)).toBe('$43.4 million')
+    const spelled = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][held.length]
+    expect(cfo.lines.map((l) => (l.lead ? `${l.lead} ${l.t}` : l.t))).toEqual([
+      `About ${yearInMillions(month)} a year at sample rates.`,
+      `${spelled} supplier invoices held, ${usd(heldUsd)} over the signed hours. ` +
+        `The largest: ${plantOf(largest.plant).city}, ${own(fromDecimalMinor(overUnits(largest), currencyAt(largest.plant)), currencyAt(largest.plant))} on one supplier invoice.`,
       `${onHold.plant.city}: one start waiting on an I-9.`,
       `${nearest.plant.city}: ${nearest.name} reaches the time limit in ${toLimit(nearest)} days.`,
     ])
-    // The brief's figures, every one the seed's: none differed.
-    expect(homeCfoCopy(cfo).join(' · ')).toBe(
-      '359 contractors · 25 suppliers · 31 sites · 8 countries · $704,227.20 spend this month, at sample rates · ' +
-      'Dayton: one invoice receipt held, $42 over the signed hours. · Dayton: one start waiting on an I-9. · ' +
-      'Belfast: Aoife Kelly reaches the time limit in 14 days.',
-    )
+    // The held total is between four and six tenths of a percent of the month: money a buyer at this scale cares about, not a rounding error.
+    expect(heldUsd / month).toBeGreaterThan(0.004)
+    expect(heldUsd / month).toBeLessThan(0.006)
   })
 
-  it('the hero’s “At a glance” $42 is the same held receipt’s difference, worked out from the seed, and is left off rather than guessed where the seed holds no single held receipt', () => {
-    expect(CORVANE_RECEIPTS.filter((r) => r.held)).toHaveLength(1)
-    const heldOver = (heldReceipt.billed - heldReceipt.accepted) * CORVANE_COUNTRIES[heldPlant.cc].rate
-    expect(homeGlanceHeld()).toBe(`$${heldOver}`)
-    expect(homeGlanceHeld()).toBe('$42')
+  it('the hero’s “At a glance” held figure and the first proof card are the CFO view’s held total, on as many supplier invoices as the seed holds, worked out from the seed', () => {
+    const g = homeGlanceHeld()!
+    expect(g).toEqual({ amount: usd(heldUsd), invoices: held.length })
+    expect(glanceHeld(g.invoices)).toBe(`held this month on ${held.length} supplier invoices over signed hours`)
+    expect(proofCards(g)[0]).toBe(`${usd(heldUsd)} held this month — ${held.length} supplier invoices over the signed hours, held until the hours agree.`)
+    expect(homeCfoCopy().some((l) => l.includes(`${usd(heldUsd)} over the signed hours`))).toBe(true)
+    // Where the seed holds none, the page draws no figure rather than a wrong one.
     expect(read('src/app/page.tsx')).toContain('{HELD && (')
+    expect(read('src/app/page.tsx')).toContain('{proofCards(HELD).map(')
   })
 
   it('says Corvane Packaging is a sample company, not a customer, and that its figures use sample rates, under the lines', () => {

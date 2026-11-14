@@ -17,6 +17,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { namedCompanies, sizesTheBuyer, unverifiableClaims, incumbentComparison } from '@/lib/positioning'
 import { STORY } from '@/lib/public-site/story'
+import { corvaneDemoFacts } from '@/lib/seed-corvane/plan'
 import { CATEGORY } from '@/lib/public-site/skeleton-words'
 import { homeDemo, homeDemoCopy } from '@/lib/public-site/home-demo'
 import { homeLines } from '@/lib/public-site/home-copy'
@@ -25,9 +26,9 @@ import { HomeDemoBlock, CfoView, SeeItWork } from '@/lib/public-site/home-parts'
 import { homeCfo, homeCfoCopy, homeGlanceHeld } from '@/lib/public-site/home-cfo'
 import {
   HOME_EYEBROW, HOME_HEADLINE, HOME_SUBHEAD, COMPLEMENT_LINE, START_FREE, UNDER_START, SEE_IT_WORK,
-  DEMO_LABEL, DEMO_SENT, DEMO_SAVED, DEMO_BACK, CFO_SHOW, CFO_HIDE, CFO_LABEL, PROOF_HEADING, PROOF_CARDS, STRIP,
+  DEMO_LABEL, DEMO_SENT, DEMO_SAVED, DEMO_BACK, CFO_SHOW, CFO_HIDE, CFO_LABEL, PROOF_HEADING, PROOF_CARDS_AFTER, PROOF_HELD_NONE, proofCards, STRIP,
   PRICE_LINE, SECURITY_LINE, SECURITY_LINK, FINAL_HEADING, FINAL_LINE, FALLBACK_LINE, HOME_HEADER_BUTTON,
-  RECORD_LINE, HOME_NAV, HOME_FIT, PROOF_LABELS, SECURITY_MORE, SAMPLE_NOTE, GLANCE_LINES, DEMO_HEAD, DEMO_YES,
+  RECORD_LINE, HOME_NAV, HOME_FIT, PROOF_LABELS, SECURITY_MORE, SAMPLE_NOTE, GLANCE_LINES, DEMO_HEAD, DEMO_YES, DEMO_QUESTION, glanceHeld,
 } from '@/lib/public-site/home-words'
 
 const ROOT = process.cwd()
@@ -52,7 +53,7 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(UNDER_START).toBe('Free for the first five firms. No card, no contract — we set it up with you.')
   })
 
-  it('the demo, the CFO label, the brief’s section line, the three proof cards and the strip are the brief’s, punctuation included; the proof cards are the brief’s even where the reference page shortens them', () => {
+  it('the demo, the CFO label, the brief’s section line, the three proof cards and the strip are the brief’s, punctuation included; the first proof card carries the month’s held total from the seed in the brief’s shape', () => {
     expect(DEMO_LABEL).toBe('Demo — not a customer')
     expect(CFO_LABEL).toBe('Corvane Packaging is a sample company, not a customer. Figures use sample rates.')
     // The reference page draws the brief's section line in the hero, and
@@ -62,8 +63,15 @@ describe('The home page says the founder’s lines word for word', () => {
     expect(PAGE.indexOf('{RECORD_LINE}')).toBeLessThan(PAGE.indexOf('id="demo"'))
     expect(PROOF_HEADING).toBe('Held until it agrees')
     expect(PROOF_LABELS).toEqual(['01 — Held', '02 — Signed', '03 — Papers'])
-    expect(PROOF_CARDS).toEqual([
-      '$42 held — an invoice receipt over the signed hours, held until the hours agree.',
+    const held = homeGlanceHeld()!
+    expect(proofCards(held)).toEqual([
+      `${held.amount} held this month — ${held.invoices} supplier invoices over the signed hours, held until the hours agree.`,
+      ...PROOF_CARDS_AFTER,
+    ])
+    // With no held figure the card says the rule and no number.
+    expect(proofCards(null)[0]).toBe(PROOF_HELD_NONE)
+    expect(PROOF_HELD_NONE).not.toMatch(/\d/)
+    expect(PROOF_CARDS_AFTER).toEqual([
       'Nothing is paid on hours nobody signed — the order, the signed week and the invoice must agree.',
       'Nobody starts without papers — documents are asked for, sent and checked before day one. A lapsed insurance certificate blocks the supplier the same way.',
     ])
@@ -171,47 +179,55 @@ describe('See it work takes the reader to the demo', () => {
 
 describe('The Ask Etyme demo is the seed’s and sends nothing', () => {
 
-  it('is the Northbend story’s first step, every name and figure read against the seed by story-panel.test.ts', () => {
+  it('is Corvane Packaging, the sample company the whole page reads: the same question, the month’s spend in bold, then 359 contractors through 25 suppliers in 8 countries and Aoife Kelly 17 months here across two suppliers, 14 days from the limit of 18', () => {
     const d = homeDemo()
-    const step = STORY[0]
+    const f = corvaneDemoFacts()
+    expect(d.company).toBe('Corvane Packaging')
+    expect(d.company).toBe(f.company)
     expect(d.question).toBe('What am I paying across every supplier this month?')
-    expect(d.answer).toBe(step.chat[1].text)
-    expect(d.answer).toBe('$135,200 a month: 7 contractors through 4 suppliers, at current rates. Lucía Fernández has 14 months here across two suppliers. The limit is 18.')
-    expect(d.answerLead).toBe('$135,200 a month:')
+    expect(d.question).toBe(DEMO_QUESTION)
+    // The figures are worked out from the seed in home-demo.test.ts; here, the shape.
+    expect(d.answerLead).toMatch(/^\$[\d,]+(?:\.\d\d)? a month:$/)
     expect(`${d.answerLead} ${d.answerRest}`).toBe(d.answer)
-    // The story's cells, the months said with their unit under "Time here".
+    expect(d.answerRest).toBe(
+      `${f.contractors} contractors through ${f.suppliers} suppliers in ${f.countries} countries, at current rates. ` +
+      'Dollars use sample exchange rates. ' +
+      `${f.nearest.name} in ${f.nearest.city} has ${f.nearest.months} months here across two suppliers. ` +
+      `The limit is ${f.limitMonths}; Aoife reaches it in ${f.nearest.daysToLimit} days.`,
+    )
+    expect([f.contractors, f.suppliers, f.countries, f.nearest.name, f.nearest.city, f.nearest.months, f.limitMonths, f.nearest.daysToLimit])
+      .toEqual([359, 25, 8, 'Aoife Kelly', 'Belfast', 17, 18, 14])
     expect(d.head).toEqual(['Contractor', 'Supplier', 'Rate / hr', 'Time here'])
     expect(d.head).toBe(DEMO_HEAD)
-    expect(d.rows).toEqual([
-      ['Helena Marsh', 'Computer Systems Inc', '$145', '6 months'],
-      ['Omar Haddad', 'Brightmoor Staffing', '$132', '1 month'],
-      ['Lucía Fernández', 'Pinnacle Resourcing', '$98', '14 of 18 months · 2 suppliers'],
-    ])
-    expect(d.rows.map((r) => r.slice(0, 3))).toEqual(step.table.rows.map((r) => r.slice(0, 3)))
-    // Lucía carries the Watch limit tag: the story's attention cell.
+    // Three of the 359, at Dayton, Antwerp and Belfast, each site said under the name.
+    expect(d.sites).toEqual(['Dayton, Ohio', 'Antwerp', 'Belfast'])
+    expect(d.rows.map((r) => r[0])).toEqual(f.onSite.map((c) => c.name))
+    expect(d.rows[2][3]).toBe('17 of 18 months · 2 suppliers')
+    // Aoife Kelly carries the Watch limit tag; the glance reads her months.
     expect(d.watchRows).toEqual([2])
-    expect(d.watch).toEqual({ months: 14, limit: 18 })
-    expect(d.card.job).toBe('HCM integration lead')
-    expect(d.card.detail).toBe('12 months · Tualatin, OR · $120–140/hr · Ready to send to suppliers')
-    expect(step.chat[2].card!.t).toBe('HCM integration lead · 12 months · Tualatin, OR')
-    expect(step.chat[2].card!.s).toContain('$120–140 an hour')
+    expect(d.watch).toEqual({ months: 17, limit: 18 })
+    // The send card is the open Dayton job from the seed.
+    expect(d.card.job).toBe(f.openJob.title)
+    expect(d.card.detail).toBe(`${f.openJob.months} months · Dayton, Ohio · $110–130/hr · Ready to send to suppliers`)
     expect(d.card.yes).toBe(DEMO_YES)
-    // Nothing is typed into the page or the demo's code: it reads the story.
-    for (const figure of ['135,200', 'Lucía', 'Helena', 'Tualatin', '$145', '$120']) {
+    // Northbend Athletic stays on every other page: the story is unchanged.
+    expect(STORY[0].chat[1].text).toContain('Lucía Fernández')
+    // Nothing is typed into the page or the demo's code: it reads the seed.
+    for (const figure of ['3,615', '359', 'Aoife', 'Tyler', 'Elise', 'Dayton', 'Antwerp', 'Belfast', '$120', '€95', '£72', '17 of 18', '14 days', 'Automation technician']) {
       expect(code(PAGE).includes(figure), figure).toBe(false)
       expect(code(PARTS).includes(figure), figure).toBe(false)
       expect(code(read('src/lib/public-site/home-demo.ts')).includes(figure), figure).toBe(false)
     }
   })
 
-  it('is labeled Northbend Athletic, Demo — not a customer, and draws the question, the answer, the three contractors and the card', () => {
+  it('is labeled “Demo — not a customer · Corvane Packaging”, and draws the question, the answer, the three contractors with their sites and the card', () => {
     const d = homeDemo()
     const html = renderToStaticMarkup(createElement(HomeDemoBlock, { demo: d }))
-    expect(html).toContain('Northbend Athletic')
-    expect(html).toContain(DEMO_LABEL)
+    expect(html).toContain(`${DEMO_LABEL}<span aria-hidden="true"> · </span>Corvane Packaging`)
     for (const w of homeDemoCopy().filter((x) => x !== d.answer)) expect(html, w).toContain(w.replace(/&/g, '&amp;'))
     expect(html).toContain(`<strong class="font-semibold">${d.answerLead}</strong> ${d.answerRest}`)
     expect(html).toContain(`“${d.question}”`)
+    for (const site of d.sites) expect(html, site).toContain(`>${site}</span>`)
     expect(html).toContain('w-full table-fixed')
     // On a phone each row is a short block, never a sideways scroll.
     expect(html).toContain('max-sm:block')
@@ -267,14 +283,16 @@ describe('The CFO view is closed until asked for, and readable with no script', 
     expect(PAGE).toContain('<noscript><style>{NO_SCRIPT_CFO}</style></noscript>')
   })
 
-  it('shows four figures as tiles and three short lines, never a table', () => {
+  it('shows four figures as tiles and four short lines (the year, the held supplier invoices, the start on hold, the time limit), every sentence twelve words or fewer, never a table', () => {
     const cfo = homeCfo()
     const html = renderToStaticMarkup(createElement(CfoView, { cfo }))
     expect(html).not.toContain('<table')
     expect(cfo.tiles).toHaveLength(4)
-    expect(cfo.lines).toHaveLength(3)
+    expect(cfo.lines).toHaveLength(4)
     expect(html.match(/<li /g)).toHaveLength(cfo.tiles.length + cfo.lines.length)
-    for (const l of homeCfoCopy(cfo)) expect(l.split(/\s+/).length, l).toBeLessThanOrEqual(12)
+    for (const l of homeCfoCopy(cfo)) {
+      for (const sentence of l.split(/(?<=\.)\s+/)) expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(12)
+    }
   })
 })
 
@@ -294,8 +312,9 @@ describe('The home page never says what it must not', () => {
   it('names no company but the labeled sample companies, and no incumbent', () => {
     expect(namedCompanies(ALL)).toEqual([])
     expect(incumbentComparison(ALL)).toEqual([])
-    // The two companies it names are both labeled samples, beside the name.
-    expect(ALL).toContain('Demo — not a customer Northbend Athletic')
+    // The one company it names is the labeled sample, beside the name, in the demo's tag and the CFO view's label.
+    expect(ALL).toContain('Demo — not a customer Corvane Packaging')
+    expect(ALL).not.toContain('Northbend')
     expect(SAMPLE_NOTE).toBe('Demo and sample companies are labeled as such. They are not customers.')
     expect(CFO_LABEL.startsWith('Corvane Packaging is a sample company, not a customer.')).toBe(true)
   })
@@ -318,11 +337,12 @@ describe('The home page never says what it must not', () => {
 
   it('never says money is paid automatically, except to say that nothing is: an invoice receipt is held or cleared, never paid on its own', () => {
     // The glance's line says the opposite, in so many words, and is the one place the phrase may stand.
-    expect(GLANCE_LINES[0]).toContain('A person clears it — nothing is paid automatically.')
+    expect(GLANCE_LINES[0]).toBe('A supplier invoice is held until the signed hours and the invoice agree. A person clears it — nothing is paid automatically.')
+    expect(glanceHeld(7)).toBe('held this month on 7 supplier invoices over signed hours')
     const said = ALL.replace(/\bnothing is paid automatically\b/g, '')
     expect(said).not.toMatch(/\b(?:paid|pays?|paying) (?:automatically|itself|themselves|on (?:its|their) own|by itself)\b/i)
     expect(said).not.toMatch(/\bauto[- ]?(?:pay|payment|matically pa)/i)
     expect(said).not.toMatch(/\bautomatic(?:ally)? (?:pay|payment|paid)/i)
-    expect(PROOF_CARDS[1]).toContain('Nothing is paid on hours nobody signed')
+    expect(PROOF_CARDS_AFTER[0]).toContain('Nothing is paid on hours nobody signed')
   })
 })

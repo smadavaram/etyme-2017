@@ -9,27 +9,29 @@
  */
 
 import type { Copy } from '@/lib/positioning'
-import { homeCopy, HOME_HERO_LINES, CFO_LABEL, GLANCE_TITLE } from './home-words'
+import { homeCopy, CFO_LABEL, CFO_TITLE, GLANCE_TITLE, GLANCE_NOTE } from './home-words'
 import { homeDemo, homeDemoCopy } from './home-demo'
 import { homeCfoCopy, homeGlanceHeld } from './home-cfo'
 
-/** The glance's two figures, as the hero draws them: "$42" and "14 / 18". */
+/** The glance's two figures, as the hero draws them: the month's held total and "17 / 18". */
 export function glanceFigures(): string[] {
   const w = homeDemo().watch
-  return [homeGlanceHeld(), w ? `${w.months} / ${w.limit}` : null].filter((x): x is string => x !== null)
+  return [homeGlanceHeld()?.amount ?? null, w ? `${w.months} / ${w.limit}` : null].filter((x): x is string => x !== null)
 }
 
 export function copyOfHome(): Copy {
-  const own = homeCopy()
+  const own = homeCopy(homeGlanceHeld())
+  const heroEnds = own.indexOf(GLANCE_NOTE) + 1
+  const cfoAt = own.indexOf(CFO_TITLE)
   const labelAt = own.indexOf(CFO_LABEL)
   // The glance's figures sit under its title, before their own captions.
   const glanceAt = own.indexOf(GLANCE_TITLE) + 1
   return {
-    hero: [...own.slice(0, glanceAt), ...glanceFigures(), ...own.slice(glanceAt, HOME_HERO_LINES)],
+    hero: [...own.slice(0, glanceAt), ...glanceFigures(), ...own.slice(glanceAt, heroEnds)],
     body: [
       ...homeDemoCopy(),
       // The page's own words from the CFO card's heading, the CFO figures before its label.
-      ...own.slice(HOME_HERO_LINES, labelAt),
+      ...own.slice(cfoAt, labelAt),
       ...homeCfoCopy(),
       ...own.slice(labelAt),
     ],

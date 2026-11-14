@@ -62,10 +62,11 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
-import { copyOfHome, homeLines } from '@/lib/public-site/home-copy'
+import { copyOfHome, homeLines, glanceFigures } from '@/lib/public-site/home-copy'
+import { homeGlanceHeld } from '@/lib/public-site/home-cfo'
 import {
   HOME_HEADLINE, HOME_SUBHEAD, HOME_FIT, COMPLEMENT_LINE, START_FREE, UNDER_START, SEE_IT_WORK, PROOF_HEADING, FINAL_HEADING,
-  PROOF_CARDS, STRIP, MOST_HOME_WORDS, homeCopy, RECORD_LINE, GLANCE_TITLE, GLANCE_HELD, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE, HOME_NAV,
+  PROOF_CARDS_AFTER, STRIP, MOST_HOME_WORDS, homeCopy, RECORD_LINE, GLANCE_TITLE, glanceHeld, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE, HOME_NAV,
 } from '@/lib/public-site/home-words'
 import { BAND, CATEGORY, OPEN_DEMO, bandWords, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
@@ -747,8 +748,10 @@ describe('Below the hero, the page says what the business is', () => {
     expect(copyOfHome().hero).toEqual([
       'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.',
       HOME_SUBHEAD, RECORD_LINE, HOME_FIT, COMPLEMENT_LINE, START_FREE.t, SEE_IT_WORK.t, UNDER_START,
-      GLANCE_TITLE, '$42', '14 / 18', GLANCE_HELD, GLANCE_MONTHS, ...GLANCE_LINES, GLANCE_NOTE,
+      GLANCE_TITLE, homeGlanceHeld()!.amount, '17 / 18', glanceHeld(homeGlanceHeld()!.invoices), GLANCE_MONTHS, ...GLANCE_LINES, GLANCE_NOTE,
     ])
+    // Both figures are Corvane's, read from the seed: the month's held total and Aoife Kelly's months.
+    expect(glanceFigures()).toEqual([homeGlanceHeld()!.amount, '17 / 18'])
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="demo"'))
     expect(top).toContain('{START_FREE.t}')
     expect(top).toContain('<SeeItWork />')
@@ -1304,8 +1307,9 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     // Northbend Athletic's hiring manager, labeled "Demo — not a
     // customer", and the full demo is the footer's Demo link.
     expect(SEE_IT.href).toBe('/demo')
-    // The reference page's tag reads "Demo — not a customer · Northbend Athletic".
-    expect(all).toContain('Demo — not a customer Northbend Athletic')
+    // The reference page's tag reads "Demo — not a customer · <the sample company>"; since
+    // 2026-11-13 the whole home page reads one sample company, Corvane Packaging.
+    expect(all).toContain('Demo — not a customer Corvane Packaging')
     expect(SKELETON).toContain("{ t: 'Demo', href: '/demo' }")
     expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
     expect(SKELETON).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. All demo companies, not customers.'")
@@ -1847,7 +1851,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     const words = readerWords()
     expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(CEILING)
     expect(words).toBeGreaterThan(300)
-    expect(homeCopy().every((l) => homeLines().includes(l))).toBe(true)
+    expect(homeCopy(homeGlanceHeld()).every((l) => homeLines().includes(l))).toBe(true)
     const ids = [...PAGE.matchAll(/<section\s+id="([\w-]+)"/g)].map((m) => m[1])
     expect(ids).toEqual(['top', 'demo', 'cfo', 'proof', 'pricing', 'start'])
     // The glance's small heading, Ask Etyme, the proof heading, the price and security cards' small headings, and the last call.
@@ -2212,7 +2216,7 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     expect(PAGE).not.toMatch(/href=\{?['"]\/ready/)
     expect(all).not.toMatch(/\b(?:certified|uptime|99\.\d+%|customers? (?:trust|use)|trusted by|testimonial)\b/i)
     // The demo with no account is on the page itself since 2026-11-13.
-    expect(all).toContain('Demo — not a customer Northbend Athletic')
+    expect(all).toContain('Demo — not a customer Corvane Packaging')
   })
   it('the home page says security in one line, that SOC 2 is not held yet and is next, and sends the reader to the security page for what is done and what is next, in order', () => {
     // The honest-security sentence, kept in its newest shape: the four
@@ -2361,6 +2365,9 @@ function supplierSide(text: string): string {
     /\binvoice[- ]receipts?\b/gi,
     /\b(?:its|its own|its matched|the sub’s|a sub-vendor’s own|the sub-vendor’s own)\s+invoice\b/gi,
     /\bsupplier’s\s+invoice\b/gi,
+    // On a page written to a client every invoice is a supplier's, and the
+    // home page says so in full (founder, 2026-11-13).
+    /\bsupplier\s+invoices?\b/gi,
     /\bthe invoice a supplier is paid on\b/gi,
     /\bnever invoiced\b/gi,
     // A named supplier's own document, as the panel says it in the trade's
@@ -2417,11 +2424,13 @@ describe('Plain words on public pages, defined once', () => {
     // card and the strip (whose "Invoices" is the fourth step's name).
     // Those three exact lines are set aside by name; every other word on
     // the page is held to the rule.
-    // Since his reference page the same day, two more of its lines are set
-    // aside by name: the glance's figure caption and its first line, each
-    // about what a supplier sent (the held invoice receipt), which is the
-    // one sense "invoice" keeps.
-    const verbatim = [HOME_SUBHEAD, PROOF_CARDS[1], STRIP, GLANCE_LINES[0], GLANCE_HELD]
+    // Since his reference page the same day, the glance's first line is set
+    // aside by name too: it says "the invoice" back of "A supplier invoice",
+    // what a supplier sent, which is the one sense "invoice" keeps. Its
+    // figure caption and the first proof card say "supplier invoice" in
+    // full since the page moved to Corvane (2026-11-13), and are held to
+    // the rule like every other line.
+    const verbatim = [HOME_SUBHEAD, PROOF_CARDS_AFTER[0], STRIP, GLANCE_LINES[0]]
     const setAside = (route: string, text: string) => (route === '/' ? verbatim.reduce((t, v) => t.split(v).join(' '), text) : text)
     for (const [route, text] of pages) {
       const found = supplierSide(setAside(route, text)).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []
@@ -2491,8 +2500,14 @@ describe('Plain words on public pages, defined once', () => {
     // CLAUDE.md, 2026-09-28: what a firm receives from below is an
     // invoice receipt; what it issues upward is a bill. A sentence may
     // still say the supplier sends its invoice.
+    // One exception, on the home page alone (founder, 2026-11-13, asking
+    // how a vendor's invoice and a customer's are told apart): a page
+    // written to a client says "supplier invoice" in full for what the
+    // three-way check holds, because there every invoice is a supplier's.
+    // The supplier names its own document, so the word is still theirs.
+    const homeSays = (route: string, text: string) => (route === '/' ? text.replace(/\bsupplier invoices?\b/g, ' ') : text)
     for (const [route, text] of everyPublicPage()) {
-      expect(text.match(SUPPLIER_DOCUMENT_MISNAMED) ?? [], route).toEqual([])
+      expect(homeSays(route, text).match(SUPPLIER_DOCUMENT_MISNAMED) ?? [], route).toEqual([])
     }
     for (const noun of ['the supplier bills you hold', 'A supplier’s bill is paid', 'a row per supplier bill',
       'Two supplier invoices open', 'the supplier invoices you hold']) {

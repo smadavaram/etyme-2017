@@ -28,8 +28,9 @@
  *
  *   drawing                              seed, and so the map
  *   "6 paid of 7" invoice receipts       the seed's receipts are submitted, not
- *                                        paid; six pass the three-way check and
- *                                        one is held, so "6 of 7 clear the check"
+ *                                        paid; the card says how many of them
+ *                                        clear the three-way check (since
+ *                                        2026-11-13, six of thirteen; seven held)
  *   "This week: signed" on Dayton rows   only three weeks are filed at Dayton,
  *                                        all waiting; the others read "nothing
  *                                        to sign"
@@ -191,7 +192,7 @@ export function waitingAt(plant: CorvanePlant, onSite: readonly PlannedContracto
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
-const spelled = (n: number) => (['No', 'One', 'Two', 'Three', 'Four', 'Five'][n] ?? String(n))
+const spelled = (n: number) => (['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][n] ?? String(n))
 const nearestOf = (people: readonly PlannedContractor[]) =>
   [...people].sort((a, b) => daysToLimit(a) - daysToLimit(b))[0]
 
@@ -268,7 +269,7 @@ export function corvaneMap(): CorvaneMap {
       { t: String(g.weeks) },
       g.onHold ? { t: `${g.onHold} start on hold`, chip: 'att' } : { t: 'none blocking', chip: 'ok' },
       // Every receipt in the region is on its row, held and clean, so the
-      // rows add to the "6 of 7" above (release walk, 2026-10-27).
+      // rows add to the receipts card above (release walk, 2026-10-27).
       g.held.length
         ? {
             t: `${g.held.length} held · ${heldMoney(g.held)}`, chip: 'att',

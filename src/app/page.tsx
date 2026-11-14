@@ -7,8 +7,8 @@ import { SeeItWork, HomeDemoBlock, CfoView } from '@/lib/public-site/home-parts'
 import { FILLED, FILLED_ON_INK, OUTLINE_ON_INK } from '@/lib/public-site/home-buttons'
 import {
   HOME_HEADLINE, HOME_SUBHEAD, RECORD_LINE, HOME_FIT_LEAD, HOME_FIT_REST, COMPLEMENT_LINE, START_FREE, UNDER_START,
-  HOME_NAV, GLANCE_TITLE, GLANCE_HELD, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE,
-  PROOF_HEADING, PROOF_LABELS, PROOF_CARDS, STRIP,
+  HOME_NAV, GLANCE_TITLE, glanceHeld, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE,
+  PROOF_HEADING, PROOF_LABELS, proofCards, STRIP,
   PRICE_TITLE, PRICE_LINE, PRICE_MORE, SECURITY_TITLE, SECURITY_LINE, SECURITY_LINK, SECURITY_MORE,
   FINAL_HEADING, FINAL_LINE, SEE_IT_AGAIN, FALLBACK_LEAD, FALLBACK_ADDRESS, FALLBACK_TAIL, SAMPLE_NOTE, HOME_HEADER_BUTTON,
 } from '@/lib/public-site/home-words'
@@ -24,12 +24,19 @@ import {
  *   #top        two columns from 900 wide: the category, the question, the
  *               locked line, "Every contractor. Every supplier. One
  *               record.", two ticked lines, Start free and See it work, the
- *               line under them; beside them "At a glance", the held $42
- *               and Lucía Fernández's 14 of 18 months, both the seed's
- *   #demo       Ask Etyme at Northbend Athletic, a demo company
- *               (`lib/public-site/home-demo`, the Northbend story's first
- *               step, read against the seed)
+ *               line under them; beside them "At a glance", what is held
+ *               this month on how many supplier invoices, and Aoife Kelly's
+ *               17 of 18 months, both the seed's
+ *   #demo       Ask Etyme at Corvane Packaging, a sample company
+ *               (`lib/public-site/home-demo`, read from corvaneDemoFacts
+ *               and the product's own spend arithmetic)
  *   #cfo        Corvane Packaging's CFO view, a card closed behind one button
+ *
+ * One sample company for the whole page since 2026-11-13 (founder: "we
+ * are talking about companies spending 40-50 million a year; make the
+ * numbers realistic"): the first number a buyer at that scale reads is
+ * at their own scale. Northbend Athletic stays on every product page,
+ * door, the documentation and /demo.
  *   #proof      "Held until it agrees", three cards, the strip on ink
  *   #pricing    price and security, two cards
  *   #start      the last call on ink, and the sample note
@@ -110,23 +117,24 @@ export default function LandingPage() {
             <p className="mt-3.5 text-[14px] leading-snug text-etyme-muted">{UNDER_START}</p>
           </div>
 
-          {/* At a glance: both figures are the seed's — the held receipt's
-              difference at Corvane and the watched contractor's months
-              against Northbend's limit. A figure the seed cannot support is left off. */}
+          {/* At a glance: both figures are Corvane's, from the seed — what the
+              three-way check holds this month over the signed hours, and the
+              months of the contractor nearest the limit. A figure the seed
+              cannot support is left off. */}
           <aside aria-label={GLANCE_TITLE} className="min-w-0 rounded-lg bg-etyme-ink p-5 text-etyme-canvas shadow-sm sm:p-6">
             <h2 className="text-[12px] font-semibold uppercase tracking-[0.07em] text-etyme-canvas/75">{GLANCE_TITLE}</h2>
             <dl className="mt-4 grid gap-4 min-[340px]:grid-cols-2">
               {HELD && (
                 <div className="min-w-0">
-                  <dt className="sr-only">{GLANCE_HELD}</dt>
-                  <dd className="font-serif text-[28px] leading-none tabular-nums">{HELD}</dd>
-                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{GLANCE_HELD}</dd>
+                  <dt className="sr-only">{glanceHeld(HELD.invoices)}</dt>
+                  <dd className="font-serif text-[24px] leading-none tabular-nums min-[420px]:text-[28px]">{HELD.amount}</dd>
+                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{glanceHeld(HELD.invoices)}</dd>
                 </div>
               )}
               {DEMO.watch && (
                 <div className="min-w-0">
                   <dt className="sr-only">{GLANCE_MONTHS}</dt>
-                  <dd className="font-serif text-[28px] leading-none tabular-nums">{DEMO.watch.months} / {DEMO.watch.limit}</dd>
+                  <dd className="font-serif text-[24px] leading-none tabular-nums min-[420px]:text-[28px]">{DEMO.watch.months} / {DEMO.watch.limit}</dd>
                   <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{GLANCE_MONTHS}</dd>
                 </div>
               )}
@@ -143,8 +151,8 @@ export default function LandingPage() {
           </aside>
         </section>
 
-        {/* ── Ask Etyme, at a demo company ── */}
-        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a demo company" className="scroll-mt-20 pb-4 focus:outline-none">
+        {/* ── Ask Etyme, at the sample company ── */}
+        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a sample company" className="scroll-mt-20 pb-4 focus:outline-none">
           <HomeDemoBlock demo={DEMO} />
         </section>
 
@@ -157,7 +165,7 @@ export default function LandingPage() {
         <section id="proof" className="scroll-mt-20 pb-10">
           <h2 className={SECTION_HEADING}>{PROOF_HEADING}</h2>
           <ul className="mt-4 grid gap-3 md:grid-cols-3">
-            {PROOF_CARDS.map((c, i) => (
+            {proofCards(HELD).map((c, i) => (
               <li key={c} className={CARD}>
                 <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.06em] text-etyme-action-press">{PROOF_LABELS[i]}</p>
                 <p className="mt-2.5 text-[15px] font-semibold leading-snug text-etyme-ink">{c}</p>

@@ -5,7 +5,7 @@ import type { HomeDemo } from './home-demo'
 import { ASK_ETYME } from './story'
 import type { HomeCfo } from './home-cfo'
 import {
-  SEE_IT_WORK, DEMO_INTRO, DEMO_COMPANY, DEMO_LABEL, DEMO_ASKED, DEMO_WATCH, DEMO_SENT, DEMO_SAVED, DEMO_BACK, DEMO_NOT_NOW,
+  SEE_IT_WORK, DEMO_INTRO, DEMO_LABEL, DEMO_ASKED, DEMO_WATCH, DEMO_SENT, DEMO_SAVED, DEMO_BACK, DEMO_NOT_NOW,
   CFO_TITLE, CFO_INTRO, CFO_SHOW, CFO_HIDE, CFO_LABEL,
 } from './home-words'
 import { FILLED, OUTLINE } from './home-buttons'
@@ -55,8 +55,9 @@ export function SeeItWork({ className = OUTLINE, label }: { className?: string; 
 
 /**
  * The Ask Etyme section's head and card: the heading, the line under it,
- * the demo tag; then the question, the answer, the three contractors and
- * the card that would send the job. Send and Not now post nothing: each
+ * the demo tag with the sample company's name; then the question, the
+ * answer, the three contractors (each with the site they work at under
+ * the name) and the card that would send the job. Send and Not now post nothing: each
  * shows its line in place of the buttons, and Back brings them back.
  */
 export function HomeDemoBlock({ demo }: { demo: HomeDemo }) {
@@ -70,7 +71,7 @@ export function HomeDemoBlock({ demo }: { demo: HomeDemo }) {
         </div>
         <p className="inline-flex items-center gap-1.5 rounded-md border border-etyme-attention-line bg-etyme-attention-wash px-2.5 py-1 text-[12.5px] font-semibold text-etyme-ink">
           <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-attention" />
-          <span>{DEMO_LABEL}<span aria-hidden="true"> · </span>{DEMO_COMPANY}</span>
+          <span>{DEMO_LABEL}<span aria-hidden="true"> · </span>{demo.company}</span>
         </p>
       </div>
 
@@ -107,6 +108,9 @@ export function HomeDemoBlock({ demo }: { demo: HomeDemo }) {
                         <span className="ml-1.5 inline-block whitespace-nowrap rounded-md border border-etyme-attention-line bg-etyme-attention-wash px-1.5 py-px align-[1px] text-[12px] font-semibold text-etyme-ink">
                           {DEMO_WATCH}
                         </span>
+                      )}
+                      {j === 0 && demo.sites[i] && (
+                        <span className="mt-0.5 block text-[13px] font-normal leading-snug text-etyme-muted">{demo.sites[i]}</span>
                       )}
                     </td>
                   ))}
@@ -148,6 +152,9 @@ export function HomeDemoBlock({ demo }: { demo: HomeDemo }) {
  * page's own style shows them open and hides the button
  * (`data-cfo-toggle`, in the page's noscript).
  */
+/** Characters past which a tile's figure no longer fits half a phone's width at its size. */
+const LONG_FIGURE = 9
+
 export function CfoView({ cfo }: { cfo: HomeCfo }) {
   const [open, setOpen] = useState(false)
   return (
@@ -170,9 +177,11 @@ export function CfoView({ cfo }: { cfo: HomeCfo }) {
       </div>
       <div id="cfo-view" className={`${open ? 'block' : 'hidden'} mt-5 border-t border-etyme-rule pt-5`}>
         <ul className="grid gap-3 min-[340px]:grid-cols-2 md:grid-cols-4">
+          {/* A figure too long for half a phone's width (the month's spend in
+              millions) is drawn smaller there, never cut off. */}
           {cfo.tiles.map((t) => (
             <li key={t.s} className="min-w-0 rounded-lg bg-etyme-surface p-3.5">
-              <b className="block font-serif text-[22px] font-normal leading-none tabular-nums sm:text-[24px] text-etyme-ink">{t.b}</b>
+              <b className={`block font-serif font-normal leading-none tabular-nums sm:text-[24px] text-etyme-ink ${t.b.length > LONG_FIGURE ? 'text-[18px] min-[420px]:text-[22px]' : 'text-[22px]'}`}>{t.b}</b>
               <span className="mt-1.5 block text-[13px] leading-snug text-etyme-muted">{t.s}</span>
             </li>
           ))}

@@ -61,16 +61,26 @@ export const HOME_NAV: readonly { t: string; href: string }[] = [
 ]
 
 /**
- * The hero's right column, "At a glance". The two figures are the seed's,
- * worked out by the page (`homeGlance` in `./home-cfo` for the held $42,
- * `homeDemo().watch` for Lucía Fernández's 14 of 18 months); only their
- * words are here.
+ * The hero's right column, "At a glance". Both figures are Corvane
+ * Packaging's, the sample company the whole page reads (founder,
+ * 2026-11-13, "make the numbers realistic"): what the three-way check
+ * holds this month over the signed hours, in dollars at the sample rates,
+ * and on how many supplier invoices (`homeGlanceHeld` in `./home-cfo`);
+ * and Aoife Kelly's months against the limit (`homeDemo().watch`). Only
+ * their words are here.
+ *
+ * On a page written to a client every invoice is a supplier's (the
+ * founder asked how a vendor's invoice and a customer's are told apart),
+ * so these lines say "supplier invoice".
  */
 export const GLANCE_TITLE = 'At a glance — held, not hidden'
-export const GLANCE_HELD = 'held on one invoice over signed hours'
+/** The held figure's caption: "held this month on 7 supplier invoices over signed hours". */
+export function glanceHeld(invoices: number): string {
+  return `held this month on ${invoices} supplier ${invoices === 1 ? 'invoice' : 'invoices'} over signed hours`
+}
 export const GLANCE_MONTHS = 'months — one worker, two suppliers, one limit'
 export const GLANCE_LINES: readonly string[] = [
-  'An invoice is held until the signed hours and the invoice agree. A person clears it — nothing is paid automatically.',
+  'A supplier invoice is held until the signed hours and the invoice agree. A person clears it — nothing is paid automatically.',
   'A start waits when papers are missing. No papers, no day one.',
 ]
 export const GLANCE_NOTE = 'Examples below are from demo and sample companies — not customers.'
@@ -102,15 +112,17 @@ export const SEE_IT_AGAIN = 'See it work again'
 
 /** The demo's heading is Ask Etyme (`ASK_ETYME` in `./story`); this is the line under it. */
 export const DEMO_INTRO = 'Ask in plain words. Get an answer you can check, with the record behind it.'
-/** The demo's label: Northbend Athletic is a sample company, drawn as a small tag. */
-export const DEMO_COMPANY = 'Northbend Athletic'
+/** The demo's label, drawn as a small tag beside the sample company's name (`homeDemo().company`). */
 export const DEMO_LABEL = 'Demo — not a customer'
 /** Over the question. */
 export const DEMO_ASKED = 'You asked'
+/** The question, the same since the Northbend demo it replaced. */
+export const DEMO_QUESTION = 'What am I paying across every supplier this month?'
 /**
- * The table's four headings. The columns are the story's (`STORY[0]` in
- * `./story`), named the way the reference page names them; the months
- * cell reads "6 months" rather than "6" under "Time here".
+ * The table's four headings, named the way the reference page names
+ * them; the months cell reads "6 months" rather than "6" under "Time
+ * here". Where each contractor works is drawn under the name, so the
+ * table keeps four columns at 1280 and reads as short blocks at 390.
  */
 export const DEMO_HEAD: readonly string[] = ['Contractor', 'Supplier', 'Rate / hr', 'Time here']
 /** The tag beside the contractor whose months are near the limit. */
@@ -142,17 +154,31 @@ export const CFO_LABEL = 'Corvane Packaging is a sample company, not a customer.
 
 /**
  * The proof section's heading, the reference's, and the small label over
- * each card (drawn in capitals by the page). The cards themselves are the
- * brief's sentences, verbatim: the reference shortens two of them, and the
- * brief marks them verbatim, so the brief's stand.
+ * each card (drawn in capitals by the page). The second and third cards
+ * are the brief's sentences, verbatim. The first is the brief's shape
+ * with Corvane's figure in it (`proofCards`): what is held this month,
+ * read from the seed, never typed.
  */
 export const PROOF_HEADING = 'Held until it agrees'
 export const PROOF_LABELS: readonly string[] = ['01 — Held', '02 — Signed', '03 — Papers']
-export const PROOF_CARDS: readonly string[] = [
-  '$42 held — an invoice receipt over the signed hours, held until the hours agree.',
+/** The two proof cards that carry no figure. */
+export const PROOF_CARDS_AFTER: readonly string[] = [
   'Nothing is paid on hours nobody signed — the order, the signed week and the invoice must agree.',
   'Nobody starts without papers — documents are asked for, sent and checked before day one. A lapsed insurance certificate blocks the supplier the same way.',
 ]
+/** The first card where the seed gives no held figure: the rule, with no number. */
+export const PROOF_HELD_NONE = 'A supplier invoice over the signed hours is held until the hours agree.'
+
+/** What the glance and the first proof card say is held: the amount, already formatted, and on how many supplier invoices. */
+export interface HomeHeld { amount: string; invoices: number }
+
+/** The three proof cards, the first carrying the month's held total from the seed. */
+export function proofCards(held: HomeHeld | null): string[] {
+  const first = held
+    ? `${held.amount} held this month — ${held.invoices} supplier ${held.invoices === 1 ? 'invoice' : 'invoices'} over the signed hours, held until the hours agree.`
+    : PROOF_HELD_NONE
+  return [first, ...PROOF_CARDS_AFTER]
+}
 
 /** The strip, verbatim. */
 export const STRIP =
@@ -190,23 +216,21 @@ export const SAMPLE_NOTE = 'Demo and sample companies are labeled as such. They 
 /** The header on the home page: the wordmark, a plain Sign in, and Start free. */
 export const HOME_HEADER_BUTTON = START_FREE
 
-/** How many of `homeCopy`'s lines are the hero, from the category to the note under the glance. */
-export const HOME_HERO_LINES = 15
-
 /**
  * Every word the page's own text shows, in the order a reader meets it,
- * without the figures and the seed's lines (the demo's are `homeDemoCopy`,
- * the CFO view's and the glance's figures the page computes; see
- * `./home-copy`). The header's four links are counted with the header,
- * not here.
+ * without the seed's figures and lines (the demo's are `homeDemoCopy`,
+ * the CFO view's `homeCfoCopy`; see `./home-copy`). The held caption and
+ * the first proof card carry the seed's held figure, so they are given
+ * it; with none, the caption is left off, as the page leaves it off. The
+ * header's four links are counted with the header, not here.
  */
-export function homeCopy(): string[] {
+export function homeCopy(held: HomeHeld | null): string[] {
   return [
     HOME_EYEBROW, HOME_HEADLINE, HOME_SUBHEAD, RECORD_LINE, HOME_FIT, COMPLEMENT_LINE,
     START_FREE.t, SEE_IT_WORK.t, UNDER_START,
-    GLANCE_TITLE, GLANCE_HELD, GLANCE_MONTHS, ...GLANCE_LINES, GLANCE_NOTE,
+    GLANCE_TITLE, ...(held ? [glanceHeld(held.invoices)] : []), GLANCE_MONTHS, ...GLANCE_LINES, GLANCE_NOTE,
     CFO_TITLE, CFO_INTRO, CFO_SHOW, CFO_LABEL,
-    PROOF_HEADING, ...PROOF_LABELS, ...PROOF_CARDS,
+    PROOF_HEADING, ...PROOF_LABELS, ...proofCards(held),
     STRIP,
     PRICE_TITLE, PRICE_LINE, PRICE_MORE, SECURITY_TITLE, SECURITY_LINE, SECURITY_LINK.t, SECURITY_MORE,
     FINAL_HEADING, FINAL_LINE, START_FREE.t, SEE_IT_AGAIN, FALLBACK_LINE, SAMPLE_NOTE,
@@ -217,11 +241,16 @@ export function homeCopy(): string[] {
  * The most words the home page may carry between its header and its
  * footer: the brief's own lines, the seed's demo and CFO lines, and no
  * more. Measured at 394 on 2026-11-13, the CFO view counted although it
- * opens closed. Raised the same day to the founder's reference page,
- * which adds the glance panel, the demo's heading line and labels, the
- * CFO card's sentence, the proof labels, the price and security cards'
- * second lines and the sample note. The reference page's own words, read
- * between its header and its footer by the same counter (`countWords`),
- * are 541; this page measures 537. The ceiling is the reference's 541.
+ * opens closed. Raised the same day to the founder's reference page
+ * (541, the reference's own words read by the same counter, `countWords`).
+ *
+ * Raised again the same day, to 577, when the whole page moved
+ * to Corvane Packaging at its own scale ("make the numbers realistic"):
+ * the demo's answer says one sentence more than Northbend's did (the time
+ * limit, how soon Aoife Kelly reaches it, and that the dollars use sample
+ * exchange rates), each contractor's site is drawn under the name, and the
+ * CFO view says the year and the largest held supplier invoice. No line
+ * was added that is not a figure from the seed or the words around one;
+ * the page measures 577.
  */
-export const MOST_HOME_WORDS = 541
+export const MOST_HOME_WORDS = 577
