@@ -291,6 +291,10 @@ export default function PayrollPage() {
   const [runsHere, setRunsHere] = useState(true)
   const [nothingToPay, setNothingToPay] = useState<string | null>(null)
   const [payFileNote, setPayFileNote] = useState<string | null>(null)
+  // Why the pay file is not offered yet: the period is not worked out.
+  const [payFileWaits, setPayFileWaits] = useState<string | null>(null)
+  // Where the company's holiday calendar is empty, one sentence saying so.
+  const [noHolidays, setNoHolidays] = useState<string | null>(null)
   // The current period is chosen once for the reader; after that the
   // picker is theirs.
   const [periodChosen, setPeriodChosen] = useState(false)
@@ -342,6 +346,8 @@ export default function PayrollPage() {
       setRunsHere(body.data?.runsHere !== false)
       setNothingToPay(body.data?.nothingToPay ?? null)
       setPayFileNote(body.data?.payFileNote ?? null)
+      setPayFileWaits(body.data?.payFileWaits ?? null)
+      setNoHolidays(body.data?.noHolidays ?? null)
       if (!periodChosen) {
         setPeriodChosen(true)
         // A company that pays by its own periods opens on the current one.
@@ -725,7 +731,12 @@ export default function PayrollPage() {
           {/* The pay file for the period shown: on one of the company's own
               periods, the rows on this page; on a month, the export route's
               file. Names, hours, rates and gross pay in dollars. */}
-          {!nothingToPay && (
+          {/* Pay never goes out before it is worked out: on a period not
+              worked out, the route's sentence stands in the button's place. */}
+          {!nothingToPay && payFileWaits && (
+            <span className="max-w-[36ch] text-[12px] text-etyme-attention">{payFileWaits}</span>
+          )}
+          {!nothingToPay && !payFileWaits && (
             <a href={payFileHref(selectedPeriod)} className="btn-secondary" download>
               Download pay file
             </a>
@@ -753,6 +764,9 @@ export default function PayrollPage() {
       />
 
       {periodSays && <p className="mb-2 text-[12.5px] text-etyme-muted">{periodSays}</p>}
+      {/* Beside the company's pay periods and their pay days: an empty
+          holiday calendar moves no pay day off a public holiday. */}
+      {payPeriods && noHolidays && <p className="mb-2 text-[12.5px] text-etyme-attention">{noHolidays}</p>}
       {/* Etyme moves no money and holds no W-4, bank account or tax number:
           the payroll provider does. Said once, beside the pay file. */}
       {payFileNote && !nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-muted">{payFileNote}</p>}

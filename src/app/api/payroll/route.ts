@@ -25,7 +25,7 @@ import { workedOutKeys, isWorkedOut } from '@/lib/money/payroll-worked-out'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
-  nothingToPaySays, isDayKey, payFileCsv, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, noHolidaysSays, payFileName, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
@@ -860,11 +860,21 @@ export async function GET(request: NextRequest) {
   //
   // Built from these rows and nothing else, so every figure on the file is
   // the figure on the screen (lib/money/pay-periods, `payFileCsv`).
+  // Pay never goes out before it is worked out: while anybody on the
+  // period is not worked out, the file is refused in the sentence the
+  // screen shows in the button's place (`payFileWaits`).
+  const fileWaits = shownPeriod ? payFileWaits(onRun) : null
   if (url.searchParams.get('format') === 'csv') {
     if (!shownPeriod) {
       return NextResponse.json(
         { error: { code: 'VALIDATION', field: 'period', message: 'Pick one of your pay periods to download its pay file.' } },
         { status: 422 }
+      )
+    }
+    if (fileWaits) {
+      return NextResponse.json(
+        { error: { code: 'NOT_WORKED_OUT', field: 'period', message: fileWaits } },
+        { status: 409 }
       )
     }
     return new NextResponse(payFileCsv(items, shownPeriod), {
@@ -913,6 +923,10 @@ export async function GET(request: NextRequest) {
       runsHere: co.byPeriod ? Boolean(shownPeriod) && !nothingToPay : true,
       nothingToPay,
       payFileNote: PAY_FILE_NOTE,
+      // In the pay file button's place, while the period is not worked out.
+      payFileWaits: fileWaits,
+      // Beside the company's periods, where its holiday calendar is empty.
+      noHolidays: co.byPeriod ? noHolidaysSays(companyName, co.rule) : null,
       payItems: items,
       /** The column's name, from the service every screen reads it from. */
       spreadLabel: readsMargin ? AGREED_SPREAD : null,

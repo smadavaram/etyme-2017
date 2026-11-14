@@ -161,7 +161,34 @@ export function periodLabel(p: PayPeriodOn): string {
 export function periodShownSays(companyName: string, r: PayRhythm, p: PayPeriodOn): string {
   const moved = p.payOn !== p.payOnUnmoved ? ` It moved from ${day(p.payOnUnmoved)}, a day off or a holiday.` : ''
   return `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}. ` +
-    `This period is ${periodLabel(p)}. Its pay is worked out ${day(p.calcOn)} and paid ${day(p.payOn)}.${moved}`
+    `This period is ${periodLabel(p)}. Its pay is worked out ${day(p.calcOn)} and paid ${day(p.payOn)}.${moved}` +
+    (payDayInsidePeriod(p) ? ` ${payDayInsideSays(p)}` : '')
+}
+
+/**
+ * Whether the pay day falls on or before the period's last day. A "Paid
+ * on" offset of 0 with the working day before lands on the period's own
+ * Friday. The rule is left alone; the period's line says so.
+ */
+export function payDayInsidePeriod(p: PayPeriodOn): boolean {
+  return p.payOn <= p.end
+}
+
+/** Said on the period's line where its pay day is on or before its last day. */
+export function payDayInsideSays(p: PayPeriodOn): string {
+  return `This pay day is on or before the period's last day, ${day(p.end)}. ` +
+    '"Paid on" is set in Settings, under Cycles, then Payroll.'
+}
+
+/**
+ * Said beside the company's pay periods where its own holiday calendar is
+ * empty. The one rule moves a pay day only off a holiday on that calendar,
+ * so Christmas stays a pay day. No holiday is added for anybody here.
+ */
+export function noHolidaysSays(companyName: string, rule: DayOffRule): string | null {
+  if ([...(rule.holidays ?? [])].length > 0) return null
+  return `No holidays are on ${companyName}'s calendar, so a pay day on a public holiday is not moved. ` +
+    'Add them in Settings, under Holidays.'
 }
 
 /** Where the Owner sets the first day, said once on the Payroll page. */
@@ -185,6 +212,24 @@ export function calendarMonthSays(companyName: string, r: PayRhythm): string {
 /** A period that holds nothing to pay. */
 export function nothingToPaySays(p: PayPeriodOn): string {
   return `Nothing is owed for ${periodLabel(p)}. No accepted hours fall in it, so there is nothing to work out or pay.`
+}
+
+/**
+ * Pay never goes out before it is worked out. The pay file for a period
+ * is refused, and its button replaced by this sentence, while anybody with
+ * hours in it still to pay has not been worked out (status pending). A
+ * person part paid keeps the file: it carries what is still to pay, with
+ * what was paid already. Null where the file may be offered.
+ */
+export function payFileWaits(rows: readonly PayFileRow[]): string | null {
+  const waiting = rows.filter((r) =>
+    r.totalApprovedHours > 0 && r.payStatus === 'PENDING' && !((r.paidSoFar?.hours ?? 0) > 0))
+  if (waiting.length === 0) return null
+  const names = waiting.map((r) => r.person.name)
+  const who = names.length === 1 ? names[0]
+    : names.length === 2 ? `${names[0]} and ${names[1]}`
+    : `${names[0]}, ${names[1]} and ${names.length - 2} more`
+  return `Pay for ${who} is not worked out yet, so there is no pay file yet. Press Calculate first.`
 }
 
 /** Said once beside "Download pay file". */

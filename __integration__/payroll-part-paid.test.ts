@@ -142,6 +142,22 @@ for (const S of SUNDAYS) {
       expect(mine.partPaid).toBe('Paid already: $800.00 for 40 hours. Still to pay: $800.00 for 40 hours.')
     })
 
+    it('a period part paid offers its pay file, once nobody else with hours in it waits to be worked out', async () => {
+      // Another family's people may share this period, cut from another
+      // first day; they are worked out here, and she is left as she is.
+      const others = (await page(before)).payItems
+        .filter((p: any) => p.payStatus === 'PENDING' && p.totalApprovedHours > 0 && p.buyContractId !== rhea.buyId && !(p.paidSoFar?.hours > 0))
+        .map((p: any) => p.buyContractId)
+      if (others.length) {
+        as(BRIGHTMOOR)
+        const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: others, action: 'calculate', period: { start: before, end: plus(before, 13) } })))
+        expect(r.status, JSON.stringify(r.body)).toBe(200)
+      }
+      const data = await page(before)
+      expect(rowOf(data, rhea).partPaid).toBeTruthy()
+      expect(data.payFileWaits).toBeNull()
+    })
+
     it('the pay file for that period carries only the week still to pay, with the week paid already beside it', async () => {
       as(BRIGHTMOOR)
       const res = await payroll(req('GET', `/api/payroll?period=${before}&format=csv`))

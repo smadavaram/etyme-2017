@@ -239,8 +239,30 @@ for (const S of SUNDAYS) {
       )
     })
 
-    it('the pay file’s figures are the row’s figures', async () => {
+    it('a period nobody has worked out offers no pay file, and the route refuses the file in the same sentence', async () => {
       const data = await rows(S)
+      expect(rowOf(data, l).payStatus).toBe('PENDING')
+      expect(data.payFileWaits).toMatch(/^Pay for .+ is not worked out yet, so there is no pay file yet\. Press Calculate first\.$/)
+      expect(data.payFileWaits).toContain(l.name)
+      as(BRIGHTMOOR)
+      const r = await json(await payroll(req('GET', `/api/payroll?period=${S}&format=csv`)))
+      expect(r.status).toBe(409)
+      expect(r.body.error).toMatchObject({ code: 'NOT_WORKED_OUT', field: 'period', message: data.payFileWaits })
+    })
+
+    it('working out the period moves her row from pending to worked out, and its pay file then carries the row’s own figures', async () => {
+      as(BRIGHTMOOR)
+      const period = { start: S, end: plus(S, 13) }
+      const pending = (await rows(S)).payItems
+        .filter((p: any) => p.payStatus === 'PENDING' && p.totalApprovedHours > 0)
+        .map((p: any) => p.buyContractId)
+      expect(pending).toContain(l.buyId)
+      const calc = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: pending, action: 'calculate', period })))
+      expect(calc.status, JSON.stringify(calc.body)).toBe(200)
+      const data = await rows(S)
+      expect(rowOf(data, l).payStatus).toBe('CALCULATED')
+      expect(data.payFileWaits).toBeNull()
+
       as(BRIGHTMOOR)
       const res = await payroll(req('GET', `/api/payroll?period=${S}&format=csv`))
       expect(res.status).toBe(200)
@@ -249,7 +271,7 @@ for (const S of SUNDAYS) {
       expect(head).toBe('Name,Hours,Pay rate,Overtime hours,Overtime premium,Gross pay,Paid already,Currency,Period start,Period end,Pay day,Status')
       const hers = body.filter((x) => x.startsWith(`${l.name},`))
       expect(hers).toEqual([
-        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},Not worked out yet`,
+        `${l.name},80,45.00 for 56 hours; 50.00 for 24 hours,0,0.00,3720.00,0.00,USD,${S},${plus(S, 13)},${data.payPeriods.shown.payOn},"Worked out, not paid"`,
       ])
       // Every person with hours on the page is on the file, at what the page
       // says is still to pay and what was paid already.
@@ -262,18 +284,17 @@ for (const S of SUNDAYS) {
       }
     })
 
-    it('working out the period and then paying it moves her row from pending to worked out to paid, and the next period stays owed', async () => {
+    it('paying the worked-out period moves her row to paid, and the next period stays owed', async () => {
       as(BRIGHTMOOR)
       const period = { start: S, end: plus(S, 13) }
-      const calc = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [l.buyId], action: 'calculate', period })))
-      expect(calc.status, JSON.stringify(calc.body)).toBe(200)
-      expect(rowOf(await rows(S), l).payStatus).toBe('CALCULATED')
       const paid = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [l.buyId], action: 'process', period })))
       expect(paid.status, JSON.stringify(paid.body)).toBe(200)
       expect(paid.body.data.details.find((x: any) => x.buyContractId === l.buyId).grossPay).toBe(372_000)
       expect(rowOf(await rows(S), l).payStatus).toBe('PROCESSED')
       expect(rowOf(await rows(plus(S, 14)), l).payStatus).toBe('PENDING')
-      expect(rowOf(await rows(plus(S, -14)), l).payStatus).toBe('PENDING')
+      // The period before hers may have been worked out with another
+      // family's period, which it shares; it is never paid.
+      expect(['PENDING', 'CALCULATED']).toContain(rowOf(await rows(plus(S, -14)), l).payStatus)
     })
 
     it('the Owner’s cash flow reads accepted pay nobody has paid as due on its period’s pay day', async () => {
@@ -341,6 +362,41 @@ describe('one door and one answer for the company’s periods', () => {
     expect(data.payItems.every((p: any) => p.totalApprovedHours === 0)).toBe(true)
     expect(data.nothingToPay).toMatch(/^Nothing is owed for \w{3} \d{1,2} – \w{3} \d{1,2}, 2030\. No accepted hours fall in it, so there is nothing to work out or pay\.$/)
     expect(data.runsHere).toBe(false)
+  })
+
+  it('a company with holidays on its calendar is told nothing about them beside its pay periods', async () => {
+    await setFirstDay('2026-12-06')
+    expect((await rows('2026-12-06')).noHolidays).toBeNull()
+  })
+
+  it('a company with no holidays on its calendar is told a pay day on a public holiday is not moved, and where to add them', async () => {
+    const kept = await prisma.holiday.findMany({ where: { companyId: firmId } })
+    await prisma.holiday.deleteMany({ where: { companyId: firmId } })
+    try {
+      const data = await rows('2026-12-06')
+      expect(data.noHolidays).toBe(
+        "No holidays are on Brightmoor Staffing's calendar, so a pay day on a public holiday is not moved. Add them in Settings, under Holidays.",
+      )
+      // Nothing was added for it: Fri Dec 25 stays the pay day of Dec 6 – Dec 19.
+      expect(data.payPeriods.shown.payOn).toBe('2026-12-25')
+      expect(await prisma.holiday.count({ where: { companyId: firmId } })).toBe(0)
+    } finally {
+      if (kept.length) await prisma.holiday.createMany({ data: kept })
+    }
+  })
+
+  it('a period whose pay day falls on or before its last day says so on its line', async () => {
+    await prisma.company.update({ where: { id: firmId }, data: { payCalcOffsetDays: 0, payDayOffsetDays: 0 } })
+    try {
+      const data = await rows('2026-12-06')
+      expect(data.payPeriods.shown).toMatchObject({ end: '2026-12-19', payOn: '2026-12-18' })
+      expect(data.periodSays).toContain(
+        'This pay day is on or before the period\'s last day, Sat, Dec 19, 2026. "Paid on" is set in Settings, under Cycles, then Payroll.',
+      )
+    } finally {
+      await prisma.company.update({ where: { id: firmId }, data: { payCalcOffsetDays: 4, payDayOffsetDays: 6 } })
+    }
+    expect((await rows('2026-12-06')).periodSays).not.toContain('on or before')
   })
 
   it('a calendar month on a company that pays by its own periods is for reading, and offers nothing to run', async () => {
