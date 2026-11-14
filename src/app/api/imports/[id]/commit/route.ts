@@ -5,7 +5,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { importRefusal, ownImport } from '../../door'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
-import { isOwnEmployeeRow } from '@/lib/import-mapper'
+import { isOwnEmployeeRow, rateCents } from '@/lib/import-mapper'
 import { logAccess } from '@/lib/access-log'
 
 /**
@@ -174,8 +174,9 @@ export async function POST(
                 consultantId: profile.id,
                 companyId: importRecord.companyId,
                 tier: 'RETAINED',
-                rateMin: parsed.payRate ?? null,
-                rateMax: parsed.billRate ?? null,
+                // The sheet's rates are dollars an hour; the columns hold cents.
+                rateMin: rateCents(parsed.payRate),
+                rateMax: rateCents(parsed.billRate),
                 ...invitation(now),
               },
             })
@@ -224,7 +225,7 @@ export async function POST(
                 companyId: importRecord.companyId,
                 clientCompanyId: importRecord.companyId, // placeholder — enriched later
                 personId: person.id,
-                billRate: parsed.billRate,
+                billRate: rateCents(parsed.billRate)!,
                 state: isEnded ? 'ENDED' : 'IN_PROGRESS',
                 startDate: contractStart,
                 endDate: contractEnd,
@@ -245,7 +246,7 @@ export async function POST(
                 candidates: {
                   create: {
                     personId: person.id,
-                    payRate: parsed.payRate,
+                    payRate: rateCents(parsed.payRate)!,
                     startDate: contractStart,
                     endDate: contractEnd,
                   },

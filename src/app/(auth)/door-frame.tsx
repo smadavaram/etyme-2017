@@ -40,8 +40,8 @@ export function DoorFrame({ children }: { children: React.ReactNode }) {
         </div>
         <div className="text-xs text-white/30">Etyme Inc.</div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8 bg-etyme-canvas lg:rounded-l-3xl">
-        <div className="w-full max-w-md">
+      <div className="flex-1 min-w-0 flex items-center justify-center p-8 bg-etyme-canvas lg:rounded-l-3xl">
+        <div className="w-full min-w-0 max-w-md">
           <div className="lg:hidden mb-10">
             <EtymeLogo size="lg" />
           </div>
@@ -94,11 +94,15 @@ export function DoorDivider({ words }: { words: string }) {
   )
 }
 
-/** The address a second screen is about, and Change, which goes back. */
+/**
+ * The address a second screen is about, and Change, which goes back. A
+ * long address wraps whole and is never cut: a phone cannot show a title
+ * (sign-in walk fda, item 2).
+ */
 export function DoorWho({ email, onChange }: { email: string; onChange: () => void }) {
   return (
     <div data-door-who className="flex items-center justify-between gap-3 mb-5 rounded-lg border border-etyme-rule bg-etyme-canvas px-3.5 py-2.5">
-      <span className="text-sm text-etyme-ink truncate min-w-0">{email}</span>
+      <span className="text-sm text-etyme-ink min-w-0 [overflow-wrap:anywhere]">{email}</span>
       <button type="button" onClick={onChange} className="text-sm text-etyme-action-press hover:underline shrink-0">Change</button>
     </div>
   )

@@ -132,7 +132,8 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
     e.preventDefault()
     if (busy) return
     const says = missing()
-    if (says) { setError(says); if (askCompany && !address.trim()) setAddressOpen(true); return }
+    // The first missing thing, in order; the address editor opens only when the address is what is wrong.
+    if (says) { setError(says); if (aboutAddress(says)) setAddressOpen(true); return }
     setBusy(true); setError(null)
     try {
       const body = claimToken
@@ -315,7 +316,9 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
           {busy ? 'Creating your account…' : 'Create account'}
         </button>
         <p className="text-xs text-etyme-muted">
-          We send a link to your email. Nothing is set up until you click it.
+          {noEmailHere
+            ? 'Your confirmation link is kept with Etyme staff, who pass it on. Nothing is set up until you click it.'
+            : 'We send a link to your email. Nothing is set up until you click it.'}
         </p>
       </form>
     </DoorFrame>

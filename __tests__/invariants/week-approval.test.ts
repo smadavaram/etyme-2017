@@ -5,7 +5,7 @@ import { senderAsTheClientSees, checkApprover, needsSigningInEtyme, hashLinkToke
 import { recordClientContact } from '@/lib/off-system'
 import { topDown, signersOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
 import { whoAskedSentence } from '@/app/api/timesheets/approval-by-email'
-import { linkHandedBack } from '@/app/api/week-approvals/hand-back'
+import { linkHandedBack, handsBackLinks, HAND_BACK_SWITCH } from '@/app/api/week-approvals/hand-back'
 
 /**
  * The door to a client's approval given outside Etyme (lib/week-approval).
@@ -38,6 +38,7 @@ function chain(over: Partial<WeekChain['week']> = {}, contract: { overtimeAfterH
     signers: signersOf(LADDER),
     clientId: 'northbend',
     clientName: 'Northbend Athletic',
+    clientOffPlatform: false,
     employerId: 'techpeple',
     names: new Map([['northbend', 'Northbend Athletic'], ['cs', 'Computer Systems Inc'], ['techpeple', 'Techpeple']]),
   }
@@ -210,25 +211,39 @@ describe('the person a supplier records at a client that is not on Etyme', () =>
   })
 })
 
-// ── The link, when no email can carry it (simulation, 2026-10-20) ──────
+// ── The link, when no email can carry it (walks fdg and fdf, 2026-11-14) ──
 
 describe('the one-time approval link and who may hold it', () => {
   const url = 'https://etyme.example/answer/week/abc123'
+  const route = readFileSync(join(process.cwd(), 'src/app/api/week-approvals/route.ts'), 'utf8')
 
   it('with email set up, the link goes only to the approver and never back to the person who asked for it', () => {
-    expect(linkHandedBack({ emailSetUp: true, url, approverName: 'Dana Whitfield' })).toBeNull()
+    expect(linkHandedBack({ emailSetUp: true, url, approverName: 'Dana Whitfield', env: { [HAND_BACK_SWITCH]: '1' } })).toBeNull()
   })
 
-  it('with no email set up, the person who asked is handed the link and told plainly that it was not sent', () => {
-    const back = linkHandedBack({ emailSetUp: false, url, approverName: 'Dana Whitfield' })
-    expect(back?.link).toBe(url)
-    expect(back?.says).toBe(
-      'Email is not set up here, so the link was not sent to Dana Whitfield. Here it is for you to send them yourself. It works once, and only for this week.'
-    )
+  it('with no email set up, the reply carries no link, and says nothing was sent to the approver and that email must be set up first', () => {
+    const back = linkHandedBack({ emailSetUp: false, url, approverName: 'Dana Whitfield', env: {} })
+    expect(back?.link).toBeNull()
+    expect(back?.says).toBe('Nothing was sent to Dana Whitfield, because email is not set up here. Set up email first, or attach the approval instead.')
+    expect(back?.says).not.toMatch(/here it is/i)
+  })
+
+  it('the link is handed back only where the simulation and test switch is on, and never on production even then', () => {
+    expect(handsBackLinks({})).toBe(false)
+    expect(handsBackLinks({ [HAND_BACK_SWITCH]: 'true' })).toBe(false)
+    expect(handsBackLinks({ [HAND_BACK_SWITCH]: '1' })).toBe(true)
+    expect(handsBackLinks({ [HAND_BACK_SWITCH]: '1', VERCEL_ENV: 'production' })).toBe(false)
+    expect(linkHandedBack({ emailSetUp: false, url, approverName: 'Dana Whitfield', env: { [HAND_BACK_SWITCH]: '1' } })?.link).toBe(url)
+    expect(HAND_BACK_SWITCH).toBe('ETYME_TEST_HANDS_BACK_APPROVAL_LINKS')
+  })
+
+  it('without the switch the route answers with no link field at all', () => {
+    const refusedBranch = route.slice(route.indexOf('if (back && !back.link) {'), route.indexOf('  if (back) {'))
+    expect(refusedBranch).toContain('{ data: { id: out.id, says: back.says, delivery: out.delivery } }')
+    expect(refusedBranch).not.toMatch(/link:/)
   })
 
   it('the route writes the hand-over on the record and never writes the link itself into it', () => {
-    const route = readFileSync(join(process.cwd(), 'src/app/api/week-approvals/route.ts'), 'utf8')
     expect(route).toContain("action: 'WEEK_APPROVAL_LINK_HANDED_BACK'")
     const log = route.slice(route.indexOf('prisma.automationLog.create'), route.indexOf("reversible: false"))
     expect(log).not.toMatch(/\burl\b|back\.link/)

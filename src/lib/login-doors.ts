@@ -320,21 +320,6 @@ export function continueToDirectory(company: string): string {
   return `Continue to ${company}\u2019s sign-in`
 }
 
-/**
- * An address cut in the middle so it fits on one line of a button, the
- * start and the domain kept: "sharath.madavaram…@etyme.com". The whole
- * address stays in the button's accessible name.
- */
-export function middleEllipsis(email: string, max = 34): string {
-  const e = email.trim()
-  if (e.length <= max) return e
-  const at = e.lastIndexOf('@')
-  const tail = at > 0 ? e.slice(at) : e.slice(-Math.floor(max / 2))
-  const keep = Math.max(1, max - tail.length - 1)
-  if (tail.length >= max - 1) return `${e.slice(0, Math.ceil((max - 1) / 2))}\u2026${e.slice(-Math.floor((max - 1) / 2))}`
-  return `${e.slice(0, keep)}\u2026${tail}`
-}
-
 /** A door the second screen may draw. `directory` is never drawn beside another. */
 export type SignInDoor = 'directory' | 'google' | 'microsoft' | 'linkedin' | 'password'
 

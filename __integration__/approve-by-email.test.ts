@@ -152,10 +152,9 @@ describe('a client approves a week by email, and the proof travels down the chai
     await prisma.weekApproval.delete({ where: { id: row.id } })
   })
 
-  it('with no email set up, the link goes back to the person who asked for it, said so, and the hand-over is on the record without the link', async () => {
-    // Simulation, 2026-10-20: the link was minted and thrown away when no
-    // email could carry it, so no firm before its email was set up could
-    // ever use approve by email.
+  it('with no email set up, the reply carries no link, says nothing was sent, and the week reads "Link not sent" and never "Link sent"', async () => {
+    // Walks fdg and fdf, 2026-11-14: the live link came back in the reply,
+    // and after a reload the week read "Link sent, waiting".
     as(HELENA)
     const key = process.env.RESEND_API_KEY
     delete process.env.RESEND_API_KEY
@@ -163,11 +162,48 @@ describe('a client approves a week by email, and the proof travels down the chai
       const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
       expect(r.status).toBe(201)
+      expect(JSON.stringify(r.body)).not.toMatch(/answer\/week\//)
+      expect(r.body.data.link).toBeUndefined()
+      expect(r.body.data.says).toBe(
+        'Nothing was sent to Dana Whitfield, because email is not set up here. Set up email first, or attach the approval instead.'
+      )
+      const seen = await read(it_.week)
+      expect(seen.body.data.emailLeaves).toBe(false)
+      // A second ask for the same approver closes the first, so one link is live.
+      const again = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
+      expect(again.status).toBe(201)
+      const rows = await prisma.weekApproval.findMany({ where: { timesheetId: it_.week, how: 'LINK', approverEmail: DANA.approverEmail } })
+      expect(rows.filter((x) => x.tokenHash != null)).toHaveLength(1)
+      expect(rows.find((x) => x.tokenHash != null)!.id).toBe(again.body.data.id)
+      await prisma.weekApproval.deleteMany({ where: { id: { in: rows.map((x) => x.id) } } })
+    } finally {
+      process.env.RESEND_API_KEY = key
+    }
+  })
+
+  it('the week says whether its client is on Etyme, so the page opens on "Attach evidence" for a client that is not', async () => {
+    as(HELENA)
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true, claimedAt: true } })
+    try {
+      await prisma.company.update({ where: { id: client.id }, data: { claimedAt: new Date() } })
+      expect((await read(it_.week)).body.data.week.clientOffPlatform).toBe(false)
+      await prisma.company.update({ where: { id: client.id }, data: { claimedAt: null } })
+      expect((await read(it_.week)).body.data.week.clientOffPlatform).toBe(true)
+    } finally {
+      await prisma.company.update({ where: { id: client.id }, data: { claimedAt: client.claimedAt } })
+    }
+  })
+
+  it('only under the simulation and test switch is the link handed back, and the hand-over is on the record without the link', async () => {
+    as(HELENA)
+    const key = process.env.RESEND_API_KEY
+    delete process.env.RESEND_API_KEY
+    process.env.ETYME_TEST_HANDS_BACK_APPROVAL_LINKS = '1'
+    try {
+      const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
+      expect(r.status).toBe(201)
       expect(r.body.data.linkHandedBack).toBe(true)
       expect(r.body.data.link).toMatch(/\/answer\/week\//)
-      expect(r.body.data.says).toBe(
-        'Email is not set up here, so the link was not sent to Dana Whitfield. Here it is for you to send them yourself. It works once, and only for this week.'
-      )
       const log = await prisma.automationLog.findFirstOrThrow({
         where: { action: 'WEEK_APPROVAL_LINK_HANDED_BACK', payload: { path: ['weekApprovalId'], equals: r.body.data.id } },
       })
@@ -175,6 +211,7 @@ describe('a client approves a week by email, and the proof travels down the chai
       await prisma.weekApproval.delete({ where: { id: r.body.data.id } })
     } finally {
       process.env.RESEND_API_KEY = key
+      delete process.env.ETYME_TEST_HANDS_BACK_APPROVAL_LINKS
     }
   })
 

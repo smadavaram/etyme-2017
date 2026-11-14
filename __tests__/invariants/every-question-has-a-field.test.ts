@@ -675,3 +675,33 @@ describe('Pause and End on Users & permissions ask the reason the access route a
     expect(lifecycleBody('reinstate', { reason: 'x' }).reason).toBe('')
   })
 })
+
+describe('the first sign-in "Your company" form asks for the name the onboarding route refuses without', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/start/page.tsx'), 'utf8')
+  const route = readFileSync(join(process.cwd(), 'src/app/api/onboarding/route.ts'), 'utf8')
+
+  it('a company name sent blank is refused in the screen’s own sentence, and a name not sent at all may still be guessed', async () => {
+    const { blankNameSays, COMPANY_NAME_MISSING, NAME_MISSING } = await import('@/app/(auth)/start/missing')
+    expect(blankNameSays({ type: 'CLIENT', name: '   ' }, false)).toBe(COMPANY_NAME_MISSING)
+    expect(blankNameSays({ type: 'CLIENT', name: '' }, true)).toBe(NAME_MISSING)
+    expect(blankNameSays({ type: 'CLIENT' }, false)).toBeNull()
+    expect(blankNameSays({ type: 'CLIENT', name: 'Lantern Works' }, false)).toBeNull()
+    expect(COMPANY_NAME_MISSING).toBe('Type your company’s name first, then press Continue.')
+  })
+
+  it('the onboarding route refuses a blank name before any company is made, and never guesses over it', () => {
+    const refused = route.indexOf('const blank = blankNameSays(body, ownFirm)')
+    expect(refused).toBeGreaterThan(0)
+    expect(refused).toBeLessThan(route.indexOf('await createCompany({'))
+  })
+
+  it('pressing Continue with the company name cleared says the name is missing beside the box and sends nothing', () => {
+    const press = page.slice(page.indexOf("if (!type) { setError(KIND_MISSING); return }"))
+    const guard = press.indexOf("if (!name.trim()) { setError(null); setMissingFor('COMPANY'); return }")
+    expect(guard).toBeGreaterThan(0)
+    expect(guard).toBeLessThan(press.indexOf('enter({ type, name, country, currency'))
+    const box = page.slice(page.indexOf('<Lbl>Company name</Lbl>'), page.indexOf('<Lbl>Which one are you?</Lbl>'))
+    expect(box).toContain("{missingFor === 'COMPANY' && <p role=\"alert\"")
+    expect(box).toContain('{COMPANY_NAME_MISSING}')
+  })
+})

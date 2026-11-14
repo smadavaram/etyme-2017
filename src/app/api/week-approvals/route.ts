@@ -4,6 +4,7 @@ import { readerOf, readerAtWeek, readWeekApprovals, sendApprovalLink, attachEvid
 import { emailSender } from '@/lib/senders'
 import { prisma } from '@/lib/db'
 import { linkHandedBack } from './hand-back'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 
 /**
  * GET  /api/week-approvals?timesheetId=…   the client's approvals on a week,
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
   // Through a seat where the caller's firm runs this client's program.
   const out = await readWeekApprovals(await readerAtWeek(caller, { timesheetId }), timesheetId)
   if (!out.ok) return no(out)
-  return NextResponse.json({ data: out.seen })
+  // Whether a link could have left this deployment, so a link nobody could
+  // email never reads "Link sent" (walk fdf, item 5).
+  return NextResponse.json({ data: { ...out.seen, emailLeaves: mailLeaves() } })
 }
 
 export async function POST(request: NextRequest) {
@@ -85,11 +88,14 @@ export async function POST(request: NextRequest) {
   })
   if (!out.ok) return no(out)
 
-  // With no email set up, the link goes back to whoever asked for it, said
-  // so, and the hand-over is on the record — never the link itself, which
-  // is a signature that works once (./hand-back).
+  // With no email set up, the reply says nothing was sent and carries no
+  // link. Only the simulation's and the tests' switch hands it back, and
+  // that hand-over is on the record without the link (./hand-back).
   const approverName = String(body?.approverName ?? '').trim() || 'the approver'
   const back = linkHandedBack({ emailSetUp: emailSender() !== null, url: out.url, approverName })
+  if (back && !back.link) {
+    return NextResponse.json({ data: { id: out.id, says: back.says, delivery: out.delivery } }, { status: 201 })
+  }
   if (back) {
     await prisma.automationLog.create({
       data: {

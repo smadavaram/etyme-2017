@@ -48,8 +48,8 @@ beforeAll(async () => {
   })
   importId = imp.id
   const rows = [
-    { name: 'Ines H', email: 'ines@harrow-import.example', contractType: 'W2', skills: ['dbt'], payRate: 6000, billRate: 9000, startDate: '2026-11-02T00:00:00.000Z' },
-    { name: 'Kofi Teleworld', email: 'kofi@teleworld-own.example', contractType: 'W2', skills: ['SAP'], payRate: 5000, startDate: '2026-11-02T00:00:00.000Z' },
+    { name: 'Ines H', email: 'ines@harrow-import.example', contractType: 'W2', skills: ['dbt'], payRate: 29.75, billRate: 52.5, startDate: '2026-11-02T00:00:00.000Z' },
+    { name: 'Kofi Teleworld', email: 'kofi@teleworld-own.example', contractType: 'W2', skills: ['SAP'], payRate: 29.75, startDate: '2026-11-02T00:00:00.000Z' },
     { name: 'Nadia Fresh', email: 'nadia@fresh-import.example', contractType: 'W2', skills: ['Kafka'] },
   ]
   for (const parsed of rows) {
@@ -92,6 +92,14 @@ describe('an import of people the firm already holds, or nobody holds, works as 
   it('a person the firm already seats is imported as before, with the contract the row carries', async () => {
     expect(await prisma.context.count({ where: { personId: ownEmployee, companyId: teleworld, revokedAt: null } })).toBe(1)
     expect(await prisma.buyContractCandidate.count({ where: { personId: ownEmployee } })).toBe(1)
+  })
+
+  it('a typed rate of 29.75 or 52.50 is kept to the cent, never rounded to a whole dollar, in the cents its column holds', async () => {
+    const line = await prisma.buyContractCandidate.findFirstOrThrow({ where: { personId: ownEmployee } })
+    expect(line.payRate).toBe(2975)
+    const listing = await prisma.benchListing.findFirstOrThrow({ where: { companyId: teleworld, consultant: { personId: elsewhere } } })
+    expect(listing.rateMin).toBe(2975)
+    expect(listing.rateMax).toBe(5250)
   })
 
   it('a W2 row for a person nobody holds is still written as the firm’s own employee', async () => {

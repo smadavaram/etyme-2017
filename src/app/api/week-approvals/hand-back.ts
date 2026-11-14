@@ -1,35 +1,41 @@
 /**
- * The one-time approval link, handed to the person who asked for it when
- * this deployment cannot email it (simulation, 2026-10-20).
+ * What "Approve by email" answers when this deployment cannot email the
+ * link (walks fdg and fdf, 2026-11-14).
  *
- * `POST /api/week-approvals` mints a link for the client's approver and
- * emails it. With no email key set up, the email does not leave, and the
- * link was thrown away: nobody could ever open it, so no firm before its
- * email was set up — and no simulation — could use "Approve by email" at
- * all. The person who asked for it is the one who would forward it, so the
- * link goes back to them, said plainly, and only then.
+ * No one-time link or token is ever shown, copied, returned in a reply or
+ * logged: a link that works once is the approver's signature, and a copy
+ * in the sender's hands is a way to sign for them. So where no email can
+ * leave, the reply says nothing was sent and that email must be set up
+ * first, and carries no link.
  *
- * Never where email is set up: there the link goes to the approver and
- * only to the approver, because a link that works once is the approver's
- * signature, and a copy in the sender's hands is a way to sign for them.
- * A send that was attempted and failed is not "no email": it is retried
- * by asking again, and the link stays out of the answer.
+ * The one exception is the simulation and the tests, which have no
+ * mailbox to read a link out of (simulation, 2026-10-20). They set
+ * `ETYME_TEST_HANDS_BACK_APPROVAL_LINKS=1`. It is off by default, it is
+ * never set on a deployment, and it is ignored on Vercel's production.
  *
  * Pure. The route reads whether email is set up and writes the log.
  */
 export interface HandBack {
-  /** The link itself. */
-  link: string
-  /** What the person reads beside it. */
+  /** The link itself, only where the test switch is on. */
+  link: string | null
+  /** What the person reads. */
   says: string
 }
 
-export function linkHandedBack(input: { emailSetUp: boolean; url: string; approverName: string }): HandBack | null {
+export const HAND_BACK_SWITCH = 'ETYME_TEST_HANDS_BACK_APPROVAL_LINKS'
+
+type Env = Record<string, string | undefined>
+
+/** Whether the simulation or a test asked for the link in the reply. Never on production. */
+export function handsBackLinks(env: Env = process.env): boolean {
+  return env[HAND_BACK_SWITCH] === '1' && env.VERCEL_ENV !== 'production'
+}
+
+export function notSentSays(approverName: string): string {
+  return `Nothing was sent to ${approverName}, because email is not set up here. Set up email first, or attach the approval instead.`
+}
+
+export function linkHandedBack(input: { emailSetUp: boolean; url: string; approverName: string; env?: Env }): HandBack | null {
   if (input.emailSetUp) return null
-  return {
-    link: input.url,
-    says:
-      `Email is not set up here, so the link was not sent to ${input.approverName}. ` +
-      `Here it is for you to send them yourself. It works once, and only for this week.`,
-  }
+  return { link: handsBackLinks(input.env) ? input.url : null, says: notSentSays(input.approverName) }
 }

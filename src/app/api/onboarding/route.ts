@@ -13,6 +13,7 @@ import {
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
+import { blankNameSays } from '@/app/(auth)/start/missing'
 import { recordAnswers } from '@/lib/setup-checklist-state'
 import { signUpAnswers } from '@/lib/setup-fill'
 import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES, joinedSentence } from '@/lib/setup-steps'
@@ -367,6 +368,13 @@ export async function POST(request: NextRequest) {
       },
       { status: 422 }
     )
+  }
+
+  // A name sent blank is refused in the screen's sentence; only a name
+  // not sent at all is guessed from the domain (`start/missing`).
+  const blank = blankNameSays(body, ownFirm)
+  if (blank) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: blank, field: 'name' } }, { status: 422 })
   }
 
   // Both CREATE and a SUGGEST answered "we are separate" land here.

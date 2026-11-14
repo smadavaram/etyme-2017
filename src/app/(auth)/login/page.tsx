@@ -10,7 +10,7 @@ import {
   signInRefusal, PICK_ANOTHER_ACCOUNT, SIGN_IN_HEADING, WELCOME_BACK, SIGN_IN, CONTINUE, OR_USE_YOUR_EMAIL,
   EMAIL_HINT, TYPE_YOUR_EMAIL, TYPE_YOUR_PASSWORD, signUpWith, looksLikeEmail, type SignInDoor,
   orderDoors, readLastDoor, rememberDoor, takeRetry, didNotFinish, emailFromLink,
-  USE_ANOTHER_ACCOUNT, AFTER_ANOTHER_ACCOUNT, middleEllipsis, directoryCardSays, continueToDirectory,
+  USE_ANOTHER_ACCOUNT, AFTER_ANOTHER_ACCOUNT, directoryCardSays, continueToDirectory,
   accountButtons, type RememberedDoor, type Retry, type RetryDoor,
 } from '@/lib/login-doors'
 import { AccountButtons, AccountDoorButton, useKnownDoors } from '../account-doors'
@@ -200,7 +200,7 @@ export default function LoginPage() {
       <div data-signed-in className="space-y-3">
         <a href="/start" aria-label={`${CONTINUE} as ${signedIn}`} className={`${doorButton} block text-center`}>
           <span className="block">{CONTINUE}</span>
-          <span className="block text-xs font-normal text-white/80 truncate" title={signedIn}>{middleEllipsis(signedIn)}</span>
+          <span className="block text-xs font-normal text-white/80 [overflow-wrap:anywhere]">{signedIn}</span>
         </a>
         <button type="button" onClick={() => signOut({ callbackUrl: AFTER_ANOTHER_ACCOUNT })} className={doorOutline}>
           {USE_ANOTHER_ACCOUNT}

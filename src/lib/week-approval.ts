@@ -52,6 +52,7 @@ import {
   SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
 import { formatDay } from '@/lib/format-date'
+import { isShell } from '@/lib/off-system'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/lib/no-desk'
 
@@ -145,6 +146,8 @@ export interface WeekChain {
   signers: Signer[]
   clientId: string
   clientName: string
+  /** The client is a record its supplier listed and nobody claimed (`isShell` in lib/off-system). */
+  clientOffPlatform: boolean
   employerId: string
   names: Map<string, string>
 }
@@ -206,10 +209,9 @@ export async function readWeekChains(timesheetIds: readonly string[]): Promise<M
     }
     return { t, sc, above, ladder, firmIds }
   })
-  const allNames = new Map(
-    (await prisma.company.findMany({ where: { id: { in: [...new Set(built.flatMap((b) => [...b.firmIds]))] } }, select: { id: true, name: true } }))
-      .map((c) => [c.id, c.name])
-  )
+  const firms = await prisma.company.findMany({ where: { id: { in: [...new Set(built.flatMap((b) => [...b.firmIds]))] } }, select: { id: true, name: true, claimedAt: true } })
+  const allNames = new Map(firms.map((c) => [c.id, c.name]))
+  const shells = new Set(firms.filter((c) => isShell(c)).map((c) => c.id))
 
   for (const { t, sc, above, ladder, firmIds } of built) {
     const signers = signersOf(ladder)
@@ -261,6 +263,7 @@ export async function readWeekChains(timesheetIds: readonly string[]): Promise<M
       signers,
       clientId,
       clientName: names.get(clientId) ?? 'The client',
+      clientOffPlatform: shells.has(clientId),
       employerId: sc.companyId,
       names,
     })
@@ -728,6 +731,13 @@ export async function sendApprovalLink(
   }
 
   const expiresAt = linkExpiresAt(now)
+  // Asking again for the same week and approver closes the earlier unused
+  // link, so one is live (walk fdg, item 5b). Its token no longer opens
+  // anything: the approver reads "it has been replaced".
+  await prisma.weekApproval.updateMany({
+    where: { timesheetId, how: 'LINK', approverEmail: approver.email, usedAt: null, assertionId: null, tokenHash: { not: null } },
+    data: { tokenHash: null, expiresAt: now },
+  })
   const row = await prisma.weekApproval.create({
     data: {
       timesheetId, how: 'LINK', clientCompanyId: c.clientId,
@@ -1437,7 +1447,11 @@ function firmBelow(c: WeekChain, companyId: string): string | null {
 }
 
 export interface WeekSeen {
-  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean }
+  week: {
+    id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean
+    /** The client is a record its supplier listed and nobody claimed (`isShell` in lib/off-system). */
+    clientOffPlatform: boolean
+  }
   /** Who signed the week, top first, as this reader may read it. */
   signatures: SignatureSeen[]
   approvals: ApprovalSeen[]
@@ -1668,6 +1682,7 @@ async function weekSeen(
         status: c.week.status,
         clientName: c.clientName,
         clientApproved: !!c.week.clientApprovedAt,
+        clientOffPlatform: c.clientOffPlatform,
       },
       signatures: sigs.shown,
       approvals,

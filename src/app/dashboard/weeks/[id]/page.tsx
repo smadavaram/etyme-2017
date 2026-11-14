@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
 import { DetailHead } from '@/components/ui/detail-head'
 import { LoadingState, RefusedState } from '@/components/ui/states'
 import { isDeskless } from '@/lib/nav-table'
 import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'
+import { firstTab, waitingWords, linkLine } from './first-tab'
 
 /**
  * One week, and how the client approved it.
@@ -45,14 +46,15 @@ interface Approval {
 }
 interface Signature { role: string; firm: string; signedBy: string | null; on: string; auto: boolean; reason: string | null; says: string }
 interface Seen {
-  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean }
+  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean; clientOffPlatform: boolean }
+  /** Whether an email can leave this deployment (lib/notify/mail-leaves). */
+  emailLeaves: boolean
   signatures: Signature[]
   approvals: Approval[]
   act: { ok: true; as: string; contracts: Contract[]; refused: string | null } | { ok: false; says: string }
 }
 
 const STATE_WORDS: Record<string, { label: string; chip: string }> = {
-  WAITING: { label: 'Link sent, waiting', chip: 'chip chip--action' },
   APPROVED: { label: 'Approved', chip: 'chip chip--verified' },
   SENT_BACK: { label: 'Sent back', chip: 'chip chip--attention' },
   CLOSED: { label: 'Link closed', chip: 'chip chip--passive' },
@@ -66,7 +68,10 @@ export default function WeekPage() {
   const { id } = useParams<{ id: string }>()
   const [seen, setSeen] = useState<Seen | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<'LINK' | 'EVIDENCE'>('LINK')
+  // The tab the address names, else the one the client's standing says (./first-tab).
+  const asked = useSearchParams()?.get('mode') ?? null
+  const [chosenMode, setMode] = useState<'LINK' | 'EVIDENCE' | null>(null)
+  const mode = chosenMode ?? firstTab(asked, seen?.week.clientOffPlatform ?? false)
   const [form, setForm] = useState({ approverName: '', approverEmail: '', kind: 'EMAIL', approvedOn: '', pastedText: '' })
   const [file, setFile] = useState<File | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
@@ -173,11 +178,16 @@ export default function WeekPage() {
           {seen.approvals.map((a) => (
             <li key={a.id} className="space-y-1 py-3 text-[13px]">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={STATE_WORDS[a.state]?.chip ?? 'chip chip--passive'}>{STATE_WORDS[a.state]?.label ?? a.state}</span>
+                {(() => {
+                  const st = a.state === 'WAITING' ? waitingWords(seen.emailLeaves) : STATE_WORDS[a.state]
+                  return <span className={st?.chip ?? 'chip chip--passive'}>{st?.label ?? a.state}</span>
+                })()}
                 <span className="font-semibold">{a.words ?? `${a.how === 'LINK' ? 'Link to' : 'Evidence from'} ${a.approverName}`}</span>
               </div>
               <p className="text-etyme-muted">
-                {a.approverName} · {a.approverEmail} · {a.how === 'LINK' ? 'link sent' : 'attached'} by {a.sentBy} on {a.sentAt}
+                {a.approverName} · {a.approverEmail} · {a.how === 'EVIDENCE'
+                  ? `attached by ${a.sentBy} on ${a.sentAt}`
+                  : linkLine(seen.emailLeaves || a.state === 'APPROVED' || a.state === 'SENT_BACK', a.sentBy, a.sentAt)}
               </p>
               {a.sendBack && <p className="text-etyme-attention">Sent back: {a.sendBack}</p>}
               {a.evidence && (
@@ -215,7 +225,9 @@ export default function WeekPage() {
                 </button>
               </div>
               <p className="text-[13px] text-etyme-muted">
-                {mode === 'LINK'
+                {mode === 'LINK' && !seen.emailLeaves
+                  ? 'Email is not set up here, so no link can be sent yet. Attach the approval instead.'
+                  : mode === 'LINK'
                   ? `The approver gets a link with Approve and Send back. No account needed. It works once and runs out in seven days.`
                   : `The approval ${w.clientName} already gave: the email, a PDF, or an export from its own system. Name the person who gave it.`}
               </p>

@@ -291,10 +291,29 @@ describe('the Superadmin reads the email that did not go', () => {
     expect(h.accessRows[0].allowed).toBe(false)
   })
 
-  it('with nothing failed, the screen says every email left', async () => {
+  it('with email set up and nothing failed or held back, the screen says every email left', async () => {
     h.caller = SUPERADMIN
-    const mail = (await (await GET(req())).json()).data.mail
-    expect(mail).toEqual({ rows: [], says: 'Every email sent from here has left. Nothing failed.' })
+    vi.stubEnv('NOTIFY_FROM_EMAIL', 'notices@etyme.example')
+    vi.stubEnv('RESEND_API_KEY', 'test-key')
+    try {
+      const mail = (await (await GET(req())).json()).data.mail
+      expect(mail).toEqual({ rows: [], says: 'Every email sent from here has left. Nothing failed or was held back.' })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('with no email sender set up and nothing listed, the screen says no email can leave, never that every email left', async () => {
+    h.caller = SUPERADMIN
+    vi.stubEnv('NOTIFY_FROM_EMAIL', '')
+    vi.stubEnv('RESEND_API_KEY', '')
+    vi.stubEnv('SENDGRID_API_KEY', '')
+    try {
+      const mail = (await (await GET(req())).json()).data.mail
+      expect(mail).toEqual({ rows: [], says: 'No email sender is set up on this deployment, so no email can leave from here yet.' })
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
 

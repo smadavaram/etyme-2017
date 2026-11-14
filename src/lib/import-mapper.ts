@@ -206,6 +206,17 @@ export function mapColumns(headers: string[], sheetName?: string): MappingResult
 }
 
 /**
+ * A parsed rate (dollars an hour, to the cent) in the unit its column
+ * holds: cents an hour on the sell line, the buy line and the bench
+ * listing. The import's lines are written in USD, the columns' default.
+ */
+export function rateCents(dollars: unknown): number | null {
+  if (dollars == null || dollars === '') return null
+  const n = typeof dollars === 'number' ? dollars : Number(dollars)
+  return Number.isFinite(n) ? Math.round(n * 100) : null
+}
+
+/**
  * Validate and coerce values based on the target field type.
  */
 export function parseValue(field: string, raw: string): { value: any; issue: string | null } {
@@ -221,7 +232,9 @@ export function parseValue(field: string, raw: string): { value: any; issue: str
       const num = parseFloat(trimmed.replace(/[,$]/g, ''))
       if (isNaN(num)) return { value: null, issue: `Invalid rate: "${trimmed}"` }
       if (num < 0) return { value: null, issue: `Negative rate: ${num}` }
-      return { value: Math.round(num), issue: null }
+      // Kept to the cent, in dollars an hour, never rounded to a whole
+      // dollar (walk fdf, 2026-11-14: $52.50 read as $53).
+      return { value: Math.round(num * 100) / 100, issue: null }
     }
 
     case 'startDate':
@@ -344,7 +357,10 @@ export function cellWords(field: string, value: unknown): string {
   }
   if (field === 'contractType') return CONTRACT_WORDS[String(value)] ?? String(value)
   if (field === 'workAuth') return AUTH_WORDS[String(value)] ?? String(value)
-  if (field === 'payRate' || field === 'billRate') return `$${Number(value).toLocaleString('en-US')}/hr`
+  if (field === 'payRate' || field === 'billRate') {
+    const n = Number(value)
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}/hr`
+  }
   return String(value)
 }
 

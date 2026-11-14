@@ -79,6 +79,17 @@ describe('Import Mapper (BUILD.md §4.A)', () => {
       expect(parseValue('payRate', '$1,200')).toEqual({ value: 1200, issue: null })
     })
 
+    it('a rate of 52.50 is kept as 52.50, never rounded to a whole dollar, and is written as 5250 cents', async () => {
+      const { rateCents, cellWords } = await import('@/lib/import-mapper')
+      expect(parseValue('billRate', '52.50')).toEqual({ value: 52.5, issue: null })
+      expect(parseValue('payRate', '$29.75')).toEqual({ value: 29.75, issue: null })
+      expect(cellWords('billRate', 52.5)).toBe('$52.50/hr')
+      expect(cellWords('payRate', 85)).toBe('$85/hr')
+      expect(rateCents(52.5)).toBe(5250)
+      expect(rateCents(29.75)).toBe(2975)
+      expect(rateCents(null)).toBeNull()
+    })
+
     it('rejects negative rates', () => {
       const result = parseValue('payRate', '-50')
       expect(result.value).toBeNull()

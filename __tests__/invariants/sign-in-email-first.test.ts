@@ -279,7 +279,7 @@ describe('LinkedIn is for candidates only (founder, 2026-11-12)', () => {
 import {
   orderDoors, parseLastDoor, readLastDoor, rememberDoor, LAST_DOOR_KEY, OR_USE_A_PASSWORD,
   signInRefusal, didNotFinish, parseRetry, keepRetry, takeRetry, RETRY_KEY, chooserFor,
-  USE_ANOTHER_ACCOUNT, emailFromLink, SIGN_IN_DID_NOT_FINISH, WELCOME_BACK, middleEllipsis, tryAgainWith,
+  USE_ANOTHER_ACCOUNT, emailFromLink, SIGN_IN_DID_NOT_FINISH, WELCOME_BACK, tryAgainWith,
 } from '@/lib/login-doors'
 
 /** A storage that keeps strings, like the browser's. */
@@ -398,21 +398,27 @@ describe('a browser already signed in is shown one card (fault 2)', () => {
     const cardBody = page.slice(card, page.indexOf('} else if (directory) {'))
     expect(cardBody).toContain('href="/start"')
     expect(cardBody).toContain('className={`${doorButton} block text-center`}')
-    expect(cardBody).toContain('{middleEllipsis(signedIn)}')
+    expect(cardBody).toContain('[overflow-wrap:anywhere]">{signedIn}</span>')
     expect(cardBody).toContain('aria-label={`${CONTINUE} as ${signedIn}`}')
     expect(cardBody).toContain('className={doorOutline}>\n          {USE_ANOTHER_ACCOUNT}')
     expect(cardBody).not.toContain('type="email"')
   })
 
-  it('a long address is cut in the middle so it fits on the button, the start and the domain kept, and a short one is whole', () => {
-    expect(middleEllipsis('sharath@etyme.com')).toBe('sharath@etyme.com')
-    const cut = middleEllipsis('sharath.madavaram.the.founder.of.tapin@etyme.com')
-    expect(cut.length).toBeLessThanOrEqual(34)
-    expect(cut.startsWith('sharath.')).toBe(true)
-    expect(cut.endsWith('\u2026@etyme.com')).toBe(true)
-    const odd = middleEllipsis('somebody@a-very-long-company-domain-name-that-will-not-fit.example')
-    expect(odd.length).toBeLessThanOrEqual(34)
-    expect(odd).toContain('\u2026')
+  it('a long address on the Welcome back card is printed whole and wraps, never cut and never kept only in a title a phone cannot show', () => {
+    const cardBody = page.slice(page.indexOf('if (signedIn) {'), page.indexOf('} else if (directory) {'))
+    expect(cardBody).toContain('[overflow-wrap:anywhere]">{signedIn}</span>')
+    expect(cardBody).not.toContain('truncate')
+    expect(cardBody).not.toContain('title={signedIn}')
+    expect(page).not.toContain('middleEllipsis')
+  })
+
+  it('on a phone a long address on the password and details screens wraps whole, and the column may shrink so Change and the button stay on screen', () => {
+    const frame = read('src/app/(auth)/door-frame.tsx')
+    expect(frame).toContain('className="flex-1 min-w-0 flex items-center justify-center')
+    expect(frame).toContain('className="w-full min-w-0 max-w-md"')
+    const who = frame.slice(frame.indexOf('export function DoorWho'))
+    expect(who).toContain('min-w-0 [overflow-wrap:anywhere]">{email}</span>')
+    expect(who).not.toContain('truncate')
   })
 
   it('the sign-in page never shows "You are signed in" beside the email box, nor the development banner beside the card', () => {
@@ -564,6 +570,19 @@ describe('sign up is the same screen, then a few details (founder, 2026-11-12, e
       expect(page).not.toMatch(/disabled=\{[^}]*(!email|!password|!name|!type)/)
       expect(page).not.toMatch(/\b(alert|confirm|prompt)\(/)
     }
+  })
+
+  it('where no email can leave, the line under Create account says the link is kept with Etyme staff, and "We send a link" is said only where email leaves', () => {
+    const under = form.slice(form.indexOf("{busy ? 'Creating your account…' : 'Create account'}"))
+    expect(under).toContain("{noEmailHere\n            ? 'Your confirmation link is kept with Etyme staff, who pass it on. Nothing is set up until you click it.'\n            : 'We send a link to your email. Nothing is set up until you click it.'}")
+  })
+
+  it('an empty Create account press says the first missing thing, the name before the Etyme address, and opens the address editor only when the address is what is wrong', () => {
+    const m = form.slice(form.indexOf('function missing()'), form.indexOf('async function submit'))
+    expect(m.indexOf("'Type your name.'")).toBeLessThan(m.indexOf("'Type your company’s name.'"))
+    expect(m.indexOf("'Type your company’s name.'")).toBeLessThan(m.indexOf("'Choose an Etyme address"))
+    expect(form).toContain('if (says) { setError(says); if (aboutAddress(says)) setAddressOpen(true); return }')
+    expect(form).not.toContain('if (askCompany && !address.trim()) setAddressOpen(true)')
   })
 
   it('every rule of sign-up stays: the same route, the same answers, the guessed country and currency sent', () => {

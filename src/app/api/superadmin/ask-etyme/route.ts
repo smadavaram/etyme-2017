@@ -6,6 +6,8 @@ import { LIMIT_SETTINGS, checkLimit, readLimitsScreen } from '@/lib/ask-etyme-li
 import { reportError } from '@/lib/alerts'
 import { recentMailFailures } from '@/lib/notify/mail-failures'
 import { momentFor } from '@/lib/when'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { mailListSays } from './mail-says'
 
 /**
  * GET   /api/superadmin/ask-etyme — Ask Etyme's two limits in force, where
@@ -103,7 +105,7 @@ async function emailThatDidNotGo(caller: CallerContext): Promise<
         words: r.words,
         recipient: r.recipient,
       })),
-      says: rows.length === 0 ? 'Every email sent from here has left. Nothing failed.' : `The newest ${rows.length} that did not go, newest first.`,
+      says: mailListSays(rows.length, mailLeaves()),
     }
   } catch (err) {
     await reportError('superadmin/ask-etyme: the email that did not go', err).catch(() => undefined)

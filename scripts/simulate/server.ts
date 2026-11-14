@@ -79,6 +79,9 @@ export function serverEnv(e: ServerEnv): NodeJS.ProcessEnv {
     CRON_SECRET: e.cronSecret,
     PRISMA_QUIET: '1',
     PORT: String(e.port),
+    // The simulation has no mailbox, so "Approve by email" hands its link
+    // back here and only here; never set on a deployment (week-approvals/hand-back).
+    ETYME_TEST_HANDS_BACK_APPROVAL_LINKS: '1',
   }
 }
 

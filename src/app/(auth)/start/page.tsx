@@ -12,7 +12,7 @@ import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, noPayrollLi
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
 import { AnotherAccount } from '../another-account'
-import { KIND_MISSING, NAME_MISSING } from './missing'
+import { COMPANY_NAME_MISSING, KIND_MISSING, NAME_MISSING } from './missing'
 
 /**
  * Getting in, and setting up. Five steps, then it stops.
@@ -357,8 +357,9 @@ export default function StartPage() {
 
             <label className="block mt-6">
               <Lbl>Company name</Lbl>
-              <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
+              <input value={name} onChange={(e) => { setName(e.target.value); if (missingFor === 'COMPANY') setMissingFor(null) }} className={field} />
               <p className="text-xs text-etyme-muted mt-1">Guessed from your web address. Change it if it is wrong.</p>
+              {missingFor === 'COMPANY' && <p role="alert" className="mt-1 text-sm text-etyme-attention">{COMPANY_NAME_MISSING}</p>}
             </label>
 
             <div className="mt-6">
@@ -401,6 +402,9 @@ export default function StartPage() {
             <button onClick={() => {
               // Pressable before a kind is chosen, and it says what is missing.
               if (!type) { setError(KIND_MISSING); return }
+              // A cleared name is said beside the box, never sent to be guessed.
+              if (!name.trim()) { setError(null); setMissingFor('COMPANY'); return }
+              setMissingFor(null)
               enter({ type, name, country, currency, ...(state.action === 'SUGGEST' ? { joinExisting: false } : {}) })
             }}
               disabled={busy} className={`mt-6 ${primary}`}>
