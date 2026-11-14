@@ -10,9 +10,10 @@
  * Never the notice's title or body (a body may hold a kept one-time link),
  * never a person's name, never the full address.
  */
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { ACCOUNT_MAIL } from './account-mail'
-import { failureFromNote, maskAddress, type MailFailureKind, type MailProvider } from './mail-failure'
+import { failureFromNote, maskAddress, type MailFailure, type MailFailureKind, type MailProvider } from './mail-failure'
 
 export interface MailFailureRow {
   id: string
@@ -39,14 +40,40 @@ export function noticeKindOf(type: string, title: string): string {
   return `${t.charAt(0).toUpperCase()}${t.slice(1)} notice`
 }
 
-/** The newest email sends that failed, newest first, at most 200. */
+/**
+ * Which rows are listed: every send the provider refused or never took,
+ * and every invitation held back because this deployment has no email
+ * sender (walk fdb, 2026-11-14: six invitations never left and the screen
+ * said nothing failed). A demo address's skipped send is never listed:
+ * nothing was meant to leave for it.
+ */
+export const MAIL_FAILURES_WHERE: Prisma.NotificationWhereInput = {
+  channel: 'EMAIL',
+  OR: [
+    { deliveryState: 'FAILED' },
+    { deliveryState: 'NOT_CONFIGURED', type: 'SYSTEM', title: { contains: ' invited you to ' } },
+  ],
+}
+
+/** Whether a listed row was held back because no email sender is set up. Pure. */
+export function heldBackForNoSender(r: Pick<MailFailureRow, 'failureKind'>): boolean {
+  return r.failureKind === 'NOT_SET_UP'
+}
+
+/** The failure a row reads as, from its state and note. Pure. */
+export function failureOfRow(state: string | null, note: string | null): MailFailure {
+  if (state === 'NOT_CONFIGURED') return { kind: 'NOT_SET_UP', status: null, provider: null, words: null }
+  return failureFromNote(note)
+}
+
+/** The newest email sends that did not go, newest first, at most 200. */
 export async function recentMailFailures(limit = 50): Promise<MailFailureRow[]> {
   const take = Math.max(1, Math.min(200, Math.floor(limit) || 50))
   const rows = await prisma.notification.findMany({
-    where: { channel: 'EMAIL', deliveryState: 'FAILED' },
+    where: MAIL_FAILURES_WHERE,
     orderBy: { createdAt: 'desc' },
     take,
-    select: { id: true, createdAt: true, type: true, title: true, deliveryNote: true, companyId: true, personId: true },
+    select: { id: true, createdAt: true, type: true, title: true, deliveryState: true, deliveryNote: true, companyId: true, personId: true },
   })
   const companyIds = [...new Set(rows.map((r) => r.companyId).filter((x): x is string => Boolean(x)))]
   const personIds = [...new Set(rows.map((r) => r.personId))]
@@ -61,7 +88,7 @@ export async function recentMailFailures(limit = 50): Promise<MailFailureRow[]> 
   const companyName = new Map(companies.map((c) => [c.id, c.name]))
   const address = new Map(people.map((p) => [p.id, p.primaryEmail]))
   return rows.map((r) => {
-    const f = failureFromNote(r.deliveryNote)
+    const f = failureOfRow(r.deliveryState, r.deliveryNote)
     return {
       id: r.id,
       at: r.createdAt,

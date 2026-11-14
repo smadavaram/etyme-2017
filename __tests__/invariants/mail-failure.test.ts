@@ -30,7 +30,7 @@ import {
   type MailFailureKind,
 } from '@/lib/notify/mail-failure'
 import { sendEmailNow, NOT_SET_UP_NOTE } from '@/lib/notify/send-now'
-import { recentMailFailures, noticeKindOf } from '@/lib/notify/mail-failures'
+import { recentMailFailures, noticeKindOf, MAIL_FAILURES_WHERE, heldBackForNoSender } from '@/lib/notify/mail-failures'
 import { NO_MAIL_HERE } from '@/lib/notify/mail-leaves'
 
 const db = prisma as any
@@ -252,8 +252,42 @@ describe('The list of email that did not go, for Etyme’s own staff', () => {
     expect(text).not.toContain('sidhu871')
     expect(text).not.toContain('invited you to')
     expect(db.notification.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { channel: 'EMAIL', deliveryState: 'FAILED' }, orderBy: { createdAt: 'desc' }, take: 50,
+      where: MAIL_FAILURES_WHERE, orderBy: { createdAt: 'desc' }, take: 50,
     }))
+  })
+
+  it('an invitation that could not be sent because no email sender is set up is listed, said as not set up, with the recipient masked', async () => {
+    db.notification.findMany.mockResolvedValueOnce([
+      {
+        id: 'n3', createdAt: NOW, type: 'SYSTEM', title: 'Kwame invited you to Brightmoor', deliveryState: 'NOT_CONFIGURED',
+        deliveryNote: 'No email provider set up, so this was recorded and not sent.', companyId: 'bm', personId: 'p3',
+      },
+    ])
+    db.company.findMany.mockResolvedValueOnce([{ id: 'bm', name: 'Brightmoor' }])
+    db.person.findMany.mockResolvedValueOnce([{ id: 'p3', primaryEmail: 'kwame.osei@brightmoor.example' }])
+    const rows = await recentMailFailures(50)
+    expect(rows[0]).toEqual({
+      id: 'n3', at: NOW, kind: 'Invitation', companyName: 'Brightmoor', provider: null, status: null,
+      failureKind: 'NOT_SET_UP', words: null, recipient: 'k…@brightmoor.example',
+    })
+    expect(heldBackForNoSender(rows[0])).toBe(true)
+    expect(JSON.stringify(rows)).not.toContain('kwame.osei')
+    // The read asks for these rows: held-back invitations beside the failed sends.
+    expect(JSON.stringify(MAIL_FAILURES_WHERE)).toContain('NOT_CONFIGURED')
+  })
+
+  it('a demo address’s skipped send is never listed as email that did not go', () => {
+    const where = JSON.stringify(MAIL_FAILURES_WHERE)
+    expect(where).not.toContain('DEMO_SKIPPED')
+    expect(MAIL_FAILURES_WHERE.OR).toEqual([
+      { deliveryState: 'FAILED' },
+      { deliveryState: 'NOT_CONFIGURED', type: 'SYSTEM', title: { contains: ' invited you to ' } },
+    ])
+  })
+
+  it('only invitations held back for no email sender are listed, not every other notice that could not leave', () => {
+    const held = (MAIL_FAILURES_WHERE.OR as any[]).find((w) => w.deliveryState === 'NOT_CONFIGURED')
+    expect(held).toMatchObject({ type: 'SYSTEM', title: { contains: ' invited you to ' } })
   })
 
   it('reads at most two hundred rows however many are asked for', async () => {

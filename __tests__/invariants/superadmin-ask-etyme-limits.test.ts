@@ -56,7 +56,9 @@ vi.mock('@/lib/db', () => {
     },
     notification: {
       findMany: async ({ where, take }: any) =>
-        h.mail.filter((n) => n.channel === where.channel && n.deliveryState === where.deliveryState).slice(0, take),
+        h.mail.filter((n) => n.channel === where.channel && (where.OR ?? [where]).some((w: any) =>
+          n.deliveryState === w.deliveryState && (!w.type || n.type === w.type)
+          && (!w.title || String(n.title).includes(w.title.contains)))).slice(0, take),
     },
     modelPrompt: {
       aggregate: async ({ where }: any) => {
@@ -236,6 +238,17 @@ describe('the Superadmin reads the email that did not go', () => {
       failureKind: 'REFUSED', recipient: 'v…@gmail.com',
     })
     expect(mail.rows[0].words).toContain('domain is not verified')
+  })
+
+  it('an invitation held back because no email sender is set up is listed, and a demo address’s skipped send is not', async () => {
+    h.caller = SUPERADMIN
+    h.mail = [
+      { ...failed(), id: 'n2', deliveryState: 'NOT_CONFIGURED', deliveryNote: 'No email provider set up, so this was recorded and not sent.' },
+      { ...failed(), id: 'n3', deliveryState: 'DEMO_SKIPPED', deliveryNote: 'A demo address' },
+    ]
+    const mail = (await (await GET(req())).json()).data.mail
+    expect(mail.rows).toHaveLength(1)
+    expect(mail.rows[0]).toMatchObject({ id: 'n2', kind: 'Invitation', failureKind: 'NOT_SET_UP', provider: null, words: null, recipient: 'v…@gmail.com' })
   })
 
   it('the list never carries a notice’s title, its body, a person’s name or a full address', async () => {
