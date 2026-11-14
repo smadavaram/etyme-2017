@@ -12,8 +12,12 @@ import {
   editionFinding,
   backingFinding,
   builtInType,
+  builtInKeyForName,
+  labelFor,
   SUPPLIED_BY,
 } from '@/lib/document-type'
+import { expiresInDays } from '@/lib/document-stages'
+import { typeKeyForTemplate } from '@/lib/document-request'
 
 /**
  * What kind of thing a document is.
@@ -486,5 +490,34 @@ describe('who can physically produce a document, which is not who renders it', (
     expect(SUPPLIED_BY).toContain('PROVIDER')
     const used = new Set(BUILT_IN.map((t) => t.suppliedBy).filter(Boolean))
     for (const v of used) expect(SUPPLIED_BY, `${v} is not in SUPPLIED_BY`).toContain(v)
+  })
+})
+
+describe('an I-9 is called what HR actually recorded', () => {
+  it('an I-9 reads "I-9" to a person, never "I-9 and E-Verify", because no E-Verify case or result is recorded anywhere', () => {
+    expect(labelFor('I9_EVERIFY')).toBe('I-9')
+    expect(builtInType('I9_EVERIFY')!.label).not.toMatch(/E-Verify/)
+  })
+
+  it('a paper uploaded under the old name "I-9 and E-Verify" is still read as the I-9', () => {
+    expect(builtInKeyForName('I-9 and E-Verify')).toBe('I9_EVERIFY')
+    expect(builtInKeyForName('I-9')).toBe('I9_EVERIFY')
+    expect(typeKeyForTemplate('I-9 and E-Verify', [], { guess: false })).toBe('I9_EVERIFY')
+  })
+})
+
+describe('one expiry date gives one number of days on every screen', () => {
+  it('a paper that expires on the 20th, read at noon on the 16th, expires in 4 days here as it does on the placement and Compliance', () => {
+    const expiresAt = new Date('2026-09-20T00:00:00Z')
+    const v = validityOf({ issuedAt: inDays(-300), expiresAt }, VISA, on)
+    expect(v.daysLeft).toBe(4)
+    expect(v.daysLeft).toBe(expiresInDays(expiresAt, on))
+    expect(v.says).toBe('Visa expires in 4 days. Ask for the renewal now.')
+  })
+
+  it('a paper that ran out on the 15th, read at noon on the 16th, expired 1 day ago', () => {
+    const v = validityOf({ issuedAt: inDays(-300), expiresAt: new Date('2026-09-15T00:00:00Z') }, VISA, on)
+    expect(v.daysLeft).toBe(-1)
+    expect(v.says).toBe('Visa expired 1 day ago.')
   })
 })

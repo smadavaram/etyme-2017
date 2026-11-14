@@ -213,7 +213,7 @@ describe('a document type nobody defined is still said in words, never in the ke
   })
 
   it('keeps the dictionary’s own label where there is one, and says so', () => {
-    expect(sayType('I9_EVERIFY')).toEqual({ label: 'I-9 and E-Verify', known: true })
+    expect(sayType('I9_EVERIFY')).toEqual({ label: 'I-9', known: true })
   })
 
   it('never invents a definition — an unknown key gets its own words and nothing more', () => {

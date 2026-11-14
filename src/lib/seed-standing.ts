@@ -550,7 +550,7 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
         existing ??
         (await db.documentType.create({
           data: {
-            companyId: firm.id, key: 'I9_EVERIFY', label: 'I-9 and E-Verify',
+            companyId: firm.id, key: 'I9_EVERIFY', label: 'I-9',
             hint: 'Federal work authorization. Nobody may start without it.',
             purpose: 'COMPLIANCE', validityShape: 'END_ONLY', validMonths: null,
             reissued: true,

@@ -84,8 +84,8 @@ describe('the page says what each of its numbers counted', () => {
 })
 
 describe('a check is named the way the form is named', () => {
-  it('reads I-9 and E-Verify, never I9 Everify', () => {
-    expect(sayCheckType('I9_EVERIFY')).toBe('I-9 and E-Verify')
+  it('reads I-9, never I9 Everify and never "I-9 and E-Verify", because no E-Verify result is recorded', () => {
+    expect(sayCheckType('I9_EVERIFY')).toBe('I-9')
   })
 
   it('keeps the capitals on every shipped form a government or a bank issues', () => {

@@ -1,4 +1,5 @@
 import { formatDayLong } from '@/lib/format-date'
+import { expiresInDays } from '@/lib/document-stages'
 /**
  * What kind of thing a document is, said by the company that holds it.
  *
@@ -157,7 +158,12 @@ export const BUILT_IN: DocumentTypeSpec[] = [
   // ── COMPLIANCE ──
   spec({
     key: 'I9_EVERIFY',
-    label: 'I-9 and E-Verify',
+    // "I-9", never "I-9 and E-Verify": HR records the form's edition and
+    // the document shown, and no E-Verify case or result is recorded
+    // anywhere, so the old name read "I-9 and E-Verify — On file" over a
+    // verdict nobody holds (walk on Tapin, 2026-11-14). The old name
+    // still reads to this key, through FORMER_NAMES below.
+    label: 'I-9',
     hint: 'Federal work authorization. Nobody may start without it.',
     purpose: 'COMPLIANCE',
     validityShape: 'END_ONLY',
@@ -454,6 +460,31 @@ export const BUILT_IN: DocumentTypeSpec[] = [
 
 const BUILT_IN_BY_KEY = new Map(BUILT_IN.map((t) => [t.key, t]))
 
+/**
+ * Names a shipped type used to carry, by key. A paper uploaded under a
+ * template with the old name is still that kind of paper; the name a
+ * person reads is the label above, never one of these.
+ */
+export const FORMER_NAMES: { key: string; label: string }[] = [
+  { key: 'I9_EVERIFY', label: 'I-9 and E-Verify' },
+]
+
+/**
+ * Every name the shipped dictionary reads to a key: the label first,
+ * then each former name. Exact names only, never a guess.
+ */
+export const BUILT_IN_NAMES: { key: string; label: string }[] = [
+  ...BUILT_IN.map((t) => ({ key: t.key, label: t.label })),
+  ...FORMER_NAMES,
+]
+
+/** The shipped key a paper's name reads to, by its label or a former name; null otherwise. */
+export function builtInKeyForName(name: string): string | null {
+  const said = name.trim().toLowerCase().replace(/\s+/g, ' ')
+  if (!said) return null
+  return BUILT_IN_NAMES.find((n) => n.label.toLowerCase() === said)?.key ?? null
+}
+
 export function builtInType(key: string): DocumentTypeSpec | null {
   return BUILT_IN_BY_KEY.get(key) ?? null
 }
@@ -715,7 +746,7 @@ export function validityOf(
     const days = Math.ceil((floor.getTime() - on.getTime()) / DAY)
     return {
       validity: 'NOT_YET_VALID',
-      daysLeft: ceiling ? Math.floor((ceiling.getTime() - on.getTime()) / DAY) : null,
+      daysLeft: ceiling ? expiresInDays(ceiling, on) : null,
       daysUntilStart: days,
       inForce: false,
       says:
@@ -745,7 +776,9 @@ export function validityOf(
     }
   }
 
-  const days = Math.floor((ceiling.getTime() - on.getTime()) / DAY)
+  // Calendar days, through the one function the placement and Compliance
+  // count with, so one date gives one number on every screen.
+  const days = expiresInDays(ceiling, on)
 
   if (days < 0) {
     return {
