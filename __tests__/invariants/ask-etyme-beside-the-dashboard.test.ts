@@ -189,7 +189,17 @@ describe('a worker’s first screen names what needs her, and every answer is he
     const f = colleen({ putForward: [{ role: 'ICU nurse, nights', by: 'Halcyon Talent', says: 'With Harlow Health for review.', live: true }] })
     const a = await respondWorker('Is there a job for me?', { facts: async () => f })
     expect(a.says).toBe('Halcyon Talent put you forward for ICU nurse, nights. It is still open. Checked just now.')
-    expect(a.more.map((m) => m.says)).toContain('Etyme never places anybody; the firms that hold your consent put you forward.')
+    expect(a.more.map((m) => m.says)).toContain('The firms that hold your consent are the ones who put you forward.')
+  })
+
+  it('“Is there a job for me?” never tells her that Etyme places nobody, whether or not a job is open', async () => {
+    const none = await respondWorker('Is there a job for me?', { facts: async () => colleen() })
+    const some = await respondWorker('Is there a job for me?', { facts: async () => colleen({ putForward: [{ role: 'ICU nurse, nights', by: 'Halcyon Talent', says: 'With Harlow Health for review.', live: true }] }) })
+    for (const a of [none, some]) {
+      const all = [a.says, ...a.more.map((m) => m.says)].join(' ')
+      expect(all).not.toMatch(/places (anybody|nobody)/i)
+      expect(a.more.map((m) => m.says)).toContain('The firms that hold your consent are the ones who put you forward.')
+    }
   })
 })
 

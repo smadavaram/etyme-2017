@@ -1060,8 +1060,8 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
     }
 
     case 'JOBS': {
-      // Etyme places nobody: the answer is what firms holding her consent
-      // did with it, read from her own pipeline, never a list of jobs.
+      // The answer is what firms holding her consent did with it, read
+      // from her own pipeline, never a list of jobs.
       const open = (f.putForward ?? []).filter((x) => x.live)
       const firms = f.consent.benches.map((b) => b.firm)
       const who = firms.length
@@ -1070,7 +1070,7 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
       if (open.length === 0) {
         return withUnread({
           kind: 'WORKER', says: `No job you were put forward for is open now. ${who} Checked just now.`, cards: [],
-          more: [{ says: 'Etyme never places anybody; the firms that hold your consent put you forward.' }],
+          more: [{ says: 'The firms that hold your consent are the ones who put you forward.' }],
           links: [{ label: 'Open Who has you', href: WHO_HAS_YOU }],
         }, 'interviews')
       }
@@ -1079,7 +1079,7 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
         kind: 'WORKER',
         says: `${first.by} put you forward for ${first.role}. ${open.length === 1 ? 'It is' : `${numberWord(open.length)} jobs are`} still open. Checked just now.`,
         cards: cardsFor(f).filter((c) => c.act === 'INTERVIEW'),
-        more: [{ says: 'Etyme never places anybody; the firms that hold your consent put you forward.' }],
+        more: [{ says: 'The firms that hold your consent are the ones who put you forward.' }],
         table: {
           caption: 'Jobs you were put forward for, still open',
           head: ['Job', 'Put forward by', 'Where it is'],
