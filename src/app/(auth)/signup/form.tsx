@@ -223,7 +223,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
             <DoorLabel htmlFor="email">Email</DoorLabel>
             <input id="email" type="email" inputMode="email" value={email}
               onChange={(e) => { setEmail(e.target.value); setError(null) }}
-              autoComplete="email" placeholder="you@company.com" className={doorField} />
+              autoComplete="email" placeholder="you@company.example" className={doorField} />
           </div>
           <DoorError says={error} />
           <button type="submit" data-door="continue" disabled={busy} className={doorButton}>
@@ -287,7 +287,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
                 <div className="flex items-center gap-2">
                   <input id="address" value={address}
                     onChange={(e) => { setTouched((t) => ({ ...t, address: true })); setAddress(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setError(null) }}
-                    placeholder="acme" maxLength={40} className={doorField} />
+                    placeholder="your-company" maxLength={40} className={doorField} />
                   <span className="text-sm text-etyme-muted whitespace-nowrap">.etyme.com</span>
                 </div>
                 <p className="text-xs text-etyme-muted mt-1">Letters, numbers and hyphens. Your colleagues use the same address to join you.</p>

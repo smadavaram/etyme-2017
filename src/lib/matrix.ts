@@ -1389,7 +1389,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/settings/page.tsx', 'prisma/schema.prisma',
             'src/app/api/settings/payroll/saved-says.ts', 'src/app/api/settings/payroll/route.ts', 'src/app/api/settings/holidays/says.ts',
           ],
-          testedBy: ['__integration__/settings-says-why.test.ts', '__tests__/invariants/settings-says-why.test.ts', '__tests__/invariants/tapin-repress-architect.test.ts', '__integration__/off-etyme-client-long-week.test.ts', 
+          testedBy: ['__integration__/settings-says-why.test.ts', '__tests__/invariants/settings-says-why.test.ts', '__tests__/invariants/settings-read-only-says.test.ts', '__tests__/invariants/tapin-repress-architect.test.ts', '__integration__/off-etyme-client-long-week.test.ts', 
             '__tests__/invariants/settings-saved-sentences.test.ts',
             '__tests__/invariants/cycle-shift.test.ts',
             '__tests__/invariants/cycle-shift-reaches-the-dates.test.ts',

@@ -68,10 +68,14 @@ describe('the SCIM address is the deployment’s lasting one, given only where i
     expect(appUrl()).toBe('https://etyme-git-branch-abc.vercel.app')
   })
 
-  it('on production with no address set, the project’s production address is used, never the one-off deploy address', () => {
+  it('on production with no address set, the SCIM address is the project’s production address, never the one-off deploy address', () => {
     env({ VERCEL_URL: 'etyme-abc123.vercel.app', VERCEL_ENV: 'production', VERCEL_PROJECT_PRODUCTION_URL: 'app.northwind-staffing.example' })
     expect(fixedAppUrl()).toBe('https://app.northwind-staffing.example')
-    expect(appUrl()).toBe('https://app.northwind-staffing.example')
+  })
+
+  it('on production with no address set, mailed links and the redirect keep the address the request came to, as before the SCIM fix', () => {
+    env({ VERCEL_URL: 'etyme-abc123.vercel.app', VERCEL_ENV: 'production', VERCEL_PROJECT_PRODUCTION_URL: 'app.northwind-staffing.example' })
+    expect(appUrl()).toBe('https://etyme-abc123.vercel.app')
   })
 
   it('the address set for sign-in comes first, with no trailing slash', () => {

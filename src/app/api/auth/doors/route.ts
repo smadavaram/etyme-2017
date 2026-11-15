@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { configuredProviders } from '@/lib/auth'
 import { policyFacts } from '@/lib/identity/read'
 import { domainOfEmail } from '@/lib/company-domains'
-import { doorsFor, looksLikeEmail, tooManyDoorAsks, tooManyDoorAsksAll, askerOf, directoryStart, NO_DIRECTORY_YET } from '@/lib/login-doors'
+import { doorsFor, looksLikeEmail, tooManyDoorAsks, tooManyDoorAsksAll, askerOf, directoryStart, NO_DIRECTORY_YET, TYPE_YOUR_EMAIL } from '@/lib/login-doors'
 import { takeDoorProof, doorProofCookie, DOOR_PROOF_COOKIE } from '@/lib/identity/door-proof'
 
 /**
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   const email = String(body?.email ?? '').trim().toLowerCase()
   if (!looksLikeEmail(email)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Type your email address, like you@company.com.', field: 'email' } },
+      { error: { code: 'VALIDATION', message: TYPE_YOUR_EMAIL, field: 'email' } },
       { status: 400 },
     )
   }

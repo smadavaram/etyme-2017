@@ -7,6 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { Check, ErrorState, Field, FormMessage, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
 import { sourceWords, savedByWords, managerFromWords, managerLoadWords, siteShort, siteTimeZoneSays, NO_SITE_TIME_ZONE, type SiteManager, type SiteSource } from '@/lib/site-rules'
 import { COUNTRIES, COUNTRY_BOX_SAYS } from '@/lib/setup-steps'
+import { ONLY_OWNER_OR_ADMIN, SITE_SUPPLIERS_WHO, regionFixedSays } from '@/components/settings/settings-says'
 
 /**
  * Settings → Sites: where people work, who hires there, and which
@@ -247,7 +248,7 @@ function AddSite({ region, onDone }: { region: string | null; onDone: () => void
       <Field label="ZIP or postal code" error={fieldError.postalCode}><Input value={f.postalCode} onChange={set('postalCode')} autoComplete="postal-code" /></Field>
       <Field label="Country" help={COUNTRY_BOX_SAYS} error={fieldError.country}><Input value={f.country} onChange={set('country')} list="site-countries" autoComplete="country" /></Field>
       <Field label="Time zone" help={siteTimeZoneSays(false)} error={fieldError.timeZone}><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/New_York" /></Field>
-      <Field label="Region"><Input value={f.region} onChange={set('region')} disabled={Boolean(region)} /></Field>
+      <Field label="Region" help={region ? regionFixedSays(region) : undefined}><Input value={f.region} onChange={set('region')} disabled={Boolean(region)} /></Field>
       <CountryNames />
       <div className="sm:col-span-3 flex flex-wrap items-center gap-3">
         <SubmitButton pending={busy} pendingLabel="Saving…" disabled={!f.name.trim()} whyDisabled="Name the site first.">Add the site</SubmitButton>
@@ -357,9 +358,10 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
           <Field label="ZIP or postal code" error={fieldError.postalCode}><Input value={f.postalCode} onChange={set('postalCode')} disabled={!read.mayEdit} autoComplete="postal-code" /></Field>
           <Field label="Country" help={COUNTRY_BOX_SAYS} error={fieldError.country}><Input value={f.country} onChange={set('country')} disabled={!read.mayEdit} list="site-countries" autoComplete="country" /></Field>
           <Field label="Time zone" help={siteTimeZoneSays(site.isPrimary)} error={fieldError.timeZone}><Input value={f.timeZone} onChange={set('timeZone')} disabled={!read.mayEdit} placeholder={NO_SITE_TIME_ZONE} /></Field>
-          <Field label="Region"><Input value={f.region} onChange={set('region')} disabled={!read.mayEdit || Boolean(read.region)} /></Field>
+          <Field label="Region" help={read.mayEdit && read.region ? regionFixedSays(read.region) : undefined}><Input value={f.region} onChange={set('region')} disabled={!read.mayEdit || Boolean(read.region)} /></Field>
           <CountryNames />
         </div>
+        {!read.mayEdit && <p className="text-[12px] text-etyme-muted">{ONLY_OWNER_OR_ADMIN}</p>}
         <p className="text-[11.5px] text-etyme-faint">
           {sourceWords(site.source)}.{f.region && read.regionalManagers[f.region] ? ` ${read.regionalManagers[f.region]} reads this site.` : ''}
         </p>
@@ -404,6 +406,7 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
               />
             )
           })}
+          {!read.mayName && read.approved.length > 0 && <p className="text-[12px] text-etyme-muted">{SITE_SUPPLIERS_WHO}</p>}
           {site.suppliers.filter((s) => s.lapsed).map((s) => (
             <p key={s.id} className="text-[12.5px] text-etyme-attention">{s.name} was named here and is no longer approved for {read.company.name}, so no job goes to them.</p>
           ))}

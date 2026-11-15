@@ -14,6 +14,7 @@ import {
 } from '@/lib/pay-dates'
 import { Empty, Lbl, Panel, setLine, NOTHING_CHANGED, CHOOSE_A_SUNDAY } from './panel-bits'
 import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui/form'
+import { ONLY_OWNER_OR_ADMIN } from './settings-says'
 
 // ── Payroll ──────────────────────────────────────────
 //
@@ -306,6 +307,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
           </SubmitButton>
         </>
       )}
+      {!canEdit && <p className="text-[12px] text-etyme-muted">{ONLY_OWNER_OR_ADMIN}</p>}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>
   )

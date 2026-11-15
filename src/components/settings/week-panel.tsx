@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { Empty, Lbl, Panel, setLine, NOTHING_CHANGED } from './panel-bits'
 import { Field, Select, Check, SubmitButton, FormMessage } from '@/components/ui/form'
+import { ONLY_OWNER_OR_ADMIN } from './settings-says'
 
 // ── Your week ────────────────────────────────────────
 //
@@ -135,6 +136,7 @@ export function WeekPanel({ canEdit }: { canEdit: boolean }) {
           </SubmitButton>
         </>
       )}
+      {!canEdit && <p className="text-[12px] text-etyme-muted">{ONLY_OWNER_OR_ADMIN}</p>}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>
   )

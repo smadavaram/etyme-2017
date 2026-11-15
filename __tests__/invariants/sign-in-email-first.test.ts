@@ -130,7 +130,7 @@ describe('the first screen: the account buttons first, then the email (founder, 
   })
 
   it('Continue can always be pressed: an empty or half-typed address is said, and nothing is sent', () => {
-    expect(TYPE_YOUR_EMAIL).toBe('Type your email address, like you@company.com.')
+    expect(TYPE_YOUR_EMAIL).toBe('Type your email address, like you@company.example.')
     expect(looksLikeEmail('dana@')).toBe(false)
     expect(page).toContain('if (!looksLikeEmail(email)) {\n      setEmailRefused(TYPE_YOUR_EMAIL)\n      return\n    }')
     expect(page).toContain("disabled={asking}")

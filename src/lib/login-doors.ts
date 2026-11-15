@@ -281,7 +281,7 @@ export const OR_USE_YOUR_EMAIL = 'or use your email'
 /** Under the email's Continue on the sign-in screen. */
 export const EMAIL_HINT = 'For a password, or your company\u2019s own sign-in.'
 /** Said, never a greyed button, where the email box is empty or half typed. */
-export const TYPE_YOUR_EMAIL = 'Type your email address, like you@company.com.'
+export const TYPE_YOUR_EMAIL = 'Type your email address, like you@company.example.'
 /** Said, never a greyed button, where the password box is empty. */
 export const TYPE_YOUR_PASSWORD = 'Type your password.'
 

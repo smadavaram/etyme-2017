@@ -279,7 +279,7 @@ export default function LoginPage() {
           <div>
             <DoorLabel htmlFor="email">Email</DoorLabel>
             <input id="email" type="email" inputMode="email" autoComplete="email" value={email}
-              onChange={(e) => { setEmail(e.target.value); setEmailRefused(null) }} placeholder="you@company.com" className={doorField} />
+              onChange={(e) => { setEmail(e.target.value); setEmailRefused(null) }} placeholder="you@company.example" className={doorField} />
           </div>
           {emailRefused && <p role="alert" className="text-sm text-etyme-attention">{emailRefused}</p>}
           <button type="submit" data-door="continue" disabled={asking} className={retried ? doorOutline : doorButton}>

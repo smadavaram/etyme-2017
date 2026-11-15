@@ -7,8 +7,7 @@
  *
  * NEXTAUTH_URL first, because it is the address sign-in already uses,
  * so a link and the sign-in it leads to agree. Then NEXT_PUBLIC_APP_URL,
- * then, on production, the project's production address, then Vercel's
- * per-deploy address, then localhost. Reading VERCEL_URL
+ * then Vercel's per-deploy address, then localhost. Reading VERCEL_URL
  * first sent supplier links to a one-off deploy address that stops
  * working at the next deploy.
  *
@@ -19,7 +18,17 @@
  * every existing import keeps working.
  */
 export function appUrl(): string {
-  return (fixedAppUrl() || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') || 'http://localhost:3000').replace(/\/+$/, '')
+  // The production alias is not read here, on purpose (2026-11-15). A
+  // mailed link and the middleware's redirect must land on the host the
+  // sign-in cookie lives on, and with NEXTAUTH_URL unset that is the
+  // host the request came to. Only the SCIM address reads the alias,
+  // through fixedAppUrl below.
+  const pick =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    'http://localhost:3000'
+  return pick.replace(/\/+$/, '')
 }
 
 /**

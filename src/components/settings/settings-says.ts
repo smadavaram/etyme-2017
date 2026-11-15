@@ -88,6 +88,14 @@ export function wallSays(kind: string, on: boolean): { state: string; covers: st
 /** Beside a control the reader may not change. */
 export const ONLY_OWNER_OR_ADMIN = 'Only the Owner or an Admin changes this.'
 
+/** Beside a site's supplier ticks, for a seat that may not change them: true at a client, a supplier and an MSP alike. */
+/** Beside a site's Region box, for a seat that covers one region: why the box does not change. */
+export function regionFixedSays(region: string): string {
+  return `Your seat covers ${region}, so a site you add or change stays in ${region}.`
+}
+
+export const SITE_SUPPLIERS_WHO = 'Only the Owner, an Admin or the person who manages your suppliers changes these ticks.'
+
 // ── Sign-in (G3): recorded, not enforced ─────────────────────────────
 
 export const ASSURANCE_SAYS = 'Recorded only. Sign-in does not check it yet.'

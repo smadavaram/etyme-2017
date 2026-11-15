@@ -7,6 +7,7 @@ import {
 } from '@/lib/contacts'
 import { KIND_CHOICES, kindChoice, maySetRecordedKind } from '@/lib/counterparty'
 import { seatedWhoMay, whoMaySays, notYourButton } from '@/lib/refusal-words'
+import { CLIENT_PROGRAMS, SUPPLIER_SEATS, PROGRAM_OFFICE_SEATS, INTEGRATOR_SEATS } from '@/app/demo/seats'
 
 /**
  * Add contact and Add a company, after the founder's firm pressed them on
@@ -248,7 +249,17 @@ describe('no example in a box names a real-looking company or person', () => {
   it('every example on Add a company, Edit and the drawer’s Add a contact describes the box and names nobody', () => {
     const seen = placeholders(companiesPage)
     expect(seen).toEqual(expect.arrayContaining(['Name as on their contract', 'company.example', 'their-address', 'First and last name', 'name@company.example']))
-    for (const p of seen) expect(p).not.toMatch(/techpeple|dana|whitfield|client\.example/i)
+    for (const p of seen) expect(p).not.toMatch(/dana|whitfield|client\.example/i)
+    // A domain in an example is always one nobody can register.
+    for (const p of seen.filter((x) => /@|\.[a-z]{2,}$/.test(x))) expect(p).toMatch(/\.example$/)
+  })
+
+  it('no example on Add a company or Add contact names a firm the demo world holds', () => {
+    // Read from the demo's own list, so no firm's name is typed in a test.
+    const firms = [...CLIENT_PROGRAMS, ...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS].map((f) => f.name.toLowerCase())
+    expect(firms.length).toBeGreaterThan(3)
+    const seen = [...placeholders(companiesPage), ...placeholders(page), ...fieldExamples(modal)].map((x) => x.toLowerCase())
+    for (const p of seen) for (const f of firms) expect(p.includes(f), `"${p}" names ${f}`).toBe(false)
   })
 
   it('every example on Add contact describes the box and names nobody', () => {
