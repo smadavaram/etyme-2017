@@ -121,8 +121,8 @@ describe('Users & permissions', () => {
     // whose move it is (figureWords in lib/access-grant), and each is still
     // drawn by the shared stat, a link to exactly the rows it counted.
     expect(src).toContain('<Stat label={f.label} value={f.value} sub={f.says} href={`?show=${f.key}`}')
-    expect(src).toContain('<Field label="What can they do?">')
-    expect(src).toContain('<Field label="New role">')
+    expect(src).toContain('<Field label="What can they do?" help={roleChoiceSays(form.roleId, pickable)}>')
+    expect(src).toContain('<Field label="New role" help={roleChoiceSays(form.roleId, pickable)}>')
     expect(src).toContain('pending={inviting} pendingLabel="Inviting…"')
     expect(src).toContain('<RefusedState says={refused} />')
     expect(src).toContain("<ErrorState says={error} action={{ label: 'Try again', onClick: load }} />")
