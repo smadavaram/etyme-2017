@@ -448,7 +448,7 @@ Full text → 40, 11, 56, 68, 72.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72.
+Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -491,8 +491,10 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72.
   every gate and the badge (`standingWith`, `lacksPosition`).
 - **The email is the identifier** (founder, 2026-11-14). A contact's
   email domain says where she works, and a company's identity is its
-  domain. A company missing while a contact is added is created in that
-  save: not classified, and nobody is emailed.
+  domain. Among a firm's own records the same domain is one company
+  whatever the name, and one name on two domains is two. A company
+  missing while a contact is added is created in that save: not
+  classified, and nobody is emailed.
 - **A firm on Etyme is never tied to you from your side alone.** Two
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
@@ -785,7 +787,7 @@ type" below is what the code draws, and a test reads it.
 
 ## Sign-in, identity, Owners and access
 
-Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66.
+Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73.
 
 - **The sign-in page.** Account buttons first (Google, Microsoft,
   LinkedIn marked "Candidates only", each drawn only where its key
@@ -817,6 +819,10 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66.
   ownership is one act with the new Owner's yes. Recovery is by proof of
   the domain. The first person to sign a company up is an Admin, and
   Owner is earned by proof.
+- **A staff address that holds a seat reads her seat's book**
+  (2026-11-15). Staff reach is for the staff tools and for a staff
+  caller with no seat. A flag that widens a read is asked after the
+  seat, never before it.
 - **The Owner decides who sees what**: a grant by company, team or
   person (`PermissionGrant`), narrowed at the query. Never across a
   company, never past segregation of duties.
@@ -918,7 +924,7 @@ Full text → 28, 22, 23, 68, 69, 71.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
@@ -946,7 +952,7 @@ Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71.
   route are fixed together.
 - **Never**: load or simulation on production; a secret, password or
   sign-in code in chat; the coordinator holding the cron secret; a
-  one-time link or token shown, copied or logged.
+  one-time link or token shown, copied, logged or returned in a reply.
 - **Lessons, so they are not paid for twice.** A test that picks "the
   first row" is wrong by construction. A seeded world keeps the day it
   was born. `git add` of a shared file checks `git diff --cached` first.
