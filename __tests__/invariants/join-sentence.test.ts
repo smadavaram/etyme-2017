@@ -130,13 +130,8 @@ describe('a colleague who joins with only the Member role is told she has no rol
     'src/lib/password-door.ts',
     'src/lib/identity/provision.ts',
   ]
-  // The one sentence still waiting: the welcome after a password sign-up
-  // is held word for word equal to the in-app welcome in lib/notify/joined
-  // (etyme-conversation's), so the two are reworded together. This line
-  // goes in the commit that rewords them.
-  const WAITS_ON_THE_IN_APP_WELCOME = 'You are in ${company} as Member. Your owner has been told; you will see more once they give you a role.'
   // The strings a person reads, with code comments taken out.
-  const said = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(WAITS_ON_THE_IN_APP_WELCOME, '')
+  const said = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
   it('no sentence a joining colleague reads says she joins, or is in a company, as Member', () => {
     for (const p of doors) {

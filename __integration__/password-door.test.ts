@@ -306,7 +306,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'company', email, personName: 'Ravi Iyer', password: PASSWORD })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const v = await verifyEmail(lastLink(email, 'verify'))
-    expect(v).toMatchObject({ ok: true, says: 'You are in Kestrel Works as Member. Your owner has been told; you will see more once they give you a role.' })
+    expect(v).toMatchObject({ ok: true, says: 'You are in Kestrel Works with no role yet. You can see your own work now. An Owner or Admin there gives you a role.' })
     const seated = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, include: { contexts: { include: { role: true, company: true } } } })
     expect(seated.name).toBe('Ravi Iyer')
     expect(seated.contexts.map((c) => [c.company?.slug, c.role?.name])).toEqual([['kestrel', 'Member']])

@@ -75,10 +75,10 @@ export function soloFromCandidate(company: string, keepsPassword: boolean): stri
  * What a colleague reads once they are seated as Member. Word for word the
  * in-app welcome `welcomeSaid` in lib/notify/joined sends the same person
  * (etyme-conversation's), and a test holds the two equal, so the two are
- * reworded to "no role yet" together, never one alone.
+ * worded together, never one alone (reworded to "no role yet", 2026-11-15).
  */
 export function memberWelcome(company: string): string {
-  return `You are in ${company} as Member. Your owner has been told; you will see more once they give you a role.`
+  return `You are in ${company} with no role yet. You can see your own work now. An Owner or Admin there gives you a role.`
 }
 
 /**

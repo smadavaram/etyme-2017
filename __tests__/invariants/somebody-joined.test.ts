@@ -44,7 +44,7 @@ describe('when a colleague joins on the company domain', () => {
     const notices = joinedNotices({ companyId: 'acme', joinerId: 'priya', joiner: priya, ownerIds: ['owner'], teamsLinked: true })
     const own = notices.filter((n) => n.personId === 'priya')
     expect(own).toHaveLength(1)
-    expect(own[0].body).toBe('You are in Acme as Member. Your owner has been told; you will see more once they give you a role.')
+    expect(own[0].body).toBe('You are in Acme with no role yet. You can see your own work now. An Owner or Admin there gives you a role.')
     // In the app only: on a company channel "You are in" would be read by everybody.
     expect(own[0].channel ?? 'IN_APP').toBe('IN_APP')
   })

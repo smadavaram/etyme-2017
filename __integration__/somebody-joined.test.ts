@@ -105,7 +105,7 @@ describe('the owners hear that a colleague joined', () => {
     const own = await prisma.notification.findMany({ where: { companyId: mailCo.id, personId: mailJoiner } })
     expect(own).toHaveLength(1)
     expect(own[0].body).toBe(
-      'You are in Cavanaugh Glassworks as Member. Your owner has been told; you will see more once they give you a role.'
+      'You are in Cavanaugh Glassworks with no role yet. You can see your own work now. An Owner or Admin there gives you a role.'
     )
     expect(own[0].channel).toBe('IN_APP')
   })
