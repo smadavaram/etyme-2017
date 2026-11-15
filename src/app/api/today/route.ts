@@ -10,7 +10,7 @@ import { minorFromWhole } from '@/lib/money'
 import { prisma } from '@/lib/db'
 import { maySendBills } from '@/lib/money/bill-send'
 import { seatFor } from '@/lib/program-seat'
-import { rollingOffAt, benchAt, unpaidBills } from './reads'
+import { rollingOffAt, benchAt, askedAt, unpaidBills } from './reads'
 
 /**
  * GET /api/today
@@ -79,17 +79,20 @@ export async function GET(request: NextRequest) {
         seated: { clientName: seat.clientCompany.name },
         reads: NO_READS,
         picture: '',
-        billing: null, signed: null, rollingOff: null, bench: null, whoIsWhere: null, unpaid: null,
+        billing: null, signed: null, rollingOff: null, bench: null, benchAsked: null, whoIsWhere: null, unpaid: null,
       },
     })
   }
 
   const reads = todayReads(caller.permissions, company.kind)
 
-  const [tuesday, rolling, bench, unpaid] = await Promise.all([
+  const [tuesday, rolling, bench, benchAsked, unpaid] = await Promise.all([
     reads.billing || reads.bills || reads.people ? firmTuesday(company.id, now) : Promise.resolve(null),
     reads.people ? rollingOffAt(company.id, now) : Promise.resolve(null),
     reads.bench ? benchAt(company.id, now) : Promise.resolve(null),
+    // Who was asked onto the bench and has not answered: a count beside
+    // the bench, never on it, read by the seat that reads the bench.
+    reads.bench ? askedAt(company.id) : Promise.resolve(null),
     reads.bills ? unpaidBills(company.id, now) : Promise.resolve(null),
   ])
 
@@ -240,6 +243,7 @@ export async function GET(request: NextRequest) {
       signed,
       rollingOff: rolling,
       bench,
+      benchAsked,
       whoIsWhere,
       unpaid,
     },

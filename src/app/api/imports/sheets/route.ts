@@ -438,7 +438,10 @@ async function writeRows(
               consultant: {
                 select: {
                   listings: { where: { companyId, revokedAt: null }, select: { id: true } },
-                  _count: { select: { listings: { where: { revokedAt: null, companyId: { not: companyId } } } } },
+                  // Every other firm that ever listed them, taken back or
+                  // not, as `firmReadsAt` counts (fix list, layer 5, j): a
+                  // listing taken back does not make her words this firm's.
+                  _count: { select: { listings: { where: { companyId: { not: companyId } } } } },
                 },
               },
             },

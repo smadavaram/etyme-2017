@@ -126,6 +126,20 @@ export function benchSays(r: { name: string; since: string }, asOf: string): str
 }
 
 /**
+ * "1 asked, not answered yet": the people this firm asked onto its bench
+ * who have not said yes or no, said beside the bench and never counted on
+ * it, because only her yes puts somebody on a bench (fix list, layer 5,
+ * F3.3). Today read "Nobody on the bench yet." with an ask outstanding, as
+ * if nobody had been asked. Null where nobody is waiting, so a firm that
+ * asked nobody reads nothing new. The count is Candidates' own (INVITED
+ * listings at this firm, not taken back).
+ */
+export function askedNotAnsweredSays(asked: number | null | undefined): string | null {
+  if (!asked || asked < 1) return null
+  return `${asked} asked, not answered yet`
+}
+
+/**
  * The one line under the headline: the picture of the firm today.
  * "5 people billing at 2 clients. 2 roll off within 30 days. 1 on the
  * bench. 3 weeks signed and not yet billed." A part the seat may not read

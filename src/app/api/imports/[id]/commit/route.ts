@@ -144,6 +144,7 @@ export async function POST(
           where: { personId: person.id },
         })
 
+        const profileMade = !profile
         if (!profile) {
           profile = await tx.consultantProfile.create({
             data: {
@@ -177,12 +178,39 @@ export async function POST(
                 // The sheet's rates are dollars an hour; the columns hold cents.
                 rateMin: rateCents(parsed.payRate),
                 rateMax: rateCents(parsed.billRate),
+                // The name the firm's own sheet typed, which is what it reads
+                // of her before her yes (`firmReadsAt`, lib/consultant-
+                // portfolio/before-her-yes), the way Add consultant keeps it.
+                firmName: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : null,
                 ...invitation(now),
               },
             })
           }
           if (theirsToAnswer) alreadyOnEtyme++
           else invited++
+        }
+
+        // A consultant record this import made: its own row, as Add
+        // consultant writes one, so `firmReadsAt` knows the words on it are
+        // this firm's (`madeHere`) even after another firm lists her.
+        if (profileMade) {
+          await tx.automationLog.create({
+            data: {
+              companyId: importRecord.companyId,
+              action: 'CONSULTANT_CREATED',
+              summary: `A consultant record was made for "${parsed.name || person.name}" from ${fileName}. Nothing reaches past the firm until they say yes.`,
+              reason: 'A person at the firm pressed Import on the review page, for a row with no consultant record on Etyme.',
+              payload: {
+                personId: person.id,
+                profileId: profile.id,
+                createdBy: caller.person.id,
+                door: 'IMPORT',
+                importId: id,
+                personCreated: madeHere.has(person.id),
+              },
+              reversible: true,
+            },
+          })
         }
 
         if (theirsToAnswer) {

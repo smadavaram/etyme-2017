@@ -1,4 +1,6 @@
+import type { SellContractState } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { LIVE_STATES } from '@/lib/bench-filter'
 import { releasing, type RollingOff } from '@/lib/releasing-soon'
 import { benchSpell } from '@/lib/bench-profit'
 import { loadBook } from '@/app/api/ar/book'
@@ -105,6 +107,16 @@ const LIVE_OR_PAPERED = ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAU
  * record they joined it (the later of the listing and the end of their
  * last placement here). Staff with no placement and no listing have no
  * spell and are not on it.
+ *
+ * Placed today means placed anywhere (fix list, layer 5, item e). This
+ * read used to ask only this firm's own lines, while Bench's `whenFree`
+ * asks every firm's, so somebody placed at a client through another firm
+ * counted on the bench on Today and Candidates and read "On a placement
+ * until" on Bench. Now a line at any other firm that is live today takes
+ * the person off this bench. Of that line the database is asked only
+ * whose person it is, filtered to today at the query: never its firm,
+ * its client, its dates or its rate, so nothing of another firm's deal
+ * reaches this answer beyond the person's absence from it.
  */
 export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]> {
   const [listings, employees] = await Promise.all([
@@ -130,13 +142,18 @@ export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]>
   for (const e of employees) names.set(e.personId, e.person.name)
   if (names.size === 0) return []
 
-  const lines = await prisma.sellContract.findMany({
-    where: { companyId, personId: { in: [...names.keys()] }, state: { in: [...LIVE_OR_PAPERED] } },
-    select: { id: true, personId: true, startDate: true, endDate: true },
-  })
+  const people = [...names.keys()]
+  const [lines, elsewhere] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: { companyId, personId: { in: people }, state: { in: [...LIVE_OR_PAPERED] } },
+      select: { id: true, personId: true, startDate: true, endDate: true },
+    }),
+    placedElsewhereToday(companyId, people, now),
+  ])
 
   const out: BenchRow[] = []
   for (const [personId, name] of names) {
+    if (elsewhere.has(personId)) continue
     const spell = benchSpell({
       joinedBench: joined.get(personId) ?? null,
       lines: lines.filter((l) => l.personId === personId).map((l) => ({ id: l.id, startsOn: l.startDate, endsOn: l.endDate })),
@@ -145,6 +162,41 @@ export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]>
     if (spell.kind === 'NOW') out.push({ personId, name, since: iso(spell.from) })
   }
   return out.sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name))
+}
+
+/**
+ * Which of these people hold a line at another firm that is live today:
+ * started on or before today, and ending today or later, since a
+ * contract's last day is a day on site. Days are read the way Bench reads
+ * them (UTC days, `whenFree`). Only the person's id is selected.
+ */
+export async function placedElsewhereToday(companyId: string, personIds: string[], now: Date): Promise<Set<string>> {
+  if (personIds.length === 0) return new Set()
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const tomorrow = new Date(today.getTime() + A_DAY)
+  const rows = await prisma.sellContract.findMany({
+    where: {
+      companyId: { not: companyId },
+      personId: { in: personIds },
+      // The states that place a person, as Bench's `whenFree` reads them.
+      state: { in: [...LIVE_STATES] as SellContractState[] },
+      startDate: { lt: tomorrow },
+      OR: [{ endDate: null }, { endDate: { gte: today } }],
+    },
+    select: { personId: true },
+    distinct: ['personId'],
+  })
+  return new Set(rows.map((r) => r.personId))
+}
+
+/**
+ * How many people this firm asked onto its bench who have not answered:
+ * its INVITED listings not taken back, counted the way Candidates counts
+ * them (`GET /api/consultants`, `bench.invited`), so the two pages say
+ * one number. A count only; nobody is named.
+ */
+export async function askedAt(companyId: string): Promise<number> {
+  return prisma.benchListing.count({ where: { companyId, revokedAt: null, state: 'INVITED' } })
 }
 
 /** A bill this firm sent that still carries a balance. */

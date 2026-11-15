@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
@@ -12,7 +12,7 @@ import { hasPermission } from '@/lib/permissions'
 import { formatDay, formatDayLong } from '@/lib/format-date'
 import { amount, compact } from '@/lib/money-display'
 import {
-  NOT_YOURS_TODAY, queueRowView, benchSays, lastDaySays, weeksByPerson, seatedTodayLines,
+  NOT_YOURS_TODAY, queueRowView, benchSays, lastDaySays, weeksByPerson, seatedTodayLines, askedNotAnsweredSays,
   type QueueRowIn, type QueueRowView, type TodayReads,
 } from '@/lib/today-page'
 import { decisionsAddress } from './decisions/chips'
@@ -78,6 +78,8 @@ interface TodayData {
   } | null
   rollingOff: { contractId: string; personId: string; name: string; client: string | null; days: number; lastDay: string; started: boolean }[] | null
   bench: { personId: string; name: string; since: string }[] | null
+  /** Asked onto the bench and not answered yet: a count, never on the bench. Null where the seat does not read the bench. */
+  benchAsked: number | null
   whoIsWhere: { client: string; people: { personId: string; name: string }[]; totals: CurrencyTotal[] | null }[] | null
   unpaid: { invoiceId: string; number: string; client: string; currency: string; outstandingMinor: number; dueOn: string; daysOverdue: number }[] | null
 }
@@ -329,12 +331,13 @@ export default function DashboardPage() {
           empty={t.bench && t.bench.length === 0 ? 'Nobody on the bench yet.' : null}
           lines={(t.bench ?? []).slice(0, 4).map((b) => benchSays(b, t.asOf))
             .concat((t.bench?.length ?? 0) > 4 ? [`and ${(t.bench?.length ?? 0) - 4} more`] : [])}
+          after={t.bench ? <AskedLine asked={t.benchAsked} open={mayOpen('/dashboard/bench', permissions)} /> : null}
         />
       </div>
 
       {/* Two columns from the large breakpoint up; one, stacked, on a phone. */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <WhoIsWhere t={t} />
+        <WhoIsWhere t={t} benchOpens={mayOpen('/dashboard/bench', permissions)} />
         <Bills t={t} busy={busy} said={said} onAct={act} />
       </div>
 
@@ -352,7 +355,7 @@ export default function DashboardPage() {
 // ─── Sub-components ────────────────────────────────
 
 /** "Who is where": the firm's people by client, the monthly figure beside each, and Our bench last. */
-function WhoIsWhere({ t }: { t: TodayData }) {
+function WhoIsWhere({ t, benchOpens }: { t: TodayData; benchOpens: boolean }) {
   return (
     <div className="panel">
       <h2 className="headline-serif text-[18px] text-etyme-ink mb-4">Who is where</h2>
@@ -378,6 +381,7 @@ function WhoIsWhere({ t }: { t: TodayData }) {
             <div className="text-[12px] text-etyme-muted mt-0.5">
               {t.bench.length === 0 ? 'Nobody on the bench yet.' : t.bench.map((b) => benchSays(b, t.asOf)).join(' · ')}
             </div>
+            <AskedLine asked={t.benchAsked} open={benchOpens} />
           </div>
         )}
       </div>
@@ -478,8 +482,27 @@ function Bills({ t, busy, said, onAct }: {
   )
 }
 
+/**
+ * "1 asked, not answered yet" under the bench, linking to Bench where this
+ * seat may open it; plain words where it may not. Nothing where nobody is
+ * waiting on an answer (fix list, layer 5, F3.3).
+ */
+function AskedLine({ asked, open }: { asked: number | null; open: boolean }) {
+  const says = askedNotAnsweredSays(asked)
+  if (!says) return null
+  return (
+    <p className="text-[12px] text-etyme-muted mt-1">
+      {open ? (
+        <Link href="/dashboard/bench" className="text-etyme-action hover:underline">{says}</Link>
+      ) : (
+        says
+      )}
+    </p>
+  )
+}
+
 /** One of the four figures: the label, the value, and the names under it. */
-function Figure({ label, values, lines, note = null, empty = null, denied = null }: {
+function Figure({ label, values, lines, note = null, empty = null, denied = null, after = null }: {
   label: string
   values: { value: string; note: string | null }[]
   lines: string[]
@@ -488,6 +511,8 @@ function Figure({ label, values, lines, note = null, empty = null, denied = null
   empty?: string | null
   /** Where the part is not this seat's to read, the sentence that says so. */
   denied?: string | null
+  /** A line drawn under the figure, or under its empty sentence, where the seat reads the part. */
+  after?: ReactNode
 }) {
   return (
     <div className="panel">
@@ -495,7 +520,10 @@ function Figure({ label, values, lines, note = null, empty = null, denied = null
       {denied ? (
         <p className="text-[12px] text-etyme-muted">{denied}</p>
       ) : empty ? (
-        <p className="text-[13px] text-etyme-muted">{empty}</p>
+        <>
+          <p className="text-[13px] text-etyme-muted">{empty}</p>
+          {after}
+        </>
       ) : (
         <>
           {values.map((v, i) => (
@@ -509,6 +537,7 @@ function Figure({ label, values, lines, note = null, empty = null, denied = null
               <p key={i} className="text-[12px] text-etyme-muted">{l}</p>
             ))}
           </div>
+          {after}
           {note && <p className="text-[11px] text-etyme-faint mt-2">{note}</p>}
         </>
       )}
