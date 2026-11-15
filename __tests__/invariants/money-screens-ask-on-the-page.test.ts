@@ -64,7 +64,7 @@ describe('the bill’s page, Accounts receivable and Rate history ask in fields'
   it('the bill’s page takes a waiver’s reason, a question to the supplier and a draft’s withdrawal on the page, and asks before withdrawing an exception', () => {
     const page = read('src/app/dashboard/invoices/[id]/page.tsx')
     expect(page).toMatch(/<SaidField\s+id=\{`waive-\$\{c\.code\}`\}/)
-    expect(page).toMatch(/<SaidYes\s+says="Withdraw this exception\? The invoice may stop matching\."/)
+    expect(page).toMatch(/<SaidYes\s+says="Withdraw this exception\? The invoice receipt may stop matching\."/)
     expect(page).toMatch(/<SaidField\s+id="ask-supplier"/)
     expect(page).toMatch(/<SaidField\s+id="withdraw-draft"/)
   })

@@ -206,7 +206,7 @@ function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
         <div className="mt-2 max-w-[520px]">
           <SaidField
             id={`waive-${c.code}`}
-            label="Why this is waived. It travels with the invoice, and the next person to read it will be an auditor."
+            label="Why this is waived. It travels with the invoice receipt, and the next person to read it will be an auditor."
             placeholder="The client agreed the extra hours by email on Oct 30."
             submit="Record the exception"
             onSend={(reason) => onWaive(c.code, reason)}
@@ -217,7 +217,7 @@ function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
       {asking === 'WITHDRAW' && (
         <div className="mt-2 max-w-[520px]">
           <SaidYes
-            says="Withdraw this exception? The invoice may stop matching."
+            says="Withdraw this exception? The invoice receipt may stop matching."
             yes="Withdraw it"
             no="Keep it"
             onYes={() => onWithdraw(c.code)}
@@ -277,7 +277,7 @@ export default function InvoiceDetail() {
           setRefusedSaid(body.error.message)
           return
         }
-        throw new Error(body?.error?.message ?? 'Invoice not found')
+        throw new Error(body?.error?.message ?? 'That bill or invoice receipt was not found.')
       }
       const j = await readJson(res)
       setData(j.data)
@@ -304,10 +304,10 @@ export default function InvoiceDetail() {
     return null
   }
 
-  /** A question about this invoice, on the thread about the job with the supplier. */
+  /** A question about this invoice receipt, on the thread about the job with the supplier. */
   async function askSupplier(question: string): Promise<string | null> {
     const r = data?.receipt
-    if (!r?.requirementId || !r.supplierId) return 'This invoice names no job to ask about.'
+    if (!r?.requirementId || !r.supplierId) return 'This invoice receipt names no job to ask about.'
     const res = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -567,14 +567,14 @@ export default function InvoiceDetail() {
           </p>
           {inv.direction === 'PAYABLE' && data.receipt.requirementId && data.receipt.supplierId && !askingSupplier && (
             <button onClick={() => setAskingSupplier(true)} className="mt-1 text-[13px] text-etyme-action hover:underline">
-              Ask {inv.vendor?.name ?? 'the supplier'} about this invoice
+              Ask {inv.vendor?.name ?? 'the supplier'} about this invoice receipt
             </button>
           )}
           {inv.direction === 'PAYABLE' && askingSupplier && (
             <div className="mt-2 max-w-[520px]">
               <SaidField
                 id="ask-supplier"
-                label={`Your question to ${inv.vendor?.name ?? 'the supplier'} about invoice ${inv.number}`}
+                label={`Your question to ${inv.vendor?.name ?? 'the supplier'} about invoice receipt ${inv.number}`}
                 placeholder="Which week are the 41.5 hours from?"
                 submit="Send"
                 rows={3}
@@ -686,7 +686,7 @@ export default function InvoiceDetail() {
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.lines.length === 0 && (
-            <EmptyState compact says="This invoice has no lines, so there is nothing to match against." />
+            <EmptyState compact says="No line is on it, so there is nothing to match against." />
           )}
           {data.lines.map((l: Line) => (
             <div key={l.id} className="p-4 flex items-center gap-4">

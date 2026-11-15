@@ -13,6 +13,7 @@ import { formatDay } from '@/lib/format-date'
 import type { ReceiptRow } from '@/lib/money/receipts-read'
 import type { ReaderRole } from '@/lib/money/receipt-screen'
 import { ReceiptForm } from './receipt-form'
+import { NO_RECEIPTS, RECEIPT_COMES_FROM, PAID_FROM_ITS_OWN_PAGE, type ReceiptsEmpty } from '@/lib/money/receipts-empty'
 
 /**
  * Invoice receipts — what suppliers sent, typed in by the firm that pays
@@ -43,7 +44,7 @@ function statusOf(r: { status: string; paidMinor: number }) {
 const short = (iso: string | null) => (iso ? formatDay(new Date(iso)) : '—')
 
 export function Receipts({ books, focus }: { books: Books; focus?: string | null }) {
-  const [data, setData] = useState<{ role: ReaderRole; receipts: ReceiptRow[] } | null>(null)
+  const [data, setData] = useState<{ role: ReaderRole; receipts: ReceiptRow[]; empty?: ReceiptsEmpty | null } | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(focus ?? null)
   const [recording, setRecording] = useState(false)
@@ -154,7 +155,12 @@ export function Receipts({ books, focus }: { books: Books; focus?: string | null
         onRowClick={(r) => { setSelected(r.id); setSaid(null) }}
         searchFilter={(r, q) => r.number.toLowerCase().includes(q) || r.supplier.toLowerCase().includes(q)}
         searchPlaceholder="Search by invoice receipt number or supplier…"
-        emptyMessage="No invoice receipt has been typed in here yet."
+        // Where a receipt comes from, that the firm's own employees are
+        // paid by payroll, and where a receipt is paid: the route's own
+        // words (lib/money/receipts-empty), the same on the Bills page.
+        emptyMessage={data.empty?.message ?? NO_RECEIPTS}
+        emptyDetail={data.empty?.detail ?? `${RECEIPT_COMES_FROM} ${PAID_FROM_ITS_OWN_PAGE}`}
+        emptyAction={data.empty?.link ?? undefined}
         exportName="invoice-receipts"
         defaultPageSize={20}
       />

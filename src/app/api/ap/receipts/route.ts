@@ -5,6 +5,10 @@ import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 import { receiptsFor } from '@/lib/money/receipts-read'
 import { receiptRole } from '@/lib/money/receipt-role'
+import { receiptsEmpty } from '@/lib/money/receipts-empty'
+import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
+import { mayOpen as navMayOpen } from '@/lib/nav-table'
+import { prisma } from '@/lib/db'
 
 /**
  * GET /api/ap/receipts — every invoice receipt this firm typed in, as the
@@ -46,11 +50,33 @@ export async function GET(request: NextRequest) {
 
   const role = receiptRole(reading)
   const receipts = await receiptsFor(reading.companyId, role, caller.isService ? null : caller.person.id)
+  // What an empty list says (lib/money/receipts-empty): where a receipt
+  // comes from, that the firm's own employees are paid by payroll where it
+  // has any, and that a receipt is paid from its own page.
+  const employs = receipts.length === 0
+    ? (await prisma.buyContract.count({
+        where: {
+          companyId: reading.companyId,
+          vendorCompanyId: null,
+          supplierSellContractId: null,
+          contractType: { in: [...EMPLOYEE_CONTRACT_TYPES] },
+          state: { not: 'CANCELLED' },
+        },
+      })) > 0
+    : false
+  const empty = receipts.length === 0
+    ? receiptsEmpty({
+        kind: reading.companyKind,
+        employs,
+        mayOpenPayroll: !reading.seated && navMayOpen('/dashboard/payroll', reading.caller.permissions),
+      })
+    : null
   return NextResponse.json({
     data: {
       reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says },
       role,
       receipts,
+      empty,
     },
   })
 }

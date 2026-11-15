@@ -14,7 +14,9 @@ import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { loadContractHolidays } from '@/lib/holidays'
 import { writeCyclesFor, chosenPayroll } from '@/lib/contract-cycles'
-import { firstDayNeededSays } from '@/lib/money/pay-periods'
+import { firstDayNeededSays, firstDayNotSetSays, firstDayRefusalSays, firstDayStep, FIRST_DAY_HREF } from '@/lib/money/pay-periods'
+import { mayOpen } from '@/lib/nav-table'
+import { rhythmFrom } from '@/lib/pay-dates'
 import { paidByPayroll } from '@/lib/money/paid-through'
 import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
@@ -344,11 +346,28 @@ export async function POST(request: NextRequest) {
   // given that company's pay days, counted from its first pay period. With
   // no first day there are none to give, so the line is refused with the
   // Owner's step rather than written with dates nobody chose.
+  const paidThroughPayroll = Boolean(pay) && paidByPayroll({ contractType: pay!.contractType, vendorCompanyId: pay!.vendorCompanyId })
   const firstDayNeeded = firstDayNeededSays({
-    payroll: Boolean(pay) && paidByPayroll({ contractType: pay!.contractType, vendorCompanyId: pay!.vendorCompanyId }),
+    payroll: paidThroughPayroll,
     chosen: chosenPayroll(company),
   })
-  if (firstDayNeeded) return errResponse(firstDayNeeded, 'startDate')
+  // The way to the box goes with the refusal (Area E, 2026-11-14): a link
+  // for a seat that may open Settings, the role to ask for any other.
+  const firstDay = firstDayStep(mayOpen(FIRST_DAY_HREF, caller.permissions))
+  if (firstDayNeeded) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: firstDayRefusalSays(firstDay), field: 'startDate', link: firstDay.link } },
+      { status: 422 }
+    )
+  }
+  // A company that never saved its payroll choice is refused nothing; it
+  // is told, after the line is written, what will not show yet.
+  const firstDayNotSet = firstDayNotSetSays({
+    payroll: paidThroughPayroll,
+    chosen: chosenPayroll(company),
+    reads: rhythmFrom(company),
+    personName: person.name,
+  })
 
   // ── The client on the other side of it ─────────────────────────────
   //
@@ -879,6 +898,11 @@ export async function POST(request: NextRequest) {
         // How the person is engaged and paid, or that nobody has said yet
         // — in which case the placement cannot start until somebody does.
         terms: { says: line.says, payLine: Boolean(pay) },
+        // Where the company's pay days wait on a Sunday nobody set: the
+        // sentence, and the link or who to ask (`firstDayStep`).
+        firstDay: firstDayNotSet
+          ? { says: firstDay.ask ? `${firstDayNotSet} ${firstDay.ask}` : firstDayNotSet, link: firstDay.link }
+          : null,
         message: result.header
           ? (pinned
               ? `Recorded as a line on ${result.header.number}, from ${clientCompany.name}. `

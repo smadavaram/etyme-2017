@@ -18,6 +18,8 @@ import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCou
 import { booksFrom, booksHref, otherBooks, switchLabel, invoiceHref, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
 import { billStateWord } from '@/lib/money/bill-state'
 import { formatDay } from '@/lib/format-date'
+import { RAISE_A_BILL, type BillStepLink } from '@/lib/money/nothing-to-bill'
+import { receiptsEmpty } from '@/lib/money/receipts-empty'
 import { sentRowsInPlace, awaitsPayment, offersSend } from '@/lib/money/bill-sent-view'
 
 /**
@@ -192,7 +194,7 @@ function agingColor(bucket: string): string {
 // ── Format currency ─────────────────────────────────
 
 
-// ── Generate Invoice Modal ───────────────────────────
+// ── Raise a bill ─────────────────────────────────────
 
 interface EngagementOption {
   id: string
@@ -214,6 +216,8 @@ function GenerateInvoiceModal({
   const [loadingEngagements, setLoadingEngagements] = useState(true)
   /** Why there is nothing to bill, where there is nothing to bill. */
   const [nothingToBill, setNothingToBill] = useState<string | null>(null)
+  /** The act that unblocks it, where the route said this seat may do it. */
+  const [nothingLink, setNothingLink] = useState<BillStepLink | null>(null)
   const [engagementId, setEngagementId] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
@@ -240,12 +244,15 @@ function GenerateInvoiceModal({
           setNothingToBill(body.error?.message ?? 'Your role cannot raise a bill.')
           return
         }
-        const list: EngagementOption[] = body.data?.engagements ?? []
+        // The route decides whether anything can be billed, and the one
+        // missing step where not; the Bills page prints the same answer.
+        const list: EngagementOption[] = body.data?.canBill === false ? [] : body.data?.engagements ?? []
         setEngagements(list)
         setNothingToBill(list.length === 0 ? body.data?.says ?? null : null)
+        setNothingLink(list.length === 0 ? body.data?.link ?? null : null)
         if (list.length === 1) setEngagementId(list[0].id)
       })
-      .catch(() => setNothingToBill('The list of engagements could not be read. Try again.'))
+      .catch(() => setNothingToBill('Who can be billed could not be read. Try again.'))
       .finally(() => setLoadingEngagements(false))
   }, [])
 
@@ -274,7 +281,7 @@ function GenerateInvoiceModal({
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to generate the bill')
+        setError(body.error?.message ?? 'That bill could not be raised. Try again.')
         if (body.error?.draft?.href) setHeldByDraft({ number: body.error.draft.number, href: body.error.draft.href })
         return
       }
@@ -284,7 +291,7 @@ function GenerateInvoiceModal({
       // and weeks the firm above has not accepted. A short bill read
       // without those sentences reads as a short month.
       const msg = [
-        body.data?.message ?? 'Bill generated',
+        body.data?.message ?? 'Bill raised.',
         body.data?.overtime?.says,
         body.data?.heldBack?.says,
       ].filter(Boolean).join(' ')
@@ -301,7 +308,7 @@ function GenerateInvoiceModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Generate bill</h2>
+          <h2 className="text-lg font-semibold">{RAISE_A_BILL}</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -321,7 +328,7 @@ function GenerateInvoiceModal({
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-1">Who and which weeks *</label>
             {loadingEngagements ? (
-              <LoadingState compact says="Loading engagements…" />
+              <LoadingState compact says="Reading who can be billed…" />
             ) : engagements.length > 0 ? (
               <select
                 required
@@ -348,8 +355,14 @@ function GenerateInvoiceModal({
               // have refused anyway.
               <p className="text-[13px] text-etyme-muted">
                 {nothingToBill ??
-                  'There is no engagement here to bill. A bill is raised by the firm that ' +
-                    'supplied the people, against its own live placements.'}
+                  'Nothing can be billed here yet. A bill is raised by the firm that ' +
+                    'supplied the people, against its own placements.'}
+                {nothingLink && (
+                  <>
+                    {' '}
+                    <a href={nothingLink.href} className="text-etyme-action hover:underline">{nothingLink.label}</a>
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -369,7 +382,7 @@ function GenerateInvoiceModal({
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               />
-              <p className="text-[10px] text-etyme-faint mt-1">Optional — filters timesheets</p>
+              <p className="text-[10px] text-etyme-faint mt-1">Optional — bills only weeks inside these dates</p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Period end</label>
@@ -380,12 +393,12 @@ function GenerateInvoiceModal({
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               />
-              <p className="text-[10px] text-etyme-faint mt-1">Optional — filters timesheets</p>
+              <p className="text-[10px] text-etyme-faint mt-1">Optional — bills only weeks inside these dates</p>
             </div>
           </div>
 
           <div className="rounded-lg bg-etyme-canvas px-4 py-3 text-[12px] text-etyme-muted">
-            Generates a bill from all approved timesheets under the selected engagement that are not yet billed.
+            Raises one bill from every week the client approved for this choice that no bill carries yet.
             {periodStart || periodEnd ? ' Filtered to the specified period.' : ' Covers all available periods.'}
           </div>
           </>
@@ -402,7 +415,7 @@ function GenerateInvoiceModal({
                 disabled={submitting || !engagementId}
                 className="btn-primary disabled:opacity-50"
               >
-                {submitting ? 'Generating…' : 'Generate bill'}
+                {submitting ? 'Raising…' : RAISE_A_BILL}
               </button>
             )}
           </div>
@@ -530,6 +543,13 @@ export default function InvoicesPage() {
   const [readOnce, setReadOnce] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showGenerate, setShowGenerate] = useState(false)
+  /**
+   * Whether anything can be billed now, and the one missing step where not,
+   * as GET /api/invoices/generate decides it (Area E, 2026-11-14). The
+   * button is drawn only where something can be billed; the sentence
+   * stands in its place, and in the empty list, where nothing can.
+   */
+  const [billWaits, setBillWaits] = useState<{ canBill: boolean; says: string | null; link: BillStepLink | null } | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   /**
    * Which side of the ledger the totals describe. Never both at once.
@@ -620,6 +640,26 @@ export default function InvoicesPage() {
     (next: Books) => router.replace(booksHref('/dashboard/invoices', next) as any, { scroll: false }),
     [router]
   )
+
+  // Asked once the framing says this reader's firm bills here, and again
+  // after a bill is raised. A refusal is a sentence in the button's place.
+  const billsHere = Boolean(framing?.create)
+  const readBillWaits = useCallback(async () => {
+    try {
+      const r = await fetch('/api/invoices/generate')
+      const body = await r.json().catch(() => ({}) as any)
+      if (!r.ok) {
+        setBillWaits({ canBill: false, says: body.error?.message ?? 'Your role cannot raise a bill.', link: null })
+        return
+      }
+      setBillWaits({ canBill: body.data?.canBill !== false, says: body.data?.says ?? null, link: body.data?.link ?? null })
+    } catch {
+      setBillWaits({ canBill: false, says: 'Whether anything can be billed could not be read. Reload the page to try again.', link: null })
+    }
+  }, [])
+  useEffect(() => {
+    if (billsHere) readBillWaits()
+  }, [billsHere, readBillWaits])
 
   // Open the generate modal when navigated with ?new=1
   useEffect(() => {
@@ -762,7 +802,7 @@ export default function InvoicesPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `invoices-export-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `${side === 'RECEIVABLE' ? 'bills' : 'invoice-receipts'}-export-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
 
@@ -1087,10 +1127,24 @@ export default function InvoicesPage() {
                same reason the client does: it is reading a book it does
                not bill from. `create` is null there, and the label on it
                is the reader's own word for the act. */}
-            {framing?.create && (
+            {framing?.create && billWaits?.canBill && (
               <button onClick={() => setShowGenerate(true)} className="btn-primary">
                 + {framing.create}
               </button>
+            )}
+            {/* Nothing can be billed: the route's one missing step in the
+                button's place, with the act that unblocks it where the
+                seat may do it, so no button opens an empty dialog. */}
+            {framing?.create && billWaits && !billWaits.canBill && billWaits.says && (
+              <p className="text-[12px] text-etyme-muted max-w-sm">
+                {billWaits.says}
+                {billWaits.link && (
+                  <>
+                    {' '}
+                    <a href={billWaits.link.href} className="text-etyme-action hover:underline">{billWaits.link.label}</a>
+                  </>
+                )}
+              </p>
             )}
           </>}
         />
@@ -1260,10 +1314,14 @@ export default function InvoicesPage() {
             ? `No ${statusFilter.toLowerCase()} ${side === 'PAYABLE' ? 'invoice receipts to pay' : 'bills to collect'}.`
             : side === 'PAYABLE' ? 'Nothing to pay.' : 'No bills yet.'
         }
-        emptyDetail={isClient
-          ? 'Your suppliers send their invoices from the hours you approve. Each appears here as an invoice receipt once submitted, checked against the timesheets and the purchase order.'
-          : 'A bill is made from the weeks your client has approved. Press Generate to bill them.'}
-        exportName="invoices"
+        // The payables side says where an invoice receipt comes from, for
+        // every kind (lib/money/receipts-empty); the bills side says the
+        // route's one missing step, the sentence beside the button.
+        emptyDetail={side === 'PAYABLE' || isClient
+          ? receiptsEmpty({ kind: company.kind, employs: false, mayOpenPayroll: false }).detail
+          : billWaits?.says ?? 'A bill is made from the weeks a client approved and nobody has billed yet.'}
+        emptyAction={side === 'RECEIVABLE' && !isClient && billWaits?.link ? billWaits.link : undefined}
+        exportName={side === 'RECEIVABLE' ? 'bills' : 'invoice-receipts'}
         selectable
         // One detail for an invoice: the page with the check, the money
         // and the pay form together. The row used to open a side panel
@@ -1319,6 +1377,7 @@ export default function InvoicesPage() {
           onGenerated={(msg) => {
             showToast(msg)
             fetchInvoices()
+            readBillWaits()
           }}
         />
       )}

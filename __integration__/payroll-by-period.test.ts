@@ -340,19 +340,34 @@ describe('one door and one answer for the company’s periods', () => {
     }
   })
 
-  it('a company that has not set its first day keeps the calendar month, with one sentence saying where the Owner sets it', async () => {
+  it('a company that has not set its first day keeps the calendar month, and the Owner reads a link to the box where the Sunday is set', async () => {
     await prisma.company.update({ where: { id: firmId }, data: { payFirstPeriodStart: null } })
     const data = await rows('2026-12')
     expect(data.payPeriods).toBeNull()
     expect(data.periodSays).toBe(
-      "Brightmoor Staffing pays every other week, but this page lists pay by calendar month until the Sunday its pay periods count from is set. " +
-      'The Owner or an Admin sets it in Settings, under Cycles, then Payroll: "The Sunday your pay periods are counted from".',
+      'Brightmoor Staffing pays every other week, but this page lists pay by calendar month until the Sunday its pay periods count from is set.',
     )
+    expect(data.firstDayLink).toEqual({
+      href: '/dashboard/settings?tab=cycles#first-pay-day',
+      label: 'Set "The Sunday your pay periods are counted from" in Settings',
+    })
     expect(data.runsHere).toBe(true)
     as(BRIGHTMOOR)
     const r = await json(await payroll(req('GET', '/api/payroll?period=2026-12-06')))
     expect(r.status).toBe(422)
     expect(r.body.error.field).toBe('period')
+  })
+
+  it('a payroll seat that cannot open Settings is told to ask the Owner or an Admin, and is shown no link', async () => {
+    await prisma.company.update({ where: { id: firmId }, data: { payFirstPeriodStart: null } })
+    as('world-brightmoor-payroll@demo.etyme.local')
+    const r = await json(await payroll(req('GET', '/api/payroll?period=2026-12')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.periodSays).toBe(
+      'Brightmoor Staffing pays every other week, but this page lists pay by calendar month until the Sunday its pay periods count from is set. ' +
+      'Ask the Owner or an Admin to set it.',
+    )
+    expect(r.body.data.firstDayLink).toBeNull()
   })
 
   it('a company that pays once a month keeps its calendar picker, whatever first day it once stored', async () => {

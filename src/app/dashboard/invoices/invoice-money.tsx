@@ -363,7 +363,7 @@ export function InvoiceMoney({
           </div>
           <p className={`mt-2 text-[11px] ${coding.reconciliation.balanced ? 'text-etyme-verified' : 'text-etyme-attention'}`}>
             {coding.reconciliation.balanced
-              ? '✓ The coded total matches the invoice'
+              ? '✓ The coded total matches the invoice receipt'
               : `The coded total is ${fromUnits(coding.reconciliation.codedTotal, invoice.currency)} against ${fromUnits(coding.reconciliation.invoiceTotal, invoice.currency)}`}
           </p>
           {coding.reconciliation.codedForEndClient && (
@@ -419,7 +419,7 @@ export function InvoiceMoney({
       {/* An invoice reaches the payer through the check, never around it. */}
       {outstanding > 0 && notSubmitted && (
         <div className="border-t border-etyme-rule pt-6">
-          <p className="eyebrow mb-2">Pay this invoice</p>
+          <p className="eyebrow mb-2">Pay this invoice receipt</p>
           <p className="text-sm text-etyme-muted">
             Not yet. Your supplier has raised it but not submitted it, so it has not been checked
             against the hours you approved or the purchase order. It can be paid once it has.
@@ -484,7 +484,7 @@ export function InvoiceMoney({
 
       {outstanding > 0 && !notSubmitted && gateSaysPay && invoice.direction !== 'NEITHER' && desk.mayPay && (
         <div id="pay" className="border-t border-etyme-rule pt-6">
-          <p className="eyebrow mb-3">{payer ? 'Pay this invoice' : 'Record a payment received'}</p>
+          <p className="eyebrow mb-3">{payer ? 'Pay this invoice receipt' : 'Record a payment received'}</p>
           <form onSubmit={pay} className="space-y-3">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Amount</label>

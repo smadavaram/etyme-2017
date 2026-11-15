@@ -25,9 +25,11 @@ import { workedOutKeys, isWorkedOut, payCovers, coversLeft } from '@/lib/money/p
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
+  calendarMonthWaitsSays, firstDayStep, FIRST_DAY_HREF,
   nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, statusWithHeld, payStatusSays, heldAboveTableSays, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
+import { mayOpen } from '@/lib/nav-table'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
 
 /**
@@ -1036,12 +1038,19 @@ export async function GET(request: NextRequest) {
     : co.byPeriod
       ? `${companyName} pays ${PAY_PERIOD_WORDS[co.rhythm.payPeriod].toLowerCase()}, so pay is worked out and paid ` +
         'by pay period. Pick one above to run it; a calendar month is shown here for reading only.'
-      : calendarMonthSays(companyName, co.rhythm)
+      : calendarMonthWaitsSays(companyName, co.rhythm) ?? calendarMonthSays(companyName, co.rhythm)
+  // A month listed only because the first Sunday is not set ends in the
+  // way to the box: the link for a seat that may open Settings, who to ask
+  // for any other (Area E, 2026-11-14).
+  const firstDay = !shownPeriod && !co.byPeriod && calendarMonthWaitsSays(companyName, co.rhythm)
+    ? firstDayStep(mayOpen(FIRST_DAY_HREF, caller.permissions))
+    : null
   const nothingToPay = shownPeriod && !onRun.some((p) => p.totalApprovedHours > 0) ? nothingToPaySays(shownPeriod) : null
 
   return NextResponse.json({
     data: {
-      periodSays,
+      periodSays: firstDay?.ask ? `${periodSays} ${firstDay.ask}` : periodSays,
+      firstDayLink: firstDay?.link ?? null,
       payPeriods,
       // Whether Calculate and Process may be offered on this view: on a
       // company that pays by its own periods, only on one of them.

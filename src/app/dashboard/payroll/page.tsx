@@ -287,6 +287,8 @@ export default function PayrollPage() {
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
   // The pay period the company set, in the route's one sentence.
   const [periodSays, setPeriodSays] = useState<string | null>(null)
+  /** The way to the first-Sunday box, where the route said this seat may open it. */
+  const [firstDayLink, setFirstDayLink] = useState<{ href: string; label: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
@@ -363,6 +365,7 @@ export default function PayrollPage() {
       setPaidElsewhere(body.data?.paidElsewhere ?? [])
       setSummary(body.data?.summary ?? null)
       setPeriodSays(body.data?.periodSays ?? null)
+      setFirstDayLink(body.data?.firstDayLink ?? null)
       const periods: PayPeriods | null = body.data?.payPeriods ?? null
       setPayPeriods(periods)
       setRunsHere(body.data?.runsHere !== false)
@@ -820,7 +823,19 @@ export default function PayrollPage() {
         </>}
       />
 
-      {periodSays && <p className="mb-2 text-[12.5px] text-etyme-muted">{periodSays}</p>}
+      {periodSays && (
+        <p className="mb-2 text-[12.5px] text-etyme-muted">
+          {periodSays}
+          {/* The act that ends the calendar month, for a seat that may do it
+              (Area E, 2026-11-14); any other seat's sentence names who to ask. */}
+          {firstDayLink && (
+            <>
+              {' '}
+              <a href={firstDayLink.href} className="text-etyme-action hover:underline">{firstDayLink.label}</a>
+            </>
+          )}
+        </p>
+      )}
       {/* Beside the company's pay periods and their pay days: an empty
           holiday calendar moves no pay day off a public holiday. */}
       {payPeriods && noHolidays && <p className="mb-2 text-[12.5px] text-etyme-attention">{noHolidays}</p>}

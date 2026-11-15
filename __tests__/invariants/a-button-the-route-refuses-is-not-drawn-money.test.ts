@@ -117,7 +117,7 @@ describe('a question to the supplier is typed on the page and kept through a ref
   it('what the field posts names the job, the supplier and the invoice, with the question as typed', () => {
     expect(askSupplierBody({ requirementId: 'job-1', supplierId: 'brightmoor', number: 'PR-2026-0441', question: '  Which week are the 41.5 hours from? ' })).toEqual({
       topic: 'REQUIREMENT', topicId: 'job-1', withCompanyId: 'brightmoor',
-      initialMessage: 'About invoice PR-2026-0441: Which week are the 41.5 hours from?',
+      initialMessage: 'About invoice receipt PR-2026-0441: Which week are the 41.5 hours from?',
     })
   })
 

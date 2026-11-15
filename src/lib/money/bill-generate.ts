@@ -135,8 +135,20 @@ export interface PlannedBill {
   expenses: { expenseId: string; sellContractId: string; amountMinor: number }[]
 }
 
+/**
+ * Where a run found no hours at all to bill, the weeks it read, kept off
+ * the reply's body: the Bills page's GET reads them to say which step is
+ * missing (lib/money/nothing-to-bill, `waitsOnSays`), from the same read
+ * the refusal was written from.
+ */
+export interface NoHoursRead {
+  weeks: import('@/lib/money/nothing-to-bill').WeekNotBillable[]
+  /** The first week filed and waiting for the client's approval, where one is. */
+  waitingWeek: { id: string; clientOnEtyme: boolean } | null
+}
+
 export type BillOutcome =
-  | { ok: false; status: number; body: { error: Record<string, unknown> } }
+  | { ok: false; status: number; body: { error: Record<string, unknown> }; noHours?: NoHoursRead }
   | { ok: true; status: 200; planned: PlannedBill; body: { data: { planned: PlannedBill } }; invoiceId?: undefined }
   | { ok: true; status: 201; invoiceId: string; planned: PlannedBill; body: { data: Record<string, unknown> } }
 
@@ -791,7 +803,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     const waiting = await prisma.timesheet.findMany({
       where: anyWeek,
       select: {
-        periodStart: true, status: true,
+        id: true, periodStart: true, status: true,
         person: { select: { name: true } },
         assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { id: true }, take: 1 },
         invoiceLines: {
@@ -801,36 +813,44 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         },
         sellContract: {
           select: {
-            clientCompany: { select: { name: true } },
-            endClientCompany: { select: { name: true } },
+            clientCompany: { select: { name: true, claimedAt: true } },
+            endClientCompany: { select: { name: true, claimedAt: true } },
           },
         },
       },
-      orderBy: { periodStart: 'asc' },
+      // The latest fifty, so a week still waiting is never pushed off the
+      // end by a long run of billed ones; ties broken by id, so the same
+      // weeks are named from load to load. The sentence orders them itself.
+      orderBy: [{ periodStart: 'desc' }, { id: 'desc' }],
       take: 50,
     })
     // A week held by a draft nobody has sent: name the draft and where it is.
-    const draftHolding = waiting.map((w) => w.invoiceLines[0]?.invoice).find((i) => i?.status === 'DRAFT') ?? null
-    return reply(422, {
+    const draftHolding = [...waiting].reverse().map((w) => w.invoiceLines[0]?.invoice).find((i) => i?.status === 'DRAFT') ?? null
+    const weeksRead = waiting.map((w) => ({
+      personName: w.person?.name ?? 'Somebody',
+      periodStart: w.periodStart,
+      status: w.status,
+      clientSigned: w.assertions.length > 0,
+      clientName: w.sellContract?.endClientCompany?.name ?? w.sellContract?.clientCompany?.name ?? null,
+      onOurBill: w.invoiceLines[0]?.invoice.number ?? null,
+      onOurDraft: w.invoiceLines[0]?.invoice.status === 'DRAFT',
+    }))
+    // The earliest week filed and waiting for the client: the one to attach first.
+    const firstWaiting = [...waiting].reverse().find((w) => w.assertions.length === 0 && w.status === 'SUBMITTED') ?? null
+    const topClient = firstWaiting ? (firstWaiting.sellContract?.endClientCompany ?? firstWaiting.sellContract?.clientCompany ?? null) : null
+    const noHours: NoHoursRead = {
+      weeks: weeksRead,
+      waitingWeek: firstWaiting ? { id: firstWaiting.id, clientOnEtyme: topClient ? topClient.claimedAt != null : false } : null,
+    }
+    return { ok: false, status: 422, noHours, body: {
         error: {
           code: 'NO_TIMESHEETS',
           ...(draftHolding ? { draft: { id: draftHolding.id, number: draftHolding.number, href: `/dashboard/invoices/${draftHolding.id}` } } : {}),
-          message: nothingToBillSays(
-            waiting.map((w) => ({
-              personName: w.person?.name ?? 'Somebody',
-              periodStart: w.periodStart,
-              status: w.status,
-              clientSigned: w.assertions.length > 0,
-              // The signature a bill upward waits on is the client's at the
-              // top of the chain, which is the end client where there is one.
-              clientName: w.sellContract?.endClientCompany?.name ?? w.sellContract?.clientCompany?.name ?? null,
-              onOurBill: w.invoiceLines[0]?.invoice.number ?? null,
-              onOurDraft: w.invoiceLines[0]?.invoice.status === 'DRAFT',
-            })),
-            { start: asked.start ?? null, end: asked.end ?? null }
-          ),
+          // The signature a bill upward waits on is the client's at the
+          // top of the chain, which is the end client where there is one.
+          message: nothingToBillSays(weeksRead, { start: asked.start ?? null, end: asked.end ?? null }),
         },
-      })
+      } }
   }
 
   // Build line items grouped by sell contract (person)

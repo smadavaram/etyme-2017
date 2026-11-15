@@ -307,7 +307,9 @@ describe('a W-2 placement recorded on screen takes the company’s pay days', ()
   it('recording a placement writes its dates through the one door, so a company that chose its payroll gets its own pay days', () => {
     const route = src('src/app/api/contracts/route.ts')
     expect(route).toContain('await writeCyclesFor(tx, {')
-    expect(route).toContain('if (firstDayNeeded) return errResponse(firstDayNeeded')
+    // Refused before anything is written, with the way to the box beside it.
+    expect(route).toContain('if (firstDayNeeded) {')
+    expect(route).toContain('message: firstDayRefusalSays(firstDay), field: \'startDate\', link: firstDay.link')
     expect(route).not.toContain('generateCycles(start, end, split.buy')
   })
 })

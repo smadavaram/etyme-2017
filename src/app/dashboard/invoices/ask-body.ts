@@ -20,6 +20,6 @@ export function askSupplierBody(t: AskTyped): Record<string, unknown> {
     topic: 'REQUIREMENT',
     topicId: t.requirementId,
     withCompanyId: t.supplierId,
-    initialMessage: `About invoice ${t.number}: ${t.question.trim()}`,
+    initialMessage: `About invoice receipt ${t.number}: ${t.question.trim()}`,
   }
 }

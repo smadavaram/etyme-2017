@@ -300,7 +300,10 @@ interface ConsultantOption {
 /** The currencies the form's pay box takes. */
 const PAY_BOX_CURRENCIES = ['USD', 'CAD', 'GBP', 'EUR'] as const
 
-function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
+/** The way to a box a sentence waits on, as the route gave it; null where the seat may not open it. */
+type StepLink = { href: string; label: string } | null
+
+function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string, after: { says: string; link: StepLink } | null) => void }) {
   const [form, setForm] = useState({
     personId: '',
     clientCompanyId: '',
@@ -320,6 +323,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorLink, setErrorLink] = useState<StepLink>(null)
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [consultants, setConsultants] = useState<ConsultantOption[]>([])
   const [clientCompanies, setClientCompanies] = useState<ClientCompanyOption[]>([])
@@ -396,6 +400,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
     e.preventDefault()
     setSubmitting(true)
     setError(null)
+    setErrorLink(null)
 
     if (!companyId) {
       setError('Could not determine your company. Please reload and try again.')
@@ -453,10 +458,11 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
         setError(body.error?.message ?? 'That placement could not be recorded')
+        setErrorLink(body.error?.link ?? null)
         return
       }
 
-      onCreated(body.data?.message ?? 'Recorded.')
+      onCreated(body.data?.message ?? 'Recorded.', body.data?.firstDay ?? null)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -491,6 +497,17 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
         </div>
 
         {error && <div className="mb-4"><ErrorState says={error} /></div>}
+        {/* The act that unblocks the refusal, in a new tab so this form is
+            not lost (Area E, 2026-11-14). Drawn only where the route said
+            the seat may open it; otherwise the sentence names who to ask. */}
+        {error && errorLink && (
+          <p className="-mt-2 mb-4 text-sm">
+            <a href={errorLink.href} target="_blank" rel="noopener noreferrer" className="text-etyme-action hover:underline">
+              {errorLink.label}
+            </a>
+            <span className="text-etyme-muted"> opens in a new tab. Come back here and record it again.</span>
+          </p>
+        )}
 
         {loadingOptions ? (
           <LoadingState compact says="Loading options…" />
@@ -1372,6 +1389,8 @@ export default function ContractsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  /** What the route said after a payroll line was recorded at a company whose pay days wait on a Sunday nobody set. */
+  const [recordedAfter, setRecordedAfter] = useState<{ says: string; link: StepLink } | null>(null)
 
   // Open the create modal when navigated with ?new=1
   useEffect(() => {
@@ -1725,6 +1744,24 @@ export default function ContractsPage() {
         />
       )}
 
+      {/* Kept on the page, not in a toast that fades: the line was
+          recorded, and its pay days will not show until the first Sunday
+          is set (Area E, 2026-11-14). Nothing was refused for it. */}
+      {recordedAfter && (
+        <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3 text-sm flex items-start justify-between gap-4">
+          <p>
+            {recordedAfter.says}
+            {recordedAfter.link && (
+              <>
+                {' '}
+                <a href={recordedAfter.link.href} className="text-etyme-action hover:underline">{recordedAfter.link.label}</a>
+              </>
+            )}
+          </p>
+          <button onClick={() => setRecordedAfter(null)} className="text-etyme-muted hover:text-etyme-ink text-[12px]">Close</button>
+        </div>
+      )}
+
       {/* Sell / Buy tabs — a client has no buy side, and nobody reads
           either word until the page knows whose it is. Drawn as the same
           row of pressed chips every list uses, so the side reads as a
@@ -1857,8 +1894,9 @@ export default function ContractsPage() {
       {showCreate && (
         <RecordPlacementModal
           onClose={() => setShowCreate(false)}
-          onCreated={(says) => {
+          onCreated={(says, after) => {
             setToast({ type: 'success', message: says })
+            setRecordedAfter(after)
             fetchContracts()
           }}
         />

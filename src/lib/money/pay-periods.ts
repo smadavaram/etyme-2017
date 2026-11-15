@@ -254,12 +254,20 @@ export const WHERE_FIRST_DAY_IS_SET =
  * by the month is told nothing more.
  */
 export function calendarMonthSays(companyName: string, r: PayRhythm): string {
-  const pays = `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}`
-  if (r.payPeriod === 'WEEKLY' || r.payPeriod === 'BIWEEKLY') {
-    return `${pays}, but this page lists pay by calendar month until the Sunday its pay periods count from is set. ` +
-      WHERE_FIRST_DAY_IS_SET
-  }
-  return `${pays}, so this page lists pay by calendar month.`
+  const waits = calendarMonthWaitsSays(companyName, r)
+  if (waits) return `${waits} ${WHERE_FIRST_DAY_IS_SET}`
+  return `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}, so this page lists pay by calendar month.`
+}
+
+/**
+ * The first half of `calendarMonthSays` for a weekly or two-week company,
+ * where the Payroll page draws the way to the box after it
+ * (`firstDayStep`); null where the company pays by the month.
+ */
+export function calendarMonthWaitsSays(companyName: string, r: PayRhythm): string | null {
+  if (r.payPeriod !== 'WEEKLY' && r.payPeriod !== 'BIWEEKLY') return null
+  return `${companyName} pays ${PAY_PERIOD_WORDS[r.payPeriod].toLowerCase()}, but this page lists pay by calendar month ` +
+    'until the Sunday its pay periods count from is set.'
 }
 
 /**
@@ -283,7 +291,71 @@ export function firstDayNeededSays(args: {
   if (!args.payroll || !args.chosen) return null
   if (args.chosen.payPeriod !== 'WEEKLY' && args.chosen.payPeriod !== 'BIWEEKLY') return null
   if (paysByPeriod(args.chosen)) return null
-  return `A W-2 line's pay days count from the Sunday your pay periods start on, and that Sunday is not set yet. ${WHERE_FIRST_DAY_IS_SET}`
+  return `${FIRST_DAY_NOT_SET_ON_A_LINE} ${WHERE_FIRST_DAY_IS_SET}`
+}
+
+const FIRST_DAY_NOT_SET_ON_A_LINE =
+  "A W-2 line's pay days count from the Sunday your pay periods start on, and that Sunday is not set yet."
+
+/**
+ * The refusal Record a placement shows, beside the way to the box: the
+ * link where the seat may open Settings, who to ask where it may not.
+ */
+export function firstDayRefusalSays(step: FirstDayStep): string {
+  return step.ask ? `${FIRST_DAY_NOT_SET_ON_A_LINE} ${step.ask}` : FIRST_DAY_NOT_SET_ON_A_LINE
+}
+
+/**
+ * The one address of the box where the first Sunday is set (Area E,
+ * 2026-11-14: every sentence blocked on that Sunday ends in a way to it).
+ * Settings opens its Cycles tab and focuses the field carrying
+ * id="first-pay-day". Every screen links here through this constant, so
+ * the address is written once.
+ */
+export const FIRST_DAY_HREF = '/dashboard/settings?tab=cycles#first-pay-day'
+
+/** The link's words, quoting the box by the label Settings prints. */
+export const FIRST_DAY_LINK_WORDS = `Set "${FIRST_PERIOD_LABEL}" in Settings`
+
+/** Said in the link's place to a seat that may not open Settings. */
+export const ASK_FOR_THE_FIRST_DAY = 'Ask the Owner or an Admin to set it.'
+
+/**
+ * What follows a sentence blocked on the first Sunday: the link, for a
+ * seat that may open Settings, or who to ask, for any other. Never both,
+ * and never a link the seat's own Settings page would refuse.
+ */
+export type FirstDayStep =
+  | { link: { href: string; label: string }; ask: null }
+  | { link: null; ask: string }
+
+export function firstDayStep(mayOpenSettings: boolean): FirstDayStep {
+  return mayOpenSettings
+    ? { link: { href: FIRST_DAY_HREF, label: FIRST_DAY_LINK_WORDS }, ask: null }
+    : { link: null, ask: ASK_FOR_THE_FIRST_DAY }
+}
+
+/**
+ * Said after a payroll line is recorded at a company that never saved its
+ * payroll choice and pays every week or every other week (Area E, item
+ * 6). Nothing is refused for it: the founder alone picks the Sunday, so
+ * the line is recorded and the person is told what will not show yet.
+ * Null wherever the company's pay days need no Sunday, or it has one, or
+ * it saved its choice (that case is refused by `firstDayNeededSays`).
+ */
+export function firstDayNotSetSays(args: {
+  /** True where this firm pays the person through payroll (`paidByPayroll`). */
+  payroll: boolean
+  /** The company's own payroll choice; null where it never chose one. */
+  chosen: PayRhythm | null
+  /** The rhythm the company reads today, its defaults where it never chose. */
+  reads: PayRhythm
+  personName: string
+}): string | null {
+  if (!args.payroll || args.chosen) return null
+  if (args.reads.payPeriod !== 'WEEKLY' && args.reads.payPeriod !== 'BIWEEKLY') return null
+  if (paysByPeriod(args.reads)) return null
+  return `${FIRST_PERIOD_LABEL} is not set. ${args.personName}'s pay days will not show until it is.`
 }
 
 /** A period that holds nothing to pay. */
