@@ -40,6 +40,7 @@ import {
 } from '@/lib/bench-policy'
 import { formatDay } from '@/lib/format-date'
 import { possessive } from '@/lib/requisition-approval'
+import { roleWords } from '@/lib/access-grant'
 
 /** The three desks the founder named, by the role's own name. */
 export const BENCH_PAY_DESKS = ['Owner', 'Admin', 'Finance'] as const
@@ -115,7 +116,7 @@ export function mayChangeBenchPay(r: BenchPayReader): Verdict {
     ok: false, code: 'NOT_THIS_DESK',
     message:
       `Bench pay at ${r.companyName} is set by the owner, an admin or finance. ` +
-      `Your seat${r.roleName ? ` (${r.roleName})` : ''} is none of them. Ask one of them to change it.`,
+      `Your seat (${roleWords(r.roleName)}) is none of them. Ask one of them to change it.`,
   }
 }
 

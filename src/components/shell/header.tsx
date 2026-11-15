@@ -56,7 +56,7 @@ import { HatList } from '@/components/shell/hat-list'
 import { LimitedSeatLine, SuperadminLine } from '@/components/shell/superadmin-line'
 import { PasswordLine } from '@/components/shell/password-line'
 import { DemoChip } from '@/components/shell/demo-chip'
-import { deskOf } from '@/components/shell/sidebar-props'
+import { deskOf, seatCrumb } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
 
@@ -486,6 +486,9 @@ export function Header({ title }: HeaderProps) {
   const desk = deskOf(session)
   // The role this desk is held under: the client's, at a client's desk.
   const { permissions, roleName } = desk
+  // The seat in the crumb, by the rule the menu's foot reads: the Member
+  // role, or none, is "No role yet" in both places.
+  const crumb = seatCrumb({ isConsultant: contextType === 'CONSULTANT', hasCompany: Boolean(company), roleName, seatedAtClient: desk.seatedAtClient })
   const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
     filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
   })
@@ -691,13 +694,10 @@ export function Header({ title }: HeaderProps) {
           <span className="font-medium text-etyme-ink truncate max-w-[16rem]">
             {company?.name ?? person?.name ?? ''}
           </span>
-          {(desk.seatedAtClient || roleName || contextType === 'CONSULTANT') && (
+          {crumb && (
             <>
               <span aria-hidden="true" className="text-etyme-rule">/</span>
-              <span className="text-etyme-muted truncate max-w-[18rem]">
-                {contextType === 'CONSULTANT' ? 'Consultant' : roleName}
-                {desk.seatedAtClient ? `${roleName ? ' at ' : 'At '}${desk.seatedAtClient}` : ''}
-              </span>
+              <span className="text-etyme-muted truncate max-w-[18rem]">{crumb}</span>
             </>
           )}
         </div>

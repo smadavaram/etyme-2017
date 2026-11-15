@@ -1,3 +1,5 @@
+import { roleWords } from '@/lib/access-grant'
+
 /**
  * The few decisions Settings → Team structure makes on the screen itself,
  * with no database and no browser in them, so each is a sentence in a
@@ -104,9 +106,14 @@ export function listPeople<T extends { contextId: string }>(owner: T | null, unp
   return out
 }
 
-/** A role in words on the list: its own name, or that nobody gave one yet. */
+/**
+ * A role in words wherever Team structure names a person: its own name, or
+ * "No role yet" for the Member role or none, by the one rule Users &
+ * permissions reads (`roleWords`). Every place the page prints a person's
+ * role goes through it (batch four walk, 2026-11-15).
+ */
 export function roleInWords(role: string | null | undefined): string {
-  return role && role !== 'Member' ? role : 'No role yet'
+  return roleWords(role)
 }
 
 /** Where a person's name on Team structure opens: their row on Users & permissions. */

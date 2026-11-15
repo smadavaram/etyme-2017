@@ -1,7 +1,7 @@
 import type { SessionState } from '@/components/session-provider'
 import type { Hat } from '@/lib/nav-table'
 import { kindLabel, kindWord } from '@/lib/parties'
-import { NO_ROLE_LABEL, MEMBER_DESK } from '@/lib/access-grant'
+import { holdsNoRole, roleWords } from '@/lib/access-grant'
 
 /**
  * The sidebar's props, read off the session.
@@ -101,7 +101,7 @@ export function sidebarPropsFrom(
     // desk it was granted, which is what the money pages already say in
     // their banner.
     companyLabel: session.seat
-      ? `At ${session.seat.clientName}${session.seat.roleName ? ` · ${session.seat.roleName}` : ''}`
+      ? `At ${session.seat.clientName}${holdsNoRole(session.seat.roleName) ? '' : ` · ${roleWords(session.seat.roleName)}`}`
       : isConsultant ? 'Consultant' : footerRole(kind, session.roleName),
     // A seat is exactly the desk the client granted: the client's own
     // role's permissions, never the office's. Read through `deskOf`, so
@@ -198,6 +198,23 @@ export function deskOf(
  */
 export function footerRole(kind: SidebarIdentity['companyKind'] | undefined, roleName: string | null | undefined): string {
   if (!kind) return kindLabel(kind)
-  const role = roleName?.trim()
-  return `${kindWord(kind)} · ${role && role !== MEMBER_DESK ? role : NO_ROLE_LABEL}`
+  return `${kindWord(kind)} · ${roleWords(roleName)}`
+}
+
+/**
+ * The seat in the header's crumb ("Northwind Staffing / Recruiter") and
+ * under the name in the phone's account footer: the role this person
+ * holds, read by the rule the menu's foot reads, so a seat holding the
+ * Member role, or none, at a firm reads "No role yet" in all three places
+ * (batch four walk, 2026-11-15: the crumb read "Member" while the foot
+ * read "No role yet"). A consultant reads "Consultant". At a client's
+ * seat it is the client's role and the client's name, or "At" the client
+ * where the seat holds no role there. Null where there is nothing to say:
+ * no firm and no role. Pure.
+ */
+export function seatCrumb(d: { isConsultant: boolean; hasCompany: boolean; roleName: string | null | undefined; seatedAtClient: string | null | undefined }): string | null {
+  if (d.isConsultant) return 'Consultant'
+  if (d.seatedAtClient) return holdsNoRole(d.roleName) ? `At ${d.seatedAtClient}` : `${roleWords(d.roleName)} at ${d.seatedAtClient}`
+  if (!d.hasCompany && holdsNoRole(d.roleName)) return null
+  return roleWords(d.roleName)
 }

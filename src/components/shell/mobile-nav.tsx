@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/shell/sidebar'
-import { sidebarPropsFrom, deskOf } from '@/components/shell/sidebar-props'
+import { sidebarPropsFrom, deskOf, seatCrumb } from '@/components/shell/sidebar-props'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { mayOpen } from '@/lib/nav-table'
@@ -117,7 +117,7 @@ export function MobileNav() {
                   <Account
                     name={session.person?.name}
                     email={session.person?.email}
-                    role={desk.isConsultant ? 'Consultant' : desk.roleName}
+                    role={seatCrumb({ isConsultant: desk.isConsultant, hasCompany: Boolean(session.company), roleName: desk.roleName, seatedAtClient: desk.seatedAtClient })}
                     // The same gate the desktop account menu reads: a
                     // button the route will refuse is a button that lies.
                     mayOpenSettings={mayOpen('/dashboard/settings', desk.permissions)}

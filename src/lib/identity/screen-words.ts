@@ -4,6 +4,8 @@
  * screen and a test read one list.
  */
 
+import { holdsNoRole, roleWords, NO_ROLE_SEES } from '@/lib/access-grant'
+
 export const SIGN_IN_SCREEN_MODES = [
   { mode: 'SSO_ONLY', label: 'Your company’s directory only' },
   { mode: 'INVITE_ONLY', label: 'Invited people only' },
@@ -78,4 +80,21 @@ export function sourceWords(source: string | null): string {
     case 'MANUAL': return 'added by hand'
     default: return 'seated before this was recorded'
   }
+}
+
+/**
+ * A directory group's role, said of the people it seats: "as Recruiter",
+ * or "with no role yet" for the Member role or none, the words Users &
+ * permissions says of the same people (batch four walk, 2026-11-15). The
+ * role keeps its own name under Settings › Roles. Pure.
+ */
+export function seatedAsWords(roleName: string | null | undefined): string {
+  return holdsNoRole(roleName) ? 'with no role yet' : `as ${roleWords(roleName)}`
+}
+
+/** The answer after a group is mapped: "People in Sales are seated as Recruiter." */
+export function groupMappedSays(group: string, roleName: string | null | undefined): string {
+  return holdsNoRole(roleName)
+    ? `People in ${group} are seated with no role yet. ${NO_ROLE_SEES}`
+    : `People in ${group} are seated as ${roleWords(roleName)}.`
 }

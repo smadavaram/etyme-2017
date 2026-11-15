@@ -5,11 +5,14 @@ import { grantSaid } from '@/app/api/settings/grants/says'
 import { whoOptionLabel } from '@/components/settings/give-access'
 import { personOption } from '@/app/dashboard/settings/owners/view'
 import { signUpPersonName } from '@/app/api/onboarding/person-name'
-import { footerRole } from '@/components/shell/sidebar-props'
+import { footerRole, seatCrumb } from '@/components/shell/sidebar-props'
 import { defaultModeSays, joinSentence, type JoinFacts } from '@/lib/join-words'
 import { modeSays } from '@/lib/identity/policy'
 import { siteAddressLine } from '@/lib/site-rules'
-import { NO_ROLE_LABEL } from '@/lib/access-grant'
+import { NO_ROLE_LABEL, NO_ROLE_SEES } from '@/lib/access-grant'
+import { groupMappedSays, seatedAsWords } from '@/lib/identity/screen-words'
+import { roleInWords } from '@/lib/team-structure/screen'
+import { hatsFor } from '@/lib/nav-table'
 
 /**
  * One person reads the same on every screen that names them (fix list,
@@ -51,8 +54,14 @@ describe('the WHO picker on Give access', () => {
   it('each person reads with their role and their state: invited, paused, or no role yet for somebody signed in with no role', () => {
     expect(whoOptionLabel({ name: 'Pat Kim', roleName: 'Recruiter', state: 'INVITED' })).toBe('Pat Kim · Recruiter · invited')
     expect(whoOptionLabel({ name: 'Sam Ortiz', roleName: 'HR', state: 'PAUSED' })).toBe('Sam Ortiz · HR · paused')
-    expect(whoOptionLabel({ name: 'Lee Okafor', roleName: null, state: 'WAITING_FOR_ROLE' })).toBe(`Lee Okafor · ${NO_ROLE_LABEL.toLowerCase()}`)
+    expect(whoOptionLabel({ name: 'Lee Okafor', roleName: null, state: 'WAITING_FOR_ROLE' })).toBe(`Lee Okafor · ${NO_ROLE_LABEL}`)
     expect(whoOptionLabel({ name: 'Dana Whitlock', roleName: 'Owner', state: 'WITH_ACCESS' })).toBe('Dana Whitlock · Owner')
+  })
+
+  it('the Give access picker shows a person holding the Member role as No role yet', () => {
+    expect(whoOptionLabel({ name: 'Tomas Reyes', roleName: 'Member', state: 'WITH_ACCESS' })).toBe('Tomas Reyes · No role yet')
+    expect(whoOptionLabel({ name: 'Tomas Reyes', roleName: 'Member', state: 'INVITED' })).toBe('Tomas Reyes · No role yet · invited')
+    expect(whoOptionLabel({ name: 'Tomas Reyes', roleName: 'Member', state: 'WITH_ACCESS' })).not.toContain('Member')
   })
 })
 
@@ -101,6 +110,21 @@ describe('the account menu', () => {
     expect(footerRole('VENDOR', null)).toBe(`Supplier · ${NO_ROLE_LABEL}`)
     expect(footerRole('VENDOR', 'Member')).toBe(`Supplier · ${NO_ROLE_LABEL}`)
     expect(footerRole('VENDOR', 'Recruiter')).toBe('Supplier · Recruiter')
+  })
+
+  it('the header names a seat with the Member role as No role yet, as its footer does', () => {
+    const seat = { isConsultant: false, hasCompany: true, seatedAtClient: null }
+    expect(seatCrumb({ ...seat, roleName: 'Member' })).toBe(NO_ROLE_LABEL)
+    expect(seatCrumb({ ...seat, roleName: null })).toBe(NO_ROLE_LABEL)
+    expect(footerRole('VENDOR', 'Member').endsWith(seatCrumb({ ...seat, roleName: 'Member' })!)).toBe(true)
+    expect(seatCrumb({ ...seat, roleName: 'Recruiter' })).toBe('Recruiter')
+    expect(seatCrumb({ isConsultant: true, hasCompany: false, roleName: null, seatedAtClient: null })).toBe('Consultant')
+    expect(seatCrumb({ ...seat, roleName: 'Member', seatedAtClient: 'Harborline Tech' })).toBe('At Harborline Tech')
+    expect(seatCrumb({ ...seat, roleName: 'Program manager', seatedAtClient: 'Harborline Tech' })).toBe('Program manager at Harborline Tech')
+    // The header and the phone's account footer both read it.
+    expect(read('src/components/shell/header.tsx')).toContain('const crumb = seatCrumb(')
+    expect(read('src/components/shell/header.tsx')).not.toMatch(/'Consultant' : roleName/)
+    expect(read('src/components/shell/mobile-nav.tsx')).toContain('role={seatCrumb(')
   })
 })
 
@@ -174,5 +198,58 @@ describe('Settings, Sites', () => {
     const route = read('src/app/api/settings/locations/route.ts')
     expect(route).toContain('own?.country ?? read.sites.find((s) => s.isPrimary)?.country ?? null')
     expect(route).toContain('kind: caller.company.kind, country }')
+  })
+})
+
+describe('the Member role, said of a person or offered as a choice for one', () => {
+  it('a directory group mapped to the Member role reads No role yet', () => {
+    expect(groupMappedSays('Sales', 'Member')).toBe(`People in Sales are seated with no role yet. ${NO_ROLE_SEES}`)
+    expect(groupMappedSays('Sales', 'Recruiter')).toBe('People in Sales are seated as Recruiter.')
+    expect(seatedAsWords('Member')).toBe('with no role yet')
+    expect(seatedAsWords('member')).toBe('with no role yet')
+    expect(seatedAsWords('HR')).toBe('as HR')
+    // Settings › Sign-in: the mapped list, the role picker and the people
+    // list each word the role through the one rule, and the picker says
+    // what a person with no role sees once that choice is made.
+    const page = read('src/app/dashboard/settings/sign-in/page.tsx')
+    expect(page).toContain('{x.groupId} · {roleWords(x.role)}')
+    expect(page).toContain('<option key={r.id} value={r.id}>{roleWords(r.name)}</option>')
+    expect(page).toContain('holdsNoRole(r.name)) && <p className="text-[12px] text-etyme-muted">{NO_ROLE_SEES}</p>')
+    expect(page).toContain('{roleWords(p.role)}')
+    // The route's answer and its log, and the directory's own seatings.
+    const groups = read('src/app/api/settings/sign-in/groups/route.ts')
+    expect(groups).toContain('groupMappedSays(groupName ?? groupId, role.name)')
+    expect(groups).not.toMatch(/to \$\{role\.name\}/)
+    const provision = read('src/lib/identity/provision.ts')
+    expect(provision).not.toMatch(/seat is now \$\{(map\.role\.name|MEMBER_ROLE)\}/)
+    expect(provision).toContain('seatedAsWords(MEMBER_ROLE)')
+  })
+
+  it('Team structure names a person holding the Member role as No role yet on every line that names them', () => {
+    expect(roleInWords('Member')).toBe(NO_ROLE_LABEL)
+    expect(roleInWords(null)).toBe(NO_ROLE_LABEL)
+    expect(roleInWords('Recruiter')).toBe('Recruiter')
+    const page = read('src/app/dashboard/settings/team-structure/page.tsx')
+    expect(page).not.toMatch(/s\.role \? ` · \$\{s\.role\}`/)
+    expect(page).not.toMatch(/\{p\.role\}/)
+    expect(page).toContain('`${b.lead.name} · ${roleInWords(b.lead.role)}`')
+  })
+
+  it('Settings › Owners offers the Member role as No role yet and names a person holding it so', () => {
+    expect(personOption({ name: 'Tomas Reyes', email: 'tomas@northwind-staffing.example', role: 'Member' })).toBe('Tomas Reyes · tomas@northwind-staffing.example · No role yet')
+    const page = read('src/app/dashboard/settings/owners/page.tsx')
+    expect(page).toContain('<option key={x.id} value={x.id}>{roleWords(x.name)}</option>')
+    expect(page).toContain('{NO_ROLE_SEES}')
+  })
+
+  it('the account menu lists a seat holding the Member role as the company and No role yet', () => {
+    const lines = hatsFor({ seats: [{ contextId: 'm1', type: 'EMPLOYEE', companyName: 'Northwind Staffing', roleName: 'Member' }], activeContextId: 'm1', personName: 'Tomas Reyes', isConsultant: false, youOffered: false, hat: 'firm' })
+    expect(lines.map((l) => l.label)).toEqual(['Northwind Staffing · No role yet'])
+  })
+
+  it('a contact holding the Member role at another firm carries no title, and reads as staff there', () => {
+    const route = read('src/app/api/contacts/route.ts')
+    expect(route).toContain('const title = holdsNoRole(s.role?.name) ? null : s.role!.name')
+    expect(route).toContain("`${title ?? 'Staff'} at ${s.company.name}`")
   })
 })

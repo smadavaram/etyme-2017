@@ -13,6 +13,7 @@ import { dealingsWithSides } from '../companies/dealings'
 import { notLinkedYet, mayRecordCompany, sameDomainRefused, sameNameRefused, readTypedDomain } from '@/lib/counterparty'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from '../companies/record'
+import { holdsNoRole } from '@/lib/access-grant'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -151,7 +152,13 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
       select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } }, company: { select: { id: true, name: true, kind: true } } },
       orderBy: { grantedAt: 'asc' },
     })
-    for (const s of seats) if (s.company) push(s.personId, s.person.name, s.person.primaryEmail, s.role?.name ?? null, s.company, `${s.role?.name ?? 'Staff'} at ${s.company.name}`)
+    // The Member role holds nothing, so it is no title: such a person reads
+    // as staff, as a seat with no role does (batch four walk, 2026-11-15).
+    for (const s of seats) {
+      if (!s.company) continue
+      const title = holdsNoRole(s.role?.name) ? null : s.role!.name
+      push(s.personId, s.person.name, s.person.primaryEmail, title, s.company, `${title ?? 'Staff'} at ${s.company.name}`)
+    }
     return rows
   }
 

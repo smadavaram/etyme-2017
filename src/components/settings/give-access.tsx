@@ -7,7 +7,7 @@ import { FormMessage } from '@/components/ui/form'
 import { Panel, Lbl } from './panel-bits'
 import { giveAccessBody, fieldsDrawn, type GiveAccessValues } from '@/lib/permission-grants/form'
 import { focusFromQuery } from '@/app/dashboard/access/focus'
-import { NO_ROLE_LABEL } from '@/lib/access-grant'
+import { roleWords } from '@/lib/access-grant'
 
 /**
  * "Give access", on Users & permissions (founder, 2026-11-08: "Owner
@@ -223,16 +223,16 @@ export function GiveAccess() {
 
 /**
  * One person in the WHO picker: the name, the role, and the state beside
- * them, so an invited, waiting or paused person is never read as somebody
- * who has access today. A person who signed in and holds no role reads
- * "no role yet", the words Users & permissions uses (`NO_ROLE_LABEL`).
+ * them, so an invited or paused person is never read as somebody who has
+ * access today. A person holding the Member role, or no role, reads
+ * "No role yet", the words Users & permissions and the menu's foot say of
+ * the same person (`roleWords`; batch four walk, 2026-11-15, where one
+ * person read "· Member" here and "No role yet" everywhere else).
  */
 export function whoOptionLabel(p: { name: string; roleName: string | null; state?: string }): string {
-  const role = p.roleName ? ` · ${p.roleName}` : ''
   const state =
     p.state === 'INVITED' ? ' · invited'
       : p.state === 'PAUSED' ? ' · paused'
-        : p.state === 'WAITING_FOR_ROLE' ? ` · ${NO_ROLE_LABEL.toLowerCase()}`
-          : ''
-  return `${p.name}${role}${state}`
+        : ''
+  return `${p.name} · ${roleWords(p.roleName)}${state}`
 }

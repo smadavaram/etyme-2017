@@ -99,6 +99,14 @@ describe('who is offered which hats', () => {
     expect(lines.map((l) => l.contextId)).toEqual(['c1', 'c2', 'c1'])
   })
 
+  it('the account menu names a seat holding the Member role, or no role, as No role yet', () => {
+    const lines = hatsFor({
+      seats: [{ contextId: 'm1', type: 'EMPLOYEE', companyName: 'Northwind Staffing', roleName: 'Member' }, { contextId: 'm2', type: 'EMPLOYEE', companyName: 'Harborline Tech', roleName: null }],
+      activeContextId: 'm1', personName: 'Tomas Reyes', isConsultant: false, youOffered: false, hat: 'firm',
+    })
+    expect(lines.map((l) => l.label)).toEqual(['Northwind Staffing · No role yet', 'Harborline Tech · No role yet'])
+  })
+
   it('marks exactly one line as the hat being worn', () => {
     const firm = hatsFor({ seats, activeContextId: 'c2', personName: 'Sharath', isConsultant: false, youOffered: true, hat: 'firm' })
     expect(firm.filter((l) => l.current).map((l) => l.label)).toEqual(['Brightmoor Staffing · Recruiter'])

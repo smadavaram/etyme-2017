@@ -297,7 +297,7 @@ export default function TeamStructurePage() {
     const id = b?.id ?? ROOT
     const people: SeatName[] = b ? b.people : tree.unplaced
     const rows = [
-      ...people.map((p) => ({ key: `p-${p.contextId}`, node: nameRow(`p-${p.contextId}`, p.name, p.role ?? '', { kind: 'person', contextId: p.contextId, from: b?.id ?? null }, { for: 'person', contextId: p.contextId, box: b?.id ?? null, name: p.name }, !b) })),
+      ...people.map((p) => ({ key: `p-${p.contextId}`, node: nameRow(`p-${p.contextId}`, p.name, roleInWords(p.role), { kind: 'person', contextId: p.contextId, from: b?.id ?? null }, { for: 'person', contextId: p.contextId, box: b?.id ?? null, name: p.name }, !b) })),
       ...(b?.contractors ?? []).map((c) => ({
         key: `c-${c.sellContractId}`,
         node: nameRow(`c-${c.sellContractId}`, c.name, c.onSite ? (c.job ?? 'Contractor') : 'Starting', { kind: 'contractor', sellContractId: c.sellContractId, from: b!.id }, { for: 'contractor', sellContractId: c.sellContractId, box: b!.id, name: c.name }),
@@ -380,7 +380,7 @@ export default function TeamStructurePage() {
         </span>
         <span className="text-[13.5px] font-medium leading-tight">{b ? b.name : company.name}</span>
         <span className={`text-[12px] leading-snug ${isRoot ? 'opacity-75' : 'text-etyme-muted'}`}>
-          {b ? (b.lead ? `${b.lead.name}${b.lead.role ? ` · ${b.lead.role}` : ''}` : 'No lead yet') : tree.owner ? `${tree.owner.name} · Owner` : 'No Owner seated'}
+          {b ? (b.lead ? `${b.lead.name} · ${roleInWords(b.lead.role)}` : 'No lead yet') : tree.owner ? `${tree.owner.name} · Owner` : 'No Owner seated'}
         </span>
         {b && (
           <span className="font-mono text-[11px] tabular-nums text-etyme-faint">
@@ -638,7 +638,7 @@ function Editor(props: {
           <Field label="Lead" help={box.lead?.setBy ? `Named by ${box.lead.setBy}${box.lead.setAt ? `, ${dayOfMomentFor(new Date(box.lead.setAt), readerZone())}` : ''}.` : box.lead ? 'Named when the company was set up.' : 'Leading a box gives no access by itself.'}>
             <Select id="ts-lead" value={box.lead?.contextId ?? ''} disabled={busy} onChange={(e) => props.onAct('LEAD', { unitId: box.id, contextId: e.target.value || null }, () => box.id)}>
               <option value="">No lead yet</option>
-              {tree.seats.map((s) => <option key={s.contextId} value={s.contextId}>{s.name}{s.role ? ` · ${s.role}` : ''}</option>)}
+              {tree.seats.map((s) => <option key={s.contextId} value={s.contextId}>{s.name} · {roleInWords(s.role)}</option>)}
             </Select>
           </Field>
           <Field label="Kind">
@@ -671,7 +671,7 @@ function Editor(props: {
         <ul className="mt-1.5 flex max-h-[260px] flex-col gap-1 overflow-auto">
           {people.map((p) => (
             <li key={p.contextId} className="flex items-center gap-2 border-b border-etyme-rule py-0.5 text-[13px]">
-              <span className="min-w-0 flex-1">{p.name} <small className="text-etyme-muted">{p.role}</small></span>
+              <span className="min-w-0 flex-1">{p.name} <small className="text-etyme-muted">{roleInWords(p.role)}</small></span>
               {box && (
                 <button aria-label={`Take ${p.name} off this team`} disabled={busy} className="rounded-nav border border-etyme-rule px-1.5 text-[12px]" onClick={() => props.onAct('MOVE_PERSON', { contextId: p.contextId, unitId: null }, () => box.id)}>×</button>
               )}
@@ -689,7 +689,7 @@ function Editor(props: {
         <Field label="Add a person">
           <Select id="ts-person" value="" disabled={busy} onChange={(e) => e.target.value && props.onAct('MOVE_PERSON', { contextId: e.target.value, unitId: box.id }, () => box.id)}>
             <option value="">Choose somebody seated here…</option>
-            {tree.seats.filter((s) => !onBox.has(s.contextId)).map((s) => <option key={s.contextId} value={s.contextId}>{s.name}{s.role ? ` · ${s.role}` : ''}</option>)}
+            {tree.seats.filter((s) => !onBox.has(s.contextId)).map((s) => <option key={s.contextId} value={s.contextId}>{s.name} · {roleInWords(s.role)}</option>)}
           </Select>
         </Field>
       )}

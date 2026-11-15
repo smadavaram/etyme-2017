@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { signInSeat, type SignInSeat } from '../gate'
+import { groupMappedSays, seatedAsWords } from '@/lib/identity/screen-words'
 
 /**
  * POST   /api/settings/sign-in/groups — { groupId, groupName?, roleId } a directory group seats people in a role
@@ -30,9 +31,9 @@ export async function POST(request: NextRequest) {
       create: { companyId: company.id, identityProviderId: provider?.id ?? null, groupId, groupName, roleId: role.id, setById: by },
       update: { groupName, roleId: role.id, setById: by, setAt: new Date() },
     })
-    await recordIdentityEvent({ event: 'GROUP_ROLE_MAPPED', companyId: company.id, actorPersonId: by, subject: { companyId: company.id }, policy, surface: 'WEB', says: `${caller.person.name} mapped the directory group ${groupName ?? groupId} to ${role.name} at ${company.name}.` }, tx)
+    await recordIdentityEvent({ event: 'GROUP_ROLE_MAPPED', companyId: company.id, actorPersonId: by, subject: { companyId: company.id }, policy, surface: 'WEB', says: `${caller.person.name} mapped the directory group ${groupName ?? groupId} at ${company.name}, so people in it are seated ${seatedAsWords(role.name)}.` }, tx)
   })
-  return NextResponse.json({ data: { says: `People in ${groupName ?? groupId} are seated as ${role.name}.` } })
+  return NextResponse.json({ data: { says: groupMappedSays(groupName ?? groupId, role.name) } })
 }
 
 export async function DELETE(request: NextRequest) {
@@ -45,7 +46,7 @@ export async function DELETE(request: NextRequest) {
   const policy = (await companyPolicy(company.id)).effective
   await prisma.$transaction(async (tx) => {
     await tx.directoryGroupRole.delete({ where: { id: row.id } })
-    await recordIdentityEvent({ event: 'GROUP_ROLE_MAPPED', companyId: company.id, actorPersonId: by, subject: { companyId: company.id }, policy, surface: 'WEB', says: `${caller.person.name} removed the directory group ${row.groupName ?? row.groupId} (${row.role.name}) at ${company.name}; people already seated keep their role.` }, tx)
+    await recordIdentityEvent({ event: 'GROUP_ROLE_MAPPED', companyId: company.id, actorPersonId: by, subject: { companyId: company.id }, policy, surface: 'WEB', says: `${caller.person.name} removed the directory group ${row.groupName ?? row.groupId} (seated ${seatedAsWords(row.role.name)}) at ${company.name}; people already seated keep their role.` }, tx)
   })
   return NextResponse.json({ data: { says: 'Removed. People already seated keep their role.' } })
 }

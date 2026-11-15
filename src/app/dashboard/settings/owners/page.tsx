@@ -6,6 +6,7 @@ import { usePageSection } from '@/components/page-section'
 import { Chip, ErrorState, Field, FormMessage, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { readJson, isRefusal } from '@/lib/read-response'
 import { viewAfterRefusedRead, moveFormSays, passFormSays, personOption } from './view'
+import { holdsNoRole, roleWords, NO_ROLE_SEES } from '@/lib/access-grant'
 
 /**
  * Settings → Owners (founder, 2026-11-11, drawn and built): who owns the
@@ -204,8 +205,9 @@ export default function OwnersPage() {
                 <Field label="Their new role">
                   <Select value={chosenRoleId} onChange={(e) => setToRoleId(e.target.value)}>
                     <option value="">Choose a role</option>
-                    {r.roles.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                    {r.roles.map((x) => <option key={x.id} value={x.id}>{roleWords(x.name)}</option>)}
                   </Select>
+                  {r.roles.some((x) => x.id === chosenRoleId && holdsNoRole(x.name)) && <p className="mt-1 text-[12.5px] text-etyme-muted">{NO_ROLE_SEES}</p>}
                 </Field>
               )}
               <Field label="Why"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} /></Field>

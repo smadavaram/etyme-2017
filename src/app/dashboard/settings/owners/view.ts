@@ -1,3 +1,5 @@
+import { roleWords } from '@/lib/access-grant'
+
 /**
  * What Settings → Owners shows after a press, kept out of the page so it
  * can be read as sentences (walk on the Owner rules, 2026-11-12).
@@ -51,11 +53,13 @@ export function passFormSays(emailLeaves: boolean): string {
 
 /**
  * One person in a picker on Settings → Owners: the name, the address they
- * sign in with, and then the role or "(you)". The address is what tells
+ * sign in with, and then the role ("No role yet" for the Member role or
+ * none, `roleWords`) or "(you)". The address is what tells
  * two records of one person apart, and a person from a firm whose record
  * carries the firm's name (fix list, 2026-11-15).
  */
 export function personOption(p: { name: string; email?: string | null; role?: string | null; you?: boolean }): string {
-  const parts = [p.name, ...(p.email && p.email !== p.name ? [p.email] : []), ...(p.role ? [p.role] : [])]
+  // The Member role, or none, reads "No role yet", as on Users & permissions.
+  const parts = [p.name, ...(p.email && p.email !== p.name ? [p.email] : []), ...(p.role !== undefined ? [roleWords(p.role)] : [])]
   return `${parts.join(' · ')}${p.you ? ' (you)' : ''}`
 }

@@ -13,6 +13,7 @@ import { ConnectDomain } from '../domain/connect-domain'
 import { ENTITY_TYPES, W9_LINE, type ItemKey, type ItemWords, type ChecklistRow } from '@/lib/setup-checklist'
 import { COUNTRIES, COUNTRY_BOX_SAYS } from '@/lib/setup-steps'
 import { SETUP_TIME_ZONE_SAYS } from '@/lib/site-rules'
+import { roleWords } from '@/lib/access-grant'
 
 /**
  * Each checklist item's screen: one column, a short heading, plain fields
@@ -384,7 +385,7 @@ function PeopleItem(p: Props) {
           <Field label="Somebody seated here">
             <Select value={x.personId} onChange={(e) => set(i, { personId: e.target.value })}>
               <option value="">Somebody not seated yet</option>
-              {d.seats.map((s: any) => <option key={s.personId} value={s.personId}>{s.name}{s.role ? ` · ${s.role}` : ''}</option>)}
+              {d.seats.map((s: any) => <option key={s.personId} value={s.personId}>{s.name} · {roleWords(s.role)}</option>)}
             </Select>
           </Field>
           {!x.personId && (

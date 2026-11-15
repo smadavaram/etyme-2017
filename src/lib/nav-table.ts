@@ -14,6 +14,7 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
+import { roleWords } from '@/lib/access-grant'
 import { readsOnlyOwnWork, OWN_WORK_READS, consoleHome, type Reader } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
@@ -1426,7 +1427,8 @@ export function hatsFor(input: {
   const lines: HatLine[] = firm.map((x) => ({
     hat: 'firm' as const,
     contextId: x.contextId,
-    label: x.roleName ? `${x.companyName} · ${x.roleName}` : x.companyName!,
+    // The Member role, or none, reads "No role yet", as the menu's foot says.
+    label: `${x.companyName} · ${roleWords(x.roleName)}`,
     current: !wearingYou && x.contextId === input.activeContextId,
   }))
   // Where she is in that consultant seat right now, the line stays, marked,

@@ -10,7 +10,7 @@ import { OwnerGateLine } from '@/components/owner-gate-line'
 import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
 import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST, NO_VERIFIED_DOMAIN, PROVE_DOMAIN_HREF, PROVE_DOMAIN_LINK, SAML_NOT_AVAILABLE, scimSays, noScimTokenSays } from '@/components/settings/settings-says'
-import { NO_ROLE_LABEL, MEMBER_DESK } from '@/lib/access-grant'
+import { holdsNoRole, roleWords, NO_ROLE_SEES } from '@/lib/access-grant'
 
 /**
  * Settings → Sign-in (founder, 2026-11-11, "Enterprise identity"): how the
@@ -297,7 +297,7 @@ export default function SignInSettings() {
         <ul className="divide-y divide-etyme-rule">
           {o.groups.map((x) => (
             <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13px]">
-              <span><span className="text-etyme-ink">{x.groupName ?? x.groupId}</span> <span className="text-etyme-muted">{x.groupId} · {x.role}</span></span>
+              <span><span className="text-etyme-ink">{x.groupName ?? x.groupId}</span> <span className="text-etyme-muted">{x.groupId} · {roleWords(x.role)}</span></span>
               {can && <SubmitButton tone="secondary" type="button" pending={busy === `g-${x.id}`} onClick={() => void send(`g-${x.id}`, `/api/settings/sign-in/groups?id=${encodeURIComponent(x.id)}`, 'DELETE')}>Remove</SubmitButton>}
             </li>
           ))}
@@ -310,8 +310,11 @@ export default function SignInSettings() {
             <Field label="Role" error={fieldError.roleId}>
               <Select value={g.roleId} onChange={(e) => setG({ ...g, roleId: e.target.value })}>
                 <option value="">Choose a role</option>
-                {o.roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {o.roles.map((r) => <option key={r.id} value={r.id}>{roleWords(r.name)}</option>)}
               </Select>
+              {/* The Member role is offered as what it means for the
+                  person: "No role yet", and what such a person sees. */}
+              {o.roles.some((r) => r.id === g.roleId && holdsNoRole(r.name)) && <p className="text-[12px] text-etyme-muted">{NO_ROLE_SEES}</p>}
             </Field>
             <SubmitButton pending={busy === 'g'}>Add</SubmitButton>
           </form>
@@ -328,7 +331,7 @@ export default function SignInSettings() {
               <span className="min-w-0">
                 <span className="block text-etyme-ink">{p.name}</span>
                 {p.email && <span className="block text-etyme-muted break-all">{p.email}</span>}
-                <span className="block text-etyme-muted">{p.role && p.role !== MEMBER_DESK ? p.role : NO_ROLE_LABEL} · {sourceWords(p.source)}{p.paused ? ' · paused' : ''}</span>
+                <span className="block text-etyme-muted">{roleWords(p.role)} · {sourceWords(p.source)}{p.paused ? ' · paused' : ''}</span>
               </span>
               <SubmitButton tone="secondary" type="button" pending={busy === `s-${p.personId}`} onClick={() => void send(`s-${p.personId}`, '/api/settings/sign-in/sessions', 'POST', { personId: p.personId })}>Sign out everywhere</SubmitButton>
             </li>

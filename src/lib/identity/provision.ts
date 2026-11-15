@@ -5,6 +5,7 @@ import { domainOfEmail } from '@/lib/company-domains'
 import { recordIdentityEvent, type Surface } from '@/lib/identity/ledger'
 import { companyPolicy } from '@/lib/identity/read'
 import { DIRECTORY_SUSPEND_REASON, type EffectiveMode } from '@/lib/identity/policy'
+import { seatedAsWords } from '@/lib/identity/screen-words'
 
 /**
  * Seats a company's directory makes and takes away (founder, 2026-11-11):
@@ -143,7 +144,7 @@ export async function provision(a: ProvisionArgs): Promise<
       event: 'USER_PROVISIONED', companyId: a.companyId, actorPersonId: a.source === 'JIT' ? person.id : null,
       subject: { personId: person.id }, policy, surface: a.surface,
       says: created
-        ? `${company.name}'s directory seated ${email}${role ? ` as ${role.name}` : ''}${role?.group ? ` through the group ${role.group}` : ''} (${a.source === 'SCIM' ? 'SCIM' : 'on first sign-in'}).`
+        ? `${company.name}'s directory seated ${email} ${seatedAsWords(role?.name)}${role?.group ? ` through the group ${role.group}` : ''} (${a.source === 'SCIM' ? 'SCIM' : 'on first sign-in'}).`
         : `${company.name}'s directory linked ${email} to the seat they already held.`,
     }, tx)
     return { ok: true as const, externalIdentityId: ei.id, personId: person.id, contextId: seat.id, created }
@@ -260,8 +261,8 @@ export async function applyGroupRole(a: { companyId: string; externalIdentityId:
       await recordIdentityEvent({
         event: 'USER_PROVISIONED', companyId: a.companyId, actorPersonId: null, subject: { personId: ei.personId }, policy, surface: a.surface,
         says: a.joined
-          ? `${ei.email} joined the directory group ${map.groupName ?? a.groupId}, so their seat is now ${map.role.name}.`
-          : `${ei.email} left the directory group ${map.groupName ?? a.groupId}, so their seat is now ${MEMBER_ROLE}.`,
+          ? `${ei.email} joined the directory group ${map.groupName ?? a.groupId}, so they are now seated ${seatedAsWords(map.role.name)}.`
+          : `${ei.email} left the directory group ${map.groupName ?? a.groupId}, so they are now seated ${seatedAsWords(MEMBER_ROLE)}.`,
       }, tx)
     }
   })
