@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { joinedSaid, welcomeSaid, joinedNotices, ACCESS_PAGE, JOINED_EVENT } from '@/lib/notify/joined'
+import { joinedSaid, welcomeSaid, joinedNotices, whoHearsAJoin, ACCESS_PAGE, JOINED_EVENT } from '@/lib/notify/joined'
+import { seatsFrom } from '@/lib/company-seats'
 import { pageOf } from '@/lib/notify'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { memberWelcome } from '@/lib/password-words'
@@ -115,5 +116,42 @@ describe('when a colleague joins on the company domain', () => {
     expect(pageOf('SYSTEM', null, { href: '/dashboard/notifications' })).toBe(ASK_ETYME_HREF)
     expect(pageOf('BENCH', null, { href: '/dashboard/notifications?type=BENCH' })).toBe(ASK_ETYME_HREF)
     expect(pageOf('BENCH', null, { href: '/dashboard/notifications-elsewhere' })).toBe('/dashboard/notifications-elsewhere')
+  })
+
+  describe('only a seat that can still sign in hears it', () => {
+    const now = new Date()
+    const dayAgo = new Date(now.getTime() - 86_400_000)
+    const dayOn = new Date(now.getTime() + 86_400_000)
+    /** A seat at Northwind Staffing as the one seat reader reads it from the database. */
+    const row = (id: string, role: string, extra: { expiresAt?: Date | null; suspendedAt?: Date | null } = {}) => ({
+      id: `c-${id}`, personId: id, type: 'EMPLOYEE', roleId: `r-${role}`, orgUnitId: null, grantedAt: dayAgo,
+      invitedAt: null, lastUsedAt: dayAgo, suspendedAt: extra.suspendedAt ?? null, revokedAt: null, expiresAt: extra.expiresAt ?? null,
+      role: { name: role, permissions: role === 'Member' ? [] : ['*'] },
+      person: { name: id, primaryEmail: `${id}@northwind-staffing.example`, credentials: [{ id: `k-${id}` }] },
+    })
+    const told = (rows: ReturnType<typeof row>[]) => whoHearsAJoin(seatsFrom(rows, 'Northwind Staffing', now), 'priya')
+
+    it('an Admin whose seat is past its end date is not told that somebody joined', () => {
+      expect(told([row('owner', 'Owner'), row('admin', 'Admin', { expiresAt: dayAgo }), row('priya', 'Member')])).toEqual(['owner'])
+    })
+
+    it('an Owner whose seat is past its end date is still told, because a date never ends an Owner’s seat', () => {
+      expect(told([row('owner', 'Owner', { expiresAt: dayAgo }), row('admin', 'Admin'), row('priya', 'Member')])).toEqual(['owner', 'admin'])
+    })
+
+    it('an Admin whose end date is still ahead is told, and a paused one is not', () => {
+      expect(told([row('owner', 'Owner', { suspendedAt: dayAgo }), row('admin', 'Admin', { expiresAt: dayOn }), row('priya', 'Member')])).toEqual(['admin'])
+    })
+
+    it('a colleague with another role is not told, and the joiner is never told about herself', () => {
+      expect(told([row('owner', 'Owner'), row('recruiter', 'Recruiter'), row('priya', 'Admin')])).toEqual(['owner'])
+    })
+
+    it('the notice asks the one seat reader who is live, never a query of its own', () => {
+      const src = readFileSync(join(process.cwd(), 'src/lib/notify/joined.ts'), 'utf8')
+      expect(src).toMatch(/readCompanySeats\(companyId\)/)
+      expect(src).toMatch(/ownerIds: whoHearsAJoin\(seats, personId\)/)
+      expect(src).not.toMatch(/prisma\.context\.findMany/)
+    })
   })
 })

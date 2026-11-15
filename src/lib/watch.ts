@@ -28,6 +28,8 @@
 
 import { format, fromDecimal } from '@/lib/money'
 import { DEFAULT_CURRENCY } from '@/lib/money-display'
+import { seatByDate, type DatedSeat } from '@/lib/account-lifecycle'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 
 export type Urgency = 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
 
@@ -285,10 +287,41 @@ export interface WatchedAccess {
   expiresAt: Date | null
   lastUsedAt: Date | null
   grantedAt: Date
+  /**
+   * What the end-date rule reads beyond the role's name (`seatByDate`).
+   * Absent reads as a role with no permissions, not paused, and signed in
+   * only where the seat was used: so an Owner, read by the role's name, is
+   * always kept open, and the last seat that may manage access is found
+   * only where its permissions are given.
+   */
+  rolePermissions?: readonly string[]
+  suspendedAt?: Date | null
+  hasSignedIn?: boolean
+}
+
+/** A watched seat as the end-date rule reads it. */
+function datedAccess(a: WatchedAccess): DatedSeat {
+  return {
+    contextId: a.contextId,
+    companyId: a.companyId,
+    expiresAt: a.expiresAt,
+    isOwner: a.roleName === OWNER_ROLE,
+    rolePermissions: a.rolePermissions ?? [],
+    revokedAt: null,
+    suspendedAt: a.suspendedAt ?? null,
+    hasSignedIn: a.hasSignedIn ?? a.lastUsedAt !== null,
+  }
 }
 
 /**
  * Access that has expired, is about to, or was never used.
+ *
+ * A seat the end-date rule keeps open past its date (an Owner's, or the
+ * last one that may manage access: `seatByDate`, 2026-11-15) never lost
+ * access and is never going to by date, so neither "lost access" nor
+ * "loses access" is said of it. Nor is it said every day that it stays
+ * open: nothing about it can be fixed, so nothing about it is a nudge.
+ * It is watched for use like any other seat.
  *
  * The access screen already reports this to whoever opens it. Nobody
  * opens it. A grant nobody has touched in three months is exposure, and
@@ -296,9 +329,16 @@ export interface WatchedAccess {
  */
 export function watchAccess(rows: WatchedAccess[], now: Date): Finding[] {
   const out: Finding[] = []
+  const dated = rows.map(datedAccess)
+  const atCompany = new Map<string, DatedSeat[]>()
+  for (const d of dated) atCompany.set(d.companyId!, [...(atCompany.get(d.companyId!) ?? []), d])
+  // Kept open: today for a date already past, and on the day itself for
+  // one still to come, so neither the past date nor the coming one is said.
+  const keptOnItsDate = (a: WatchedAccess, i: number) =>
+    seatByDate(dated[i], atCompany.get(a.companyId) ?? [], a.expiresAt! > now ? a.expiresAt! : now).open
 
-  for (const a of rows) {
-    if (a.expiresAt) {
+  for (const [i, a] of rows.entries()) {
+    if (a.expiresAt && !keptOnItsDate(a, i)) {
       const days = daysBetween(a.expiresAt, now)
       if (days < 0) {
         out.push({

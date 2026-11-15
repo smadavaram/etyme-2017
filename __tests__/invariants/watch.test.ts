@@ -201,6 +201,30 @@ describe('access nobody is using', () => {
   it('says nothing about access somebody used yesterday', () => {
     expect(watchAccess([base], NOW)).toHaveLength(0)
   })
+
+  it('an Owner whose seat is past its end date is never reported as having lost access, because a date never ends an Owner’s seat', () => {
+    const owner = { ...base, contextId: 'c-owner', personName: 'Dana Reyes', roleName: 'Owner', expiresAt: inDays(-3) }
+    expect(watchAccess([owner], NOW)).toHaveLength(0)
+    expect(watchAccess([{ ...owner, expiresAt: inDays(5) }], NOW)).toHaveLength(0)
+  })
+
+  it('the last seat that may manage access is never reported as having lost access past its end date', () => {
+    const admin = { ...base, contextId: 'c-admin', personName: 'Lee Park', roleName: 'Admin', rolePermissions: ['*'], expiresAt: inDays(-3) }
+    expect(watchAccess([admin, base], NOW)).toHaveLength(0)
+  })
+
+  it('a seat past its end date while somebody else may still manage access is reported as having lost access', () => {
+    const admin = { ...base, contextId: 'c-admin', personName: 'Lee Park', roleName: 'Admin', rolePermissions: ['*'], expiresAt: inDays(-3) }
+    const owner = { ...base, contextId: 'c-owner', personName: 'Dana Reyes', roleName: 'Owner', rolePermissions: ['*'] }
+    const f = watchAccess([admin, owner, { ...base, expiresAt: inDays(-2) }], NOW)
+    expect(f.map((x) => [x.kind, x.subjectId])).toEqual([['ACCESS_EXPIRED', 'c-admin'], ['ACCESS_EXPIRED', 'c1']])
+    expect(f[0].headline).toBe('Lee Park lost access 3 days ago')
+  })
+
+  it('a kept Owner who has not used the seat in three months is still reported as exposure', () => {
+    const owner = { ...base, roleName: 'Owner', expiresAt: inDays(-3), lastUsedAt: inDays(-120) }
+    expect(watchAccess([owner], NOW).map((x) => x.kind)).toEqual(['ACCESS_DORMANT'])
+  })
 })
 
 describe('requests that went quiet', () => {

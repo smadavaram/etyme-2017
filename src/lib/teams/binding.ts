@@ -24,10 +24,20 @@
  * exactly one seat is bound to it. Anything else is refused in a
  * sentence rather than guessed. A consultant is reached by email, never
  * in Teams, so a consultant's seat is never bound.
+ *
+ * ── A seat's end date ───────────────────────────────────────────────
+ *
+ * A seat past its end date is ended in Teams exactly as on the web: the
+ * one rule (`seatByDate` in lib/account-lifecycle) decides, so an Owner's
+ * seat, and the last one that may manage access, are never ended by a
+ * date (2026-11-15).
  */
 
 import { prisma } from '@/lib/db'
 import { isConsumerDomain } from '@/lib/company-domains'
+import { hasSignedIn } from '@/lib/access-grant'
+import { seatByDate, pastEndDate, MANAGES_ACCESS, type DatedSeat } from '@/lib/account-lifecycle'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 
 export interface TeamsIdentity {
   /** The Entra sign-in name, as Teams reports it. */
@@ -154,25 +164,70 @@ export async function bindTeamsIdentity(identity: TeamsIdentity): Promise<Bindin
     ? await prisma.context.findMany({
         where: { personId: person.id, revokedAt: null, suspendedAt: null, companyId: { not: null } },
         select: {
-          id: true, type: true, expiresAt: true,
+          id: true, type: true, expiresAt: true, revokedAt: true, suspendedAt: true,
           company: { select: { id: true, name: true, kind: true, domain: true } },
           role: { select: { name: true, permissions: true } },
         },
         orderBy: { grantedAt: 'desc' },
       })
     : []
-  const now = Date.now()
-  const seats: Seat[] = rows
-    .filter((r) => r.company && (!r.expiresAt || r.expiresAt.getTime() > now))
-    .map((r) => ({
-      contextId: r.id,
-      type: r.type,
-      companyId: r.company!.id,
-      companyName: r.company!.name,
-      companyKind: r.company!.kind,
-      companyDomain: r.company!.domain,
-      roleName: r.role?.name ?? null,
-      permissions: (r.role?.permissions as string[] | undefined) ?? [],
-    }))
+  const now = new Date()
+  const open: typeof rows = []
+  for (const r of rows) {
+    if (!r.company) continue
+    if (pastEndDate(r.expiresAt, now) && !seatByDate(datedSeat(r, true), await mayManageAccessAt(r.company.id), now).open) continue
+    open.push(r)
+  }
+  const seats: Seat[] = open.map((r) => ({
+    contextId: r.id,
+    type: r.type,
+    companyId: r.company!.id,
+    companyName: r.company!.name,
+    companyKind: r.company!.kind,
+    companyDomain: r.company!.domain,
+    roleName: r.role?.name ?? null,
+    permissions: (r.role?.permissions as string[] | undefined) ?? [],
+  }))
   return chooseSeat(identity, person, seats)
+}
+
+type DatedRow = {
+  id: string
+  company: { id: string } | null
+  expiresAt: Date | null
+  revokedAt: Date | null
+  suspendedAt: Date | null
+  role: { name: string; permissions: unknown } | null
+}
+
+/** A seat as the end-date rule reads it. The person writing in Teams has signed in. */
+function datedSeat(r: DatedRow, signedIn: boolean): DatedSeat {
+  return {
+    contextId: r.id,
+    companyId: r.company?.id ?? null,
+    expiresAt: r.expiresAt,
+    isOwner: r.role?.name === OWNER_ROLE,
+    rolePermissions: (r.role?.permissions as string[] | undefined) ?? [],
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: signedIn,
+  }
+}
+
+/**
+ * The company's live seats that may manage access, as the end-date rule
+ * reads them. Read only for a seat past its date, so a seat in date costs
+ * no query.
+ */
+async function mayManageAccessAt(companyId: string): Promise<DatedSeat[]> {
+  const rows = await prisma.context.findMany({
+    where: { companyId, revokedAt: null, suspendedAt: null, role: { permissions: { hasSome: ['*', ...MANAGES_ACCESS] } } },
+    select: {
+      id: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true,
+      company: { select: { id: true } },
+      role: { select: { name: true, permissions: true } },
+      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
+    },
+  })
+  return rows.map((r) => datedSeat(r, hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 })))
 }

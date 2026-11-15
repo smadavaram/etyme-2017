@@ -15,10 +15,11 @@ import { seatedSays } from '@/lib/money/who-raises-bills'
  *
  *  1. the person who invited her, by name, while that person holds a
  *     live seat here whose role may give roles (`canGiveDesks`). Live is
- *     what the people lists read (`readCompanySeats`: signed in, not
- *     paused, not withdrawn or ended), and one more thing they do not
- *     read: a seat past its own end date (`Context.expiresAt`) has ended
- *     too, so an inviter whose seat ran out is never named;
+ *     exactly what the one seat reader says (`readCompanySeats`: signed
+ *     in, not paused, not withdrawn or ended, and not past its own end
+ *     date unless the date rule keeps it open, `seatByDate`), so an
+ *     inviter whose seat ran out is never named, and an Owner kept open
+ *     past the date still is (2026-11-15);
  *  2. else the roles of the live seats here that may give roles, in the
  *     words Users & permissions uses (`seatedSays`);
  *  3. else "an Owner or Admin" of the firm.
@@ -54,31 +55,25 @@ export function noRoleYetSays(who: WhoGivesRoles, firmName: string): string {
   return `${lead} Ask an Owner or Admin of ${firmName} to give you one.`
 }
 
-/** A seat as the people lists read it, with its end date beside it. */
+/** A seat as the one seat reader gives it, with whether its role may give roles. */
 export type GiverSeat = Pick<CompanySeat, 'contextId' | 'personId' | 'name' | 'roleName' | 'state'> & {
   /** The role may give roles (`canGiveDesks` on its permissions). */
   mayGive: boolean
-  /** The seat's own end date, or null where it has none. */
-  endsAt: Date | null
-}
-
-/** A seat past its end date has ended, whatever else it says. Pure. */
-export function seatHasEnded(endsAt: Date | null, now: Date): boolean {
-  return endsAt !== null && endsAt.getTime() <= now.getTime()
 }
 
 /**
- * Who gives this seat its role, from the company's seats. Pure: the
+ * Who gives this seat its role, from the company's seats as the one seat
+ * reader gives them (`readCompanySeats`). Pure: the
  * inviter is named only while she holds a live seat here that may give
  * roles, and the roles are those of every such seat but the reader's own.
  */
 export function whoGivesRoles(
   seats: readonly GiverSeat[],
   me: { contextId: string; personId: string; invitedById: string | null },
-  now: Date,
 ): WhoGivesRoles {
-  const givers = seats.filter((s) =>
-    s.state === 'WITH_ACCESS' && s.contextId !== me.contextId && s.mayGive && !seatHasEnded(s.endsAt, now))
+  // The seats come from the one seat reader, which has already ended a
+  // seat past its date and kept an Owner's: its answer is taken as it is.
+  const givers = seats.filter((s) => s.state === 'WITH_ACCESS' && s.contextId !== me.contextId && s.mayGive)
   const inviter = me.invitedById && me.invitedById !== me.personId
     ? givers.find((s) => s.personId === me.invitedById)?.name ?? null
     : null
@@ -103,16 +98,11 @@ export async function noRoleLineFor(caller: Seat): Promise<string | null> {
   const live = peopleOf(await readCompanySeats(caller.company.id))
     .filter((s) => s.state === 'WITH_ACCESS' && s.contextId !== caller.context.id && s.roleId)
   const ids = Array.from(new Set(live.map((s) => s.roleId!)))
-  const [roles, ends] = await Promise.all([
-    ids.length ? prisma.role.findMany({ where: { id: { in: ids } }, select: { id: true, permissions: true } }) : [],
-    live.length ? prisma.context.findMany({ where: { id: { in: live.map((s) => s.contextId) } }, select: { id: true, expiresAt: true } }) : [],
-  ])
+  const roles = ids.length ? await prisma.role.findMany({ where: { id: { in: ids } }, select: { id: true, permissions: true } }) : []
   const perms = new Map(roles.map((r) => [r.id, r.permissions as string[]]))
-  const endsAt = new Map(ends.map((c) => [c.id, c.expiresAt]))
   const who = whoGivesRoles(
-    live.map((s) => ({ ...s, mayGive: canGiveDesks(perms.get(s.roleId!) ?? []), endsAt: endsAt.get(s.contextId) ?? null })),
+    live.map((s) => ({ ...s, mayGive: canGiveDesks(perms.get(s.roleId!) ?? []) })),
     { contextId: caller.context.id, personId: caller.person.id, invitedById: mine.invitedById },
-    new Date(),
   )
   return noRoleYetSays(who, caller.company.name)
 }

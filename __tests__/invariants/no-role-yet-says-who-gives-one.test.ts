@@ -8,7 +8,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { noRoleYetSays, holdsNoRole, whoGivesRoles, seatHasEnded, type GiverSeat } from '@/app/api/conversations/twin/no-role'
+import { noRoleYetSays, holdsNoRole, whoGivesRoles, type GiverSeat } from '@/app/api/conversations/twin/no-role'
+import { seatsFrom } from '@/lib/company-seats'
+import { canGiveDesks } from '@/lib/access-grant'
 import { nothingOfTheFirm } from '@/app/api/conversations/twin/hat'
 import { workerToday, type WorkerFacts } from '@/app/api/conversations/twin/worker'
 
@@ -70,45 +72,72 @@ describe('only a live seat that may give roles is ever named', () => {
   const dayOn = new Date(now.getTime() + 86_400_000)
   const ana = { contextId: 'c-ana', personId: 'p-ana', invitedById: 'p-lee' }
   const lee = (over: Partial<GiverSeat> = {}): GiverSeat => ({
-    contextId: 'c-lee', personId: 'p-lee', name: 'Lee Park', roleName: 'Admin', state: 'WITH_ACCESS', mayGive: true, endsAt: null, ...over,
+    contextId: 'c-lee', personId: 'p-lee', name: 'Lee Park', roleName: 'Admin', state: 'WITH_ACCESS', mayGive: true, ...over,
   })
-  const dana: GiverSeat = { contextId: 'c-dana', personId: 'p-dana', name: 'Dana Reyes', roleName: 'Owner', state: 'WITH_ACCESS', mayGive: true, endsAt: null }
+  const dana: GiverSeat = { contextId: 'c-dana', personId: 'p-dana', name: 'Dana Reyes', roleName: 'Owner', state: 'WITH_ACCESS', mayGive: true }
+
+  /**
+   * A seat row at Harborline Tech as the one seat reader reads it from the
+   * database. The reader's own pure half (`seatsFrom`) decides which seats
+   * are live on their end date, and its answer is what whoGivesRoles reads.
+   */
+  const ALL = ['*']
+  const row = (id: string, name: string, role: string, permissions: string[], expiresAt: Date | null = null) => ({
+    id: `c-${id}`, personId: `p-${id}`, type: 'EMPLOYEE', roleId: `r-${role}`, orgUnitId: null, grantedAt: dayAgo,
+    invitedAt: null, lastUsedAt: dayAgo, suspendedAt: null, revokedAt: null, expiresAt,
+    role: { name: role, permissions },
+    person: { name, primaryEmail: `${id}@harborline-tech.example`, credentials: [{ id: `k-${id}` }] },
+  })
+  const asTheReaderSays = (rows: ReturnType<typeof row>[]): GiverSeat[] =>
+    seatsFrom(rows, 'Harborline Tech', now).map((s) => ({ ...s, mayGive: canGiveDesks(rows.find((r) => r.id === s.contextId)!.role.permissions) }))
 
   it('an inviter whose seat is live and may give roles is named', () => {
-    expect(whoGivesRoles([lee(), dana], ana, now)).toEqual({ inviter: 'Lee Park', roles: ['Admin', 'Owner'] })
+    expect(whoGivesRoles([lee(), dana], ana)).toEqual({ inviter: 'Lee Park', roles: ['Admin', 'Owner'] })
   })
 
   it('an inviter whose seat has ended is never named, and she is told which roles give roles', () => {
-    const who = whoGivesRoles([lee({ endsAt: dayAgo }), dana], ana, now)
+    const seats = asTheReaderSays([row('lee', 'Lee Park', 'Admin', ALL, dayAgo), row('dana', 'Dana Reyes', 'Owner', ALL), row('ana', 'Ana Silva', 'Member', [])])
+    const who = whoGivesRoles(seats, ana)
     expect(who).toEqual({ inviter: null, roles: ['Owner'] })
     const said = noRoleYetSays(who, 'Harborline Tech')
     expect(said).toBe(`${LEAD} Giving roles is for the Owner here. Ask them.`)
     expect(said).not.toContain('Lee Park')
   })
 
-  it('a seat that ends today, at this moment or earlier, has ended; one that ends tomorrow has not', () => {
-    expect(seatHasEnded(now, now)).toBe(true)
-    expect(seatHasEnded(dayAgo, now)).toBe(true)
-    expect(seatHasEnded(dayOn, now)).toBe(false)
-    expect(seatHasEnded(null, now)).toBe(false)
-    expect(whoGivesRoles([lee({ endsAt: dayOn })], ana, now).inviter).toBe('Lee Park')
+  it('an Owner kept open past the end date is still named as one who gives roles', () => {
+    const seats = asTheReaderSays([row('dana', 'Dana Reyes', 'Owner', ALL, dayAgo), row('ana', 'Ana Silva', 'Member', [])])
+    expect(whoGivesRoles(seats, { ...ana, invitedById: 'p-dana' })).toEqual({ inviter: 'Dana Reyes', roles: ['Owner'] })
+    expect(whoGivesRoles(seats, ana)).toEqual({ inviter: null, roles: ['Owner'] })
+    expect(noRoleYetSays(whoGivesRoles(seats, ana), 'Harborline Tech')).toBe(`${LEAD} Giving roles is for the Owner here. Ask them.`)
+  })
+
+  it('a seat that ends at this moment or earlier has ended; one that ends tomorrow has not', () => {
+    const dana_ = row('dana', 'Dana Reyes', 'Owner', ALL)
+    expect(whoGivesRoles(asTheReaderSays([row('lee', 'Lee Park', 'Admin', ALL, now), dana_]), ana).inviter).toBeNull()
+    expect(whoGivesRoles(asTheReaderSays([row('lee', 'Lee Park', 'Admin', ALL, dayAgo), dana_]), ana).inviter).toBeNull()
+    expect(whoGivesRoles(asTheReaderSays([row('lee', 'Lee Park', 'Admin', ALL, dayOn), dana_]), ana).inviter).toBe('Lee Park')
+    expect(whoGivesRoles(asTheReaderSays([row('lee', 'Lee Park', 'Admin', ALL, null), dana_]), ana).inviter).toBe('Lee Park')
   })
 
   it('an inviter who never signed in, or is paused, is never named', () => {
-    expect(whoGivesRoles([lee({ state: 'INVITED' }), dana], ana, now).inviter).toBeNull()
-    expect(whoGivesRoles([lee({ state: 'PAUSED' }), dana], ana, now).inviter).toBeNull()
+    expect(whoGivesRoles([lee({ state: 'INVITED' }), dana], ana).inviter).toBeNull()
+    expect(whoGivesRoles([lee({ state: 'PAUSED' }), dana], ana).inviter).toBeNull()
   })
 
   it('an inviter whose role may no longer give roles is never named, and her role is not offered', () => {
-    expect(whoGivesRoles([lee({ mayGive: false, roleName: 'Recruiter' }), dana], ana, now)).toEqual({ inviter: null, roles: ['Owner'] })
+    expect(whoGivesRoles([lee({ mayGive: false, roleName: 'Recruiter' }), dana], ana)).toEqual({ inviter: null, roles: ['Owner'] })
   })
 
-  it('a seat whose end date has passed is never counted among the roles that give roles', () => {
-    expect(whoGivesRoles([lee({ endsAt: dayAgo }), { ...dana, endsAt: dayAgo }], ana, now)).toEqual({ inviter: null, roles: [] })
+  it('a seat whose end date has passed is never counted among the roles that give roles, unless it is an Owner’s', () => {
+    const seats = asTheReaderSays([
+      row('lee', 'Lee Park', 'Admin', ALL, dayAgo), row('kim', 'Kim Ortiz', 'Admin', ALL, dayAgo),
+      row('dana', 'Dana Reyes', 'Owner', ALL, dayAgo), row('ana', 'Ana Silva', 'Member', []),
+    ])
+    expect(whoGivesRoles(seats, ana)).toEqual({ inviter: null, roles: ['Owner'] })
   })
 
   it('a person is never told to ask herself', () => {
-    expect(whoGivesRoles([lee({ contextId: 'c-ana', personId: 'p-ana' })], { ...ana, invitedById: 'p-ana' }, now)).toEqual({ inviter: null, roles: [] })
+    expect(whoGivesRoles([lee({ contextId: 'c-ana', personId: 'p-ana' })], { ...ana, invitedById: 'p-ana' })).toEqual({ inviter: null, roles: [] })
   })
 })
 

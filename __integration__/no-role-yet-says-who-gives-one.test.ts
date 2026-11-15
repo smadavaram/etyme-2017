@@ -37,6 +37,8 @@ async function greeting(cookie?: string) {
 describe('a person invited with no role is told on her first screen who gives her one', () => {
   let firm = ''
   const seat: Record<string, string> = {}
+  let lee = ''
+  let dana = ''
 
   beforeAll(async () => {
     await freshWorld()
@@ -49,8 +51,8 @@ describe('a person invited with no role is told on her first screen who gives he
       seat[email] = c.id
       return p.id
     }
-    await seatFor(DANA, 'Dana Reyes', await role('Owner'))
-    const lee = await seatFor(LEE, 'Lee Park', await role('Admin'))
+    dana = await seatFor(DANA, 'Dana Reyes', await role('Owner'))
+    lee = await seatFor(LEE, 'Lee Park', await role('Admin'))
     await seatFor(KIM, 'Kim Ortiz', await role('Admin'))
     await seatFor(ANA, 'Ana Silva', await role('Member'), { invitedAt: new Date(), invitedById: lee })
   }, 600_000)
@@ -68,6 +70,15 @@ describe('a person invited with no role is told on her first screen who gives he
     expect(everythingSaid(answer)).toContain(`${LEAD} Giving roles is for the Owner or an Admin here. Ask one of them.`)
     expect(JSON.stringify(answer)).not.toContain('Lee Park')
     await prisma.context.update({ where: { id: seat[LEE] }, data: { expiresAt: null } })
+  })
+
+  it('an Owner kept open past the end date is still named as one who gives roles', async () => {
+    await prisma.context.update({ where: { id: seat[DANA] }, data: { expiresAt: new Date(Date.now() - 86_400_000) } })
+    await prisma.context.update({ where: { id: seat[ANA] }, data: { invitedById: dana } })
+    as(ANA)
+    expect(everythingSaid(await greeting())).toContain(`${LEAD} Ask Dana Reyes, who invited you, to give you one.`)
+    await prisma.context.update({ where: { id: seat[DANA] }, data: { expiresAt: null } })
+    await prisma.context.update({ where: { id: seat[ANA] }, data: { invitedById: lee } })
   })
 
   it('an inviter who was invited and never signed in is never named', async () => {

@@ -4,6 +4,7 @@ import { teamsLinkKind } from '@/lib/notify/teams-link'
 import { reportError } from '@/lib/alerts'
 import { memberWelcome } from '@/lib/password-words'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
+import { readCompanySeats, type CompanySeat } from '@/lib/company-seats'
 
 /**
  * A colleague signed in on the company's own domain, and the owner is
@@ -39,7 +40,10 @@ import { MEMBER_ROLE } from '@/lib/company-defaults'
  *
  * ── Who hears, and on which channel ──────────────────────────────────
  *
- * Every Owner and Admin seat, in the app. Outside the app the company's
+ * Every Owner and Admin seat the one seat reader gives as live and not
+ * paused (`readCompanySeats`), in the app. A seat past its end date has
+ * ended and is not told; an Owner's seat, which a date never ends, is
+ * (2026-11-15). Outside the app the company's
  * own rule holds: where it saved a Teams link, the channel hears it once
  * (five copies of one sentence in one channel is how a channel gets
  * muted); where it has none, each owner and admin gets an email.
@@ -53,6 +57,19 @@ import { MEMBER_ROLE } from '@/lib/company-defaults'
 
 /** The seats that give a desk: the two that hold everything. */
 export const GIVES_DESKS = ['Owner', 'Admin'] as const
+
+/**
+ * Who hears that somebody joined, from the company's seats as the one
+ * seat reader gives them: every Owner and Admin seat not paused, the
+ * joiner's own aside, oldest first. The reader has already left out a
+ * seat withdrawn, ended, or past its end date, and kept an Owner's. Pure.
+ */
+export function whoHearsAJoin(seats: readonly Pick<CompanySeat, 'personId' | 'roleName' | 'state'>[], joinerId: string): string[] {
+  const gives = new Set<string>(GIVES_DESKS)
+  return seats
+    .filter((s) => s.personId !== joinerId && s.state !== 'PAUSED' && gives.has(s.roleName ?? ''))
+    .map((s) => s.personId)
+}
 
 /** Where a desk is given. */
 export const ACCESS_PAGE = '/dashboard/access'
@@ -204,17 +221,7 @@ export async function tellOwnerSomebodyJoined(
     const [company, person, seats] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, select: { name: true, teamsWebhookUrl: true } }),
       prisma.person.findUnique({ where: { id: personId }, select: { name: true, primaryEmail: true } }),
-      prisma.context.findMany({
-        where: {
-          companyId,
-          revokedAt: null,
-          suspendedAt: null,
-          personId: { not: personId },
-          role: { name: { in: [...GIVES_DESKS] } },
-        },
-        orderBy: { grantedAt: 'asc' },
-        select: { personId: true },
-      }),
+      readCompanySeats(companyId),
     ])
     if (!company || !person) return none
 
@@ -223,7 +230,7 @@ export async function tellOwnerSomebodyJoined(
       companyId,
       joinerId: personId,
       joiner: { name: person.name, email: person.primaryEmail, companyName: company.name, roleName },
-      ownerIds: seats.map((s) => s.personId),
+      ownerIds: whoHearsAJoin(seats, personId),
       teamsLinked: Boolean(url) && teamsLinkKind(url) !== 'RETIRED',
     })
 
