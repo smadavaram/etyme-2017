@@ -308,8 +308,8 @@ systems drop and the half an investigation needs.
 
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
-**Coverage, stated honestly.** 88 route files write an access-log row
-through `src/lib/access-log.ts`, out of 383 API route files. They are the routes that
+**Coverage, stated honestly.** 90 route files write an access-log row
+through `src/lib/access-log.ts`, out of 384 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -490,14 +490,14 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-11-13:
+Recomputed from the module on 2026-11-15:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **238** |
+| Actions named in the automation log | **240** |
 | Unprompted — the system did it and nobody asked | **38** |
 | Enforcement — the system decided what a person was allowed to do | **15** |
-| Attributed — a person did it and the row is the record | **185** |
+| Attributed — a person did it and the row is the record | **187** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
@@ -892,7 +892,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 88 route files of 383 (section 4).
+- Access logging covers 90 route files of 384 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their
