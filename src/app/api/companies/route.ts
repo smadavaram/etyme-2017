@@ -5,7 +5,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
-import { dealingsWithSides } from './dealings'
+import { companiesOnList } from './dealings'
 import { ownDomainsFor, twinFor, keepNote } from './twins'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany, findFirm, workTogether } from '@/lib/company-create'
@@ -567,17 +567,11 @@ export async function GET(request: NextRequest) {
   // nobody's picker by default: they hold no position, so a screen that
   // lists companies to pick from never meets one (founder, 2026-11-12).
   const withRecords = request.nextUrl.searchParams.get('records') === '1'
-  const sides = verdict.reach === 'ALL' ? null : await dealingsWithSides(caller, verdict.includesOwn)
+  // One reader for this list and for Contacts' Works at (`companiesOnList`):
+  // every company this firm recorded and nobody has claimed is on it,
+  // whatever Kind it has been given since, because a Kind is no position.
+  const sides = verdict.reach === 'ALL' ? null : await companiesOnList(caller, verdict.includesOwn, withRecords)
   const ids = sides ? sides.ids : null
-  if (ids && withRecords && caller.company) {
-    for (const r of await prisma.company.findMany({
-      // Every company this firm recorded and nobody has claimed, whatever
-      // Kind it has been given since: setting the Kind gives no position,
-      // so the record stays on the list that way too.
-      where: { listedById: caller.company.id, claimedAt: null },
-      select: { id: true },
-    })) ids.add(r.id)
-  }
   const visible = ids ? { id: { in: [...ids] } } : undefined
 
   const companies = await prisma.company.findMany({

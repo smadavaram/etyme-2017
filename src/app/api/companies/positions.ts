@@ -227,7 +227,8 @@ export async function agreementKeepsPosition(
 }
 
 /** The automation-log names a change to a company on one firm's list is written under. */
-const HISTORY_ACTIONS = ['COMPANY_CREATED', 'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET', 'COMPANY_RECORD_EDITED']
+// A contact added at the company is on its history too (2026-11-15).
+const HISTORY_ACTIONS = ['COMPANY_CREATED', 'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET', 'COMPANY_RECORD_EDITED', 'CONTACT_RECORDED']
 
 export interface HistoryRow {
   action: string

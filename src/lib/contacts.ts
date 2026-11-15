@@ -142,7 +142,7 @@ export function problems(c: ContactInput): Problem[] {
     })
   }
 
-  if (c.kind && !(c.kind in KINDS)) {
+  if (c.kind && !Object.hasOwn(KINDS, c.kind)) {
     out.push({ field: 'kind', says: `"${c.kind}" is not a kind of contact this keeps.` })
   }
 
@@ -359,14 +359,103 @@ export function kindOfRole(
 }
 
 /**
- * The companies a contact may work at: every firm on this company's
- * register, once each however many relationships it holds, and every
- * company this firm recorded and has not classified yet (founder,
- * 2026-11-12), marked so. Sorted by name.
+ * Where a contact may work, as the route reads it (`api/contacts/works-at`):
+ * the caller's own firm, and every company on its Companies list.
  */
-export function worksAtChoices(reg: { rows?: { otherCompanyId: string; otherCompanyName: string }[]; known?: { id: string; name: string }[] } | null): { id: string; name: string }[] {
-  const seen = new Map<string, { id: string; name: string }>()
-  for (const r of reg?.rows ?? []) if (!seen.has(r.otherCompanyId)) seen.set(r.otherCompanyId, { id: r.otherCompanyId, name: r.otherCompanyName })
-  for (const k of reg?.known ?? []) if (!seen.has(k.id)) seen.set(k.id, { id: k.id, name: `${k.name} (not classified)` })
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+export interface WorksAtBook {
+  own: { id: string; name: string }
+  companies: { id: string; name: string; domain: string | null }[]
+}
+
+export interface WorksAtChoice {
+  id: string
+  name: string
+  /** The caller's own firm: its own people are contacts too (fix list, 2026-11-14, H1). */
+  own: boolean
+}
+
+/** How the firm's own name reads at the top of Works at. */
+export function ownFirmChoice(name: string): string {
+  return `${name} (your own firm)`
+}
+
+/**
+ * The choices under Works at: the firm's own name first, marked as its own
+ * firm, then every company on its Companies list once, sorted by name.
+ * Two companies of one name (a company is known by its domain) are told
+ * apart by their domain, or by saying they have none yet.
+ */
+export function worksAtChoices(book: WorksAtBook | null | undefined): WorksAtChoice[] {
+  if (!book) return []
+  const seen = new Map<string, { id: string; name: string; domain: string | null }>()
+  for (const c of book.companies) if (c.id !== book.own.id && !seen.has(c.id)) seen.set(c.id, c)
+  const rest = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name) || (a.domain ?? '\uffff').localeCompare(b.domain ?? '\uffff'))
+  const named = new Map<string, number>()
+  for (const c of rest) named.set(c.name.trim().toLowerCase(), (named.get(c.name.trim().toLowerCase()) ?? 0) + 1)
+  return [
+    { id: book.own.id, name: ownFirmChoice(book.own.name), own: true },
+    ...rest.map((c) => ({
+      id: c.id,
+      name: (named.get(c.name.trim().toLowerCase()) ?? 0) > 1 ? `${c.name} (${c.domain ?? 'no domain yet'})` : c.name,
+      own: false,
+    })),
+  ]
+}
+
+/** Whether the route takes a contact at this company: the own firm, or one on the list. */
+export function mayWorkAt(book: WorksAtBook, atCompanyId: string): boolean {
+  return atCompanyId === book.own.id || book.companies.some((c) => c.id === atCompanyId)
+}
+
+/** The role a contact at the firm's own firm starts on. */
+export const OWN_FIRM_KIND: ContactKind = 'MEMBER'
+
+/**
+ * The roles Add contact offers. "Team member" is a colleague at the
+ * firm's own firm, so it is offered only when the own firm is chosen;
+ * a person at another company is called about something, and "Other"
+ * is always there for whoever is not sure.
+ */
+export function rolesOffered(atOwnFirm: boolean): { key: ContactKind; label: string; callAbout: string }[] {
+  return (Object.entries(KINDS) as [ContactKind, (typeof KINDS)[ContactKind]][])
+    .filter(([key]) => atOwnFirm || key !== 'MEMBER')
+    .map(([key, v]) => ({ key, ...v }))
+}
+
+/** The route's sentence for "Team member" at another company. */
+export function memberElsewhereSays(atName: string): string {
+  return `Team member is for somebody at your own firm. Pick their role at ${atName}, or leave it on Other.`
+}
+
+/**
+ * The roles the filter on Contacts offers: only roles somebody on the
+ * list holds, in the table's own order, so no chip opens an empty list.
+ */
+export function kindsHeld(rows: readonly { kind: string }[]): { key: ContactKind; label: string; callAbout: string }[] {
+  const held = new Set(rows.map((r) => r.kind))
+  return (Object.entries(KINDS) as [ContactKind, (typeof KINDS)[ContactKind]][])
+    .filter(([key]) => held.has(key))
+    .map(([key, v]) => ({ key, ...v }))
+}
+
+/** The route's sentence for a company that is not on the caller's list. */
+export const NOT_ON_YOUR_LIST_SAYS =
+  'That company is not on your Companies list. Add it there first, then add the people you know at it.'
+
+/** Where that sentence sends the reader: Companies, with Add a company open. */
+export const ADD_A_COMPANY_HREF = '/dashboard/companies?new=1'
+
+/**
+ * The activity-log row for a contact added by hand: who added whom at
+ * which company, and that nothing was sent. No remove exists, so the row
+ * says honestly that it cannot be undone.
+ */
+export function contactRecordedLog(a: { byName: string; name: string; atName: string; ownFirm: boolean }): { summary: string; reason: string; reversible: false } {
+  return {
+    summary: `${a.byName} added ${a.name} at ${a.atName} to Contacts`,
+    reason: a.ownFirm
+      ? 'Added by hand as a colleague at this firm. Nothing was sent to them, and it gives them no login.'
+      : 'Added by hand to this company’s own contacts. Nothing was sent to them.',
+    reversible: false,
+  }
 }

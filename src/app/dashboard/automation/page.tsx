@@ -78,6 +78,7 @@ function actionIcon(action: string): string {
     BLACKLIST_LIFT:            '⊘',
     TEMPLATE_PACK_APPLIED:     '◆',
     COMPANY_CREATED:           '◉',
+    CONTACT_RECORDED:          '☎',
     REVERSAL:                  '↩',
   }
   return map[action] ?? '●'
@@ -103,6 +104,7 @@ function actionCategory(action: string): string {
   if (action.startsWith('BENCH')) return 'Bench'
   if (action.startsWith('CONTRACT')) return 'Contracts'
   if (action.startsWith('CONSULTANT')) return 'People'
+  if (action.startsWith('CONTACT')) return 'Contacts'
   if (action.startsWith('REQUIREMENT') || action.startsWith('REQUISITION')) return 'Job requests'
   if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
   if (action.startsWith('TIMESHEET')) return 'Timesheets'

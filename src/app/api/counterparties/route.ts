@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
   // contact is a firm you cannot actually call.
   const contactCounts = await prisma.companyContact.groupBy({
     by: ['atCompanyId'],
-    where: { companyId },
+    // A colleague at the firm's own firm is never somebody to call there.
+    where: { companyId, atCompanyId: { not: companyId } },
     _count: true,
   })
   const counts = new Map(contactCounts.map((c) => [c.atCompanyId, c._count]))

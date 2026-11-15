@@ -3,25 +3,31 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
-import { worksAtChoices } from '@/lib/contacts'
+import Link from 'next/link'
+import { worksAtChoices, rolesOffered, OWN_FIRM_KIND, type WorksAtChoice } from '@/lib/contacts'
+import { mayOpen } from '@/lib/nav-table'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { refusalSentence } from '@/lib/refusal-words'
 import { Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 /**
- * Contacts, and who to call there.
+ * Contacts: the people you know, at the companies on your list and at
+ * your own firm, by what you would call them about.
  *
- * Two tabs over one idea. Companies is the register — who they are to
- * us, whether an agreement backs it, whether anything is live between
- * us. People is the rolodex — the humans at those firms, by what you
- * would call them about.
+ * Contacts is people. Its Companies tab read the register alone and said
+ * it had none beside a Companies page listing hundreds (fix
+ * list of 2026-11-14, B4), so it is gone, and one link opens Companies,
+ * whose drawer holds each company's contacts.
  *
  * A working surface: search first, dense rows, every state handled.
  */
 
-const TABS = ['PEOPLE', 'COMPANIES'] as const
-type Tab = (typeof TABS)[number]
+/** Where a colleague who needs a login is invited, and where a person the firm pays is added. */
+const USERS_HREF = '/dashboard/access'
+const ADD_CANDIDATE_HREF = '/dashboard/consultants?new=1'
+const COMPANIES_HREF = '/dashboard/companies'
 
 
 const PEOPLE_COLUMNS: Column<any>[] = [
@@ -33,19 +39,10 @@ const PEOPLE_COLUMNS: Column<any>[] = [
   { key: 'joined', label: 'Here', render: (c) => (c.joined ? <Chip tone="verified">on the platform</Chip> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
 ]
 
-const COMPANY_COLUMNS: Column<any>[] = [
-  { key: 'otherCompanyName', label: 'Firm', render: (r) => <span className="text-etyme-ink">{r.otherCompanyName}</span> },
-  { key: 'relationship', label: 'To you', render: (r) => <Chip tone="action">{r.relationship.toLowerCase()}</Chip> },
-  { key: 'status', label: 'Standing', render: (r) => <Chip tone={r.status === 'BLOCKED' ? 'attention' : 'passive'}>{r.status.toLowerCase()}</Chip> },
-  { key: 'hasAgreement', label: 'Agreement', render: (r) => (r.hasAgreement ? <Chip tone="verified">on file</Chip> : <span className="text-etyme-faint">none</span>), sortValue: (r) => (r.hasAgreement ? 1 : 0) },
-  { key: 'contacts', label: 'Contacts', align: 'right', render: (r) => <span className="tabular-nums">{r.contacts}</span> },
-]
-
 export default function ContactsPage() {
   const session = useSession()
-  const [tab, setTab] = useState<Tab>('PEOPLE')
+  const permissions = sidebarPropsFrom(session).permissions ?? null
   const [contacts, setContacts] = useState<any>(null)
-  const [reg, setReg] = useState<any>(null)
   const [q, setQ] = useState('')
   const [kind, setKind] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,21 +55,14 @@ export default function ContactsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [c, r] = await Promise.all([
-        fetch(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`),
-        fetch('/api/counterparties'),
-      ])
+      const c = await fetch(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`)
       const cb = await c.json().catch(() => ({}))
-      const rb = await r.json().catch(() => ({}))
-      const no = c.status === 403 ? cb : r.status === 403 ? rb : null
-      if (no) {
-        setRefused(refusalSentence(no?.error?.message) || 'Contacts is not part of your seat. Ask your company’s owner if you need it.')
+      if (c.status === 403) {
+        setRefused(refusalSentence(cb?.error?.message) || 'Contacts is not part of your seat. Ask your company’s owner if you need it.')
         return
       }
       if (!c.ok) throw new Error(cb.error?.message ?? `HTTP ${c.status}`)
-      if (!r.ok) throw new Error(rb.error?.message ?? `HTTP ${r.status}`)
       setContacts(cb.data)
-      setReg(rb.data)
       setError(null)
     } catch (e: any) {
       setError(e.message)
@@ -107,24 +97,14 @@ export default function ContactsPage() {
       <PageHead
         eyebrow={eyebrow}
         title="Contacts"
-        subtitle={readerKind ? 'The register of firms and the people at them. Private to this company — a rolodex is a commercial asset, and nobody else’s screen shows yours.' : undefined}
+        subtitle={readerKind ? 'The people you know at the companies on your list, and at your own firm. Private to this company — nobody else’s screen shows yours.' : undefined}
       />
 
       <div className="flex flex-wrap items-center gap-3 border-b border-etyme-rule pb-3">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-1 pb-1 text-[13px] capitalize"
-            style={
-              tab === t
-                ? { borderBottom: '2px solid var(--color-action)', color: 'var(--color-ink)', fontWeight: 600 }
-                : { color: 'var(--color-muted)' }
-            }
-          >
-            {t === 'PEOPLE' ? 'People' : 'Companies'}
-          </button>
-        ))}
+        {/* Contacts is people; the companies are on Companies, one click away. */}
+        {mayOpen(COMPANIES_HREF, permissions) && (
+          <Link href={COMPANIES_HREF} className="text-[13px] text-etyme-action">Companies</Link>
+        )}
         <input
           type="search"
           value={q}
@@ -132,24 +112,23 @@ export default function ContactsPage() {
           placeholder="Search names, companies, titles"
           className="ml-auto w-full rounded-lg border border-etyme-rule px-3 py-1.5 text-[13px] sm:w-64"
         />
-        {tab === 'PEOPLE' && (
-          <button onClick={() => setAdding(true)} className="btn-primary text-[13px]">
-            Add contact
-          </button>
-        )}
+        <button onClick={() => setAdding(true)} className="btn-primary text-[13px]">
+          Add contact
+        </button>
       </div>
 
       {loading && <LoadingState compact says="Opening contacts…" />}
       {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}
 
       {/* ── People ─────────────────────────────────────────── */}
-      {!loading && tab === 'PEOPLE' && contacts && (
+      {!loading && contacts && (
         <>
           {/* Each card says what to call the person about, so the chip
               carries the desk's name alone. */}
           <FilterChips<string>
             label="Their role at their firm"
-            options={[{ key: '', label: 'Everyone' }, ...contacts.kinds.map((k: any) => ({ key: k.key, label: k.label }))]}
+            // Only roles somebody on the list holds (lib/contacts kindsHeld).
+            options={[{ key: '', label: 'Everyone' }, ...(contacts.held ?? []).map((k: any) => ({ key: k.key, label: k.label }))]}
             value={kind ?? ''}
             onChange={(k) => setKind(k === '' ? null : k)}
           />
@@ -200,50 +179,11 @@ export default function ContactsPage() {
         </>
       )}
 
-      {/* ── Companies ──────────────────────────────────────── */}
-      {!loading && tab === 'COMPANIES' && reg && (
-        <>
-          <ListSurface<any>
-            name="contacts-companies"
-            searchable={false}
-            defaultView="feed"
-            columns={COMPANY_COLUMNS}
-            data={reg.rows.filter((r: any) => !q || r.otherCompanyName.toLowerCase().includes(q.toLowerCase()))}
-            rowKey={(r) => `${r.otherCompanyId}:${r.relationship}`}
-            exportName="counterparties"
-            defaultPageSize={50}
-            card={(r) => (
-              <div>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-[15px] font-semibold text-etyme-ink">{r.otherCompanyName}</p>
-                  <div className="flex items-center gap-2">
-                    {r.status === 'BLOCKED' && <Chip tone="attention">blocked</Chip>}
-                    {r.status === 'PROSPECT' && <Chip>prospect</Chip>}
-                    {r.hasAgreement && <Chip tone="verified">agreement on file</Chip>}
-                    <Chip tone="action">{r.relationship.toLowerCase()}</Chip>
-                  </div>
-                </div>
-                <p className="mt-1 text-[13px] text-etyme-muted">{r.says}</p>
-                <p className="mt-1 text-[12px] text-etyme-faint">
-                  {r.contacts > 0
-                    ? `${r.contacts} contact${r.contacts === 1 ? '' : 's'} on file`
-                    : 'No contacts on file — a counterparty with nobody to call is a logo, not a relationship.'}
-                </p>
-
-              </div>
-            )}
-          />
-
-          {reg.rows.length === 0 && (
-            <EmptyState says="No counterparties yet. Add a company from the Companies screen and say what they are to you, or invite a supplier — either writes the register." />
-          )}
-        </>
-      )}
-
       {adding && contacts && (
         <AddContactModal
-          companies={worksAtChoices(reg)}
-          kinds={contacts.kinds}
+          companies={worksAtChoices(contacts.worksAt)}
+          permissions={permissions}
+          readerKind={readerKind}
           onClose={() => setAdding(false)}
           onCreated={() => {
             setAdding(false)
@@ -257,18 +197,38 @@ export default function ContactsPage() {
 
 function AddContactModal({
   companies,
-  kinds,
+  permissions,
+  readerKind,
   onClose,
   onCreated,
 }: {
-  companies: { id: string; name: string }[]
-  kinds: { key: string; label: string; callAbout: string }[]
+  companies: WorksAtChoice[]
+  permissions: readonly string[] | null
+  readerKind: string | null
   onClose: () => void
   onCreated: () => void
 }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', title: '', atCompanyId: '', kind: 'OTHER' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The route's link beside its refusal, such as Add a company.
+  const [errorLink, setErrorLink] = useState<{ href: string; label: string } | null>(null)
+  const atOwnFirm = companies.some((c) => c.own && c.id === form.atCompanyId)
+  // Team member only at the firm's own firm (lib/contacts rolesOffered).
+  const kinds = rolesOffered(atOwnFirm)
+  // A firm that pays its own people adds them under Candidates; a client's
+  // or an MSP's menu has no such page.
+  const paysPeople = readerKind === 'VENDOR' || readerKind === 'GSI'
+  const mayInvite = mayOpen(USERS_HREF, permissions)
+  const mayAddCandidate = paysPeople && mayOpen(ADD_CANDIDATE_HREF, permissions)
+
+  function chooseCompany(id: string) {
+    const own = companies.some((c) => c.own && c.id === id)
+    // A colleague starts on Team member; leaving the own firm puts a
+    // Team member back on Other, since that role is only for colleagues.
+    const kind = own ? (form.kind === 'OTHER' ? OWN_FIRM_KIND : form.kind) : form.kind === OWN_FIRM_KIND ? 'OTHER' : form.kind
+    setForm({ ...form, atCompanyId: id, kind })
+  }
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Checked here, not left to the browser. A native refusal inside a
@@ -297,6 +257,7 @@ function AddContactModal({
     }
     setSubmitting(true)
     setError(null)
+    setErrorLink(null)
     try {
       const res = await fetch('/api/contacts', {
         method: 'POST',
@@ -306,6 +267,8 @@ function AddContactModal({
       const body = await res.json()
       if (!res.ok) {
         setError(body.error?.message ?? 'Could not save the contact.')
+        // Drawn only where the page will take the reader.
+        if (body.error?.href && mayOpen(body.error.href, permissions)) setErrorLink({ href: body.error.href, label: body.error.hrefLabel ?? 'Open it' })
         if (body.error?.field) setFieldErrors({ [body.error.field]: body.error.message })
         return
       }
@@ -344,6 +307,12 @@ function AddContactModal({
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+            {errorLink && (
+              <>
+                {' '}
+                <Link href={errorLink.href} className="font-semibold underline">{errorLink.label}</Link>
+              </>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -356,7 +325,7 @@ function AddContactModal({
                 required
                 aria-required="true"
                 value={form.atCompanyId}
-                onChange={(e) => setForm({ ...form, atCompanyId: e.target.value })}
+                onChange={(e) => chooseCompany(e.target.value)}
                 aria-invalid={!!fieldErrors.atCompanyId}
                 className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${fieldErrors.atCompanyId ? 'border-etyme-attention' : 'border-etyme-rule'}`}
               >
@@ -368,6 +337,13 @@ function AddContactModal({
               {fieldErrors.atCompanyId && (
                 <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.atCompanyId}</p>
               )}
+              {atOwnFirm && (
+                <p className="mt-1 text-[12px] text-etyme-muted">
+                  Saving a colleague here gives them no login and sends them nothing.
+                  {mayInvite && <> A colleague who needs a login is invited under <Link href={USERS_HREF} className="text-etyme-action">Users &amp; permissions</Link>.</>}
+                  {mayAddCandidate && <> A person you pay is added under <Link href={ADD_CANDIDATE_HREF} className="text-etyme-action">Candidates</Link>.</>}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -378,7 +354,7 @@ function AddContactModal({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {field('title', 'Title', 'Director, Contingent Workforce')}
             <div>
-              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm</label>
+              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm (optional)</label>
               <select
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value })}
@@ -388,6 +364,10 @@ function AddContactModal({
                   <option key={k.key} value={k.key}>{k.label}</option>
                 ))}
               </select>
+              <p className="mt-1 text-[12px] text-etyme-muted">
+                {atOwnFirm ? 'Not sure? Leave it on Team member.' : 'Not sure? Leave it on Other.'}
+              </p>
+              {fieldErrors.kind && <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.kind}</p>}
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">

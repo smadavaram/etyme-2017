@@ -49,13 +49,35 @@ describe('the Add contact form', () => {
     expect(modal).toContain('<form onSubmit={handleSubmit} noValidate')
   })
 
-  it('asks for their role at that firm, not what you call them about', () => {
-    expect(modal).toContain('Their role at that firm</label>')
+  it('asks for their role at that firm, not what you call them about, and says it is optional', () => {
+    expect(modal).toContain('Their role at that firm (optional)</label>')
+    expect(modal).toContain("'Not sure? Leave it on Other.'")
     expect(page).not.toContain('What you call them about')
   })
 
   it('the role it starts on reads Other, because Other is what it saves', () => {
     expect(modal).toContain("kind: 'OTHER' })")
     expect(KINDS.OTHER.label).toBe('Other')
+  })
+
+  it('every field the route refuses without, the form has a box for, so the screen can always satisfy its route', () => {
+    const post = route.slice(route.indexOf('export async function POST'))
+    const refusedFields = new Set([...post.matchAll(/field: '([a-zA-Z]+)'/g)].map((m) => m[1]))
+    // problems() in lib/contacts answers for name, email and kind.
+    for (const f of ['name', 'email', 'kind']) refusedFields.add(f)
+    const formKeys = new Set([...(modal.match(/useState\(\{ ([^}]*) \}\)/)![1].matchAll(/([a-zA-Z]+):/g))].map((m) => m[1]))
+    for (const f of refusedFields) expect(formKeys, `the route refuses without ${f}`).toContain(f)
+  })
+
+  it('marks only the name and the company they work at as required, never the role', () => {
+    const required = [...modal.matchAll(/<label[^>]*>([^<]*\*)<\/label>/g)].map((m) => m[1])
+    expect(modal).toContain("'Name *'")
+    expect(required).toEqual(['Works at *'])
+    expect(modal).not.toMatch(/Their role at that firm \*/)
+  })
+
+  it('a refusal that says the company is not on your list carries a link to Add a company, and the form draws it', () => {
+    expect(route).toContain("href: ADD_A_COMPANY_HREF, hrefLabel: 'Add a company'")
+    expect(modal).toContain('if (body.error?.href && mayOpen(body.error.href, permissions))')
   })
 })

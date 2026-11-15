@@ -168,3 +168,30 @@ export async function dealingsWithSides(
   if (!includesOwn) ids.delete(me)
   return { ids, ownSideOnly }
 }
+
+/**
+ * The companies on this caller's Companies list: everything it has
+ * dealings with, and with `withRecords`, every company it recorded and
+ * nobody has claimed, whatever Kind it has been given since. The one
+ * reader behind the Companies page (`GET /api/companies?records=1`) and
+ * Contacts' Works at, so the list and the picker can never differ
+ * (fix list of 2026-11-14: the picker offered 1 company of hundreds).
+ */
+export async function companiesOnList(
+  caller: CallerContext,
+  includesOwn: boolean,
+  withRecords: boolean,
+): Promise<{ ids: Set<string>; ownSideOnly: Set<string> }> {
+  const sides = await dealingsWithSides(caller, includesOwn)
+  if (withRecords && caller.company) {
+    for (const r of await prisma.company.findMany({
+      where: { listedById: caller.company.id, claimedAt: null },
+      select: { id: true },
+    })) {
+      sides.ids.add(r.id)
+      // A record of its own is never one it reached by its writing alone.
+      sides.ownSideOnly.delete(r.id)
+    }
+  }
+  return sides
+}

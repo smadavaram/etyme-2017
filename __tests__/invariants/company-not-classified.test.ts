@@ -503,20 +503,22 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
     expect(page).toContain('`/api/contacts?at=${encodeURIComponent(company.id)}`')
   })
 
-  it('Contacts’ Works at lists every firm on the register once and the companies recorded and not classified yet', async () => {
+  it('Contacts’ Works at offers the firm’s own name first, then every company on its Companies list once, by name', async () => {
     const { worksAtChoices } = await import('@/lib/contacts')
     const choices = worksAtChoices({
-      rows: [
-        { otherCompanyId: 'b', otherCompanyName: 'Brightmoor Staffing' },
-        { otherCompanyId: 'b', otherCompanyName: 'Brightmoor Staffing' },
+      own: { id: 'me', name: 'Northwind Staffing' },
+      companies: [
+        { id: 'r', name: 'Rivermark Partners', domain: null },
+        { id: 'b', name: 'Brightmoor Staffing', domain: null },
+        { id: 'b', name: 'Brightmoor Staffing', domain: null },
       ],
-      known: [{ id: 'r', name: 'Rivermark Partners' }],
     })
     expect(choices).toEqual([
-      { id: 'b', name: 'Brightmoor Staffing' },
-      { id: 'r', name: 'Rivermark Partners (not classified)' },
+      { id: 'me', name: 'Northwind Staffing (your own firm)', own: true },
+      { id: 'b', name: 'Brightmoor Staffing', own: false },
+      { id: 'r', name: 'Rivermark Partners', own: false },
     ])
     expect(worksAtChoices(null)).toEqual([])
-    expect(contactsPage).toContain('companies={worksAtChoices(reg)}')
+    expect(contactsPage).toContain('companies={worksAtChoices(contacts.worksAt)}')
   })
 })

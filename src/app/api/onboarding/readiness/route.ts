@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
         where: { OR: [{ vendorId: companyId }, { clientId: companyId }] },
         select: { vendorId: true, clientId: true },
       }),
-      prisma.companyContact.groupBy({ by: ['atCompanyId'], where: { companyId }, _count: true }),
+      // A colleague at the firm's own firm is a contact too (2026-11-14), and
+      // never "somebody to call" at a client or a supplier.
+      prisma.companyContact.groupBy({ by: ['atCompanyId'], where: { companyId, atCompanyId: { not: companyId } }, _count: true }),
       prisma.costCenter.count({ where: { companyId } }),
       prisma.holiday.count({ where: { companyId } }),
       prisma.approvalRule.count({ where: { companyId } }),

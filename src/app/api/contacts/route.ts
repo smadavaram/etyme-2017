@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { problems, alreadyOnFile, KINDS, kindOfRole, writableEmail, type ContactKind } from '@/lib/contacts'
+import {
+  problems, alreadyOnFile, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
+  memberElsewhereSays, contactRecordedLog, NOT_ON_YOUR_LIST_SAYS, ADD_A_COMPANY_HREF, type ContactKind,
+} from '@/lib/contacts'
 import { recordRefusal } from '@/lib/access-log'
-import { dealingsOf } from '../companies/dealings'
+import { worksAtBook } from './works-at'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -85,7 +88,16 @@ export async function GET(request: NextRequest) {
       // a sign-in handle, not somewhere mail arrives, and a rolodex row
       // that prints one is making a promise the domain cannot keep.
       contacts: merged.map((c) => ({ ...c, email: writableEmail(c.email) })),
-      kinds: Object.entries(KINDS).map(([key, v]) => ({ key, ...v })),
+      // Every role Add contact may offer; the form shows Team member only
+      // when the firm's own name is chosen (lib/contacts rolesOffered).
+      kinds: rolesOffered(true),
+      // The roles somebody on this list holds, for the filter, so no chip
+      // opens an empty list.
+      held: kindsHeld(merged),
+      // Where a contact may work, read by the same reader the POST asks,
+      // so the picker and the route can never differ. Only for the
+      // Contacts page; a company's drawer asks with ?at= and needs none.
+      ...(at ? {} : { worksAt: await worksAtBook(caller) }),
     },
   })
 }
@@ -172,23 +184,28 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Only a firm on the caller's own book: one it deals with, or one it
-  // recorded itself (founder, 2026-11-12). A contact is a row in this
-  // firm's own address book; saving one sends nothing to anybody.
-  const onBook =
-    atCompanyId !== companyId &&
-    ((await prisma.company.count({ where: { id: atCompanyId, listedById: companyId, claimedAt: null } })) > 0 ||
-      (await dealingsOf(caller, false)).has(atCompanyId))
-  if (!onBook) {
-    const says = 'That company is not on your Companies list. Add it there first, then add the people you know at it.'
+  // The firm's own name, or any company on its Companies list, read
+  // through the list's own reader (founder, 2026-11-12; fix list of
+  // 2026-11-14, H1 and A2). A contact is a row in this firm's own address
+  // book: saving one sends nothing to anybody, and no firm is told.
+  const book = await worksAtBook(caller)
+  if (!mayWorkAt(book, atCompanyId)) {
+    const says = NOT_ON_YOUR_LIST_SAYS
     await recordRefusal([{ companyId: companyId }], {
       actorPersonId: caller.isService ? undefined : caller.person.id,
       actorCompanyId: companyId,
+      // No access-log name for a refused contact exists yet (etyme-regulatory's
+      // list); the reason says plainly what was refused.
       action: 'CONTRACT_VIEW',
-      reason: `Refused a contact at ${atCompanyId}, which is not on ${caller.company!.name}'s book: ${says}`,
+      reason: `Refused adding a contact at a company that is not on ${caller.company!.name}'s Companies list: ${says}`,
     })
-    return NextResponse.json({ error: { code: 'NOT_ON_YOUR_BOOK', message: says, field: 'atCompanyId' } }, { status: 403 })
+    return NextResponse.json(
+      { error: { code: 'NOT_ON_YOUR_BOOK', message: says, field: 'atCompanyId', href: ADD_A_COMPANY_HREF, hrefLabel: 'Add a company' } },
+      { status: 403 }
+    )
   }
+  const atOwnFirm = atCompanyId === book.own.id
+  const atName = atOwnFirm ? book.own.name : book.companies.find((c) => c.id === atCompanyId)!.name
 
   const found = problems({
     name: String(body?.name ?? ''),
@@ -199,6 +216,14 @@ export async function POST(request: NextRequest) {
   if (found.length > 0) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: found[0].says, field: found[0].field } },
+      { status: 422 }
+    )
+  }
+  // Team member is a colleague at the firm's own firm, never somebody at
+  // another company (fix list of 2026-11-14, B4).
+  if (body?.kind === 'MEMBER' && !atOwnFirm) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: memberElsewhereSays(atName), field: 'kind' } },
       { status: 422 }
     )
   }
@@ -221,19 +246,38 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const contact = await prisma.companyContact.create({
-    data: {
-      companyId,
-      atCompanyId,
-      name: String(body.name).trim(),
-      email: body?.email ? String(body.email).trim().toLowerCase() : null,
-      phone: body?.phone ? String(body.phone).trim() : null,
-      title: body?.title ? String(body.title).trim() : null,
-      kind: body?.kind && body.kind in KINDS ? body.kind : 'OTHER',
-      notes: body?.notes ? String(body.notes).trim() : null,
-      createdById: caller.person.id,
-    },
-    include: { atCompany: { select: { id: true, name: true } } },
+  // The contact and its activity-log row are one write: a person's own
+  // act, attributed by rule, and honest that it cannot be undone because
+  // no remove exists (fix list of 2026-11-14, B6). Read only by this firm.
+  const name = String(body.name).trim()
+  const log = contactRecordedLog({ byName: caller.person.name, name, atName, ownFirm: atOwnFirm })
+  const contact = await prisma.$transaction(async (tx) => {
+    const made = await tx.companyContact.create({
+      data: {
+        companyId,
+        atCompanyId,
+        name,
+        email: body?.email ? String(body.email).trim().toLowerCase() : null,
+        phone: body?.phone ? String(body.phone).trim() : null,
+        title: body?.title ? String(body.title).trim() : null,
+        // No role, or a blank one, is saved as Other: the role is optional.
+        kind: body?.kind && Object.hasOwn(KINDS, body.kind) ? body.kind : 'OTHER',
+        notes: body?.notes ? String(body.notes).trim() : null,
+        createdById: caller.person.id,
+      },
+      include: { atCompany: { select: { id: true, name: true } } },
+    })
+    await tx.automationLog.create({
+      data: {
+        companyId,
+        action: 'CONTACT_RECORDED',
+        summary: log.summary,
+        reason: log.reason,
+        payload: { contactId: made.id, otherCompanyId: atCompanyId, ownFirm: atOwnFirm, byName: caller.person.name, personId: caller.person.id },
+        reversible: log.reversible,
+      },
+    })
+    return made
   })
 
   return NextResponse.json({ data: { contact } }, { status: 201 })
