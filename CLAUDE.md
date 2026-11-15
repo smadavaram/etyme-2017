@@ -800,7 +800,7 @@ type" below is what the code draws, and a test reads it.
 
 ## Sign-in, identity, Owners and access
 
-Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73.
+Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73, 76.
 
 - **The sign-in page.** Account buttons first (Google, Microsoft,
   LinkedIn marked "Candidates only", each drawn only where its key
@@ -813,6 +813,13 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73.
   a member, and is withdrawn, not paused. An invitation that could not
   be emailed says so, with the next step. Every count says what it
   counts. "Copy invitation" never carries a link that takes the seat.
+- **A seat ends on its end date** (2026-11-15 → 76), except an Owner's
+  and the last seat that may manage access. One rule reads it
+  (`seatByDate`); an ended seat is listed under Access ended with Renew.
+- **The Member role reads "No role yet"** wherever a person or a choice
+  for one is described; Settings > Roles keeps its name (founder,
+  2026-11-15). Only an invitation email that left counts against the
+  invitation limits.
 - **The page never says whether an address has an account.** The email
   is routing, never proof.
 - **A consumer address is a candidate**, unless it was invited to a
@@ -937,7 +944,7 @@ Full text → 28, 22, 23, 68, 69, 71.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75, 76.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
