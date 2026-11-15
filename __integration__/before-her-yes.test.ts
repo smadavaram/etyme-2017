@@ -3,6 +3,7 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 import { GET as listConsultants, POST as addConsultant } from '@/app/api/consultants/route'
 import { GET as oneConsultant } from '@/app/api/consultants/[id]/route'
 import { GET as bench } from '@/app/api/bench/route'
+import { joinAsksFor } from '@/app/api/conversations/twin/firm-asks'
 
 /**
  * Before her yes, a firm reads only what it typed (fix list A4, 2026-11-15),
@@ -135,6 +136,35 @@ describe('before her yes, a firm reads only what it typed', () => {
     expect(listing.firmHeadline).toBe('Validation engineer')
     const asked = await prisma.benchListing.findFirstOrThrow({ where: { consultantId: hanaProfile, companyId: bId } })
     expect(asked.firmName).toBe('H. Okafor')
+  })
+
+  it('a firm reads one person only when she is on its list: another firm’s person is an id that does not exist, and the refusal is logged', async () => {
+    // Firm A alone keeps Tomas. Firm B never asked him.
+    as(A_OWNER)
+    const t = await json(await addConsultant(req('POST', '/api/consultants', { name: 'Tomas Reyes', email: 'tomas.reyes@example.test', headline: 'Quality auditor', workAuth: 'US_CITIZEN' })))
+    expect(t.status, JSON.stringify(t.body)).toBe(201)
+    const tomas = t.body.data.consultant.id as string
+    const mine = await json(await oneConsultant(req('GET', `/api/consultants/${tomas}`), { params: Promise.resolve({ id: tomas }) }))
+    expect(mine.status).toBe(200)
+    expect(mine.body.data.consultant.person.name).toBe('Tomas Reyes')
+
+    as(B_OWNER)
+    const before = await prisma.accessLog.count({ where: { allowed: false, action: 'PROFILE_VIEW' } })
+    const theirs = await json(await oneConsultant(req('GET', `/api/consultants/${tomas}`), { params: Promise.resolve({ id: tomas }) }))
+    expect(theirs.status).toBe(404)
+    expect(theirs.body.error.message).toBe('Consultant not found')
+    expect(JSON.stringify(theirs.body)).not.toMatch(/Tomas|Quality auditor/)
+    expect(await prisma.accessLog.count({ where: { allowed: false, action: 'PROFILE_VIEW' } })).toBe(before + 1)
+  })
+
+  it('the people who asked to join from the firm’s page are named as the ask typed them, never by the name on a record that is hers', async () => {
+    const listing = await prisma.benchListing.findFirstOrThrow({ where: { consultantId: hanaProfile, companyId: bId } })
+    await prisma.automationLog.create({
+      data: { companyId: bId, action: 'BENCH_LISTING_REQUESTED', summary: 'H. Okafor asked to join the bench', reason: 'Asked from the firm’s page', payload: { fromPublicPage: true, listingId: listing.id } },
+    })
+    const asks = await joinAsksFor({ company: { id: bId, kind: 'VENDOR' }, permissions: ['*'] }, false)
+    expect(asks.map((a) => a.name)).toEqual(['H. Okafor'])
+    expect(JSON.stringify(asks)).not.toContain('Hana Okafor')
   })
 
   it('after her yes the firm reads her record as before', async () => {

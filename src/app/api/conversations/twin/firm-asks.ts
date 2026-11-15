@@ -33,6 +33,7 @@
 
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 import { mirrorOf, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { LINK_REQUEST, JOIN_ASK, type QueueItem, type QueueRead } from './ask'
@@ -171,11 +172,16 @@ export async function joinAsksFor(caller: Reader, letterCanLeave: boolean, now =
   if (asked.size === 0) return []
   const listings = await prisma.benchListing.findMany({
     where: { id: { in: [...asked.keys()] }, companyId: caller.company.id, state: 'INVITED', revokedAt: null },
-    select: { id: true, consultant: { select: { person: { select: { name: true, primaryEmail: true } } } } },
+    select: { id: true, consultantId: true, consultant: { select: { person: { select: { name: true, primaryEmail: true } } } } },
   })
+  // Before her yes the firm reads the name that was typed at the ask, never
+  // the name on a record that is hers (`firmReadsAt`, 2026-11-15): anybody
+  // can type somebody's address on a firm's public page, and her own name
+  // is not theirs to learn that way. No caller here is the person herself.
+  const reads = await firmReadsAt({ companyId: caller.company.id, callerPersonId: '', consultantIds: listings.map((l) => l.consultantId) })
   return listings
     .map((l) => ({
-      listingId: l.id, name: l.consultant.person.name, email: l.consultant.person.primaryEmail ?? null,
+      listingId: l.id, name: reads.get(l.consultantId)?.typed?.name ?? l.consultant.person.name, email: l.consultant.person.primaryEmail ?? null,
       askedOn: asked.get(l.id)!.toISOString().slice(0, 10),
     }))
     .sort((a, b) => b.askedOn.localeCompare(a.askedOn))

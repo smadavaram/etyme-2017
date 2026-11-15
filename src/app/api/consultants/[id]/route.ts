@@ -115,6 +115,32 @@ export async function GET(
   const isSubject = profile.personId === caller.person.id
   const companyId = caller.company?.id
 
+  // Whose list she is on (2026-11-15). The list (GET /api/consultants)
+  // shows a firm the people it lists and the people who hold a seat with
+  // it; this is the same door, one person wide. It had checked nothing:
+  // any seat that reads its own firm's people could read anybody's whole
+  // record by its id. Another firm's person is an id that does not exist
+  // here, and the refusal is logged before it is sent.
+  if (!isSubject) {
+    const onList = companyId
+      ? profile.listings.some((l) => l.companyId === companyId) ||
+        (await prisma.context.count({ where: { personId: profile.personId, companyId, revokedAt: null } })) > 0
+      : false
+    if (!onList) {
+      await recordRefusal([profile.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: 'Refused: this person is not on the reader’s firm’s list.',
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Consultant not found' } },
+        { status: 404 }
+      )
+    }
+  }
+
   // A caller with no company is a consultant. They may see their own
   // matches and nobody else's; the query above could not know whose
   // profile this was yet.

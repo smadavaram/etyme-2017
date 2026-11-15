@@ -49,6 +49,8 @@ vi.mock('@/lib/db', () => ({
     tradeLinkRequest: { findMany: vi.fn(async (args: any) => { DB.calls.push('tradeLinkRequest'); return DB.links.filter((l) => l.toCompanyId === args.where.toCompanyId) }) },
     automationLog: { findMany: vi.fn(async () => { DB.calls.push('automationLog'); return DB.logs }) },
     benchListing: { findMany: vi.fn(async () => DB.listings) },
+    // What a firm reads before her yes (`firmReadsAt`): no record here is somebody else's.
+    consultantProfile: { findMany: vi.fn(async () => []) },
     submission: { findMany: vi.fn(async () => DB.subs) },
     context: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     roleContract: { findFirst: vi.fn(async () => null) },
@@ -406,7 +408,7 @@ describe('Ask Etyme for both ends of a chain: the Tapin walk, 2026-10-29', () =>
     const { queueCards } = await import('@/app/api/conversations/twin/ask')
     const tapin = { company: { id: 'c-tapin', kind: 'VENDOR' }, permissions: ['*'] }
     DB.logs = [{ at: new Date('2026-10-29T07:10:00Z'), payload: { listingId: 'bl-asha', fromPublicPage: true } }]
-    DB.listings = [{ id: 'bl-asha', consultant: { person: { name: 'Asha Rao', primaryEmail: 'asha@example.com' } } }]
+    DB.listings = [{ id: 'bl-asha', consultantId: 'cp-asha', consultant: { person: { name: 'Asha Rao', primaryEmail: 'asha@example.com' } } }]
 
     // Where email can leave, the letter went and the firm owes nothing: nothing is read or said.
     DB.calls.length = 0
