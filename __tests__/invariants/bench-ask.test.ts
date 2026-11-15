@@ -39,7 +39,7 @@ vi.mock('@/lib/api-context', () => ({
 vi.mock('@/lib/db', () => {
   const id = (p: string) => `${p}-${++h.seq}`
   const prisma: Row = {
-    automationLog: { create: async ({ data }: Row) => { h.logs.push(data); return data } },
+    automationLog: { create: async ({ data }: Row) => { h.logs.push(data); return data }, findMany: async () => [] },
     accessLog: {
       create: async ({ data }: Row) => { h.reads.push(data); return data },
       createMany: async ({ data }: Row) => { h.reads.push(...data); return { count: data.length } },
@@ -63,6 +63,19 @@ vi.mock('@/lib/db', () => {
     },
     consultantProfile: {
       create: async ({ data }: Row) => { const r = { id: id('profile'), ...data }; h.profiles.push(r); return r },
+      // What a firm reads before her yes (firmReadsAt): a person in this file
+      // with a password has an account of her own.
+      findMany: async ({ where }: Row) => h.profiles
+        .filter((p) => !where?.id?.in || where.id.in.includes(p.id))
+        .map((p) => {
+          const person = h.people.find((x) => x.id === p.personId) ?? {}
+          return {
+            id: p.id, personId: p.personId,
+            person: { primaryEmail: person.primaryEmail ?? null, passwordHash: person.passwordHash ?? null, _count: { credentials: 0, contexts: 0 }, contexts: [] },
+            listings: h.listings.filter((l) => l.consultantId === p.id && !l.revokedAt),
+            _count: { listings: 0 },
+          }
+        }),
     },
     benchListing: {
       create: async ({ data }: Row) => { const r = { id: id('listing'), revokedAt: null, ...data }; h.listings.push(r); return r },
@@ -327,15 +340,17 @@ describe('a firm never learns from Add consultant that an address has an account
     expect(text).toContain('M Brooks')
   })
 
-  it('a range below her own lowest rate is refused with the name the firm typed, never hers', async () => {
+  it('before her yes a range below her own lowest rate is saved and the answer says nothing of her floor, so no rate a firm tries tells it', async () => {
     maya()
+    h.people[0].passwordHash = 'has-an-account'
     h.profiles[0].rateFloor = 9000
     const r = await addConsultant(new NextRequest('http://x/api/consultants', {
       method: 'POST',
       body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', rateMin: 5000, rateMax: 6000 }),
     }))
-    const body = await r.json()
-    expect(r.status).toBe(422)
-    expect(body.error.message).toBe('The top of that range is below the lowest rate M Brooks has said they will take.')
+    const text = JSON.stringify(await r.json())
+    expect(r.status, text).toBe(201)
+    expect(text).not.toMatch(/lowest rate|rate floor|90\.00|Maya Brooks/)
+    expect(text).toContain('M Brooks')
   })
 })
