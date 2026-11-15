@@ -1030,8 +1030,10 @@ export const TIER_WORD = { RETAINED: 'Kept to us', MARKETING: 'Shown to our part
  * deployment; the link was then kept nowhere a person could pass it on.
  *
  *  - EMAILED     an email provider is set up and the address is on record
- *  - KEPT        no provider is set up: the link is kept on the notice for
- *                staff to pass on (`recordedBody` in lib/notify/account-mail)
+ *  - KEPT        no provider is set up: nothing is emailed, and the firm
+ *                copies the link from Bench (the same link is also kept on
+ *                the notice for Etyme staff, `recordedBody` in
+ *                lib/notify/account-mail)
  *  - NO_ADDRESS  nobody to send it to
  *  - NO_LINK     the link could not be built here
  */
@@ -1043,9 +1045,23 @@ export function inviteMail(f: { url: string; email: string | null; mailOn: boole
   return f.mailOn ? 'EMAILED' : 'KEPT'
 }
 
-/** Said where no email can be sent and the link was kept for staff. */
+/**
+ * Said where no email can be sent, to the seat that asked. It read "the
+ * invitation link is kept on the notice for staff to pass on", and a
+ * first-time office manager could not tell which notice or which staff
+ * (walk, 2026-11-14). What she can do is press Copy link on the Bench
+ * row, which every seat that may ask may press (`consultants.write`, the
+ * nudge door's own gate). The sentence carries no link itself.
+ */
 export const INVITE_LINK_KEPT_SAYS =
-  'No email can be sent from here yet, so the invitation link is kept on the notice for staff to pass on.'
+  'No email can be sent from here yet. Press Copy link beside their name on Bench, then send it to them yourself.'
+
+/**
+ * The same fact on the activity log, which more seats read than may press
+ * Copy link, so it says what happened and where the link is, not an order.
+ */
+export const INVITE_NOT_EMAILED_LOG =
+  'No email can be sent from here yet, so none went. The invitation link can be copied from Bench.'
 
 /**
  * The Pay rate column's figure: what the firm stated it would pay the
@@ -1081,6 +1097,19 @@ export const ADD_TIER_OPTION = {
   MARKETING: 'Shown to our partners once they say yes',
   RETAINED: 'Kept to us',
 } as const
+
+/**
+ * The tier inside a sentence a person reads, such as a row on the
+ * activity log. It read "(MARKETING)" and "(RETAINED)", the machine words
+ * (walk, 2026-11-14). Before her yes it is the Add consultant form's own
+ * words; after it, the bench's. An unknown tier says nothing rather than
+ * a machine word. Lower-cased to sit inside a sentence.
+ */
+export function tierInWords(tier: string | null | undefined, beforeYes: boolean): string | null {
+  if (tier !== 'MARKETING' && tier !== 'RETAINED') return null
+  const w: string = beforeYes ? ADD_TIER_OPTION[tier] : TIER_WORD[tier]
+  return w.charAt(0).toLowerCase() + w.slice(1)
+}
 
 /**
  * The sentence above the one button. Saving the form also emails the

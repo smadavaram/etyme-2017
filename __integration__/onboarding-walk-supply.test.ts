@@ -61,7 +61,7 @@ describe('a firm asks somebody who already has an account', () => {
     expect(listing.state).toBe('INVITED')
   })
 
-  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says so', async () => {
+  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says to press Copy link on Bench', async () => {
     const { LINK_KEPT } = await import('@/lib/notify/account-mail')
     const { INVITE_LINK_KEPT_SAYS } = await import('@/lib/bench-filter')
     const listing = await prisma.benchListing.findFirstOrThrow({ where: { companyId, consultant: { personId: mayaId } } })

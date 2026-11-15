@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
 import { answer, type State } from '@/lib/bench-consent'
 import { readStay, stayFields } from '@/lib/bench-stay'
-import { agreeingTerms } from '@/lib/bench-filter'
+import { agreeingTerms, tierInWords } from '@/lib/bench-filter'
 
 /**
  * PATCH /api/bench/listings/:id/grant
@@ -131,7 +131,7 @@ export async function PATCH(
         data: {
           companyId: listing.companyId,
           action: 'BENCH_LISTING_GRANTED',
-          summary: `"${listing.consultant.person.name}" granted ${listing.tier} bench listing at "${listing.company.name}"`,
+          summary: `"${listing.consultant.person.name}" granted a bench listing at "${listing.company.name}"${tierInWords(listing.tier, false) ? ` (${tierInWords(listing.tier, false)})` : ''}.`,
           reason: 'Consultant granted bench listing via API',
           payload: {
             listingId: listing.id,

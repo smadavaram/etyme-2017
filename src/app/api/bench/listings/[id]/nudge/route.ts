@@ -8,6 +8,7 @@ import { termsShown } from '@/lib/bench-filter'
 import { renewAskText } from '@/lib/bench-stay'
 import { possessive } from '@/lib/requisition-approval'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { nudgeLogSummary } from '@/lib/consultant-portfolio/nudge-words'
 
 /**
  * POST /api/bench/listings/:id/nudge   { copyOnly? }
@@ -81,12 +82,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     companyId: listing.companyId, personId: person.id, kind: 'LINK', to: person.primaryEmail,
     subject: letter.subject, body: letter.body, aboutType: 'LISTING', aboutId: listing.id,
   })
+  // The row says what the send did: "sent again" only where the email
+  // went, a try where it did not (fix list D1, 2026-11-15). This door has
+  // no sending limit of its own, so nothing here is counted against one.
   if (waiting) {
     await prisma.automationLog.create({
       data: {
         companyId: listing.companyId,
         action: 'BENCH_INVITATION_RESENT',
-        summary: `${caller.person.name} sent ${shown} the bench invitation again.`,
+        summary: nudgeLogSummary({ actor: caller.person.name, shown, act: 'RESEND', status: sent.status }),
         reason: `${shown} has not answered. A person at the firm pressed Resend.`,
         payload: { listingId: listing.id, messageId: sent.id, status: sent.status },
         reversible: false,
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         companyId: listing.companyId,
         action: 'BENCH_STAY_RENEW_ASKED',
-        summary: `${caller.person.name} asked ${shown} to renew their stay on the bench.`,
+        summary: nudgeLogSummary({ actor: caller.person.name, shown, act: 'RENEW', status: sent.status }),
         reason: `${shown}'s chosen stay ended. A person at the firm pressed Ask to renew; renewing is still theirs to do.`,
         payload: { listingId: listing.id, messageId: sent.id, status: sent.status },
         reversible: false,

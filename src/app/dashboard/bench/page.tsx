@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
+import Link from 'next/link'
+import { candidateRecordHref } from '@/lib/consultant-portfolio/open-from-link'
 import { range, compact, amount } from '@/lib/money-display'
 import type { BurnTotal } from '@/app/api/bench/burn/totals'
 import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, type Free } from '@/lib/bench-filter'
@@ -571,6 +573,9 @@ export default function BenchPage() {
   // The holiday switch on each row of Our bench (2026-10-03): the owner's,
   // the admin's and the finance desk's at a firm with a bench, the same
   // three desks the route lets turn it, and drawn for nobody else.
+  // Whether a name may lead to her record: the link is drawn only where
+  // the Candidates page's own route takes this seat (GET /api/consultants).
+  const readsCandidates = hasPermission(session.permissions, 'consultants.read')
   const turnsHolidays = mayChangeBenchPay({
     companyName: session.company?.name ?? 'your firm',
     companyKind: session.company?.kind ?? null,
@@ -795,7 +800,12 @@ export default function BenchPage() {
               {row.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
             </div>
             <div className="min-w-0">
-              <p className="font-medium text-etyme-ink truncate">{row.name}</p>
+              {/* Somebody asked and not answered leads to her record on
+                  Candidates, never a dead end (fix list C4). Only the id
+                  travels in the address. */}
+              {scope === 'company' && row.consent === 'INVITED' && readsCandidates
+                ? <Link href={candidateRecordHref(row.consultantId)} className="block font-medium text-etyme-action hover:underline truncate">{row.name}</Link>
+                : <p className="font-medium text-etyme-ink truncate">{row.name}</p>}
               {/* Never another firm's person's contact (`benchSubtitle`). */}
               <p className="text-[11px] text-etyme-faint truncate">{benchSubtitle(row, scope === 'company')}</p>
             </div>
@@ -1232,7 +1242,13 @@ export default function BenchPage() {
           <p className="px-4 py-2 text-[11px] uppercase tracking-wide text-etyme-muted">{ASKED_HEADING}</p>
           {askedPeople.map((a) => (
             <div key={a.listingId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[13px] text-etyme-ink"><span className="font-medium">{a.name}</span> · {askedSays(a.consent)}</span>
+              <span className="text-[13px] text-etyme-ink">
+                {/* Her name leads to her record on Candidates (fix list C4). */}
+                {readsCandidates
+                  ? <Link href={candidateRecordHref(a.consultantId)} className="font-medium text-etyme-action hover:underline">{a.name}</Link>
+                  : <span className="font-medium">{a.name}</span>}
+                {' · '}{askedSays(a.consent)}
+              </span>
               {a.consent === 'INVITED' && (
                 <span className="flex gap-3">
                   <button onClick={() => nudge(a.listingId, false)} disabled={busyRow === a.listingId}

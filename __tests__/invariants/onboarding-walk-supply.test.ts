@@ -292,7 +292,7 @@ describe('8 · second walk: refusals shown, pay never a bill rate, mail said as 
     expect(page).toContain('payRateCents: payShown(c.listings?.[0]),')
   })
 
-  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says so', async () => {
+  it('where no email can be sent, a bench invitation’s link is kept on the notice for staff, and the screen says to press Copy link on Bench', async () => {
     const { inviteMail, addedSays, INVITE_LINK_KEPT_SAYS } = await import('@/lib/bench-filter')
     expect(inviteMail({ url: 'https://x/bench-invite/t', email: 'ike@example.com', mailOn: false })).toBe('KEPT')
     expect(inviteMail({ url: 'https://x/bench-invite/t', email: 'ike@example.com', mailOn: true })).toBe('EMAILED')

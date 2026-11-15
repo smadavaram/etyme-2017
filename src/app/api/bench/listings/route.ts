@@ -6,7 +6,7 @@ import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS, tierInWords } from '@/lib/bench-filter'
 import { readAddToBench } from '@/lib/consultant-portfolio/forms'
 
 /**
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'BENCH_LISTING_REQUESTED',
-          summary: `${tier} bench listing requested for "${consultant.person.name}". Pending consultant grant.`,
+          summary: `Bench listing requested for "${consultant.person.name}"${tierInWords(tier, true) ? ` (${tierInWords(tier, true)})` : ''}. Waiting on their yes.`,
           reason: 'Vendor requested bench listing via API',
           payload: {
             listingId: listing.id,
@@ -227,8 +227,8 @@ export async function POST(request: NextRequest) {
         homeCurrency: firmCurrency,
       }),
     })
-    // The same sender as Add consultant: where no email can leave, the link
-    // is kept on the notice for staff, and the answer says so.
+    // The same sender as Add consultant: where no email can leave, nothing
+    // is emailed, and the answer says to press Copy link on Bench.
     const mail = await askByEmail({
       companyId, personId: consultant.personId, to: consultant.person.primaryEmail, url,
       subject: msg.subject, body: msg.body, listingId: result.id,

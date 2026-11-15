@@ -22,6 +22,7 @@ import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { RefusedState, LoadingState } from '@/components/ui'
 import { useFirmCurrency } from './firm-currency'
 import { InviteCandidatesDialog } from './invite-candidates'
+import { openFromAddress } from '@/lib/consultant-portfolio/open-from-link'
 import { resendListingId } from '@/lib/consultant-portfolio/bench-invites'
 import { nudgeBody } from '@/lib/consultant-portfolio/forms'
 import { readJson } from '@/lib/read-response'
@@ -441,13 +442,13 @@ function AddConsultantModal({
               </select>
             </div>
             <div>
-              <label htmlFor="add-rate-min" className="block text-xs font-semibold text-etyme-muted mb-1">Lowest rate ($/hr)</label>
+              <label htmlFor="add-rate-min" className="block text-xs font-semibold text-etyme-muted mb-1">Lowest rate ($/hr, optional)</label>
               <input id="add-rate-min" type="number" min="0" step="0.01" value={form.rateMin}
                 onChange={(e) => setForm({ ...form, rateMin: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
             </div>
             <div>
-              <label htmlFor="add-rate-max" className="block text-xs font-semibold text-etyme-muted mb-1">Highest rate ($/hr)</label>
+              <label htmlFor="add-rate-max" className="block text-xs font-semibold text-etyme-muted mb-1">Highest rate ($/hr, optional)</label>
               <input id="add-rate-max" type="number" min="0" step="0.01" value={form.rateMax}
                 onChange={(e) => setForm({ ...form, rateMax: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
@@ -1140,6 +1141,27 @@ export default function ConsultantsPage() {
     }
   }, [searchParams, router, mayAdd, session.loading, session.company?.kind, session.company?.name])
 
+  // ?open=<consultant id> opens that person's drawer: the Bench card of
+  // somebody asked and not answered leads here (fix list C4, 2026-11-15).
+  // It waits for the seat and the list, and opens only a row the list
+  // route already returned, so it reads nothing new: before her yes the
+  // drawer holds only what the firm typed (`firmReadsAt`). Any other id
+  // reads one sentence naming nobody (`openFromAddress`). A refusal is
+  // already the whole page, and a failed read keeps the address for a
+  // reload.
+  const openId = searchParams.get('open')
+  const [openSays, setOpenSays] = useState<string | null>(null)
+  useEffect(() => {
+    if (session.loading || !firstRead || !openId) return
+    if (!counted && !refused) return
+    if (counted) {
+      const opened = openFromAddress(consultants, openId)
+      if (opened && 'open' in opened) setSelected(opened.open)
+      else if (opened) setOpenSays(opened.says)
+    }
+    router.replace('/dashboard/consultants', { scroll: false })
+  }, [session.loading, firstRead, counted, refused, openId, consultants, router])
+
   // Resend, on a row that reads "Asked, not answered": the one door the
   // Bench tab's Resend uses (POST /api/bench/listings/:id/nudge). Only
   // the route's sentence is shown, never the link it carries.
@@ -1437,6 +1459,13 @@ export default function ConsultantsPage() {
         <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
           {addRefused}{' '}
           <button className="text-etyme-action hover:underline" onClick={() => setAddRefused(null)}>Close</button>
+        </p>
+      )}
+
+      {openSays && (
+        <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
+          {openSays}{' '}
+          <button className="text-etyme-action hover:underline" onClick={() => setOpenSays(null)}>Close</button>
         </p>
       )}
 

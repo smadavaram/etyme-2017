@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
+import { tierInWords } from '@/lib/bench-filter'
 
 /**
  * PATCH /api/bench/listings/:id/revoke
@@ -89,7 +90,7 @@ export async function PATCH(
         data: {
           companyId: listing.companyId,
           action: 'BENCH_LISTING_REVOKED',
-          summary: `"${listing.consultant.person.name}" revoked ${listing.tier} bench listing at "${listing.company.name}". Effective immediately.`,
+          summary: `"${listing.consultant.person.name}" revoked their bench listing at "${listing.company.name}"${tierInWords(listing.tier, false) ? ` (${tierInWords(listing.tier, false)})` : ''}. Effective immediately.`,
           reason: 'Consultant revoked bench listing via API',
           payload: {
             listingId: listing.id,

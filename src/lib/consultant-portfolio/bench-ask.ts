@@ -50,7 +50,7 @@
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { listingTermsFrom, termsShown, INVITE_LINK_KEPT_SAYS, type InviteMail, type TermsShown } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown, INVITE_NOT_EMAILED_LOG, tierInWords, type InviteMail, type TermsShown } from '@/lib/bench-filter'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { addPath, type AddPath } from '@/lib/consultant-portfolio'
 import { logAccess, recordRefusal } from '@/lib/access-log'
@@ -210,9 +210,10 @@ export function lookupReason(o: { door: BenchAskDoor; firm: string; path: AddPat
  *
  * It promises a letter only where one can leave (`mailLeaves` in
  * lib/notify/mail-leaves, the same answer the send reads through
- * `configured`). Where none can, the ask is waiting and its link is kept
- * on the notice for staff, in the bench invitation's own words
- * (`INVITE_LINK_KEPT_SAYS`), never "from the letter" (2026-11-01).
+ * `configured`). Where none can, the ask is waiting, nothing was emailed,
+ * and the link is copied from Bench (`INVITE_NOT_EMAILED_LOG`), never
+ * "from the letter" (2026-11-01). The tier is said in the Add consultant
+ * form's words (`tierInWords`), never "(MARKETING)" (walk, 2026-11-14).
  */
 export function askSummary(o: { door: BenchAskDoor; personName: string; firm: string; path: AddPath; tier: string; mailOn: boolean }): string {
   // The firm reads its own activity log, so a first ask on somebody's own
@@ -221,8 +222,9 @@ export function askSummary(o: { door: BenchAskDoor; personName: string; firm: st
   const who = o.path === 'ASK_AGAIN' ? `"${o.personName}", who already has a record,` : `"${o.personName}"`
   const where = o.door === 'PUBLIC_PAGE' ? ` from ${o.firm}’s public page` : ''
   const again = o.path === 'ASK_AGAIN' ? ' again' : ''
-  const waits = o.mailOn ? 'Pending their yes from the letter.' : `Waiting on their yes. ${INVITE_LINK_KEPT_SAYS}`
-  return `${who} asked${again} onto ${o.firm}’s bench (${o.tier})${where}. ${waits}`
+  const waits = o.mailOn ? 'Pending their yes from the letter.' : `Waiting on their yes. ${INVITE_NOT_EMAILED_LOG}`
+  const seen = tierInWords(o.tier, true)
+  return `${who} asked${again} onto ${o.firm}’s bench${seen ? ` (${seen})` : ''}${where}. ${waits}`
 }
 
 function isUniqueClash(err: unknown): boolean {

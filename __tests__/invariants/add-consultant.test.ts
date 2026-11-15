@@ -117,11 +117,11 @@ describe('The add form says what is true before anybody presses the button', () 
     expect(savingSays('  ')).toMatch(/^Saving asks this person to join your bench/)
   })
 
-  it('where no email can leave, the sentence above the button says the link is kept and promises no email', () => {
+  it('where no email can leave, the sentence above the button says where Copy link is and promises no email', () => {
     const says = savingSays('Amara Velde', false)
     expect(says).not.toMatch(/email(s|ed)? Amara/i)
     expect(says).toBe(
-      'Saving asks Amara Velde to join your bench. No email can be sent from here yet, so the invitation link is kept on the notice for staff to pass on. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
+      'Saving asks Amara Velde to join your bench. No email can be sent from here yet. Press Copy link beside their name on Bench, then send it to them yourself. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
     )
     // Not known yet is no email: the default never promises one.
     expect(savingSays('Amara Velde')).toBe(says)

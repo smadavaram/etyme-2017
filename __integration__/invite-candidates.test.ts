@@ -59,12 +59,13 @@ describe('a recruiter invites candidates in one press', () => {
     expect((await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'ben@invite-gmail.test' } })).name).toBe('ben')
   })
 
-  it('where no email can leave, the answer says the links are kept for staff, never that an email went, and returns no link', async () => {
+  it('where no email can leave, the answer says to press Copy link on Bench, never that an email went, and returns no link', async () => {
     as(OWNER)
     const r = await json(await invite(req('POST', '/api/consultants/invite', { list: 'dev@invite-gmail.test' })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.mailLeaves).toBe(false)
-    expect(r.body.data.says).toContain('kept on the notice for staff')
+    expect(r.body.data.says).toContain('Press Copy link beside their name on Bench')
+    expect(r.body.data.says).not.toMatch(/notice|staff/)
     expect(r.body.data.results[0].says).not.toMatch(/went by email/)
     expect(JSON.stringify(r.body)).not.toMatch(/bench-invite\//)
   })
