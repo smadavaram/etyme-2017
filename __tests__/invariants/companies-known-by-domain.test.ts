@@ -17,27 +17,27 @@ import {
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const own = [
-  { id: 'a', name: 'SoftHQ', domain: 'softhq-inc.example' },
+  { id: 'a', name: 'Quillmark', domain: 'quillmark-inc.example' },
   { id: 'b', name: 'Bluefen Recruiting', domain: null },
   { id: 'c', name: 'Harborline Tech', domain: 'harborline-tech.example' },
 ]
 
 describe('a company is known by its domain', () => {
   it('the same name on a different domain is two companies, and the reply names the one already there', () => {
-    const r = twinOnOwnList({ name: 'SoftHQ', domain: 'softhq.example' }, own)
+    const r = twinOnOwnList({ name: 'Quillmark', domain: 'quillmark.example' }, own)
     expect(r.twin).toBeNull()
     expect(r.namesake?.id).toBe('a')
-    expect(namesakeSays(r.namesake!)).toBe('Another company on your list is also called SoftHQ, on softhq-inc.example.')
+    expect(namesakeSays(r.namesake!)).toBe('Another company on your list is also called Quillmark, on quillmark-inc.example.')
   })
 
   it('a domain already on the list is the same company whatever the name, and the refusal names it with its domain', () => {
-    const r = twinOnOwnList({ name: 'Completely Different', domain: 'softhq-inc.example' }, own)
+    const r = twinOnOwnList({ name: 'Completely Different', domain: 'quillmark-inc.example' }, own)
     expect(r).toMatchObject({ by: 'DOMAIN', twin: { id: 'a' } })
-    expect(sameDomainRefused(r.twin!)).toBe('SoftHQ (softhq-inc.example) is on your Companies list already on that domain. Open it there rather than record it twice.')
+    expect(sameDomainRefused(r.twin!)).toBe('Quillmark (quillmark-inc.example) is on your Companies list already on that domain. Open it there rather than record it twice.')
   })
 
   it('a domain written with www, a scheme and a path is the same company as the bare domain', () => {
-    expect(twinOnOwnList({ name: 'x', domain: 'https://www.SoftHQ-Inc.example/about' }, own).twin?.id).toBe('a')
+    expect(twinOnOwnList({ name: 'x', domain: 'https://www.Quillmark-Inc.example/about' }, own).twin?.id).toBe('a')
   })
 
   it('a subdomain of a domain already on the list is the same company', () => {
@@ -52,7 +52,7 @@ describe('a company is known by its domain', () => {
     const typedOnly = twinOnOwnList({ name: 'Bluefen Recruiting', domain: 'bluefen.example' }, own)
     expect(typedOnly).toMatchObject({ twin: null, namesake: { id: 'b' } })
     expect(namesakeSays(typedOnly.namesake!)).toBe('Another company on your list is also called Bluefen Recruiting, with no domain yet.')
-    expect(twinOnOwnList({ name: 'SoftHQ', domain: null }, own)).toMatchObject({ twin: null, namesake: { id: 'a' } })
+    expect(twinOnOwnList({ name: 'Quillmark', domain: null }, own)).toMatchObject({ twin: null, namesake: { id: 'a' } })
   })
 
   it('a personal email domain is never a company’s identity, so the name decides', () => {

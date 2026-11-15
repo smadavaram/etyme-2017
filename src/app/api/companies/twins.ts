@@ -23,6 +23,13 @@ type Db = Prisma.TransactionClient | typeof prisma
 /** Where a recorded company's domain came from: typed on Add a company, or on an invitation. */
 export type NoteFrom = 'TYPED' | 'INVITATION'
 
+/**
+ * The note a firm's own record holds where the firm cleared the domain on
+ * Edit and an invitation it sent carries one: an empty note, which wins
+ * over the invitation. Written only by the Edit route.
+ */
+export const CLEARED_NOTE = ''
+
 /** The domain each of these companies is known by on `me`'s own list, read once for all of them. */
 export async function ownDomainsFor(
   me: string,
@@ -33,6 +40,8 @@ export async function ownDomainsFor(
   const mine = companies.filter((c) => c.claimedAt == null && c.listedById === me)
   const missing: string[] = []
   for (const c of mine) {
+    // Cleared by the firm on Edit: no domain, and the invitation is not read.
+    if (c.website === CLEARED_NOTE) continue
     const d = notedDomain(c.website)
     if (d) out.set(c.id, { domain: d, from: 'TYPED' })
     else missing.push(c.id)

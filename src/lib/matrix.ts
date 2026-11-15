@@ -1143,7 +1143,8 @@ export const MATRIX: L1[] = [
             'FIXED 2026-11-15 by the architect, fix list B2: a firm on Etyme the reader only wrote on its own register, or only sent a job to, is named and nothing else: no Etyme address, domain, Kind or created date of its own, its sites refused, and its one act \u201cAsk them to link\u201d (record 61; dealingsWithSides in the companies dealings)',
             'FIXED 2026-11-15 by the architect, fix list B1: among the companies a firm recorded itself, a company is known by its domain. The same organization\u2019s domain is the same company whatever the name, refused with \u201cOpen it\u201d; two domains are two companies under one name; with no domain on either side the name decides; where the names match and only one side has a domain it is recorded and the reply says another company on the list shares the name; a personal email domain is never a company\u2019s identity. Add a company and the clients door ask one reader (twinOnOwnList, twinFor), and no firm on Etyme is looked up to decide it',
             'FIXED 2026-11-15 by the architect, fix list B3: the domain and the entity type typed on Add a company are kept whatever Kind is chosen, and by the clients door, through one writer that writes only on the caller\u2019s own record nobody has claimed and never into the domain column (keepNote). Domain is the second column; a typed domain reads \u201ctyped by you\u201d; no domain reads \u201cNo domain yet\u201d; a company nobody there has joined reads \u201cNot on Etyme\u201d; a company made by pasting supplier emails shows the domain on its invitation, read at read time with nothing backfilled',
-            'FIXED 2026-11-15 by the architect: a company a firm recorded and nobody has claimed can be corrected from its drawer (Edit: name, domain, entity type), under the same twin rule, with one activity-log row naming who changed what from what to what, and nothing emailed; a firm on Etyme keeps its own name and the route refuses in a sentence (PATCH /api/companies/:id/record)'
+            'FIXED 2026-11-15 by the architect: a company a firm recorded and nobody has claimed can be corrected from its drawer (Edit: name, domain, entity type), under the same twin rule, with one activity-log row naming who changed what from what to what, and nothing emailed; a firm on Etyme keeps its own name and the route refuses in a sentence (PATCH /api/companies/:id/record)',
+            'FIXED 2026-11-15 by the architect, a hand walk after the fix list: the domain box on Add a company, the clients door and Edit is read one way (readTypedDomain): an email address gives its domain and the reply says so, and a port, a trailing dot or plain words are refused in a sentence, never dropped. Clearing the domain of a pasted supplier is saved as cleared and wins over its invitation, and the log says only what the list then reads. A firm on Etyme you only wrote down, or only sent a job to, gets one answer from its drawer, as an id not on your list (notLinkedYet, the list\u2019s own rule)'
           ],
           implementedBy: [
             'src/lib/counterparty.ts', 'src/lib/directory-scope.ts',
@@ -1165,6 +1166,8 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/companies-known-by-domain.test.ts',
             '__integration__/companies-list-reads-its-own-book.test.ts',
             '__integration__/company-not-classified.test.ts',
+            '__tests__/invariants/domain-box-and-not-linked.test.ts',
+            '__integration__/one-sided-firm-and-domain-box.test.ts',
           ] },
         { code: 'L3.2.2.7', name: 'Contact book', owner: 'Account manager', status: B,
           tasks: ['FIXED 2026-10-05, outside review: Add contact asks one way to reach somebody \u2014 an email address or a phone number, either is enough \u2014 on the form and on the route in one sentence (lib/contact-reach); the name and the company carry required beside the sentences; the role is asked as \u201cTheir role at that firm\u201d and starts on Other, which is what it saves', 
@@ -1179,6 +1182,7 @@ export const MATRIX: L1[] = [
             'Contacts is people: its Companies tab is gone for one link to Companies; the role filter lists only roles somebody holds; Team member is offered only at the own firm and refused elsewhere in a sentence',
             'The role is optional and says so (\u201cNot sure? Leave it on Other.\u201d); no role or a blank one is saved as Other',
             'Adding a contact writes one activity-log row in the same transaction (CONTACT_RECORDED, a person\u2019s own act, cannot be undone), read by the adding firm alone, on Settings > Activity log and in the company\u2019s drawer history; a refused or duplicate add writes none',
+            'FIXED 2026-11-15 by the architect, a hand walk: a client or MSP that only wrote a firm on Etyme on its own register sees none of that firm\u2019s seated people under Contacts until that firm writes it back, or the two trade (record 61; dealingsWithSides and notLinkedYet)',
           ],
           implementedBy: ['src/lib/contacts.ts', 'src/lib/contact-reach.ts', 'src/app/api/contacts/route.ts', 'src/app/api/contacts/works-at.ts', 'src/app/api/companies/dealings.ts', 'src/app/dashboard/contacts/page.tsx', 'src/app/api/onboarding/readiness/route.ts'],
           testedBy: ['__tests__/invariants/add-contact-form.test.ts', 
@@ -1187,6 +1191,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/contacts-own-firm.test.ts',
             '__tests__/invariants/demo-names.test.ts',
             '__integration__/contacts-own-firm-and-list.test.ts',
+            '__integration__/one-sided-firm-and-domain-box.test.ts',
           ] },
         { code: 'L3.2.2.8', name: 'The demo door', owner: 'Etyme', status: B,
           tasks: [

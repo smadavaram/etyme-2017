@@ -3,9 +3,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
-import { mayEditRecord, identityDomain, notedDomain, sameDomainRefused, sameNameRefused, namesakeSays, NEVER_EMAILS } from '@/lib/counterparty'
+import { mayEditRecord, identityDomain, readTypedDomain, sameDomainRefused, sameNameRefused, namesakeSays, NEVER_EMAILS } from '@/lib/counterparty'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
-import { ownDomainsFor, twinFor } from '../../twins'
+import { ownDomainsFor, twinFor, CLEARED_NOTE } from '../../twins'
 
 /**
  * PATCH /api/companies/:id/record — { name, domain, entityType }
@@ -62,13 +62,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (name.length < 2) return refuse(422, 'VALIDATION', 'Give the company’s name, at least two letters.', { field: 'name' })
   if (name.length > 120) return refuse(422, 'VALIDATION', 'Keep the name under 120 letters.', { field: 'name' })
 
-  const typed = typeof body?.domain === 'string' ? body.domain.trim() : ''
-  const domain = typed ? identityDomain(typed) : null
-  if (typed && !notedDomain(typed)) {
-    return refuse(422, 'VALIDATION', `${typed} does not read as a domain. Type it like northwind-staffing.example, or leave the box empty.`, { field: 'domain' })
-  }
-  if (typed && !domain) {
-    return refuse(422, 'VALIDATION', `${notedDomain(typed)} is a personal email domain, so it cannot be their company's domain. Leave the box empty instead.`, { field: 'domain' })
+  // The same reader Add a company asks, so the two doors take the same box.
+  const box = readTypedDomain(body?.domain)
+  if (!box.ok) return refuse(422, 'VALIDATION', box.says, { field: 'domain' })
+  const domain = box.domain ? identityDomain(box.domain) : null
+  if (box.domain && !domain) {
+    return refuse(422, 'VALIDATION', `${box.domain} is a personal email domain, so it cannot be their company's domain. Leave the box empty instead.`, { field: 'domain' })
   }
   const entityType = typeof body?.entityType === 'string' && body.entityType.trim() ? body.entityType.trim().slice(0, 60) : null
 
@@ -80,7 +79,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     })
   }
 
-  const wasDomain = (await ownDomainsFor(me.id, [other])).get(other.id)?.domain ?? null
+  const wasRead = (await ownDomainsFor(me.id, [other])).get(other.id) ?? null
+  const wasDomain = wasRead?.domain ?? null
+  // Whether an invitation this firm sent carries a domain for it, so a
+  // cleared box must be saved as cleared rather than fall back to it.
+  const fromInvitation = (await ownDomainsFor(me.id, [{ ...other, website: null }])).get(other.id)?.from === 'INVITATION'
   const changes: { box: string; from: string | null; to: string | null }[] = []
   if (name !== other.name) changes.push({ box: 'name', from: other.name, to: name })
   if (domain !== wasDomain) changes.push({ box: 'domain', from: wasDomain, to: domain })
@@ -99,11 +102,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       data: {
         name,
         entityType,
-        // The caller's own note of the domain, never the claim column.
-        ...(changes.some((c) => c.box === 'domain') ? { website: domain } : {}),
+        // The caller's own note of the domain, never the claim column. A
+        // domain cleared where an invitation carries one is kept as an
+        // empty note, which the reader takes over the invitation, so the
+        // list shows what was saved (2026-11-15: clearing a pasted
+        // supplier's domain answered "corrected" and changed nothing).
+        ...(changes.some((c) => c.box === 'domain') ? { website: domain ?? (fromInvitation ? CLEARED_NOTE : null) } : {}),
       },
     })
     if (done.count === 0) return false
+    // The log says only what the list now reads.
+    const now = (await ownDomainsFor(me.id, [{ id: other.id, website: domain ?? (fromInvitation ? CLEARED_NOTE : null), claimedAt: null, listedById: me.id }], tx)).get(other.id)?.domain ?? null
+    if (now !== domain) throw new Error(`The domain of ${other.id} reads ${now} after saving ${domain}`)
     await tx.automationLog.create({
       data: {
         companyId: me.id,

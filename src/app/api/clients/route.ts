@@ -13,7 +13,7 @@ import { clientInviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
-import { mayInviteRecorded, namesakeSays, consumerDomainSays, identityDomain, notedDomain } from '@/lib/counterparty'
+import { mayInviteRecorded, namesakeSays, consumerDomainSays, identityDomain, notedDomain, readTypedDomain } from '@/lib/counterparty'
 import { twinFor, keepNote } from '../companies/twins'
 import { recordedNotClassified } from '../companies/positions'
 import { writeCustomerPosition } from '../companies/positions'
@@ -150,9 +150,15 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
 
   const name = String(body.name ?? '').trim()
-  const domain = body.domain
-    ? String(body.domain).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
-    : null
+  // The domain box, read as Add a company reads it (2026-11-15): an email
+  // address gives its domain and the reply says so; anything else that
+  // does not read as a domain is refused in a sentence, never dropped.
+  const box = readTypedDomain(body.domain)
+  if (!box.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: box.says, field: 'domain' } }, { status: 422 })
+  }
+  body.domain = box.domain ?? undefined
+  const domain = box.domain
 
   // A real firm already here under that domain. Never copied — a second
   // record of a tenant is two histories and a name on a row they cannot
@@ -353,6 +359,7 @@ export async function POST(request: NextRequest) {
           `hold with them, and the purchase orders they handed you, today. ` +
           (verdict.reuse ? `${verdict.says} ` : '') +
           (namesake ? `${namesake} ` : '') +
+          (box.says ? `${box.says} ` : '') +
           (personal ? `${personal} ` : '') +
           (contact ? `${contact.email} is recorded as your contact there. ` : '') +
           (contactRefused ? `${contactRefused} ` : '') +

@@ -11,7 +11,7 @@ import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany, findFirm, workTogether } from '@/lib/company-create'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
-import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notedDomain } from '@/lib/counterparty'
+import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, readTypedDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notLinkedYet, notedDomain } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { positionsFor } from './positions'
@@ -167,6 +167,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // The domain box, read once (2026-11-15). An email address gives its
+  // domain and the reply says so; anything else that does not read as a
+  // domain is refused in a sentence, never dropped silently. Every line
+  // below reads the domain this leaves in `body.domain`.
+  let domainSays: string | null = null
+  if (!adding.ownsIt && seatedCaller?.company) {
+    const box = readTypedDomain(body?.domain)
+    if (!box.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', field: 'domain', message: box.says } }, { status: 422 })
+    }
+    body.domain = box.domain ?? undefined
+    domainSays = box.says
+  }
+
   // ── A firm already on Etyme is found, never written down again ─────
   //
   // The onboarding walk of 2026-10-27: a sub-vendor added its prime, which
@@ -283,7 +297,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (recording && seatedCaller?.company) return recordCompany(seatedCaller, String(name), body, adding.says, namesake)
+  if (recording && seatedCaller?.company) return recordCompany(seatedCaller, String(name), body, adding.says, [namesake, domainSays].filter(Boolean).join(' ') || null)
 
   const baseSlug = slugify(name)
 
@@ -437,6 +451,7 @@ export async function POST(request: NextRequest) {
     const typedDomain = typeof body?.domain === 'string' ? body.domain.trim() : ''
     const after = [
       namesake,
+      domainSays,
       !adding.ownsIt && typedDomain && !identityDomain(typedDomain) && notedDomain(typedDomain) ? consumerDomainSays(notedDomain(typedDomain)!) : null,
     ].filter(Boolean).join(' ')
 
@@ -611,7 +626,7 @@ export async function GET(request: NextRequest) {
   // to link".
   const notLinked = new Set(
     companies
-      .filter((c) => sides?.ownSideOnly.has(c.id) && (c.claimedAt != null || c._count.contexts > 0) && !(caller.company && isMine(c, caller.company.id)))
+      .filter((c) => notLinkedYet({ ownSideOnly: sides?.ownSideOnly.has(c.id) ?? false, onEtyme: c.claimedAt != null || c._count.contexts > 0, mine: caller.company ? isMine(c, caller.company.id) : false }))
       .map((c) => c.id),
   )
   // The domain each of the reader's own records is known by: what it typed,

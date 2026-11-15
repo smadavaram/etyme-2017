@@ -8,6 +8,8 @@ import {
 } from '@/lib/contacts'
 import { recordRefusal } from '@/lib/access-log'
 import { worksAtBook } from './works-at'
+import { dealingsWithSides } from '../companies/dealings'
+import { notLinkedYet } from '@/lib/counterparty'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -75,7 +77,10 @@ export async function GET(request: NextRequest) {
     via: null as string | null,
   }))
 
-  const seated = await peopleAtYourFirms(companyId, caller.company!.kind, at, q)
+  // A firm on Etyme this firm only wrote on its own register is one it
+  // does not work with (record 61), so its seated people are not listed.
+  const { ownSideOnly } = await dealingsWithSides(caller, false)
+  const seated = await peopleAtYourFirms(companyId, caller.company!.kind, at, q, ownSideOnly)
   // Somebody typed in by hand who also holds a seat is one person, not two.
   const known = new Set(typed.map((t) => t.email?.toLowerCase()).filter(Boolean))
   const merged = [...typed, ...seated.filter((p) => !p.email || !known.has(p.email.toLowerCase()))]
@@ -108,7 +113,7 @@ type Row = {
 }
 
 /** The people seated at the firms this company trades with. */
-async function peopleAtYourFirms(companyId: string, kind: string, at: string | null, q: string): Promise<Row[]> {
+async function peopleAtYourFirms(companyId: string, kind: string, at: string | null, q: string, ownSideOnly: ReadonlySet<string>): Promise<Row[]> {
   const buyer = kind === 'CLIENT' || kind === 'MSP'
   const rows: Row[] = []
   const seen = new Set<string>()
@@ -133,7 +138,10 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
       prisma.masterAgreement.findMany({ where: { clientId: companyId }, select: { vendorId: true } }),
       prisma.sellContract.findMany({ where: { clientCompanyId: companyId }, select: { companyId: true }, distinct: ['companyId'] }),
     ])
-    const firms = [...new Set([...reg.map((r) => r.otherCompanyId), ...agreements.map((a) => a.vendorId), ...contracts.map((c) => c.companyId)])].filter((id) => id !== companyId)
+    // Less a firm reached only by this firm's own writing: every firm with
+    // a seat is on Etyme, so `notLinkedYet` holds for each one left out.
+    const firms = [...new Set([...reg.map((r) => r.otherCompanyId), ...agreements.map((a) => a.vendorId), ...contracts.map((c) => c.companyId)])]
+      .filter((id) => id !== companyId && !notLinkedYet({ ownSideOnly: ownSideOnly.has(id), onEtyme: true, mine: false }))
     if (firms.length === 0) return rows
     const seats = await prisma.context.findMany({
       where: { companyId: { in: firms }, revokedAt: null, NOT: { roleId: null }, type: { in: ['EMPLOYEE', 'PARTNER'] } },

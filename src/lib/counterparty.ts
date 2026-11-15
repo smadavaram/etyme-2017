@@ -502,6 +502,48 @@ export function notedDomain(typed: unknown): string | null {
   return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(bare) ? bare : null
 }
 
+/** The refusal for a domain box that does not read as a domain. */
+export const unreadableDomainSays = (typed: string) =>
+  `${typed.length > 60 ? `${typed.slice(0, 60)}…` : typed} does not read as a domain. Type it like northwind-staffing.example, or leave the box empty.`
+
+/**
+ * What a domain box holds, read once for every door that has one (Add a
+ * company, the clients door, Edit). Blank is no domain. An email address
+ * gives its domain, and the reply says so. Anything else that does not
+ * read as a domain is refused in a sentence, so nothing typed is dropped
+ * silently (2026-11-15: "jobs@…", a port, a trailing dot and plain words
+ * were accepted and thrown away). Pure.
+ */
+export function readTypedDomain(typed: unknown):
+  | { ok: true; domain: string | null; says: string | null }
+  | { ok: false; says: string } {
+  if (typed == null) return { ok: true, domain: null, says: null }
+  if (typeof typed !== 'string') return { ok: false, says: 'Type the domain as text, like northwind-staffing.example, or leave the box empty.' }
+  const t = typed.trim()
+  if (!t) return { ok: true, domain: null, says: null }
+  const at = t.lastIndexOf('@')
+  if (at >= 0) {
+    const local = t.slice(0, at)
+    const d = local && !/\s/.test(local) ? notedDomain(t.slice(at + 1)) : null
+    if (!d) return { ok: false, says: unreadableDomainSays(t) }
+    return { ok: true, domain: d, says: `The domain was taken from the email address you typed: ${d}.` }
+  }
+  const d = notedDomain(t)
+  return d ? { ok: true, domain: d, says: null } : { ok: false, says: unreadableDomainSays(t) }
+}
+
+/**
+ * A firm on Etyme the reader reached only by its own writing (a row on
+ * its own register, a job it sent): the reader does not work with it
+ * (record 61), so the list names it and nothing else, its drawer is not
+ * opened, and its seated people are not listed under Contacts. A record
+ * the reader made itself that nobody has claimed is never one. The one
+ * rule the Companies list, the drawer and Contacts ask. Pure.
+ */
+export function notLinkedYet(f: { ownSideOnly: boolean; onEtyme: boolean; mine: boolean }): boolean {
+  return f.ownSideOnly && f.onEtyme && !f.mine
+}
+
 /** The reader recorded this company and nobody has claimed it. Pure. */
 export function isMine(company: { claimedAt: Date | string | null; listedById: string | null }, me: string): boolean {
   return company.claimedAt == null && company.listedById === me
