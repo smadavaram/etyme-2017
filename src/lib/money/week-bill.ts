@@ -17,7 +17,9 @@
 
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import type { CallerContext } from '@/lib/api-context'
 import { generateBill, BILLABLE_LINE_STATES, type BillOutcome, type PlannedBill } from './bill-generate'
+import { whoRaisesBillsSays } from './who-raises-bills'
 
 /** A bill a week is already on, at this firm. */
 export interface WeekOnBill { invoiceId: string; number: string; status: string }
@@ -93,6 +95,8 @@ export interface WeekCaller {
   company: { id: string; name: string; kind?: string | null } | null
   person: { id: string; name: string }
   permissions: readonly string[]
+  /** A seat invited on a public address, told the address is why (as on the Bills page). */
+  publicSeat?: boolean
 }
 
 const day = (d: Date) => d.toISOString().slice(0, 10)
@@ -199,7 +203,16 @@ export async function weekBillFor(caller: WeekCaller, timesheetId: string): Prom
   }
   if (!approved) return { approved, bill: null, mayBill: false, says: 'The client has not signed this week yet, so it cannot be billed.' }
   const may = mayBillWeek({ permitted: hasPermission(caller.permissions, 'invoices.issue'), holdsEverything: f.holdsEverything, otherBillers: f.otherBillers })
-  if (!may.ok) return { approved, bill: null, mayBill: false, says: may.says }
+  // A seat that does not bill reads the Bills page's own sentence, naming
+  // who at this firm raises bills from the seats it has filled (layer 2
+  // press, 2026-11-15: AP & Payroll read "Accounts Receivable, Finance or
+  // Admin" at a firm where only the Owner bills).
+  if (!may.ok) {
+    const says = hasPermission(caller.permissions, 'invoices.issue')
+      ? may.says
+      : await whoRaisesBillsSays({ publicSeat: caller.publicSeat ?? false, company: caller.company as CallerContext['company'] })
+    return { approved, bill: null, mayBill: false, says }
+  }
   if (!f.line.engagementId || !(BILLABLE_LINE_STATES as readonly string[]).includes(f.line.state)) {
     return { approved, bill: null, mayBill: false, says: 'This placement has not started, so its weeks are not billed yet. Start it from the placement page first.' }
   }

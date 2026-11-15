@@ -153,3 +153,32 @@ describe('what a firm that buys from no supplier reads, and what recording a pla
     expect(src).not.toMatch(/\$\{result\.sellCyclesCreated\} cycles\$\{/)
   })
 })
+
+describe('the week page, the placement drawer and Send say what the firm’s own seats and the bill’s page say (layer 2 press, 2026-11-15)', () => {
+  it('any act names only the roles seated here, the Owner included, and falls back where nobody is seated', async () => {
+    const { seatedSays } = await import('@/lib/money/who-raises-bills')
+    expect(seatedSays('Starting a placement', ['Owner'])).toBe('Starting a placement is for the Owner here. Ask them.')
+    expect(seatedSays('Ending a placement', ['Owner', 'Owner'])).toBe('Ending a placement is for the Owner here. Ask them.')
+    expect(seatedSays('Starting a placement', [])).toBeNull()
+  })
+
+  it('the week page asks the Bills page’s own reader for a seat that does not bill, so the two pages say one sentence', () => {
+    const src = read('src/lib/money/week-bill.ts')
+    expect(src).toMatch(/await whoRaisesBillsSays\(\{ publicSeat: caller\.publicSeat \?\? false, company: /)
+  })
+
+  it('the placement drawer names who here may, in the GET and the POST, for every act the door refuses', () => {
+    const src = read('src/app/api/contracts/[id]/activate/route.ts')
+    expect(src).toMatch(/whoHereMaySays\(caller, \{ doing: DOING\[action\], needs: NEEDS\[action\] \}\)/)
+    expect(src).toMatch(/await seatedRefusal\(caller, gated, 'activate'\)/)
+    expect(src).toMatch(/await seatedRefusal\(caller, gated, action as Action\)/)
+  })
+
+  it('after Send, the answer names the bill’s state in the word the bill’s page reads, never "submitted for client review"', async () => {
+    const { billStateWord } = await import('@/lib/money/bill-state')
+    expect(billStateWord('SUBMITTED')).toBe('Sent, not yet paid')
+    const src = read('src/app/api/invoices/[id]/submit/route.ts')
+    expect(src).toContain('message: `Bill ${result.number}: ${billStateWord(result.status)}`')
+    expect(src).not.toMatch(/for client review/)
+  })
+})

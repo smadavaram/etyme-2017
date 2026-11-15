@@ -280,7 +280,8 @@ describe('The refusal describes the reader it is actually in front of', () => {
       if (r === 'src/app/api/invoices/generate/route.ts') {
         expect(src, `${r} refuses without the sentence that names who may`).toContain('await whoRaisesBillsSays(caller)')
         const who = readFileSync(join(process.cwd(), 'src/lib/money/who-raises-bills.ts'), 'utf8')
-        expect(who).toContain("const fallback = refusalFor(caller, { doing: DOING, needs: 'invoices.issue' })")
+        expect(who).toContain("return whoHereMaySays(caller, { doing: DOING, needs: 'invoices.issue' })")
+        expect(who).toContain('const fallback = refusalFor(caller, args)')
         expect(who).toContain('if (caller.publicSeat || !caller.company?.id) return fallback')
       } else {
         expect(src, `${r} refuses without saying a public-address seat is why`).toContain('refusalFor(caller, {')

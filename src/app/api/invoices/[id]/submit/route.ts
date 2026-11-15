@@ -7,6 +7,7 @@ import { announceRaised, mayBeSent, maySendBill, markSent, planSend, tellPayerAf
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 import { partiesOf } from '@/lib/money/invoice-parties'
 import { notYoursToSendSays } from '@/lib/money/bill-sent-view'
+import { billStateWord } from '@/lib/money/bill-state'
 
 /**
  * POST /api/invoices/:id/submit
@@ -127,7 +128,9 @@ export async function POST(
           submittedAt: result.submittedAt?.toISOString() ?? sent.submittedAt.toISOString(),
           dueAt: result.dueAt.toISOString(),
         },
-        message: sent.raised ? `Bill ${result.number} raised and sent for client review` : `Bill ${result.number} submitted for client review`,
+        // The state in the page's and the list's own word (layer 2 press,
+        // 2026-11-15: the answer named another state beside "Sent, not yet paid").
+        message: `Bill ${result.number}: ${billStateWord(result.status)}`,
         // Said beside the bill, never a reason it was held: work outside
         // the window of the order it is on (`orderWindowSays`).
         notes: check.notes,
