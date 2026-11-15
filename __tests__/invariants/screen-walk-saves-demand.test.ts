@@ -373,6 +373,13 @@ describe('the Timesheets page’s words for acting on a week', () => {
     expect(TIMESHEETS_PAGE).toContain('{withReasonButton(reasonFor.row.act)}')
     // The tick on a row says its act to a screen reader and on hover.
     expect(TIMESHEETS_PAGE).toContain('aria-label={weekButton(row)}')
+    // On the list the act is printed in words, never a bare tick or cross
+    // (found on a screen, 2026-11-15: she had to guess at the tick beside
+    // "Accept fewer hours…", and the cross had no name at all).
+    expect(TIMESHEETS_PAGE).toContain("{acting === row.id ? '…' : weekButton(row)}")
+    expect(TIMESHEETS_PAGE).toContain('{rejectButton()}')
+    expect(TIMESHEETS_PAGE).not.toMatch(/>\s*[✓✕]\s*</)
+    expect(TIMESHEETS_PAGE).not.toContain("'✓'")
   })
 
   it('Send on is drawn by the one reader of the forward route’s first checks, never a copy of the rule', () => {

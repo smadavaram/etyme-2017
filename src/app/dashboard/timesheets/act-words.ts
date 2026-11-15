@@ -33,3 +33,8 @@ export function withReasonButton(act: WeekAct | null | undefined): string {
 export function fewerButton(act: WeekAct | null | undefined): string {
   return `${actOf(act) === 'ACCEPT' ? 'Accept' : 'Approve'} fewer hours…`
 }
+
+/** Beside them, the act that sends the week back, in a word and never a bare cross (found on a screen, 2026-11-15). */
+export function rejectButton(): string {
+  return 'Reject'
+}

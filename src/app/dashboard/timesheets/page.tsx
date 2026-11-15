@@ -11,7 +11,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
-import { weekButton, anywayTitle, withReasonButton, fewerButton } from './act-words'
+import { weekButton, anywayTitle, withReasonButton, fewerButton, rejectButton } from './act-words'
 import { rateCell, valueCell, timesheetCsv, shownHours, weekValue, type AcceptedOnRow } from './cells'
 import { AcceptFewer } from './accept-fewer'
 import type { WeekAct } from '@/lib/notify/week-words'
@@ -1097,11 +1097,13 @@ export default function TimesheetsPage() {
               <button
                 onClick={(e) => { e.stopPropagation(); handleApproveTimesheet(row.id) }}
                 disabled={acting === row.id}
-                title={weekButton(row)}
                 aria-label={weekButton(row)}
-                className="text-[11px] text-etyme-verified hover:underline disabled:opacity-50"
+                className="text-[11px] font-medium text-etyme-verified hover:underline disabled:opacity-50 whitespace-nowrap"
               >
-                {acting === row.id ? '…' : '✓'}
+                {/* The act in words, never a bare tick: a first-time person
+                    had to guess at it beside "Accept fewer hours…" (found on
+                    a screen, 2026-11-15). */}
+                {acting === row.id ? '…' : weekButton(row)}
               </button>
               {/* Fewer hours than were filed, with the reason, through the same route (walk 8). */}
               <button
@@ -1114,9 +1116,9 @@ export default function TimesheetsPage() {
               <button
                 onClick={(e) => { e.stopPropagation(); setRejectTarget(row.id) }}
                 disabled={acting === row.id}
-                className="text-[11px] text-red-500 hover:underline disabled:opacity-50"
+                className="text-[11px] text-red-500 hover:underline disabled:opacity-50 whitespace-nowrap"
               >
-                ✕
+                {rejectButton()}
               </button>
             </>
           )}
