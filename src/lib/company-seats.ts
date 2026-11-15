@@ -28,7 +28,8 @@
  */
 import { prisma } from '@/lib/db'
 import { hasSignedIn } from '@/lib/access-grant'
-import { stateOf } from '@/lib/account-lifecycle'
+import { stateOf, seatByDate, type DatedSeat } from '@/lib/account-lifecycle'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 import { isSamplePerson } from '@/lib/sample-seat'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
@@ -55,6 +56,13 @@ export interface CompanySeat {
    * (`isSharedSignIn`). Listed and counted exactly like any other seat.
    */
   shared: boolean
+  /**
+   * Past its end date and still open, and why (2026-11-15): an Owner's
+   * seat, or the last one that may manage access (`seatByDate`). Null for
+   * a seat in date. A seat past its date for any other reason is ended and
+   * never in this list.
+   */
+  keptPastEndDate: 'OWNER' | 'LAST_MANAGER' | null
 }
 
 export interface SeatCounts {
@@ -151,8 +159,8 @@ export async function readCompanySeats(companyId: string, db: Pick<typeof prisma
       where: { companyId, revokedAt: null },
       select: {
         id: true, personId: true, type: true, roleId: true, orgUnitId: true, grantedAt: true,
-        invitedAt: true, lastUsedAt: true, suspendedAt: true, revokedAt: true,
-        role: { select: { name: true } },
+        invitedAt: true, lastUsedAt: true, suspendedAt: true, revokedAt: true, expiresAt: true,
+        role: { select: { name: true, permissions: true } },
         person: {
           select: {
             name: true, primaryEmail: true,
@@ -171,14 +179,36 @@ export async function readCompanySeats(companyId: string, db: Pick<typeof prisma
 type Row = {
   id: string; personId: string; type: string; roleId: string | null; orgUnitId: string | null; grantedAt: Date
   invitedAt: Date | null; lastUsedAt: Date | null; suspendedAt: Date | null; revokedAt: Date | null
-  role: { name: string } | null
+  /** The seat's end date. Absent reads as none. */
+  expiresAt?: Date | null
+  role: { name: string; permissions?: string[] } | null
   person: { name: string; primaryEmail: string | null; credentials: { id: string }[] }
 }
 
-/** The rows as seats. Pure, so the counting rule is tested without a database. */
-export function seatsFrom(rows: readonly Row[], companyName: string | null): CompanySeat[] {
+/**
+ * The rows as seats. Pure, so the counting rule is tested without a
+ * database. A seat past its end date is ended here, as a revoked one is
+ * (2026-11-15), unless `seatByDate` keeps it open: so it is in no count,
+ * no picker and no sentence naming who to ask. `rows` is the company's
+ * live seats, which the rule reads to find who else may manage access.
+ */
+export function seatsFrom(rows: readonly Row[], companyName: string | null, now: Date = new Date()): CompanySeat[] {
   const out: CompanySeat[] = []
+  const dated = (r: Row): DatedSeat => ({
+    contextId: r.id,
+    // Every row is this one company's, so one shared mark stands for it.
+    companyId: 'this company',
+    expiresAt: r.expiresAt ?? null,
+    isOwner: r.role?.name === OWNER_ROLE,
+    rolePermissions: r.role?.permissions ?? [],
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+  })
+  const all = rows.map(dated)
   for (const r of rows) {
+    const byDate = seatByDate(dated(r), all, now)
+    if (!byDate.open) continue
     const state = seatStateOf({
       revokedAt: r.revokedAt, suspendedAt: r.suspendedAt,
       signedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
@@ -198,6 +228,7 @@ export function seatsFrom(rows: readonly Row[], companyName: string | null): Com
       isPerson: r.type !== 'CONSULTANT',
       isSample: isSamplePerson(r.person.primaryEmail),
       shared: isSharedSignIn(r.person.primaryEmail),
+      keptPastEndDate: byDate.kept,
     })
   }
   return out

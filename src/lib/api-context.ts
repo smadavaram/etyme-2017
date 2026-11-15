@@ -24,7 +24,9 @@ import {
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
-import { pausedSays } from '@/lib/access-grant'
+import { pausedSays, hasSignedIn } from '@/lib/access-grant'
+import { seatByDate, pastEndDate, endedByDateSays, MANAGES_ACCESS, type ByDate } from '@/lib/account-lifecycle'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 import { PERMISSIONS, askTheDesk, type Permission } from '@/lib/permissions'
 
@@ -292,6 +294,11 @@ export function whenThereIsNoSeat(args: {
   isStaff: boolean
   /** A seat that exists and is paused, if there is one. */
   paused: { companyName: string | null; reason: string | null } | null
+  /**
+   * A seat whose end date has passed, if there is one (2026-11-15): ended
+   * exactly as a removed seat is, and told the day and who renews it.
+   */
+  expired?: { companyName: string | null; endedOn: Date } | null
   /** A seat that was taken away, if there was one. */
   ended: { companyName: string | null } | null
 }): NoSeat {
@@ -311,6 +318,10 @@ export function whenThereIsNoSeat(args: {
       // "back." never meets ". Somebody" as a double period.
       says: pausedSays(args.paused.companyName, args.paused.reason),
     }
+  }
+
+  if (args.expired) {
+    return { staff: false, status: 403, code: 'ACCESS_EXPIRED', says: endedByDateSays(args.expired.companyName, args.expired.endedOn) }
   }
 
   if (args.ended) {
@@ -552,6 +563,48 @@ async function sampleCaller(
 }
 
 /**
+ * Whether a seat is open on its end date, for the caller check. A seat
+ * with no end date, or one still ahead, costs no query. One past its date
+ * reads the company's seats that may manage access, once, on this rare
+ * path, so the Owner's seat and the last one that may manage access stay
+ * open (`seatByDate`).
+ */
+async function seatOpenByDate(
+  seat: { id: string; companyId: string | null; expiresAt: Date | null; revokedAt: Date | null; suspendedAt: Date | null; invitedAt: Date | null; lastUsedAt: Date | null; role: { name: string; permissions: unknown } | null },
+  now: Date
+): Promise<ByDate> {
+  if (!pastEndDate(seat.expiresAt, now)) return { open: true, kept: null }
+  const managers = seat.companyId
+    ? await prisma.context.findMany({
+        where: {
+          companyId: seat.companyId, revokedAt: null, suspendedAt: null,
+          role: { permissions: { hasSome: ['*', ...MANAGES_ACCESS] } },
+        },
+        select: {
+          id: true, companyId: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true,
+          role: { select: { name: true, permissions: true } },
+          person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
+        },
+      })
+    : []
+  const dated = (r: { id: string; companyId: string | null; expiresAt: Date | null; revokedAt: Date | null; suspendedAt: Date | null; invitedAt: Date | null; lastUsedAt: Date | null; role: { name: string; permissions: unknown } | null }, everSignedIn: boolean) => ({
+    contextId: r.id,
+    companyId: r.companyId,
+    expiresAt: r.expiresAt,
+    isOwner: r.role?.name === OWNER_ROLE,
+    rolePermissions: (r.role?.permissions as string[] | undefined) ?? [],
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn }),
+  })
+  return seatByDate(
+    dated(seat, true),
+    managers.map((m) => dated(m, m.person.credentials.length > 0)),
+    now
+  )
+}
+
+/**
  * Resolve the authenticated caller's person, active context, company, and permissions.
  *
  * Uses the `x-context-id` header when present; otherwise falls back to the
@@ -654,24 +707,36 @@ export async function getCallerContext(
     orgUnit: { select: { id: true, name: true, kind: true } },
   } as const
 
+  // ── A seat past its end date is ended (2026-11-15) ──────────────────
+  //
+  // Users & permissions gives a role "until <date> unless renewed", and
+  // nothing read the date, so a seat past it still signed in and acted.
+  // A seat whose end date is at or before now is passed over here exactly
+  // as a revoked one is, except an Owner's seat and the last seat that may
+  // manage access (`seatByDate` in lib/account-lifecycle), so a firm is
+  // never locked out by a date. The date is read, never written back.
+  const now = new Date()
+  const passedOver: { seen: { companyName: string | null; endedOn: Date } | null } = { seen: null }
+  const pick = async (where: { id?: string }) => {
+    const rows = await prisma.context.findMany({
+      where: { ...where, personId: person.id, ...usable },
+      include: seatInclude,
+      orderBy: { grantedAt: 'desc' },
+    })
+    for (const r of rows) {
+      const v = await seatOpenByDate(r, now)
+      if (v.open) return r
+      passedOver.seen ??= { companyName: r.company?.name ?? null, endedOn: v.endedOn }
+    }
+    return null
+  }
+
   // Where no header names a seat, the one chosen in the account menu,
   // if it is still this person's and live; else the most recent.
   const chosen = contextId ? null : await chosenSeat(request)
   let context = contextId
-    ? await prisma.context.findFirst({
-        where: { id: contextId, personId: person.id, ...usable },
-        include: seatInclude,
-      })
-    : (chosen
-        ? await prisma.context.findFirst({
-            where: { id: chosen, personId: person.id, ...usable },
-            include: seatInclude,
-          })
-        : null) ?? await prisma.context.findFirst({
-        where: { personId: person.id, ...usable },
-        include: seatInclude,
-        orderBy: { grantedAt: 'desc' },
-      })
+    ? await pick({ id: contextId })
+    : (chosen ? await pick({ id: chosen }) : null) ?? await pick({})
 
   if (!context && !contextId) {
     // ── Their own work is their own seat (simulation, 2026-10-20) ──────
@@ -734,6 +799,7 @@ export async function getCallerContext(
       paused: paused
         ? { companyName: paused.company?.name ?? null, reason: paused.suspendReason }
         : null,
+      expired: staff || paused ? null : passedOver.seen,
       ended: ended ? { companyName: ended.company?.name ?? null } : null,
     })
 

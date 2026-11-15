@@ -123,6 +123,10 @@ export function deniedFor(args: { code: string; message: string }): Denied {
   if (code === 'SUSPENDED') {
     return { code, heading: 'Your access is paused', says: message, doors: signOutOnly() }
   }
+  // A seat whose end date passed (2026-11-15): the day, and who renews it.
+  if (code === 'ACCESS_EXPIRED') {
+    return { code, heading: 'Your access ended', says: message, doors: signOutOnly() }
+  }
   if (code === 'ACCESS_ENDED') {
     return { code, heading: 'Your seat was removed', says: message, doors: signOutOnly() }
   }

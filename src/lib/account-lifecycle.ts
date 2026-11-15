@@ -28,7 +28,8 @@
  * there, and an audit six months later needs to find them.
  */
 
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, type Permission } from '@/lib/permissions'
+import { formatDay } from '@/lib/format-date'
 export type AccessState = 'INVITED' | 'ACTIVE' | 'SUSPENDED' | 'REVOKED'
 
 export interface AccessRow {
@@ -345,4 +346,90 @@ export function checkInvite(
  */
 export function rowActs(target: AccessRow, all: AccessRow[], actor: Actor): { pause: Verdict; reinstate: Verdict; end: Verdict } {
   return { pause: canSuspend(target, all, actor), reinstate: canReinstate(target, actor), end: canRevoke(target, all, actor) }
+}
+
+// ── A seat's end date (2026-11-15) ───────────────────────────────────
+//
+// Users & permissions sets an end date on every role it gives ("This ends
+// on <date> unless renewed") and nothing read it: a seat past its date
+// still signed in and acted. Now the caller check and the one seat reader
+// read the date through `seatByDate`, so a seat whose `expiresAt` is at or
+// before now is ended exactly as a revoked one is. The date is read, never
+// stored again: no row is rewritten when it passes.
+//
+// Two seats are never ended by their date, so a firm is never locked out
+// of its own account (the rule `canSuspend` and `canRevoke` already keep):
+//  - a seat holding the Owner role;
+//  - a seat that may manage access (`team.manage` lets people in and ends
+//    access, `settings.manage` gives roles and so renews), where no other
+//    live, signed-in seat at the company still in date holds the same.
+// Such a seat stays open and says so on its row (`seatDateLine`).
+
+/** What a seat needs for its end date to be read. */
+export interface DatedSeat {
+  contextId: string
+  companyId: string | null
+  expiresAt: Date | null
+  isOwner: boolean
+  rolePermissions: readonly string[]
+  revokedAt: Date | null
+  suspendedAt: Date | null
+  hasSignedIn: boolean
+}
+
+/** The permissions that let a company manage access, each of which must stay with somebody. */
+export const MANAGES_ACCESS: readonly Permission[] = ['team.manage', 'settings.manage']
+
+/** Open with no end date or one still ahead; ended; or past its date and kept open, with why. */
+export type ByDate =
+  | { open: true; kept: null }
+  | { open: true; kept: 'OWNER' | 'LAST_MANAGER'; endedOn: Date }
+  | { open: false; endedOn: Date }
+
+/** Whether an end date has come: at or before now. No end date never has. */
+export function pastEndDate(expiresAt: Date | null | undefined, now: Date = new Date()): boolean {
+  return expiresAt != null && expiresAt.getTime() <= now.getTime()
+}
+
+/**
+ * Whether a seat is still open on its end date. `atCompany` is the
+ * company's seats (any order, the seat itself may be among them); only
+ * the seat's own company is read from it. Pure.
+ */
+export function seatByDate(seat: DatedSeat, atCompany: readonly DatedSeat[], now: Date = new Date()): ByDate {
+  if (!pastEndDate(seat.expiresAt, now)) return { open: true, kept: null }
+  const endedOn = seat.expiresAt as Date
+  if (seat.isOwner) return { open: true, kept: 'OWNER', endedOn }
+  if (seat.companyId) {
+    for (const p of MANAGES_ACCESS) {
+      if (!hasPermission(seat.rolePermissions, p)) continue
+      const others = atCompany.filter((r) =>
+        r.contextId !== seat.contextId &&
+        r.companyId === seat.companyId &&
+        !r.revokedAt && !r.suspendedAt &&
+        // An invited person who has never signed in cannot rescue anybody.
+        r.hasSignedIn &&
+        hasPermission(r.rolePermissions, p) &&
+        (r.isOwner || !pastEndDate(r.expiresAt, now)))
+      if (others.length === 0) return { open: true, kept: 'LAST_MANAGER', endedOn }
+    }
+  }
+  return { open: false, endedOn }
+}
+
+/** What a person whose seat ended on its date reads, in one sentence and a door. */
+export function endedByDateSays(companyName: string | null, endedOn: Date): string {
+  return `Your access at ${companyName ?? 'the company'} ended on ${formatDay(endedOn)}. An Owner or Admin there can renew it.`
+}
+
+/**
+ * The end date on a seat's row, for whoever lists it: "Ends on <date>",
+ * "Ended on <date>", or why a seat past its date stays open. Null where
+ * there is no end date. Pure.
+ */
+export function seatDateLine(v: ByDate, expiresAt: Date | null): string | null {
+  if (!v.open) return `Ended on ${formatDay(v.endedOn)}`
+  if (v.kept === 'OWNER') return `End date ${formatDay(v.endedOn)} has passed. An Owner’s access never ends by date, so it stays open.`
+  if (v.kept === 'LAST_MANAGER') return `End date ${formatDay(v.endedOn)} has passed. It stays open, because nobody else here can manage access.`
+  return expiresAt ? `Ends on ${formatDay(expiresAt)}` : null
 }
