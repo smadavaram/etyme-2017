@@ -30,6 +30,11 @@ describe('the boxes, in the order a person fills them', () => {
     expect(role).toBeGreaterThan(name)
   })
 
+  it('the line above the form names the boxes in the order they are drawn, email first', () => {
+    expect(page).toContain("const how = 'Their email, their name if you like, and what they do here. ")
+    expect(page).not.toContain('Name, email, and what they do here.')
+  })
+
   it('no example in a box on the invite form shows a real-looking person or address', () => {
     const examples = [...panel.matchAll(/placeholder=\{?["'`]([^"'`]*)["'`]/g)].map((m) => m[1])
     expect(examples.length).toBeGreaterThan(0)

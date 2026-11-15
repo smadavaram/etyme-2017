@@ -141,7 +141,7 @@ function memberLine(joins: string | null | undefined): string {
  * people join, in the same sentence the heading reads.
  */
 function inviteHelp(joins: string | null | undefined): string {
-  const how = 'Name, email, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.'
+  const how = 'Their email, their name if you like, and what they do here. Where email can be sent from here, they get a link by email; the seat is theirs the moment they sign in.'
   return joins ? `${how} ${joins}` : how
 }
 
