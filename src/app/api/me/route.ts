@@ -2,39 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext, seatCompanyPolicy } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { seatGrantFacts, limitForPublicSeat, type SeatGrantFacts } from './grants'
+import { seatsToOffer, managersWherePastDate } from './seats-on-offer'
+import { ownSeatFor, ownWorkOf, ownSeatWasRemoved, openOwnSeat } from '@/lib/own-seat'
 
-/**
- * GET /api/me
- *
- * Returns the authenticated person with their credentials, contexts,
- * and active context. Mirrors BUILD.md §3 — Auth and identity.
- *
- * Honors the same `x-context-id` header as getCallerContext, so the
- * shell and the data agree on which company the caller is acting as.
- * Without it a person holding contexts at two companies could see one
- * company's navigation wrapped around the other company's records.
- *
- * Field filtering: payRate, billRate, and cost fields are stripped
- * unless the caller holds the required permission (BUILD.md §2).
- *
- * Each seat carries what a grant gave it (founder, 2026-11-08): `role` is
- * the role's own permissions as before; `permissions` is what the seat
- * holds, the role's and every grant's that opens the door, the same list
- * `hasPermission` is asked over; `granted` is the grants' part alone; and
- * `grants` says each one's reach, in words, so a screen never reads a team
- * grant as the whole company's.
- */
-export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
-
-  const person = await prisma.person.findUnique({
+/** The person with every seat not removed, newest first, as the menu reads them. */
+function readPerson(email: string) {
+  return prisma.person.findUnique({
     where: { primaryEmail: email },
     include: {
       credentials: {
@@ -67,6 +40,40 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+/**
+ * GET /api/me
+ *
+ * Returns the authenticated person with their credentials, contexts,
+ * and active context. Mirrors BUILD.md §3 — Auth and identity.
+ *
+ * Honors the same `x-context-id` header as getCallerContext, so the
+ * shell and the data agree on which company the caller is acting as.
+ * Without it a person holding contexts at two companies could see one
+ * company's navigation wrapped around the other company's records.
+ *
+ * Field filtering: payRate, billRate, and cost fields are stripped
+ * unless the caller holds the required permission (BUILD.md §2).
+ *
+ * Each seat carries what a grant gave it (founder, 2026-11-08): `role` is
+ * the role's own permissions as before; `permissions` is what the seat
+ * holds, the role's and every grant's that opens the door, the same list
+ * `hasPermission` is asked over; `granted` is the grants' part alone; and
+ * `grants` says each one's reach, in words, so a screen never reads a team
+ * grant as the whole company's.
+ */
+export async function GET(request: NextRequest) {
+  const email = await getSessionEmail()
+
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  let person = await readPerson(email)
 
   if (!person) {
     // Person record doesn't exist yet — happens before company creation.
@@ -85,13 +92,39 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Active context: the one named by x-context-id when it belongs to this
-  // person, otherwise the most recently granted. Same rule as getCallerContext.
-  const requestedContextId = request.headers.get('x-context-id')
-  const activeContext =
-    (requestedContextId
-      ? person.contexts.find((c) => c.id === requestedContextId)
-      : null) ?? person.contexts[0] ?? null
+  // The seats on offer (2026-11-15): only those the one caller check would
+  // let act now. A paused seat, or one past its end date, is passed over
+  // there and falls back to another seat, so offering it here would be a
+  // choice that silently does nothing. An Owner's seat, and the last that
+  // may manage access, stay open past the date and stay offered.
+  const now = new Date()
+  const managers = await managersWherePastDate(person.contexts, now)
+  let onOffer = seatsToOffer(person.contexts, managers, request.headers.get('x-context-id'), now)
+
+  if (onOffer.offered.length === 0) {
+    // No firm seat she may use. The caller check then gives somebody on a
+    // placement, a submission or a bench listing her own seat (lib/own-seat),
+    // unless a seat is paused; so the menu offers that, by the same rule.
+    const paused = person.contexts.some((c) => c.suspendedAt)
+    const verdict = paused
+      ? ({ open: false } as const)
+      : ownSeatFor({
+          name: person.name,
+          work: await ownWorkOf(prisma, person.id),
+          paused: false,
+          ownSeatRemoved: await ownSeatWasRemoved(prisma, person.id),
+        })
+    if (verdict.open) {
+      await openOwnSeat(prisma, person, verdict.because)
+      const reread = await readPerson(email)
+      if (reread) {
+        person = reread
+        onOffer = seatsToOffer(person.contexts, managers, null, now)
+      }
+    }
+  }
+  const seats = onOffer.offered
+  const activeContext = onOffer.active
 
   // What the Owner gave each seat beyond its role (2026-11-08), so a screen
   // that draws a link or a button from here sees a granted permission the
@@ -99,7 +132,7 @@ export async function GET(request: NextRequest) {
   // person's own seats, only grants at that seat's own company.
   const grantFacts = new Map<string, { facts: SeatGrantFacts; rolePermissions: readonly string[]; limited: string | null }>()
   await Promise.all(
-    person.contexts.map(async (c) => {
+    seats.map(async (c) => {
       const rolePermissions = (c.role?.permissions as string[]) ?? []
       const facts = await seatGrantFacts({ companyId: c.companyId, roleId: c.roleId, contextId: c.id }, rolePermissions)
       // An invited seat on a public address at a hybrid company is told only
@@ -113,12 +146,12 @@ export async function GET(request: NextRequest) {
     const f = grantFacts.get(id)
     return f ? (f.limited ? { ...f.facts, limited: f.limited } : f.facts) : empty
   }
-  const roleOf = (ctx: (typeof person.contexts)[number]) =>
+  const roleOf = (ctx: (typeof seats)[number]) =>
     ctx.role
       ? { id: ctx.role.id, name: ctx.role.name, permissions: grantFacts.get(ctx.id)?.rolePermissions ?? ctx.role.permissions }
       : null
   // The seat's company, without the policy fields read beside it.
-  const companyOf = (ctx: (typeof person.contexts)[number]) => {
+  const companyOf = (ctx: (typeof seats)[number]) => {
     if (!ctx.company) return ctx.company
     const { signInPolicy: _p, identityProviders: _d, ...company } = ctx.company
     void _p; void _d
@@ -139,7 +172,7 @@ export async function GET(request: NextRequest) {
         email: c.email,
         lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
       })),
-      contexts: person.contexts.map((ctx) => ({
+      contexts: seats.map((ctx) => ({
         id: ctx.id,
         type: ctx.type,
         company: companyOf(ctx),
